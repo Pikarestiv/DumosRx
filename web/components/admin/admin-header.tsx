@@ -21,7 +21,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { sidebarItems } from "./admin-sidebar";
+import { visibleSidebarItems } from "./sidebar-items";
 import { cn } from "@/lib/utils";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 
@@ -30,7 +30,7 @@ export function AdminHeader() {
   const { isLoading: summaryLoading } = useAdminSummary();
   const pathname = usePathname();
   const router = useRouter();
-  const { logout } = useAdminAuthStore();
+  const { user, logout } = useAdminAuthStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   // Shared with the dashboard's "Connected to ... Cluster" line so both name
@@ -105,7 +105,12 @@ export function AdminHeader() {
 
         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
           <SheetTrigger asChild>
-            <Button className="lg:hidden" variant="ghost" size="icon">
+            <Button
+              className="lg:hidden"
+              variant="ghost"
+              size="icon"
+              aria-label="Open navigation menu"
+            >
               <Menu className="h-6 w-6 text-slate-500 dark:text-slate-400" />
             </Button>
           </SheetTrigger>
@@ -129,7 +134,7 @@ export function AdminHeader() {
               </SheetTitle>
             </SheetHeader>
             <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
-              {sidebarItems.map((item) => {
+              {visibleSidebarItems(user?.role).map((item) => {
                 const isActive =
                   pathname === item.href ||
                   (item.href !== "/admin" && pathname?.startsWith(item.href));

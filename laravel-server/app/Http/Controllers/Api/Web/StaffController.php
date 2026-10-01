@@ -118,11 +118,11 @@ class StaffController extends Controller
     #[OA\Post(
         path: '/staff',
         summary: 'Create a staff account',
-        description: 'Blocked (422) if the store\'s plan staff limit is already reached. If no password is given the account gets none at all and cannot use `/login`; it is PIN-only, which the POS verifies client-side. Set a password here (or later via the update endpoint) to grant web-dashboard access.',
+        description: 'Blocked (422) if the store\'s plan staff limit is already reached. If no password is given the account gets none at all and cannot use `/login`; it is PIN-only, which the POS verifies client-side. Set a password here (or later via the update endpoint) to grant web-dashboard access. `pin` is required and has no default: it is the live POS credential, so an omitted one is a 422 rather than a shared fallback.',
         tags: ['Staff'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
-            required: ['first_name', 'last_name', 'username', 'role', 'store_id'],
+            required: ['first_name', 'last_name', 'username', 'role', 'pin', 'store_id'],
             properties: [
                 new OA\Property(property: 'first_name', type: 'string'),
                 new OA\Property(property: 'last_name', type: 'string'),
@@ -130,7 +130,7 @@ class StaffController extends Controller
                 new OA\Property(property: 'username', type: 'string', description: 'Unique per store'),
                 new OA\Property(property: 'role', type: 'string', enum: ['admin', 'manager', 'specialist', 'sales_staff', 'auditor']),
                 new OA\Property(property: 'password', type: 'string', nullable: true, minLength: 8),
-                new OA\Property(property: 'pin', type: 'string', nullable: true, minLength: 4, maxLength: 4),
+                new OA\Property(property: 'pin', type: 'string', minLength: 4, maxLength: 4, description: 'The 4-digit POS unlock PIN. Required, with no default.'),
                 new OA\Property(property: 'store_id', type: 'string'),
             ],
         )),
@@ -155,7 +155,7 @@ class StaffController extends Controller
             'username' => ['required', 'string', Rule::unique('users', 'username')->where('store_id', $request->store_id)],
             'role' => 'required|string|in:admin,manager,specialist,sales_staff,auditor',
             'password' => 'nullable|min:8',
-            'pin' => 'nullable|string|size:4',
+            'pin' => 'required|string|size:4',
             'store_id' => 'required|exists:stores,id',
         ]);
 
@@ -194,8 +194,6 @@ class StaffController extends Controller
 
         $roleObj = \App\Models\Role::where('slug', $request->role)->first();
 
-        $pin = $request->pin ?: '1234';
-
         // Never derive this from the PIN: "Staff credentials" in AGENTS.md.
         $password = $request->password ? Hash::make($request->password) : null;
 
@@ -208,7 +206,7 @@ class StaffController extends Controller
             'role' => $request->role,
             'role_id' => $roleObj ? $roleObj->id : null,
             'password' => $password,
-            'pin' => User::hashPin($pin),
+            'pin' => User::hashPin($request->pin),
             'is_active' => true,
         ]);
 
@@ -346,6 +344,12 @@ class StaffController extends Controller
             ], 422);
         }
 
+        if ($request->has('is_active') && !$request->boolean('is_active')) {
+            if ($blocked = $this->irreversibleDeactivationResponse($request, $staff)) {
+                return $blocked;
+            }
+        }
+
         $data = $request->only(['first_name', 'last_name', 'email', 'username', 'role', 'pin', 'store_id', 'is_active']);
 
         // A PIN change through this endpoint must be hashed too, not just
@@ -382,6 +386,34 @@ class StaffController extends Controller
         return response()->json($staff);
     }
 
+    /**
+     * `is_active = false` is terminal for two targets and must be refused for
+     * both: the tenant owner (whose account is the only one that can restore
+     * anything, so deactivating it 403s every request in the tenant and
+     * rejects the password login, recoverable only by a super_admin) and the
+     * caller themselves (same dead end, one step shorter). `manage_staff` is
+     * not owner-exclusive, so without this any admin- or manager-role staff
+     * member could take the whole tenant offline (A-85).
+     */
+    private function irreversibleDeactivationResponse(Request $request, User $staff)
+    {
+        $caller = $request->user();
+        $owner = app(\App\Services\SubscriptionService::class)->getSubscriptionOwner($caller);
+
+        $message = $staff->id === $caller->id
+            ? 'You cannot deactivate your own account.'
+            : 'The main account cannot be deactivated. Contact support if this account should be closed.';
+
+        if ($staff->id === $caller->id || $staff->id === $owner->id) {
+            return response()->json([
+                'message' => $message,
+                'errors' => ['is_active' => [$message]],
+            ], 422);
+        }
+
+        return null;
+    }
+
     #[OA\Delete(
         path: '/staff/{staff}',
         summary: 'Deactivate a staff account',
@@ -400,6 +432,11 @@ class StaffController extends Controller
         // Same ownership scoping as update() above — otherwise DELETE
         // /staff/{any id} could deactivate any user on the platform.
         $staff = $this->visibleStaffBaseQuery($request)->findOrFail($id);
+
+        if ($blocked = $this->irreversibleDeactivationResponse($request, $staff)) {
+            return $blocked;
+        }
+
         $staff->update(['is_active' => false]);
         return response()->json(['message' => 'Staff deactivated']);
     }

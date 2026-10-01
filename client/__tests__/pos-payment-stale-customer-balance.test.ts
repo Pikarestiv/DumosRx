@@ -179,4 +179,50 @@ describe("usePOSPayment does not clobber a stale customer balance/loyalty snapsh
     // Correct: 2000 (real DB balance) + 1000 (credit split) = 3000.
     expect(rows[0].values[0][0]).toBe(3000);
   });
+
+  // A-56: an over-allocated credit split (cash 2000 + credit 3000 on a 3000
+  // total) used to pass the coverage check and bump the balance by the whole
+  // 3000, leaving 2000 of debt no repayment could ever settle against this
+  // sale.
+  it("refuses a mixed payment whose credit split exceeds what the sale still owes", async () => {
+    db.run(
+      `INSERT INTO customers (id, first_name, outstanding_balance) VALUES ('cust-3', 'Chidi', 0)`,
+    );
+
+    const handle = renderPayment({
+      cart: [cartItem("p1")],
+      subtotal: 3000,
+      tax: 0,
+      total: 3000,
+      discount: 0,
+      selectedCustomer: {
+        id: "cust-3",
+        first_name: "Chidi",
+        last_name: "",
+        phone: "",
+        loyalty_points: 0,
+        outstanding_balance: 0,
+      },
+      clearCart: () => {},
+      refetchProducts: () => {},
+    });
+
+    await act(async () => {
+      handle.get().setPaymentMethod("mixed" as any);
+      handle.get().setPaymentSplits([
+        { method: "cash", amount: 2000 },
+        { method: "credit", amount: 3000 },
+      ] as any);
+    });
+    await act(async () => {
+      await handle.get().handlePayment();
+    });
+
+    const balance = db.exec(
+      `SELECT outstanding_balance FROM customers WHERE id = 'cust-3'`,
+    );
+    expect(balance[0].values[0][0]).toBe(0);
+    const sales = db.exec(`SELECT id FROM sales`);
+    expect(sales.length).toBe(0);
+  });
 });

@@ -87,12 +87,12 @@ class StaffPinDerivedPasswordTest extends TestCase
         $this->assertTrue(Hash::check('4321', $staff->pin), 'The PIN itself must still work.');
     }
 
-    public function test_staff_created_with_no_pin_and_no_password_gets_no_login_password(): void
+    public function test_staff_created_with_no_password_gets_no_login_password(): void
     {
         $response = $this->actingAs($this->owner)->postJson('/api/v1/staff', [
             'first_name' => 'No', 'last_name' => 'Credentials',
             'username' => 'nocreds', 'role' => 'sales_staff',
-            'store_id' => $this->store->id,
+            'pin' => '9182', 'store_id' => $this->store->id,
         ]);
 
         $response->assertStatus(201);
@@ -119,16 +119,46 @@ class StaffPinDerivedPasswordTest extends TestCase
         $this->assertSame(0, User::where('username', 'pinlogin')->firstOrFail()->tokens()->count());
     }
 
-    public function test_a_pin_less_staff_account_cannot_log_in_with_the_literal_1234(): void
+    /**
+     * A-89: the create endpoint used to fall back to the literal PIN `1234`
+     * when none was supplied, handing out a shared, publicly-known till
+     * credential. There is no default any more — the PIN must be stated.
+     */
+    public function test_creating_staff_without_a_pin_is_rejected(): void
     {
         $this->actingAs($this->owner)->postJson('/api/v1/staff', [
             'first_name' => 'No', 'last_name' => 'Pin',
             'username' => 'nopin', 'role' => 'sales_staff',
             'store_id' => $this->store->id,
+        ])->assertStatus(422)->assertJsonValidationErrors('pin');
+
+        $this->assertNull(User::where('username', 'nopin')->first());
+    }
+
+    public function test_an_explicit_pin_is_the_only_pin_a_created_account_ever_gets(): void
+    {
+        $this->actingAs($this->owner)->postJson('/api/v1/staff', [
+            'first_name' => 'Has', 'last_name' => 'Pin',
+            'username' => 'haspin', 'role' => 'sales_staff',
+            'pin' => '5309', 'store_id' => $this->store->id,
         ])->assertStatus(201);
 
+        $staff = User::where('username', 'haspin')->firstOrFail();
+
+        $this->assertTrue(Hash::check('5309', $staff->pin));
+        $this->assertFalse(Hash::check('1234', $staff->pin));
+    }
+
+    public function test_a_pin_less_staff_account_cannot_log_in_with_the_literal_1234(): void
+    {
+        User::create([
+            'first_name' => 'No', 'last_name' => 'Pin',
+            'username' => 'nopin3', 'email' => 'nopin3@local.dumosrx.com',
+            'role' => 'sales_staff', 'store_id' => $this->store->id,
+        ]);
+
         $this->postJson('/api/v1/login', [
-            'email' => 'nopin@local.dumosrx.com',
+            'email' => 'nopin3@local.dumosrx.com',
             'password' => '1234',
             'device_name' => 'attacker',
         ])->assertStatus(422);

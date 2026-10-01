@@ -22,12 +22,10 @@ class CheckAccountStatus
             return $next($request);
         }
 
-        // Super Admin bypasses status checks
         if ($user->hasRole('super_admin')) {
             return $next($request);
         }
 
-        // 1. Check if user is deactivated
         if (!$user->is_active) {
             return response()->json([
                 'success' => false,
@@ -36,17 +34,72 @@ class CheckAccountStatus
             ], 403);
         }
 
-        // 2. Check if store is suspended
-        // withTrashed(): an archived store must still answer "is this
-        // account suspended?", otherwise archiving silently un-suspends it.
-        $store = null;
-        if ($user->store_id) {
-            $store = Store::withTrashed()->find($user->store_id);
-        } else {
-            $store = Store::withTrashed()->where('user_id', $user->id)->first();
+        $store = $this->resolveRequestStore($request, $user);
+
+        if ($store) {
+            return $this->blockedResponse($store) ?? $next($request);
         }
 
-        if ($store && $store->status === 'Suspended') {
+        return $this->checkEveryOwnedStore($user) ?? $next($request);
+    }
+
+    /**
+     * The store this request is acting on, resolved the same way
+     * SyncController::resolvePushStoreId() does so that enforcement and
+     * scoping never disagree: X-Store-Id (or a store_id input) when the
+     * caller's tenant owns it, else the caller's own store_id. Returns null
+     * for an owner who named no store — that case is decided by
+     * checkEveryOwnedStore() instead. withTrashed() throughout, because an
+     * archived store must still answer "is this account blocked?".
+     */
+    private function resolveRequestStore(Request $request, $user): ?Store
+    {
+        $requestedStoreId = $request->header('X-Store-Id') ?? $request->input('store_id');
+
+        if ($requestedStoreId && is_string($requestedStoreId)) {
+            $store = Store::withTrashed()->find($requestedStoreId);
+
+            if ($store && $store->user_id === $this->tenantOwnerId($user)) {
+                return $store;
+            }
+        }
+
+        if ($user->store_id) {
+            return Store::withTrashed()->find($user->store_id);
+        }
+
+        return null;
+    }
+
+    /**
+     * An owner who named no store is only blocked when there is nothing left
+     * to work with: if any owned store is still in good standing the request
+     * proceeds and per-store scoping rejects the rest.
+     */
+    private function checkEveryOwnedStore($user): ?Response
+    {
+        $stores = Store::withTrashed()
+            ->where('user_id', $this->tenantOwnerId($user))
+            ->get();
+
+        if ($stores->isEmpty()) {
+            return null;
+        }
+
+        $blocked = $stores->filter(fn (Store $store) => $store->isSuspended() || $store->trashed());
+
+        if ($blocked->count() < $stores->count()) {
+            return null;
+        }
+
+        $suspended = $blocked->first(fn (Store $store) => $store->isSuspended());
+
+        return $this->blockedResponse($suspended ?: $blocked->first());
+    }
+
+    private function blockedResponse(Store $store): ?Response
+    {
+        if ($store->isSuspended()) {
             return response()->json([
                 'success' => false,
                 'message' => 'ACCOUNT_SUSPENDED',
@@ -54,14 +107,28 @@ class CheckAccountStatus
             ], 403);
         }
 
-        if ($store && $store->trashed()) {
+        if ($store->trashed()) {
+            $selfArchived = $store->deleted_by_id && $store->deleted_by_id === $store->user_id;
+
             return response()->json([
                 'success' => false,
                 'message' => 'STORE_ARCHIVED',
-                'reason' => 'This store has been archived by an administrator and can no longer sync or record data. Please contact administrative support.'
+                'archived_by' => $selfArchived ? 'owner' : 'administrator',
+                'reason' => $selfArchived
+                    ? 'This store was removed from your own account and can no longer sync or record data. Contact support if you need it restored.'
+                    : 'This store has been archived by an administrator and can no longer sync or record data. Please contact administrative support.'
             ], 403);
         }
 
-        return $next($request);
+        return null;
+    }
+
+    private function tenantOwnerId($user): ?string
+    {
+        if (!$user->store_id) {
+            return $user->id;
+        }
+
+        return Store::withTrashed()->where('id', $user->store_id)->value('user_id');
     }
 }

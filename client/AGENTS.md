@@ -455,6 +455,15 @@ shape, prune it here rather than inventing a second mechanism.
   retry behaviour. **If you add another table that a logging/telemetry path
   writes to, apply the same "don't log X into X" check before reporting a
   failure on it.**
+  Two follow-on rules, both learned the hard way (`A-126` in
+  `docs/FIXED_BUGS.md`): the `[REPORTED]` marker on `_sync_queue.last_error`
+  gates **notification only** — a `feedback` item past the retry threshold is
+  always dropped and settled, marker or not, otherwise rows stuck under an
+  older build can never be cleaned up; and every bound on a value the server
+  stores must name the server limit it mirrors, which is why
+  `MAX_FINGERPRINT_LENGTH` (255) matches `feedback.fingerprint`'s
+  `VARCHAR(255)` exactly. A client-side cap looser than its column is not a
+  cap — it is a row that can never push.
 - **`isManual` means "a human clicked Sync Now", and nothing else.** It
   bypasses per-item backoff (`getPendingSyncItems`) *and* the server's
   plan-tier sync-interval throttle (`?manual=1`), so passing it from an
@@ -493,6 +502,52 @@ counts, see `components/stock-batch/stock-audits.tsx`).
   toast: those edits are queued by automatic machinery (the permission
   catalog backfill), not a user action anyone is waiting on, so "could not
   be saved" would be alarming noise about something they never did.
+- **The terminal-conflict ledger (`sync-engine/conflict-log.ts`, A-26).** A
+  terminal rejection used to leave nothing behind but a `toast.warning` — fine
+  for an ordinary lost edit the person is standing in front of, useless when
+  the dropped change is the only record that real-world stock arrived. That is
+  `A-26`: the `A-9` fix keys a receipt's `stock_batches`/`stock_movements` rows
+  on the PO line plus its already-received balance, so a device that has not
+  pulled since another device received against the same line derives the *same*
+  ids for a genuine second partial receipt; the server collapses its INSERTs
+  onto the first receipt's rows and drops its `quantity_received` UPDATE as a
+  `version_conflict`. Stock and the PO stay consistent with each other (the
+  point of `A-9` — a phantom doubling is worse), but the delivered goods exist
+  on the shelf and not in the system, and the PO just reads as having an
+  ordinary outstanding balance. **The keying is not what changed, the silence
+  is.** Every terminal conflict on an allow-listed table now writes a row to
+  the local-only `_sync_conflicts` table (`table_name`, `record_id`, `reason`,
+  the dropped payload's non-`_` field names, `detected_at`, `resolved_at`).
+  Rows are resolved in three ways: the store dismisses the warning, a *later*
+  change to the same record is accepted by the server (so whatever the dropped
+  one carried has been superseded — done from `markSynced()`'s own path in the
+  same transaction), or a `resetDatabase()` wipe. `CONFLICT_LOGGED_TABLES` is
+  deliberately an allow-list of one (`purchase_order_items`): every logged row
+  must have a reader, otherwise this becomes an unbounded ledger of rows nobody
+  looks at. Extend it together with the surface that reads the new table.
+  `_sync_conflicts` is local-only — it is not in `SYNC_CONFIG`, so
+  `npm run test:schema` correctly ignores it and no Laravel migration
+  corresponds to it. On the reading side,
+  `getDroppedReceiptSignal(purchaseOrderId)` (`queries/procurement.ts`) reports
+  any unresolved `quantity_received` drop against that order's lines, and
+  `ReceivePOPanel` renders a destructive `Alert` above the receiving form
+  telling the store to count the shelf and receive the remainder, with an
+  "I've checked this" dismissal. A conflict with **no** recorded field list is
+  treated as possibly a receipt rather than hidden — failing toward the warning
+  is the right direction for lost stock. What is unit-tested:
+  `__tests__/po-dropped-receipt-signal.test.ts` covers the ledger and the query
+  (per-order scoping, distinct-line counting, field filtering, both resolution
+  paths, the allow-list), and
+  `__tests__/receive-po-dropped-receipt-banner.test.tsx` covers the banner's
+  presence, wording, pluralisation and dismissal against a mocked signal. What
+  is **not** covered is the end-to-end path — that a real two-device stale
+  receipt produces the `version_conflict` the ledger then records — which needs
+  a live smoke test against the server, so treat that link as verified by
+  reading `push.ts` rather than by a test. Note also that `ReceivePOPanel` now
+  reads the local database through this hook: a component test rendering it
+  must mock `@/lib/hooks/use-dropped-receipt-signal` (see
+  `receive-item-card-price-fields.test.tsx`) or sql.js will try to fetch
+  `/sql-wasm.wasm` and log an unhandled rejection.
 - `TERMINAL_CONFLICT_SETTLES_SOURCE_ROW` (`audit_logs`): the server row does
   not carry the id the client pushed, so no future pull can ever match and
   settle the terminally-conflicted local row — `markConflictSettled()` is
@@ -708,17 +763,37 @@ counts, see `components/stock-batch/stock-audits.tsx`).
   every other device applying the raw delta. Movements are an immutable log,
   so the insert branch sees each one exactly once — a missed delta is lost
   forever, which is why the deferral below exists.
-- **Deferred movement deltas.** Batches and movements paginate
-  independently, so a movement can arrive on an earlier page than the batch
-  it references, where the delta would silently no-op (an `UPDATE … WHERE
-  id = ?` matching zero rows). Such deltas are collected and applied after
-  every page of every table, and `stock_movements`' cursor stamps (both the
-  window stamp and the mid-window position) are **held back** and committed
-  in the same transaction as those deltas. Committing the cursor first would
-  let a crash in between leave the cursor claiming the movements were pulled
-  while their deltas were never applied. Within a page, `stock_batches` is
-  sorted first explicitly — the server's table order happens to match today,
-  but that is incidental, not a contract.
+- **Deferred movement deltas** (`sync-engine/deferred-stock-deltas.ts`).
+  Batches and movements paginate independently, so a movement can arrive on
+  an earlier page than the batch it references, where the delta would
+  silently no-op (an `UPDATE … WHERE id = ?` matching zero rows). Such a
+  delta is written to the local-only `_pending_stock_deltas` table
+  (`movement_id` primary key) **inside the same page transaction that
+  inserts the movement row**, which is the whole point: the movement row is
+  an immutable log entry, the insert branch sees it exactly once, and the
+  `UPDATE` branch applies no delta at all — so a delta parked only in memory
+  was lost for good the moment any *later* page of that round threw (a
+  network drop is the ordinary case), permanently understating on-hand
+  stock. That was `A-54`; see `docs/FIXED_BUGS.md`.
+  `applyDeferredStockDeltas()` drains the table at the start of every pull
+  and again at the end of every round, applying each delta and deleting its
+  row in one transaction so nothing can be applied twice. A deferral whose
+  movement has since been soft-deleted is discarded rather than applied
+  (matching the insert path's `!_deleted` gate); a deferral whose batch
+  still does not exist is **kept and retried**, never dropped, and reported
+  via `logCrash` once it has waited `REPORT_AFTER_ATTEMPTS` rounds — only a
+  batch arriving can settle it, and dropping it would be the silent loss all
+  over again. `stock_movements`' cursor stamps (both the window stamp and
+  the mid-window position) are still held back and committed in the same
+  transaction as the drain. Within a page, `stock_batches` is sorted first
+  explicitly — the server's table order happens to match today, but that is
+  incidental, not a contract.
+  `_pending_stock_deltas` is local bookkeeping: it is never pushed (nothing
+  writes it through the `insert()`/`update()` helpers, so it never reaches
+  `_sync_queue`), has no MySQL counterpart, and is not in
+  `STORE_SCOPED_TABLES`, so `npm run test:schema` ignores it. It **is** in
+  `LOCAL_WIPE_TABLES`, so a `resetDatabase()` cannot leave a delta behind to
+  be applied against a freshly re-pulled batch.
 - **`DEVICE_LOCAL_PULL_COLUMNS`.** Columns each device owns privately:
   written locally, never pushed, so the server's copy is meaningless and
   must never be written back. Today that is `stores.last_monotonic_time`,
@@ -898,6 +973,37 @@ the pending-local-edit skip — a record that stops being pulled at all for as
 long as it sits there. The general "a permanently-parked queue row silently
 freezes its record's pulls" problem is unaddressed.
 
+## Whole-row requeues must never send a `null` (`lib/db/requeue-payload.ts`)
+
+Two paths rebuild a sync payload from a `SELECT *` rather than from the write
+that produced the row: `requeueOrphanedRows()` (`lib/db/reconcile-identity.ts`)
+and the `window.forceSyncAllData` debug path (`lib/db/local-database.ts`).
+Both must serialize through `serializeRequeuePayload()`, which strips every
+null-valued key, and a third such path must use it too rather than calling
+`JSON.stringify(row)` itself.
+
+The reason is a schema asymmetry that exists across many columns, not just
+the one that surfaced it: several columns are nullable here and NOT NULL with
+a server-side `DEFAULT` in MySQL. An original INSERT that simply omitted the
+key let the server apply its default, which is why those rows synced fine for
+years; a requeue that resends the same row as `{"col":null}` becomes an UPDATE
+server-side, `forceFill`s a literal null and is rejected outright, so the row
+retries forever. `stock_batches.cost_price` is the case that hit production
+(507 legacy rows on one device — see `docs/FIXED_BUGS.md` A-128, which also
+added the `zeroNullStockBatchCostPrices()` local repair in
+`schema-migrations.ts`). Dropping the key restores the original, working
+behaviour: absent means "server, use your default."
+
+## Cloud setup/registration network calls: `withNetworkRetry()` (`lib/api/retry-on-network-error.ts`)
+
+The first-run cloud account creation/link flow (`app/setup/use-onboarding.ts`'s `handleRegister()`/`handleCloudRestore()`, and `linkCloudAccount()` in `lib/context/auth-context.tsx`) wraps its `apiClient.register()`/`getStores()`/`getProfile()`/`login()` calls in `withNetworkRetry()`: up to 3 attempts with exponential backoff, against the Namecheap shared-hosting server flagged for occasional slowness (root `.agents/AGENTS.md` §7). This is the one place in `client/` this pattern is used — day-to-day PIN login never leaves local SQLite, and the sync engine's push/pull already has its own background retry/backoff that doesn't block a spinner the user is watching.
+
+- **Retries only on a true network failure** (a thrown error with no `.status` — `base-client.ts`'s `request()` never attaches one unless an HTTP response actually came back). Never retries on any HTTP status, including a 5xx: a real response means the server already decided the outcome, and blindly retrying a 500 from a genuine unique-constraint race (see below) would just burn the shared `throttle:auth` rate limit (5/min, shared across `/login`/`/register`/password-reset) for a request that can never succeed.
+- **`handleRegister()`'s brand-new-account branch self-heals a 422 "email already taken."** That error almost always means an earlier attempt from this same flow already succeeded server-side and only the response was lost (dropped connection, a retry that gave up) — not someone else's account. Instead of dead-ending (every further attempt would re-422, and the cloud-restore fallback also dead-ends with "no stores found" until a store exists locally), it transparently calls `apiClient.login(email, password)` with the same credentials and continues the normal flow against whatever store the cloud account actually has. A genuine wrong-password/different-account case still surfaces its real error normally (login 401s instead of 422ing).
+- **Why no idempotency key is needed for `/register` itself:** `users.email` has a real DB unique index (`laravel-server/database/migrations/0001_01_01_000000_create_users_table.php`), not just an app-level check, so a retry can't double-create an account. Registration is also now wrapped in one `DB::transaction` (`RegistersAccounts::register()`), so a mid-flight failure can't leave an orphaned user row with no store either — see `laravel-server/tests/Feature/RegistrationTransactionTest.php`. Both of these were missing before this was investigated; without them, "safe to retry" would have been wrong.
+- **Not safe to generalize blindly:** a call with side effects beyond "create this exact resource once" (payment capture, anything without a unique-constraint backstop) still needs its own idempotency key before wrapping it in retries — `withNetworkRetry()` only changes *when* a request is retried, not whether retrying it twice is safe.
+- **Known stacking edge case, not fixed:** the register→login self-heal means a worst case of 3 register attempts + 3 login attempts = 6 requests against the shared `throttle:auth` bucket (5/min), on a device that's already failing every attempt with a genuine network error. The 6th request 429s (a real status, so it isn't itself retried) rather than looping, but the user sees a rate-limit error instead of the underlying network message. Accepted: narrowing retry counts to dodge this rare compounding case would weaken the common case it exists for.
+
 ## Cross-module events and `localStorage`: `lib/events.ts` and `lib/storage-keys.ts`
 
 Required, not optional — this is the fix for A-23 (`docs/FIXED_BUGS.md`), and
@@ -986,11 +1092,14 @@ components/
   pos/                    Point of sale
   settings/                One file/folder per settings card, composed by store-settings.tsx etc.
   dashboard/               Home dashboard + DashboardHeader (route-based page titles, PAGE_ROUTES)
+  assistant/               In-app assistant chat panel + launcher (presentational; see below)
 
 lib/
   db/                     Everything described above
     queries/               One file per domain (products.ts, inventory.ts, sales.ts, procurement.ts, ...)
+  assistant/               Offline intent-router assistant: router, intent matcher, tools/, intents/
   context/                 AuthProvider, StoreProvider (business vertical + multi-store), pull-to-refresh
+  store/                   Zustand stores (e.g. use-assistant-panel.ts)
   hooks/                   useFeatureGate, dashboard/report hooks
   licensing/               Offline-first license/tier checks (see below)
   api/                     Axios client talking to the Laravel backend (sync + auth only)
@@ -1043,6 +1152,36 @@ e2e/                       Playwright end-to-end specs
   the moment a new default-off toggle ships, until the owner finds and
   flips it — a real rollout cost worth flagging when introducing one, not
   something to "fix" by quietly changing the requested default.
+- **Held sales carry their reseller state** (`lib/hooks/use-pos-held-transactions.ts`).
+  `held_transactions` has `is_reseller_sale`/`markup_type` (client schema,
+  `SYNC_COLUMN_MIGRATIONS`, and the Laravel
+  `add_reseller_columns_to_held_transactions_table` migration), and
+  `restoreCart()` takes a fourth `restoredMarkup` argument that re-applies
+  them through the **raw** store setters — never `setIsResellerSale`, whose
+  off-branch reverts every line to `original_unit_price` and would undo the
+  markup being restored. Recall rebuilds each line from the current catalog
+  (that price is the markup's floor and becomes `original_unit_price`) but
+  keeps the held marked-up `unit_price` for a reseller sale. The
+  "prices have changed" notice compares the catalog against the held line's
+  `original_unit_price`, not its `unit_price`, or every restored markup reads
+  as a catalog price change. **Recall deletes the held row before it touches
+  cart state**: `remove()` can fail on a read-only second tab or a moved
+  active store, and the old order left a recalled cart behind a "Failed to
+  recall" toast with the sale still listed as recallable (A-59/A-60 in
+  `docs/FIXED_BUGS.md`).
+- **Every sale line leaves exactly one `stock_movements` row.**
+  `recordSaleItemStock()` (`lib/db/queries/inventory.ts`) escalates through
+  four lookups — FEFO over positive-stock batches, the most recently touched
+  active batch, the same lookup with `includeExpired: true`, and finally
+  `getOrCreateTargetBatchForProduct()` to open a `SALE-` batch — so a
+  product with only expired batches (or none at all) can no longer record
+  revenue with no ledger trace and no COGS. Don't reintroduce an early
+  return that skips the movement write when no batch is found. The POS
+  catalog query hides such products, so the path that actually reaches this
+  is online-order fulfilment: `findOnlineOrderStockGaps()` in
+  `lib/hooks/use-fulfill-online-order-mutation.ts` precomputes the
+  unsellable lines and `online-orders-modal.tsx` makes the owner confirm the
+  oversell before fulfilling (A-57 in `docs/FIXED_BUGS.md`).
 - **Stock audits / cycle counts** (`components/stock-batch/stock-audits.tsx`,
   `lib/db/queries/inventory.ts:submitStockAudit`): tracks three kinds of
   deviation per product (**qty**, **cost price**, **selling price**)
@@ -1072,6 +1211,32 @@ e2e/                       Playwright end-to-end specs
   `currentStock` as a required third argument. Quantity inputs stay
   `min={0}` — a physical count cannot be negative; only the derived delta
   can. See `docs/FIXED_BUGS.md` → A-43.
+
+  **The `Damage` and `Loss` reasons feed the Stock Loss figure.** Their
+  persisted *labels* are listed as `STOCK_LOSS_REASON_LABELS` in
+  `lib/constants/stock-adjustments.ts` (labels, not the form's `value` keys,
+  because `buildAdjustmentReason` writes the label — optionally plus
+  `ADJUSTMENT_REASON_NOTE_SEPARATOR` and a note — into
+  `stock_movements.reason`), and `getStockLossTotal()` in
+  `lib/db/queries/finance.ts` values them for the Analytics → Profit & Loss
+  tab. Adding or renaming a `direction: "decrease"` reason means updating that
+  list in the same change; `adjustment-derivations.test.ts` fails if they
+  drift. Full rationale, including why the figure sits beside the P&L rather
+  than inside Net Profit: `docs/STOCK_LOSS_METRIC.md`.
+
+  **A bulk-import stock correction is written as `movement_type: "adjustment"`
+  but must display as "Bulk Import", not "Adjustment".** The general Stock
+  Movements table (`stock-movement-utils.tsx`'s `resolveMovementDisplayType()`,
+  called from `stock-movements.tsx`'s `mapMovement()`), the Adjustments
+  Ledger (`adjustment-derivations.ts`'s `groupAdjustmentMovements()`), the
+  movement details dialog (`stock-movement-details-dialog.tsx`) and the
+  dashboard's recent-activity text (`use-dashboard-overview.ts`) all go
+  through `resolveMovementDisplayType()` or `groupAdjustmentMovements()`
+  rather than reading `movement_type` directly — any **new** surface
+  rendering a raw `movement_type` must do the same, or it reintroduces the
+  gap `A-122`/`A-124` fixed across these four (`product-history.tsx` was
+  checked and never renders the raw type as visible text, so it needed no
+  change).
 
   **The draft is cleared on a store switch and on logout**, via
   `clearStockAdjustmentDraft()` (`lib/hooks/use-stock-adjustment-draft.ts`),
@@ -1125,7 +1290,7 @@ e2e/                       Playwright end-to-end specs
 
   **The Adjustments ledger mirrors `stock-movements.tsx`'s split**, being
   the same kind of history data in the same tab family:
-  `useMediaQuery("(min-width: 768px)")` picks either the virtualized desktop
+  `useMediaQuery("(min-width: 1024px)")` picks either the virtualized desktop
   grid or `AdjustmentMobileGroup` (`adjustment-mobile-group.tsx`), the
   analogue of `StockMovementMobileGroup`. The two branches are
   *conditionally rendered, never `md:hidden`* — the desktop branch is
@@ -1138,6 +1303,17 @@ e2e/                       Playwright end-to-end specs
   reason and date-range chrome stays shared above both branches. Both test
   files parameterise their row assertions over the two branches with a
   mutable flag behind `vi.mock("@/hooks/use-media-query", ...)`.
+
+  **A group carries a date *interval*, not just one date.**
+  `groupAdjustmentMovements` sets `startDate` (earliest movement) and
+  `endDate` (latest) alongside the display/sort `date`, which remains the
+  latest. `filterAdjustmentGroups`' `from`/`to` treats a group as matching
+  when `[startDate, endDate]` overlaps the requested range, because one
+  `reference_id` can hold movements written either side of midnight (a long
+  cycle count, a slow write batch) and filtering on the latest date alone hid
+  such a group from a range ending on the day it started — finding `A-48`'s
+  sibling `A-49`. Day comparison is a raw `slice(0, 10)` of the ISO string on
+  both ends, i.e. UTC days, matching what it always compared.
 
   **Two `reference_type` values mean "adjustment", and both matter.** Every
   stock correction outside a sale/purchase/transfer is a
@@ -1324,6 +1500,19 @@ unticked this" from "the key moved". Retire a key by deleting it (an
 unrecognised key in a stored array grants nothing and is harmless) and add
 the replacement as a new key. `PermissionCatalogEntry.category` exists only
 to group rows for the Roles & Permissions matrix UI.
+
+**A permission group carries the id of the user it was loaded for.**
+`getUserPermissionGroup()` returns `{ userId, id, permissions }` and
+`hasPermission()`/`useHasPermission()`/`useOwnPermissionGroupId()`/
+`useOwnGrantScope()` ignore a group whose `userId` is not the acting user's,
+falling through to `fallbackPermissions(role)` instead. This exists because
+the lock screen's "switch account" tile calls `login()` without ever going
+through `logout()`, so `user` commits synchronously while the group read is
+an awaited sql.js query: for that window AuthContext holds the *outgoing*
+user's group. Do not drop the `userId` field or compare only ids in
+AuthContext — the identity check at the call site is the fail-safe half
+(A-55 in `docs/FIXED_BUGS.md`). A group with no `userId` (the assistant's
+tool context builds one) is still honoured as-is.
 
 `ENFORCED_PERMISSION_KEYS` (`lib/constants/permissions.ts`) lists the keys
 with a real `useHasPermission()` / `hasPermission()` call site; the Roles &
@@ -1695,12 +1884,37 @@ than on history.
   (`quantity = 0`) still does not block, which is what keeps a sold-through
   product deletable. There is
   **no "deactivate" alternative offered for products, on purpose**:
-  `products.is_active` is read in exactly **one** place — the inventory
-  dashboard's counters in `lib/db/queries/inventory.ts`'s
-  `getStockBatchStats()`, which tests `p.is_active = 1` three times, for
-  `active_products`, `low_stock_count` and `critical_stock_count` — so an
-  `is_active = 0` product already silently drops out of those three figures
-  today, and out of nothing else. The write path can already produce a `0`:
+  `products.is_active` is read in exactly **two** places, both in
+  `lib/db/queries/inventory.ts` and both feeding the same inventory-dashboard
+  widget: `getStockBatchStats()`, which tests `p.is_active = 1` three times,
+  for `active_products`, `low_stock_count` and `critical_stock_count`, and —
+  since the `A-53` fix — `getLowStockAlerts()`, whose `(m.is_active = 1 OR
+  m.is_active IS NULL)` exists only to keep that card's drill-down list over
+  the same population as the count above it. So an `is_active = 0` product
+  drops out of those figures and that one list, and out of nothing else.
+
+  **Low-stock card and its list.** `getStockBatchStats()`'s
+  `low_stock_count + critical_stock_count` and `getLowStockAlerts()`' rows
+  must always describe one population: not soft-deleted, `is_active` 1 or
+  NULL, `reorder_level > 0`, and on-hand counted only over batches the sale
+  path could dispense (active, non-expired). `A-53` was these two drifting —
+  the list had no product-level `is_active` filter, so a card reading "2 low
+  on stock" could sit above five names, three of them retired products. If
+  you change either query's predicates, change both, and keep
+  `__tests__/inventory-stock-alerts.test.ts`'s agreement case (which asserts
+  the list's length equals the two counts summed) passing. One difference is
+  deliberate: the list is `LIMIT 5`, so it is a sample of the count rather
+  than all of it. The other one — the list scoping batches only through
+  `products.store_id` while the stats query scoped `stock_batches.store_id`
+  directly, so a batch attributed to another store but hanging off this
+  store's product inflated the list's on-hand figure and not the card's —
+  was `A-120`, fixed on 2026-10-01: the list's `LEFT JOIN stock_batches`
+  now carries `AND inv.store_id = ?` when a store is active. That is strict
+  equality with **no `IS NULL` fallback**, deliberately, because the stats
+  subquery is strict too — admitting `store_id IS NULL` batches on one side
+  only would recreate exactly the divergence the fix closes, so a legacy
+  `store_id`-less batch is excluded from both the card and the list while a
+  store is active. The write path can already produce a `0`:
   `components/products/add-product-dialog.tsx` sends
   `is_active: status === "active" ? 1 : 0` from a `status` form field (no
   visible control is currently wired to set it to anything but `"active"`,
@@ -2785,6 +2999,12 @@ just delete/loosen the existing `actionAdminOnly`/`canManageStockBatch`
 check, that widens the gate for every non-admin role at once, not just
 the one you meant to add.
 
+The in-app assistant follows the same convention by a different mechanism:
+rather than hiding a store-wide answer, its router *narrows* the question —
+a cashier without `view_reports` asking a sales-shaped question is answered
+with their own sales instead of refused. See `REROUTE_ON_DENIAL` in the
+assistant routing section below.
+
 ## PWA offline precaching
 
 `public/sw.js` does both runtime caching (stale-while-revalidate for
@@ -2837,6 +3057,49 @@ is inverted relative to the navigation path: `expectsNonHtml` tests the
 request pathname's extension, and HTML is refused only for those requests —
 so a legitimately-HTML response on some other same-origin GET still caches
 as before.
+
+### `activate()`'s prune keeps two generations of chunks (P3-2, 2026-10-01)
+
+`activate()` deletes cache entries missing from the current build's manifest
+(necessary — `CACHE_VERSION` is not bumped per deploy, so without it every
+deploy's newly hashed chunks accumulate until iOS evicts the whole origin).
+That prune was also the mechanism behind `P3-2`: a tab left open across a
+deploy still runs the *previous* build's JS, and the moment it lazy-loads a
+route it doesn't already hold, the chunk is gone from both the cache and the
+server. On this host that doesn't even 404 — the static-export fallback
+returns `index.html` with `200 OK`, which the browser tries to execute as a
+module (hence `chunk-error.ts`'s `Unexpected token '<'` pattern).
+
+`computeCachePrunePlan(cachedPathnames, currentUrls, previouslyRetained)` now
+holds the immediately-previous build's hashed `/_next/static/**.{js,css}` back
+for exactly one more deploy cycle, writes the list of what it kept into the
+cache under `RETAINED_RECORD_KEY` (`/__sw_retained_chunks.json`), and reads
+that record on the next activation to delete anything now two generations
+behind. Storage growth is therefore bounded at roughly two builds' chunks and
+self-prunes with no deploy-pipeline involvement. Retention is deliberately
+limited to hashed JS/CSS: nothing else changes filename per build, so nothing
+else accumulates, and an HTML document is keyed on its pathname (a new build
+overwrites it), so retaining one would only risk serving a previous deploy's
+shell. The record's own key is excluded from both prune and retention.
+
+**Why this rather than deploy-asset retention,** which is what
+`docs/KNOWN_BUGS.md` originally proposed: both `deploy-client.yml` and
+`deploy-dev.yml` publish via `FTP-Deploy-Action`, which mirrors `out/` and
+deletes server-side files by diffing its own remote state file. It has no
+supported "keep N previous builds" mode, so retaining assets there would mean
+hand-rolling an FTP sync and verifying it against the shared host's real
+behaviour — not something reachable or testable from the repo. The service
+worker closes the same gap for every SW-controlled tab without touching the
+pipeline. **Residual gap:** a tab that is not yet SW-controlled (very first
+visit, before registration completes) still goes to the network and can hit
+the removed chunk; `chunk-error.ts`'s one-time auto-reload remains the
+backstop for that case. Tauri is unaffected — it loads `out/` off disk.
+
+`computeCachePrunePlan` is a pure function precisely so it can be tested:
+`__tests__/sw-cache-retention.test.ts` evaluates `public/sw.js` against a stub
+`self` and reads the policy off `self.__swInternals`. The cache plumbing around
+it (`cache.keys()`/`delete`/`put`) is not unit-tested and needs a browser check
+after any change to it.
 
 ## Tauri webview content-security policy
 
@@ -2914,6 +3177,20 @@ same tab session still gets its own fresh one-time retry.
 
 ## UI conventions worth knowing before changing shared components
 
+- **A table/card layout switch belongs at `1024px`, the nav-chrome
+  breakpoint.** `MobileBottomNav` (`components/dashboard/mobile-bottom-nav.tsx`)
+  is `lg:hidden`, so mobile chrome is anything below `1024px`. Any list that
+  branches between a wide desktop table and a mobile card list must use
+  `useMediaQuery`/`useResolvedMediaQuery("(min-width: 1024px)")` to match it —
+  otherwise a 768–1023px device shows the mobile bottom nav and the desktop
+  table at once. `__tests__/responsive-table-breakpoint-convention.test.ts`
+  pins the six such components and the nav's own class so the two cannot
+  drift again (they did: all six sat at `768px` until the `A-48` sweep).
+  This is specifically about *table vs. card layout*. Dialog- and
+  toast-presentation breakpoints are a separate, unrelated decision and stay
+  where they are: `ResponsiveModal`, `Sonner`, `DateRangePicker` and the
+  assistant panel's Sheet-vs-Drawer split all deliberately switch at `768px`,
+  and the adjustment/PO *item-builder* lists at `640px`.
 - **Full-screen page takeover**: `fixed inset-0 z-50 flex flex-col
   bg-background` (no dashboard shell, no sidebar), used for
   `stock-batch/stock-audits.tsx` (Cycle Count) and both
@@ -3126,7 +3403,7 @@ same tab session still gets its own fresh one-time retry.
   factory shape (`query-keys.test.ts`), and various calculation/parsing
   utilities.
 - `npm run test:e2e`: Playwright, full user flows (auth, sales lifecycle,
-  procurement, products, dashboard, expenses, customers). Since a fresh
+  procurement, products, dashboard, expenses, customers, assistant). Since a fresh
   browser context starts with an empty IndexedDB, don't rely on network
   interception or the "Setup New Store" flow for initial state — a
   `global.setup.ts` script pre-seeds `idb-keyval` with a dedicated test
@@ -3140,7 +3417,20 @@ same tab session still gets its own fresh one-time retry.
   the whole app stays covered, not just the area you're adding.
 - `npm run test:schema`: diffs local SQLite schema against the Laravel
   backend's live MySQL schema. Requires the sibling `../laravel-server` repo
-  and a working `php artisan tinker` in it.
+  and a working `php artisan tinker` in it. Two things about it are load
+  bearing: `CLIENT_TO_SERVER_TABLE` in `scripts/verify-schema-sync.ts` maps a
+  client table onto the server table the sync engine really writes
+  (`audit_logs` -> `activity_logs`, mirroring `SyncController`'s
+  `getModelForTable()`; MySQL's own unused `audit_logs` table is vestigial),
+  so add an entry there whenever `getModelForTable()` gains a mismatched
+  pair; and the column parser strips inline `-- ...` comments before
+  splitting `SCHEMA_SQL` on commas, because a comment's own commas otherwise
+  invent phantom columns and swallow the real column after it. Its pure
+  parts (`parseSQLiteSchema`, `serverTableFor`) are exported and covered by
+  `__tests__/verify-schema-sync-parsing.test.ts`; the script only
+  self-executes when run directly. Remaining warnings today are all
+  MySQL-only columns (`deleted_at`, Laravel-side `activity_logs` extras) —
+  nothing the client writes is missing server-side.
 - **There is no substitute for exercising a change in the actual app** for
   anything touching a live screen. This session's convention has been:
   start the dev server (`npm run dev`, already runs on `:3000` in most
@@ -3192,6 +3482,62 @@ And don't remove the `TZ` line: SQLite's `'localtime'` and JS's local getters
 both read the process timezone, so dropping it silently reintroduces the
 split.
 
+Pinning the timezone is not the whole story, though — **a fixture's own date
+values must be derived from the local calendar too, never from
+`new Date().toISOString()`.** That was `A-121` (fixed 2026-10-01): three
+`finance-reports.test.ts` fixtures dated rows with a full UTC ISO instant while
+the queries under test bucket by local month, so for the ~1 hour after local
+midnight on the 1st of a month (Lagos is UTC+1, so UTC is still on the 30th/
+31st) the fixture row landed in the previous month and every assertion built on
+it read `undefined`/`0` — a real, reproducible monthly flake with no code change
+behind it. The file now carries three helpers for this, and new fixtures should
+use them rather than `todayISO()`:
+
+- `firstDayOfMonthLocal()` — bare `YYYY-MM-01` for the local month.
+- `todayLocal()` / `todayLocalMonth()` — bare `YYYY-MM-DD` / `YYYY-MM` for the
+  local day and month. Use these for bare-date columns like `expenses.date`
+  and for any expected month key.
+- `todayLocalStartISO()` — local midnight today as the UTC instant it actually
+  is, for full-timestamp columns (`sales.transaction_date`,
+  `returns.created_at`). Anchoring at local midnight rather than, say, noon UTC
+  matters because report queries such as `getAdvancedMonthlySalesData()` cap
+  their upper bound at `new Date()`, so a fixture timestamp must be in the past
+  as well as on the right local day.
+
+The `describe("fixture dates stay on the local calendar day (A-121)")` block
+pins all three with fake timers frozen at the exact boundary instant
+(`2026-09-30T23:11Z`), so the regression is caught at any clock position rather
+than only in the monthly window where it used to surface.
+
+### Named capture groups need `new RegExp(...)`, not a regex literal
+
+`tsconfig.json` sets `"target": "ES6"`, and TypeScript rejects a regex
+*literal* containing a named capture group under that target (`TS1503:
+Named capturing groups are only available when targeting 'ES2018' or
+later`). The runtime supports them fine — only the literal syntax is
+checked. So anywhere a pattern needs named groups (the assistant's
+`IntentDefinition.phrases`, whose captures feed `buildArgs`, is the main
+case), build it with `new RegExp("...(?<name>...)...")` instead of `/.../`.
+Don't raise the compile target to work around this.
+
+### `TOOL_REGISTRY` entries need an explicit cast
+
+`lib/assistant/tools/index.ts` types the registry as `ReadonlyMap<string,
+AssistantTool>` — i.e. `AssistantTool<Record<string, unknown>, unknown>` —
+because the router only ever has an untyped `args` bag and an opaque
+result to hand around. A concrete tool is declared with its own argument
+and result types (e.g. `AssistantTool<{ topic: string }, HelpTopic |
+null>`), and under `strictFunctionTypes` that is **not** assignable to the
+registry's element type: `execute`/`format` are property-style function
+types, so their parameters are contravariant and `Record<string, unknown>`
+is not assignable to `{ topic: string }`. Registering a tool therefore
+goes through an explicit `as unknown as AssistantTool` at the map entry,
+which is also where a tool's own signature stays precise for its direct
+callers and its tests. Don't "fix" a new tool's registration by widening
+its declared argument type to `Record<string, unknown>` — that throws away
+the typing inside `execute`/`format` — and don't loosen the registry's
+element type to `any`.
+
 ### "All tests passed but the run still exited 1"
 
 Vitest fails the whole run when it catches a **process-level** unhandled
@@ -3239,6 +3585,723 @@ silencing it globally trades one flaky check for a whole class of invisible
 bugs. A useful sanity check while hunting one of these: reproduce it
 deliberately by deleting `globalThis.window` in an `afterAll` and waiting a
 few hundred ms, which turns the race into a deterministic failure.
+
+## In-app Assistant (`lib/assistant/`) — start here
+
+`lib/assistant/` is an offline, zero-cost, zero-API-key chat assistant. A
+deterministic pipeline — normalize → `matchIntent` → `buildArgs` →
+`authorizeToolCall` → `execute` → `format` — resolves a typed question to one
+of a fixed set of `AssistantTool`s in `tools/`. Each tool wraps an existing
+query function and is gated by the same `hasPermission()` used everywhere
+else in the app. The sections that follow document each stage; read this one
+first for the decisions that apply to all of them.
+
+- **Why deterministic, not an LLM.** No model download, no bundle-size cost,
+  no API key, no network: it works identically offline on Tauri, Android and
+  the PWA. `AssistantBrain` (`types.ts`) is the only seam a future LLM brain
+  would need — it would reuse `tools/`, `reply-formatters.ts` and
+  `permission-gate.ts` unchanged, which is also what
+  `docs/FEATURE_ROADMAP_SPEC.md`'s "AI Assistant Module" entry now points at.
+- **No persistence, anywhere.** The thread lives only in the
+  `useAssistantPanel` Zustand store, in memory. No new SQLite table, no
+  `localStorage`, no sync-engine push/pull coverage, so nothing here appears
+  in `npm run test:schema`.
+- **No audit logging and no crash reporting.** The router writes no
+  `audit_logs` row and calls no `logCrash()` — a read-only convenience
+  surface that emitted a syncable row per question would be pure sync churn.
+- **Everything is read-only.** Nothing under `tools/` calls
+  `insert`/`update`/`softDelete`, and a reply's only side effect is a
+  `ReplyAction` link the user may choose to follow.
+- **The six tools** are `navigate_help`, `product_stock`, `inventory_status`,
+  `my_sales_today`, `sales_summary` and `profit_summary`, registered in
+  `tools/index.ts`.
+
+**Adding a capability:** add an `AssistantTool` in `tools/`, an
+`IntentDefinition` in `intents/`, and register both in `tools/index.ts` and
+`intents/index.ts`. Declare the tool's `requiredPermission` rather than
+checking permissions inside `execute()` (see the authorization section), give
+it at least one `examples` entry (the suggestion chips and the no-match reply
+are built from those), and add its permission key's assistant call site to
+the comment in `ENFORCED_PERMISSION_KEYS` (`lib/constants/permissions.ts`) in
+the same change.
+
+## Assistant intent layer (`lib/assistant/normalize.ts`, `intent-matcher.ts`, `intents/`, `help-catalog.ts`)
+
+`normalizeUtterance()` lowercases, collapses whitespace and strips
+punctuation **except `/` and `-`**, which `parseDatePhrase` (`date-phrases.ts`)
+still needs to read a typed date. `matchIntent()` then scores every
+`IntentDefinition` in `INTENTS`: 3 points per matching `phrases` regex, 1 per
+matching `keywords` entry, with a floor of 3 — so a keyword alone never
+matches and a single phrase hit always does. A unique top score is a match, a
+tie is `ambiguous` (the router renders "Did you mean: …?" from the intents'
+`label`s and runs nothing), everything below the floor is `none`.
+
+- **Named capture groups feed `buildArgs`**, and under this repo's ES6 target
+  they must be built with `new RegExp("…")` rather than a regex literal — see
+  "Named capture groups need `new RegExp(...)`" above.
+- **First capture wins, and an unmatched group never overwrites one.**
+  `scoreIntent` merges a phrase's `groups` *under* what it already has and
+  drops empty values, so ordering an intent's phrases most-specific-first is
+  meaningful. Before this, a later broad phrase clobbered a correct capture
+  ("how much ibuprofen do we have left" captured `left`).
+- **Date defaults live in the intent, not the tool.** Every date-taking
+  `buildArgs` runs `parseDatePhrase(utterance, ctx.now)` and falls back to
+  `toDateOnly(ctx.now)`, so `execute()` always receives an explicit date. The
+  router's reroute note depends on this (it compares `args.date` to today).
+- **`parseDatePhrase` understands `today`/`yesterday`/`this month`/`last
+  month`, a `from … to …` range, and a literal date as ISO `YYYY-MM-DD` or
+  **`DD/MM/YYYY`** — day-first, per the repo-wide date convention in
+  `.agents/AGENTS.md` §6. It validates the calendar date (`31/02/2026`
+  returns `null`, it does not roll over into March) and returns `null`
+  rather than guessing, which is what makes the intent's `ctx.now` fallback
+  the single place "no date given" is decided.
+- **The phrase/keyword lists are pinned by a table-driven coverage sweep.**
+  `__tests__/assistant-utterance-coverage.test.ts` runs 266 realistic
+  utterances through the real `matchIntent`/`INTENTS` (no DB, no context
+  beyond what `buildArgs` needs) and asserts the exact intent id each one
+  resolves to, plus 18 that must stay `none` and a dedicated refund guard.
+  It exists because the plan's post-data-tools sweep was skipped once and
+  26% of realistic phrasings fell through to `buildNoMatchReply` — widen a
+  phrase list and add the utterance here in the same change. A later
+  exhaustiveness trace of 220 fresh phrasings measured a 75.5% miss rate
+  against the original 65-row table, which is why the table is now this
+  large: the canonical phrasings passing says nothing about breadth. The
+  table is also the guard against the *other* failure mode: a widened
+  phrase that ties with another intent and turns a working question
+  permanently `ambiguous`.
+- **Negative guards live inside the phrase regex, not in a separate field.**
+  Three lists need one, and each exists for a measured tie or false
+  positive:
+  - `sales_summary`'s dated form is
+    `new RegExp("(?<!\\bmy )\\bsales (on|for|today|…)\\b")`. Without the
+    lookbehind, "what are my sales today" and "my sales for today" tie
+    `my_sales_today`/`sales_summary` and go permanently `ambiguous`. A
+    lookbehind in a regex *literal* does compile under this repo's ES6
+    target (unlike a named group), but this one is kept in `new RegExp`
+    string form to match the validated phrase list it came from.
+  - `view_reports`'s main phrase is a negative lookahead on
+    `today|yesterday|this month|last month|DD/MM/YYYY|YYYY-MM-DD`, so
+    "show me the sales report for today" stays a `sales_summary` data
+    question while "where can i see the sales report" stays navigation —
+    without it they tie 4/4.
+  - `inventory_status`'s expiry phrase excludes
+    `subscription|licen[cs]e|plan|trial|password|session|token|card`,
+    because a bare `\bexpired\b` answered "my subscription expired" with
+    an inventory report.
+  If a fourth guard appears, promote them to an explicit
+  `excludes?: RegExp[]` on `IntentDefinition` rather than growing the
+  strings further.
+- **`product_stock` builds its `(?<product>…)` group from a per-word stop
+  list** (`STOP_WORDS`/`WORD`/`PRODUCT`/`TAIL` at the top of
+  `intents/inventory-intents.ts`). Every word of the captured product must
+  be a non-stop-word, not just the first: a first-word-only exclusion let
+  `^<product> stock$` swallow "how do i reorder stock", "we good on stock",
+  "i need to buy more stock", "count stock" (tied `start_audit`) and "what
+  products are out of stock" (beat `inventory_status`). The group is lazy
+  and every phrase is anchored with `$` or `TAIL`, which is what keeps
+  "do we have panadol in stock" capturing `panadol` rather than
+  `panadol in stock`.
+- **`stock` must stay out of `inventory_status`'s keywords.** Adding it
+  makes "stock level of paracetamol" score 4 for `inventory_status` against
+  `product_stock`'s 4 — a tie, so a plain product lookup becomes
+  `ambiguous`. Aggregate stock questions are reached by phrases
+  (`how much (stock|inventory) (do we have|…)`, `(inventory|stock)
+  (situation|check|report|…)`) instead.
+- **`NAVIGATION_INTENTS` is derived from `HELP_TOPICS`, not hand-written.**
+  `intents/navigation-intents.ts` maps each topic to an intent whose phrases,
+  keywords and label are the topic's own, and whose `buildArgs` returns that
+  topic's id. A new "how do I…" answer is therefore *one* entry in
+  `help-catalog.ts` — adding a matching intent by hand would double-register
+  it and make every such question permanently ambiguous.
+
+## Assistant tool authorization (`lib/assistant/permission-gate.ts`)
+
+Every assistant tool call passes through `authorizeToolCall(tool, ctx)`,
+which returns `{ ok: true }` or `{ ok: false, reason }`. It is the single
+gate: no signed-in `ctx.user` denies everything, a tool with no
+`requiredPermission` is open to any signed-in user, and a gated tool is
+checked with `hasPermission(user, permissionGroup, requiredPermission,
+"any")` — so `requiredPermission` may be an array and any one key suffices,
+and `store_owner`/`super_admin` keep the blanket allow `hasPermission`
+already gives them everywhere else. Don't reimplement the role/fallback
+logic here or gate tools ad hoc inside `execute`; declare
+`requiredPermission` on the tool and let the gate do it, so the router can
+answer with a `denied` reply instead of running the query.
+
+**The accepted exception: a permission that shapes an answer rather than
+gating it.** Two tools read a permission themselves, and both do it to vary
+*what is in* an answer they are allowed to give, never to decide whether to
+give one:
+
+- `inventoryStatusTool` calls `hasPermission(…, "view_cost_fields")` inside
+  its own `execute()` and uses the result only to decide whether the reply
+  mentions total stock value; the counts themselves are open to any
+  signed-in user. Declaring `view_cost_fields` as the tool's
+  `requiredPermission` would instead refuse the whole "what's low on stock"
+  question to every cashier, which is the wrong answer.
+- `navigateHelpTool` checks the matched `HelpTopic`'s own optional
+  `requiredPermission` in `format()`, and on a miss returns the steps-free
+  "…you'll need permission from your store owner" reply with **no**
+  `ReplyAction`, so the assistant never hands out a deep link into a screen
+  the user would only bounce off. It cannot be a tool-level
+  `requiredPermission`: one tool answers all fourteen help topics, thirteen
+  of which carry a different key each (`switch_account` carries none, and is
+  also the one topic with a `null` `href` — it explains a thing you do from
+  the account menu, not a screen to link to; the generic `settings` topic
+  below is also ungated — it's a navigational landing page, not a privileged
+  action).
+- **Bare/short topic-name queries need their own anchored phrase, not just a
+  verb phrase.** A cashier typing a single word — "customers?", "staff",
+  "audit", "procurements?" — was falling through even though a full
+  sentence like "how do i add a customer" already matched. Each topic that
+  makes sense as a one-word answer gets a `/^word$/`-style anchor (e.g.
+  `/^customers?$/`, `/^audits?$/`) in addition to its verb phrases, not a
+  keyword — a bare keyword alone (1 point) never crosses the 3-point floor.
+  `/^reports?$/` on `view_reports` was the first of these; `settings`,
+  `create_purchase_order`, `add_customer`, `add_staff`, `record_expense` and
+  `start_audit` followed the same pattern. Skip a bare anchor for a topic
+  whose one-word form is genuinely ambiguous with something else (bare
+  "sales"/"inventory"/"orders" were deliberately left alone — they'd either
+  collide with a data intent or don't have one unambiguous topic to land
+  on). There is no generic "Settings" screen topic before this addition;
+  `settings` (href `/settings`) is new, added specifically to answer a bare
+  `settings?` query — the per-tab topics (`receipt_settings`, `backup_data`,
+  `add_staff`'s `/settings/staff`) are unaffected and still win on their own
+  more specific phrases.
+
+So there is no second permission system — `hasPermission()` is still the
+only check anywhere — just two places it is consulted, with one rule
+separating them: **the gate is the only thing that *denies* a call.** When a
+tool redacts, it must keep the redacted value out of the result object too
+(`inventoryStatusTool` zeroes `stockValue` when the check fails rather than
+trusting `format` to skip it).
+
+## Assistant routing pipeline (`lib/assistant/router.ts`)
+
+`answer(utterance, ctx, brain?)` is the single entry point every assistant
+turn goes through, and it is deliberately the only place that decides *what*
+to say: a brain resolves the utterance to a `BrainOutcome`, the router turns
+that outcome into an `AssistantReply`. The default brain is
+`intentRouterBrain` (`intent-router-brain.ts`: normalize → `matchIntent`
+against `INTENTS` → `buildArgs`); the parameter exists so tests can inject a
+stub brain and so a future brain can be swapped in without touching the
+reply/authorization/error handling around it.
+
+- **`buildArgs` receives the normalized utterance as its own argument**, not
+  smuggled through `captures`. A date-taking intent re-parses the full
+  sentence with `parseDatePhrase`; it must not have to cast a magic key out
+  of the captures bag.
+- **Ambiguous candidates carry `{ tool, label }` only.** Disambiguation
+  renders text ("Did you mean: … or …?"), it never runs a tool, so building
+  full `ToolCall`s for candidates would be dead weight — and the reply names
+  the human-readable `label`, never the internal tool name.
+- **Errors never escape.** A throwing `execute()`/`format()` returns
+  `buildErrorReply()` and logs via `devLog` only, and `brain.resolve()` is
+  wrapped the same way — a `matchIntent`/`buildArgs` throw becomes an error
+  reply instead of a rejected promise, so `answer()` never rejects and a UI
+  caller can't be left with a floating rejection. Keep that wrap around the
+  `resolve()` call only: the no-match/ambiguous/call branching stays outside
+  it so a bug in reply construction isn't silently swallowed as a "tool
+  error". This path writes no
+  `audit_logs` row and calls no `logCrash()`: the assistant is a read-only
+  convenience surface, and a crash report that itself becomes a syncable
+  row is the exact shape of the A-27 incident above.
+- **`REROUTE_ON_DENIAL` (`router-reroutes.ts`) is the one exception to "a
+  denied call ends the turn".** It maps a tool name to a narrower fallback
+  tool tried when the first is denied and the fallback *is* permitted — the
+  cashier case: a sales-shaped question from a user without `view_reports`
+  is answered with their own sales rather than refused. It currently holds
+  exactly one pair, `sales_summary → my_sales_today`, and is extended as
+  further such pairs appear. The reroute is only ever a
+  *narrowing*, and it must not silently answer a different question than
+  the one asked: if the denied call carried a `date` arg that isn't
+  `ctx.now`'s date, the rerouted reply appends an explicit note saying so.
+  Keep that note — dropping it turns "you can only see today's, yours" into
+  a confidently wrong answer about yesterday.
+- **`TOOL_REGISTRY` is imported statically** here and in
+  `fallback-replies.ts`. Nothing under `tools/` imports back from
+  `router.ts`, so there is no cycle needing a dynamic `import()`.
+
+**Testing gotcha: `store_owner` is not a useful role for a denial test.**
+`hasPermission()` blanket-allows `store_owner`/`super_admin` regardless of
+the permission group, so a test that expects `authorizeToolCall` to *deny*
+must use a non-privileged role (e.g. `sales_staff`) with a
+`permissionGroup` that lacks the key. Given a `store_owner` ctx the gate
+returns `ok`, the tool runs, and the assertion fails against a perfectly
+correct router.
+
+## Assistant data tools (`lib/assistant/tools/inventory-tools.ts`)
+
+A data tool reads the local database through the same query layer the UI
+uses — `productStockTool` calls `getProductsWithStock()` and ranks the
+catalog with `searchProducts()` from `lib/utils/search.ts` rather than
+writing its own `LIKE` query, so the assistant's idea of "which product did
+you mean" is the same one the POS search bar has (exact → starts-with →
+token → fuzzy fallback, in that order), and a tie is reported as
+alternates instead of silently picking one.
+
+`inventoryStatusTool` is the aggregate counterpart: `getStockBatchStats()`
+for the low/critical/expiring/expired counts and the valuation, plus
+`getLowStockAlerts()` for the (already `LIMIT 5`) named items. The **counts**
+are the same ones the dashboard cards show, and since `A-53` both queries now
+answer over the **same population** (see "Low-stock card and its list"
+below) — but the named list is still capped at five, so it remains a
+*sample*, not the whole set, and the reply must not imply otherwise. It says
+"Low-stock alerts include: …" rather than the old "Top low-stock items
+(of N): …", which could read "2 product(s) low on stock" above five names,
+and it drops the list entirely when the count is `0` (naming products under
+"0 product(s) low on stock" is the same contradiction the other way round).
+That phrasing is kept for the `LIMIT 5` reason alone; the population
+divergence it was originally written for is gone. Note
+`getStockBatchStats()` returns **a single row object, not an array** — it
+already does `result[0]` internally, so destructuring it as `const [stats]`
+yields `undefined`. It takes `ctx.expiryWarningDays` so "expiring soon"
+means the same window as the store's own setting.
+
+**Testing a data tool: seed the real schema, not the migrated one.**
+`__tests__/assistant-inventory-tools.test.ts` is the reference harness — a
+throwaway sql.js database running `SCHEMA_SQL`, injected via
+`core.__setDatabaseForTesting()`. The trap is that `SCHEMA_SQL`'s
+`CREATE TABLE products` / `CREATE TABLE stock_batches` have **no
+`store_id` column**: it is one of the columns added at runtime by
+`SYNC_COLUMN_MIGRATIONS` (`lib/db/schema-migrations.ts`), and
+`__setDatabaseForTesting()` deliberately bypasses that migration pass. An
+`INSERT ... (store_id, ...)` against a bare `SCHEMA_SQL` database therefore
+throws `table products has no column named store_id`. Either run the
+migrations too, or — simpler, and what this test does — call
+`core.setActiveStoreId(null)` in `beforeEach` so the query's
+`storeId ? " AND p.store_id = ?" : ""` branch drops out, and seed rows
+without a store.
+
+The same trap applies to `sales`: `SCHEMA_SQL`'s `CREATE TABLE sales` has no
+`store_id` column either, so a sales-tool test seeds rows without one and
+calls `core.setActiveStoreId(null)` — see
+`__tests__/assistant-sales-tools.test.ts` and the older
+`__tests__/get-recent-sales-date-range.test.ts`. Two further column facts
+that bite when seeding it: `transaction_number` is `UNIQUE NOT NULL` (every
+seeded row needs its own), and the money column is `total_amount`, not
+`total`.
+
+## Assistant sales tools (`lib/assistant/tools/sales-tools.ts`)
+
+`mySalesTodayTool` ("my sales today") answers for the signed-in user only:
+it passes `ctx.user?.id` and a `{ from, to }` of `toDateOnly(ctx.now)` to
+`getRecentSales()`, so the day boundary is the store's local calendar day
+and the filtering happens in SQL (the undated form of that query caps at
+`LIMIT 100`, which would silently drop a busy cashier's earliest sales —
+`get-recent-sales-date-range.test.ts` pins this). The reported total is
+**net**: each row goes through `calculateNetSaleAmount(total_amount,
+total_refunded)`, `total_refunded` being the `returns` subquery
+`getRecentSales()` already computes, so a refunded sale doesn't overstate
+the cashier's day.
+
+Its `requiredPermission` is `process_sales` — the permission every user who
+can ring a sale already has, and the narrow half of the reroute pair the
+router's `REROUTE_ON_DENIAL` exists for: a cashier without `view_reports`
+asking a sales-shaped question gets their own numbers rather than a refusal.
+`getRecentSales()` also filters by `getActiveStoreId()`, so nothing here
+needs its own store scoping.
+
+`salesSummaryTool` ("total sales yesterday") is the store-wide counterpart
+and the wide half of that reroute pair: `requiredPermission` is
+`view_reports`, and it sums `getSalesTotalsByPaymentMethod(date)` across
+payment methods for the total while taking the count from
+`getTransactionCountByDate(date)`. Unlike `mySalesTodayTool` it reports
+**gross** — both queries aggregate `sales` alone and neither joins
+`returns` — so the two tools' numbers for the same day are not directly
+comparable, by design: one is a cashier's own net takings, the other the
+store's transaction ledger.
+
+**A requested *range* is disclosed, not dropped.** Both of `sales_summary`'s
+queries are single-date only, so "total sales from 2026-09-01 to 2026-09-15"
+cannot be answered as a range without new queries. `buildArgs` therefore adds
+`requestedTo` when `parseDatePhrase` returned a real range (`parsed.to !==
+parsed.from`), and `format()` appends "(You asked about a range up to …; this
+is just …)". Dropping `parsed.to` silently, as it used to, answered one day of
+a fifteen-day question. `profit_summary` takes a genuine `{ from, to }` and
+needs none of this — don't assume the two tools handle a range alike.
+
+**The date default lives in the intent, not the tool.** `sales_summary`'s
+`buildArgs` runs `parseDatePhrase(utterance, ctx.now)` and falls back to
+`toDateOnly(ctx.now)`, so `execute()` always receives an explicit `date`
+and never has to invent one. That is also what makes the router's reroute
+note correct: it compares `args.date` against today to decide whether to
+warn that the rerouted answer is about a different day, which it can only
+do because the requested date is always present in the args.
+
+**These two queries filter `transaction_date`, not `created_at`** (which is
+what `getRecentSales()` uses). A test seeding `sales` rows for them must set
+`transaction_date`, or the queries return zero rows with no error — the
+shared `insertSale()` helper in `__tests__/assistant-sales-tools.test.ts`
+writes both columns plus `payment_method` for exactly this reason.
+
+## Assistant finance tool (`lib/assistant/tools/finance-tools.ts`)
+
+`profitSummaryTool` ("gross profit today", "net profit last month") reuses
+`fetchProfitLossReportData()` — the same query the Report Center's P&L
+export runs — and sums its per-month rows into one `{ revenue, cogs,
+grossProfit, expenses, netProfit, margin }`. Reusing it is the point: the
+assistant's profit figure can then never drift from the exported report's,
+including every judgement already baked into that query (revenue excludes
+`tax_amount`, refunds and returned COGS are netted out, expenses are
+amortized rather than lumped). Its `requiredPermission` is
+`view_financial_reports`, the permission the P&L report itself is gated on,
+and it is deliberately not part of the router's `REROUTE_ON_DENIAL` pair —
+there is no narrower "your own profit" question to fall back to.
+
+**`fetchProfitLossReportData()` expects full ISO instants, not date-only
+strings, so the tool widens its args through `toQueryRange()` first.** The
+function compares `dateFrom`/`dateTo` directly against `s.transaction_date`
+as strings, and `'2026-09-15T12:00:00.000Z' <= '2026-09-15'` is false — a
+bare date-only `dateTo` silently excludes every sale on the last day of the
+range (and a plain string compare against `expenses.date` misses the first
+day's expenses, which is why `getSmoothedExpensesByMonth` wraps both sides
+in `date(?, 'localtime')`). Every UI caller already goes through
+`toQueryRange()`, which widens a date-only value to that day's **local**
+midnight/end-of-day; the tool does the same rather than hand-rolling
+bounds. `getSalesTotalsByPaymentMethod()` does this widening internally,
+which is why `sales_summary` can pass a bare date and this one cannot —
+don't assume the convention is shared across query modules.
+
+**`examples[0]` must be a relative date.** `use-assistant.ts` takes
+`examples.slice(0, 1)` for the suggestion chip, so the literal-date example
+(`"how much gross profit did we make on 2026-09-01"`, kept second because it
+is what pins the typed-date path) would otherwise be a permanent chip asking
+about a fixed past day. The relative `"net profit this month"` leads instead.
+
+`margin` is `netProfit / revenue`, guarded to `0` when revenue is `0`, and
+is a fraction (the reply multiplies by 100), not the `"Margin %"` string
+column the report row carries. Like `sales_summary`, the date default lives
+in the intent (`intents/finance-intents.ts`: `parseDatePhrase(utterance,
+ctx.now)` falling back to `toDateOnly(ctx.now)` for both ends), so
+`execute()` always receives an explicit `from`/`to`.
+
+`__tests__/assistant-finance-tool.test.ts` seeds the sale at local noon via
+`toISOString()` precisely so the widening stays pinned — seeding a bare
+date-only `transaction_date` (as `finance-reports.test.ts` does) passes
+either way and would not catch a regression here.
+
+## Assistant React state (`lib/store/use-assistant-panel.ts`, `lib/hooks/use-assistant.ts`)
+
+The assistant's React surface is split in two on purpose. `useAssistantPanel`
+is a plain Zustand store (`{ isOpen, messages, open, close, append, clear }`)
+holding only what must survive a component unmounting — the open flag and the
+thread — and `useAssistant()` is the hook every UI piece actually calls,
+returning `{ messages, isThinking, suggestions, send }`. Keeping the thread in
+Zustand rather than in the panel component means closing the panel mid-answer
+does not lose the conversation, and a second entry point (a header button, a
+command palette) can open it onto the same thread. `isThinking` deliberately
+stays component-local `useState`: it belongs to the in-flight `send()` call,
+not to the thread.
+
+- **`buildToolContext()` lives here and nowhere else.** It is the only bridge
+  between the app's contexts and `ToolContext`, and it reads the *real* shapes:
+  `useAuth()` gives `user` and `permissionGroup` (`{ id, permissions } | null`
+  — structurally assignable to `ToolContext`'s `{ permissions } | null`, no
+  cast needed), and `useStore()` gives `storeProfile.currency`,
+  `storeProfile.expiry_warning_days`, and — note — `storeType` as a
+  **top-level** field, not nested under `storeProfile`, plus the terminology
+  function named **`t`**, not `getTerm`. `expiryWarningDays` falls back to 90
+  when the store has not set one, matching the tools' "expiring soon" window.
+- **`now` is minted per call, inside `send()`.** Every date-defaulting intent
+  resolves "today" from `ctx.now`, so a context built once at mount would make
+  an app left open overnight answer yesterday's question. The `suggestions`
+  memo builds its own throwaway context for the same reason it can afford to:
+  `authorizeToolCall` reads only `user`/`permissionGroup`.
+- **Suggestions are permission-filtered, not a static list.** They are one
+  example per tool the current user is actually allowed to call, capped at 5 —
+  so a cashier is never invited to ask a question that can only be answered
+  with a denial. They go through the same `authorizeToolCall()` the router
+  uses; don't hand-maintain a parallel list, it would drift from the gate the
+  moment a tool's `requiredPermission` changes.
+- **`navigate_help` needs a second filter, and it lives in
+  `lib/assistant/suggestion-examples.ts`.** That tool has no tool-level
+  `requiredPermission` (one tool, thirteen topics, twelve different keys), so
+  `authorizeToolCall` always passes it and `examples[0]` —
+  `"how do i make a sale"` — used to be offered to every role, including an
+  `auditor` with no `process_sales`, who was then refused on tapping it.
+  `suggestionExampleFor(tool, ctx)` returns `examples[0]` for every other tool
+  and, for `navigate_help`, the example built from the **first `HELP_TOPICS`
+  entry the user passes `hasPermission(…, topic.requiredPermission, "any")`
+  for** — the same check `navigateHelpTool.format()` already makes. It returns
+  `undefined` when no topic qualifies and both callers drop it. Both the
+  hook's `suggestions` memo and `fallback-replies.ts`'s `permittedExamples`
+  go through it; keep it that way, or the no-match reply and the chips will
+  disagree about what a role may ask. `helpTopicExample(topic)` in
+  `tools/navigation-tools.ts` is the single derivation of the string, so the
+  helper never has to index `examples` positionally.
+  Tests: `__tests__/assistant-suggestion-examples.test.ts` and the auditor
+  case in `__tests__/use-assistant.test.ts`.
+- **The thread is cleared when the identity changes, not on every render.**
+  The effect compares `${user?.id}:${activeStoreId}` against a ref seeded to
+  `null`, so the first run only records the identity and a genuine
+  user-switch or store-switch wipes the thread. Without this, switching
+  stores would leave the previous store's figures sitting in the transcript
+  looking like answers about the new one.
+- **`send()` does not reject on a routing failure.** `answer()` swallows every
+  throw from `brain.resolve()` (normalize → `matchIntent` → `buildArgs`) as
+  well as from `execute`/`format` into an error reply, so a malformed capture
+  surfaces as a message in the thread rather than an unhandled rejection off a
+  chat input. `isThinking` is still cleared in a `finally`, which covers the
+  remaining ways `send()` could throw (`buildToolContext` on a malformed
+  context, `append`).
+
+## Assistant chat UI (`components/assistant/`)
+
+Seven small presentational pieces sit on top of that state:
+`assistant-panel.tsx` (the only one wired to global state — it reads
+`isOpen`/`close` from `useAssistantPanel` itself and calls `useAssistant()`),
+plus `assistant-message-list.tsx`, `assistant-message-bubble.tsx`
+(one message, including its reveal animation), `assistant-composer.tsx`,
+`assistant-suggestion-chips.tsx`, `assistant-launcher.tsx` and
+`assistant-brand.tsx` (the name + BETA tag, see below), all of which
+take everything through props. Mounting them is a separate concern — the
+panel is designed to be rendered once globally and the launcher wherever an
+entry point is wanted.
+
+**Where they are actually mounted.** `<AssistantPanel />` is rendered exactly
+once, in `components/dashboard/dashboard-layout.tsx` beside `<FeedbackForm />`
+and `<OnlineOrdersModal />`, so it survives route changes and is available on
+every dashboard route. There are two entry points into the same thread:
+`<AssistantLauncher />` in `dashboard-header.tsx` (beside `NotificationBell`,
+in the same rounded-border wrapper), and an "Ask <name> (Beta)" action at the
+top of `navActions` in `lib/hooks/use-account-actions.ts`, which reaches every
+account surface at once (desktop dropdown, mobile avatar drawer, the bottom
+nav's "More" sheet). That action calls `useAssistantPanel.getState().open()`
+rather than a hook, because `navActions` is built inside a callback array, and
+it calls `onClose()` first so the drawer it was tapped in is not left stacked
+under the panel. Unlike the `feedback` entry it is not conditional — it needs
+no host-supplied callback.
+
+- **The launcher requires a `TooltipProvider` ancestor.** The real one is
+  global, in `app/layout.tsx`. Any test that renders `DashboardHeader` (or the
+  launcher) must supply its own or Radix throws ``Tooltip` must be used within
+  `TooltipProvider``— see `__tests__/dashboard-header-action-permission.test.tsx`.
+
+- **The panel funnels every send through one guarded `handleSend`.** Both the
+  composer and the suggestion chips call it, and it dispatches via
+  `Promise.resolve().then(() => send(text)).catch(...)` so a *synchronous*
+  throw out of `send()` (the `buildToolContext` path noted above, the one
+  failure `answer()` cannot swallow) is caught in the same place as a
+  rejection. The composer repeats the same wrapper around its `onSend` prop,
+  because that prop is an arbitrary callback and the composer must not be able
+  to strand its own input on a throw it did not expect. `onSend` is typed
+  `(text: string) => void | Promise<void>` for that reason.
+- **The panel is a docked right-hand `Sheet` on desktop and a bottom `Drawer`
+  on mobile — not `ResponsiveModal`.** It branches on
+  `useResolvedMediaQuery("(min-width: 768px)")` (the same breakpoint
+  `ResponsiveModal` uses) and renders nothing until `resolved`, for exactly the
+  reason documented on that hook: branching on the uncorrected `false` mounts
+  the wrong tree first and races two scroll-lock implementations. A chat
+  thread wants to sit beside the page it is about, so the centred dialog was
+  replaced; `ResponsiveModal` is untouched and still used everywhere else.
+- **The pinned composer is built by hand, because `Sheet` has no `footer`
+  prop.** Both branches render the same `body`: a `flex-1 min-h-0` column
+  holding the chips + message list, then a `shrink-0` composer. Don't put the
+  composer inside the scrollable region — it scrolls away from the user
+  mid-conversation. `SheetContent` and `DrawerContent` get `p-0` plus
+  `overflow-hidden`, and the sheet re-passes `style.paddingTop/Bottom` as the
+  bare `--tauri-top`/`--tauri-bottom` insets: those paddings are *inline* on
+  `SheetContent`, so `p-0` alone cannot remove them.
+- **Both headers are a `bg-primary` band** (`HEADER_CLASS` on desktop's
+  `SheetHeader`, title/description in `text-primary-foreground`/`/80`), with
+  `hideClose` on `SheetContent` and an explicit `SheetClose`/`DrawerClose` in
+  the band — the built-in close button is `foreground`-coloured and
+  disappears against the primary fill.
+- **The mobile grab handle lives inside the blue band, not above it.**
+  `DrawerContent`'s own handle (`components/ui/drawer.tsx`) renders in the
+  plain `bg-background` area *before* whatever children a caller passes, so
+  with the panel's full-bleed `bg-primary` header starting right after it,
+  the default handle's white backdrop showed as a visible seam — a second,
+  paler panel stacked above the blue one. Fixed by passing `hideHandle` to
+  `DrawerContent` (an opt-in prop, default off, so the other 8 `Drawer`
+  consumers — POS cart, notification bell, user nav, etc. — are unaffected)
+  and rendering the panel's own handle (`GRAB_HANDLE_CLASS`,
+  `bg-primary-foreground/40`) as the first child of a `HEADER_WRAP_CLASS`
+  wrapper that now carries the `bg-primary` fill itself; `DrawerHeader` below
+  it is just the flex row (`HEADER_ROW_CLASS`), no background of its own.
+  Desktop's `Sheet` needs no handle and is untouched.
+- **`ScrollFade`'s two class props are not interchangeable.**
+  `containerClassName` is the positioning wrapper and is what must carry
+  `flex-1 min-h-0` to participate in the panel's flex column;
+  `className` lands on the element that actually scrolls and carries padding.
+  Swapping them collapses the message list to zero height inside a flex
+  parent.
+- **The message list uses `hover-scrollbar`, not `stable-scrollbar`.** Both
+  live in `app/globals.css` and tint the thumb with `--primary`, but
+  `stable-scrollbar` (used by the 11 other scrollable panels in the app) is
+  always visible; `hover-scrollbar` keeps the same reserved gutter and width
+  so there's no layout shift, but the thumb stays transparent until
+  `:hover`/`:focus-within`. Deliberate: the assistant panel is a small,
+  short-lived overlay where an always-visible scrollbar reads as more
+  chrome than needed, unlike the app's persistent full-page tables.
+- **The message list scrolls itself.** `assistant-message-list.tsx` keeps a
+  `bottomRef` sentinel `<div>` after the thinking indicator and
+  `scrollIntoView({ behavior: "smooth", block: "end" })`s it on every change
+  to `messages.length` or `isThinking`. The panel is full-height on desktop and
+  `h-[85vh]` on mobile, so without it the newest reply renders below the fold after ~3 exchanges and
+  the user has to scroll to read the answer they just asked for. jsdom
+  implements `scrollIntoView` as a no-op, so the test stubs
+  `Element.prototype.scrollIntoView` with a spy in `beforeEach` to assert it
+  fired.
+- **Action buttons close the panel** (`onActionClick` → `close`): a reply's
+  action is a navigation, and leaving a modal open over the page it just
+  routed to hides the thing the user asked for.
+- **Both roles have an avatar, and neither is bespoke.** An assistant bubble
+  keeps its `Sparkles`-in-`bg-primary` circle on the *left*; a user bubble
+  gets the app's standard initials avatar on the *right* — the same
+  `Avatar`/`AvatarFallback` + `border border-border` /
+  `bg-primary/10 text-primary text-xs font-semibold` pair
+  `components/dashboard/user-nav.tsx` uses for the sidebar/account menu,
+  sized `h-7 w-7` to match the assistant circle's `size-7` footprint. Don't
+  invent a second avatar treatment here; if that styling changes, change it
+  in both places. The user row is `flex items-start justify-end gap-2` so the
+  two layouts mirror each other. Both circles carry `aria-hidden="true"` and
+  `shrink-0` — the `AvatarFallback`'s initials are ordinary text, not
+  decorative markup, so without `aria-hidden` a screen reader announces them
+  before every user utterance inside the `aria-live` log; `shrink-0` stops
+  the initials avatar (the one flex child otherwise without shrink
+  protection) compressing under a long, unbreakable message.
+- **The initials are threaded down as a prop, not read from context in the
+  bubble.** `assistant-panel.tsx` — the one component wired to global state —
+  calls `useAuth()` alongside `useAssistant()` and computes
+  `getUserInitials(user?.first_name, user?.last_name)` (from `lib/utils.ts`),
+  passing it as `userInitials` through `assistant-message-list.tsx` to
+  `assistant-message-bubble.tsx`. `useAssistant()` reads `useAuth()` too but
+  deliberately does not re-export `user`: its contract is the conversation,
+  not the signed-in identity. `getUserInitials` already returns `"U"` for
+  missing/empty names and a single letter when only one part is known, so no
+  extra guarding is needed at the call site.
+
+**The word-by-word reveal is presentational only — the full text is in the DOM
+from the first frame.** `assistant-message-bubble.tsx` animates a newly
+appended *assistant* message in at 45ms per step, capped at a 1.5s total
+budget (`MAX_REVEAL_MS`) by revealing `ceil(words / 33)` words per tick, so a
+long reply speeds up instead of dragging. While a message is still revealing,
+its paragraph holds one span per word, toggled between `opacity-0` and
+`opacity-100` (`data-revealed`); the concatenated text of those spans is the
+**complete** reply from the first frame, so nothing is ever missing from the
+DOM. Once the reveal finishes — and for any message that never animates — the
+paragraph is a single plain text node.
+
+- **There must only ever be ONE element in the bubble whose text is the full
+  reply.** An earlier version layered two: an `absolute inset-0 opacity-0
+  select-none` span with the complete text plus an `aria-hidden` span of
+  per-word spans. That broke `e2e/assistant.spec.ts` twice over — Playwright
+  located the `opacity-0` copy and `toBeVisible()` failed (opacity 0 is not
+  visible to Playwright, `select-none`/`pointer-events-none` notwithstanding),
+  and both spans matched the same text, which is a **strict-mode violation**.
+  Strict-mode violations are *not* retried away by `expect`'s timeout, so even a
+  duplicate that exists for only the ~1.5s reveal window fails the test
+  immediately. Do not reintroduce a hidden full-text layer.
+- **The animated paragraph collapses back to a plain text node at
+  `fullyRevealed`** (`layered && !fullyRevealed` picks the animated branch).
+  The two branches render identical text with identical styling, so the swap is
+  visually seamless; the cost is that the `aria-live` region sees a
+  remove+insert of the same string and a screen reader may repeat the reply.
+  That trade is deliberate: the settled DOM has to be plain text for anything
+  that queries by text (Playwright, Testing Library) to behave.
+- **Do not switch this to growing the visible text content per tick.** The list
+  is `role="log" aria-live="polite"`: incremental text mutation makes a screen
+  reader announce every partial fragment. The invariant is: complete text in
+  the DOM immediately, reveal is visual only.
+- Splitting on `/(\s+)/` and wrapping only the non-whitespace segments is what
+  keeps `whitespace-pre-wrap` newlines intact. Note that while a message is
+  revealing, Testing Library's `getByText(fullString)` matches **nothing** — its
+  default matcher reads an element's *direct* text nodes, and the paragraph's
+  are only the whitespace between word spans. Assert on
+  `element.textContent`/`[data-revealed]` for the in-flight state, and on
+  `getByText` only after the reveal has finished.
+- Only messages that were absent on the list's first render animate, tracked in
+  a `preexistingIds` ref, so reopening the panel doesn't replay the thread.
+  User messages never animate, and `prefers-reduced-motion: reduce` reveals
+  instantly (guarded for jsdom, which has no reliable `matchMedia`). The check
+  itself lives in `lib/prefers-reduced-motion.ts` — one helper shared by the
+  reveal and by the thinking indicator, so the two can't drift. Any new motion
+  in this panel goes through it (or through a CSS
+  `@media (prefers-reduced-motion: reduce)` override, as the launcher does).
+- **`actions` render only once the text has fully revealed**, so a link can't be
+  clicked out from under a reply that is still arriving.
+
+**Branding: the assistant has a name, and it lives in exactly one place.**
+`components/assistant/assistant-brand.tsx` exports `ASSISTANT_NAME`
+(currently `"Dumo"`) and `AssistantBetaTag`. Every user-visible mention of the
+assistant reads that constant — the panel/drawer title, the launcher's tooltip,
+and the `navActions` entry in `lib/hooks/use-account-actions.ts` (which imports
+the constant rather than repeating the string, so a rename is one edit). The
+feature is still labelled **Beta**: `AssistantBetaTag` is a compact pill
+(`text-[10px] uppercase tracking-wide rounded-full`) with two tones —
+`onPrimary` for the primary-filled panel header, `onSurface` for a normal
+background like the tooltip. The nav-menu row is too tight for a chip, so it
+inlines "(Beta)" in its label instead.
+
+- **The visible name and the `aria-label`s are deliberately different strings.**
+  `assistant-launcher.tsx` keeps `aria-label="Open assistant"` and
+  `assistant-composer.tsx` keeps `aria-label="Ask the assistant"`; these are the
+  stable accessibility identifiers `e2e/assistant.spec.ts` and
+  `__tests__/assistant-panel.test.tsx` locate by exact match. Rebrand the
+  visible text freely; renaming those two labels means updating both test files,
+  so don't do it incidentally.
+
+**The launcher is deliberately loud.** `assistant-launcher.tsx` is a default
+(primary) `Button` carrying `animate-assistant-sheen` plus
+`bg-gradient-to-br from-primary via-primary/60 to-primary` — a gradient built
+only from `--primary` so it survives every theme preset in `globals.css`
+(note `--accent` *equals* `--primary` in the light theme, so a
+`from-primary to-accent` gradient would render as a flat fill there). The
+`animate-assistant-sheen` utility in `globals.css` oversizes the gradient to
+220% and slides `background-position` on a 6s loop, and a
+`@media (prefers-reduced-motion: reduce)` block next to it sets
+`animation: none` — the CSS carries the reduced-motion opt-out, so no JS check
+is needed for this one. The `Sparkles` icon stays `text-primary-foreground`,
+which is the contrast pair for every shade the gradient passes through.
+
+**Visual language** (`.agents/AGENTS.md` §6, semantic tokens only — no hex):
+`bg-primary` header band; user bubbles `bg-primary`/`text-primary-foreground`,
+assistant bubbles `bg-muted` with a `border-border` and a small
+`bg-primary` `Sparkles` avatar (same icon as the launcher); suggestion chips
+and reply actions are `rounded-full` `border-primary/40 text-primary`
+outline buttons; the composer is a rounded `Input` plus a circular
+`size="icon"` `SendHorizontal` submit button (`aria-label="Send"`); the
+thinking state is three `animate-bounce` dots (staggered `animationDelay`,
+`role="status"` `aria-label="Thinking"`), falling back to a static "Thinking…"
+label under `prefers-reduced-motion: reduce`. The `role`/`aria-label` pair is
+identical in both branches, so the indicator is found the same way either way.
+Glassmorphism lives on `SheetContent`/`DrawerContent`
+(`bg-background/95 backdrop-blur-sm`) and the composer bar — `Sheet` ships
+plain `bg-background`, so it has to be added here.
+Avoid `hover:border-primary/40` anywhere in this panel: `globals.css`
+deliberately neutralises that exact class on hover; the chips use a static
+`border-primary/40` with `hover:bg-primary/10` instead.
+
+- Tests: `__tests__/assistant-panel.test.tsx` (wiring) and
+  `__tests__/assistant-message-reveal.test.tsx` (reveal, with fake timers and
+  `[data-revealed="false"]` as the stable hook). The panel test flattens
+  `@/components/ui/sheet` to plain divs and mocks
+  `@/hooks/use-media-query` to a resolved desktop match — the repo's standing
+  pattern for modal-hosted behaviour, since the real components are Radix plus
+  a media query jsdom has no `matchMedia` for. It also mocks `next/link`, and
+  because the action links now wait for the reveal, it asserts them with
+  `findByRole` rather than `getByRole`. There is no
+  `@testing-library/jest-dom` in this repo, so assertions are plain
+  (`toBeTruthy()`, `getAttribute("href")`), not
+  `toBeInTheDocument()`/`toHaveAttribute()`.
+- E2E: `e2e/assistant.spec.ts` covers the wired-up panel end to end (launcher →
+  composer → reply → action link navigation). It needed no changes for the
+  sidepanel redesign: `Sheet` is the same Radix Dialog primitive, so
+  `getByRole('dialog')` still resolves at the Desktop Chrome viewport, and the
+  reveal only animates per-word `opacity` inside one paragraph, which Playwright
+  still resolves as a single visible element (and it auto-waits for the action
+  link that appears after the reveal). **Run this spec after any change to the
+  reveal's DOM** — the unit tests cannot see Playwright's visibility or
+  strict-mode rules, which is exactly how the two-layer regression shipped.
+  Scope every assertion to
+  `page.getByRole('dialog')` rather than the whole page: the user's own message
+  bubble echoes the question verbatim, so a bare `getByText(/low on stock/)`
+  matches both bubbles and trips Playwright strict mode. For the same reason
+  assert on text unique to the reply (`/Make a sale: Open POS/`,
+  `/product\(s\) low on stock/`), not on the help topic's title — that title is
+  also the action button's label.
 
 ## Running things
 
@@ -3353,7 +4416,22 @@ number into local SQLite and hope it matches. Treat this exactly like the
 
 ## Current focus / recent work (update this section as work continues)
 
-Most recent work (2026-09-29, latest) **re-investigated all twelve
+Most recent work (2026-09-29, latest) shipped the **in-app assistant**
+(`lib/assistant/`, `components/assistant/`, `lib/store/use-assistant-panel.ts`,
+`lib/hooks/use-assistant.ts`): an offline, deterministic intent router — no
+LLM, no API key, no network — answering thirteen procedural "how do I…"
+topics and six read-only data questions from the same local query functions
+the UI uses. Read the "In-app Assistant" section above and the Assistant
+sections following it before touching any of it; the two decisions most
+likely to be undone by accident are that **no permission check belongs
+inside a tool's `execute()` except to redact part of an allowed answer**, and
+that **the assistant persists and logs nothing** (no table, no sync
+coverage, no `audit_logs`/`logCrash()` rows). `docs/FEATURE_ROADMAP_SPEC.md`'s
+"AI Assistant Module" entry is still live — but only as a *future* LLM phase
+that would slot in behind the existing `AssistantBrain` interface, not as a
+replacement for what shipped.
+
+Work just before that (2026-09-29) **re-investigated all twelve
 catalog-only keys** left by the 2026-09-28 category-by-category pass, on the
 premise that some had been dismissed too quickly. Two had: `run_daily_close`
 is now wired to the Daily Close banner's backup/sync buttons (which were a

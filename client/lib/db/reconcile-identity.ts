@@ -1,5 +1,6 @@
 import { execute, query, transaction, isInTransaction, STORE_SCOPED_TABLES } from "./core";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { serializeRequeuePayload } from "./requeue-payload";
 
 /**
  * One-time recovery tool for devices that hit the pre-fix local-first setup
@@ -112,7 +113,7 @@ export async function requeueOrphanedRows(
               table,
               row.id as string,
               "INSERT",
-              JSON.stringify(row),
+              serializeRequeuePayload(row),
               (row.created_at as string) || new Date().toISOString(),
             ],
           );

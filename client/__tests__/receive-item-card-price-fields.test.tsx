@@ -12,6 +12,12 @@ vi.mock("@/lib/hooks/use-permissions", () => ({
 vi.mock("@/lib/db/queries/categories", () => ({
   getCategoryList: vi.fn(async () => []),
 }));
+// The panel's A-26 dropped-receipt banner reads the local database; this file
+// is about the price fields, so the signal is stubbed away rather than
+// initialising sql.js (which has no /sql-wasm.wasm under vitest).
+vi.mock("@/lib/hooks/use-dropped-receipt-signal", () => ({
+  useDroppedReceiptSignal: () => ({ signal: null, dismiss: vi.fn() }),
+}));
 
 function withQueryClient(ui: ReactNode) {
   return (

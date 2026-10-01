@@ -30,6 +30,10 @@ Route::prefix('v1')->group(function () {
     // one carries its own named limiter. See AGENTS.md for this whole block.
     Route::middleware('throttle:public-read')->group(function () {
         Route::get('/system-configs/{key}', [SystemConfigController::class, 'show']);
+        // Serves the marketing Downloads page, which is anonymous by
+        // definition - see docs/DOWNLOADS_MANIFEST.md.
+        Route::get('/downloads/manifest', [\App\Http\Controllers\Api\Public\DownloadsController::class, 'manifest']);
+        Route::get('/announcements', [BroadcastController::class, 'index']);
     });
     Route::middleware('throttle:public-write')->group(function () {
         Route::post('/support', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'store']);
@@ -64,8 +68,6 @@ Route::prefix('v1')->group(function () {
     Route::get('/health', function () {
         return response()->json(['status' => 'ok', 'timestamp' => now()]);
     });
-    
-    Route::get('/announcements', [BroadcastController::class, 'index']);
 
     // Client-side error telemetry - must stay public since it needs to report
     // failures that happen before login (e.g. the system-config fetch on app boot).
@@ -105,8 +107,10 @@ Route::prefix('v1')->group(function () {
     });
 
     // Webhooks (Public)
-    Route::post('/webhooks/paystack', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handlePaystack']);
-    Route::post('/webhooks/flutterwave', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handleFlutterwave']);
+    Route::middleware('throttle:webhooks')->group(function () {
+        Route::post('/webhooks/paystack', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handlePaystack']);
+        Route::post('/webhooks/flutterwave', [\App\Http\Controllers\Api\Web\PaymentController::class, 'handleFlutterwave']);
+    });
 
     // Protected Routes
     Route::middleware(['auth:sanctum', 'account_status', \App\Http\Middleware\EnsureEmailIsVerified::class, 'throttle:60,1'])->group(function () {
@@ -147,7 +151,8 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('staff', StaffController::class)->middleware(['permission:manage_staff', 'subscription']);
         Route::get('stores/check-slug', [StoreController::class, 'checkSlug']);
         Route::get('stores/{store}/payment-banks', [StorePaymentAccountController::class, 'paymentBanks']);
-        Route::post('stores/{store}/payment-account/resolve', [StorePaymentAccountController::class, 'resolvePaymentAccount']);
+        Route::post('stores/{store}/payment-account/resolve', [StorePaymentAccountController::class, 'resolvePaymentAccount'])
+            ->middleware('throttle:bank-account-resolve');
         Route::post('stores/{store}/payment-account', [StorePaymentAccountController::class, 'createPaymentAccount']);
         Route::apiResource('stores', StoreController::class);
 
@@ -181,6 +186,10 @@ Route::prefix('v1')->group(function () {
             Route::get('/summary', [AdminPlatformController::class, 'summary'])->middleware('role:super_admin');
             Route::get('/stores', [AdminStoreController::class, 'stores'])->middleware('role:super_admin');
             Route::post('/stores', [AdminStoreController::class, 'registerStore']);
+            // Must stay above /stores/{id}: a literal segment registered after
+            // the wildcard would be swallowed by it.
+            Route::get('/stores/registered-by-me', [AdminStoreController::class, 'storesRegisteredByMe'])
+                ->middleware('permission:create_accounts');
             Route::get('/stores/{id}', [AdminStoreController::class, 'storeDetail'])->middleware('role:super_admin');
             Route::post('/stores/{id}/suspend', [AdminStoreController::class, 'suspendStore'])->middleware('role:super_admin');
             Route::post('/stores/{id}/unsuspend', [AdminStoreController::class, 'unsuspendStore'])->middleware('role:super_admin');

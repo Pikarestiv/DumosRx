@@ -8,6 +8,11 @@ import { apiClient } from "@/lib/api/client";
 import { PushResponse } from "./types";
 import type { SyncChange, SyncQueueItem } from "@/lib/types/sync";
 import { remapForeignKey, DUPLICATE_NAME_TABLES } from "../reconcile-identity";
+import {
+  conflictFieldList,
+  recordTerminalConflict,
+  resolveConflictsForRecords,
+} from "./conflict-log";
 import { execute, query, transaction } from "../core";
 import { isExpectedSyncRestriction } from "@/lib/utils/error-logger";
 import { toast } from "sonner";
@@ -364,10 +369,14 @@ export async function pushChanges(
         // One transaction per batch: each bookkeeping call outside one
         // triggers its own full-database sql.js export.
         await transaction(async () => {
-          await markSynced(
-            succeededIds,
-            succeededChanges.map((c) => ({ table_name: c.table_name, record_id: c.record_id })),
-          );
+          const succeededRecords = succeededChanges.map((c) => ({
+            table_name: c.table_name,
+            record_id: c.record_id,
+          }));
+          await markSynced(succeededIds, succeededRecords);
+          // A later change to the same record landing means whatever an
+          // earlier dropped one carried has been superseded (conflict-log.ts).
+          await resolveConflictsForRecords(succeededRecords);
           pushedCount += succeededIds.length;
 
           for (const f of response.failed ?? []) {
@@ -389,6 +398,19 @@ export async function pushChanges(
               if (TERMINAL_CONFLICT_SETTLES_SOURCE_ROW.has(f.table_name)) {
                 await markConflictSettled(f.table_name, f.record_id);
               }
+
+              // Durable trace of what this drop lost, for surfaces that must
+              // outlive the toast below (A-26 — see conflict-log.ts).
+              await recordTerminalConflict({
+                table_name: f.table_name,
+                record_id: f.record_id,
+                reason: f.reason,
+                fields: conflictFieldList(
+                  changes.find((c) => c.id === f.id)?.payload as
+                    | Record<string, unknown>
+                    | undefined,
+                ),
+              });
 
               if (wasRetried) {
                 silencedConflicts.push({ table_name: f.table_name, record_id: f.record_id });

@@ -256,4 +256,65 @@ describe("useFulfillOnlineOrderMutation", () => {
     expect(mine).toHaveLength(1);
     expect(mine[0].transaction_number).toBe("ONL-order-1");
   });
+
+  // A-57: a product whose only batch is expired was fulfilled silently —
+  // full revenue, cost_price 0, no stock_movements row, no sale_item_batches
+  // row, and the expired units still counted as on hand.
+  describe("a line whose product has no sellable stock", () => {
+    function seedProductWithExpiredBatch(productId: string, costPrice: number, quantity: number) {
+      const expired = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      db.run(`INSERT INTO products (id, name, selling_price) VALUES (?, 'Expired Product', 1000)`, [productId]);
+      db.run(
+        `INSERT INTO stock_batches (id, product_id, quantity, cost_price, expiry_date, is_active, _deleted) VALUES (?, ?, ?, ?, ?, 1, 0)`,
+        [`batch-${productId}`, productId, quantity, costPrice, expired],
+      );
+    }
+
+    it("still writes a stock_movements row and deducts the expired batch", async () => {
+      seedProductWithExpiredBatch("p1", 500, 10);
+      const { useFulfillOnlineOrderMutation } = await import(
+        "@/lib/hooks/use-fulfill-online-order-mutation"
+      );
+      const { result } = renderHook(() => useFulfillOnlineOrderMutation(), { wrapper });
+
+      await act(async () => {
+        await result.current.mutateAsync({ order, storeId: "store1", cashierId: "cashier1" });
+      });
+
+      const movements = db.exec(
+        `SELECT quantity, stock_batch_id FROM stock_movements WHERE product_id = 'p1'`,
+      );
+      expect(movements[0]?.values.length).toBe(1);
+      expect(movements[0]?.values[0][0]).toBe(-2);
+      expect(movements[0]?.values[0][1]).toBe("batch-p1");
+
+      const batchRows = db.exec(`SELECT quantity FROM stock_batches WHERE id = 'batch-p1'`);
+      expect(batchRows[0]?.values[0][0]).toBe(8);
+    });
+
+    it("is reported by findOnlineOrderStockGaps so the UI can warn before fulfilling", async () => {
+      seedProductWithExpiredBatch("p1", 500, 10);
+      const { findOnlineOrderStockGaps } = await import(
+        "@/lib/hooks/use-fulfill-online-order-mutation"
+      );
+
+      const gaps = await findOnlineOrderStockGaps(order);
+      expect(gaps).toHaveLength(1);
+      expect(gaps[0]).toMatchObject({ productId: "p1", requested: 2, available: 0 });
+    });
+
+    it("reports a partial shortfall too, and reports nothing when stock covers the order", async () => {
+      seedProductWithBatch("p1", 500, 1);
+      const { findOnlineOrderStockGaps } = await import(
+        "@/lib/hooks/use-fulfill-online-order-mutation"
+      );
+
+      expect(await findOnlineOrderStockGaps(order)).toMatchObject([
+        { productId: "p1", requested: 2, available: 1 },
+      ]);
+
+      db.run(`UPDATE stock_batches SET quantity = 5 WHERE id = 'batch-p1'`);
+      expect(await findOnlineOrderStockGaps(order)).toEqual([]);
+    });
+  });
 });

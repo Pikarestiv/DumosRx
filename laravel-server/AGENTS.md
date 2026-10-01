@@ -41,7 +41,18 @@ without updating that.
   sales, ...) is always stored under the **store owner's** `user_id`, never
   a staff member's own id. A staff user has `store_id` set; resolving which
   tenant they belong to means looking up `Store::where('id',
-  $user->store_id)->value('user_id')`, not using `$user->id` directly. Use
+  $user->store_id)->value('user_id')`, not using `$user->id` directly.
+  **`stores.user_id` is authoritative and `users.store_id` is only the
+  fallback, never the other way round.** A non-null `users.store_id` does
+  NOT prove the caller is staff: owners created before 2026-09-22 carry a
+  stale one (see `docs/FIXED_BUGS.md` A-127), so branching on it first
+  silently narrows a multi-store owner to one store. Resolve ownership by
+  asking whether the user owns any `Store` **first**, and only consult
+  `users.store_id` for a user who owns none —
+  `SyncController::resolveOwnershipIdentity()` is the reference
+  implementation, and the migration
+  `2026_10_01_000000_clear_store_id_on_store_owners` clears the historical
+  poisoning. Use
   the `App\Http\Controllers\Concerns\ScopesToTenant` trait
   (`tenantOwnerId($request)`) — don't hand-roll this lookup. Before this
   trait existed, `ProductController`/`CategoryController`/
@@ -106,6 +117,49 @@ Do not reintroduce a fallback: if a staff member needs the web dashboard, an
 owner sets a real password on create or via `PUT /staff/{id}`. Covered by
 `tests/Feature/StaffPinDerivedPasswordTest.php`.
 
+**The PIN has no default either.** `pin` is **required** on `POST /staff` and a
+missing one is a 422, because the same rule applies with more force to the
+higher-value credential: the PIN is what actually authorises POS actions
+(voids, refunds, sales under that identity, and every `sales.cashier_id` and
+audit-log attribution that follows). The endpoint used to fall back to the
+literal `'1234'`, which the sync pull then shipped to every device as a live,
+publicly-guessable till credential (A-89). `required` rather than a generated
+PIN because no in-repo caller relies on the old default — `web/` has no
+staff-creation form any more and `client/` creates staff locally and syncs
+them — so there is nothing to disrupt and no one-time secret to hand back in a
+response body.
+
+## No tenant-facing endpoint may create a lockout only a super_admin can undo
+
+`users.is_active = false` and `stores.deleted_at` both make `CheckAccountStatus`
+403 every request in the protected group, and the only way back out of either
+is a super_admin call (`POST /admin/users/{id}/reactivate`,
+`POST /admin/stores/{id}/restore`). So a self-service endpoint that can reach
+those states from inside the tenant is a support ticket by construction, and
+two of them could:
+
+- **`DELETE /staff/{id}` / `is_active: false` on `PUT /staff/{id}`** refuse two
+  targets with a 422: the **tenant owner** and the **caller themselves**. The
+  owner's own row is deliberately visible and editable through these endpoints
+  (the web staff table's "Main Account"), and `manage_staff` is not
+  owner-exclusive — so any admin- or manager-role staff member could deactivate
+  the owner and take the whole tenant offline, with nobody left inside it able
+  to reverse that (A-85). `AdminUserController::deactivateUser()` refuses
+  self-deactivation for the same reason. Both pinned by
+  `tests/Feature/StaffSelfLockoutGuardTest.php`.
+- **`DELETE /stores/{id}`** refuses with a **409** when it is the caller's last
+  remaining store, because `Store` soft-deletes and one "Remove store" click
+  otherwise bricked a paying single-store account (A-84). When it does archive
+  a store it stamps `deleted_by_id`/`deletion_reason` the way
+  `AdminStoreDeletionService::archiveStore()` does, so the state is not silently
+  different from an admin-archived one.
+
+`CheckAccountStatus`'s `STORE_ARCHIVED` 403 distinguishes the two cases —
+`archived_by: 'owner' | 'administrator'`, with matching `reason` text — since
+telling an owner who just removed a branch themselves that "an administrator
+archived this store" guarantees a support ticket that starts from the wrong
+premise. Pinned by `tests/Feature/StoreSelfDeletionGuardTest.php`.
+
 ## Admin: owner vs. staff accounts, and the store detail endpoint
 
 Two different columns decide what a user "is", and mixing them up has already
@@ -113,9 +167,23 @@ caused one shipped bug (`AdminUsersStoreResolutionTest`):
 
 - **Owner** — `stores.user_id` points at them (`User::stores()`/`store()`).
 - **Staff** — their own `users.store_id` points at a store
-  (`User::employerStore()`). An owner's `store_id` is never set to their own
-  store, so the two are complementary, never overlapping.
+  (`User::employerStore()`). An owner's `store_id` is *supposed* to be null,
+  so the two read as complementary — but **do not rely on that for
+  authorization**: accounts created before 2026-09-22 carry a stale
+  `store_id` on the owner's own row (`docs/FIXED_BUGS.md` A-127, and the
+  repair migration that clears it). Ask `stores.user_id` first.
 - **Platform account** — neither (super_admin / platform_admin / agent).
+
+Two *other* user columns look adjacent and are not: `referred_by_id` is the
+customer **referral program** pointer (an unrelated store owner who signed up
+through the caller's link) and `registered_by_id` is platform attribution.
+Neither is a staff relationship, and neither may ever widen a staff query:
+`DashboardService::getSummary()`'s `staff` array used to `orWhere(
+'referred_by_id', …)`, so a referred owner was returned to the caller as one
+of their employees, email and last-login included — cross-tenant PII through
+an ordinary authenticated endpoint (A-83). Referral data has its own scoped
+endpoint (`GET /subscription/referral-stats`, name/store/status only).
+Pinned by `tests/Feature/DashboardStaffScopingTest.php`.
 
 `GET /admin/users` exposes that distinction through **`account_type`**
 (`owners` | `staff` | `platform`; omit it for every account, which is what
@@ -155,7 +223,18 @@ literal `confirmation` string `DumosRx` **server-side**, and it clears every
 table carrying a `store_id` by schema introspection because almost none of
 those columns has a real foreign key. See `docs/ADMIN_STORE_LIFECYCLE.md`.
 
+Two things restore and purge now guarantee, both from A-40/A-41 and both
+detailed in that file: every archive/restore/purge `ActivityLog` row is
+written **inside** the action's own transaction and carries `store_id`, and a
+restore reports `was_suspended`/`suspension_reason`/`warning` because
+archiving never cleared `stores.status`. And a standing note for whoever
+changes the schema: `stores.store_slug`/`stores.device_id` are unique across
+archived rows too, which is the only reason `restoreStore()` needs no
+collision check — make either index soft-delete-aware and that check has to
+be added in the same change.
+
 Covered by `tests/Feature/Admin/AdminUsersAccountTypeFilterTest.php`,
+`tests/Feature/Admin/AdminStoreLifecycleAuditTest.php`,
 `tests/Feature/Admin/AdminStoreDetailTest.php`,
 `tests/Feature/Admin/AdminStoreSearchAndMetricsTest.php` and
 `tests/Feature/Admin/AdminStoreDeletionTest.php`.
@@ -167,6 +246,28 @@ array rule (`filters`) makes `$request->validate()`'s return value rebuild
 vanish from `$validated`. `bulkNotify` silently notified every account for one
 commit because of it. Read that kind of bag off `$request->input('filters')`
 after validating, not out of `$validated`.
+
+## A voided sale is not revenue — including on the admin surfaces
+
+`Sale` uses `SoftDeletes`, and a voided or `POST /dashboard/reset`-cleared
+sale is **excluded from every revenue figure the product quotes**, admin panel
+included. The store owner's own dashboard gets that for free (`DashboardService`
+goes through Eloquent, so the global scope applies), but the two admin revenue
+helpers read the table through `DB::table('sales')` for their correlated
+legacy-`cashier_id` fallback and so bypass it: for as long as that went
+unnoticed, the admin fleet list and Store Details page quoted ₦500,000 and 50
+orders for a store whose own dashboard said ₦0, and
+`average_order_value`/`active_days`/the 6-month trend were all derived from
+the inflated numbers (A-86).
+
+Both helpers — `AdminStoreService::revenueSubquery()` and
+`AdminStoreMetricsService::salesQuery()` — now carry
+`->whereNull('sales.deleted_at')`, and they are the single source for every
+consumer of those figures. **Any new raw-builder query over `sales` (or any
+other soft-deleting table) must add that filter explicitly**; prefer Eloquent
+unless a correlated subquery forces the builder. The third revenue site,
+`AdminPlatformService::summary()`, uses Eloquent `Sale::sum()` and already
+agrees. Pinned by `tests/Feature/Admin/AdminStoreSearchAndMetricsTest.php`.
 
 ## Admin auth architecture (redesigned 2026-08-26)
 
@@ -220,11 +321,13 @@ migration here **and** the corresponding update on the `client/` side
   the account — and the client prunes against it.** `stores` is exempt from
   the last-synced cursor and the 500-row cap (`fetchPullPage()`), so the
   client treats it as a complete snapshot and soft-deletes any local store
-  the response omits. But `resolvePullTenantScope()` resolves
-  `$ownedStoreIds` to `[$user->store_id]` for any user carrying one (every
-  staff account), and only to `Store::where('user_id', $ownerId)` for a
-  store_id-less owner identity — so a staff session's pull returns exactly
-  one store while the account may own several. That combination cost a live
+  the response omits. But `resolvePullTenantScope()` (via
+  `resolveOwnershipIdentity()`) resolves `$ownedStoreIds` to
+  `[$user->store_id]` for a user who owns no store of their own — i.e.
+  every genuine staff account — and to `Store::where('user_id', $ownerId)`
+  for anyone who does own one, whatever their `store_id` says (that
+  precedence was the other way round until A-127). So a staff session's
+  pull returns exactly one store while the account may own several. That combination cost a live
   two-store owner a store in the switcher (2026-09-29); the client now
   refuses to prune unless the signed-in identity has no `store_id`
   (`client/AGENTS.md`, "The `stores` prune, and how a store disappears").
@@ -290,13 +393,47 @@ migration here **and** the corresponding update on the `client/` side
   `normalizePushPayload()` holds the per-table strip lists:
   `USER_SYNC_FORBIDDEN_FIELDS`/`sanitizeUserSyncPayload()` for `users`,
   `STORE_SYNC_FORBIDDEN_FIELDS` for `stores` (every `paystack_*` column —
-  settlement destination and the fee-dirty flag), and `stock_batches.quantity`
+  settlement destination and the fee-dirty flag — plus the account-state
+  columns `status`/`suspension_reason`/`is_demo`, which only
+  `AdminStoreService` may write, and the `*_seeded_at` server-seeding
+  watermarks), and `stock_batches.quantity`
   inline in `push()`. `authorizeChangeTarget()` admits **any** caller whose
   allowed stores include the row — staff, not just the owner — so a money-
   routing column riding the generic push is a settlement-redirect hole, not a
   theoretical one. Anything only a dedicated endpoint or a console command may
   set belongs in one of those lists in the same change that adds it.
   Coverage: `tests/Feature/SyncStoresPaystackFieldGuardTest.php`.
+- **Write authorization is checked on all three operations, and INSERT is the
+  one that needs its own resolver.** `push()` gates UPDATE and DELETE with
+  `authorizeChangeTarget()` (which inspects the *stored* row) and INSERT with
+  `authorizeInsertTarget()` (which inspects the *incoming payload*, because
+  there is no stored row yet). Both funnel through the same
+  `resolveChangeStoreId()` table map, so read scoping, UPDATE/DELETE scoping
+  and INSERT scoping cannot drift. INSERT needed the separate resolver because
+  six child tables — `stock_batches`→`product_id`, `sale_items`→`sale_id`,
+  `sale_item_batches`→`sale_item_id`, `return_items`→`return_id`,
+  `prescription_items`→`prescription_id`,
+  `purchase_order_items`→`purchase_order_id` — carry no `store_id` of their
+  own, so `normalizePushPayload()`'s `$tablesWithStoreId` check can't see
+  them; for as long as the INSERT branch had no check at all, a product id
+  harvested off the unauthenticated `GET /storefront/{slug}` was enough to
+  plant phantom stock or fabricated sale line items in a stranger's tenant
+  (A-77). **A new child table whose tenant scope comes from a parent FK must
+  be added to `resolveChangeStoreId()` in the same change**, or it lands
+  unchecked on every operation.
+  - Both resolvers fail **open** on a parent that resolves to *no* store
+    (a child pushed before its parent in the same batch, or a legacy row
+    predating the `store_id` backfill) and **closed** on a parent that
+    resolves to a store outside the caller's scope. Don't "tidy" the
+    fail-open away — `backfillStoreIdOnLegacyRows` is still live for
+    accounts with local DBs older than its ship date.
+  - `normalizePushPayload()`'s foreign-`store_id` rejection is deliberately
+    **not** gated on `$currentStoreId`. It used to be, which meant a caller
+    who owns no store yet (`resolvePushStoreId()` → null) had an explicit
+    foreign `store_id` accepted verbatim.
+  Coverage: `tests/Feature/TenantIsolationTest.php` (child-table INSERT under
+  a foreign parent, plus the store-less caller) and
+  `tests/Feature/SyncPushOwnershipTest.php` (UPDATE/DELETE).
 - **A MySQL `ENUM` column for a client-controlled string field is a
   recurring footgun, not a one-off bug:** `stock_movements.movement_type`
   was created as an `ENUM` back in 2024 that never actually matched every
@@ -362,7 +499,8 @@ extending or relying on any of this):
 - **What dirties a storefront.** `Store::boot()`'s `saved()` hook fires on
   `Store::STOREFRONT_PUBLISHED_FIELDS` (`online_store_enabled`, `store_slug`,
   `name`, `logo_url`, `phone`, `email`, `address`, `location` — i.e. exactly
-  what the public page renders) and on a `status` → `suspended` transition.
+  what the public page renders) and on a `status` → suspended transition
+  (tested via `Store::isSuspended()` — see "stores.status casing" below).
   `Product::booted()` mirrors it for the other half of what a customer sees:
   `created` when `show_online`, `updated` on
   `name`/`selling_price`/`show_online`/`is_active`, and `deleted` when
@@ -407,6 +545,213 @@ per-store Paystack subaccounts — see the dedicated section below for the
 onboarding flow, fee semantics, propagation cadence, and the refund decision.
 Full design: `docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`.
 
+## `POST /subscription/verify-license` is scoped to the caller's own account
+
+The license key is not a secret in the threat model that matters here: `GET
+/subscription/status` returns it in plaintext to the store's own users, so it
+travels through support chats and screenshots. Verification therefore may
+never be "does this key exist" — it looks the subscription up **by key *and*
+by `user_id`, resolved through `SubscriptionService::getSubscriptionOwner()`**
+so a staff member verifies their employer's key and nobody else's. Before
+that, any authenticated user could present a stranger's `enterprise` key, have
+a `License` row created for *their* `machine_id` against the victim's
+subscription, and be answered `valid: true, plan: enterprise` — an entitlement
+bypass plus a write into another tenant's `licenses` rows (A-87). A key that
+exists but isn't the caller's returns the same 404 as an unknown one, so the
+endpoint never confirms a key as valid-but-not-yours.
+
+`last_check_in` is stamped **after** the `is_active` check, not before: a
+deactivated device must not leave a fresh check-in behind on its way to a 403.
+Pinned by `tests/Feature/VerifyLicenseOwnershipTest.php`. `.agents/AGENTS.md`
+§8 covers the client-side JWT/anti-backdating half of the licensing system.
+
+## Coupon usage is reserved under a lock, not counted at activation
+
+`max_uses`/`max_uses_per_user` are counted from `coupon_usages`, and those rows
+used to be written only when a subscription **activated** — so validity was
+evaluated against a count that moved after the money was already committed, with
+no lock anywhere. Twenty concurrent checkouts on a `max_uses: 1` launch coupon
+all passed, all got the discount, and all activated at it; a double-submitted
+100%-off coupon minted two overlapping active subscriptions (A-80).
+
+The rule now matches the referral-credit one below: **the discount is reserved
+where it is granted.** `SubscriptionService::reserveCoupon()` takes a
+`lockForUpdate()` on the coupon row, re-validates inside that transaction and
+writes the `CouponUsage` row before returning, so a second caller blocks and
+then sees the real count. `initiatePayment()` uses it for both branches, stamps
+`metadata.coupon_usage_id` on the `PaymentTransaction`, and the reservation is
+then either **linked** (`attachCouponUsageToSubscription()`, at
+`$finalAmount <= 0` self-activation and at `activateSubscriptionFromTransaction()`)
+or **released** (`releaseCouponUsage()`, on an `initializeTransaction()` failure
+and in `failTransaction()`, stamped `coupon_usage_released` so it is idempotent
+across the verify and webhook paths). Activation never creates a usage row for a
+transaction that carries a `coupon_usage_id` — the legacy create branch is only
+for transactions started before reservations existed.
+
+**No `UNIQUE (coupon_id, user_id)` index was added**, deliberately:
+`max_uses_per_user` is a column and is legitimately greater than 1, so the index
+would enforce a cap the product does not have. The lock is the enforcement
+point; anything new that grants a coupon discount must go through
+`reserveCoupon()` rather than `validateCoupon()`, which is now only a read-only
+check. Pinned by `tests/Feature/CouponUsageReservationTest.php`.
+
+## Referral credits on a subscription checkout are reserved, not deferred
+
+`SubscriptionController::initiatePayment()` **deducts** the credits a paid
+checkout applies at initiation and stamps `metadata.credits_reserved`, rather
+than only recording `metadata.credits_applied` and deducting at activation.
+The rules that follow from that, all of which matter:
+
+- **Never let bookkeeping block an activation.**
+  `activateSubscriptionFromTransaction()` runs inside a `DB::transaction()`
+  that performs the `status` → `'success'` transition, so anything that
+  throws in there rolls back the activation of an *already-paid*
+  transaction — and the provider's webhook then retries the same failure
+  forever, stranding a paying customer with no subscription and no code path
+  that can ever give them one (A-79). `settleAppliedCredits()` therefore
+  skips reserved credits entirely and, for a legacy transaction created
+  before reservation existed (`credits_applied` with no `credits_reserved`),
+  clamps to the balance actually available and logs the shortfall instead of
+  throwing. Anything new added to that transaction must follow the same rule.
+- **Every path out of a pending transaction releases the reservation.**
+  `failTransaction()` is the single writer of `status = 'failed'`, shared by
+  `verifyPayment()` and `PaymentController::processSuccessfulPayment()`'s
+  amount/currency-mismatch branch. It marks failed and refunds under the same
+  row lock, and stamps `credits_released` so the release is idempotent across
+  whichever of the two gets there first. A new failure path must call it
+  rather than writing `status` itself. `initiatePayment()`'s own catch block
+  releases the reservation too, for a provider that fails at initialization.
+- **A valid signature proves who sent the payload, never what was paid.**
+  Both webhook handlers compare the reported amount *and* currency against
+  the row the charge was minted for before activating anything: without it a
+  genuine ₦100 charge — or a charge in a weaker currency — activates a
+  ₦100,000 plan. Two facts that are easy to get wrong:
+  **units** — Paystack reports the minor unit (kobo), matching its initialize
+  payload (`$amount * 100`) and its verify response (`/100`), while
+  Flutterwave reports the major unit; everything this app stores an expected
+  amount in is the major unit, so only Paystack is converted (one place:
+  `PaymentController::reportedMajorUnitAmount()`). And **tolerance** — the
+  comparison allows 0.01, because `payment_transactions.amount` can carry
+  sub-kobo precision from coupon-percentage arithmetic (e.g. 13124.124) while
+  a provider only ever settles whole kobo (13124.12); a strict `<` rejects a
+  genuine full payment.
+- **An amount/currency mismatch on a SUCCESSFUL charge is refunded, and a
+  human is always told.** Marking the transaction `failed` is not an outcome
+  on its own: the provider says the money moved, so leaving it there kept a
+  customer's payment with no subscription, no refund and nothing but a
+  `Log::warning` (PG-3). Both observers of a mismatch — the webhook's branch
+  in `PaymentController::processSuccessfulPayment()` and
+  `verifyPayment()`'s — now delegate to
+  **`App\Services\Payment\PaymentMismatchHandler`**, which re-reads the
+  transaction and bails if a concurrent observer already activated it (never
+  refund a charge that bought a live subscription), attempts a full refund
+  via `PaymentService::refundTransaction()`, records the outcome under
+  `metadata.mismatch_refund`, and fires an `AdminAlertService` alert **either
+  way** so a failed refund is still chased by hand. A verification that simply
+  answers "not successful" is *not* a mismatch and is not refunded — it still
+  goes straight to `failTransaction()`. Per A-110, the refund (a third-party
+  HTTP call) and the alert (synchronous mail) both happen outside
+  `failTransaction()`'s transaction, never with its row lock held. Pinned by
+  `tests/Feature/PaymentMismatchRefundAlertTest.php`.
+- **Every webhook event other than a successful charge is now visible (PG-9).**
+  Both handlers used to process `charge.success` / `status: successful` and drop
+  everything else on the floor — no log, no alert. A refund, dispute or
+  chargeback raised in the provider's own dashboard therefore left the
+  subscription active and nobody in DumosRx any the wiser.
+  `PaymentController::recordUnhandledEvent()` is the single `else` branch of
+  both handlers: it logs at `info` for ordinary noise (`transfer.success`, a
+  plain failed charge, `subscription.*`) and, for anything whose event/status
+  string reads as a refund/dispute/chargeback, logs at `warning` **and** fires
+  an `AdminAlertService` alert. It always returns 200 — a 4xx/5xx only makes
+  the provider redeliver forever.
+  - **Matched on wording, not an event-name list, deliberately.** The needles
+    are `refund`, `dispute`, `chargeback`, `charge_back`, `reversal`,
+    `reversed`, tested against Paystack's `event` and against Flutterwave's
+    `event` + `data.status` concatenated. Paystack's names are known
+    (`refund.processed`, `refund.failed`, `charge.dispute.create|remind|
+    resolve`); **Flutterwave's are not verified anywhere in this codebase** —
+    the Flutterwave handler never read `event` at all before this, only
+    `data.status`. Substring matching covers whichever spelling actually
+    arrives without a guess that would silently miss. If you ever confirm
+    Flutterwave's real event names against a live payload, write them down here
+    before narrowing the match.
+  - **This is visibility, not automation.** Nothing is refunded, reversed or
+    cancelled automatically; the alert says so explicitly and tells the
+    operator to reconcile by hand. `recordUnhandledEvent()` runs before any
+    transactional work in either handler, so the A-110 rule (never
+    `AdminAlertService::send()` under a DB transaction or row lock) holds.
+  - Covered by the PG-9 block in `tests/Feature/PaymentWebhookTest.php`.
+- **`User::addCredits()`/`deductCredits()` take a row lock.** Both are
+  read-modify-write on `users.referral_credits`; without
+  `lockCreditBalance()` two concurrent grants/spends both read the same
+  balance and the second `save()` silently discards the first.
+- Releases are recorded with type `'earned'`, not a new type:
+  `referral_credit_transactions.type` is a MySQL `ENUM('earned', 'spent',
+  'admin_adjustment')`, and adding a value means a migration (see the ENUM
+  footgun note in the sync section).
+- Coverage: `tests/Feature/SubscriptionCreditReservationTest.php`, including
+  the two-concurrent-checkouts race that produced the original stranding.
+
+## `stores.status` casing: never compare it with `===`
+
+`stores.status` holds `'Active'`/`'Suspended'` — capitalised. That is the
+canonical *stored* form and must stay that way, because two other packages
+compare it exactly and are deployed separately from this API:
+`client/lib/licensing/licensing-manager.ts` gates its suspension lock screen
+on `profile.status === "Suspended"` (and `client/lib/api/base-client.ts`
+writes that literal locally on an `ACCOUNT_SUSPENDED` 403), and `web/`'s
+admin store table/detail/dashboard badges branch on `=== "Suspended"`.
+Lower-casing the column would silently un-gate the desktop app's lock screen
+on every already-installed client.
+
+Server-side, however, nothing may compare the raw value: `AdminStoreService`
+wrote `'Suspended'` while four read sites compared `=== 'suspended'`, so
+suspension was a complete no-op on the storefront and on the
+`storefront_dirty_at` rebuild trigger for as long as both existed (A-74).
+The rule that replaces it:
+
+- **Reads go through `Store::isSuspended()`** (PHP, `strcasecmp`) or
+  **`Store::scopeNotSuspended()`** (query builder). Never `$store->status ===
+  '…'` and never a bare `where('status', …)` on a suspension check.
+- **Writes go through `Store::STATUS_SUSPENDED`/`STATUS_ACTIVE`**, not
+  string literals.
+- The scope uses `LOWER(...)` deliberately: MySQL's default collation is
+  case-insensitive but SQLite's — which the test suite runs on — is not, so a
+  bare `where('status', '!=', 'suspended')` gives *different answers in test
+  and in production*. That divergence is exactly why the original bug stayed
+  invisible (the slug list looked correct while the live endpoints did not).
+  Any new status comparison must be written so both engines agree.
+- `tests/Feature/StoreSuspensionEnforcementTest.php` pins both halves: the
+  stored value itself (`'Suspended'`, so the casing contract with `client/`
+  and `web/` can't drift) and casing-agnostic enforcement across the
+  storefront, the slug list, `storefront_dirty_at` and `CheckAccountStatus`.
+
+## `CheckAccountStatus` resolves the store per *request*, not per account
+
+Multi-store is a supported, plan-gated state, so "is this account blocked?"
+has no single answer for an owner: one store can be suspended while another
+trades normally. The middleware therefore resolves **which store this request
+is acting on** exactly the way `SyncController::resolvePushStoreId()` does —
+`X-Store-Id` (or a `store_id` input) when the caller's tenant owns it, else
+the caller's own `users.store_id` — and blocks only on that store. It used to
+take `Store::where('user_id', …)->first()` with no `orderBy`, so which store
+got enforced was whatever the storage engine returned first: suspending one
+store of a two-store account enforced nothing half the time, and archiving
+one 403'd the owner out of the untouched sibling with a message naming a
+store the admin never touched (A-76).
+
+- Every lookup is `withTrashed()`: an archived store must still be able to
+  answer "blocked", otherwise archiving silently un-suspends.
+- A request that names **no** store (an owner calling `/user`,
+  `/dashboard/summary`, …) is blocked only when **every** owned store is
+  suspended or archived. If anything is still in good standing the request
+  proceeds and per-store scoping rejects the rest — an account-wide 403 is
+  never inferred from one store's state.
+- Enforcement and scoping must keep using the same resolution rule. If
+  `resolvePushStoreId()` changes, change this middleware with it, or a store
+  can be synced under a scope whose status was never checked.
+- Pinned by `tests/Feature/MultiStoreAccountStatusTest.php`.
+
 ## Storefront online payment: Paystack subaccounts
 
 Each store that wants to take real money on its storefront gets its own
@@ -442,6 +787,43 @@ straight to their own bank account.
   Paystack call made) and re-resolves the account server-side even though
   the client already called `/resolve` — never trust a client-sent
   confirmation of someone else's bank details alone.
+- **The resolve endpoint is a name-lookup oracle, and is limited as one
+  (PG-5).** `account_number`/`bank_code` are free-form: ownership is checked on
+  the *store*, never on the account being resolved, so the endpoint will turn
+  any account number in Nigeria or Ghana into its holder's name using the
+  platform's own Paystack credentials. On the authenticated group's shared
+  `throttle:60,1` that was 60 free lookups a minute per owner. It now carries
+  its own `throttle:bank-account-resolve` (**8/min, keyed on the user id, not
+  the IP** — an IP key would let one account rotate through proxies, and a
+  household of owners behind one NAT would share a budget they shouldn't).
+  Eight is deliberately above real onboarding (resolve, fix a typo, resolve
+  again) and far below anything usable for enumeration. Don't fold this route
+  back into the group limiter, and don't re-key it to the IP.
+  `PaymentRouteThrottleTest` asserts both the named limiter and that it trips
+  well under 60.
+- **A created subaccount must never be orphaned (PG-7).** `createSubaccount()`
+  makes a real, permanent object at Paystack *before* the store row is updated,
+  and the "does this store already have one?" 409 check reads only
+  `stores.paystack_subaccount_code`. A failed local save therefore used to
+  leave a live remote subaccount with nothing pointing at it, and the local
+  idempotency check quietly lying — the owner's obvious next move (submit
+  again) would create a *second* one. `linkSubaccountToStore()` now retries the
+  local write 3 times with a short backoff and, if it still fails, logs
+  `Log::critical` with the subaccount code, store id, bank code and last 4,
+  fires an `AdminAlertService` alert, and returns a **500 whose message tells
+  the owner to contact support and explicitly not to resubmit**. Don't soften
+  that wording into "please try again" — the retry is the duplicate.
+  - **Not done, and deliberately:** making the idempotency check ask Paystack
+    whether a subaccount for this bank/account pair already exists. Paystack
+    does expose `GET /subaccount`, but its exact list/filter semantics for
+    matching on `settlement_bank` + `account_number` weren't verified against
+    the live API, and guessing a matcher here risks *reusing* a subaccount
+    belonging to a different store. If this is ever built, verify the response
+    shape and paging against Paystack's live API first, and match on the
+    account pair rather than `business_name` (store names are not unique).
+  - Covered by `test_a_transient_failure_saving_the_subaccount_code_is_retried`,
+    `test_an_unsavable_subaccount_code_is_logged_and_alerted_rather_than_silently_orphaned`
+    and `test_a_failed_local_save_does_not_invite_a_retry_that_would_create_a_second_subaccount`.
 - **`percentage_charge` is the platform's cut, not the store's** — a real,
   easy-to-get-backwards fact worth stating plainly. `createSubaccount()`
   passes the current `storefront_platform_fee_percentage` (a `SystemConfig`
@@ -468,6 +850,64 @@ straight to their own bank account.
   which compares against `payment_transactions.currency`. Covered by
   `test_a_non_ngn_store_completes_the_initialize_to_verify_round_trip` and
   `StorefrontPaystackLifecycleTest` (a KES store, end to end).
+- **The storefront charge is pinned to Paystack; nothing hardcodes the
+  provider afterwards.** `PaymentService::initializeTransaction()` falls back
+  to Flutterwave when Paystack's initialize returns a non-2xx, which is
+  intentional for **subscriptions** and wrong for the storefront:
+  `initializeFlutterwave()` takes no `$subaccount` and hardcodes
+  `'currency' => 'NGN'`, so a transient Paystack 5xx used to charge the
+  customer in naira into the platform's own Flutterwave balance with no
+  payout split — and because `checkout()`'s verify and
+  `refundUnfulfillableCheckout()` both passed a literal `'paystack'`, that
+  charge could then never be verified or refunded (PG-1). The storefront now
+  calls **`PaymentService::initializeStorefrontTransaction()`**, which is
+  Paystack-only and throws if the admin has disabled Paystack, and every
+  later lookup of that charge reads **`$intent->provider`** rather than a
+  literal. Do not reintroduce a cross-gateway fallback on the storefront
+  path without also giving Flutterwave a subaccount/currency equivalent.
+  Pinned by `tests/Feature/StorefrontProviderPinningTest.php`, which also
+  asserts the subscription fallback is still in place.
+- **A storefront payment is reconciled server-side, not only by the
+  customer's browser.** `StorefrontPaymentIntent.status` is a five-value
+  lifecycle: `pending` → (`paid` | `consumed` | `refunded` | `abandoned`).
+  `pending` and `paid` are the two **claimable** states
+  (`StorefrontPaymentIntent::CLAIMABLE_STATUSES` — use it, don't compare to
+  `'pending'` by hand); `checkout()` consumes either one.
+  - **The webhook.** `PaymentController::processSuccessfulPayment()` looks the
+    reference up in `storefront_payment_intents` **before**
+    `payment_transactions` and hands a match to
+    `App\Services\Storefront\StorefrontPaymentReconciler`. Before this, a
+    genuine signed `charge.success` for a storefront charge matched no
+    `PaymentTransaction` and was silently dropped, so the only confirmation
+    path was the customer's own browser returning with intact
+    `sessionStorage` (PG-2). A matching amount/currency marks the intent
+    `paid`; a mismatch is refunded and alerted, same rule as the subscription
+    side.
+  - **The webhook deliberately does NOT create the order.** `online_orders`
+    requires `customer_name` and `customer_phone`, which only the return-flow
+    POST carries — the webhook has nothing but `customer_email`. Inventing
+    those would hand the store an order it can't act on *and* burn the
+    reference, so the genuine confirmation (whenever it arrives, even days
+    later) would then be rejected as already used. Marking `paid` instead
+    makes the money durable, keeps the reference claimable, and gives the
+    sweep something concrete to escalate. If contact details ever move onto
+    the intent at initialize time, revisit this — the webhook could then
+    complete the order outright.
+  - **The sweep.** `App\Console\Commands\SweepStorefrontPaymentIntents`
+    (`storefront:sweep-payment-intents`, hourly in `routes/console.php`,
+    window from `payment.storefront_intent_stale_minutes`, default 60)
+    re-verifies every `pending` intent past the window against the provider:
+    a confirmed one becomes `paid` and alerts, a provider answer of
+    not-successful becomes `abandoned`, and an *unreachable* provider is left
+    strictly alone (never `abandoned` — `PaymentService`'s `unknown` result
+    means the money may well have moved). It then alerts once per `paid`
+    intent nobody ever turned into an order, stamped with
+    `reconciliation_alerted_at` so an hourly schedule doesn't re-mail the
+    same one forever. A stale intent is never auto-refunded: the customer may
+    still be mid-return, and a human deciding between "contact them to
+    finish the order" and "refund" is the right call for money that did
+    arrive.
+  - Pinned by `tests/Feature/StorefrontPaymentReconciliationTest.php`.
 - **A paid-but-unfulfillable confirm refunds itself.** `checkout()` prices the
   cart and re-checks availability *after* the customer has already paid at
   Paystack (nothing is reserved at initialize time — availability is only
@@ -479,6 +919,20 @@ straight to their own bank account.
   through to its own error) when there is nothing paid to refund, so an
   unpaid/failed reference is never refunded and its intent stays `pending`
   for a retry.
+- **`paystack_reference` is prohibited on a non-Paystack order (PG-6).**
+  `online_orders.paystack_reference` is unique across *every* payment method,
+  and the replay guard in `checkout()` deliberately checks it regardless of
+  `payment_method`. Those two facts together meant a cash/`transfer` order that
+  merely *carried* a reference consumed it permanently — a customer (or
+  anyone) could post `payment_method: in_store` with a reference minted for a
+  real Paystack cart, get a cash order, and leave the genuine paid
+  confirmation to be refused as "already used". The field now carries
+  `prohibited_unless:payment_method,paystack`, so such a request 422s before
+  anything is created or consumed and the reference stays spendable. The
+  prohibition is on a *non-empty* value, so a client that always sends the key
+  as `null` is unaffected. Covered by
+  `test_checkout_rejects_a_paystack_reference_on_a_non_paystack_order` and
+  `test_a_reference_refused_on_a_cash_order_is_still_usable_for_the_real_paystack_checkout`.
 - **Refunds are real, but not clawed back from the store.**
   `OnlineOrderController`'s cancel-a-paid-order path now calls
   `PaymentService::refundTransaction()` (which delegates to
@@ -498,6 +952,24 @@ straight to their own bank account.
   that reconcilable. Anything summing paid online orders as revenue must
   therefore treat `'refunded'` as not-revenue rather than assuming three
   values.
+- **The cancel transition is committed under a row lock before the provider is
+  called, and a provider "already refunded" counts as success.** The
+  pending-only guard is a check-then-write, so without a lock two concurrent
+  cancels (staff double-tapping, or the POS retrying a request whose response
+  was lost) both read `pending`, both wrote `cancelled` and both called the
+  refund API — a double payout, or, when Paystack rejected the second, a
+  *correct* refund falling through to the manual-refund flag with
+  `payment_status` still `'paid'` (A-82). `markFulfilled()` now takes the
+  transition inside `DB::transaction()` + `lockForUpdate()` and the loser gets
+  the 409, so only one caller ever reaches the provider; the refund happens
+  after that commit (never with a lock held across a third-party call) and
+  `payment_status` is written in its own short transaction on the outcome.
+  `PaystackSubaccountService::refund()` maps an "already refunded"/"fully
+  reversed" rejection to `success: true, already_refunded: true` — the money is
+  back, which is the outcome asked for — and the duplicate store notification is
+  suppressed for that case. A genuine failure (unknown reference, provider
+  error) still falls through to flag-and-notify. Pinned by
+  `tests/Feature/OnlineOrderCancelRefundLockTest.php`.
 
 **Carbon 3 gotcha:** `diffInMonths()` (and the other `diffIn*` methods)
 return a **signed** value (`$other - $this`) in Carbon 3, unlike Carbon 2's
@@ -509,7 +981,7 @@ entirely.
 
 ## The other unauthenticated surface (not the storefront)
 
-Three routes sit at the top of `routes/api.php` outside every auth group, and
+Five routes sit at the top of `routes/api.php` outside every auth group, and
 each now carries its own named limiter for the same Laravel-11 reason the
 storefront ones do (see the next section):
 
@@ -528,6 +1000,19 @@ storefront ones do (see the next section):
   requests carry a super_admin token.
 - **`POST /support`** (`throttle:public-write`, 5/min/IP) — persists a
   `Feedback` row and emails every platform admin.
+- **`GET /downloads/manifest`** (`throttle:public-read`) — per-platform
+  installer URL, existence and size for the marketing Downloads page, which is
+  anonymous by definition. It shares `DownloadsManifestService` with the
+  `super_admin`-gated `GET /admin/downloads/manifest` and caches its CDN probe
+  for 10 minutes (the admin endpoint deliberately does not, so an admin sees a
+  live probe). The public page used to call the admin route and got a 401 plus
+  a forced redirect off the site — see `docs/DOWNLOADS_MANIFEST.md` (A-94)
+  before merging the two back together.
+- **`GET /announcements`** (`throttle:public-read`) — the active-broadcast
+  feed. It sat outside every limiter until A-108; because Laravel 11 applies no
+  `throttle:api` floor, an unauthenticated poll was an unmetered full-table
+  read. Its result set is also bounded by
+  `BroadcastController::PUBLIC_FEED_LIMIT`.
 - **`POST /logs/client-error`** (`throttle:client-error-log`, 30/min/IP) —
   writes to `laravel.log` on shared hosting, plus an `activity_logs` row when a
   token happens to be present. Every field is length-capped
@@ -535,8 +1020,26 @@ storefront ones do (see the next section):
   `App\Rules\EncodedSizeAtMost` — Laravel's `max:` on an array counts elements,
   which is no defence against one key holding a megabyte.
 
-`tests/Feature/PublicSurfaceHardeningTest.php` covers all of this and, like
+`tests/Feature/PublicSurfaceHardeningTest.php` covers all of this (the
+downloads manifest in `tests/Feature/PublicDownloadsManifestTest.php`) and, like
 `StorefrontThrottleTest`, deliberately does not disable `ThrottleRequests`.
+
+## Manual backup uploads: size, type, quota and retention
+
+`Api/Web/BackupController` stores tenant uploads under
+`backups/{owner_id}/` on the local disk of a **shared** host, so every limit
+lives in `config/backups.php` rather than in the controller:
+
+- `max_upload_kilobytes` and `allowed_extensions` are the `max:`/`extensions:`
+  validation rules on `POST /backups/upload`. It previously validated only
+  `required|file` (A-109).
+- `tenant_quota_kilobytes` is enforced in `assertWithinQuota()` by summing the
+  tenant's existing files before accepting a new one; over quota is a 422 on
+  the `backup` field, not a 500.
+- `retention_days` drives `backups:prune` (`App\Console\Commands\PruneBackups`,
+  scheduled nightly at 03:00 in `routes/console.php`). It **always keeps each
+  tenant's newest backup** regardless of age — a store that has not synced in a
+  year still has a restore point, which is the entire point of the feature.
 
 ## Public storefront endpoints
 
@@ -554,6 +1057,16 @@ surface in the app. Three things about it are easy to undo by accident:
   deliberately does **not** disable `ThrottleRequests` — `StorefrontControllerTest`
   does, which is exactly why this gap was invisible for so long, so add
   limiter coverage there, not here.
+- **The provider webhook routes carry `throttle:webhooks` (PG-8).**
+  `POST /webhooks/paystack` and `POST /webhooks/flutterwave` sat outside every
+  limiter, which under Laravel 11 means completely unmetered — each call runs an
+  HMAC-SHA512 over the raw body and a `provider_reference` lookup, so an
+  unauthenticated flood was free CPU and free queries. The limiter is
+  **300/min/IP, deliberately loose**: a provider legitimately bursts (a
+  settlement batch, a replay of a backlog after an outage) and a 429 just makes
+  it redeliver forever. Don't tighten it toward the 5-15/min the storefront
+  limiters use. Asserted by `tests/Feature/PaymentRouteThrottleTest.php`, which
+  checks both routes carry the group *and* that the limit stays generous.
 - **`storefront-read` is generous on purpose.** The static-export build pulls
   the slug list plus every storefront from one GitHub runner IP in a single
   pass, about two requests per store. 120/min leaves headroom for roughly 50
@@ -596,6 +1109,29 @@ actually run — do it synchronously (fast, timeout-guarded) or via
 `routes/console.php`'s `Schedule::command(...)`, which the OS cron does
 reliably run.
 
+**The payment services are no exception, and they are the ones that matter
+most.** Guzzle's default request timeout is 0 — wait forever — and every
+Paystack/Flutterwave call went out that way while every other outbound call in
+the app carried a short one (A-81). `POST /storefront/{slug}/checkout/initialize`
+is unauthenticated, so a blackholed provider socket pinned a PHP-FPM worker per
+hung checkout until the pool (small, on shared hosting) was gone and the whole
+API — sync included — stopped answering. Both `PaymentService` and
+`PaystackSubaccountService` now funnel every call through a single private
+client factory carrying `->timeout(10)->connectTimeout(5)`; add new calls
+through that factory, never a bare `Http::withToken(...)`.
+`tests/Feature/PaymentProviderTimeoutTest.php` asserts that at the source level
+(the options are invisible on a faked request, so behaviour alone can't pin it).
+
+**A verification that never reached the provider is `unknown`, not failed.**
+`verifyPaystack()`/`verifyFlutterwave()` catch `ConnectionException` and return
+`['success' => false, 'unknown' => true]`, and consumers must branch on that
+*before* their failure handling: the money may well have moved, so the correct
+answer is "we don't know yet" — a **503**, no order booked, no
+`PaymentTransaction` marked failed (`failTransaction()` on a timeout would
+declare a possibly-successful payment dead) and a message telling the customer
+not to pay again. `StorefrontController::checkout()` and
+`SubscriptionController::verifyPayment()` both do this.
+
 **Mail is always `Mail::to(...)->send(...)`, never `->queue(...)`** — a
 direct consequence of the constraint above, stated as its own rule because a
 `->queue()` call fails *silently*: nothing checks a return value, nothing
@@ -605,11 +1141,39 @@ inspects the `jobs` table, and the caller still reports success. The last two
 failure-escalation path — the mechanism meant to surface *other* silent
 failures) and `Api/Admin/MailController::send()` (the admin broadcast-email
 feature, which additionally returned "Emails have been queued for sending"
-unconditionally). The mailables still `implement ShouldQueue` — harmless, and
-left in place for a future real worker — so that interface's presence is
-**not** a signal that queueing is safe here. Copy the `->send()` pattern from
+unconditionally).
+
+**Five mailables still `implement ShouldQueue`** (`WelcomeEmail`,
+`AdminCustomMail`, `AdminNotification`, `PasswordResetEmail`,
+`PasswordChangedEmail`) despite every call site using `->send()` — and
+Laravel's `Mailer::sendMailable()` queues any `ShouldQueue` mailable
+regardless of which method the caller used, so this is **not** actually
+inert code the way it looks. It only sends immediately today because
+**production's `.env` sets `QUEUE_CONNECTION=sync`** (confirmed 2026-10-01;
+the sync driver executes a "queued" job in the same request, so a mailable
+never actually reaches the `jobs` table) — not because the interface is
+dead weight. The repo's own `.env.example`/local `.env` both default to
+`QUEUE_CONNECTION=database`, which *would* reproduce the exact silent-loss
+failure mode this rule exists to prevent, for any of these five mailables,
+the moment someone "fixes" that drift between local and production without
+also removing `ShouldQueue` or adding a real worker. Confirmed via a
+2026-10-01 investigation that attempted to add `ShouldQueue` to
+`SuperAdminAlertMail` for the same (reverted) reason — see `docs/KNOWN_BUGS.md`'s `A-125`. Copy the `->send()` pattern from
 `RegistersAccounts`/`RecoversPasswords`/`SendEndOfDaySummaries` for any new
-mail path.
+mail path, and don't add `ShouldQueue` to a mailable here on the assumption
+that it's a no-op — it is only a no-op because of this specific, fragile
+production config.
+
+**Corollary — never `->send()` inside an open transaction.** Because the send
+is synchronous, a slow or unreachable SMTP server holds the transaction (and
+every `lockForUpdate()` row lock it took) open for the full mail timeout. This
+is what A-110 was: `SyncController::touchStoreLastSyncAt()` fired the
+first-sync admin alert before push()'s outer `DB::commit()`, so the client's
+batch timed out and retried against still-locked rows. The method now returns
+the first-synced `Store` and `push()` calls `sendFirstSyncAlert()` *after* the
+commit; `tests/Feature/SyncFirstSyncAlertTest.php` pins that by asserting
+`DB::transactionLevel()` at `MessageSending` time. Any new mail call on a
+write path has to sit after the commit, not inside it.
 
 ## Broadcast emails (`broadcasts.send_email`)
 
@@ -677,7 +1241,7 @@ itself holds no sending logic.
 ## Testing
 
 ```
-php artisan test                            # 539 tests as of 2026-09-29 (admin owner-vs-staff split + store detail endpoint) — treat any drop as a regression
+php artisan test                            # 752 passing + 1 skipped as of 2026-10-01 (multi-store owner sync scope, A-127/A-128) — treat any drop as a regression
 php -l path/to/File.php                     # quick syntax check for a single file
 ```
 

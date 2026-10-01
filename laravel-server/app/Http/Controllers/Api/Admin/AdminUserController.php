@@ -288,11 +288,18 @@ class AdminUserController extends AdminBaseController
         responses: [
             new OA\Response(response: 200, description: 'Deactivated', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
             new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 422, description: 'Self-deactivation', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
     )]
     public function deactivateUser(Request $request, $id)
     {
+        if ($id === $request->user()->id) {
+            return response()->json([
+                'message' => 'You cannot deactivate your own account.',
+            ], 422);
+        }
+
         return $this->withErrorResponse('Deactivate User', 'Failed to deactivate user', function () use ($id) {
             $this->adminUserService->deactivateUser($id);
             return response()->json(['message' => 'User deactivated successfully']);

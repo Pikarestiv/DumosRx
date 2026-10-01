@@ -50,11 +50,12 @@ describe("inventory stock alerts", () => {
     name: string,
     reorderLevel: number,
     storeId?: string,
+    isActive: number | null = 1,
   ) {
     db.run(
-      `INSERT INTO products (id, name, reorder_level, base_unit, store_id, _deleted)
-       VALUES (?, ?, ?, 'Unit', ?, 0)`,
-      [id, name, reorderLevel, storeId ?? null],
+      `INSERT INTO products (id, name, reorder_level, base_unit, store_id, is_active, _deleted)
+       VALUES (?, ?, ?, 'Unit', ?, ?, 0)`,
+      [id, name, reorderLevel, storeId ?? null, isActive],
     );
   }
 
@@ -66,11 +67,12 @@ describe("inventory stock alerts", () => {
       expiry?: string | null;
       isActive?: number;
       deleted?: number;
+      storeId?: string | null;
     },
   ) {
     db.run(
-      `INSERT INTO stock_batches (id, product_id, batch_number, quantity, expiry_date, is_active, _deleted)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO stock_batches (id, product_id, batch_number, quantity, expiry_date, is_active, _deleted, store_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         productId,
@@ -79,6 +81,7 @@ describe("inventory stock alerts", () => {
         opts.expiry ?? null,
         opts.isActive ?? 1,
         opts.deleted ?? 0,
+        opts.storeId ?? null,
       ],
     );
   }
@@ -162,6 +165,33 @@ describe("inventory stock alerts", () => {
       expect(rows.map((r) => r.quantity)).toEqual([0, 1, 2, 3, 4]);
     });
 
+    it("ignores a deactivated product, matching getStockBatchStats's population", async () => {
+      seedProduct("p1", "Retired", 10, undefined, 0);
+      seedBatch("b1", "p1", { quantity: 2, expiry: iso(200) });
+
+      expect(await q.getLowStockAlerts()).toEqual([]);
+    });
+
+    it("still flags a product whose is_active was never recorded", async () => {
+      seedProduct("p1", "Legacy", 10, undefined, null);
+      seedBatch("b1", "p1", { quantity: 2, expiry: iso(200) });
+
+      expect((await q.getLowStockAlerts()).map((r) => r.product)).toEqual(["Legacy"]);
+    });
+
+    it("agrees with getStockBatchStats on how many products are low or critical", async () => {
+      seedProduct("p1", "Live low", 10);
+      seedBatch("b1", "p1", { quantity: 2, expiry: iso(200) });
+      seedProduct("p2", "Live critical", 10);
+      seedProduct("p3", "Retired low", 10, undefined, 0);
+      seedBatch("b3", "p3", { quantity: 2, expiry: iso(200) });
+
+      const stats = await q.getStockBatchStats();
+      const rows = await q.getLowStockAlerts();
+      expect(rows).toHaveLength(stats.low_stock_count + stats.critical_stock_count);
+      expect(rows.map((r) => r.product).sort()).toEqual(["Live critical", "Live low"]);
+    });
+
     it("reports only the active store's products", async () => {
       seedProduct("p1", "Here", 10, "store-a");
       seedProduct("p2", "Elsewhere", 10, "store-b");
@@ -169,6 +199,41 @@ describe("inventory stock alerts", () => {
       core.setActiveStoreId("store-a");
       const rows = await q.getLowStockAlerts();
       expect(rows.map((r) => r.product)).toEqual(["Here"]);
+    });
+
+    it("ignores a batch attributed to another store even when it hangs off this store's product", async () => {
+      seedProduct("p1", "Panadol", 10, "store-a");
+      seedBatch("b1", "p1", { quantity: 2, expiry: iso(200), storeId: "store-a" });
+      seedBatch("b2", "p1", { quantity: 500, expiry: iso(200), storeId: "store-b" });
+
+      core.setActiveStoreId("store-a");
+      const rows = await q.getLowStockAlerts();
+      expect(rows.map((r) => [r.product, r.quantity])).toEqual([["Panadol", 2]]);
+    });
+
+    it("ignores a store_id-less batch while a store is active, matching getStockBatchStats's on-hand figure", async () => {
+      seedProduct("p1", "Panadol", 10, "store-a");
+      seedBatch("b1", "p1", { quantity: 500, expiry: iso(200), storeId: null });
+
+      core.setActiveStoreId("store-a");
+      const rows = await q.getLowStockAlerts();
+      const stats = await q.getStockBatchStats();
+      expect(rows.map((r) => [r.product, r.quantity])).toEqual([["Panadol", 0]]);
+      expect(rows).toHaveLength(stats.low_stock_count + stats.critical_stock_count);
+    });
+
+    it("agrees with getStockBatchStats on on-hand quantity across mixed batch store attribution", async () => {
+      seedProduct("p1", "Mixed", 10, "store-a");
+      seedBatch("b1", "p1", { quantity: 3, expiry: iso(200), storeId: "store-a" });
+      seedBatch("b2", "p1", { quantity: 400, expiry: iso(200), storeId: "store-b" });
+      seedProduct("p2", "Stocked", 10, "store-a");
+      seedBatch("b3", "p2", { quantity: 40, expiry: iso(200), storeId: "store-a" });
+
+      core.setActiveStoreId("store-a");
+      const stats = await q.getStockBatchStats();
+      const rows = await q.getLowStockAlerts();
+      expect(rows).toHaveLength(stats.low_stock_count + stats.critical_stock_count);
+      expect(rows.map((r) => r.product)).toEqual(["Mixed"]);
     });
   });
 

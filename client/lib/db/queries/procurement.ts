@@ -1,5 +1,10 @@
 import { query, update } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
+import {
+  conflictTouchedField,
+  getUnresolvedConflicts,
+  resolveConflictsById,
+} from "@/lib/db/sync-engine/conflict-log";
 
 export interface POVendor {
   id: string;
@@ -83,4 +88,46 @@ export async function getActiveProductsForPO() {
      ORDER BY p.name ASC`,
     storeId ? [storeId] : [],
   );
+}
+
+export interface DroppedReceiptSignal {
+  conflictIds: number[];
+  lineCount: number;
+  detectedAt: string;
+}
+
+/**
+ * A-26: a stale device's legitimate second partial receipt derives the same
+ * deterministic ids as the first, so the server collapses its stock rows into
+ * the first receipt's and drops its `quantity_received` UPDATE as a terminal
+ * conflict. The stock is on the shelf and not in the system, and the PO just
+ * reads as having an ordinary outstanding balance. This reports whether any
+ * such drop is still outstanding against this order's lines so the receiving
+ * screen can say so. See client/AGENTS.md, "The terminal-conflict ledger".
+ */
+export async function getDroppedReceiptSignal(
+  purchaseOrderId: string,
+): Promise<DroppedReceiptSignal | null> {
+  const items = await query<{ id: string }>(
+    "SELECT id FROM purchase_order_items WHERE po_id = ?",
+    [purchaseOrderId],
+  );
+  const conflicts = await getUnresolvedConflicts(
+    "purchase_order_items",
+    items.map((item) => item.id),
+  );
+  const receiptConflicts = conflicts.filter((conflict) =>
+    conflictTouchedField(conflict, "quantity_received"),
+  );
+  if (receiptConflicts.length === 0) return null;
+
+  return {
+    conflictIds: receiptConflicts.map((conflict) => conflict.id),
+    lineCount: new Set(receiptConflicts.map((conflict) => conflict.record_id)).size,
+    detectedAt: receiptConflicts[receiptConflicts.length - 1].detected_at,
+  };
+}
+
+export async function dismissDroppedReceiptSignal(conflictIds: number[]): Promise<void> {
+  await resolveConflictsById(conflictIds);
 }

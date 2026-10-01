@@ -9,7 +9,13 @@ import {
   LOYALTY_RULES,
   validateRedemption,
 } from "@/lib/utils/loyalty-calculator";
-import { calculateSplitShortage, calculateMixedAmountPaid, calculateMixedChangeDue } from "@/lib/utils/pos-calculations";
+import {
+  calculateSplitShortage,
+  calculateMixedAmountPaid,
+  calculateMixedChangeDue,
+  calculateMaxAllowedCreditSplit,
+  isCreditSplitOverAllocated,
+} from "@/lib/utils/pos-calculations";
 import { CartItem, RedeemedOption } from "./use-pos-cart";
 import type { Customer } from "@/lib/types/customer";
 import type { ReceiptTransaction } from "@/components/pos/receipt-view";
@@ -98,6 +104,9 @@ export function validatePaymentReadiness(params: {
     }
     if (!calculateSplitShortage(paymentSplits, total).isFullyCovered) {
       return "Mixed payment splits do not cover the total amount";
+    }
+    if (isCreditSplitOverAllocated(paymentSplits, total)) {
+      return `The credit portion cannot exceed the ${calculateMaxAllowedCreditSplit(paymentSplits, total).toFixed(2)} still unpaid on this sale`;
     }
     if (requirePaymentAccount) {
       const missingAccount = paymentSplits.some(

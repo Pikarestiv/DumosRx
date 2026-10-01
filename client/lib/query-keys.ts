@@ -123,6 +123,8 @@ export const queryKeys = {
       ]),
     detailItems: (id: string | null) =>
       resource(["purchase_order_detail_items", id] as const, ["purchase_order_items"]),
+    droppedReceiptSignal: (id: string | null) =>
+      resource(["purchase_order_dropped_receipt", id] as const, ["purchase_order_items"]),
   },
   requestedProducts: {
     all: () => resource(["requested_products"] as const, ["requested_products"]),

@@ -74,7 +74,7 @@ export function StockAdjustmentsLedger() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const canAdjustStock = useHasPermission("adjust_stock_counts");
-  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [reasonFilter, setReasonFilter] = useState<string>(ALL_ADJUSTMENT_REASONS);

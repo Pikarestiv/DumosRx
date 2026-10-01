@@ -449,6 +449,8 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "store_id TEXT",
       "discount REAL DEFAULT 0",
       "discount_type TEXT",
+      "is_reseller_sale INTEGER DEFAULT 0",
+      "markup_type TEXT",
     ],
   },
   {
@@ -694,6 +696,18 @@ async function lowercaseExistingProductAndCategoryNames(
 // "Uncategorized" (and, crucially, the category can be re-picked from the
 // dropdown again) instead of the dead id staying stuck forever. Idempotent:
 // a product with a valid category_id is untouched.
+// stock_batches.cost_price is nullable here and NOT NULL DEFAULT 0 on the
+// server. Adjustment batches written by the bulk-import stock-audit flow
+// before commit e15105b1 never set it at all, so they hold a real local
+// NULL that a whole-row requeue would send up explicitly and the server
+// would reject. Idempotent, so no one-time-run flag — see FIXED_BUGS A-128.
+async function zeroNullStockBatchCostPrices(adapter: DbAdapter): Promise<void> {
+  await tryRun(
+    adapter,
+    "UPDATE stock_batches SET cost_price = 0 WHERE cost_price IS NULL",
+  );
+}
+
 async function clearOrphanedProductCategoryIds(adapter: DbAdapter): Promise<void> {
   // Matches getCategoryList()'s own visibility rule (store_id = mine, or
   // NULL for pre-multi-tenancy rows) — a category_id pointing at a row that
@@ -915,6 +929,7 @@ export async function runSchemaMigrations(
   await backfillReceiptContactVisibility(adapter);
   await lowercaseExistingProductAndCategoryNames(adapter);
   await clearOrphanedProductCategoryIds(adapter);
+  await zeroNullStockBatchCostPrices(adapter);
   await relaxPurchaseOrdersSupplierIdNullable(adapter);
   await clearLegacyTransactionsOnce(adapter, persist);
   await ensureReadPathIndexes(adapter, persist);

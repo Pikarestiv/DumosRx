@@ -19,6 +19,37 @@ function transactionNumberFor(order: OnlineOrder): string {
   return `ONL-${order.id}`;
 }
 
+export interface OnlineOrderStockGap {
+  productId: string;
+  productName: string;
+  requested: number;
+  available: number;
+}
+
+/**
+ * Lines the store cannot actually dispense: the product's sellable (active,
+ * unexpired, positive-quantity) batches don't cover the ordered quantity.
+ * recordSaleItemStock still attributes such a line so it never leaves the
+ * stock ledger untouched, but fulfilling it is an oversell, so the caller
+ * warns and asks for confirmation first - see docs/FIXED_BUGS.md (A-57).
+ */
+export async function findOnlineOrderStockGaps(order: OnlineOrder): Promise<OnlineOrderStockGap[]> {
+  const gaps: OnlineOrderStockGap[] = [];
+  for (const item of order.items) {
+    const batches = await getBatchesForProduct(item.product_id);
+    const available = batches.reduce((sum, b) => sum + Math.max(0, b.quantity), 0);
+    if (available < item.quantity) {
+      gaps.push({
+        productId: item.product_id,
+        productName: item.product?.name || "Unknown product",
+        requested: item.quantity,
+        available,
+      });
+    }
+  }
+  return gaps;
+}
+
 /**
  * Local-leg-first, and the local leg is one transaction. The server call used
  * to come first, so any failure writing the sale or deducting stock left the

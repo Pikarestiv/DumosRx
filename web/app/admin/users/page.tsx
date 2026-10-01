@@ -34,6 +34,7 @@ import {
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { downloadUserDirectoryCsv } from "@/lib/admin-user-export";
 
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 import { DeactivateUserDialog } from "@/components/admin/users/deactivate-user-dialog";
@@ -48,7 +49,6 @@ import { SharedActivatePlanDialog } from "@/components/admin/shared-activate-pla
 import { UserPagination } from "@/components/admin/users/user-pagination";
 import { BulkNotifyDialog } from "@/components/admin/users/bulk-notify-dialog";
 import type { AdminAccountType, AdminUser } from "@/lib/types/admin";
-import { escapeCsvCell } from "@/lib/utils";
 import {
   ACCOUNT_TYPE_TABS,
   ROLE_FILTER_SLUGS,
@@ -125,31 +125,11 @@ function GlobalUsersDirectoryContent() {
   const userMeta = response?.meta;
 
   const handleExportCSV = () => {
-    if (userList.length === 0) return;
-    const csv = [
-      ["ID", "Name", "Email", "Role", "Store", "Status"],
-      ...userList.map((u: AdminUser) => [
-        u.id,
-        u.name,
-        u.email,
-        u.role,
-        u.store,
-        u.status,
-      ]),
-    ]
-      .map((row) => row.map((cell) => escapeCsvCell(cell)).join(","))
-      .join("\n");
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `users-export-${new Date().toISOString().split("T")[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    toast.success("User list exported successfully");
+    if (!downloadUserDirectoryCsv(userList)) {
+      toast.error("Nothing to export yet", {
+        description: "This page of the user list is empty.",
+      });
+    }
   };
 
   const handleGrantTrial = (plan: string, duration?: string, endDate?: string) => {
@@ -226,7 +206,9 @@ function GlobalUsersDirectoryContent() {
               title="Export User List"
             >
               <Download className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Export CSV</span>
+              <span className="hidden sm:inline">
+                Export this page ({userList.length})
+              </span>
             </Button>
           </div>
           <Button

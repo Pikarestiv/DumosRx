@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { addDays, addMonths, formatISO } from 'date-fns';
 
 interface FakeStore {
   id: string;
@@ -289,9 +290,13 @@ describe('transferStock', () => {
   it('draws FEFO across multiple source batches and weight-averages their cost onto one destination batch', async () => {
     products['p1'] = { id: 'p1', name: 'Cough Syrup', store_id: 's1' };
     // Soonest-expiring batch has only 5 units at cost 100; the rest must come
-    // from the later-expiring batch at cost 130.
-    batches['b1'] = { id: 'b1', product_id: 'p1', quantity: 5, cost_price: 100, expiry_date: '2026-10-01', store_id: 's1' };
-    batches['b2'] = { id: 'b2', product_id: 'p1', quantity: 20, cost_price: 130, expiry_date: '2027-05-01', store_id: 's1' };
+    // from the later-expiring batch at cost 130. Dates are relative to "now"
+    // (A-123) - a hardcoded calendar date eventually becomes "today" or the
+    // past and silently drops out of the FEFO draw entirely.
+    const soonestExpiry = formatISO(addDays(new Date(), 1), { representation: 'date' });
+    const laterExpiry = formatISO(addMonths(new Date(), 6), { representation: 'date' });
+    batches['b1'] = { id: 'b1', product_id: 'p1', quantity: 5, cost_price: 100, expiry_date: soonestExpiry, store_id: 's1' };
+    batches['b2'] = { id: 'b2', product_id: 'p1', quantity: 20, cost_price: 130, expiry_date: laterExpiry, store_id: 's1' };
 
     const result = await transferStock({
       sourceStoreId: 's1',
@@ -309,7 +314,7 @@ describe('transferStock', () => {
 
     const destBatch = Object.values(batches).find((b) => b.product_id === result.destProductId);
     expect(destBatch?.cost_price).toBeCloseTo(120, 5);
-    expect(destBatch?.expiry_date).toBe('2026-10-01'); // earliest of the two drawn batches
+    expect(destBatch?.expiry_date).toBe(soonestExpiry); // earliest of the two drawn batches
 
     const outRows = movements.filter((m) => m.movement_type === 'transfer_out');
     expect(outRows).toHaveLength(2); // one row per source batch touched

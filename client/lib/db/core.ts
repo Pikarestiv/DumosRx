@@ -1097,6 +1097,8 @@ const LOCAL_WIPE_TABLES = [
   "payment_accounts",
   "_sync_state",
   "_sync_queue",
+  "_pending_stock_deltas",
+  "_sync_conflicts",
 ];
 
 /**

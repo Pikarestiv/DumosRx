@@ -13,6 +13,7 @@ import {
 import {
   LEGACY_PRODUCT_IMPORT_REASON,
   PRODUCT_IMPORT_REFERENCE_TYPE,
+  STOCK_LOSS_REASON_LABELS,
 } from "@/lib/constants/stock-adjustments";
 import type { StockMovementDbRow } from "@/lib/types/stock-movement";
 
@@ -109,6 +110,18 @@ describe("adjustment ledger grouping", () => {
     expect(groups[0].date).toBe("2026-09-07T09:00:00.000Z");
   });
 
+  it("carries both ends of a group's movement date interval", () => {
+    const [group] = groupAdjustmentMovements([
+      row({ id: "m1", reference_id: "ADJ-1", movement_date: "2026-09-05T23:58:00.000Z" }),
+      row({ id: "m2", reference_id: "ADJ-1", movement_date: "2026-09-06T00:01:00.000Z" }),
+      row({ id: "m3", reference_id: "ADJ-1", movement_date: "2026-09-05T23:59:00.000Z" }),
+    ]);
+
+    expect(group.startDate).toBe("2026-09-05T23:58:00.000Z");
+    expect(group.endDate).toBe("2026-09-06T00:01:00.000Z");
+    expect(group.date).toBe(group.endDate);
+  });
+
   it("surfaces the fixed reason and its optional note separately", () => {
     const [group] = groupAdjustmentMovements([
       row({ id: "m1", reference_id: "ADJ-1", reason: buildAdjustmentReason("damage", "Water leak in store room") }),
@@ -166,6 +179,44 @@ describe("adjustment ledger filtering", () => {
   it("returns everything when no filter is applied", () => {
     expect(filterAdjustmentGroups(groups, {})).toHaveLength(2);
   });
+
+  describe("a group whose movements straddle midnight", () => {
+    const spanning = groupAdjustmentMovements([
+      row({
+        id: "m1",
+        reference_id: "ADJ-MIDNIGHT",
+        reason: buildAdjustmentReason("inventory_count"),
+        movement_date: "2026-09-10T23:55:00.000Z",
+      }),
+      row({
+        id: "m2",
+        reference_id: "ADJ-MIDNIGHT",
+        reason: buildAdjustmentReason("inventory_count"),
+        movement_date: "2026-09-11T00:04:00.000Z",
+      }),
+    ]);
+
+    it("matches a range ending on the day it started", () => {
+      expect(
+        filterAdjustmentGroups(spanning, { from: "2026-09-10", to: "2026-09-10" }).map(
+          (g) => g.referenceId,
+        ),
+      ).toEqual(["ADJ-MIDNIGHT"]);
+    });
+
+    it("matches a range starting on the day it finished", () => {
+      expect(
+        filterAdjustmentGroups(spanning, { from: "2026-09-11", to: "2026-09-11" }).map(
+          (g) => g.referenceId,
+        ),
+      ).toEqual(["ADJ-MIDNIGHT"]);
+    });
+
+    it("stays out of a range that touches neither of its days", () => {
+      expect(filterAdjustmentGroups(spanning, { from: "2026-09-12", to: "2026-09-20" })).toEqual([]);
+      expect(filterAdjustmentGroups(spanning, { from: "2026-09-01", to: "2026-09-09" })).toEqual([]);
+    });
+  });
 });
 
 describe("adjustment quantity maths", () => {
@@ -221,5 +272,23 @@ describe("adjustment quantity maths", () => {
       reason: "Cycle count adjustment",
       note: "",
     });
+  });
+});
+
+describe("STOCK_LOSS_REASON_LABELS", () => {
+  it("stays in step with every decrease-direction ADJUSTMENT_REASONS label", () => {
+    const decreaseLabels = ADJUSTMENT_REASONS.filter(
+      (reason) => reason.direction === "decrease",
+    ).map((reason) => reason.label);
+
+    expect([...STOCK_LOSS_REASON_LABELS].sort()).toEqual(decreaseLabels.sort());
+  });
+
+  it("matches what buildAdjustmentReason actually persists", () => {
+    for (const label of STOCK_LOSS_REASON_LABELS) {
+      const reason = ADJUSTMENT_REASONS.find((entry) => entry.label === label);
+      expect(reason).toBeDefined();
+      expect(buildAdjustmentReason(reason!.value)).toBe(label);
+    }
   });
 });

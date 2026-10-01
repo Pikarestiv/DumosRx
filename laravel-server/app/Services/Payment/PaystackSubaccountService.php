@@ -44,9 +44,19 @@ class PaystackSubaccountService
         return in_array($countryCode, self::RESOLVE_COUNTRIES, true);
     }
 
+    private const REQUEST_TIMEOUT_SECONDS = 10;
+    private const CONNECT_TIMEOUT_SECONDS = 5;
+
     public function __construct()
     {
         $this->secretKey = (string) config('payment.paystack.secret_key');
+    }
+
+    private function client()
+    {
+        return Http::withToken($this->secretKey)
+            ->timeout(self::REQUEST_TIMEOUT_SECONDS)
+            ->connectTimeout(self::CONNECT_TIMEOUT_SECONDS);
     }
 
     public function listBanks(string $countryCode): array
@@ -56,7 +66,7 @@ class PaystackSubaccountService
         }
 
         try {
-            $response = Http::withToken($this->secretKey)
+            $response = $this->client()
                 ->get('https://api.paystack.co/bank', ['country' => $countryCode]);
         } catch (\Throwable $e) {
             Log::warning('Paystack listBanks failed: ' . $e->getMessage());
@@ -77,7 +87,7 @@ class PaystackSubaccountService
         }
 
         try {
-            $response = Http::withToken($this->secretKey)
+            $response = $this->client()
                 ->get('https://api.paystack.co/bank/resolve', [
                     'account_number' => $accountNumber,
                     'bank_code' => $bankCode,
@@ -105,7 +115,7 @@ class PaystackSubaccountService
         string $accountNumber,
         float $percentageCharge,
     ): string {
-        $response = Http::withToken($this->secretKey)
+        $response = $this->client()
             ->post('https://api.paystack.co/subaccount', [
                 'business_name' => $businessName,
                 'settlement_bank' => $bankCode,
@@ -127,7 +137,7 @@ class PaystackSubaccountService
 
     public function updateSubaccountFee(string $subaccountCode, float $percentageCharge): void
     {
-        $response = Http::withToken($this->secretKey)
+        $response = $this->client()
             ->put("https://api.paystack.co/subaccount/{$subaccountCode}", [
                 'percentage_charge' => $percentageCharge,
             ]);
@@ -149,17 +159,41 @@ class PaystackSubaccountService
         }
 
         try {
-            $response = Http::withToken($this->secretKey)
+            $response = $this->client()
                 ->post('https://api.paystack.co/refund', $payload);
         } catch (\Throwable $e) {
-            return ['success' => false, 'message' => $e->getMessage()];
+            return ['success' => false, 'already_refunded' => false, 'message' => $e->getMessage()];
         }
 
         $body = $response->json();
+        $message = $body['message'] ?? ($response->successful() ? 'Refund processed' : 'Refund failed');
+        $succeeded = $response->successful() && ($body['status'] ?? false);
+        $alreadyRefunded = !$succeeded && $this->messageMeansAlreadyRefunded((string) $message);
 
         return [
-            'success' => $response->successful() && ($body['status'] ?? false),
-            'message' => $body['message'] ?? ($response->successful() ? 'Refund processed' : 'Refund failed'),
+            'success' => $succeeded || $alreadyRefunded,
+            'already_refunded' => $alreadyRefunded,
+            'message' => $message,
         ];
+    }
+
+    /**
+     * A refund Paystack rejects because the transaction is already reversed is
+     * the desired end state, not a failure: treating it as one told the store
+     * to refund by hand money that had already gone back. See
+     * laravel-server/AGENTS.md's online-order cancellation section.
+     */
+    private function messageMeansAlreadyRefunded(string $message): bool
+    {
+        $needles = ['already been refunded', 'already refunded', 'fully reversed', 'has been reversed'];
+        $message = strtolower($message);
+
+        foreach ($needles as $needle) {
+            if (str_contains($message, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -31,6 +31,32 @@ export const addLogToBuffer = (entry: ApiLogEntry) => {
   }
 };
 
+const SENSITIVE_KEY_FRAGMENTS = [
+  "password",
+  "token",
+  "pin",
+  "credentials",
+  "customer_name",
+  "customer_phone",
+  "customer_address",
+  "customer_email",
+];
+
+/** Matched whole, not as a substring, so `store_name` and `product_name`
+ * survive while a bare `name`/`email`/`phone`/`address` is masked. */
+const SENSITIVE_KEY_NAMES = new Set([
+  "email",
+  "phone",
+  "phone_number",
+  "address",
+  "delivery_address",
+  "full_name",
+]);
+
+const isSensitiveKey = (lowerKey: string) =>
+  SENSITIVE_KEY_NAMES.has(lowerKey) ||
+  SENSITIVE_KEY_FRAGMENTS.some((fragment) => lowerKey.includes(fragment));
+
 export const sanitizePayload = (payload: unknown): unknown => {
   if (!payload) return payload;
   
@@ -56,11 +82,9 @@ export const sanitizePayload = (payload: unknown): unknown => {
 
       const sanitized: Record<string, unknown> = { ...(parsed as Record<string, unknown>) };
 
-      // Mask sensitive keys
-      const sensitiveKeys = ["password", "token", "pin", "newpassword", "oldpassword", "credentials"];
       for (const key of Object.keys(sanitized)) {
         const lowerKey = key.toLowerCase();
-        if (sensitiveKeys.some(sk => lowerKey.includes(sk))) {
+        if (isSensitiveKey(lowerKey)) {
           sanitized[key] = "********";
         } else if (typeof sanitized[key] === "object") {
           sanitized[key] = sanitizePayload(sanitized[key]);

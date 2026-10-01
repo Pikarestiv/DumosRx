@@ -247,6 +247,17 @@ class SyncController extends Controller
                 }
 
                 if ($change['operation'] === 'INSERT') {
+                    if ($currentUser && !$isSuperAdmin && !$this->authorizeInsertTarget($change['table_name'], $payload, $allowedStoreIds)) {
+                        DB::commit();
+                        $failed[] = [
+                            'id' => $change['id'] ?? null,
+                            'table_name' => $change['table_name'],
+                            'record_id' => $recordId,
+                            'reason' => 'forbidden',
+                        ];
+                        continue;
+                    }
+
                     // Re-calculate exists for normal INSERT flow just in case
                     $exists = false;
 
@@ -652,9 +663,12 @@ class SyncController extends Controller
 
             $this->applyStockBatchDeltas($stockBatchDeltas, $failed);
 
-            $this->touchStoreLastSyncAt($request);
+            $firstSyncedStore = $this->touchStoreLastSyncAt($request);
 
             DB::commit();
+
+            $this->sendFirstSyncAlert($firstSyncedStore, $request->user());
+
             return response()->json(['success' => true, 'processed' => $processed, 'failed' => $failed, 'id_map' => $idMapByTable, 'versions' => $versions]);
 
         } catch (\Exception $e) {
@@ -1018,13 +1032,7 @@ class SyncController extends Controller
      */
     private function resolvePullTenantScope($user, Request $request): array
     {
-        $ownerId = $user->store_id
-            ? Store::where('id', $user->store_id)->value('user_id')
-            : $user->id;
-
-        $ownedStoreIds = $user->store_id
-            ? [$user->store_id]
-            : Store::where('user_id', $ownerId)->pluck('id')->toArray();
+        ['ownerId' => $ownerId, 'storeIds' => $ownedStoreIds] = $this->resolveOwnershipIdentity($user);
 
         $requestedStoreId = $request->header('X-Store-Id') ?? $request->input('store_id');
         if ($requestedStoreId) {
@@ -1200,7 +1208,7 @@ class SyncController extends Controller
      * one. Alert failures are swallowed (logged only) — they must never
      * fail the push that triggered them.
      */
-    private function touchStoreLastSyncAt(Request $request): void
+    private function touchStoreLastSyncAt(Request $request): ?Store
     {
         // Update the last sync time for the store the push actually wrote
         // to -- resolved the same way push() itself resolves it, so a
@@ -1219,21 +1227,36 @@ class SyncController extends Controller
                 $store->last_sync_at = now();
                 $store->save();
 
-                if ($isFirstSync) {
-                    try {
-                        \App\Services\AdminAlertService::send(
-                            'First-Time Sync Completed: ' . $store->name,
-                            [
-                                "A user has just successfully completed their first local sync with the DumosRx Cloud.",
-                                "Store: {$store->name}",
-                                "User: {$user->first_name} {$user->last_name} ({$user->email})"
-                            ]
-                        );
-                    } catch (\Exception $e) {
-                        Log::error("Failed to send super admin alert for sync: " . $e->getMessage());
-                    }
-                }
+                return $isFirstSync ? $store : null;
             }
+        }
+
+        return null;
+    }
+
+    /**
+     * Must run AFTER push()'s DB::commit(): AdminAlertService::send() is a
+     * synchronous SMTP send (this repo runs no queue worker), and calling it
+     * inside the transaction held every lockForUpdate() row lock open for the
+     * SMTP timeout, timing the client's batch out against locked rows.
+     */
+    private function sendFirstSyncAlert(?Store $store, $user): void
+    {
+        if (!$store || !$user) {
+            return;
+        }
+
+        try {
+            \App\Services\AdminAlertService::send(
+                'First-Time Sync Completed: ' . $store->name,
+                [
+                    "A user has just successfully completed their first local sync with the DumosRx Cloud.",
+                    "Store: {$store->name}",
+                    "User: {$user->first_name} {$user->last_name} ({$user->email})"
+                ]
+            );
+        } catch (\Exception $e) {
+            Log::error("Failed to send super admin alert for sync: " . $e->getMessage());
         }
     }
 
@@ -1376,6 +1399,11 @@ class SyncController extends Controller
      *
      * stores.device_id is NOT NULL + UNIQUE, so it can never fall back to a
      * shared literal — see the identical guard in normalizePushPayload().
+     *
+     * stock_batches.cost_price is nullable on the client and NOT NULL
+     * DEFAULT 0 here: a legacy adjustment batch holding a real local NULL
+     * only sends it explicitly once a whole-row requeue rebuilds its
+     * payload, which is why the column survived this long (A-128).
      */
     private function applyNotNullColumnDefaults(Request $request, string $tableName, $model): void
     {
@@ -1387,6 +1415,11 @@ class SyncController extends Controller
         if ($tableName === 'products') {
             if (empty($model->pack_size) || $model->pack_size === 'null') $model->pack_size = 1;
             if (empty($model->unit_of_measure) || $model->unit_of_measure === 'null') $model->unit_of_measure = 'piece';
+        }
+        if ($tableName === 'stock_batches') {
+            if ($model->cost_price === null || $model->cost_price === 'null') {
+                $model->cost_price = 0;
+            }
         }
         if ($tableName === 'stores') {
             if (empty($model->device_id)) {
@@ -1606,9 +1639,15 @@ class SyncController extends Controller
             'stock_movements', 'supplier_payments', 'audit_logs',
             'permission_groups',
         ];
-        if (in_array($change['table_name'], $tablesWithStoreId) && $currentStoreId) {
+        // Deliberately NOT gated on $currentStoreId: a caller for whom
+        // resolvePushStoreId() returns null (an account that owns no store
+        // yet) has nothing to backfill from, but their payload's explicit
+        // store_id must still be verified rather than trusted verbatim.
+        if (in_array($change['table_name'], $tablesWithStoreId, true)) {
             if (empty($payload['store_id'])) {
-                $payload['store_id'] = $currentStoreId;
+                if ($currentStoreId) {
+                    $payload['store_id'] = $currentStoreId;
+                }
             } elseif ($currentUser && !$isSuperAdmin && !in_array($payload['store_id'], $allowedStoreIds, true)) {
                 // An explicit store_id in the payload is otherwise
                 // trusted as-is (only a MISSING one gets backfilled
@@ -1694,22 +1733,18 @@ class SyncController extends Controller
      */
     private function resolvePushStoreId(Request $request, $currentUser): ?string
     {
-        $currentStoreId = null;
+        ['ownerId' => $ownerId, 'storeIds' => $ownedStoreIds] = $this->resolveOwnershipIdentity($currentUser);
+
         $requestedStoreId = $request->header('X-Store-Id') ?? $request->input('store_id');
-        if ($requestedStoreId) {
-            $ownerId = $currentUser->store_id
-                ? Store::where('id', $currentUser->store_id)->value('user_id')
-                : $currentUser->id;
-            $ownsStore = Store::where('id', $requestedStoreId)->where('user_id', $ownerId)->exists();
-            if ($ownsStore) {
-                $currentStoreId = $requestedStoreId;
-            }
-        }
-        if (!$currentStoreId) {
-            $currentStoreId = $currentUser->store_id ?? Store::where('user_id', $currentUser->id)->value('id');
+        if ($requestedStoreId && Store::where('id', $requestedStoreId)->where('user_id', $ownerId)->exists()) {
+            return $requestedStoreId;
         }
 
-        return $currentStoreId;
+        if ($currentUser->store_id && in_array($currentUser->store_id, $ownedStoreIds, true)) {
+            return $currentUser->store_id;
+        }
+
+        return $ownedStoreIds[0] ?? null;
     }
 
     /**
@@ -1758,18 +1793,25 @@ class SyncController extends Controller
     private const USER_SYNC_ASSIGNABLE_ROLES = ['admin', 'manager', 'specialist', 'sales_staff', 'auditor'];
 
     /**
-     * stores columns that decide where a storefront sale's money settles, and
-     * the fee-propagation flag that drives it. Only
-     * StorePaymentAccountController::createPaymentAccount() (bank resolution,
-     * 409 idempotency, last-4-only persistence) and SyncSubaccountFeeRates may
-     * ever write them; push() applies a stores payload with forceFill(), which
-     * bypasses $fillable, so excluding them there is not enough. See
-     * laravel-server/AGENTS.md.
+     * stores columns a device may never write over sync, in three groups:
+     * the ones that decide where a storefront sale's money settles plus the
+     * fee-propagation flag that drives it (only
+     * StorePaymentAccountController::createPaymentAccount() — bank
+     * resolution, 409 idempotency, last-4-only persistence — and
+     * SyncSubaccountFeeRates may write those); the account-state columns,
+     * which only AdminStoreService may write (a store that could push its own
+     * `status` could lift an admin's suspension, and `is_demo` moves it in
+     * and out of the admin panel's demo filtering); and the server's own
+     * bookkeeping/seeding watermarks. push() applies a stores payload with
+     * forceFill(), which bypasses $fillable, so excluding them there is not
+     * enough. See laravel-server/AGENTS.md.
      */
     private const STORE_SYNC_FORBIDDEN_FIELDS = [
         'paystack_subaccount_code', 'paystack_subaccount_country',
         'paystack_bank_code', 'paystack_account_number_last4',
         'paystack_fee_dirty_at',
+        'status', 'suspension_reason', 'is_demo',
+        'loyalty_defaults_seeded_at', 'permission_groups_seeded_at',
         'last_sync_run_id', 'last_sync_run_started_at',
     ];
 
@@ -1966,15 +2008,40 @@ class SyncController extends Controller
      */
     private function resolveAllowedOwnershipScope($currentUser): array
     {
-        $ownerId = $currentUser->store_id
-            ? Store::where('id', $currentUser->store_id)->value('user_id')
-            : $currentUser->id;
-        $allowedStoreIds = $currentUser->store_id
-            ? [$currentUser->store_id]
-            : Store::where('user_id', $ownerId)->pluck('id')->toArray();
+        ['ownerId' => $ownerId, 'storeIds' => $allowedStoreIds] = $this->resolveOwnershipIdentity($currentUser);
         $allowedUserIds = User::whereIn('store_id', $allowedStoreIds)->pluck('id')->push($ownerId)->toArray();
 
         return [$allowedStoreIds, $allowedUserIds];
+    }
+
+    /**
+     * The single ownership resolution every sync scope is built from, as
+     * ['ownerId' => tenant owner's user id, 'storeIds' => every store that
+     * owner's scope covers].
+     *
+     * `stores.user_id` is authoritative and `users.store_id` is only
+     * consulted for a caller who owns no store at all (a genuine staff
+     * account). The reverse — trusting a non-null `users.store_id` first —
+     * silently narrowed a multi-store owner carrying a stale `store_id` to
+     * one of their stores, making every row in the others unsyncable in
+     * both directions; see docs/FIXED_BUGS.md A-127 and the data-repair
+     * migration 2026_10_01_000000_clear_store_id_on_store_owners.
+     */
+    private function resolveOwnershipIdentity($currentUser): array
+    {
+        $ownedStoreIds = Store::where('user_id', $currentUser->id)->pluck('id')->toArray();
+        if (!empty($ownedStoreIds)) {
+            return ['ownerId' => $currentUser->id, 'storeIds' => $ownedStoreIds];
+        }
+
+        if ($currentUser->store_id) {
+            return [
+                'ownerId' => Store::where('id', $currentUser->store_id)->value('user_id'),
+                'storeIds' => [$currentUser->store_id],
+            ];
+        }
+
+        return ['ownerId' => $currentUser->id, 'storeIds' => []];
     }
 
     /**
@@ -2054,6 +2121,39 @@ class SyncController extends Controller
         // know the id, which is exactly the "another tenant's property" case
         // this fallback exists to keep denied.
         return !User::withTrashed()->whereKey($model->user_id)->exists();
+    }
+
+    /**
+     * The INSERT counterpart of authorizeChangeTarget(): there is no stored
+     * row to inspect yet, so ownership is resolved from the incoming payload's
+     * own parent FK instead. This is what stops a caller planting rows in a
+     * child table that carries no store_id of its own (stock_batches,
+     * sale_items, sale_item_batches, return_items, prescription_items,
+     * purchase_order_items) under a parent id harvested off the
+     * unauthenticated storefront endpoints.
+     *
+     * `stores`/`users` are exempt: a brand-new row of either is the caller's
+     * own account/setup row, gated by validateSync() and the plan's store
+     * limit rather than by an owning store that doesn't exist yet.
+     *
+     * Fails open on an unresolvable parent (a child pushed before its parent
+     * in the same batch, or a legacy row with no store_id), matching
+     * authorizeChangeTarget()'s reasoning: the attack this closes only ever
+     * yields parents that do resolve to a real, foreign store.
+     */
+    private function authorizeInsertTarget(string $tableName, array $payload, array $allowedStoreIds): bool
+    {
+        if ($tableName === 'stores' || $tableName === 'users') {
+            return true;
+        }
+
+        $resolvedStoreId = $this->resolveChangeStoreId($tableName, (object) $payload);
+
+        if ($resolvedStoreId === null) {
+            return true;
+        }
+
+        return in_array($resolvedStoreId, $allowedStoreIds, true);
     }
 
     /**

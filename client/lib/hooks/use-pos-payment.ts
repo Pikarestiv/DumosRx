@@ -19,7 +19,7 @@ import {
   type PaymentMethod,
   type PaymentSplit,
 } from "./use-pos-payment-helpers";
-import { calculateTaxPercentage, calculateMixedAmountPaid, calculateMixedChangeDue, calculateSalePaymentStatus } from "@/lib/utils/pos-calculations";
+import { calculateTaxPercentage, calculateMixedAmountPaid, calculateMixedChangeDue, calculateSalePaymentStatus, calculateMaxAllowedCreditSplit } from "@/lib/utils/pos-calculations";
 import type { Customer } from "@/lib/types/customer";
 import type { ReceiptTransaction } from "@/components/pos/receipt-view";
 import { getStoredUser } from "@/lib/storage-keys";
@@ -295,13 +295,21 @@ export function usePOSPayment({
           );
         } else if (paymentMethod === "mixed" && selectedCustomer) {
           const creditSplit = paymentSplits.find((s) => s.method === "credit");
-          if (creditSplit && creditSplit.amount > 0) {
+          // Clamped to what this sale can actually still owe: anything beyond
+          // it is debt applyCreditPaymentFIFO() could never settle against
+          // this sale (validatePaymentReadiness rejects it up front; this is
+          // the write-side guard). See docs/FIXED_BUGS.md (A-56).
+          const creditOwed = Math.min(
+            creditSplit?.amount ?? 0,
+            calculateMaxAllowedCreditSplit(paymentSplits, total),
+          );
+          if (creditOwed > 0) {
             const balanceRows = await getCustomerBalance(selectedCustomer.id);
             const currentBalance = balanceRows[0]?.balance || 0;
             await update(
               "customers",
               selectedCustomer.id,
-              { outstanding_balance: currentBalance + creditSplit.amount },
+              { outstanding_balance: currentBalance + creditOwed },
               { correlationId: newSaleId },
             );
           }

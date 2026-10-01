@@ -23,6 +23,8 @@ class HeldTransaction extends Model
         'total_amount',
         'discount',
         'discount_type',
+        'is_reseller_sale',
+        'markup_type',
         'notes',
         '_version',
         '_synced',
@@ -31,6 +33,7 @@ class HeldTransaction extends Model
     ];
 
     protected $casts = [
+        'is_reseller_sale' => 'boolean',
         '_synced' => 'boolean',
         '_deleted' => 'boolean',
         '_synced_at' => 'datetime',

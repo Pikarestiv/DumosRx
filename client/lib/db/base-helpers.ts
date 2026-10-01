@@ -507,17 +507,20 @@ async function reportStuckCrashLog(
   queueId: number,
   recordId: string,
   summary: string,
+  notify: boolean,
 ): Promise<void> {
-  console.error(`[Sync] ${summary}`);
+  if (notify) {
+    console.error(`[Sync] ${summary}`);
 
-  try {
-    const Sentry = await import("@sentry/nextjs");
-    Sentry.captureException(new Error(summary), {
-      tags: { area: "sync", table: CRASH_LOG_TABLE },
-      extra: { recordId },
-    });
-  } catch (e) {
-    console.error("Failed to report stuck crash-log item to Sentry", e);
+    try {
+      const Sentry = await import("@sentry/nextjs");
+      Sentry.captureException(new Error(summary), {
+        tags: { area: "sync", table: CRASH_LOG_TABLE },
+        extra: { recordId },
+      });
+    } catch (e) {
+      console.error("Failed to report stuck crash-log item to Sentry", e);
+    }
   }
 
   const rows = await query<{ type: string; fingerprint: string | null }>(
@@ -560,9 +563,11 @@ export async function recordSyncFailure(
   const nextRetryCount = (item.retry_count || 0) + 1;
   const delay = Math.min(SYNC_FAILURE_BASE_DELAY_MS * 2 ** (nextRetryCount - 1), SYNC_FAILURE_MAX_DELAY_MS);
   const nextRetryAt = new Date(Date.now() + delay).toISOString();
-  const alreadyReported = item.last_error?.startsWith("[REPORTED]");
-  const shouldReport =
-    (reportImmediately || nextRetryCount >= SYNC_FAILURE_REPORT_THRESHOLD) && !alreadyReported;
+  const alreadyReported = item.last_error?.startsWith("[REPORTED]") ?? false;
+  const pastReportThreshold =
+    reportImmediately || nextRetryCount >= SYNC_FAILURE_REPORT_THRESHOLD;
+  const shouldReport = pastReportThreshold && !alreadyReported;
+  const shouldDropStuckCrashLog = pastReportThreshold && item.table_name === CRASH_LOG_TABLE;
 
   // Preserve the "[REPORTED]" marker once it's set: writing the bare
   // errorMessage here unconditionally used to clobber it on every later
@@ -580,11 +585,11 @@ export async function recordSyncFailure(
     [nextRetryCount, nextLastError, nextRetryAt, queueId],
   );
 
-  if (shouldReport) {
+  if (shouldReport || shouldDropStuckCrashLog) {
     const summary = `Sync item stuck after ${nextRetryCount} attempts on ${item.table_name}/${item.record_id}: ${boundedError}`;
     try {
-      if (item.table_name === CRASH_LOG_TABLE) {
-        await reportStuckCrashLog(queueId, item.record_id, summary);
+      if (shouldDropStuckCrashLog) {
+        await reportStuckCrashLog(queueId, item.record_id, summary, shouldReport);
         return;
       }
       const { logCrash } = await import("../utils/error-logger");

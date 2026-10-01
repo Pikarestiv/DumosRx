@@ -198,7 +198,7 @@ export async function backfillDefaultGroupPermissions(): Promise<void> {
 
 export async function getUserPermissionGroup(
   userId: string,
-): Promise<{ id: string; permissions: string[] } | null> {
+): Promise<{ userId: string; id: string; permissions: string[] } | null> {
   const rows = await query<{ id: string; permissions: string }>(
     `SELECT pg.id, pg.permissions FROM permission_groups pg
      JOIN users u ON u.permission_group_id = pg.id
@@ -207,7 +207,7 @@ export async function getUserPermissionGroup(
   );
   if (rows.length === 0) return null;
   try {
-    return { id: rows[0].id, permissions: JSON.parse(rows[0].permissions) };
+    return { userId, id: rows[0].id, permissions: JSON.parse(rows[0].permissions) };
   } catch {
     // A present-but-corrupt row denies, rather than returning null and letting
     // hasPermission's `?? fallbackPermissions(role)` silently restore the whole
@@ -216,7 +216,7 @@ export async function getUserPermissionGroup(
     // so the two must not be conflated. Matches getStorePermissionGroups below.
     // A store_owner/super_admin is still never locked out - hasPermission
     // short-circuits for those roles before any group is consulted.
-    return { id: rows[0].id, permissions: [] };
+    return { userId, id: rows[0].id, permissions: [] };
   }
 }
 

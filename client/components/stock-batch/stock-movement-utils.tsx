@@ -9,6 +9,11 @@ import {
   ArrowUpFromLine,
 } from "lucide-react";
 import { formatDateLong } from "@/lib/utils/date-utils";
+import {
+  LEGACY_PRODUCT_IMPORT_REASON,
+  PRODUCT_IMPORT_REFERENCE_TYPE,
+} from "@/lib/constants/stock-adjustments";
+import { parseAdjustmentReason } from "@/components/stock-batch/adjustment-derivations";
 
 export interface StockMovement {
   id: string;
@@ -32,8 +37,26 @@ export const FILTER_TYPES = [
   { id: "return", label: "Returns" },
   { id: "damaged", label: "Damage" },
   { id: "adjustment", label: "Adjustments" },
+  { id: "import", label: "Bulk Import" },
   { id: "transfer", label: "Transfers" },
 ];
+
+/** Mirrors groupAdjustmentMovements()'s reference_type/reason check so a
+ * bulk-import correction (movement_type "adjustment") reads as "Bulk Import" here too (A-122, client/AGENTS.md). */
+export function resolveMovementDisplayType(row: {
+  movement_type?: string | null;
+  reference_type?: string | null;
+  reason?: string | null;
+}): string {
+  const movementType = row.movement_type || "adjustment";
+  if (movementType !== "adjustment") return movementType;
+
+  if (row.reference_type === PRODUCT_IMPORT_REFERENCE_TYPE) return "import";
+  if (parseAdjustmentReason(row.reason ?? undefined).reason === LEGACY_PRODUCT_IMPORT_REASON) {
+    return "import";
+  }
+  return movementType;
+}
 
 export const getTypeColor = (type: string) => {
   switch (type.toLowerCase()) {
@@ -42,6 +65,8 @@ export const getTypeColor = (type: string) => {
     case "purchase":
     case "restock":
       return "bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30";
+    case "import":
+      return "bg-indigo-100 text-indigo-700 border border-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-400 dark:border-indigo-500/30";
     case "return":
       return "bg-purple-100 text-purple-700 border border-purple-200 dark:bg-purple-500/20 dark:text-purple-400 dark:border-purple-500/30";
     case "damaged":
@@ -71,6 +96,8 @@ export const getTypeLabel = (type: string) => {
       return "Transfer In";
     case "transfer_out":
       return "Transfer Out";
+    case "import":
+      return "Bulk Import";
     default:
       return type;
   }
@@ -83,6 +110,8 @@ export const getTypeIcon = (type: string) => {
     case "purchase":
     case "restock":
       return <RefreshCw className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
+    case "import":
+      return <ArrowDownToLine className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />;
     case "return":
       return <Undo2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />;
     case "damaged":
@@ -114,6 +143,8 @@ export const getTypeIconBg = (type: string) => {
     case "purchase":
     case "restock":
       return "bg-blue-50 dark:bg-blue-500/10";
+    case "import":
+      return "bg-indigo-50 dark:bg-indigo-500/10";
     case "return":
       return "bg-purple-50 dark:bg-purple-500/10";
     case "damaged":

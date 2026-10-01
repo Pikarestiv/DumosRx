@@ -236,7 +236,7 @@ export function PurchaseOrderTable({
   const isAuditor = user?.role === "auditor";
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const { matches: isDesktopList, resolved: layoutResolved } =
-    useResolvedMediaQuery("(min-width: 768px)");
+    useResolvedMediaQuery("(min-width: 1024px)");
   const showEmpty = !loading && !hasLoadError && orders.length === 0;
   const showRows = !loading && !hasLoadError && orders.length > 0;
 

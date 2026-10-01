@@ -5,6 +5,12 @@ import { getValidColumns } from "./schema";
 import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconcile-identity";
 import { logCrash } from "@/lib/utils/error-logger";
 import { STORAGE_KEYS, getStoredUser } from "@/lib/storage-keys";
+import {
+  applyDeferredStockDeltas,
+  countDeferredStockDeltas,
+  recordDeferredStockDelta,
+  type DeferredStockDelta,
+} from "./deferred-stock-deltas";
 
 // Safety bound only, not a correctness ceiling — every committed page
 // persists its own keyset position. See docs/SYNC_PULL_PAGINATION.md.
@@ -175,11 +181,20 @@ export async function pullChanges(
     const skippedTables = new Set<string>();
     const missingLocalTables = new Set<string>();
 
-    // Deltas whose stock_batches row hadn't arrived yet, applied after every
-    // page. Both cursor stamps are held back so they commit with the deltas.
-    const deferredMovementDeltas: { stockBatchId: string; quantity: number }[] = [];
+    // Deltas whose stock_batches row hadn't arrived yet live in
+    // `_pending_stock_deltas`, written with the movement row itself and
+    // drained below. Both cursor stamps are still held back so they commit
+    // with the drain. See client/AGENTS.md, "Deferred movement deltas".
+    let deferredThisRound = 0;
     let deferredMovementCursor: string | null = null;
     let deferredMovementPageCursor: string | null = null;
+    const unresolvedDeltas: DeferredStockDelta[] = [];
+
+    if ((await countDeferredStockDeltas()) > 0) {
+      await transaction(async () => {
+        unresolvedDeltas.push(...(await applyDeferredStockDeltas()));
+      });
+    }
 
     let hasMoreAny = true;
     let page = 0;
@@ -379,10 +394,12 @@ export async function pullChanges(
                       [data.quantity, data.stock_batch_id as string],
                     );
                   } else {
-                    deferredMovementDeltas.push({
-                      stockBatchId: data.stock_batch_id as string,
-                      quantity: data.quantity as number,
-                    });
+                    await recordDeferredStockDelta(
+                      recordId,
+                      data.stock_batch_id as string,
+                      data.quantity as number,
+                    );
+                    deferredThisRound++;
                   }
                 }
               } catch (err) {
@@ -484,7 +501,7 @@ export async function pullChanges(
           const tableHasMore = has_more?.[table] ?? false;
 
           if (tableHasMore && nextCursor && !skippedTables.has(table)) {
-            if (table === "stock_movements" && deferredMovementDeltas.length > 0) {
+            if (table === "stock_movements" && deferredThisRound > 0) {
               deferredMovementPageCursor = JSON.stringify(nextCursor);
             } else {
               await execute(PULL_PROGRESS.savePosition, [table, JSON.stringify(nextCursor)]);
@@ -495,7 +512,7 @@ export async function pullChanges(
             criticalTablesPending.delete(table);
             // Carried to the final transaction so the stamp commits with
             // the deltas it depends on, never before them.
-            if (table === "stock_movements" && deferredMovementDeltas.length > 0) {
+            if (table === "stock_movements" && deferredThisRound > 0) {
               deferredMovementCursor = server_timestamp;
             } else {
               await execute(PULL_PROGRESS.completeWindow, [table, server_timestamp]);
@@ -519,17 +536,12 @@ export async function pullChanges(
     // Deltas and the cursor stamp commit as one unit: no window in between
     // for a crash to fall into.
     if (
-      deferredMovementDeltas.length > 0 ||
+      (await countDeferredStockDeltas()) > 0 ||
       deferredMovementCursor !== null ||
       deferredMovementPageCursor !== null
     ) {
       await transaction(async () => {
-        for (const d of deferredMovementDeltas) {
-          await execute(
-            "UPDATE stock_batches SET quantity = MAX(0, quantity + ?) WHERE id = ?",
-            [d.quantity, d.stockBatchId],
-          );
-        }
+        unresolvedDeltas.push(...(await applyDeferredStockDeltas()));
         if (deferredMovementCursor !== null) {
           await execute(PULL_PROGRESS.completeWindow, [
             "stock_movements",
@@ -542,6 +554,20 @@ export async function pullChanges(
           ]);
         }
       });
+    }
+
+    for (const d of unresolvedDeltas) {
+      logCrash(
+        new Error(
+          `Pull deferred stock delta unresolved: movement ${d.movement_id} still has no stock_batches row ${d.stock_batch_id}`,
+        ),
+        false,
+        {
+          area: "sync-pull",
+          table: "stock_movements",
+          recordId: d.movement_id,
+        },
+      ).catch(() => {});
     }
 
     for (const s of skippedRecords) {

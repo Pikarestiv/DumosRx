@@ -7,6 +7,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
 import { FeedbackForm } from "@/components/feedback/feedback-form";
 import { OnlineOrdersModal } from "@/components/pos/online-orders-modal";
+import { AssistantPanel } from "@/components/assistant/assistant-panel";
 import { BroadcastBanner } from "./broadcast-banner";
 import { ImpersonationBanner } from "./impersonation-banner";
 import { DashboardHeader } from "./dashboard-header";
@@ -275,6 +276,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
 
       <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
       <OnlineOrdersModal />
+      <AssistantPanel />
 
       {/* Main content: shifts right to clear the sidebar */}
       <div

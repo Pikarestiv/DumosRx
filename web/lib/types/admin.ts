@@ -18,6 +18,24 @@ export interface AdminStat {
   value: string | number;
 }
 
+/** A row in the scoped "My Stores" list (GET /admin/stores/registered-by-me).
+ * Deliberately narrower than AdminStoreSummary: no revenue, since
+ * platform_admin/agent are not meant to see platform money figures. */
+export interface RegisteredStoreSummary {
+  id: string;
+  name: string;
+  owner: string;
+  email: string;
+  phone?: string | null;
+  plan: string;
+  plan_status: string;
+  plan_ends_at?: string | null;
+  status: string;
+  date: string;
+  is_demo?: boolean;
+  device_id?: string | null;
+}
+
 export interface AdminStoreSummary {
   id: string;
   name: string;
@@ -59,6 +77,13 @@ export interface AdminStoreBillingHistory {
   store_id: string;
   store_name: string;
   transactions: AdminBillingTransaction[];
+}
+
+export interface RestoreStoreResult {
+  message: string;
+  was_suspended: boolean;
+  suspension_reason: string | null;
+  warning: string | null;
 }
 
 export interface SecurityAlert {

@@ -16,6 +16,12 @@ export const MAX_EMBEDDED_ERROR_LENGTH = 300;
  * is truncated rather than silently 422-rejected on arrival. */
 export const MAX_CRASH_MESSAGE_LENGTH = 2000;
 
+/** Matches the server's `feedback.fingerprint` column width
+ * (VARCHAR(255), see 2026_09_27_000002_add_dedup_columns_to_feedback_table),
+ * so a long area/message/stack combination cannot push a row the server
+ * rejects forever with SQLSTATE[22001]. */
+export const MAX_FINGERPRINT_LENGTH = 255;
+
 export const TRUNCATION_MARKER = "…[truncated]";
 
 export function truncateForLog(

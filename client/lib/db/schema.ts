@@ -277,6 +277,26 @@ CREATE TABLE IF NOT EXISTS _sync_state (
   server_cursor TEXT
 );
 
+CREATE TABLE IF NOT EXISTS _pending_stock_deltas (
+  movement_id TEXT PRIMARY KEY,
+  stock_batch_id TEXT NOT NULL,
+  quantity REAL NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS _sync_conflicts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  table_name TEXT NOT NULL,
+  record_id TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  fields TEXT,
+  detected_at TEXT NOT NULL,
+  resolved_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_sync_conflicts_unresolved
+  ON _sync_conflicts(table_name, record_id, resolved_at);
+
 CREATE TABLE IF NOT EXISTS customer_payments (
   id TEXT PRIMARY KEY,
   customer_id TEXT NOT NULL,
@@ -516,6 +536,8 @@ CREATE TABLE IF NOT EXISTS held_transactions (
   total_amount REAL NOT NULL,
   discount REAL DEFAULT 0,
   discount_type TEXT,
+  is_reseller_sale INTEGER DEFAULT 0,
+  markup_type TEXT,
   notes TEXT,
   created_at TEXT,
   updated_at TEXT,

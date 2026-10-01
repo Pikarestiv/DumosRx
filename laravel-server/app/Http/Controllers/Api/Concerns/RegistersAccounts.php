@@ -30,6 +30,21 @@ use OpenApi\Attributes as OA;
  */
 trait RegistersAccounts
 {
+    private const EMAIL_VERIFICATION_TOKEN_TTL_HOURS = 168;
+
+    /**
+     * Whether the platform requires a verified email before an account is
+     * usable. Resolved once per registration, above the store_name branch:
+     * it is read on both paths, so assigning it inside the branch left a
+     * store-less registration auto-marked verified.
+     */
+    private function requiresEmailVerification(): bool
+    {
+        $configured = \App\Models\SystemConfig::getVal('require_email_verification', false);
+
+        return $configured === true || $configured === 'true' || $configured === 1 || $configured === '1';
+    }
+
     #[OA\Post(
         path: '/register',
         summary: 'Register a new user (optionally creating a store)',
@@ -103,37 +118,61 @@ trait RegistersAccounts
 
         $roleSlug = $request->filled('store_name') ? 'store_owner' : ($request->role ?? 'specialist');
         $roleObj = Role::where('slug', $roleSlug)->first();
+        $requireVerification = $this->requiresEmailVerification();
 
-        $user = User::create([
-            'first_name' => $request->first_name,
-            'last_name' => $request->last_name,
-            'email' => $request->email,
-            'phone' => $request->phone,
-            'username' => $request->username,
-            // Hashed, never stored raw - see User::hashPin().
-            'pin' => User::hashPin($request->pin),
-            'password' => Hash::make($request->password),
-            'role' => $roleSlug,
-            'role_id' => $roleObj ? $roleObj->id : null,
-            'is_active' => true,
-            'referred_by_id' => $referredById,
-            'registered_by_id' => $registeredById,
-        ]);
-
-        if ($request->filled('store_name')) {
-            Store::create([
-                'user_id' => $user->id,
-                'name' => $request->store_name,
-                'store_type' => $request->store_type ?? 'pharmacy',
-                'device_id' => 'WEB-' . strtoupper(Str::random(8)),
-                'auto_sync_enabled' => true,
+        // User+store+trial are one all-or-nothing unit (see
+        // client/AGENTS.md's "Cloud setup/registration network calls").
+        // Mail sends stay outside the transaction, below.
+        $verifyToken = null;
+        $verificationUrl = null;
+        $user = DB::transaction(function () use (
+            $request, $referredById, $registeredById, $roleSlug, $roleObj,
+            $requireVerification, &$verifyToken, &$verificationUrl
+        ) {
+            $user = User::create([
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'username' => $request->username,
+                // Hashed, never stored raw - see User::hashPin().
+                'pin' => User::hashPin($request->pin),
+                'password' => Hash::make($request->password),
+                'role' => $roleSlug,
+                'role_id' => $roleObj ? $roleObj->id : null,
+                'is_active' => true,
+                'referred_by_id' => $referredById,
+                'registered_by_id' => $registeredById,
             ]);
 
-            // Create trial subscription
-            app(SubscriptionService::class)->createTrial($user);
+            if ($request->filled('store_name')) {
+                Store::create([
+                    'user_id' => $user->id,
+                    'name' => $request->store_name,
+                    'store_type' => $request->store_type ?? 'pharmacy',
+                    'device_id' => 'WEB-' . strtoupper(Str::random(8)),
+                    'auto_sync_enabled' => true,
+                ]);
 
-            $requireVerification = \App\Models\SystemConfig::getVal('require_email_verification', false) === true || \App\Models\SystemConfig::getVal('require_email_verification', false) === 'true';
+                app(SubscriptionService::class)->createTrial($user);
+            }
 
+            if ($requireVerification) {
+                $verifyToken = Str::random(64);
+                DB::table('email_verification_tokens')->updateOrInsert(
+                    ['email' => $user->email],
+                    ['token' => Hash::make($verifyToken), 'created_at' => now()]
+                );
+                $verificationUrl = config('app.frontend_url', 'https://dumosrx.com') . "/verify-email?token=$verifyToken&email=" . urlencode($user->email);
+            } else {
+                $user->email_verified_at = now();
+                $user->save();
+            }
+
+            return $user;
+        });
+
+        if ($request->filled('store_name')) {
             // Send Welcome Email if verification is NOT required
             if (!$requireVerification) {
                 try {
@@ -162,20 +201,11 @@ trait RegistersAccounts
         }
 
         if ($requireVerification) {
-            $verifyToken = Str::random(64);
-            DB::table('email_verification_tokens')->updateOrInsert(
-                ['email' => $user->email],
-                ['token' => Hash::make($verifyToken), 'created_at' => now()]
-            );
-            $verificationUrl = config('app.frontend_url', 'https://dumosrx.com') . "/verify-email?token=$verifyToken&email=" . urlencode($user->email);
             try {
                 Mail::to($user->email)->send(new \App\Mail\EmailVerificationMail($user, $verificationUrl));
             } catch (Exception $e) {
                 Log::error("Failed to send verification email: " . $e->getMessage());
             }
-        } else {
-            $user->email_verified_at = now();
-            $user->save();
         }
 
         // Was the literal string 'auth_token' - showed up verbatim as the
@@ -216,7 +246,7 @@ trait RegistersAccounts
 
         $record = DB::table('email_verification_tokens')->where('email', $request->email)->first();
 
-        if (!$record || !Hash::check($request->token, $record->token)) {
+        if (!$record || !Hash::check($request->token, $record->token) || $this->verificationTokenExpired($record)) {
             return response()->json(['message' => 'Invalid or expired verification link.'], 400);
         }
 
@@ -242,6 +272,17 @@ trait RegistersAccounts
         }
 
         return response()->json(['message' => 'User not found.'], 404);
+    }
+
+    private function verificationTokenExpired(object $record): bool
+    {
+        if (empty($record->created_at)) {
+            return true;
+        }
+
+        return \Illuminate\Support\Carbon::parse($record->created_at)
+            ->addHours(self::EMAIL_VERIFICATION_TOKEN_TTL_HOURS)
+            ->isPast();
     }
 
     #[OA\Post(

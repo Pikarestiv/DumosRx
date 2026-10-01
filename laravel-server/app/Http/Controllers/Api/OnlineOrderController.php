@@ -130,35 +130,21 @@ class OnlineOrderController extends Controller
             return response()->json(['error' => 'No store associated'], 400);
         }
 
-        $order = OnlineOrder::where('store_id', $storeId)->findOrFail($id);
+        OnlineOrder::where('store_id', $storeId)->findOrFail($id);
 
         $validated = $request->validate([
             'status' => 'required|in:fulfilled,cancelled',
             'payment_confirmed' => 'sometimes|boolean',
         ]);
 
-        // Only `pending` transitions. Without this the endpoint would re-fulfil
-        // an already-fulfilled order or fulfil a cancelled one, which is also
-        // what made the POS client's retry-after-local-failure unsafe (the
-        // client now writes its local sale first - see
-        // useFulfillOnlineOrderMutation).
-        if ($order->order_status !== 'pending') {
+        [$order, $transitioned] = $this->commitTransition($storeId, $id, $validated);
+
+        if (!$transitioned) {
             return response()->json([
                 'message' => "This order is already {$order->order_status} and cannot be updated again.",
                 'order' => $order,
             ], 409);
         }
-
-        $order->order_status = $validated['status'];
-
-        // Fulfilment is not by itself evidence of payment: a `transfer` order
-        // may never have had its transfer confirmed, and `in_store` is
-        // collected at handover. The caller has to say so.
-        if ($validated['status'] === 'fulfilled' && ($validated['payment_confirmed'] ?? false)) {
-            $order->payment_status = 'paid';
-        }
-
-        $order->save();
 
         if ($validated['status'] === 'cancelled' && $order->payment_status === 'paid') {
             $this->refundOrFlag($order, $storeId, $paymentService);
@@ -177,6 +163,41 @@ class OnlineOrderController extends Controller
     }
 
     /**
+     * The pending-only transition, committed under a row lock before any
+     * provider call is made. Two concurrent cancels of the same order would
+     * otherwise both read `pending`, both write `cancelled` and both refund —
+     * a double payout, or a correct refund flagged as still owed when the
+     * provider rejects the second (A-82). Returns the row plus whether this
+     * caller is the one that actually moved it; the loser gets a 409 and never
+     * reaches the provider. Fulfilment is not by itself evidence of payment (a
+     * `transfer` order may never have had its transfer confirmed, `in_store` is
+     * collected at handover), so `payment_confirmed` has to say so.
+     */
+    private function commitTransition(string $storeId, string $id, array $validated): array
+    {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($storeId, $id, $validated) {
+            $order = OnlineOrder::where('store_id', $storeId)
+                ->where('id', $id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($order->order_status !== 'pending') {
+                return [$order, false];
+            }
+
+            $order->order_status = $validated['status'];
+
+            if ($validated['status'] === 'fulfilled' && ($validated['payment_confirmed'] ?? false)) {
+                $order->payment_status = 'paid';
+            }
+
+            $order->save();
+
+            return [$order, true];
+        });
+    }
+
+    /**
      * Cancelling an order whose money was already taken leaves an
      * obligation behind. Refund via Paystack when there's a reference to
      * refund; otherwise (in_store/transfer, or Paystack itself rejecting the
@@ -192,8 +213,12 @@ class OnlineOrderController extends Controller
             $result = $paymentService->refundTransaction($order->paystack_reference, 'paystack');
 
             if ($result['success']) {
-                $order->update(['payment_status' => 'refunded']);
-                $this->notifyStore($order, $storeId, 'Refunded', "Online order #{$order->id} ({$order->total_amount}) was refunded to {$order->customer_name}.");
+                \Illuminate\Support\Facades\DB::transaction(fn () => $order->update(['payment_status' => 'refunded']));
+
+                if (!($result['already_refunded'] ?? false)) {
+                    $this->notifyStore($order, $storeId, 'Refunded', "Online order #{$order->id} ({$order->total_amount}) was refunded to {$order->customer_name}.");
+                }
+
                 return;
             }
 

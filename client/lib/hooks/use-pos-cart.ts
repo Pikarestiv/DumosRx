@@ -401,6 +401,7 @@ export function usePOSCart(products: Product[]) {
       items: CartItem[],
       restoredDiscount?: number,
       restoredDiscountType?: "fixed" | "percentage",
+      restoredMarkup?: { isResellerSale: boolean; markupType: MarkupType | null },
     ) => {
       setCart(items);
       // A held transaction never persisted a redemption (only its resulting
@@ -409,8 +410,22 @@ export function usePOSCart(products: Product[]) {
       setRedeemedOption(null);
       if (restoredDiscount !== undefined) setStoreDiscount(restoredDiscount);
       if (restoredDiscountType !== undefined) setStoreDiscountType(restoredDiscountType);
+      // The raw store setter, not setIsResellerSale: that wrapper reverts every
+      // line to original_unit_price when switching the flag off, which would
+      // undo the markup this restore is carrying.
+      if (restoredMarkup) {
+        setStoreIsResellerSale(restoredMarkup.isResellerSale);
+        setMarkupType(restoredMarkup.markupType);
+      }
     },
-    [setCart, setRedeemedOption, setStoreDiscount, setStoreDiscountType],
+    [
+      setCart,
+      setRedeemedOption,
+      setStoreDiscount,
+      setStoreDiscountType,
+      setStoreIsResellerSale,
+      setMarkupType,
+    ],
   );
 
   return {

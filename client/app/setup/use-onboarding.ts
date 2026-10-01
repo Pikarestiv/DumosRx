@@ -9,6 +9,7 @@ import { getTotalUserCount, getLocalStores } from "@/lib/db/queries/setup";
 import { sync } from "@/lib/db/sync-engine";
 import { restoreDatabase, clearDatabaseForNewStore } from "@/lib/db/core";
 import { apiClient } from "@/lib/api/client";
+import { withNetworkRetry } from "@/lib/api/retry-on-network-error";
 import { toast } from "sonner";
 import { markRestoredForCloudLinkNotice } from "@/lib/utils/post-restore-notice";
 import type { StoreOption } from "@/lib/types/store";
@@ -121,21 +122,35 @@ export function useOnboarding() {
           return;
         }
 
-        const response = await apiClient.register({
-          first_name: firstName,
-          last_name: lastName,
-          email,
-          username,
-          pin,
-          password,
-          store_name: storeName,
-          store_type: storeType,
-          phone,
-        });
+        let response: { token: string; user: { id: string } };
+        try {
+          response = await withNetworkRetry(() =>
+            apiClient.register({
+              first_name: firstName,
+              last_name: lastName,
+              email,
+              username,
+              pin,
+              password,
+              store_name: storeName,
+              store_type: storeType,
+              phone,
+            }),
+          );
+        } catch (err) {
+          const status = err instanceof Error ? (err as Error & { status?: number }).status : undefined;
+          const isEmailTaken = status === 422 && err instanceof Error && /email.*already.*taken/i.test(err.message);
+          if (!isEmailTaken) throw err;
+
+          // Self-heals a lost-response retry instead of dead-ending (see
+          // client/AGENTS.md's "Cloud setup/registration network calls").
+          const loginResponse = await withNetworkRetry(() => apiClient.login(email, password));
+          response = { token: loginResponse.token, user: { id: loginResponse.user.id } };
+        }
 
         apiClient.setToken(response.token);
 
-        const stores = await apiClient.getStores();
+        const stores = await withNetworkRetry(() => apiClient.getStores());
         const store = stores[0];
         if (!store) {
           toast.error("Account created, but no store was returned. Please contact support.");
@@ -283,8 +298,8 @@ export function useOnboarding() {
       const result = await linkCloudAccount(email, pass);
       if (result.success) {
         // Fetch user profile and available stores from cloud
-        await apiClient.getProfile();
-        const stores = await apiClient.getStores();
+        await withNetworkRetry(() => apiClient.getProfile());
+        const stores = await withNetworkRetry(() => apiClient.getStores());
 
         if (stores.length === 0) {
           toast.error("No stores found on your cloud account. Please register a store first.");

@@ -23,13 +23,22 @@ class StorefrontPaymentIntent extends Model
     protected $fillable = [
         'store_id', 'reference', 'provider', 'amount', 'currency',
         'status', 'items', 'customer_email', 'online_order_id', 'consumed_at',
+        'reconciliation_alerted_at',
     ];
 
     protected $casts = [
         'items' => 'array',
         'amount' => 'decimal:2',
         'consumed_at' => 'datetime',
+        'reconciliation_alerted_at' => 'datetime',
     ];
+
+    /**
+     * An intent a confirmation may still consume: not yet spent on an order,
+     * whether or not a webhook has already seen the money land.
+     * See laravel-server/AGENTS.md for the full status lifecycle.
+     */
+    public const CLAIMABLE_STATUSES = ['pending', 'paid'];
 
     public function store()
     {

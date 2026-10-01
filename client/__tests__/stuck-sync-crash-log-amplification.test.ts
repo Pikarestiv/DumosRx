@@ -66,11 +66,11 @@ describe("stuck sync item crash-log amplification", () => {
     );
   }
 
-  function queueStuckItem(table: string, recordId: string) {
+  function queueStuckItem(table: string, recordId: string, lastError: string | null = null) {
     db.run(
-      `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at, retry_count)
-       VALUES (1, ?, ?, 'INSERT', '{}', '2026-09-29T00:00:00Z', 4)`,
-      [table, recordId],
+      `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at, retry_count, last_error)
+       VALUES (1, ?, ?, 'INSERT', '{}', '2026-09-29T00:00:00Z', 4, ?)`,
+      [table, recordId, lastError],
     );
   }
 
@@ -103,6 +103,37 @@ describe("stuck sync item crash-log amplification", () => {
     const reported = captureExceptionMock.mock.calls[0][0] as Error;
     expect(reported.message.length).toBeLessThan(500);
     expect(reported.message).toContain("…[truncated]");
+  });
+
+  it("cleans up a legacy crash-log item already marked [REPORTED] under the old code instead of retrying it forever", async () => {
+    insertCrashFeedbackRow("crash-legacy", `[CRASH] [WEB] ${hugeSqlError("x".repeat(20_000))}`);
+    queueStuckItem("feedback", "crash-legacy", `[REPORTED] ${hugeSqlError("x".repeat(200))}`);
+
+    await recordSyncFailure(1, hugeSqlError("y".repeat(20_000)));
+
+    const queued = await core.query(`SELECT id FROM _sync_queue`);
+    expect(queued).toHaveLength(0);
+
+    const rows = await core.query<{ id: string; _synced: number }>(`SELECT id, _synced FROM feedback`);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe("crash-legacy");
+    expect(rows[0]._synced).toBe(1);
+
+    // Already reported under the old code — cleanup must not re-notify.
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps reporting a non-crash-log stuck item exactly once even after it is marked [REPORTED]", async () => {
+    db.run(`INSERT INTO products (id, name, _deleted) VALUES ('p1', 'Panadol', 0)`);
+    queueStuckItem("audit_logs", "a1", "[REPORTED] Unknown column 'occurrence_count' in 'field list'");
+
+    await recordSyncFailure(1, "Unknown column 'occurrence_count' in 'field list'");
+
+    const rows = await core.query(`SELECT id FROM feedback WHERE type = 'bug'`);
+    expect(rows).toHaveLength(0);
+
+    const queued = await core.query(`SELECT id FROM _sync_queue`);
+    expect(queued).toHaveLength(1);
   });
 
   it("caps the crash message at a fixed length no matter how large the underlying push error is", async () => {

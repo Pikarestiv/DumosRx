@@ -264,7 +264,7 @@ class OnlineOrderControllerTest extends TestCase
 
     public function test_a_failed_refund_leaves_the_order_marked_paid()
     {
-        Http::fake(['api.paystack.co/refund' => Http::response(['status' => false, 'message' => 'Already refunded'], 400)]);
+        Http::fake(['api.paystack.co/refund' => Http::response(['status' => false, 'message' => 'Transaction not found'], 400)]);
 
         $order = $this->paidOnlineOrder(['payment_method' => 'paystack', 'paystack_reference' => 'ref_status_fail']);
 
@@ -282,7 +282,7 @@ class OnlineOrderControllerTest extends TestCase
 
     public function test_a_failed_refund_falls_back_to_the_log_and_notify_flag()
     {
-        Http::fake(['api.paystack.co/refund' => Http::response(['status' => false, 'message' => 'Already refunded'], 400)]);
+        Http::fake(['api.paystack.co/refund' => Http::response(['status' => false, 'message' => 'Transaction not found'], 400)]);
 
         $order = $this->paidOnlineOrder(['payment_method' => 'paystack', 'paystack_reference' => 'ref_fail']);
 

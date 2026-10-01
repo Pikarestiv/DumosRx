@@ -80,6 +80,8 @@ describe("usePOSHeldTransactions recall + reseller mode", () => {
         restoreCart: cartResult.restoreCart,
         customers: [],
         setShowHeldDialog: () => {},
+        isResellerSale: cartResult.isResellerSale,
+        markupType: cartResult.markupType,
       });
       return null;
     }

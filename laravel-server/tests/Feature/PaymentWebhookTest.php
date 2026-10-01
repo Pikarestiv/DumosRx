@@ -38,6 +38,10 @@ class PaymentWebhookTest extends TestCase
             'payment.flutterwave.secret_hash' => self::FLUTTERWAVE_SECRET_HASH,
         ]);
 
+        // The mismatch branch now attempts a real refund (PG-3); without this
+        // these tests would reach out to the live provider.
+        \Illuminate\Support\Facades\Http::fake();
+
         $this->user = User::create([
             'first_name' => 'Owner', 'last_name' => 'User',
             'email' => 'webhook-subscriber@dumosrx.com',
@@ -301,5 +305,100 @@ class PaymentWebhookTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertDatabaseMissing('payment_transactions', ['provider_reference' => 'REF-DOES-NOT-EXIST']);
+    }
+
+    // --- PG-9: events other than a successful charge ---------------------
+
+    /**
+     * Matched on refund/dispute/chargeback/reversal *semantics* rather than an
+     * exact event-name list, because Flutterwave's names for these are not
+     * verified anywhere in this codebase. See the PG-9 note in AGENTS.md.
+     */
+    public static function notableEventProvider(): array
+    {
+        return [
+            'paystack refund processed' => ['paystack', ['event' => 'refund.processed', 'data' => ['reference' => 'REF-WEBHOOK-1']]],
+            'paystack refund failed' => ['paystack', ['event' => 'refund.failed', 'data' => ['reference' => 'REF-WEBHOOK-1']]],
+            'paystack dispute created' => ['paystack', ['event' => 'charge.dispute.create', 'data' => ['reference' => 'REF-WEBHOOK-1']]],
+            'paystack chargeback' => ['paystack', ['event' => 'charge.dispute.remind', 'data' => ['reference' => 'REF-WEBHOOK-1']]],
+            'flutterwave refund event' => ['flutterwave', ['event' => 'charge.refunded', 'data' => ['tx_ref' => 'REF-WEBHOOK-1', 'status' => 'refunded']]],
+            'flutterwave refund status only' => ['flutterwave', ['event' => 'charge.completed', 'data' => ['tx_ref' => 'REF-WEBHOOK-1', 'status' => 'REFUNDED']]],
+        ];
+    }
+
+    /**
+     * @dataProvider notableEventProvider
+     */
+    public function test_a_refund_or_dispute_event_is_logged_and_alerted($provider, array $payload)
+    {
+        $this->makeTransaction();
+        config(['dumos.admin_emails' => ['ops@dumosrx.com']]);
+        \Illuminate\Support\Facades\Mail::fake();
+
+        $response = $provider === 'paystack'
+            ? $this->postPaystackWebhook($payload)
+            : $this->postFlutterwaveWebhook($payload);
+
+        $response->assertStatus(200);
+        \Illuminate\Support\Facades\Mail::assertSent(\App\Mail\SuperAdminAlertMail::class);
+    }
+
+    public function test_a_refund_event_never_activates_the_subscription()
+    {
+        $txn = $this->makeTransaction();
+        config(['dumos.admin_emails' => []]);
+
+        $this->postPaystackWebhook([
+            'event' => 'refund.processed',
+            'data' => ['reference' => 'REF-WEBHOOK-1', 'amount' => 800000, 'currency' => 'NGN'],
+        ])->assertStatus(200);
+
+        $this->assertSame('pending', $txn->fresh()->status);
+        $this->assertDatabaseCount('subscriptions', 0);
+    }
+
+    public function test_an_ordinary_unhandled_event_is_logged_but_does_not_alert()
+    {
+        $this->makeTransaction();
+        config(['dumos.admin_emails' => ['ops@dumosrx.com']]);
+        \Illuminate\Support\Facades\Mail::fake();
+        \Illuminate\Support\Facades\Log::spy();
+
+        $this->postPaystackWebhook([
+            'event' => 'transfer.success',
+            'data' => ['reference' => 'REF-WEBHOOK-1'],
+        ])->assertStatus(200);
+
+        \Illuminate\Support\Facades\Mail::assertNothingSent();
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('info')
+            ->withArgs(fn ($message, $context = []) => ($context['event'] ?? null) === 'transfer.success')
+            ->atLeast()->once();
+    }
+
+    public function test_a_failed_charge_event_does_not_alert()
+    {
+        $this->makeTransaction();
+        config(['dumos.admin_emails' => ['ops@dumosrx.com']]);
+        \Illuminate\Support\Facades\Mail::fake();
+
+        $this->postFlutterwaveWebhook([
+            'event' => 'charge.completed',
+            'data' => ['tx_ref' => 'REF-WEBHOOK-1', 'status' => 'failed'],
+        ])->assertStatus(200);
+
+        \Illuminate\Support\Facades\Mail::assertNothingSent();
+    }
+
+    public function test_a_successful_charge_still_activates_and_is_not_treated_as_unhandled()
+    {
+        $this->makeTransaction();
+        config(['dumos.admin_emails' => []]);
+
+        $this->postFlutterwaveWebhook([
+            'event' => 'charge.completed',
+            'data' => ['tx_ref' => 'REF-WEBHOOK-1', 'status' => 'successful', 'amount' => 8000, 'currency' => 'NGN'],
+        ])->assertStatus(200);
+
+        $this->assertDatabaseHas('payment_transactions', ['provider_reference' => 'REF-WEBHOOK-1', 'status' => 'success']);
     }
 }

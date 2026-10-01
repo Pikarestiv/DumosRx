@@ -132,4 +132,67 @@ class BackupControllerTest extends TestCase
         $response->assertStatus(200);
         $this->assertCount(1, $response->json());
     }
+    public function test_an_oversized_backup_upload_is_rejected()
+    {
+        $this->actingAs($this->ownerA)
+            ->postJson('/api/v1/backups/upload', [
+                'backup' => UploadedFile::fake()->create('huge.zip', 200 * 1024),
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('backup');
+    }
+
+    public function test_an_unexpected_backup_file_type_is_rejected()
+    {
+        $this->actingAs($this->ownerA)
+            ->postJson('/api/v1/backups/upload', [
+                'backup' => UploadedFile::fake()->create('payload.php', 10),
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('backup');
+    }
+
+    public function test_upload_is_refused_once_the_per_tenant_quota_is_used_up()
+    {
+        Storage::put('backups/'.$this->ownerA->id.'/old.zip', str_repeat('x', 1024));
+        \Illuminate\Support\Facades\Config::set('backups.tenant_quota_kilobytes', 1);
+
+        $this->actingAs($this->ownerA)
+            ->postJson('/api/v1/backups/upload', [
+                'backup' => UploadedFile::fake()->create('another.zip', 10),
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('backup');
+    }
+
+    public function test_prune_deletes_backups_past_the_retention_window_but_keeps_the_newest()
+    {
+        $dir = 'backups/'.$this->ownerA->id;
+        foreach (['ancient.zip', 'old.zip', 'recent.zip'] as $name) {
+            Storage::put($dir.'/'.$name, 'data');
+        }
+        touch(Storage::path($dir.'/ancient.zip'), now()->subDays(120)->getTimestamp());
+        touch(Storage::path($dir.'/old.zip'), now()->subDays(90)->getTimestamp());
+        touch(Storage::path($dir.'/recent.zip'), now()->subDay()->getTimestamp());
+
+        $this->artisan('backups:prune')->assertExitCode(0);
+
+        Storage::assertMissing($dir.'/ancient.zip');
+        Storage::assertMissing($dir.'/old.zip');
+        Storage::assertExists($dir.'/recent.zip');
+    }
+
+    public function test_prune_keeps_the_newest_backup_even_when_every_file_is_expired()
+    {
+        $dir = 'backups/'.$this->ownerA->id;
+        Storage::put($dir.'/older.zip', 'data');
+        Storage::put($dir.'/newest.zip', 'data');
+        touch(Storage::path($dir.'/older.zip'), now()->subDays(200)->getTimestamp());
+        touch(Storage::path($dir.'/newest.zip'), now()->subDays(100)->getTimestamp());
+
+        $this->artisan('backups:prune')->assertExitCode(0);
+
+        Storage::assertMissing($dir.'/older.zip');
+        Storage::assertExists($dir.'/newest.zip');
+    }
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
+import { WEB_APP_URL } from "@/lib/constants";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -32,14 +33,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://dumosrx.com",
+    url: WEB_APP_URL,
     title: "DumosRx - NextGen Retail & Store OS",
     description:
       "Professional business management system for retail stores. Offline-first, cloud-synced, and built for growth.",
     siteName: "DumosRx",
     images: [
       {
-        url: "https://dumosrx.com/og-image.jpg",
+        url: `${WEB_APP_URL}/og-image.jpg`,
         width: 1200,
         height: 630,
         alt: "DumosRx Dashboard Preview",
@@ -52,7 +53,7 @@ export const metadata: Metadata = {
     description:
       "Professional business management system for retail stores. Offline-first, cloud-synced, and built for growth.",
     creator: "@dumosrx",
-    images: ["https://dumosrx.com/og-image.jpg"],
+    images: [`${WEB_APP_URL}/og-image.jpg`],
   },
   robots: {
     index: true,

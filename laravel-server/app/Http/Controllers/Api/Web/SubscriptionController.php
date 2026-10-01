@@ -15,6 +15,7 @@ use App\Services\Payment\PaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Exception;
 use OpenApi\Attributes as OA;
 
@@ -107,7 +108,7 @@ class SubscriptionController extends Controller
                 new OA\Property(property: 'valid', type: 'boolean', example: false),
                 new OA\Property(property: 'message', type: 'string'),
             ])),
-            new OA\Response(response: 404, description: 'Unknown license key', content: new OA\JsonContent(properties: [
+            new OA\Response(response: 404, description: "Unknown license key, or one that does not belong to the caller's own subscription", content: new OA\JsonContent(properties: [
                 new OA\Property(property: 'valid', type: 'boolean', example: false),
                 new OA\Property(property: 'message', type: 'string'),
             ])),
@@ -121,7 +122,11 @@ class SubscriptionController extends Controller
             'machine_id' => 'required|string',
         ]);
 
-        $sub = Subscription::where('license_key', $request->license_key)->first();
+        $owner = app(SubscriptionService::class)->getSubscriptionOwner($request->user());
+
+        $sub = Subscription::where('license_key', $request->license_key)
+            ->where('user_id', $owner->id)
+            ->first();
 
         if (!$sub) {
             return response()->json(['valid' => false, 'message' => 'Invalid license key.'], 404);
@@ -142,11 +147,11 @@ class SubscriptionController extends Controller
             ]
         );
 
-        $license->update(['last_check_in' => now()]);
-
         if (!$license->is_active) {
             return response()->json(['valid' => false, 'message' => 'This device has been deactivated.'], 403);
         }
+
+        $license->update(['last_check_in' => now()]);
 
         return response()->json([
             'valid' => true,
@@ -327,11 +332,13 @@ class SubscriptionController extends Controller
         $baseAmount = (float) ($interval === 'yearly' ? ($tier['price_yearly'] ?? 0) : ($tier['price_monthly'] ?? 0));
 
         $coupon = null;
+        $couponUsageId = null;
         $discountedAmount = $baseAmount;
         if ($request->coupon_code) {
-            $couponResult = $subscriptionService->validateCoupon($user, $request->coupon_code, $planName, $interval);
+            $couponResult = $subscriptionService->reserveCoupon($user, $request->coupon_code, $planName, $interval);
             if ($couponResult['valid']) {
                 $coupon = $couponResult['coupon'];
+                $couponUsageId = $couponResult['usage_id'];
                 if ($coupon->type === 'discount_percent') {
                     $discountedAmount -= $discountedAmount * ($coupon->value / 100);
                 } elseif ($coupon->type === 'discount_amount') {
@@ -370,18 +377,20 @@ class SubscriptionController extends Controller
                 $daysToAdd = $coupon->value;
             }
 
-            $sub = Subscription::create([
-                'user_id' => $user->id,
-                'plan_name' => $planName,
-                'start_date' => now(),
-                'end_date' => now()->addDays($daysToAdd),
-                'status' => 'active',
-                'license_key' => 'DRX-' . strtoupper(bin2hex(random_bytes(8))),
-            ]);
+            $sub = DB::transaction(function () use ($user, $planName, $daysToAdd, $couponUsageId, $subscriptionService) {
+                $created = Subscription::create([
+                    'user_id' => $user->id,
+                    'plan_name' => $planName,
+                    'start_date' => now(),
+                    'end_date' => now()->addDays($daysToAdd),
+                    'status' => 'active',
+                    'license_key' => 'DRX-' . strtoupper(bin2hex(random_bytes(8))),
+                ]);
 
-            if ($coupon) {
-                $subscriptionService->recordCouponUsage($coupon, $user, $sub);
-            }
+                $subscriptionService->attachCouponUsageToSubscription($couponUsageId, $created);
+
+                return $created;
+            });
 
             // Immediately enforce limits since the plan has changed
             $subscriptionService->enforceStaffLimits($user);
@@ -392,6 +401,15 @@ class SubscriptionController extends Controller
                 'subscription' => $sub,
                 'payment_url' => null // No payment needed
             ]);
+        }
+
+        // Credits are RESERVED here, not merely recorded: deferring the
+        // deduction to activation meant a second credit-funded checkout could
+        // consume the same balance first, making the activation-time
+        // deductCredits() throw and roll back the whole activation of an
+        // already-paid transaction. See docs/FIXED_BUGS.md, A-79.
+        if ($creditsApplied > 0) {
+            $user->deductCredits($creditsApplied, "Reserved credits for subscription to " . $planName);
         }
 
         try {
@@ -418,7 +436,9 @@ class SubscriptionController extends Controller
                     'plan_name' => $planName,
                     'user_id' => $user->id,
                     'coupon_code' => $request->coupon_code,
+                    'coupon_usage_id' => $couponUsageId,
                     'credits_applied' => $creditsApplied,
+                    'credits_reserved' => $creditsApplied > 0,
                     'interval' => $interval
                 ]
             ]);
@@ -430,6 +450,12 @@ class SubscriptionController extends Controller
                 'payment_url' => $payment['checkout_url'],
             ]);
         } catch (Exception $e) {
+            if ($creditsApplied > 0) {
+                $user->addCredits($creditsApplied, "Released reserved credits for abandoned subscription to " . $planName);
+            }
+
+            $subscriptionService->releaseCouponUsage($couponUsageId);
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
@@ -517,22 +543,29 @@ class SubscriptionController extends Controller
         // both providers report the settlement currency, so a charge for
         // "13124" of anything other than the naira the transaction was
         // created in must not be allowed to satisfy it.
+        if ($verification['unknown'] ?? false) {
+            return response()->json([
+                'success' => false,
+                'message' => 'We could not reach the payment provider to confirm this payment. It is still being processed — please try again in a moment.',
+            ], 503);
+        }
+
         $verifiedAmount = (float) ($verification['amount'] ?? 0);
         $verifiedCurrency = strtoupper((string) ($verification['currency'] ?? ''));
         $expectedCurrency = strtoupper((string) ($txn->currency ?: 'NGN'));
         $currencyOk = $verifiedCurrency === $expectedCurrency;
 
         if (!$verification['success'] || !$currencyOk || $verifiedAmount < (float) $txn->amount - 0.01) {
-            // Locked and re-checked the same way activateSubscriptionFromTransaction()
-            // is, so a stale/short verify call arriving after the webhook has
-            // already activated the subscription can't stomp its 'success'
-            // status back to 'failed' out from under an active subscription.
-            DB::transaction(function () use ($txn) {
-                $locked = PaymentTransaction::where('id', $txn->id)->lockForUpdate()->first();
-                if ($locked && $locked->status === 'pending') {
-                    $locked->update(['status' => 'failed']);
-                }
-            });
+            // A mismatch on a charge the provider says SUCCEEDED is money the
+            // platform is holding for nothing; a plain "not successful" answer
+            // is not, so only the former is refunded and alerted.
+            if ($verification['success']) {
+                app(\App\Services\Payment\PaymentMismatchHandler::class)
+                    ->handle($txn, $verifiedAmount, $verifiedCurrency, $verification['data'] ?? []);
+            } else {
+                $this->failTransaction($txn);
+            }
+
             return response()->json(['success' => false, 'message' => 'Payment verification failed.'], 400);
         }
 
@@ -604,11 +637,7 @@ class SubscriptionController extends Controller
                 app(SubscriptionService::class)->enforceStaffLimits($user);
             }
 
-            // Deduct applied credits
-            $creditsApplied = (float) ($txn->metadata['credits_applied'] ?? 0);
-            if ($creditsApplied > 0 && $user) {
-                $user->deductCredits($creditsApplied, "Applied credits to offset subscription to " . $txn->metadata['plan_name']);
-            }
+            $this->settleAppliedCredits($txn, $user);
 
             // Award referral credits
             if ($user && $user->referred_by_id) {
@@ -643,16 +672,105 @@ class SubscriptionController extends Controller
                 }
             }
 
-            // Record coupon usage if present
+            // initiatePayment() already reserved the usage row, so activation
+            // only links it; the create branch is the legacy path for a
+            // transaction started before reservations existed.
             if (!empty($txn->metadata['coupon_code'])) {
-                $coupon = Coupon::where('code', $txn->metadata['coupon_code'])->first();
-                if ($coupon && $user) {
-                    $subscriptionService = app(SubscriptionService::class);
-                    $subscriptionService->recordCouponUsage($coupon, $user, $sub);
+                $subscriptionService = app(SubscriptionService::class);
+
+                if (!empty($txn->metadata['coupon_usage_id'])) {
+                    $subscriptionService->attachCouponUsageToSubscription($txn->metadata['coupon_usage_id'], $sub);
+                } else {
+                    $coupon = Coupon::where('code', $txn->metadata['coupon_code'])->first();
+                    if ($coupon && $user) {
+                        $subscriptionService->recordCouponUsage($coupon, $user, $sub);
+                    }
                 }
             }
 
             return ['already' => false, 'subscription' => $sub];
+        });
+    }
+
+    /**
+     * Settles the credits a transaction said it would consume. initiatePayment()
+     * reserves them up front (`credits_reserved`), so the normal path has
+     * nothing left to do here. A transaction created before reservation
+     * existed carries `credits_applied` with no flag: deduct what is actually
+     * available and log any shortfall rather than throwing, because throwing
+     * inside activateSubscriptionFromTransaction()'s DB::transaction() rolls
+     * back the status -> 'success' transition of an already-PAID transaction
+     * and leaves it permanently unactivatable (the provider's webhook then
+     * retries and 500s forever). Never block activation on bookkeeping.
+     */
+    private function settleAppliedCredits(PaymentTransaction $txn, ?User $user): void
+    {
+        $creditsApplied = (float) ($txn->metadata['credits_applied'] ?? 0);
+
+        if ($creditsApplied <= 0 || !$user) {
+            return;
+        }
+
+        if ($txn->metadata['credits_reserved'] ?? false) {
+            return;
+        }
+
+        $deductible = min($creditsApplied, (float) $user->referral_credits);
+
+        if ($deductible < $creditsApplied) {
+            Log::warning('Subscription activation: applied credits exceed the available balance; deducting what is available.', [
+                'transaction_id' => $txn->id,
+                'user_id' => $user->id,
+                'credits_applied' => $creditsApplied,
+                'available' => (float) $user->referral_credits,
+            ]);
+        }
+
+        if ($deductible > 0) {
+            $user->deductCredits($deductible, "Applied credits to offset subscription to " . $txn->metadata['plan_name']);
+        }
+    }
+
+    /**
+     * Marks a still-pending transaction failed and releases any credits
+     * initiatePayment() reserved for it, under the same row lock so a
+     * stale/short verification arriving after a legitimate activation can't
+     * stomp a live subscription's transaction back to 'failed'. The
+     * `credits_released` stamp makes the release idempotent across the verify
+     * path and the webhook path, either of which may get here first.
+     */
+    public function failTransaction(PaymentTransaction $txn, array $extraMetadata = []): void
+    {
+        DB::transaction(function () use ($txn, $extraMetadata) {
+            $locked = PaymentTransaction::where('id', $txn->id)->lockForUpdate()->first();
+
+            if (!$locked || $locked->status !== 'pending') {
+                return;
+            }
+
+            $metadata = $locked->metadata ?? [];
+            $creditsApplied = (float) ($metadata['credits_applied'] ?? 0);
+            $shouldRelease = $creditsApplied > 0
+                && ($metadata['credits_reserved'] ?? false)
+                && !($metadata['credits_released'] ?? false);
+
+            if ($shouldRelease) {
+                $user = User::find($metadata['user_id'] ?? null);
+                if ($user) {
+                    $user->addCredits($creditsApplied, "Released reserved credits for failed subscription payment " . $locked->provider_reference);
+                    $metadata['credits_released'] = true;
+                }
+            }
+
+            if (!empty($metadata['coupon_usage_id']) && !($metadata['coupon_usage_released'] ?? false)) {
+                app(SubscriptionService::class)->releaseCouponUsage($metadata['coupon_usage_id']);
+                $metadata['coupon_usage_released'] = true;
+            }
+
+            $locked->update([
+                'status' => 'failed',
+                'metadata' => array_merge($metadata, $extraMetadata),
+            ]);
         });
     }
 

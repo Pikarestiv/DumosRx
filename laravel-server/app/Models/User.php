@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Exception;
 
@@ -152,10 +153,11 @@ class User extends Authenticatable
      * The store this user works AT as staff (users.store_id), as opposed
      * to store()/stores() above which resolve the store(s) this user
      * OWNS (stores.user_id pointing back at them). A store owner's own
-     * store_id column is never set to their own store (see Store::sales()
-     * doc block and StaffController::store), so this relation is null for
-     * owners even though store()/stores() cover that case; the two are
-     * complementary, not overlapping.
+     * store_id column is not supposed to be set (see Store::sales() doc
+     * block and StaffController::store), so this relation reads as null
+     * for owners — but accounts created before 2026-09-22 carry a stale
+     * value, so it must never be treated as proof that a user is staff.
+     * See docs/FIXED_BUGS.md A-127.
      */
     public function employerStore()
     {
@@ -350,30 +352,57 @@ class User extends Authenticatable
 
     public function addCredits(float $amount, string $description, ?string $referredUserId = null, string $type = 'earned')
     {
-        $this->referral_credits += $amount;
-        $this->save();
+        return DB::transaction(function () use ($amount, $description, $referredUserId, $type) {
+            $this->lockCreditBalance();
+            $this->referral_credits = (float) $this->referral_credits + $amount;
+            $this->save();
 
-        return $this->creditTransactions()->create([
-            'referred_user_id' => $referredUserId,
-            'type' => $type,
-            'amount' => $amount,
-            'description' => $description,
-        ]);
+            return $this->creditTransactions()->create([
+                'referred_user_id' => $referredUserId,
+                'type' => $type,
+                'amount' => $amount,
+                'description' => $description,
+            ]);
+        });
     }
 
     public function deductCredits(float $amount, string $description)
     {
-        if ($this->referral_credits < $amount) {
-            throw new Exception('Insufficient referral credits.');
+        return DB::transaction(function () use ($amount, $description) {
+            $this->lockCreditBalance();
+
+            if ((float) $this->referral_credits < $amount) {
+                throw new Exception('Insufficient referral credits.');
+            }
+
+            $this->referral_credits = (float) $this->referral_credits - $amount;
+            $this->save();
+
+            return $this->creditTransactions()->create([
+                'type' => 'spent',
+                'amount' => $amount,
+                'description' => $description,
+            ]);
+        });
+    }
+
+    /**
+     * Turns the credit read-modify-write above into a serialised one: without
+     * this, two concurrent grants/spends both read the same balance and the
+     * second save() overwrites the first. withTrashed() because SoftDeletes'
+     * global scope would otherwise find no row for a deactivated user whose
+     * balance is still being adjusted. See docs/FIXED_BUGS.md, A-79.
+     */
+    private function lockCreditBalance(): void
+    {
+        $locked = static::withTrashed()
+            ->whereKey($this->getKey())
+            ->lockForUpdate()
+            ->first(['id', 'referral_credits']);
+
+        if ($locked) {
+            $this->referral_credits = $locked->referral_credits;
+            $this->syncOriginalAttribute('referral_credits');
         }
-
-        $this->referral_credits -= $amount;
-        $this->save();
-
-        return $this->creditTransactions()->create([
-            'type' => 'spent',
-            'amount' => $amount,
-            'description' => $description,
-        ]);
     }
 }

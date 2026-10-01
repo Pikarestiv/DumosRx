@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\PaymentTransaction;
 use App\Models\Subscription;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use OpenApi\Attributes as OA;
 use App\Http\Controllers\Api\Web\SubscriptionController;
@@ -16,7 +15,7 @@ class PaymentController extends Controller
     #[OA\Post(
         path: '/webhooks/paystack',
         summary: 'Paystack payment webhook (not for manual use)',
-        description: 'Verifies the `x-paystack-signature` header (HMAC-SHA512 of the raw body using the Paystack secret key) before processing. On `charge.success`, activates the pending subscription tied to the transaction reference.',
+        description: 'Verifies the `x-paystack-signature` header (HMAC-SHA512 of the raw body using the Paystack secret key) before processing. On `charge.success`, activates the pending subscription tied to the transaction reference. Any other event is acknowledged but not processed: refund/dispute/chargeback events are logged at warning level and raise a super-admin alert for manual reconciliation, everything else is logged at info.',
         tags: ['Webhooks'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(type: 'object')),
         responses: [
@@ -47,6 +46,8 @@ class PaymentController extends Controller
 
         if ($event === 'charge.success' && is_array($data) && !empty($data['reference'])) {
             $this->processSuccessfulPayment($data['reference'], 'paystack', $data);
+        } else {
+            $this->recordUnhandledEvent('paystack', (string) $event, is_array($data) ? $data : [], $data['reference'] ?? null);
         }
 
         return response()->json(['status' => 'ok']);
@@ -55,7 +56,7 @@ class PaymentController extends Controller
     #[OA\Post(
         path: '/webhooks/flutterwave',
         summary: 'Flutterwave payment webhook (not for manual use)',
-        description: 'Verifies the `verif-hash` header against the configured Flutterwave webhook secret hash (`FLUTTERWAVE_SECRET_HASH`) before processing. On a `successful` status, and only if the reported amount/currency match the recorded transaction, activates the pending subscription tied to `tx_ref`.',
+        description: 'Verifies the `verif-hash` header against the configured Flutterwave webhook secret hash (`FLUTTERWAVE_SECRET_HASH`) before processing. On a `successful` status, and only if the reported amount/currency match the recorded transaction, activates the pending subscription tied to `tx_ref`. Any other event or status is acknowledged but not processed: refund/dispute/chargeback wording raises a super-admin alert for manual reconciliation, everything else is logged at info.',
         tags: ['Webhooks'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(type: 'object')),
         responses: [
@@ -87,74 +88,106 @@ class PaymentController extends Controller
 
         if (is_array($data) && ($data['status'] ?? null) === 'successful' && !empty($data['tx_ref'])) {
             $this->processSuccessfulPayment($data['tx_ref'], 'flutterwave', $data);
+        } else {
+            $this->recordUnhandledEvent(
+                'flutterwave',
+                trim($event . ' ' . (is_array($data) ? (string) ($data['status'] ?? '') : '')),
+                is_array($data) ? $data : [],
+                is_array($data) ? ($data['tx_ref'] ?? null) : null,
+            );
         }
 
         return response()->json(['status' => 'ok']);
     }
 
+    /**
+     * Paystack reports `amount` in the currency's minor unit (kobo),
+     * Flutterwave in the major unit. Everything this app stores an expected
+     * amount in (`payment_transactions.amount`,
+     * `storefront_payment_intents.amount`) is the major unit.
+     */
+    protected function reportedMajorUnitAmount($provider, $data): float
+    {
+        $amount = (float) ($data['amount'] ?? 0);
+
+        return $provider === 'paystack' ? $amount / 100 : $amount;
+    }
+
+    /**
+     * Matched on refund/dispute/chargeback/reversal wording rather than an
+     * exact per-provider event-name list: Flutterwave's names for these were
+     * never verified against its live payloads. See the PG-9 note in
+     * laravel-server/AGENTS.md before narrowing this.
+     */
+    private const NOTABLE_EVENT_NEEDLES = ['refund', 'dispute', 'chargeback', 'charge_back', 'reversal', 'reversed'];
+
+    /**
+     * Never called with a DB transaction or row lock held (the A-110 lesson):
+     * both handlers reach this before any transactional work.
+     */
+    protected function recordUnhandledEvent(string $provider, string $event, array $data, $reference): void
+    {
+        $context = ['provider' => $provider, 'event' => $event, 'reference' => $reference];
+
+        $haystack = strtolower($event);
+        $notable = false;
+        foreach (self::NOTABLE_EVENT_NEEDLES as $needle) {
+            if (str_contains($haystack, $needle)) {
+                $notable = true;
+                break;
+            }
+        }
+
+        if (!$notable) {
+            Log::info('Unhandled payment webhook event ignored.', $context);
+            return;
+        }
+
+        Log::warning('Payment webhook reports a refund, dispute or chargeback that happened outside the app.', $context + ['webhook_data' => $data]);
+
+        try {
+            \App\Services\AdminAlertService::send(
+                'Payment ' . $provider . ' webhook: refund/dispute needs attention',
+                [
+                    'A payment webhook arrived for an event this app does not process automatically.',
+                    "Provider: {$provider}",
+                    "Event: {$event}",
+                    'Reference: ' . ($reference ?: 'none supplied'),
+                    'Nothing was refunded, reversed or cancelled in DumosRx - reconcile this by hand in the provider dashboard and in the affected subscription or order.',
+                ]
+            );
+        } catch (\Exception $e) {
+            Log::error('Failed to alert admins about a refund/dispute webhook: ' . $e->getMessage());
+        }
+    }
+
     protected function processSuccessfulPayment($reference, $provider, $data)
     {
+        $reportedAmount = $this->reportedMajorUnitAmount($provider, $data);
+        $reportedCurrency = strtoupper((string) ($data['currency'] ?? ''));
+
+        // A storefront charge lives in its own table, never in
+        // payment_transactions (see the intents migration), so it has to be
+        // matched here or the webhook is silently discarded (PG-2).
+        $intent = \App\Models\StorefrontPaymentIntent::where('reference', $reference)->first();
+        if ($intent) {
+            app(\App\Services\Storefront\StorefrontPaymentReconciler::class)
+                ->recordProviderPayment($intent, $reportedAmount, $reportedCurrency, $data);
+
+            return;
+        }
+
         $txn = PaymentTransaction::where('provider_reference', $reference)->first();
 
         if (!$txn || $txn->status === 'success') {
             return;
         }
 
-        // A valid signature only proves the payload came from the provider -
-        // it says nothing about WHAT was paid. Without this check a genuine
-        // ₦100 charge (or a charge in another currency) could activate a
-        // ₦100,000 plan. Both providers report the settled amount and
-        // currency in the webhook body, so compare them against what this
-        // transaction was created for before activating anything.
-        //
-        // Unit: Paystack reports `amount` in the currency's minor unit
-        // (kobo), matching its initialize payload (`$amount * 100` in
-        // PaymentService::initializePaystack) and its verify response
-        // (divided by 100 in verifyPaystack). Flutterwave reports the major
-        // unit (naira), matching the un-multiplied `amount` it is sent.
-        // PaymentTransaction::amount is stored in naira (SubscriptionController
-        // writes $finalAmount directly), so only Paystack needs converting.
-        $reportedAmount = (float) ($data['amount'] ?? 0);
-        if ($provider === 'paystack') {
-            $reportedAmount = $reportedAmount / 100;
-        }
-
-        $reportedCurrency = strtoupper((string) ($data['currency'] ?? ''));
         $expectedCurrency = strtoupper((string) ($txn->currency ?: 'NGN'));
 
-        // Same 1-kobo tolerance SubscriptionController::verifyPayment uses:
-        // $txn->amount can carry sub-kobo precision from coupon-percentage
-        // arithmetic while the provider only ever settles whole kobo.
         if ($reportedCurrency !== $expectedCurrency || $reportedAmount < (float) $txn->amount - 0.01) {
-            Log::warning('Payment webhook amount/currency mismatch; refusing to activate.', [
-                'reference' => $reference,
-                'provider' => $provider,
-                'reported_amount' => $reportedAmount,
-                'reported_currency' => $reportedCurrency,
-                'expected_amount' => (float) $txn->amount,
-                'expected_currency' => $expectedCurrency,
-            ]);
-
-            // Mark failed under the same lock/re-check pattern
-            // activateSubscriptionFromTransaction uses, so a mismatched
-            // webhook arriving after a legitimate activation can't stomp a
-            // live subscription's transaction back to 'failed'.
-            DB::transaction(function () use ($txn, $data, $reportedAmount, $reportedCurrency) {
-                $locked = PaymentTransaction::where('id', $txn->id)->lockForUpdate()->first();
-                if ($locked && $locked->status === 'pending') {
-                    $locked->update([
-                        'status' => 'failed',
-                        'metadata' => array_merge($locked->metadata ?? [], [
-                            'suspicious_webhook' => [
-                                'reason' => 'amount_or_currency_mismatch',
-                                'reported_amount' => $reportedAmount,
-                                'reported_currency' => $reportedCurrency,
-                                'webhook_data' => $data,
-                            ],
-                        ]),
-                    ]);
-                }
-            });
+            app(\App\Services\Payment\PaymentMismatchHandler::class)
+                ->handle($txn, $reportedAmount, $reportedCurrency, $data);
 
             // Deliberately not an error response: the payload was genuinely
             // signed, so there is nothing for the provider to retry. Erroring

@@ -189,25 +189,25 @@ export const DEFAULT_GROUP_PERMISSION_ADDITIONS: Record<number, Record<DefaultGr
 // Hand-maintained; add a key here in the same commit as its first call site.
 // See client/AGENTS.md's "Enforced permissions" section.
 export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
-  "process_sales", // pos-layout-header.tsx, auth-context.tsx (canProcessSales)
+  "process_sales", // pos-layout-header.tsx, auth-context.tsx (canProcessSales); assistant my_sales_today tool + "Make a sale" help topic
   "apply_discounts", // pos-cart.tsx
   "void_refund_sales", // pos-transaction-history.tsx
   "override_price", // pos-cart-item.tsx
   "hold_sales", // pos-cart.tsx, held-transactions-dialog.tsx
   "view_sales_history", // pos-main-tab-nav.tsx, pos-system.tsx
   "reprint_receipt", // transaction-details-dialog.tsx
-  "run_daily_close", // reports/daily-close/daily-close-header.tsx
-  "manage_products", // transfer-stock-dialog.tsx, auth-context.tsx (canManageStockBatch)
-  "adjust_stock_counts", // catalog-row.tsx, catalog-list.tsx, stock-adjustments-ledger.tsx, dashboard-page-routes.ts
-  "manage_purchase_orders", // purchase-order-details.tsx, procurement/new + /edit routes, dashboard-page-routes.ts
+  "run_daily_close", // reports/daily-close/daily-close-header.tsx; assistant "Run daily close" help topic
+  "manage_products", // transfer-stock-dialog.tsx, auth-context.tsx (canManageStockBatch); assistant "Add a product" help topic
+  "adjust_stock_counts", // catalog-row.tsx, catalog-list.tsx, stock-adjustments-ledger.tsx, dashboard-page-routes.ts; assistant "Adjust stock" help topic
+  "manage_purchase_orders", // purchase-order-details.tsx, procurement/new + /edit routes, dashboard-page-routes.ts; assistant "Create a purchase order" help topic
   "receive_purchase_orders", // purchase-order-details.tsx
   "manage_suppliers", // supplier-table.tsx, supplier-detail-pane.tsx, supplier-management.tsx, dashboard-page-routes.ts
   "request_stock_transfers", // pos-layout-header.tsx
   "approve_stock_transfers", // stock-movement-detail-modal.tsx (markStockTransferReviewed)
-  "view_cost_fields", // catalog-list.tsx, catalog-row.tsx, product-pricing-info.tsx
+  "view_cost_fields", // catalog-list.tsx, catalog-row.tsx, product-pricing-info.tsx; assistant inventory_status tool (adds stock value to the reply, never denies it)
   "edit_product_cost", // audit-ledger-step.tsx
   "edit_product_price", // catalog-row.tsx, audit-ledger-step.tsx
-  "perform_stock_audit", // dashboard-header.tsx, stock-batch-management.tsx, use-stock-batch-management.ts
+  "perform_stock_audit", // dashboard-header.tsx, stock-batch-management.tsx, use-stock-batch-management.ts; assistant "Start a stock audit" help topic
   "view_stock_adjustment_history", // stock-batch-tab-nav.tsx, stock-batch-management.tsx, use-stock-batch-management.ts (Movements + Adjustments tabs)
   "print_product_labels", // catalog-detail-panel.tsx, catalog-list.tsx/catalog-row.tsx (opens barcode-print-dialog.tsx)
   "delete_products", // catalog-detail-panel.tsx, catalog-list.tsx/catalog-row.tsx (opens product-delete-dialog.tsx)
@@ -216,23 +216,23 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "view_suppliers", // procurement-tab-nav.tsx, procurement/vendors route
   "dispense_prescriptions", // prescription-detail-panel.tsx, use-pos-prescription.ts
   "manage_prescriptions", // prescription-detail-panel.tsx, use-prescription-management.ts, dashboard-page-routes.ts
-  "manage_customers", // use-customer-management.ts, directory-tab.tsx, customer-detail-panel.tsx, pos-customer-selector.tsx, dashboard-page-routes.ts
+  "manage_customers", // use-customer-management.ts, directory-tab.tsx, customer-detail-panel.tsx, pos-customer-selector.tsx, dashboard-page-routes.ts; assistant "Add a customer" help topic
   "manage_loyalty", // loyalty-tab.tsx, loyalty-settings-dialog.tsx
   "delete_customers", // directory-tab.tsx, customer-detail-panel.tsx
   "view_customer_balances", // directory-tab.tsx, customer-list-rows.tsx, customer-detail-panel.tsx
-  "view_reports", // reports/page.tsx, reports/reports-tab-nav.tsx
+  "view_reports", // reports/page.tsx, reports/reports-tab-nav.tsx; assistant sales_summary tool (reroutes to my_sales_today on denial) + "View reports" help topic
   "export_reports", // report-center.tsx, report-view-dialog.tsx (canExport)
-  "view_financial_reports", // report-center.tsx, business-intelligence-dashboard.tsx, analytics-tab-nav.tsx, bi-key-metrics.tsx
+  "view_financial_reports", // report-center.tsx, business-intelligence-dashboard.tsx, analytics-tab-nav.tsx, bi-key-metrics.tsx; assistant profit_summary tool
   "view_activity_log", // activity-log-page.tsx, product-history.tsx, pos-transaction-history.tsx, use-finance-data.ts, use-purchase-orders.ts, use-dashboard-overview.ts, use-pos-data.ts, auth-context.tsx (canViewAllActivity)
-  "record_expenses", // expenses/page.tsx, expense-list.tsx, expense-desktop-row.tsx, expense-detail-dialog.tsx, dashboard-page-routes.ts
+  "record_expenses", // expenses/page.tsx, expense-list.tsx, expense-desktop-row.tsx, expense-detail-dialog.tsx, dashboard-page-routes.ts; assistant "Record an expense" help topic
   "view_all_expenses", // use-finance-data.ts (useExpenseList, useExpenseTotals)
-  "manage_staff", // pos-layout-header.tsx, auth-context.tsx (isAdmin)
+  "manage_staff", // pos-layout-header.tsx, auth-context.tsx (isAdmin); assistant "Add a staff member" help topic
   "manage_roles_permissions", // permission-matrix.tsx
-  "manage_store_settings", // settings-tabs.ts (Business Info, Branches, Receipt Settings, Register Configs), appearance-settings.tsx
+  "manage_store_settings", // settings-tabs.ts (Business Info, Branches, Receipt Settings, Register Configs), appearance-settings.tsx; assistant "Change receipt settings" help topic
   "manage_payment_accounts", // settings-tabs.ts (Payment Methods tab)
   "manage_online_store", // store-profile-section.tsx, payment-methods-panel.tsx
   "manage_billing", // settings-tabs.ts (Billing tab), system-settings.tsx
-  "backup_restore_data", // settings-tabs.ts (Data & Sync tab)
+  "backup_restore_data", // settings-tabs.ts (Data & Sync tab); assistant "Back up or restore data" help topic
   "manage_device_settings", // settings-tabs.ts (System tab)
   "install_app_updates", // tauri/auto-updater.tsx
   "factory_reset", // device-danger-zone.tsx

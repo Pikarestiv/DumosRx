@@ -3,6 +3,7 @@
 namespace App\Services\Payment;
 
 use App\Models\PaymentTransaction;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -10,6 +11,9 @@ class PaymentService
 {
     protected $paystackKey;
     protected $flutterwaveKey;
+
+    private const REQUEST_TIMEOUT_SECONDS = 10;
+    private const CONNECT_TIMEOUT_SECONDS = 5;
 
     public function __construct()
     {
@@ -58,6 +62,59 @@ class PaymentService
         }
     }
 
+    /**
+     * The storefront's own initialize: Paystack only, never the
+     * cross-gateway fallback above. A storefront charge carries the store's
+     * payout subaccount and its own currency, neither of which Flutterwave
+     * is wired for here, and the intent it produces is later verified and
+     * refunded by reference — see laravel-server/AGENTS.md (PG-1).
+     */
+    public function initializeStorefrontTransaction($amount, $email, array $metadata, string $callbackUrl, string $subaccount, string $currency)
+    {
+        $systemConfig = \App\Models\SystemConfig::getVal('subscription_plans', []);
+
+        if (!($systemConfig['enable_paystack'] ?? true)) {
+            throw new \Exception('Online storefront payments are currently disabled by the administrator.');
+        }
+
+        return $this->initializePaystack($amount, $email, $metadata, $callbackUrl, $subaccount, $currency);
+    }
+
+    private function paystackClient()
+    {
+        return Http::withToken($this->paystackKey)
+            ->timeout(self::REQUEST_TIMEOUT_SECONDS)
+            ->connectTimeout(self::CONNECT_TIMEOUT_SECONDS);
+    }
+
+    private function flutterwaveClient()
+    {
+        return Http::withToken($this->flutterwaveKey)
+            ->timeout(self::REQUEST_TIMEOUT_SECONDS)
+            ->connectTimeout(self::CONNECT_TIMEOUT_SECONDS);
+    }
+
+    /**
+     * A verification that never reached the provider. Distinct from a
+     * provider answer of "not successful": the money may well have moved, so
+     * callers must neither book the order nor mark the transaction failed —
+     * see laravel-server/AGENTS.md's payment-timeout section.
+     */
+    private function unverifiableResult(string $provider, string $reference, \Throwable $e): array
+    {
+        Log::warning('Payment verification could not reach the provider', [
+            'provider' => $provider,
+            'reference' => $reference,
+            'message' => $e->getMessage(),
+        ]);
+
+        return [
+            'success' => false,
+            'unknown' => true,
+            'message' => 'Payment verification could not reach the provider.',
+        ];
+    }
+
     protected function initializePaystack($amount, $email, $metadata, ?string $callbackUrl = null, ?string $subaccount = null, ?string $currency = null)
     {
         $payload = [
@@ -74,7 +131,7 @@ class PaymentService
             $payload['currency'] = $currency;
         }
 
-        $response = Http::withToken($this->paystackKey)
+        $response = $this->paystackClient()
             ->post('https://api.paystack.co/transaction/initialize', $payload);
 
         if (!$response->successful()) {
@@ -99,7 +156,7 @@ class PaymentService
         // it again. Keep the locally generated ref and return that.
         $txRef = 'DRX-FW-' . uniqid();
 
-        $response = Http::withToken($this->flutterwaveKey)
+        $response = $this->flutterwaveClient()
             ->post('https://api.flutterwave.com/v3/payments', [
                 'tx_ref' => $txRef,
                 'amount' => $amount,
@@ -142,8 +199,12 @@ class PaymentService
 
     protected function verifyPaystack($reference)
     {
-        $response = Http::withToken($this->paystackKey)
-            ->get("https://api.paystack.co/transaction/verify/{$reference}");
+        try {
+            $response = $this->paystackClient()
+                ->get("https://api.paystack.co/transaction/verify/{$reference}");
+        } catch (ConnectionException $e) {
+            return $this->unverifiableResult('paystack', $reference, $e);
+        }
 
         if (!$response->successful()) {
             return ['success' => false, 'message' => 'Paystack verification failed'];
@@ -179,10 +240,12 @@ class PaymentService
 
     protected function verifyFlutterwave($reference)
     {
-        // FW verification usually needs the ID or tx_ref
-        // We'll use the verify by tx_ref if possible or standard verify
-        $response = Http::withToken($this->flutterwaveKey)
-            ->get("https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref={$reference}");
+        try {
+            $response = $this->flutterwaveClient()
+                ->get("https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref={$reference}");
+        } catch (ConnectionException $e) {
+            return $this->unverifiableResult('flutterwave', $reference, $e);
+        }
 
         if (!$response->successful()) {
             return ['success' => false, 'message' => 'Flutterwave verification failed'];

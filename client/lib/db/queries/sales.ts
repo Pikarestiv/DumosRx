@@ -91,6 +91,8 @@ export interface HeldTransaction {
   total_amount: number;
   discount?: number;
   discount_type?: string | null;
+  is_reseller_sale?: number | null;
+  markup_type?: string | null;
   created_at: string;
 }
 

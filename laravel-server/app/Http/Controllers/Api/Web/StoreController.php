@@ -70,8 +70,9 @@ class StoreController extends Controller
 
         $slug = Str::slug($request->slug);
         
-        // Exclude the current store if ID is provided
-        $query = Store::where('store_slug', $slug);
+        // withTrashed: store_slug is DB-unique across archived rows too, so
+        // an archived store's slug is not actually free to reuse.
+        $query = Store::withTrashed()->where('store_slug', $slug);
         if ($request->has('ignore_id')) {
             $query->where('id', '!=', $request->ignore_id);
         }
@@ -229,15 +230,27 @@ class StoreController extends Controller
             new OA\Response(response: 200, description: 'Deleted', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
             new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
             new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
+            new OA\Response(response: 409, description: "Refused: this is the caller's last remaining store", content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
         ],
     )]
     public function destroy(Request $request, $id)
     {
         $store = $request->user()->stores()->findOrFail($id);
-        
-        // Deactivate associated staff
+
+        if ($request->user()->stores()->count() <= 1) {
+            return response()->json([
+                'message' => 'This is your only store, so removing it would lock you out of your account. Please contact support if you want the account closed.',
+                'code' => 'LAST_STORE',
+            ], 409);
+        }
+
         User::where('store_id', $store->id)->update(['is_active' => false]);
-        
+
+        $store->forceFill([
+            'deleted_by_id' => $request->user()->id,
+            'deletion_reason' => 'Removed by the store owner',
+        ])->save();
+
         $store->delete();
 
         return response()->json([

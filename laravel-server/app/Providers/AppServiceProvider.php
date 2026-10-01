@@ -102,6 +102,22 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(30)->by($request->ip());
         });
 
+        // Bank-account name resolution. Far tighter than the 60/min the rest
+        // of the authenticated group gets, because each call is a free lookup
+        // against Paystack's resolver under the platform's own credentials -
+        // see "The bank-account resolve oracle" in laravel-server/AGENTS.md.
+        // Provider webhooks. Deliberately generous - a provider legitimately
+        // bursts (a settlement batch, a replay of a backlog after an outage)
+        // and a 429 makes it retry forever - but not unmetered, which is what
+        // a route with no `throttle:` group is under Laravel 11.
+        RateLimiter::for('webhooks', function (Request $request) {
+            return Limit::perMinute(300)->by($request->ip());
+        });
+
+        RateLimiter::for('bank-account-resolve', function (Request $request) {
+            return Limit::perMinute(8)->by($request->user()?->id ?: $request->ip());
+        });
+
         Gate::define('manage-staff', function (User $user) {
             $role = $user->getAttribute('role');
             return \in_array($role, ['super_admin', 'manager', 'admin'], true);

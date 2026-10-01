@@ -90,7 +90,7 @@ export function ActivityTab({
   filterCustomerName,
   onClearFilter,
 }: ActivityTabProps) {
-  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const {
     transactions,
     loading,

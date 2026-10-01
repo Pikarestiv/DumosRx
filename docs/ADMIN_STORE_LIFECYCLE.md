@@ -71,6 +71,28 @@ of soft-deleting the owner. It stamps `deleted_by_id` and a
 (422) to restore a store whose owner is still soft-deleted — otherwise a
 restore would put a live store back in the fleet with no owner.
 
+## Restore puts the store back exactly as it was — suspension included
+
+Archiving does not clear `stores.status`, so a store suspended before it was
+archived comes back suspended, and `CheckAccountStatus` keeps 403-ing its
+owner and staff after a restore that looked successful. That used to be
+silent (A-41). `POST /admin/stores/{id}/restore` now answers with
+`was_suspended`, `suspension_reason` and an admin-facing `warning` string
+(`AdminStoreDeletionService::restoreWarnings()`), the `STORE_RESTORED`
+activity row repeats the suspension in its description, and the fleet page's
+restore action shows a warning toast instead of "is active again" whenever
+`was_suspended` is true. Unsuspending is still a separate, deliberate act.
+
+**If `stores.store_slug` or `stores.device_id` uniqueness is ever made
+soft-delete-aware** (unique only among non-archived rows, which is what
+reclaiming an archived store's slug would require — see A-93 in
+`docs/FIXED_BUGS.md`), `restoreStore()` needs an explicit collision check
+added at the same time: another store could legitimately have taken the
+archived store's slug or device id in the meantime, and the restore would
+then fail on the unique index, or succeed into a duplicate. With today's
+unconditional unique indexes that collision cannot happen, so no check
+exists.
+
 ## Permanent delete (purge)
 
 `DELETE /admin/stores/{id}/purge` is irreversible and exists for the
@@ -126,6 +148,27 @@ read both happen **inside** the transaction, with `lockForUpdate()` on the
 owner's `stores` rows, so a store created concurrently for the same owner
 cannot slip past the guard. SQLite compiles the lock clause away and
 serializes writes anyway, so tests are unaffected.
+
+## The audit trail is part of each action, not a follow-up to it
+
+All three actions write their `ActivityLog` row **inside** the same
+`DB::transaction()` that performs the change, and every row carries
+`store_id` as well as `user_id`:
+
+- `STORE_PURGED` used to be written after the purge transaction had already
+  committed, so an audit-log insert that failed for any reason (a full disk,
+  a constraint, a transient connection error) left the whole store
+  irreversibly deleted with no record of who did it or why (A-40). The
+  purge's deletions now live in `purgeRows()` and the log write is the last
+  statement of the transaction that calls it — the early `return` in the
+  deletion body is exactly why the split is needed.
+- `STORE_ARCHIVED` / `STORE_RESTORED` used to omit `store_id`, so the store's
+  own activity view (`/admin/activity?store_id=`) never showed that it had
+  been archived or restored; only the global admin feed did.
+
+Covered by `tests/Feature/Admin/AdminStoreLifecycleAuditTest.php`, which
+fails the `STORE_PURGED` insert from a model event and asserts the store and
+its owner are still there.
 
 ## Store detail metrics
 

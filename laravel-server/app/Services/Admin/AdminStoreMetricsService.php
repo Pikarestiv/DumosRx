@@ -117,11 +117,12 @@ class AdminStoreMetricsService
      * Mirrors AdminStoreService::revenueSubquery()'s scoping as a real
      * query builder: sales.store_id when the sync engine populated it,
      * falling back to the owner's / staff's cashier_id for rows synced
-     * before that column existed.
+     * before that column existed, and excluding soft-deleted rows the way
+     * the SoftDeletes global scope would.
      */
     public function salesQuery(Store $store)
     {
-        return DB::table('sales')->where(function ($q) use ($store) {
+        return DB::table('sales')->whereNull('sales.deleted_at')->where(function ($q) use ($store) {
             $q->where('sales.store_id', $store->id)
                 ->orWhere(function ($fallback) use ($store) {
                     $fallback->whereNull('sales.store_id')

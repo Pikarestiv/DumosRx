@@ -103,12 +103,12 @@ describe("recordSaleItemStock — depleted batch", () => {
     );
   });
 
-  it("still logs a stock_movements row when the product has no stock_batches row at all", async () => {
-    // No batch ever created for this product (e.g. it was added without a
-    // procurement receipt) — recordSaleItemStock can't attribute the
-    // deduction to anything, but it must not silently swallow the sale_item
-    // it already inserted without at least leaving that visible (null
-    // stock_batch_id, no fabricated movement).
+  // A-57: this used to write a sale_item row with a null stock_batch_id and
+  // NO stock_movements row at all — revenue with zero ledger trace and zero
+  // COGS. Unreachable from the POS (the catalog query hides such a product),
+  // but the online-order fulfilment path has no equivalent guard, so every
+  // sale line must now produce exactly one stock_movements row.
+  it("opens a batch and still logs a stock_movements row when the product has no stock_batches row at all", async () => {
     await recordSaleItemStock({
       saleId: "sale1",
       productId: "prod1",
@@ -122,12 +122,52 @@ describe("recordSaleItemStock — depleted batch", () => {
     const saleItems = db.exec(
       "SELECT stock_batch_id FROM sale_items WHERE sale_id = 'sale1' AND product_id = 'prod1'",
     );
-    expect(saleItems[0]?.values[0]?.[0]).toBeNull();
+    const attributedBatchId = saleItems[0]?.values[0]?.[0];
+    expect(attributedBatchId).toBeTruthy();
 
     const movements = db.exec(
-      "SELECT quantity FROM stock_movements WHERE reference_id = 'sale1' AND product_id = 'prod1'",
+      "SELECT quantity, stock_batch_id FROM stock_movements WHERE reference_id = 'sale1' AND product_id = 'prod1'",
     );
-    expect(movements.length).toBe(0);
+    expect(movements[0]?.values.length).toBe(1);
+    expect(movements[0]?.values[0]?.[0]).toBe(-1);
+    expect(movements[0]?.values[0]?.[1]).toBe(attributedBatchId);
+
+    const createdBatch = db.exec(
+      "SELECT quantity, cost_price FROM stock_batches WHERE id = ?",
+      [attributedBatchId as string],
+    );
+    expect(createdBatch[0]?.values[0]?.[0]).toBe(0);
+    expect(createdBatch[0]?.values[0]?.[1]).toBe(60);
+  });
+
+  it("attributes the sale to an already-expired batch rather than opening a new one", async () => {
+    const EXPIRED = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    db.run(
+      `INSERT INTO stock_batches (id, product_id, quantity, cost_price, expiry_date) VALUES ('batch_expired', 'prod1', 5, 60, '${EXPIRED}')`,
+    );
+
+    await recordSaleItemStock({
+      saleId: "sale1",
+      productId: "prod1",
+      quantity: 2,
+      unitPrice: 100,
+      costPrice: 60,
+      subtotal: 200,
+      cashierId: "user1",
+    });
+
+    const movements = db.exec(
+      "SELECT quantity, stock_batch_id FROM stock_movements WHERE reference_id = 'sale1' AND product_id = 'prod1'",
+    );
+    expect(movements[0]?.values.length).toBe(1);
+    expect(movements[0]?.values[0]?.[0]).toBe(-2);
+    expect(movements[0]?.values[0]?.[1]).toBe("batch_expired");
+
+    const batches = db.exec("SELECT COUNT(*) FROM stock_batches WHERE product_id = 'prod1'");
+    expect(batches[0]?.values[0]?.[0]).toBe(1);
+
+    const batch = db.exec("SELECT quantity FROM stock_batches WHERE id = 'batch_expired'");
+    expect(batch[0]?.values[0]?.[0]).toBe(3);
   });
 
   it("still logs the full quantity when a single batch only partially covers an oversold cart line", async () => {

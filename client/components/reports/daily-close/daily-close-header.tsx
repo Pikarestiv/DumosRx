@@ -3,14 +3,17 @@ import { CheckCircle2, Save, CloudUpload } from "lucide-react";
 import { useSettings } from "@/hooks/use-settings";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { Button } from "@/components/ui/button";
+import { formatDateLong, parseLocalDateOnly } from "@/lib/utils/date-utils";
 
 interface DailyCloseHeaderProps {
+  /** Bare `YYYY-MM-DD`, matching getLocalTodayDate()'s shape. */
   reportDate: string;
 }
 
 export function DailyCloseHeader({ reportDate }: DailyCloseHeaderProps) {
   const { handleDownloadBackup, handleSync } = useSettings();
   const canRunDailyClose = useHasPermission("run_daily_close");
+  const formattedReportDate = formatDateLong(parseLocalDateOnly(reportDate));
 
   return (
     <Alert className="bg-primary/5 border-primary/20">
@@ -18,7 +21,7 @@ export function DailyCloseHeader({ reportDate }: DailyCloseHeaderProps) {
       <AlertTitle>Daily Close Ready</AlertTitle>
       <AlertDescription className="flex items-center justify-between flex-wrap gap-2">
         <span>
-          This report aggregates all transactions made on {reportDate}. Use this
+          This report aggregates all transactions made on {formattedReportDate}. Use this
           for end of day reconciliation.
         </span>
         {canRunDailyClose && (

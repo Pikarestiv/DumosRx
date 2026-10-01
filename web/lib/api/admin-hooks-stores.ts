@@ -9,8 +9,10 @@ import type {
   AdminProductsResponse,
   PaginatedResponse,
   AdminStoreSummary,
+  RegisteredStoreSummary,
   AdminStoreBillingHistory,
   AdminStoreDetail,
+  RestoreStoreResult,
 } from "@/lib/types/admin";
 
 export const useAdminSummary = (options?: { enabled?: boolean }) => {
@@ -52,6 +54,23 @@ export const useAdminStores = (
       webApiClient.request<PaginatedResponse<AdminStoreSummary>>(`admin/stores?${query.toString()}`),
     // The previous page's rows stay on screen while a debounced keystroke's
     // query resolves, so the table never collapses to a skeleton mid-typing.
+    placeholderData: keepPreviousData,
+    staleTime: 30 * 1000,
+  });
+};
+
+/** The scoped store list platform_admin/agent get in place of the fleet view
+ * (which is super_admin-only server-side): the stores this caller registered. */
+export const useMyRegisteredStores = (page = 1, search = "") => {
+  const query = new URLSearchParams({ page: String(page) });
+  if (search) query.set("search", search);
+
+  return useQuery({
+    queryKey: useScopedKey(["admin-my-registered-stores", page, search]),
+    queryFn: () =>
+      webApiClient.request<PaginatedResponse<RegisteredStoreSummary>>(
+        `admin/stores/registered-by-me?${query.toString()}`,
+      ),
     placeholderData: keepPreviousData,
     staleTime: 30 * 1000,
   });
@@ -255,7 +274,7 @@ export const useRestoreStoreMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      webApiClient.request<unknown>(`admin/stores/${id}/restore`, { method: "POST" }),
+      webApiClient.request<RestoreStoreResult>(`admin/stores/${id}/restore`, { method: "POST" }),
     onSuccess: () => invalidateStoreLists(queryClient),
   });
 };

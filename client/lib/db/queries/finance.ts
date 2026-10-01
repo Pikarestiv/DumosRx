@@ -2,6 +2,10 @@ import { addMonths, startOfMonth, endOfMonth } from "date-fns";
 import { query } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
 import { parseLocalDateOnly } from "@/lib/utils/date-utils";
+import {
+  ADJUSTMENT_REASON_NOTE_SEPARATOR,
+  STOCK_LOSS_REASON_LABELS,
+} from "@/lib/constants/stock-adjustments";
 
 export interface Expense {
   id: string;
@@ -54,6 +58,48 @@ export async function getCurrentMonthCOGS({ from, to }: { from: string; to: stri
     params,
   );
   return res[0]?.total || 0;
+}
+
+/**
+ * Cost value of the stock written off as damaged or lost in a [from, to]
+ * window: SUM(|quantity| * unit_cost) over the `adjustment` movements whose
+ * reason is one of STOCK_LOSS_REASON_LABELS.
+ *
+ * `to` is INCLUSIVE, matching {@link getSmoothedExpensesTotal} and every
+ * getBIMetrics query this sits alongside (rather than the [from, to) window
+ * getCurrentMonthRevenue/getCurrentMonthCOGS take). Reasons are persisted as
+ * the form's labels, optionally followed by a free-text note, so each label is
+ * matched either exactly or as that note's prefix. Rationale and the reason
+ * this figure is reported beside the P&L rather than inside it:
+ * docs/STOCK_LOSS_METRIC.md.
+ */
+export async function getStockLossTotal({
+  from,
+  to,
+}: {
+  from: string;
+  to: string;
+}): Promise<number> {
+  const storeId = getActiveStoreId();
+  const reasonClause = STOCK_LOSS_REASON_LABELS.map(
+    () => "(reason = ? OR reason LIKE ?)",
+  ).join(" OR ");
+  const reasonParams = STOCK_LOSS_REASON_LABELS.flatMap((label) => [
+    label,
+    `${label}${ADJUSTMENT_REASON_NOTE_SEPARATOR}%`,
+  ]);
+
+  const rows = await query<{ total: number | null }>(
+    `SELECT SUM(ABS(quantity) * IFNULL(unit_cost, 0)) as total FROM stock_movements
+     WHERE (_deleted = 0 OR _deleted IS NULL)
+       AND movement_type = 'adjustment'
+       AND (${reasonClause})
+       AND COALESCE(movement_date, created_at) >= ?
+       AND COALESCE(movement_date, created_at) <= ?
+       ${storeId ? " AND store_id = ?" : ""}`,
+    [...reasonParams, from, to, ...(storeId ? [storeId] : [])],
+  );
+  return rows[0]?.total || 0;
 }
 
 /**

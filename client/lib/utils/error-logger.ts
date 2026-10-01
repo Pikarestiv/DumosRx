@@ -5,7 +5,11 @@
 import * as Sentry from "@sentry/nextjs";
 import { SYSTEM_EMAIL } from "@/lib/constants";
 import { getDeviceId } from "@/lib/utils/device-id";
-import { MAX_CRASH_MESSAGE_LENGTH, truncateForLog } from "@/lib/utils/error-truncation";
+import {
+  MAX_CRASH_MESSAGE_LENGTH,
+  MAX_FINGERPRINT_LENGTH,
+  truncateForLog,
+} from "@/lib/utils/error-truncation";
 import {
   STORAGE_KEYS,
   getStoredUser,
@@ -43,7 +47,7 @@ function buildCrashFingerprint(message: string, stack: string, area?: string): s
   const firstStackLine =
     stack.split("\n").find((line) => line.trim().length > 0 && !line.trim().startsWith("Error")) ||
     "";
-  return `${area || ""}|${message}|${firstStackLine.trim()}`.slice(0, 500);
+  return `${area || ""}|${message}|${firstStackLine.trim()}`.slice(0, MAX_FINGERPRINT_LENGTH);
 }
 
 // In-memory only, not persisted: bounds how often the SAME recurring crash

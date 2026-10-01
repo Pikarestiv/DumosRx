@@ -22,7 +22,7 @@ describe("reseller commission schema", () => {
   });
 
   beforeEach(() => {
-    db.run(`DELETE FROM sales; DELETE FROM stores;`);
+    db.run(`DELETE FROM sales; DELETE FROM stores; DELETE FROM held_transactions;`);
   });
 
   it("stores a reseller_commission_percentage on stores", () => {
@@ -77,5 +77,23 @@ describe("reseller commission schema", () => {
       `SELECT reseller_markup_amount, reseller_commission_redeemed_amount, reseller_commission_claim_type FROM sales WHERE id = 'sale2'`,
     );
     expect(updated[0].values[0]).toEqual([70, 50, "commission"]);
+  });
+
+  it("carries the reseller flag and markup type on a held transaction, defaulting to unset", () => {
+    db.run(
+      `INSERT INTO held_transactions (id, customer_name, items_json, total_amount) VALUES ('held1', 'Walk-in', '[]', 100)`,
+    );
+    const defaults = db.exec(
+      `SELECT is_reseller_sale, markup_type FROM held_transactions WHERE id = 'held1'`,
+    );
+    expect(defaults[0].values[0]).toEqual([0, null]);
+
+    db.run(
+      `UPDATE held_transactions SET is_reseller_sale = 1, markup_type = 'reseller' WHERE id = 'held1'`,
+    );
+    const updated = db.exec(
+      `SELECT is_reseller_sale, markup_type FROM held_transactions WHERE id = 'held1'`,
+    );
+    expect(updated[0].values[0]).toEqual([1, "reseller"]);
   });
 });

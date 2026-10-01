@@ -65,7 +65,7 @@ export function ExpenseList() {
       amount: (e) => e.amount,
     });
 
-  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ExpenseDraft | null>(null);
   const quickEditMutation = useQuickEditExpenseMutation();

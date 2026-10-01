@@ -104,4 +104,34 @@ class StockMovementControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonCount(1, 'data');
     }
+    /**
+     * @dataProvider invalidLimits
+     */
+    public function test_an_out_of_range_limit_is_rejected_on_both_ledgers(string $limit)
+    {
+        foreach (['/api/v1/stock-movements', '/api/v1/stock-adjustments'] as $path) {
+            $this->actingAs($this->owner)
+                ->getJson($path.'?limit='.$limit)
+                ->assertStatus(422)
+                ->assertJsonValidationErrors('limit');
+        }
+    }
+
+    public static function invalidLimits(): array
+    {
+        return [
+            'negative' => ['-1'],
+            'zero' => ['0'],
+            'over cap' => ['1000000'],
+            'not a number' => ['abc'],
+        ];
+    }
+
+    public function test_a_limit_within_range_is_accepted()
+    {
+        $this->actingAs($this->owner)
+            ->getJson('/api/v1/stock-movements?limit=10')
+            ->assertStatus(200)
+            ->assertJsonCount(1, 'data');
+    }
 }

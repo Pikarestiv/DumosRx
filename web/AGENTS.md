@@ -100,6 +100,150 @@ together). The current design:
   based, has no cookie dependency, and silently refreshes only after 7 days
   via `refreshTokenSilently`.
 
+## Storefront checkout: redirect lock and named reprice removals (A-105/A-106)
+
+- **Don't clear `loading` on the Paystack branch.** `window.location.href = ...`
+  starts a navigation but keeps running JavaScript, so the old
+  `finally { setLoading(false) }` re-enabled "Place Order" for the whole
+  interval before the browser unloaded — a second tap minted a second,
+  orphaned payment intent (A-105). `handleSubmit` now tracks a local
+  `redirectStarted` flag (the `finally` skips the reset) plus a `redirecting`
+  state the button honours and labels ("Redirecting to Paystack...").
+- **`useCartRepricing` names what it removed.** It splits the reprice result
+  into `removed` (absent from the catalog response) and `repriced`, and names
+  the items in each toast instead of the old blanket "Some prices or items in
+  your cart changed" (A-106). The structural half of A-106 is **not** fixed:
+  `GET /storefront/{slug}` is still capped at `MAX_STOREFRONT_PRODUCTS = 300`
+  while `checkout()`/`priceCart()` are uncapped, so a catalogue past 300
+  products can still drop a legitimately purchasable item — the customer now
+  at least sees which one. The real fix is a cart-scoped pricing endpoint
+  (`POST /storefront/{slug}/price-cart` taking item ids); log it there if it
+  gets built.
+
+## Storefront money is formatted from the store's own currency (PG-4)
+
+`GET /storefront/{slug}` returns `store.currency` (the store's ISO code,
+falling back to the platform default only for a row with no currency at all —
+see `StorefrontController::storeCurrency()`). `useCartRepricing` surfaces it as
+`currency`, and `components/storefront/checkout-form.tsx` formats every amount
+through **`lib/utils/currency.ts`'s `formatMoney(amount, currency)`** instead
+of the three hardcoded `₦` literals it used to carry: a Ghana or Kenya store
+charged in its own currency but displayed a naira sign at checkout. `currency`
+is `null` until the catalog call resolves, and `formatMoney` falls back to NGN
+for that window, so the summary can briefly show `₦` before the fetch lands —
+acceptable because the submit button is disabled while `pricesLoading`.
+
+`formatMoney` uses `Intl` `narrowSymbol` and degrades to the raw ISO code for a
+currency with no widely-recognised symbol (KES renders as `KES`, GHS as `GH₵`)
+rather than guessing.
+
+**Still open, deliberately out of PG-4's scope:** the rest of `web/` keeps its
+own hardcoded naira — `storefront-cart.tsx`, `product-card.tsx`, the
+`referrals-*`/`plan-tier-card`/`subscription-config-tab` per-file `naira()`
+helpers, `revenue-overview.tsx`, `lib/constants/subscription-plans.ts`. The
+admin/subscription ones are genuinely naira (platform billing is NGN); the two
+storefront ones are the same bug as PG-4 and should move to `formatMoney` when
+the storefront product/cart views next get touched.
+
+## Download and site URLs come from `lib/constants.ts` (A-104)
+
+`DOWNLOAD_URL` and `WEB_APP_URL` are env-overridable
+(`NEXT_PUBLIC_DOWNLOAD_URL`, `NEXT_PUBLIC_WEB_APP_URL`), so nothing under
+`app/`, `components/` or `hooks/` may spell those domains out — a hardcoded
+copy silently makes the override a no-op (a staging build pointing testers at
+production binaries). Both Downloads pages now share
+`FALLBACK_RELEASE_LINKS` from `lib/api/release-hooks.ts` instead of their own
+literal defaults, and `app/layout.tsx`'s OpenGraph/Twitter metadata is built
+from `WEB_APP_URL` like `app/sitemap.ts` already was.
+`__tests__/no-hardcoded-domains.test.ts` scans those three directories and
+fails on any new literal.
+
+## Telemetry redaction and session-end cache hygiene (A-100/A-107)
+
+`lib/api/logger.ts`'s `sanitizePayload` masks (never drops) sensitive values,
+so a report keeps its shape and stays diagnosable. It matches two ways:
+`SENSITIVE_KEY_FRAGMENTS` as substrings (`password`, `token`, `pin`,
+`credentials`, `customer_*`) and `SENSITIVE_KEY_NAMES` as whole keys
+(`email`, `phone`, `address`, …) so `store_name`/`product_name` survive while
+a bare `email` does not. This matters because the response interceptor
+reports **every** failed request's body to `/logs/client-error`, which is
+unauthenticated on non-`/admin` paths, and the storefront checkout body is
+the one place a member of the public types their name, phone, email and
+delivery address (A-107). Adding a PII field to a public form means adding
+its key here.
+
+**Anywhere `sessionVerified` goes false, `useAdminStore.getState().reset()`
+must run** — it is what removes the persisted `admin-storage` platform
+summary (revenue, recent store names, owner emails) from `localStorage`.
+Call sites: `logout()`, `initSession()`'s catch, and `base-client.ts`'s 401
+refresh-failure branch. Previously only Sign Out cleared it, so a lapsed
+session left the summary readable on a shared machine indefinitely (A-100).
+
+## Numeric platform-config fields: draft/commit, never raw `Number()` (A-97/A-98)
+
+`components/admin/numeric-config-input.tsx` (`NumericConfigInput`) is the only
+way a number should reach platform config state. `onChange={(e) => Number(e.target.value)}`
+is banned on these fields: `Number("") === 0`, so clearing a box to retype it
+used to commit `0` instantly — a zero-day trial, a paid tier admitting no
+staff, a 0% referral reward, a 0% platform commission (A-97). The component
+holds the raw text as a local draft, commits only a value its `isAcceptable`
+predicate accepts, shows the rejection inline, and **discards the draft on
+blur** so what's on screen is always what would be saved (so a test that
+clears a field and then types must clear again after touching another field).
+
+Current call sites: `plan-tier-card.tsx` (prices, staff/store limits),
+`subscription-config-tab.tsx` (`trial_days`), `storefront-commission-card.tsx`,
+`marketing/referrals-settings-form.tsx`. Server-side floors mirror them in
+`laravel-server`'s `SystemConfigController::validatePlanPricing()` /
+`rejectZeroTierLimits()` — a staff/store limit of `0` is rejected outright
+(`-1` means unlimited), as is `trial_days` outside 1–365.
+
+**Storefront Commission has its own card** (`storefront-commission-card.tsx`,
+split out of `subscription-config-tab.tsx`) because it needed the same
+`try`/`catch` + `toast.error` shape as its siblings and a `ConfirmDialog`
+naming the before/after rate: its save previously had no error handling at
+all, so a 422 was indistinguishable from success (A-98). Every save handler
+on this tab surfaces `error.message`; don't pass a bare `async` function to
+`onClick`.
+
+## `platform_admin`/`agent`: "My Stores", the scoped fleet view (A-113)
+
+These two roles register stores (`create_accounts`) but must not see the
+platform-wide fleet list — `GET /admin/stores` is `role:super_admin` because
+its rows carry every store's revenue. They now get `/admin/stores/mine`,
+backed by `GET /admin/stores/registered-by-me`
+(`AdminStoreController::storesRegisteredByMe` → `AdminStoreService::getStoresRegisteredBy`),
+which returns only stores whose owner carries the caller's id in
+`users.registered_by_id` — the column `registerStore()` already sets — and
+**no revenue fields at all**. The route is gated on
+`permission:create_accounts`, the same permission that lets them register a
+store, not on a role string; it must stay registered *above* `/stores/{id}`
+or the wildcard swallows it. Coverage:
+`laravel-server/tests/Feature/Admin/AdminRegisteredStoresScopeTest.php` and
+`web/__tests__/admin-my-stores.test.tsx`.
+
+Still missing for these roles (deliberately deferred, was the other half of
+A-113): a UI for `grant-trial`/`activate-plan`. Note those routes are
+`permission:grant_trials`, which `RolesAndPermissionsSeeder` grants
+`platform_admin` but **not** `agent` — so that surface belongs to
+`platform_admin` only, and the sidebar item would need `roles: ["platform_admin"]`.
+
+## Admin nav: one role filter, two renderers (A-96)
+
+`components/admin/sidebar-items.ts` owns both the `sidebarItems` list and
+`visibleSidebarItems(role)`, the single role filter. An item with no `roles`
+field is **super_admin-only** — that's the default, so only list `roles`
+explicitly for what `platform_admin`/`agent` should see. Everything hidden
+here is still enforced per-endpoint server-side; the filter exists so those
+roles don't get dead links that only 403.
+
+Two components render that list and **both must go through
+`visibleSidebarItems`**: `admin-sidebar.tsx` (desktop, `hidden lg:flex`) and
+`admin-header.tsx`'s mobile `Sheet`. The sheet is the *only* navigation below
+1024px, and it previously mapped `sidebarItems` raw — so an agent on a tablet
+saw the whole super_admin nav (A-96). `__tests__/admin-nav-role-visibility.test.tsx`
+asserts both renderers agree; don't reintroduce a second copy of the filter.
+
 ## Admin panel: store owners, staff, and the Store Details page
 
 **The Platform Users list (`app/admin/users/page.tsx`) no longer shows staff
@@ -223,6 +367,64 @@ which create no broadcast (see `laravel-server/AGENTS.md`):
   input's Enter key is deliberately intercepted (`preventDefault`) — it sits
   inside the create `<form>`, so an unhandled Enter would dispatch the real
   broadcast instead of sending a test.
+
+## Storefront checkout: the three states of a Paystack return (A-95)
+
+`components/storefront/checkout-form.tsx` handles a `?reference=`/`?trxref=`
+return from Paystack. The customer has already paid by then, so **none of the
+three outcomes may render the ordinary `Delivery & Payment` form** — its
+"Place Order" button creates a *second* order for a cart that is still full,
+and "Pay Online" takes a second real charge. The panels live in
+`components/storefront/checkout-reference-panels.tsx`:
+
+- **Confirmed** — `POST /storefront/{slug}/checkout` succeeds: the
+  `sessionStorage` pending entry is removed, the cart is cleared, and the
+  customer is pushed back to the store.
+- **Orphan reference** (no pending entry in `sessionStorage` at all — a new
+  tab, a different session, cleared storage): `OrphanReferencePanel`. Nothing
+  local can identify the order, so the reference is quoted and the customer is
+  told to contact the store.
+- **Failed confirmation** (there *was* a pending entry, but the POST failed):
+  `FailedConfirmationPanel`. Distinct state (`failedReference`), not the
+  orphan one. It quotes the reference, says the payment may have gone through,
+  and offers **Retry confirmation**, which re-posts the retained pending
+  entry. The retry is safe because `StorefrontController::checkout()` rejects
+  a reference already consumed by an `OnlineOrder` or a `PaymentTransaction`
+  with a 422, so a retry can never create a second order. The pending entry is
+  therefore deliberately **kept** on failure — don't "clean it up".
+  A 422 body carrying `refunded: true` (the server refunded an unfulfillable
+  paid checkout) switches the copy to refund wording and removes the retry
+  button, since a refunded payment must not be re-confirmed.
+
+The auto-confirm effect is guarded by an `autoConfirmedReference` ref, so one
+reference is confirmed at most once per mount no matter how often the
+component re-renders; only the explicit retry button posts again.
+
+## Public pages must only call public endpoints (A-94)
+
+`base-client.ts` attaches the admin bearer token **only** when
+`window.location.pathname.startsWith('/admin')`, because `/admin` is the one
+authenticated surface on this origin. Two consequences that are easy to
+re-break:
+
+- A public/marketing page (`downloads`, `faq`, `support`, the landing page,
+  the storefront) may only call endpoints that are unauthenticated
+  server-side. Calling an `admin/*` endpoint from one sends an anonymous
+  request that answers 401. If a public page needs data an admin endpoint
+  already returns, add a public route on the server and a **separate hook** —
+  don't share one hook across both surfaces. The Downloads page is the worked
+  example: `usePublicLatestRelease()` vs. `useLatestRelease()`, documented in
+  `docs/DOWNLOADS_MANIFEST.md`.
+- 401 handling is admin-only. `shouldRecoverFromUnauthorized(pathname, url)`
+  gates the whole refresh-and-redirect branch of the response interceptor on
+  an `/admin*` pathname, so a 401 on a public page is an ordinary rejected
+  promise. Previously it refreshed and then navigated to `/login` from
+  anywhere, which threw anonymous visitors off the marketing site entirely.
+  There is no non-admin refresh path any more (this origin stores no
+  non-admin bearer token), and the admin path still shares one in-flight
+  refresh via `useAdminAuthStore.initSession()` — that shared slot is the
+  A-51 race fix, covered by `__tests__/admin-session-refresh-race.test.tsx`;
+  don't give the interceptor its own `POST /refresh` back.
 
 ## Running things
 

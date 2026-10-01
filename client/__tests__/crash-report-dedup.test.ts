@@ -107,6 +107,21 @@ describe("logCrash() crash-report dedup", () => {
     expect(rows[0].fingerprint).toBeTruthy();
   });
 
+  it("caps the fingerprint at the server column width so an oversized one cannot be rejected on push", async () => {
+    const { MAX_FINGERPRINT_LENGTH } = await import("@/lib/utils/error-truncation");
+    const err = new Error("x".repeat(5_000));
+    err.stack = `Error: boom\n    at ${"deeplyNestedFrameName".repeat(100)} (app.ts:1:1)`;
+
+    await logCrash(err, false, { area: "a".repeat(400) });
+
+    const rows = await core.query<{ fingerprint: string }>(
+      `SELECT fingerprint FROM feedback WHERE type = 'bug'`,
+    );
+    expect(rows).toHaveLength(1);
+    expect(MAX_FINGERPRINT_LENGTH).toBe(255);
+    expect(rows[0].fingerprint.length).toBeLessThanOrEqual(255);
+  });
+
   it("keeps genuinely different crashes in separate rows", async () => {
     await logCrash(new Error("First distinct bug"), false, { area: "pos-cart" });
     await logCrash(new Error("Second distinct bug"), false, { area: "pos-cart" });

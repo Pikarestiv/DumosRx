@@ -36,6 +36,13 @@ const EXPECTED_INDEXES = [
   "idx_sync_queue_table_name_record_id",
 ];
 
+// Declared in SCHEMA_SQL rather than by the A-6 migration pass, so it is
+// recreated on every init and is not part of the set this guard drops.
+const SCHEMA_OWNED_INDEXES = [
+  "idx_stock_batches_product_id",
+  "idx_sync_conflicts_unresolved",
+];
+
 function listIndexes(db: { exec: (sql: string) => { values: unknown[][] }[] }): string[] {
   const res = db.exec(
     "SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%' ORDER BY name",
@@ -78,10 +85,10 @@ describe("local schema indexes (A-6)", () => {
     // dropped and store_id not yet migrated onto the store-scoped tables.
     legacyDb.run(SCHEMA_SQL);
     for (const name of EXPECTED_INDEXES) {
-      if (name === "idx_stock_batches_product_id") continue;
+      if (SCHEMA_OWNED_INDEXES.includes(name)) continue;
       legacyDb.run(`DROP INDEX IF EXISTS ${name}`);
     }
-    expect(listIndexes(legacyDb).sort()).toEqual(["idx_stock_batches_product_id"]);
+    expect(listIndexes(legacyDb).sort()).toEqual([...SCHEMA_OWNED_INDEXES].sort());
     storedExport = legacyDb.export();
     legacyDb.close();
 

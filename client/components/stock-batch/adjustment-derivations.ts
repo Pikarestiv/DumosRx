@@ -1,5 +1,6 @@
 import type { StockMovementDbRow } from "@/lib/types/stock-movement";
 import {
+  ADJUSTMENT_REASON_NOTE_SEPARATOR,
   AUDIT_REFERENCE_TYPE,
   LEGACY_PRODUCT_IMPORT_REASON,
   PRODUCT_IMPORT_REFERENCE_TYPE,
@@ -21,10 +22,6 @@ export type AdjustmentReasonValue = (typeof ADJUSTMENT_REASONS)[number]["value"]
 
 export const ALL_ADJUSTMENT_REASONS = "all";
 
-// stock_movements has no note column, so the optional note rides along in
-// `reason` behind this separator and is split back out for display.
-const NOTE_SEPARATOR = " — ";
-
 function reasonLabel(value: AdjustmentReasonValue): string {
   return ADJUSTMENT_REASONS.find((r) => r.value === value)?.label ?? value;
 }
@@ -34,16 +31,16 @@ export function buildAdjustmentReason(
   note?: string,
 ): string {
   const trimmed = note?.trim();
-  return trimmed ? `${reasonLabel(value)}${NOTE_SEPARATOR}${trimmed}` : reasonLabel(value);
+  return trimmed ? `${reasonLabel(value)}${ADJUSTMENT_REASON_NOTE_SEPARATOR}${trimmed}` : reasonLabel(value);
 }
 
 export function parseAdjustmentReason(reason?: string): { reason: string; note: string } {
   const raw = reason?.trim() ?? "";
-  const separatorIndex = raw.indexOf(NOTE_SEPARATOR);
+  const separatorIndex = raw.indexOf(ADJUSTMENT_REASON_NOTE_SEPARATOR);
   if (separatorIndex === -1) return { reason: raw, note: "" };
   return {
     reason: raw.slice(0, separatorIndex).trim(),
-    note: raw.slice(separatorIndex + NOTE_SEPARATOR.length).trim(),
+    note: raw.slice(separatorIndex + ADJUSTMENT_REASON_NOTE_SEPARATOR.length).trim(),
   };
 }
 
@@ -77,6 +74,8 @@ export function computeStockAfter(currentStock: number, delta: number): number {
 export interface AdjustmentGroup {
   referenceId: string;
   date: string;
+  startDate: string;
+  endDate: string;
   reason: string;
   note: string;
   source: string;
@@ -127,19 +126,24 @@ export function groupAdjustmentMovements(
     const productNames = new Set<string>();
     const productIds = new Set<string>();
     let netQuantity = 0;
-    let date = "";
+    let startDate = "";
+    let endDate = "";
 
     for (const movement of movements) {
       productIds.add(movement.product_id);
       if (movement.product_name) productNames.add(movement.product_name);
       netQuantity += movement.quantity || 0;
       const current = movementDate(movement);
-      if (current > date) date = current;
+      if (!current) continue;
+      if (!startDate || current < startDate) startDate = current;
+      if (current > endDate) endDate = current;
     }
 
     groups.push({
       referenceId: movements[0]?.reference_id || key,
-      date,
+      date: endDate,
+      startDate,
+      endDate,
       reason: parsed.reason,
       note: parsed.note,
       source: movements[0]?.reference_type || "",
@@ -172,9 +176,10 @@ export function filterAdjustmentGroups(
       if (!matches) return false;
     }
     if (reasonFilter && group.reason.toLowerCase() !== reasonFilter) return false;
-    const day = group.date.slice(0, 10);
-    if (from && day < from) return false;
-    if (to && day > to) return false;
+    const firstDay = (group.startDate || group.date).slice(0, 10);
+    const lastDay = (group.endDate || group.date).slice(0, 10);
+    if (from && lastDay < from) return false;
+    if (to && firstDay > to) return false;
     return true;
   });
 }

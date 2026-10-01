@@ -32,15 +32,29 @@ class BackfillManagePlatformOntoCustomRolesMigrationTest extends TestCase
         $this->assertContains('manage_platform', $role->fresh('permissions')->permissions->pluck('slug')->all());
     }
 
-    public function test_backfill_does_not_touch_built_in_system_roles(): void
+    public function test_backfill_does_not_grant_manage_platform_to_a_system_role_that_lacks_it(): void
     {
         $this->seed(RolesAndPermissionsSeeder::class);
         $agent = Role::where('slug', 'agent')->firstOrFail();
-        $before = $agent->permissions->pluck('slug')->sort()->values()->all();
+        $managePlatform = Permission::where('slug', 'manage_platform')->firstOrFail();
+        $agent->permissions()->detach($managePlatform->id);
 
         (require database_path('migrations/2026_10_02_000004_backfill_manage_platform_onto_custom_roles.php'))->up();
 
-        $after = $agent->fresh('permissions')->permissions->pluck('slug')->sort()->values()->all();
-        $this->assertSame($before, $after);
+        $this->assertNotContains('manage_platform', $agent->fresh('permissions')->permissions->pluck('slug')->all());
+    }
+
+    public function test_down_detaches_manage_platform_only_from_custom_roles(): void
+    {
+        $this->seed(RolesAndPermissionsSeeder::class);
+        $role = Role::create(['name' => 'Legacy Custom Role', 'slug' => 'legacy_custom_role', 'is_system' => false]);
+        $managePlatform = Permission::where('slug', 'manage_platform')->firstOrFail();
+        $role->permissions()->syncWithoutDetaching($managePlatform->id);
+        $agent = Role::where('slug', 'agent')->firstOrFail();
+
+        (require database_path('migrations/2026_10_02_000004_backfill_manage_platform_onto_custom_roles.php'))->down();
+
+        $this->assertNotContains('manage_platform', $role->fresh('permissions')->permissions->pluck('slug')->all());
+        $this->assertContains('manage_platform', $agent->fresh('permissions')->permissions->pluck('slug')->all());
     }
 }

@@ -9,6 +9,7 @@ import { Suspense } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useAdminAuthStore, checkCanAccessAdmin, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
+import { visibleSidebarItems } from "@/components/admin/sidebar-items";
 import { APP_VERSION } from "@/lib/constants";
 
 export default function AdminLoginPage() {
@@ -38,7 +39,11 @@ export default function AdminLoginPage() {
       } finally {
         const { user: finalUser, sessionVerified } = useAdminAuthStore.getState();
         if (sessionVerified && checkCanAccessAdmin(finalUser)) {
-          router.push(checkIsSuperAdmin(finalUser?.role) ? "/admin" : "/admin/referrals");
+          router.push(
+            checkIsSuperAdmin(finalUser?.role)
+              ? "/admin"
+              : (visibleSidebarItems(finalUser ?? undefined)[0]?.href ?? "/admin/referrals"),
+          );
         } else {
           setChecking(false);
         }

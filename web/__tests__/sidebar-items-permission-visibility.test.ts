@@ -36,4 +36,19 @@ describe("visibleSidebarItems", () => {
       expect(items.some((i) => i.id === "communications")).toBe(false);
     }
   });
+
+  it("gives a custom platform role a real post-login landing page (A-141)", () => {
+    const items = visibleSidebarItems({
+      role: "support_lead",
+      effective_permissions: ["manage_platform", "view_platform_data"],
+    });
+
+    expect(items[0]?.href).toBe("/admin/users");
+  });
+
+  it("returns no items for a custom platform role holding none of the catalog permissions", () => {
+    const items = visibleSidebarItems({ role: "support_lead", effective_permissions: ["manage_platform"] });
+
+    expect(items).toHaveLength(0);
+  });
 });

@@ -9,6 +9,12 @@ import {
   ArrowUpFromLine,
 } from "lucide-react";
 import { formatDateLong } from "@/lib/utils/date-utils";
+import {
+  LEGACY_PRODUCT_IMPORT_REASON,
+  PRODUCT_IMPORT_REFERENCE_TYPE,
+} from "@/lib/constants/stock-adjustments";
+import { parseAdjustmentReason } from "@/components/stock-batch/adjustment-derivations";
+import type { StockMovementDbRow } from "@/lib/types/stock-movement";
 
 export interface StockMovement {
   id: string;
@@ -32,8 +38,33 @@ export const FILTER_TYPES = [
   { id: "return", label: "Returns" },
   { id: "damaged", label: "Damage" },
   { id: "adjustment", label: "Adjustments" },
+  { id: "import", label: "Bulk Import" },
   { id: "transfer", label: "Transfers" },
 ];
+
+/**
+ * A bulk-import stock correction (product-import.ts's "update existing
+ * product" path) is written with movement_type "adjustment" so the same
+ * FEFO/audit machinery a manual cycle count uses applies to it too, but that
+ * makes it indistinguishable from a manual adjustment here - the Adjustments
+ * Ledger tells the two apart via reference_type/reason (see
+ * groupAdjustmentMovements in adjustment-derivations.ts); this does the same
+ * for the general Stock Movements table, which otherwise only reads the raw
+ * movement_type column (A-111/A-120's "still shows as Adjustment" gap).
+ * Rows written before 3b7ce8b8 carry the legacy reference_type
+ * ("stock_audit") - the reason-prefix check catches those a device hasn't
+ * re-pulled the A-52 server-side retag for yet.
+ */
+export function resolveMovementDisplayType(row: Pick<StockMovementDbRow, "movement_type" | "reference_type" | "reason">): string {
+  const movementType = row.movement_type || "adjustment";
+  if (movementType !== "adjustment") return movementType;
+
+  if (row.reference_type === PRODUCT_IMPORT_REFERENCE_TYPE) return "import";
+  if (parseAdjustmentReason(row.reason ?? undefined).reason === LEGACY_PRODUCT_IMPORT_REASON) {
+    return "import";
+  }
+  return movementType;
+}
 
 export const getTypeColor = (type: string) => {
   switch (type.toLowerCase()) {
@@ -42,6 +73,8 @@ export const getTypeColor = (type: string) => {
     case "purchase":
     case "restock":
       return "bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30";
+    case "import":
+      return "bg-indigo-100 text-indigo-700 border border-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-400 dark:border-indigo-500/30";
     case "return":
       return "bg-purple-100 text-purple-700 border border-purple-200 dark:bg-purple-500/20 dark:text-purple-400 dark:border-purple-500/30";
     case "damaged":
@@ -71,6 +104,8 @@ export const getTypeLabel = (type: string) => {
       return "Transfer In";
     case "transfer_out":
       return "Transfer Out";
+    case "import":
+      return "Bulk Import";
     default:
       return type;
   }
@@ -83,6 +118,8 @@ export const getTypeIcon = (type: string) => {
     case "purchase":
     case "restock":
       return <RefreshCw className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
+    case "import":
+      return <ArrowDownToLine className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />;
     case "return":
       return <Undo2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />;
     case "damaged":
@@ -114,6 +151,8 @@ export const getTypeIconBg = (type: string) => {
     case "purchase":
     case "restock":
       return "bg-blue-50 dark:bg-blue-500/10";
+    case "import":
+      return "bg-indigo-50 dark:bg-indigo-500/10";
     case "return":
       return "bg-purple-50 dark:bg-purple-500/10";
     case "damaged":

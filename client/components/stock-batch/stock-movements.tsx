@@ -12,7 +12,7 @@ import { queryKeys } from "@/lib/query-keys";
 const DESKTOP_ROW_HEIGHT = 52;
 import { StockMovementsSkeleton } from "./stock-movements-skeleton";
 import { useRouter, useSearchParams } from "next/navigation";
-import { StockMovement } from "./stock-movement-utils";
+import { StockMovement, resolveMovementDisplayType } from "./stock-movement-utils";
 import { StockMovementTypeFilter } from "./stock-movement-type-filter";
 import { StockMovementDesktopRow } from "./stock-movement-desktop-row";
 import { StockMovementMobileGroup } from "./stock-movement-mobile-group";
@@ -43,7 +43,7 @@ function mapMovement(m: StockMovementDbRow): StockMovement {
     id: m.id,
     date: m.created_at || m.movement_date || "",
     product: m.product_name || "Unknown",
-    type: m.movement_type || "adjustment",
+    type: resolveMovementDisplayType(m),
     quantity: m.quantity || 0,
     reason: m.reason || "",
     reference: m.reference_id || "",

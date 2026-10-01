@@ -36,7 +36,7 @@ class AdminStoreController extends AdminBaseController
         ],
         responses: [
             new OA\Response(response: 200, description: 'Stores', content: new OA\JsonContent(type: 'object')),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the view_platform_data permission'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
     )]
@@ -50,14 +50,15 @@ class AdminStoreController extends AdminBaseController
             $archived = in_array($request->query('archived'), ['only', 'all'], true)
                 ? $request->query('archived')
                 : 'active';
-            return response()->json($this->adminStoreService->getStores($page, $search, $status, $plan, $archived));
+            $includeRevenue = (bool) $request->user()?->hasRole('super_admin');
+            return response()->json($this->adminStoreService->getStores($page, $search, $status, $plan, $archived, $includeRevenue));
         });
     }
 
     #[OA\Get(
         path: '/admin/stores/registered-by-me',
         summary: "List only the stores the caller personally registered",
-        description: "Scoped alternative to GET /admin/stores (super_admin-only) for platform_admin/agent: the stores whose owner carries the caller's id in users.registered_by_id. Carries no revenue figures.",
+        description: "Scoped alternative to GET /admin/stores (gated on permission:view_platform_data, which platform_admin/agent can also hold) for platform_admin/agent: the stores whose owner carries the caller's id in users.registered_by_id. Carries no revenue figures.",
         tags: ['Admin'],
         security: [['sanctum' => []]],
         parameters: [
@@ -145,14 +146,15 @@ class AdminStoreController extends AdminBaseController
         parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [
             new OA\Response(response: 200, description: 'Store detail', content: new OA\JsonContent(type: 'object')),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the view_platform_data permission'),
             new OA\Response(response: 404, description: 'Store not found'),
         ],
     )]
-    public function storeDetail(AdminStoreDetailService $detailService, string $id)
+    public function storeDetail(Request $request, AdminStoreDetailService $detailService, string $id)
     {
-        return $this->withErrorResponse('Store Detail', 'Failed to fetch store detail', function () use ($detailService, $id) {
-            $data = $detailService->getStoreDetail($id);
+        return $this->withErrorResponse('Store Detail', 'Failed to fetch store detail', function () use ($request, $detailService, $id) {
+            $includeRevenue = (bool) $request->user()?->hasRole('super_admin');
+            $data = $detailService->getStoreDetail($id, $includeRevenue);
             if ($data === null) {
                 return response()->json(['error' => 'Store not found'], 404);
             }
@@ -196,7 +198,7 @@ class AdminStoreController extends AdminBaseController
         ])),
         responses: [
             new OA\Response(response: 200, description: 'Suspended', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the manage_account_status permission'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
     )]
@@ -220,7 +222,7 @@ class AdminStoreController extends AdminBaseController
         parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [
             new OA\Response(response: 200, description: 'Re-activated', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the manage_account_status permission'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
     )]
@@ -420,7 +422,7 @@ class AdminStoreController extends AdminBaseController
         parameters: [new OA\Parameter(name: 'id', in: 'path', description: 'Store ID', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [
             new OA\Response(response: 200, description: 'Impersonation session started', content: new OA\JsonContent(type: 'object')),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the impersonate_store permission'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
     )]

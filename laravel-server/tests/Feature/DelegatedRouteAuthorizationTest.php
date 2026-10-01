@@ -21,6 +21,7 @@ class DelegatedRouteAuthorizationTest extends TestCase
         parent::setUp();
 
         $this->seed(RolesAndPermissionsSeeder::class);
+        $this->seed(\Database\Seeders\SystemConfigSeeder::class);
 
         $owner = User::create([
             'first_name' => 'Store', 'last_name' => 'Owner',
@@ -105,6 +106,70 @@ class DelegatedRouteAuthorizationTest extends TestCase
         $this->actingAs($superAdmin)
             ->postJson("/api/v1/admin/stores/{$this->store->id}/suspend")
             ->assertOk();
+    }
+
+    public function test_an_agent_reading_the_stores_list_sees_no_revenue_field_on_any_store()
+    {
+        $agent = $this->actingAsRole('agent');
+
+        $response = $this->actingAs($agent)->getJson('/api/v1/admin/stores');
+
+        $response->assertOk();
+        foreach ($response->json('data') as $store) {
+            $this->assertArrayNotHasKey('revenue', $store);
+        }
+    }
+
+    public function test_a_super_admin_reading_the_stores_list_still_sees_the_revenue_field()
+    {
+        $superAdmin = $this->actingAsRole('super_admin');
+
+        $response = $this->actingAs($superAdmin)->getJson('/api/v1/admin/stores');
+
+        $response->assertOk();
+        $this->assertArrayHasKey('revenue', $response->json('data.0'));
+    }
+
+    public function test_an_agent_reading_store_detail_sees_no_top_level_revenue_field()
+    {
+        $agent = $this->actingAsRole('agent');
+
+        $response = $this->actingAs($agent)->getJson("/api/v1/admin/stores/{$this->store->id}");
+
+        $response->assertOk();
+        $this->assertArrayNotHasKey('revenue', $response->json());
+    }
+
+    public function test_a_super_admin_reading_store_detail_still_sees_the_top_level_revenue_field()
+    {
+        $superAdmin = $this->actingAsRole('super_admin');
+
+        $response = $this->actingAs($superAdmin)->getJson("/api/v1/admin/stores/{$this->store->id}");
+
+        $response->assertOk();
+        $this->assertArrayHasKey('revenue', $response->json());
+    }
+
+    public function test_an_agent_can_list_broadcasts_has_send_notifications_by_default()
+    {
+        $agent = $this->actingAsRole('agent');
+
+        $this->actingAs($agent)
+            ->getJson('/api/v1/admin/announcements')
+            ->assertOk();
+    }
+
+    public function test_a_store_owner_still_forbidden_from_listing_broadcasts()
+    {
+        $owner = User::create([
+            'first_name' => 'Store', 'last_name' => 'Owner2',
+            'email' => 'owner2-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'store_owner', 'is_active' => true,
+        ]);
+
+        $this->actingAs($owner)
+            ->getJson('/api/v1/admin/announcements')
+            ->assertForbidden();
     }
 
     private function actingAsRole(string $roleSlug, array $extraPermissionSlugs = []): User

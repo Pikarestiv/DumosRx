@@ -31,7 +31,7 @@ class AdminUserController extends AdminBaseController
         ],
         responses: [
             new OA\Response(response: 200, description: 'Users', content: new OA\JsonContent(type: 'object')),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the view_platform_data permission'),
             new OA\Response(response: 422, description: 'Unrecognized account_type'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
@@ -335,7 +335,7 @@ class AdminUserController extends AdminBaseController
         parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [
             new OA\Response(response: 200, description: 'Deactivated', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the manage_account_status permission'),
             new OA\Response(response: 422, description: 'Self-deactivation', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
@@ -362,7 +362,7 @@ class AdminUserController extends AdminBaseController
         parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [
             new OA\Response(response: 200, description: 'Reactivated', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the manage_account_status permission'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
     )]
@@ -407,7 +407,7 @@ class AdminUserController extends AdminBaseController
                 new OA\Property(property: 'message', type: 'string'),
                 new OA\Property(property: 'temp_password', type: 'string'),
             ])),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the reset_user_passwords permission'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
     )]
@@ -437,7 +437,7 @@ class AdminUserController extends AdminBaseController
         )),
         responses: [
             new OA\Response(response: 200, description: 'Sent', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the send_notifications permission'),
             new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
@@ -473,7 +473,7 @@ class AdminUserController extends AdminBaseController
                 new OA\Property(property: 'message', type: 'string'),
                 new OA\Property(property: 'count', type: 'integer'),
             ])),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the send_notifications permission'),
             new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],

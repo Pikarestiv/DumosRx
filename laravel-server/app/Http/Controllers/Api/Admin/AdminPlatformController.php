@@ -163,7 +163,7 @@ class AdminPlatformController extends AdminBaseController
         ],
         responses: [
             new OA\Response(response: 200, description: 'Activity logs', content: new OA\JsonContent(type: 'object')),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the view_platform_data permission'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
     )]

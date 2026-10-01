@@ -31,7 +31,7 @@ class AdminStoreDetailService
     ) {
     }
 
-    public function getStoreDetail(string $storeId): ?array
+    public function getStoreDetail(string $storeId, bool $includeRevenue = false): ?array
     {
         $store = Store::withTrashed()
             ->with(['user'])
@@ -46,7 +46,7 @@ class AdminStoreDetailService
         $manager = AccountManagerController::resolveFor($owner);
         $billing = $this->adminStoreService->getBillingHistoryForStore($storeId);
 
-        return [
+        $payload = [
             'id' => $store->id,
             'name' => $store->name,
             'store_slug' => $store->store_slug,
@@ -64,7 +64,6 @@ class AdminStoreDetailService
             'suspension_reason' => $store->suspension_reason,
             'is_demo' => (bool) $store->is_demo,
             'created_at' => $store->created_at?->format('M d, Y'),
-            'revenue' => '₦'.number_format($store->total_revenue ?? 0),
             'owner' => $this->ownerPayload($owner),
             'subscription' => $this->subscriptionPayload($owner),
             'account_manager' => $manager ? [
@@ -107,6 +106,12 @@ class AdminStoreDetailService
                 ->values(),
             'recent_activity' => $this->recentActivity($store->id),
         ];
+
+        if ($includeRevenue) {
+            $payload['revenue'] = '₦'.number_format($store->total_revenue ?? 0);
+        }
+
+        return $payload;
     }
 
     private function ownerPayload(?User $owner): ?array

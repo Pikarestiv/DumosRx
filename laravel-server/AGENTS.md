@@ -1262,9 +1262,19 @@ itself holds no sending logic.
   neither does this one.
 - **Two compose-time companions, neither of which creates a `Broadcast`.** Both
   live in the same `announcements` route group, so they inherit its
-  `auth:sanctum` + `subscription:broadcast_create` + `role:super_admin` gate
-  unchanged — there is no extra throttling, matching `mail/send` and
-  `users/bulk-notify`, and none was added: the gate is the control.
+  `auth:sanctum` + `subscription:broadcast_create` + `permission:send_notifications`
+  gate unchanged (the platform admin delegation work replaced the group's
+  `role:super_admin` half with `permission:send_notifications`, so a
+  `platform_admin`/`agent` holding that permission reaches them too) — there
+  is no extra throttling, matching `mail/send` and `users/bulk-notify`, and
+  none was added: the gate is the control.
+  `subscription:broadcast_create`'s feature flag is seeded `true` on the
+  `free` tier in `SystemConfigSeeder` for exactly this reason: a
+  `platform_admin`/`agent` holds no subscription of their own, so
+  `SubscriptionService::hasFeature()` always falls back to resolving them
+  against the `free` tier, and this flag exists nowhere else in the codebase
+  — it is a platform-capability gate piggybacking on the subscription-feature
+  mechanism, not a real free-plan store feature.
   - `POST /admin/announcements/preview-email` (`previewEmail()` →
     `BroadcastEmailService::renderPreview()`) takes `title`/`message` and
     returns `{subject, html}`, where `html` is

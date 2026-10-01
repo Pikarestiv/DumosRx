@@ -455,6 +455,15 @@ shape, prune it here rather than inventing a second mechanism.
   retry behaviour. **If you add another table that a logging/telemetry path
   writes to, apply the same "don't log X into X" check before reporting a
   failure on it.**
+  Two follow-on rules, both learned the hard way (`A-126` in
+  `docs/FIXED_BUGS.md`): the `[REPORTED]` marker on `_sync_queue.last_error`
+  gates **notification only** — a `feedback` item past the retry threshold is
+  always dropped and settled, marker or not, otherwise rows stuck under an
+  older build can never be cleaned up; and every bound on a value the server
+  stores must name the server limit it mirrors, which is why
+  `MAX_FINGERPRINT_LENGTH` (255) matches `feedback.fingerprint`'s
+  `VARCHAR(255)` exactly. A client-side cap looser than its column is not a
+  cap — it is a row that can never push.
 - **`isManual` means "a human clicked Sync Now", and nothing else.** It
   bypasses per-item backoff (`getPendingSyncItems`) *and* the server's
   plan-tier sync-interval throttle (`?manual=1`), so passing it from an

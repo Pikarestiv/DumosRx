@@ -10,9 +10,11 @@ use Tests\TestCase;
 /**
  * GET /admin/stores/registered-by-me - the scoped store list that gives
  * platform_admin/agent a way to see the stores they onboarded. The full
- * fleet list stays role:super_admin (platform-wide revenue); this one is
- * gated on create_accounts, the same permission that lets them register a
- * store in the first place.
+ * fleet list (GET /admin/stores) is gated on permission:view_platform_data
+ * as of the platform admin delegation work, so an agent/platform_admin
+ * holding that permission can reach it too; this scoped endpoint is gated
+ * on create_accounts, the same permission that lets them register a store
+ * in the first place.
  */
 class AdminRegisteredStoresScopeTest extends TestCase
 {
@@ -113,10 +115,10 @@ class AdminRegisteredStoresScopeTest extends TestCase
         );
     }
 
-    public function test_the_full_fleet_list_is_still_super_admin_only(): void
+    public function test_the_full_fleet_list_is_reachable_by_an_agent_holding_view_platform_data(): void
     {
         $this->actingAs($this->user('agent'))
             ->getJson('/api/v1/admin/stores')
-            ->assertStatus(403);
+            ->assertOk();
     }
 }

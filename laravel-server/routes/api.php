@@ -184,15 +184,15 @@ Route::prefix('v1')->group(function () {
             // permission, which platform_admin/agent can also hold) get the
             // check via route middleware instead of a per-method guard clause.
             Route::get('/summary', [AdminPlatformController::class, 'summary'])->middleware('role:super_admin');
-            Route::get('/stores', [AdminStoreController::class, 'stores'])->middleware('role:super_admin');
+            Route::get('/stores', [AdminStoreController::class, 'stores'])->middleware('permission:view_platform_data');
             Route::post('/stores', [AdminStoreController::class, 'registerStore']);
             // Must stay above /stores/{id}: a literal segment registered after
             // the wildcard would be swallowed by it.
             Route::get('/stores/registered-by-me', [AdminStoreController::class, 'storesRegisteredByMe'])
                 ->middleware('permission:create_accounts');
-            Route::get('/stores/{id}', [AdminStoreController::class, 'storeDetail'])->middleware('role:super_admin');
-            Route::post('/stores/{id}/suspend', [AdminStoreController::class, 'suspendStore'])->middleware('role:super_admin');
-            Route::post('/stores/{id}/unsuspend', [AdminStoreController::class, 'unsuspendStore'])->middleware('role:super_admin');
+            Route::get('/stores/{id}', [AdminStoreController::class, 'storeDetail'])->middleware('permission:view_platform_data');
+            Route::post('/stores/{id}/suspend', [AdminStoreController::class, 'suspendStore'])->middleware('permission:manage_account_status');
+            Route::post('/stores/{id}/unsuspend', [AdminStoreController::class, 'unsuspendStore'])->middleware('permission:manage_account_status');
             Route::post('/stores/{id}/mark-demo', [AdminStoreController::class, 'markStoreDemo'])->middleware('role:super_admin');
             Route::post('/stores/{id}/unmark-demo', [AdminStoreController::class, 'unmarkStoreDemo'])->middleware('role:super_admin');
             Route::post('/stores/{id}/grant-trial', [AdminStoreController::class, 'grantTrial'])->middleware('permission:grant_trials');
@@ -205,24 +205,24 @@ Route::prefix('v1')->group(function () {
             Route::post('/users/{id}/activate-plan', [AdminUserController::class, 'activateUserPlan'])->middleware('permission:grant_trials');
             Route::get('/products', [AdminPlatformController::class, 'products'])->middleware('role:super_admin');
             Route::post('/products/standardize', [AdminPlatformController::class, 'standardize'])->middleware('role:super_admin');
-            Route::get('/users', [AdminUserController::class, 'users'])->middleware('role:super_admin');
+            Route::get('/users', [AdminUserController::class, 'users'])->middleware('permission:view_platform_data');
             Route::post('/users', [AdminUserController::class, 'createPlatformAdmin'])->middleware('role:super_admin');
             Route::get('/health', [AdminPlatformController::class, 'health'])->middleware('role:super_admin');
             Route::get('/errors', [AdminPlatformController::class, 'errors'])->middleware('role:super_admin');
             Route::get('/downloads/manifest', [AdminPlatformController::class, 'downloadsManifest'])->middleware('role:super_admin');
             Route::put('/users/{id}', [AdminUserController::class, 'updateUser'])->middleware('role:super_admin');
             Route::delete('/users/{id}', [AdminUserController::class, 'deleteUser'])->middleware('role:super_admin');
-            Route::post('/users/{id}/deactivate', [AdminUserController::class, 'deactivateUser'])->middleware('role:super_admin');
-            Route::post('/users/{id}/reactivate', [AdminUserController::class, 'reactivateUser'])->middleware('role:super_admin');
-            Route::post('/users/{id}/reset-password', [AdminUserController::class, 'forcePasswordReset'])->middleware('role:super_admin');
-            Route::post('/users/{id}/notify', [AdminUserController::class, 'notifyUser'])->middleware('role:super_admin');
-            Route::post('/users/bulk-notify', [AdminUserController::class, 'bulkNotify'])->middleware('role:super_admin');
+            Route::post('/users/{id}/deactivate', [AdminUserController::class, 'deactivateUser'])->middleware('permission:manage_account_status');
+            Route::post('/users/{id}/reactivate', [AdminUserController::class, 'reactivateUser'])->middleware('permission:manage_account_status');
+            Route::post('/users/{id}/reset-password', [AdminUserController::class, 'forcePasswordReset'])->middleware('permission:reset_user_passwords');
+            Route::post('/users/{id}/notify', [AdminUserController::class, 'notifyUser'])->middleware('permission:send_notifications');
+            Route::post('/users/bulk-notify', [AdminUserController::class, 'bulkNotify'])->middleware('permission:send_notifications');
             Route::get('/search', [AdminPlatformController::class, 'search'])->middleware('role:super_admin');
-            Route::get('/activity-logs', [AdminPlatformController::class, 'activityLogs'])->middleware('role:super_admin');
+            Route::get('/activity-logs', [AdminPlatformController::class, 'activityLogs'])->middleware('permission:view_platform_data');
             Route::get('/my-referrals', [AdminUserController::class, 'myReferrals']);
             Route::get('/referral-code/check', [AdminUserController::class, 'checkReferralCode']);
             Route::post('/referral-code', [AdminUserController::class, 'updateReferralCode']);
-            Route::post('/stores/{id}/impersonate', [AdminStoreController::class, 'impersonateStore'])->middleware('role:super_admin');
+            Route::post('/stores/{id}/impersonate', [AdminStoreController::class, 'impersonateStore'])->middleware('permission:impersonate_store');
             Route::put('/stores/{id}/account-manager', [AdminStoreController::class, 'updateAccountManager'])->middleware('role:super_admin');
             Route::get('/account-managers', [AdminStoreController::class, 'accountManagerCandidates'])->middleware('role:super_admin');
 
@@ -236,7 +236,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/feedback/{id}/status', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'updateStatus'])->middleware('role:super_admin');
 
             // Broadcasts
-            Route::prefix('announcements')->middleware(['subscription:broadcast_create', 'role:super_admin'])->group(function () {
+            Route::prefix('announcements')->middleware(['subscription:broadcast_create', 'permission:send_notifications'])->group(function () {
                 Route::get('/', [BroadcastController::class, 'adminIndex']);
                 Route::post('/preview-email', [BroadcastController::class, 'previewEmail']);
                 Route::post('/test-email', [BroadcastController::class, 'sendTestEmail']);

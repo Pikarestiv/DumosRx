@@ -1,5 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+
+const { mockUpdateMutateAsync } = vi.hoisted(() => ({
+  mockUpdateMutateAsync: vi.fn().mockResolvedValue(undefined),
+}));
 
 vi.mock("@/lib/api/admin-hooks-roles", () => ({
   useAdminRoles: () => ({
@@ -11,12 +15,16 @@ vi.mock("@/lib/api/admin-hooks-roles", () => ({
     },
     isLoading: false,
   }),
-  useUpdateRolePermissionsMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateRolePermissionsMutation: () => ({ mutateAsync: mockUpdateMutateAsync, isPending: false }),
   useCreateRoleMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteRoleMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 import { AdminPermissionsCard } from "@/components/admin/views/admin-permissions-card";
+
+beforeEach(() => {
+  mockUpdateMutateAsync.mockClear();
+});
 
 describe("AdminPermissionsCard", () => {
   it("renders one row per catalog permission and one column per role", () => {
@@ -34,5 +42,20 @@ describe("AdminPermissionsCard", () => {
     render(<AdminPermissionsCard />);
     expect(screen.queryByRole("button", { name: /delete platform admin/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /delete agent/i })).not.toBeInTheDocument();
+  });
+
+  it("toggling a cell calls the mutation with the role's full updated permission list", () => {
+    render(<AdminPermissionsCard />);
+
+    const agentSendNotifications = screen.getByRole("checkbox", {
+      name: /send notifications for agent/i,
+    });
+    fireEvent.click(agentSendNotifications);
+
+    expect(mockUpdateMutateAsync).toHaveBeenCalledTimes(1);
+    expect(mockUpdateMutateAsync).toHaveBeenCalledWith({
+      slug: "agent",
+      permissions: ["view_platform_data", "send_notifications"],
+    });
   });
 });

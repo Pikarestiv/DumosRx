@@ -42,6 +42,7 @@ export function AdminPermissionsCard() {
   const [newRoleName, setNewRoleName] = useState("");
   const [newRolePermissions, setNewRolePermissions] = useState<string[]>([]);
   const [roleToDelete, setRoleToDelete] = useState<AdminRole | null>(null);
+  const [pendingRoleSlug, setPendingRoleSlug] = useState<string | null>(null);
 
   const roles = data?.roles ?? [];
 
@@ -50,6 +51,7 @@ export function AdminPermissionsCard() {
       ? [...role.permissions, permissionValue]
       : role.permissions.filter((permission) => permission !== permissionValue);
 
+    setPendingRoleSlug(role.slug);
     try {
       await updatePermissionsMutation.mutateAsync({
         slug: role.slug,
@@ -59,6 +61,8 @@ export function AdminPermissionsCard() {
       toast.error(
         error instanceof Error ? error.message : `Failed to update ${role.name}'s permissions`,
       );
+    } finally {
+      setPendingRoleSlug(null);
     }
   };
 
@@ -221,6 +225,7 @@ export function AdminPermissionsCard() {
                       <Checkbox
                         aria-label={`${permission.label} for ${role.name}`}
                         checked={role.permissions.includes(permission.value)}
+                        disabled={pendingRoleSlug === role.slug}
                         onCheckedChange={(checked) =>
                           void togglePermission(role, permission.value, checked === true)
                         }

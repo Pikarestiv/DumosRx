@@ -42,19 +42,8 @@ export const FILTER_TYPES = [
   { id: "transfer", label: "Transfers" },
 ];
 
-/**
- * A bulk-import stock correction (product-import.ts's "update existing
- * product" path) is written with movement_type "adjustment" so the same
- * FEFO/audit machinery a manual cycle count uses applies to it too, but that
- * makes it indistinguishable from a manual adjustment here - the Adjustments
- * Ledger tells the two apart via reference_type/reason (see
- * groupAdjustmentMovements in adjustment-derivations.ts); this does the same
- * for the general Stock Movements table, which otherwise only reads the raw
- * movement_type column (A-111/A-120's "still shows as Adjustment" gap).
- * Rows written before 3b7ce8b8 carry the legacy reference_type
- * ("stock_audit") - the reason-prefix check catches those a device hasn't
- * re-pulled the A-52 server-side retag for yet.
- */
+/** Mirrors groupAdjustmentMovements()'s reference_type/reason check so a
+ * bulk-import correction (movement_type "adjustment") reads as "Bulk Import" here too (A-122, client/AGENTS.md). */
 export function resolveMovementDisplayType(row: Pick<StockMovementDbRow, "movement_type" | "reference_type" | "reason">): string {
   const movementType = row.movement_type || "adjustment";
   if (movementType !== "adjustment") return movementType;

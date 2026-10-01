@@ -6,6 +6,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import * as Sentry from "@sentry/nextjs";
 import { setCurrentUser as setDbUser, logAction } from "@/lib/db/local-database";
 import { apiClient } from "@/lib/api/client";
+import { withNetworkRetry } from "@/lib/api/retry-on-network-error";
 import {
   getUsersByUsernameOrEmail,
   createDefaultAdmin,
@@ -724,8 +725,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
-      const response = await apiClient.login(email, password);
-      
+      const response = await withNetworkRetry(() => apiClient.login(email, password));
+
       if (response.token) {
         apiClient.setToken(response.token);
         setIsCloudLinked(true);

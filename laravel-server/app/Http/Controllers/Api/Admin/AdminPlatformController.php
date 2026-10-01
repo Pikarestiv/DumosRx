@@ -160,6 +160,7 @@ class AdminPlatformController extends AdminBaseController
             new OA\Parameter(name: 'user_id', in: 'query', schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'date_from', in: 'query', schema: new OA\Schema(type: 'string', format: 'date')),
             new OA\Parameter(name: 'date_to', in: 'query', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'role', in: 'query', schema: new OA\Schema(type: 'string')),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Activity logs', content: new OA\JsonContent(type: 'object')),
@@ -178,6 +179,7 @@ class AdminPlatformController extends AdminBaseController
                 $request->query('user_id'),
                 $request->query('date_from'),
                 $request->query('date_to'),
+                $request->query('role'),
             ));
         });
     }

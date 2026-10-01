@@ -479,7 +479,7 @@ class AdminPlatformService
      * their own stores' staff. This is the superadmin equivalent, spanning
      * every store on the platform.
      */
-    public function getActivityLogs($page = 1, $search = null, $action = null, $storeId = null, $userId = null, $dateFrom = null, $dateTo = null)
+    public function getActivityLogs($page = 1, $search = null, $action = null, $storeId = null, $userId = null, $dateFrom = null, $dateTo = null, $role = null)
     {
         $query = ActivityLog::with(['user.store', 'user.stores', 'user.employerStore'])
             ->where('action', '!=', 'CLIENT_API_ERROR');
@@ -502,6 +502,12 @@ class AdminPlatformService
 
         if ($userId) {
             $query->where('user_id', $userId);
+        }
+
+        if ($role) {
+            $query->whereHas('user', function ($uq) use ($role) {
+                $uq->where('role', $role);
+            });
         }
 
         if ($storeId) {

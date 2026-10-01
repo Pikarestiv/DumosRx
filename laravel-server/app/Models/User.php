@@ -19,6 +19,14 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasUuids, SoftDeletes;
 
+    public const DELEGATABLE_PERMISSIONS = [
+        'view_platform_data',
+        'send_notifications',
+        'reset_user_passwords',
+        'manage_account_status',
+        'impersonate_store',
+    ];
+
     /**
      * The attributes that are mass assignable.
      *
@@ -51,7 +59,7 @@ class User extends Authenticatable
      *
      * @var array
      */
-    protected $appends = ['name', 'require_email_verification'];
+    protected $appends = ['name', 'require_email_verification', 'effective_permissions'];
 
     /**
      * The attributes that should be hidden for serialization.
@@ -137,6 +145,18 @@ class User extends Authenticatable
     public function getRequireEmailVerificationAttribute()
     {
         return \App\Models\SystemConfig::getVal('require_email_verification', false) === true || \App\Models\SystemConfig::getVal('require_email_verification', false) === 'true';
+    }
+
+    public function getEffectivePermissionsAttribute(): array
+    {
+        if ($this->hasRole('super_admin')) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            self::DELEGATABLE_PERMISSIONS,
+            fn (string $slug) => $this->hasPermission($slug),
+        ));
     }
 
     public function store()

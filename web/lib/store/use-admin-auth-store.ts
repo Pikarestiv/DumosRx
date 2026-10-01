@@ -13,6 +13,7 @@ export interface User {
   role: string;
   email_verified_at?: string | null;
   require_email_verification?: boolean;
+  effective_permissions?: string[];
 }
 
 /** Store-level admin/manager/etc. have zero access to the platform admin
@@ -30,6 +31,15 @@ export const checkIsSuperAdmin = (role?: string) => role === "super_admin";
  * only gates whether the dashboard shell loads at all. */
 export const checkCanAccessAdmin = (role?: string) =>
   role === "super_admin" || role === "platform_admin" || role === "agent";
+
+/** Checks if a user has a specific permission, bypassing the check for super_admin.
+ * Super admins always have all permissions; others are checked against their
+ * effective_permissions array. Null/undefined users return false. */
+export function checkHasPermission(user: User | null | undefined, permission: string): boolean {
+  if (!user) return false;
+  if (checkIsSuperAdmin(user.role)) return true;
+  return (user.effective_permissions ?? []).includes(permission);
+}
 
 interface AdminAuthState {
   user: User | null;

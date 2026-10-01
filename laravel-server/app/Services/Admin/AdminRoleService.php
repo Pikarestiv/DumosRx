@@ -149,9 +149,6 @@ class AdminRoleService
 
     private function platformRoleSlugs(): array
     {
-        return array_merge(
-            \App\Services\Admin\AdminUserService::PLATFORM_ROLES,
-            Role::where('is_system', false)->pluck('slug')->all(),
-        );
+        return \App\Services\Admin\AdminUserService::platformRoleSlugs();
     }
 }

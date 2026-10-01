@@ -20,6 +20,14 @@ trait UpdatesUserProfiles
 
     public const EDITABLE_PROFILE_FIELDS = ['first_name', 'last_name', 'phone', 'email', 'role'];
 
+    public static function platformRoleSlugs(): array
+    {
+        return array_merge(
+            self::PLATFORM_ROLES,
+            Role::where('is_system', false)->pluck('slug')->all(),
+        );
+    }
+
     public function updateUserProfile($id, array $data, $actorId)
     {
         return DB::transaction(function () use ($id, $data, $actorId) {

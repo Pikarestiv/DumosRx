@@ -292,7 +292,7 @@ class AdminUserController extends AdminBaseController
             new OA\Property(property: 'last_name', type: 'string', minLength: 2),
             new OA\Property(property: 'phone', type: 'string', nullable: true),
             new OA\Property(property: 'email', type: 'string', format: 'email'),
-            new OA\Property(property: 'role', type: 'string', enum: AdminUserService::PLATFORM_ROLES),
+            new OA\Property(property: 'role', type: 'string', enum: AdminUserService::PLATFORM_ROLES, description: 'Also accepts any custom platform role slug created via the role-delegation endpoints; OpenAPI enums are static so only the 3 built-ins are listed here.'),
         ])),
         responses: [
             new OA\Response(response: 200, description: 'Updated', content: new OA\JsonContent(type: 'object')),
@@ -308,7 +308,7 @@ class AdminUserController extends AdminBaseController
             'last_name' => 'sometimes|required|string|min:2',
             'phone' => 'sometimes|nullable|string',
             'email' => ['sometimes', 'required', 'email', Rule::unique('users', 'email')->ignore($id)],
-            'role' => ['sometimes', 'required', 'string', Rule::in(AdminUserService::PLATFORM_ROLES)],
+            'role' => ['sometimes', 'required', 'string', Rule::in(AdminUserService::platformRoleSlugs())],
             'password' => 'prohibited',
             'password_confirmation' => 'prohibited',
             'is_active' => 'prohibited',

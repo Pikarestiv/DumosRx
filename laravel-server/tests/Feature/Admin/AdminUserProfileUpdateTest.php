@@ -222,4 +222,28 @@ class AdminUserProfileUpdateTest extends TestCase
 
         $this->assertSame(0, ActivityLog::where('action', 'USER_PROFILE_UPDATED')->count());
     }
+
+    public function test_a_newly_created_custom_platform_role_is_accepted_for_the_role_field()
+    {
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        app(\App\Services\Admin\AdminRoleService::class)->createRole('Support Lead', ['view_platform_data'], $this->superAdmin->id);
+
+        $target = $this->makeUser('platform_admin', 'pa@dumosrx.com');
+
+        $this->update($this->superAdmin, $target, ['role' => 'support_lead'])->assertOk();
+
+        $this->assertSame('support_lead', $target->fresh()->role);
+    }
+
+    public function test_a_store_tenant_role_is_still_rejected_even_after_a_custom_platform_role_exists()
+    {
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        app(\App\Services\Admin\AdminRoleService::class)->createRole('Support Lead', ['view_platform_data'], $this->superAdmin->id);
+
+        $target = $this->makeUser('platform_admin', 'pa@dumosrx.com');
+
+        $this->update($this->superAdmin, $target, ['role' => 'store_owner'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('role');
+    }
 }

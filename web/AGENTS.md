@@ -274,6 +274,19 @@ the server `prohibited`s them and they each have their own row action. See
 guards behind the endpoint. Covered by
 `__tests__/admin-user-profile-edit.test.tsx`.
 
+**Per-admin permission overrides** use the same mode-toggle shape: a "Manage
+Permissions" button next to "Edit Profile" swaps the body for
+`user-permission-overrides-form.tsx`, gated on `checkIsSuperAdmin(viewer)
+&& selectedUser.role_slug !== "super_admin"` (permissions are meaningless for
+an account that already bypasses every check). Each catalog permission
+(`PLATFORM_PERMISSION_OPTIONS`) gets a 3-state `Select` — Inherited/Granted/
+Revoked, mapping to `null`/`true`/`false` — submitted as one batch via
+`useUpdateUserPermissionOverridesMutation`. Known gap: `GET /admin/users`
+doesn't serialize `effective_permissions`, so the form can only pre-select
+"Granted" when the caller happens to pass it in and otherwise defaults every
+row to "Inherited," even if an override already exists; see `docs/KNOWN_BUGS.md`
+A-133 before relying on this form's initial state as ground truth.
+
 **Staff are reached from two places instead**, both rendering the same
 `components/admin/stores/store-staff-list.tsx` off the same
 `useStoreStaff(storeId)` hook (`GET /admin/users?account_type=staff&store_id=`):

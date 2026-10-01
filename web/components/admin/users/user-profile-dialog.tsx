@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Shield, Store, Calendar, Activity, History, Users, Pencil } from "lucide-react";
+import { Shield, Store, Calendar, Activity, History, Users, Pencil, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { UserProfileEditForm } from "./user-profile-edit-form";
+import { UserPermissionOverridesForm } from "./user-permission-overrides-form";
 import { useUpdateUserProfileMutation } from "@/lib/api/admin-hooks-users";
 import { checkIsSuperAdmin, useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 import type { AdminUserProfileUpdate } from "@/lib/types/admin";
@@ -29,9 +30,15 @@ export function UserProfileDialog({
   const canEdit = checkIsSuperAdmin(viewerRole);
   const updateMutation = useUpdateUserProfileMutation();
   const [isEditing, setIsEditing] = useState(false);
+  const [isManagingPermissions, setIsManagingPermissions] = useState(false);
+  const canManagePermissions =
+    canEdit && selectedUser !== null && selectedUser.role_slug !== "super_admin";
 
   const handleOpenChange = (open: boolean) => {
-    if (!open) setIsEditing(false);
+    if (!open) {
+      setIsEditing(false);
+      setIsManagingPermissions(false);
+    }
     onOpenChange(open);
   };
 
@@ -86,6 +93,15 @@ export function UserProfileDialog({
             onCancel={() => setIsEditing(false)}
             onSave={(payload) => void handleSave(payload)}
             isPending={updateMutation.isPending}
+          />
+        ) : isManagingPermissions && selectedUser ? (
+          <UserPermissionOverridesForm
+            user={selectedUser}
+            onCancel={() => setIsManagingPermissions(false)}
+            onSaved={() => {
+              toast.success("Permission overrides updated");
+              setIsManagingPermissions(false);
+            }}
           />
         ) : (
           <>
@@ -165,6 +181,16 @@ export function UserProfileDialog({
             </div>
           ) : null}
           <div className="p-8 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex justify-end gap-3">
+            {canManagePermissions ? (
+              <Button
+                variant="outline"
+                onClick={() => setIsManagingPermissions(true)}
+                className="rounded-xl font-bold"
+              >
+                <ShieldCheck className="h-4 w-4 mr-2" />
+                Manage Permissions
+              </Button>
+            ) : null}
             {canEdit && selectedUser ? (
               <Button
                 variant="outline"

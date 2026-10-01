@@ -167,6 +167,8 @@ export interface AdminUser {
   joinedAt?: string;
   status: string;
   deletionRequested?: boolean;
+  /** Not yet returned by `GET /admin/users` — see docs/KNOWN_BUGS.md A-133. */
+  effective_permissions?: string[];
 }
 
 /** The only roles PUT /admin/users/{id} accepts: store-tenant roles are

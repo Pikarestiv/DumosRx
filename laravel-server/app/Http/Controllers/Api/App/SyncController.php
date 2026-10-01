@@ -1032,13 +1032,7 @@ class SyncController extends Controller
      */
     private function resolvePullTenantScope($user, Request $request): array
     {
-        $ownerId = $user->store_id
-            ? Store::where('id', $user->store_id)->value('user_id')
-            : $user->id;
-
-        $ownedStoreIds = $user->store_id
-            ? [$user->store_id]
-            : Store::where('user_id', $ownerId)->pluck('id')->toArray();
+        ['ownerId' => $ownerId, 'storeIds' => $ownedStoreIds] = $this->resolveOwnershipIdentity($user);
 
         $requestedStoreId = $request->header('X-Store-Id') ?? $request->input('store_id');
         if ($requestedStoreId) {
@@ -1405,6 +1399,11 @@ class SyncController extends Controller
      *
      * stores.device_id is NOT NULL + UNIQUE, so it can never fall back to a
      * shared literal — see the identical guard in normalizePushPayload().
+     *
+     * stock_batches.cost_price is nullable on the client and NOT NULL
+     * DEFAULT 0 here: a legacy adjustment batch holding a real local NULL
+     * only sends it explicitly once a whole-row requeue rebuilds its
+     * payload, which is why the column survived this long (A-128).
      */
     private function applyNotNullColumnDefaults(Request $request, string $tableName, $model): void
     {
@@ -1416,6 +1415,11 @@ class SyncController extends Controller
         if ($tableName === 'products') {
             if (empty($model->pack_size) || $model->pack_size === 'null') $model->pack_size = 1;
             if (empty($model->unit_of_measure) || $model->unit_of_measure === 'null') $model->unit_of_measure = 'piece';
+        }
+        if ($tableName === 'stock_batches') {
+            if ($model->cost_price === null || $model->cost_price === 'null') {
+                $model->cost_price = 0;
+            }
         }
         if ($tableName === 'stores') {
             if (empty($model->device_id)) {
@@ -1729,22 +1733,18 @@ class SyncController extends Controller
      */
     private function resolvePushStoreId(Request $request, $currentUser): ?string
     {
-        $currentStoreId = null;
+        ['ownerId' => $ownerId, 'storeIds' => $ownedStoreIds] = $this->resolveOwnershipIdentity($currentUser);
+
         $requestedStoreId = $request->header('X-Store-Id') ?? $request->input('store_id');
-        if ($requestedStoreId) {
-            $ownerId = $currentUser->store_id
-                ? Store::where('id', $currentUser->store_id)->value('user_id')
-                : $currentUser->id;
-            $ownsStore = Store::where('id', $requestedStoreId)->where('user_id', $ownerId)->exists();
-            if ($ownsStore) {
-                $currentStoreId = $requestedStoreId;
-            }
-        }
-        if (!$currentStoreId) {
-            $currentStoreId = $currentUser->store_id ?? Store::where('user_id', $currentUser->id)->value('id');
+        if ($requestedStoreId && Store::where('id', $requestedStoreId)->where('user_id', $ownerId)->exists()) {
+            return $requestedStoreId;
         }
 
-        return $currentStoreId;
+        if ($currentUser->store_id && in_array($currentUser->store_id, $ownedStoreIds, true)) {
+            return $currentUser->store_id;
+        }
+
+        return $ownedStoreIds[0] ?? null;
     }
 
     /**
@@ -2008,15 +2008,40 @@ class SyncController extends Controller
      */
     private function resolveAllowedOwnershipScope($currentUser): array
     {
-        $ownerId = $currentUser->store_id
-            ? Store::where('id', $currentUser->store_id)->value('user_id')
-            : $currentUser->id;
-        $allowedStoreIds = $currentUser->store_id
-            ? [$currentUser->store_id]
-            : Store::where('user_id', $ownerId)->pluck('id')->toArray();
+        ['ownerId' => $ownerId, 'storeIds' => $allowedStoreIds] = $this->resolveOwnershipIdentity($currentUser);
         $allowedUserIds = User::whereIn('store_id', $allowedStoreIds)->pluck('id')->push($ownerId)->toArray();
 
         return [$allowedStoreIds, $allowedUserIds];
+    }
+
+    /**
+     * The single ownership resolution every sync scope is built from, as
+     * ['ownerId' => tenant owner's user id, 'storeIds' => every store that
+     * owner's scope covers].
+     *
+     * `stores.user_id` is authoritative and `users.store_id` is only
+     * consulted for a caller who owns no store at all (a genuine staff
+     * account). The reverse — trusting a non-null `users.store_id` first —
+     * silently narrowed a multi-store owner carrying a stale `store_id` to
+     * one of their stores, making every row in the others unsyncable in
+     * both directions; see docs/FIXED_BUGS.md A-127 and the data-repair
+     * migration 2026_10_01_000000_clear_store_id_on_store_owners.
+     */
+    private function resolveOwnershipIdentity($currentUser): array
+    {
+        $ownedStoreIds = Store::where('user_id', $currentUser->id)->pluck('id')->toArray();
+        if (!empty($ownedStoreIds)) {
+            return ['ownerId' => $currentUser->id, 'storeIds' => $ownedStoreIds];
+        }
+
+        if ($currentUser->store_id) {
+            return [
+                'ownerId' => Store::where('id', $currentUser->store_id)->value('user_id'),
+                'storeIds' => [$currentUser->store_id],
+            ];
+        }
+
+        return ['ownerId' => $currentUser->id, 'storeIds' => []];
     }
 
     /**

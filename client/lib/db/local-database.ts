@@ -24,6 +24,7 @@ import type { Product } from "@/lib/types/product";
 import type { CustomerDbRow } from "@/lib/types/customer";
 import { hashPin } from "@/lib/utils/pin-hash";
 import { getStoredUser } from "@/lib/storage-keys";
+import { serializeRequeuePayload } from "./requeue-payload";
 
 const STOCK_MOVEMENT_AUDIT_ACTIONS: Record<string, string> = {
   adjustment: AUDIT_ACTIONS.STOCK_ADJUSTMENT,
@@ -433,7 +434,7 @@ export async function forceSyncAllData() {
         await execute(
           `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
            VALUES (?, ?, ?, ?, ?)`,
-          [table, record.id, "INSERT", JSON.stringify(record), now],
+          [table, record.id, "INSERT", serializeRequeuePayload(record), now],
         );
         count++;
       }

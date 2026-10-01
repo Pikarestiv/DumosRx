@@ -125,6 +125,40 @@ describe("initDatabase() web migration path", () => {
     expect(result[0].values).toEqual([[1]]);
   });
 
+  it("zeroes a legacy stock_batches row whose cost_price is NULL, leaving a real cost alone", async () => {
+    const SQL = await initSqlJs({
+      locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),
+    });
+    const legacyDb = new SQL.Database();
+    legacyDb.run(`
+      CREATE TABLE stock_batches (
+        id TEXT PRIMARY KEY,
+        product_id TEXT,
+        batch_number TEXT,
+        quantity INTEGER DEFAULT 0,
+        cost_price REAL
+      );
+
+      INSERT INTO stock_batches (id, product_id, batch_number, quantity, cost_price)
+        VALUES ('batch-legacy', 'prod-1', 'B-1', 5, NULL);
+      INSERT INTO stock_batches (id, product_id, batch_number, quantity, cost_price)
+        VALUES ('batch-priced', 'prod-1', 'B-2', 5, 42.5);
+    `);
+    storedExport = legacyDb.export();
+    legacyDb.close();
+
+    const core = await import("@/lib/db/core");
+    const db = await core.initDatabase();
+
+    const result = db.exec(
+      "SELECT id, cost_price FROM stock_batches ORDER BY id",
+    );
+    expect(result[0].values).toEqual([
+      ["batch-legacy", 0],
+      ["batch-priced", 42.5],
+    ]);
+  });
+
   it("is idempotent: re-running the same migrations against an already-migrated database is a no-op that doesn't throw", async () => {
     const core = await import("@/lib/db/core");
     const first = await core.initDatabase();

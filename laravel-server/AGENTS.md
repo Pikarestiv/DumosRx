@@ -41,7 +41,18 @@ without updating that.
   sales, ...) is always stored under the **store owner's** `user_id`, never
   a staff member's own id. A staff user has `store_id` set; resolving which
   tenant they belong to means looking up `Store::where('id',
-  $user->store_id)->value('user_id')`, not using `$user->id` directly. Use
+  $user->store_id)->value('user_id')`, not using `$user->id` directly.
+  **`stores.user_id` is authoritative and `users.store_id` is only the
+  fallback, never the other way round.** A non-null `users.store_id` does
+  NOT prove the caller is staff: owners created before 2026-09-22 carry a
+  stale one (see `docs/FIXED_BUGS.md` A-127), so branching on it first
+  silently narrows a multi-store owner to one store. Resolve ownership by
+  asking whether the user owns any `Store` **first**, and only consult
+  `users.store_id` for a user who owns none —
+  `SyncController::resolveOwnershipIdentity()` is the reference
+  implementation, and the migration
+  `2026_10_01_000000_clear_store_id_on_store_owners` clears the historical
+  poisoning. Use
   the `App\Http\Controllers\Concerns\ScopesToTenant` trait
   (`tenantOwnerId($request)`) — don't hand-roll this lookup. Before this
   trait existed, `ProductController`/`CategoryController`/
@@ -156,8 +167,11 @@ caused one shipped bug (`AdminUsersStoreResolutionTest`):
 
 - **Owner** — `stores.user_id` points at them (`User::stores()`/`store()`).
 - **Staff** — their own `users.store_id` points at a store
-  (`User::employerStore()`). An owner's `store_id` is never set to their own
-  store, so the two are complementary, never overlapping.
+  (`User::employerStore()`). An owner's `store_id` is *supposed* to be null,
+  so the two read as complementary — but **do not rely on that for
+  authorization**: accounts created before 2026-09-22 carry a stale
+  `store_id` on the owner's own row (`docs/FIXED_BUGS.md` A-127, and the
+  repair migration that clears it). Ask `stores.user_id` first.
 - **Platform account** — neither (super_admin / platform_admin / agent).
 
 Two *other* user columns look adjacent and are not: `referred_by_id` is the
@@ -307,11 +321,13 @@ migration here **and** the corresponding update on the `client/` side
   the account — and the client prunes against it.** `stores` is exempt from
   the last-synced cursor and the 500-row cap (`fetchPullPage()`), so the
   client treats it as a complete snapshot and soft-deletes any local store
-  the response omits. But `resolvePullTenantScope()` resolves
-  `$ownedStoreIds` to `[$user->store_id]` for any user carrying one (every
-  staff account), and only to `Store::where('user_id', $ownerId)` for a
-  store_id-less owner identity — so a staff session's pull returns exactly
-  one store while the account may own several. That combination cost a live
+  the response omits. But `resolvePullTenantScope()` (via
+  `resolveOwnershipIdentity()`) resolves `$ownedStoreIds` to
+  `[$user->store_id]` for a user who owns no store of their own — i.e.
+  every genuine staff account — and to `Store::where('user_id', $ownerId)`
+  for anyone who does own one, whatever their `store_id` says (that
+  precedence was the other way round until A-127). So a staff session's
+  pull returns exactly one store while the account may own several. That combination cost a live
   two-store owner a store in the switcher (2026-09-29); the client now
   refuses to prune unless the signed-in identity has no `store_id`
   (`client/AGENTS.md`, "The `stores` prune, and how a store disappears").
@@ -1225,7 +1241,7 @@ itself holds no sending logic.
 ## Testing
 
 ```
-php artisan test                            # 539 tests as of 2026-09-29 (admin owner-vs-staff split + store detail endpoint) — treat any drop as a regression
+php artisan test                            # 752 passing + 1 skipped as of 2026-10-01 (multi-store owner sync scope, A-127/A-128) — treat any drop as a regression
 php -l path/to/File.php                     # quick syntax check for a single file
 ```
 

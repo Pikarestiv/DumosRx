@@ -153,10 +153,11 @@ class User extends Authenticatable
      * The store this user works AT as staff (users.store_id), as opposed
      * to store()/stores() above which resolve the store(s) this user
      * OWNS (stores.user_id pointing back at them). A store owner's own
-     * store_id column is never set to their own store (see Store::sales()
-     * doc block and StaffController::store), so this relation is null for
-     * owners even though store()/stores() cover that case; the two are
-     * complementary, not overlapping.
+     * store_id column is not supposed to be set (see Store::sales() doc
+     * block and StaffController::store), so this relation reads as null
+     * for owners — but accounts created before 2026-09-22 carry a stale
+     * value, so it must never be treated as proof that a user is staff.
+     * See docs/FIXED_BUGS.md A-127.
      */
     public function employerStore()
     {

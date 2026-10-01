@@ -973,6 +973,27 @@ the pending-local-edit skip — a record that stops being pulled at all for as
 long as it sits there. The general "a permanently-parked queue row silently
 freezes its record's pulls" problem is unaddressed.
 
+## Whole-row requeues must never send a `null` (`lib/db/requeue-payload.ts`)
+
+Two paths rebuild a sync payload from a `SELECT *` rather than from the write
+that produced the row: `requeueOrphanedRows()` (`lib/db/reconcile-identity.ts`)
+and the `window.forceSyncAllData` debug path (`lib/db/local-database.ts`).
+Both must serialize through `serializeRequeuePayload()`, which strips every
+null-valued key, and a third such path must use it too rather than calling
+`JSON.stringify(row)` itself.
+
+The reason is a schema asymmetry that exists across many columns, not just
+the one that surfaced it: several columns are nullable here and NOT NULL with
+a server-side `DEFAULT` in MySQL. An original INSERT that simply omitted the
+key let the server apply its default, which is why those rows synced fine for
+years; a requeue that resends the same row as `{"col":null}` becomes an UPDATE
+server-side, `forceFill`s a literal null and is rejected outright, so the row
+retries forever. `stock_batches.cost_price` is the case that hit production
+(507 legacy rows on one device — see `docs/FIXED_BUGS.md` A-128, which also
+added the `zeroNullStockBatchCostPrices()` local repair in
+`schema-migrations.ts`). Dropping the key restores the original, working
+behaviour: absent means "server, use your default."
+
 ## Cloud setup/registration network calls: `withNetworkRetry()` (`lib/api/retry-on-network-error.ts`)
 
 The first-run cloud account creation/link flow (`app/setup/use-onboarding.ts`'s `handleRegister()`/`handleCloudRestore()`, and `linkCloudAccount()` in `lib/context/auth-context.tsx`) wraps its `apiClient.register()`/`getStores()`/`getProfile()`/`login()` calls in `withNetworkRetry()`: up to 3 attempts with exponential backoff, against the Namecheap shared-hosting server flagged for occasional slowness (root `.agents/AGENTS.md` §7). This is the one place in `client/` this pattern is used — day-to-day PIN login never leaves local SQLite, and the sync engine's push/pull already has its own background retry/backoff that doesn't block a spinner the user is watching.

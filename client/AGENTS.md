@@ -1000,6 +1000,20 @@ list showing which device a staff member last synced from — see
 side. Best-effort UA sniffing only: never use it for anything
 security-relevant or correctness-relevant, unlike `X-Device-Id` itself.
 
+### `ServerSelector` is also reachable from Settings > Data, not just the landing page (2026-10-02)
+
+`components/ui/server-selector.tsx` (the dev-only dropdown that repoints the
+API host, persisted to `localStorage` via `BaseApiClient.setBaseURL()`) was
+only ever mounted on `app/page.tsx`, the pre-login landing page. A device
+that's logged in before skips straight to `/dashboard` (see that page's own
+comment) and never sees it again — so once signed in, there was no way to
+fix a misconfigured server URL without logging out first, which is itself
+confusing if you don't know this component lives there. It's now also
+rendered in `components/settings/data-settings.tsx`'s "Developer" section
+(same component, no new logic — it already self-hides outside
+`NODE_ENV !== "production"`). Don't add a second URL-picker; reuse this one
+if a third place ever needs it.
+
 ### The `stores` prune, and how a store disappears (2026-09-29)
 
 **Reported live**: a two-store owner's device showed both stores in the

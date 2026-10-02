@@ -68,7 +68,7 @@ These describe the current state of known architectural tradeoffs and performanc
 
 ### Architecture
 - **One hand-rolled tenant-resolution copy remains:** `DashboardService` still hand-rolls the staff→owner lookup instead of a shared `Request`-free helper; `TenantScopingArchitectureTest` only scans controllers, not services.
-- **File-size guideline exceeded by design in a few hot spots:** `client/lib/db/core.ts` (~1,640 lines) and `laravel-server/.../SyncController.php` (~2,700 lines) are both well past the project's 350-line guideline — known, not tracked toward a split. `getProductsWithDetails()`-style "load everything, filter in React" is the deliberate norm for catalog/customer/PO lists; where that stops being fine isn't written down anywhere.
+- **File-size guideline exceeded by design in a few hot spots:** `client/lib/db/core.ts` (~1,640 lines), `laravel-server/.../SyncController.php` (~2,700 lines), and `client/app/setup/use-onboarding.ts` (~640 lines, flagged by `/code-review` during the A-156 fix) are all well past the project's 350-line guideline — known, not tracked toward a split. `getProductsWithDetails()`-style "load everything, filter in React" is the deliberate norm for catalog/customer/PO lists; where that stops being fine isn't written down anywhere.
 - **Two client-side sale-recording paths exist:** `recordSaleItemStock` (POS/online orders) and `local-database.ts::createSale` (demo seeding only) — the second still writes `stock_batches.quantity` via a raw `UPDATE` rather than through `update()`, so a demo-seeded batch is the one batch the version model never saw.
 - **`composer audit`/`npm audit` are not run in CI.**
 - **`sw.js` has no automated test coverage**, despite two prior cache-poisoning fixes.

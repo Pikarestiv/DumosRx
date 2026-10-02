@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/context/auth-context";
 import { generateId, execute, setActiveStoreId } from "@/lib/db/core";
 
 import { getTotalUserCount, getLocalStores } from "@/lib/db/queries/setup";
-import { sync } from "@/lib/db/sync-engine";
+import { sync, syncSubscriptionStatus } from "@/lib/db/sync-engine";
 import { restoreDatabase, clearDatabaseForNewStore } from "@/lib/db/core";
 import { apiClient } from "@/lib/api/client";
 import { withNetworkRetry } from "@/lib/api/retry-on-network-error";
@@ -124,6 +124,14 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
         "INSERT INTO users (id, first_name, last_name, username, pin, role, store_id, is_active, created_at, updated_at, _synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [userId, firstName, lastName, username, hashedPin, "admin", store.id, 1, now, now, 1],
       );
+
+      // Seeds the trial status immediately rather than waiting on the
+      // fire-and-forget sync() below to pull it - see A-156, docs/FIXED_BUGS.md.
+      try {
+        await syncSubscriptionStatus();
+      } catch (err) {
+        console.error("Failed to seed initial subscription status", err);
+      }
 
       setStoredActiveStoreId(store.id);
       setActiveStoreId(store.id);

@@ -61,6 +61,7 @@ vi.mock("@/lib/db/queries/setup", () => ({
 
 vi.mock("@/lib/db/sync-engine", () => ({
   sync: (...args: unknown[]) => (syncMock as any)(...args),
+  syncSubscriptionStatus: vi.fn(async () => ({ success: true, updated: true })),
 }));
 
 vi.mock("@/lib/api/client", () => ({

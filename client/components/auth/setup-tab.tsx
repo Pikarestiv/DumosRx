@@ -88,7 +88,11 @@ export function SetupTab({ authHeader, onboarding }: SetupTabProps) {
             void onboarding.cancelCloudRestoreSwitch();
           }
         }}
-        title="Confirm Store Switch"
+        title={
+          onboarding.isPendingNewRegistration
+            ? "Confirm New Account Setup"
+            : "Confirm Store Switch"
+        }
         description={
           <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
             <p>
@@ -99,19 +103,27 @@ export function SetupTab({ authHeader, onboarding }: SetupTabProps) {
               .
             </p>
             <p>
-              Syncing a different store will{" "}
+              {onboarding.isPendingNewRegistration
+                ? "Linking this device to the new account you just created will"
+                : "Syncing a different store will"}{" "}
               <strong className="text-destructive font-semibold">
                 permanently DELETE
               </strong>{" "}
               all current local data (products, batches, sales, and accounts)
-              and replace it with the new store&apos;s data.
+              {onboarding.isPendingNewRegistration
+                ? " to make room for the new, empty store."
+                : " and replace it with the new store's data."}
             </p>
             <p className="font-semibold text-foreground mt-2">
               Do you want to proceed?
             </p>
           </div>
         }
-        confirmLabel="Wipe & Sync New Store"
+        confirmLabel={
+          onboarding.isPendingNewRegistration
+            ? "Wipe & Link New Account"
+            : "Wipe & Sync New Store"
+        }
         cancelLabel="Keep Current Store"
         variant="destructive"
         onConfirm={onboarding.confirmCloudRestoreSwitch}

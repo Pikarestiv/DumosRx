@@ -10,7 +10,10 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
-None currently open.
+#### A-151. `laravel-server/` — two more unspecified-length indexed `string()` columns are silently VARCHAR(191), same class as the fixed A-149
+- **Location:** `products.barcode` (`database/migrations/2024_01_20_000004_*.php:67`, `$table->string('barcode')->nullable()->index()`) and `activity_logs.correlation_id` (`database/migrations/2026_09_23_000001_*.php:24`, same pattern).
+- **Problem:** `AppServiceProvider::boot()`'s `Schema::defaultStringLength(191)` means both columns are `VARCHAR(191)`, not Laravel's native 255 — the exact mismatch that made `feedback.fingerprint` reject a real sync push (A-149, fixed). No client-side max-length cap was found for either `barcode` or `correlation_id` (unlike `fingerprint`, which already had `MAX_FINGERPRINT_LENGTH`), so a value over 191 characters would fail a sync push with the same "Data too long for column" error.
+- **Why not just fixed:** found while fixing A-149, out of scope for that change; realistic exploitability is low (barcodes are normally short, `correlation_id` is machine-generated), but the structural gap is real and worth a deliberate look rather than a reactive one the next time a real value happens to be long.
 
 ---
 

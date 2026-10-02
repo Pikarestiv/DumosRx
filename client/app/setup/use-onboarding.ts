@@ -28,6 +28,19 @@ export function useOnboarding() {
   // Custom modal confirmation states
   const [showConfirmSwitch, setShowConfirmSwitch] = useState(false);
   const [pendingStoreName, setPendingStoreName] = useState("");
+  // Set only when showConfirmSwitch was triggered by a brand-new signup
+  // (not the existing-account store-switch flow) finding leftover local
+  // data - see handleRegister() and confirmCloudRestoreSwitch() below.
+  const [pendingNewRegistration, setPendingNewRegistration] = useState<{
+    store: { id: string; name: string };
+    userId: string;
+    firstName: string;
+    lastName: string;
+    username: string;
+    pin: string;
+    hashedPin: string;
+    storeName: string;
+  } | null>(null);
   const [pendingEmail, setPendingEmail] = useState("");
 
   // Store selection states
@@ -79,6 +92,55 @@ export function useOnboarding() {
   const goToRegister = () => {
     setJustCloudLinkedForRegister(false);
     setStep("register");
+  };
+
+  // Shared by handleRegister()'s no-local-data path and
+  // confirmCloudRestoreSwitch()'s post-wipe continuation for a brand-new
+  // signup - see pendingNewRegistration above.
+  const finishNewAccountSetup = async (
+    store: { id: string; name: string },
+    userId: string,
+    firstName: string,
+    lastName: string,
+    username: string,
+    pin: string,
+    hashedPin: string,
+    storeName: string,
+  ) => {
+    const now = new Date().toISOString();
+
+    // Owns its own error handling (rather than letting it bubble to a
+    // caller's catch) so a failure here always gets this step's own
+    // message and always clears isLoading, regardless of which caller -
+    // the no-local-data path or confirmCloudRestoreSwitch's post-wipe
+    // continuation - invoked it.
+    try {
+      await execute(
+        "INSERT INTO stores (id, name, is_initialized, created_at, updated_at, _synced, auto_sync_enabled, auto_sync_interval) VALUES (?, ?, ?, ?, ?, ?, 1, 30)",
+        [store.id, store.name, 1, now, now, 1],
+      );
+
+      await execute(
+        "INSERT INTO users (id, first_name, last_name, username, pin, role, store_id, is_active, created_at, updated_at, _synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [userId, firstName, lastName, username, hashedPin, "admin", store.id, 1, now, now, 1],
+      );
+
+      setStoredActiveStoreId(store.id);
+      setActiveStoreId(store.id);
+      toast.success(`${storeName} created and linked to your cloud account!`);
+
+      const success = await login(username, pin);
+      if (success) {
+        sync(false, true).catch(console.error);
+        router.push("/dashboard");
+      } else {
+        setIsLoading(false);
+      }
+    } catch (err) {
+      console.error("Failed to finish new account setup", err);
+      toast.error("Your account was created, but we couldn't finish setting up this device. Please contact support.");
+      setIsLoading(false);
+    }
   };
 
   const handleRegister = async (
@@ -158,25 +220,20 @@ export function useOnboarding() {
           return;
         }
 
-        await execute(
-          "INSERT INTO stores (id, name, is_initialized, created_at, updated_at, _synced, auto_sync_enabled, auto_sync_interval) VALUES (?, ?, ?, ?, ?, ?, 1, 30)",
-          [store.id, store.name, 1, now, now, 1],
-        );
-
-        await execute(
-          "INSERT INTO users (id, first_name, last_name, username, pin, role, store_id, is_active, created_at, updated_at, _synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-          [response.user.id, firstName, lastName, username, hashedPin, "admin", store.id, 1, now, now, 1],
-        );
-
-        setStoredActiveStoreId(store.id);
-        setActiveStoreId(store.id);
-        toast.success(`${storeName} created and linked to your cloud account!`);
-
-        const success = await login(username, pin);
-        if (success) {
-          sync(false, true).catch(console.error);
-          router.push("/dashboard");
+        // A device that previously linked a different account/store leaves
+        // its local data behind - see client/AGENTS.md's clearDatabaseForNewStore() note.
+        const localStores = await getLocalStores();
+        if (localStores.length > 0) {
+          setPendingStoreName(localStores[0].name);
+          setPendingNewRegistration({
+            store, userId: response.user.id, firstName, lastName, username, pin, hashedPin, storeName,
+          });
+          setShowConfirmSwitch(true);
+          setIsLoading(false);
+          return;
         }
+
+        await finishNewAccountSetup(store, response.user.id, firstName, lastName, username, pin, hashedPin, storeName);
         return;
       }
 
@@ -375,6 +432,13 @@ export function useOnboarding() {
       // Wipe the local database to prepare for a clean initial sync of the new store
       await clearDatabaseForNewStore();
 
+      if (pendingNewRegistration) {
+        const p = pendingNewRegistration;
+        setPendingNewRegistration(null);
+        await finishNewAccountSetup(p.store, p.userId, p.firstName, p.lastName, p.username, p.pin, p.hashedPin, p.storeName);
+        return;
+      }
+
       const targetStoreId = selectedStoreId || (cloudStores.length === 1 ? cloudStores[0].id : "");
       if (targetStoreId) {
         setStoredActiveStoreId(targetStoreId);
@@ -392,6 +456,7 @@ export function useOnboarding() {
 
   const cancelCloudRestoreSwitch = async () => {
     setShowConfirmSwitch(false);
+    setPendingNewRegistration(null);
     await logout();
     setIsLoading(false);
   };
@@ -535,6 +600,9 @@ export function useOnboarding() {
     showConfirmSwitch,
     setShowConfirmSwitch,
     pendingStoreName,
+    // Only so SetupTab can tell which flow triggered showConfirmSwitch and
+    // branch the dialog copy accordingly - never read for logic here.
+    isPendingNewRegistration: pendingNewRegistration !== null,
     confirmCloudRestoreSwitch,
     cancelCloudRestoreSwitch,
     cloudStores,

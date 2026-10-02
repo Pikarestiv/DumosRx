@@ -27,6 +27,7 @@ class AdminStoreDetailService
     public function __construct(
         private AdminStoreService $adminStoreService,
         private AdminStoreMetricsService $metricsService,
+        private AdminStoreOperationalMetricsService $operationalMetricsService,
     ) {
     }
 
@@ -43,8 +44,8 @@ class AdminStoreDetailService
 
         $owner = $store->user;
         $manager = AccountManagerController::resolveFor($owner);
-        $lastSyncAt = $this->metricsService->clampToNow($store->last_sync_at);
-        $operationalMetrics = $this->metricsService->operationalMetrics($store);
+        $lastSyncAt = $this->operationalMetricsService->clampToNow($store->last_sync_at);
+        $operationalMetrics = $this->operationalMetricsService->operationalMetrics($store);
 
         $payload = [
             'id' => $store->id,

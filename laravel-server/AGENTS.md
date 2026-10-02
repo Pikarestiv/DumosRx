@@ -309,6 +309,27 @@ Its `business_metrics`/`operational_metrics` blocks come from
 `AdminStoreMetricsService`, a separate class for the file-size rule; every
 sales figure in it reuses the same store scoping as `revenueSubquery()`.
 
+`operational_metrics.last_active_at`/`last_active_human` name a timestamp;
+`last_active_by` (`AdminStoreOperationalMetricsService::lastActive()`) names
+the person behind it. The three candidate signals (`stores.last_sync_at`,
+the latest sale's `cashier_id`, the latest `activity_logs.user_id`) already
+disagree on who acted, so the method takes the most recent of the three and
+resolves *that one's* actor — a sync has no actor, so it reports "Device
+sync" instead of a name.
+
+`operationalMetrics()`/`businessMetrics()` are split across two services
+(`AdminStoreOperationalMetricsService`/`AdminStoreMetricsService`) purely
+for the file-size rule — the former depends on the latter for
+`salesQuery()`/`money()` rather than duplicating them. Both route every
+timestamp through `clampToNow()`: an offline POS device's wall clock can
+drift or be misconfigured, and the sync pipeline trusts whatever
+`created_at`/`updated_at` it pushes with no server-side validation, so
+"Last Active"/"Sync Health" could otherwise read a future time from a
+clock-skewed device. `stockValueRaw()` scopes `stock_batches` via
+`product_id -> products.store_id` rather than the batch's own `store_id`,
+which is not authoritative on real data — see `docs/KNOWN_BUGS.md` `A-145`
+for the deeper, still-open quantity-accuracy issue this doesn't fix.
+
 `Store` uses `SoftDeletes`. Archiving a store (`DELETE /admin/stores/{id}`)
 only stamps `deleted_at`, so the global scope drops it from the fleet list,
 sync and every other Store query until `POST /admin/stores/{id}/restore`.

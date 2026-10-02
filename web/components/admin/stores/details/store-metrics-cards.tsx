@@ -93,7 +93,14 @@ export function StoreOperationalMetricsCard({ store }: { store: AdminStoreDetail
         <Field label="Device Registered" value={metrics.device_count > 0 ? "Yes" : "No"} />
         <Field label="Device ID" value={metrics.device_id} mono />
         <Field label="Active Sessions" value={metrics.active_sessions.toLocaleString()} />
-        <Field label="Last Active" value={metrics.last_active_human} />
+        <Field
+          label="Last Active"
+          value={
+            metrics.last_active_by
+              ? `${metrics.last_active_human} — ${metrics.last_active_by}`
+              : metrics.last_active_human
+          }
+        />
         <Field label="Sync Health" value={metrics.sync_health} />
       </div>
 

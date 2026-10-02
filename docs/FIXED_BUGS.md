@@ -2,6 +2,14 @@
 
 A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since been fixed. `KNOWN_BUGS.md` only ever holds *open* items — an entry is removed from it outright the moment it's fixed, not marked done in place — so this file is where the record of "what it was and when it got fixed" lives instead. Git history has the exact diffs; this is a scannable index into that history, one entry per fix, newest first.
 
+## 2026-10-02
+
+### A-147 — `getBIMetrics`'s `stock_batchValueData` (BI/Analytics "Inventory Value") disagreed with the dashboard and Stock Batch Report's own inventory-value figures
+- **Found:** 2026-10-02, while investigating a persistent gap between a real store's client dashboard "Inventory Value" and the admin panel's Total Stock Value (A-143/A-145 follow-up) — not itself the cause of that gap (the dashboard uses a different, already-correct query), but a real inconsistency found along the way.
+- **Root cause.** Three client-side queries compute "inventory/stock value" from `stock_batches`: `getStockBatchStats()` (dashboard), `fetchStockBatchReportData()` (Stock Batch Report export), and `getBIMetrics()`'s `stock_batchValueData` (BI/Analytics). The first two join `products` and require both the batch's and the product's `store_id` to match (when a store is active) plus exclude a soft-deleted product. The third scoped only on `stock_batches.store_id` directly, with no product join at all — so it kept counting a deactivated/deleted product's leftover batch value, and any batch whose own `store_id` drifted from its product's, that the other two correctly excluded. Same class of bug as `A-120` (low-stock alerts) and `A-144` (admin panel counts): multiple places computing "the same number" from slightly different queries.
+- **Fix.** `stock_batchValueData`'s query now joins `products` and applies the identical scoping as the other two.
+- **Regression coverage:** `client/__tests__/bi-stock-value-matches-dashboard-formula.test.ts` — a live product's batch value is reported, a soft-deleted product's batch value is excluded and matches the dashboard's own figure (0). Confirmed RED before the fix by reverting it and re-running.
+
 ## 2026-10-01
 
 ### A-146 — "Delete Permanently" 500'd on any store with enough related rows across enough tables, rolling back the entire purge

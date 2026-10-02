@@ -288,6 +288,17 @@ and `synchronous = NORMAL`.
   cleared `sale_items`/`stock_batches`. It excludes store configuration
   (`loyalty_tiers`, `loyalty_redemption_options`, `system_configs`); only
   `clearDatabaseForNewStore()` adds `stores`/`users`.
+- **`clearDatabaseForNewStore()` also clears `dumos_recent_users`
+  (2026-10-02).** Wiping the `users`/`stores` tables isn't the whole story:
+  the login screen's "Welcome Back" profile picker
+  (`hooks/use-device-auth-status.ts`, `components/auth/user-selection.tsx`)
+  reads its tiles from a separate `localStorage` cache
+  (`storage-keys.ts`'s `recentUsers`), never from the DB. Found live —
+  after confirming an account-switch wipe and linking a brand-new account,
+  the picker kept showing the old, disassociated account's tile (and would
+  still have let you click into it). Any future table this function starts
+  clearing needs the same check: is there a `localStorage`-cached copy of
+  that data anywhere, and does it need clearing too?
 - **`diagnoseLegacySchema()`** is read-only and exposed on `window`
   unconditionally (not dev-gated), like `window.__forceFullResync`: a rare
   production recovery/inspection tool for a support session to run from

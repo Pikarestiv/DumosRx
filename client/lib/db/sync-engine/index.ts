@@ -4,6 +4,7 @@ import { SyncResult, PullResponse } from "./types";
 import { apiClient } from "@/lib/api/client";
 import { queryClient } from "@/lib/query-client";
 import { query, execute, isTauri, isWriterTab } from "../core";
+import { reconcileStockQuantities as reconcileStockQuantitiesImpl } from "./reconcile-quantities";
 import { getValidColumns } from "./schema";
 import { getSyncQueueBreakdown } from "@/lib/db/queries/setup";
 import { pruneSyncedAuditLogs } from "../retention";
@@ -53,9 +54,20 @@ export async function forceFullResync(): Promise<SyncResult> {
   return sync(true);
 }
 
+/** See reconcile-quantities.ts for the implementation; re-exported here so
+ * every other sync-engine entry point (including the `window.*` DevTools
+ * hooks below) lives in one place. */
+export async function reconcileStockQuantities(): Promise<{
+  reconciled: number;
+  checked: number;
+}> {
+  return reconcileStockQuantitiesImpl(sync);
+}
+
 if (typeof window !== "undefined") {
-  // Support tool for a DevTools session, deliberately not an in-app button.
+  // Support tools for a DevTools session, deliberately not in-app buttons.
   window.__forceFullResync = forceFullResync;
+  window.__reconcileStockQuantities = reconcileStockQuantities;
 }
 
 /**

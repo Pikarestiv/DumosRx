@@ -374,8 +374,8 @@ export async function pullChanges(
               try {
                 await execute(sql, params);
 
-                // Each pulled movement applies its own delta, floor
-                // included (client/AGENTS.md, "Pull details").
+                // Each pulled movement applies its own delta, floor included
+                // - no movement_type special-case here; see client/AGENTS.md.
                 if (
                   table === "stock_movements" &&
                   !_deleted &&

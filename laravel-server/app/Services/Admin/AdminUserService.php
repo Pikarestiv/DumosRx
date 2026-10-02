@@ -28,6 +28,10 @@ class AdminUserService
     use ResolvesTrialDuration;
     use UpdatesUserProfiles;
 
+    public function __construct(private AdminUserDeviceService $deviceService)
+    {
+    }
+
     /** Accounts a platform user (super_admin/platform_admin/agent) either
      * registered directly (AdminStoreController::registerStore) or that
      * signed up themselves using that user's platform_referral_code link. */
@@ -184,8 +188,14 @@ class AdminUserService
 
         $paginator = $query->with(['store', 'employerStore'])->latest()->paginate(10, ['*'], 'page', $page);
 
+        $latestDeviceByUser = $this->deviceService->latestDevicePerUser(
+            collect($paginator->items())->pluck('id'),
+        );
+
         return [
-            'data' => collect($paginator->items())->map(function ($user) {
+            'data' => collect($paginator->items())->map(function ($user) use ($latestDeviceByUser) {
+                $device = $latestDeviceByUser->get($user->id);
+
                 return [
                     'id' => $user->id,
                     'name' => $user->first_name.' '.$user->last_name,
@@ -209,6 +219,8 @@ class AdminUserService
                     'joinedAt' => $user->created_at->format('M d, Y'),
                     'deletionRequested' => $user->deletion_requested_at ? true : false,
                     'deletionReason' => $user->deletion_reason,
+                    'lastSyncedAt' => $device ? $device->last_synced_at?->diffForHumans() : null,
+                    'lastSyncDevice' => $device ? ($device->device_label ?: $device->device_id) : null,
                 ];
             }),
             'meta' => [

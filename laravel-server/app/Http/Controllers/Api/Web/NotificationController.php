@@ -107,6 +107,8 @@ class NotificationController extends Controller
                         'CLIENT_API_ERROR', 'FRONTEND_ERROR', 'UNAUTHORIZED_ACCESS', 'LOGIN_FAILURE',
                         'INSERT', 'UPDATE', 'DELETE', 'HARD_DELETE',
                         'LOGIN', 'LOGOUT', 'LOGIN_FAILED', 'PIN_CHANGED',
+                        // A-148: self-triggered, already toasted - see client/AGENTS.md.
+                        'STOCK_QUANTITY_AUTO_RECONCILED',
                     ])
                     ->latest()
                     ->limit(10)

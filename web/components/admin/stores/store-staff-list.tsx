@@ -3,6 +3,7 @@
 import { Loader2, ShieldAlert, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useStoreStaff } from "@/lib/api/admin-hooks";
+import { StaffDeviceHistory } from "./staff-device-history";
 
 interface StoreStaffListProps {
   storeId: string | null | undefined;
@@ -68,21 +69,29 @@ export function StoreStaffList({
                   {member.name}
                 </p>
                 <p className="text-[11px] text-slate-400 truncate">{member.email}</p>
+                <p className="text-[11px] text-slate-400 truncate">
+                  {member.lastSyncedAt
+                    ? `Synced ${member.lastSyncedAt} · ${member.lastSyncDevice}`
+                    : "Never synced"}
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Badge variant="outline" className="font-bold bg-slate-500/10 text-slate-500 border-slate-500/20">
-                {member.role}
-              </Badge>
-              <Badge
-                className={
-                  member.status === "Active"
-                    ? "bg-emerald-500 hover:bg-emerald-600"
-                    : "bg-slate-400 hover:bg-slate-500"
-                }
-              >
-                {member.status}
-              </Badge>
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="font-bold bg-slate-500/10 text-slate-500 border-slate-500/20">
+                  {member.role}
+                </Badge>
+                <Badge
+                  className={
+                    member.status === "Active"
+                      ? "bg-emerald-500 hover:bg-emerald-600"
+                      : "bg-slate-400 hover:bg-slate-500"
+                  }
+                >
+                  {member.status}
+                </Badge>
+              </div>
+              <StaffDeviceHistory userId={member.id} />
             </div>
           </li>
         ))}

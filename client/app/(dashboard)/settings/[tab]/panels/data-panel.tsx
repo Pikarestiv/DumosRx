@@ -14,6 +14,9 @@ export function DataPanel(s: SettingsState) {
         handleSaveAutoSyncSettings={s.handleSaveAutoSyncSettings}
         handleSync={() => void s.handleSync()}
         handleForceFullResync={() => void s.handleForceFullResync()}
+        handleReconcileStockQuantities={() =>
+          void s.handleReconcileStockQuantities()
+        }
         handleDownloadBackup={() => void s.handleDownloadBackup()}
         handleRestoreBackup={(e) => void s.handleRestoreBackup(e)}
         handleRestoreBackupTauri={() => void s.handleRestoreBackupTauri()}

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Services\Admin\AdminUserDeviceService;
 use App\Services\Admin\AdminUserService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -12,8 +13,10 @@ class AdminUserController extends AdminBaseController
 {
     protected $adminUserService;
 
-    public function __construct(AdminUserService $adminUserService)
-    {
+    public function __construct(
+        AdminUserService $adminUserService,
+        private AdminUserDeviceService $adminUserDeviceService,
+    ) {
         $this->adminUserService = $adminUserService;
     }
 
@@ -75,6 +78,29 @@ class AdminUserController extends AdminBaseController
         return $this->withErrorResponse('User Permissions', 'Failed to fetch permissions', function () use ($id) {
             return response()->json([
                 'effective_permissions' => $this->adminUserService->getEffectivePermissions($id),
+            ]);
+        });
+    }
+
+    #[OA\Get(
+        path: '/admin/users/{id}/devices',
+        summary: 'Every device this user has ever synced from, most recent first',
+        description: "Backs the Store Staff list's \"view sync history\" drill-down. Not folded into GET /admin/users for the same N+1 reason as effectivePermissions() above: that list already shows the single most recent device per row.",
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Device rows for this user', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'devices', type: 'array', items: new OA\Items(type: 'object')),
+            ])),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the view_platform_data permission'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
+    public function devices(string $id)
+    {
+        return $this->withErrorResponse('User Devices', 'Failed to fetch devices', function () use ($id) {
+            return response()->json([
+                'devices' => $this->adminUserDeviceService->getUserDevices($id),
             ]);
         });
     }

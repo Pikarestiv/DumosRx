@@ -174,6 +174,25 @@ export interface AdminUser {
   deletionRequested?: boolean;
   /** Not yet returned by `GET /admin/users` — see docs/KNOWN_BUGS.md A-133. */
   effective_permissions?: string[];
+  /** Relative time ("5 minutes ago") of this account's most recently
+   * synced device, or null if it has never synced. Login activity
+   * (`lastActive` above) and sync activity are tracked separately - a
+   * staff member can be logged in on a device that hasn't synced yet. */
+  lastSyncedAt?: string | null;
+  /** That device's human-readable label (e.g. "Chrome on Windows"), falling
+   * back to its raw id if unlabeled. See `useStaffDevices` for the full
+   * per-device history. */
+  lastSyncDevice?: string | null;
+}
+
+/** One row of a staff member's full sync history - `GET
+ * /admin/users/{id}/devices`, most recent first. */
+export interface AdminUserDevice {
+  deviceId: string;
+  deviceLabel: string;
+  storeId: string | null;
+  lastSyncedAt: string | null;
+  lastSyncedAtIso: string | null;
 }
 
 /** The 3 built-in platform roles. NOT the full set `PUT /admin/users/{id}`

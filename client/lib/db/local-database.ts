@@ -15,6 +15,7 @@ import { query, execute, transaction, getActiveStoreId } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 import { queryClient } from "../query-client";
 import { AUDIT_ACTIONS } from "./audit-actions";
+import { RECONCILIATION_MOVEMENT_TYPE } from "./movement-types";
 import { queryKeys } from "../query-keys";
 import type { NewProductPayload } from "@/lib/types/product";
 import type { StockMovementDbRow } from "@/lib/types/stock-movement";
@@ -338,9 +339,9 @@ export async function getStockMovements(
      LEFT JOIN users u ON sm.performed_by = u.id
      LEFT JOIN stock_batches sb ON sm.stock_batch_id = sb.id
      LEFT JOIN suppliers sp ON sb.supplier_id = sp.id
-     WHERE sm._deleted = 0 ${dateFilter}${storeId ? " AND sm.store_id = ?" : ""}
+     WHERE sm._deleted = 0 ${dateFilter} AND sm.movement_type != ?${storeId ? " AND sm.store_id = ?" : ""}
      ORDER BY sm.created_at DESC`,
-    [...params, ...(storeId ? [storeId] : [])],
+    [...params, RECONCILIATION_MOVEMENT_TYPE, ...(storeId ? [storeId] : [])],
   );
   return { data: results };
 }

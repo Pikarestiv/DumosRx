@@ -44,6 +44,17 @@ declare global {
      * shouldn't be one accidental tap away for a store owner. See
      * lib/db/sync-engine/index.ts. */
     __forceFullResync?: () => Promise<SyncResult>;
+    /** Repair tool for a batch whose server-side quantity was never derived
+     * from a movement delta (a pre-`a36b00e7` bulk import): posts this
+     * device's own stock_batches quantities so the server can adopt them,
+     * recording each correction as a real 'sync_reconciliation' movement.
+     * Also wired to Settings > Data > "Health Sync"; exposed
+     * here as well so a support session can run it from DevTools. See
+     * lib/db/sync-engine/index.ts. */
+    __reconcileStockQuantities?: () => Promise<{
+      reconciled: number;
+      checked: number;
+    }>;
     /** Legacy IE/Edge-on-iOS marker, used only to help detect real iOS Safari. */
     MSStream?: unknown;
   }

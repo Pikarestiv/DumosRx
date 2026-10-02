@@ -216,6 +216,34 @@ class AdminStoreSearchAndMetricsTest extends TestCase
         $this->assertNotNull($response->json('operational_metrics.last_active_at'));
     }
 
+    #[Test]
+    public function last_active_names_the_person_behind_the_most_recent_signal(): void
+    {
+        $staff = User::create([
+            'first_name' => 'Jane', 'last_name' => 'Cashier',
+            'email' => 'jane@dumosrx.com', 'password' => bcrypt('password'),
+            'role' => 'sales_staff', 'store_id' => $this->store->id,
+        ]);
+
+        $this->recordSale(1000, now()->subMinutes(5)->toDateTimeString());
+        DB::table('sales')->where('store_id', $this->store->id)->update(['cashier_id' => $staff->id]);
+
+        DB::table('activity_logs')->insert([
+            'store_id' => $this->store->id,
+            'user_id' => $this->owner->id,
+            'action' => 'TEST_OLDER_ACTION',
+            'description' => 'older',
+            'created_at' => now()->subHour(),
+            'updated_at' => now()->subHour(),
+        ]);
+
+        $response = $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/stores/'.$this->store->id);
+
+        $response->assertStatus(200);
+        $this->assertSame('Jane Cashier', $response->json('operational_metrics.last_active_by'));
+    }
+
     /**
      * A clock-skewed offline POS device can push a created_at that is
      * genuinely in the future (SyncController trusts the client's

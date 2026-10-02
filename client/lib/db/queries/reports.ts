@@ -588,7 +588,12 @@ export async function getBIMetrics(
 
     query<{ count: number }>(`SELECT COUNT(*) as count FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}${bare.clause}`, s1BareCapped),
 
-    query<{ value: number }>(`SELECT SUM(inv.cost_price * inv.quantity) as value FROM stock_batches inv WHERE (inv._deleted = 0 OR inv._deleted IS NULL)${storeId ? " AND inv.store_id = ?" : ""}`, storeOnly),
+    // Matches getStockBatchStats/fetchStockBatchReportData's scoping - see
+    // client/AGENTS.md "Three places compute inventory/stock value".
+    query<{ value: number }>(
+      `SELECT SUM(inv.quantity * inv.cost_price) as value FROM products m JOIN stock_batches inv ON inv.product_id = m.id WHERE (inv._deleted = 0 OR inv._deleted IS NULL) AND (m._deleted = 0 OR m._deleted IS NULL)${storeId ? " AND m.store_id = ? AND inv.store_id = ?" : ""}`,
+      storeId ? [storeId, storeId] : [],
+    ),
 
     query<{ count: number }>(`SELECT COUNT(*) as count FROM customers WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""}`, storeOnly),
 

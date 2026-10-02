@@ -68,6 +68,7 @@ export interface AdminStoreOperationalMetrics {
   };
   last_active_at: string | null;
   last_active_human: string;
+  last_active_by: string | null;
   activity_last_window: number;
   sync_health: string;
 }

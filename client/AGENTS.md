@@ -1929,6 +1929,19 @@ than on history.
   A product with no stock and no open order is already functionally
   "deactivated" by having nothing to sell; the delete is what removes the
   row from the picker.
+
+  **Three places compute "inventory/stock value", and they must agree.**
+  `getStockBatchStats()` (dashboard "Inventory Value"), `fetchStockBatchReportData()`
+  (Stock Batch Report's per-product "Stock Value" column) and `getBIMetrics()`'s
+  `stock_batchValueData` (BI/Analytics) all sum `quantity * cost_price` over
+  `stock_batches`, but `getBIMetrics`'s version used to scope only on
+  `stock_batches.store_id` directly, with no product join at all — so it kept
+  counting a deactivated/deleted product's leftover batch value that the other
+  two correctly exclude. Fixed to join `products` and require both `m._deleted
+  = 0`/`inv._deleted = 0` and (when a store is active) both `m.store_id`/
+  `inv.store_id`, matching the other two exactly. If you touch any of these
+  three queries, change the other two the same way and keep
+  `__tests__/bi-stock-value-matches-dashboard-formula.test.ts` passing.
 - `delete_suppliers` — `components/stock-batch/supplier-detail-pane.tsx`'s
   action row (a "Delete Supplier" outline button beside Edit Details and New
   Order, opening `components/suppliers/supplier-delete-dialog.tsx`), backed

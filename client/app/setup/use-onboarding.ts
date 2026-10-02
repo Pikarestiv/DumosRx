@@ -18,7 +18,7 @@ import { setStoredActiveStoreId } from "@/lib/storage-keys";
 
 export type OnboardingStep = "welcome" | "register" | "cloud" | "backup" | "syncing" | "select-store";
 
-export function useOnboarding() {
+export function useOnboarding(onDeviceDataChanged?: () => void) {
   const [onboardingStep, setOnboardingStep] = useState<OnboardingStep>("welcome");
   const [isLoading, setIsLoading] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
@@ -130,6 +130,8 @@ export function useOnboarding() {
       toast.success(`${storeName} created and linked to your cloud account!`);
 
       const success = await login(username, pin);
+      // Refetches /login's own stale mount snapshot - see A-154, docs/FIXED_BUGS.md.
+      onDeviceDataChanged?.();
       if (success) {
         sync(false, true).catch(console.error);
         router.push("/dashboard");
@@ -327,6 +329,7 @@ export function useOnboarding() {
       toast.success(`${storeName} configured and administrator created!`);
 
       const success = await login(username, pin);
+      onDeviceDataChanged?.();
       if (success) {
         toast.info("Pushing your account to cloud...");
         sync(false, true).catch(console.error);
@@ -431,6 +434,7 @@ export function useOnboarding() {
     try {
       // Wipe the local database to prepare for a clean initial sync of the new store
       await clearDatabaseForNewStore();
+      onDeviceDataChanged?.();
 
       if (pendingNewRegistration) {
         const p = pendingNewRegistration;
@@ -504,6 +508,7 @@ export function useOnboarding() {
         // shows for any other device, not something this screen waits on.
         toast.success("Account ready! The rest of your data will keep syncing in the background.");
         await login(email);
+        onDeviceDataChanged?.();
         setTimeout(() => router.push("/dashboard"), 800);
       } else {
         toast.success(`${totalCount} accounts recovered. Please log in.`);

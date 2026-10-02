@@ -25,12 +25,13 @@ export function useLoginPageState() {
   // accounts already exist, to avoid ever showing two separate lock screens.
   const isNewCredentialsMode = searchParams.get("mode") === "new";
 
-  const { isChecking, userCount, recentUsers, removeRecentUser } =
+  const { isChecking, userCount, recentUsers, removeRecentUser, refetch } =
     useDeviceAuthStatus();
   const { isAuthenticated } = useAuth();
   const loginState = useLogin();
   const { showTraditionalLogin } = loginState;
-  const onboarding = useOnboarding();
+  // Keeps userCount/recentUsers fresh through onboarding - see A-154, docs/FIXED_BUGS.md.
+  const onboarding = useOnboarding(refetch);
 
   // Known bug #10, Part B: a device that just restored a local backup keeps
   // 100% of its data but silently loses its cloud link (restoreDatabase()

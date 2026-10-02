@@ -46,7 +46,14 @@ class NotificationControllerTest extends TestCase
 
     public function test_generic_crud_and_session_noise_is_excluded(): void
     {
-        foreach (['INSERT', 'UPDATE', 'DELETE', 'HARD_DELETE', 'LOGIN', 'LOGOUT', 'LOGIN_FAILED', 'PIN_CHANGED'] as $action) {
+        $excluded = [
+            'INSERT', 'UPDATE', 'DELETE', 'HARD_DELETE', 'LOGIN', 'LOGOUT', 'LOGIN_FAILED', 'PIN_CHANGED',
+            // A-148: self-triggered from Settings > Data, already toasted -
+            // a bell notification titled with the raw constant is the exact
+            // confusing surface that feature exists to avoid.
+            'STOCK_QUANTITY_AUTO_RECONCILED',
+        ];
+        foreach ($excluded as $action) {
             ActivityLog::create([
                 'user_id' => $this->user->id,
                 'action' => $action,
@@ -58,7 +65,7 @@ class NotificationControllerTest extends TestCase
 
         $response->assertOk();
         $actions = collect($response->json())->pluck('title');
-        foreach (['INSERT', 'UPDATE', 'DELETE', 'HARD_DELETE', 'LOGIN', 'LOGOUT', 'LOGIN_FAILED', 'PIN_CHANGED'] as $action) {
+        foreach ($excluded as $action) {
             $this->assertFalse($actions->contains($action), "Expected {$action} to be excluded from notifications");
         }
     }

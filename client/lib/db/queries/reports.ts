@@ -4,6 +4,7 @@ import { getLocalTodayDate } from "@/lib/utils";
 import type { DashboardActivity } from "@/lib/types/dashboard-activity";
 import type { SaleWithDetails } from "@/lib/types/sale";
 import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
+import { RECONCILIATION_MOVEMENT_TYPE } from "@/lib/db/movement-types";
 import type { PurchaseOrder } from "@/lib/db/procurement";
 import { addMonths, startOfMonth, endOfMonth } from "date-fns";
 import {
@@ -225,9 +226,10 @@ export async function getDashboardOverviewData(viewerId?: string) {
        LEFT JOIN users u ON u.id = sm.performed_by
        WHERE sm._deleted = 0
          AND (sm.reference_type IS NULL OR sm.reference_type NOT IN ('sale', 'purchase_order', 'return'))
+         AND sm.movement_type != ?
          ${viewerId ? " AND sm.performed_by = ?" : ""}${storeId ? " AND sm.store_id = ?" : ""}
        ORDER BY sm.created_at DESC LIMIT 5`,
-      [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
+      [RECONCILIATION_MOVEMENT_TYPE, ...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])],
     ),
 
     query<{

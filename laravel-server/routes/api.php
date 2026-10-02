@@ -208,6 +208,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/products/standardize', [AdminPlatformController::class, 'standardize'])->middleware('role:super_admin');
             Route::get('/users', [AdminUserController::class, 'users'])->middleware('permission:view_platform_data');
             Route::get('/users/{id}/permissions', [AdminUserController::class, 'effectivePermissions'])->middleware('role:super_admin');
+            Route::get('/users/{id}/devices', [AdminUserController::class, 'devices'])->middleware('permission:view_platform_data');
             Route::post('/users', [AdminUserController::class, 'createPlatformAdmin'])->middleware('role:super_admin');
             Route::get('/health', [AdminPlatformController::class, 'health'])->middleware('role:super_admin');
             Route::get('/errors', [AdminPlatformController::class, 'errors'])->middleware('role:super_admin');
@@ -295,6 +296,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/sync/push', [SyncController::class, 'push']);
             Route::post('/sync/pull', [SyncController::class, 'pull']);
             Route::get('/sync/counts', [SyncController::class, 'counts']);
+            Route::post('/sync/reconcile-quantities', [SyncController::class, 'reconcileQuantities']);
         });
 
     });

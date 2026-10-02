@@ -3,6 +3,7 @@ import type { Broadcast } from "@/lib/types/broadcast";
 import type { SyncChange } from "@/lib/types/sync";
 import type { CurrentUser, Session } from "@/lib/types/user";
 import { getDeviceId } from "@/lib/utils/device-id";
+import { getDeviceLabel } from "@/lib/utils/device-label";
 import { getStoredActiveStoreId } from "@/lib/storage-keys";
 
 class ApiClient extends FleetBillingApiClient {
@@ -133,6 +134,7 @@ class ApiClient extends FleetBillingApiClient {
         headers["X-Store-Id"] = activeStoreId;
       }
       headers["X-Device-Id"] = getDeviceId();
+      headers["X-Device-Label"] = getDeviceLabel();
     }
 
     return this.request(url, {
@@ -153,9 +155,50 @@ class ApiClient extends FleetBillingApiClient {
         headers["X-Store-Id"] = activeStoreId;
       }
       headers["X-Device-Id"] = getDeviceId();
+      headers["X-Device-Label"] = getDeviceLabel();
     }
 
     return this.request("/app/sync/counts", { headers });
+  }
+
+  // Hands the server this device's own stock_batches.quantity snapshot so it
+  // can adopt any value it never derived from a movement delta. See
+  // lib/db/sync-engine/reconcile-quantities.ts.
+  async reconcileStockQuantities(payload: {
+    batches: { id: string; quantity: number }[];
+  }): Promise<{
+    success: boolean;
+    reconciled: number;
+    checked: number;
+    movements?: {
+      id: string;
+      stock_batch_id: string;
+      product_id: string;
+      store_id: string;
+      movement_type: string;
+      quantity: number;
+      reason: string | null;
+      performed_by: string | null;
+      movement_date: string;
+      created_at: string;
+      updated_at: string;
+    }[];
+  }> {
+    const headers: Record<string, string> = {};
+    if (typeof window !== "undefined") {
+      const activeStoreId = getStoredActiveStoreId();
+      if (activeStoreId) {
+        headers["X-Store-Id"] = activeStoreId;
+      }
+      headers["X-Device-Id"] = getDeviceId();
+      headers["X-Device-Label"] = getDeviceLabel();
+    }
+
+    return this.request("/app/sync/reconcile-quantities", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
   }
 
   async pullChanges(
@@ -183,6 +226,7 @@ class ApiClient extends FleetBillingApiClient {
         headers["X-Store-Id"] = activeStoreId;
       }
       headers["X-Device-Id"] = getDeviceId();
+      headers["X-Device-Label"] = getDeviceLabel();
     }
 
     return this.request(url, {

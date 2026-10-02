@@ -4,6 +4,7 @@ import { useScopedKey } from "./query-scope";
 import type {
   AdminAccountType,
   AdminUser,
+  AdminUserDevice,
   AdminUserProfileUpdate,
   PaginatedResponse,
   PlatformReferrals,
@@ -52,6 +53,21 @@ export const useStoreStaff = (storeId: string | null | undefined, page = 1) => {
         `admin/users?${buildUsersQuery(page, "", "", "staff", storeId ?? "")}`,
       ),
     enabled: !!storeId,
+  });
+};
+
+/** A staff member's full sync history, most recent first - backs the Store
+ * Staff list's "view sync history" drill-down. Not fetched as part of the
+ * staff list itself (which already shows the single most recent device per
+ * row); only loaded on demand when that drill-down is opened. */
+export const useStaffDevices = (userId: string | null | undefined, enabled: boolean) => {
+  return useQuery({
+    queryKey: useScopedKey(["admin-user-devices", userId]),
+    queryFn: () =>
+      webApiClient.request<{ devices: AdminUserDevice[] }>(
+        `admin/users/${userId}/devices`,
+      ),
+    enabled: enabled && !!userId,
   });
 };
 

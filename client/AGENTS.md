@@ -910,6 +910,96 @@ counts, see `components/stock-batch/stock-audits.tsx`).
   revealed via max-width/max-height + opacity on the sidebar's own 300ms
   timeline, not two structurally different trees swapped by a conditional.
 
+### Stock quantity reconciliation and the `sync_reconciliation` movement type (2026-10-02)
+
+The server never accepts a pushed `stock_batches.quantity`: it zeroes it on
+INSERT, strips it on UPDATE, and only moves it by replaying
+`stock_movements` deltas. A batch whose opening stock never produced a
+movement row (a bulk import predating `a36b00e7`) therefore sits at
+server-side `quantity = 0` forever and cannot self-heal. `A-148` adds the
+one repair path:
+
+- **`reconcileStockQuantities()` (`lib/db/sync-engine/reconcile-quantities.ts`)**
+  first runs a real `sync(true)` (push then pull) and throws if that fails,
+  then posts every local non-deleted batch for the active store as
+  `{id, quantity}` to `POST /app/sync/reconcile-quantities`, and the server
+  decides what to correct. It is explicit and human-confirmed only —
+  Settings > Data > "Health Sync", plus
+  `window.__reconcileStockQuantities` for a support session. Never call it
+  automatically or on a timer: it asserts *this* device's quantities as
+  authoritative, so the forced sync exists specifically to catch this device
+  up on every other device's movements first — it narrows, but does not
+  eliminate, the risk of a stale device overwriting correct server data with
+  its own outdated numbers. A device that's been offline long enough to miss
+  real stock changes can still get this wrong; this is a deliberate,
+  accepted tradeoff for a rare, human-triggered repair action, not an
+  automatic one.
+- **Each correction is a real, permanent record**, never a silent rewrite: a
+  `stock_movements` row with `movement_type = 'sync_reconciliation'` and the
+  signed delta, plus one summary `ActivityLog`
+  (`STOCK_QUANTITY_AUTO_RECONCILED`) per store on the server. An earlier
+  draft suppressed the record entirely and was correctly rejected as
+  audit-log tampering. Do not reintroduce that.
+- **Which views exclude it, and why.** It's a sync correction, not a stock
+  event, so it is scoped out of the owner's casual lists the same way a
+  Sales report doesn't list Returns — not hidden from the audit trail.
+  `getStockMovements()` (`lib/db/local-database.ts`), `getProductHistory()`
+  (`lib/db/queries/products.ts`) and the dashboard recent-activity feed's
+  movements query (`getDashboardOverviewData()` in
+  `lib/db/queries/reports.ts`) each carry an explicit
+  `movement_type != 'sync_reconciliation'` — the first three surfaces found
+  to have no type filter at all, and the last two were only caught on
+  review after the initial implementation missed them. `getStockAdjustments()`
+  and `getStockMoM()`'s added/removed-value sums already exclude it through
+  their own `= 'adjustment'` / `IN (...)` allowlists. If you add a new
+  `stock_movements` query with no type filter, assume it needs this
+  exclusion too — check, don't assume it's covered. The platform admin's own
+  `stock_activity.movements` count deliberately still counts it — the
+  "don't alarm the owner" requirement is about the owner's screens, not the
+  admin's internal tooling.
+- **`pull.ts` has no `sync_reconciliation` special case — on purpose.** The
+  first version did (`data.movement_type !== RECONCILIATION_MOVEMENT_TYPE`,
+  skipping the delta for every device), and it was wrong: it also stopped
+  every *other* device of the same store from ever receiving the correction,
+  since the skip applied regardless of which device was pulling. A second
+  till would pull the movement row but never replay it, drift further from
+  the truth, and could even push its own stale number back up on its next
+  reconcile — flipping the server's real quantity depending on who last
+  pressed the button. The actual fix: `reconcileStockQuantities()` inserts
+  its own copy of each returned movement locally as already-synced
+  (`_synced = 1`) *before* this device's next pull ever sees the server's
+  echo of that same row. That device's pull then hits the ordinary
+  `exists.length > 0` UPDATE branch — which, like every movement type,
+  never replays a delta — while every other device (which never had the
+  row) hits the INSERT branch and applies it normally, exactly like a sale
+  or adjustment would. If you ever find yourself adding a movement-type
+  check back into pull.ts's delta-application `if`, stop: the fix belongs in
+  whichever code creates the row, by seeding it locally first, not in the
+  generic pull path. The constant lives in `lib/db/movement-types.ts`.
+- **Known residual gap (accepted, not fixed).** Between the server's
+  response arriving and the local insert in `storeReconciliationMovementLocally()`
+  completing, the movement exists server-side only. A device crash or killed
+  tab in that exact window means this device's next pull takes the INSERT
+  branch and replays the delta onto itself once — a narrow, human-triggered
+  case, and self-correcting: a second "Health Sync" run detects
+  the new mismatch and writes a correcting movement. Not worth a two-phase
+  commit for a rare support action.
+
+### Per-device sync visibility: `X-Device-Label` (2026-10-02)
+
+Every sync request already carried an opaque `X-Device-Id`
+(`lib/utils/device-id.ts`, a random `DRX-XXXXXXXXX` persisted in
+`localStorage`), used server-side only to correlate requests to one physical
+device — meaningless to a human reader. `X-Device-Label`
+(`lib/utils/device-label.ts`), sent alongside it on every `push`/`pull`/
+`counts`/`reconcile-quantities` call, adds a best-effort human-readable name
+(e.g. "Chrome on Windows", "Desktop App (macOS)") derived from
+`navigator.userAgent` and `isTauri()`. Backs the admin panel's Store Staff
+list showing which device a staff member last synced from — see
+`laravel-server/AGENTS.md`, "Per-device sync visibility", for the server
+side. Best-effort UA sniffing only: never use it for anything
+security-relevant or correctness-relevant, unlike `X-Device-Id` itself.
+
 ### The `stores` prune, and how a store disappears (2026-09-29)
 
 **Reported live**: a two-store owner's device showed both stores in the

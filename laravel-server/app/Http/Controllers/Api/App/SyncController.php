@@ -22,6 +22,7 @@ use App\Models\StockMovement;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\RequestedProduct;
+use App\Services\Web\UserDeviceTracker;
 use App\Services\Web\SyncPayloadMapper;
 use OpenApi\Attributes as OA;
 
@@ -110,6 +111,7 @@ class SyncController extends Controller
         $hasSyncedAtCache = [];
         $currentUser = $request->user();
         $currentStoreId = $currentUser ? $this->resolvePushStoreId($request, $currentUser) : null;
+        UserDeviceTracker::touch($request, $currentUser, $currentStoreId);
 
         // Ownership scope for UPDATE/DELETE targets and for rejecting an
         // INSERT payload that explicitly names a store_id the caller
@@ -757,6 +759,7 @@ class SyncController extends Controller
         }
 
         $user = $request->user();
+        UserDeviceTracker::touch($request, $user, $this->resolvePushStoreId($request, $user));
         $tenantScope = $user->hasRole('super_admin')
             ? null
             : $this->resolvePullTenantScope($user, $request);
@@ -2228,6 +2231,7 @@ class SyncController extends Controller
     {
         $currentUser = $request->user();
         $currentStoreId = $currentUser ? $this->resolvePushStoreId($request, $currentUser) : null;
+        UserDeviceTracker::touch($request, $currentUser, $currentStoreId);
 
         if (!$currentStoreId) {
             return response()->json(['success' => true, 'counts' => []]);
@@ -2269,6 +2273,175 @@ class SyncController extends Controller
             'success' => true,
             'counts' => $counts,
         ]);
+    }
+
+    public const RECONCILIATION_MOVEMENT_TYPE = 'sync_reconciliation';
+    public const RECONCILIATION_REASON = 'Automatic stock quantity reconciliation';
+    public const RECONCILIATION_ACTION = 'STOCK_QUANTITY_AUTO_RECONCILED';
+
+    #[OA\Post(
+        path: '/api/v1/app/sync/reconcile-quantities',
+        description: "Accepts the device's own stock_batches.quantity snapshot and closes any gap between it and the server's replayed-delta value. Exists because push() never trusts a pushed quantity (it only ever replays stock_movements deltas), so a batch whose opening stock never produced a movement row is stuck at the server's zero forever. Every correction is written as a real, labelled 'sync_reconciliation' stock_movements row plus one summary ActivityLog per store touched — nothing is silently rewritten. Idempotent: a batch already matching the snapshot is skipped. See docs/FIXED_BUGS.md A-148 and client/AGENTS.md.",
+        tags: ['Sync'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Reconciliation summary', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'success', type: 'boolean'),
+                new OA\Property(property: 'reconciled', type: 'integer'),
+                new OA\Property(property: 'checked', type: 'integer'),
+            ])),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
+    public function reconcileQuantities(Request $request)
+    {
+        $request->validate([
+            'batches' => 'required|array',
+            'batches.*.id' => 'required|string',
+            'batches.*.quantity' => 'required|integer|min:0',
+        ]);
+
+        $currentUser = $request->user();
+        [$allowedStoreIds] = $this->resolveAllowedOwnershipScope($currentUser);
+
+        $entries = $request->input('batches');
+        $batches = StockBatch::whereIn('id', array_column($entries, 'id'))->get()->keyBy('id');
+        $productStoreIds = Product::whereIn('id', $batches->pluck('product_id')->filter()->unique())
+            ->pluck('store_id', 'id');
+
+        $checked = 0;
+        $reconciled = 0;
+        $perStoreTotals = [];
+        $movements = [];
+
+        foreach ($entries as $entry) {
+            $batch = $batches->get($entry['id']);
+            if (!$batch) {
+                continue;
+            }
+
+            // A batch's own store_id is never authoritative on its own (see
+            // resolveChangeStoreId()) - it's only trusted here as a last
+            // resort, after the product lookup, and only once confirmed to
+            // be one of the caller's own stores by the check below.
+            $storeId = $productStoreIds->get($batch->product_id) ?? $batch->store_id;
+            if (!$storeId || !in_array($storeId, $allowedStoreIds, true)) {
+                continue;
+            }
+
+            $checked++;
+
+            $currentQuantity = (int) $batch->quantity;
+            $targetQuantity = (int) $entry['quantity'];
+            if ($currentQuantity === $targetQuantity) {
+                continue;
+            }
+
+            $movement = $this->writeQuantityReconciliation($batch, $storeId, $currentQuantity, $targetQuantity, $currentUser);
+            if (!$movement) {
+                // Lost the race to a concurrent push() - see docstring below.
+                continue;
+            }
+
+            $movements[] = $movement;
+            $reconciled++;
+            $perStoreTotals[$storeId]['batches'] = ($perStoreTotals[$storeId]['batches'] ?? 0) + 1;
+            $perStoreTotals[$storeId]['delta'] = ($perStoreTotals[$storeId]['delta'] ?? 0)
+                + ($targetQuantity - $currentQuantity);
+        }
+
+        $this->logQuantityReconciliations($perStoreTotals, $currentUser);
+
+        return response()->json([
+            'success' => true,
+            'reconciled' => $reconciled,
+            'checked' => $checked,
+            // Lets the reporting device seed its own copy locally - see AGENTS.md.
+            'movements' => $movements,
+        ]);
+    }
+
+    /**
+     * Sets the batch to the device-reported quantity and records the signed
+     * difference as a 'sync_reconciliation' movement, atomically — the
+     * corrected value and the record explaining it must never diverge.
+     * Uses a conditional UPDATE rather than an absolute save() so a
+     * concurrent push() moving this same batch's quantity between the
+     * caller's read and this write is detected, not silently clobbered:
+     * returns null without writing anything if the row no longer holds
+     * $currentQuantity.
+     */
+    private function writeQuantityReconciliation(
+        StockBatch $batch,
+        string $storeId,
+        int $currentQuantity,
+        int $targetQuantity,
+        $currentUser,
+    ): ?array {
+        return DB::transaction(function () use ($batch, $storeId, $currentQuantity, $targetQuantity, $currentUser) {
+            $updated = DB::table('stock_batches')
+                ->where('id', $batch->id)
+                ->where('quantity', $currentQuantity)
+                ->update(['quantity' => $targetQuantity, 'updated_at' => now()]);
+
+            if ($updated === 0) {
+                return null;
+            }
+
+            $movement = StockMovement::create([
+                'stock_batch_id' => $batch->id,
+                'product_id' => $batch->product_id,
+                'store_id' => $storeId,
+                'movement_type' => self::RECONCILIATION_MOVEMENT_TYPE,
+                'quantity' => $targetQuantity - $currentQuantity,
+                'reason' => self::RECONCILIATION_REASON,
+                // performed_by is NOT NULL, so this records the device the
+                // request came from rather than a system/null actor.
+                'performed_by' => $currentUser->id,
+                'movement_date' => now(),
+            ]);
+
+            return [
+                'id' => $movement->id,
+                'stock_batch_id' => $movement->stock_batch_id,
+                'product_id' => $movement->product_id,
+                'store_id' => $movement->store_id,
+                'movement_type' => $movement->movement_type,
+                'quantity' => $movement->quantity,
+                'reason' => $movement->reason,
+                'performed_by' => $movement->performed_by,
+                'movement_date' => $movement->movement_date->toJSON(),
+                'created_at' => $movement->created_at->toJSON(),
+                'updated_at' => $movement->updated_at->toJSON(),
+            ];
+        });
+    }
+
+    /**
+     * One summary audit row per store actually corrected. Summary rather
+     * than per-batch detail, matching AdminStoreDeletionService::purgeStore()
+     * — a few hundred batches would make the properties blob disproportionate
+     * to what any reader needs; the per-batch truth lives in stock_movements.
+     */
+    private function logQuantityReconciliations(array $perStoreTotals, $currentUser): void
+    {
+        foreach ($perStoreTotals as $storeId => $totals) {
+            $store = Store::where('id', $storeId)->first();
+            if (!$store) {
+                continue;
+            }
+
+            ActivityLog::create([
+                'user_id' => $currentUser->id,
+                'store_id' => $store->id,
+                'action' => self::RECONCILIATION_ACTION,
+                'description' => "Automatic stock quantity reconciliation for {$store->name} ({$store->id})",
+                'properties' => [
+                    'batches_reconciled' => $totals['batches'],
+                    'total_quantity_delta' => $totals['delta'],
+                ],
+            ]);
+        }
     }
 
     public function getModelForTable($tableName)

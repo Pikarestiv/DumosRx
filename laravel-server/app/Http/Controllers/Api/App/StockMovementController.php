@@ -54,6 +54,8 @@ class StockMovementController extends Controller
         $userIds = $this->ledgerUserIds($request);
 
         $movements = StockMovement::whereIn('performed_by', $userIds)
+            // A-148: a sync correction, not a stock event - see client/AGENTS.md.
+            ->where('movement_type', '!=', SyncController::RECONCILIATION_MOVEMENT_TYPE)
             ->with(['product', 'user'])
             ->latest()
             ->paginate($limit);

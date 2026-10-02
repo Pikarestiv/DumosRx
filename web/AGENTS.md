@@ -377,6 +377,17 @@ the section only when the row carries `is_store_owner`, using its new
 `store_id` field). Don't add a second staff endpoint or a second list
 component — one filter, one component, two mount points.
 
+**Each staff row also shows last-synced info (2026-10-02)**: `lastSyncedAt`/
+`lastSyncDevice` on the same `AdminUser` the list already fetches (no extra
+request), plus a "Sync history" drill-down
+(`components/admin/stores/staff-device-history.tsx`, a `Popover` fetching
+`useStaffDevices(userId, open)` lazily — only once opened, via `GET
+/admin/users/{id}/devices`) listing every device that staff member has ever
+synced from. This is sync activity, not login activity — a staff member can
+be logged in without having synced yet, so don't conflate it with the
+existing `lastActive` field. See `laravel-server/AGENTS.md`, "Per-device
+sync visibility", for where the data comes from.
+
 **Store Details is a page, not a modal** (`app/admin/stores/details/page.tsx`,
 reached at `/admin/stores/details/?id=<storeId>`; the old `ViewStoreDialog` in
 `store-dialogs.tsx` is gone). Two things drove that:

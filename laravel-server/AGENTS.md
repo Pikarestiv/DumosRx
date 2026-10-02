@@ -479,6 +479,85 @@ migration here **and** the corresponding update on the `client/` side
   tenant scope is resolved once per request by `resolvePullTenantScope()`.
   Read `docs/SYNC_PULL_PAGINATION.md` before changing any of it;
   `tests/Feature/SyncPullPaginationTest.php` is what guards it.
+- **`quantity` is derived, never accepted — except through
+  `reconcileQuantities()`.** `push()` forces `stock_batches.quantity = 0` on
+  INSERT and strips it from every UPDATE; the column only ever moves via
+  `applyStockBatchDeltas()` replaying `stock_movements`. That invariant is
+  what makes concurrent multi-device writes commute, and it stays. The one
+  sanctioned exception is `POST /app/sync/reconcile-quantities`
+  (`reconcileQuantities()`, A-148): an explicit, client-triggered repair for
+  a batch whose opening stock never produced a movement row (a bulk import
+  predating `a36b00e7`), which would otherwise sit at server-side 0 forever
+  with no way to self-heal. It takes `{batches: [{id, quantity}]}`, batch-loads
+  every requested `StockBatch` and its product's `store_id` in two queries
+  total (never one query per batch — a per-row `StockBatch::find()` +
+  `authorizeChangeTarget()` lookup was the first draft and would have been
+  ~3 queries per batch, found too slow for exactly the large-catalog stores
+  this exists to repair), resolves each row's store from that map and falls
+  back to the batch's own `store_id` only when the product link itself can't
+  resolve one (the `in_array($storeId, $allowedStoreIds)` check right after
+  still blocks any cross-tenant write either way), skips any batch already
+  matching the snapshot (that's what makes it idempotent), and writes the
+  corrected value via a conditional `UPDATE ... WHERE id = ? AND quantity = ?`
+  rather than an absolute `save()` — the batch was read outside the write's
+  own transaction, so a concurrent `push()` moving its real quantity in
+  between must be detected (0 rows affected) rather than silently clobbered;
+  a detected race skips that batch for this run rather than guessing. On a
+  real difference it also writes an explaining `stock_movements` row in the
+  same transaction: `movement_type = 'sync_reconciliation'`, the signed
+  delta, `reason = 'Automatic stock quantity reconciliation'`. Each store
+  touched gets one summary `ActivityLog` (`STOCK_QUANTITY_AUTO_RECONCILED`,
+  `properties => ['batches_reconciled', 'total_quantity_delta']`) — the
+  per-batch truth lives in `stock_movements`, matching how
+  `AdminStoreDeletionService::purgeStore()` summarizes. The record is
+  permanent and honestly labelled; an earlier draft that wrote no record was
+  rejected as audit-log tampering, so do not make it silent. The response
+  also includes a `movements` array (full row per correction) - the client
+  needs this to seed its own local copy before its next pull, which is what
+  actually stops the *reporting* device from double-applying its own
+  correction (see client/AGENTS.md's `pull.ts` note; it is not a
+  movement-type check in `pull.ts`, and should never become one again). The
+  client excludes this one type from the owner's own movement lists and
+  stock-value summaries (see `client/AGENTS.md`), and the regular-user
+  notification bell (`NotificationController`) and the little-used
+  `GET /stock-movements` ledger both exclude it too, but the admin panel's
+  `stock_activity.movements` count and the super-admin global alert feed's
+  own allowlist deliberately still leave it countable/visible there, as the
+  true total each claims to be. `tests/Feature/SyncReconcileQuantitiesTest.php`
+  guards all of it.
+- **Per-device sync visibility (`user_devices` table, 2026-10-02).** `push()`,
+  `pull()` and `counts()` each call `UserDeviceTracker::touch()`
+  (`App\Services\Web\UserDeviceTracker` — deliberately its own class, not a
+  private method on `SyncController`, so this addition doesn't widen that
+  file's own file-size-rule violation any further), which upserts one row
+  per (`user_id`, `device_id`) pair from the `X-Device-Id`/`X-Device-Label`
+  headers the client already sends. **The `$storeId` passed in must already
+  be ownership-verified** (`resolvePushStoreId($request, $user)` — `push()`
+  and `counts()` always did this; `pull()` originally passed the raw,
+  unverified `X-Store-Id` header straight through, letting a forged header
+  attribute a device's sync history to a store it never touched — found on
+  review, fixed before the first commit, see
+  `tests/Feature/UserDeviceTrackingTest.php`'s
+  `a_pull_call_never_trusts_an_unverified_x_store_id_header...` case). Never
+  pass a request header to it directly. Throttled to roughly once a minute
+  per pair (skips the write if the existing row's `last_synced_at` is under
+  a minute old) so this is not a write on every single sync tick; wrapped in
+  try/catch so a failure here can never fail the sync request it's
+  piggybacking on. Purely an admin-support record — never consulted for
+  sync correctness, authorization, or anything client-visible.
+  `AdminUserService::getGlobalUsers()` batches the most-recently-synced
+  device per row of the staff/users list (`lastSyncedAt`/`lastSyncDevice`,
+  one query for the whole page via `AdminUserDeviceService::latestDevicePerUser()`
+  — again its own class for the same file-size reason, injected into
+  `AdminUserService`'s constructor — not one query per row); `GET
+  /admin/users/{id}/devices` (`AdminUserDeviceService::getUserDevices()`,
+  called directly from `AdminUserController`, not routed through
+  `AdminUserService`) backs the Store Staff list's full per-device
+  drill-down. `device_label` is best-effort client-side UA sniffing
+  (`client/lib/utils/device-label.ts`) purely for admin readability — never
+  trust it for anything security- or correctness-relevant, unlike
+  `device_id`. `tests/Feature/UserDeviceTrackingTest.php` and
+  `tests/Feature/Admin/AdminUserSyncVisibilityTest.php` guard it.
 - **The `stores` response is scoped to the authenticated IDENTITY, not to
   the account — and the client prunes against it.** `stores` is exempt from
   the last-synced cursor and the 500-row cap (`fetchPullPage()`), so the

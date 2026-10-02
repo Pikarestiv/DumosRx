@@ -81,6 +81,29 @@ class StockMovementControllerTest extends TestCase
         $response->assertJsonPath('data.0.medicine_name', 'Panadol');
     }
 
+    public function test_index_excludes_a_sync_reconciliation_movement(): void
+    {
+        $batch = StockBatch::create([
+            'product_id' => $this->product->id, 'user_id' => $this->owner->id,
+            'batch_number' => 'B-2', 'quantity' => 250, 'cost_price' => 40,
+        ]);
+
+        StockMovement::create([
+            'product_id' => $this->product->id,
+            'stock_batch_id' => $batch->id,
+            'movement_type' => 'sync_reconciliation',
+            'quantity' => 250,
+            'reason' => 'Automatic stock quantity reconciliation',
+            'performed_by' => $this->owner->id,
+        ]);
+
+        $response = $this->actingAs($this->owner)->getJson('/api/v1/stock-movements');
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonMissing(['movement_type' => 'sync_reconciliation']);
+    }
+
     public function test_adjustments_returns_200()
     {
         $response = $this->actingAs($this->owner)->getJson('/api/v1/stock-adjustments');

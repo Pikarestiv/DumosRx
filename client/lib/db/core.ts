@@ -23,7 +23,7 @@ import {
   requestWriterTakeover,
   stealWriterLock,
 } from "./tab-lock";
-import { clearLastSyncTime } from "@/lib/storage-keys";
+import { clearLastSyncTime, clearRecentUsers } from "@/lib/storage-keys";
 
 export { isWriterTab, onWriterTabChange, onPromotionFailed };
 
@@ -1160,6 +1160,8 @@ export async function clearDatabaseForNewStore(): Promise<void> {
 
   if (typeof window !== "undefined") {
     clearLastSyncTime();
+    // The login picker reads this cache, not `users` - see client/AGENTS.md.
+    clearRecentUsers();
   }
 }
 

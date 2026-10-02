@@ -288,6 +288,17 @@ and `synchronous = NORMAL`.
   cleared `sale_items`/`stock_batches`. It excludes store configuration
   (`loyalty_tiers`, `loyalty_redemption_options`, `system_configs`); only
   `clearDatabaseForNewStore()` adds `stores`/`users`.
+- **`clearDatabaseForNewStore()` also clears `dumos_recent_users`
+  (2026-10-02).** Wiping the `users`/`stores` tables isn't the whole story:
+  the login screen's "Welcome Back" profile picker
+  (`hooks/use-device-auth-status.ts`, `components/auth/user-selection.tsx`)
+  reads its tiles from a separate `localStorage` cache
+  (`storage-keys.ts`'s `recentUsers`), never from the DB. Found live —
+  after confirming an account-switch wipe and linking a brand-new account,
+  the picker kept showing the old, disassociated account's tile (and would
+  still have let you click into it). Any future table this function starts
+  clearing needs the same check: is there a `localStorage`-cached copy of
+  that data anywhere, and does it need clearing too?
 - **`diagnoseLegacySchema()`** is read-only and exposed on `window`
   unconditionally (not dev-gated), like `window.__forceFullResync`: a rare
   production recovery/inspection tool for a support session to run from
@@ -297,6 +308,7 @@ and `synchronous = NORMAL`.
   every active device reports `ok: true`, and `backfillStoreIdOnLegacyRows`
   re-runs on every launch, so it doubles as an ongoing safety net: a clean
   device is necessary but not sufficient to retire it.
+- **A leftover local store on a brand-new signup routes through the same confirm-before-wipe dialog as the existing-account switch, not a silent wipe (A-150, 2026-10-02).** `app/setup/use-onboarding.ts`'s `handleRegister()` checks `getLocalStores()` after the new account/store is created server-side; if the device already has a local store, it stashes everything needed to finish setup (`pendingNewRegistration`) and shows the same `showConfirmSwitch` dialog `confirmCloudRestoreSwitch()`/`cancelCloudRestoreSwitch()` already serve for "log into a different existing account" — **do not make this wipe unconditional.** `?tab=setup&step=register` is a documented safe entry point for an already-set-up device (`userCount > 0`, see `app/login/use-login-page.tsx`), reachable from the traditional login screen's "Create account" link — a logged-out owner with real unsynced local work can land here, so skipping the confirm would silently destroy it. Without the wipe at all (the actual bug this fixes), a device that previously linked a different (now possibly deleted) account left that account's `_sync_queue`/`feedback`/`audit_logs` rows behind, and the new account's first sync pushed them under its own token, rejected server-side as belonging to a store it doesn't own. `_sync_queue` has no `user_id`/`store_id` column — it is scoped to the device, never to whichever account happens to be authenticated, so this kind of leak is the default outcome of switching accounts without clearing local data first, not an edge case.
 - **`window.__e2eSetSubscriptionTier`** (development builds only) elevates
   the e2e browser context's own copy of the local DB, never the checked-in
   free-tier fixture (`e2e/.auth/test-db.bin`) that other specs rely on for
@@ -999,6 +1011,20 @@ list showing which device a staff member last synced from — see
 `laravel-server/AGENTS.md`, "Per-device sync visibility", for the server
 side. Best-effort UA sniffing only: never use it for anything
 security-relevant or correctness-relevant, unlike `X-Device-Id` itself.
+
+### `ServerSelector` is also reachable from Settings > Data, not just the landing page (2026-10-02)
+
+`components/ui/server-selector.tsx` (the dev-only dropdown that repoints the
+API host, persisted to `localStorage` via `BaseApiClient.setBaseURL()`) was
+only ever mounted on `app/page.tsx`, the pre-login landing page. A device
+that's logged in before skips straight to `/dashboard` (see that page's own
+comment) and never sees it again — so once signed in, there was no way to
+fix a misconfigured server URL without logging out first, which is itself
+confusing if you don't know this component lives there. It's now also
+rendered in `components/settings/data-settings.tsx`'s "Developer" section
+(same component, no new logic — it already self-hides outside
+`NODE_ENV !== "production"`). Don't add a second URL-picker; reuse this one
+if a third place ever needs it.
 
 ### The `stores` prune, and how a store disappears (2026-09-29)
 

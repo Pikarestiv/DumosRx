@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Tests\Concerns\ConnectsToRealMysql;
 use Tests\TestCase;
 
 /**
@@ -23,6 +24,8 @@ use Tests\TestCase;
  */
 class SyncPushRowLockTest extends TestCase
 {
+    use ConnectsToRealMysql;
+
     private string $table;
     private bool $skipped = false;
 
@@ -74,50 +77,7 @@ class SyncPushRowLockTest extends TestCase
         parent::tearDown();
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function readRealMysqlCredentialsFromDotEnv(): array
-    {
-        $defaults = [
-            'host' => '127.0.0.1',
-            'port' => '3306',
-            'database' => 'dumosrx',
-            'username' => 'root',
-            'password' => '',
-        ];
-
-        $envPath = base_path('.env');
-        if (is_readable($envPath)) {
-            foreach (file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-                if (!str_contains($line, '=') || str_starts_with(trim($line), '#')) {
-                    continue;
-                }
-                [$key, $value] = array_map('trim', explode('=', $line, 2));
-                $value = trim($value, "\"'");
-                match ($key) {
-                    'DB_HOST' => $defaults['host'] = $value,
-                    'DB_PORT' => $defaults['port'] = $value,
-                    'DB_DATABASE' => $defaults['database'] = $value,
-                    'DB_USERNAME' => $defaults['username'] = $value,
-                    'DB_PASSWORD' => $defaults['password'] = $value,
-                    default => null,
-                };
-            }
-        }
-
-        return [
-            'driver' => 'mysql',
-            'host' => $defaults['host'],
-            'port' => $defaults['port'],
-            'database' => $defaults['database'],
-            'username' => $defaults['username'],
-            'password' => $defaults['password'],
-            'charset' => 'utf8mb4',
-            'collation' => 'utf8mb4_unicode_ci',
-            'prefix' => '',
-        ];
-    }
+    // readRealMysqlCredentialsFromDotEnv() lives in ConnectsToRealMysql now.
 
     /**
      * Exercises the exact call shape SyncController::push()'s UPDATE branch

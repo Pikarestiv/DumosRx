@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataSettingsAutoSync } from "./data-settings-auto-sync";
 import { DataSettingsSyncMaintenance } from "./data-settings-sync-maintenance";
+import { ServerSelector } from "@/components/ui/server-selector";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { getLastSyncTime } from "@/lib/storage-keys";
 
@@ -272,6 +273,27 @@ export function DataSettings({
               )}
             </div>
           </div>
+
+          {process.env.NODE_ENV !== "production" && (
+            <>
+              <Separator />
+              <div className="space-y-4">
+                <h3 className="font-medium">Developer</h3>
+                {/* The only way to repoint the server once signed in - a
+                 * logged-in device skips app/page.tsx's own ServerSelector entirely. */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium">API Server</p>
+                    <p className="text-sm text-muted-foreground">
+                      Which backend this build talks to. Dev builds only,
+                      never shown to a real customer.
+                    </p>
+                  </div>
+                  <ServerSelector />
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

@@ -85,6 +85,9 @@ export function DeleteUserDialog({
           onChange={(e) => setConfirmEmail(e.target.value)}
           placeholder={selectedUser?.email || ""}
           autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
           className="rounded-xl border-2 font-bold h-12 focus-visible:ring-red-500"
         />
       </div>

@@ -25,12 +25,13 @@ export function useLoginPageState() {
   // accounts already exist, to avoid ever showing two separate lock screens.
   const isNewCredentialsMode = searchParams.get("mode") === "new";
 
-  const { isChecking, userCount, recentUsers, removeRecentUser } =
+  const { isChecking, userCount, recentUsers, removeRecentUser, refetch } =
     useDeviceAuthStatus();
   const { isAuthenticated } = useAuth();
   const loginState = useLogin();
   const { showTraditionalLogin } = loginState;
-  const onboarding = useOnboarding();
+  // Keeps userCount/recentUsers fresh through onboarding - see A-154, docs/FIXED_BUGS.md.
+  const onboarding = useOnboarding(refetch);
 
   // Known bug #10, Part B: a device that just restored a local backup keeps
   // 100% of its data but silently loses its cloud link (restoreDatabase()
@@ -47,10 +48,11 @@ export function useLoginPageState() {
   // Guard: a device that already has accounts can't land on setup's
   // welcome/select-store steps (that flow assumes a brand-new device and
   // risks clobbering real local data); only backup/cloud/syncing/register
-  // are safe entry points there. `register` is included because
-  // handleRegister() is purely additive (inserts a new store + admin) even
-  // when the device already has other local accounts. Unlike
-  // select-store's cloud-switch flow, it never wipes existing data.
+  // are safe entry points there. `register` is included because a
+  // leftover local store on that path now routes through the same
+  // confirm-before-wipe dialog as select-store's cloud-switch flow
+  // (see use-onboarding.ts's pendingNewRegistration) rather than
+  // clobbering data outright - it's safe to land on, not wipe-free.
   // Computed here instead of redirecting after mount, so an unsafe request
   // never flashes setup content before bouncing back.
   const requestedTab = searchParams.get("tab") === "setup" ? "setup" : "login";

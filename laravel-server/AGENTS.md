@@ -1520,6 +1520,29 @@ it looked order-dependent and was not, and `--order-by=random` never
 reproduced it. To reproduce a CI-only failure locally, back up `.env`,
 `cp .env.example .env && php artisan key:generate`, run the suite, and restore.
 
+**Every unspecified-length indexed `string()` column is actually
+`VARCHAR(191)`, not Laravel's native 255 — and SQLite will never catch it
+if you get this wrong (A-149).** `AppServiceProvider::boot()` sets
+`Schema::defaultStringLength(191)` globally (an old-MySQL/MariaDB
+`utf8mb4` index-prefix compatibility shim). A migration that writes
+`$table->string('col')->index()` with no explicit length silently gets
+191 chars, not 255 — `feedback.fingerprint` did exactly this, and the
+client's `MAX_FINGERPRINT_LENGTH` (`client/lib/utils/error-truncation.ts`)
+assumed 255, so a sync push failed outright on anything 192-255 chars
+long. Always pass an explicit length (`$table->string('col', 255)`) on any
+indexed string column meant to hold more than a short label, and when the
+client enforces a max length on a string that round-trips to a
+server column, verify the two actually agree — don't assume Laravel's
+"default." Worse: `phpunit.xml` runs everything against SQLite in-memory,
+which has no real `VARCHAR` length enforcement regardless of the declared
+length (`Schema::getColumns()` reports a bare `"varchar"` there, never
+`"varchar(N)"`), so an ordinary insert-based test for this class of bug
+passes identically whether the column is 191 or 255. A real regression
+guard has to inspect the live MySQL schema directly and skip itself
+when that connection isn't reachable — see
+`FeedbackFingerprintColumnWidthTest`, same pattern `SyncPushRowLockTest`
+already uses for `lockForUpdate()` (another behavior SQLite can't exercise).
+
 `tests/Feature/` covers: tenant isolation (`TenantIsolationTest`), admin
 account-security regressions (`AccountSecurityTest`), the handoff/
 impersonation flow (`AuthHandoffTest`), sync push/pull (`SyncEndpointTest`),

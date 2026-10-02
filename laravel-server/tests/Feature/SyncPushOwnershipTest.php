@@ -265,6 +265,47 @@ class SyncPushOwnershipTest extends TestCase
         ]);
     }
 
+    /**
+     * A-149: `feedback.fingerprint` used to be VARCHAR(191) instead of the
+     * 255 the client's `MAX_FINGERPRINT_LENGTH` has always assumed (see the
+     * 2026_10_02_000006 migration for the full story). General coverage
+     * only, NOT the regression guard: this suite runs on SQLite, which
+     * enforces no `VARCHAR` length at all, so this test passes identically
+     * whether the column is 191 or 255. The real guard is
+     * `FeedbackFingerprintColumnWidthTest`, which inspects the live MySQL
+     * column width directly.
+     */
+    public function test_a_fingerprint_between_191_and_255_characters_is_accepted()
+    {
+        $fingerprint = str_repeat('x', 220);
+
+        $response = $this->actingAs($this->attackerOwner)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'feedback',
+                    'operation' => 'INSERT',
+                    'record_id' => 'crash-report-long-fingerprint',
+                    'payload' => [
+                        'id' => 'crash-report-long-fingerprint',
+                        'user_id' => $this->attackerOwner->id,
+                        'type' => 'bug',
+                        'content' => '[CRASH] a long fingerprint should still fit',
+                        'status' => 'pending',
+                        'fingerprint' => $fingerprint,
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+        $this->assertDatabaseHas('feedback', [
+            'id' => 'crash-report-long-fingerprint',
+            'fingerprint' => $fingerprint,
+        ]);
+    }
+
     public function test_re_pushing_a_feedback_row_the_server_already_has_is_not_forbidden()
     {
         $push = fn () => $this->actingAs($this->attackerOwner)->postJson('/api/v1/app/sync/push', [

@@ -142,6 +142,23 @@ describe("importProductRows", () => {
     expect(count[0].values[0][0]).toBe(2);
   });
 
+  it("updates an existing categoryless, barcode-less product when the re-import adds a category, instead of creating a duplicate", async () => {
+    db.run(
+      `INSERT INTO products (id, name, category_id, _deleted) VALUES ('p1', 'CYPRI GOLD SMALL SYRUP', NULL, 0)`,
+    );
+
+    const result = await importProductRows([
+      { name: "CYPRI GOLD SMALL SYRUP", category: "DRUGS" },
+    ]);
+
+    expect(result).toEqual({ created: 0, updated: 1, skipped: [], stockAdjusted: 0 });
+
+    const products = db.exec(
+      `SELECT p.id, c.name as category_name FROM products p LEFT JOIN categories c ON c.id = p.category_id`,
+    );
+    expect(products[0].values).toEqual([["p1", "drugs"]]);
+  });
+
   it("reports a skipped row without throwing when the name is blank", async () => {
     const result = await importProductRows([{ name: "" }]);
     expect(result).toEqual({

@@ -513,6 +513,14 @@ textarea,
      fully-opaque one. */
   [class~="shadow-primary/20"] { --tw-shadow-color: transparent; }
   [class~="shadow-destructive/10"] { --tw-shadow-color: transparent; }
+  /* Compound Tailwind variants (a stacked data-attribute selector before
+     `hover:`) compile to a different literal class string than the bare
+     `hover:` token above, so they need their own entries here - the plain
+     regex this list is normally regenerated from (see the comment above
+     this block) only ever matched bare tokens. components/ui/tabs.tsx's
+     inactive-tab hover state is the first (and, as of this writing, only)
+     case of this. */
+  [class~="data-[state=inactive]:hover:bg-primary/10"][data-state="inactive"]:hover { background-color: transparent; }
   [class~="hover:bg-accent/10"]:hover { background-color: transparent; }
   [class~="hover:bg-accent/20"]:hover { background-color: transparent; }
   [class~="hover:bg-accent/30"]:hover { background-color: transparent; }

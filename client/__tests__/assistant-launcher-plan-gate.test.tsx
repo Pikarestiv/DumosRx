@@ -53,6 +53,16 @@ describe("AssistantLauncher plan gate", () => {
     expect(useAssistantPanel.getState().isOpen).toBe(false);
     expect(toastError).toHaveBeenCalledWith("Feature Locked", expect.anything());
   });
+
+  // A-158: the header wraps this button in a `rounded-full` ring
+  // (dashboard-header.tsx) with only 2px of padding, so a button that kept
+  // the Button component's default `rounded-md` corners visibly clashed
+  // with that circular ring ("a circle on top of a square").
+  it("is fully round, matching the circular ring its header wrapper draws around it", async () => {
+    storeProfile = { subscription_tier: "pro" };
+    const button = await renderLauncher();
+    expect(button.className).toMatch(/\brounded-full\b/);
+  });
 });
 
 describe("AssistantPanel render gate", () => {

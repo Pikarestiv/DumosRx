@@ -57,11 +57,25 @@ function ActionCenterCard({ alert }: { alert: AlertItem }) {
   const Icon = alert.icon;
   const BackdropIcon = BACKDROP_ICONS[alert.id] ?? alert.icon;
 
-  const bgStyles = {
-    critical: "bg-destructive/10 border-destructive/20 text-destructive",
-    warning: "bg-orange-500/10 border-orange-500/20 text-orange-600",
-    info: "bg-blue-500/10 border-blue-500/20 text-blue-600",
-    success: "bg-emerald-500/10 border-emerald-500/20 text-emerald-600",
+  // Split from a single combined string (A-158): a bg-*/10 tint passed into
+  // Card's own className replaced its opaque bg-card background outright via
+  // Tailwind class-merging, rather than layering on top of it, leaving the
+  // card with no solid surface - just a translucent tint over whatever's
+  // behind it (invisible on a browser without color-mix() support, per the
+  // compat shim in app/globals.css). The tint now lives on its own overlay
+  // div, on top of an explicit bg-card base, instead of inside Card's own
+  // background-color slot.
+  const tintStyles = {
+    critical: "bg-destructive/10",
+    warning: "bg-orange-500/10",
+    info: "bg-blue-500/10",
+    success: "bg-emerald-500/10",
+  };
+  const surfaceStyles = {
+    critical: "border-destructive/20 text-destructive",
+    warning: "border-orange-500/20 text-orange-600",
+    info: "border-blue-500/20 text-blue-600",
+    success: "border-emerald-500/20 text-emerald-600",
   };
 
   return (
@@ -73,8 +87,11 @@ function ActionCenterCard({ alert }: { alert: AlertItem }) {
           router.push(alert.actionRoute);
         }
       }}
-      className={`w-full h-[80px] border cursor-pointer hover:shadow-md transition-shadow duration-200 group relative overflow-hidden flex flex-col justify-center ${bgStyles[alert.priority]}`}
+      className={`w-full h-[80px] border cursor-pointer hover:shadow-md transition-shadow duration-200 group relative overflow-hidden flex flex-col justify-center ${surfaceStyles[alert.priority]}`}
     >
+      {/* Decorative priority tint, on top of Card's own opaque bg-card */}
+      <div className={`absolute inset-0 ${tintStyles[alert.priority]} pointer-events-none`} />
+
       {/* Decorative backdrop icon, per alert type */}
       <BackdropIcon className="absolute -right-3 -bottom-3 h-16 w-16 opacity-10 group-hover:opacity-15 transition-opacity pointer-events-none" />
 
@@ -84,7 +101,7 @@ function ActionCenterCard({ alert }: { alert: AlertItem }) {
       <div className="px-3 py-2 sm:px-4 sm:py-2.5 relative z-10 flex flex-col h-full justify-center">
         <div className="flex flex-col sm:flex-row items-start gap-2 sm:gap-3">
           <div
-            className={`p-2 rounded-xl shrink-0 bg-background/50 shadow-sm backdrop-blur-sm ${bgStyles[alert.priority]}`}
+            className={`p-2 rounded-xl shrink-0 bg-background/50 shadow-sm backdrop-blur-sm ${tintStyles[alert.priority]} ${surfaceStyles[alert.priority]}`}
           >
             <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>

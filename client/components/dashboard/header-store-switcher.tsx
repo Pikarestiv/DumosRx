@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { FleetFormDialog } from "@/components/settings/store/fleet-form-dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { StoreProfile } from "@/lib/context/store-context";
 
 interface HeaderStoreSwitcherProps {
@@ -59,12 +60,17 @@ export function HeaderStoreSwitcher({
 
   if (!isAdmin) {
     return (
-      <div className="flex items-center gap-1 font-medium text-foreground">
-        <StoreIcon className="h-3 w-3" />
-        <span className="truncate max-w-[40vw] sm:max-w-[200px]">
-          {storeProfile?.name || APP_NAME}
-        </span>
-      </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-1 font-medium text-foreground">
+            <StoreIcon className="h-3 w-3" />
+            <span className="truncate max-w-[40vw] sm:max-w-[200px]">
+              {storeProfile?.name || APP_NAME}
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>{storeProfile?.name || APP_NAME}</TooltipContent>
+      </Tooltip>
     );
   }
 
@@ -115,15 +121,20 @@ export function HeaderStoreSwitcher({
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors outline-none">
-            <StoreIcon className="h-3 w-3" />
-            <span className="truncate max-w-[40vw] sm:max-w-[200px]">
-              {storeProfile?.name || APP_NAME}
-            </span>
-            <ChevronDown className="h-3 w-3 shrink-0" />
-          </button>
-        </DropdownMenuTrigger>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors outline-none">
+                <StoreIcon className="h-3 w-3" />
+                <span className="truncate max-w-[40vw] sm:max-w-[200px]">
+                  {storeProfile?.name || APP_NAME}
+                </span>
+                <ChevronDown className="h-3 w-3 shrink-0" />
+              </button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent>{storeProfile?.name || APP_NAME}</TooltipContent>
+        </Tooltip>
         <DropdownMenuContent align="start" className="w-56">
           {storesToList.map((store) => (
             <DropdownMenuItem

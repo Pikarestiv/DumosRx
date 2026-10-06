@@ -3,104 +3,175 @@
 namespace App\Services\Admin;
 
 use App\Models\ActivityLog;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 
 class AdminHealthService
 {
     public function getSystemHealth()
     {
-        $cpuUtil = 0;
-        if (function_exists('sys_getloadavg')) {
-            try {
-                $load = @sys_getloadavg();
-                if (is_array($load) && isset($load[0])) {
-                    $cpuUtil = round($load[0] * 10, 1);
-                }
-            } catch (\Throwable $e) {
-                // Ignore
-            }
-        }
-
-        $memory = [
-            'used' => 'Unknown',
-            'total' => 'Unknown',
-            'percent' => 0,
-        ];
-        if (function_exists('shell_exec')) {
-            try {
-                $free = @shell_exec('free -m');
-                if ($free) {
-                    $free = (string) trim($free);
-                    $free_arr = explode("\n", $free);
-                    if (isset($free_arr[1])) {
-                        $mem = preg_split('/\s+/', $free_arr[1]);
-                        $totalMem = round($mem[1] / 1024, 1);
-                        $usedMem = round($mem[2] / 1024, 1);
-                        $memory = [
-                            'used' => $usedMem.'GB',
-                            'total' => $totalMem.'GB',
-                            'percent' => round(($usedMem / $totalMem) * 100, 1),
-                        ];
-                    }
-                }
-            } catch (\Throwable $e) {
-                // Ignore
-            }
-        }
-
-        $diskTotal = 0;
-        $diskFree = 0;
-        try {
-            if (function_exists('disk_total_space')) {
-                $diskTotal = @disk_total_space('/') ?: 0;
-            }
-            if (function_exists('disk_free_space')) {
-                $diskFree = @disk_free_space('/') ?: 0;
-            }
-        } catch (\Throwable $e) {
-            // Ignore
-        }
-        $diskUsed = $diskTotal - $diskFree;
-
-        $dbStatus = 'Operational';
-        $start = microtime(true);
-        try {
-            DB::connection()->getPdo();
-            $latency = round((microtime(true) - $start) * 1000, 1).'ms';
-        } catch (\Exception $e) {
-            $dbStatus = 'Degraded';
-            $latency = '0ms';
-        }
+        $connectMs = $this->databaseConnectMs();
+        $dbStatus = $connectMs === null ? 'Degraded' : 'Operational';
 
         $recentActivity = ActivityLog::where('created_at', '>', now()->subMinute())->count();
-        $dbLoad = min(100, max(5, $recentActivity * 2));
-
         $firstLog = ActivityLog::oldest()->first();
-        $uptime = $firstLog ? $firstLog->created_at->diffForHumans(null, true) : 'No data';
 
         return [
             'overallStatus' => $dbStatus === 'Operational' ? 'Healthy' : 'Degraded',
-            'uptime' => $uptime,
-            'latency' => $latency,
+            'platformAge' => $firstLog ? $firstLog->created_at->diffForHumans(null, true) : 'No data',
+            'databaseConnectMs' => $connectMs,
             'resources' => [
-                'cpu' => $cpuUtil,
-                'memory' => $memory,
-                'disk' => [
-                    'used' => $diskTotal > 0 ? round($diskUsed / (1024 * 1024 * 1024), 1).'GB' : 'Unknown',
-                    'total' => $diskTotal > 0 ? round($diskTotal / (1024 * 1024 * 1024), 1).'GB' : 'Unknown',
-                    'percent' => $diskTotal > 0 ? round(($diskUsed / $diskTotal) * 100, 1) : 0,
-                ],
+                'loadAverage' => $this->loadAverage(),
+                'memory' => $this->memory(),
+                'disk' => $this->disk(),
                 'database' => [
-                    'load' => $dbLoad,
+                    'load' => min(100, max(5, $recentActivity * 2)),
                     'status' => $dbStatus,
                 ],
             ],
-            'nodes' => [
-                ['name' => 'Primary Server', 'location' => 'Main Hosting Node', 'status' => 'Operational', 'latency' => $latency],
-                ['name' => 'Database Primary', 'location' => 'Local Cluster', 'status' => $dbStatus, 'latency' => '1ms'],
+            'probes' => [
+                ['name' => 'Database', 'status' => $dbStatus],
+                ['name' => 'Cache', 'status' => $this->cacheProbe()],
+                ['name' => 'Storage', 'status' => $this->storageProbe()],
+                ['name' => 'Queue', 'status' => $this->queueProbe()],
             ],
         ];
+    }
+
+    private function databaseConnectMs(): ?float
+    {
+        $start = microtime(true);
+
+        try {
+            DB::connection()->getPdo();
+
+            return round((microtime(true) - $start) * 1000, 1);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    private function loadAverage(): ?array
+    {
+        if (! function_exists('sys_getloadavg')) {
+            return null;
+        }
+
+        try {
+            $load = @sys_getloadavg();
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        if (! is_array($load) || ! isset($load[0], $load[1], $load[2])) {
+            return null;
+        }
+
+        return [
+            1 => round((float) $load[0], 2),
+            5 => round((float) $load[1], 2),
+            15 => round((float) $load[2], 2),
+        ];
+    }
+
+    private function memory(): ?array
+    {
+        if (! function_exists('shell_exec')) {
+            return null;
+        }
+
+        try {
+            $free = @shell_exec('free -m');
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        if (! $free) {
+            return null;
+        }
+
+        $lines = explode("\n", (string) trim($free));
+        if (! isset($lines[1])) {
+            return null;
+        }
+
+        $mem = preg_split('/\s+/', $lines[1]);
+        if (! isset($mem[1], $mem[2]) || ! is_numeric($mem[1]) || ! is_numeric($mem[2]) || (float) $mem[1] <= 0) {
+            return null;
+        }
+
+        $totalMem = round($mem[1] / 1024, 1);
+        $usedMem = round($mem[2] / 1024, 1);
+
+        return [
+            'used' => $usedMem.'GB',
+            'total' => $totalMem.'GB',
+            'percent' => round(($usedMem / $totalMem) * 100, 1),
+        ];
+    }
+
+    private function disk(): ?array
+    {
+        if (! function_exists('disk_total_space') || ! function_exists('disk_free_space')) {
+            return null;
+        }
+
+        try {
+            $total = @disk_total_space('/') ?: 0;
+            $free = @disk_free_space('/') ?: 0;
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        if ($total <= 0) {
+            return null;
+        }
+
+        $used = $total - $free;
+
+        return [
+            'used' => round($used / (1024 ** 3), 1).'GB',
+            'total' => round($total / (1024 ** 3), 1).'GB',
+            'percent' => round(($used / $total) * 100, 1),
+        ];
+    }
+
+    private function cacheProbe(): string
+    {
+        $key = 'admin_health_probe';
+
+        try {
+            Cache::put($key, 'ok', 10);
+            $read = Cache::get($key);
+            Cache::forget($key);
+
+            return $read === 'ok' ? 'Operational' : 'Degraded';
+        } catch (\Throwable $e) {
+            return 'Unavailable';
+        }
+    }
+
+    private function storageProbe(): string
+    {
+        try {
+            return is_writable(storage_path('app')) ? 'Operational' : 'Degraded';
+        } catch (\Throwable $e) {
+            return 'Unavailable';
+        }
+    }
+
+    private function queueProbe(): string
+    {
+        try {
+            Queue::connection();
+
+            return 'Operational';
+        } catch (\Throwable $e) {
+            return 'Unavailable';
+        }
     }
 
     public function getRecentErrors()

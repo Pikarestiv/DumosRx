@@ -8,8 +8,8 @@ import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { ASSISTANT_FEATURE_KEY, ASSISTANT_NAME, AssistantBetaTag } from "./assistant-brand";
 
 const LAUNCHER_CLASS =
-  "animate-assistant-sheen bg-gradient-to-br from-primary via-primary/60 to-primary text-primary-foreground shadow-sm hover:from-primary hover:via-primary/70 hover:to-primary";
-const LOCKED_CLASS = "bg-muted text-muted-foreground shadow-sm hover:bg-muted";
+  "rounded-full animate-assistant-sheen bg-gradient-to-br from-primary via-primary/60 to-primary text-primary-foreground shadow-sm hover:from-primary hover:via-primary/70 hover:to-primary";
+const LOCKED_CLASS = "rounded-full bg-muted text-muted-foreground shadow-sm hover:bg-muted";
 
 export function AssistantLauncher() {
   const open = useAssistantPanel((state) => state.open);

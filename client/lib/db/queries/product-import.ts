@@ -107,7 +107,16 @@ async function findExistingProductId(
        LIMIT 1`,
       storeId ? [row.name, row.category, storeId] : [row.name, row.category],
     );
-    return byNameAndCategory[0]?.id ?? null;
+    if (byNameAndCategory.length > 0) return byNameAndCategory[0].id;
+
+    // Falls through only to a still-categoryless row by the same name, never
+    // to one with a different category (see docs/KNOWN_BUGS.md history).
+    const byNameWithNullCategory = await query<{ id: string }>(
+      `SELECT id FROM products WHERE name = ? COLLATE NOCASE AND category_id IS NULL AND _deleted = 0${storeId ? " AND store_id = ?" : ""} LIMIT 1`,
+      storeId ? [row.name, storeId] : [row.name],
+    );
+    if (byNameWithNullCategory.length > 0) return byNameWithNullCategory[0].id;
+    return null;
   }
 
   const byNameOnly = await query<{ id: string }>(

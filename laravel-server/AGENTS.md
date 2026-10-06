@@ -919,6 +919,49 @@ per-store Paystack subaccounts — see the dedicated section below for the
 onboarding flow, fee semantics, propagation cadence, and the refund decision.
 Full design: `docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`.
 
+## Sync push refusals are recorded once, from `$failed`, after the outer commit
+
+`push()` refuses changes from **eight** separate sites, every one of which
+appends to the same `$failed` array that is returned in the response. Recording
+reads that assembled array **once**, after the outer `DB::commit()`, beside
+`sendFirstSyncAlert()`.
+
+- **The contract for a new refusal path is "append to `$failed`"** — which every
+  existing path already honours — not "remember to log at your new throw site".
+  Recording at each site would mean eight call sites rebuilding store/user
+  context, and a ninth added later would silently go unrecorded.
+- **After the commit, deliberately.** A push whose outer transaction rolls back
+  applied nothing, so recording earlier would leave failure rows describing
+  changes that were never committed.
+- **Wrapped in `try`/`catch`, deliberately.** A sync that succeeded must never be
+  reported as failed because telemetry could not be written. `SyncFailureRecorder`
+  throwing is logged and swallowed, and `SyncPushFailureRecordingTest` pins that
+  the push still returns 200.
+- **The recorder is resolved from the container at the hook, not injected.**
+  `SyncController` has no constructor on purpose: `SyncSchemaParityTest` does
+  `new SyncController()` directly, and adding one broke it. Leaving the public
+  signature untouched meant no existing test had to be edited to accommodate the
+  change.
+- **Store attribution uses `resolvePushStoreId()`**, the same resolver
+  `touchStoreLastSyncAt()` uses. Any other lookup mis-attributes a multi-store
+  owner's failures to the wrong branch — the exact bug that resolver exists to
+  prevent.
+- **The operation is recovered by `table_name|record_id`, never by `id`.** A
+  change entry's `id` is optional and real client pushes omit it entirely (see
+  `SyncPushSessionScopedRefusalTest`), so keying on `id` would record a null
+  operation for virtually every production refusal.
+- **`sync_failures.store_id` carries no foreign key on purpose.** A refused
+  change is forensic evidence; archiving a store must not destroy the record of
+  why its data never landed. `AdminStoreDeletionService` therefore has to decide
+  about these rows explicitly rather than inheriting a cascade.
+- **The daily bucket comes from the application clock** (`now()->startOfDay()`),
+  never a database-side date — see the §7 timezone section below. Note the bucket
+  is a Carbon, not a `Y-m-d` string: the model's `date` cast stores
+  `Y-m-d H:i:s`, so a string lookup never matches an existing row and every
+  second push of the day violates the unique constraint.
+- **Phase 2 is observation only.** It must not change what the server accepts,
+  refuses or returns. `SyncPushFailureRecordingTest` pins the response shape.
+
 ## `subscriptions.status` is not self-maintaining — always pair it with `end_date`
 
 Until 2026-10-06 **nothing transitioned a subscription out of `active` when its

@@ -310,6 +310,31 @@ literals Phase 1 removed (`"42ms"`, `|| '100%'`, `High Performance`,
 `Status Page Pending`, `WebSocket`, `Global Inventory`) reappears under
 `app/admin` or `components/admin`.
 
+### Sync health (Phase 2, 2026-10-06)
+
+Spec: `docs/superpowers/specs/2026-10-06-admin-panel-phase-2-sync-health-design.md`.
+
+- **Operations owns the platform view** (`SyncHealthCard`): 24h/7d success rate,
+  refusals grouped by reason, and the worst-affected stores. The **per-store
+  drill-down** lives on the store detail page, not a new route, because that is
+  where the operator already is when a customer calls.
+- **Reason strings are glossed, and the raw string stays visible.**
+  `syncReasonLabel()` in `lib/api/admin-hooks-sync.ts` maps the server's
+  vocabulary (`permission_denied`, `forbidden`, …) to a sentence an operator can
+  act on, and the component renders the raw string underneath so a support
+  conversation can quote it. An unrecognised reason falls back to the raw string
+  **alone** — don't render it twice. The lookup uses `Object.hasOwn`, not a bare
+  bracket index (§8).
+- **A `null` rate means nothing synced in the window**, and renders "No sync
+  activity" — never `0%`. A store with no history reads "Never synced", never
+  "0% success". This is Phase 1's rule and the reason PG-16 existed.
+- **What this surface cannot show.** It reports only what reached the server. A
+  device sitting on a backlog that never transmitted is invisible here — logged
+  as PG-17 (Phase 2b). Don't let the card's copy imply otherwise; its description
+  says so explicitly.
+- Dates go through `formatDateToDDMMYYYY` (§6); a default `toLocaleDateString()`
+  silently produces US order.
+
 ### Admin money is per currency, never converted
 
 `CurrencyStatValue` renders one `formatMoney` line per currency present and

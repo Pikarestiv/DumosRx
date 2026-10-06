@@ -16,3 +16,4 @@ Schedule::command('admin:send-daily-summary')->dailyAt('08:00')->timezone('Afric
 Schedule::command('backups:prune')->dailyAt('03:00');
 Schedule::command('storefront:sweep-payment-intents')->hourly();
 Schedule::command('subscriptions:expire')->dailyAt('02:00');
+Schedule::command('sync:prune-failures')->dailyAt('03:30');

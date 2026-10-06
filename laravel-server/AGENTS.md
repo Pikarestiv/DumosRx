@@ -729,8 +729,10 @@ fails on any drift — it lives here rather than in vitest because the Checks
 workflow's `client` job has no PHP, while the `server` job has the whole
 repo. `ensureCatalogBackfilled()` and `SyncController`'s terminal
 `permission_denied` rejection (`SyncPushPermissionDeniedException`, thrown by
-`sanitizePermissionGroupSyncPayload`'s two privilege checks and by
-`normalizePushPayload()`'s cross-tenant `store_id` guard) are documented in
+`sanitizePermissionGroupSyncPayload`'s two privilege checks always, and by
+`normalizePushPayload()`'s cross-tenant `store_id` guard only when
+`storeBelongsToTenantOwner()` is false — otherwise that guard throws the
+retryable `SyncPushForbiddenException` instead, see A-167) are documented in
 full in `client/AGENTS.md`'s "Catalog versioning and the default-group
 backfill" — read that before touching either, especially before adding any
 exemption to that sanitizer: one was tried and removed on 2026-09-29 because
@@ -748,6 +750,21 @@ turns a permanent refusal into an infinite retry loop and a permanently stuck
 `SyncPushPermissionDeniedException` (or return a structured `'reason'` the way
 the `forbidden` branches do), never a bare throw, for anything the caller is
 simply not allowed to do.
+
+**And the reason must say whether the refusal is absolute or session-relative.**
+The client drops *and settles* (`_synced = 1`, unrecoverable by any pull or
+requeue) on `permission_denied`, but only parks on `forbidden`. So
+`permission_denied` is reserved for a refusal no session of that account could
+ever accept — another tenant's store, a store that does not exist, a
+soft-deleted one — while a refusal that merely reflects the *current* session's
+narrower envelope must be `SyncPushForbiddenException`. Both extend
+`SyncPushRefusalException`, which is what `push()`'s catch maps to a reason.
+The trap is `resolveOwnershipIdentity()`: it gives a staff session one store
+where it gives an owner all of them, and `_sync_queue` is device-global with no
+identity, so any guard reading `$allowedStoreIds` is session-relative unless
+you check otherwise — `storeBelongsToTenantOwner()` is that check. See
+`docs/FIXED_BUGS.md` A-167, which found real transactional rows being destroyed
+this way, and A-168 for the two sites deliberately left terminal.
 
 ## Known gotcha: MySQL timezone vs. Laravel's UTC clock
 

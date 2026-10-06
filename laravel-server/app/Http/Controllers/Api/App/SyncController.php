@@ -125,8 +125,9 @@ class SyncController extends Controller
         $isSuperAdmin = $currentUser && $currentUser->hasRole('super_admin');
         $allowedStoreIds = [];
         $allowedUserIds = [];
+        $ownerId = null;
         if ($currentUser && !$isSuperAdmin) {
-            [$allowedStoreIds, $allowedUserIds] = $this->resolveAllowedOwnershipScope($currentUser);
+            [$allowedStoreIds, $allowedUserIds, $ownerId] = $this->resolveAllowedOwnershipScope($currentUser);
         }
 
         try {
@@ -216,7 +217,7 @@ class SyncController extends Controller
 
                 $clientNamedStoreId = !empty($payload['store_id']);
 
-                $payload = $this->normalizePushPayload($request, $change, $payload, $currentStoreId, $currentUser, $isSuperAdmin, $allowedStoreIds, $allowedUserIds);
+                $payload = $this->normalizePushPayload($request, $change, $payload, $currentStoreId, $currentUser, $isSuperAdmin, $allowedStoreIds, $allowedUserIds, $ownerId);
 
                 $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
 
@@ -663,8 +664,8 @@ class SyncController extends Controller
                         'id' => $change['id'] ?? null,
                         'table_name' => $change['table_name'],
                         'record_id' => $change['record_id'] ?? null,
-                        'reason' => $e instanceof \App\Exceptions\SyncPushPermissionDeniedException
-                            ? \App\Exceptions\SyncPushPermissionDeniedException::REASON
+                        'reason' => $e instanceof \App\Exceptions\SyncPushRefusalException
+                            ? $e->reason()
                             : $e->getMessage(),
                     ];
                 }
@@ -1512,7 +1513,7 @@ class SyncController extends Controller
      * Every rule below is lifted verbatim from push()'s inline pipeline —
      * see the individual comments for the incident each one came from.
      */
-    private function normalizePushPayload(Request $request, array $change, array $payload, ?string $currentStoreId, $currentUser, bool $isSuperAdmin, array $allowedStoreIds, array $allowedUserIds = []): array
+    private function normalizePushPayload(Request $request, array $change, array $payload, ?string $currentStoreId, $currentUser, bool $isSuperAdmin, array $allowedStoreIds, array $allowedUserIds = [], ?string $ownerId = null): array
     {
         // Privilege-limit a client-originated `users` payload BEFORE any of
         // the backfill logic below runs, so a stripped/rejected role can't
@@ -1668,6 +1669,9 @@ class SyncController extends Controller
                 // rows directly into a store they don't own via
                 // INSERT, the mirror image of the UPDATE/DELETE
                 // ownership gap this same fix closes below.
+                if ($this->storeBelongsToTenantOwner($payload['store_id'], $ownerId)) {
+                    throw new \App\Exceptions\SyncPushForbiddenException('Sync push: store_id in payload belongs to another store of this tenant, outside the current session\'s scope');
+                }
                 throw new \App\Exceptions\SyncPushPermissionDeniedException('Sync push: store_id in payload is outside the caller\'s allowed stores');
             }
         }
@@ -2042,7 +2046,22 @@ class SyncController extends Controller
         ['ownerId' => $ownerId, 'storeIds' => $allowedStoreIds] = $this->resolveOwnershipIdentity($currentUser);
         $allowedUserIds = User::whereIn('store_id', $allowedStoreIds)->pluck('id')->push($ownerId)->toArray();
 
-        return [$allowedStoreIds, $allowedUserIds];
+        return [$allowedStoreIds, $allowedUserIds, $ownerId];
+    }
+
+    /**
+     * Whether $storeId is one of the tenant owner's live stores (some
+     * session of this account could write it, even if this one can't).
+     * Excludes soft-deleted stores, same as resolveOwnershipIdentity() -
+     * see docs/FIXED_BUGS.md A-167 and docs/KNOWN_BUGS.md A-168.
+     */
+    private function storeBelongsToTenantOwner(?string $storeId, ?string $ownerId): bool
+    {
+        if (!$storeId || !$ownerId) {
+            return false;
+        }
+
+        return Store::where('user_id', $ownerId)->where('id', $storeId)->exists();
     }
 
     /**

@@ -1,4 +1,5 @@
 import {
+  Activity,
   LayoutDashboard,
   Users,
   Store,
@@ -40,6 +41,12 @@ export const sidebarItems: AdminSidebarItem[] = [
     icon: Store,
     href: "/admin/stores",
     permissions: ["view_platform_data"],
+  },
+  {
+    id: "operations",
+    name: "Operations",
+    icon: Activity,
+    href: "/admin/operations",
   },
   {
     id: "register-store",

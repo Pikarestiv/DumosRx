@@ -14,17 +14,11 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { StoreTable } from "@/components/admin/stores/store-table";
 import { StoreToolbar } from "@/components/admin/stores/store-toolbar";
 import { StorePagination } from "@/components/admin/stores/store-pagination";
-import { SuspendStoreDialog, BillingHistoryDialog } from "@/components/admin/stores/store-dialogs";
-import {
-  ArchiveStoreDialog,
-  PurgeStoreDialog,
-} from "@/components/admin/stores/store-delete-dialogs";
+import { StoreDialogHost } from "@/components/admin/stores/store-dialog-host";
+import { FleetStockValueCard } from "@/components/admin/stores/fleet-stock-value-card";
 import { useStoreDeletionActions } from "@/hooks/use-store-deletion-actions";
 import { useStoreImpersonation } from "@/hooks/use-store-impersonation";
 import type { AdminStoresArchivedScope } from "@/lib/api/admin-hooks-stores";
-import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-dialog";
-import { SharedActivatePlanDialog } from "@/components/admin/shared-activate-plan-dialog";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { downloadStoreFleetCsv } from "@/lib/admin-store-export";
 import { toast } from "sonner";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
@@ -244,7 +238,11 @@ export default function StoresManagement() {
         </div>
       </div>
 
-      <Card className="border-none shadow-sm overflow-hidden bg-white dark:bg-slate-900">
+      {response?.stock_value_by_currency && (
+        <FleetStockValueCard totals={response.stock_value_by_currency} />
+      )}
+
+      <Card className="border-none shadow-sm overflow-hidden bg-card">
         <CardContent className="p-0">
           <StoreToolbar
             search={search}
@@ -302,82 +300,14 @@ export default function StoresManagement() {
         </CardContent>
       </Card>
 
-      <SuspendStoreDialog
-        isOpen={isSuspendDialogOpen}
-        onOpenChange={setIsSuspendDialogOpen}
+      <StoreDialogHost
         selectedStore={selectedStore}
-        handleSuspend={handleSuspend}
-        isPending={suspendMutation.isPending}
-      />
-
-      <SharedGrantTrialDialog
-        open={isTrialDialogOpen}
-        onOpenChange={setIsTrialDialogOpen}
-        targetName={selectedStore?.name}
-        onConfirm={handleGrantTrial}
-        isPending={grantTrialMutation.isPending}
-      />
-
-      <SharedActivatePlanDialog
-        open={isActivatePlanDialogOpen}
-        onOpenChange={setIsActivatePlanDialogOpen}
-        targetName={selectedStore?.name}
-        onConfirm={handleActivatePlan}
-        isPending={activatePlanMutation.isPending}
-      />
-
-      <ArchiveStoreDialog
-        store={deletion.archiveTarget}
-        onOpenChange={(open) => {
-          if (!open) deletion.closeArchive();
-        }}
-        onConfirm={deletion.confirmArchive}
-        isPending={deletion.isArchiving}
-      />
-
-      <PurgeStoreDialog
-        store={deletion.purgeTarget}
-        onOpenChange={(open) => {
-          if (!open) deletion.closePurge();
-        }}
-        onConfirm={deletion.confirmPurge}
-        isPending={deletion.isPurging}
-      />
-
-      <BillingHistoryDialog
-        isOpen={isBillingDialogOpen}
-        onOpenChange={setIsBillingDialogOpen}
-        selectedStore={selectedStore}
-      />
-
-      <ConfirmDialog
-        open={impersonation.impersonateTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) impersonation.clearImpersonateTarget();
-        }}
-        title="Start impersonation session?"
-        description={
-          impersonation.impersonateTarget
-            ? `You will be signed into the app as ${impersonation.impersonateTarget.owner} (${impersonation.impersonateTarget.email}), the owner of ${impersonation.impersonateTarget.name}. Every action you take will be recorded against that account until you return to the admin panel.`
-            : ""
-        }
-        confirmLabel="Impersonate"
-        onConfirm={() => {
-          if (impersonation.impersonateTarget) {
-            impersonation.startImpersonation(impersonation.impersonateTarget);
-          }
-        }}
-      />
-
-      <ConfirmDialog
-        open={impersonation.environmentChallenge !== null}
-        onOpenChange={(open) => {
-          if (!open) impersonation.dismissEnvironmentChallenge();
-        }}
-        title="Send a handoff code to production?"
-        description={impersonation.environmentChallenge?.message ?? ""}
-        confirmLabel="Continue anyway"
-        onConfirm={impersonation.confirmEnvironmentChallenge}
+        suspend={{ isOpen: isSuspendDialogOpen, onOpenChange: setIsSuspendDialogOpen, onConfirm: handleSuspend, isPending: suspendMutation.isPending }}
+        trial={{ isOpen: isTrialDialogOpen, onOpenChange: setIsTrialDialogOpen, onConfirm: handleGrantTrial, isPending: grantTrialMutation.isPending }}
+        activatePlan={{ isOpen: isActivatePlanDialogOpen, onOpenChange: setIsActivatePlanDialogOpen, onConfirm: handleActivatePlan, isPending: activatePlanMutation.isPending }}
+        billing={{ isOpen: isBillingDialogOpen, onOpenChange: setIsBillingDialogOpen }}
+        deletion={deletion}
+        impersonation={impersonation}
       />
     </div>
   );

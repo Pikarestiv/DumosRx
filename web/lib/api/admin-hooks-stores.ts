@@ -35,6 +35,13 @@ export const useAdminSummary = (options?: { enabled?: boolean }) => {
 
 export type AdminStoresArchivedScope = "active" | "only" | "all";
 
+/** The fleet list, plus the platform-wide stock value roll-up. The roll-up is
+ * super_admin-only server-side, so it is absent (not zero) for every other
+ * caller — see laravel-server/AGENTS.md. */
+export interface AdminStoresResponse extends PaginatedResponse<AdminStoreSummary> {
+  stock_value_by_currency?: Record<string, number>;
+}
+
 export const useAdminStores = (
   page = 1,
   search = "",
@@ -51,7 +58,7 @@ export const useAdminStores = (
   return useQuery({
     queryKey: useScopedKey(["admin-stores", page, search, status, plan, archived]),
     queryFn: () =>
-      webApiClient.request<PaginatedResponse<AdminStoreSummary>>(`admin/stores?${query.toString()}`),
+      webApiClient.request<AdminStoresResponse>(`admin/stores?${query.toString()}`),
     // The previous page's rows stay on screen while a debounced keystroke's
     // query resolves, so the table never collapses to a skeleton mid-typing.
     placeholderData: keepPreviousData,

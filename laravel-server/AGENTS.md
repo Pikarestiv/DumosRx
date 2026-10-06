@@ -697,12 +697,25 @@ fails on any drift — it lives here rather than in vitest because the Checks
 workflow's `client` job has no PHP, while the `server` job has the whole
 repo. `ensureCatalogBackfilled()` and `SyncController`'s terminal
 `permission_denied` rejection (`SyncPushPermissionDeniedException`, thrown by
-`sanitizePermissionGroupSyncPayload`'s two privilege checks) are documented in
+`sanitizePermissionGroupSyncPayload`'s two privilege checks and by
+`normalizePushPayload()`'s cross-tenant `store_id` guard) are documented in
 full in `client/AGENTS.md`'s "Catalog versioning and the default-group
 backfill" — read that before touching either, especially before adding any
 exemption to that sanitizer: one was tried and removed on 2026-09-29 because
 `validateSync()` backfills the server before any pushed change is processed,
 which made the exemption both unreachable and a hole.
+
+**Every authorization refusal on the push path must carry a machine-checkable
+reason.** `push()`'s per-change catch falls back to `$e->getMessage()` for any
+other exception type, and the client only treats a reason it recognizes as
+terminal (`NON_RETRYABLE_CONFLICT_REASONS` in
+`client/lib/db/sync-engine/push.ts`). A bare `\RuntimeException` therefore
+turns a permanent refusal into an infinite retry loop and a permanently stuck
+`_sync_queue` row — see `docs/FIXED_BUGS.md` A-161, where the cross-tenant
+`store_id` guard did exactly that in production. Throw
+`SyncPushPermissionDeniedException` (or return a structured `'reason'` the way
+the `forbidden` branches do), never a bare throw, for anything the caller is
+simply not allowed to do.
 
 ## Known gotcha: MySQL timezone vs. Laravel's UTC clock
 

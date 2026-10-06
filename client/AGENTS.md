@@ -565,6 +565,17 @@ counts, see `components/stock-batch/stock-audits.tsx`).
   settle the terminally-conflicted local row — `markConflictSettled()` is
   called explicitly. See `docs/FIXED_BUGS.md`, "audit_logs conflict
   resurrection loop".
+- `REASONS_SETTLING_SOURCE_ROW` (`permission_denied`) settles the source row
+  for the same reason, but keyed on the *reason* rather than the table: the
+  caller has no access to that row's store, so pull cannot see it either and
+  no pull on any table can ever match and settle it. Without this the dropped
+  queue row comes straight back, because the local row keeps `_synced = 0`
+  with no queue entry and `requeueOrphanedRows()` re-queues exactly that
+  shape — once per install normally, but on *every* crash-flagged launch
+  (`DatabaseProvider`'s `force: hadPendingCrashes`). Keep the two sets
+  separate: a `version_conflict` must stay unsettled, because there the
+  server *does* have the row and the next pull is what reconciles it.
+  See `docs/FIXED_BUGS.md` A-161.
 - **`coalescePendingUpdates()`.** `update()` no longer bumps `_version`
   locally (it sends the unchanged base version so the server can tell a
   stale edit from a current one), which fixed the two-device case but left a
@@ -2832,6 +2843,17 @@ pre-backfill array.
   change by resending it, so a privilege rejection stays a privilege
   rejection on every attempt — exactly the property that already makes
   `version_conflict` terminal.
+
+  **The cross-tenant `store_id` refusal belongs to this same class** and was
+  missing from it until A-161: `normalizePushPayload()`'s "store_id in payload
+  is outside the caller's allowed stores" guard threw a bare `\RuntimeException`,
+  so `push()` reported its *message* as the reason. A free-text reason matches
+  nothing in `NON_RETRYABLE_CONFLICT_REASONS`, so the row backed off and
+  retried forever. It now throws `SyncPushPermissionDeniedException` like the
+  two checks above it, and a `permission_denied` drop additionally settles the
+  source row (`REASONS_SETTLING_SOURCE_ROW`, see "Push details"). Any *new*
+  authorization refusal added to this path must use that exception too, not a
+  bare throw — a reason string the client cannot match is an infinite retry.
 
   **An exemption was tried first and was wrong twice over**
   (`isCatalogBackfillOnlyPayload()`, removed 2026-09-29, with

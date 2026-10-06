@@ -47,6 +47,10 @@ async function fetchManifest(timeoutMs = 4000) {
   }
 }
 
+// 4000ms expired before a congested mobile connection could deliver a
+// document's first byte; 10s clears that, still cutting iOS's long hang.
+const NAVIGATE_NETWORK_TIMEOUT_MS = 10000;
+
 // Two-generation retention (P3-2). The prune below used to delete every entry
 // missing from the current build's manifest, which is what let an already-open
 // tab running the previous build's JS 404 on a lazy-loaded chunk the deploy had
@@ -81,7 +85,11 @@ function computeCachePrunePlan(cachedPathnames, currentUrls, previouslyRetained)
   return { deleted: [...deleted], retained: [...retained] };
 }
 
-self.__swInternals = { computeCachePrunePlan, RETAINED_RECORD_KEY };
+self.__swInternals = {
+  computeCachePrunePlan,
+  RETAINED_RECORD_KEY,
+  NAVIGATE_NETWORK_TIMEOUT_MS,
+};
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -285,9 +293,14 @@ self.addEventListener("fetch", (event) => {
           // iOS Safari can leave a doomed fetch pending for tens of seconds
           // on a dead connection instead of rejecting quickly (unlike
           // Chrome/Android), which otherwise shows a spinner for that whole
-          // window before the offline fallback below ever kicks in.
+          // window before the offline fallback below ever kicks in. The
+          // budget only bounds time-to-headers: fetch() resolves there, and
+          // the body streams on afterwards with the timer already cleared.
           const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 4000);
+          const timeout = setTimeout(
+            () => controller.abort(),
+            NAVIGATE_NETWORK_TIMEOUT_MS,
+          );
           // cache: "no-store" - same reasoning as fetchManifest() above:
           // without it, this "network first" fetch can still be quietly
           // satisfied by the browser's own HTTP cache instead of actually

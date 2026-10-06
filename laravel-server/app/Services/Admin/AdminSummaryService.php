@@ -10,6 +10,10 @@ use App\Models\User;
 
 class AdminSummaryService
 {
+    private const OWNER_ROLE = 'store_owner';
+
+    private const STAFF_ROLES = ['admin', 'manager', 'specialist', 'sales_staff', 'auditor'];
+
     public function __construct(private AdminRevenueService $revenueService) {}
 
     public function getGlobalSummary()
@@ -19,18 +23,18 @@ class AdminSummaryService
         $totalStores = Store::count();
         $newStores = Store::where('created_at', '>=', $last7Days)->count();
 
-        $activeUsers = User::where('is_active', true)
-            ->where('role', '!=', 'super_admin')
+        $activeOwners = User::where('is_active', true)
+            ->where('role', self::OWNER_ROLE)
             ->count();
-        $newUsers = User::where('role', '!=', 'super_admin')
-            ->where('created_at', '>=', $last7Days)
+        $activeStaff = User::where('is_active', true)
+            ->whereIn('role', self::STAFF_ROLES)
             ->count();
 
         $catalogProducts = Product::count();
         $newProducts = Product::where('created_at', '>=', $last7Days)->count();
 
-        $activeSubscriptions = Subscription::where('status', 'active')->count();
-        $activeTrials = Subscription::where('status', 'active')->where('is_trial', true)->count();
+        $activeSubscriptions = $this->liveSubscriptionOwners(false);
+        $activeTrials = $this->liveSubscriptionOwners(true);
 
         $storesSyncedToday = Store::where('last_sync_at', '>=', now()->subDay())->count();
 
@@ -108,8 +112,8 @@ class AdminSummaryService
                 ],
                 [
                     'name' => 'Active Users',
-                    'value' => number_format($activeUsers),
-                    'change' => $this->weeklyDelta($newUsers, 'joined'),
+                    'value' => number_format($activeOwners),
+                    'change' => number_format($activeStaff).' staff',
                     'icon' => 'Users',
                     'color' => 'blue',
                 ],
@@ -145,6 +149,15 @@ class AdminSummaryService
             'live_operations' => $liveOperations,
             'security_alerts' => $securityAlerts,
         ];
+    }
+
+    private function liveSubscriptionOwners(bool $trial): int
+    {
+        return Subscription::where('status', 'active')
+            ->where('is_trial', $trial)
+            ->where('end_date', '>=', now())
+            ->distinct()
+            ->count('user_id');
     }
 
     private function weeklyDelta(int $createdInLastWeek, string $verb = 'this week'): string

@@ -132,19 +132,93 @@ class AdminSummaryMetricHonestyTest extends TestCase
         $this->assertSame('+1 this week', $this->statNamed($this->summary(), 'Total Stores')['change']);
     }
 
-    public function test_it_reports_active_subscriptions(): void
+    private function subscribe(User $user, array $attributes = []): Subscription
     {
-        Subscription::create([
-            'user_id' => $this->makeUser()->id,
+        return Subscription::create(array_merge([
+            'user_id' => $user->id,
             'plan_name' => 'premium',
             'status' => 'active',
             'is_trial' => false,
             'start_date' => now()->subMonth(),
             'end_date' => now()->addMonth(),
             'license_key' => 'LIC-'.uniqid(),
-        ]);
+        ], $attributes));
+    }
+
+    public function test_it_reports_active_subscriptions(): void
+    {
+        $this->subscribe($this->makeUser());
 
         $this->assertSame('1', $this->statNamed($this->summary(), 'Active Subscriptions')['value']);
+    }
+
+    /**
+     * The reported reproduction: one store owner showed 7. Nothing flips a
+     * subscription to 'expired' when its end_date passes, so every historical
+     * row an owner ever held still reads status='active' and a row count
+     * reports the owner once per subscription they have ever had.
+     */
+    public function test_active_subscriptions_counts_distinct_owners_not_subscription_rows(): void
+    {
+        $owner = $this->makeUser();
+        $this->subscribe($owner, ['end_date' => now()->subYear(), 'start_date' => now()->subYears(2)]);
+        $this->subscribe($owner, ['end_date' => now()->subMonths(6), 'start_date' => now()->subYear()]);
+        $this->subscribe($owner);
+
+        $this->assertSame('1', $this->statNamed($this->summary(), 'Active Subscriptions')['value']);
+    }
+
+    public function test_active_subscriptions_excludes_an_owner_whose_subscription_has_lapsed(): void
+    {
+        $this->subscribe($this->makeUser(), ['end_date' => now()->subDay()]);
+
+        $this->assertSame('0', $this->statNamed($this->summary(), 'Active Subscriptions')['value']);
+    }
+
+    public function test_active_subscriptions_excludes_trials_and_reports_them_on_the_sub_line(): void
+    {
+        $this->subscribe($this->makeUser());
+        $this->subscribe($this->makeUser(), ['is_trial' => true]);
+        $this->subscribe($this->makeUser(), ['is_trial' => true]);
+
+        $stat = $this->statNamed($this->summary(), 'Active Subscriptions');
+
+        $this->assertSame('1', $stat['value']);
+        $this->assertSame('2 on trial', $stat['change']);
+    }
+
+    public function test_active_users_counts_store_owners_only(): void
+    {
+        $this->makeUser('store_owner');
+        $this->makeUser('store_owner');
+        $this->makeUser('platform_admin');
+        $this->makeUser('agent');
+        $this->makeUser('super_admin');
+        $this->makeUser('manager');
+        $this->makeUser('sales_staff');
+
+        $this->assertSame('2', $this->statNamed($this->summary(), 'Active Users')['value']);
+    }
+
+    public function test_active_users_reports_store_staff_on_the_sub_line(): void
+    {
+        $this->makeUser('store_owner');
+        $this->makeUser('admin');
+        $this->makeUser('manager');
+        $this->makeUser('specialist');
+        $this->makeUser('sales_staff');
+        $this->makeUser('auditor');
+        $this->makeUser('platform_admin');
+
+        $this->assertSame('5 staff', $this->statNamed($this->summary(), 'Active Users')['change']);
+    }
+
+    public function test_active_users_ignores_deactivated_accounts(): void
+    {
+        $this->makeUser('store_owner');
+        $this->makeUser('store_owner')->forceFill(['is_active' => false])->save();
+
+        $this->assertSame('1', $this->statNamed($this->summary(), 'Active Users')['value']);
     }
 
     public function test_it_counts_only_stores_synced_within_the_last_day(): void

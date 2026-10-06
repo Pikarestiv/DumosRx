@@ -55,6 +55,15 @@ without updating that.
     `payment_transactions.currency` are both `NOT NULL` (the former defaults
     to `'NGN'`), so a true null is unreachable; the helper's fallback guards
     blank strings and future callers, not existing rows.
+  - **Overview's people and subscription counts are store-owner-scoped.**
+    "Active Users" counts `role = 'store_owner'` only, with active store staff
+    (`admin`, `manager`, `specialist`, `sales_staff`, `auditor`) on its
+    sub-line; platform roles (`super_admin`, `platform_admin`, `agent`) appear
+    in neither. It previously counted everyone except `super_admin`, i.e. the
+    platform's own staff plus every store's employees. "Active Subscriptions"
+    counts **distinct `user_id`**, not subscription rows, and excludes trials
+    (they get the sub-line) — a row count reported one owner once per
+    subscription they had ever held.
   - **Sync recency is not account status.** `AdminSummaryService`'s recent-stores
     map keeps `sync_status` under its own key, separate from the store's real
     `status` column, because an earlier version overwrote `status` with the
@@ -909,6 +918,33 @@ Note also that the storefront's online-payment flow (`initializeCheckout`/
 per-store Paystack subaccounts — see the dedicated section below for the
 onboarding flow, fee semantics, propagation cadence, and the refund decision.
 Full design: `docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`.
+
+## `subscriptions.status` is not self-maintaining — always pair it with `end_date`
+
+Until 2026-10-06 **nothing transitioned a subscription out of `active` when its
+`end_date` passed.** `status` only ever changed when an admin granted a trial or
+activated a plan, both of which explicitly expire the account's prior rows
+(`AdminUserService`, `AdminStoreService`). Every other row stayed `active`
+forever, so an owner accumulated one permanently-`active` row per subscription
+they had ever held. The admin Overview's "Active Subscriptions" counted rows and
+reported 7 for a single account.
+
+- **Why nothing broke:** every access-control and billing reader already pairs
+  the status check with `end_date` — `CheckSubscription`, `SubscriptionService::resolveEffectiveSubscription()`,
+  `SyncController`, `SubscriptionController`, `StorefrontController`,
+  `AdminStoreService`'s plan filter. Only code that read `status` alone (a
+  count, a group-by) was wrong. **Keep it that way: never gate access on
+  `status` by itself.**
+- **`subscriptions:expire`** (`ExpireLapsedSubscriptions`, scheduled daily at
+  02:00) now closes the gap. Its first run is also the backfill for historical
+  rows.
+- **It deliberately expires only past `end_date` + `grace_period_days`, not past
+  `end_date`.** `resolveEffectiveSubscription()` finds the grace-window row with
+  a `status = 'active'` filter in *both* of its branches, so expiring a row the
+  moment `end_date` passed would silently cut the grace period to zero — which
+  is the failure that previously deactivated staff and sent suspension
+  notifications to accounts merely mid-renewal. If you ever change the grace
+  source, change it in both places.
 
 ## `POST /subscription/verify-license` is scoped to the caller's own account
 

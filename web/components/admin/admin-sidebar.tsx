@@ -35,7 +35,7 @@ export function AdminSidebar() {
       <Link
         href="/admin"
         id="tour-brand"
-        className="flex flex-col items-center gap-2 group transition-transform hover:scale-105 pt-8 px-8 self-start"
+        className="shrink-0 flex flex-col items-center gap-2 group transition-transform hover:scale-105 pt-8 px-8 self-start"
       >
         <Image
           src="/logo.png"
@@ -47,7 +47,7 @@ export function AdminSidebar() {
         />
       </Link>
 
-      <nav className="flex-1 px-4 py-4 space-y-1">
+      <nav className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-1">
         {visibleSidebarItems(user ?? undefined).map((item) => {
           const normalizedPathname = pathname?.replace(/\/$/, "") || "";
           const normalizedHref = item.href.replace(/\/$/, "");
@@ -85,7 +85,7 @@ export function AdminSidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-slate-800">
+      <div className="shrink-0 p-4 border-t border-slate-800">
         <div
           id="tour-profile"
           className="bg-slate-900 rounded-2xl p-4 flex items-center gap-3 border border-slate-800/50"
@@ -101,6 +101,7 @@ export function AdminSidebar() {
           </div>
           <button
             onClick={() => void handleLogout()}
+            aria-label="Sign out"
             className="p-2 hover:bg-slate-800 rounded-lg transition-colors group"
           >
             <LogOut className="h-4 w-4 text-slate-500 group-hover:text-red-400" />

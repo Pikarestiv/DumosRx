@@ -133,4 +133,19 @@ describe("admin navigation role filtering", () => {
     }
     expect(screen.getByRole("link", { name: "Register Store" })).toBeTruthy();
   });
+
+  /** The admin layout clips the sidebar at screen height, so if the item list
+   * is not its own scroll area it pushes the profile/sign-out block out of
+   * view entirely and Sign Out becomes unreachable. */
+  it("scrolls the desktop nav items rather than pushing the sign-out block off-screen", () => {
+    const { container } = render(<AdminSidebar />);
+
+    const nav = container.querySelector("nav");
+    expect(nav).toBeTruthy();
+    expect(nav!.className).toContain("overflow-y-auto");
+    expect(nav!.className).toContain("min-h-0");
+
+    const signOut = screen.getByRole("button", { name: /sign out/i });
+    expect(nav!.contains(signOut)).toBe(false);
+  });
 });

@@ -15,3 +15,4 @@ Schedule::command('summary:end-of-day')->dailyAt('21:00')->timezone('Africa/Lago
 Schedule::command('admin:send-daily-summary')->dailyAt('08:00')->timezone('Africa/Lagos');
 Schedule::command('backups:prune')->dailyAt('03:00');
 Schedule::command('storefront:sweep-payment-intents')->hourly();
+Schedule::command('subscriptions:expire')->dailyAt('02:00');

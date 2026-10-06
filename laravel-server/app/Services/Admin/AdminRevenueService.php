@@ -8,10 +8,9 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
  * Subscription-payment revenue reporting for the admin Marketing > Revenue
- * tab. Distinct from AdminPlatformService::getGlobalSummary()'s "Platform
- * Revenue" stat, which sums Sale::total_amount (store product sales) - this
- * aggregates PaymentTransaction rows instead, the actual SaaS subscription
- * revenue, which previously had no admin-facing report at all.
+ * tab and, since Phase 1, the Overview "Subscription Revenue" stat. This is
+ * the canonical definition of platform revenue: successful PaymentTransaction
+ * rows, reported per currency and never converted between them.
  */
 class AdminRevenueService
 {

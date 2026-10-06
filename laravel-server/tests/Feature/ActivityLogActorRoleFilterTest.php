@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Models\ActivityLog;
 use App\Models\Role;
 use App\Models\User;
-use App\Services\Admin\AdminPlatformService;
+use App\Services\Admin\AdminActivityService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -14,7 +14,7 @@ class ActivityLogActorRoleFilterTest extends TestCase
 {
     use RefreshDatabase;
 
-    private AdminPlatformService $service;
+    private AdminActivityService $service;
 
     protected function setUp(): void
     {
@@ -22,7 +22,7 @@ class ActivityLogActorRoleFilterTest extends TestCase
 
         $this->seed(RolesAndPermissionsSeeder::class);
 
-        $this->service = app(AdminPlatformService::class);
+        $this->service = app(AdminActivityService::class);
     }
 
     public function test_filters_activity_logs_by_the_acting_users_role(): void

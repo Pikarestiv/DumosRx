@@ -4,7 +4,7 @@ namespace Tests\Feature\Admin;
 
 use App\Models\Store;
 use App\Models\User;
-use App\Services\Admin\AdminPlatformService;
+use App\Services\Admin\AdminSummaryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Tests\TestCase;
@@ -37,7 +37,7 @@ class AdminRecentStoresSyncStatusTest extends TestCase
 
     private function recentStores(): Collection
     {
-        return collect(app(AdminPlatformService::class)->getGlobalSummary()['recent_stores'])
+        return collect(app(AdminSummaryService::class)->getGlobalSummary()['recent_stores'])
             ->keyBy('name');
     }
 

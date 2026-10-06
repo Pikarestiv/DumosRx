@@ -19,9 +19,9 @@ use Illuminate\Support\Str;
  * Store-domain admin actions: the platform-wide stores list, registering a
  * store on a customer's behalf, suspend/unsuspend, demo flagging, trial
  * grants, billing history, account-manager assignment, and impersonation.
- * Split out of the original AdminService, alongside AdminPlatformService and
- * AdminUserService, so each admin sub-domain owns a service roughly the
- * size of the others instead of one 1300-line class.
+ * Split out of the original AdminService, alongside AdminUserService and the
+ * AdminSummary/Health/Catalog/Activity services, so each admin sub-domain
+ * owns a service roughly the size of the others.
  */
 class AdminStoreService
 {

@@ -32,6 +32,40 @@ without updating that.
   that's the one architectural rule `tests/Feature/ArchitectureTest.php`
   exists to keep honest (currently only asserts core tables exist; the
   Controller/Service separation itself is enforced by review, not a test).
+- **Admin platform services — one domain each, never a god-service.** The
+  original `AdminPlatformService` carried six unrelated responsibilities in
+  590 lines (past §4's 350-line limit) and was split in Phase 1 of the admin
+  panel work (`docs/superpowers/specs/2026-10-06-admin-panel-phase-1-design.md`):
+  `AdminSummaryService` (the Overview payload), `AdminHealthService`
+  (health probes + the Sentry issue feed), `AdminCatalogService` (global
+  product list, catalog metrics, standardization) and `AdminActivityService`
+  (platform-wide activity log + global search). `AdminPlatformController`
+  is a thin delegator over the four. Add a new admin aggregation as its own
+  service rather than growing one of these — Phases 2-6 (sync health,
+  subscription lifecycle, trends, maintenance runner) each add one.
+  - `AdminFleetMetricsService` holds fleet-wide roll-ups; `AdminRevenueService`
+    is the **canonical definition of platform revenue** (successful
+    `PaymentTransaction` rows). Overview's old "Platform Revenue" stat summed
+    `Sale::total_amount`, i.e. tenant GMV — never reintroduce that as a
+    platform-revenue figure.
+  - **Money is reported per currency and never converted.** `App\Support\CurrencyTotals::fromPairs()`
+    is the single grouping helper; it uppercases ISO codes and buckets blank
+    ones under `NGN`. There is deliberately no FX table — a converted total
+    would mean owning stale-rate risk. Note that `stores.currency` and
+    `payment_transactions.currency` are both `NOT NULL` (the former defaults
+    to `'NGN'`), so a true null is unreachable; the helper's fallback guards
+    blank strings and future callers, not existing rows.
+  - **Sync recency is not account status.** `AdminSummaryService`'s recent-stores
+    map keeps `sync_status` under its own key, separate from the store's real
+    `status` column, because an earlier version overwrote `status` with the
+    recency guess and left Recent Stores contradicting the Store Fleet list for
+    the same store. A clock-skewed offline device can push a future
+    `last_sync_at` (the sync controller trusts the client's clock), so it is
+    clamped to `now()` before the diff.
+  - **`AdminHealthService::getRecentErrors()` needs `SENTRY_API_TOKEN`**, an
+    internal-integration token scoped to `event:read`/`project:read`. It must
+    never reach the browser: `web/` is a static export with no server of its
+    own to keep a secret in, which is why this is proxied server-side at all.
 - **Controller namespaces** roughly mirror caller: `Api/App/*` (client/,
   the POS sync+business endpoints), `Api/Web/*` (web/'s dashboard-adjacent
   endpoints), `Api/Admin/*` (platform admin panel), `Api/Public/*`

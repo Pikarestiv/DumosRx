@@ -23,3 +23,17 @@
   RewriteCond %{REQUEST_FILENAME} !-l
   RewriteRule . /index.html [L]
 </IfModule>
+
+# Without this, nothing tells the browser (or an intermediate proxy) an
+# HTML document shouldn't be cached long-term, so a page could keep being
+# served stale from the browser's own heuristic HTTP cache even on a
+# deliberate "network first" fetch (sw.js's navigate handler) - confirmed
+# live as a device stuck replaying one stale release 178 times, unable to
+# reach a route whose chunk that old build no longer had (Sentry
+# DUMOSRX-CLIENT-F). _next/static/* assets are untouched - those are
+# content-hashed and safe to cache indefinitely.
+<IfModule mod_headers.c>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+</IfModule>

@@ -288,9 +288,18 @@ self.addEventListener("fetch", (event) => {
           // window before the offline fallback below ever kicks in.
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 4000);
-          const response = await fetch(request, { signal: controller.signal }).finally(() =>
-            clearTimeout(timeout),
-          );
+          // cache: "no-store" - same reasoning as fetchManifest() above:
+          // without it, this "network first" fetch can still be quietly
+          // satisfied by the browser's own HTTP cache instead of actually
+          // reaching the server, serving a stale document even though the
+          // code believes it just fetched fresh. Confirmed live: a device
+          // stuck replaying one stale release 178 times (Sentry
+          // DUMOSRX-CLIENT-F) because every "recovery" reload kept landing
+          // back on the same cached page instead of a current one.
+          const response = await fetch(request, {
+            signal: controller.signal,
+            cache: "no-store",
+          }).finally(() => clearTimeout(timeout));
           // A navigation's redirect mode is always "manual" (inherited here
           // despite the AbortSignal downgrading mode to "same-origin" -
           // redirect is a separate field the Request constructor carries

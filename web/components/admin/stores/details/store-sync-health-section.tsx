@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RefreshCw } from "lucide-react";
-import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
+import { formatDateOnlyToDDMMYYYY, formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { syncReasonLabel, useAdminStoreSyncHealth } from "@/lib/api/admin-hooks-sync";
 import type { AdminStoreSyncHealth } from "@/lib/types/admin";
 
@@ -50,7 +50,7 @@ export function StoreSyncHealthSection({ data, isLoading }: StoreSyncHealthSecti
               {daily.map((day) => (
                 <div key={day.date} className="py-2 flex items-center justify-between gap-4 text-sm">
                   <span className="font-medium text-muted-foreground">
-                    {formatDateToDDMMYYYY(day.date)}
+                    {formatDateOnlyToDDMMYYYY(day.date)}
                   </span>
                   <span className="font-bold">
                     <span className="text-emerald-500">{day.accepted}</span>
@@ -59,6 +59,13 @@ export function StoreSyncHealthSection({ data, isLoading }: StoreSyncHealthSecti
                       {day.refused}
                     </span>
                     <span className="text-muted-foreground"> refused</span>
+                    {day.conflicted > 0 && (
+                      <>
+                        <span className="text-muted-foreground"> · </span>
+                        <span className="text-amber-500">{day.conflicted}</span>
+                        <span className="text-muted-foreground"> conflicts</span>
+                      </>
+                    )}
                   </span>
                 </div>
               ))}

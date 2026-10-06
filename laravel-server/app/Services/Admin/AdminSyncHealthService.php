@@ -13,14 +13,29 @@ class AdminSyncHealthService
 
     private const WORST_STORES = 10;
 
+    private const REASON_GROUPS = 20;
+
     public function platformSummary(int $days = 7): array
     {
+        $since = $this->windowStart($days);
+
         return [
-            'success_rate_today' => $this->successRate(0),
-            'success_rate_7d' => $this->successRate($days),
-            'failures_by_reason' => $this->failuresByReason($days),
-            'worst_stores' => $this->worstStores($days),
+            'success_rate_today' => $this->successRate($this->windowStart(1)),
+            'success_rate_7d' => $this->successRate($since),
+            'failures_by_reason' => $this->failuresByReason($since),
+            'worst_stores' => $this->worstStores($since),
         ];
+    }
+
+    /**
+     * $days counts whole days inclusive of today, so 1 is today and 7 is a
+     * true week. Every figure on the card shares this one boundary: a rolling
+     * cutoff for the failure lists and a day-start cutoff for the daily tally
+     * would disagree, showing a degraded rate above "No refusals recorded".
+     */
+    private function windowStart(int $days): \Illuminate\Support\Carbon
+    {
+        return now()->subDays(max(0, $days - 1))->startOfDay();
     }
 
     public function storeHealth(string $storeId, int $page = 1): array
@@ -35,6 +50,7 @@ class AdminSyncHealthService
                 'date' => $row->date->toDateString(),
                 'accepted' => $row->changes_accepted,
                 'refused' => $row->changes_refused,
+                'conflicted' => $row->changes_conflicted,
             ])
             ->values()
             ->all();
@@ -61,14 +77,9 @@ class AdminSyncHealthService
         ];
     }
 
-    /**
-     * $daysBack counts whole daily buckets, so 0 means today only. A rolling
-     * 24h window cannot be expressed from day-granular rows: asking for one
-     * would silently include all of yesterday as well.
-     */
-    private function successRate(int $daysBack): ?string
+    private function successRate(\Illuminate\Support\Carbon $since): ?string
     {
-        $totals = SyncHealthDaily::where('date', '>=', now()->subDays($daysBack)->startOfDay())
+        $totals = SyncHealthDaily::where('date', '>=', $since)
             ->selectRaw('COALESCE(SUM(changes_accepted), 0) as accepted, COALESCE(SUM(changes_refused), 0) as refused')
             ->first();
 
@@ -83,20 +94,21 @@ class AdminSyncHealthService
         return round(($accepted / $total) * 100, 1).'%';
     }
 
-    private function failuresByReason(int $days): array
+    private function failuresByReason(\Illuminate\Support\Carbon $since): array
     {
-        return SyncFailure::where('created_at', '>=', now()->subDays($days))
+        return SyncFailure::where('created_at', '>=', $since)
             ->selectRaw('reason, COUNT(*) as total')
             ->groupBy('reason')
             ->orderByDesc('total')
+            ->limit(self::REASON_GROUPS)
             ->get()
             ->mapWithKeys(fn ($row) => [$row->reason => (int) $row->total])
             ->all();
     }
 
-    private function worstStores(int $days): array
+    private function worstStores(\Illuminate\Support\Carbon $since): array
     {
-        $counts = SyncFailure::where('created_at', '>=', now()->subDays($days))
+        $counts = SyncFailure::where('created_at', '>=', $since)
             ->whereNotNull('store_id')
             ->selectRaw('store_id, COUNT(*) as refused')
             ->groupBy('store_id')

@@ -29,7 +29,7 @@ export function SystemHealth({ liveOperations, securityAlerts }: SystemHealthPro
                     <span className="text-sm font-black text-foreground">{(liveOperations.audit_log_entries ?? 0).toLocaleString()}</span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-muted/50 rounded-2xl border border-border">
-                    <span className="text-xs font-bold text-muted-foreground">Sync Success Rate (24h)</span>
+                    <span className="text-xs font-bold text-muted-foreground">Sync Success Rate (Today)</span>
                     {liveOperations.sync_success_rate_today ? (
                         <span className="text-sm font-black text-emerald-500 dark:text-emerald-400">{liveOperations.sync_success_rate_today}</span>
                     ) : (

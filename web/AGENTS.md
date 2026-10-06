@@ -303,7 +303,7 @@ blocked on the Namecheap shared host, so the memory reading is `null` in
 production, which is exactly what the admin should see.
 
 The same rule governs money and counts: `Subscription Revenue` renders "No
-payments yet" rather than `₦0`, and `sync_success_rate_24h` renders "No sync
+payments yet" rather than `₦0`, and `sync_success_rate_today` renders "No sync
 activity" rather than the optimistic `100%` the old UI defaulted to.
 `__tests__/no-fabricated-metrics.test.ts` fails the build if any of the
 literals Phase 1 removed (`"42ms"`, `|| '100%'`, `High Performance`,
@@ -314,7 +314,7 @@ literals Phase 1 removed (`"42ms"`, `|| '100%'`, `High Performance`,
 
 Spec: `docs/superpowers/specs/2026-10-06-admin-panel-phase-2-sync-health-design.md`.
 
-- **Operations owns the platform view** (`SyncHealthCard`): 24h/7d success rate,
+- **Operations owns the platform view** (`SyncHealthCard`): today/7d success rate,
   refusals grouped by reason, and the worst-affected stores. The **per-store
   drill-down** lives on the store detail page, not a new route, because that is
   where the operator already is when a customer calls.

@@ -45,6 +45,23 @@ export const formatDateToDDMMYYYY = (date: string | Date | null | undefined): st
   }
 };
 
+/**
+ * For bare "YYYY-MM-DD" values, which `new Date()` reads as UTC midnight while
+ * `getDate()` reads local time — shifting the day backwards anywhere west of
+ * UTC. Anything else falls through to formatDateToDDMMYYYY.
+ */
+export const formatDateOnlyToDDMMYYYY = (date: string | null | undefined): string => {
+  if (!date) return "";
+
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (dateOnly) {
+    const [, year, month, day] = dateOnly;
+    return `${day}/${month}/${year}`;
+  }
+
+  return formatDateToDDMMYYYY(date);
+};
+
 const ordinalSuffix = (day: number): string => {
   if (day >= 11 && day <= 13) return "th";
   switch (day % 10) {

@@ -950,10 +950,35 @@ reads that assembled array **once**, after the outer `DB::commit()`, beside
   change entry's `id` is optional and real client pushes omit it entirely (see
   `SyncPushSessionScopedRefusalTest`), so keying on `id` would record a null
   operation for virtually every production refusal.
-- **`sync_failures.store_id` carries no foreign key on purpose.** A refused
-  change is forensic evidence; archiving a store must not destroy the record of
-  why its data never landed. `AdminStoreDeletionService` therefore has to decide
-  about these rows explicitly rather than inheriting a cascade.
+- **`sync_failures.store_id` carries no foreign key on purpose**, so
+  **archiving** a store (a soft delete) leaves its recorded refusals intact —
+  which matters, because an archived store is often exactly the one being
+  investigated. **A purge does delete them**, and deliberately:
+  `AdminStoreDeletionService::storeScopedTables()` discovers every table with a
+  `store_id` column rather than reading a list, so both new tables are hard-
+  deleted along with the rest of the store's data. That is the right behaviour
+  for a purge — it is the "erase this tenant" operation — but it means the
+  absent foreign key buys retention across *archival only*, not across purge.
+- **Reasons are canonicalised before they are stored.** `SyncFailureRecorder`
+  writes only the controller's own stable slugs; anything else (an exception
+  message reaching `$failed` from the `catch` at the bottom of the per-change
+  loop, or from the stock-delta pass) becomes `server_error` and the detail goes
+  to the log. Three reasons, all load-bearing: a `QueryException` message runs
+  to several hundred characters and would blow the `string(255)` column under
+  `strict => true`, aborting the whole recording **including the tally** and
+  silently inflating the success rate for the one store actually failing; the
+  message embeds the failing SQL *and its bindings*, so customer names, phones
+  and amounts would land in an observability table and be rendered in the admin
+  UI; and a free-text reason makes `failures_by_reason` unbounded.
+- **Recording failure rows and updating the tally are independent.** Each is
+  wrapped separately, because losing the tally is worse than losing the rows:
+  it removes the store from the denominator entirely.
+- **Conflicts are not refusals.** `version_conflict` and `stale_timestamp` are,
+  in `push()`'s own words, "a routine, expected occurrence in multi-device
+  sync". They are recorded in `sync_failures` for forensics but counted in
+  `changes_conflicted`, not `changes_refused`, so a healthy three-terminal store
+  can still read 100%. A success rate that no working store can ever reach is
+  one operators learn to ignore.
 - **The daily bucket comes from the application clock** (`now()->startOfDay()`),
   never a database-side date — see the §7 timezone section below. Note the bucket
   is a Carbon, not a `Y-m-d` string: the model's `date` cast stores

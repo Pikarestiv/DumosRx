@@ -142,6 +142,77 @@ class SyncFailureRecorderTest extends TestCase
      * SyncPushSessionScopedRefusalTest), so correlating the operation on `id`
      * would record null for virtually every refusal in production.
      */
+    /**
+     * A real QueryException message runs to several hundred characters and
+     * embeds the SQL plus its bindings. Written raw into reason it (a) blows
+     * the VARCHAR(255) under strict mode, aborting the whole recording
+     * including the tally, (b) puts customer PII in an observability table,
+     * and (c) makes failures_by_reason unbounded.
+     */
+    public function test_an_exception_message_is_canonicalised_rather_than_stored_raw(): void
+    {
+        $raw = 'SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: '
+            .'a foreign key constraint fails (SQL: insert into `stock_movements` values (01a1, 2026-10-07, '
+            .str_repeat('Adaeze Okonkwo, 08031234567, 2500.00, ', 12).'))';
+
+        $this->recorder()->recordPushOutcome(
+            [['table_name' => 'stock_movements', 'record_id' => 'mv-1', 'reason' => $raw]],
+            [['table_name' => 'stock_movements', 'record_id' => 'mv-1', 'operation' => 'INSERT']],
+            self::STORE,
+            null,
+            3
+        );
+
+        $stored = SyncFailure::first();
+
+        $this->assertSame('server_error', $stored->reason);
+        $this->assertLessThanOrEqual(255, strlen($stored->reason));
+        $this->assertStringNotContainsString('Adaeze', $stored->reason);
+    }
+
+    /**
+     * recordFailures() throwing must not take the tally down with it: losing
+     * the tally silently inflates the platform success rate for exactly the
+     * store that is failing.
+     */
+    public function test_the_tally_still_lands_when_recording_a_failure_row_throws(): void
+    {
+        $failed = [['table_name' => str_repeat('x', 5000), 'record_id' => 'r1', 'reason' => 'forbidden']];
+
+        $this->recorder()->recordPushOutcome($failed, [], self::STORE, null, 7);
+
+        $row = SyncHealthDaily::first();
+
+        $this->assertNotNull($row, 'the daily tally must survive a failure-row insert error');
+        $this->assertSame(7, $row->changes_accepted);
+    }
+
+    /**
+     * SyncController's own comment calls a version conflict "a routine,
+     * expected occurrence in multi-device sync". Counting it as a failure
+     * means a healthy three-terminal store can never read 100%.
+     */
+    public function test_conflicts_are_counted_separately_from_refusals(): void
+    {
+        $this->recorder()->recordPushOutcome(
+            [
+                ['table_name' => 'customers', 'record_id' => 'c1', 'reason' => 'version_conflict'],
+                ['table_name' => 'customers', 'record_id' => 'c2', 'reason' => 'stale_timestamp'],
+                ['table_name' => 'sales', 'record_id' => 's1', 'reason' => 'forbidden'],
+            ],
+            [],
+            self::STORE,
+            null,
+            10
+        );
+
+        $row = SyncHealthDaily::first();
+
+        $this->assertSame(1, $row->changes_refused, 'only the genuine refusal counts as refused');
+        $this->assertSame(2, $row->changes_conflicted);
+        $this->assertSame(3, SyncFailure::count(), 'conflicts are still recorded for forensics');
+    }
+
     public function test_it_resolves_the_operation_without_relying_on_a_change_id(): void
     {
         $this->recorder()->recordPushOutcome(

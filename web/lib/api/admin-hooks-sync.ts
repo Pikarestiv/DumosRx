@@ -11,6 +11,9 @@ const REASON_LABELS: Record<string, string> = {
   forbidden: "Refused: not permitted for this session, will retry",
   unsupported_operation: "Refused: the server does not sync this table",
   quantity_received_exceeds_ordered: "Rejected: received more stock than the order allows",
+  version_conflict: "Conflict: another device changed this record first",
+  stale_timestamp: "Conflict: an older edit arrived after a newer one",
+  server_error: "Server error while applying this change — see the server log",
 };
 
 export function syncReasonLabel(reason: string): string | null {

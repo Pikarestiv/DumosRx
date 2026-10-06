@@ -131,7 +131,7 @@ export interface SyncFailureRow {
 export interface AdminStoreSyncHealth {
   store_name: string | null;
   last_sync_at: string | null;
-  daily: Array<{ date: string; accepted: number; refused: number }>;
+  daily: Array<{ date: string; accepted: number; refused: number; conflicted: number }>;
   failures: { data: SyncFailureRow[]; meta?: PaginationMeta };
 }
 

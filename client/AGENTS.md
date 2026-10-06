@@ -286,8 +286,23 @@ and `synchronous = NORMAL`.
   `clearDatabaseForNewStore()` so the two cannot drift apart again — they
   previously both omitted `sale_item_batches`, orphaning rows pointing at
   cleared `sale_items`/`stock_batches`. It excludes store configuration
-  (`loyalty_tiers`, `loyalty_redemption_options`, `system_configs`); only
-  `clearDatabaseForNewStore()` adds `stores`/`users`.
+  (`loyalty_tiers`, `loyalty_redemption_options`, `system_configs`), which a
+  `resetDatabase()` must keep because its `stores` row survives and the
+  seeders are gated on that row's `*_seeded_at` stamps.
+- **`clearDatabaseForNewStore()` clears every `STORE_SCOPED_TABLES` entry,
+  not just `LOCAL_WIPE_TABLES` (A-163).** It derives its list as
+  `LOCAL_WIPE_TABLES` + any store-scoped table missing from it +
+  `stores`/`users`, so the store-configuration tables `resetDatabase()`
+  deliberately keeps (above) are still wiped here — the store they belong to
+  is the thing being replaced. The reason it must be the *whole*
+  `STORE_SCOPED_TABLES` set and not a hand-maintained list: a store-scoped
+  row that survives this wipe is left at `_synced = 0` with no `_sync_queue`
+  entry (the wipe clears the queue), which is exactly the shape
+  `requeueOrphanedRows()` re-queues — it is handed `STORE_SCOPED_TABLES` by
+  `DatabaseProvider` — so it gets pushed under the *new* account's identity
+  and refused cross-tenant forever. Any new store-scoped table is covered
+  automatically; `__tests__/clear-database-for-new-store-clears-store-scoped-tables.test.ts`
+  asserts it generically rather than per table.
 - **`clearDatabaseForNewStore()` also clears `dumos_recent_users`
   (2026-10-02).** Wiping the `users`/`stores` tables isn't the whole story:
   the login screen's "Welcome Back" profile picker

@@ -23,6 +23,10 @@ class AdminFleetMetricsService
             $query->whereNull('products.deleted_at');
         }
 
+        if (Schema::hasColumn('stores', 'deleted_at')) {
+            $query->whereNull('stores.deleted_at');
+        }
+
         $rows = $query
             ->groupBy('stores.currency')
             ->selectRaw('stores.currency as currency, COALESCE(SUM(stock_batches.quantity * stock_batches.cost_price), 0) as amount')

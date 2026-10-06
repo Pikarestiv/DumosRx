@@ -127,7 +127,7 @@ export interface AdminHealth {
     loadAverage: { 1: number; 5: number; 15: number } | null;
     memory: { used: string; total: string; percent: number } | null;
     disk: { used: string; total: string; percent: number } | null;
-    database: { load: number; status: string };
+    database: { status: string };
   };
   probes: HealthProbe[];
 }

@@ -62,6 +62,34 @@ without updating that.
     the same store. A clock-skewed offline device can push a future
     `last_sync_at` (the sync controller trusts the client's clock), so it is
     clamped to `now()` before the diff.
+  - **Host readings live behind `App\Support\HostMetrics`, and that seam is
+    load-bearing.** `loadAverage()`, `memory()` and `disk()` each return `null`
+    when the host cannot measure them, and `AdminHealthService` takes the class
+    by constructor injection so tests can bind a stub and exercise **both**
+    branches. Without the seam the honesty tests were tautologies: they asserted
+    whichever branch the machine running the suite happened to take, so the
+    production case (`shell_exec` disabled on the shared host) was exercised
+    nowhere, and a regression to a zero-instead-of-null reading could not fail
+    the build. Keep new host-dependent readings behind this class.
+  - **`databaseConnectMs` must issue a real statement.** It runs
+    `DB::select('select 1')`, not `DB::connection()->getPdo()`: `getPdo()`
+    returns the already-resolved PDO instance (auth middleware has hit the DB
+    long before this runs), so timing it brackets a property read and reports
+    ~0ms on every host, healthy or not. The figure replaced a hardcoded
+    `"42ms"`, so a number that cannot vary is the same defect wearing a
+    different value.
+  - **The activity-log reads in `getSystemHealth()` are guarded.** The Database
+    probe exists to report a dead connection; reading `ActivityLog` unguarded
+    straight after the timer meant a genuinely-down database threw a
+    `QueryException` out of the method and the operator got a generic 500
+    instead of "Database: Degraded" — the one case the probe is for.
+  - **There is no `database.load` figure.** The old one was
+    `min(100, max(5, $activityRowsInLastMinute * 2))` rendered as a percentage
+    bar: it floored an idle platform at 5% and saturated at 100% after ~50 rows,
+    and was not a load measurement in any unit. It was removed in Phase 1's
+    review pass alongside the fake CPU percentage. Don't reintroduce a
+    synthesised percentage here; report `database.status`, or a real figure
+    such as `Threads_connected` against `max_connections`.
   - **`AdminHealthService::getRecentErrors()` needs `SENTRY_API_TOKEN`**, an
     internal-integration token scoped to `event:read`/`project:read`. It must
     never reach the browser: `web/` is a static export with no server of its

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Cpu, Database, HardDrive, MemoryStick, Server } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { AdminHealth } from "@/lib/types/admin";
 
 const UNAVAILABLE = "Unavailable on this host";
@@ -103,12 +104,20 @@ export function HealthResourcesCard({ resources }: { resources: AdminHealth["res
           <Unavailable label="Disk" icon={<HardDrive className="h-4 w-4 text-muted-foreground" />} />
         )}
 
-        <Metered
-          label="Database Load"
-          icon={<Database className="h-4 w-4 text-muted-foreground" />}
-          value={`${database.load}%`}
-          percent={database.load}
-        />
+        <div className="flex items-center justify-between text-sm">
+          <span className="flex items-center gap-2 font-bold">
+            <Database className="h-4 w-4 text-muted-foreground" />
+            Database
+          </span>
+          <span
+            className={cn(
+              "font-black",
+              database.status === "Operational" ? "text-emerald-500" : "text-rose-500",
+            )}
+          >
+            {database.status}
+          </span>
+        </div>
       </CardContent>
     </Card>
   );

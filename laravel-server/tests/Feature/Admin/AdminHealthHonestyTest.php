@@ -3,7 +3,9 @@
 namespace Tests\Feature\Admin;
 
 use App\Services\Admin\AdminHealthService;
+use App\Support\HostMetrics;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class AdminHealthHonestyTest extends TestCase
@@ -13,6 +15,36 @@ class AdminHealthHonestyTest extends TestCase
     private function health(): array
     {
         return app(AdminHealthService::class)->getSystemHealth();
+    }
+
+    /** Swaps the host readings for a stub so both the available and the
+     * unavailable branch are reachable regardless of the machine running
+     * the suite. See laravel-server/AGENTS.md. */
+    private function withHostMetrics(?array $load, ?array $memory, ?array $disk): void
+    {
+        $this->app->instance(HostMetrics::class, new class($load, $memory, $disk) extends HostMetrics
+        {
+            public function __construct(
+                private ?array $load,
+                private ?array $mem,
+                private ?array $dsk
+            ) {}
+
+            public function loadAverage(): ?array
+            {
+                return $this->load;
+            }
+
+            public function memory(): ?array
+            {
+                return $this->mem;
+            }
+
+            public function disk(): ?array
+            {
+                return $this->dsk;
+            }
+        });
     }
 
     public function test_it_no_longer_reports_fabricated_infrastructure_nodes(): void
@@ -47,6 +79,23 @@ class AdminHealthHonestyTest extends TestCase
         $this->assertIsFloat($health['databaseConnectMs']);
     }
 
+    /**
+     * Connection::getPdo() returns an already-resolved PDO instance, so timing
+     * it brackets a property read and reports ~0ms on any host. The figure
+     * replaced a hardcoded "42ms", so it has to measure a real round trip.
+     */
+    public function test_the_connect_timer_issues_a_real_round_trip(): void
+    {
+        $statements = [];
+        DB::listen(function ($query) use (&$statements) {
+            $statements[] = $query->sql;
+        });
+
+        $this->health();
+
+        $this->assertContains('select 1', $statements);
+    }
+
     public function test_it_reports_platform_age_not_uptime(): void
     {
         $health = $this->health();
@@ -63,46 +112,75 @@ class AdminHealthHonestyTest extends TestCase
         $this->assertArrayHasKey('loadAverage', $resources);
     }
 
-    public function test_load_average_is_null_rather_than_zero_when_unmeasurable(): void
+    /**
+     * `min(100, max(5, $recentActivity * 2))` is not a load figure in any
+     * unit: it floors an idle platform at 5% and saturates at 100% after 50
+     * activity rows. It is the same class of invention as the removed CPU
+     * percentage and fake node latencies.
+     */
+    public function test_it_no_longer_reports_a_fabricated_database_load(): void
     {
-        $loadAverage = $this->health()['resources']['loadAverage'];
+        $database = $this->health()['resources']['database'];
 
-        if ($loadAverage === null) {
-            $this->assertNull($loadAverage);
-
-            return;
-        }
-
-        $this->assertArrayHasKey(1, $loadAverage);
-        $this->assertArrayHasKey(5, $loadAverage);
-        $this->assertArrayHasKey(15, $loadAverage);
+        $this->assertArrayNotHasKey('load', $database);
+        $this->assertArrayHasKey('status', $database);
     }
 
-    public function test_memory_is_null_rather_than_a_zero_bar_when_shell_exec_is_unavailable(): void
+    public function test_unmeasurable_host_readings_are_null_not_zero(): void
     {
-        $memory = $this->health()['resources']['memory'];
+        $this->withHostMetrics(null, null, null);
 
-        if ($memory === null) {
-            $this->assertNull($memory);
+        $resources = $this->health()['resources'];
 
-            return;
-        }
-
-        $this->assertNotSame('Unknown', $memory['used']);
-        $this->assertNotSame(0, $memory['percent']);
+        $this->assertNull($resources['loadAverage']);
+        $this->assertNull($resources['memory']);
+        $this->assertNull($resources['disk']);
     }
 
-    public function test_disk_is_null_rather_than_an_unknown_string_when_unmeasurable(): void
+    public function test_measurable_host_readings_are_passed_through(): void
     {
-        $disk = $this->health()['resources']['disk'];
+        $this->withHostMetrics(
+            [1 => 1.5, 5 => 1.25, 15 => 1.0],
+            ['used' => '4GB', 'total' => '8GB', 'percent' => 50.0],
+            ['used' => '100GB', 'total' => '200GB', 'percent' => 50.0],
+        );
 
-        if ($disk === null) {
-            $this->assertNull($disk);
+        $resources = $this->health()['resources'];
 
-            return;
+        $this->assertSame([1 => 1.5, 5 => 1.25, 15 => 1.0], $resources['loadAverage']);
+        $this->assertSame('4GB', $resources['memory']['used']);
+        $this->assertSame(50.0, $resources['disk']['percent']);
+    }
+
+    /**
+     * The Database probe exists to report a dead connection, so the method
+     * must not itself blow up on one: the activity-log reads that follow the
+     * timer ran unguarded against the same connection and turned a
+     * "Degraded" report into a 500.
+     */
+    public function test_it_reports_degraded_without_throwing_when_the_database_is_unavailable(): void
+    {
+        config(['database.connections.broken' => [
+            'driver' => 'sqlite',
+            'database' => '/nonexistent-directory/definitely-not-here.sqlite',
+            'prefix' => '',
+        ]]);
+
+        $original = config('database.default');
+        config(['database.default' => 'broken']);
+
+        try {
+            $health = $this->health();
+        } finally {
+            config(['database.default' => $original]);
+            DB::purge('broken');
         }
 
-        $this->assertNotSame('Unknown', $disk['used']);
-        $this->assertNotSame('Unknown', $disk['total']);
+        $this->assertSame('Degraded', $health['overallStatus']);
+        $this->assertNull($health['databaseConnectMs']);
+        $this->assertSame('Degraded', $health['resources']['database']['status']);
+
+        $probes = collect($health['probes'])->keyBy('name');
+        $this->assertSame('Degraded', $probes['Database']['status']);
     }
 }

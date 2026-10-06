@@ -96,6 +96,22 @@ class AdminFleetStockValueTest extends TestCase
         $this->assertSame([], $this->totals());
     }
 
+    /**
+     * Archiving a store soft-deletes it, leaving its products and stock
+     * batches untouched. The fleet table excludes archived stores by default,
+     * so counting their stock made the card disagree with the table directly
+     * beneath it on the same page.
+     */
+    public function test_it_excludes_stock_held_by_an_archived_store(): void
+    {
+        $store = $this->makeStore('NGN');
+        $this->stockStore($store, 10, 100);
+
+        $store->delete();
+
+        $this->assertSame([], $this->totals());
+    }
+
     public function test_it_returns_an_empty_array_when_the_fleet_holds_no_stock(): void
     {
         $this->makeStore('NGN');

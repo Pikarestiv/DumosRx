@@ -12,10 +12,11 @@ export interface PaginatedResponse<T> {
 export interface AdminStat {
   icon: string;
   color: string;
-  trend: "up" | "down";
-  change: string | number;
   name: string;
-  value: string | number;
+  trend?: "up" | "down";
+  change?: string | number;
+  value?: string | number;
+  totals_by_currency?: Record<string, number>;
 }
 
 /** A row in the scoped "My Stores" list (GET /admin/stores/registered-by-me).
@@ -98,9 +99,8 @@ export interface SecurityAlert {
 }
 
 export interface LiveOperations {
-  total_requests?: number;
-  sync_success_rate?: string;
-  active_connections?: number;
+  audit_log_entries?: number;
+  sync_success_rate_24h?: string | null;
 }
 
 export interface AdminSummary {
@@ -110,24 +110,26 @@ export interface AdminSummary {
   security_alerts: SecurityAlert[];
 }
 
-export interface ServiceNode {
+export type ProbeStatus = "Operational" | "Degraded" | "Unavailable";
+
+export interface HealthProbe {
   name: string;
-  location?: string;
-  status: "Operational" | string;
-  latency: string;
+  status: ProbeStatus;
 }
 
+/** A `null` resource means the host could not measure it — render it as
+ * unavailable, never as a zero. See web/AGENTS.md. */
 export interface AdminHealth {
   overallStatus: string;
-  uptime: string;
-  latency: string;
+  platformAge: string;
+  databaseConnectMs: number | null;
   resources: {
-    cpu: number;
-    memory: { used: string; total?: string; percent: number };
-    disk: { used: string; total?: string; percent: number };
+    loadAverage: { 1: number; 5: number; 15: number } | null;
+    memory: { used: string; total: string; percent: number } | null;
+    disk: { used: string; total: string; percent: number } | null;
     database: { load: number; status: string };
   };
-  nodes: ServiceNode[];
+  probes: HealthProbe[];
 }
 
 export interface SentryIssue {

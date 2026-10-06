@@ -33,9 +33,8 @@ const SILENT_TERMINAL_REASONS = new Set(["permission_denied"]);
 // See docs/FIXED_BUGS.md "audit_logs conflict resurrection loop".
 const TERMINAL_CONFLICT_SETTLES_SOURCE_ROW = new Set(["audit_logs"]);
 
-// The caller has no access to this row's store, so it is unreachable by pull
-// too and no pull can ever settle it, whatever table it is on. See
-// docs/FIXED_BUGS.md A-161.
+// Unreachable by any future pull, whatever table it's on - see A-161.
+// Deliberately excludes `forbidden`; see docs/KNOWN_BUGS.md A-165.
 const REASONS_SETTLING_SOURCE_ROW = new Set(["permission_denied"]);
 
 const SYNC_BATCH_SIZE = 50;

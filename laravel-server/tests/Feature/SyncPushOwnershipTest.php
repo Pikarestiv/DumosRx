@@ -684,7 +684,7 @@ class SyncPushOwnershipTest extends TestCase
      * permission_groups (added by the roles-and-permissions feature) was
      * wired into the syncable $tables/getModelForTable()/pull-scoping
      * lists but NOT into resolveChangeStoreId()'s $directStoreTables nor
-     * normalizePushPayload()'s $tablesWithStoreId - so
+     * normalizePushPayload()'s STORE_ID_BACKFILL_TABLES - so
      * authorizeChangeTarget() resolved a null store id for it, found no
      * user_id column either, and fell through to its permissive default
      * (`return true`), the same class of bug this whole test file exists

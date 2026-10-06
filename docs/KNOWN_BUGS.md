@@ -72,6 +72,18 @@ handful of things actually worth your attention aren't buried in it.
 - **Problem:** `auth_token` (the Sanctum bearer token) is read/written via `localStorage`. Any XSS in the client app could read it and exfiltrate a long-lived session token (Sanctum expiry 30 days, client rotates after 7).
 - **Why accepted:** `setToken`/`clearToken` mirror the token to native Tauri code (`lib/native/widget-bridge.ts` → Android `TokenStore`, which does use `EncryptedSharedPreferences`) so the home-screen widget can make its own authenticated requests. A real fix needs a dual-path auth design — a real project, not a quick patch. The Tauri build's CSP (`script-src 'self' 'wasm-unsafe-eval'`, no remote or inline script) is a compensating control there, but does not cover the web/PWA build at `app.dumosrx.com`, and even in the bundled app an injected script that satisfies the policy still has same-origin `localStorage` access.
 
+#### PG-12. `laravel-server/` — `AdminRevenueService::getOverview()` loads every matching transaction and paginates in PHP
+- **Found:** while scoping admin Phase 1 (`docs/superpowers/specs/2026-10-06-admin-panel-phase-1-design.md`). Not fixed there: Phase 1 was scoped to metric correctness, and fixing this properly means restructuring the query, which Phase 3 (subscription lifecycle) does anyway.
+- **Location:** `app/Services/Admin/AdminRevenueService.php` — `$transactions = $query->latest()->get();` followed by `$transactions->slice(...)` into a hand-built `LengthAwarePaginator`.
+- **What's wrong:** every successful `payment_transactions` row (with `subscription.user` eager-loaded) is pulled into memory on every request to the admin Revenue tab, then 20 are sliced out. This violates `.agents/AGENTS.md` §8's pagination rule and degrades linearly with payment volume — it is fine at today's scale and will not stay fine.
+- **Why it's written this way:** `plan_name` lives inside the `metadata` JSON column rather than a plain column, so the plan filter and the by-plan-tier grouping are done in PHP after the DB-level filters. The fix is to denormalise `plan_name` onto `payment_transactions` (or use a driver-portable JSON query) so the filter, the grouping and the pagination can all happen in SQL.
+- **Note:** the per-currency totals added in PG-11 are computed from the same already-loaded collection, so they inherit this and nothing more.
+
+#### PG-13. `web/` — five admin frontend files are past the 350-line limit
+- **Found:** admin Phase 1 line-count sweep. Not fixed there: none of them is touched by that phase, and `.agents/AGENTS.md` §4's "improve the code you're working in" does not extend to files the change never opens.
+- **Location and size:** `app/admin/activity/page.tsx` (550), `components/admin/views/broadcasts-tab.tsx` (472), `app/admin/users/page.tsx` (420), `components/admin/views/subscription-config-tab.tsx` (399), `app/admin/users/new/page.tsx` (394).
+- **Fix:** split each the way `app/admin/stores/page.tsx` was in Phase 1 — it was 384 lines and came down to 314 by extracting its dialog-wiring block into `components/admin/stores/store-dialog-host.tsx`, which is a pattern that applies directly to `users/page.tsx` and `broadcasts-tab.tsx`. Do it opportunistically when next editing one of these, not as a standalone refactor.
+
 #### P3-5. `client/` — PWA install splash screen doesn't follow dark mode
 - **Location:** `client/public/manifest.json`.
 - **Problem:** `theme_color`/`background_color` are hardcoded to white, so the one-time Android "Add to Home Screen" install splash flashes white for dark-mode users before the page paints. (The in-app browser-chrome tint is unaffected and already dark-mode-aware, via `app/layout.tsx`'s `viewport.themeColor`.)

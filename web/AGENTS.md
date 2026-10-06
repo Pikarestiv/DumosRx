@@ -256,6 +256,74 @@ Two components render that list and **both must go through
 saw the whole super_admin nav (A-96). `__tests__/admin-nav-role-visibility.test.tsx`
 asserts both renderers agree; don't reintroduce a second copy of the filter.
 
+**A nav item's gate must match its page's narrowest endpoint gate, not the
+page's general area.** This rule has already been broken once, in admin Phase 1:
+the new Operations item was gated `permissions: ["view_platform_data"]` because
+it lives alongside Stores and Platform Users, but the only two endpoints it
+calls — `GET /admin/health` and `GET /admin/errors` — are `role:super_admin` in
+`routes/api.php`. A delegated role saw the link, clicked it, and got "Failed to
+load system data" from a 403. Every backend test passed; only a logged-in
+browser check caught it, which is why `.agents/AGENTS.md` §9 requires one for
+nav changes. Before adding an item, read the routes its page actually calls.
+
+## Admin information architecture (Phase 1, 2026-10-06)
+
+Spec: `docs/superpowers/specs/2026-10-06-admin-panel-phase-1-design.md`.
+
+- **`/admin/operations` is the single telemetry surface.** It owns
+  infrastructure health, the live service probes, and the Sentry issue feed.
+  Before Phase 1 this was split in two: a Settings "System Health" tab, and an
+  `/admin/system` page that **was not in `sidebar-items.ts` at all** and so was
+  reachable only by typing the URL — which is why the Sentry feed was built and
+  then never seen. Don't re-add a second telemetry surface.
+- **`/admin/system` is a redirect, not a deletion.** It `router.replace`s to
+  `/admin/operations` so existing bookmarks resolve. Verified in a browser with
+  a live session; note that a hard navigation to any `/admin/*` deep link first
+  passes through the layout's `initSession()` restore, so the redirect only runs
+  once that succeeds.
+- **Operations is super_admin-only**, matching its endpoints (see the rule
+  above). If `/admin/health` and `/admin/errors` are ever relaxed to
+  `permission:view_platform_data`, relax the nav item in the same change.
+- **Email Templates lives under Communications**, beside the broadcast and
+  email-campaign tabs that consume templates — not under Platform Settings,
+  where editing a template and sending it were two different pages.
+- **`DefaultAccountManagerCard` moved the other way**, off the system page into
+  Platform Settings, because it is configuration rather than telemetry.
+  Settings' default tab is now `billing`.
+
+### Unmeasurable metrics render as unavailable, never as zero
+
+The phase's central rule, and the reason several of these components look
+defensive. `AdminHealth`'s `loadAverage`, `memory` and `disk` are `| null`:
+`null` means *this host could not measure it*, and the UI must say so
+("Unavailable on this host"), never fall back to a `0` or a plausible string.
+A zeroed progress bar reads as a healthy idle server; `'Unknown'` reads as a
+value. Both are lies. This is not hypothetical — `shell_exec('free -m')` is
+blocked on the Namecheap shared host, so the memory reading is `null` in
+production, which is exactly what the admin should see.
+
+The same rule governs money and counts: `Subscription Revenue` renders "No
+payments yet" rather than `₦0`, and `sync_success_rate_24h` renders "No sync
+activity" rather than the optimistic `100%` the old UI defaulted to.
+`__tests__/no-fabricated-metrics.test.ts` fails the build if any of the
+literals Phase 1 removed (`"42ms"`, `|| '100%'`, `High Performance`,
+`Status Page Pending`, `WebSocket`, `Global Inventory`) reappears under
+`app/admin` or `components/admin`.
+
+### Admin money is per currency, never converted
+
+`CurrencyStatValue` renders one `formatMoney` line per currency present and
+takes an `emptyLabel` for its no-data state. Stores span NGN/GHS/KES/CFA, so a
+single summed total is not an honest number and there is deliberately no FX
+table — see `laravel-server/AGENTS.md` for the server-side half
+(`App\Support\CurrencyTotals`). The Overview "Subscription Revenue" stat and the
+Stores page "Total Stock Value" card both go through it.
+
+Note that `stock_value_by_currency` is **absent, not empty**, for a
+non-super_admin, because the server withholds platform money figures from
+`platform_admin`/`agent`. Render the card only when the key is present;
+defaulting to `{}` would tell those roles "no stock recorded", which is false.
+
 ## Delegated admin action buttons: hide via `checkHasPermission`, never disable
 
 Every admin UI control that triggers one of the backend's delegated

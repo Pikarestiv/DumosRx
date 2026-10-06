@@ -1130,8 +1130,21 @@ the transient shape above turned out to be real and reachable in current code
 (`resolveOwnershipIdentity()` narrows a staff session to one store;
 `clearDatabaseForNewStore()` only runs when the selected store differs). The
 unbounded parking — not the retry classification — is the live defect, now
-tracked as A-165 in `docs/KNOWN_BUGS.md`, together with A-167, which asks
-whether `permission_denied`'s own settle has the same hole.
+tracked as A-165 in `docs/KNOWN_BUGS.md`.
+
+A-167 then asked whether `permission_denied`'s own settle has the same hole,
+and the answer was yes — but the fix is server-side, so nothing in this file
+changes. `SyncController::normalizePushPayload()`'s explicit-`store_id` guard
+now reports `forbidden` when the named store is another *live* store of the
+same tenant owner (a refusal only this narrower session makes, which the
+owner's session would accept) and keeps `permission_denied` only when no
+session of the account could ever accept it — another tenant's store, a store
+that does not exist, or a soft-deleted one. So `permission_denied` from
+*that one guard* is now genuinely absolute, and the terminal-and-settle
+treatment is sound for it; do not add `forbidden` to either set. The
+`permission_groups` privilege-check throws elsewhere in `normalizePushPayload()`
+are a separate, still session-relative case, deliberately left unfixed — see
+`docs/KNOWN_BUGS.md` A-168. See `docs/FIXED_BUGS.md` A-167.
 
 ## Whole-row requeues must never send a `null` (`lib/db/requeue-payload.ts`)
 

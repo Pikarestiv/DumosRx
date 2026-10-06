@@ -2,19 +2,9 @@
 
 namespace App\Exceptions;
 
-use RuntimeException;
-
-/**
- * Thrown by SyncController::sanitizePermissionGroupSyncPayload() when a push
- * fails a privilege check. Its own type so push()'s per-change catch can
- * report the stable, machine-checkable `permission_denied` reason the client
- * treats as terminal, while the exception message still carries the specific
- * detail into the log.
- *
- * See client/AGENTS.md's "Catalog versioning and the default-group backfill"
- * for why this failure class is terminal rather than retryable.
- */
-class SyncPushPermissionDeniedException extends RuntimeException
+// Absolute for the whole tenant - no session could ever accept the payload.
+// See client/AGENTS.md's "Catalog versioning..." and docs/FIXED_BUGS.md A-167.
+class SyncPushPermissionDeniedException extends SyncPushRefusalException
 {
     public const REASON = 'permission_denied';
 }

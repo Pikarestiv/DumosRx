@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Concerns\ManagesAdminSessionCookie;
 use App\Models\ActivityLog;
+use App\Services\Admin\AdminFleetMetricsService;
 use App\Services\Admin\AdminStoreDetailService;
 use App\Services\Admin\AdminStoreService;
 use Illuminate\Http\Request;
@@ -17,9 +18,12 @@ class AdminStoreController extends AdminBaseController
 
     protected $adminStoreService;
 
-    public function __construct(AdminStoreService $adminStoreService)
+    protected $fleetMetrics;
+
+    public function __construct(AdminStoreService $adminStoreService, AdminFleetMetricsService $fleetMetrics)
     {
         $this->adminStoreService = $adminStoreService;
+        $this->fleetMetrics = $fleetMetrics;
     }
 
     #[OA\Get(
@@ -51,7 +55,13 @@ class AdminStoreController extends AdminBaseController
                 ? $request->query('archived')
                 : 'active';
             $includeRevenue = (bool) $request->user()?->hasRole('super_admin');
-            return response()->json($this->adminStoreService->getStores($page, $search, $status, $plan, $archived, $includeRevenue));
+            $payload = $this->adminStoreService->getStores($page, $search, $status, $plan, $archived, $includeRevenue);
+
+            if ($includeRevenue) {
+                $payload['stock_value_by_currency'] = $this->fleetMetrics->stockValueByCurrency();
+            }
+
+            return response()->json($payload);
         });
     }
 

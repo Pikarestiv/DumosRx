@@ -286,8 +286,23 @@ and `synchronous = NORMAL`.
   `clearDatabaseForNewStore()` so the two cannot drift apart again — they
   previously both omitted `sale_item_batches`, orphaning rows pointing at
   cleared `sale_items`/`stock_batches`. It excludes store configuration
-  (`loyalty_tiers`, `loyalty_redemption_options`, `system_configs`); only
-  `clearDatabaseForNewStore()` adds `stores`/`users`.
+  (`loyalty_tiers`, `loyalty_redemption_options`, `system_configs`), which a
+  `resetDatabase()` must keep because its `stores` row survives and the
+  seeders are gated on that row's `*_seeded_at` stamps.
+- **`clearDatabaseForNewStore()` clears every `STORE_SCOPED_TABLES` entry,
+  not just `LOCAL_WIPE_TABLES` (A-163).** It derives its list as
+  `LOCAL_WIPE_TABLES` + any store-scoped table missing from it +
+  `stores`/`users`, so the store-configuration tables `resetDatabase()`
+  deliberately keeps (above) are still wiped here — the store they belong to
+  is the thing being replaced. The reason it must be the *whole*
+  `STORE_SCOPED_TABLES` set and not a hand-maintained list: a store-scoped
+  row that survives this wipe is left at `_synced = 0` with no `_sync_queue`
+  entry (the wipe clears the queue), which is exactly the shape
+  `requeueOrphanedRows()` re-queues — it is handed `STORE_SCOPED_TABLES` by
+  `DatabaseProvider` — so it gets pushed under the *new* account's identity
+  and refused cross-tenant forever. Any new store-scoped table is covered
+  automatically; `__tests__/clear-database-for-new-store-clears-store-scoped-tables.test.ts`
+  asserts it generically rather than per table.
 - **`clearDatabaseForNewStore()` also clears `dumos_recent_users`
   (2026-10-02).** Wiping the `users`/`stores` tables isn't the whole story:
   the login screen's "Welcome Back" profile picker
@@ -509,7 +524,16 @@ counts, see `components/stock-batch/stock-audits.tsx`).
   from `_sync_queue` outright instead; the next pull brings the server's
   real value down, now that nothing local blocks it (see pull's
   pending-local-edit skip). A `forbidden` rejection is deliberately *not* in
-  this set — see "the `stores` prune" below.
+  this set, and that exclusion has been re-confirmed against the server rather
+  than inherited: `resolveOwnershipIdentity()` gives a staff session only its
+  own `store_id` where an owner gets every store they own, so a staff login
+  onto the owner's current store (no wipe — `use-onboarding.ts` only wipes when
+  the store *differs*) drains the owner's other-store queue rows and is refused
+  `forbidden` on a payload the owner would push successfully. Dropping or
+  settling on it destroys a legitimate row. See "the `stores` prune" below,
+  `docs/KNOWN_BUGS.md` A-165, and
+  `__tests__/push-settles-permission-denied-rows.test.ts`, which pins the two
+  classifications side by side and fails if `forbidden` is added to either set.
 - `SILENT_TERMINAL_REASONS` (`permission_denied`) is dropped without a
   toast: those edits are queued by automatic machinery (the permission
   catalog backfill), not a user action anyone is waiting on, so "could not
@@ -1099,6 +1123,15 @@ capped, never abandoned), which is both the stuck sync indicator and — via
 the pending-local-edit skip — a record that stops being pulled at all for as
 long as it sits there. The general "a permanently-parked queue row silently
 freezes its record's pulls" problem is unaddressed.
+
+This paragraph has since been tested rather than merely asserted. A-165 was
+logged proposing exactly the widening it warns against, and was reverted when
+the transient shape above turned out to be real and reachable in current code
+(`resolveOwnershipIdentity()` narrows a staff session to one store;
+`clearDatabaseForNewStore()` only runs when the selected store differs). The
+unbounded parking — not the retry classification — is the live defect, now
+tracked as A-165 in `docs/KNOWN_BUGS.md`, together with A-167, which asks
+whether `permission_denied`'s own settle has the same hole.
 
 ## Whole-row requeues must never send a `null` (`lib/db/requeue-payload.ts`)
 

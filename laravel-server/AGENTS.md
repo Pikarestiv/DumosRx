@@ -655,13 +655,37 @@ migration here **and** the corresponding update on the `client/` side
   `sale_item_batches`→`sale_item_id`, `return_items`→`return_id`,
   `prescription_items`→`prescription_id`,
   `purchase_order_items`→`purchase_order_id` — carry no `store_id` of their
-  own, so `normalizePushPayload()`'s `$tablesWithStoreId` check can't see
+  own, so `normalizePushPayload()`'s `STORE_ID_BACKFILL_TABLES` check can't see
   them; for as long as the INSERT branch had no check at all, a product id
   harvested off the unauthenticated `GET /storefront/{slug}` was enough to
   plant phantom stock or fabricated sale line items in a stranger's tenant
   (A-77). **A new child table whose tenant scope comes from a parent FK must
   be added to `resolveChangeStoreId()` in the same change**, or it lands
-  unchecked on every operation.
+  unchecked on every operation. **A new table carrying its own `store_id`
+  must be added to `STORE_ID_BACKFILL_TABLES` as well as
+  `resolveChangeStoreId()`**
+  — the two lists are not interchangeable: the resolver gives a table
+  authorization scoping, while `STORE_ID_BACKFILL_TABLES` is what backfills a
+  payload that omitted `store_id` and what refuses one naming a foreign
+  store. A table in the resolver but not the list accepts an INSERT with no
+  `store_id` and writes it `NULL`, which `pull()`'s store scoping then hides
+  from every device permanently (A-164: both loyalty-config tables, from the
+  2026-09-05 schema-drift sweep that added their `store_id` column and
+  updated only the read side).
+  - **The backfill half of that list is INSERT-only; the foreign-store
+    refusal half is not.** `normalizePushPayload()` runs for every operation,
+    and a client UPDATE never resends `store_id` (ownership is immutable
+    client-side), so an unconditional backfill reassigned a row to whichever
+    store happened to be active for that push — a real outcome for a
+    multi-store owner flushing writes queued before a store switch, and one
+    `authorizeChangeTarget()` cannot catch, because it resolves ownership
+    from the loaded model *before* `forceFill()` applies the payload. On
+    UPDATE/DELETE an empty `store_id` is now dropped from the payload
+    instead. `$change['operation']` alone is not a sufficient gate: the
+    "INSERT for an existing id becomes an UPDATE" rewrite in `push()` happens
+    *after* this call, so `push()` separately drops a merely-backfilled
+    `store_id` at the point it performs that rewrite. Don't collapse either
+    half back into an unconditional backfill (A-164).
   - Both resolvers fail **open** on a parent that resolves to *no* store
     (a child pushed before its parent in the same batch, or a legacy row
     predating the `store_id` backfill) and **closed** on a parent that

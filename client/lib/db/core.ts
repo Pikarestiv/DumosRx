@@ -1140,7 +1140,12 @@ export async function clearDatabaseForNewStore(): Promise<void> {
   if (!db) await initDatabase();
   assertWritable();
 
-  const tablesToClear = [...LOCAL_WIPE_TABLES, "stores", "users"];
+  const tablesToClear = [
+    ...LOCAL_WIPE_TABLES,
+    ...STORE_SCOPED_TABLES.filter((table) => !LOCAL_WIPE_TABLES.includes(table)),
+    "stores",
+    "users",
+  ];
 
   for (const table of tablesToClear) {
     try {

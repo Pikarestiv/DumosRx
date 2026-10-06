@@ -214,6 +214,8 @@ class SyncController extends Controller
 
                 $now = now();
 
+                $clientNamedStoreId = !empty($payload['store_id']);
+
                 $payload = $this->normalizePushPayload($request, $change, $payload, $currentStoreId, $currentUser, $isSuperAdmin, $allowedStoreIds, $allowedUserIds);
 
                 $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
@@ -244,6 +246,11 @@ class SyncController extends Controller
                         // If it exists (even if soft-deleted), we should treat it as an UPDATE
                         // to restore it and apply the new payload instead of crashing on INSERT
                         $change['operation'] = 'UPDATE';
+                        // normalizePushPayload() already ran, so it gated its
+                        // store_id backfill on the pre-override operation.
+                        if (!$clientNamedStoreId && in_array($change['table_name'], self::STORE_ID_BACKFILL_TABLES, true)) {
+                            unset($payload['store_id']);
+                        }
                         Log::info("Sync push: Overriding INSERT to UPDATE for existing record {$recordId} in {$change['table_name']}");
                     }
                 }
@@ -1641,22 +1648,18 @@ class SyncController extends Controller
             }
         }
 
-        // Inject store_id if missing and table supports it
-        $tablesWithStoreId = [
-            'requested_products', 'payment_accounts',
-            'products', 'sales', 'customers', 'categories', 'suppliers',
-            'expenses', 'purchase_orders', 'prescriptions', 'returns',
-            'stock_movements', 'supplier_payments', 'audit_logs',
-            'permission_groups',
-        ];
         // Deliberately NOT gated on $currentStoreId: a caller for whom
         // resolvePushStoreId() returns null (an account that owns no store
         // yet) has nothing to backfill from, but their payload's explicit
         // store_id must still be verified rather than trusted verbatim.
-        if (in_array($change['table_name'], $tablesWithStoreId, true)) {
+        if (in_array($change['table_name'], self::STORE_ID_BACKFILL_TABLES, true)) {
             if (empty($payload['store_id'])) {
-                if ($currentStoreId) {
-                    $payload['store_id'] = $currentStoreId;
+                if ($change['operation'] === 'INSERT') {
+                    if ($currentStoreId) {
+                        $payload['store_id'] = $currentStoreId;
+                    }
+                } else {
+                    unset($payload['store_id']);
                 }
             } elseif ($currentUser && !$isSuperAdmin && !in_array($payload['store_id'], $allowedStoreIds, true)) {
                 // An explicit store_id in the payload is otherwise
@@ -1823,6 +1826,22 @@ class SyncController extends Controller
         'status', 'suspension_reason', 'is_demo',
         'loyalty_defaults_seeded_at', 'permission_groups_seeded_at',
         'last_sync_run_id', 'last_sync_run_started_at',
+    ];
+
+    /**
+     * Tables whose own `store_id` column normalizePushPayload() may backfill
+     * from the push's active store when a NEW row's payload omits it. Read by
+     * push() too, so its INSERT-overridden-to-UPDATE branch can undo a
+     * backfill that the override invalidated. Deliberately a separate list
+     * from resolveChangeStoreId()'s $directStoreTables and the user_id
+     * backfill list — see laravel-server/AGENTS.md and docs/KNOWN_BUGS.md.
+     */
+    private const STORE_ID_BACKFILL_TABLES = [
+        'requested_products', 'payment_accounts',
+        'products', 'sales', 'customers', 'categories', 'suppliers',
+        'expenses', 'purchase_orders', 'prescriptions', 'returns',
+        'stock_movements', 'supplier_payments', 'audit_logs',
+        'permission_groups', 'loyalty_tiers', 'loyalty_redemption_options',
     ];
 
     /**

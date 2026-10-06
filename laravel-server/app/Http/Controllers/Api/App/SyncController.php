@@ -1500,7 +1500,8 @@ class SyncController extends Controller
      * written. Purely a transformation of $payload (returned, not mutated
      * in place) with one deliberate exception: it THROWS when an INSERT
      * payload names a store_id outside the caller's allowed stores, which
-     * push()'s per-change savepoint turns into a single failed change.
+     * push()'s per-change savepoint turns into a single failed change
+     * reported as `permission_denied`.
      * Every rule below is lifted verbatim from push()'s inline pipeline —
      * see the individual comments for the incident each one came from.
      */
@@ -1664,7 +1665,7 @@ class SyncController extends Controller
                 // rows directly into a store they don't own via
                 // INSERT, the mirror image of the UPDATE/DELETE
                 // ownership gap this same fix closes below.
-                throw new \RuntimeException('Sync push: store_id in payload is outside the caller\'s allowed stores');
+                throw new \App\Exceptions\SyncPushPermissionDeniedException('Sync push: store_id in payload is outside the caller\'s allowed stores');
             }
         }
 

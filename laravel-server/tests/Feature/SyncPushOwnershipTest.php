@@ -222,6 +222,43 @@ class SyncPushOwnershipTest extends TestCase
     }
 
     /**
+     * A cross-tenant store_id on an INSERT is an AUTHORIZATION refusal, so it
+     * must be reported with the structured `permission_denied` reason the
+     * client treats as terminal - not as a free-text exception message the
+     * client classifies as retryable and resends forever. See docs/FIXED_BUGS.md
+     * A-161.
+     */
+    public function test_insert_with_store_id_outside_callers_stores_is_reported_as_permission_denied()
+    {
+        $response = $this->actingAs($this->attackerOwner)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'permission_groups',
+                    'operation' => 'INSERT',
+                    'record_id' => '16a6f579-b6f5-4fed-b903-bbf8d6c98a73',
+                    'payload' => [
+                        'id' => '16a6f579-b6f5-4fed-b903-bbf8d6c98a73',
+                        'store_id' => $this->victimStore->id,
+                        'name' => 'Manager',
+                        'based_on_role' => 'manager',
+                        'is_default' => 1,
+                        'permissions' => '["manage_staff"]',
+                        '_version' => 1,
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'failed');
+        $response->assertJsonPath('failed.0.reason', 'permission_denied');
+        $this->assertDatabaseMissing('permission_groups', [
+            'id' => '16a6f579-b6f5-4fed-b903-bbf8d6c98a73',
+        ]);
+    }
+
+    /**
      * Root cause of the production "two `feedback` rows rejected as
      * forbidden" report in docs/KNOWN_BUGS.md.
      *

@@ -33,6 +33,11 @@ const SILENT_TERMINAL_REASONS = new Set(["permission_denied"]);
 // See docs/FIXED_BUGS.md "audit_logs conflict resurrection loop".
 const TERMINAL_CONFLICT_SETTLES_SOURCE_ROW = new Set(["audit_logs"]);
 
+// The caller has no access to this row's store, so it is unreachable by pull
+// too and no pull can ever settle it, whatever table it is on. See
+// docs/FIXED_BUGS.md A-161.
+const REASONS_SETTLING_SOURCE_ROW = new Set(["permission_denied"]);
+
 const SYNC_BATCH_SIZE = 50;
 
 /** Sorts categories to the front of the queue, leaving every other row's
@@ -395,7 +400,10 @@ export async function pushChanges(
 
               await execute(`DELETE FROM _sync_queue WHERE id IN (${placeholders})`, underlyingIds);
 
-              if (TERMINAL_CONFLICT_SETTLES_SOURCE_ROW.has(f.table_name)) {
+              if (
+                TERMINAL_CONFLICT_SETTLES_SOURCE_ROW.has(f.table_name) ||
+                REASONS_SETTLING_SOURCE_ROW.has(f.reason)
+              ) {
                 await markConflictSettled(f.table_name, f.record_id);
               }
 

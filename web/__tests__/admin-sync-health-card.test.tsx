@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { SyncHealthCard } from "@/components/admin/operations/sync-health-card";
 
 const base = {
-  success_rate_24h: "90%",
+  success_rate_today: "90%",
   success_rate_7d: "95%",
   failures_by_reason: {},
   worst_stores: [],
@@ -19,7 +19,7 @@ describe("SyncHealthCard", () => {
   it("reports no sync activity rather than zero when nothing has synced", () => {
     render(
       <SyncHealthCard
-        data={{ ...base, success_rate_24h: null, success_rate_7d: null }}
+        data={{ ...base, success_rate_today: null, success_rate_7d: null }}
         isLoading={false}
       />,
     );

@@ -16,7 +16,7 @@ class AdminSyncHealthService
     public function platformSummary(int $days = 7): array
     {
         return [
-            'success_rate_24h' => $this->successRate(1),
+            'success_rate_today' => $this->successRate(0),
             'success_rate_7d' => $this->successRate($days),
             'failures_by_reason' => $this->failuresByReason($days),
             'worst_stores' => $this->worstStores($days),
@@ -61,9 +61,14 @@ class AdminSyncHealthService
         ];
     }
 
-    private function successRate(int $days): ?string
+    /**
+     * $daysBack counts whole daily buckets, so 0 means today only. A rolling
+     * 24h window cannot be expressed from day-granular rows: asking for one
+     * would silently include all of yesterday as well.
+     */
+    private function successRate(int $daysBack): ?string
     {
-        $totals = SyncHealthDaily::where('date', '>=', now()->subDays($days)->startOfDay())
+        $totals = SyncHealthDaily::where('date', '>=', now()->subDays($daysBack)->startOfDay())
             ->selectRaw('COALESCE(SUM(changes_accepted), 0) as accepted, COALESCE(SUM(changes_refused), 0) as refused')
             ->first();
 

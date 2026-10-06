@@ -86,7 +86,7 @@ class AdminSyncHealthTest extends TestCase
         $response = $this->actingAs($this->superAdmin)->getJson('/api/v1/admin/sync/health');
 
         $response->assertOk();
-        $this->assertSame('90%', $response->json('success_rate_24h'));
+        $this->assertSame('90%', $response->json('success_rate_today'));
     }
 
     public function test_the_summary_reports_null_when_nothing_has_synced(): void
@@ -94,7 +94,7 @@ class AdminSyncHealthTest extends TestCase
         $response = $this->actingAs($this->superAdmin)->getJson('/api/v1/admin/sync/health');
 
         $response->assertOk();
-        $this->assertNull($response->json('success_rate_24h'));
+        $this->assertNull($response->json('success_rate_today'));
         $this->assertNull($response->json('success_rate_7d'));
     }
 

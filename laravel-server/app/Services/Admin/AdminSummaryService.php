@@ -74,7 +74,7 @@ class AdminSummaryService
 
         $liveOperations = [
             'audit_log_entries' => ActivityLog::count(),
-            'sync_success_rate_24h' => $this->syncSuccessRate24h(),
+            'sync_success_rate_today' => $this->syncSuccessRateToday(),
         ];
 
         $securityAlerts = ActivityLog::whereIn('action', [
@@ -145,9 +145,11 @@ class AdminSummaryService
         ];
     }
 
-    private function syncSuccessRate24h(): ?string
+    /** Today's bucket only. `sync_health_daily` is day-granular, so a rolling
+     * 24h window would silently include all of yesterday too. */
+    private function syncSuccessRateToday(): ?string
     {
-        $totals = SyncHealthDaily::where('date', '>=', now()->subDay()->startOfDay())
+        $totals = SyncHealthDaily::where('date', '>=', now()->startOfDay())
             ->selectRaw('COALESCE(SUM(changes_accepted), 0) as accepted, COALESCE(SUM(changes_refused), 0) as refused')
             ->first();
 

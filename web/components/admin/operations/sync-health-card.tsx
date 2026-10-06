@@ -42,7 +42,7 @@ export function SyncHealthCard({ data, isLoading }: SyncHealthCardProps) {
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <Rate label="Success rate (24h)" value={data?.success_rate_24h} />
+          <Rate label="Success rate (today)" value={data?.success_rate_today} />
           <Rate label="Success rate (7d)" value={data?.success_rate_7d} />
         </div>
 

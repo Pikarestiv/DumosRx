@@ -106,7 +106,7 @@ class AdminSummaryMetricHonestyTest extends TestCase
 
     public function test_sync_success_rate_is_null_when_there_is_no_sync_activity_in_the_window(): void
     {
-        $this->assertNull($this->summary()['live_operations']['sync_success_rate_24h']);
+        $this->assertNull($this->summary()['live_operations']['sync_success_rate_today']);
     }
 
     private function syncTally(int $accepted, int $refused, ?Carbon $date = null): void
@@ -128,15 +128,20 @@ class AdminSummaryMetricHonestyTest extends TestCase
     {
         $this->syncTally(3, 1);
 
-        $this->assertSame('75%', $this->summary()['live_operations']['sync_success_rate_24h']);
+        $this->assertSame('75%', $this->summary()['live_operations']['sync_success_rate_today']);
     }
 
-    public function test_sync_success_rate_only_counts_the_last_24_hours(): void
+    /**
+     * `sync_health_daily` is day-granular, so a rolling 24h window is not
+     * expressible: asking for one silently includes all of yesterday too. The
+     * metric is today's bucket, and is labelled "today" for that reason.
+     */
+    public function test_sync_success_rate_counts_only_todays_bucket(): void
     {
-        $this->syncTally(10, 0, now()->subDays(3)->startOfDay());
+        $this->syncTally(10, 0, now()->subDay()->startOfDay());
         $this->syncTally(1, 1);
 
-        $this->assertSame('50%', $this->summary()['live_operations']['sync_success_rate_24h']);
+        $this->assertSame('50%', $this->summary()['live_operations']['sync_success_rate_today']);
     }
 
     public function test_count_stats_report_an_absolute_weekly_delta(): void

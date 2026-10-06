@@ -25,7 +25,7 @@ export function StoreSyncHealthSection({ data, isLoading }: StoreSyncHealthSecti
       <CardHeader>
         <CardTitle className="text-xl font-black flex items-center gap-2">
           <RefreshCw className="h-5 w-5 text-indigo-500" />
-          Sync Health
+          Sync Activity
         </CardTitle>
         <CardDescription>
           What this store has pushed, and what the server refused.

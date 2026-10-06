@@ -100,7 +100,7 @@ export interface SecurityAlert {
 
 export interface LiveOperations {
   audit_log_entries?: number;
-  sync_success_rate_24h?: string | null;
+  sync_success_rate_today?: string | null;
 }
 
 export interface AdminSummary {
@@ -113,7 +113,7 @@ export interface AdminSummary {
 /** A `null` rate means nothing has synced in the window — render it as such,
  * never as 0%. See web/AGENTS.md. */
 export interface AdminSyncHealth {
-  success_rate_24h: string | null;
+  success_rate_today: string | null;
   success_rate_7d: string | null;
   failures_by_reason: Record<string, number>;
   worst_stores: Array<{ store_id: string; store_name: string | null; refused: number }>;

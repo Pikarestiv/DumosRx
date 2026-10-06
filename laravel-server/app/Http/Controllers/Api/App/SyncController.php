@@ -1842,6 +1842,8 @@ class SyncController extends Controller
         'expenses', 'purchase_orders', 'prescriptions', 'returns',
         'stock_movements', 'supplier_payments', 'audit_logs',
         'permission_groups', 'loyalty_tiers', 'loyalty_redemption_options',
+        'stock_audits', 'held_transactions', 'loyalty_transactions',
+        'customer_payments',
     ];
 
     /**

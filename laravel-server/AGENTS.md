@@ -669,9 +669,17 @@ migration here **and** the corresponding update on the `client/` side
   payload that omitted `store_id` and what refuses one naming a foreign
   store. A table in the resolver but not the list accepts an INSERT with no
   `store_id` and writes it `NULL`, which `pull()`'s store scoping then hides
-  from every device permanently (A-164: both loyalty-config tables, from the
-  2026-09-05 schema-drift sweep that added their `store_id` column and
-  updated only the read side).
+  from every device permanently — and, less obviously, accepts an **UPDATE**
+  naming a foreign `store_id`, because `authorizeChangeTarget()` clears it
+  from the *stored* row's ownership and `forceFill()` then hands the row to
+  the other tenant. Both halves came from the 2026-09-05 schema-drift sweep,
+  which added these `store_id` columns and updated only the read side: A-164
+  for the two loyalty-config tables, A-166 for `stock_audits`,
+  `held_transactions`, `loyalty_transactions` and `customer_payments`.
+  `STORE_ID_BACKFILL_TABLES` and `resolveChangeStoreId()`'s
+  `$directStoreTables` now hold the same 21 tables (the six parent-FK child
+  tables reach the resolver through its own per-table branches instead);
+  keep them that way.
   - **The backfill half of that list is INSERT-only; the foreign-store
     refusal half is not.** `normalizePushPayload()` runs for every operation,
     and a client UPDATE never resends `store_id` (ownership is immutable

@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Models\PaymentTransaction;
+use App\Support\CurrencyTotals;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
@@ -56,6 +57,9 @@ class AdminRevenueService
         $totalRevenue = (float) $transactions->sum('amount');
         $manualRevenue = (float) $transactions->where('provider', 'bank_transfer')->sum('amount');
 
+        $manualTransactions = $transactions->where('provider', 'bank_transfer');
+        $automatedTransactions = $transactions->where('provider', '!=', 'bank_transfer');
+
         $byPlanTier = $transactions
             ->groupBy(fn ($txn) => $this->planNameFor($txn))
             ->map(fn ($group) => (float) $group->sum('amount'));
@@ -69,6 +73,9 @@ class AdminRevenueService
             'total_revenue' => $totalRevenue,
             'manual_revenue' => $manualRevenue,
             'automated_revenue' => $totalRevenue - $manualRevenue,
+            'totals_by_currency' => $this->totalsByCurrency($transactions),
+            'automated_by_currency' => $this->totalsByCurrency($automatedTransactions),
+            'manual_by_currency' => $this->totalsByCurrency($manualTransactions),
             'by_plan_tier' => $byPlanTier,
             'transactions' => [
                 'data' => $paged->map(function ($txn) {
@@ -96,6 +103,16 @@ class AdminRevenueService
                 ],
             ],
         ];
+    }
+
+    private function totalsByCurrency($transactions): array
+    {
+        return CurrencyTotals::fromPairs(
+            $transactions->map(fn ($txn) => [
+                'currency' => $txn->currency,
+                'amount' => $txn->amount,
+            ])
+        );
     }
 
     private function planNameFor(PaymentTransaction $txn): string

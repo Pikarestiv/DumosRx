@@ -10,10 +10,13 @@ import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 import { HealthResourcesCard } from "@/components/admin/operations/health-resources-card";
 import { HealthProbesCard } from "@/components/admin/operations/health-probes-card";
 import { SentryIssuesCard } from "@/components/admin/operations/sentry-issues-card";
+import { SyncHealthCard } from "@/components/admin/operations/sync-health-card";
+import { useAdminSyncHealth } from "@/lib/api/admin-hooks-sync";
 
 export default function OperationsPage() {
   const { data: health, isLoading, error, refetch } = useAdminHealth();
   const { data: errorsData, isLoading: errorsLoading } = useAdminErrors();
+  const { data: syncHealth, isLoading: syncLoading } = useAdminSyncHealth();
 
   if (isLoading && !health) {
     return <AdminSkeleton />;
@@ -119,6 +122,8 @@ export default function OperationsPage() {
         {health && <HealthResourcesCard resources={health.resources} />}
         {health && <HealthProbesCard probes={health.probes} />}
       </div>
+
+      <SyncHealthCard data={syncHealth} isLoading={syncLoading} />
 
       <SentryIssuesCard data={errorsData} isLoading={errorsLoading} />
     </div>

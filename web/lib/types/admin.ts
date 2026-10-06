@@ -110,6 +110,31 @@ export interface AdminSummary {
   security_alerts: SecurityAlert[];
 }
 
+/** A `null` rate means nothing has synced in the window — render it as such,
+ * never as 0%. See web/AGENTS.md. */
+export interface AdminSyncHealth {
+  success_rate_24h: string | null;
+  success_rate_7d: string | null;
+  failures_by_reason: Record<string, number>;
+  worst_stores: Array<{ store_id: string; store_name: string | null; refused: number }>;
+}
+
+export interface SyncFailureRow {
+  id: string;
+  table_name: string;
+  record_id: string | null;
+  operation: string | null;
+  reason: string;
+  created_at: string | null;
+}
+
+export interface AdminStoreSyncHealth {
+  store_name: string | null;
+  last_sync_at: string | null;
+  daily: Array<{ date: string; accepted: number; refused: number }>;
+  failures: { data: SyncFailureRow[]; meta?: PaginationMeta };
+}
+
 export type ProbeStatus = "Operational" | "Degraded" | "Unavailable";
 
 export interface HealthProbe {

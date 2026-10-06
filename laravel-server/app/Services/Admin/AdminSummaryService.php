@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\Subscription;
+use App\Models\SyncHealthDaily;
 use App\Models\User;
 
 class AdminSummaryService
@@ -71,16 +72,9 @@ class AdminSummaryService
                 ];
             });
 
-        $syncLogs = ActivityLog::where('action', 'like', 'SYNC_%')
-            ->where('created_at', '>=', now()->subDay());
-        $syncTotal = (clone $syncLogs)->count();
-        $syncSuccess = (clone $syncLogs)->where('action', 'SYNC_SUCCESS')->count();
-
         $liveOperations = [
             'audit_log_entries' => ActivityLog::count(),
-            'sync_success_rate_24h' => $syncTotal > 0
-                ? round(($syncSuccess / $syncTotal) * 100, 1).'%'
-                : null,
+            'sync_success_rate_24h' => $this->syncSuccessRate24h(),
         ];
 
         $securityAlerts = ActivityLog::whereIn('action', [
@@ -149,6 +143,23 @@ class AdminSummaryService
             'live_operations' => $liveOperations,
             'security_alerts' => $securityAlerts,
         ];
+    }
+
+    private function syncSuccessRate24h(): ?string
+    {
+        $totals = SyncHealthDaily::where('date', '>=', now()->subDay()->startOfDay())
+            ->selectRaw('COALESCE(SUM(changes_accepted), 0) as accepted, COALESCE(SUM(changes_refused), 0) as refused')
+            ->first();
+
+        $accepted = (int) ($totals->accepted ?? 0);
+        $refused = (int) ($totals->refused ?? 0);
+        $total = $accepted + $refused;
+
+        if ($total === 0) {
+            return null;
+        }
+
+        return round(($accepted / $total) * 100, 1).'%';
     }
 
     private function liveSubscriptionOwners(bool $trial): int

@@ -109,11 +109,32 @@ class AdminSummaryMetricHonestyTest extends TestCase
         $this->assertNull($this->summary()['live_operations']['sync_success_rate_24h']);
     }
 
+    private function syncTally(int $accepted, int $refused, ?Carbon $date = null): void
+    {
+        \App\Models\SyncHealthDaily::create([
+            'store_id' => null,
+            'date' => $date ?? now()->startOfDay(),
+            'pushes' => 1,
+            'changes_accepted' => $accepted,
+            'changes_refused' => $refused,
+        ]);
+    }
+
+    /**
+     * The previous source -- an activity-log action named SYNC_SUCCESS -- is
+     * written nowhere in either package, so the metric was dead on arrival.
+     */
+    public function test_the_sync_success_rate_reads_recorded_sync_health(): void
+    {
+        $this->syncTally(3, 1);
+
+        $this->assertSame('75%', $this->summary()['live_operations']['sync_success_rate_24h']);
+    }
+
     public function test_sync_success_rate_only_counts_the_last_24_hours(): void
     {
-        $this->logAction('SYNC_SUCCESS', now()->subDays(3));
-        $this->logAction('SYNC_SUCCESS', now()->subHour());
-        $this->logAction('SYNC_FAILURE', now()->subHour());
+        $this->syncTally(10, 0, now()->subDays(3)->startOfDay());
+        $this->syncTally(1, 1);
 
         $this->assertSame('50%', $this->summary()['live_operations']['sync_success_rate_24h']);
     }

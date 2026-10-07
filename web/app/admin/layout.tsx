@@ -2,6 +2,7 @@
 
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { AdminHeader } from "@/components/admin/admin-header";
+import { AdminPwaRegistrar } from "@/components/admin/admin-pwa-registrar";
 import { useAdminAuthStore, checkCanAccessAdmin } from "@/lib/store/use-admin-auth-store";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -88,7 +89,12 @@ export default function AdminLayout({
 
   // If on login or handoff page, just render children without further checks
   if (bypassGuard) {
-    return <>{children}</>;
+    return (
+      <>
+        <AdminPwaRegistrar />
+        {children}
+      </>
+    );
   }
 
   if (checking || authLoading) {
@@ -105,6 +111,7 @@ export default function AdminLayout({
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
+      <AdminPwaRegistrar />
       <AdminSidebar />
 
       <div className="flex-1 flex flex-col overflow-hidden">

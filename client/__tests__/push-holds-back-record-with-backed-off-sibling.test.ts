@@ -108,7 +108,11 @@ describe("pushChanges holds back a due edit when a sibling edit for the same rec
     // A background (non-manual) sync must NOT push B alone.
     const result = await pushChanges(false);
 
-    expect(apiClient.pushChanges).not.toHaveBeenCalled();
+    // A report-only request may still go out so the queue can attract an
+    // operator command; what must not happen is B being sent alone.
+    for (const call of apiClient.pushChanges.mock.calls) {
+      expect(call[0].changes).toEqual([]);
+    }
     expect(result).toEqual({ pushed: 0, failedBatches: 0 });
 
     // Both rows are still sitting in the queue, untouched.

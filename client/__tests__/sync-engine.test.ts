@@ -122,15 +122,17 @@ describe('Sync Engine & Local Database', () => {
       const result = await pushChanges();
       
       expect(result.pushed).toBe(1);
+      // objectContaining: the payload also carries stock_fingerprint now
+      // (the per-device stock report), which this test is not about.
       expect(apiClient.pushChanges).toHaveBeenCalledWith(
-        {
+        expect.objectContaining({
           changes: [
             expect.objectContaining({
               table_name: 'products',
               action: 'INSERT'
             })
           ]
-        },
+        }),
         false,
         false,
         undefined,

@@ -19,10 +19,10 @@ class AdminActivityFeedSources
      * @param  array{0: string, 1: string}|null  $after  the cursor's (timestamp, event id)
      * @return array<int, array{id: string, type: string, at: string, title: string, detail: ?string, store_id: ?string, derived: bool}>
      */
-    public function fetch(string $type, ?array $after, int $limit): array
+    public function fetch(string $type, ?array $after, int $limit, bool $includeSuperAdmin = true): array
     {
         return match ($type) {
-            'admin_action' => $this->adminActions($after, $limit),
+            'admin_action' => $this->adminActions($after, $limit, $includeSuperAdmin),
             'sync_failure' => $this->syncFailures($after, $limit),
             'payment' => $this->payments($after, $limit),
             'subscription' => $this->subscriptions($after, $limit),
@@ -64,9 +64,17 @@ class AdminActivityFeedSources
             : $query->where($column, '<', $at);
     }
 
-    private function adminActions(?array $after, int $limit): array
+    private function adminActions(?array $after, int $limit, bool $includeSuperAdmin): array
     {
-        return $this->applyCursor(ActivityLog::query(), 'created_at', 'admin_action', $after)
+        // The shared scope, so this cannot drift from the other read paths.
+        $base = $includeSuperAdmin
+            ? ActivityLog::query()
+            : ActivityLog::query()->whereDoesntHave('user', function ($uq) {
+                $uq->where('role', 'super_admin')
+                    ->orWhereHas('userRole', fn ($rq) => $rq->where('slug', 'super_admin'));
+            });
+
+        return $this->applyCursor($base, 'created_at', 'admin_action', $after)
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->limit($limit)

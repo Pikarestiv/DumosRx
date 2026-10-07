@@ -1,5 +1,13 @@
 export interface PushResponse {
   success: boolean;
+  /** Operator intents for this device, handed back on the push response so
+   *  acting on one costs no extra round trip. See sync-commands.ts. */
+  sync_commands?: Array<{
+    id: string;
+    action: string;
+    table_name: string | null;
+    record_id: string | null;
+  }>;
   message?: string;
   processed?: number;
   /** Changes the server isolated to their own savepoint and skipped

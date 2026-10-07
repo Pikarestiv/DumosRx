@@ -5,7 +5,7 @@ import Link from "next/link";
 import { BadgeCheck, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { useAdminAuthStore, checkIsSuperAdmin, checkHasPermission } from "@/lib/store/use-admin-auth-store";
+import { useAdminAuthStore, checkHasPermission } from "@/lib/store/use-admin-auth-store";
 import { LifecycleFiguresView } from "@/components/admin/subscriptions/lifecycle-figures";
 import { BUCKETS, BucketTabsList } from "@/components/admin/subscriptions/bucket-tabs";
 import { WorklistPanel } from "@/components/admin/subscriptions/worklist-panel";
@@ -19,10 +19,10 @@ function NotAvailable() {
       </div>
       <div>
         <p className="font-bold text-foreground">
-          This page is only available to super admins
+          You don't have access to subscriptions
         </p>
         <p className="text-sm text-muted-foreground mt-1">
-          Subscription lifecycle covers platform billing, so it is restricted.
+          Subscriptions cover platform billing. Ask a super admin for the “view subscriptions” permission.
         </p>
       </div>
       <Button asChild variant="outline">
@@ -36,7 +36,7 @@ export default function SubscriptionsPage() {
   const { user } = useAdminAuthStore();
   const [days, setDays] = useState(7);
 
-  if (!checkIsSuperAdmin(user?.role)) {
+  if (!checkHasPermission(user as never, "view_subscriptions")) {
     return <NotAvailable />;
   }
 

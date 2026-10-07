@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/sheet";
 import { visibleSidebarItems } from "./sidebar-items";
 import { cn } from "@/lib/utils";
-import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
+import { useAdminAuthStore, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
 
 export function AdminHeader() {
   const { latency } = useAdminStore();
@@ -31,6 +31,9 @@ export function AdminHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAdminAuthStore();
+  // Visible in production only for a super admin, who needs it to point an
+  // installed PWA at an environment from a phone. See web/AGENTS.md.
+  const canSwitchServer = checkIsSuperAdmin(user?.role);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   // Shared with the dashboard's "Connected to ... Cluster" line so both name
@@ -95,7 +98,7 @@ export function AdminHeader() {
             <Globe className="h-3 w-3" />
             {environmentName}
           </Badge>
-          <ServerSelector />
+          <ServerSelector allowInProduction={canSwitchServer} />
         </div>
       </div>
 
@@ -164,7 +167,7 @@ export function AdminHeader() {
                   dev/QA session is back to getAppURL()'s production default
                   on the first Impersonate click. */}
               <div className="flex justify-start">
-                <ServerSelector />
+                <ServerSelector allowInProduction={canSwitchServer} />
               </div>
               <Button
                 onClick={() => void handleLogout()}

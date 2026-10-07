@@ -5,7 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 import { useAdminHealth, useAdminErrors } from "@/lib/api/admin-hooks";
+import {
+  useAdminAuthStore,
+  checkHasPermission,
+  checkIsSuperAdmin,
+} from "@/lib/store/use-admin-auth-store";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 import { HealthResourcesCard } from "@/components/admin/operations/health-resources-card";
 import { HealthProbesCard } from "@/components/admin/operations/health-probes-card";
@@ -14,7 +20,36 @@ import { SyncHealthCard } from "@/components/admin/operations/sync-health-card";
 import { MigrationStatusCard } from "@/components/admin/operations/migration-status-card";
 import { useAdminSyncHealth } from "@/lib/api/admin-hooks-sync";
 
+function NotAvailable() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
+      <div className="p-4 bg-muted text-muted-foreground rounded-full">
+        <ShieldAlert className="h-10 w-10" />
+      </div>
+      <div>
+        <p className="font-bold text-foreground">You don&apos;t have access to Operations</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Ask a super admin for the “view platform health” permission.
+        </p>
+      </div>
+      <Button asChild variant="outline">
+        <Link href="/admin">Back to Overview</Link>
+      </Button>
+    </div>
+  );
+}
+
 export default function OperationsPage() {
+  const { user } = useAdminAuthStore();
+
+  if (!checkHasPermission(user as never, "view_platform_health")) {
+    return <NotAvailable />;
+  }
+
+  return <OperationsContent isSuperAdmin={checkIsSuperAdmin(user?.role)} />;
+}
+
+function OperationsContent({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const { data: health, isLoading, error, refetch } = useAdminHealth();
   const { data: errorsData, isLoading: errorsLoading } = useAdminErrors();
   const { data: syncHealth, isLoading: syncLoading, isError: syncError } = useAdminSyncHealth();
@@ -126,7 +161,9 @@ export default function OperationsPage() {
 
       <SyncHealthCard data={syncHealth} isLoading={syncLoading} isError={syncError} />
 
-      <MigrationStatusCard />
+      {/* Its endpoint is super_admin-only; others would see a permanent
+          "unavailable" on a page the nav says they may use. */}
+      {isSuperAdmin && <MigrationStatusCard />}
 
       <SentryIssuesCard data={errorsData} isLoading={errorsLoading} />
     </div>

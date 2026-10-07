@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ShieldAlert, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAdminAuthStore, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
+import { useAdminAuthStore, checkHasPermission } from "@/lib/store/use-admin-auth-store";
 import {
   TREND_WINDOWS,
   TREND_WINDOW_LABELS,
@@ -21,9 +21,9 @@ function NotAvailable() {
         <ShieldAlert className="h-10 w-10" />
       </div>
       <div>
-        <p className="font-bold text-foreground">This page is only available to super admins</p>
+        <p className="font-bold text-foreground">You don't have access to platform trends</p>
         <p className="text-sm text-muted-foreground mt-1">
-          Trends include platform revenue, so they are restricted.
+          Trends include platform revenue. Ask a super admin for the “view platform revenue” permission.
         </p>
       </div>
       <Button asChild variant="outline">
@@ -36,7 +36,7 @@ function NotAvailable() {
 export default function TrendsPage() {
   const { user } = useAdminAuthStore();
 
-  if (!checkIsSuperAdmin(user?.role)) {
+  if (!checkHasPermission(user as never, "view_platform_revenue")) {
     return <NotAvailable />;
   }
 

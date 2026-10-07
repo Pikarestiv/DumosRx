@@ -37,10 +37,23 @@ class AdminActivityService
         ];
     }
 
+    /**
+     * Super-admin actions are privileged operational detail (role changes,
+     * subscription overrides, migrations), not peer accountability. Everyone
+     * below super_admin sees their own peer group and store-level activity
+     * but not these. See laravel-server/AGENTS.md.
+     */
+    private function hideSuperAdminActionsFromOperators($query): void
+    {
+        $query->visibleToCurrentOperator();
+    }
+
     public function getActivityLogs($page = 1, $search = null, $action = null, $storeId = null, $userId = null, $dateFrom = null, $dateTo = null, $role = null)
     {
         $query = ActivityLog::with(['user.store', 'user.stores', 'user.employerStore'])
             ->where('action', '!=', 'CLIENT_API_ERROR');
+
+        $this->hideSuperAdminActionsFromOperators($query);
 
         if ($search) {
             $query->where(function ($q) use ($search) {

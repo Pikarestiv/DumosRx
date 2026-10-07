@@ -741,6 +741,82 @@ counts, see `components/stock-batch/stock-audits.tsx`).
   rejections), so `sync()` can tell "nothing to push" from "everything
   failed" — see `index.ts`.
 
+#### What a sync request reports about this device (2026-10-07)
+
+A push carries three operator-visibility payloads alongside the queued rows.
+All three are **bounded by construction** — none grows with the store's size —
+because they ride on every sync, and all three are computed **once per sync
+run**, not per batch, so a 12-batch drain does not run the same aggregates 12
+times.
+
+- **`stock_fingerprint`** (`sync-engine/stock-fingerprint.ts`): `batch_count`
+  and `quantity_sum` for the active store. Two integers. The server computes
+  the same two from its own rows and stores both sides, snapshotted at report
+  time. A differing fingerprint is *proof* that this device and the server
+  disagree about stock; it cannot say which batch, which is deliberate — that
+  would be an unbounded payload.
+- **`queue_state`** (`sync-engine/queue-state.ts`): queue depth plus, for each
+  stuck row, the table, record id, attempt count and a canonicalised reason.
+  The cap is `LIMIT ?` **in the SQL**, not a `.slice()` after the fact.
+- **The reason is canonicalised on the device, not on the server.** A raw
+  driver error embeds the failing SQL and its bindings — customer names, phone
+  numbers, amounts. The server canonicalises again on storage, but a raw string
+  would still be in transit and in any future request log, so `last_error` is
+  mapped to a known slug (or `server_error`/`other`) before it leaves. Never
+  "send the raw text and let the server clean it up".
+
+Absent is not zero: a store that has never reported renders as "no reports
+yet", never as "0 divergence".
+
+#### Sync commands: the server asking this device to do something (2026-10-07)
+
+`sync-engine/sync-commands.ts` applies commands an operator issued from the
+admin panel. The constraints are not negotiable:
+
+- **A closed `switch` over a fixed vocabulary** (`retry`, `send_payload`,
+  `abandon`) that can only touch `_sync_queue` — never a business table. No
+  dynamic dispatch, no `handlers[command.action]` (§8). A compromised admin
+  panel must not become a way to destroy store data.
+- **`abandon` is allowlisted to `ABANDONABLE_TABLES`** (`feedback`,
+  `audit_logs`) on both sides. A `sales` or `stock_movements` row exists only
+  on this device, so discarding one permanently loses revenue data or
+  falsifies stock. The terminal state for a business table is escalation to a
+  human, not discard.
+- **Abandoning calls `markConflictSettled()`.** Without it `requeueOrphanedRows()`
+  sees an unsynced row with no queue entry and resurrects it on the next run,
+  so the command appears to work and then silently undoes itself.
+- **Commands are applied *after* the batch transaction commits**, never inside
+  it. Applying mid-transaction lets a rollback of an unrelated batch failure
+  revive a queue entry the operator already discarded.
+- **Results survive a failed delivery.** Outcomes are written to
+  `_pending_command_results` (a local table), read *before* the next send, and
+  cleared **only after the server acknowledges**. Clearing on send loses the
+  outcome whenever the ack is the thing that fails, and the operator is left
+  looking at a command that is forever "queued".
+- **Eventually consistent, and the UI must say so.** A command applies on the
+  device's next sync — which for a store whose plan has sync disabled may be
+  never. The admin panel renders a row with a pending command as "queued" with
+  no action button, rather than an ordinary Retry the operator fires twice.
+- **A push with no changes is a legitimate request** (`exchangeReportsOnly()`
+  in `push.ts`; the server validates `changes` as `present|array`, not
+  `required`). Two cases need it, and both are the ones this feature exists
+  for:
+  1. The commonest *successful* outcome **empties the queue** — abandoning or
+     retrying the last stuck row — so the outcome has nothing to ride along
+     with, and the operator is left looking at a command that is forever
+     "queued".
+  2. A stuck row is **by definition** one whose retries have backed off, and
+     `getPendingSyncItems()` excludes a backed-off row from an auto-sync. So
+     the device would send nothing at all, and the `retry` command issued for
+     that very row could never reach it.
+
+  The gate is "are there outcomes to deliver, or any rows in `_sync_queue`" —
+  read with its own `COUNT(*)`, not from `queueState`, which is `null` until a
+  store is active. A device with a genuinely empty queue and nothing to report
+  sends no request, so this does not add idle traffic. Three older tests
+  asserted "no API call at all" for the backed-off case; they now assert the
+  precise property instead — the backed-off row is never *sent*.
+
 #### Pull details (`sync-engine/pull.ts`)
 
 - **`MAX_PULL_PAGES` (1000) is a safety bound, not a correctness ceiling.**
@@ -3659,6 +3735,73 @@ same tab session still gets its own fresh one-time retry.
   deploy, it does not just annotate it. `next.config.mjs` no longer sets
   `typescript.ignoreBuildErrors`, so `next build` type-checks too. Running
   both locally first is still the fast path; CI is the backstop.
+
+### Console noise is suppressed in CI (2026-10-07)
+
+`vitest.setup.ts` wraps `console.log`/`console.warn` to drop lines starting
+with a known app prefix (`[Logger]`, `[Sync]`, `[DB]`, `[LicenseGuard]`,
+`[API Error]`, `API request failed:`). Gated on `process.env.CI`, so a local
+run keeps the output you debug with. The predicate and the wiring both live in
+`test-support/console-noise.ts` and are pinned by
+`__tests__/console-noise-filter.test.ts`.
+
+**Why, because this is not cosmetic.** Vitest's worker forwards every console
+call to the reporter over an rpc, and the worker closes as soon as the last
+test finishes. Fire-and-forget async work — `void logCrash(...)`, a sync-engine
+catch, a DB retry — can write a line *after* that point, leaving a flush in
+flight when the rpc closes:
+
+```
+Test Files  391 passed (391)
+Tests       2461 passed (2461)
+Errors      1 error
+EnvironmentTeardownError: [vitest-worker]: Closing rpc while "onUserConsoleLog" was pending
+```
+
+Every test passes and the job still exits non-zero, which trains everyone to
+ignore a red check. The straggler caught in CI was a mock missing an export,
+making the crash path throw and log the caught error with a full stack — the
+biggest payload, so the slowest to flush.
+
+**Things that look like fixes and are not:**
+
+- **`silent` / `silent: 'passed-only'`** — reporter-side only. `sendLog()` in
+  vitest's worker calls `rpc.onUserConsoleLog()` unconditionally, so the race
+  is unchanged. (Vitest 4 already hides passing tests' logs locally, which is
+  why this output appears in CI but not on your machine.)
+- **The `onConsoleLog` config hook** — also reporter-side. Returning `false`
+  suppresses printing, not the send.
+- **`dangerouslyIgnoreUnhandledErrors`** — would hide real unhandled errors too.
+
+Only *not writing the line* works, which is what this does. `info` and `error`
+are deliberately left alone: five test files assert on them.
+
+**Do not add a prefix to the list to quieten a test you are debugging.** The
+list is for lines the app emits from async work no test awaits. A noisy test
+you own is a test to fix.
+
+### CI runs the suite once per push (2026-10-07)
+
+`checks.yml` is both a `workflow_call` target (gating `deploy-dev`,
+`deploy-client`, `deploy-backend`, `release`) and a `pull_request` workflow. A
+push to `dev` with a `dev -> main` PR open therefore triggered it **twice** —
+identical work, doubled minutes, and two independent chances for the teardown
+flake above to show a red check on a green suite (which is exactly what
+happened on PR #137).
+
+Both jobs now carry
+`if: github.event_name != 'pull_request' || github.head_ref != 'dev'`. In a
+called workflow `github.event_name` is the *caller's* event (`push`), so the
+deploy path is unaffected; only the redundant standalone copy skips, and only
+for a `dev` head. A PR from any other branch still gets it, since
+`deploy-dev.yml` never runs for those.
+
+**`main`'s branch protection requires the prefixed contexts**
+(`checks / Server — phpunit`, `checks / Client — tsc + vitest`), which only a
+*called* run produces. That is why the standalone copy is the one that gives
+way. It also means a branch that never pushes to `dev` — a hotfix opened
+straight against `main` — produces only the unprefixed contexts and cannot
+satisfy protection. Fix the protection list, not this file, if that comes up.
 
 ### Tests pin the timezone: `TZ=Africa/Lagos`, set in `vitest.config.ts`
 

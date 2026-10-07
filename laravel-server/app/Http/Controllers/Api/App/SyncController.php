@@ -71,10 +71,86 @@ class SyncController extends Controller
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
     )]
+    /**
+     * A two-integer summary of what this device believes about its stock,
+     * compared against what the server derives from stock_movements. Fully
+     * try/caught: a reporting failure must never fail a sync.
+     */
+    private function recordStockFingerprint(Request $request, $user, ?string $storeId): void
+    {
+        $fingerprint = $request->input('stock_fingerprint');
+        $deviceId = $request->header('X-Device-Id');
+
+        if (! $storeId || ! $deviceId || ! is_array($fingerprint)) {
+            return;
+        }
+
+        try {
+            app(\App\Services\Admin\StockDivergenceService::class)
+                ->record($storeId, $deviceId, $user?->id, $fingerprint);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to record stock fingerprint', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * What this device says is in its own `_sync_queue`. Fully try/caught:
+     * reporting must never fail a sync.
+     */
+    private function recordQueueState(Request $request, $user, ?string $storeId): void
+    {
+        $report = $request->input('queue_state');
+        $deviceId = $request->header('X-Device-Id');
+
+        if (! $storeId || ! $deviceId || ! is_array($report)) {
+            return;
+        }
+
+        try {
+            app(\App\Services\Admin\DeviceQueueReportService::class)
+                ->record($storeId, $deviceId, $user?->id, $report);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to record device queue state', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Records what the device did with the last batch of commands and hands
+     * it the next. Rides on the push response rather than adding a round
+     * trip. Fully try/caught: this must never fail a sync.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function exchangeSyncCommands(Request $request, ?string $storeId): array
+    {
+        $deviceId = $request->header('X-Device-Id');
+
+        if (! $storeId || ! $deviceId) {
+            return [];
+        }
+
+        try {
+            $service = app(\App\Services\Admin\SyncCommandService::class);
+            $outcomes = $request->input('sync_command_results');
+
+            if (is_array($outcomes)) {
+                $service->recordOutcome($storeId, $deviceId, $outcomes);
+            }
+
+            return $service->pendingFor($storeId, $deviceId);
+        } catch (\Throwable $e) {
+            Log::warning('Sync command exchange failed', ['error' => $e->getMessage()]);
+
+            return [];
+        }
+    }
+
     public function push(Request $request)
     {
         $validation = $this->validateSync($request, true);
         if (!$validation['valid']) {
+            $this->recordRejectedPush($request, $validation['code'] ?? null);
+
             return response()->json([
                 'success' => false,
                 'message' => $validation['message'],
@@ -82,8 +158,10 @@ class SyncController extends Controller
             ], $validation['status']);
         }
 
+        // `present`, not `required`: an empty array is a legitimate report-only
+        // push. See SyncPushReportOnlyExchangeTest for why that case exists.
         $request->validate([
-            'changes' => 'required|array',
+            'changes' => 'present|array',
             'changes.*.table_name' => 'required|string',
             'changes.*.operation' => 'required|in:INSERT,UPDATE,DELETE',
             'changes.*.payload' => 'nullable'
@@ -106,12 +184,14 @@ class SyncController extends Controller
 
 
 
+        $entryTransactionLevel = DB::transactionLevel();
         DB::beginTransaction();
 
         $hasSyncedAtCache = [];
         $currentUser = $request->user();
         $currentStoreId = $currentUser ? $this->resolvePushStoreId($request, $currentUser) : null;
         UserDeviceTracker::touch($request, $currentUser, $currentStoreId);
+        $this->recordQueueState($request, $currentUser, $currentStoreId);
 
         // Ownership scope for UPDATE/DELETE targets and for rejecting an
         // INSERT payload that explicitly names a store_id the caller
@@ -691,12 +771,63 @@ class SyncController extends Controller
                 Log::warning('Sync failure recording skipped: '.$e->getMessage());
             }
 
-            return response()->json(['success' => true, 'processed' => $processed, 'failed' => $failed, 'id_map' => $idMapByTable, 'versions' => $versions]);
+            // After the commit, never before: taken earlier, the server's
+            // side excluded this very request's movements while the device's
+            // number already included them, reporting a divergence that was
+            // only ever the batch in flight.
+            $this->recordStockFingerprint($request, $currentUser, $currentStoreId);
 
-        } catch (\Exception $e) {
-            DB::rollBack();
+            return response()->json([
+                'success' => true,
+                'processed' => $processed,
+                'failed' => $failed,
+                'id_map' => $idMapByTable,
+                'versions' => $versions,
+                'sync_commands' => $this->exchangeSyncCommands($request, $currentStoreId),
+            ]);
+
+        } catch (\Throwable $e) {
+            // Back to where this method found things, not one level. An
+            // \Error inside the per-change block leaves nesting at 2 (outer
+            // transaction + savepoint), and a single rollBack() unwinds only
+            // the savepoint — the recording below would then be written into
+            // a transaction nobody commits, which is exactly the case the
+            // \Throwable widening exists for.
+            while (DB::transactionLevel() > $entryTransactionLevel) {
+                DB::rollBack();
+            }
+
             Log::error('Sync push failed: ' . $e->getMessage());
+            $this->recordRejectedPush($request, 'server_error');
+
             return response()->json(['success' => false, 'message' => 'Sync failed', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * PG-18: both of the exits above return before the per-change recording
+     * hook, so a store that syncs nothing used to contribute nothing and the
+     * platform success rate read 100%.
+     */
+    private function recordRejectedPush(Request $request, ?string $code): void
+    {
+        try {
+            $user = $request->user();
+            $storeId = $user ? $this->resolvePushStoreId($request, $user) : null;
+
+            app(\App\Services\Sync\SyncFailureRecorder::class)->recordRejectedPush(
+                $storeId,
+                $user?->id,
+                match ($code) {
+                    'SYNC_DISABLED' => 'sync_disabled',
+                    'SYNC_THROTTLED' => 'sync_throttled',
+                    'STORE_LIMIT_EXCEEDED' => 'store_limit_exceeded',
+                    default => 'server_error',
+                },
+                count((array) $request->input('changes', [])),
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Could not record a rejected push: '.$e->getMessage());
         }
     }
 

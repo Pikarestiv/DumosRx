@@ -1,7 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { webApiClient } from "./client";
 import { useScopedKey } from "./query-scope";
 import type { AdminSyncHealth, AdminStoreSyncHealth } from "@/lib/types/admin";
+import type {
+  StoreStockDivergence,
+  StoreQueueState,
+  SyncCommandRow,
+} from "@/lib/types/admin-platform";
 
 /** Raw refusal reasons are the sync engine's own vocabulary. The gloss is for
  * the operator; the raw string stays on screen so a support conversation can
@@ -37,3 +42,50 @@ export const useAdminStoreSyncHealth = (storeId?: string, page = 1) =>
     enabled: Boolean(storeId),
     staleTime: 60 * 1000,
   });
+
+export const useStoreStockDivergence = (storeId: string, enabled = true) =>
+  useQuery({
+    queryKey: useScopedKey(["admin-store-stock-divergence", storeId]),
+    queryFn: () =>
+      webApiClient.request<StoreStockDivergence>(`admin/stores/${storeId}/stock-divergence`),
+    enabled: enabled && Boolean(storeId),
+    staleTime: 60 * 1000,
+  });
+
+export const useStoreQueueState = (storeId: string, enabled = true) =>
+  useQuery({
+    queryKey: useScopedKey(["admin-store-queue-state", storeId]),
+    queryFn: () => webApiClient.request<StoreQueueState>(`admin/stores/${storeId}/queue-state`),
+    enabled: enabled && Boolean(storeId),
+    staleTime: 60 * 1000,
+  });
+
+export const SYNC_COMMANDS_KEY = "admin-store-sync-commands";
+
+export const useStoreSyncCommands = (storeId: string, enabled = true) =>
+  useQuery({
+    queryKey: useScopedKey([SYNC_COMMANDS_KEY, storeId]),
+    queryFn: () =>
+      webApiClient.request<{ commands: SyncCommandRow[] }>(`admin/stores/${storeId}/sync-commands`),
+    enabled: enabled && Boolean(storeId),
+    staleTime: 30 * 1000,
+  });
+
+export const useIssueSyncCommandMutation = (storeId: string) => {
+  const queryClient = useQueryClient();
+  const queryKey = useScopedKey([SYNC_COMMANDS_KEY, storeId]);
+
+  return useMutation({
+    mutationFn: (body: {
+      device_id: string;
+      action: string;
+      table_name?: string | null;
+      record_id?: string | null;
+    }) =>
+      webApiClient.request(`admin/stores/${storeId}/sync-commands`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+  });
+};

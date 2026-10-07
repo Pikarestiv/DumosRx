@@ -363,6 +363,106 @@ Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-3-subscription-lifecy
   `useResettingPage(days)` (in `hooks/`) is the seam; reach for it in any panel
   that pairs a page cursor with a filter control.
 
+### Stuck data and divergence visibility (2026-10-07)
+
+Spec: `docs/superpowers/specs/2026-10-07-stuck-data-and-divergence-visibility-design.md`.
+
+Three sections on the store detail page, all **per-device** — the entire point
+is that two devices of one store disagree.
+
+- **`store-stock-divergence-section.tsx`** shows what each device reported
+  against what the server computed, snapshotted at report time. Both sides are
+  stored, never recomputed on read, so a historical row cannot change meaning
+  later.
+- **`store-queue-state-section.tsx`** lists what is stuck on each device, with
+  attempts and a canonical reason. The reason is a slug the device already
+  canonicalised — it is never raw error text, and nothing here should start
+  rendering one.
+- **A store that has never reported says so.** "No reports yet" is not
+  "0 divergence" and not an empty table that reads like agreement. This is the
+  Phase 1 rule in the place where breaking it costs the most: a silent device
+  is exactly the one worth looking at.
+
+**Gating.** The panels are `view_platform_health`; the *commands* are
+`role:super_admin` on the route. Because those differ, `StuckItemActions`
+checks `checkIsSuperAdmin` itself and renders **nothing** for a delegated
+operator — otherwise they see buttons that only ever return 403. Hidden, never
+disabled, per the rule above.
+
+**`Abandon` is hidden for business tables.** `ABANDONABLE_TABLES` here mirrors
+the server's allowlist (`feedback`, `audit_logs`). The device holds the only
+copy of a sale or stock movement, so the control is absent rather than
+shown-and-refused. Keep the two lists in step; the server is the enforcement.
+
+**A queued command replaces the buttons.** A command applies on the device's
+next sync, which may be hours away or never. `StuckItemActions` reads
+`useStoreSyncCommands` and, when a `pending` command matches this exact
+device + table + record, renders "<action> queued — applies on <device>'s next
+sync" instead of the action buttons. Without that the operator reloads, sees an
+ordinary Retry and fires it again. The match is on all three fields: a pending
+command for a different row, a different device, or one already `applied`,
+must leave the buttons alone.
+
+### Admin PWA and the production server switcher (2026-10-07)
+
+- **Scoped to `/admin/`, deliberately.** `public/admin-manifest.webmanifest`
+  sets `start_url` and `scope` to `/admin/`, and the manifest `<link>` is
+  injected by `AdminPwaRegistrar` while an admin page is mounted — **not** in
+  the root layout's metadata. A site-wide manifest would offer to install the
+  *admin app* from the marketing site and from a store owner's dashboard.
+  The registrar removes the link on unmount for the same reason.
+- **The service worker caches nothing at all.** `public/admin-sw.js` is
+  network-only for every request; its `fetch` handler is empty and its
+  `activate` handler deletes any `dumosrx-admin-*` cache an earlier version
+  left behind. It exists solely to make the panel installable.
+  Two reasons, and both must survive any rewrite:
+  1. **Caching platform data would lie.** Every screen here reports live
+     state — sync health, revenue, what is stuck — and showing an operator a
+     stale number they are about to act on is worse than showing nothing.
+  2. **Caching static assets is unsafe *on this host*.** It serves
+     `index.html` with `200 OK` for any path it does not have, and the FTP
+     deploy deletes old hashed chunks. A cache-first worker would store an
+     HTML document under a `/_next/static/` chunk URL after a deploy and
+     serve it forever — a sticky `Unexpected token '<'` that a reload cannot
+     clear. `client/` recovers from this via `chunk-error.ts`; `web/` has no
+     such recovery. An earlier draft of this worker did exactly that and was
+     caught in review.
+  **Do not add caching to make it "work offline".** There is no useful
+  offline mode to build here.
+- **It does not register in development** — a worker holding the shell makes
+  hot reloads behave strangely.
+- **The server switcher is visible in production for super admins only.**
+  `ServerSelector` stays hidden in production by default so a customer can
+  never point their app at the wrong API; `allowInProduction` is opt-in and
+  the admin header passes it from `checkIsSuperAdmin`. It exists so an
+  installed PWA on a phone can be pointed at an environment.
+- **In a production build the override is honoured only against the shipped
+  environment list** (`lib/api/server-environments.ts`). This is the whole
+  design, and the naive version is a vulnerability: `dumos_api_url` and
+  `dumos_app_url` are plain localStorage keys, writable by any XSS foothold
+  on this origin, and `app/admin/stores` builds the impersonation handoff
+  redirect from the app URL — a redirect carrying a live super_admin session
+  code. Reading the key unconditionally in production would let one written
+  key send that code to a server the attacker controls. Matching against
+  `API_ENVIRONMENTS`/`APP_ENVIRONMENTS` means an attacker who can write the
+  key can at most move the session between servers we already run.
+  Outside production any URL is accepted — that is a developer pointing at
+  their own box.
+  - The comparison ignores a trailing slash and nothing else. It is an
+    equality check against the list, **never** a prefix or `includes` test:
+    `https://api.dev.dumosrx.com/api/v1@evil.example.com` starts with a known
+    URL and must be refused.
+  - Because the production build now honours it, the App URL control renders
+    as a picklist there rather than the dev free-text field — a field whose
+    value would be silently discarded on reload is worse than no field.
+  - **`useApiEnvironmentName` derives from the live base URL, not from
+    `NEXT_PUBLIC_APP_ENV`.** That variable is baked in at build time and
+    cannot see an override, so a production build pointed at the dev API
+    would otherwise keep calling itself "Production" — and that label is what
+    the migration dialog's irreversible-action warning is written from. The
+    build-time value survives only as the pre-mount default that keeps SSR
+    and the first client render agreeing.
+
 ### Activity (Phase 6, 2026-10-07)
 
 Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-6-activity-feed-design.md`.
@@ -482,10 +582,13 @@ Spec: `docs/superpowers/specs/2026-10-06-admin-panel-phase-2-sync-health-design.
 - **A `null` rate means nothing synced in the window**, and renders "No sync
   activity" — never `0%`. A store with no history reads "Never synced", never
   "0% success". This is Phase 1's rule and the reason PG-16 existed.
-- **What this surface cannot show.** It reports only what reached the server. A
-  device sitting on a backlog that never transmitted is invisible here — logged
-  as PG-17 (Phase 2b). Don't let the card's copy imply otherwise; its description
-  says so explicitly.
+- **What this surface itself cannot show.** It reports only what reached the
+  server. A device sitting on a backlog that never transmitted is invisible
+  *to this card* — that is what the device queue-state panel below it is for
+  (PG-17, fixed 2026-10-07). Keep the two distinct in the copy: this card is
+  "what the server was told", the queue panel is "what the device is holding".
+  A device only appears in the queue panel once it runs a build that reports,
+  so a store with no queue report is "no reports yet", never "nothing stuck".
 - Dates go through `formatDateToDDMMYYYY` (§6); a default `toLocaleDateString()`
   silently produces US order.
 

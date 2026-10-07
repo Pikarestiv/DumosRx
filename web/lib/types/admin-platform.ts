@@ -115,3 +115,55 @@ export interface AdminSubscriptionFigures {
   bucket_counts: Record<SubscriptionBucket, number>;
 }
 
+
+export interface DeviceStockReport {
+  device_id: string;
+  device_batch_count: number;
+  device_quantity_sum: number;
+  server_batch_count: number;
+  server_quantity_sum: number;
+  quantity_delta: number;
+  batch_delta: number;
+  diverged: boolean;
+  reported_at: string | null;
+}
+
+export interface StoreStockDivergence {
+  measured: boolean;
+  diverged_devices: number;
+  devices: DeviceStockReport[];
+}
+
+export interface DeviceStuckItem {
+  table_name: string;
+  record_id: string;
+  attempts: number;
+  reason: string;
+}
+
+export interface DeviceQueueReport {
+  device_id: string;
+  queue_depth: number;
+  stuck_count: number;
+  stuck_items: DeviceStuckItem[];
+  truncated: boolean;
+  reported_at: string | null;
+}
+
+export interface StoreQueueState {
+  measured: boolean;
+  devices_with_stuck_items: number;
+  devices: DeviceQueueReport[];
+}
+
+export interface SyncCommandRow {
+  id: string;
+  device_id: string | null;
+  action: string;
+  table_name: string | null;
+  record_id: string | null;
+  status: string;
+  result: string | null;
+  issued_at: string | null;
+  acted_at: string | null;
+}

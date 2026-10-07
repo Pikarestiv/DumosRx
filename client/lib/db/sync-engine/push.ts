@@ -5,6 +5,13 @@ import {
   recordSyncFailure,
 } from "../local-database";
 import { apiClient } from "@/lib/api/client";
+import { buildStockFingerprint } from "./stock-fingerprint";
+import { buildQueueStateReport } from "./queue-state";
+import {
+  applySyncCommands,
+  readPendingCommandResults,
+  clearCommandResults,
+} from "./sync-commands";
 import { PushResponse } from "./types";
 import type { SyncChange, SyncQueueItem } from "@/lib/types/sync";
 import { remapForeignKey, DUPLICATE_NAME_TABLES } from "../reconcile-identity";
@@ -188,15 +195,78 @@ async function withheldRecordsWithBackedOffSiblingsRemoved(
 /**
  * Push local changes to server
  */
+/**
+ * A push with no changes, sent only to exchange command outcomes and reports.
+ *
+ * Two cases need it, and both are the ones the command channel exists for:
+ * the commonest successful outcome EMPTIES the queue, leaving the outcome
+ * nothing to ride along with; and a stuck row is by definition one whose
+ * retries have backed off, which getPendingSyncItems() excludes from an
+ * auto-sync — so the device would send nothing and the command issued for
+ * that very row could never reach it.
+ *
+ * Returns without a request when there is genuinely nothing to say or ask,
+ * so an idle device with an empty queue generates no traffic.
+ */
+async function exchangeReportsOnly(
+  stockFingerprint: Awaited<ReturnType<typeof buildStockFingerprint>>,
+  queueState: Awaited<ReturnType<typeof buildQueueStateReport>>,
+  isManual: boolean,
+  isSetup: boolean,
+  runId?: string,
+): Promise<void> {
+  const deliverableResults = await readPendingCommandResults();
+
+  // Read directly rather than from queueState, which is null until a store is
+  // active — a backed-off row must still be able to attract a command.
+  const queuedRows = await query<{ count: number }>(
+    "SELECT COUNT(*) AS count FROM _sync_queue",
+  );
+
+  if (deliverableResults.length === 0 && Number(queuedRows[0]?.count ?? 0) === 0) {
+    return;
+  }
+
+  try {
+    const response = (await apiClient.pushChanges(
+      {
+        changes: [],
+        stock_fingerprint: stockFingerprint,
+        queue_state: queueState,
+        sync_command_results: deliverableResults,
+      },
+      isManual,
+      isSetup,
+      runId,
+    )) as PushResponse;
+
+    await clearCommandResults(deliverableResults.map((r) => r.id));
+
+    if (response?.sync_commands?.length) {
+      await applySyncCommands(response.sync_commands);
+    }
+  } catch (err) {
+    console.warn("[Sync] Could not deliver command outcomes", err);
+  }
+}
+
 export async function pushChanges(
   isManual: boolean = false,
   isSetup: boolean = false,
   // Marks every batch as one sync run; the server throttles per run.
   runId?: string,
 ): Promise<{ pushed: number; failedBatches: number }> {
+  // Computed once per run, not per batch: neither value needs batch
+  // granularity and both scan the whole queue / batch table.
+  const stockFingerprint = await buildStockFingerprint();
+  const queueState = await buildQueueStateReport();
   let pending = await getPendingSyncItems(isManual);
 
-  if (pending.length === 0) return { pushed: 0, failedBatches: 0 };
+  if (pending.length === 0) {
+    await exchangeReportsOnly(stockFingerprint, queueState, isManual, isSetup, runId);
+
+    return { pushed: 0, failedBatches: 0 };
+  }
 
   // Categories must resolve before any later batch can reference them: the
   // server's id-remap only lives in that one request's in-memory $idMap.
@@ -206,7 +276,11 @@ export async function pushChanges(
   // would have merged; no-op for a manual sync, which bypasses backoff.
   if (!isManual) {
     pending = await withheldRecordsWithBackedOffSiblingsRemoved(pending);
-    if (pending.length === 0) return { pushed: 0, failedBatches: 0 };
+    if (pending.length === 0) {
+      await exchangeReportsOnly(stockFingerprint, queueState, isManual, isSetup, runId);
+
+      return { pushed: 0, failedBatches: 0 };
+    }
   }
 
   // idsFor() expands a merged change back to every queue row it represents;
@@ -345,14 +419,26 @@ export async function pushChanges(
         continue;
       }
 
+      // Read, not consumed: cleared only once the server has acknowledged
+      // them, so a failed request cannot lose an outcome.
+      const deliverableResults = await readPendingCommandResults();
+
       const response = (await apiClient.pushChanges(
         {
           changes,
+          stock_fingerprint: stockFingerprint,
+          queue_state: queueState,
+          sync_command_results: deliverableResults,
         },
         isManual,
         isSetup,
         runId,
       )) as PushResponse;
+
+      // The server has them now, so they can stop being re-sent.
+      if (deliverableResults.length > 0) {
+        await clearCommandResults(deliverableResults.map((r) => r.id));
+      }
 
       // The server savepoints each change, so `success` means the request
       // succeeded; `failed` lists the changes rolled back individually.
@@ -464,6 +550,17 @@ export async function pushChanges(
             }
           }
         });
+
+        // After this batch's bookkeeping, never before: a `retry` applied
+        // first would have its reset undone by recordSyncFailure() if the
+        // same row is in this batch's failures.
+        if (response.sync_commands?.length) {
+          try {
+            await applySyncCommands(response.sync_commands);
+          } catch (err) {
+            console.warn("[Sync] Failed to apply operator commands", err);
+          }
+        }
 
         // Wording deliberately never blames "another device" — see
         // client/AGENTS.md, "Push details".

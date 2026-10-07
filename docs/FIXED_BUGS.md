@@ -2,6 +2,16 @@
 
 A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since been fixed. `KNOWN_BUGS.md` only ever holds *open* items — an entry is removed from it outright the moment it's fixed, not marked done in place — so this file is where the record of "what it was and when it got fixed" lives instead. Git history has the exact diffs; this is a scannable index into that history, one entry per fix, newest first.
 
+## 2026-10-07
+
+### PG-17 — a device whose rows never reach the server is no longer invisible
+- **Was:** the server recorded every push outcome it *received*, but `_sync_queue` is a client-side SQLite table, so a store sitting on 500 rows that were never transmitted looked identical to a healthy one. Logged as an explicit Phase 2 boundary ("Phase 2b"), not discovered after the fact.
+- **Fix:** the client now reports its own queue state on every sync — depth, and for each stuck row the table, record id, attempt count and reason — stored per `(store_id, device_id)` and rendered on the store detail page. The spec is `docs/superpowers/specs/2026-10-07-stuck-data-and-divergence-visibility-design.md`; the architecture and its non-negotiable constraints are in `client/AGENTS.md` ("What a sync request reports about this device") and `web/AGENTS.md` ("Stuck data and divergence visibility").
+- **Two things that were not obvious going in.** The reason has to be canonicalised **on the device**: a raw driver error embeds the failing SQL and its bindings — customer names, phone numbers, amounts — and canonicalising only on storage still puts that text in transit and in any request log. And the cap on reported items has to be a `LIMIT` in the SQL, not a `.slice()` afterwards, or a device with a large backlog pays the cost of building the full list on every sync.
+- **A store that has never reported renders "no reports yet", never "0 divergence".** Absent and zero are the same pixels otherwise, and the silent device is exactly the one worth looking at.
+- **Still true, and still a limit:** admin visibility lags client adoption, because a device only reports once it is running a build that knows how to. PG-17's original note about this stands.
+- **Regression coverage.** `client/__tests__/queue-state-report.test.ts` (including that a raw driver error carrying a customer name and phone number never leaves the device), plus the server-side storage and store-detail rendering tests.
+
 ## 2026-10-06
 
 ### PG-12 — `AdminRevenueService::getOverview()` loaded every matching transaction to render twenty
@@ -151,6 +161,13 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 - **Root cause.** The backend deploys by FTP, so the workflow uploads files and stops; production's schema only advanced when somebody manually hit `GET /migrate-db?key=…`. Nobody did. `laravel-server/AGENTS.md` had documented this exact mechanism, and warned "don't assume 'I wrote the migration' means 'it's live'", the whole time — the gap survived being correctly documented, which is why the fix had to be a mechanism rather than a reminder.
 - **Fix.** Phase 5's Maintenance page (`/admin/maintenance`) lists pending migrations, flags the ones that alter existing data, and applies them with an audit trail, plus a "migrations pending" card on `/admin/operations` so drift is visible without being asked for. **Production was then migrated by the owner and reports zero pending (confirmed 2026-10-07).** The `GET /migrate-db` route is gone (A-174).
 - **Still true, and worth carrying forward:** the schema being fixed does **not** un-stick rows already parked. A sync item that hit the client's 5-attempt ceiling stops retrying, so reports rejected while the column was narrow stay undelivered even now that the server would accept them.
+
+### PG-18 — a store that synced nothing contributed nothing, so the platform success rate read 100%
+- **Found:** code review of admin Phase 2; fixed 2026-10-07 as Phase 2 of the stuck-data work.
+- **Root cause.** `SyncController::push()` has two exits that return before the recording hook, which sits after the outer commit: `validateSync()` refusing outright (plan lost `cloud_sync`, interval throttle, store limit), and the outer `catch` returning 500. Neither tallied anything. A store whose every push was refused therefore produced **zero** rows in `sync_health_daily` — and a success rate computed over "pushes we heard about" read 100% while that store synced nothing at all. These are failures that reached the server and were lost there, which is exactly what an operator checking a sync metric is looking for.
+- **Fix.** `SyncFailureRecorder::recordRejectedPush()` records the whole attempt as one refusal — a `sync_failures` row carrying *why*, plus a tally with `pushes = 1` and the change count as refused. Called from both exits. Four whole-request reasons joined the canonical list (`sync_disabled`, `sync_throttled`, `store_limit_exceeded`, `server_error`) so these stay out of the unmapped-reason fallback.
+- **The outer catch was also widened from `\Exception` to `\Throwable`.** An `\Error` — a TypeError in a payload handler, say — was not caught at all, so the request died with neither a rollback nor any record. That is the exact shape PG-18 described as "every push dies on an `\Error`".
+- **Regression coverage:** `laravel-server/tests/Feature/SyncPushRefusedAttemptIsRecordedTest.php` — a plan refusal is tallied as an attempt rather than vanishing, its reason is recorded against the store, and a push that does reach the hook is still counted exactly once (not double-counted by the new path). Confirmed RED on the first two.
 
 ### A-176a — a soft-deleted product's movements were pulled without its batches, stranding their deltas forever
 - **Found:** 2026-10-07, in review of the A-173 work; one of the mechanisms behind a single store reporting different stock on different devices.

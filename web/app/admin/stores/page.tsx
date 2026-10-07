@@ -16,6 +16,7 @@ import { StoreToolbar } from "@/components/admin/stores/store-toolbar";
 import { StorePagination } from "@/components/admin/stores/store-pagination";
 import { StoreDialogHost } from "@/components/admin/stores/store-dialog-host";
 import { FleetStockValueCard } from "@/components/admin/stores/fleet-stock-value-card";
+import { useAdminAuthStore, checkHasPermission } from "@/lib/store/use-admin-auth-store";
 import { useStoreDeletionActions } from "@/hooks/use-store-deletion-actions";
 import { useStoreImpersonation } from "@/hooks/use-store-impersonation";
 import type { AdminStoresArchivedScope } from "@/lib/api/admin-hooks-stores";
@@ -29,6 +30,9 @@ const SEARCH_DEBOUNCE_MS = 300;
 export default function StoresManagement() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user } = useAdminAuthStore();
+  // Hidden, not disabled, when the caller lacks it (web/AGENTS.md).
+  const canRegisterStore = checkHasPermission(user as never, "create_accounts");
   const initialSearch = searchParams.get("search") || "";
 
   const [page, setPage] = useState(1);
@@ -228,13 +232,15 @@ export default function StoresManagement() {
             <Download className="h-4 w-4 mr-2" />
             Export this page ({storeList.length})
           </Button>
-          <Button
-            className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20"
-            onClick={() => router.push("/admin/stores/new")}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Register Store
-          </Button>
+          {canRegisterStore && (
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20"
+              onClick={() => router.push("/admin/stores/new")}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Register Store
+            </Button>
+          )}
         </div>
       </div>
 

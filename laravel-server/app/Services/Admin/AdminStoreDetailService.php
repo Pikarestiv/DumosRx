@@ -182,6 +182,7 @@ class AdminStoreDetailService
     private function recentActivity(string $storeId)
     {
         return ActivityLog::where('store_id', $storeId)
+            ->visibleToCurrentOperator()
             ->with('user:id,first_name,last_name')
             ->orderByDesc('created_at')
             ->limit(self::RECENT_ACTIVITY_LIMIT)

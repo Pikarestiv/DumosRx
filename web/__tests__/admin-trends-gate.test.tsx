@@ -75,8 +75,21 @@ describe("Trends access", () => {
 
     render(<TrendsPage />);
 
-    expect(screen.getByText(/only available to super admins/i)).toBeDefined();
+    expect(screen.getByText(/don't have access to platform trends/i)).toBeDefined();
     expect(trendsHook).not.toHaveBeenCalled();
+  });
+
+  /** The point of the permission conversion: this is now delegatable. */
+  it("renders the trends content for a delegated role holding the permission", () => {
+    authState.user = {
+      role: "custom_role",
+      effective_permissions: ["manage_platform", "view_platform_revenue"],
+    };
+
+    render(<TrendsPage />);
+
+    expect(screen.queryByText(/don't have access to platform trends/i)).toBeNull();
+    expect(trendsHook).toHaveBeenCalled();
   });
 
   it("renders the trends content for super_admin", () => {
@@ -84,7 +97,7 @@ describe("Trends access", () => {
 
     render(<TrendsPage />);
 
-    expect(screen.queryByText(/only available to super admins/i)).toBeNull();
+    expect(screen.queryByText(/don't have access to platform trends/i)).toBeNull();
     expect(trendsHook).toHaveBeenCalled();
   });
 });

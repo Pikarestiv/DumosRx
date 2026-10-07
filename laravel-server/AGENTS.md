@@ -987,6 +987,155 @@ reads that assembled array **once**, after the outer `DB::commit()`, beside
 - **Phase 2 is observation only.** It must not change what the server accepts,
   refuses or returns. `SyncPushFailureRecordingTest` pins the response shape.
 
+## A refused push still counts (PG-18)
+
+The sync tally has two paths, and both must fire or the metric lies:
+
+- `recordPushOutcome()` — the per-change hook, after the outer commit.
+- `recordRejectedPush()` — the whole-request path, for a `validateSync()`
+  refusal or an outright failure, which never reach the loop.
+
+Without the second, a store whose plan lost `cloud_sync` contributed **zero**
+rows and the platform success rate read 100% while that store synced nothing.
+If you add another early return to `push()`, it needs the same call, or you
+have reintroduced exactly this.
+
+The outer catch is `\Throwable`, not `\Exception`, on purpose: an `\Error`
+was previously uncaught, so the request died with no rollback and no record.
+
+## Sync commands: acting on a device (stuck-data Phase 4)
+
+`SyncCommandService` is the only thing in the system that lets an operator act
+on a customer's device. The guards are the feature, not decoration.
+
+- **A closed vocabulary**: `retry`, `send_payload`, `abandon`. Dispatch is a
+  `match`/`switch` on both sides; an unrecognised action is refused, never
+  dispatched. Commands touch `_sync_queue` and nothing else — a compromised
+  admin panel must not become a way to edit or destroy store data.
+- **`abandon` is governed by an ALLOWLIST** (`feedback`, `audit_logs`), not a
+  denylist. A business record exists only on the device that made it, so
+  discarding a queued sale or stock movement permanently loses revenue data
+  or falsifies stock. A table added later therefore defaults to "cannot
+  abandon" rather than silently becoming discardable. **Enforced in three
+  places** — the server refuses to issue it, the client refuses to apply it,
+  and the UI does not render the control — because a client must never rely
+  on a server check it cannot see.
+- **super_admin only, never delegatable**, and every issue writes a
+  `SYNC_COMMAND_ISSUED` activity log.
+- **Handed out once.** `pendingFor()` marks commands `sent` as it returns
+  them, so a device that syncs twice before acting cannot apply one twice.
+  Outcomes are scoped to the reporting device: one device cannot close
+  another's command.
+- **Eventually consistent by construction.** Commands ride on the push
+  response and apply on the device's next sync — which, for a store whose
+  plan disables sync, may be never. The UI must distinguish *queued* from
+  *applied* or operators will fire the same command repeatedly.
+- **Applying a command can never roll back a push.** It runs outside the
+  batch transaction and its results are reported on the following request.
+
+## Device queue reports (stuck-data Phase 3)
+
+`DeviceQueueReportService`. `_sync_queue` is client-only — the server has
+never seen a stuck row, which is what being stuck means — so devices report
+their own queue on each push: depth, and the rows past the retry ceiling.
+
+- **Metadata only, never payloads.** Table, record id, attempt count, reason.
+- **The raw `last_error` is never stored.** It embeds the failing SQL and its
+  bindings — customer names, amounts — so the server canonicalises it to a
+  known slug and keeps only that, exactly as `SyncFailureRecorder` does.
+  The client sends it un-canonicalised because it has no reason catalogue;
+  the storage boundary is where that is enforced.
+- **The list is capped at 50 per device, but `stuck_count` carries the true
+  total** and the UI says "showing the first N of M". A cap must never be able
+  to understate the problem.
+- **Recording can never fail a sync** — wrapped and logged, like the stock
+  fingerprint.
+- **Silence is not health.** `forStore()` returns `measured: false` for a
+  store no device has reported for, and the panel says nothing can be
+  concluded rather than "nothing is stuck".
+
+## Device stock fingerprints (stuck-data Phase 1)
+
+`StockDivergenceService` answers "which devices disagree with the cloud about
+stock, and by how much" without anyone counting shelves — the question A-173
+and A-176 raised and nothing could answer.
+
+- **A fingerprint, not an upload.** Each push carries
+  `stock_fingerprint: {batch_count, quantity_sum}` for the active store. The
+  server computes the same two numbers from its own rows and stores **both
+  sides** in `device_stock_reports`, keyed `(store_id, device_id)`. Sending
+  every batch quantity on every sync was the obvious design and is far too
+  much data.
+- **Both sides are snapshotted at write time**, never recomputed on read, so a
+  stored comparison cannot change meaning later.
+- **A matching fingerprint is evidence of agreement; a differing one is proof
+  of disagreement.** It cannot say *which* batch differs — that needs the
+  per-device queue/payload work in later phases.
+- **Recording can never fail a sync.** The call is wrapped and logged; a
+  reporting problem must not cost a store its push.
+- **Unmeasured is not agreement.** `forStore()` returns `measured: false` for a
+  store no device has reported for, and the UI says "agreement is unknown"
+  rather than implying everything is fine. This is the single place this
+  feature would most easily break Phase 1's rule.
+- Gated on `view_platform_health` — operational, not commercial.
+
+**Client side:** `client/lib/db/sync-engine/stock-fingerprint.ts`. Note that
+`stock_batches.store_id` exists only because `runSchemaMigrations()` adds it
+to every `STORE_SCOPED_TABLES` entry — it is NOT in `SCHEMA_SQL`, so a test
+that seeds from `SCHEMA_SQL` alone must add the column or the query silently
+returns nothing.
+
+## What may be delegated, and what must never be
+
+`role:super_admin` on a route means "no role configuration can ever reach
+this". That is a strong statement and it was being used for everything,
+including read-only screens, which made "let an operator see more without
+letting them do more" impossible to express in the roles UI.
+
+Since 2026-10-07 the read-only platform surfaces are permissions instead:
+
+- `view_platform_health` — `/admin/health`, `/admin/errors`, `/admin/sync/*`
+- `view_platform_revenue` — `/admin/trends`, `/admin/marketing/revenue`,
+  `/admin/stores/{id}/billing-history`
+- `view_subscriptions` — `/admin/subscriptions/*`
+
+All three are in `User::DELEGATABLE_PERMISSIONS`, so a custom role can hold
+them and `AdminRoleService` can grant them.
+
+**What stays `role:super_admin`, and why it must:**
+
+- **Anything that can grant a permission** — `/admin/roles*`,
+  `/admin/users/{id}/permissions`, `/admin/users/{id}/permission-overrides`.
+  A delegated admin who can edit roles can grant themselves every other
+  permission, so delegating these delegates everything. This is the one rule
+  here that is not a judgement call, and
+  `AdminDelegatablePlatformViewsTest::test_role_and_permission_editing_cannot_be_delegated`
+  fails loudly if it is ever relaxed.
+- **Destructive or platform-wide actions** — the migration runner, store
+  purge/restore, global product catalog edits, system config, referral
+  credit adjustments, outbound mail.
+
+The principle: **restrict what an operator can DO, not what they can SEE** —
+except where seeing is itself the risk (money and customer data), which is
+why revenue is its own permission rather than folded into
+`view_platform_data`.
+
+## Who may see whose activity
+
+`AdminActivityService` and `AdminActivityFeedSources` both hide
+**super-admin actions from everyone below super_admin**. Role changes,
+subscription overrides and migrations are privileged operational detail, not
+peer accountability.
+
+Operators still see their whole peer group — another platform_admin's and
+every agent's actions, plus all store-level activity. An own-actions-only
+view was considered and rejected: the value of an audit log is noticing what
+somebody *else* did, and a log that only reflects you back cannot do that.
+
+The filter **fails closed** for an unauthenticated or direct service call, so
+a test that exercises the `role` parameter has to `actingAs()` a super admin
+or it will silently assert against a filtered set.
+
 ## Trends: what the schema can and cannot support (Phase 4)
 
 `AdminTrendsService` + `AdminChurnTrendService` + `App\Support\TimeSeries`.

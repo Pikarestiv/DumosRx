@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getBaseURL, setBaseURL } from "@/lib/api/base-client";
 import { APP_URL, getAppURL, setAppURL } from "@/lib/constants";
+import { API_ENVIRONMENTS, APP_ENVIRONMENTS } from "@/lib/api/server-environments";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,37 +17,18 @@ import { Input } from "@/components/ui/input";
 import { Server, Check } from "lucide-react";
 import { toast } from "sonner";
 
-export const ENVIRONMENTS = [
-  {
-    name: "Production Server",
-    url:
-      process.env.NEXT_PUBLIC_API_URL_PROD || "https://api.dumosrx.com/api/v1",
-  },
-  {
-    name: "Staging / Dev Server",
-    url:
-      process.env.NEXT_PUBLIC_API_URL_STAGING ||
-      "https://api.dev.dumosrx.com/api/v1",
-  },
-  {
-    name: "Local Development Server (Herd)",
-    url:
-      process.env.NEXT_PUBLIC_API_URL_LOCAL_HERD ||
-      "https://dumosrx.test/api/v1",
-  },
-  {
-    name: "Local Development Server (localhost)",
-    url:
-      process.env.NEXT_PUBLIC_API_URL_LOCAL_NODE ||
-      "http://localhost:8000/api/v1",
-  },
-];
+export const ENVIRONMENTS = API_ENVIRONMENTS;
 
 export const getCurrentEnvironmentName = (baseURL: string) => {
   return ENVIRONMENTS.find((env) => env.url === baseURL)?.name || "Custom Server";
 };
 
-export function ServerSelector() {
+/**
+ * Hidden in production by default so a customer can never point their app at
+ * the wrong API. `allowInProduction` is for the admin header, which renders
+ * it only for a super admin — see web/AGENTS.md.
+ */
+export function ServerSelector({ allowInProduction = false }: { allowInProduction?: boolean } = {}) {
   const [currentUrl, setCurrentUrl] = useState<string>("");
   const [appUrl, setAppUrlInput] = useState<string>("");
 
@@ -73,8 +55,16 @@ export function ServerSelector() {
     toast.success("App URL updated");
   };
 
+  const handleSelectAppUrl = (url: string) => {
+    setAppURL(url);
+    setAppUrlInput(url);
+    toast.success("App URL updated");
+  };
+
+  const isProductionBuild = process.env.NODE_ENV === "production";
+
   if (!currentUrl) return null;
-  if (process.env.NODE_ENV === "production") return null;
+  if (isProductionBuild && !allowInProduction) return null;
 
   return (
     <DropdownMenu>
@@ -111,27 +101,41 @@ export function ServerSelector() {
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-xs">
-          App URL (app.dumosrx.com)
-        </DropdownMenuLabel>
-        <div
-          className="flex items-center gap-1 px-2 py-1.5"
-          onKeyDown={(e) => e.stopPropagation()}
-        >
-          <Input
-            value={appUrl}
-            onChange={(e) => setAppUrlInput(e.target.value)}
-            placeholder="http://localhost:3001"
-            className="h-7 text-xs"
-          />
-          <Button
-            size="sm"
-            className="h-7 px-2 text-xs shrink-0"
-            onClick={handleSaveAppUrl}
+        <DropdownMenuLabel className="text-xs">App URL</DropdownMenuLabel>
+        {isProductionBuild ? (
+          APP_ENVIRONMENTS.map((env) => (
+            <DropdownMenuItem
+              key={env.url}
+              onClick={() => handleSelectAppUrl(env.url)}
+              className="flex items-center justify-between text-xs py-2"
+            >
+              <div className="flex flex-col">
+                <span className="font-medium">{env.name}</span>
+                <span className="text-[10px] text-muted-foreground">{env.url}</span>
+              </div>
+              {appUrl === env.url && <Check className="h-4 w-4 text-primary" />}
+            </DropdownMenuItem>
+          ))
+        ) : (
+          <div
+            className="flex items-center gap-1 px-2 py-1.5"
+            onKeyDown={(e) => e.stopPropagation()}
           >
-            Save
-          </Button>
-        </div>
+            <Input
+              value={appUrl}
+              onChange={(e) => setAppUrlInput(e.target.value)}
+              placeholder="http://localhost:3001"
+              className="h-7 text-xs"
+            />
+            <Button
+              size="sm"
+              className="h-7 px-2 text-xs shrink-0"
+              onClick={handleSaveAppUrl}
+            >
+              Save
+            </Button>
+          </div>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

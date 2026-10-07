@@ -60,12 +60,21 @@ describe("pushChanges manual bypass of retry backoff", () => {
     );
   }
 
-  it("a background (non-manual) sync skips items still in backoff and makes no API call", async () => {
+  /**
+   * The request that does go out carries no changes: a non-empty queue still
+   * has to be able to attract an operator command, and a stuck row is by
+   * definition one that has backed off out of reach (see
+   * push-delivers-command-results-when-queue-is-empty.test.ts). What must
+   * never happen is the backed-off row itself being sent.
+   */
+  it("a background (non-manual) sync sends no changes for items still in backoff", async () => {
     queueItemInBackoff();
 
     const result = await pushChanges(false);
 
-    expect(apiClient.pushChanges).not.toHaveBeenCalled();
+    for (const call of apiClient.pushChanges.mock.calls) {
+      expect(call[0].changes).toEqual([]);
+    }
     expect(result).toEqual({ pushed: 0, failedBatches: 0 });
   });
 

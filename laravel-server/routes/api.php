@@ -198,7 +198,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/stores/{id}/unmark-demo', [AdminStoreController::class, 'unmarkStoreDemo'])->middleware('role:super_admin');
             Route::post('/stores/{id}/grant-trial', [AdminStoreController::class, 'grantTrial'])->middleware('permission:grant_trials');
             Route::post('/stores/{id}/activate-plan', [AdminStoreController::class, 'activatePlan'])->middleware('permission:grant_trials');
-            Route::get('/stores/{id}/billing-history', [AdminStoreController::class, 'billingHistory'])->middleware('role:super_admin');
+            Route::get('/stores/{id}/billing-history', [AdminStoreController::class, 'billingHistory'])->middleware('permission:view_platform_revenue');
             Route::delete('/stores/{id}/purge', [AdminStoreDeletionController::class, 'purgeStore'])->middleware('role:super_admin');
             Route::delete('/stores/{id}', [AdminStoreDeletionController::class, 'archiveStore'])->middleware('role:super_admin');
             Route::post('/stores/{id}/restore', [AdminStoreDeletionController::class, 'restoreStore'])->middleware('role:super_admin');
@@ -210,18 +210,24 @@ Route::prefix('v1')->group(function () {
             Route::get('/users/{id}/permissions', [AdminUserController::class, 'effectivePermissions'])->middleware('role:super_admin');
             Route::get('/users/{id}/devices', [AdminUserController::class, 'devices'])->middleware('permission:view_platform_data');
             Route::post('/users', [AdminUserController::class, 'createPlatformAdmin'])->middleware('role:super_admin');
-            Route::get('/health', [AdminPlatformController::class, 'health'])->middleware('role:super_admin');
-            Route::get('/errors', [AdminPlatformController::class, 'errors'])->middleware('role:super_admin');
-            Route::get('/subscriptions/lifecycle', [\App\Http\Controllers\Api\Admin\AdminSubscriptionController::class, 'lifecycle'])->middleware('role:super_admin');
-            Route::get('/subscriptions/{bucket}', [\App\Http\Controllers\Api\Admin\AdminSubscriptionController::class, 'bucket'])->middleware('role:super_admin');
-            Route::get('/sync/health', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'summary'])->middleware('role:super_admin');
-            Route::get('/sync/stores/{id}', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'store'])->middleware('role:super_admin');
+            Route::get('/health', [AdminPlatformController::class, 'health'])->middleware('permission:view_platform_health');
+            Route::get('/errors', [AdminPlatformController::class, 'errors'])->middleware('permission:view_platform_health');
+            Route::get('/subscriptions/lifecycle', [\App\Http\Controllers\Api\Admin\AdminSubscriptionController::class, 'lifecycle'])->middleware('permission:view_subscriptions');
+            Route::get('/subscriptions/{bucket}', [\App\Http\Controllers\Api\Admin\AdminSubscriptionController::class, 'bucket'])->middleware('permission:view_subscriptions');
+            Route::get('/sync/health', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'summary'])->middleware('permission:view_platform_health');
+            Route::get('/sync/stores/{id}', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'store'])->middleware('permission:view_platform_health');
+            Route::get('/stores/{id}/stock-divergence', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'stockDivergence'])->middleware('permission:view_platform_health');
+            Route::get('/stores/{id}/queue-state', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'queueState'])->middleware('permission:view_platform_health');
+            // Acting ON a customer device is super_admin-only and never
+            // delegatable — see laravel-server/AGENTS.md.
+            Route::get('/stores/{id}/sync-commands', [\App\Http\Controllers\Api\Admin\AdminSyncCommandController::class, 'index'])->middleware('role:super_admin');
+            Route::post('/stores/{id}/sync-commands', [\App\Http\Controllers\Api\Admin\AdminSyncCommandController::class, 'store'])->middleware('role:super_admin');
 
             Route::get('/maintenance/migrations', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'migrations'])->middleware('role:super_admin');
             Route::post('/maintenance/migrations/run', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'runMigrations'])->middleware('role:super_admin');
             Route::post('/maintenance/roles/sync', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'syncRoles'])->middleware('role:super_admin');
 
-            Route::get('/trends', [\App\Http\Controllers\Api\Admin\AdminTrendsController::class, 'index'])->middleware('role:super_admin');
+            Route::get('/trends', [\App\Http\Controllers\Api\Admin\AdminTrendsController::class, 'index'])->middleware('permission:view_platform_revenue');
             Route::get('/downloads/manifest', [AdminPlatformController::class, 'downloadsManifest'])->middleware('role:super_admin');
             Route::put('/users/{id}', [AdminUserController::class, 'updateUser'])->middleware('role:super_admin');
             Route::delete('/users/{id}', [AdminUserController::class, 'deleteUser'])->middleware('role:super_admin');
@@ -272,7 +278,7 @@ Route::prefix('v1')->group(function () {
             Route::put('/system-configs/{key}', [SystemConfigController::class, 'update'])->middleware('role:super_admin');
 
             // Revenue (Marketing > Revenue tab)
-            Route::get('/marketing/revenue', [\App\Http\Controllers\Api\Admin\RevenueController::class, 'overview'])->middleware('role:super_admin');
+            Route::get('/marketing/revenue', [\App\Http\Controllers\Api\Admin\RevenueController::class, 'overview'])->middleware('permission:view_platform_revenue');
 
             // Coupons
             Route::middleware('role:super_admin')->group(function () {

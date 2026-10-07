@@ -98,7 +98,7 @@ describe("Subscriptions access", () => {
 
     render(<SubscriptionsPage />);
 
-    expect(screen.getByText(/only available to super admins/i)).toBeDefined();
+    expect(screen.getByText(/don't have access to subscriptions/i)).toBeDefined();
     expect(screen.queryByText(/failed to load/i)).toBeNull();
     expect(screen.queryByText(/retry/i)).toBeNull();
   });
@@ -128,7 +128,7 @@ describe("Subscriptions access", () => {
 
     withQueryClient(<SubscriptionsPage />);
 
-    expect(screen.queryByText(/only available to super admins/i)).toBeNull();
+    expect(screen.queryByText(/don't have access to subscriptions/i)).toBeNull();
     expect(screen.getAllByText(/subscriptions/i).length).toBeGreaterThan(0);
   });
 });

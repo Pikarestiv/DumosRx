@@ -50,25 +50,20 @@ export const sidebarItems: AdminSidebarItem[] = [
     name: "Operations",
     icon: Activity,
     href: "/admin/operations",
+    permissions: ["view_platform_health"],
   },
   {
     id: "trends",
     name: "Trends",
     icon: TrendingUp,
     href: "/admin/trends",
+    permissions: ["view_platform_revenue"],
   },
   {
     id: "maintenance",
     name: "Maintenance",
     icon: Wrench,
     href: "/admin/maintenance",
-  },
-  {
-    id: "register-store",
-    name: "Register Store",
-    icon: Store,
-    href: "/admin/stores/new",
-    roles: ["platform_admin", "agent"],
   },
   {
     id: "my-stores",
@@ -82,6 +77,7 @@ export const sidebarItems: AdminSidebarItem[] = [
     name: "Subscriptions",
     icon: BadgeCheck,
     href: "/admin/subscriptions",
+    permissions: ["view_subscriptions"],
   },
   {
     id: "referrals",

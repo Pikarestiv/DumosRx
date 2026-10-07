@@ -363,6 +363,38 @@ Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-3-subscription-lifecy
   `useResettingPage(days)` (in `hooks/`) is the seam; reach for it in any panel
   that pairs a page cursor with a filter control.
 
+### Trends (Phase 4, 2026-10-07)
+
+Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-4-trends-design.md`.
+
+- **There is no MRR, deliberately.** `subscriptions` holds no amount and no
+  billing cycle, and nothing records whether a plan auto-renews, so the page
+  reports **cash collected** — successful payments, labelled as such. Don't add
+  an "estimated MRR"; that is the class of number Phase 1 deleted.
+- **One line per currency, never a total.** This system holds no exchange rate,
+  so a combined revenue line would be meaningless. `CashCollectedChart` renders
+  per-currency lines and nothing else.
+- **A trend must not rewrite its own past.** Store signups uses `withTrashed()`:
+  a store that signed up in March and was deleted in August still signed up in
+  March. Filtering soft-deleted rows would shrink past buckets every time
+  someone deletes a store, so the chart's history would change under the reader.
+  This is the opposite of Phase 1's "active stores", which correctly excludes
+  them — because that answers *how many exist now*. Demo stores **are**
+  excluded; a demo store is not a signup, and this is the first place `is_demo`
+  changes a number.
+- **Three distinct empty states, and they must not collapse into one.** An
+  absent payload is *unavailable* (we could not look). A zero-filled bucket is
+  *data* (we looked, there was nothing) and still draws. A window with no
+  payments at all says "No payments recorded in this window" rather than
+  rendering an empty grid, which reads as broken — that last one was found by
+  the browser smoke test, not the suite.
+- **Charts use `recharts`** with colours from the theme's `--chart-1..5`
+  variables, never hex (§6). `TrendChart` owns axes, grid, tooltip and
+  responsive config so the six charts don't each re-specify them.
+- **Bucket labels are DD/MM/YYYY** for daily windows via
+  `formatDateOnlyToDDMMYYYY` (which parses a bare `YYYY-MM-DD` without the UTC
+  shift); monthly buckets render as "Oct 2026" rather than inventing a day.
+
 ### Maintenance (Phase 5, 2026-10-07)
 
 Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-5-maintenance-design.md`.
@@ -870,3 +902,13 @@ subaccount plan. The "89 tests" this line used to quote was
 the count at the 2026-08-26 auth redesign and had been stale for a month; 399
 was the count after that day's earlier storefront remediation, before the
 subaccount work.)
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

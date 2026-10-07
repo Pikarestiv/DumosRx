@@ -519,3 +519,23 @@ export interface AdminMigrationStatus {
   last_batch: number | null;
   error: string | null;
 }
+
+export interface TrendPoint {
+  bucket: string;
+  values: Record<string, number>;
+}
+
+export interface TrendSeries {
+  currencies: string[];
+  points: TrendPoint[];
+}
+
+export interface AdminTrends {
+  window: "30d" | "6m" | "12m";
+  granularity: "day" | "month";
+  cash_collected: TrendSeries;
+  new_paid_subscriptions: TrendSeries;
+  trial_starts: TrendSeries;
+  store_signups: TrendSeries;
+  churn: TrendSeries;
+}

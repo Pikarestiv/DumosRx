@@ -987,6 +987,37 @@ reads that assembled array **once**, after the outer `DB::commit()`, beside
 - **Phase 2 is observation only.** It must not change what the server accepts,
   refuses or returns. `SyncPushFailureRecordingTest` pins the response shape.
 
+## Trends: what the schema can and cannot support (Phase 4)
+
+`AdminTrendsService` + `AdminChurnTrendService` + `App\Support\TimeSeries`.
+
+- **MRR is not derivable and must not be invented.** `subscriptions` has
+  `plan_name`, `start_date`, `end_date`, `status`, `is_trial` — **no amount, no
+  billing cycle**. Billing cycle exists only inside
+  `payment_transactions.metadata` for manually activated plans, and nothing
+  records auto-renewal. Cash collected (successful `payment_transactions`, per
+  currency) is what the data supports. Adding `billing_cycle`/`amount` to
+  `subscriptions` is a deliberate cross-repo project with an incomplete
+  backfill, not a side effect of a charts change.
+- **Historical buckets are immutable.** Store signups uses `withTrashed()` on
+  purpose: counting the *event*, not the current population. A past bucket that
+  shrinks when a row is soft-deleted makes the chart rewrite its own history.
+  `AdminTrendsTest::test_a_soft_deleted_store_still_counts_in_the_month_it_signed_up`
+  is the guard; confirmed RED against the `withoutTrashed()` version.
+- **Window boundaries come from PHP, bucket labels from the row.** §7 applies:
+  `TimeSeries` generates the range with `now()`, never MySQL's clock. Formatting
+  a stored column is fine; letting the DB decide "now" is not.
+- **Zero-fill is not cosmetic.** A `GROUP BY` omits empty months, which makes a
+  line jump the gap as though it never existed. `TimeSeries::fill()` fills every
+  bucket, and a filled zero is a measurement — distinct from a series that could
+  not be computed.
+- **Churn lives in its own service** because it is the only series that cannot
+  be answered in SQL: grace resolves in PHP through
+  `SubscriptionService::subscriptionState()`, the single definition this repo
+  gates live traffic on. It carries Phase 3's `CANDIDATE_LIMIT` and a per-owner
+  memo; without the memo, 40 owners with 3 lapsed subscriptions each cost 368
+  queries, and `AdminTrendsTest`'s budget test holds that line.
+
 ## Subscription lifecycle: one resolver, and it is not the `status` column
 
 `SubscriptionService::subscriptionState(User $owner)` returns `trialing`,

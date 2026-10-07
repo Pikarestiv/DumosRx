@@ -12,6 +12,7 @@ import {
   ScrollText,
   Link2,
   Wrench,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 
@@ -49,6 +50,12 @@ export const sidebarItems: AdminSidebarItem[] = [
     name: "Operations",
     icon: Activity,
     href: "/admin/operations",
+  },
+  {
+    id: "trends",
+    name: "Trends",
+    icon: TrendingUp,
+    href: "/admin/trends",
   },
   {
     id: "maintenance",

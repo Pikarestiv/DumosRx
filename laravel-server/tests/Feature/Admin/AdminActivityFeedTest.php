@@ -282,4 +282,61 @@ class AdminActivityFeedTest extends TestCase
 
         $this->service()->feed($this->admin('super_admin'), 'volcano', null, 50);
     }
+
+    /**
+     * Found in review. Each source is asked for at most `limit` rows, so
+     * `count($events) > $limit` can never be true when a single source holds
+     * the newest events — the feed reported "no more" after page 1. The
+     * existing pagination test only passed because it alternated two sources,
+     * making the merged set 2x limit.
+     */
+    public function test_a_single_source_stream_still_paginates(): void
+    {
+        $viewer = $this->admin('super_admin');
+
+        for ($i = 1; $i <= 12; $i++) {
+            $this->adminAction($viewer, now()->subMinutes($i));
+        }
+
+        $first = $this->service()->feed($viewer, 'admin_action', null, 5);
+
+        $this->assertCount(5, $first['events']);
+        $this->assertNotNull($first['next_cursor'], 'a filtered stream must still offer a next page');
+
+        $second = $this->service()->feed($viewer, 'admin_action', $first['next_cursor'], 5);
+        $this->assertCount(5, $second['events']);
+
+        $ids = array_merge(array_column($first['events'], 'id'), array_column($second['events'], 'id'));
+        $this->assertCount(10, array_unique($ids));
+    }
+
+    /**
+     * Found in review. The cursor carried only the timestamp and the next
+     * fetch was strictly `<`, so events sharing the boundary timestamp were
+     * unreachable. activity_logs are second-granular and a bulk action writes
+     * many rows in the same second.
+     */
+    public function test_events_sharing_the_boundary_timestamp_are_not_lost(): void
+    {
+        $viewer = $this->admin('super_admin');
+        $sameMoment = now()->subMinutes(5);
+
+        for ($i = 0; $i < 7; $i++) {
+            $this->adminAction($viewer, $sameMoment);
+        }
+
+        $seen = [];
+        $cursor = null;
+
+        for ($page = 0; $page < 5; $page++) {
+            $result = $this->service()->feed($viewer, 'admin_action', $cursor, 3);
+            $seen = array_merge($seen, array_column($result['events'], 'id'));
+            $cursor = $result['next_cursor'];
+            if ($cursor === null) {
+                break;
+            }
+        }
+
+        $this->assertCount(7, array_unique($seen), 'every same-second event must be reachable exactly once');
+    }
 }

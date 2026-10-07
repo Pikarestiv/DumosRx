@@ -1003,6 +1003,36 @@ have reintroduced exactly this.
 The outer catch is `\Throwable`, not `\Exception`, on purpose: an `\Error`
 was previously uncaught, so the request died with no rollback and no record.
 
+## Sync commands: acting on a device (stuck-data Phase 4)
+
+`SyncCommandService` is the only thing in the system that lets an operator act
+on a customer's device. The guards are the feature, not decoration.
+
+- **A closed vocabulary**: `retry`, `send_payload`, `abandon`. Dispatch is a
+  `match`/`switch` on both sides; an unrecognised action is refused, never
+  dispatched. Commands touch `_sync_queue` and nothing else — a compromised
+  admin panel must not become a way to edit or destroy store data.
+- **`abandon` is governed by an ALLOWLIST** (`feedback`, `audit_logs`), not a
+  denylist. A business record exists only on the device that made it, so
+  discarding a queued sale or stock movement permanently loses revenue data
+  or falsifies stock. A table added later therefore defaults to "cannot
+  abandon" rather than silently becoming discardable. **Enforced in three
+  places** — the server refuses to issue it, the client refuses to apply it,
+  and the UI does not render the control — because a client must never rely
+  on a server check it cannot see.
+- **super_admin only, never delegatable**, and every issue writes a
+  `SYNC_COMMAND_ISSUED` activity log.
+- **Handed out once.** `pendingFor()` marks commands `sent` as it returns
+  them, so a device that syncs twice before acting cannot apply one twice.
+  Outcomes are scoped to the reporting device: one device cannot close
+  another's command.
+- **Eventually consistent by construction.** Commands ride on the push
+  response and apply on the device's next sync — which, for a store whose
+  plan disables sync, may be never. The UI must distinguish *queued* from
+  *applied* or operators will fire the same command repeatedly.
+- **Applying a command can never roll back a push.** It runs outside the
+  batch transaction and its results are reported on the following request.
+
 ## Device queue reports (stuck-data Phase 3)
 
 `DeviceQueueReportService`. `_sync_queue` is client-only — the server has

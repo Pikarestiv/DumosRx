@@ -7,6 +7,7 @@ import {
 import { apiClient } from "@/lib/api/client";
 import { buildStockFingerprint } from "./stock-fingerprint";
 import { buildQueueStateReport } from "./queue-state";
+import { applySyncCommands, type SyncCommandResult } from "./sync-commands";
 import { PushResponse } from "./types";
 import type { SyncChange, SyncQueueItem } from "@/lib/types/sync";
 import { remapForeignKey, DUPLICATE_NAME_TABLES } from "../reconcile-identity";
@@ -196,6 +197,9 @@ export async function pushChanges(
   // Marks every batch as one sync run; the server throttles per run.
   runId?: string,
 ): Promise<{ pushed: number; failedBatches: number }> {
+  // Carried between batches: results are reported on the NEXT request, so a
+  // command applied now is acknowledged even if this run ends here.
+  const pendingCommandResults: SyncCommandResult[] = [];
   let pending = await getPendingSyncItems(isManual);
 
   if (pending.length === 0) return { pushed: 0, failedBatches: 0 };
@@ -352,11 +356,23 @@ export async function pushChanges(
           changes,
           stock_fingerprint: await buildStockFingerprint(),
           queue_state: await buildQueueStateReport(),
+          sync_command_results: pendingCommandResults.splice(0, pendingCommandResults.length),
         },
         isManual,
         isSetup,
         runId,
       )) as PushResponse;
+
+      // Operator commands ride on the push response. Applied outside the
+      // batch transaction below and reported on the next request; a command
+      // failure must never roll back a successful push.
+      if (response.sync_commands?.length) {
+        try {
+          pendingCommandResults.push(...(await applySyncCommands(response.sync_commands)));
+        } catch (err) {
+          console.warn("[Sync] Failed to apply operator commands", err);
+        }
+      }
 
       // The server savepoints each change, so `success` means the request
       // succeeded; `failed` lists the changes rolled back individually.

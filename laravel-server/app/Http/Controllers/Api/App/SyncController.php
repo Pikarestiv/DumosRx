@@ -114,6 +114,37 @@ class SyncController extends Controller
         }
     }
 
+    /**
+     * Records what the device did with the last batch of commands and hands
+     * it the next. Rides on the push response rather than adding a round
+     * trip. Fully try/caught: this must never fail a sync.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function exchangeSyncCommands(Request $request, ?string $storeId): array
+    {
+        $deviceId = $request->header('X-Device-Id');
+
+        if (! $storeId || ! $deviceId) {
+            return [];
+        }
+
+        try {
+            $service = app(\App\Services\Admin\SyncCommandService::class);
+            $outcomes = $request->input('sync_command_results');
+
+            if (is_array($outcomes)) {
+                $service->recordOutcome($storeId, $deviceId, $outcomes);
+            }
+
+            return $service->pendingFor($storeId, $deviceId);
+        } catch (\Throwable $e) {
+            Log::warning('Sync command exchange failed', ['error' => $e->getMessage()]);
+
+            return [];
+        }
+    }
+
     public function push(Request $request)
     {
         $validation = $this->validateSync($request, true);
@@ -738,7 +769,14 @@ class SyncController extends Controller
                 Log::warning('Sync failure recording skipped: '.$e->getMessage());
             }
 
-            return response()->json(['success' => true, 'processed' => $processed, 'failed' => $failed, 'id_map' => $idMapByTable, 'versions' => $versions]);
+            return response()->json([
+                'success' => true,
+                'processed' => $processed,
+                'failed' => $failed,
+                'id_map' => $idMapByTable,
+                'versions' => $versions,
+                'sync_commands' => $this->exchangeSyncCommands($request, $currentStoreId),
+            ]);
 
         } catch (\Throwable $e) {
             DB::rollBack();

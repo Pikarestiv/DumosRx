@@ -5,21 +5,31 @@ import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useStoreQueueState } from "@/lib/api/admin-hooks-sync";
 import { syncReasonLabel } from "@/lib/api/admin-hooks-sync";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
+import { StuckItemActions } from "./stuck-item-actions";
 import type { StoreQueueState } from "@/lib/types/admin-platform";
 
 export function StoreQueueStatePanel({ storeId }: { storeId: string }) {
   const { data, isLoading, isError } = useStoreQueueState(storeId);
 
-  return <StoreQueueStateSection data={data} isLoading={isLoading} isError={isError} />;
+  return (
+    <StoreQueueStateSection data={data} isLoading={isLoading} isError={isError} storeId={storeId} />
+  );
 }
 
 interface StoreQueueStateSectionProps {
   data?: StoreQueueState;
   isLoading: boolean;
   isError?: boolean;
+  /** Absent in isolated rendering; actions are simply not offered then. */
+  storeId?: string;
 }
 
-export function StoreQueueStateSection({ data, isLoading, isError }: StoreQueueStateSectionProps) {
+export function StoreQueueStateSection({
+  data,
+  isLoading,
+  isError,
+  storeId,
+}: StoreQueueStateSectionProps) {
   if (isError) {
     return (
       <p className="text-sm font-medium text-muted-foreground">
@@ -94,13 +104,22 @@ export function StoreQueueStateSection({ data, isLoading, isError }: StoreQueueS
                       {item.record_id}
                     </p>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-xs text-muted-foreground">
-                      {syncReasonLabel(item.reason) ?? item.reason}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {`${item.attempts} attempts`}
-                    </p>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">
+                        {syncReasonLabel(item.reason) ?? item.reason}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {`${item.attempts} attempts`}
+                      </p>
+                    </div>
+                    {storeId && (
+                      <StuckItemActions
+                        storeId={storeId}
+                        deviceId={device.device_id}
+                        item={item}
+                      />
+                    )}
                   </div>
                 </li>
               ))}

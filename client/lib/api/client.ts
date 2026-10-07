@@ -115,6 +115,7 @@ class ApiClient extends FleetBillingApiClient {
       changes: SyncChange[];
       stock_fingerprint?: { batch_count: number; quantity_sum: number } | null;
       queue_state?: unknown;
+      sync_command_results?: unknown;
     },
     isManual: boolean = false,
     isSetup: boolean = false,

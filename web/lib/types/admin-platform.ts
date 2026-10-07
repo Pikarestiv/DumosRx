@@ -155,3 +155,15 @@ export interface StoreQueueState {
   devices_with_stuck_items: number;
   devices: DeviceQueueReport[];
 }
+
+export interface SyncCommandRow {
+  id: string;
+  device_id: string | null;
+  action: string;
+  table_name: string | null;
+  record_id: string | null;
+  status: string;
+  result: string | null;
+  issued_at: string | null;
+  acted_at: string | null;
+}

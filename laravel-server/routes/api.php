@@ -232,6 +232,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/users/bulk-notify', [AdminUserController::class, 'bulkNotify'])->middleware('permission:send_notifications');
             Route::get('/search', [AdminPlatformController::class, 'search'])->middleware('role:super_admin');
             Route::get('/activity-logs', [AdminPlatformController::class, 'activityLogs'])->middleware('permission:view_platform_data');
+            Route::get('/activity-feed', [\App\Http\Controllers\Api\Admin\AdminActivityFeedController::class, 'index'])->middleware('permission:view_platform_data');
             Route::get('/my-referrals', [AdminUserController::class, 'myReferrals']);
             Route::get('/referral-code/check', [AdminUserController::class, 'checkReferralCode']);
             Route::post('/referral-code', [AdminUserController::class, 'updateReferralCode']);

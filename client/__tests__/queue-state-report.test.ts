@@ -79,6 +79,31 @@ describe("buildQueueStateReport", () => {
     expect((await buildQueueStateReport())!.stuck[0].reason).toBe("forbidden");
   });
 
+  /**
+   * A raw driver error embeds the failing SQL and its bindings. The server
+   * canonicalises on storage, but the raw text would still be in transit and
+   * in any request log, so it never leaves the device.
+   */
+  it("never sends a raw driver error containing customer data", async () => {
+    queue(
+      1,
+      6,
+      "SQLSTATE[23000]: Duplicate entry '08012345678' for key 'customers.phone_unique' (SQL: insert into customers (name, phone) values ('Ada Okonkwo', '08012345678'))",
+    );
+
+    const [item] = (await buildQueueStateReport())!.stuck;
+
+    expect(item.reason).toBe("server_error");
+    expect(JSON.stringify(item)).not.toContain("Ada Okonkwo");
+    expect(JSON.stringify(item)).not.toContain("08012345678");
+  });
+
+  it("reports an unrecognised reason as other rather than echoing it", async () => {
+    queue(1, 6, "something nobody mapped yet");
+
+    expect((await buildQueueStateReport())!.stuck[0].reason).toBe("other");
+  });
+
   it("bounds the reported list", async () => {
     for (let i = 1; i <= 80; i++) {
       queue(i, 6, "forbidden");

@@ -8,6 +8,33 @@ const STUCK_AFTER_ATTEMPTS = 5;
  *  understates the problem. */
 const MAX_REPORTED_ITEMS = 50;
 
+/** Mirrors the server's canonical list. Sending the raw driver error would
+ *  put customer names and amounts in transit and in any request log. */
+const KNOWN_REASONS = [
+  "forbidden",
+  "permission_denied",
+  "unsupported_operation",
+  "quantity_received_exceeds_ordered",
+  "version_conflict",
+  "stale_timestamp",
+  "sync_disabled",
+  "sync_throttled",
+  "store_limit_exceeded",
+  "schema_mismatch",
+];
+
+function canonicaliseReason(raw: string | null): string {
+  const text = (raw ?? "").replace(/^\[REPORTED\]\s*/, "").trim();
+
+  if (KNOWN_REASONS.includes(text)) {
+    return text;
+  }
+
+  // A driver error embeds the failing SQL and its bindings, so nothing of it
+  // is sent — only the fact that it was not a recognised refusal.
+  return /^SQLSTATE|duplicate entry|constraint/i.test(text) ? "server_error" : "other";
+}
+
 export interface QueueStateReport {
   queue_depth: number;
   stuck: Array<{
@@ -23,9 +50,10 @@ export interface QueueStateReport {
  * stuck row — that is what being stuck means — so without this "what is
  * stuck" can only be inferred from refusals the server happened to witness.
  *
- * Metadata only. `last_error` is sent so the server can canonicalise it to a
- * known slug; the server never stores the raw text, which embeds the failing
- * SQL and its bindings.
+ * Metadata only, and the reason is canonicalised HERE rather than sent raw.
+ * The server canonicalises on storage too, but a raw driver error embeds the
+ * failing SQL and its bindings — customer names, amounts — and would still
+ * be in transit and in any future request log.
  */
 export async function buildQueueStateReport(): Promise<QueueStateReport | null> {
   if (!getActiveStoreId()) {
@@ -55,7 +83,7 @@ export async function buildQueueStateReport(): Promise<QueueStateReport | null> 
         table_name: item.table_name,
         record_id: item.record_id,
         attempts: Number(item.retry_count ?? 0),
-        reason: (item.last_error ?? "").replace(/^\[REPORTED\]\s*/, "").slice(0, 200),
+        reason: canonicaliseReason(item.last_error),
       })),
     };
   } catch (err) {

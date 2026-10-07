@@ -111,6 +111,42 @@ class AdminSubscriptionWorklistTest extends TestCase
         $this->assertCount(1, $this->service()->expiringSoon(7, 1)['data']);
     }
 
+    /**
+     * SubscriptionController::activateSubscriptionFromTransaction() creates a
+     * new active subscription WITHOUT expiring the previous one, so an owner
+     * who renews early holds two concurrently-live rows. Listing the old one
+     * tells the operator to chase an account that paid this morning, and shows
+     * a date that is not the account's real expiry.
+     */
+    public function test_expiring_soon_excludes_an_owner_who_already_renewed(): void
+    {
+        $owner = $this->owner();
+        $original = $this->subscribe($owner, ['end_date' => now()->addDays(3)]);
+        \Illuminate\Support\Facades\DB::table('subscriptions')->where('id', $original->id)
+            ->update(['created_at' => now()->subMonth()]);
+
+        $this->subscribe($owner, ['end_date' => now()->addMonth(), 'start_date' => now()]);
+
+        $this->assertCount(0, $this->service()->expiringSoon(7, 1)['data']);
+    }
+
+    /**
+     * An owner in the grace window has the shortest recovery runway of anyone
+     * on the platform. They are correctly out of `lapsed`, so they must appear
+     * in `expiring` rather than nowhere at all.
+     */
+    public function test_expiring_soon_includes_an_owner_inside_the_grace_window(): void
+    {
+        $owner = $this->owner();
+        $this->subscribe($owner, ['end_date' => now()->subDay()]);
+
+        $rows = $this->service()->expiringSoon(7, 1)['data'];
+
+        $this->assertCount(1, $rows);
+        $this->assertSame($owner->id, $rows[0]['user_id']);
+        $this->assertSame('in_grace', $rows[0]['state']);
+    }
+
     public function test_lapsed_excludes_an_owner_who_also_holds_a_live_plan(): void
     {
         $owner = $this->owner();

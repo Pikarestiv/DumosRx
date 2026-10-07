@@ -1016,7 +1016,18 @@ about who is subscribed.
   query (a `whereBetween` on `end_date`, a `whereIn` on payment status) and then
   filters the candidates through `subscriptionState()`. Narrowing first keeps the
   in-PHP pass bounded; expressing grace in SQL would be the second definition
-  this section forbids.
+  this section forbids. `CANDIDATE_LIMIT` caps that candidate set so a platform
+  with years of expired rows cannot hydrate all of them in one request.
+- **Resolve an owner once per request.** Because grace is resolved in PHP, every
+  owner in a candidate set costs queries. `effectiveSubscriptionWithState()`
+  returns the row and its classification from a single resolution (prefer it to
+  calling `resolveEffectiveSubscription()` and `subscriptionState()` in
+  sequence, which resolves twice), and `AdminSubscriptionLifecycleService`
+  memoises per owner id for the life of the request — `figures()` touches the
+  same owner from up to four buckets. Without both, 60 lapsed owners cost 920
+  queries; with them, under 250. `AdminSubscriptionQueryBudgetTest` holds that
+  budget, so a change that reintroduces per-bucket resolution fails loudly
+  instead of quietly scaling with the store count.
 - **The lifecycle endpoints are `role:super_admin`**, matching their nav item —
   see `web/AGENTS.md` for the four-layer gate and, in particular, why a surface
   gated more narrowly than `admin/layout.tsx` needs its own page guard.

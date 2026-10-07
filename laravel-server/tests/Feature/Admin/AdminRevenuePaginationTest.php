@@ -88,6 +88,48 @@ class AdminRevenuePaginationTest extends TestCase
         );
     }
 
+    /**
+     * `subscriptions` also has `created_at`, so an unqualified date clause
+     * becomes ambiguous the moment the by-plan-tier aggregate joins it. Any
+     * operator setting a date range on Marketing -> Revenue would get a 500.
+     */
+    public function test_a_date_filter_does_not_break_the_joined_aggregate(): void
+    {
+        $this->transaction('premium');
+
+        $overview = $this->service()->getOverview(1, null, null, null, now()->subMonth()->toDateString());
+
+        $this->assertSame(1, $overview['transactions']['meta']['total']);
+        $this->assertArrayHasKey('Premium', $overview['by_plan_tier']);
+    }
+
+    public function test_a_date_range_excludes_transactions_outside_it(): void
+    {
+        $old = $this->transaction('premium');
+        DB::table('payment_transactions')->where('id', $old->id)
+            ->update(['created_at' => now()->subYear()]);
+        $this->transaction('premium');
+
+        $overview = $this->service()->getOverview(1, null, null, null, now()->subMonth()->toDateString());
+
+        $this->assertSame(1, $overview['transactions']['meta']['total']);
+    }
+
+    /**
+     * The row's display plan falls back to metadata, so its money must not be
+     * filed under a different tier than the one shown next to it.
+     */
+    public function test_an_orphaned_transaction_keeps_its_plan_in_the_tier_breakdown(): void
+    {
+        $txn = $this->transaction('enterprise');
+        $txn->forceFill(['subscription_id' => null])->save();
+
+        $overview = $this->service()->getOverview();
+
+        $this->assertArrayHasKey('Enterprise', $overview['by_plan_tier']);
+        $this->assertSame(10000.0, $overview['by_plan_tier']['Enterprise']);
+    }
+
     public function test_a_plan_filter_still_returns_the_right_rows(): void
     {
         $this->transaction('premium');

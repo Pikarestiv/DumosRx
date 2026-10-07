@@ -62,11 +62,23 @@ class AdminSubscriptionEndpointGateTest extends TestCase
         return $owner;
     }
 
+    /**
+     * createRole() grants `manage_platform` itself, so the role returned here
+     * clears the outer admin group gate and the refusals below are the
+     * `role:super_admin` layer answering, not the group gate short-circuiting.
+     */
     private function customRole(string $name, array $permissions): string
     {
         $role = app(AdminRoleService::class)->createRole($name, $permissions, $this->makeAdmin('super_admin')->id);
+        $slug = is_array($role) ? ($role['slug'] ?? $role['name'] ?? '') : $role->slug;
 
-        return is_array($role) ? ($role['slug'] ?? $role['name'] ?? '') : $role->slug;
+        $this->assertContains(
+            'manage_platform',
+            \App\Models\Role::where('slug', $slug)->firstOrFail()->permissions->pluck('slug')->all(),
+            'the gate under test is only exercised if the caller clears the admin group gate first'
+        );
+
+        return $slug;
     }
 
     public function test_only_super_admin_may_read_the_lifecycle_endpoints(): void

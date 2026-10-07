@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, renderHook, act } from "@testing-library/react";
 import { LifecycleFiguresView } from "@/components/admin/subscriptions/lifecycle-figures";
+import { BucketTabsList } from "@/components/admin/subscriptions/bucket-tabs";
 import { WorklistTable } from "@/components/admin/subscriptions/worklist-table";
+import { useResettingPage } from "@/hooks/use-resetting-page";
+import { Tabs } from "@/components/ui/tabs";
 import type { AdminSubscriptionFigures, SubscriptionWorklistRow } from "@/lib/types/admin";
 
 vi.mock("next/link", () => ({
@@ -51,6 +54,60 @@ describe("LifecycleFiguresView", () => {
     render(<LifecycleFiguresView data={undefined} />);
 
     expect(screen.getByText(/no trials started/i)).toBeDefined();
+  });
+});
+
+describe("BucketTabsList", () => {
+  it("labels each tab with how many accounts are in it", () => {
+    render(
+      <Tabs defaultValue="expiring">
+        <BucketTabsList counts={figures.bucket_counts} />
+      </Tabs>,
+    );
+
+    expect(screen.getByRole("tab", { name: /expiring\s*4/i })).toBeDefined();
+    expect(screen.getByRole("tab", { name: /lapsed\s*2/i })).toBeDefined();
+  });
+
+  /** A count of zero is a fact; an absent payload is not, so it renders bare. */
+  it("renders bare labels while the counts are still loading", () => {
+    render(
+      <Tabs defaultValue="expiring">
+        <BucketTabsList counts={undefined} />
+      </Tabs>,
+    );
+
+    expect(screen.getByRole("tab", { name: "Expiring" })).toBeDefined();
+  });
+});
+
+describe("useResettingPage", () => {
+  /**
+   * Paging to 3 on a 30-day window and then switching to 7 days asks the API
+   * for page 3 of a shorter list, which answers with nothing and renders
+   * "Nothing needs attention here" over a bucket that has entries.
+   */
+  it("returns to the first page when the window changes", () => {
+    const { result, rerender } = renderHook(({ days }) => useResettingPage(days), {
+      initialProps: { days: 30 },
+    });
+
+    act(() => result.current[1](3));
+    expect(result.current[0]).toBe(3);
+
+    rerender({ days: 7 });
+    expect(result.current[0]).toBe(1);
+  });
+
+  it("keeps the current page when the window is unchanged", () => {
+    const { result, rerender } = renderHook(({ days }) => useResettingPage(days), {
+      initialProps: { days: 7 },
+    });
+
+    act(() => result.current[1](2));
+    rerender({ days: 7 });
+
+    expect(result.current[0]).toBe(2);
   });
 });
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { useAdminSubscriptionLifecycle } from "@/lib/api/admin-hooks-subscriptions";
 import type { AdminSubscriptionFigures } from "@/lib/types/admin";
 
 function Figure({
@@ -50,10 +49,4 @@ export function LifecycleFiguresView({ data }: { data?: AdminSubscriptionFigures
       />
     </div>
   );
-}
-
-export function LifecycleFigures({ days }: { days: number }) {
-  const { data } = useAdminSubscriptionLifecycle(days);
-
-  return <LifecycleFiguresView data={data} />;
 }

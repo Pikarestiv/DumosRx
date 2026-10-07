@@ -352,6 +352,16 @@ Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-3-subscription-lifecy
 - `end_date` is a bare `YYYY-MM-DD`, so it goes through
   `formatDateOnlyToDDMMYYYY`; payment timestamps are ISO and go through
   `formatDateToDDMMYYYY`.
+- **The tab labels carry `bucket_counts`** (`BucketTabsList`), so an operator can
+  see where the work is without opening all four. The page owns the
+  `useAdminSubscriptionLifecycle` call and passes the payload down to both the
+  figures and the tabs — one query, not two. While it is loading, labels render
+  bare: a count of zero is a fact, an absent payload is not.
+- **Changing the day window resets paging.** A paginated list whose filter
+  changes under it keeps asking for a page that no longer exists, and the panel
+  then renders "Nothing needs attention here" over a bucket that has entries.
+  `useResettingPage(days)` (in `hooks/`) is the seam; reach for it in any panel
+  that pairs a page cursor with a filter control.
 
 ### Sync health (Phase 2, 2026-10-06)
 

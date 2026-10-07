@@ -101,6 +101,44 @@ class AdminSubscriptionFiguresTest extends TestCase
         $this->assertSame('33.3%', $figures['trial_conversion_rate']);
     }
 
+    /**
+     * Granting a win-back trial to a lapsed former customer is routine — the
+     * Lapsed worklist offers the button. Counting their old, long-dead paid
+     * subscription as a conversion reports 100% for a trial nobody converted.
+     */
+    public function test_a_paid_subscription_that_predates_the_trial_is_not_a_conversion(): void
+    {
+        $winBack = $this->owner();
+        $this->subscribe($winBack, [
+            'start_date' => now()->subDays(500),
+            'end_date' => now()->subDays(470),
+        ]);
+        $this->subscribe($winBack, [
+            'is_trial' => true,
+            'start_date' => now()->subDays(5),
+            'end_date' => now()->addDays(2),
+        ]);
+
+        $figures = $this->service()->figures(30);
+
+        $this->assertSame(1, $figures['trials_started']);
+        $this->assertSame('0%', $figures['trial_conversion_rate']);
+    }
+
+    /** A win-back trial is not money received. */
+    public function test_a_trial_does_not_count_as_a_recovery(): void
+    {
+        $owner = $this->owner();
+        $this->subscribe($owner, ['end_date' => now()->subDays(10), 'start_date' => now()->subDays(40)]);
+        $this->subscribe($owner, [
+            'is_trial' => true,
+            'start_date' => now()->subDay(),
+            'end_date' => now()->addDays(6),
+        ]);
+
+        $this->assertSame(0, $this->service()->figures(30)['recovered_in_period']);
+    }
+
     public function test_payment_mix_counts_every_status(): void
     {
         $subscription = $this->subscribe($this->owner());

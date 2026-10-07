@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use App\Models\PaymentTransaction;
 use App\Models\Subscription;
+use App\Models\SystemConfig;
 use App\Models\User;
 use App\Services\SubscriptionService;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -13,11 +14,19 @@ class AdminSubscriptionLifecycleService
 {
     private const PER_PAGE = 50;
 
+    /** Bounds the candidate set each bucket resolves in PHP. Grace cannot be
+     * expressed in SQL, so the alternative is hydrating every historically
+     * expired row on the platform — the PG-12 pattern. See AGENTS.md. */
+    private const CANDIDATE_LIMIT = 2000;
+
+    /** @var array<string, array{subscription: ?Subscription, state: string}> */
+    private array $resolved = [];
+
     public function __construct(private SubscriptionService $subscriptions) {}
 
     public function expiringSoon(int $days, int $page = 1): array
     {
-        return $this->endingWithin($days, $page, false, ['active']);
+        return $this->endingWithin($days, $page, false, ['active', 'in_grace']);
     }
 
     public function trialsEnding(int $days, int $page = 1): array
@@ -30,11 +39,12 @@ class AdminSubscriptionLifecycleService
         $candidates = Subscription::query()
             ->where('end_date', '<', now())
             ->orderByDesc('end_date')
+            ->limit(self::CANDIDATE_LIMIT)
             ->get()
             ->unique('user_id');
 
         $rows = $this->ownersInState($candidates, ['lapsed'])
-            ->map(fn (array $pair) => $this->row($pair['owner'], $pair['subscription']))
+            ->map(fn (array $pair) => $this->row($pair['owner'], $pair['subscription'], $pair['state']))
             ->values();
 
         return $this->paginate($rows, $page);
@@ -72,13 +82,20 @@ class AdminSubscriptionLifecycleService
     {
         $since = now()->subDays($days);
 
-        $trialOwners = Subscription::where('is_trial', true)
+        $trialStarts = Subscription::where('is_trial', true)
             ->where('start_date', '>=', $since)
-            ->pluck('user_id')
-            ->unique();
+            ->get(['user_id', 'start_date'])
+            ->groupBy('user_id')
+            ->map(fn ($rows) => $rows->min('start_date'));
 
+        $trialOwners = $trialStarts->keys();
+
+        // A win-back trial to a lapsed former customer is routine, so a paid
+        // row that predates the trial is not a conversion.
         $converted = $trialOwners->isEmpty() ? collect() : Subscription::where('is_trial', false)
             ->whereIn('user_id', $trialOwners)
+            ->get(['user_id', 'start_date'])
+            ->filter(fn ($row) => $row->start_date >= $trialStarts[$row->user_id])
             ->pluck('user_id')
             ->unique();
 
@@ -111,38 +128,57 @@ class AdminSubscriptionLifecycleService
 
     private function ownersLapsedSince(\Illuminate\Support\Carbon $since): Collection
     {
-        $candidates = Subscription::whereBetween('end_date', [$since, now()])
-            ->orderByDesc('end_date')
-            ->get()
-            ->unique('user_id');
-
-        return $this->ownersInState($candidates, ['lapsed']);
+        return $this->expiredSince($since)
+            ->filter(fn (array $pair) => $pair['state'] === 'lapsed');
     }
 
-    private function recoveredSince(\Illuminate\Support\Carbon $since): Collection
+    /** One candidate query per figures() call, resolved once and filtered twice. */
+    private function expiredSince(\Illuminate\Support\Carbon $since): Collection
     {
         $candidates = Subscription::whereBetween('end_date', [$since, now()])
             ->orderByDesc('end_date')
+            ->limit(self::CANDIDATE_LIMIT)
             ->get()
             ->unique('user_id');
 
-        return $this->ownersInState($candidates, ['active', 'trialing']);
+        return $this->ownersInState($candidates, ['lapsed', 'active', 'trialing', 'in_grace', 'none'], false);
+    }
+
+    /** A win-back trial is not money received, so `trialing` is not recovery. */
+    private function recoveredSince(\Illuminate\Support\Carbon $since): Collection
+    {
+        return $this->expiredSince($since)
+            ->filter(fn (array $pair) => $pair['state'] === 'active');
     }
 
     private function endingWithin(int $days, int $page, bool $trial, array $states): array
     {
         $candidates = Subscription::query()
             ->where('is_trial', $trial)
-            ->whereBetween('end_date', [now(), now()->addDays($days)])
+            ->whereBetween('end_date', [$this->graceFloor(), now()->addDays($days)])
             ->orderBy('end_date')
+            ->limit(self::CANDIDATE_LIMIT)
             ->get()
             ->unique('user_id');
 
         $rows = $this->ownersInState($candidates, $states)
-            ->map(fn (array $pair) => $this->row($pair['owner'], $pair['subscription']))
+            ->map(fn (array $pair) => $this->row($pair['owner'], $pair['subscription'], $pair['state']))
             ->values();
 
         return $this->paginate($rows, $page);
+    }
+
+    /**
+     * An owner inside the grace window still has access and the shortest
+     * runway of anyone on the platform. They are correctly excluded from
+     * `lapsed`, so the window reaches back far enough to surface them here
+     * rather than nowhere at all.
+     */
+    private function graceFloor(): \Illuminate\Support\Carbon
+    {
+        $graceDays = SystemConfig::getVal('subscription_plans', [])['grace_period_days'] ?? 3;
+
+        return now()->subDays($graceDays);
     }
 
     /**
@@ -150,9 +186,14 @@ class AdminSubscriptionLifecycleService
      * single definition the application itself gates on. See
      * laravel-server/AGENTS.md.
      */
-    private function ownersInState(Collection $candidates, array $states): Collection
+    /**
+     * $onlyGoverning is false for the period figures: "recovered" means the
+     * candidate expired and a *newer* subscription replaced it, so requiring
+     * the candidate to be the governing row would exclude every recovery.
+     */
+    private function ownersInState(Collection $candidates, array $states, bool $onlyGoverning = true): Collection
     {
-        $owners = User::with('stores')
+        $owners = User::with(['stores', 'subscriptions'])
             ->whereIn('id', $candidates->pluck('user_id')->unique())
             ->get()
             ->keyBy('id');
@@ -161,21 +202,66 @@ class AdminSubscriptionLifecycleService
             ->map(function (Subscription $subscription) use ($owners) {
                 $owner = $owners->get($subscription->user_id);
 
-                return $owner ? ['owner' => $owner, 'subscription' => $subscription] : null;
+                if (! $owner) {
+                    return null;
+                }
+
+                $resolution = $this->resolutionFor($owner);
+                $effective = $resolution['subscription'];
+
+                return [
+                    'owner' => $owner,
+                    'subscription' => $effective ?? $subscription,
+                    'candidate' => $subscription,
+                    'effective' => $effective,
+                    'state' => $resolution['state'],
+                ];
             })
             ->filter()
-            ->filter(fn (array $pair) => in_array(
-                $this->subscriptions->subscriptionState($pair['owner']),
-                $states,
-                true
-            ));
+            ->filter(fn (array $pair) => in_array($pair['state'], $states, true))
+            ->filter(fn (array $pair) => ! $onlyGoverning || $this->candidateIsGoverning($pair));
     }
 
-    private function row(User $owner, ?Subscription $subscription): array
+    /**
+     * One request resolves one owner once, however many buckets they land in.
+     * The service is request-scoped, so the memo cannot outlive the data it
+     * describes.
+     *
+     * @return array{subscription: ?Subscription, state: string}
+     */
+    private function resolutionFor(User $owner): array
+    {
+        $key = (string) $owner->id;
+
+        if (! array_key_exists($key, $this->resolved)) {
+            $this->resolved[$key] = $this->subscriptions->effectiveSubscriptionWithState($owner);
+        }
+
+        return $this->resolved[$key];
+    }
+
+    /**
+     * An owner who renews early holds two concurrently-active rows, because
+     * self-service renewal creates a new subscription without expiring the old
+     * one. Without this check the worklist lists the superseded row — telling
+     * the operator to chase an account that paid this morning, under a date
+     * that is not its real expiry.
+     */
+    private function candidateIsGoverning(array $pair): bool
+    {
+        if ($pair['effective'] === null) {
+            return true;
+        }
+
+        return $pair['effective']->id === $pair['candidate']->id;
+    }
+
+    private function row(User $owner, ?Subscription $subscription, ?string $state = null): array
     {
         $store = $owner->stores->first();
 
         return [
+            'state' => $state,
             'user_id' => $owner->id,
             'owner_name' => trim("{$owner->first_name} {$owner->last_name}"),
             'email' => $owner->email,

@@ -4,18 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { BadgeCheck, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useAdminAuthStore, checkIsSuperAdmin, checkHasPermission } from "@/lib/store/use-admin-auth-store";
-import { LifecycleFigures } from "@/components/admin/subscriptions/lifecycle-figures";
+import { LifecycleFiguresView } from "@/components/admin/subscriptions/lifecycle-figures";
+import { BUCKETS, BucketTabsList } from "@/components/admin/subscriptions/bucket-tabs";
 import { WorklistPanel } from "@/components/admin/subscriptions/worklist-panel";
-import type { SubscriptionBucket } from "@/lib/types/admin";
-
-const BUCKETS: Array<{ id: SubscriptionBucket; label: string }> = [
-  { id: "expiring", label: "Expiring" },
-  { id: "trials", label: "Trials ending" },
-  { id: "lapsed", label: "Lapsed" },
-  { id: "payments", label: "Payments" },
-];
+import { useAdminSubscriptionLifecycle } from "@/lib/api/admin-hooks-subscriptions";
 
 function NotAvailable() {
   return (
@@ -67,6 +61,8 @@ function SubscriptionsContent({
   canGrantTrials: boolean;
   canNotify: boolean;
 }) {
+  const { data: figures } = useAdminSubscriptionLifecycle(days);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -93,16 +89,10 @@ function SubscriptionsContent({
         </div>
       </div>
 
-      <LifecycleFigures days={days} />
+      <LifecycleFiguresView data={figures} />
 
       <Tabs defaultValue="expiring" className="w-full">
-        <TabsList className="mb-4 bg-muted w-full flex overflow-x-auto whitespace-nowrap justify-start p-1 h-12 gap-1">
-          {BUCKETS.map((bucket) => (
-            <TabsTrigger key={bucket.id} value={bucket.id} className="px-4 shrink-0">
-              {bucket.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <BucketTabsList counts={figures?.bucket_counts} />
 
         {BUCKETS.map((bucket) => (
           <TabsContent key={bucket.id} value={bucket.id} className="focus-visible:outline-none">

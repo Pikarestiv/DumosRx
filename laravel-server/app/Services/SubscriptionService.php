@@ -91,17 +91,31 @@ class SubscriptionService
      */
     public function subscriptionState(User $owner): string
     {
+        return $this->effectiveSubscriptionWithState($owner)['state'];
+    }
+
+    /**
+     * The same answer as subscriptionState(), paired with the row it was
+     * derived from, so a caller that needs both does not resolve twice.
+     *
+     * @return array{subscription: ?Subscription, state: string}
+     */
+    public function effectiveSubscriptionWithState(User $owner): array
+    {
         $effective = $this->resolveEffectiveSubscription($owner);
 
         if ($effective) {
-            if ($effective->end_date && $effective->end_date->isPast()) {
-                return 'in_grace';
-            }
+            $state = $effective->end_date && $effective->end_date->isPast()
+                ? 'in_grace'
+                : ($effective->is_trial ? 'trialing' : 'active');
 
-            return $effective->is_trial ? 'trialing' : 'active';
+            return ['subscription' => $effective, 'state' => $state];
         }
 
-        return $owner->subscriptions()->exists() ? 'lapsed' : 'none';
+        return [
+            'subscription' => null,
+            'state' => $owner->subscriptions()->exists() ? 'lapsed' : 'none',
+        ];
     }
 
     /**

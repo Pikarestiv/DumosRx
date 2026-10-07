@@ -8,6 +8,7 @@ import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-di
 import { SharedActivatePlanDialog } from "@/components/admin/shared-activate-plan-dialog";
 import { SendNotificationDialog } from "@/components/admin/users/send-notification-dialog";
 import { useAdminSubscriptionBucket } from "@/lib/api/admin-hooks-subscriptions";
+import { useResettingPage } from "@/hooks/use-resetting-page";
 import {
   useGrantUserTrialMutation,
   useActivateUserPlanMutation,
@@ -36,7 +37,7 @@ const asAdminUser = (row: SubscriptionWorklistRow): AdminUser => ({
 });
 
 export function WorklistPanel({ bucket, days, canGrantTrials, canNotify }: WorklistPanelProps) {
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useResettingPage(days);
   const [trialTarget, setTrialTarget] = useState<SubscriptionWorklistRow | null>(null);
   const [planTarget, setPlanTarget] = useState<SubscriptionWorklistRow | null>(null);
   const [notifyTarget, setNotifyTarget] = useState<SubscriptionWorklistRow | null>(null);

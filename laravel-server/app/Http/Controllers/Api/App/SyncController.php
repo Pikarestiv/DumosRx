@@ -97,6 +97,8 @@ class SyncController extends Controller
     {
         $validation = $this->validateSync($request, true);
         if (!$validation['valid']) {
+            $this->recordRejectedPush($request, $validation['code'] ?? null);
+
             return response()->json([
                 'success' => false,
                 'message' => $validation['message'],
@@ -716,10 +718,39 @@ class SyncController extends Controller
 
             return response()->json(['success' => true, 'processed' => $processed, 'failed' => $failed, 'id_map' => $idMapByTable, 'versions' => $versions]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Sync push failed: ' . $e->getMessage());
+            $this->recordRejectedPush($request, 'server_error');
+
             return response()->json(['success' => false, 'message' => 'Sync failed', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * PG-18: both of the exits above return before the per-change recording
+     * hook, so a store that syncs nothing used to contribute nothing and the
+     * platform success rate read 100%.
+     */
+    private function recordRejectedPush(Request $request, ?string $code): void
+    {
+        try {
+            $user = $request->user();
+            $storeId = $user ? $this->resolvePushStoreId($request, $user) : null;
+
+            app(\App\Services\Sync\SyncFailureRecorder::class)->recordRejectedPush(
+                $storeId,
+                $user?->id,
+                match ($code) {
+                    'SYNC_DISABLED' => 'sync_disabled',
+                    'SYNC_THROTTLED' => 'sync_throttled',
+                    'STORE_LIMIT_EXCEEDED' => 'store_limit_exceeded',
+                    default => 'server_error',
+                },
+                count((array) $request->input('changes', [])),
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Could not record a rejected push: '.$e->getMessage());
         }
     }
 

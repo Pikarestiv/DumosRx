@@ -987,6 +987,22 @@ reads that assembled array **once**, after the outer `DB::commit()`, beside
 - **Phase 2 is observation only.** It must not change what the server accepts,
   refuses or returns. `SyncPushFailureRecordingTest` pins the response shape.
 
+## A refused push still counts (PG-18)
+
+The sync tally has two paths, and both must fire or the metric lies:
+
+- `recordPushOutcome()` — the per-change hook, after the outer commit.
+- `recordRejectedPush()` — the whole-request path, for a `validateSync()`
+  refusal or an outright failure, which never reach the loop.
+
+Without the second, a store whose plan lost `cloud_sync` contributed **zero**
+rows and the platform success rate read 100% while that store synced nothing.
+If you add another early return to `push()`, it needs the same call, or you
+have reintroduced exactly this.
+
+The outer catch is `\Throwable`, not `\Exception`, on purpose: an `\Error`
+was previously uncaught, so the request died with no rollback and no record.
+
 ## Device stock fingerprints (stuck-data Phase 1)
 
 `StockDivergenceService` answers "which devices disagree with the cloud about

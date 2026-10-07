@@ -115,3 +115,21 @@ export interface AdminSubscriptionFigures {
   bucket_counts: Record<SubscriptionBucket, number>;
 }
 
+
+export interface DeviceStockReport {
+  device_id: string;
+  device_batch_count: number;
+  device_quantity_sum: number;
+  server_batch_count: number;
+  server_quantity_sum: number;
+  quantity_delta: number;
+  batch_delta: number;
+  diverged: boolean;
+  reported_at: string | null;
+}
+
+export interface StoreStockDivergence {
+  measured: boolean;
+  diverged_devices: number;
+  devices: DeviceStockReport[];
+}

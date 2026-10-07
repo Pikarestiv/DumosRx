@@ -8,6 +8,13 @@ use OpenApi\Attributes as OA;
 
 class AdminSyncHealthController extends AdminBaseController
 {
+    public function stockDivergence(string $id)
+    {
+        return response()->json(
+            app(\App\Services\Admin\StockDivergenceService::class)->forStore($id)
+        );
+    }
+
     protected $syncHealthService;
 
     public function __construct(AdminSyncHealthService $syncHealthService)

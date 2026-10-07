@@ -5,6 +5,7 @@ import {
   recordSyncFailure,
 } from "../local-database";
 import { apiClient } from "@/lib/api/client";
+import { buildStockFingerprint } from "./stock-fingerprint";
 import { PushResponse } from "./types";
 import type { SyncChange, SyncQueueItem } from "@/lib/types/sync";
 import { remapForeignKey, DUPLICATE_NAME_TABLES } from "../reconcile-identity";
@@ -348,6 +349,7 @@ export async function pushChanges(
       const response = (await apiClient.pushChanges(
         {
           changes,
+          stock_fingerprint: await buildStockFingerprint(),
         },
         isManual,
         isSetup,

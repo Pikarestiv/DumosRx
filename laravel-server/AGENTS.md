@@ -987,6 +987,37 @@ reads that assembled array **once**, after the outer `DB::commit()`, beside
 - **Phase 2 is observation only.** It must not change what the server accepts,
   refuses or returns. `SyncPushFailureRecordingTest` pins the response shape.
 
+## Device stock fingerprints (stuck-data Phase 1)
+
+`StockDivergenceService` answers "which devices disagree with the cloud about
+stock, and by how much" without anyone counting shelves — the question A-173
+and A-176 raised and nothing could answer.
+
+- **A fingerprint, not an upload.** Each push carries
+  `stock_fingerprint: {batch_count, quantity_sum}` for the active store. The
+  server computes the same two numbers from its own rows and stores **both
+  sides** in `device_stock_reports`, keyed `(store_id, device_id)`. Sending
+  every batch quantity on every sync was the obvious design and is far too
+  much data.
+- **Both sides are snapshotted at write time**, never recomputed on read, so a
+  stored comparison cannot change meaning later.
+- **A matching fingerprint is evidence of agreement; a differing one is proof
+  of disagreement.** It cannot say *which* batch differs — that needs the
+  per-device queue/payload work in later phases.
+- **Recording can never fail a sync.** The call is wrapped and logged; a
+  reporting problem must not cost a store its push.
+- **Unmeasured is not agreement.** `forStore()` returns `measured: false` for a
+  store no device has reported for, and the UI says "agreement is unknown"
+  rather than implying everything is fine. This is the single place this
+  feature would most easily break Phase 1's rule.
+- Gated on `view_platform_health` — operational, not commercial.
+
+**Client side:** `client/lib/db/sync-engine/stock-fingerprint.ts`. Note that
+`stock_batches.store_id` exists only because `runSchemaMigrations()` adds it
+to every `STORE_SCOPED_TABLES` entry — it is NOT in `SCHEMA_SQL`, so a test
+that seeds from `SCHEMA_SQL` alone must add the column or the query silently
+returns nothing.
+
 ## What may be delegated, and what must never be
 
 `role:super_admin` on a route means "no role configuration can ever reach

@@ -216,6 +216,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/subscriptions/{bucket}', [\App\Http\Controllers\Api\Admin\AdminSubscriptionController::class, 'bucket'])->middleware('permission:view_subscriptions');
             Route::get('/sync/health', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'summary'])->middleware('permission:view_platform_health');
             Route::get('/sync/stores/{id}', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'store'])->middleware('permission:view_platform_health');
+            Route::get('/stores/{id}/stock-divergence', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'stockDivergence'])->middleware('permission:view_platform_health');
 
             Route::get('/maintenance/migrations', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'migrations'])->middleware('role:super_admin');
             Route::post('/maintenance/migrations/run', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'runMigrations'])->middleware('role:super_admin');

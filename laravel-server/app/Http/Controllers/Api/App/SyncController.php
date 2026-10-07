@@ -71,6 +71,28 @@ class SyncController extends Controller
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
     )]
+    /**
+     * A two-integer summary of what this device believes about its stock,
+     * compared against what the server derives from stock_movements. Fully
+     * try/caught: a reporting failure must never fail a sync.
+     */
+    private function recordStockFingerprint(Request $request, $user, ?string $storeId): void
+    {
+        $fingerprint = $request->input('stock_fingerprint');
+        $deviceId = $request->header('X-Device-Id');
+
+        if (! $storeId || ! $deviceId || ! is_array($fingerprint)) {
+            return;
+        }
+
+        try {
+            app(\App\Services\Admin\StockDivergenceService::class)
+                ->record($storeId, $deviceId, $user?->id, $fingerprint);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to record stock fingerprint', ['error' => $e->getMessage()]);
+        }
+    }
+
     public function push(Request $request)
     {
         $validation = $this->validateSync($request, true);
@@ -112,6 +134,7 @@ class SyncController extends Controller
         $currentUser = $request->user();
         $currentStoreId = $currentUser ? $this->resolvePushStoreId($request, $currentUser) : null;
         UserDeviceTracker::touch($request, $currentUser, $currentStoreId);
+        $this->recordStockFingerprint($request, $currentUser, $currentStoreId);
 
         // Ownership scope for UPDATE/DELETE targets and for rejecting an
         // INSERT payload that explicitly names a store_id the caller

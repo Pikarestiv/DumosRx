@@ -6,9 +6,13 @@ import * as Sentry from "@sentry/nextjs";
 import { SYSTEM_EMAIL } from "@/lib/constants";
 import { getDeviceId } from "@/lib/utils/device-id";
 import {
+  MAX_CRASH_CONTENT_LENGTH,
+  MAX_CRASH_CONTEXT_LENGTH,
   MAX_CRASH_MESSAGE_LENGTH,
+  MAX_CRASH_STACK_LENGTH,
   MAX_FINGERPRINT_LENGTH,
   truncateForLog,
+  truncateToLimit,
 } from "@/lib/utils/error-truncation";
 import {
   STORAGE_KEYS,
@@ -43,6 +47,30 @@ const STORAGE_KEY = STORAGE_KEYS.pendingCrashes;
  * those differ on every call even when it's genuinely the same recurring
  * bug, which is exactly the case this needs to recognize.
  */
+function buildCrashContent(
+  info: CrashInfo,
+  message: string,
+  stack: string,
+  context: Record<string, unknown>,
+  deviceId: string,
+  isFatal: boolean,
+): string {
+  const contextLine = Object.keys(context).length
+    ? `\nContext: ${truncateToLimit(JSON.stringify(context), MAX_CRASH_CONTEXT_LENGTH)}`
+    : "";
+
+  return truncateToLimit(
+    `[CRASH] [${info.platform?.toUpperCase()}] ${isFatal ? "FATAL: " : ""}${message}\n\nDevice: ${deviceId}${contextLine}\n\nStack:\n${truncateToLimit(stack, MAX_CRASH_STACK_LENGTH)}\n\nUA: ${info.userAgent}\nURL: ${info.url}`,
+    MAX_CRASH_CONTENT_LENGTH,
+  );
+}
+
+function withOccurrenceLine(content: string, count: number, timestamp: string): string {
+  const line = `(Repeated ${count} times, most recently ${timestamp})`;
+
+  return `${truncateToLimit(content, MAX_CRASH_CONTENT_LENGTH - line.length - 2)}\n\n${line}`;
+}
+
 function buildCrashFingerprint(message: string, stack: string, area?: string): string {
   const firstStackLine =
     stack.split("\n").find((line) => line.trim().length > 0 && !line.trim().startsWith("Error")) ||
@@ -217,7 +245,7 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
   // feedback row (and one sync-queue push) per throw. Once that row has
   // actually synced (_synced = 1), the next occurrence starts a fresh
   // row/group, same reasoning as logAction()'s audit_logs dedup (core.ts).
-  const content = `[CRASH] [${info.platform?.toUpperCase()}] ${isFatal ? 'FATAL: ' : ''}${message}\n\nDevice: ${deviceId}${Object.keys(context).length ? `\nContext: ${JSON.stringify(context)}` : ''}\n\nStack:\n${stack}\n\nUA: ${info.userAgent}\nURL: ${info.url}`;
+  const content = buildCrashContent(info, message, stack, context, deviceId, isFatal);
   try {
     const { insert: dbInsert, update: dbUpdate, query: dbQuery } = await import("@/lib/db/local-database");
 
@@ -231,7 +259,7 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
     if (existing.length > 0) {
       const newCount = (existing[0].occurrence_count || 1) + 1;
       await dbUpdate("feedback", existing[0].id, {
-        content: `${content}\n\n(Repeated ${newCount} times, most recently ${timestamp})`,
+        content: withOccurrenceLine(content, newCount, timestamp),
         occurrence_count: newCount,
         last_occurred_at: timestamp,
       });

@@ -122,6 +122,66 @@ describe("logCrash() crash-report dedup", () => {
     expect(rows[0].fingerprint.length).toBeLessThanOrEqual(255);
   });
 
+  /**
+   * A-169: the fingerprint was capped (A-149) but `content` never was. It embeds the
+   * raw stack and a JSON dump of the context, while the server's
+   * `feedback.content` is a MySQL TEXT column — 65,535 BYTES, not characters.
+   * A stack-overflow crash carries a stack far past that, so the push failed
+   * with "Data too long for column 'content'" and the report was stuck after
+   * five attempts and never delivered: the crashes that need reporting most
+   * were exactly the ones that could not be reported.
+   */
+  it("caps content under the server's TEXT column so a deep stack cannot be rejected on push", async () => {
+    const { MAX_CRASH_CONTENT_LENGTH } = await import("@/lib/utils/error-truncation");
+    const err = new Error("Maximum call stack size exceeded");
+    err.stack = `RangeError: Maximum call stack size exceeded\n${"    at recurse (app.ts:1:1)\n".repeat(5_000)}`;
+
+    await logCrash(err, false, { area: "pos-cart", payload: "p".repeat(40_000) });
+
+    const rows = await core.query<{ content: string }>(
+      `SELECT content FROM feedback WHERE type = 'bug'`,
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].content.length).toBeLessThanOrEqual(MAX_CRASH_CONTENT_LENGTH);
+    expect(new TextEncoder().encode(rows[0].content).length).toBeLessThan(65_535);
+  });
+
+  /** The crash must still be diagnosable after truncation, not reduced to a stub. */
+  it("keeps the message and the top of the stack when it truncates", async () => {
+    const err = new Error("Maximum call stack size exceeded");
+    err.stack = `RangeError: Maximum call stack size exceeded\n    at theFrameThatMatters (pos-cart.ts:42:7)\n${"    at recurse (app.ts:1:1)\n".repeat(5_000)}`;
+
+    await logCrash(err, false, { area: "pos-cart" });
+
+    const rows = await core.query<{ content: string }>(
+      `SELECT content FROM feedback WHERE type = 'bug'`,
+    );
+    expect(rows[0].content).toContain("Maximum call stack size exceeded");
+    expect(rows[0].content).toContain("theFrameThatMatters");
+  });
+
+  /**
+   * The coalescing branch rebuilds content and appends a "(Repeated N times)"
+   * line. If truncation happened before that append, every repeat would push
+   * the row a little further over the limit — SF-CRASH-1's growth shape again.
+   */
+  it("stays under the cap after a repeat appends its occurrence line", async () => {
+    const { MAX_CRASH_CONTENT_LENGTH } = await import("@/lib/utils/error-truncation");
+    const err = new Error("Repeating deep crash");
+    err.stack = `Error: boom\n${"    at recurse (app.ts:1:1)\n".repeat(5_000)}`;
+
+    await logCrash(err, false, { area: "pos-cart" });
+    await logCrash(err, false, { area: "pos-cart" });
+    await logCrash(err, false, { area: "pos-cart" });
+
+    const rows = await core.query<{ content: string }>(
+      `SELECT content FROM feedback WHERE type = 'bug'`,
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].content.length).toBeLessThanOrEqual(MAX_CRASH_CONTENT_LENGTH);
+    expect(rows[0].content).toContain("(Repeated 3 times");
+  });
+
   it("keeps genuinely different crashes in separate rows", async () => {
     await logCrash(new Error("First distinct bug"), false, { area: "pos-cart" });
     await logCrash(new Error("Second distinct bug"), false, { area: "pos-cart" });

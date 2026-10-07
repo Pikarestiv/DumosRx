@@ -11,6 +11,7 @@ import { HealthResourcesCard } from "@/components/admin/operations/health-resour
 import { HealthProbesCard } from "@/components/admin/operations/health-probes-card";
 import { SentryIssuesCard } from "@/components/admin/operations/sentry-issues-card";
 import { SyncHealthCard } from "@/components/admin/operations/sync-health-card";
+import { MigrationStatusCard } from "@/components/admin/operations/migration-status-card";
 import { useAdminSyncHealth } from "@/lib/api/admin-hooks-sync";
 
 export default function OperationsPage() {
@@ -124,6 +125,8 @@ export default function OperationsPage() {
       </div>
 
       <SyncHealthCard data={syncHealth} isLoading={syncLoading} />
+
+      <MigrationStatusCard />
 
       <SentryIssuesCard data={errorsData} isLoading={errorsLoading} />
     </div>

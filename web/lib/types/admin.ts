@@ -506,3 +506,16 @@ export interface Coupon {
   is_active: boolean;
   usages_count: number;
 }
+
+export interface PendingMigration {
+  name: string;
+  alters_existing_data: boolean;
+}
+
+export interface AdminMigrationStatus {
+  status: "ok" | "unknown";
+  pending: PendingMigration[];
+  pending_count: number | null;
+  last_batch: number | null;
+  error: string | null;
+}

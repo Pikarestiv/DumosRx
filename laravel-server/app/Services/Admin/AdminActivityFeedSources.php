@@ -19,10 +19,10 @@ class AdminActivityFeedSources
      * @param  array{0: string, 1: string}|null  $after  the cursor's (timestamp, event id)
      * @return array<int, array{id: string, type: string, at: string, title: string, detail: ?string, store_id: ?string, derived: bool}>
      */
-    public function fetch(string $type, ?array $after, int $limit): array
+    public function fetch(string $type, ?array $after, int $limit, bool $includeSuperAdmin = true): array
     {
         return match ($type) {
-            'admin_action' => $this->adminActions($after, $limit),
+            'admin_action' => $this->adminActions($after, $limit, $includeSuperAdmin),
             'sync_failure' => $this->syncFailures($after, $limit),
             'payment' => $this->payments($after, $limit),
             'subscription' => $this->subscriptions($after, $limit),
@@ -64,9 +64,17 @@ class AdminActivityFeedSources
             : $query->where($column, '<', $at);
     }
 
-    private function adminActions(?array $after, int $limit): array
+    private function adminActions(?array $after, int $limit, bool $includeSuperAdmin): array
     {
-        return $this->applyCursor(ActivityLog::query(), 'created_at', 'admin_action', $after)
+        $base = ActivityLog::query();
+
+        // Mirrors AdminActivityService's tiering, so the feed cannot become
+        // the way around it. See laravel-server/AGENTS.md.
+        if (! $includeSuperAdmin) {
+            $base->whereDoesntHave('user', fn ($uq) => $uq->where('role', 'super_admin'));
+        }
+
+        return $this->applyCursor($base, 'created_at', 'admin_action', $after)
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->limit($limit)

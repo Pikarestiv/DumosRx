@@ -25,6 +25,13 @@ class User extends Authenticatable
         'reset_user_passwords',
         'manage_account_status',
         'impersonate_store',
+        // Read-only platform surfaces. Delegatable on purpose: restricting
+        // what an operator can DO matters, restricting what they can SEE
+        // mostly makes them unable to help. Anything that can grant a
+        // permission is deliberately absent — see laravel-server/AGENTS.md.
+        'view_platform_health',
+        'view_platform_revenue',
+        'view_subscriptions',
     ];
 
     public const PRE_EXISTING_DELEGATED_PERMISSIONS = [

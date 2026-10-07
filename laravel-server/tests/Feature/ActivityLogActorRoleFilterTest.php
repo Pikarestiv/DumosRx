@@ -48,6 +48,13 @@ class ActivityLogActorRoleFilterTest extends TestCase
         ActivityLog::create(['user_id' => $agent->id, 'action' => 'TEST_AGENT_UNFILTERED', 'description' => 'x', 'status' => 'success']);
         ActivityLog::create(['user_id' => $superAdmin->id, 'action' => 'TEST_ADMIN_UNFILTERED', 'description' => 'x', 'status' => 'success']);
 
+        // Acts as a super_admin because this test is about the `role`
+        // parameter, not about who may see super-admin actions — the viewer
+        // tiering (AdminActivityVisibilityTieringTest) fails closed for an
+        // unauthenticated caller, which would otherwise mask what this
+        // asserts.
+        $this->actingAs($superAdmin);
+
         $result = $this->service->getActivityLogs(1, null, null, null, null, null, null, null);
 
         $actions = collect($result['data'])->pluck('action')->all();

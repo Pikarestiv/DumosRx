@@ -66,7 +66,7 @@ class AdminActivityFeedTest extends TestCase
         $log = ActivityLog::create([
             'user_id' => $actor->id,
             'action' => 'TEST_ACTION',
-            'description' => 'did a thing',
+            'description' => 'did a thing as '.$actor->role,
         ]);
 
         DB::table('activity_logs')->where('id', $log->id)
@@ -338,5 +338,35 @@ class AdminActivityFeedTest extends TestCase
         }
 
         $this->assertCount(7, array_unique($seen), 'every same-second event must be reachable exactly once');
+    }
+
+    /** The feed must not become the way around the activity-log tiering. */
+    public function test_the_feed_hides_super_admin_actions_from_an_operator(): void
+    {
+        $superAdmin = $this->admin('super_admin');
+        $operator = $this->admin('platform_admin');
+
+        $this->adminAction($superAdmin, now()->subMinutes(5));
+        $this->adminAction($operator, now()->subMinutes(4));
+
+        $titles = array_column($this->service()->feed($operator, 'admin_action', null, 50)['events'], 'detail');
+
+        $this->assertNotEmpty($titles);
+        foreach ($titles as $detail) {
+            $this->assertStringNotContainsString('super_admin', (string) $detail);
+        }
+    }
+
+    public function test_the_feed_shows_super_admin_actions_to_a_super_admin(): void
+    {
+        $superAdmin = $this->admin('super_admin');
+        $this->adminAction($superAdmin, now()->subMinutes(5));
+
+        $details = array_column($this->service()->feed($superAdmin, 'admin_action', null, 50)['events'], 'detail');
+
+        $this->assertTrue(
+            collect($details)->contains(fn ($d) => str_contains((string) $d, 'super_admin')),
+            'a super admin must still see their own and their peers\' actions'
+        );
     }
 }

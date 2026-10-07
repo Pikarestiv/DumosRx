@@ -40,6 +40,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'grant_trials' => 'Can grant free trial subscriptions to a store',
             // Delegatable: revocable per-user via permission_user.granted.
             'view_platform_data' => 'View stores, platform users and activity logs',
+            'view_platform_health' => 'View platform health, errors and sync health',
+            'view_platform_revenue' => 'View platform revenue and trend series',
+            'view_subscriptions' => 'View the subscription lifecycle worklists',
             'send_notifications' => 'Send user notifications and manage broadcasts',
             'reset_user_passwords' => "Force-reset a user's password",
             'manage_account_status' => 'Suspend/reactivate a store or user',

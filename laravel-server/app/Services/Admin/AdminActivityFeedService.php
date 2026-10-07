@@ -31,6 +31,7 @@ class AdminActivityFeedService
             throw new \InvalidArgumentException("Unavailable activity type: {$type}");
         }
 
+        $isSuperAdmin = $viewer->role === 'super_admin';
         $after = $this->decodeCursor($cursor);
         $wanted = $type !== null ? [$type] : $available;
 
@@ -40,7 +41,7 @@ class AdminActivityFeedService
             // One extra per source: "is there another page" cannot be derived
             // from the merged count, because a single source can hold every
             // event and never exceed the limit on its own.
-            foreach ($this->sources->fetch($source, $after, $limit + 1) as $event) {
+            foreach ($this->sources->fetch($source, $after, $limit + 1, $isSuperAdmin) as $event) {
                 $events[] = $event;
             }
         }

@@ -987,6 +987,57 @@ reads that assembled array **once**, after the outer `DB::commit()`, beside
 - **Phase 2 is observation only.** It must not change what the server accepts,
   refuses or returns. `SyncPushFailureRecordingTest` pins the response shape.
 
+## What may be delegated, and what must never be
+
+`role:super_admin` on a route means "no role configuration can ever reach
+this". That is a strong statement and it was being used for everything,
+including read-only screens, which made "let an operator see more without
+letting them do more" impossible to express in the roles UI.
+
+Since 2026-10-07 the read-only platform surfaces are permissions instead:
+
+- `view_platform_health` — `/admin/health`, `/admin/errors`, `/admin/sync/*`
+- `view_platform_revenue` — `/admin/trends`, `/admin/marketing/revenue`,
+  `/admin/stores/{id}/billing-history`
+- `view_subscriptions` — `/admin/subscriptions/*`
+
+All three are in `User::DELEGATABLE_PERMISSIONS`, so a custom role can hold
+them and `AdminRoleService` can grant them.
+
+**What stays `role:super_admin`, and why it must:**
+
+- **Anything that can grant a permission** — `/admin/roles*`,
+  `/admin/users/{id}/permissions`, `/admin/users/{id}/permission-overrides`.
+  A delegated admin who can edit roles can grant themselves every other
+  permission, so delegating these delegates everything. This is the one rule
+  here that is not a judgement call, and
+  `AdminDelegatablePlatformViewsTest::test_role_and_permission_editing_cannot_be_delegated`
+  fails loudly if it is ever relaxed.
+- **Destructive or platform-wide actions** — the migration runner, store
+  purge/restore, global product catalog edits, system config, referral
+  credit adjustments, outbound mail.
+
+The principle: **restrict what an operator can DO, not what they can SEE** —
+except where seeing is itself the risk (money and customer data), which is
+why revenue is its own permission rather than folded into
+`view_platform_data`.
+
+## Who may see whose activity
+
+`AdminActivityService` and `AdminActivityFeedSources` both hide
+**super-admin actions from everyone below super_admin**. Role changes,
+subscription overrides and migrations are privileged operational detail, not
+peer accountability.
+
+Operators still see their whole peer group — another platform_admin's and
+every agent's actions, plus all store-level activity. An own-actions-only
+view was considered and rejected: the value of an audit log is noticing what
+somebody *else* did, and a log that only reflects you back cannot do that.
+
+The filter **fails closed** for an unauthenticated or direct service call, so
+a test that exercises the `role` parameter has to `actingAs()` a super admin
+or it will silently assert against a filtered set.
+
 ## Trends: what the schema can and cannot support (Phase 4)
 
 `AdminTrendsService` + `AdminChurnTrendService` + `App\Support\TimeSeries`.

@@ -111,7 +111,11 @@ class ApiClient extends FleetBillingApiClient {
 
   // Sync Endpoints
   async pushChanges(
-    payload: { changes: SyncChange[]; stock_fingerprint?: { batch_count: number; quantity_sum: number } | null },
+    payload: {
+      changes: SyncChange[];
+      stock_fingerprint?: { batch_count: number; quantity_sum: number } | null;
+      queue_state?: unknown;
+    },
     isManual: boolean = false,
     isSetup: boolean = false,
     // One token per sync() call, repeated on every batch of that run. The

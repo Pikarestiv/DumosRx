@@ -93,6 +93,27 @@ class SyncController extends Controller
         }
     }
 
+    /**
+     * What this device says is in its own `_sync_queue`. Fully try/caught:
+     * reporting must never fail a sync.
+     */
+    private function recordQueueState(Request $request, $user, ?string $storeId): void
+    {
+        $report = $request->input('queue_state');
+        $deviceId = $request->header('X-Device-Id');
+
+        if (! $storeId || ! $deviceId || ! is_array($report)) {
+            return;
+        }
+
+        try {
+            app(\App\Services\Admin\DeviceQueueReportService::class)
+                ->record($storeId, $deviceId, $user?->id, $report);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to record device queue state', ['error' => $e->getMessage()]);
+        }
+    }
+
     public function push(Request $request)
     {
         $validation = $this->validateSync($request, true);
@@ -137,6 +158,7 @@ class SyncController extends Controller
         $currentStoreId = $currentUser ? $this->resolvePushStoreId($request, $currentUser) : null;
         UserDeviceTracker::touch($request, $currentUser, $currentStoreId);
         $this->recordStockFingerprint($request, $currentUser, $currentStoreId);
+        $this->recordQueueState($request, $currentUser, $currentStoreId);
 
         // Ownership scope for UPDATE/DELETE targets and for rejecting an
         // INSERT payload that explicitly names a store_id the caller

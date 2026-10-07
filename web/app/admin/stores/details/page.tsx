@@ -33,6 +33,7 @@ import {
 } from "@/components/admin/stores/details/store-detail-sections";
 import { StoreSyncHealthPanel } from "@/components/admin/stores/details/store-sync-health-section";
 import { StoreStockDivergencePanel } from "@/components/admin/stores/details/store-stock-divergence-section";
+import { StoreQueueStatePanel } from "@/components/admin/stores/details/store-queue-state-section";
 import { Boxes } from "lucide-react";
 import {
   StoreBusinessMetricsCard,
@@ -154,6 +155,9 @@ function StoreDetailsContent() {
         <StoreSyncHealthPanel storeId={store.id} />
         <DetailCard title="Device Stock Agreement" icon={<Boxes className="h-4 w-4" />}>
           <StoreStockDivergencePanel storeId={store.id} />
+        </DetailCard>
+        <DetailCard title="Stuck On Devices" icon={<History className="h-4 w-4" />}>
+          <StoreQueueStatePanel storeId={store.id} />
         </DetailCard>
         <StoreStorefrontCard store={store} />
         <StorePaymentsCard store={store} />

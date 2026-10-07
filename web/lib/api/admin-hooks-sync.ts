@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { webApiClient } from "./client";
 import { useScopedKey } from "./query-scope";
 import type { AdminSyncHealth, AdminStoreSyncHealth } from "@/lib/types/admin";
-import type { StoreStockDivergence } from "@/lib/types/admin-platform";
+import type { StoreStockDivergence, StoreQueueState } from "@/lib/types/admin-platform";
 
 /** Raw refusal reasons are the sync engine's own vocabulary. The gloss is for
  * the operator; the raw string stays on screen so a support conversation can
@@ -44,6 +44,14 @@ export const useStoreStockDivergence = (storeId: string, enabled = true) =>
     queryKey: useScopedKey(["admin-store-stock-divergence", storeId]),
     queryFn: () =>
       webApiClient.request<StoreStockDivergence>(`admin/stores/${storeId}/stock-divergence`),
+    enabled: enabled && Boolean(storeId),
+    staleTime: 60 * 1000,
+  });
+
+export const useStoreQueueState = (storeId: string, enabled = true) =>
+  useQuery({
+    queryKey: useScopedKey(["admin-store-queue-state", storeId]),
+    queryFn: () => webApiClient.request<StoreQueueState>(`admin/stores/${storeId}/queue-state`),
     enabled: enabled && Boolean(storeId),
     staleTime: 60 * 1000,
   });

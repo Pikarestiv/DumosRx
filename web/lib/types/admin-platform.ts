@@ -133,3 +133,25 @@ export interface StoreStockDivergence {
   diverged_devices: number;
   devices: DeviceStockReport[];
 }
+
+export interface DeviceStuckItem {
+  table_name: string;
+  record_id: string;
+  attempts: number;
+  reason: string;
+}
+
+export interface DeviceQueueReport {
+  device_id: string;
+  queue_depth: number;
+  stuck_count: number;
+  stuck_items: DeviceStuckItem[];
+  truncated: boolean;
+  reported_at: string | null;
+}
+
+export interface StoreQueueState {
+  measured: boolean;
+  devices_with_stuck_items: number;
+  devices: DeviceQueueReport[];
+}

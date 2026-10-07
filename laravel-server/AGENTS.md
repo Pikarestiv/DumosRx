@@ -1003,6 +1003,27 @@ have reintroduced exactly this.
 The outer catch is `\Throwable`, not `\Exception`, on purpose: an `\Error`
 was previously uncaught, so the request died with no rollback and no record.
 
+## Device queue reports (stuck-data Phase 3)
+
+`DeviceQueueReportService`. `_sync_queue` is client-only — the server has
+never seen a stuck row, which is what being stuck means — so devices report
+their own queue on each push: depth, and the rows past the retry ceiling.
+
+- **Metadata only, never payloads.** Table, record id, attempt count, reason.
+- **The raw `last_error` is never stored.** It embeds the failing SQL and its
+  bindings — customer names, amounts — so the server canonicalises it to a
+  known slug and keeps only that, exactly as `SyncFailureRecorder` does.
+  The client sends it un-canonicalised because it has no reason catalogue;
+  the storage boundary is where that is enforced.
+- **The list is capped at 50 per device, but `stuck_count` carries the true
+  total** and the UI says "showing the first N of M". A cap must never be able
+  to understate the problem.
+- **Recording can never fail a sync** — wrapped and logged, like the stock
+  fingerprint.
+- **Silence is not health.** `forStore()` returns `measured: false` for a
+  store no device has reported for, and the panel says nothing can be
+  concluded rather than "nothing is stuck".
+
 ## Device stock fingerprints (stuck-data Phase 1)
 
 `StockDivergenceService` answers "which devices disagree with the cloud about

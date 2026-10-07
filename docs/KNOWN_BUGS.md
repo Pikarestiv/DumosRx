@@ -89,6 +89,11 @@ handful of things actually worth your attention aren't buried in it.
 - **What's wrong:** Phase 2's tally only counts pushes that reached the hook. A store whose plan lost `cloud_sync`, or whose every push dies on an `\Error` (which the per-change `catch (\Exception)` does not catch), contributes **zero** rows to `sync_health_daily` — so the platform success rate reads 100% while that store syncs nothing. This is *not* the PG-17 case: these pushes reached the server and were lost there, which is exactly the kind of failure an operator checking a sync metric is looking for.
 - **Fix:** tally the attempt (and a `pushes_failed` count) in the outer catch and on the `validateSync()` refusal path. Deliberately deferred from Phase 2 because it needs a schema change and a write on the error path, and Phase 2 was scoped observation-only on the success path.
 
+#### PG-19. `web/` — `platform_admin`/`agent` have no scoped view of their own registered stores' subscription lifecycle
+- **Found:** named as a deliberate v1 boundary when designing admin Phase 3, not discovered after the fact.
+- **What's missing:** the Subscriptions worklists (expiring, trials ending, lapsed, failed payments) are `role:super_admin` only, because they carry platform subscription money data that `RegisteredStoreSummary` already withholds from those roles. But `platform_admin` holds `grant_trials` and both roles register stores and track referrals, so "which of *my* stores is expiring this week" is squarely their job and they currently cannot see it.
+- **Fix:** a scoped variant filtered on `users.registered_by_id` (the same concept `GET /admin/stores/registered-by-me` already uses), exposing the lists without the platform-wide money figures. The per-action permission gates already work correctly for this, so it is mostly a scoping query plus a second nav entry — note that entry must be gated to match its endpoint, per `web/AGENTS.md`.
+
 #### P3-5. `client/` — PWA install splash screen doesn't follow dark mode
 - **Location:** `client/public/manifest.json`.
 - **Problem:** `theme_color`/`background_color` are hardcoded to white, so the one-time Android "Add to Home Screen" install splash flashes white for dark-mode users before the page paints. (The in-app browser-chrome tint is unaffected and already dark-mode-aware, via `app/layout.tsx`'s `viewport.themeColor`.)

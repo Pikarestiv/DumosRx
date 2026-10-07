@@ -310,6 +310,49 @@ literals Phase 1 removed (`"42ms"`, `|| '100%'`, `High Performance`,
 `Status Page Pending`, `WebSocket`, `Global Inventory`) reappears under
 `app/admin` or `components/admin`.
 
+### A surface gated more narrowly than the layout needs its own page guard
+
+`app/admin/layout.tsx` admits anyone holding `manage_platform`. So for any page
+restricted *beyond* that — super_admin-only, or permission-specific — hiding the
+nav item is not enough: a bookmark, a pasted link or a colleague's "have a look
+at this" loads the page shell, fires the query, takes a 403, and renders a
+generic "failed to load / Retry" screen. That is indistinguishable from an
+outage, and the colleague files a bug.
+
+`app/admin/subscriptions/page.tsx` is the pattern to copy: it checks
+`checkIsSuperAdmin(user?.role)` **before rendering or fetching anything** and
+returns an explicit "only available to super admins" state with a link back to
+Overview. A refused role issues **no request at all** — pinned by
+`__tests__/admin-subscriptions-gate.test.tsx`.
+
+**This is presentation, not protection.** The route middleware is what refuses
+the data; the guard is what makes the refusal legible. Never treat a page guard
+(or a hidden button) as a security control. PG-15 is this same defect on
+`/admin` — when fixing it, copy this pattern.
+
+### Subscriptions (Phase 3, 2026-10-07)
+
+Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-3-subscription-lifecycle-design.md`.
+
+- **A worklist, not a report.** Four buckets — expiring, trials ending, lapsed,
+  payments needing attention — each row carrying the action that resolves it.
+- **The actions are the existing ones.** `SharedGrantTrialDialog`,
+  `SharedActivatePlanDialog` and `SendNotificationDialog` call the endpoints that
+  already exist; this page adds no mutation endpoint and does not proxy any, so
+  no action's authorisation can be widened from here. Buttons are **hidden via
+  `checkHasPermission`, never disabled**.
+- **Gated at four layers**: `role:super_admin` route middleware (the control),
+  a nav item defaulting to super_admin-only, the page guard above, and
+  per-action permission checks on both sides. super_admin-only is a v1 decision:
+  these lists carry subscription money data, which `RegisteredStoreSummary`
+  already withholds from `platform_admin`/`agent`. A scoped
+  "my registered stores" view via `registered_by_id` is the logged follow-up.
+- **`trial_conversion_rate` is `null` when no trials started** — render "No
+  trials started", never `0%` (reads as "the trial is failing") or `100%`.
+- `end_date` is a bare `YYYY-MM-DD`, so it goes through
+  `formatDateOnlyToDDMMYYYY`; payment timestamps are ISO and go through
+  `formatDateToDDMMYYYY`.
+
 ### Sync health (Phase 2, 2026-10-06)
 
 Spec: `docs/superpowers/specs/2026-10-06-admin-panel-phase-2-sync-health-design.md`.

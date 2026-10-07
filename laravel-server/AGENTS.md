@@ -987,6 +987,40 @@ reads that assembled array **once**, after the outer `DB::commit()`, beside
 - **Phase 2 is observation only.** It must not change what the server accepts,
   refuses or returns. `SyncPushFailureRecordingTest` pins the response shape.
 
+## Subscription lifecycle: one resolver, and it is not the `status` column
+
+`SubscriptionService::subscriptionState(User $owner)` returns `trialing`,
+`active`, `in_grace`, `lapsed` or `none`, and is the **only** definition of an
+account's lifecycle state. It is built *on top of*
+`resolveEffectiveSubscription()` — the same method `CheckSubscription`,
+`hasFeature()`, `checkLimit()`, `enforceStaffLimits()` and `SyncController` gate
+live traffic on — so the admin panel and the application can never disagree
+about who is subscribed.
+
+- **Never re-derive the grace window.** `subscriptionState()` reads `end_date`
+  only to *classify* the row `resolveEffectiveSubscription()` already chose. If
+  that method's grace logic changes, this follows automatically. A second source
+  of truth for grace is how this subsystem has already gone wrong twice.
+- **Never decide liveness from `subscriptions.status`.** See the section below:
+  nothing wrote `expired` until `subscriptions:expire` existed, and
+  `grace_period` has never been written at all.
+- **Lifecycle state is a property of an owner, not a subscription row.** An
+  owner holding an expired subscription *and* a current one is not lapsed.
+  `AdminSubscriptionLifecycleService`'s four worklists all resolve to distinct
+  owners; counting rows is what made the Overview report 7 active subscriptions
+  for a single account.
+- **`lapsed` and `none` are deliberately distinct.** Never-subscribed is a sales
+  problem, lapsed is a retention problem, and one combined bucket is a list
+  nobody can act on.
+- **Grace is deliberately not expressed in SQL.** Each worklist narrows with a
+  query (a `whereBetween` on `end_date`, a `whereIn` on payment status) and then
+  filters the candidates through `subscriptionState()`. Narrowing first keeps the
+  in-PHP pass bounded; expressing grace in SQL would be the second definition
+  this section forbids.
+- **The lifecycle endpoints are `role:super_admin`**, matching their nav item —
+  see `web/AGENTS.md` for the four-layer gate and, in particular, why a surface
+  gated more narrowly than `admin/layout.tsx` needs its own page guard.
+
 ## `subscriptions.status` is not self-maintaining — always pair it with `end_date`
 
 Until 2026-10-06 **nothing transitioned a subscription out of `active` when its

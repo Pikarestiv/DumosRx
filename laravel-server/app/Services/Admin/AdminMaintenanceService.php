@@ -2,11 +2,16 @@
 
 namespace App\Services\Admin;
 
+use App\Models\ActivityLog;
 use Illuminate\Database\Migrations\Migrator;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 
 class AdminMaintenanceService
 {
+    private const MAX_OUTPUT_LENGTH = 20000;
+
     private const DESTRUCTIVE_PATTERNS = [
         'dropColumn',
         'dropIfExists',
@@ -48,6 +53,47 @@ class AdminMaintenanceService
             'pending_count' => count($pending),
             'last_batch' => empty($batches) ? null : max($batches),
             'error' => null,
+        ];
+    }
+
+    /**
+     * @return array{ok: bool, applied: array<int, string>, output: string, status_after: array}
+     */
+    public function runPendingMigrations(string $actorId): array
+    {
+        $before = array_column($this->migrationStatus()['pending'], 'name');
+
+        $ok = true;
+
+        try {
+            Artisan::call('migrate', ['--force' => true]);
+            $output = Artisan::output();
+        } catch (\Throwable $e) {
+            $ok = false;
+            $output = $e->getMessage();
+        }
+
+        $after = $this->migrationStatus();
+        $applied = array_values(array_diff($before, array_column($after['pending'], 'name')));
+
+        ActivityLog::create([
+            'user_id' => $actorId,
+            'action' => 'MIGRATIONS_RUN',
+            'description' => $ok
+                ? 'Applied '.count($applied).' pending migration(s)'
+                : 'Migration run FAILED after applying '.count($applied).' migration(s)',
+            'properties' => [
+                'applied' => $applied,
+                'ok' => $ok,
+                'pending_after' => $after['pending_count'],
+            ],
+        ]);
+
+        return [
+            'ok' => $ok,
+            'applied' => $applied,
+            'output' => Str::limit($output, self::MAX_OUTPUT_LENGTH),
+            'status_after' => $after,
         ];
     }
 

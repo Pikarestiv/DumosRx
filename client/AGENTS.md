@@ -3736,6 +3736,73 @@ same tab session still gets its own fresh one-time retry.
   `typescript.ignoreBuildErrors`, so `next build` type-checks too. Running
   both locally first is still the fast path; CI is the backstop.
 
+### Console noise is suppressed in CI (2026-10-07)
+
+`vitest.setup.ts` wraps `console.log`/`console.warn` to drop lines starting
+with a known app prefix (`[Logger]`, `[Sync]`, `[DB]`, `[LicenseGuard]`,
+`[API Error]`, `API request failed:`). Gated on `process.env.CI`, so a local
+run keeps the output you debug with. The predicate and the wiring both live in
+`test-support/console-noise.ts` and are pinned by
+`__tests__/console-noise-filter.test.ts`.
+
+**Why, because this is not cosmetic.** Vitest's worker forwards every console
+call to the reporter over an rpc, and the worker closes as soon as the last
+test finishes. Fire-and-forget async work — `void logCrash(...)`, a sync-engine
+catch, a DB retry — can write a line *after* that point, leaving a flush in
+flight when the rpc closes:
+
+```
+Test Files  391 passed (391)
+Tests       2461 passed (2461)
+Errors      1 error
+EnvironmentTeardownError: [vitest-worker]: Closing rpc while "onUserConsoleLog" was pending
+```
+
+Every test passes and the job still exits non-zero, which trains everyone to
+ignore a red check. The straggler caught in CI was a mock missing an export,
+making the crash path throw and log the caught error with a full stack — the
+biggest payload, so the slowest to flush.
+
+**Things that look like fixes and are not:**
+
+- **`silent` / `silent: 'passed-only'`** — reporter-side only. `sendLog()` in
+  vitest's worker calls `rpc.onUserConsoleLog()` unconditionally, so the race
+  is unchanged. (Vitest 4 already hides passing tests' logs locally, which is
+  why this output appears in CI but not on your machine.)
+- **The `onConsoleLog` config hook** — also reporter-side. Returning `false`
+  suppresses printing, not the send.
+- **`dangerouslyIgnoreUnhandledErrors`** — would hide real unhandled errors too.
+
+Only *not writing the line* works, which is what this does. `info` and `error`
+are deliberately left alone: five test files assert on them.
+
+**Do not add a prefix to the list to quieten a test you are debugging.** The
+list is for lines the app emits from async work no test awaits. A noisy test
+you own is a test to fix.
+
+### CI runs the suite once per push (2026-10-07)
+
+`checks.yml` is both a `workflow_call` target (gating `deploy-dev`,
+`deploy-client`, `deploy-backend`, `release`) and a `pull_request` workflow. A
+push to `dev` with a `dev -> main` PR open therefore triggered it **twice** —
+identical work, doubled minutes, and two independent chances for the teardown
+flake above to show a red check on a green suite (which is exactly what
+happened on PR #137).
+
+Both jobs now carry
+`if: github.event_name != 'pull_request' || github.head_ref != 'dev'`. In a
+called workflow `github.event_name` is the *caller's* event (`push`), so the
+deploy path is unaffected; only the redundant standalone copy skips, and only
+for a `dev` head. A PR from any other branch still gets it, since
+`deploy-dev.yml` never runs for those.
+
+**`main`'s branch protection requires the prefixed contexts**
+(`checks / Server — phpunit`, `checks / Client — tsc + vitest`), which only a
+*called* run produces. That is why the standalone copy is the one that gives
+way. It also means a branch that never pushes to `dev` — a hotfix opened
+straight against `main` — produces only the unprefixed contexts and cannot
+satisfy protection. Fix the protection list, not this file, if that comes up.
+
 ### Tests pin the timezone: `TZ=Africa/Lagos`, set in `vitest.config.ts`
 
 This app's date handling is deliberately **local-time**, because "local" means

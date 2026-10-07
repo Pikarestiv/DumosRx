@@ -4,9 +4,18 @@ on:
   workflow_call:
   pull_request:
 
+# A push to `dev` runs this workflow twice: once via `pull_request` (while a
+# dev -> main PR is open) and once called by `deploy-dev.yml`, which gates its
+# deploys on it. Identical work, doubled minutes, and two chances for the same
+# flake to show a red check on a green suite. The `checks / ...` contexts from
+# the called run are the ones main's branch protection requires, so the
+# standalone copy is the redundant one and skips itself for a `dev` head. A PR
+# from any other branch still gets it, since deploy-dev.yml never runs for
+# those. See client/AGENTS.md, "CI runs the suite once per push".
 jobs:
   client:
     name: Client — tsc + vitest
+    if: github.event_name != 'pull_request' || github.head_ref != 'dev'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -38,6 +47,7 @@ jobs:
 
   server:
     name: Server — phpunit
+    if: github.event_name != 'pull_request' || github.head_ref != 'dev'
     runs-on: ubuntu-latest
     permissions:
       contents: read

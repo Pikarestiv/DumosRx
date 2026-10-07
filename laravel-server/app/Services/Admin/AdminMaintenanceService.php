@@ -98,6 +98,39 @@ class AdminMaintenanceService
     }
 
     /**
+     * @return array{ok: bool, output: string}
+     */
+    public function syncRolesAndPermissions(string $actorId): array
+    {
+        $ok = true;
+
+        try {
+            Artisan::call('db:seed', [
+                '--class' => 'Database\\Seeders\\RolesAndPermissionsSeeder',
+                '--force' => true,
+            ]);
+            $output = Artisan::output();
+        } catch (\Throwable $e) {
+            $ok = false;
+            $output = $e->getMessage();
+        }
+
+        ActivityLog::create([
+            'user_id' => $actorId,
+            'action' => 'ROLES_PERMISSIONS_SYNCED',
+            'description' => $ok
+                ? 'Synced roles and permissions from the seeder'
+                : 'Roles and permissions sync FAILED',
+            'properties' => ['ok' => $ok],
+        ]);
+
+        return [
+            'ok' => $ok,
+            'output' => Str::limit($output, self::MAX_OUTPUT_LENGTH),
+        ];
+    }
+
+    /**
      * A syntactic scan of the migration's own `up()` body. It reads source
      * text, so it can flag a mention in a comment and can miss destructive
      * raw SQL — it exists to make an operator look, never to certify safety.

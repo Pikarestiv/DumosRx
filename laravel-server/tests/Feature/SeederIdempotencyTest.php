@@ -10,11 +10,13 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Production's only migration path is `GET /migrate-db` (routes/web.php),
- * which runs `migrate --seed --force` on every deploy. Seeders that write
- * unconditionally therefore revert whatever a super-admin has edited
- * through the admin panel since the last deploy — see docs/FIXED_BUGS.md
- * (A-2). Every seeder reachable from DatabaseSeeder must be
+ * Until Phase 5, production's migration path ran `migrate --seed --force`
+ * on every deploy, so a seeder that wrote unconditionally reverted whatever
+ * a super-admin had edited through the admin panel since the last deploy —
+ * see docs/FIXED_BUGS.md (A-2). Migrating no longer seeds, but this
+ * requirement stands and matters just as much: `RolesAndPermissionsSeeder`
+ * is still invoked directly by the Maintenance page's "sync roles and
+ * permissions" action. Every seeder reachable from DatabaseSeeder must be
  * idempotent-if-present: it seeds a missing row, it never overwrites an
  * existing one.
  */

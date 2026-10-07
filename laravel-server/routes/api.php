@@ -216,6 +216,10 @@ Route::prefix('v1')->group(function () {
             Route::get('/subscriptions/{bucket}', [\App\Http\Controllers\Api\Admin\AdminSubscriptionController::class, 'bucket'])->middleware('role:super_admin');
             Route::get('/sync/health', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'summary'])->middleware('role:super_admin');
             Route::get('/sync/stores/{id}', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'store'])->middleware('role:super_admin');
+
+            Route::get('/maintenance/migrations', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'migrations'])->middleware('role:super_admin');
+            Route::post('/maintenance/migrations/run', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'runMigrations'])->middleware('role:super_admin');
+            Route::post('/maintenance/roles/sync', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'syncRoles'])->middleware('role:super_admin');
             Route::get('/downloads/manifest', [AdminPlatformController::class, 'downloadsManifest'])->middleware('role:super_admin');
             Route::put('/users/{id}', [AdminUserController::class, 'updateUser'])->middleware('role:super_admin');
             Route::delete('/users/{id}', [AdminUserController::class, 'deleteUser'])->middleware('role:super_admin');

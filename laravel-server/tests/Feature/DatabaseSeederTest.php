@@ -10,7 +10,7 @@ use Tests\TestCase;
 
 /**
  * Regression coverage for the hardcoded-super-admin-password fix: this
- * seeder runs on every production `/migrate-db` hit (`migrate --seed`),
+ * seeder ran on every production `/migrate-db` hit (`migrate --seed`) until Phase 5,
  * not just first install, so a hardcoded password here was a real,
  * git-history-visible production credential — see docs/KNOWN_BUGS.md.
  */
@@ -132,7 +132,7 @@ class DatabaseSeederTest extends TestCase
         (new DatabaseSeeder())->run();
         $originalHash = User::where('email', 'admin@dumosrx.com')->value('password');
 
-        // A second run (e.g. a re-deploy hitting /migrate-db again) must
+        // A second run (e.g. an operator re-running the seeder) must
         // not touch the existing row.
         (new DatabaseSeeder())->run();
 

@@ -1839,13 +1839,41 @@ earlier version of this section wrongly stated it did not, and A-170 in
 `docs/KNOWN_BUGS.md` records what that cost), but the deploy pipeline is
 code-only **by choice**: the owner runs migrations themselves rather than
 having a merge to `main` migrate production. Don't add a deploy-time
-migrate step without asking. Today the host is
-reached through the app itself: migrations run via a protected route,
-`GET https://<production-domain>/migrate-db?key=<MIGRATE_DB_KEY>`
-(`routes/web.php`, guarded by `config('app.migrate_db_key')` /
-`MIGRATE_DB_KEY` env — 403s without the correct key). This means **new
-migrations do nothing on production until (a) this branch is deployed and
-(b) someone hits that route** — always verify pending migrations first
-with `php artisan migrate --pretend` against local, and flag to the user
-that production still needs the deploy+route step; don't assume "I wrote
-the migration" means "it's live."
+migrate step without asking.
+
+Since Phase 5 the path is the admin panel's **Maintenance** page
+(`/admin/maintenance`, super_admin only), backed by
+`POST /api/v1/admin/maintenance/migrations/run` →
+`AdminMaintenanceService::runPendingMigrations()`. It runs `migrate --force`
+and **nothing else**, returns a non-2xx on failure, and writes a
+`MIGRATIONS_RUN` activity-log entry on both success and failure.
+`GET /migrate-db?key=…` was deleted in the same change (A-174: it reseeded
+on every call, reported failures as HTTP 200, and carried its secret in a
+query string) — do not reintroduce it or a variant.
+
+- **`--seed` is deliberately not part of migrating.** The old route ran
+  `migrate --seed --force`, so `DatabaseSeeder` — which *creates a
+  super-admin account* — fired on every production migration. Migrating no
+  longer seeds. Because `RolesAndPermissionsSeeder` was the way a newly
+  declared permission actually reached production, it gets its own
+  separately-confirmed action (`POST /maintenance/roles/sync` →
+  `db:seed --class=RolesAndPermissionsSeeder --force`, audited as
+  `ROLES_PERMISSIONS_SYNCED`). **If you add a permission to that seeder, say
+  so in your handoff** — someone has to press that button for it to exist in
+  production.
+- **Still true, and still the thing that bites:** a written migration is not
+  a live one. Verify with `php artisan migrate --pretend` against local
+  first, and tell the user production needs the deploy **and** the
+  Maintenance-page run. Don't assume "I wrote the migration" means "it's
+  live" — that assumption is what A-170 cost.
+- **A timeout does not mean nothing happened.** PHP's execution limit can
+  cut the request while the migration is still applying, so the response is
+  not the source of truth; the run's reply and the page both re-read the
+  pending list afterwards. Check that, not the request outcome.
+- **MySQL DDL here is not transactional** and this host has no backup step,
+  so a migration that fails midway cannot roll back and is repaired through
+  phpMyAdmin. The runner flags pending migrations whose `up()` contains
+  `dropColumn`/`drop`/`rename`/`truncate`/`delete` so the operator sees
+  which ones alter existing data before confirming — a conservative
+  source-text scan, so treat it as "look closer", never as a safety
+  certificate.

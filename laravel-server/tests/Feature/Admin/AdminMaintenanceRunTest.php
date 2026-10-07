@@ -79,6 +79,38 @@ class AdminMaintenanceRunTest extends TestCase
         $this->assertArrayHasKey('pending_count', $result['status_after']);
     }
 
+    /**
+     * Dropping `--seed` from the migrate path would otherwise silently end
+     * the only route by which a newly declared permission reaches production,
+     * since RolesAndPermissionsSeeder ran on every old `/migrate-db` hit.
+     * It is a separate, separately-confirmed action instead — and critically
+     * it invokes that seeder alone, never DatabaseSeeder, which creates a
+     * super-admin account and must not run as a side effect of anything.
+     */
+    public function test_syncing_roles_runs_only_the_roles_seeder(): void
+    {
+        Artisan::shouldReceive('call')->once()
+            ->with('db:seed', ['--class' => 'Database\\Seeders\\RolesAndPermissionsSeeder', '--force' => true])
+            ->andReturn(0);
+        Artisan::shouldReceive('output')->andReturn('Seeded.');
+
+        $result = $this->service()->syncRolesAndPermissions($this->actor()->id);
+
+        $this->assertTrue($result['ok']);
+    }
+
+    public function test_a_failed_role_sync_is_recorded_and_reported(): void
+    {
+        Artisan::shouldReceive('call')->once()->andThrow(new \RuntimeException('seeder blew up'));
+        Artisan::shouldReceive('output')->andReturn('');
+
+        $result = $this->service()->syncRolesAndPermissions($this->actor()->id);
+
+        $this->assertFalse($result['ok']);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'ROLES_PERMISSIONS_SYNCED']);
+        $this->assertStringContainsString('FAILED', ActivityLog::latest('id')->first()->description);
+    }
+
     public function test_a_successful_run_records_the_actor_and_the_action(): void
     {
         Artisan::shouldReceive('call')->once()->andReturn(0);

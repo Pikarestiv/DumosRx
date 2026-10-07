@@ -1866,6 +1866,17 @@ query string) — do not reintroduce it or a variant.
   first, and tell the user production needs the deploy **and** the
   Maintenance-page run. Don't assume "I wrote the migration" means "it's
   live" — that assumption is what A-170 cost.
+- **Resolve the migrator by alias, never by type-hint.** `MigrationServiceProvider`
+  is deferred, so constructor-injecting `Illuminate\Database\Migrations\Migrator`
+  makes the container auto-wire it and 500 with *"Target
+  [MigrationRepositoryInterface] is not instantiable"* — **on a real HTTP request
+  only**. The whole PHPUnit suite passes either way, because the test harness
+  boots Artisan and that registers the provider. `AdminMaintenanceService` calls
+  `app('migrator')` for this reason, and
+  `AdminMaintenanceStatusTest::test_the_migrator_is_resolved_by_alias_not_constructor_injected`
+  guards it at the source level, the same workaround `PaymentProviderTimeoutTest`
+  uses for an assertion behaviour cannot make. This bug shipped green and was
+  caught only by the §9 browser smoke test.
 - **A timeout does not mean nothing happened.** PHP's execution limit can
   cut the request while the migration is still applying, so the response is
   not the source of truth; the run's reply and the page both re-read the

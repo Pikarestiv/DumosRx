@@ -42,6 +42,34 @@ class AdminMaintenanceStatusTest extends TestCase
         $this->assertNotNull($status['error']);
     }
 
+    /**
+     * Found by a browser smoke test, not by this suite: constructor-injecting
+     * `Migrator` 500s on a real HTTP request, because MigrationServiceProvider
+     * is deferred and auto-wiring the concrete class fails on the unbound
+     * MigrationRepositoryInterface. Every test here passed anyway — PHPUnit
+     * boots Artisan, which registers that provider, so the behaviour under
+     * test is not the behaviour in production.
+     *
+     * Asserted at the source level for the same reason
+     * PaymentProviderTimeoutTest is: the passing case is indistinguishable
+     * from the broken one inside this harness.
+     */
+    public function test_the_migrator_is_resolved_by_alias_not_constructor_injected(): void
+    {
+        $constructor = (new \ReflectionClass(AdminMaintenanceService::class))->getConstructor();
+
+        $this->assertNull(
+            $constructor,
+            'AdminMaintenanceService must not constructor-inject Migrator: it is unresolvable in an HTTP request'
+        );
+
+        $this->assertStringContainsString(
+            "app('migrator')",
+            file_get_contents(app_path('Services/Admin/AdminMaintenanceService.php')),
+            'the migrator must be resolved through its deferred-provider alias'
+        );
+    }
+
     public function test_it_flags_a_pending_migration_that_removes_a_column(): void
     {
         $this->assertTrue($this->service()->fileAltersExistingData(

@@ -22,7 +22,16 @@ class AdminMaintenanceService
         'delete(',
     ];
 
-    public function __construct(private Migrator $migrator) {}
+    /**
+     * Resolved through the `migrator` alias, never constructor-injected:
+     * MigrationServiceProvider is deferred, so type-hinting the concrete
+     * Migrator makes the container auto-wire it and fail on the unbound
+     * MigrationRepositoryInterface. See laravel-server/AGENTS.md.
+     */
+    private function migrator(): Migrator
+    {
+        return app('migrator');
+    }
 
     /**
      * @return array{status: string, pending: array<int, array{name: string, alters_existing_data: bool}>, pending_count: int|null, last_batch: int|null, error: string|null}
@@ -30,15 +39,15 @@ class AdminMaintenanceService
     public function migrationStatus(): array
     {
         try {
-            $ran = $this->migrator->getRepository()->getRan();
-            $batches = $this->migrator->getRepository()->getMigrationBatches();
+            $ran = $this->migrator()->getRepository()->getRan();
+            $batches = $this->migrator()->getRepository()->getMigrationBatches();
         } catch (\Throwable $e) {
             return $this->unknownStatus($e->getMessage());
         }
 
         $pending = [];
 
-        foreach ($this->migrator->getMigrationFiles([database_path('migrations')]) as $name => $path) {
+        foreach ($this->migrator()->getMigrationFiles([database_path('migrations')]) as $name => $path) {
             if (! in_array($name, $ran, true)) {
                 $pending[] = [
                     'name' => $name,

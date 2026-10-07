@@ -363,6 +363,39 @@ Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-3-subscription-lifecy
   `useResettingPage(days)` (in `hooks/`) is the seam; reach for it in any panel
   that pairs a page cursor with a filter control.
 
+### Maintenance (Phase 5, 2026-10-07)
+
+Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-5-maintenance-design.md`.
+
+- **The runner lives on its own page, not as an action on Operations.** Applying
+  schema changes to production should not be one mis-click away from a dashboard
+  somebody opened to read a sync graph. `/admin/operations` carries an
+  informational card only; `/admin/maintenance` carries the actions.
+- **Gated at four layers**, same shape as Subscriptions: `role:super_admin` route
+  middleware (the control), a nav item defaulting to super_admin-only, a page
+  guard that runs before anything fetches, and server-side permission checks on
+  the actions themselves.
+- **An unknown migration status renders "unavailable", never "0 pending".** The
+  API returns `pending_count: null` when it cannot read the migrator, precisely
+  so the UI cannot render the one sentence that is indistinguishable from "all
+  good" — that false statement is what A-170 consisted of.
+- **Two separate actions, two separate confirmations.** Running migrations no
+  longer seeds (A-174), so "sync roles and permissions" is its own button;
+  a permission added to `RolesAndPermissionsSeeder` does not exist in production
+  until someone presses it.
+- **The confirmation states the specific risk, not "are you sure".** It names the
+  count, names how many pending migrations alter existing data, says this host
+  cannot roll back a half-failed migration, and warns that a timeout does not
+  mean the migration did not apply. A dialog that always shows the worst case
+  trains people to click through it, so the destructive warning appears only
+  when the scan actually flagged something.
+- **Dialogs are built on `components/ui/dialog` with `role="alertdialog"`**, not
+  Radix AlertDialog — `web/` has no `@radix-ui/react-alert-dialog` dependency and
+  its house primitive is `components/ui/confirm-dialog.tsx`. §9 requires a custom
+  modal, not a specific library.
+- **After a run, re-read rather than trust the response.** The run mutation
+  invalidates the status query `onSettled`, not `onSuccess`.
+
 ### Sync health (Phase 2, 2026-10-06)
 
 Spec: `docs/superpowers/specs/2026-10-06-admin-panel-phase-2-sync-health-design.md`.

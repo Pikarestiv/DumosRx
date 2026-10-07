@@ -47,7 +47,7 @@ function ActivityTabs() {
         </TabsList>
 
         <TabsContent value="feed" className="focus-visible:outline-none">
-          <Card className="bg-card border-border shadow-sm">
+          <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
             <CardContent className="p-0">
               <ActivityFeedPanel />
             </CardContent>

@@ -16,7 +16,7 @@ export function MigrationStatusCardView({ data }: { data?: AdminMigrationStatus 
   const destructive = (data?.pending ?? []).filter((m) => m.alters_existing_data).length;
 
   return (
-    <Card className="bg-card border-border shadow-sm">
+    <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Database className="h-4 w-4 text-muted-foreground" />

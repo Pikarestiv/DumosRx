@@ -15,7 +15,7 @@ function Figure({
   hint?: string;
 }) {
   return (
-    <Card className="bg-card border-border shadow-sm">
+    <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
       <CardContent className="p-6">
         <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
         {unavailable ? (

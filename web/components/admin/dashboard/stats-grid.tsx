@@ -35,7 +35,7 @@ export function StatsGrid({ globalStats }: { globalStats: AdminStat[] }) {
       {globalStats.map((stat, i: number) => {
         const Icon = ICON_MAP[stat.icon] || Activity;
         return (
-          <div key={i} className="bg-card rounded-3xl p-6 shadow-sm border border-border group hover:border-indigo-500/50 transition-all duration-300">
+          <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 group hover:border-indigo-500/50 transition-all duration-300">
             <div className="flex items-center justify-between mb-4">
               <div className={`p-3 rounded-2xl transition-all duration-300 ${COLOR_CLASSES[stat.color] || FALLBACK_COLOR}`}>
                 <Icon className="h-6 w-6" />

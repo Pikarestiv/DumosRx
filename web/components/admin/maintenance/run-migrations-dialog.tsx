@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useApiEnvironmentName } from "@/hooks/use-api-environment";
 import type { PendingMigration } from "@/lib/types/admin";
 
 interface RunMigrationsDialogProps {
@@ -27,6 +28,8 @@ export function RunMigrationsDialog({
   onConfirm,
 }: RunMigrationsDialogProps) {
   const destructive = pending.filter((migration) => migration.alters_existing_data);
+  const { environmentName, isProduction } = useApiEnvironmentName();
+  const target = isProduction ? "production" : environmentName;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -38,15 +41,14 @@ export function RunMigrationsDialog({
           <DialogDescription asChild>
             <div className="space-y-3">
               <p>
-                This applies every pending migration to the production database, in order. It does
-                not seed, and it cannot be undone from here.
+                {`This applies every pending migration to the ${target} database, in order. It does not seed, and it cannot be undone from here.`}
               </p>
 
               {destructive.length > 0 && (
                 <p className="font-bold text-destructive">
-                  {destructive.length} of these {pending.length} alter or remove existing data. This
-                  host has no backup step, and a migration that fails midway cannot be rolled back —
-                  take a database backup first.
+                  {`${destructive.length} of these ${pending.length} alter or remove existing data, and a migration that fails midway cannot be rolled back on this host.${
+                    isProduction ? " There is no backup step — take a database backup first." : ""
+                  }`}
                 </p>
               )}
 

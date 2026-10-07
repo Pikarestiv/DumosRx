@@ -363,6 +363,35 @@ Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-3-subscription-lifecy
   `useResettingPage(days)` (in `hooks/`) is the seam; reach for it in any panel
   that pairs a page cursor with a filter control.
 
+### Activity (Phase 6, 2026-10-07)
+
+Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-6-activity-feed-design.md`.
+
+- **`/admin/activity` is two tabs now.** **Feed** (default) is the merged
+  stream; **Admin actions** is the original `activity_logs` table with its
+  richer search/action/store/user/date/role filters, extracted unchanged into
+  `components/admin/activity/admin-actions-view.tsx`. The feed does not replace
+  it — that view is more capable for its one source.
+- **Quick filters come from the server.** The response carries
+  `available_types` for the caller and only those render. A filter a caller
+  cannot use is **absent**, never a button that returns a refusal.
+- **Payments are super_admin-only, enforced server-side.** Phases 3 and 4 both
+  restrict revenue, and the feed must not be the hole in that. A
+  `platform_admin` requesting `type=payment` gets **422**, not an empty list —
+  an empty list would assert "no payments happened", which is a different and
+  false claim.
+- **Subscription events are derived and say so.** There is no subscription
+  event table; a row yields *started* from `start_date` and *ended* from
+  `end_date` once that date has passed. Every such row carries a **Derived**
+  badge. A future `end_date` is not an event.
+- **Cursor pagination, not page numbers.** "Skip 20" means something different
+  in each source, so the feed advances by timestamp and renders "Load more".
+  Don't add a page-number control; it cannot be made correct here.
+- **Type labels and icons use a `Map`/`switch`, never `obj[key]`** — the key
+  comes from the API response, and §8 forbids bracket lookup on input-derived
+  values. The icon is a `switch` returning JSX rather than a looked-up
+  component reference, which would reset its state on every render.
+
 ### Trends (Phase 4, 2026-10-07)
 
 Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-4-trends-design.md`.

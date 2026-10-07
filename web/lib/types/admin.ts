@@ -539,3 +539,21 @@ export interface AdminTrends {
   store_signups: TrendSeries;
   churn: TrendSeries;
 }
+
+export type ActivityFeedType = "admin_action" | "sync_failure" | "subscription" | "payment";
+
+export interface ActivityFeedEvent {
+  id: string;
+  type: ActivityFeedType;
+  at: string;
+  title: string;
+  detail: string | null;
+  store_id: string | null;
+  derived: boolean;
+}
+
+export interface AdminActivityFeed {
+  events: ActivityFeedEvent[];
+  available_types: ActivityFeedType[];
+  next_cursor: string | null;
+}

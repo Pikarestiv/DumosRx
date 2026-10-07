@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import ActivityPage from "@/app/admin/activity/page";
+// The actor-role filter moved into AdminActionsView when /admin/activity
+// gained its Feed tab (Phase 6); this renders the component that owns it.
+import { AdminActionsView as ActivityPage } from "@/components/admin/activity/admin-actions-view";
 
 beforeAll(() => {
   Element.prototype.hasPointerCapture = Element.prototype.hasPointerCapture || (() => false);

@@ -11,6 +11,7 @@ import {
   Download,
   ScrollText,
   Link2,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 
@@ -48,6 +49,12 @@ export const sidebarItems: AdminSidebarItem[] = [
     name: "Operations",
     icon: Activity,
     href: "/admin/operations",
+  },
+  {
+    id: "maintenance",
+    name: "Maintenance",
+    icon: Wrench,
+    href: "/admin/maintenance",
   },
   {
     id: "register-store",

@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\Schema;
  * came to 1004 bytes under utf8mb4 at 191 and the production server refused
  * it four bytes over its 1000-byte limit. A device id is a short machine
  * identifier, so 64 is ample and leaves real margin. SchemaIndexKeyLengthTest
- * pins the budget; docs/KNOWN_BUGS.md A-179 has the engine question behind it.
+ * pins the budget; docs/FIXED_BUGS.md A-179 has the engine finding the
+ * failure led to.
  */
 return new class extends Migration
 {

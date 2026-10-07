@@ -1957,8 +1957,9 @@ not transactional, so a mid-migration failure leaves a half-built schema and
 an unrecorded `migrations` row, which blocks every later migration until
 someone cleans it up by hand.
 
-**Budget every index at 1000 bytes under utf8mb4**, i.e. four bytes per
-character:
+**Budget every index at 3072 bytes under utf8mb4**, i.e. four bytes per
+character — InnoDB's limit in DYNAMIC row format, which is what both
+databases now use:
 
 | declaration | indexed bytes |
 |---|---|
@@ -1968,22 +1969,32 @@ character:
 | `string('x')` (default is 191, set in `AppServiceProvider`) | 764 |
 | anything non-character | small, treat as 8 |
 
-So `['store_id', 'device_id', 'status']` with `device_id` at 191 is
-144 + 764 + 96 = **1004** — over. Two uuid-ish columns plus a short status is
-comfortable; two 191s plus anything is not. `tests/Feature/SchemaIndexKeyLengthTest.php`
-enforces this by parsing the migration source, and names the limitations of
-that approach in its own docblock. **Do not relax its budget to make a new
-index fit** — shorten the column, which is almost always the right-sized
-change anyway.
+`tests/Feature/SchemaIndexKeyLengthTest.php` enforces this by parsing the
+migration source, and names the limits of that approach in its own docblock.
+3072 bytes is 768 characters across one index, so in practice anything close
+to it is worth questioning on design grounds long before the server's
+opinion matters. **Do not relax the budget to make an index fit** — shorten
+the column, which is almost always the right-sized change anyway.
 
-**Why 1000 and not 3072:** 1000 is MyISAM/Aria's limit and what the
-production host actually reported. InnoDB allows 767 (COMPACT) or 3072
-(DYNAMIC), and `config/database.php` sets `'engine' => null`, so a new table
-inherits the server's default engine rather than a known one. Budgeting for
-the smaller number is what makes a migration portable across both. The
-engine question that this exposed — and why it matters much more than the
-index did, since MyISAM makes transactions and row locks **silent** no-ops —
-is A-179 in `docs/KNOWN_BUGS.md`.
+**The budget was 1000 until 2026-10-07, and the history matters.** 1000 is
+MyISAM/Aria's limit, and it is the number production reported when
+`['store_id', 'device_id', 'status']` with `device_id` at 191 came to
+144 + 764 + 96 = **1004** and the migration died four bytes over. Chasing
+that limit is what uncovered the real problem: `config/database.php` had
+`'engine' => null`, the host's `default_storage_engine` is MyISAM, and so
+**all 63 production tables were MyISAM** — meaning every transaction,
+savepoint and row lock in this codebase was a silent no-op in production
+while every SQLite-backed test passed. Both databases are now InnoDB and
+`'engine' => 'InnoDB'` is pinned (and guarded by
+`tests/Feature/DatabaseEngineIsPinnedTest.php`, since a null engine fails
+invisibly). Full account: `docs/FIXED_BUGS.md` A-179 and A-178b.
+
+**Two engine rules that follow from it.** Never leave `'engine'` unset — a
+new table silently inherits whatever the host prefers. And if you ever
+convert a table, pass `ROW_FORMAT=DYNAMIC` explicitly rather than trusting
+`innodb_default_row_format`: InnoDB's COMPACT format caps an index at 767
+bytes, and `device_stock_reports`/`device_queue_reports` carry a 908-byte
+unique key that would have failed.
 
 **Before shipping a migration**, read it back against the table above. A
 migration is the one change in this repo that the test suite cannot verify
@@ -1992,7 +2003,7 @@ for you.
 ## Testing
 
 ```
-php artisan test                            # 752 passing + 1 skipped as of 2026-10-01 (multi-store owner sync scope, A-127/A-128) — treat any drop as a regression
+php artisan test                            # 1167 passing as of 2026-10-07 — treat any drop as a regression
 php -l path/to/File.php                     # quick syntax check for a single file
 ```
 

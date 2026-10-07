@@ -51,8 +51,9 @@ together). The current design:
   *only* in the `drx_admin_session` cookie (`HttpOnly`, `SameSite=Strict`,
   never appears in any JSON response). Because the access token doesn't
   survive a page reload, `useAdminAuthStore.getState().initSession()` calls
-  `POST /admin/session/refresh` on mount (`admin/layout.tsx`,
-  `admin/login/page.tsx`) to silently re-establish a session from that
+  `POST /admin/session/refresh` on mount
+  (`components/admin/admin-layout-client.tsx`, `admin/login/page.tsx`) to
+  silently re-establish a session from that
   cookie — this replaced the old pattern of checking `localStorage` then
   calling `/user` (which cascaded into a doomed `/refresh` 401 on every
   cold, logged-out visit).
@@ -84,6 +85,27 @@ together). The current design:
   `/admin/*` route group server-side (`laravel-server/AGENTS.md`'s
   delegation section). Never go back to a role-slug allow-list here: a new
   custom role must never need a frontend code change to sign in.
+
+- **The `/admin` layout is split in two, and the split is load-bearing.**
+  `app/admin/layout.tsx` is a server component holding only `metadata` (see
+  the Admin PWA section for why that must stay server-side);
+  `components/admin/admin-layout-client.tsx` holds the whole session guard.
+  Three details of that guard that are not obvious from reading it:
+  - **`/admin/login` and `/admin/handoff` bypass the guard** (`bypassGuard`).
+    `/admin/handoff` restores a `super_admin` session from a handoff code
+    when returning from store impersonation, so it holds no token when it
+    loads — inside the guard, the auth check redirects it to `/admin/login`
+    before its own effect can consume the code and establish the session.
+  - **`verifyingRef` and `checking` are both needed, and are not redundant.**
+    `checking` is state, so the redirect effect — which React runs in the
+    same commit, right after the auth effect — would still read the previous
+    render's value and treat "not verified yet" as "logged out". The ref is
+    written synchronously so both effects agree within one commit; the state
+    drives the spinner and the re-render once the check settles.
+  - **The auth effect keys on `sessionVerified`, not `user`.** `user` is
+    persisted to localStorage and is therefore client-editable; gating on it
+    alone would let a forged entry paint the whole admin shell before the
+    first 401 cascade resolved.
 
 **Known adjacent surface that intentionally was *not* touched:**
 - `app/admin/stores/page.tsx` (impersonation) and
@@ -406,11 +428,48 @@ must leave the buttons alone.
 ### Admin PWA and the production server switcher (2026-10-07)
 
 - **Scoped to `/admin/`, deliberately.** `public/admin-manifest.webmanifest`
-  sets `start_url` and `scope` to `/admin/`, and the manifest `<link>` is
-  injected by `AdminPwaRegistrar` while an admin page is mounted — **not** in
-  the root layout's metadata. A site-wide manifest would offer to install the
-  *admin app* from the marketing site and from a store owner's dashboard.
-  The registrar removes the link on unmount for the same reason.
+  sets `start_url` and `scope` to `/admin/`. A site-wide manifest would offer
+  to install the *admin app* from the marketing site and from a store owner's
+  dashboard.
+- **The manifest `<link>` is declared at build time, in
+  `app/admin/layout.tsx`'s `metadata` — never injected from an effect.**
+  Next merges metadata per segment, so the deepest `manifest` wins: every
+  exported `/admin/**/index.html` ships
+  `<link rel="manifest" href="/admin-manifest.webmanifest">` and no other
+  route does. Verified against a real `next build` export, not assumed.
+  This is why `app/admin/layout.tsx` is a **server** component that renders
+  `components/admin/admin-layout-client.tsx` — a `"use client"` layout cannot
+  export `metadata`, and Next ignores the export silently if one does, with
+  no error anywhere. `__tests__/admin-layout-manifest.test.ts` asserts both
+  the metadata and the absence of `"use client"` for that reason.
+  **Do not go back to injecting it from `AdminPwaRegistrar`** (fixed
+  2026-10-07, A-181). The registrar swapped the root layout's link `href` in
+  a `useEffect`, i.e. after hydration. iOS Safari's "Add to Home Screen"
+  reads the manifest attached at load, so it installed `site.webmanifest`
+  instead — `start_url: /dashboard`, which client-side bounces to
+  `getAppURL()`. The reported symptom was "I installed dumosrx.com/dashboard
+  and it opens app.dumosrx.com". Two further holes in that approach: the
+  layout rendered no registrar at all during the session check or for an
+  unauthorized user, so a cold `/admin/` load had no admin manifest in the
+  DOM even after hydration; and the registrar restored the site manifest on
+  unmount, so the link's value depended on render state. Build-time metadata
+  has none of these windows.
+- **iOS needs the legacy capability meta explicitly.** The layout's
+  `metadata.other` sets `apple-mobile-web-app-capable: yes`, because Next
+  renders `appleWebApp: { capable: true }` as `mobile-web-app-capable` — the
+  modern name, which Apple does not read. iOS 16.4+ takes standalone from
+  the manifest's `display`; older iOS takes it from that meta tag only.
+  `appleWebApp.title` is what labels the home-screen icon "DumosRx Admin".
+- **`AdminPwaRegistrar` is mounted once, from the server layout, so it is
+  unconditional.** It no longer sits inside the guard's render branches,
+  where it was absent during the session check and for an unauthorized user.
+  Registering `admin-sw.js` for a visitor who cannot sign in is harmless (it
+  caches nothing), and it keeps the panel installable from `/admin/login` —
+  which already rendered it, and is where an operator actually installs it.
+- **Why `AdminPwaRegistrar` scopes the worker to `/admin/`:** so installing
+  the panel never takes over the marketing site or a store owner's dashboard.
+  That is the whole of what the component does now; it holds no manifest
+  logic.
 - **The service worker caches nothing at all.** `public/admin-sw.js` is
   network-only for every request; its `fetch` handler is empty and its
   `activate` handler deletes any `dumosrx-admin-*` cache an earlier version
@@ -1035,9 +1094,9 @@ Backend verification for anything touching `laravel-server/`:
 ```
 cd ../laravel-server && ./vendor/bin/phpunit --testsuite=Feature
 ```
-(**539 tests passing as of 2026-09-29's admin owner-vs-staff split** — treat any
-drop from that as a regression; it was 447 at the 2026-09-26 Paystack
-subaccount plan. The "89 tests" this line used to quote was
+(**1162 Feature tests passing as of 2026-10-07's InnoDB conversion** — treat any
+drop from that as a regression; it was 539 at the 2026-09-29 admin
+owner-vs-staff split and 447 at the 2026-09-26 Paystack subaccount plan. The "89 tests" this line used to quote was
 the count at the 2026-08-26 auth redesign and had been stale for a month; 399
 was the count after that day's earlier storefront remediation, before the
 subaccount work.)

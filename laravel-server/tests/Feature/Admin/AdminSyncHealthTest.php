@@ -162,15 +162,45 @@ class AdminSyncHealthTest extends TestCase
         $this->assertSame(1, $response->json('daily.0.refused'));
     }
 
-    public function test_the_endpoints_are_refused_to_a_non_super_admin(): void
+    /**
+     * The gate is `permission:view_platform_health`, not a role check. Since
+     * 2026-10-07 both partner roles hold it by default — sync health is
+     * operational, and it is what tells an installer why a store they set up
+     * is not working. So the refusal case has to be a caller that genuinely
+     * lacks the permission, not merely one that is not a super admin.
+     */
+    public function test_the_endpoints_follow_the_view_platform_health_permission(): void
     {
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
 
-        $this->actingAs($this->makeAdmin('platform_admin'))
+        foreach (['super_admin', 'platform_admin', 'agent'] as $role) {
+            $this->actingAs($this->makeAdmin($role))
+                ->getJson('/api/v1/admin/sync/health')
+                ->assertOk();
+        }
+
+        $role = app(\App\Services\Admin\AdminRoleService::class)->createRole(
+            'Onboarding Clerk '.uniqid(),
+            ['view_platform_data'],
+            $this->makeAdmin('super_admin')->id
+        );
+        $slug = is_array($role) ? ($role['slug'] ?? '') : $role->slug;
+
+        // Without this the 403 below could be the admin group gate rather
+        // than the permission actually under test.
+        $this->assertContains(
+            'manage_platform',
+            \App\Models\Role::where('slug', $slug)->firstOrFail()->permissions->pluck('slug')->all(),
+            'the gate under test is only exercised if the caller clears the admin group gate first'
+        );
+
+        $clerk = $this->makeAdmin($slug);
+
+        $this->actingAs($clerk)
             ->getJson('/api/v1/admin/sync/health')
             ->assertStatus(403);
 
-        $this->actingAs($this->makeAdmin('platform_admin'))
+        $this->actingAs($clerk)
             ->getJson("/api/v1/admin/sync/stores/{$this->store->id}")
             ->assertStatus(403);
     }

@@ -37,17 +37,22 @@ class AdminTrendsEndpointGateTest extends TestCase
         ]);
     }
 
-    public function test_only_super_admin_may_read_trends(): void
+    /**
+     * The gate is `permission:view_platform_revenue`. A Platform Admin is a
+     * partner and holds it by default since 2026-10-07; an Agent is a
+     * recruited installer and does not.
+     */
+    public function test_trends_follows_the_view_platform_revenue_permission(): void
     {
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
 
-        $this->actingAs($this->makeAdmin('super_admin'))
-            ->getJson('/api/v1/admin/trends')->assertOk();
-
-        foreach (['platform_admin', 'agent'] as $role) {
+        foreach (['super_admin', 'platform_admin'] as $role) {
             $this->actingAs($this->makeAdmin($role))
-                ->getJson('/api/v1/admin/trends')->assertStatus(403);
+                ->getJson('/api/v1/admin/trends')->assertOk();
         }
+
+        $this->actingAs($this->makeAdmin('agent'))
+            ->getJson('/api/v1/admin/trends')->assertStatus(403);
     }
 
     /** The A-141 shape, with the group gate proven cleared first. */

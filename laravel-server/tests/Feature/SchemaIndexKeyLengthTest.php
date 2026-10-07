@@ -21,15 +21,22 @@ use Tests\TestCase;
  * cannot answer this question at all. An earlier version of this test did
  * that and passed vacuously against the very migration that was broken.
  *
- * The budget is 1000 bytes — MyISAM/Aria's limit, and what the production
- * host actually reported. InnoDB in DYNAMIC row format allows 3072, but
- * `config/database.php` leaves `'engine' => null`, so a new table takes the
- * server's default engine. Budgeting for the smaller limit is what makes a
- * migration portable across both. See docs/KNOWN_BUGS.md A-179.
+ * **The budget is 3072 bytes**, InnoDB's limit in DYNAMIC row format, which
+ * is what both databases now use: `config/database.php` pins
+ * `'engine' => 'InnoDB'` and every table was converted with
+ * `ROW_FORMAT=DYNAMIC` (see docs/FIXED_BUGS.md A-179).
+ *
+ * It was 1000 while this project ran on MyISAM, whose limit that is — and
+ * that is the number the failure above reported. Raising it to the real
+ * current limit is deliberate: a guard that cites a limit the server does
+ * not have would eventually reject a legitimate index, and then someone
+ * deletes the guard. In practice 3072 is 768 characters across one index, so
+ * anything approaching it is worth questioning on design grounds before the
+ * server's opinion matters at all.
  */
 class SchemaIndexKeyLengthTest extends TestCase
 {
-    private const MAX_KEY_BYTES = 1000;
+    private const MAX_KEY_BYTES = 3072;
 
     /** utf8mb4 worst case: every character can take four bytes. */
     private const BYTES_PER_CHAR = 4;

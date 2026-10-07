@@ -30,7 +30,10 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'strict' => true,
-            'engine' => null,
+            // Never null: the host's default_storage_engine is MyISAM, which
+            // ignores transactions silently rather than rejecting them.
+            // docs/KNOWN_BUGS.md A-179.
+            'engine' => 'InnoDB',
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 \PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
                 // The host's MySQL is configured with time_zone=SYSTEM, which reports

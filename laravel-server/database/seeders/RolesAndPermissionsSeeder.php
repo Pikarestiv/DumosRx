@@ -69,19 +69,27 @@ class RolesAndPermissionsSeeder extends Seeder
             // Can register accounts and grant trials, but, unlike super_admin,
             // can't suspend/deactivate other platform accounts (AdminController
             // keeps those endpoints hasRole('super_admin') only).
+            // Every read-only platform surface is a default here, not something
+            // to grant by hand: restricting what a partner can DO matters,
+            // restricting what they can SEE mostly makes them unable to help.
+            // Anything that can hand out a permission is still absent.
             'platform_admin' => [
                 'name' => 'Platform Admin',
                 'description' => 'Platform partner/co-founder: manages accounts and trials, not platform administration itself',
-                'permissions' => ['manage_platform', 'create_accounts', 'grant_trials', 'view_platform_data', 'send_notifications', 'reset_user_passwords', 'manage_account_status', 'impersonate_store']
+                'permissions' => ['manage_platform', 'create_accounts', 'grant_trials', 'view_platform_data', 'view_platform_health', 'view_platform_revenue', 'view_subscriptions', 'send_notifications', 'reset_user_passwords', 'manage_account_status', 'impersonate_store']
             ],
             // Platform-level (no store of their own): field agents recruited to
             // onboard new pharmacies. Narrower than platform_admin: can create
             // accounts (and has their own referral link for self-serve signups)
             // but can't grant trials or manage other accounts.
+            // Gets sync health - it is what tells an installer why a store they
+            // set up is not working - but not platform revenue or the
+            // subscription worklists, which carry money data for every store
+            // on the platform rather than their own.
             'agent' => [
                 'name' => 'Agent',
                 'description' => 'Recruited installer/onboarding agent: registers new stores and tracks their own referrals',
-                'permissions' => ['manage_platform', 'create_accounts', 'view_platform_data', 'send_notifications']
+                'permissions' => ['manage_platform', 'create_accounts', 'view_platform_data', 'view_platform_health', 'send_notifications']
             ],
             'admin' => [
                 'name' => 'Store Admin',

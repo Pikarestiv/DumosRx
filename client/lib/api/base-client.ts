@@ -52,6 +52,35 @@ export class BaseApiClient {
     clearToken();
   }
 
+  /**
+   * A-171: a 2xx carrying HTML (a shared-host error page, a maintenance
+   * interstitial) made `.json()` throw a bare SyntaxError that named nothing
+   * — 260 fatal reports with no stacktrace and no call site. The body is read
+   * as text first so the failure can identify the endpoint, the status and
+   * what actually came back.
+   */
+  private async parseJsonResponse<T>(response: Response, url: string): Promise<T> {
+    try {
+      return (await response.json()) as T;
+    } catch {
+      // Only on failure: the happy path must keep its single .json() call, so
+      // nothing here changes how a valid response is read.
+      const contentType = response.headers?.get?.("content-type") ?? "unknown";
+      let snippet = "";
+
+      try {
+        const body = await response.clone?.()?.text?.();
+        snippet = body ? `: ${body.slice(0, 120).replace(/\s+/g, " ").trim()}` : "";
+      } catch {
+        snippet = "";
+      }
+
+      throw new Error(
+        `Expected JSON from ${url} but got a non-JSON ${response.status} response (content-type: ${contentType})${snippet}`,
+      );
+    }
+  }
+
   protected async request<T>(
     endpoint: string,
     options: RequestInit = {},
@@ -242,7 +271,7 @@ export class BaseApiClient {
         throw apiError;
       }
 
-      const responseData = await response.json();
+      const responseData = await this.parseJsonResponse<T>(response, url);
 
       // Log Success Response
       addLogToBuffer({

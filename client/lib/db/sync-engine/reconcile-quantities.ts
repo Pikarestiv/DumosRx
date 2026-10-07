@@ -87,6 +87,21 @@ export async function reconcileStockQuantities(
     throw new Error(message);
   }
 
+  // A forced sync does not settle a deferred delta whose batch never
+  // arrived, so the sync can succeed while this device's quantities are
+  // knowingly incomplete. Asserting them as authoritative would overwrite the
+  // server's correct, movement-derived value. See client/AGENTS.md, A-173.
+  const pendingDeltas = await query<{ pending: number }>(
+    "SELECT COUNT(*) AS pending FROM _pending_stock_deltas",
+  );
+  const pending = Number(pendingDeltas[0]?.pending ?? 0);
+
+  if (pending > 0) {
+    throw new Error(
+      `This device has ${pending} unapplied stock ${pending === 1 ? "movement" : "movements"} whose batch has not arrived yet, so its quantities are incomplete. Reconciling now would overwrite correct cloud data with these numbers. Sync again later, and contact support if this persists.`,
+    );
+  }
+
   const storeId = getActiveStoreId();
   const rows = await query<{ id: string; quantity: number | null }>(
     `SELECT id, quantity FROM stock_batches

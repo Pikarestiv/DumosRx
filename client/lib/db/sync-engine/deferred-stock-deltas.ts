@@ -8,6 +8,22 @@ import { query, execute } from "../core";
 
 const REPORT_AFTER_ATTEMPTS = 10;
 
+/**
+ * A delta whose batch never arrives never resolves, so reporting it once and
+ * falling silent reads as "it fixed itself". It is re-reported on this
+ * interval afterwards: often enough that a chronic divergence stays visible,
+ * rarely enough that it doesn't drown the issue it belongs to.
+ */
+const REREPORT_EVERY_ATTEMPTS = 25;
+
+function shouldReport(attempts: number): boolean {
+  return (
+    attempts === REPORT_AFTER_ATTEMPTS ||
+    (attempts > REPORT_AFTER_ATTEMPTS &&
+      (attempts - REPORT_AFTER_ATTEMPTS) % REREPORT_EVERY_ATTEMPTS === 0)
+  );
+}
+
 export interface DeferredStockDelta {
   movement_id: string;
   stock_batch_id: string;
@@ -73,7 +89,7 @@ export async function applyDeferredStockDeltas(): Promise<DeferredStockDelta[]> 
         "UPDATE _pending_stock_deltas SET attempts = ? WHERE movement_id = ?",
         [attempts, delta.movement_id],
       );
-      if (attempts === REPORT_AFTER_ATTEMPTS) {
+      if (shouldReport(attempts)) {
         unresolved.push({ ...delta, attempts });
       }
       continue;

@@ -23,7 +23,12 @@ import {
   requestWriterTakeover,
   stealWriterLock,
 } from "./tab-lock";
-import { clearLastSyncTime, clearRecentUsers } from "@/lib/storage-keys";
+import {
+  clearLastSyncTime,
+  clearRecentUsers,
+  STORAGE_KEYS,
+  type StorageKey,
+} from "@/lib/storage-keys";
 
 export { isWriterTab, onWriterTabChange, onPromotionFailed };
 
@@ -1167,6 +1172,33 @@ export async function clearDatabaseForNewStore(): Promise<void> {
     clearLastSyncTime();
     // The login picker reads this cache, not `users` - see client/AGENTS.md.
     clearRecentUsers();
+    clearAccountScopedCaches();
+  }
+}
+
+/**
+ * Caches describing this device's relationship with the account/store being
+ * replaced, as opposed to the device itself. Device-level keys (deviceId,
+ * apiUrl, UI preferences, and especially loginLockout, which is a
+ * brute-force control) are deliberately absent — see client/AGENTS.md, A-153.
+ */
+function clearAccountScopedCaches(): void {
+  const accountScoped: StorageKey[] = [
+    STORAGE_KEYS.suggestions,
+    STORAGE_KEYS.syncUniqueSkipCounts,
+    STORAGE_KEYS.syncHealthDeficitState,
+    STORAGE_KEYS.lastSyncHealthCheck,
+    STORAGE_KEYS.orphanRequeueMarker,
+    STORAGE_KEYS.lastAuditLogPrune,
+    STORAGE_KEYS.posCart,
+  ];
+
+  for (const key of accountScoped) {
+    try {
+      localStorage.removeItem(key);
+    } catch (_e) {
+      console.warn(`Failed to clear ${key} during store transition`, _e);
+    }
   }
 }
 

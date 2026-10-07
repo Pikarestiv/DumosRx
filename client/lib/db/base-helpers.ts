@@ -592,7 +592,17 @@ export async function recordSyncFailure(
         await reportStuckCrashLog(queueId, item.record_id, summary, shouldReport);
         return;
       }
-      const { logCrash } = await import("../utils/error-logger");
+      const { logCrash, isExpectedSyncRestriction } = await import("../utils/error-logger");
+
+      // A-172: a push refused because the plan disables or throttles sync is
+      // an intended outcome, not a bug. It retries to the ceiling like any
+      // other failure, so without this the direct path's filter is bypassed
+      // and the user-facing upgrade copy is reported as a crash, forever, on
+      // every free-plan device.
+      if (isExpectedSyncRestriction(errorMessage)) {
+        return;
+      }
+
       await logCrash(new Error(summary), false, {
         area: "sync",
         table: item.table_name,

@@ -30,6 +30,7 @@ describe("BaseApiClient 401 handling", () => {
         ok: false,
         status: 401,
         json: async () => ({ message: "Unauthenticated" }),
+        text: async () => JSON.stringify({ message: "Unauthenticated" }),
       })
       .mockRejectedValueOnce(new Error("network error"));
 
@@ -45,11 +46,13 @@ describe("BaseApiClient 401 handling", () => {
         ok: false,
         status: 401,
         json: async () => ({ message: "Unauthenticated" }),
+        text: async () => JSON.stringify({ message: "Unauthenticated" }),
       })
       .mockResolvedValueOnce({
         ok: false,
         status: 502,
         json: async () => ({ message: "Bad Gateway" }),
+        text: async () => JSON.stringify({ message: "Bad Gateway" }),
       });
 
     await expect(apiClient.getProfile()).rejects.toThrow();
@@ -64,11 +67,13 @@ describe("BaseApiClient 401 handling", () => {
         ok: false,
         status: 401,
         json: async () => ({ message: "Unauthenticated" }),
+        text: async () => JSON.stringify({ message: "Unauthenticated" }),
       })
       .mockResolvedValueOnce({
         ok: false,
         status: 401,
         json: async () => ({ message: "Invalid refresh token" }),
+        text: async () => JSON.stringify({ message: "Invalid refresh token" }),
       });
 
     await expect(apiClient.getProfile()).rejects.toThrow();
@@ -83,14 +88,17 @@ describe("BaseApiClient 401 handling", () => {
         ok: false,
         status: 401,
         json: async () => ({ message: "Unauthenticated" }),
+        text: async () => JSON.stringify({ message: "Unauthenticated" }),
       })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ token: "fresh-token" }),
+        text: async () => JSON.stringify({ token: "fresh-token" }),
       })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ id: "u1", name: "Test User" }),
+        text: async () => JSON.stringify({ id: "u1", name: "Test User" }),
       });
 
     const result = await apiClient.getProfile();

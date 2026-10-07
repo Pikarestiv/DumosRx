@@ -1,5 +1,6 @@
 import {
   Activity,
+  BadgeCheck,
   LayoutDashboard,
   Users,
   Store,
@@ -61,6 +62,12 @@ export const sidebarItems: AdminSidebarItem[] = [
     icon: Store,
     href: "/admin/stores/mine",
     roles: ["platform_admin", "agent"],
+  },
+  {
+    id: "subscriptions",
+    name: "Subscriptions",
+    icon: BadgeCheck,
+    href: "/admin/subscriptions",
   },
   {
     id: "referrals",

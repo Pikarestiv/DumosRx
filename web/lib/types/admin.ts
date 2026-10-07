@@ -135,6 +135,40 @@ export interface AdminStoreSyncHealth {
   failures: { data: SyncFailureRow[]; meta?: PaginationMeta };
 }
 
+export type SubscriptionBucket = "expiring" | "trials" | "lapsed" | "payments";
+
+export interface SubscriptionWorklistRow {
+  user_id: string;
+  owner_name: string;
+  email: string;
+  store_id: string | null;
+  store_name: string | null;
+  plan: string | null;
+  is_trial: boolean;
+  end_date: string | null;
+  attempts?: number;
+  last_attempt_at?: string | null;
+  last_status?: string;
+  amount?: number;
+  currency?: string;
+}
+
+export interface AdminSubscriptionWorklist {
+  data: SubscriptionWorklistRow[];
+  meta?: PaginationMeta;
+}
+
+/** `trial_conversion_rate` is null when no trials started in the window —
+ * render it as unavailable, never 0% or 100%. See web/AGENTS.md. */
+export interface AdminSubscriptionFigures {
+  trials_started: number;
+  trial_conversion_rate: string | null;
+  lapsed_in_period: number;
+  recovered_in_period: number;
+  payment_mix: { success: number; failed: number; abandoned: number; pending: number };
+  bucket_counts: Record<SubscriptionBucket, number>;
+}
+
 export type ProbeStatus = "Operational" | "Degraded" | "Unavailable";
 
 export interface HealthProbe {

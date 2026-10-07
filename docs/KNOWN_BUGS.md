@@ -10,6 +10,22 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
+#### A-182. `web/` — the site-wide PWA's `start_url` is a cross-origin bounce, so installing `dumosrx.com` yields a window that navigates out of its own scope on launch
+- **Found:** 2026-10-07, while fixing A-181 (see `docs/FIXED_BUGS.md`).
+- **Location:** `public/site.webmanifest` and `app/dashboard/[...view]/redirect-client.tsx`.
+- **What's wrong:** `site.webmanifest` sets `start_url: "/dashboard"` with no `scope` and no `id`. `/dashboard` is not a page — it is a client-side redirect that sets `window.location.href = getAppURL()`, i.e. `https://app.dumosrx.com`. So the installed app launches, immediately leaves its own origin, and lands outside any scope the manifest declares.
+- **Consequence:** the standalone window is out of scope from the first navigation. Browsers handle that inconsistently — typically by showing an in-app browser chrome bar, or by treating subsequent navigation as a plain tab — so the "installed app" feel is lost, and the user is left looking at a URL bar in what should be a standalone window. This was the visible half of A-181's symptom and it is **not** fixed by A-181: installing from anywhere on `dumosrx.com` outside `/admin` still does this.
+- **Fix:** decide what the marketing-site PWA is actually for. Three options, in order of preference: (a) drop `manifest` from the root layout entirely and let store owners install the real app from `app.dumosrx.com`, which has its own `client/public/manifest.json` with `start_url: "/"` — the app they want is served from that origin anyway; (b) keep it installable but point `start_url` at `/` with an explicit `scope: "/"`, so it is honestly a marketing-site shortcut; (c) keep `/dashboard` but make it a real page rather than a redirect. Whichever is chosen, add an explicit `id` — without one, the id defaults to `start_url`, so changing `start_url` later orphans every already-installed copy rather than updating it.
+
+#### A-183. `web/` — the root service worker registers in development and on `/admin/` pages, the two things `admin-sw.js` deliberately avoids
+- **Found:** 2026-10-07, while fixing A-181 (see `docs/FIXED_BUGS.md`).
+- **Location:** `components/pwa-registrar.tsx` (mounted in `app/layout.tsx`, i.e. on every route) and `public/sw.js`.
+- **What's wrong:** `PwaRegistrar` calls `navigator.serviceWorker.register("/sw.js")` with no `scope` (so `/`) and **no `NODE_ENV` guard**. `AdminPwaRegistrar` was given both precautions on purpose — see the Admin PWA section of `web/AGENTS.md` — and this one predates that reasoning. On an admin page both workers register; `/admin/` wins control by longest-scope match, so behaviour is correct but the registration is pointless.
+- **What this is *not*:** a cache-poisoning risk. `public/sw.js` has an empty `fetch` handler and caches nothing at all, so the hazard `web/AGENTS.md` documents for this host — `index.html` returned `200 OK` for any unknown path, plus an FTP deploy that deletes old hashed chunks, yielding a sticky `Unexpected token '<'` — does not apply to it. This was checked, not assumed. **It does mean `sw.js` must never be given caching** without reading that section first; `web/` has no `chunk-error.ts` recovery the way `client/` does.
+- **Consequence as it stands:** a worker claims clients during `next dev`, which is exactly the hot-reload weirdness the admin registrar's guard exists to prevent, and it registers redundantly on admin pages.
+- **Fix:** add the `process.env.NODE_ENV !== "production"` early return to `PwaRegistrar`, and skip registration when `location.pathname` starts with `/admin` so the two workers never both register on one page. Worth resolving together with A-182, since if the site-wide manifest goes away there may be no reason to keep `sw.js` at all — its only stated purpose is qualifying the site as installable.
+
+
 #### A-176. `client/`+`laravel-server/` — a `stock_batches` row older than the pull cursor is never re-sent, so some deferred deltas can never resolve
 - **Found:** 2026-10-07, while fixing A-173 (see `docs/FIXED_BUGS.md` for the full mechanism and why devices diverge).
 - **Location:** `client/lib/db/sync-engine/pull.ts` (incremental pull, cursor by `updated_at`) and `SyncController::pull()`, which has no by-id fetch.

@@ -6,7 +6,11 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-const reconcileMock = vi.fn(async (..._args: unknown[]) => ({ reconciled: 0, checked: 0, movements: [] }));
+const reconcileMock = vi.fn(async (..._args: unknown[]) => ({
+  reconciled: 0,
+  checked: 0,
+  movements: [],
+}));
 
 vi.mock("@/lib/api/client", () => ({
   apiClient: {
@@ -15,21 +19,23 @@ vi.mock("@/lib/api/client", () => ({
 }));
 
 /**
- * The corruption path behind A-173, and the reason the "Health Sync" repair
- * needs a guard it did not have.
+ * A-173, corrected in review. An earlier version of this file asserted that
+ * "Health Sync" must REFUSE while deferred deltas are pending, on the theory
+ * that the device would otherwise assert understated quantities over the
+ * server's correct ones.
  *
- * `reconcileStockQuantities()` asserts THIS device's quantities as
- * authoritative. Its existing safeguard is a forced push+pull first — but a
- * forced sync does not settle a deferred delta whose batch never arrives, so
- * the sync succeeds while the device's quantity for that batch is still
- * understated. Reconciling then writes that understated number over the
- * server's correct, movement-derived value.
+ * That theory was wrong, and the guard it justified was removed. A delta is
+ * pending only while its `stock_batches` row is ABSENT locally — that is the
+ * condition that defers it. An absent batch is not in the payload this
+ * function sends, and the server only touches batches that are in the
+ * payload. So the understated write cannot happen, and the guard refused
+ * repairs while protecting nothing — permanently, for any device whose pull
+ * scoping means the batch never arrives.
  *
- * The device can detect this precisely: `_pending_stock_deltas` is non-empty.
- * Knowingly asserting authority while holding unapplied deltas is the one
- * case of the documented "stale device" risk that is not a judgement call.
+ * These tests pin the real safety property instead: a batch with an unapplied
+ * delta is excluded from the payload by construction.
  */
-describe("reconcileStockQuantities refuses while deltas are pending", () => {
+describe("reconcileStockQuantities with pending deltas", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
   let reconcile: typeof import("@/lib/db/sync-engine/reconcile-quantities").reconcileStockQuantities;
@@ -61,22 +67,35 @@ describe("reconcileStockQuantities refuses while deltas are pending", () => {
     okSync.mockClear();
   });
 
-  it("refuses, and never posts, while a deferred delta is unapplied", async () => {
+  it("still repairs while a delta is pending, because the delta's batch is not in the payload", async () => {
     db.run(
       `INSERT INTO _pending_stock_deltas (movement_id, stock_batch_id, quantity, attempts)
        VALUES ('m1', 'b-missing', 7, 12)`,
     );
 
-    await expect(reconcile(okSync)).rejects.toThrow(/pending|unapplied|incomplete/i);
-    expect(reconcileMock).not.toHaveBeenCalled();
+    await expect(reconcile(okSync)).resolves.toBeDefined();
+    expect(reconcileMock).toHaveBeenCalled();
+
+    const [payload] = reconcileMock.mock.calls[0] as [{ batches: Array<{ id: string }> }];
+    const ids = payload.batches.map((b) => b.id);
+
+    expect(ids).toContain("b1");
+    expect(ids).not.toContain("b-missing");
   });
 
-  /** The forced sync still runs first; the guard is checked after it. */
-  it("still reconciles normally when nothing is pending", async () => {
+  it("reconciles normally when nothing is pending", async () => {
     const result = await reconcile(okSync);
 
     expect(okSync).toHaveBeenCalled();
     expect(reconcileMock).toHaveBeenCalled();
     expect(result.checked).toBe(0);
+  });
+
+  /** The forced push+pull remains the real safeguard and must still run first. */
+  it("refuses if the forced sync fails", async () => {
+    const failingSync = vi.fn(async () => ({ success: false, error: "offline" }) as never);
+
+    await expect(reconcile(failingSync)).rejects.toThrow(/offline/i);
+    expect(reconcileMock).not.toHaveBeenCalled();
   });
 });

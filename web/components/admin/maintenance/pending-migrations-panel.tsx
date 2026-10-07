@@ -108,7 +108,7 @@ export function PendingMigrationsPanel() {
         open={confirming}
         pending={pending}
         isPending={run.isPending}
-        onOpenChange={(open) => !open && setConfirming(false)}
+        onOpenChange={(open) => !open && !run.isPending && setConfirming(false)}
         onConfirm={() =>
           run.mutate(undefined, {
             onSuccess: () => {

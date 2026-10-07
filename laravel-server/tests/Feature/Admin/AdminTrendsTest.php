@@ -280,4 +280,46 @@ class AdminTrendsTest extends TestCase
 
         $this->service()->trends('all-time');
     }
+
+    /**
+     * Found in review. Churn used each owner's CURRENT state, so an owner who
+     * lapsed in one month and re-subscribed later vanished from the month
+     * they actually churned in — the past bucket shrank when they came back.
+     * That is the same "history rewrites itself" defect the spec forbids for
+     * store signups, and it was in the very next series along.
+     */
+    public function test_an_owner_who_later_resubscribed_still_counts_in_the_month_they_lapsed(): void
+    {
+        $owner = $this->owner();
+        $this->store($owner);
+
+        $lapsedAt = now()->subMonths(3)->startOfMonth()->addDays(4);
+        $this->subscribe($owner, ['start_date' => $lapsedAt->copy()->subMonth(), 'end_date' => $lapsedAt]);
+        $this->subscribe($owner, ['start_date' => now()->subDays(5), 'end_date' => now()->addMonth()]);
+
+        $bucket = $this->bucketFor(
+            $this->service()->trends('6m')['churn']['points'],
+            $lapsedAt->format('Y-m')
+        );
+
+        $this->assertSame(1, $bucket['values']['count'], 'they churned that month even though they came back');
+    }
+
+    /** And the same owner must not be counted again in a month they did not churn. */
+    public function test_one_owner_is_not_counted_as_churn_in_several_months(): void
+    {
+        $owner = $this->owner();
+        $this->store($owner);
+
+        $first = now()->subMonths(4)->startOfMonth()->addDays(2);
+        $second = now()->subMonths(2)->startOfMonth()->addDays(2);
+
+        $this->subscribe($owner, ['start_date' => $first->copy()->subMonth(), 'end_date' => $first]);
+        $this->subscribe($owner, ['start_date' => $first->copy()->addDay(), 'end_date' => $second]);
+
+        $points = $this->service()->trends('6m')['churn']['points'];
+        $counted = array_sum(array_column(array_column($points, 'values'), 'count'));
+
+        $this->assertSame(1, $counted, 'only the lapse that was not followed by a renewal is churn');
+    }
 }

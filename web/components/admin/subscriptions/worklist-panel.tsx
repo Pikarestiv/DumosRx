@@ -42,7 +42,7 @@ export function WorklistPanel({ bucket, days, canGrantTrials, canNotify }: Workl
   const [planTarget, setPlanTarget] = useState<SubscriptionWorklistRow | null>(null);
   const [notifyTarget, setNotifyTarget] = useState<SubscriptionWorklistRow | null>(null);
 
-  const { data, isLoading } = useAdminSubscriptionBucket(bucket, days, page);
+  const { data, isLoading, isError } = useAdminSubscriptionBucket(bucket, days, page);
   const grantTrial = useGrantUserTrialMutation();
   const activatePlan = useActivateUserPlanMutation();
   const notify = useNotifyUserMutation();
@@ -58,6 +58,7 @@ export function WorklistPanel({ bucket, days, canGrantTrials, canNotify }: Workl
             rows={rows}
             bucket={bucket}
             isLoading={isLoading}
+            isError={isError}
             canGrantTrials={canGrantTrials}
             canNotify={canNotify}
             onGrantTrial={setTrialTarget}

@@ -22,9 +22,20 @@ function Rate({ label, value }: { label: string; value: string | null | undefine
 interface SyncHealthCardProps {
   data?: AdminSyncHealth;
   isLoading: boolean;
+  isError?: boolean;
 }
 
-export function SyncHealthCard({ data, isLoading }: SyncHealthCardProps) {
+export function SyncHealthCard({ data, isLoading, isError }: SyncHealthCardProps) {
+  if (isError) {
+    return (
+      <Card className="bg-card border-border shadow-sm">
+        <CardContent className="p-6">
+          <p className="text-sm font-medium text-muted-foreground">Sync health unavailable</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const reasons = Object.entries(data?.failures_by_reason ?? {});
   const worst = data?.worst_stores ?? [];
 

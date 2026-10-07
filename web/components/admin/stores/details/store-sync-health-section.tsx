@@ -6,17 +6,26 @@ import { syncReasonLabel, useAdminStoreSyncHealth } from "@/lib/api/admin-hooks-
 import type { AdminStoreSyncHealth } from "@/lib/types/admin";
 
 export function StoreSyncHealthPanel({ storeId }: { storeId: string }) {
-  const { data, isLoading } = useAdminStoreSyncHealth(storeId);
+  const { data, isLoading, isError } = useAdminStoreSyncHealth(storeId);
 
-  return <StoreSyncHealthSection data={data} isLoading={isLoading} />;
+  return <StoreSyncHealthSection data={data} isLoading={isLoading} isError={isError} />;
 }
 
 interface StoreSyncHealthSectionProps {
   data?: AdminStoreSyncHealth;
   isLoading: boolean;
+  isError?: boolean;
 }
 
-export function StoreSyncHealthSection({ data, isLoading }: StoreSyncHealthSectionProps) {
+export function StoreSyncHealthSection({ data, isLoading, isError }: StoreSyncHealthSectionProps) {
+  if (isError) {
+    return (
+      <p className="text-sm font-medium text-muted-foreground">
+        Sync health unavailable for this store
+      </p>
+    );
+  }
+
   const failures = data?.failures?.data ?? [];
   const daily = data?.daily ?? [];
 

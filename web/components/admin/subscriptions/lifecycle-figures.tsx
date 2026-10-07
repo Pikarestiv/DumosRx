@@ -29,7 +29,25 @@ function Figure({
   );
 }
 
-export function LifecycleFiguresView({ data }: { data?: AdminSubscriptionFigures }) {
+export function LifecycleFiguresView({
+  data,
+  isError,
+}: {
+  data?: AdminSubscriptionFigures;
+  isError?: boolean;
+}) {
+  if (isError) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {["Trial conversion", "Lapsed this period", "Recovered this period", "Payments needing attention"].map(
+          (label) => (
+            <Figure key={label} label={label} unavailable="Unavailable" />
+          ),
+        )}
+      </div>
+    );
+  }
+
   const mix = data?.payment_mix;
 
   return (

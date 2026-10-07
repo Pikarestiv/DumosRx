@@ -6,21 +6,22 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-const logCrashMock = vi.fn(async (..._args: unknown[]) => {});
+const captureExceptionMock = vi.fn();
 
-vi.mock("@/lib/utils/error-logger", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/utils/error-logger")>();
-  return { ...actual, logCrash: (...args: unknown[]) => logCrashMock(...args) };
-});
+vi.mock("@sentry/nextjs", () => ({
+  captureException: (...args: unknown[]) => captureExceptionMock(...args),
+}));
 
 /**
- * A-172. A push refused for a plan reason ("Cloud sync is disabled on your
- * current plan", "Sync limit reached") is an intended outcome, not a bug, and
- * the direct report path already filters it. The stuck-item reporter did not:
- * the row simply kept retrying to its ceiling and was then reported as a
- * crash, carrying the user-facing upgrade copy as an error title.
+ * A-172. `logCrash()` has filtered expected plan restrictions since
+ * 2026-09-17, so the ordinary stuck path was already covered. What was NOT
+ * covered is `reportStuckCrashLog()`, which calls `Sentry.captureException`
+ * directly for `feedback` rows and therefore bypasses that filter — the exact
+ * table the reported issues were about.
  *
- * A free-plan device's queue never drains, so this fires forever.
+ * These tests assert against the REAL logCrash and the real Sentry boundary;
+ * an earlier version mocked logCrash away, which manufactured its own RED by
+ * discarding the filter it was supposed to be testing.
  */
 describe("stuck sync reporting skips expected plan restrictions", () => {
   let db: Database;
@@ -42,13 +43,13 @@ describe("stuck sync reporting skips expected plan restrictions", () => {
 
   beforeEach(() => {
     db.run(`DELETE FROM _sync_queue;`);
-    logCrashMock.mockClear();
+    captureExceptionMock.mockClear();
   });
 
   const queueRow = async (id: number) => {
     db.run(
       `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, retry_count, created_at)
-       VALUES (${id}, 'sales', 'rec-${id}', 'INSERT', '{}', 4, '2026-10-07T00:00:00.000Z')`,
+       VALUES (${id}, 'feedback', 'rec-${id}', 'INSERT', '{}', 4, '2026-10-07T00:00:00.000Z')`,
     );
   };
 
@@ -60,7 +61,7 @@ describe("stuck sync reporting skips expected plan restrictions", () => {
       "Cloud sync is disabled on your current plan. Please upgrade to a premium plan to backup your data.",
     );
 
-    expect(logCrashMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
   it("does not report a sync-throttle refusal as a crash", async () => {
@@ -68,7 +69,7 @@ describe("stuck sync reporting skips expected plan restrictions", () => {
 
     await helpers.recordSyncFailure(2, "Sync limit reached. Your current plan synchronizes once every 30 minutes.");
 
-    expect(logCrashMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
   /** A genuine failure must still be reported — the filter must not swallow real bugs. */
@@ -77,6 +78,6 @@ describe("stuck sync reporting skips expected plan restrictions", () => {
 
     await helpers.recordSyncFailure(3, "SQLSTATE[42S22]: Column not found: 1054 Unknown column 'foo'");
 
-    expect(logCrashMock).toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalled();
   });
 });

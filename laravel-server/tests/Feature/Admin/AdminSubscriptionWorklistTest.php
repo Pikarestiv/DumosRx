@@ -239,4 +239,24 @@ class AdminSubscriptionWorklistTest extends TestCase
 
         $this->assertSame($owner->email, $row['email']);
     }
+
+    /**
+     * Found in review. subscriptionState() returns `in_grace` for any past
+     * end_date, trial or not. trialsEnding() accepted only `trialing`, and
+     * expiringSoon()'s candidates are `is_trial = false`, so a trial that
+     * ended yesterday but is still inside the grace window appeared in
+     * neither bucket — the exact "nowhere at all" graceFloor() exists to
+     * prevent.
+     */
+    public function test_a_trial_inside_the_grace_window_still_appears_in_trials_ending(): void
+    {
+        $owner = $this->owner();
+        $this->subscribe($owner, ['is_trial' => true, 'end_date' => now()->subDay()]);
+
+        $rows = $this->service()->trialsEnding(7, 1)['data'];
+
+        $this->assertCount(1, $rows, 'a trial inside grace must not fall out of every worklist');
+        $this->assertSame($owner->id, $rows[0]['user_id']);
+        $this->assertSame('in_grace', $rows[0]['state']);
+    }
 }

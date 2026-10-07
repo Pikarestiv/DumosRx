@@ -31,7 +31,7 @@ class AdminSubscriptionLifecycleService
 
     public function trialsEnding(int $days, int $page = 1): array
     {
-        return $this->endingWithin($days, $page, true, ['trialing']);
+        return $this->endingWithin($days, $page, true, ['trialing', 'in_grace']);
     }
 
     public function lapsed(int $page = 1): array

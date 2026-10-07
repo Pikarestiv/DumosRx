@@ -588,18 +588,18 @@ export async function recordSyncFailure(
   if (shouldReport || shouldDropStuckCrashLog) {
     const summary = `Sync item stuck after ${nextRetryCount} attempts on ${item.table_name}/${item.record_id}: ${boundedError}`;
     try {
-      if (shouldDropStuckCrashLog) {
-        await reportStuckCrashLog(queueId, item.record_id, summary, shouldReport);
-        return;
-      }
       const { logCrash, isExpectedSyncRestriction } = await import("../utils/error-logger");
 
-      // A-172: a push refused because the plan disables or throttles sync is
-      // an intended outcome, not a bug. It retries to the ceiling like any
-      // other failure, so without this the direct path's filter is bypassed
-      // and the user-facing upgrade copy is reported as a crash, forever, on
-      // every free-plan device.
+      // Checked before BOTH paths below. logCrash() already filters these,
+      // but reportStuckCrashLog() calls Sentry.captureException directly and
+      // so bypasses that filter entirely — which is the path a plan-refused
+      // `feedback` row actually takes.
       if (isExpectedSyncRestriction(errorMessage)) {
+        return;
+      }
+
+      if (shouldDropStuckCrashLog) {
+        await reportStuckCrashLog(queueId, item.record_id, summary, shouldReport);
         return;
       }
 

@@ -3,49 +3,54 @@
 namespace App\Services\Admin;
 
 use App\Models\Subscription;
-use App\Models\User;
-use App\Services\SubscriptionService;
+use App\Models\SystemConfig;
 use App\Support\TimeSeries;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
- * Churn as a time series. Split from AdminTrendsService because it is the one
- * series that cannot be answered in SQL: "lapsed" is defined by
- * SubscriptionService::subscriptionState(), which resolves the grace window in
- * PHP, and a second definition here is the duplication AGENTS.md forbids.
+ * Churn as a time series, split from AdminTrendsService because its
+ * definition is a question about coverage over time rather than a column that
+ * can be grouped. See the Phase 4 spec, Part 2, for why a historical bucket
+ * must not change after the fact.
  */
 class AdminChurnTrendService
 {
     /** Bounds the candidate set, the Phase 3 CANDIDATE_LIMIT pattern. */
     private const CANDIDATE_LIMIT = 2000;
 
-    /** @var array<string, string> */
-    private array $resolved = [];
-
-    public function __construct(private SubscriptionService $subscriptions) {}
-
-    public function series(string $window, \Illuminate\Support\Carbon $since): array
+    public function series(string $window, Carbon $since): array
     {
         $candidates = Subscription::query()
             ->whereBetween('end_date', [$since, now()])
             ->orderByDesc('end_date')
             ->limit(self::CANDIDATE_LIMIT)
-            ->get(['id', 'user_id', 'end_date']);
+            ->get(['id', 'user_id', 'start_date', 'end_date']);
 
-        $owners = User::with('subscriptions')
-            ->whereIn('id', $candidates->pluck('user_id')->unique())
-            ->get()
-            ->keyBy('id');
+        if ($candidates->isEmpty()) {
+            return $this->emptySeries($window);
+        }
 
+        $byOwner = Subscription::query()
+            ->whereIn('user_id', $candidates->pluck('user_id')->unique())
+            ->get(['id', 'user_id', 'start_date', 'end_date'])
+            ->groupBy('user_id');
+
+        $graceDays = SystemConfig::getVal('subscription_plans', [])['grace_period_days'] ?? 3;
         $byBucket = [];
 
         foreach ($candidates as $candidate) {
-            $owner = $owners->get($candidate->user_id);
-
-            if (! $owner || $this->stateFor($owner) !== 'lapsed') {
+            if (! $candidate->end_date) {
                 continue;
             }
 
-            $byBucket[TimeSeries::labelFor($window, $candidate->end_date)][] = $owner->id;
+            $lapsedAt = $candidate->end_date->copy()->addDays($graceDays);
+
+            if ($this->coveredAt($byOwner->get($candidate->user_id) ?? collect(), $candidate, $lapsedAt)) {
+                continue;
+            }
+
+            $byBucket[TimeSeries::labelFor($window, $candidate->end_date)][] = $candidate->user_id;
         }
 
         $found = [];
@@ -60,15 +65,36 @@ class AdminChurnTrendService
         ];
     }
 
-    /** One resolution per owner per request, the Phase 3 memo pattern. */
-    private function stateFor(User $owner): string
+    /**
+     * Whether some other subscription of this owner was live once the grace
+     * window closed. Deciding from the rows' own dates rather than the owner's
+     * state today is what keeps a past bucket stable: an owner who lapsed in
+     * March and came back in June still churned in March, and reading their
+     * current state would have quietly removed them from March's number.
+     */
+    private function coveredAt(Collection $owned, Subscription $candidate, Carbon $moment): bool
     {
-        $key = (string) $owner->id;
+        foreach ($owned as $other) {
+            if ($other->id === $candidate->id || ! $other->start_date) {
+                continue;
+            }
 
-        if (! array_key_exists($key, $this->resolved)) {
-            $this->resolved[$key] = $this->subscriptions->subscriptionState($owner);
+            $startsInTime = $other->start_date->lessThanOrEqualTo($moment);
+            $stillLive = $other->end_date === null || $other->end_date->greaterThan($moment);
+
+            if ($startsInTime && $stillLive) {
+                return true;
+            }
         }
 
-        return $this->resolved[$key];
+        return false;
+    }
+
+    private function emptySeries(string $window): array
+    {
+        return [
+            'currencies' => [],
+            'points' => TimeSeries::fill($window, [], ['count' => 0]),
+        ];
     }
 }

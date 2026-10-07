@@ -841,15 +841,12 @@ counts, see `components/stock-batch/stock-audits.tsx`).
   `STORE_SCOPED_TABLES`, so `npm run test:schema` ignores it. It **is** in
   `LOCAL_WIPE_TABLES`, so a `resetDatabase()` cannot leave a delta behind to
   be applied against a freshly re-pulled batch.
-- **Reconciliation refuses while deltas are pending (A-173).** A forced sync
-  does not settle a deferred delta whose batch never arrived, so the sync can
-  succeed while this device's quantities are knowingly incomplete.
-  `reconcileStockQuantities()` therefore checks `_pending_stock_deltas` and
-  refuses — asserting authority over the server's correct, movement-derived
-  value while holding unapplied deltas is the one case of the documented
-  "stale device" risk that the device can detect for itself rather than guess
-  at. Don't remove that check to make the button work again; the right fix is
-  to make the missing batch arrive (A-176).
+- **Don't add a pending-delta guard to reconciliation (A-173).** One was
+  added and removed. A delta is pending only while its batch row is *absent
+  locally*, an absent batch is not in the payload `reconcileStockQuantities()`
+  sends, and the server only applies what it receives — so a pending delta
+  cannot cause an understated write, and a guard on it refuses repairs while
+  protecting nothing. The forced push+pull remains the real safeguard.
 - **An unresolvable delta is re-reported, not reported once.** The report
   fires at 10 attempts and then every 25. A condition that never resolves
   must not go quiet: silence after one report is indistinguishable from the

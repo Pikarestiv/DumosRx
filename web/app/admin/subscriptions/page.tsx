@@ -61,7 +61,7 @@ function SubscriptionsContent({
   canGrantTrials: boolean;
   canNotify: boolean;
 }) {
-  const { data: figures } = useAdminSubscriptionLifecycle(days);
+  const { data: figures, isError: figuresError } = useAdminSubscriptionLifecycle(days);
 
   return (
     <div className="space-y-6">
@@ -89,7 +89,7 @@ function SubscriptionsContent({
         </div>
       </div>
 
-      <LifecycleFiguresView data={figures} />
+      <LifecycleFiguresView data={figures} isError={figuresError} />
 
       <Tabs defaultValue="expiring" className="w-full">
         <BucketTabsList counts={figures?.bucket_counts} />

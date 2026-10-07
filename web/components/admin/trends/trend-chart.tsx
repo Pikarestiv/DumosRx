@@ -90,13 +90,13 @@ export function TrendChart({
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
                 <XAxis
                   dataKey="label"
-                  tick={{ fontSize: 11 }}
+                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                   className="fill-muted-foreground"
                   tickLine={false}
                   axisLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 11 }}
+                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                   className="fill-muted-foreground"
                   tickLine={false}
                   axisLine={false}

@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { ScrollText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +18,12 @@ export default function AdminActivityLogPage() {
 }
 
 function ActivityTabs() {
+  const searchParams = useSearchParams();
+  // A deep link from the store or user row actions targets the admin-actions
+  // table; Radix unmounts the inactive tab, so landing on the Feed would drop
+  // the filter without saying so.
+  const deepLinked = searchParams.get("store_id") || searchParams.get("user_id");
+
   return (
     <div className="space-y-6">
       <div>
@@ -29,7 +36,7 @@ function ActivityTabs() {
         </p>
       </div>
 
-      <Tabs defaultValue="feed" className="w-full">
+      <Tabs defaultValue={deepLinked ? "admin-actions" : "feed"} className="w-full">
         <TabsList className="mb-4 bg-muted w-full flex overflow-x-auto whitespace-nowrap justify-start p-1 h-12 gap-1">
           <TabsTrigger value="feed" className="px-4 shrink-0">
             Feed

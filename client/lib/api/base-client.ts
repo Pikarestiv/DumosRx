@@ -63,20 +63,13 @@ export class BaseApiClient {
     try {
       return (await response.json()) as T;
     } catch {
-      // Only on failure: the happy path must keep its single .json() call, so
-      // nothing here changes how a valid response is read.
+      // No body excerpt: .json() has already consumed the body, so clone()
+      // throws here. The happy path keeps its single .json() call rather
+      // than pre-reading every response to buy a snippet.
       const contentType = response.headers?.get?.("content-type") ?? "unknown";
-      let snippet = "";
-
-      try {
-        const body = await response.clone?.()?.text?.();
-        snippet = body ? `: ${body.slice(0, 120).replace(/\s+/g, " ").trim()}` : "";
-      } catch {
-        snippet = "";
-      }
 
       throw new Error(
-        `Expected JSON from ${url} but got a non-JSON ${response.status} response (content-type: ${contentType})${snippet}`,
+        `Expected JSON from ${url} but got a non-JSON ${response.status} response (content-type: ${contentType})`,
       );
     }
   }

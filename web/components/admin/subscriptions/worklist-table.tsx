@@ -17,18 +17,28 @@ interface WorklistTableProps {
   onGrantTrial?: (row: SubscriptionWorklistRow) => void;
   onActivatePlan?: (row: SubscriptionWorklistRow) => void;
   onNotify?: (row: SubscriptionWorklistRow) => void;
+  isError?: boolean;
 }
 
 export function WorklistTable({
   rows,
   bucket,
   isLoading,
+  isError,
   canGrantTrials,
   canNotify,
   onGrantTrial,
   onActivatePlan,
   onNotify,
 }: WorklistTableProps) {
+  if (isError) {
+    return (
+      <p className="text-sm font-medium text-muted-foreground py-8 text-center">
+        This list is unavailable right now.
+      </p>
+    );
+  }
+
   if (isLoading && rows.length === 0) {
     return <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>;
   }

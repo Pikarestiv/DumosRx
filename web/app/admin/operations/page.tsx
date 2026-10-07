@@ -17,7 +17,7 @@ import { useAdminSyncHealth } from "@/lib/api/admin-hooks-sync";
 export default function OperationsPage() {
   const { data: health, isLoading, error, refetch } = useAdminHealth();
   const { data: errorsData, isLoading: errorsLoading } = useAdminErrors();
-  const { data: syncHealth, isLoading: syncLoading } = useAdminSyncHealth();
+  const { data: syncHealth, isLoading: syncLoading, isError: syncError } = useAdminSyncHealth();
 
   if (isLoading && !health) {
     return <AdminSkeleton />;
@@ -124,7 +124,7 @@ export default function OperationsPage() {
         {health && <HealthProbesCard probes={health.probes} />}
       </div>
 
-      <SyncHealthCard data={syncHealth} isLoading={syncLoading} />
+      <SyncHealthCard data={syncHealth} isLoading={syncLoading} isError={syncError} />
 
       <MigrationStatusCard />
 

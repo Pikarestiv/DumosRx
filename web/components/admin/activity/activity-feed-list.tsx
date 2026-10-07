@@ -39,9 +39,18 @@ function timeOf(at: string): string {
 interface ActivityFeedListProps {
   events: ActivityFeedEvent[];
   isLoading: boolean;
+  isError?: boolean;
 }
 
-export function ActivityFeedList({ events, isLoading }: ActivityFeedListProps) {
+export function ActivityFeedList({ events, isLoading, isError }: ActivityFeedListProps) {
+  if (isError) {
+    return (
+      <p className="text-sm font-medium text-muted-foreground p-6">
+        Activity is unavailable right now.
+      </p>
+    );
+  }
+
   if (isLoading && events.length === 0) {
     return <p className="text-sm text-muted-foreground p-6">Loading activity…</p>;
   }

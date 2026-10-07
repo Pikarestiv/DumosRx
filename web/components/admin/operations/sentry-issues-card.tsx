@@ -4,12 +4,16 @@ import { SENTRY_ISSUES_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { SentryIssue } from "@/lib/types/admin";
 
-const LEVEL_STYLES: Record<string, string> = {
-  fatal: "bg-rose-500/10 text-rose-500",
-  error: "bg-rose-500/10 text-rose-500",
-  warning: "bg-amber-500/10 text-amber-500",
-  info: "bg-blue-500/10 text-blue-500",
-};
+/** A Map, not an object: `issue.level` comes from Sentry (§8). */
+const LEVEL_STYLES = new Map<string, string>([
+  ["fatal", "bg-rose-500/10 text-rose-500"],
+  ["error", "bg-rose-500/10 text-rose-500"],
+  ["warning", "bg-amber-500/10 text-amber-500"],
+  ["info", "bg-blue-500/10 text-blue-500"],
+]);
+
+const levelStyle = (level: string): string =>
+  LEVEL_STYLES.get(level) ?? "bg-rose-500/10 text-rose-500";
 
 interface SentryIssuesCardProps {
   data?: { configured: boolean; issues: SentryIssue[] };
@@ -59,7 +63,7 @@ export function SentryIssuesCard({ data, isLoading }: SentryIssuesCardProps) {
                   <span
                     className={cn(
                       "text-xs font-bold px-2 py-1 rounded-lg shrink-0",
-                      LEVEL_STYLES[issue.level] || LEVEL_STYLES.error,
+                      levelStyle(issue.level),
                     )}
                   >
                     {issue.level}

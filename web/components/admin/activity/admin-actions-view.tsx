@@ -77,10 +77,7 @@ import {
 } from "./activity-filter-pickers";
 
 export function AdminActionsView() {
-  // Deep-link support for the "Activity Log" action in the store fleet row
-  // menu: /admin/activity?store_id=<id>&store_name=<name> opens pre-filtered
-  // to that store. The name is carried along only so the picker can be
-  // labelled without an extra lookup; the id is what the query filters on.
+  // Deep link from the store/user row actions; see web/AGENTS.md.
   const searchParams = useSearchParams();
   const initialStoreId = searchParams.get("store_id");
   const initialStoreName = searchParams.get("store_name");
@@ -139,16 +136,7 @@ export function AdminActionsView() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">
-          Activity Log
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">
-          Every staff action across every store on the platform, in one place.
-        </p>
-      </div>
-
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <Card className="border-none shadow-sm overflow-hidden bg-white dark:bg-slate-900">
         <CardContent className="p-0">
           <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">

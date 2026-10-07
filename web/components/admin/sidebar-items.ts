@@ -64,13 +64,6 @@ export const sidebarItems: AdminSidebarItem[] = [
     href: "/admin/maintenance",
   },
   {
-    id: "register-store",
-    name: "Register Store",
-    icon: Store,
-    href: "/admin/stores/new",
-    roles: ["platform_admin", "agent"],
-  },
-  {
     id: "my-stores",
     name: "My Stores",
     icon: Store,

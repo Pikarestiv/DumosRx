@@ -139,8 +139,8 @@ export function AdminActionsView() {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <Card className="border-none shadow-sm overflow-hidden bg-white dark:bg-slate-900">
         <CardContent className="p-0">
-          <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="relative w-full max-w-sm group">
+          <div className="p-6 border-b border-slate-100 dark:border-slate-800 space-y-4">
+            <div className="relative w-full group">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
               <Input
                 placeholder="Search by user, email, or description..."

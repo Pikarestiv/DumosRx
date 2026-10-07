@@ -87,7 +87,6 @@ describe("visibleSidebarItems", () => {
       const ids = visibleSidebarItems({ role, effective_permissions: [] }).map(
         (item) => item.id,
       );
-      expect(ids).toContain("register-store");
       expect(ids).toContain("referrals");
       expect(ids).not.toContain("settings");
       expect(ids).not.toContain("stores");
@@ -95,12 +94,14 @@ describe("visibleSidebarItems", () => {
     }
   });
 
-  it("hides the agent-only registration shortcut from super_admin", () => {
-    const ids = visibleSidebarItems({ role: "super_admin" }).map(
-      (item) => item.id,
-    );
-    expect(ids).not.toContain("register-store");
-    expect(ids).toContain("settings");
+  /** Registering a store is reached from Stores, not from its own nav item. */
+  it("has no standalone register-store shortcut for any role", () => {
+    for (const role of ["super_admin", "platform_admin", "agent"]) {
+      const ids = visibleSidebarItems({ role, effective_permissions: [] }).map((item) => item.id);
+      expect(ids).not.toContain("register-store");
+    }
+
+    expect(visibleSidebarItems({ role: "super_admin" }).map((i) => i.id)).toContain("settings");
   });
 
   it("returns nothing for an unknown or missing role", () => {
@@ -123,7 +124,7 @@ describe("admin navigation role filtering", () => {
     for (const name of superAdminOnlyNames()) {
       expect(screen.queryByRole("link", { name })).toBeNull();
     }
-    expect(screen.getByRole("link", { name: "Register Store" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "My Stores" })).toBeTruthy();
   });
 
   it("filters the desktop sidebar for an agent", () => {
@@ -131,7 +132,7 @@ describe("admin navigation role filtering", () => {
     for (const name of superAdminOnlyNames()) {
       expect(screen.queryByRole("link", { name })).toBeNull();
     }
-    expect(screen.getByRole("link", { name: "Register Store" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "My Stores" })).toBeTruthy();
   });
 
   /** The admin layout clips the sidebar at screen height, so if the item list

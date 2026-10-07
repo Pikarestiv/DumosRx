@@ -68,6 +68,67 @@ class AdminSubscriptionLifecycleService
         return $this->paginate($rows, $page);
     }
 
+    public function figures(int $days): array
+    {
+        $since = now()->subDays($days);
+
+        $trialOwners = Subscription::where('is_trial', true)
+            ->where('start_date', '>=', $since)
+            ->pluck('user_id')
+            ->unique();
+
+        $converted = $trialOwners->isEmpty() ? collect() : Subscription::where('is_trial', false)
+            ->whereIn('user_id', $trialOwners)
+            ->pluck('user_id')
+            ->unique();
+
+        $mix = PaymentTransaction::where('created_at', '>=', $since)
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        return [
+            'trials_started' => $trialOwners->count(),
+            'trial_conversion_rate' => $trialOwners->isEmpty()
+                ? null
+                : round(($converted->count() / $trialOwners->count()) * 100, 1).'%',
+            'lapsed_in_period' => $this->ownersLapsedSince($since)->count(),
+            'recovered_in_period' => $this->recoveredSince($since)->count(),
+            'payment_mix' => [
+                'success' => (int) ($mix['success'] ?? 0),
+                'failed' => (int) ($mix['failed'] ?? 0),
+                'abandoned' => (int) ($mix['abandoned'] ?? 0),
+                'pending' => (int) ($mix['pending'] ?? 0),
+            ],
+            'bucket_counts' => [
+                'expiring' => $this->expiringSoon($days, 1)['meta']['total'],
+                'trials' => $this->trialsEnding($days, 1)['meta']['total'],
+                'lapsed' => $this->lapsed(1)['meta']['total'],
+                'payments' => $this->paymentsNeedingAttention($days, 1)['meta']['total'],
+            ],
+        ];
+    }
+
+    private function ownersLapsedSince(\Illuminate\Support\Carbon $since): Collection
+    {
+        $candidates = Subscription::whereBetween('end_date', [$since, now()])
+            ->orderByDesc('end_date')
+            ->get()
+            ->unique('user_id');
+
+        return $this->ownersInState($candidates, ['lapsed']);
+    }
+
+    private function recoveredSince(\Illuminate\Support\Carbon $since): Collection
+    {
+        $candidates = Subscription::whereBetween('end_date', [$since, now()])
+            ->orderByDesc('end_date')
+            ->get()
+            ->unique('user_id');
+
+        return $this->ownersInState($candidates, ['active', 'trialing']);
+    }
+
     private function endingWithin(int $days, int $page, bool $trial, array $states): array
     {
         $candidates = Subscription::query()

@@ -10,7 +10,7 @@ use Tests\TestCase;
  * This is pinned by a test because getting it wrong is **invisible**. With
  * `'engine' => null`, `Schema::create` emits no `ENGINE=` clause and the
  * table takes the server's `default_storage_engine`. The production host
- * reports `MyISAM => DEFAULT`, so all 63 tables were created as MyISAM — and
+ * reports `MyISAM => DEFAULT`, so all 63 tables had been created as MyISAM — and
  * MyISAM does not reject transactions, it ignores them. `beginTransaction()`,
  * `rollBack()`, savepoints and `SELECT ... FOR UPDATE` all silently do
  * nothing, which makes `SyncController::push()`'s per-change isolation,
@@ -20,7 +20,11 @@ use Tests\TestCase;
  *
  * Nothing else in this suite can catch that: the tests run on SQLite, which
  * honours transactions, so it is *more* capable than production here rather
- * than less. See docs/KNOWN_BUGS.md A-179.
+ * than less.
+ *
+ * Both databases were converted to InnoDB on 2026-10-07; this test is what
+ * stops a future table from quietly regressing to the host default again.
+ * See docs/FIXED_BUGS.md A-179.
  */
 class DatabaseEngineIsPinnedTest extends TestCase
 {

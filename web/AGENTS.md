@@ -1035,9 +1035,9 @@ Backend verification for anything touching `laravel-server/`:
 ```
 cd ../laravel-server && ./vendor/bin/phpunit --testsuite=Feature
 ```
-(**539 tests passing as of 2026-09-29's admin owner-vs-staff split** — treat any
-drop from that as a regression; it was 447 at the 2026-09-26 Paystack
-subaccount plan. The "89 tests" this line used to quote was
+(**1162 Feature tests passing as of 2026-10-07's InnoDB conversion** — treat any
+drop from that as a regression; it was 539 at the 2026-09-29 admin
+owner-vs-staff split and 447 at the 2026-09-26 Paystack subaccount plan. The "89 tests" this line used to quote was
 the count at the 2026-08-26 auth redesign and had been stale for a month; 399
 was the count after that day's earlier storefront remediation, before the
 subaccount work.)

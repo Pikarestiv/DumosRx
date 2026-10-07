@@ -49,7 +49,7 @@ export function HealthResourcesCard({ resources }: { resources: AdminHealth["res
   const { loadAverage, memory, disk, database } = resources;
 
   return (
-    <Card className="bg-card border-border shadow-sm">
+    <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
       <CardHeader>
         <CardTitle className="text-xl font-black flex items-center gap-2">
           <Server className="h-5 w-5 text-indigo-500" />

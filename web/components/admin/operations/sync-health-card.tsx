@@ -28,7 +28,7 @@ interface SyncHealthCardProps {
 export function SyncHealthCard({ data, isLoading, isError }: SyncHealthCardProps) {
   if (isError) {
     return (
-      <Card className="bg-card border-border shadow-sm">
+      <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
         <CardContent className="p-6">
           <p className="text-sm font-medium text-muted-foreground">Sync health unavailable</p>
         </CardContent>
@@ -40,7 +40,7 @@ export function SyncHealthCard({ data, isLoading, isError }: SyncHealthCardProps
   const worst = data?.worst_stores ?? [];
 
   return (
-    <Card className="bg-card border-border shadow-sm">
+    <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
       <CardHeader>
         <CardTitle className="text-xl font-black flex items-center gap-2">
           <RefreshCw className="h-5 w-5 text-indigo-500" />

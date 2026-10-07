@@ -4,7 +4,7 @@ import { CurrencyStatValue } from "@/components/admin/dashboard/currency-stat-va
 
 export function FleetStockValueCard({ totals }: { totals: Record<string, number> }) {
   return (
-    <Card className="bg-card border-border shadow-sm">
+    <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
       <CardHeader className="flex flex-row items-start justify-between pb-2">
         <div>
           <CardTitle className="text-sm font-semibold text-muted-foreground">

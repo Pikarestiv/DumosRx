@@ -993,13 +993,14 @@ class SyncController extends Controller
             // the parent query and inlined every id the tenant owns as bound
             // literals, once per table per page (see
             // docs/SYNC_PULL_PAGINATION.md). The soft-delete global scope
-            // still applies to each subquery exactly as it did to the pluck,
-            // which counts()'s stock_batches mirror depends on.
+            // still applies to each subquery as it did to the pluck, EXCEPT
+            // stock_batches — see A-176a below and counts()'s matching rule.
             'sale_items' => $query->whereIn('sale_id', $this->tenantSaleIds($storeIds)),
             'return_items' => $query->whereIn('return_id', \App\Models\SaleReturn::query()->select('id')->whereIn('store_id', $storeIds)),
             'prescription_items' => $query->whereIn('prescription_id', \App\Models\Prescription::query()->select('id')->whereIn('store_id', $storeIds)),
             'purchase_order_items' => $query->whereIn('purchase_order_id', PurchaseOrder::query()->select('id')->whereIn('store_id', $storeIds)),
-            'stock_batches' => $query->whereIn('product_id', Product::query()->select('id')->whereIn('store_id', $storeIds)),
+            // withTrashed() is load-bearing: see docs/FIXED_BUGS.md A-176a.
+            'stock_batches' => $query->whereIn('product_id', Product::withTrashed()->select('id')->whereIn('store_id', $storeIds)),
             'sale_item_batches' => $query->whereIn(
                 'sale_item_id',
                 SaleItem::query()->select('id')->whereIn('sale_id', $this->tenantSaleIds($storeIds)),
@@ -2298,25 +2299,16 @@ class SyncController extends Controller
         // Scoped to the tables actually implicated in the known stuck-
         // cursor failure mode (inventory + sales) rather than every synced
         // table - a targeted, cheap check, not a second sync engine.
-        // stock_batches must be scoped EXACTLY the way pull() scopes it
-        // (applyPullTenantScope(): whereIn('product_id', Product::query()
-        // ->select('id')->whereIn('store_id', ...))), not by
-        // stock_batches.store_id directly. Product
-        // uses SoftDeletes, so that pull-side subquery silently excludes
-        // batches belonging to a deleted product — completely routine
-        // (discontinuing/removing a product) for a store like this one.
-        // Counting by store_id alone here would count those orphaned-
-        // product batches too, permanently disagreeing with what pull()
-        // can ever actually deliver: a device would look "behind" by
-        // exactly that many rows forever, since forceFullResync() re-runs
-        // the very same pull scoping and can never close a gap that isn't
-        // real. Matching this exactly is what keeps the health check
-        // comparing apples to apples.
-        $nonDeletedProductIds = Product::query()->select('id')->where('store_id', $currentStoreId);
+        // stock_batches is scoped EXACTLY as applyPullTenantScope() scopes
+        // it — through Product::withTrashed() since A-176a, never by
+        // stock_batches.store_id directly — so a device never looks
+        // permanently "behind" by rows pull cannot deliver. If one side
+        // changes, change the other in the same edit.
+        $scopedProductIds = Product::withTrashed()->select('id')->where('store_id', $currentStoreId);
 
         $counts = [
             'products' => DB::table('products')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
-            'stock_batches' => DB::table('stock_batches')->whereIn('product_id', $nonDeletedProductIds)->whereNull('deleted_at')->count(),
+            'stock_batches' => DB::table('stock_batches')->whereIn('product_id', $scopedProductIds)->whereNull('deleted_at')->count(),
             'sales' => DB::table('sales')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
             'customers' => DB::table('customers')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
             'categories' => DB::table('categories')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),

@@ -88,7 +88,7 @@ export default function OperationsPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border shadow-sm">
+        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
           <CardContent className="p-6">
             <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-500 w-fit mb-4">
               <Clock className="h-6 w-6" />
@@ -103,7 +103,7 @@ export default function OperationsPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border shadow-sm">
+        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
           <CardContent className="p-6">
             <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-500 w-fit mb-4">
               <Zap className="h-6 w-6" />

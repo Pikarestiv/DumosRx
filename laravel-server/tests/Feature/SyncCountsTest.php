@@ -129,19 +129,19 @@ class SyncCountsTest extends TestCase
     }
 
     /**
-     * Regression test for a real bug caught in review before it ever
-     * shipped: stock_batches was counted by stock_batches.store_id alone,
-     * but SyncController::pull() (the thing this endpoint is supposed to
-     * verify against) scopes stock_batches via
-     * whereIn('product_id', Product::whereIn('store_id', ...)->pluck('id')) -
-     * and Product uses SoftDeletes, so a batch belonging to a deleted
-     * product is something pull() can NEVER deliver. Counting it anyway
-     * meant any store that has ever deleted a product with stock (a
-     * completely routine action) would show a permanent, unfixable
-     * "deficit" - the health check this endpoint feeds would trigger a
-     * full resync every single day, forever, for a gap that isn't real.
+     * The invariant: counts() must scope stock_batches EXACTLY as pull()
+     * does, or a store shows a permanent, unfixable "deficit" and the health
+     * check this endpoint feeds triggers a full resync every day forever for
+     * a gap that is not real.
+     *
+     * The scoping itself changed in A-176a. This test originally asserted 1,
+     * because pull() scoped through a soft-delete-filtered Product subquery
+     * and so could never deliver an orphaned batch. It now delivers them —
+     * it has to, since that product's movements were always sent and the
+     * client defers their deltas until the batch arrives — so both sides
+     * count 2. The invariant is unchanged; only what satisfies it moved.
      */
-    public function test_stock_batches_count_excludes_batches_of_a_soft_deleted_product()
+    public function test_stock_batches_count_includes_batches_of_a_soft_deleted_product()
     {
         $this->insertProduct('live-product', $this->store->id);
         $this->insertProduct('deleted-product', $this->store->id, deletedAt: now()->toDateTimeString());
@@ -174,10 +174,15 @@ class SyncCountsTest extends TestCase
         $response = $this->actingAs($this->owner)->getJson('/api/v1/app/sync/counts');
 
         $response->assertStatus(200);
-        // Only the live product's batch counts - the orphaned one (its
-        // product is soft-deleted) is exactly what pull() can never send,
-        // so it must never be counted as a "missing" row either.
-        $response->assertJsonPath('counts.stock_batches', 1);
+        // Both batches count. Until A-176 this asserted 1, because pull()
+        // scoped stock_batches through a soft-delete-filtered Product
+        // subquery and so could never send the orphaned one. It can now —
+        // it has to, since that product's movements were always sent and
+        // the client defers their deltas until the batch arrives. The
+        // invariant is unchanged and is the point of this test: counts()
+        // must equal what pull() delivers, so a device is never reported
+        // behind by rows it can never receive.
+        $response->assertJsonPath('counts.stock_batches', 2);
     }
 
     public function test_returns_every_expected_table_key_even_when_all_zero()

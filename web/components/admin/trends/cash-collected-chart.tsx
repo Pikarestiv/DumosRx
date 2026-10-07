@@ -21,7 +21,7 @@ export function CashCollectedChart({ series, granularity }: CashCollectedChartPr
   // as "broken" rather than "nothing was collected".
   if (series && series.points.length > 0 && currencies.length === 0) {
     return (
-      <Card className="bg-card border-border shadow-sm">
+      <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
         <CardHeader>
           <CardTitle className="text-base">Cash collected</CardTitle>
           <CardDescription>Successful payments only.</CardDescription>

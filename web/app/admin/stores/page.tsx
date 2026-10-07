@@ -242,7 +242,7 @@ export default function StoresManagement() {
         <FleetStockValueCard totals={response.stock_value_by_currency} />
       )}
 
-      <Card className="border-none shadow-sm overflow-hidden bg-card">
+      <Card className="border-none shadow-sm overflow-hidden bg-white dark:bg-slate-900">
         <CardContent className="p-0">
           <StoreToolbar
             search={search}

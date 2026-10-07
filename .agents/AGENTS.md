@@ -84,7 +84,16 @@ To maintain the DumosRx "Premium" feel:
 
 - **Typography:** Use `Geist` or `Inter` for body text, and a Serif font (e.g., `Playfair Display`) for headings.
 - **Accents:** Primary color is deep emerald or navy, with gold/muted-yellow accents for alerts/ratings.
-- **No Hardcoded Colors:** Never use arbitrary hardcoded hex codes (like `text-[#123456]` or `bg-[#FFFFFF]`) in Tailwind classes. Always use the predefined semantic theme variables (e.g., `bg-primary`, `text-muted-foreground`, `border-border`, `bg-card`) to ensure light/dark mode compatibility and a consistent design language.
+- **No Hardcoded Colors:** Never use arbitrary hardcoded hex codes (like `text-[#123456]` or `bg-[#FFFFFF]`) in Tailwind classes. Use the predefined semantic theme variables (e.g. `bg-primary`, `text-muted-foreground`, `border-border`) or the project's Tailwind palette classes, so light/dark mode keeps working.
+- **Card surfaces are `bg-white dark:bg-slate-900`, NOT `bg-card`.** This rule
+  previously listed `bg-card` as an example and that is how a whole admin
+  revamp ended up with grey cards sitting next to the rest of the panel's
+  blue-slate ones — visibly mismatched, and caught by the owner rather than by
+  review. The house card is
+  `bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm`
+  (see `web/components/admin/dashboard/recent-stores.tsx`). `bg-card` and
+  `border-border` resolve to a neutral grey that does not match it. If you are
+  adding a card, copy an existing one.
 - **Glassmorphism:** Use backdrop-blur (`bg-background/95 backdrop-blur-sm border shadow-sm`) for dialogs, tooltips, and secondary cards.
 - **Tooltips:** Use Radix UI tooltips with a subtle 1000ms delay to prevent flickering.
 - **Localization (Dates):** Always maintain`DD/MM/YYYY date structure` for UI elements instead of the US format (`MM/DD/YYYY`). Use custom DatePicker components (like `DatePickerInput`) rather than native `<input type="date">` to enforce this visual format across all browsers.

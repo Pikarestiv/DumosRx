@@ -21,7 +21,7 @@ export function PendingMigrationsPanel() {
   const pending = data?.pending ?? [];
 
   return (
-    <Card className="bg-card border-border shadow-sm">
+    <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Database className="h-4 w-4 text-muted-foreground" />
@@ -47,7 +47,7 @@ export function PendingMigrationsPanel() {
 
         {known && pending.length === 0 && (
           <p className="text-sm font-medium text-foreground">
-            Nothing pending — the schema matches this release.
+            Nothing pending. The schema matches this release.
           </p>
         )}
 

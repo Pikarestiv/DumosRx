@@ -444,6 +444,13 @@ Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-5-maintenance-design.
   longer seeds (A-174), so "sync roles and permissions" is its own button;
   a permission added to `RolesAndPermissionsSeeder` does not exist in production
   until someone presses it.
+- **The migration runner names the environment it is about to touch.** The
+  dialog and the page header both read `useApiEnvironmentName()`, which
+  reflects which API this session is talking to rather than which build it is
+  — so running migrations against `dev.dumosrx.com` says "the Staging / Dev
+  database", and the "take a database backup first" line appears only on
+  production. A warning that overstates gets clicked through exactly as fast
+  as one that understates.
 - **The confirmation states the specific risk, not "are you sure".** It names the
   count, names how many pending migrations alter existing data, says this host
   cannot roll back a half-failed migration, and warns that a timeout does not

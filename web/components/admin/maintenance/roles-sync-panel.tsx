@@ -20,7 +20,7 @@ export function RolesSyncPanel() {
   const sync = useSyncRolesMutation();
 
   return (
-    <Card className="bg-card border-border shadow-sm">
+    <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <ShieldCheck className="h-4 w-4 text-muted-foreground" />

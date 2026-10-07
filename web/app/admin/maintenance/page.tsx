@@ -4,6 +4,8 @@ import Link from "next/link";
 import { ShieldAlert, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAdminAuthStore, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
+import { useApiEnvironmentName } from "@/hooks/use-api-environment";
+import { Badge } from "@/components/ui/badge";
 import { PendingMigrationsPanel } from "@/components/admin/maintenance/pending-migrations-panel";
 import { RolesSyncPanel } from "@/components/admin/maintenance/roles-sync-panel";
 
@@ -39,15 +41,23 @@ export default function MaintenancePage() {
 }
 
 function MaintenanceContent() {
+  const { environmentName, isProduction } = useApiEnvironmentName();
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-black tracking-tight flex items-center gap-2">
           <Wrench className="h-8 w-8 text-indigo-500" />
           Maintenance
+          <Badge
+            variant={isProduction ? "destructive" : "secondary"}
+            className="text-xs align-middle"
+          >
+            {environmentName}
+          </Badge>
         </h1>
         <p className="text-muted-foreground mt-1">
-          Apply the schema and permission changes a release expects, and see what is outstanding.
+          {`Every action here applies to the ${isProduction ? "production" : environmentName} database this session is connected to.`}
         </p>
       </div>
 

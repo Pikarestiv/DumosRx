@@ -999,7 +999,10 @@ class SyncController extends Controller
             'return_items' => $query->whereIn('return_id', \App\Models\SaleReturn::query()->select('id')->whereIn('store_id', $storeIds)),
             'prescription_items' => $query->whereIn('prescription_id', \App\Models\Prescription::query()->select('id')->whereIn('store_id', $storeIds)),
             'purchase_order_items' => $query->whereIn('purchase_order_id', PurchaseOrder::query()->select('id')->whereIn('store_id', $storeIds)),
-            'stock_batches' => $query->whereIn('product_id', Product::query()->select('id')->whereIn('store_id', $storeIds)),
+            // withTrashed(): a soft-deleted product's movements are still sent
+            // (stock_movements is scoped by store_id), so withholding its
+            // batches strands those movements' deltas forever — A-176.
+            'stock_batches' => $query->whereIn('product_id', Product::withTrashed()->select('id')->whereIn('store_id', $storeIds)),
             'sale_item_batches' => $query->whereIn(
                 'sale_item_id',
                 SaleItem::query()->select('id')->whereIn('sale_id', $this->tenantSaleIds($storeIds)),
@@ -2302,21 +2305,15 @@ class SyncController extends Controller
         // (applyPullTenantScope(): whereIn('product_id', Product::query()
         // ->select('id')->whereIn('store_id', ...))), not by
         // stock_batches.store_id directly. Product
-        // uses SoftDeletes, so that pull-side subquery silently excludes
-        // batches belonging to a deleted product — completely routine
-        // (discontinuing/removing a product) for a store like this one.
-        // Counting by store_id alone here would count those orphaned-
-        // product batches too, permanently disagreeing with what pull()
-        // can ever actually deliver: a device would look "behind" by
-        // exactly that many rows forever, since forceFullResync() re-runs
-        // the very same pull scoping and can never close a gap that isn't
-        // real. Matching this exactly is what keeps the health check
-        // comparing apples to apples.
-        $nonDeletedProductIds = Product::query()->select('id')->where('store_id', $currentStoreId);
+        // Mirrors applyPullTenantScope()'s stock_batches rule exactly, so a
+        // device never looks permanently "behind" by rows pull cannot
+        // deliver. Both sides use withTrashed() since A-176; if one changes,
+        // change the other in the same edit.
+        $scopedProductIds = Product::withTrashed()->select('id')->where('store_id', $currentStoreId);
 
         $counts = [
             'products' => DB::table('products')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
-            'stock_batches' => DB::table('stock_batches')->whereIn('product_id', $nonDeletedProductIds)->whereNull('deleted_at')->count(),
+            'stock_batches' => DB::table('stock_batches')->whereIn('product_id', $scopedProductIds)->whereNull('deleted_at')->count(),
             'sales' => DB::table('sales')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
             'customers' => DB::table('customers')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),
             'categories' => DB::table('categories')->where('store_id', $currentStoreId)->whereNull('deleted_at')->count(),

@@ -220,6 +220,8 @@ Route::prefix('v1')->group(function () {
             Route::get('/maintenance/migrations', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'migrations'])->middleware('role:super_admin');
             Route::post('/maintenance/migrations/run', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'runMigrations'])->middleware('role:super_admin');
             Route::post('/maintenance/roles/sync', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'syncRoles'])->middleware('role:super_admin');
+
+            Route::get('/trends', [\App\Http\Controllers\Api\Admin\AdminTrendsController::class, 'index'])->middleware('role:super_admin');
             Route::get('/downloads/manifest', [AdminPlatformController::class, 'downloadsManifest'])->middleware('role:super_admin');
             Route::put('/users/{id}', [AdminUserController::class, 'updateUser'])->middleware('role:super_admin');
             Route::delete('/users/{id}', [AdminUserController::class, 'deleteUser'])->middleware('role:super_admin');

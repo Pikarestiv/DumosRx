@@ -81,19 +81,26 @@ class AdminSubscriptionEndpointGateTest extends TestCase
         return $slug;
     }
 
-    public function test_only_super_admin_may_read_the_lifecycle_endpoints(): void
+    /**
+     * The gate is `permission:view_subscriptions`, not a role check. Since
+     * 2026-10-07 that permission is a Platform Admin default — a partner
+     * manages renewals, so withholding the worklists made them unable to do
+     * the job. Agent is still refused: these lists carry subscription money
+     * data for every store on the platform, not just the ones they installed.
+     */
+    public function test_the_lifecycle_endpoints_follow_the_view_subscriptions_permission(): void
     {
         $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
 
-        $this->actingAs($this->makeAdmin('super_admin'))
-            ->getJson('/api/v1/admin/subscriptions/lifecycle')->assertOk();
-
-        foreach (['platform_admin', 'agent'] as $role) {
+        foreach (['super_admin', 'platform_admin'] as $role) {
             $this->actingAs($this->makeAdmin($role))
-                ->getJson('/api/v1/admin/subscriptions/lifecycle')->assertStatus(403);
-            $this->actingAs($this->makeAdmin($role))
-                ->getJson('/api/v1/admin/subscriptions/expiring')->assertStatus(403);
+                ->getJson('/api/v1/admin/subscriptions/lifecycle')->assertOk();
         }
+
+        $this->actingAs($this->makeAdmin('agent'))
+            ->getJson('/api/v1/admin/subscriptions/lifecycle')->assertStatus(403);
+        $this->actingAs($this->makeAdmin('agent'))
+            ->getJson('/api/v1/admin/subscriptions/expiring')->assertStatus(403);
     }
 
     /** The A-141 shape: a role-slug allow-list gets this wrong in both directions. */

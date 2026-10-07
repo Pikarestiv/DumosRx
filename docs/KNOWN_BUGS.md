@@ -19,6 +19,17 @@ handful of things actually worth your attention aren't buried in it.
 - **What remains open here is only the cursor half:** a batch whose `updated_at` predates the device's pull cursor is not re-sent by an incremental pull. `forceFullResync()` does recover it, so this is no longer a dead end — but it is a manual step the operator has to know about, and a targeted by-id backfill would remove the need for it entirely.
 - **Fix:** a targeted backfill — the client asks for specific record ids it knows it is missing, and the server returns them regardless of cursor position. There is no such endpoint today (`whereIn('id', …)` exists in `pull()` only for the store/user scoping), so this is new API surface plus a client call path, and wants its own scoping. Worth pairing with a decision on whether an unresolvable delta should eventually be surfaced to the store owner rather than only to Sentry.
 
+#### A-180. `web/` — the admin panel calls one concept three things: "Account Manager", "Contact Specialist", and a component that contradicts itself
+- **Found:** 2026-10-07, while writing `docs/partner-sop/DumosRx-Partner-SOP.docx`. The owner spotted it: the SOP asserted the panel labels the relationship "Account Manager", and that turned out to be only half true.
+- **The three names, all user-visible:**
+  - `components/admin/stores/details/account-manager-card.tsx` renders `DetailCard title="Contact Specialist"`.
+  - `components/admin/views/default-account-manager-card.tsx` renders the heading "Default Contact Specialist", then its own body text says "see the **Account Manager** field on a store's ..." - contradicting its own title one line later.
+  - `app/admin/settings/[[...tab]]/settings-client.tsx` labels a settings tab "Account Manager".
+  - The API field is `account_manager` / `account_manager_is_explicit`, so the data layer says account manager while the store page says contact specialist.
+- **Why it matters beyond tidiness:** this is the term partners use with customers, and the SOP now has to spend a paragraph explaining that two labels mean the same thing. An operator reading "Contact Specialist" on a store page has no way to know it is the same field as the "Account Manager" setting they just changed.
+- **Fix:** pick one. "Account Manager" is the better choice: it matches the API field, the settings tab, and ordinary business usage, and it is what the partner SOP teaches. Rename the two card labels, fix the self-contradicting body text, and grep for both strings afterwards. No API change needed.
+- **Also update** `docs/partner-sop/DumosRx-Partner-SOP.docx` section 1, which currently explains the discrepancy and promises it will be tidied up.
+
 #### A-177. `laravel-server/` — a sync command is addressed by `device_id`, which any device of the same store can claim
 - **Found:** 2026-10-07, in review of the Phase 4 command channel. Logged rather than fixed: it is a real limit, but it is not a privilege escalation and the fix needs a device-identity decision that does not exist yet.
 - **Location:** `SyncCommandService::pendingFor()` and the sync request's device header.

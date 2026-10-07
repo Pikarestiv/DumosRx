@@ -841,6 +841,20 @@ counts, see `components/stock-batch/stock-audits.tsx`).
   `STORE_SCOPED_TABLES`, so `npm run test:schema` ignores it. It **is** in
   `LOCAL_WIPE_TABLES`, so a `resetDatabase()` cannot leave a delta behind to
   be applied against a freshly re-pulled batch.
+- **Reconciliation refuses while deltas are pending (A-173).** A forced sync
+  does not settle a deferred delta whose batch never arrived, so the sync can
+  succeed while this device's quantities are knowingly incomplete.
+  `reconcileStockQuantities()` therefore checks `_pending_stock_deltas` and
+  refuses — asserting authority over the server's correct, movement-derived
+  value while holding unapplied deltas is the one case of the documented
+  "stale device" risk that the device can detect for itself rather than guess
+  at. Don't remove that check to make the button work again; the right fix is
+  to make the missing batch arrive (A-176).
+- **An unresolvable delta is re-reported, not reported once.** The report
+  fires at 10 attempts and then every 25. A condition that never resolves
+  must not go quiet: silence after one report is indistinguishable from the
+  problem having fixed itself, and that is precisely how per-device stock
+  divergence stayed invisible.
 - **`DEVICE_LOCAL_PULL_COLUMNS`.** Columns each device owns privately:
   written locally, never pushed, so the server's copy is meaningless and
   must never be written back. Today that is `stores.last_monotonic_time`,

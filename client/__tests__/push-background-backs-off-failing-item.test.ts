@@ -73,19 +73,26 @@ describe("pushChanges backs a permanently-failing item off across background cyc
     await pushChanges(false);
     expect(apiClient.pushChanges).toHaveBeenCalledTimes(1);
 
+    // Every change sent by call `n` onwards, flattened - so "nothing was
+    // re-sent" can be asserted without forbidding a report-only request.
+    const changesSentAfter = (n: number) =>
+      apiClient.pushChanges.mock.calls.slice(n).flatMap((call) => call[0].changes ?? []);
+
     const afterFirst = db.exec(`SELECT retry_count, next_retry_at FROM _sync_queue WHERE id = 1`);
     expect(afterFirst[0].values[0][0]).toBe(1);
     expect(afterFirst[0].values[0][1]).not.toBeNull();
 
     // Second background cycle, immediately after: the item is still inside
-    // its backoff window, so nothing should go over the wire at all.
+    // its backoff window, so it must not be re-sent. A report-only request
+    // (changes: []) may still go out so the queue can attract an operator
+    // command — see push-delivers-command-results-when-queue-is-empty.
     const second = await pushChanges(false);
-    expect(apiClient.pushChanges).toHaveBeenCalledTimes(1);
+    expect(changesSentAfter(1)).toEqual([]);
     expect(second).toEqual({ pushed: 0, failedBatches: 0 });
 
     // Third cycle, same: the retry counter must not keep climbing either.
     await pushChanges(false);
-    expect(apiClient.pushChanges).toHaveBeenCalledTimes(1);
+    expect(changesSentAfter(1)).toEqual([]);
     const afterThird = db.exec(`SELECT retry_count FROM _sync_queue WHERE id = 1`);
     expect(afterThird[0].values[0][0]).toBe(1);
   });

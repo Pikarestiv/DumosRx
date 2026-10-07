@@ -158,8 +158,10 @@ class SyncController extends Controller
             ], $validation['status']);
         }
 
+        // `present`, not `required`: an empty array is a legitimate report-only
+        // push. See SyncPushReportOnlyExchangeTest for why that case exists.
         $request->validate([
-            'changes' => 'required|array',
+            'changes' => 'present|array',
             'changes.*.table_name' => 'required|string',
             'changes.*.operation' => 'required|in:INSERT,UPDATE,DELETE',
             'changes.*.payload' => 'nullable'

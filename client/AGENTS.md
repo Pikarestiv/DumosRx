@@ -797,6 +797,25 @@ admin panel. The constraints are not negotiable:
   device's next sync — which for a store whose plan has sync disabled may be
   never. The admin panel renders a row with a pending command as "queued" with
   no action button, rather than an ordinary Retry the operator fires twice.
+- **A push with no changes is a legitimate request** (`exchangeReportsOnly()`
+  in `push.ts`; the server validates `changes` as `present|array`, not
+  `required`). Two cases need it, and both are the ones this feature exists
+  for:
+  1. The commonest *successful* outcome **empties the queue** — abandoning or
+     retrying the last stuck row — so the outcome has nothing to ride along
+     with, and the operator is left looking at a command that is forever
+     "queued".
+  2. A stuck row is **by definition** one whose retries have backed off, and
+     `getPendingSyncItems()` excludes a backed-off row from an auto-sync. So
+     the device would send nothing at all, and the `retry` command issued for
+     that very row could never reach it.
+
+  The gate is "are there outcomes to deliver, or any rows in `_sync_queue`" —
+  read with its own `COUNT(*)`, not from `queueState`, which is `null` until a
+  store is active. A device with a genuinely empty queue and nothing to report
+  sends no request, so this does not add idle traffic. Three older tests
+  asserted "no API call at all" for the backed-off case; they now assert the
+  precise property instead — the backed-off row is never *sent*.
 
 #### Pull details (`sync-engine/pull.ts`)
 

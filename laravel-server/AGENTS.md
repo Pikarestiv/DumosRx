@@ -1945,6 +1945,50 @@ itself holds no sending logic.
   test-send: one mail to the named address, no `Broadcast` row, no store owner
   reached, 401/403 without admin auth, and recipient-email validation).
 
+## Migrations: the test suite cannot tell you whether one will apply (2026-10-07)
+
+The whole suite runs on **SQLite**. SQLite has no index key-length limit, no
+storage engines, and a far looser view of column types than MySQL — so a
+green suite says nothing about whether a migration can be applied to the
+production database. This is not hypothetical: `create_sync_commands_table`
+passed 1165 tests and then died on the live box, four bytes over the server's
+key limit, *after* two sibling migrations had already applied. MySQL DDL is
+not transactional, so a mid-migration failure leaves a half-built schema and
+an unrecorded `migrations` row, which blocks every later migration until
+someone cleans it up by hand.
+
+**Budget every index at 1000 bytes under utf8mb4**, i.e. four bytes per
+character:
+
+| declaration | indexed bytes |
+|---|---|
+| `uuid('x')` → `char(36)` | 144 |
+| `string('x', 64)` | 256 |
+| `string('x', 191)` | 764 |
+| `string('x')` (default is 191, set in `AppServiceProvider`) | 764 |
+| anything non-character | small, treat as 8 |
+
+So `['store_id', 'device_id', 'status']` with `device_id` at 191 is
+144 + 764 + 96 = **1004** — over. Two uuid-ish columns plus a short status is
+comfortable; two 191s plus anything is not. `tests/Feature/SchemaIndexKeyLengthTest.php`
+enforces this by parsing the migration source, and names the limitations of
+that approach in its own docblock. **Do not relax its budget to make a new
+index fit** — shorten the column, which is almost always the right-sized
+change anyway.
+
+**Why 1000 and not 3072:** 1000 is MyISAM/Aria's limit and what the
+production host actually reported. InnoDB allows 767 (COMPACT) or 3072
+(DYNAMIC), and `config/database.php` sets `'engine' => null`, so a new table
+inherits the server's default engine rather than a known one. Budgeting for
+the smaller number is what makes a migration portable across both. The
+engine question that this exposed — and why it matters much more than the
+index did, since MyISAM makes transactions and row locks **silent** no-ops —
+is A-179 in `docs/KNOWN_BUGS.md`.
+
+**Before shipping a migration**, read it back against the table above. A
+migration is the one change in this repo that the test suite cannot verify
+for you.
+
 ## Testing
 
 ```

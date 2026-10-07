@@ -32,6 +32,77 @@ without updating that.
   that's the one architectural rule `tests/Feature/ArchitectureTest.php`
   exists to keep honest (currently only asserts core tables exist; the
   Controller/Service separation itself is enforced by review, not a test).
+- **Admin platform services — one domain each, never a god-service.** The
+  original `AdminPlatformService` carried six unrelated responsibilities in
+  590 lines (past §4's 350-line limit) and was split in Phase 1 of the admin
+  panel work (`docs/superpowers/specs/2026-10-06-admin-panel-phase-1-design.md`):
+  `AdminSummaryService` (the Overview payload), `AdminHealthService`
+  (health probes + the Sentry issue feed), `AdminCatalogService` (global
+  product list, catalog metrics, standardization) and `AdminActivityService`
+  (platform-wide activity log + global search). `AdminPlatformController`
+  is a thin delegator over the four. Add a new admin aggregation as its own
+  service rather than growing one of these — Phases 2-6 (sync health,
+  subscription lifecycle, trends, maintenance runner) each add one.
+  - `AdminFleetMetricsService` holds fleet-wide roll-ups; `AdminRevenueService`
+    is the **canonical definition of platform revenue** (successful
+    `PaymentTransaction` rows). Overview's old "Platform Revenue" stat summed
+    `Sale::total_amount`, i.e. tenant GMV — never reintroduce that as a
+    platform-revenue figure.
+  - **Money is reported per currency and never converted.** `App\Support\CurrencyTotals::fromPairs()`
+    is the single grouping helper; it uppercases ISO codes and buckets blank
+    ones under `NGN`. There is deliberately no FX table — a converted total
+    would mean owning stale-rate risk. Note that `stores.currency` and
+    `payment_transactions.currency` are both `NOT NULL` (the former defaults
+    to `'NGN'`), so a true null is unreachable; the helper's fallback guards
+    blank strings and future callers, not existing rows.
+  - **Overview's people and subscription counts are store-owner-scoped.**
+    "Active Users" counts `role = 'store_owner'` only, with active store staff
+    (`admin`, `manager`, `specialist`, `sales_staff`, `auditor`) on its
+    sub-line; platform roles (`super_admin`, `platform_admin`, `agent`) appear
+    in neither. It previously counted everyone except `super_admin`, i.e. the
+    platform's own staff plus every store's employees. "Active Subscriptions"
+    counts **distinct `user_id`**, not subscription rows, and excludes trials
+    (they get the sub-line) — a row count reported one owner once per
+    subscription they had ever held.
+  - **Sync recency is not account status.** `AdminSummaryService`'s recent-stores
+    map keeps `sync_status` under its own key, separate from the store's real
+    `status` column, because an earlier version overwrote `status` with the
+    recency guess and left Recent Stores contradicting the Store Fleet list for
+    the same store. A clock-skewed offline device can push a future
+    `last_sync_at` (the sync controller trusts the client's clock), so it is
+    clamped to `now()` before the diff.
+  - **Host readings live behind `App\Support\HostMetrics`, and that seam is
+    load-bearing.** `loadAverage()`, `memory()` and `disk()` each return `null`
+    when the host cannot measure them, and `AdminHealthService` takes the class
+    by constructor injection so tests can bind a stub and exercise **both**
+    branches. Without the seam the honesty tests were tautologies: they asserted
+    whichever branch the machine running the suite happened to take, so the
+    production case (`shell_exec` disabled on the shared host) was exercised
+    nowhere, and a regression to a zero-instead-of-null reading could not fail
+    the build. Keep new host-dependent readings behind this class.
+  - **`databaseConnectMs` must issue a real statement.** It runs
+    `DB::select('select 1')`, not `DB::connection()->getPdo()`: `getPdo()`
+    returns the already-resolved PDO instance (auth middleware has hit the DB
+    long before this runs), so timing it brackets a property read and reports
+    ~0ms on every host, healthy or not. The figure replaced a hardcoded
+    `"42ms"`, so a number that cannot vary is the same defect wearing a
+    different value.
+  - **The activity-log reads in `getSystemHealth()` are guarded.** The Database
+    probe exists to report a dead connection; reading `ActivityLog` unguarded
+    straight after the timer meant a genuinely-down database threw a
+    `QueryException` out of the method and the operator got a generic 500
+    instead of "Database: Degraded" — the one case the probe is for.
+  - **There is no `database.load` figure.** The old one was
+    `min(100, max(5, $activityRowsInLastMinute * 2))` rendered as a percentage
+    bar: it floored an idle platform at 5% and saturated at 100% after ~50 rows,
+    and was not a load measurement in any unit. It was removed in Phase 1's
+    review pass alongside the fake CPU percentage. Don't reintroduce a
+    synthesised percentage here; report `database.status`, or a real figure
+    such as `Threads_connected` against `max_connections`.
+  - **`AdminHealthService::getRecentErrors()` needs `SENTRY_API_TOKEN`**, an
+    internal-integration token scoped to `event:read`/`project:read`. It must
+    never reach the browser: `web/` is a static export with no server of its
+    own to keep a secret in, which is why this is proxied server-side at all.
 - **Controller namespaces** roughly mirror caller: `Api/App/*` (client/,
   the POS sync+business endpoints), `Api/Web/*` (web/'s dashboard-adjacent
   endpoints), `Api/Admin/*` (platform admin panel), `Api/Public/*`
@@ -848,6 +919,177 @@ per-store Paystack subaccounts — see the dedicated section below for the
 onboarding flow, fee semantics, propagation cadence, and the refund decision.
 Full design: `docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`.
 
+## Sync push refusals are recorded once, from `$failed`, after the outer commit
+
+`push()` refuses changes from **eight** separate sites, every one of which
+appends to the same `$failed` array that is returned in the response. Recording
+reads that assembled array **once**, after the outer `DB::commit()`, beside
+`sendFirstSyncAlert()`.
+
+- **The contract for a new refusal path is "append to `$failed`"** — which every
+  existing path already honours — not "remember to log at your new throw site".
+  Recording at each site would mean eight call sites rebuilding store/user
+  context, and a ninth added later would silently go unrecorded.
+- **After the commit, deliberately.** A push whose outer transaction rolls back
+  applied nothing, so recording earlier would leave failure rows describing
+  changes that were never committed.
+- **Wrapped in `try`/`catch`, deliberately.** A sync that succeeded must never be
+  reported as failed because telemetry could not be written. `SyncFailureRecorder`
+  throwing is logged and swallowed, and `SyncPushFailureRecordingTest` pins that
+  the push still returns 200.
+- **The recorder is resolved from the container at the hook, not injected.**
+  `SyncController` has no constructor on purpose: `SyncSchemaParityTest` does
+  `new SyncController()` directly, and adding one broke it. Leaving the public
+  signature untouched meant no existing test had to be edited to accommodate the
+  change.
+- **Store attribution uses `resolvePushStoreId()`**, the same resolver
+  `touchStoreLastSyncAt()` uses. Any other lookup mis-attributes a multi-store
+  owner's failures to the wrong branch — the exact bug that resolver exists to
+  prevent.
+- **The operation is recovered by `table_name|record_id`, never by `id`.** A
+  change entry's `id` is optional and real client pushes omit it entirely (see
+  `SyncPushSessionScopedRefusalTest`), so keying on `id` would record a null
+  operation for virtually every production refusal.
+- **`sync_failures.store_id` carries no foreign key on purpose**, so
+  **archiving** a store (a soft delete) leaves its recorded refusals intact —
+  which matters, because an archived store is often exactly the one being
+  investigated. **A purge does delete them**, and deliberately:
+  `AdminStoreDeletionService::storeScopedTables()` discovers every table with a
+  `store_id` column rather than reading a list, so both new tables are hard-
+  deleted along with the rest of the store's data. That is the right behaviour
+  for a purge — it is the "erase this tenant" operation — but it means the
+  absent foreign key buys retention across *archival only*, not across purge.
+- **Reasons are canonicalised before they are stored.** `SyncFailureRecorder`
+  writes only the controller's own stable slugs; anything else (an exception
+  message reaching `$failed` from the `catch` at the bottom of the per-change
+  loop, or from the stock-delta pass) becomes `server_error` and the detail goes
+  to the log. Three reasons, all load-bearing: a `QueryException` message runs
+  to several hundred characters and would blow the `string(255)` column under
+  `strict => true`, aborting the whole recording **including the tally** and
+  silently inflating the success rate for the one store actually failing; the
+  message embeds the failing SQL *and its bindings*, so customer names, phones
+  and amounts would land in an observability table and be rendered in the admin
+  UI; and a free-text reason makes `failures_by_reason` unbounded.
+- **Recording failure rows and updating the tally are independent.** Each is
+  wrapped separately, because losing the tally is worse than losing the rows:
+  it removes the store from the denominator entirely.
+- **Conflicts are not refusals.** `version_conflict` and `stale_timestamp` are,
+  in `push()`'s own words, "a routine, expected occurrence in multi-device
+  sync". They are recorded in `sync_failures` for forensics but counted in
+  `changes_conflicted`, not `changes_refused`, so a healthy three-terminal store
+  can still read 100%. A success rate that no working store can ever reach is
+  one operators learn to ignore.
+- **The daily bucket comes from the application clock** (`now()->startOfDay()`),
+  never a database-side date — see the §7 timezone section below. Note the bucket
+  is a Carbon, not a `Y-m-d` string: the model's `date` cast stores
+  `Y-m-d H:i:s`, so a string lookup never matches an existing row and every
+  second push of the day violates the unique constraint.
+- **Phase 2 is observation only.** It must not change what the server accepts,
+  refuses or returns. `SyncPushFailureRecordingTest` pins the response shape.
+
+## Trends: what the schema can and cannot support (Phase 4)
+
+`AdminTrendsService` + `AdminChurnTrendService` + `App\Support\TimeSeries`.
+
+- **MRR is not derivable and must not be invented.** `subscriptions` has
+  `plan_name`, `start_date`, `end_date`, `status`, `is_trial` — **no amount, no
+  billing cycle**. Billing cycle exists only inside
+  `payment_transactions.metadata` for manually activated plans, and nothing
+  records auto-renewal. Cash collected (successful `payment_transactions`, per
+  currency) is what the data supports. Adding `billing_cycle`/`amount` to
+  `subscriptions` is a deliberate cross-repo project with an incomplete
+  backfill, not a side effect of a charts change.
+- **Historical buckets are immutable.** Store signups uses `withTrashed()` on
+  purpose: counting the *event*, not the current population. A past bucket that
+  shrinks when a row is soft-deleted makes the chart rewrite its own history.
+  `AdminTrendsTest::test_a_soft_deleted_store_still_counts_in_the_month_it_signed_up`
+  is the guard; confirmed RED against the `withoutTrashed()` version.
+- **Window boundaries come from PHP, bucket labels from the row.** §7 applies:
+  `TimeSeries` generates the range with `now()`, never MySQL's clock. Formatting
+  a stored column is fine; letting the DB decide "now" is not.
+- **Zero-fill is not cosmetic.** A `GROUP BY` omits empty months, which makes a
+  line jump the gap as though it never existed. `TimeSeries::fill()` fills every
+  bucket, and a filled zero is a measurement — distinct from a series that could
+  not be computed.
+- **Churn lives in its own service** because it is the only series that cannot
+  be answered in SQL: grace resolves in PHP through
+  `SubscriptionService::subscriptionState()`, the single definition this repo
+  gates live traffic on. It carries Phase 3's `CANDIDATE_LIMIT` and a per-owner
+  memo; without the memo, 40 owners with 3 lapsed subscriptions each cost 368
+  queries, and `AdminTrendsTest`'s budget test holds that line.
+
+## Subscription lifecycle: one resolver, and it is not the `status` column
+
+`SubscriptionService::subscriptionState(User $owner)` returns `trialing`,
+`active`, `in_grace`, `lapsed` or `none`, and is the **only** definition of an
+account's lifecycle state. It is built *on top of*
+`resolveEffectiveSubscription()` — the same method `CheckSubscription`,
+`hasFeature()`, `checkLimit()`, `enforceStaffLimits()` and `SyncController` gate
+live traffic on — so the admin panel and the application can never disagree
+about who is subscribed.
+
+- **Never re-derive the grace window.** `subscriptionState()` reads `end_date`
+  only to *classify* the row `resolveEffectiveSubscription()` already chose. If
+  that method's grace logic changes, this follows automatically. A second source
+  of truth for grace is how this subsystem has already gone wrong twice.
+- **Never decide liveness from `subscriptions.status`.** See the section below:
+  nothing wrote `expired` until `subscriptions:expire` existed, and
+  `grace_period` has never been written at all.
+- **Lifecycle state is a property of an owner, not a subscription row.** An
+  owner holding an expired subscription *and* a current one is not lapsed.
+  `AdminSubscriptionLifecycleService`'s four worklists all resolve to distinct
+  owners; counting rows is what made the Overview report 7 active subscriptions
+  for a single account.
+- **`lapsed` and `none` are deliberately distinct.** Never-subscribed is a sales
+  problem, lapsed is a retention problem, and one combined bucket is a list
+  nobody can act on.
+- **Grace is deliberately not expressed in SQL.** Each worklist narrows with a
+  query (a `whereBetween` on `end_date`, a `whereIn` on payment status) and then
+  filters the candidates through `subscriptionState()`. Narrowing first keeps the
+  in-PHP pass bounded; expressing grace in SQL would be the second definition
+  this section forbids. `CANDIDATE_LIMIT` caps that candidate set so a platform
+  with years of expired rows cannot hydrate all of them in one request.
+- **Resolve an owner once per request.** Because grace is resolved in PHP, every
+  owner in a candidate set costs queries. `effectiveSubscriptionWithState()`
+  returns the row and its classification from a single resolution (prefer it to
+  calling `resolveEffectiveSubscription()` and `subscriptionState()` in
+  sequence, which resolves twice), and `AdminSubscriptionLifecycleService`
+  memoises per owner id for the life of the request — `figures()` touches the
+  same owner from up to four buckets. Without both, 60 lapsed owners cost 920
+  queries; with them, under 250. `AdminSubscriptionQueryBudgetTest` holds that
+  budget, so a change that reintroduces per-bucket resolution fails loudly
+  instead of quietly scaling with the store count.
+- **The lifecycle endpoints are `role:super_admin`**, matching their nav item —
+  see `web/AGENTS.md` for the four-layer gate and, in particular, why a surface
+  gated more narrowly than `admin/layout.tsx` needs its own page guard.
+
+## `subscriptions.status` is not self-maintaining — always pair it with `end_date`
+
+Until 2026-10-06 **nothing transitioned a subscription out of `active` when its
+`end_date` passed.** `status` only ever changed when an admin granted a trial or
+activated a plan, both of which explicitly expire the account's prior rows
+(`AdminUserService`, `AdminStoreService`). Every other row stayed `active`
+forever, so an owner accumulated one permanently-`active` row per subscription
+they had ever held. The admin Overview's "Active Subscriptions" counted rows and
+reported 7 for a single account.
+
+- **Why nothing broke:** every access-control and billing reader already pairs
+  the status check with `end_date` — `CheckSubscription`, `SubscriptionService::resolveEffectiveSubscription()`,
+  `SyncController`, `SubscriptionController`, `StorefrontController`,
+  `AdminStoreService`'s plan filter. Only code that read `status` alone (a
+  count, a group-by) was wrong. **Keep it that way: never gate access on
+  `status` by itself.**
+- **`subscriptions:expire`** (`ExpireLapsedSubscriptions`, scheduled daily at
+  02:00) now closes the gap. Its first run is also the backfill for historical
+  rows.
+- **It deliberately expires only past `end_date` + `grace_period_days`, not past
+  `end_date`.** `resolveEffectiveSubscription()` finds the grace-window row with
+  a `status = 'active'` filter in *both* of its branches, so expiring a row the
+  moment `end_date` passed would silently cut the grace period to zero — which
+  is the failure that previously deactivated staff and sent suspension
+  notifications to accounts merely mid-renewal. If you ever change the grace
+  source, change it in both places.
+
 ## `POST /subscription/verify-license` is scoped to the caller's own account
 
 The license key is not a secret in the threat model that matters here: `GET
@@ -1622,13 +1864,58 @@ php artisan migrate     # apply migrations — LOCAL DEV DB ONLY, see below
 php artisan tinker      # also used by client/'s test:schema script
 ```
 
-**Production has no SSH/direct `artisan` access.** The shared host is
-reached only through the app itself: migrations run via a protected route,
-`GET https://<production-domain>/migrate-db?key=<MIGRATE_DB_KEY>`
-(`routes/web.php`, guarded by `config('app.migrate_db_key')` /
-`MIGRATE_DB_KEY` env — 403s without the correct key). This means **new
-migrations do nothing on production until (a) this branch is deployed and
-(b) someone hits that route** — always verify pending migrations first
-with `php artisan migrate --pretend` against local, and flag to the user
-that production still needs the deploy+route step; don't assume "I wrote
-the migration" means "it's live."
+**Production migrations are a deliberate manual step, and nothing runs them
+for you.** The hosting plan does support SSH (confirmed 2026-10-07 — an
+earlier version of this section wrongly stated it did not, and A-170 in
+`docs/KNOWN_BUGS.md` records what that cost), but the deploy pipeline is
+code-only **by choice**: the owner runs migrations themselves rather than
+having a merge to `main` migrate production. Don't add a deploy-time
+migrate step without asking.
+
+Since Phase 5 the path is the admin panel's **Maintenance** page
+(`/admin/maintenance`, super_admin only), backed by
+`POST /api/v1/admin/maintenance/migrations/run` →
+`AdminMaintenanceService::runPendingMigrations()`. It runs `migrate --force`
+and **nothing else**, returns a non-2xx on failure, and writes a
+`MIGRATIONS_RUN` activity-log entry on both success and failure.
+`GET /migrate-db?key=…` was deleted in the same change (A-174: it reseeded
+on every call, reported failures as HTTP 200, and carried its secret in a
+query string) — do not reintroduce it or a variant.
+
+- **`--seed` is deliberately not part of migrating.** The old route ran
+  `migrate --seed --force`, so `DatabaseSeeder` — which *creates a
+  super-admin account* — fired on every production migration. Migrating no
+  longer seeds. Because `RolesAndPermissionsSeeder` was the way a newly
+  declared permission actually reached production, it gets its own
+  separately-confirmed action (`POST /maintenance/roles/sync` →
+  `db:seed --class=RolesAndPermissionsSeeder --force`, audited as
+  `ROLES_PERMISSIONS_SYNCED`). **If you add a permission to that seeder, say
+  so in your handoff** — someone has to press that button for it to exist in
+  production.
+- **Still true, and still the thing that bites:** a written migration is not
+  a live one. Verify with `php artisan migrate --pretend` against local
+  first, and tell the user production needs the deploy **and** the
+  Maintenance-page run. Don't assume "I wrote the migration" means "it's
+  live" — that assumption is what A-170 cost.
+- **Resolve the migrator by alias, never by type-hint.** `MigrationServiceProvider`
+  is deferred, so constructor-injecting `Illuminate\Database\Migrations\Migrator`
+  makes the container auto-wire it and 500 with *"Target
+  [MigrationRepositoryInterface] is not instantiable"* — **on a real HTTP request
+  only**. The whole PHPUnit suite passes either way, because the test harness
+  boots Artisan and that registers the provider. `AdminMaintenanceService` calls
+  `app('migrator')` for this reason, and
+  `AdminMaintenanceStatusTest::test_the_migrator_is_resolved_by_alias_not_constructor_injected`
+  guards it at the source level, the same workaround `PaymentProviderTimeoutTest`
+  uses for an assertion behaviour cannot make. This bug shipped green and was
+  caught only by the §9 browser smoke test.
+- **A timeout does not mean nothing happened.** PHP's execution limit can
+  cut the request while the migration is still applying, so the response is
+  not the source of truth; the run's reply and the page both re-read the
+  pending list afterwards. Check that, not the request outcome.
+- **MySQL DDL here is not transactional** and this host has no backup step,
+  so a migration that fails midway cannot roll back and is repaired through
+  phpMyAdmin. The runner flags pending migrations whose `up()` contains
+  `dropColumn`/`drop`/`rename`/`truncate`/`delete` so the operator sees
+  which ones alter existing data before confirming — a conservative
+  source-text scan, so treat it as "look closer", never as a safety
+  certificate.

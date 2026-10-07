@@ -3,22 +3,37 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Models\Product;
-use App\Services\Admin\AdminPlatformService;
+use App\Services\Admin\AdminActivityService;
+use App\Services\Admin\AdminCatalogService;
+use App\Services\Admin\AdminHealthService;
+use App\Services\Admin\AdminSummaryService;
 use App\Services\DownloadsManifestService;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
 
 class AdminPlatformController extends AdminBaseController
 {
-    protected $adminPlatformService;
+    protected $summaryService;
+
+    protected $catalogService;
+
+    protected $healthService;
+
+    protected $activityService;
 
     protected $downloadsManifestService;
 
     public function __construct(
-        AdminPlatformService $adminPlatformService,
+        AdminSummaryService $summaryService,
+        AdminCatalogService $catalogService,
+        AdminHealthService $healthService,
+        AdminActivityService $activityService,
         DownloadsManifestService $downloadsManifestService
     ) {
-        $this->adminPlatformService = $adminPlatformService;
+        $this->summaryService = $summaryService;
+        $this->catalogService = $catalogService;
+        $this->healthService = $healthService;
+        $this->activityService = $activityService;
         $this->downloadsManifestService = $downloadsManifestService;
     }
 
@@ -36,7 +51,7 @@ class AdminPlatformController extends AdminBaseController
     public function summary(Request $request)
     {
         return $this->withErrorResponse('Dashboard', 'Failed to fetch admin summary', function () {
-            return response()->json($this->adminPlatformService->getGlobalSummary());
+            return response()->json($this->summaryService->getGlobalSummary());
         });
     }
 
@@ -66,11 +81,11 @@ class AdminPlatformController extends AdminBaseController
         $search = $request->get('search');
         $category = $request->get('category');
 
-        $products = $this->adminPlatformService->getGlobalProducts($page, $search, $category);
+        $products = $this->catalogService->getGlobalProducts($page, $search, $category);
 
         return response()->json([
             ...$products,
-            'metrics' => $this->adminPlatformService->getProductMetrics(),
+            'metrics' => $this->catalogService->getProductMetrics(),
             'categories' => Product::select('generic_name')
                 ->whereNotNull('generic_name')
                 ->distinct()
@@ -92,7 +107,7 @@ class AdminPlatformController extends AdminBaseController
     public function standardize(Request $request)
     {
         return $this->withErrorResponse('Standardize', 'Failed to standardize catalog', function () {
-            return response()->json($this->adminPlatformService->standardizeCatalog());
+            return response()->json($this->catalogService->standardizeCatalog());
         });
     }
 
@@ -110,7 +125,7 @@ class AdminPlatformController extends AdminBaseController
     public function health(Request $request)
     {
         return $this->withErrorResponse('Health', 'Failed to fetch system health', function () {
-            return response()->json($this->adminPlatformService->getSystemHealth());
+            return response()->json($this->healthService->getSystemHealth());
         });
     }
 
@@ -128,7 +143,7 @@ class AdminPlatformController extends AdminBaseController
     public function errors(Request $request)
     {
         return $this->withErrorResponse('Errors', 'Failed to fetch recent errors', function () {
-            return response()->json($this->adminPlatformService->getRecentErrors());
+            return response()->json($this->healthService->getRecentErrors());
         });
     }
 
@@ -171,7 +186,7 @@ class AdminPlatformController extends AdminBaseController
     public function activityLogs(Request $request)
     {
         return $this->withErrorResponse('Activity Logs', 'Failed to fetch activity logs', function () use ($request) {
-            return response()->json($this->adminPlatformService->getActivityLogs(
+            return response()->json($this->activityService->getActivityLogs(
                 $request->query('page', 1),
                 $request->query('search'),
                 $request->query('action'),
@@ -202,7 +217,7 @@ class AdminPlatformController extends AdminBaseController
             $query = $request->query('query');
             if (!$query) return response()->json([]);
 
-            return response()->json($this->adminPlatformService->globalSearch($query));
+            return response()->json($this->activityService->globalSearch($query));
         });
     }
 }

@@ -4,7 +4,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BroadcastsTab } from "@/components/admin/views/broadcasts-tab";
 import { FeedbackTab } from "@/components/admin/views/feedback-tab";
 import { MailsTab } from "@/components/admin/views/mails-tab";
-import { MessageSquare, Radio, Mail, MessageCircle } from "lucide-react";
+import { EmailTemplatesTab } from "@/components/admin/views/email-templates-tab";
+import { MessageSquare, Radio, Mail, MessageCircle, FileText } from "lucide-react";
 import { useAdminAuthStore, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
 
 export default function CommunicationsPage() {
@@ -20,7 +21,7 @@ export default function CommunicationsPage() {
             Communications Hub
           </h1>
           <p className="text-muted-foreground mt-1">
-            Manage global broadcasts, direct emails, and incoming user feedback.
+            Manage global broadcasts, direct emails, the templates they use, and incoming user feedback.
           </p>
         </div>
       </div>
@@ -38,6 +39,12 @@ export default function CommunicationsPage() {
             </TabsTrigger>
           )}
           {isSuperAdmin && (
+            <TabsTrigger value="templates" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Templates
+            </TabsTrigger>
+          )}
+          {isSuperAdmin && (
             <TabsTrigger value="feedback" className="flex items-center gap-2">
               <MessageCircle className="h-4 w-4" />
               User Feedback
@@ -52,6 +59,12 @@ export default function CommunicationsPage() {
         {isSuperAdmin && (
           <TabsContent value="mails" className="focus-visible:outline-none focus-visible:ring-0">
             <MailsTab />
+          </TabsContent>
+        )}
+
+        {isSuperAdmin && (
+          <TabsContent value="templates" className="focus-visible:outline-none focus-visible:ring-0">
+            <EmailTemplatesTab />
           </TabsContent>
         )}
 

@@ -256,6 +256,246 @@ Two components render that list and **both must go through
 saw the whole super_admin nav (A-96). `__tests__/admin-nav-role-visibility.test.tsx`
 asserts both renderers agree; don't reintroduce a second copy of the filter.
 
+**A nav item's gate must match its page's narrowest endpoint gate, not the
+page's general area.** This rule has already been broken once, in admin Phase 1:
+the new Operations item was gated `permissions: ["view_platform_data"]` because
+it lives alongside Stores and Platform Users, but the only two endpoints it
+calls — `GET /admin/health` and `GET /admin/errors` — are `role:super_admin` in
+`routes/api.php`. A delegated role saw the link, clicked it, and got "Failed to
+load system data" from a 403. Every backend test passed; only a logged-in
+browser check caught it, which is why `.agents/AGENTS.md` §9 requires one for
+nav changes. Before adding an item, read the routes its page actually calls.
+
+## Admin information architecture (Phase 1, 2026-10-06)
+
+Spec: `docs/superpowers/specs/2026-10-06-admin-panel-phase-1-design.md`.
+
+- **`/admin/operations` is the single telemetry surface.** It owns
+  infrastructure health, the live service probes, and the Sentry issue feed.
+  Before Phase 1 this was split in two: a Settings "System Health" tab, and an
+  `/admin/system` page that **was not in `sidebar-items.ts` at all** and so was
+  reachable only by typing the URL — which is why the Sentry feed was built and
+  then never seen. Don't re-add a second telemetry surface.
+- **`/admin/system` is a redirect, not a deletion.** It `router.replace`s to
+  `/admin/operations` so existing bookmarks resolve. Verified in a browser with
+  a live session; note that a hard navigation to any `/admin/*` deep link first
+  passes through the layout's `initSession()` restore, so the redirect only runs
+  once that succeeds.
+- **Operations is super_admin-only**, matching its endpoints (see the rule
+  above). If `/admin/health` and `/admin/errors` are ever relaxed to
+  `permission:view_platform_data`, relax the nav item in the same change.
+- **Email Templates lives under Communications**, beside the broadcast and
+  email-campaign tabs that consume templates — not under Platform Settings,
+  where editing a template and sending it were two different pages.
+- **`DefaultAccountManagerCard` moved the other way**, off the system page into
+  Platform Settings, because it is configuration rather than telemetry.
+  Settings' default tab is now `billing`.
+
+### Unmeasurable metrics render as unavailable, never as zero
+
+The phase's central rule, and the reason several of these components look
+defensive. `AdminHealth`'s `loadAverage`, `memory` and `disk` are `| null`:
+`null` means *this host could not measure it*, and the UI must say so
+("Unavailable on this host"), never fall back to a `0` or a plausible string.
+A zeroed progress bar reads as a healthy idle server; `'Unknown'` reads as a
+value. Both are lies. This is not hypothetical — `shell_exec('free -m')` is
+blocked on the Namecheap shared host, so the memory reading is `null` in
+production, which is exactly what the admin should see.
+
+The same rule governs money and counts: `Subscription Revenue` renders "No
+payments yet" rather than `₦0`, and `sync_success_rate_today` renders "No sync
+activity" rather than the optimistic `100%` the old UI defaulted to.
+`__tests__/no-fabricated-metrics.test.ts` fails the build if any of the
+literals Phase 1 removed (`"42ms"`, `|| '100%'`, `High Performance`,
+`Status Page Pending`, `WebSocket`, `Global Inventory`) reappears under
+`app/admin` or `components/admin`.
+
+### A surface gated more narrowly than the layout needs its own page guard
+
+`app/admin/layout.tsx` admits anyone holding `manage_platform`. So for any page
+restricted *beyond* that — super_admin-only, or permission-specific — hiding the
+nav item is not enough: a bookmark, a pasted link or a colleague's "have a look
+at this" loads the page shell, fires the query, takes a 403, and renders a
+generic "failed to load / Retry" screen. That is indistinguishable from an
+outage, and the colleague files a bug.
+
+`app/admin/subscriptions/page.tsx` is the pattern to copy: it checks
+`checkIsSuperAdmin(user?.role)` **before rendering or fetching anything** and
+returns an explicit "only available to super admins" state with a link back to
+Overview. A refused role issues **no request at all** — pinned by
+`__tests__/admin-subscriptions-gate.test.tsx`.
+
+**This is presentation, not protection.** The route middleware is what refuses
+the data; the guard is what makes the refusal legible. Never treat a page guard
+(or a hidden button) as a security control. PG-15 is this same defect on
+`/admin` — when fixing it, copy this pattern.
+
+### Subscriptions (Phase 3, 2026-10-07)
+
+Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-3-subscription-lifecycle-design.md`.
+
+- **A worklist, not a report.** Four buckets — expiring, trials ending, lapsed,
+  payments needing attention — each row carrying the action that resolves it.
+- **The actions are the existing ones.** `SharedGrantTrialDialog`,
+  `SharedActivatePlanDialog` and `SendNotificationDialog` call the endpoints that
+  already exist; this page adds no mutation endpoint and does not proxy any, so
+  no action's authorisation can be widened from here. Buttons are **hidden via
+  `checkHasPermission`, never disabled**.
+- **Gated at four layers**: `role:super_admin` route middleware (the control),
+  a nav item defaulting to super_admin-only, the page guard above, and
+  per-action permission checks on both sides. super_admin-only is a v1 decision:
+  these lists carry subscription money data, which `RegisteredStoreSummary`
+  already withholds from `platform_admin`/`agent`. A scoped
+  "my registered stores" view via `registered_by_id` is the logged follow-up.
+- **`trial_conversion_rate` is `null` when no trials started** — render "No
+  trials started", never `0%` (reads as "the trial is failing") or `100%`.
+- `end_date` is a bare `YYYY-MM-DD`, so it goes through
+  `formatDateOnlyToDDMMYYYY`; payment timestamps are ISO and go through
+  `formatDateToDDMMYYYY`.
+- **The tab labels carry `bucket_counts`** (`BucketTabsList`), so an operator can
+  see where the work is without opening all four. The page owns the
+  `useAdminSubscriptionLifecycle` call and passes the payload down to both the
+  figures and the tabs — one query, not two. While it is loading, labels render
+  bare: a count of zero is a fact, an absent payload is not.
+- **Changing the day window resets paging.** A paginated list whose filter
+  changes under it keeps asking for a page that no longer exists, and the panel
+  then renders "Nothing needs attention here" over a bucket that has entries.
+  `useResettingPage(days)` (in `hooks/`) is the seam; reach for it in any panel
+  that pairs a page cursor with a filter control.
+
+### Activity (Phase 6, 2026-10-07)
+
+Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-6-activity-feed-design.md`.
+
+- **`/admin/activity` is two tabs now.** **Feed** (default) is the merged
+  stream; **Admin actions** is the original `activity_logs` table with its
+  richer search/action/store/user/date/role filters, extracted unchanged into
+  `components/admin/activity/admin-actions-view.tsx`. The feed does not replace
+  it — that view is more capable for its one source.
+- **Quick filters come from the server.** The response carries
+  `available_types` for the caller and only those render. A filter a caller
+  cannot use is **absent**, never a button that returns a refusal.
+- **Payments are super_admin-only, enforced server-side.** Phases 3 and 4 both
+  restrict revenue, and the feed must not be the hole in that. A
+  `platform_admin` requesting `type=payment` gets **422**, not an empty list —
+  an empty list would assert "no payments happened", which is a different and
+  false claim.
+- **Subscription events are derived and say so.** There is no subscription
+  event table; a row yields *started* from `start_date` and *ended* from
+  `end_date` once that date has passed. Every such row carries a **Derived**
+  badge. A future `end_date` is not an event.
+- **Cursor pagination, not page numbers.** "Skip 20" means something different
+  in each source, so the feed advances by timestamp and renders "Load more".
+  Don't add a page-number control; it cannot be made correct here.
+- **Type labels and icons use a `Map`/`switch`, never `obj[key]`** — the key
+  comes from the API response, and §8 forbids bracket lookup on input-derived
+  values. The icon is a `switch` returning JSX rather than a looked-up
+  component reference, which would reset its state on every render.
+
+### Trends (Phase 4, 2026-10-07)
+
+Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-4-trends-design.md`.
+
+- **There is no MRR, deliberately.** `subscriptions` holds no amount and no
+  billing cycle, and nothing records whether a plan auto-renews, so the page
+  reports **cash collected** — successful payments, labelled as such. Don't add
+  an "estimated MRR"; that is the class of number Phase 1 deleted.
+- **One line per currency, never a total.** This system holds no exchange rate,
+  so a combined revenue line would be meaningless. `CashCollectedChart` renders
+  per-currency lines and nothing else.
+- **A trend must not rewrite its own past.** Store signups uses `withTrashed()`:
+  a store that signed up in March and was deleted in August still signed up in
+  March. Filtering soft-deleted rows would shrink past buckets every time
+  someone deletes a store, so the chart's history would change under the reader.
+  This is the opposite of Phase 1's "active stores", which correctly excludes
+  them — because that answers *how many exist now*. Demo stores **are**
+  excluded; a demo store is not a signup, and this is the first place `is_demo`
+  changes a number.
+- **Three distinct empty states, and they must not collapse into one.** An
+  absent payload is *unavailable* (we could not look). A zero-filled bucket is
+  *data* (we looked, there was nothing) and still draws. A window with no
+  payments at all says "No payments recorded in this window" rather than
+  rendering an empty grid, which reads as broken — that last one was found by
+  the browser smoke test, not the suite.
+- **Charts use `recharts`** with colours from the theme's `--chart-1..5`
+  variables, never hex (§6). `TrendChart` owns axes, grid, tooltip and
+  responsive config so the six charts don't each re-specify them.
+- **Bucket labels are DD/MM/YYYY** for daily windows via
+  `formatDateOnlyToDDMMYYYY` (which parses a bare `YYYY-MM-DD` without the UTC
+  shift); monthly buckets render as "Oct 2026" rather than inventing a day.
+
+### Maintenance (Phase 5, 2026-10-07)
+
+Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-5-maintenance-design.md`.
+
+- **The runner lives on its own page, not as an action on Operations.** Applying
+  schema changes to production should not be one mis-click away from a dashboard
+  somebody opened to read a sync graph. `/admin/operations` carries an
+  informational card only; `/admin/maintenance` carries the actions.
+- **Gated at four layers**, same shape as Subscriptions: `role:super_admin` route
+  middleware (the control), a nav item defaulting to super_admin-only, a page
+  guard that runs before anything fetches, and server-side permission checks on
+  the actions themselves.
+- **An unknown migration status renders "unavailable", never "0 pending".** The
+  API returns `pending_count: null` when it cannot read the migrator, precisely
+  so the UI cannot render the one sentence that is indistinguishable from "all
+  good" — that false statement is what A-170 consisted of.
+- **Two separate actions, two separate confirmations.** Running migrations no
+  longer seeds (A-174), so "sync roles and permissions" is its own button;
+  a permission added to `RolesAndPermissionsSeeder` does not exist in production
+  until someone presses it.
+- **The confirmation states the specific risk, not "are you sure".** It names the
+  count, names how many pending migrations alter existing data, says this host
+  cannot roll back a half-failed migration, and warns that a timeout does not
+  mean the migration did not apply. A dialog that always shows the worst case
+  trains people to click through it, so the destructive warning appears only
+  when the scan actually flagged something.
+- **Dialogs are built on `components/ui/dialog` with `role="alertdialog"`**, not
+  Radix AlertDialog — `web/` has no `@radix-ui/react-alert-dialog` dependency and
+  its house primitive is `components/ui/confirm-dialog.tsx`. §9 requires a custom
+  modal, not a specific library.
+- **After a run, re-read rather than trust the response.** The run mutation
+  invalidates the status query `onSettled`, not `onSuccess`.
+
+### Sync health (Phase 2, 2026-10-06)
+
+Spec: `docs/superpowers/specs/2026-10-06-admin-panel-phase-2-sync-health-design.md`.
+
+- **Operations owns the platform view** (`SyncHealthCard`): today/7d success rate,
+  refusals grouped by reason, and the worst-affected stores. The **per-store
+  drill-down** lives on the store detail page, not a new route, because that is
+  where the operator already is when a customer calls.
+- **Reason strings are glossed, and the raw string stays visible.**
+  `syncReasonLabel()` in `lib/api/admin-hooks-sync.ts` maps the server's
+  vocabulary (`permission_denied`, `forbidden`, …) to a sentence an operator can
+  act on, and the component renders the raw string underneath so a support
+  conversation can quote it. An unrecognised reason falls back to the raw string
+  **alone** — don't render it twice. The lookup uses `Object.hasOwn`, not a bare
+  bracket index (§8).
+- **A `null` rate means nothing synced in the window**, and renders "No sync
+  activity" — never `0%`. A store with no history reads "Never synced", never
+  "0% success". This is Phase 1's rule and the reason PG-16 existed.
+- **What this surface cannot show.** It reports only what reached the server. A
+  device sitting on a backlog that never transmitted is invisible here — logged
+  as PG-17 (Phase 2b). Don't let the card's copy imply otherwise; its description
+  says so explicitly.
+- Dates go through `formatDateToDDMMYYYY` (§6); a default `toLocaleDateString()`
+  silently produces US order.
+
+### Admin money is per currency, never converted
+
+`CurrencyStatValue` renders one `formatMoney` line per currency present and
+takes an `emptyLabel` for its no-data state. Stores span NGN/GHS/KES/CFA, so a
+single summed total is not an honest number and there is deliberately no FX
+table — see `laravel-server/AGENTS.md` for the server-side half
+(`App\Support\CurrencyTotals`). The Overview "Subscription Revenue" stat and the
+Stores page "Total Stock Value" card both go through it.
+
+Note that `stock_value_by_currency` is **absent, not empty**, for a
+non-super_admin, because the server withholds platform money figures from
+`platform_admin`/`agent`. Render the card only when the key is present;
+defaulting to `{}` would tell those roles "no stock recorded", which is false.
+
 ## Delegated admin action buttons: hide via `checkHasPermission`, never disable
 
 Every admin UI control that triggers one of the backend's delegated
@@ -691,3 +931,13 @@ subaccount plan. The "89 tests" this line used to quote was
 the count at the 2026-08-26 auth redesign and had been stale for a month; 399
 was the count after that day's earlier storefront remediation, before the
 subaccount work.)
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

@@ -1,4 +1,6 @@
 import {
+  Activity,
+  BadgeCheck,
   LayoutDashboard,
   Users,
   Store,
@@ -9,6 +11,8 @@ import {
   Download,
   ScrollText,
   Link2,
+  Wrench,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 
@@ -42,6 +46,24 @@ export const sidebarItems: AdminSidebarItem[] = [
     permissions: ["view_platform_data"],
   },
   {
+    id: "operations",
+    name: "Operations",
+    icon: Activity,
+    href: "/admin/operations",
+  },
+  {
+    id: "trends",
+    name: "Trends",
+    icon: TrendingUp,
+    href: "/admin/trends",
+  },
+  {
+    id: "maintenance",
+    name: "Maintenance",
+    icon: Wrench,
+    href: "/admin/maintenance",
+  },
+  {
     id: "register-store",
     name: "Register Store",
     icon: Store,
@@ -54,6 +76,12 @@ export const sidebarItems: AdminSidebarItem[] = [
     icon: Store,
     href: "/admin/stores/mine",
     roles: ["platform_admin", "agent"],
+  },
+  {
+    id: "subscriptions",
+    name: "Subscriptions",
+    icon: BadgeCheck,
+    href: "/admin/subscriptions",
   },
   {
     id: "referrals",

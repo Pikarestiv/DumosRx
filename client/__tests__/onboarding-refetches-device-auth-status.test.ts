@@ -43,6 +43,7 @@ vi.mock("@/lib/context/auth-context", () => ({
 }));
 
 vi.mock("@/lib/db/core", () => ({
+  registerInvalidateTablesFn: vi.fn(),
   generateId: vi.fn(() => "fake-id"),
   execute: executeMock,
   setActiveStoreId: setActiveStoreIdMock,

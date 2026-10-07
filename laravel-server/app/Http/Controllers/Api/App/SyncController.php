@@ -679,6 +679,18 @@ class SyncController extends Controller
 
             $this->sendFirstSyncAlert($firstSyncedStore, $request->user());
 
+            try {
+                app(\App\Services\Sync\SyncFailureRecorder::class)->recordPushOutcome(
+                    $failed,
+                    $changes,
+                    $request->user() ? $this->resolvePushStoreId($request, $request->user()) : null,
+                    $request->user()?->id,
+                    $processed
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Sync failure recording skipped: '.$e->getMessage());
+            }
+
             return response()->json(['success' => true, 'processed' => $processed, 'failed' => $failed, 'id_map' => $idMapByTable, 'versions' => $versions]);
 
         } catch (\Exception $e) {

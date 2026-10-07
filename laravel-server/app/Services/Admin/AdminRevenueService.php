@@ -3,14 +3,13 @@
 namespace App\Services\Admin;
 
 use App\Models\PaymentTransaction;
-use Illuminate\Pagination\LengthAwarePaginator;
+use App\Support\CurrencyTotals;
 
 /**
  * Subscription-payment revenue reporting for the admin Marketing > Revenue
- * tab. Distinct from AdminPlatformService::getGlobalSummary()'s "Platform
- * Revenue" stat, which sums Sale::total_amount (store product sales) - this
- * aggregates PaymentTransaction rows instead, the actual SaaS subscription
- * revenue, which previously had no admin-facing report at all.
+ * tab and, since Phase 1, the Overview "Subscription Revenue" stat. This is
+ * the canonical definition of platform revenue: successful PaymentTransaction
+ * rows, reported per currency and never converted between them.
  */
 class AdminRevenueService
 {
@@ -20,11 +19,11 @@ class AdminRevenueService
     public function getOverview($page = 1, $search = null, $provider = null, $plan = null, $dateFrom = null, $dateTo = null)
     {
         $query = PaymentTransaction::with('subscription.user')
-            ->whereIn('status', self::SUCCESS_STATUSES);
+            ->whereIn('payment_transactions.status', self::SUCCESS_STATUSES);
 
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->where('provider_reference', 'like', "%{$search}%")
+                $q->where('payment_transactions.provider_reference', 'like', "%{$search}%")
                     ->orWhereHas('subscription.user', function ($uq) use ($search) {
                         $uq->where('email', 'like', "%{$search}%")
                             ->orWhere('first_name', 'like', "%{$search}%")
@@ -34,41 +33,42 @@ class AdminRevenueService
         }
 
         if ($provider) {
-            $query->where('provider', $provider);
+            $query->where('payment_transactions.provider', $provider);
         }
 
         if ($dateFrom) {
-            $query->where('created_at', '>=', $dateFrom);
+            $query->where('payment_transactions.created_at', '>=', $dateFrom);
         }
         if ($dateTo) {
-            $query->where('created_at', '<=', $dateTo);
+            $query->where('payment_transactions.created_at', '<=', $dateTo);
         }
-
-        // plan_name lives inside metadata (JSON) rather than a plain column,
-        // so it's filtered/grouped in PHP after the DB-level filters above
-        // narrow the result set, rather than a driver-specific JSON query.
-        $transactions = $query->latest()->get();
 
         if ($plan) {
-            $transactions = $transactions->filter(fn ($txn) => strtolower($this->planNameFor($txn)) === strtolower($plan))->values();
+            $query->whereHas('subscription', function ($sq) use ($plan) {
+                $sq->whereRaw('LOWER(plan_name) = ?', [strtolower($plan)]);
+            });
         }
 
-        $totalRevenue = (float) $transactions->sum('amount');
-        $manualRevenue = (float) $transactions->where('provider', 'bank_transfer')->sum('amount');
+        $totals = (clone $query)
+            ->selectRaw("currency, provider = 'bank_transfer' as is_manual, COALESCE(SUM(amount), 0) as total")
+            ->groupBy('currency', 'is_manual')
+            ->get();
 
-        $byPlanTier = $transactions
-            ->groupBy(fn ($txn) => $this->planNameFor($txn))
-            ->map(fn ($group) => (float) $group->sum('amount'));
+        $byPlanTier = $this->planTierTotals(clone $query);
 
-        $perPage = 20;
-        $currentPage = max(1, (int) $page);
-        $paged = $transactions->slice(($currentPage - 1) * $perPage, $perPage)->values();
-        $paginator = new LengthAwarePaginator($paged, $transactions->count(), $perPage, $currentPage);
+        $paginator = (clone $query)->latest()->paginate(20, ['*'], 'page', max(1, (int) $page));
+        $paged = collect($paginator->items());
+
+        $totalRevenue = (float) $totals->sum('total');
+        $manualRevenue = (float) $totals->where('is_manual', true)->sum('total');
 
         return [
             'total_revenue' => $totalRevenue,
             'manual_revenue' => $manualRevenue,
             'automated_revenue' => $totalRevenue - $manualRevenue,
+            'totals_by_currency' => $this->groupedTotals($totals),
+            'automated_by_currency' => $this->groupedTotals($totals->where('is_manual', false)),
+            'manual_by_currency' => $this->groupedTotals($totals->where('is_manual', true)),
             'by_plan_tier' => $byPlanTier,
             'transactions' => [
                 'data' => $paged->map(function ($txn) {
@@ -96,6 +96,52 @@ class AdminRevenueService
                 ],
             ],
         ];
+    }
+
+    /**
+     * A transaction whose subscription is gone keeps the plan its own row
+     * displays, so its money is never filed under a different tier than the
+     * one shown beside it. Totals are summed, not overwritten, so two casings
+     * of the same plan name cannot silently discard one another.
+     */
+    private function planTierTotals($query): array
+    {
+        $rows = $query
+            ->leftJoin('subscriptions', 'subscriptions.id', '=', 'payment_transactions.subscription_id')
+            ->selectRaw("subscriptions.plan_name as plan_name, payment_transactions.metadata as meta, COALESCE(SUM(payment_transactions.amount), 0) as total")
+            ->groupBy('subscriptions.plan_name', 'payment_transactions.metadata')
+            ->get();
+
+        $totals = [];
+
+        foreach ($rows as $row) {
+            $plan = $row->plan_name ?: $this->planFromMetadata($row->meta);
+            $key = $plan ? ucfirst($plan) : 'Unknown';
+            $totals[$key] = ($totals[$key] ?? 0.0) + (float) $row->total;
+        }
+
+        return $totals;
+    }
+
+    private function planFromMetadata(?string $metadata): ?string
+    {
+        if (! $metadata) {
+            return null;
+        }
+
+        $decoded = json_decode($metadata, true);
+
+        return is_array($decoded) ? ($decoded['plan_name'] ?? null) : null;
+    }
+
+    private function groupedTotals($rows): array
+    {
+        return CurrencyTotals::fromPairs(
+            collect($rows)->map(fn ($row) => [
+                'currency' => $row->currency,
+                'amount' => $row->total,
+            ])
+        );
     }
 
     private function planNameFor(PaymentTransaction $txn): string

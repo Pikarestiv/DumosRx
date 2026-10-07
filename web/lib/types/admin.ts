@@ -12,10 +12,11 @@ export interface PaginatedResponse<T> {
 export interface AdminStat {
   icon: string;
   color: string;
-  trend: "up" | "down";
-  change: string | number;
   name: string;
-  value: string | number;
+  trend?: "up" | "down";
+  change?: string | number;
+  value?: string | number;
+  totals_by_currency?: Record<string, number>;
 }
 
 /** A row in the scoped "My Stores" list (GET /admin/stores/registered-by-me).
@@ -98,9 +99,8 @@ export interface SecurityAlert {
 }
 
 export interface LiveOperations {
-  total_requests?: number;
-  sync_success_rate?: string;
-  active_connections?: number;
+  audit_log_entries?: number;
+  sync_success_rate_today?: string | null;
 }
 
 export interface AdminSummary {
@@ -109,25 +109,26 @@ export interface AdminSummary {
   live_operations: LiveOperations;
   security_alerts: SecurityAlert[];
 }
+export type ProbeStatus = "Operational" | "Degraded" | "Unavailable";
 
-export interface ServiceNode {
+export interface HealthProbe {
   name: string;
-  location?: string;
-  status: "Operational" | string;
-  latency: string;
+  status: ProbeStatus;
 }
 
+/** A `null` resource means the host could not measure it — render it as
+ * unavailable, never as a zero. See web/AGENTS.md. */
 export interface AdminHealth {
   overallStatus: string;
-  uptime: string;
-  latency: string;
+  platformAge: string;
+  databaseConnectMs: number | null;
   resources: {
-    cpu: number;
-    memory: { used: string; total?: string; percent: number };
-    disk: { used: string; total?: string; percent: number };
-    database: { load: number; status: string };
+    loadAverage: { 1: number; 5: number; 15: number } | null;
+    memory: { used: string; total: string; percent: number } | null;
+    disk: { used: string; total: string; percent: number } | null;
+    database: { status: string };
   };
-  nodes: ServiceNode[];
+  probes: HealthProbe[];
 }
 
 export interface SentryIssue {
@@ -445,3 +446,5 @@ export interface Coupon {
   is_active: boolean;
   usages_count: number;
 }
+
+export * from "./admin-platform";

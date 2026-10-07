@@ -42,16 +42,21 @@ export function GlobalErrorListener({ children }: { children: ReactNode }) {
       return true;
     };
 
+    // Reload first, report only if that didn't handle it. A stale chunk is
+    // recoverable and the reload fixes it, so reporting before reloading
+    // filed a fatal crash for every self-healing navigation (A-171). A chunk
+    // error that survives the one-time reload is a real failure and the
+    // guard makes reloadOnChunkError return false, so it still reports.
     const handleError = (event: ErrorEvent) => {
       if (isIgnorableError(event.error || event.message)) return;
+      if (reloadOnChunkError(event.error)) return;
       void logCrash(event.error || event.message, true);
-      reloadOnChunkError(event.error);
     };
 
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       if (isIgnorableError(event.reason)) return;
+      if (reloadOnChunkError(event.reason)) return;
       void logCrash(event.reason, true);
-      reloadOnChunkError(event.reason);
     };
 
     window.addEventListener("error", handleError);

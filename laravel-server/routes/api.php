@@ -212,6 +212,16 @@ Route::prefix('v1')->group(function () {
             Route::post('/users', [AdminUserController::class, 'createPlatformAdmin'])->middleware('role:super_admin');
             Route::get('/health', [AdminPlatformController::class, 'health'])->middleware('role:super_admin');
             Route::get('/errors', [AdminPlatformController::class, 'errors'])->middleware('role:super_admin');
+            Route::get('/subscriptions/lifecycle', [\App\Http\Controllers\Api\Admin\AdminSubscriptionController::class, 'lifecycle'])->middleware('role:super_admin');
+            Route::get('/subscriptions/{bucket}', [\App\Http\Controllers\Api\Admin\AdminSubscriptionController::class, 'bucket'])->middleware('role:super_admin');
+            Route::get('/sync/health', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'summary'])->middleware('role:super_admin');
+            Route::get('/sync/stores/{id}', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'store'])->middleware('role:super_admin');
+
+            Route::get('/maintenance/migrations', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'migrations'])->middleware('role:super_admin');
+            Route::post('/maintenance/migrations/run', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'runMigrations'])->middleware('role:super_admin');
+            Route::post('/maintenance/roles/sync', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'syncRoles'])->middleware('role:super_admin');
+
+            Route::get('/trends', [\App\Http\Controllers\Api\Admin\AdminTrendsController::class, 'index'])->middleware('role:super_admin');
             Route::get('/downloads/manifest', [AdminPlatformController::class, 'downloadsManifest'])->middleware('role:super_admin');
             Route::put('/users/{id}', [AdminUserController::class, 'updateUser'])->middleware('role:super_admin');
             Route::delete('/users/{id}', [AdminUserController::class, 'deleteUser'])->middleware('role:super_admin');
@@ -222,6 +232,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/users/bulk-notify', [AdminUserController::class, 'bulkNotify'])->middleware('permission:send_notifications');
             Route::get('/search', [AdminPlatformController::class, 'search'])->middleware('role:super_admin');
             Route::get('/activity-logs', [AdminPlatformController::class, 'activityLogs'])->middleware('permission:view_platform_data');
+            Route::get('/activity-feed', [\App\Http\Controllers\Api\Admin\AdminActivityFeedController::class, 'index'])->middleware('permission:view_platform_data');
             Route::get('/my-referrals', [AdminUserController::class, 'myReferrals']);
             Route::get('/referral-code/check', [AdminUserController::class, 'checkReferralCode']);
             Route::post('/referral-code', [AdminUserController::class, 'updateReferralCode']);

@@ -31,6 +31,7 @@ import {
   StoreSubscriptionCard,
   StoreSyncCard,
 } from "@/components/admin/stores/details/store-detail-sections";
+import { StoreSyncHealthPanel } from "@/components/admin/stores/details/store-sync-health-section";
 import {
   StoreBusinessMetricsCard,
   StoreOperationalMetricsCard,
@@ -148,6 +149,7 @@ function StoreDetailsContent() {
         </DetailCard>
         <AccountManagerCard store={store} />
         <StoreSyncCard store={store} />
+        <StoreSyncHealthPanel storeId={store.id} />
         <StoreStorefrontCard store={store} />
         <StorePaymentsCard store={store} />
         <StoreRecentTransactionsCard store={store} />

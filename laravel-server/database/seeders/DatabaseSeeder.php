@@ -23,10 +23,10 @@ class DatabaseSeeder extends Seeder
         if (!User::where('email', $adminEmail)->exists()) {
             $superAdminRole = Role::where('slug', 'super_admin')->first();
 
-            // This seeder isn't first-install-only: production's only
-            // migration path (`GET /migrate-db`, see routes/web.php) runs
-            // `artisan migrate --seed --force` on every deploy, so this
-            // block re-runs — and would re-create this account — any time
+            // This seeder isn't first-install-only: until Phase 5, production's
+            // migration path ran `artisan migrate --seed --force` on every
+            // deploy, so this block re-ran — and would re-create this
+            // account — any time
             // that one row happens to be missing (a fresh DB, a
             // disaster-recovery restore predating this row, the account
             // having been deleted/renamed). A hardcoded password here was
@@ -34,8 +34,7 @@ class DatabaseSeeder extends Seeder
             // not just a local-dev convenience. `SEED_SUPER_ADMIN_PASSWORD`
             // lets an operator pin a real password via .env; with nothing
             // set, production gets a random one-time password (surfaced
-            // below, since this route — gated by MIGRATE_DB_KEY — is the
-            // only way to reach this host at all; no SSH, see AGENTS.md)
+            // below) 
             // instead of a predictable committed string. Local/dev keeps
             // the documented default (README's Quick Start) for onboarding
             // convenience, since a local DB is not a real credential.
@@ -46,7 +45,7 @@ class DatabaseSeeder extends Seeder
             // `development`, `dev`, `demo`, ...) falling through to the
             // hardcoded default. `deploy-dev.yml` FTPs this exact seeder to
             // a real, internet-facing host (api.dev.dumosrx.com) behind the
-            // same MIGRATE_DB_KEY-gated /migrate-db route production uses —
+            // same deliberate operator-run path production uses —
             // whatever APP_ENV that host happens to be set to, it must not
             // land in the "local convenience" branch just because it isn't
             // literally "production".

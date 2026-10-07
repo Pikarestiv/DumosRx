@@ -588,11 +588,21 @@ export async function recordSyncFailure(
   if (shouldReport || shouldDropStuckCrashLog) {
     const summary = `Sync item stuck after ${nextRetryCount} attempts on ${item.table_name}/${item.record_id}: ${boundedError}`;
     try {
+      const { logCrash, isExpectedSyncRestriction } = await import("../utils/error-logger");
+
+      // Checked before BOTH paths below. logCrash() already filters these,
+      // but reportStuckCrashLog() calls Sentry.captureException directly and
+      // so bypasses that filter entirely — which is the path a plan-refused
+      // `feedback` row actually takes.
+      if (isExpectedSyncRestriction(errorMessage)) {
+        return;
+      }
+
       if (shouldDropStuckCrashLog) {
         await reportStuckCrashLog(queueId, item.record_id, summary, shouldReport);
         return;
       }
-      const { logCrash } = await import("../utils/error-logger");
+
       await logCrash(new Error(summary), false, {
         area: "sync",
         table: item.table_name,

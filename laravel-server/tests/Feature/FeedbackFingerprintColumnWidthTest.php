@@ -62,4 +62,34 @@ class FeedbackFingerprintColumnWidthTest extends TestCase
         );
     }
 
+    /**
+     * A-151: the same defect in two more indexed columns. Neither has a
+     * client-side cap (unlike `fingerprint`, which had MAX_FINGERPRINT_LENGTH
+     * all along), so a long value fails the push outright.
+     *
+     * @dataProvider widenedColumns
+     */
+    public function test_other_indexed_string_columns_are_at_least_255_wide(string $table, string $column): void
+    {
+        $columns = Schema::connection('mysql_fingerprint_check')->getColumns($table);
+        $found = collect($columns)->firstWhere('name', $column);
+
+        $this->assertNotNull($found, "{$table}.{$column} column not found");
+
+        preg_match('/varchar\\((\\d+)\\)/i', $found['type'], $matches);
+        $this->assertNotEmpty($matches, "{$table}.{$column} is not a varchar(N) column: {$found['type']}");
+        $this->assertGreaterThanOrEqual(
+            255,
+            (int) $matches[1],
+            "{$table}.{$column} is VARCHAR({$matches[1]}); defaultStringLength(191) silently narrowed it again"
+        );
+    }
+
+    public static function widenedColumns(): array
+    {
+        return [
+            'products.barcode' => ['products', 'barcode'],
+            'activity_logs.correlation_id' => ['activity_logs', 'correlation_id'],
+        ];
+    }
 }

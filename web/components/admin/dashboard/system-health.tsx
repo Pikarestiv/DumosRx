@@ -24,17 +24,17 @@ export function SystemHealth({ liveOperations, securityAlerts }: SystemHealthPro
                 <h3 className="text-lg font-black text-slate-900 dark:text-white">Live Operations</h3>
             </div>
             <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5">
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Total API Requests</span>
-                    <span className="text-sm font-black text-slate-900 dark:text-white">{liveOperations.total_requests || '0'}</span>
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-2xl border border-border">
+                    <span className="text-xs font-bold text-muted-foreground">Audit Log Entries</span>
+                    <span className="text-sm font-black text-foreground">{(liveOperations.audit_log_entries ?? 0).toLocaleString()}</span>
                 </div>
-                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5">
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Sync Success Rate</span>
-                    <span className="text-sm font-black text-emerald-500 dark:text-emerald-400">{liveOperations.sync_success_rate || '100%'}</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5">
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Active WebSocket Connections</span>
-                    <span className="text-sm font-black text-indigo-500 dark:text-indigo-400">{liveOperations.active_connections || '0'}</span>
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-2xl border border-border">
+                    <span className="text-xs font-bold text-muted-foreground">Sync Success Rate (Today)</span>
+                    {liveOperations.sync_success_rate_today ? (
+                        <span className="text-sm font-black text-emerald-500 dark:text-emerald-400">{liveOperations.sync_success_rate_today}</span>
+                    ) : (
+                        <span className="text-sm font-bold text-muted-foreground">No sync activity</span>
+                    )}
                 </div>
             </div>
         </div>

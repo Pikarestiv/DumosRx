@@ -110,7 +110,14 @@ describe("reconcileStockQuantities", () => {
 
     const result = await reconcileStockQuantities();
 
-    const [sql, params] = vi.mocked(query).mock.calls[0];
+    // Not calls[0]: reconcile now checks _pending_stock_deltas first, so a
+    // device holding unapplied deltas cannot assert its quantities as
+    // authoritative (A-173).
+    const batchCall = vi
+      .mocked(query)
+      .mock.calls.find(([sql]) => /FROM stock_batches/i.test(sql as string));
+    expect(batchCall, "expected a stock_batches query").toBeDefined();
+    const [sql, params] = batchCall!;
     expect(sql).toMatch(/FROM stock_batches/i);
     expect(sql).toMatch(/_deleted = 0/);
     expect(sql).toMatch(/store_id = \?/);

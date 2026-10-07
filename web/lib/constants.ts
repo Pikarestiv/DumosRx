@@ -38,6 +38,9 @@ export const SYSTEM_EMAIL = "system-logs@dumosrx.com";
 export const SUPPORT_EMAIL = "support@dumosrx.com";
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.dumosrx.com/api/v1";
 export const DOWNLOAD_URL = process.env.NEXT_PUBLIC_DOWNLOAD_URL || "https://downloads.dumosrx.com";
+export const SENTRY_ISSUES_URL =
+  process.env.NEXT_PUBLIC_SENTRY_ISSUES_URL ||
+  "https://sentry.io/organizations/dumos-technologies/issues/";
 
 export const TRIAL_DURATIONS = [
   "1 day",

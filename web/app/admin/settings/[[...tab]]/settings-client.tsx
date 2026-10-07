@@ -2,23 +2,24 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SystemHealthTab } from "@/components/admin/views/system-health-tab";
-import { EmailTemplatesTab } from "@/components/admin/views/email-templates-tab";
 import { SubscriptionConfigTab } from "@/components/admin/views/subscription-config-tab";
 import { SuggestionsConfigTab } from "@/components/admin/views/suggestions-config-tab";
 import { IntegrationsTab } from "@/components/admin/views/integrations-tab";
 import { SecurityConfigTab } from "@/components/admin/views/security-config-tab";
 import { AdminPermissionsCard } from "@/components/admin/views/admin-permissions-card";
-import { Settings, Activity, Mail, CreditCard, Sparkles, Plug, ShieldCheck, Users } from "lucide-react";
+import { DefaultAccountManagerCard } from "@/components/admin/views/default-account-manager-card";
+import { Settings, CreditCard, Sparkles, Plug, ShieldCheck, Users, UserCog } from "lucide-react";
+
+const DEFAULT_TAB = "billing";
 
 export default function PlatformSettingsPage() {
   const params = useParams();
   const router = useRouter();
-  
-  const activeTab = (params.tab as string[])?.[0] || "health";
-  
+
+  const activeTab = (params.tab as string[])?.[0] || DEFAULT_TAB;
+
   const handleTabChange = (value: string) => {
-    if (value === "health") {
+    if (value === DEFAULT_TAB) {
       router.push("/admin/settings");
     } else {
       router.push(`/admin/settings/${value}`);
@@ -34,28 +35,20 @@ export default function PlatformSettingsPage() {
             Platform Settings
           </h1>
           <p className="text-muted-foreground mt-1">
-            Manage system configurations, infrastructure health, and platform-wide templates.
+            Manage platform-wide configuration. Infrastructure health lives under Operations.
           </p>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="mb-4 bg-slate-100 dark:bg-slate-900 w-full flex overflow-x-auto whitespace-nowrap no-scrollbar justify-start p-1 h-12 gap-1">
-          <TabsTrigger value="health" className="flex items-center gap-2 px-4 shrink-0">
-            <Activity className="h-4 w-4" />
-            System Health
-          </TabsTrigger>
+        <TabsList className="mb-4 bg-muted w-full flex overflow-x-auto whitespace-nowrap no-scrollbar justify-start p-1 h-12 gap-1">
           <TabsTrigger value="billing" className="flex items-center gap-2 px-4 shrink-0">
             <CreditCard className="h-4 w-4" />
-            Billing & Plans
+            Billing &amp; Plans
           </TabsTrigger>
           <TabsTrigger value="suggestions" className="flex items-center gap-2 px-4 shrink-0">
             <Sparkles className="h-4 w-4" />
             Dynamic Suggestions
-          </TabsTrigger>
-          <TabsTrigger value="templates" className="flex items-center gap-2 px-4 shrink-0">
-            <Mail className="h-4 w-4" />
-            Email Templates
           </TabsTrigger>
           <TabsTrigger value="integrations" className="flex items-center gap-2 px-4 shrink-0">
             <Plug className="h-4 w-4" />
@@ -65,15 +58,15 @@ export default function PlatformSettingsPage() {
             <ShieldCheck className="h-4 w-4" />
             Security
           </TabsTrigger>
+          <TabsTrigger value="account-manager" className="flex items-center gap-2 px-4 shrink-0">
+            <UserCog className="h-4 w-4" />
+            Account Manager
+          </TabsTrigger>
           <TabsTrigger value="admin-permissions" className="flex items-center gap-2 px-4 shrink-0">
             <Users className="h-4 w-4" />
             Admin Permissions
           </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="health" className="focus-visible:outline-none focus-visible:ring-0">
-          <SystemHealthTab />
-        </TabsContent>
 
         <TabsContent value="billing" className="focus-visible:outline-none focus-visible:ring-0">
           <SubscriptionConfigTab />
@@ -83,16 +76,16 @@ export default function PlatformSettingsPage() {
           <SuggestionsConfigTab />
         </TabsContent>
 
-        <TabsContent value="templates" className="focus-visible:outline-none focus-visible:ring-0">
-          <EmailTemplatesTab />
-        </TabsContent>
-
         <TabsContent value="integrations" className="focus-visible:outline-none focus-visible:ring-0">
           <IntegrationsTab />
         </TabsContent>
 
         <TabsContent value="security" className="focus-visible:outline-none focus-visible:ring-0">
           <SecurityConfigTab />
+        </TabsContent>
+
+        <TabsContent value="account-manager" className="focus-visible:outline-none focus-visible:ring-0">
+          <DefaultAccountManagerCard />
         </TabsContent>
 
         <TabsContent value="admin-permissions" className="focus-visible:outline-none focus-visible:ring-0">

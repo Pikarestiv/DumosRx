@@ -19,9 +19,9 @@ use Illuminate\Support\Str;
  * User-domain admin actions: the platform-wide users list, platform referral
  * codes/attribution, creating platform-level accounts, deactivate/reactivate/
  * delete/reset-password, and single/bulk notifications. Split out of the
- * original AdminService, alongside AdminPlatformService and
- * AdminStoreService, so each admin sub-domain owns a service roughly the
- * size of the others instead of one 1300-line class.
+ * original AdminService, alongside AdminStoreService and the
+ * AdminSummary/Health/Catalog/Activity services, so each admin sub-domain
+ * owns a service roughly the size of the others.
  */
 class AdminUserService
 {

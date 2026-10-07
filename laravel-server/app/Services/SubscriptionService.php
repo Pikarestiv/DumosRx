@@ -85,6 +85,40 @@ class SubscriptionService
     }
 
     /**
+     * $owner's lifecycle state for the admin worklists, derived from
+     * resolveEffectiveSubscription() so the panel and the application can
+     * never disagree about who is subscribed. See laravel-server/AGENTS.md.
+     */
+    public function subscriptionState(User $owner): string
+    {
+        return $this->effectiveSubscriptionWithState($owner)['state'];
+    }
+
+    /**
+     * The same answer as subscriptionState(), paired with the row it was
+     * derived from, so a caller that needs both does not resolve twice.
+     *
+     * @return array{subscription: ?Subscription, state: string}
+     */
+    public function effectiveSubscriptionWithState(User $owner): array
+    {
+        $effective = $this->resolveEffectiveSubscription($owner);
+
+        if ($effective) {
+            $state = $effective->end_date && $effective->end_date->isPast()
+                ? 'in_grace'
+                : ($effective->is_trial ? 'trialing' : 'active');
+
+            return ['subscription' => $effective, 'state' => $state];
+        }
+
+        return [
+            'subscription' => null,
+            'state' => $owner->subscriptions()->exists() ? 'lapsed' : 'none',
+        ];
+    }
+
+    /**
      * The plan name $owner is effectively on right now, per
      * resolveEffectiveSubscription() above (grace-period aware), or
      * 'free' if neither an active nor a still-in-grace subscription exists.

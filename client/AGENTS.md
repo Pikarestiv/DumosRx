@@ -841,6 +841,17 @@ counts, see `components/stock-batch/stock-audits.tsx`).
   `STORE_SCOPED_TABLES`, so `npm run test:schema` ignores it. It **is** in
   `LOCAL_WIPE_TABLES`, so a `resetDatabase()` cannot leave a delta behind to
   be applied against a freshly re-pulled batch.
+- **Don't add a pending-delta guard to reconciliation (A-173).** One was
+  added and removed. A delta is pending only while its batch row is *absent
+  locally*, an absent batch is not in the payload `reconcileStockQuantities()`
+  sends, and the server only applies what it receives — so a pending delta
+  cannot cause an understated write, and a guard on it refuses repairs while
+  protecting nothing. The forced push+pull remains the real safeguard.
+- **An unresolvable delta is re-reported, not reported once.** The report
+  fires at 10 attempts and then every 25. A condition that never resolves
+  must not go quiet: silence after one report is indistinguishable from the
+  problem having fixed itself, and that is precisely how per-device stock
+  divergence stayed invisible.
 - **`DEVICE_LOCAL_PULL_COLUMNS`.** Columns each device owns privately:
   written locally, never pushed, so the server's copy is meaningless and
   must never be written back. Today that is `stores.last_monotonic_time`,

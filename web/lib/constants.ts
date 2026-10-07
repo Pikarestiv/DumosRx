@@ -1,3 +1,5 @@
+import { resolveAppOverride } from "./api/server-environments";
+
 export const APP_NAME = "DumosRx";
 export const APP_VERSION = "v0.0.40"; // DumosRx current version (update when bumping version)
 export const GITHUB_REPO = "Pikarestiv/DumosRx";
@@ -13,16 +15,18 @@ const APP_URL_STORAGE_KEY = "dumos_app_url";
 // fixed env default, this is a runtime override in the same vein as
 // getBaseURL/setBaseURL (see ServerSelector), settable via its "App URL"
 // field.
-// Only honoured outside production builds, for the same reason base-client.ts
-// gates its own `dumos_api_url` twin: the impersonation handoff in
+// In a production build this is constrained to the shipped environment list,
+// for the reason server-environments.ts records: the impersonation handoff in
 // app/admin/stores builds its redirect from this, and that URL carries a live
-// session code - a writable localStorage key must not get to aim it.
+// session code - a writable localStorage key must not get to aim it anywhere
+// of its own choosing.
 export const getAppURL = () => {
-  if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
-    const stored = localStorage.getItem(APP_URL_STORAGE_KEY);
-    if (stored) return stored;
-  }
-  return APP_URL;
+  if (typeof window === "undefined") return APP_URL;
+
+  return resolveAppOverride(localStorage.getItem(APP_URL_STORAGE_KEY), {
+    isProduction: process.env.NODE_ENV === "production",
+    fallback: APP_URL,
+  });
 };
 
 export const setAppURL = (url: string) => {

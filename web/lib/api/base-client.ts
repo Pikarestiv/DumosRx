@@ -1,6 +1,7 @@
 import axios, { type InternalAxiosRequestConfig, type AxiosResponse } from "axios";
 import { addLogToBuffer, sanitizePayload, reportClientError } from "./logger";
 import { getAdminToken } from "./admin-token";
+import { resolveApiOverride } from "./server-environments";
 
 interface RequestMetadata {
   metadata?: { startTime: number };
@@ -10,15 +11,14 @@ type ConfigWithMetadata = InternalAxiosRequestConfig & RequestMetadata;
 let initialApiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.dumosrx.com/api/v1";
 
 if (typeof window !== "undefined") {
-  // The override is a dev/QA affordance (see ServerSelector, which already
-  // hides itself in production). Honouring it in a production build would let
-  // anyone able to write one localStorage key repoint every admin API call -
-  // and the impersonation handoff redirect, which carries a live super_admin
-  // token - at a server they control.
-  const storedUrl =
-    process.env.NODE_ENV !== "production" ? localStorage.getItem("dumos_api_url") : null;
+  // A production build honours the override only against the shipped
+  // environment list - see server-environments.ts for why.
+  const storedUrl = localStorage.getItem("dumos_api_url");
   if (storedUrl) {
-    initialApiUrl = storedUrl;
+    initialApiUrl = resolveApiOverride(storedUrl, {
+      isProduction: process.env.NODE_ENV === "production",
+      fallback: initialApiUrl,
+    });
   } else if (process.env.NODE_ENV === "development") {
     initialApiUrl = process.env.NEXT_PUBLIC_API_URL_STAGING || "https://api.dev.dumosrx.com/api/v1";
   }

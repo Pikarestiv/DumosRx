@@ -11,7 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useIssueSyncCommandMutation } from "@/lib/api/admin-hooks-sync";
+import { useIssueSyncCommandMutation, useStoreSyncCommands } from "@/lib/api/admin-hooks-sync";
+import { useAdminAuthStore, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
 import type { DeviceStuckItem } from "@/lib/types/admin-platform";
 
 /**
@@ -20,6 +21,12 @@ import type { DeviceStuckItem } from "@/lib/types/admin-platform";
  * stock — the control is hidden rather than shown-and-refused.
  */
 const ABANDONABLE_TABLES = ["feedback", "audit_logs"];
+
+const COMMAND_LABELS = new Map([
+  ["retry", "Retry queued"],
+  ["send_payload", "Payload request queued"],
+  ["abandon", "Abandon queued"],
+]);
 
 interface StuckItemActionsProps {
   storeId: string;
@@ -30,7 +37,32 @@ interface StuckItemActionsProps {
 export function StuckItemActions({ storeId, deviceId, item }: StuckItemActionsProps) {
   const [confirmingAbandon, setConfirmingAbandon] = useState(false);
   const issue = useIssueSyncCommandMutation(storeId);
+  const { data: commandData } = useStoreSyncCommands(storeId);
+  const { user } = useAdminAuthStore();
   const canAbandon = ABANDONABLE_TABLES.includes(item.table_name);
+
+  const queued = (commandData?.commands ?? []).find(
+    (command) =>
+      command.status === "pending" &&
+      command.device_id === deviceId &&
+      command.table_name === item.table_name &&
+      command.record_id === item.record_id,
+  );
+
+  // Both command routes are role:super_admin, while the panel itself is
+  // view_platform_health — so a delegated operator could see these controls
+  // and get only a refusal. Hidden, not disabled.
+  if (!checkIsSuperAdmin(user?.role)) {
+    return null;
+  }
+
+  if (queued) {
+    return (
+      <span className="text-xs text-muted-foreground shrink-0">
+        {`${COMMAND_LABELS.get(queued.action) ?? "Command queued"} — applies on ${deviceId}'s next sync`}
+      </span>
+    );
+  }
 
   const send = (action: string, onDone?: () => void) =>
     issue.mutate(

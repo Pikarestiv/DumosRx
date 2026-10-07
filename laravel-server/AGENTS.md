@@ -1833,8 +1833,14 @@ php artisan migrate     # apply migrations — LOCAL DEV DB ONLY, see below
 php artisan tinker      # also used by client/'s test:schema script
 ```
 
-**Production has no SSH/direct `artisan` access.** The shared host is
-reached only through the app itself: migrations run via a protected route,
+**Production migrations are a deliberate manual step, and nothing runs them
+for you.** The hosting plan does support SSH (confirmed 2026-10-07 — an
+earlier version of this section wrongly stated it did not, and A-170 in
+`docs/KNOWN_BUGS.md` records what that cost), but the deploy pipeline is
+code-only **by choice**: the owner runs migrations themselves rather than
+having a merge to `main` migrate production. Don't add a deploy-time
+migrate step without asking. Today the host is
+reached through the app itself: migrations run via a protected route,
 `GET https://<production-domain>/migrate-db?key=<MIGRATE_DB_KEY>`
 (`routes/web.php`, guarded by `config('app.migrate_db_key')` /
 `MIGRATE_DB_KEY` env — 403s without the correct key). This means **new

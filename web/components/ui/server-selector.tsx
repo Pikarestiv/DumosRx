@@ -46,7 +46,12 @@ export const getCurrentEnvironmentName = (baseURL: string) => {
   return ENVIRONMENTS.find((env) => env.url === baseURL)?.name || "Custom Server";
 };
 
-export function ServerSelector() {
+/**
+ * Hidden in production by default so a customer can never point their app at
+ * the wrong API. `allowInProduction` is for the admin header, which renders
+ * it only for a super admin — see web/AGENTS.md.
+ */
+export function ServerSelector({ allowInProduction = false }: { allowInProduction?: boolean } = {}) {
   const [currentUrl, setCurrentUrl] = useState<string>("");
   const [appUrl, setAppUrlInput] = useState<string>("");
 
@@ -74,7 +79,7 @@ export function ServerSelector() {
   };
 
   if (!currentUrl) return null;
-  if (process.env.NODE_ENV === "production") return null;
+  if (process.env.NODE_ENV === "production" && !allowInProduction) return null;
 
   return (
     <DropdownMenu>

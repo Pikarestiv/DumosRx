@@ -363,6 +363,30 @@ Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-3-subscription-lifecy
   `useResettingPage(days)` (in `hooks/`) is the seam; reach for it in any panel
   that pairs a page cursor with a filter control.
 
+### Admin PWA and the production server switcher (2026-10-07)
+
+- **Scoped to `/admin/`, deliberately.** `public/admin-manifest.webmanifest`
+  sets `start_url` and `scope` to `/admin/`, and the manifest `<link>` is
+  injected by `AdminPwaRegistrar` while an admin page is mounted — **not** in
+  the root layout's metadata. A site-wide manifest would offer to install the
+  *admin app* from the marketing site and from a store owner's dashboard.
+  The registrar removes the link on unmount for the same reason.
+- **The service worker caches no platform data, ever.** `public/admin-sw.js`
+  is network-only for anything under `/api/` and for cross-origin requests.
+  Every screen in this panel reports live state — sync health, revenue, what
+  is stuck — and showing an operator a stale number they are about to act on
+  is worse than showing them nothing. Only content-hashed `/_next/static/`
+  assets are cached, where a hit is always correct, plus the shell as a
+  navigation fallback so the app opens rather than showing a browser error.
+  **Do not add API caching to make it "work offline".** It would be lying.
+- **It does not register in development** — a worker holding the shell makes
+  hot reloads behave strangely.
+- **The server switcher is visible in production for super admins only.**
+  `ServerSelector` stays hidden in production by default so a customer can
+  never point their app at the wrong API; `allowInProduction` is opt-in and
+  the admin header passes it from `checkIsSuperAdmin`. It exists so an
+  installed PWA on a phone can be pointed at an environment.
+
 ### Activity (Phase 6, 2026-10-07)
 
 Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-6-activity-feed-design.md`.

@@ -2,6 +2,16 @@
 
 A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since been fixed. `KNOWN_BUGS.md` only ever holds *open* items — an entry is removed from it outright the moment it's fixed, not marked done in place — so this file is where the record of "what it was and when it got fixed" lives instead. Git history has the exact diffs; this is a scannable index into that history, one entry per fix, newest first.
 
+## 2026-10-07
+
+### PG-17 — a device whose rows never reach the server is no longer invisible
+- **Was:** the server recorded every push outcome it *received*, but `_sync_queue` is a client-side SQLite table, so a store sitting on 500 rows that were never transmitted looked identical to a healthy one. Logged as an explicit Phase 2 boundary ("Phase 2b"), not discovered after the fact.
+- **Fix:** the client now reports its own queue state on every sync — depth, and for each stuck row the table, record id, attempt count and reason — stored per `(store_id, device_id)` and rendered on the store detail page. The spec is `docs/superpowers/specs/2026-10-07-stuck-data-and-divergence-visibility-design.md`; the architecture and its non-negotiable constraints are in `client/AGENTS.md` ("What a sync request reports about this device") and `web/AGENTS.md` ("Stuck data and divergence visibility").
+- **Two things that were not obvious going in.** The reason has to be canonicalised **on the device**: a raw driver error embeds the failing SQL and its bindings — customer names, phone numbers, amounts — and canonicalising only on storage still puts that text in transit and in any request log. And the cap on reported items has to be a `LIMIT` in the SQL, not a `.slice()` afterwards, or a device with a large backlog pays the cost of building the full list on every sync.
+- **A store that has never reported renders "no reports yet", never "0 divergence".** Absent and zero are the same pixels otherwise, and the silent device is exactly the one worth looking at.
+- **Still true, and still a limit:** admin visibility lags client adoption, because a device only reports once it is running a build that knows how to. PG-17's original note about this stands.
+- **Regression coverage.** `client/__tests__/queue-state-report.test.ts` (including that a raw driver error carrying a customer name and phone number never leaves the device), plus the server-side storage and store-detail rendering tests.
+
 ## 2026-10-06
 
 ### PG-12 — `AdminRevenueService::getOverview()` loaded every matching transaction to render twenty

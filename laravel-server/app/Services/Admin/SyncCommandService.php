@@ -79,18 +79,29 @@ class SyncCommandService
      */
     public function pendingFor(string $storeId, string $deviceId): array
     {
-        $commands = SyncCommand::where('store_id', $storeId)
+        $candidates = SyncCommand::where('store_id', $storeId)
             ->where('device_id', $deviceId)
             ->where('status', 'pending')
             ->orderBy('issued_at')
             ->limit(self::MAX_PENDING_PER_FETCH)
-            ->get();
+            ->pluck('id');
 
-        if ($commands->isEmpty()) {
+        if ($candidates->isEmpty()) {
             return [];
         }
 
-        SyncCommand::whereIn('id', $commands->pluck('id'))->update(['status' => 'sent']);
+        // Claimed by the UPDATE, not by the SELECT: two concurrent pushes
+        // from the same device would otherwise both read the same pending
+        // set and both be handed the command.
+        $claimed = SyncCommand::whereIn('id', $candidates)
+            ->where('status', 'pending')
+            ->update(['status' => 'sent']);
+
+        if ($claimed === 0) {
+            return [];
+        }
+
+        $commands = SyncCommand::whereIn('id', $candidates)->where('status', 'sent')->get();
 
         return $commands->map(fn (SyncCommand $c) => [
             'id' => $c->id,
@@ -117,7 +128,10 @@ class SyncCommandService
                     'status' => in_array($outcome['status'] ?? '', ['applied', 'failed', 'refused'], true)
                         ? $outcome['status']
                         : 'failed',
-                    'result' => Str::limit((string) ($outcome['result'] ?? ''), 500),
+                    'result' => Str::limit(
+                        is_scalar($outcome['result'] ?? null) ? (string) $outcome['result'] : '',
+                        500,
+                    ),
                     'acted_at' => now(),
                 ]);
         }

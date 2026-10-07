@@ -741,6 +741,63 @@ counts, see `components/stock-batch/stock-audits.tsx`).
   rejections), so `sync()` can tell "nothing to push" from "everything
   failed" — see `index.ts`.
 
+#### What a sync request reports about this device (2026-10-07)
+
+A push carries three operator-visibility payloads alongside the queued rows.
+All three are **bounded by construction** — none grows with the store's size —
+because they ride on every sync, and all three are computed **once per sync
+run**, not per batch, so a 12-batch drain does not run the same aggregates 12
+times.
+
+- **`stock_fingerprint`** (`sync-engine/stock-fingerprint.ts`): `batch_count`
+  and `quantity_sum` for the active store. Two integers. The server computes
+  the same two from its own rows and stores both sides, snapshotted at report
+  time. A differing fingerprint is *proof* that this device and the server
+  disagree about stock; it cannot say which batch, which is deliberate — that
+  would be an unbounded payload.
+- **`queue_state`** (`sync-engine/queue-state.ts`): queue depth plus, for each
+  stuck row, the table, record id, attempt count and a canonicalised reason.
+  The cap is `LIMIT ?` **in the SQL**, not a `.slice()` after the fact.
+- **The reason is canonicalised on the device, not on the server.** A raw
+  driver error embeds the failing SQL and its bindings — customer names, phone
+  numbers, amounts. The server canonicalises again on storage, but a raw string
+  would still be in transit and in any future request log, so `last_error` is
+  mapped to a known slug (or `server_error`/`other`) before it leaves. Never
+  "send the raw text and let the server clean it up".
+
+Absent is not zero: a store that has never reported renders as "no reports
+yet", never as "0 divergence".
+
+#### Sync commands: the server asking this device to do something (2026-10-07)
+
+`sync-engine/sync-commands.ts` applies commands an operator issued from the
+admin panel. The constraints are not negotiable:
+
+- **A closed `switch` over a fixed vocabulary** (`retry`, `send_payload`,
+  `abandon`) that can only touch `_sync_queue` — never a business table. No
+  dynamic dispatch, no `handlers[command.action]` (§8). A compromised admin
+  panel must not become a way to destroy store data.
+- **`abandon` is allowlisted to `ABANDONABLE_TABLES`** (`feedback`,
+  `audit_logs`) on both sides. A `sales` or `stock_movements` row exists only
+  on this device, so discarding one permanently loses revenue data or
+  falsifies stock. The terminal state for a business table is escalation to a
+  human, not discard.
+- **Abandoning calls `markConflictSettled()`.** Without it `requeueOrphanedRows()`
+  sees an unsynced row with no queue entry and resurrects it on the next run,
+  so the command appears to work and then silently undoes itself.
+- **Commands are applied *after* the batch transaction commits**, never inside
+  it. Applying mid-transaction lets a rollback of an unrelated batch failure
+  revive a queue entry the operator already discarded.
+- **Results survive a failed delivery.** Outcomes are written to
+  `_pending_command_results` (a local table), read *before* the next send, and
+  cleared **only after the server acknowledges**. Clearing on send loses the
+  outcome whenever the ack is the thing that fails, and the operator is left
+  looking at a command that is forever "queued".
+- **Eventually consistent, and the UI must say so.** A command applies on the
+  device's next sync — which for a store whose plan has sync disabled may be
+  never. The admin panel renders a row with a pending command as "queued" with
+  no action button, rather than an ordinary Retry the operator fires twice.
+
 #### Pull details (`sync-engine/pull.ts`)
 
 - **`MAX_PULL_PAGES` (1000) is a safety bound, not a correctness ceiling.**

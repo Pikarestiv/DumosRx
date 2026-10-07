@@ -284,6 +284,13 @@ CREATE TABLE IF NOT EXISTS _pending_stock_deltas (
   attempts INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS _pending_command_results (
+  command_id TEXT PRIMARY KEY,
+  status TEXT NOT NULL,
+  result TEXT,
+  recorded_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS _sync_conflicts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   table_name TEXT NOT NULL,

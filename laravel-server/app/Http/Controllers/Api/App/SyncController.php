@@ -182,13 +182,13 @@ class SyncController extends Controller
 
 
 
+        $entryTransactionLevel = DB::transactionLevel();
         DB::beginTransaction();
 
         $hasSyncedAtCache = [];
         $currentUser = $request->user();
         $currentStoreId = $currentUser ? $this->resolvePushStoreId($request, $currentUser) : null;
         UserDeviceTracker::touch($request, $currentUser, $currentStoreId);
-        $this->recordStockFingerprint($request, $currentUser, $currentStoreId);
         $this->recordQueueState($request, $currentUser, $currentStoreId);
 
         // Ownership scope for UPDATE/DELETE targets and for rejecting an
@@ -769,6 +769,12 @@ class SyncController extends Controller
                 Log::warning('Sync failure recording skipped: '.$e->getMessage());
             }
 
+            // After the commit, never before: taken earlier, the server's
+            // side excluded this very request's movements while the device's
+            // number already included them, reporting a divergence that was
+            // only ever the batch in flight.
+            $this->recordStockFingerprint($request, $currentUser, $currentStoreId);
+
             return response()->json([
                 'success' => true,
                 'processed' => $processed,
@@ -779,7 +785,16 @@ class SyncController extends Controller
             ]);
 
         } catch (\Throwable $e) {
-            DB::rollBack();
+            // Back to where this method found things, not one level. An
+            // \Error inside the per-change block leaves nesting at 2 (outer
+            // transaction + savepoint), and a single rollBack() unwinds only
+            // the savepoint — the recording below would then be written into
+            // a transaction nobody commits, which is exactly the case the
+            // \Throwable widening exists for.
+            while (DB::transactionLevel() > $entryTransactionLevel) {
+                DB::rollBack();
+            }
+
             Log::error('Sync push failed: ' . $e->getMessage());
             $this->recordRejectedPush($request, 'server_error');
 

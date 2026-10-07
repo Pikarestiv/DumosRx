@@ -120,4 +120,50 @@ class AdminActivityVisibilityTieringTest extends TestCase
 
         $this->assertContains('STORE_ACTION', $this->visibleActions($this->admin('platform_admin')));
     }
+
+    /**
+     * The third read path, found in review. The store-detail panel read the
+     * log with no actor filter and is reachable with view_platform_data, so
+     * every super-admin action against a store — including the device
+     * commands this branch added — was visible to operators there.
+     */
+    public function test_the_store_detail_panel_hides_super_admin_actions_too(): void
+    {
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+
+        $owner = User::create([
+            'first_name' => 'Owner', 'last_name' => 'Test',
+            'email' => 'owner-'.uniqid().'@dumosrx.com',
+            'password' => bcrypt('password'), 'role' => 'store_owner',
+        ]);
+        $store = \App\Models\Store::create([
+            'user_id' => $owner->id, 'name' => 'Detail Store',
+            'device_id' => 'DESKTOP-'.strtoupper(uniqid()), 'currency' => 'NGN',
+        ]);
+
+        ActivityLog::create([
+            'user_id' => $this->admin('super_admin')->id,
+            'action' => 'SYNC_COMMAND_ISSUED',
+            'description' => 'Issued retry',
+            'store_id' => $store->id,
+        ]);
+        ActivityLog::create([
+            'user_id' => $this->admin('platform_admin')->id,
+            'action' => 'PEER_STORE_ACTION',
+            'description' => 'Peer did a thing',
+            'store_id' => $store->id,
+        ]);
+
+        $actions = fn (User $viewer) => array_column(
+            $this->actingAs($viewer)->getJson("/api/v1/admin/stores/{$store->id}")
+                ->assertOk()->json('recent_activity') ?? [],
+            'action'
+        );
+
+        $asOperator = $actions($this->admin('platform_admin'));
+        $this->assertContains('PEER_STORE_ACTION', $asOperator);
+        $this->assertNotContains('SYNC_COMMAND_ISSUED', $asOperator);
+
+        $this->assertContains('SYNC_COMMAND_ISSUED', $actions($this->admin('super_admin')));
+    }
 }

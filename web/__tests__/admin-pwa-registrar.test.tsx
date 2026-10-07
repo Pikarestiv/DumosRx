@@ -30,8 +30,44 @@ describe("AdminPwaRegistrar", () => {
     expect(link?.getAttribute("href")).toBe("/admin-manifest.webmanifest");
   });
 
+  /**
+   * The root layout emits a site-wide manifest and the browser uses the
+   * FIRST link in tree order, so appending a second one did nothing at all:
+   * installing from /admin installed the site app pointing at /dashboard.
+   */
+  it("replaces an existing manifest link rather than appending a second", () => {
+    const existing = document.createElement("link");
+    existing.rel = "manifest";
+    existing.href = "/site.webmanifest";
+    document.head.appendChild(existing);
+
+    render(<AdminPwaRegistrar />);
+
+    const links = document.querySelectorAll('link[rel="manifest"]');
+    expect(links).toHaveLength(1);
+    expect(links[0].getAttribute("href")).toBe("/admin-manifest.webmanifest");
+
+    existing.remove();
+  });
+
+  it("restores the site manifest when it unmounts", () => {
+    const existing = document.createElement("link");
+    existing.rel = "manifest";
+    existing.href = "/site.webmanifest";
+    document.head.appendChild(existing);
+
+    const { unmount } = render(<AdminPwaRegistrar />);
+    unmount();
+
+    expect(document.querySelector('link[rel="manifest"]')?.getAttribute("href")).toBe(
+      "/site.webmanifest",
+    );
+
+    existing.remove();
+  });
+
   /** Leaving it behind would offer the admin app from the marketing site. */
-  it("removes the manifest link when unmounted", () => {
+  it("removes the manifest link when unmounted if it added one", () => {
     const { unmount } = render(<AdminPwaRegistrar />);
     unmount();
 

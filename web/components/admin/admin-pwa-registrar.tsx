@@ -32,26 +32,33 @@ export function AdminPwaRegistrar() {
     }
   }, []);
 
-  // Injected here rather than in the root layout's metadata: a site-wide
-  // manifest would offer to install the ADMIN app from the marketing site.
+  // The root layout already emits <link rel="manifest" href="/site.webmanifest">,
+  // and a browser uses the FIRST one in tree order — appending a second did
+  // nothing, so installing from /admin installed the site-wide app pointing
+  // at /dashboard. The existing link's href is swapped instead, and restored
+  // on unmount.
   useEffect(() => {
     if (typeof document === "undefined") {
       return;
     }
 
-    const link = document.createElement("link");
+    const existing = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    const previousHref = existing?.getAttribute("href") ?? null;
+
+    const link = existing ?? document.createElement("link");
     link.rel = "manifest";
     link.href = "/admin-manifest.webmanifest";
-    document.head.appendChild(link);
 
-    const theme = document.createElement("meta");
-    theme.name = "theme-color";
-    theme.content = "#0f172a";
-    document.head.appendChild(theme);
+    if (!existing) {
+      document.head.appendChild(link);
+    }
 
     return () => {
-      link.remove();
-      theme.remove();
+      if (previousHref === null) {
+        link.remove();
+      } else {
+        link.href = previousHref;
+      }
     };
   }, []);
 

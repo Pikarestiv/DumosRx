@@ -66,13 +66,13 @@ class AdminActivityFeedSources
 
     private function adminActions(?array $after, int $limit, bool $includeSuperAdmin): array
     {
-        $base = ActivityLog::query();
-
-        // Mirrors AdminActivityService's tiering, so the feed cannot become
-        // the way around it. See laravel-server/AGENTS.md.
-        if (! $includeSuperAdmin) {
-            $base->whereDoesntHave('user', fn ($uq) => $uq->where('role', 'super_admin'));
-        }
+        // The shared scope, so this cannot drift from the other read paths.
+        $base = $includeSuperAdmin
+            ? ActivityLog::query()
+            : ActivityLog::query()->whereDoesntHave('user', function ($uq) {
+                $uq->where('role', 'super_admin')
+                    ->orWhereHas('userRole', fn ($rq) => $rq->where('slug', 'super_admin'));
+            });
 
         return $this->applyCursor($base, 'created_at', 'admin_action', $after)
             ->orderByDesc('created_at')

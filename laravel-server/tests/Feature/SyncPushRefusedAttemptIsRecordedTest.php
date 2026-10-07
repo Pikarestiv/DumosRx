@@ -116,4 +116,34 @@ class SyncPushRefusedAttemptIsRecordedTest extends TestCase
         $this->assertNotNull($tally);
         $this->assertSame(1, (int) $tally->pushes);
     }
+
+    /**
+     * The case the \Throwable widening was for. An \Error inside the
+     * per-change block leaves the outer transaction open, so a single
+     * rollBack() unwinds only the savepoint and the recording below is
+     * written into a transaction that is never committed — recording
+     * nothing, which is the bug PG-18 described.
+     */
+    public function test_a_push_that_dies_outright_still_records_the_attempt(): void
+    {
+        $this->planWithCloudSync(true);
+
+        \Illuminate\Support\Facades\Event::listen('eloquent.creating: '.\App\Models\Customer::class, function () {
+            throw new \TypeError('simulated fatal inside the change loop');
+        });
+
+        $entryLevel = \Illuminate\Support\Facades\DB::transactionLevel();
+
+        $this->push()->assertStatus(500);
+
+        $this->assertSame(
+            $entryLevel,
+            \Illuminate\Support\Facades\DB::transactionLevel(),
+            'the push must unwind its own transactions and no more'
+        );
+
+        $tally = SyncHealthDaily::where('store_id', $this->store->id)->first();
+        $this->assertNotNull($tally, 'a push that died must still count as an attempt');
+        $this->assertSame(1, (int) $tally->pushes);
+    }
 }

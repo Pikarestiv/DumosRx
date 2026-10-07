@@ -55,13 +55,6 @@ class SyncFailureRecorder
     }
 
     /**
-     * A raw exception message is unbounded, embeds the failing SQL and its
-     * bindings (customer names, phones, amounts), and would make
-     * failures_by_reason a cardinality bomb. Only the controller's own stable
-     * slugs are stored; anything else is canonicalised and the detail is left
-     * in the log.
-     */
-    /**
      * A push rejected before the per-change loop — the plan gate refusing, or
      * the request dying outright. The whole attempt is one refusal: there are
      * no per-change outcomes to record, but the attempt itself must still
@@ -91,6 +84,8 @@ class SyncFailureRecorder
         $this->tally($storeId, 0, max(1, $changeCount), 0);
     }
 
+    /** Only known slugs are stored: a raw message is unbounded, embeds the
+     *  failing SQL and its bindings, and would be a cardinality bomb. */
     private function canonicalReason(?string $reason): string
     {
         if ($reason !== null && in_array($reason, self::KNOWN_REASONS, true)) {

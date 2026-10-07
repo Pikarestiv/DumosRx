@@ -45,17 +45,7 @@ class AdminActivityService
      */
     private function hideSuperAdminActionsFromOperators($query): void
     {
-        $viewer = \Illuminate\Support\Facades\Auth::user();
-
-        if ($viewer && $viewer->hasRole('super_admin')) {
-            return;
-        }
-
-        $query->where(function ($q) {
-            $q->whereDoesntHave('user', function ($uq) {
-                $uq->where('role', 'super_admin');
-            });
-        });
+        $query->visibleToCurrentOperator();
     }
 
     public function getActivityLogs($page = 1, $search = null, $action = null, $storeId = null, $userId = null, $dateFrom = null, $dateTo = null, $role = null)

@@ -1,4 +1,5 @@
 import { query, execute } from "../core";
+import { markConflictSettled } from "../base-helpers";
 
 export interface SyncCommand {
   id: string;
@@ -42,7 +43,65 @@ export async function applySyncCommands(commands: SyncCommand[]): Promise<SyncCo
     }
   }
 
+  await persistResults(results);
+
   return results;
+}
+
+/**
+ * Outcomes are persisted rather than held in memory. A push run is usually a
+ * single batch, so an in-memory buffer was discarded before it could ever be
+ * sent — the operator saw the command stuck at "sent" forever, which is
+ * precisely the issued-vs-applied ambiguity this feature exists to remove.
+ * They survive a failed request and an app restart, and the server's
+ * recordOutcome() is an idempotent update, so re-delivery is harmless.
+ */
+async function persistResults(results: SyncCommandResult[]): Promise<void> {
+  for (const result of results) {
+    try {
+      await execute(
+        `INSERT INTO _pending_command_results (command_id, status, result, recorded_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(command_id) DO UPDATE SET
+           status = excluded.status,
+           result = excluded.result,
+           recorded_at = excluded.recorded_at`,
+        [result.id, result.status, result.result, new Date().toISOString()],
+      );
+    } catch (err) {
+      console.warn("[Sync] Could not persist a command result", err);
+    }
+  }
+}
+
+/** Read without clearing: they are cleared only once the server has them. */
+export async function readPendingCommandResults(): Promise<SyncCommandResult[]> {
+  try {
+    const rows = await query<{ command_id: string; status: string; result: string | null }>(
+      `SELECT command_id, status, result FROM _pending_command_results LIMIT 100`,
+    );
+
+    return rows.map((row) => ({
+      id: row.command_id,
+      status: row.status as SyncCommandResult["status"],
+      result: row.result ?? "",
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function clearCommandResults(ids: string[]): Promise<void> {
+  if (ids.length === 0) {
+    return;
+  }
+
+  try {
+    const placeholders = ids.map(() => "?").join(",");
+    await execute(`DELETE FROM _pending_command_results WHERE command_id IN (${placeholders})`, ids);
+  } catch (err) {
+    console.warn("[Sync] Could not clear delivered command results", err);
+  }
 }
 
 async function applyOne(command: SyncCommand): Promise<SyncCommandResult> {
@@ -93,6 +152,12 @@ async function abandonQueued(command: SyncCommand): Promise<SyncCommandResult> {
     command.table_name,
     command.record_id,
   ]);
+
+  // Dropping the queue row alone leaves the source row _synced = 0 with no
+  // queue entry, which requeueOrphanedRows() treats as an orphan and
+  // re-queues on the next boot. Every other drop path in the engine pairs
+  // the delete with this for the same reason.
+  await markConflictSettled(command.table_name, command.record_id!);
 
   return { id: command.id, status: "applied", result: `discarded ${rows.length} queued row(s)` };
 }

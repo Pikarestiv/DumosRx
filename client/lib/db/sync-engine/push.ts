@@ -7,7 +7,11 @@ import {
 import { apiClient } from "@/lib/api/client";
 import { buildStockFingerprint } from "./stock-fingerprint";
 import { buildQueueStateReport } from "./queue-state";
-import { applySyncCommands, type SyncCommandResult } from "./sync-commands";
+import {
+  applySyncCommands,
+  readPendingCommandResults,
+  clearCommandResults,
+} from "./sync-commands";
 import { PushResponse } from "./types";
 import type { SyncChange, SyncQueueItem } from "@/lib/types/sync";
 import { remapForeignKey, DUPLICATE_NAME_TABLES } from "../reconcile-identity";
@@ -197,9 +201,10 @@ export async function pushChanges(
   // Marks every batch as one sync run; the server throttles per run.
   runId?: string,
 ): Promise<{ pushed: number; failedBatches: number }> {
-  // Carried between batches: results are reported on the NEXT request, so a
-  // command applied now is acknowledged even if this run ends here.
-  const pendingCommandResults: SyncCommandResult[] = [];
+  // Computed once per run, not per batch: neither value needs batch
+  // granularity and both scan the whole queue / batch table.
+  const stockFingerprint = await buildStockFingerprint();
+  const queueState = await buildQueueStateReport();
   let pending = await getPendingSyncItems(isManual);
 
   if (pending.length === 0) return { pushed: 0, failedBatches: 0 };
@@ -351,27 +356,25 @@ export async function pushChanges(
         continue;
       }
 
+      // Read, not consumed: cleared only once the server has acknowledged
+      // them, so a failed request cannot lose an outcome.
+      const deliverableResults = await readPendingCommandResults();
+
       const response = (await apiClient.pushChanges(
         {
           changes,
-          stock_fingerprint: await buildStockFingerprint(),
-          queue_state: await buildQueueStateReport(),
-          sync_command_results: pendingCommandResults.splice(0, pendingCommandResults.length),
+          stock_fingerprint: stockFingerprint,
+          queue_state: queueState,
+          sync_command_results: deliverableResults,
         },
         isManual,
         isSetup,
         runId,
       )) as PushResponse;
 
-      // Operator commands ride on the push response. Applied outside the
-      // batch transaction below and reported on the next request; a command
-      // failure must never roll back a successful push.
-      if (response.sync_commands?.length) {
-        try {
-          pendingCommandResults.push(...(await applySyncCommands(response.sync_commands)));
-        } catch (err) {
-          console.warn("[Sync] Failed to apply operator commands", err);
-        }
+      // The server has them now, so they can stop being re-sent.
+      if (deliverableResults.length > 0) {
+        await clearCommandResults(deliverableResults.map((r) => r.id));
       }
 
       // The server savepoints each change, so `success` means the request
@@ -484,6 +487,17 @@ export async function pushChanges(
             }
           }
         });
+
+        // After this batch's bookkeeping, never before: a `retry` applied
+        // first would have its reset undone by recordSyncFailure() if the
+        // same row is in this batch's failures.
+        if (response.sync_commands?.length) {
+          try {
+            await applySyncCommands(response.sync_commands);
+          } catch (err) {
+            console.warn("[Sync] Failed to apply operator commands", err);
+          }
+        }
 
         // Wording deliberately never blames "another device" — see
         // client/AGENTS.md, "Push details".

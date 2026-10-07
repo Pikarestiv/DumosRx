@@ -20,7 +20,7 @@ class AdminRevenueService
     public function getOverview($page = 1, $search = null, $provider = null, $plan = null, $dateFrom = null, $dateTo = null)
     {
         $query = PaymentTransaction::with('subscription.user')
-            ->whereIn('status', self::SUCCESS_STATUSES);
+            ->whereIn('payment_transactions.status', self::SUCCESS_STATUSES);
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -44,37 +44,39 @@ class AdminRevenueService
             $query->where('created_at', '<=', $dateTo);
         }
 
-        // plan_name lives inside metadata (JSON) rather than a plain column,
-        // so it's filtered/grouped in PHP after the DB-level filters above
-        // narrow the result set, rather than a driver-specific JSON query.
-        $transactions = $query->latest()->get();
-
         if ($plan) {
-            $transactions = $transactions->filter(fn ($txn) => strtolower($this->planNameFor($txn)) === strtolower($plan))->values();
+            $query->whereHas('subscription', function ($sq) use ($plan) {
+                $sq->whereRaw('LOWER(plan_name) = ?', [strtolower($plan)]);
+            });
         }
 
-        $totalRevenue = (float) $transactions->sum('amount');
-        $manualRevenue = (float) $transactions->where('provider', 'bank_transfer')->sum('amount');
+        $totals = (clone $query)
+            ->selectRaw("currency, provider = 'bank_transfer' as is_manual, COALESCE(SUM(amount), 0) as total")
+            ->groupBy('currency', 'is_manual')
+            ->get();
 
-        $manualTransactions = $transactions->where('provider', 'bank_transfer');
-        $automatedTransactions = $transactions->where('provider', '!=', 'bank_transfer');
+        $byPlanTier = (clone $query)
+            ->leftJoin('subscriptions', 'subscriptions.id', '=', 'payment_transactions.subscription_id')
+            ->selectRaw('subscriptions.plan_name as plan_name, COALESCE(SUM(payment_transactions.amount), 0) as total')
+            ->groupBy('subscriptions.plan_name')
+            ->get()
+            ->mapWithKeys(fn ($row) => [
+                $row->plan_name ? ucfirst($row->plan_name) : 'Unknown' => (float) $row->total,
+            ]);
 
-        $byPlanTier = $transactions
-            ->groupBy(fn ($txn) => $this->planNameFor($txn))
-            ->map(fn ($group) => (float) $group->sum('amount'));
+        $paginator = (clone $query)->latest()->paginate(20, ['*'], 'page', max(1, (int) $page));
+        $paged = collect($paginator->items());
 
-        $perPage = 20;
-        $currentPage = max(1, (int) $page);
-        $paged = $transactions->slice(($currentPage - 1) * $perPage, $perPage)->values();
-        $paginator = new LengthAwarePaginator($paged, $transactions->count(), $perPage, $currentPage);
+        $totalRevenue = (float) $totals->sum('total');
+        $manualRevenue = (float) $totals->where('is_manual', true)->sum('total');
 
         return [
             'total_revenue' => $totalRevenue,
             'manual_revenue' => $manualRevenue,
             'automated_revenue' => $totalRevenue - $manualRevenue,
-            'totals_by_currency' => $this->totalsByCurrency($transactions),
-            'automated_by_currency' => $this->totalsByCurrency($automatedTransactions),
-            'manual_by_currency' => $this->totalsByCurrency($manualTransactions),
+            'totals_by_currency' => $this->groupedTotals($totals),
+            'automated_by_currency' => $this->groupedTotals($totals->where('is_manual', false)),
+            'manual_by_currency' => $this->groupedTotals($totals->where('is_manual', true)),
             'by_plan_tier' => $byPlanTier,
             'transactions' => [
                 'data' => $paged->map(function ($txn) {
@@ -104,12 +106,12 @@ class AdminRevenueService
         ];
     }
 
-    private function totalsByCurrency($transactions): array
+    private function groupedTotals($rows): array
     {
         return CurrencyTotals::fromPairs(
-            $transactions->map(fn ($txn) => [
-                'currency' => $txn->currency,
-                'amount' => $txn->amount,
+            collect($rows)->map(fn ($row) => [
+                'currency' => $row->currency,
+                'amount' => $row->total,
             ])
         );
     }

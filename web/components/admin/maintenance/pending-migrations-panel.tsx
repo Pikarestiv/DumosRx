@@ -47,7 +47,7 @@ export function PendingMigrationsPanel() {
 
         {known && pending.length === 0 && (
           <p className="text-sm font-medium text-foreground">
-            Nothing pending — the schema matches this release.
+            Nothing pending. The schema matches this release.
           </p>
         )}
 

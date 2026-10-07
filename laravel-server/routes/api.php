@@ -212,6 +212,8 @@ Route::prefix('v1')->group(function () {
             Route::post('/users', [AdminUserController::class, 'createPlatformAdmin'])->middleware('role:super_admin');
             Route::get('/health', [AdminPlatformController::class, 'health'])->middleware('role:super_admin');
             Route::get('/errors', [AdminPlatformController::class, 'errors'])->middleware('role:super_admin');
+            Route::get('/subscriptions/lifecycle', [\App\Http\Controllers\Api\Admin\AdminSubscriptionController::class, 'lifecycle'])->middleware('role:super_admin');
+            Route::get('/subscriptions/{bucket}', [\App\Http\Controllers\Api\Admin\AdminSubscriptionController::class, 'bucket'])->middleware('role:super_admin');
             Route::get('/sync/health', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'summary'])->middleware('role:super_admin');
             Route::get('/sync/stores/{id}', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'store'])->middleware('role:super_admin');
             Route::get('/downloads/manifest', [AdminPlatformController::class, 'downloadsManifest'])->middleware('role:super_admin');

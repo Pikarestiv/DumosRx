@@ -923,6 +923,11 @@ admin panel. The constraints are not negotiable:
   sends, and the server only applies what it receives — so a pending delta
   cannot cause an understated write, and a guard on it refuses repairs while
   protecting nothing. The forced push+pull remains the real safeguard.
+  **This has now been reinstated once by accident** (during the stock-integrity
+  phase 1 work, whose own spec called for it) and was caught only by
+  `__tests__/reconcile-refuses-with-pending-deltas.test.ts`. Do not re-add it.
+  The *divergence* interlock below is a different thing and is correct: a
+  diverged batch is present locally, so it is in the payload.
 - **An unresolvable delta is re-reported, not reported once.** The report
   fires at 10 attempts and then every 25. A condition that never resolves
   must not go quiet: silence after one report is indistinguishable from the
@@ -1068,6 +1073,21 @@ one repair path:
   real stock changes can still get this wrong; this is a deliberate,
   accepted tradeoff for a rare, human-triggered repair action, not an
   automatic one.
+- **The divergence interlock (2026-10-08).** Before anything else,
+  `reconcileStockQuantities()` runs `verifyStockIntegrity()`
+  (`sync-engine/stock-integrity.ts`) and **throws** if any batch's `quantity`
+  disagrees with the sum of its own `stock_movements`. Such a device would
+  otherwise push its wrong numbers and have the server adopt them as permanent
+  `sync_reconciliation` movements — on the store behind A-191 that would have
+  written 83,990 units over a true 47,072. It deliberately does **not** block
+  on `unreconstructable` batches (quantity but no movements at all): Health
+  Sync is the only repair those have (A-148), so blocking on them would
+  disable the one thing that fixes them. The throw is the interface — Settings
+  > Data's `toast.promise` surfaces `e.message` verbatim — so the message is
+  written as a sentence for the owner, not an error code. Covered by
+  `__tests__/health-sync-interlock.test.ts` and
+  `__tests__/stock-integrity-verify.test.ts`; see
+  `docs/superpowers/specs/2026-10-08-stock-integrity-fold-design.md`.
 - **Each correction is a real, permanent record**, never a silent rewrite: a
   `stock_movements` row with `movement_type = 'sync_reconciliation'` and the
   signed delta, plus one summary `ActivityLog`

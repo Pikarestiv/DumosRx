@@ -1,7 +1,7 @@
 # Stock integrity: divergence detection and fold-from-scratch — design
 
 **Date:** 2026-10-08
-**Status:** proposed, awaiting review
+**Status:** phase 1 shipped (detection + interlock, no writes). Phase 2 (`foldStockQuantities()`) not started — see Implementation notes.
 **Scope:** `client/` only. No server change, no admin surface.
 **Related:** `docs/KNOWN_BUGS.md` A-176 · `docs/FIXED_BUGS.md` A-148, A-173, A-191
 
@@ -112,16 +112,25 @@ case is a genuine destructive edge and we do not yet know its prevalence.
 ### 4. The Health Sync interlock
 
 `reconcileStockQuantities()` must refuse when the device is not demonstrably
-sound. Specifically, refuse if either:
+sound — specifically, when `verifyStockIntegrity()` reports any `diverged`
+batch. Such a batch exists locally, so it *is* in the payload this function
+sends, and pushing it would make the device's wrong number permanent as a
+`sync_reconciliation` movement.
 
-- `_pending_stock_deltas` is non-empty, or
-- `verifyStockIntegrity()` reports any `diverged` batch
+**Corrected during implementation: this spec originally also called for
+refusing while `_pending_stock_deltas` is non-empty. That is wrong and was not
+built.** The same guard was written and then removed in the A-173 review
+(`docs/FIXED_BUGS.md`): a delta stays pending only while its `stock_batches`
+row is *absent* locally — that absence is what defers it — and an absent batch
+is not in the payload, which the server only applies to batches it receives.
+The guard therefore protected nothing while refusing repairs permanently, for
+exactly the cursor-stranded devices A-176 describes that most need them.
+`client/__tests__/reconcile-refuses-with-pending-deltas.test.ts` pins the
+opposite property and was the test that caught the reinstated guard.
 
-This also makes true a safety property `docs/KNOWN_BUGS.md` A-176 **already
-claims exists** — "reconciliation refuses while deltas are pending" — but which
-is not implemented: `countDeferredStockDeltas()` is referenced only at
-`pull.ts:193` and `:539`, never in `reconcile-quantities.ts` or the settings UI.
-Correct that claim in the same change.
+`docs/KNOWN_BUGS.md` A-176 did claim "reconciliation refuses while deltas are
+pending". That claim was false, but the fix is to **delete** it, not to
+implement it; A-176 has been corrected accordingly.
 
 ### 5. Exposure
 
@@ -152,8 +161,9 @@ Data-integrity work, so per root `AGENTS.md` §9 these are mandatory, not option
 - an unpushed local sale sitting in `_sync_queue` is still counted, so folding
   cannot discard unsynced work — this is the property that makes fold safe where
   a factory reset is not
-- `reconcileStockQuantities()` refuses with pending deltas
 - `reconcileStockQuantities()` refuses with diverged batches
+- `reconcileStockQuantities()` still proceeds with a pending delta, and that
+  delta's batch is absent from the payload
 - regression against the real case: batch quantity 10, one `+5` movement →
   folds to 5
 
@@ -182,3 +192,52 @@ correct at 46,097) is measured and reproducible.
 3. Does a fold need to appear anywhere in the owner's UI at all, or is a silent
    correction plus Sentry the right level? Leaning silent, consistent with how
    `sync_reconciliation` is scoped out of the owner's casual lists.
+
+## Implementation notes
+
+### Shipped in phase 1 (2026-10-08)
+
+- **`client/lib/db/sync-engine/stock-integrity.ts`** — `verifyStockIntegrity()`
+  (pure read, one grouped `LEFT JOIN` over `stock_movements`, scoped to the
+  active store's active non-deleted batches, soft-deleted movements excluded
+  from both the sum and the count) and `summarizeIntegrity()` for the Sentry
+  payload. Classification is as specified above.
+- **`health-check.ts`** — `reportStockIntegrity()`, called from
+  `checkSyncHealth()`, reporting under `area: "stock-integrity"` with the ten
+  worst-diverged batches. Returns silently when nothing diverges, and swallows
+  its own failures so the check can never break the row-count deficit path
+  that follows it.
+- **`reconcile-quantities.ts`** — the interlock, keyed on `diverged` only
+  (§4). It deliberately does **not** block on `unreconstructable`: Health Sync
+  is the only repair for those batches (A-148), so blocking on them would
+  disable the one thing that fixes them.
+- **Exposure** — `window.__verifyStockIntegrity`, no in-app button.
+- **Tests** — `client/__tests__/stock-integrity-verify.test.ts` and
+  `client/__tests__/health-sync-interlock.test.ts`.
+
+### Decisions settled by implementation
+
+- **The interlock throws rather than returning a refusal result.** Both call
+  sites already handle a rejection correctly: `use-settings-sync.ts` wraps the
+  call in `toast.promise` whose `error` handler surfaces `e.message` verbatim
+  (added precisely because this function can reject for specific, non-network
+  reasons), so the refusal reaches the owner as its own sentence and never as
+  an unhandled rejection; `window.__reconcileStockQuantities` is a DevTools
+  hook where a rejected promise is the right result. The refusal messages are
+  therefore written as user-facing prose, not error codes.
+- **Open question 1 (scope) is resolved as per-store**, matching
+  `reconcileStockQuantities()`'s own payload scoping; `getActiveStoreId()`
+  returning nothing falls back to every batch, which is what the test harness
+  exercises.
+
+### What phase 2 still needs
+
+1. Read the fleet data this phase emits: how many devices diverge, by how
+   much, and above all **how many `unreconstructable` batches exist**. That
+   count is the gate — it is the one class a fold can destroy.
+2. `foldStockQuantities()` per §2: `diverged` batches only, `MAX(0, …)`
+   floored, local-only, `unreconstructable` skipped and reported.
+3. Decide trigger (automatic on detection versus DevTools-only) from that
+   data, then verify against `DRX-Y8UK10GC3` (+213 units, server known correct
+   at 46,097).
+4. Open questions 2 and 3 remain open and want the same fleet data.

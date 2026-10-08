@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/api/client";
 import { query, execute, getActiveStoreId } from "../core";
+import { verifyStockIntegrity } from "./stock-integrity";
 import type { SyncResult } from "./types";
 
 interface ReconciliationMovement {
@@ -71,13 +72,24 @@ async function storeReconciliationMovementLocally(
  * quantities as authoritative, so a device that's been sitting unsynced
  * (missing other devices' sales/movements) must catch up before that
  * assertion is trustworthy. Refuses to proceed if that sync fails, rather
- * than reconciling against a snapshot that might already be stale. */
+ * than reconciling against a snapshot that might already be stale.
+ *
+ * Refuses outright when any batch's quantity disagrees with its own movement
+ * log, which would make this device assert wrong numbers as truth. See
+ * docs/superpowers/specs/2026-10-08-stock-integrity-fold-design.md. */
 export async function reconcileStockQuantities(
   syncFn: (isManual?: boolean) => Promise<SyncResult>,
 ): Promise<{
   reconciled: number;
   checked: number;
 }> {
+  const integrity = await verifyStockIntegrity();
+  if (integrity.diverged > 0) {
+    throw new Error(
+      `This device's stock does not match its own movement history on ${integrity.diverged} batch(es). Repair those first — pushing these quantities would overwrite correct cloud data.`,
+    );
+  }
+
   const syncResult = await syncFn(true);
   if (!syncResult.success) {
     const message =

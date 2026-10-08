@@ -10,6 +10,14 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
+#### A-185. `laravel-server/`+`web/` — catalog standardization still defaults to an unscoped, platform-wide write that re-pulls every touched product to every client
+- **Found:** 2026-10-08, implementing the dry-run/scoping mitigation for `AdminCatalogService::standardizeCatalog()` (admin panel Phase 1, §7.4).
+- **Location:** `AdminCatalogService::standardizeCatalog()` and `AdminPlatformController::standardize()` (`POST /admin/products/standardize`); the admin-panel "Standardize Catalog" button that calls it.
+- **What's wrong:** the operation backfills blank `generic_name` to `"General"` and blank `manufacturer` to `"Unknown"` via Eloquent `update()`. Eloquent bumps `updated_at` on every row it touches, and the sync engine's incremental pull filters by `updated_at`/`_synced_at`. An unscoped run therefore re-downloads every touched product to every client on its next sync — potentially every store's whole catalogue at once, not just the rows that actually changed value.
+- **PHP generates this timestamp, in UTC** (`now()`/`updated_at` via Eloquent) — this is **not** an instance of root `AGENTS.md` §7's MySQL `SYSTEM` timezone gotcha (that only affects raw SQL `NOW()`/`CURRENT_TIMESTAMP()` run outside Laravel's PDO connections). No raw SQL is used here. A future reader should not go chasing the server clock for this one.
+- **Mitigation shipped, not a fix:** `standardizeCatalog(bool $dryRun = false, ?string $storeId = null)` now accepts a dry run (reports the affected-field count, writes nothing, confirmed not to touch `updated_at`) and an optional `store_id` scope, and the OpenAPI summary/description were corrected to say what the endpoint actually does (it does not dedupe or normalize names). See `laravel-server/tests/Feature/Admin/AdminCatalogStandardizeTest.php`.
+- **Still open:** the admin-panel UI's "Standardize Catalog" button still calls the endpoint with no `store_id` and no dry-run step shown to the operator, so the cross-tenant, full-catalogue-resync blast radius is still the default behavior in practice. Wiring the button to a store picker and a dry-run preview is Phase 4 UI work, not done here.
+
 #### A-182. `web/` — the site-wide PWA's `start_url` is a cross-origin bounce, so installing `dumosrx.com` yields a window that navigates out of its own scope on launch
 - **Found:** 2026-10-07, while fixing A-181 (see `docs/FIXED_BUGS.md`).
 - **Location:** `public/site.webmanifest` and `app/dashboard/[...view]/redirect-client.tsx`.

@@ -95,9 +95,16 @@ class AdminPlatformController extends AdminBaseController
 
     #[OA\Post(
         path: '/admin/products/standardize',
-        summary: 'Run catalog standardization (dedupe/normalize product names) across all stores',
+        summary: 'Backfill blank generic_name and manufacturer fields on products',
+        description: 'Sets blank generic_name to "General" and blank manufacturer to "Unknown". It does NOT dedupe or normalize product names. Unscoped it runs across every store on the platform; pass store_id to scope it. Irreversible, and it bumps updated_at on every row it touches, so each one re-pulls to its client on the next incremental sync. Pass dry_run to get the affected count without writing.',
         tags: ['Admin'],
         security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(required: false, content: new OA\JsonContent(
+            properties: [
+                new OA\Property(property: 'dry_run', type: 'boolean', default: false),
+                new OA\Property(property: 'store_id', type: 'string', nullable: true),
+            ],
+        )),
         responses: [
             new OA\Response(response: 200, description: 'Standardization result', content: new OA\JsonContent(type: 'object')),
             new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
@@ -106,8 +113,16 @@ class AdminPlatformController extends AdminBaseController
     )]
     public function standardize(Request $request)
     {
-        return $this->withErrorResponse('Standardize', 'Failed to standardize catalog', function () {
-            return response()->json($this->catalogService->standardizeCatalog());
+        $validated = $request->validate([
+            'dry_run' => ['nullable', 'boolean'],
+            'store_id' => ['nullable', 'string', 'exists:stores,id'],
+        ]);
+
+        return $this->withErrorResponse('Standardize', 'Failed to standardize catalog', function () use ($validated) {
+            return response()->json($this->catalogService->standardizeCatalog(
+                (bool) ($validated['dry_run'] ?? false),
+                $validated['store_id'] ?? null,
+            ));
         });
     }
 

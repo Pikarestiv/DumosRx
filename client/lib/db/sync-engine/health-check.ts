@@ -3,6 +3,7 @@ import { apiClient } from "@/lib/api/client";
 import { logCrash } from "@/lib/utils/error-logger";
 import { isImpersonatedSession } from "@/lib/utils/impersonation";
 import { forceFullResync } from "./index";
+import { verifyStockIntegrity, summarizeIntegrity } from "./stock-integrity";
 import {
   STORAGE_KEYS,
   getLastSyncTime,
@@ -51,6 +52,40 @@ async function getLocalCounts(storeId: string): Promise<Record<string, number>> 
     counts[table] = rows[0]?.count ?? 0;
   }
   return counts;
+}
+
+/**
+ * Reports batch-vs-movement-log divergence to Sentry. Deliberately
+ * report-only: folding is enabled once fleet data shows how common
+ * `unreconstructable` batches actually are. See
+ * docs/superpowers/specs/2026-10-08-stock-integrity-fold-design.md.
+ */
+async function reportStockIntegrity(): Promise<void> {
+  try {
+    const report = await verifyStockIntegrity();
+    if (report.diverged === 0 && report.unreconstructable === 0) return;
+
+    await logCrash(
+      new Error(
+        `Stock integrity: ${report.diverged} batch(es) disagree with their movement log` +
+          ` (net ${report.netUnitDelta >= 0 ? "+" : ""}${report.netUnitDelta} units),` +
+          ` ${report.unreconstructable} unreconstructable, of ${report.checked} checked`,
+      ),
+      false,
+      {
+        area: "stock-integrity",
+        ...summarizeIntegrity(report),
+        worstDiverged: JSON.stringify(
+          [...report.divergedBatches]
+            .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+            .slice(0, 10)
+            .map((b) => ({ batchId: b.batchId, productId: b.productId, delta: b.delta })),
+        ),
+      },
+    );
+  } catch (error) {
+    console.error("Stock integrity check failed:", error);
+  }
 }
 
 /**
@@ -114,6 +149,8 @@ export async function checkSyncHealth(): Promise<void> {
     // server error) should retry on the next app open, not sit dormant
     // for the rest of the interval just because this one try failed.
     localStorage.setItem(LAST_CHECK_KEY, String(Date.now()));
+
+    await reportStockIntegrity();
 
     const serverCounts = response.counts;
     const localCounts = await getLocalCounts(storeId);

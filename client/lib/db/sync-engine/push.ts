@@ -23,6 +23,7 @@ import {
 import { execute, query, transaction } from "../core";
 import { isExpectedSyncRestriction } from "@/lib/utils/error-logger";
 import { toast } from "sonner";
+import { isUuid } from "@/lib/utils/uuid";
 
 // Terminal: the queued payload is frozen, so resending can never change the
 // outcome. See client/AGENTS.md, "Push details (sync-engine/push.ts)".
@@ -355,11 +356,10 @@ export async function pushChanges(
           delete item.payload.brand_name;
           delete item.payload.supplier_id;
 
-          const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
           // Prevent bad payloads from blocking the entire sync queue
           if (
             item.payload.category_id &&
-            !UUID_REGEX.test(item.payload.category_id as string)
+            !isUuid(item.payload.category_id)
           ) {
             for (const id of idsFor(item.id)) {
               rejected.push({ id, reason: "Invalid category_id (not a UUID)" });
@@ -368,7 +368,7 @@ export async function pushChanges(
           }
           if (
             item.payload.supplier_id &&
-            !UUID_REGEX.test(item.payload.supplier_id as string)
+            !isUuid(item.payload.supplier_id)
           ) {
             for (const id of idsFor(item.id)) {
               rejected.push({ id, reason: "Invalid supplier_id (not a UUID)" });

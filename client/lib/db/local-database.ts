@@ -15,6 +15,7 @@ import { query, execute, transaction, getActiveStoreId } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 import { queryClient } from "../query-client";
 import { AUDIT_ACTIONS } from "./audit-actions";
+import { isUuid } from "@/lib/utils/uuid";
 import { RECONCILIATION_MOVEMENT_TYPE } from "./movement-types";
 import { queryKeys } from "../query-keys";
 import type { NewProductPayload } from "@/lib/types/product";
@@ -105,11 +106,8 @@ export async function getProductById(id: string) {
  * dying before the product leaves an empty category behind, already queued
  * for sync, that nothing will ever fill. */
 export async function createProduct(data: NewProductPayload) {
-  // Ensure we have a valid UUID for category, else wait for sync
-  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
   return transaction(async () => {
-    if (data.category_id && !UUID_REGEX.test(data.category_id)) {
+    if (data.category_id && !isUuid(data.category_id)) {
       const storeId = getActiveStoreId();
       const categories = await query<{ id: string }>(
         `SELECT id FROM categories WHERE name = ? COLLATE NOCASE${storeId ? " AND store_id = ?" : ""}`,

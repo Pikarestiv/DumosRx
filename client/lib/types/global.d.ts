@@ -55,6 +55,10 @@ declare global {
       reconciled: number;
       checked: number;
     }>;
+    /** Read-only audit of every active batch against its own movement log.
+     * Safe anywhere, including production: it never writes. Exposed for a
+     * support session; see lib/db/sync-engine/stock-integrity.ts. */
+    __verifyStockIntegrity?: () => Promise<import("@/lib/db/sync-engine/stock-integrity").StockIntegrityReport>;
     /** Legacy IE/Edge-on-iOS marker, used only to help detect real iOS Safari. */
     MSStream?: unknown;
   }

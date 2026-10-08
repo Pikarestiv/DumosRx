@@ -923,6 +923,12 @@ admin panel. The constraints are not negotiable:
   sends, and the server only applies what it receives — so a pending delta
   cannot cause an understated write, and a guard on it refuses repairs while
   protecting nothing. The forced push+pull remains the real safeguard.
+  **This has now been reinstated once by accident** (during the stock-integrity
+  phase 1 work, whose own spec called for it) and was caught only by
+  `__tests__/reconcile-refuses-with-pending-deltas.test.ts`. Do not re-add it.
+  A *divergence* interlock was proposed as the correct alternative (a diverged
+  batch is present locally, so it is in the payload) — it was also withdrawn
+  before merge; see the stock-integrity entry below.
 - **An unresolvable delta is re-reported, not reported once.** The report
   fires at 10 attempts and then every 25. A condition that never resolves
   must not go quiet: silence after one report is indistinguishable from the
@@ -1068,6 +1074,20 @@ one repair path:
   real stock changes can still get this wrong; this is a deliberate,
   accepted tradeoff for a rare, human-triggered repair action, not an
   automatic one.
+- **No interlock on `reconcileStockQuantities()` (2026-10-08).** One was built
+  — refusing when any batch's `quantity` disagreed with the sum of its own
+  `stock_movements` — and withdrawn in pre-merge review. The motivation was
+  real (such a device would push wrong numbers and have the server adopt them
+  as permanent `sync_reconciliation` movements; on the A-191 store that was
+  83,990 units over a true 47,072), but a `diverged` verdict is not a reliable
+  proxy for "this device is wrong": a batch floored at 0 by an oversell, and a
+  legacy A-148 batch with any sales against it, both read as diverged. The
+  guard therefore threw for the whole store, permanently, and Health Sync is
+  the *only* repair A-148 batches have. Do not reinstate it until
+  `foldStockQuantities()` exists to give the owner something to repair *with*.
+  The classifier was corrected for both cases anyway — see
+  `sync-engine/stock-integrity.ts` — because they also produced false
+  divergence reports. Detection ships; enforcement does not.
 - **Each correction is a real, permanent record**, never a silent rewrite: a
   `stock_movements` row with `movement_type = 'sync_reconciliation'` and the
   signed delta, plus one summary `ActivityLog`

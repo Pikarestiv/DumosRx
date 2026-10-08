@@ -71,7 +71,13 @@ async function storeReconciliationMovementLocally(
  * quantities as authoritative, so a device that's been sitting unsynced
  * (missing other devices' sales/movements) must catch up before that
  * assertion is trustworthy. Refuses to proceed if that sync fails, rather
- * than reconciling against a snapshot that might already be stale. */
+ * than reconciling against a snapshot that might already be stale.
+ *
+ * Refuses outright when any batch's quantity disagrees with its own movement
+ * No divergence interlock here — one was written and withdrawn before
+ * shipping; see the spec's §4 for why a quantity floored at 0 and a legacy
+ * A-148 batch both read as diverged and would have blocked this repair for
+ * the whole store. */
 export async function reconcileStockQuantities(
   syncFn: (isManual?: boolean) => Promise<SyncResult>,
 ): Promise<{

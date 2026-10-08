@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useEffect } from "react";
+import { memo, useState, useEffect, useRef} from "react";
 import {
   ShoppingCart,
   Trash2,
@@ -95,6 +95,53 @@ export const POSCart = memo(function POSCart({
   setMarkupType,
   updateUnitPrice,
 }: POSCartProps) {
+  // Keep the line a cashier just affected in view. The cart is a receipt in
+  // progress, so its order stays exactly as rung up: only the viewport moves,
+  // and only when that line is actually off-screen.
+  const listRef = useRef<HTMLDivElement>(null);
+  const [revealedId, setRevealedId] = useState<string | null>(null);
+  const previousQuantities = useRef<Map<string, number> | null>(null);
+
+  useEffect(() => {
+    const previous = previousQuantities.current;
+    const current = new Map<string, number>(
+      cart.map((item) => [item.id, item.quantity] as const),
+    );
+    previousQuantities.current = current;
+
+    if (previous === null) return;
+
+    let changedId: string | null = null;
+    for (const [id, quantity] of current) {
+      if (quantity > (previous.get(id) ?? 0)) {
+        changedId = id;
+        break;
+      }
+    }
+    if (changedId === null) return;
+
+    setRevealedId(changedId);
+    const clearHighlight = setTimeout(() => setRevealedId(null), 1200);
+
+    const container = listRef.current;
+    const line = container?.querySelector<HTMLElement>(
+      `[data-cart-item-id="${changedId}"]`,
+    );
+
+    if (container && line) {
+      const lineTop = line.offsetTop - container.offsetTop;
+      const lineBottom = lineTop + line.offsetHeight;
+      const viewTop = container.scrollTop;
+      const viewBottom = viewTop + container.clientHeight;
+
+      if (lineTop < viewTop || lineBottom > viewBottom) {
+        line.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    }
+
+    return () => clearTimeout(clearHighlight);
+  }, [cart]);
+
   const [showDiscount, setShowDiscount] = useState(false);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [showProformaDialog, setShowProformaDialog] = useState(false);
@@ -183,12 +230,13 @@ export const POSCart = memo(function POSCart({
           )}
         </div>
       )}
-      <div className="flex-1 overflow-y-auto px-5 py-1.5 min-h-[120px]">
+      <div ref={listRef} className="flex-1 overflow-y-auto px-5 py-1.5 min-h-[120px]">
         {cart.length === 0 && <EmptyCart />}
         {cart.length > 0 &&
           cart.map((item, idx) => (
             <POSCartItem
               key={item.id}
+              highlighted={item.id === revealedId}
               item={item}
               currencyCode={currencyCode}
               isLast={idx === cart.length - 1}

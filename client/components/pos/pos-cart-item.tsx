@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Minus, Plus, Trash2 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { getCategoryIcon } from "@/lib/constants/category-icons";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
@@ -13,6 +13,9 @@ const SWIPE_DELETE_THRESHOLD = -70;
 const SWIPE_DELETE_VELOCITY = -500;
 
 interface Props {
+  /** Briefly marks the line a cashier just affected, so a quantity change
+   * is visible without the list reordering under them. */
+  highlighted?: boolean;
   item: CartItem;
   currencyCode?: string;
   isLast: boolean;
@@ -24,7 +27,7 @@ interface Props {
 }
 
 /** Swipe-left-to-remove cart row: a red delete backdrop revealed as the row is dragged left. */
-export function POSCartItem({ item, currencyCode, isLast, updateQuantity, removeFromCart, isLocked = false, isResellerSale = false, updateUnitPrice }: Props) {
+export function POSCartItem({ item, currencyCode, isLast, updateQuantity, removeFromCart, isLocked = false, isResellerSale = false, updateUnitPrice, highlighted = false }: Props) {
   const CategoryIcon = getCategoryIcon(item.category_name);
   const capsClass = useUppercaseDisplayClass();
   // Unconditional top-level const, never inlined into the JSX branch below -
@@ -77,7 +80,13 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
   };
 
   return (
-    <div className="relative overflow-hidden rounded-lg">
+    <div
+      data-cart-item-id={item.id}
+      className={cn(
+        "relative overflow-hidden rounded-lg transition-colors duration-500",
+        highlighted && "bg-primary/10 motion-reduce:transition-none",
+      )}
+    >
       {!isLocked && (
         <div
           aria-hidden="true"

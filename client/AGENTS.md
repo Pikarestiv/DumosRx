@@ -925,7 +925,7 @@ admin panel. The constraints are not negotiable:
   protecting nothing. The forced push+pull remains the real safeguard.
   **This has now been reinstated once by accident** (during the stock-integrity
   phase 1 work, whose own spec called for it) and was caught only by
-  `__tests__/reconcile-refuses-with-pending-deltas.test.ts`. Do not re-add it.
+  `__tests__/reconcile-proceeds-with-pending-deltas.test.ts`. Do not re-add it.
   A *divergence* interlock was proposed as the correct alternative (a diverged
   batch is present locally, so it is in the payload) — it was also withdrawn
   before merge; see the stock-integrity entry below.

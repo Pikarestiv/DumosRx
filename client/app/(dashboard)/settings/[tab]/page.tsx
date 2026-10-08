@@ -25,6 +25,7 @@ export function generateStaticParams() {
     { tab: "categories" },
     { tab: "roles" },
     { tab: "danger-zone" },
+    { tab: "diagnostics" },
   ];
 }
 

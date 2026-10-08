@@ -142,7 +142,7 @@ built.** The same guard was written and removed in the A-173 review: a delta
 stays pending only while its `stock_batches` row is *absent* locally, and an
 absent batch is not in the payload, which the server only applies to batches it
 receives. `client/AGENTS.md` carries a standing rule against reinstating it,
-and `client/__tests__/reconcile-refuses-with-pending-deltas.test.ts` pins the
+and `client/__tests__/reconcile-proceeds-with-pending-deltas.test.ts` pins the
 opposite property.
 
 ### 5. Exposure
@@ -225,8 +225,8 @@ correct at 46,097) is measured and reproducible.
   is the only repair for those batches (A-148), so blocking on them would
   disable the one thing that fixes them.
 - **Exposure** — `window.__verifyStockIntegrity`, no in-app button.
-- **Tests** — `client/__tests__/stock-integrity-verify.test.ts` and
-  `client/__tests__/health-sync-interlock.test.ts`.
+- **Tests** — `client/__tests__/stock-integrity-verify.test.ts`. The
+  interlock's own test file was removed with the interlock; see §4.
 
 ### Decisions settled by implementation
 

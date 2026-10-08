@@ -852,6 +852,7 @@ const READ_PATH_INDEXES = [
   `CREATE INDEX IF NOT EXISTS idx_sales_store_id_created_at ON sales(store_id, created_at)`,
   `CREATE INDEX IF NOT EXISTS idx_stock_movements_product_id ON stock_movements(product_id)`,
   `CREATE INDEX IF NOT EXISTS idx_stock_movements_reference_id ON stock_movements(reference_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_stock_movements_stock_batch_id ON stock_movements(stock_batch_id)`,
   `CREATE INDEX IF NOT EXISTS idx_stock_movements_store_id_created_at ON stock_movements(store_id, created_at)`,
   `CREATE INDEX IF NOT EXISTS idx_audit_logs_record_id ON audit_logs(record_id)`,
   `CREATE INDEX IF NOT EXISTS idx_audit_logs_store_id_created_at ON audit_logs(store_id, created_at)`,

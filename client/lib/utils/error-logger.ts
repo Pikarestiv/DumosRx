@@ -5,6 +5,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { SYSTEM_EMAIL } from "@/lib/constants";
 import { getDeviceId } from "@/lib/utils/device-id";
+import { getDeviceLabel } from "@/lib/utils/device-label";
 import {
   MAX_CRASH_CONTENT_LENGTH,
   MAX_CRASH_CONTEXT_LENGTH,
@@ -53,6 +54,7 @@ function buildCrashContent(
   stack: string,
   context: Record<string, unknown>,
   deviceId: string,
+  deviceLabel: string,
   isFatal: boolean,
 ): string {
   const contextLine = Object.keys(context).length
@@ -60,7 +62,7 @@ function buildCrashContent(
     : "";
 
   return truncateToLimit(
-    `[CRASH] [${info.platform?.toUpperCase()}] ${isFatal ? "FATAL: " : ""}${message}\n\nDevice: ${deviceId}${contextLine}\n\nStack:\n${truncateToLimit(stack, MAX_CRASH_STACK_LENGTH)}\n\nUA: ${info.userAgent}\nURL: ${info.url}`,
+    `[CRASH] [${info.platform?.toUpperCase()}] ${isFatal ? "FATAL: " : ""}${message}\n\nDevice: ${deviceLabel} (${deviceId})${contextLine}\n\nStack:\n${truncateToLimit(stack, MAX_CRASH_STACK_LENGTH)}\n\nUA: ${info.userAgent}\nURL: ${info.url}`,
     MAX_CRASH_CONTENT_LENGTH,
   );
 }
@@ -137,6 +139,7 @@ function queueToLocalStorage(info: CrashInfo) {
 export async function logCrash(error: unknown, isFatal = false, context: CrashContext = {}) {
   const timestamp = new Date().toISOString();
   const deviceId = getDeviceId();
+  const deviceLabel = getDeviceLabel();
 
   // Extract error info
   let message = "Unknown Error";
@@ -196,6 +199,7 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
         platform: info.platform,
         fatal: String(isFatal),
         device_id: deviceId,
+        device_name: deviceLabel,
         area: context.area,
       },
       extra: { url: info.url, userAgent: info.userAgent, ...context },
@@ -222,7 +226,7 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
         context.area ? `client-crash/${context.area}` : "client-crash",
         isFatal ? 500 : 200,
         message,
-        { stack, deviceId, isFatal, ...context },
+        { stack, deviceId, deviceLabel, isFatal, ...context },
         apiClient.getBaseURL(),
         getAuthToken(),
       );
@@ -245,7 +249,7 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
   // feedback row (and one sync-queue push) per throw. Once that row has
   // actually synced (_synced = 1), the next occurrence starts a fresh
   // row/group, same reasoning as logAction()'s audit_logs dedup (core.ts).
-  const content = buildCrashContent(info, message, stack, context, deviceId, isFatal);
+  const content = buildCrashContent(info, message, stack, context, deviceId, deviceLabel, isFatal);
   try {
     const { insert: dbInsert, update: dbUpdate, query: dbQuery } = await import("@/lib/db/local-database");
 

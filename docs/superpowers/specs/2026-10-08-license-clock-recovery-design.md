@@ -73,16 +73,27 @@ ahead of the last known server time. A clock that jumps forward then cannot
 write a watermark that takes hours to age out. This is the fix that prevents
 recurrence; §1 only repairs devices already poisoned.
 
-### 3. An owner-PIN override, logged
+### 3. Clearing a clock lock always requires online access
 
-A last-resort control on the lock screen, gated on the owner PIN
-(`verifyPin`, as `device-danger-zone.tsx` already does) and written to
-`audit_logs`. For a store that is offline *and* clock-broken, the alternative
-today is a shop that cannot sell.
+**Invariant: a clock-discrepancy lock can only ever be cleared by reaching the
+server.** There is deliberately no offline override — no PIN, no support code,
+no manual unlock.
 
-Whether to ship §3 at all is a product decision: it is the only part that
-weakens the offline guarantee, and §1 plus §2 cover every case where the device
-can reach the server.
+An earlier draft proposed an owner-PIN override and that was wrong. In this
+threat model the store owner *is* the adversary: backdating the clock to extend
+an expired licence is an owner's action, not a cashier's. Gating the override on
+the owner PIN would hand the escape hatch to precisely the person it exists to
+stop.
+
+**Accepted consequence:** a device that is simultaneously offline *and*
+clock-broken cannot sell until it gets online, even briefly. That is a real cost
+to a shop with bad connectivity, and it is accepted knowingly rather than
+overlooked. It also raises the stakes on §2: bounding the watermark is what stops
+a device reaching that state at all, so §2 is the higher-priority half of this
+work, not §1.
+
+Anyone revisiting this should treat "let them unlock it locally, just log it" as
+already considered and rejected.
 
 ### 4. Surface the numbers
 
@@ -95,12 +106,15 @@ this does not need the source code to understand what happened.
 - Changing how licence expiry itself is computed.
 - Trusting any client-supplied clock value server-side.
 - Removing the monotonic check. It stays; it gains a reconciliation path.
+- Any offline route out of a clock lock, including an owner-PIN or support-code
+  override. See §3.
 
 ## Testing
 
 - Watermark ahead + local clock agrees with server → lock clears, watermark reset.
 - Watermark ahead + local clock disagrees with server → stays locked, message states the delta.
-- Watermark ahead + offline → stays locked (regression guard for the threat model).
+- Watermark ahead + offline → stays locked, with no control on screen capable of clearing it (regression guard for the threat model).
+- A device that clears a clock lock online, goes offline, and backdates again → locks again.
 - `updateStoreMonotonicTime()` refuses a write beyond the forward bound.
 - Expired-but-honest licence still renders children rather than locking (current behaviour, already covered by `license-guard-lock-screen-title.test.tsx`).
 
@@ -111,4 +125,5 @@ this does not need the source code to understand what happened.
 2. Does `server_timestamp` already flow somewhere reachable from
    `checkLicenseStatus()`, or does this need a dedicated lightweight endpoint
    that works even when a full sync is failing?
-3. Should §3 exist at all, given §1 and §2?
+3. How should the lock screen word the online requirement, so a shop with no
+   connectivity understands what is needed rather than reading it as a dead end?

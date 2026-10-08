@@ -4,7 +4,7 @@ import { RefreshCw } from "lucide-react";
 import { syncReasonLabel } from "@/lib/api/admin-hooks-sync";
 import type { AdminSyncHealth } from "@/lib/types/admin";
 
-const NO_ACTIVITY = "No sync activity";
+const NO_ACTIVITY = "No activity";
 
 function Rate({ label, value }: { label: string; value: string | null | undefined }) {
   return (

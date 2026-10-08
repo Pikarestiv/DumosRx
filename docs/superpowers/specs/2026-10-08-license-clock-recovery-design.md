@@ -1,0 +1,114 @@
+# License clock-discrepancy recovery — design
+
+**Date:** 2026-10-08
+**Status:** proposed, not implemented
+**Touches:** `client/lib/licensing/licensing-manager.ts`, `client/components/auth/license-guard.tsx`, `laravel-server` (a time endpoint or an existing response header)
+
+> `.agents/AGENTS.md` §8 forbids altering the `LicenseGuard` anti-backdating
+> logic without explicit instruction. This document proposes; it does not
+> authorise implementation.
+
+## The incident
+
+A store owner's laptop ran roughly 12 hours fast. While it was skewed,
+`checkLicenseStatus()` wrote that future time into `stores.last_monotonic_time`
+on every run. The owner then corrected the system clock, and the device locked
+itself out of the POS permanently:
+
+```ts
+// licensing-manager.ts:58
+if (profile.last_monotonic_time && nowIso < profile.last_monotonic_time) {
+  return { isValid: false, isClockTampered: true, ... };
+}
+```
+
+Real time is now *earlier* than the watermark, which the guard reads as a
+deliberate rollback. The behaviour is correct for its threat model — an
+offline device must not be able to win back an expired licence by moving its
+clock — but it cannot distinguish a malfunctioning clock from an attack, and
+the product offers no way back.
+
+## Why nothing currently recovers
+
+| Path | Why it fails |
+| --- | --- |
+| "Check Again" | `performCheck({refreshFromCloud:true})` runs `sync(true)` then re-reads local state. The comparison is local `new Date()` against a local watermark. **No server time is ever consulted.** |
+| Sync | `last_monotonic_time` is listed in `DEVICE_LOCAL_PULL_COLUMNS` (`pull.ts:69-71`) and stripped from every pulled `stores` row, by design. The server can never correct it. |
+| Factory reset | `stores` is not in `LOCAL_WIPE_TABLES` (`core.ts:1077`), so the row and its watermark survive. |
+| Waiting | Works, but only once real time passes the watermark — unbounded, since the watermark is however far the clock jumped. |
+
+The one mercy is that the tamper branch returns *before* step 2, so the
+watermark is frozen rather than still climbing.
+
+## Goals
+
+1. A device whose clock agrees with the server must never stay locked.
+2. A runaway clock must not be able to poison the watermark in the first place.
+3. No offline device may clear the lock by local action alone — the existing
+   threat model is preserved.
+
+## Proposed design
+
+### 1. Server time becomes the arbiter on "Check Again"
+
+The sync pull response already carries `server_timestamp`. Capture it on every
+successful sync into a local `last_server_time` / `last_server_time_seen_at`
+pair, then extend the check:
+
+- If `|localNow − serverNow|` is within a tolerance (suggest 5 minutes), the
+  local clock is trustworthy. If the watermark is ahead of both, it was poisoned
+  by a previously skewed clock: **reset the watermark to server time and clear
+  the lock.**
+- If local and server disagree beyond tolerance, keep the lock and tell the user
+  the real difference (e.g. "your clock is 11h 48m ahead of ours").
+- Offline with no fresh server time, behaviour is unchanged — locked.
+
+This makes the button do what users already expect it to do, and it cannot be
+exercised offline, so it grants an attacker nothing.
+
+### 2. Bound the watermark on write
+
+`updateStoreMonotonicTime()` should refuse a value more than a small margin
+ahead of the last known server time. A clock that jumps forward then cannot
+write a watermark that takes hours to age out. This is the fix that prevents
+recurrence; §1 only repairs devices already poisoned.
+
+### 3. An owner-PIN override, logged
+
+A last-resort control on the lock screen, gated on the owner PIN
+(`verifyPin`, as `device-danger-zone.tsx` already does) and written to
+`audit_logs`. For a store that is offline *and* clock-broken, the alternative
+today is a shop that cannot sell.
+
+Whether to ship §3 at all is a product decision: it is the only part that
+weakens the offline guarantee, and §1 plus §2 cover every case where the device
+can reach the server.
+
+### 4. Surface the numbers
+
+The lock screen shows `Device ID` and `Last Valid Date`. It should also show the
+recorded watermark and the observed local time, so the next person diagnosing
+this does not need the source code to understand what happened.
+
+## Non-goals
+
+- Changing how licence expiry itself is computed.
+- Trusting any client-supplied clock value server-side.
+- Removing the monotonic check. It stays; it gains a reconciliation path.
+
+## Testing
+
+- Watermark ahead + local clock agrees with server → lock clears, watermark reset.
+- Watermark ahead + local clock disagrees with server → stays locked, message states the delta.
+- Watermark ahead + offline → stays locked (regression guard for the threat model).
+- `updateStoreMonotonicTime()` refuses a write beyond the forward bound.
+- Expired-but-honest licence still renders children rather than locking (current behaviour, already covered by `license-guard-lock-screen-title.test.tsx`).
+
+## Open questions
+
+1. Tolerance for "clock agrees with the server" — 5 minutes is a guess; it needs
+   to survive a device that has been offline for days with ordinary RTC drift.
+2. Does `server_timestamp` already flow somewhere reachable from
+   `checkLicenseStatus()`, or does this need a dedicated lightweight endpoint
+   that works even when a full sync is failing?
+3. Should §3 exist at all, given §1 and §2?

@@ -8,6 +8,8 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\Admin\Concerns\ResolvesTrialDuration;
 use App\Services\Admin\Concerns\UpdatesUserProfiles;
+use App\Services\Admin\Filters\UserListFilters;
+use App\Services\Admin\Support\ListSortResolver;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -160,21 +162,22 @@ class AdminUserService
         return User::findOrFail($id)->effective_permissions;
     }
 
-    public function getGlobalUsers($page = 1, $search = null, $role = null, $accountType = null, $storeId = null)
+    public function getGlobalUsers(UserListFilters $filters)
     {
         $query = User::query();
 
-        $this->constrainToAccountType($query, $accountType);
+        $this->constrainToAccountType($query, $filters->accountType);
 
-        if ($storeId) {
-            $query->where(function ($q) use ($storeId) {
-                $q->where('users.store_id', $storeId)
-                    ->orWhereHas('stores', fn ($sq) => $sq->where('stores.id', $storeId));
+        if ($filters->storeId) {
+            $query->where(function ($q) use ($filters) {
+                $q->where('users.store_id', $filters->storeId)
+                    ->orWhereHas('stores', fn ($sq) => $sq->where('stores.id', $filters->storeId));
             });
         }
 
-        if ($search) {
-            $query->where(function ($q) use ($search) {
+        if ($filters->search) {
+            $query->where(function ($q) use ($filters) {
+                $search = $filters->search;
                 $q->where('first_name', 'like', "%{$search}%")
                     ->orWhere('last_name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%")
@@ -182,11 +185,22 @@ class AdminUserService
             });
         }
 
-        if ($role) {
-            $query->where('role', $role);
+        if ($filters->role) {
+            $query->where('role', $filters->role);
         }
 
-        $paginator = $query->with(['store', 'employerStore'])->latest()->paginate(10, ['*'], 'page', $page);
+        $sortColumns = ListSortResolver::userColumns($filters->sort);
+
+        if ($sortColumns === []) {
+            $query->latest();
+        } else {
+            $direction = ListSortResolver::direction($filters->direction);
+            foreach ($sortColumns as $column) {
+                $query->orderBy($column, $direction);
+            }
+        }
+
+        $paginator = $query->with(['store', 'employerStore'])->paginate(10, ['*'], 'page', $filters->page);
 
         $latestDeviceByUser = $this->deviceService->latestDevicePerUser(
             collect($paginator->items())->pluck('id'),

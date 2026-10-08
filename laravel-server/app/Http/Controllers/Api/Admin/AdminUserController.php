@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Services\Admin\AdminUserDeviceService;
 use App\Services\Admin\AdminUserService;
+use App\Services\Admin\Filters\UserListFilters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -31,6 +32,8 @@ class AdminUserController extends AdminBaseController
             new OA\Parameter(name: 'role', in: 'query', description: 'Filter by exact role slug (e.g. super_admin, store_owner, specialist, sales_staff)', schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'account_type', in: 'query', description: 'owners = accounts owning a store (stores.user_id), staff = accounts working at one (users.store_id), platform = neither. Omit for every account.', schema: new OA\Schema(type: 'string', enum: ['owners', 'staff', 'platform'])),
             new OA\Parameter(name: 'store_id', in: 'query', description: "Restrict to accounts affiliated with this store, as its owner or its staff. Combine with account_type=staff for a store's team.", schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'sort', in: 'query', description: 'name, email, created_at, last_login_at or role. Anything else keeps the default newest-first ordering.', schema: new OA\Schema(type: 'string', enum: ['name', 'email', 'created_at', 'last_login_at', 'role'])),
+            new OA\Parameter(name: 'direction', in: 'query', description: 'asc or desc (default)', schema: new OA\Schema(type: 'string', enum: ['asc', 'desc'])),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Users', content: new OA\JsonContent(type: 'object')),
@@ -47,15 +50,8 @@ class AdminUserController extends AdminBaseController
         ]);
 
         return $this->withErrorResponse('Users', 'Failed to fetch users', function () use ($request, $validated) {
-            $page = $request->query('page', 1);
-            $search = $request->query('search');
-            $role = $request->query('role');
             return response()->json($this->adminUserService->getGlobalUsers(
-                $page,
-                $search,
-                $role,
-                $validated['account_type'] ?? null,
-                $validated['store_id'] ?? null,
+                UserListFilters::fromRequest($request, $validated),
             ));
         });
     }

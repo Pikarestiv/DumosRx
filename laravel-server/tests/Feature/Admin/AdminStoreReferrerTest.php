@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\ActivityLog;
+use App\Models\ReferralCreditTransaction;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,6 +23,8 @@ class AdminStoreReferrerTest extends TestCase
     protected User $owner;
 
     protected Store $store;
+
+    protected ReferralCreditTransaction $seededCreditTransaction;
 
     protected function setUp(): void
     {
@@ -64,6 +67,14 @@ class AdminStoreReferrerTest extends TestCase
             'name' => 'Target Pharmacy',
             'user_id' => $this->owner->id,
             'device_id' => 'TEST-'.uniqid(),
+        ]);
+
+        $this->seededCreditTransaction = ReferralCreditTransaction::create([
+            'user_id' => $this->oldReferrer->id,
+            'referred_user_id' => $this->owner->id,
+            'type' => 'earned',
+            'amount' => '15.50',
+            'description' => 'Referral credit for Target Pharmacy signup',
         ]);
 
         $this->withoutMiddleware([
@@ -193,14 +204,7 @@ class AdminStoreReferrerTest extends TestCase
     #[Test]
     public function it_never_rewrites_existing_referral_credit_rows(): void
     {
-        $tables = ['referral_credit_transactions'];
-
-        $snapshots = [];
-        foreach ($tables as $table) {
-            if (\Illuminate\Support\Facades\Schema::hasTable($table)) {
-                $snapshots[$table] = \Illuminate\Support\Facades\DB::table($table)->get()->toJson();
-            }
-        }
+        $countBefore = ReferralCreditTransaction::count();
 
         $this->actingAs($this->superAdmin)
             ->putJson("/api/v1/admin/stores/{$this->store->id}/referrer", [
@@ -208,14 +212,15 @@ class AdminStoreReferrerTest extends TestCase
             ])
             ->assertOk();
 
-        foreach ($snapshots as $table => $before) {
-            $this->assertSame(
-                $before,
-                \Illuminate\Support\Facades\DB::table($table)->get()->toJson(),
-                "{$table} must be untouched by a referrer reassignment",
-            );
-        }
+        $this->assertSame($countBefore, ReferralCreditTransaction::count());
 
-        $this->assertNotEmpty($snapshots, 'expected at least one referral table to exist');
+        $this->assertDatabaseHas('referral_credit_transactions', [
+            'id' => $this->seededCreditTransaction->id,
+            'user_id' => $this->oldReferrer->id,
+            'referred_user_id' => $this->owner->id,
+            'type' => 'earned',
+            'amount' => '15.50',
+            'description' => 'Referral credit for Target Pharmacy signup',
+        ]);
     }
 }

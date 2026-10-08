@@ -171,6 +171,7 @@ class AdminStoreService
             foreach ($sortColumns as $column) {
                 $query->orderBy($column, $direction);
             }
+            $query->orderBy('stores.id');
         }
 
         $paginator = $query->paginate(10, ['*'], 'page', $filters->page);

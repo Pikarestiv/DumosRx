@@ -182,6 +182,60 @@ class AdminListSortingTest extends TestCase
     }
 
     #[Test]
+    public function store_pagination_is_stable_under_a_tie_heavy_status_sort(): void
+    {
+        $ids = [];
+        for ($i = 0; $i < 15; $i++) {
+            $store = $this->makeOwnerWithStore('Owner', (string) $i, "Tie Store {$i}");
+            $store->status = 'active';
+            $store->save();
+            $ids[] = $store->id;
+        }
+
+        $page1 = collect(
+            $this->actingAs($this->superAdmin)
+                ->getJson('/api/v1/admin/stores?sort=status&direction=asc&page=1')
+                ->json('data'),
+        )->pluck('id')->all();
+
+        $page2 = collect(
+            $this->actingAs($this->superAdmin)
+                ->getJson('/api/v1/admin/stores?sort=status&direction=asc&page=2')
+                ->json('data'),
+        )->pluck('id')->all();
+
+        $this->assertCount(10, $page1);
+        $this->assertCount(5, $page2);
+        $this->assertEmpty(array_intersect($page1, $page2), 'Page 1 and page 2 must not share any rows.');
+        $this->assertCount(15, array_unique(array_merge($page1, $page2)), 'The union of both pages must cover every row exactly once.');
+    }
+
+    #[Test]
+    public function user_pagination_is_stable_under_a_tie_heavy_role_sort(): void
+    {
+        for ($i = 0; $i < 15; $i++) {
+            $this->makeOwnerWithStore('Owner', (string) $i, "Role Tie Store {$i}");
+        }
+
+        $page1 = collect(
+            $this->actingAs($this->superAdmin)
+                ->getJson('/api/v1/admin/users?account_type=owners&sort=role&direction=asc&page=1')
+                ->json('data'),
+        )->pluck('id')->all();
+
+        $page2 = collect(
+            $this->actingAs($this->superAdmin)
+                ->getJson('/api/v1/admin/users?account_type=owners&sort=role&direction=asc&page=2')
+                ->json('data'),
+        )->pluck('id')->all();
+
+        $this->assertCount(10, $page1);
+        $this->assertCount(5, $page2);
+        $this->assertEmpty(array_intersect($page1, $page2), 'Page 1 and page 2 must not share any rows.');
+        $this->assertCount(15, array_unique(array_merge($page1, $page2)), 'The union of both pages must cover every row exactly once.');
+    }
+
+    #[Test]
     public function columns_computed_after_the_query_are_not_sortable(): void
     {
         $this->makeOwnerWithStore('Ada', 'One', 'Zulu Pharmacy');

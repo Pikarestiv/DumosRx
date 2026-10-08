@@ -480,6 +480,38 @@ passes is not a real column and is silently dropped, so never assert on it.
 
 Covered by `tests/Feature/Admin/AdminUserProfileUpdateTest.php`.
 
+## Deleting a platform user: the guard sits on the service, not the dialog
+
+`DELETE /admin/users/{id}` (`AdminUserController::deleteUser` →
+`AdminUserService::deleteUser()`) is a super_admin-only, destructive
+(soft-delete, despite the UI copy calling it permanent) endpoint. Before
+2026-10-08 the only friction was a client-side type-the-email confirmation
+dialog — the service deleted whatever id it was given, including the
+caller's own account and other platform accounts.
+
+`AdminUserService::assertDeletionAllowed()` now runs first, inside the same
+transaction, before the target's stores are archived or the user row is
+touched, so a refused deletion leaves no partial side effect and writes no
+`USER_DELETION` activity log entry:
+
+- Refuses when the target id equals `Auth::id()` — the caller cannot delete
+  themselves, last-super_admin-or-not.
+- Refuses when the target's `role` is in `PROTECTED_ROLES`
+  (`super_admin|platform_admin|agent`) — any platform account, not only the
+  caller's own.
+
+Both branches throw the existing `App\Exceptions\StoreActionBlockedException`
+(the same one `AdminStoreDeletionService` throws for store archive/purge
+refusals, kept to one error shape across both destructive admin flows)
+rather than a new exception type.
+`AdminUserController::deleteUser()` catches it and returns 422 with the
+message intact, mirroring `AdminStoreDeletionController`; without that catch
+`AdminBaseController::withErrorResponse()` would fold it into a generic 500.
+Ordinary deletions (a store owner, a staff account) are unaffected — staff
+own no stores, so the owner-stores archive loop never touches their
+employer's store. Covered by
+`tests/Feature/Admin/AdminUserDeletionGuardsTest.php`.
+
 ## A voided sale is not revenue — including on the admin surfaces
 
 `Sale` uses `SoftDeletes`, and a voided or `POST /dashboard/reset`-cleared

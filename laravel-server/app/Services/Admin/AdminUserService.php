@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin;
 
+use App\Exceptions\StoreActionBlockedException;
 use App\Mail\AdminNotification;
 use App\Models\ActivityLog;
 use App\Models\Role;
@@ -136,6 +137,8 @@ class AdminUserService
         self::ACCOUNT_TYPE_STAFF,
         self::ACCOUNT_TYPE_PLATFORM,
     ];
+
+    private const PROTECTED_ROLES = ['super_admin', 'platform_admin', 'agent'];
 
     private function constrainToAccountType($query, $accountType)
     {
@@ -428,6 +431,8 @@ class AdminUserService
         return DB::transaction(function () use ($id) {
             $user = User::findOrFail($id);
 
+            $this->assertDeletionAllowed($user);
+
             $userEmail = $user->email;
 
             foreach ($user->stores as $store) {
@@ -449,6 +454,19 @@ class AdminUserService
 
             return true;
         });
+    }
+
+    private function assertDeletionAllowed(User $user): void
+    {
+        if ($user->id === Auth::id()) {
+            throw new StoreActionBlockedException('You cannot delete your own account.');
+        }
+
+        if (in_array($user->role, self::PROTECTED_ROLES, true)) {
+            throw new StoreActionBlockedException(
+                "This is a platform account ({$user->role}). Platform accounts cannot be deleted from the users directory."
+            );
+        }
     }
 
     public function forcePasswordReset($id)

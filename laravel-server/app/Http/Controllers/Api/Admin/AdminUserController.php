@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Exceptions\StoreActionBlockedException;
 use App\Services\Admin\AdminUserDeviceService;
 use App\Services\Admin\AdminUserService;
 use App\Services\Admin\Filters\UserListFilters;
@@ -428,13 +429,19 @@ class AdminUserController extends AdminBaseController
         responses: [
             new OA\Response(response: 200, description: 'Deleted', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
             new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError', description: 'Refused: target is the acting admin or a platform account'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
     )]
     public function deleteUser(Request $request, $id)
     {
         return $this->withErrorResponse('Delete User', 'Failed to delete user', function () use ($id) {
-            $this->adminUserService->deleteUser($id);
+            try {
+                $this->adminUserService->deleteUser($id);
+            } catch (StoreActionBlockedException $e) {
+                return response()->json(['error' => $e->getMessage()], 422);
+            }
+
             return response()->json(['message' => 'User and associated data permanently deleted']);
         });
     }

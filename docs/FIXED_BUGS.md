@@ -2,6 +2,14 @@
 
 A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since been fixed. `KNOWN_BUGS.md` only ever holds *open* items — an entry is removed from it outright the moment it's fixed, not marked done in place — so this file is where the record of "what it was and when it got fixed" lives instead. Git history has the exact diffs; this is a scannable index into that history, one entry per fix, newest first.
 
+## 2026-10-08
+
+### A-184 — `DELETE /admin/users/{id}` deleted whatever id it was given, including the caller's own account and other platform accounts
+- **Was:** the only friction on this destructive super_admin endpoint was a client-side dialog asking the admin to type the target's email. `AdminUserService::deleteUser()` itself had no guard: a super_admin could delete their own account (including as the last reachable super_admin) or another `super_admin`/`platform_admin`/`agent` account, through a direct API call or a UI bug, with no server-side check to catch it.
+- **Fix:** `AdminUserService::assertDeletionAllowed()` now runs first inside `deleteUser()`'s transaction, before the target's stores are archived or the user row is touched, so a refused deletion leaves no partial side effect and writes no `USER_DELETION` activity log entry. It refuses when the target id equals `Auth::id()`, and when the target's `role` is in `super_admin|platform_admin|agent`. Both branches throw the existing `App\Exceptions\StoreActionBlockedException` — the same one `AdminStoreDeletionService` already throws for store archive/purge refusals — rather than a new exception type, so the two destructive admin flows share one error shape. `AdminUserController::deleteUser()` catches it and returns 422 with the message intact, mirroring `AdminStoreDeletionController`.
+- **Ordinary deletions are unaffected.** A store owner and a staff account can still be deleted; staff own no stores, so the owner-stores archive loop never touches their employer's store.
+- **Regression coverage.** `tests/Feature/Admin/AdminUserDeletionGuardsTest.php`: self-deletion refused (including as the last super_admin), every protected role refused, a refusal writes no `USER_DELETION` audit entry, and an ordinary owner/staff deletion still succeeds.
+
 ## 2026-10-07
 
 ### A-181 — installing the admin panel from `/admin` on iOS installed the marketing PWA instead, which launches `app.dumosrx.com`

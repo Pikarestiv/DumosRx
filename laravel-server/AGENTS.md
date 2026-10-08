@@ -2279,7 +2279,10 @@ mis-pointed rows were not repaired. See `docs/KNOWN_BUGS.md` A-189.
   default and writes only with `--apply`; `--store=<id>` narrows it. It finds
   or creates a same-named category (case-insensitive) owned by the product's
   own store and repoints the product. It never modifies, reparents or deletes
-  the other tenant's rows — that is another customer's data.
+  the other store's rows. The two stores hit in production happened to share
+  an owner (two branches), but the unscoped match that caused this would
+  equally have merged two unrelated customers' categories, so the repair
+  treats the other side as off-limits either way.
 - **Why Eloquent and not raw SQL:** repointing has to bump `products.updated_at`
   so clients re-pull, and a raw `UPDATE ... NOW()` against this box writes
   ~4 hours behind UTC, so the corrected rows could never pass the pull's

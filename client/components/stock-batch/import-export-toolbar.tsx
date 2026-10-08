@@ -25,6 +25,7 @@ import { useStore } from "@/lib/context/store-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { ImportMappingDialog } from "./import-mapping-dialog";
 import { ExportColumnsDialog } from "./export-columns-dialog";
+import { buildExportFilename } from "@/lib/utils/export-filename";
 
 type ExportFormat = "csv" | "xlsx" | "pdf";
 
@@ -75,7 +76,6 @@ export function ImportExportToolbar({
     await setProgress("Fetching products...", 10);
     try {
       const products = await getProductsForExport(filteredProductIds);
-      const dateStr = new Date().toISOString().slice(0, 10);
 
       if (format === "pdf") {
         await setProgress("Preparing data...", 35);
@@ -90,14 +90,28 @@ export function ImportExportToolbar({
           headers,
           rows,
         });
-        downloadBlob(blob, `DumosRx_Products_${dateStr}.pdf`);
+        downloadBlob(
+          blob,
+          buildExportFilename({
+            kind: "Products",
+            extension: "pdf",
+            storeName: storeProfile?.name,
+          }),
+        );
       } else {
         await setProgress(
           format === "csv" ? "Building CSV..." : "Building spreadsheet...",
           60,
         );
         const blob = await buildExportBlob(products, columns, format);
-        downloadBlob(blob, `DumosRx_Products_${dateStr}.${format}`);
+        downloadBlob(
+          blob,
+          buildExportFilename({
+            kind: "Products",
+            extension: format,
+            storeName: storeProfile?.name,
+          }),
+        );
       }
 
       await setProgress("Done", 100);

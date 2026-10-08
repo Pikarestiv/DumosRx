@@ -125,3 +125,38 @@ The Namecheap shared-hosting box's MySQL is configured with `time_zone = SYSTEM`
 ## 10. 📝 Commit Messages
 
 From now on, every commit message must follow the [Conventional Commits](https://www.conventionalcommits.org/) format (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, etc.) and be a single sentence — no multiline bodies.
+
+## 11. 🔁 Breaking Changes Must Carry Backward Compatibility
+
+Old clients stay in the field indefinitely. The PWA caches its own app shell,
+so a device can keep running a months-old bundle until its service worker is
+replaced, and a desktop install only updates when someone updates it. Assume at
+any moment that **every version you have ever shipped is still talking to the
+current server.**
+
+So any change that alters a shared contract — a sync payload shape, an API
+response, a column's meaning or nullability, a stored enum value, a local
+schema expectation — must keep the old form working unless you can prove no
+device still sends or expects it:
+
+- **Add, don't repurpose.** A new column or field beside the old one, with the
+  old one still honoured, beats changing what an existing one means. A reader
+  that doesn't know about the new field must still behave correctly.
+- **Tolerate both forms on the way in**, and keep writing the form old clients
+  can read until they're gone. `LEGACY_PRODUCT_IMPORT_REASON` in
+  `client/lib/constants/stock-adjustments.ts` is the pattern: match the legacy
+  value on read rather than backfilling stored bytes.
+- **Scoping filters are a contract too.** A `whereIn` added to a sync query
+  silently stops sending rows that used to arrive, and the client has no way to
+  tell "excluded" from "deleted". `NULL` never matches `whereIn`, so a nullable
+  scoping column needs `orWhereNull` or a backfill *before* the filter ships.
+- **Migrations that change existing rows need a backfill plan**, and a client
+  that still works for a device that has not yet pulled the backfilled rows.
+- **Say when the compatibility shim can go.** Name the condition in the same
+  comment or doc entry — a release, a date, or "once every active device
+  reports ok" the way `diagnoseLegacySchema()`'s `retirable` map does. An
+  unlabelled shim never gets removed.
+
+If backward compatibility genuinely isn't necessary, say why in the PR or the
+relevant `AGENTS.md` — "no client reads this field" is a claim worth writing
+down, because the next person will otherwise assume it was never considered.

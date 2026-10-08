@@ -888,6 +888,50 @@ class SyncEndpointTest extends TestCase
     }
 
     /**
+     * Regression test for docs/KNOWN_BUGS.md A-189: a pushed category that
+     * carries a store_id must NOT be merged into a same-named NULL-store
+     * row. pull() scopes categories with whereIn('store_id', ...), which
+     * never matches NULL, so a product remapped onto an unowned category
+     * renders "Uncategorized" on every device forever, unfixable by any
+     * resync. Production reached this state with ~5,000 products.
+     */
+    public function test_push_does_not_merge_a_store_scoped_category_into_a_null_store_row()
+    {
+        $orphan = \App\Models\Category::create(['name' => 'Antimalarials']);
+        $this->assertNull($orphan->fresh()->store_id);
+
+        $localCategoryId = (string) \Illuminate\Support\Str::uuid();
+        $payload = [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'categories',
+                    'operation' => 'INSERT',
+                    'record_id' => $localCategoryId,
+                    'payload' => [
+                        'id' => $localCategoryId,
+                        'name' => 'Antimalarials',
+                        'store_id' => $this->store->id,
+                        '_synced' => 0,
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('categories', [
+            'id' => $localCategoryId,
+            'name' => 'Antimalarials',
+            'store_id' => $this->store->id,
+        ]);
+        $this->assertNull(\App\Models\Category::find($orphan->id)->store_id);
+        $this->assertSame(2, \App\Models\Category::where('name', 'Antimalarials')->count());
+    }
+
+    /**
      * Regression test: when a pushed category's name collides with one that
      * already exists, the INSERT is silently skipped and the id remap used
      * to only live in $idMap's in-request memory (see push()'s duplicate-name
@@ -901,10 +945,15 @@ class SyncEndpointTest extends TestCase
         // Category uses HasUuids, which assigns its own id on creation
         // regardless of what's passed in — read the real id back afterward
         // rather than assuming an explicitly-passed one sticks.
-        $existingCategory = \App\Models\Category::create([
-            'name' => 'DRUGS',
-            'user_id' => $this->user->id,
-        ]);
+        // store_id is not fillable on Category, and push() backfills the
+        // caller's store onto the payload before the collision check, so the
+        // pre-existing row has to carry the same store for this to be a real
+        // duplicate rather than the cross-store merge A-189 forbids.
+        $existingCategory = new \App\Models\Category();
+        $existingCategory->name = 'DRUGS';
+        $existingCategory->user_id = $this->user->id;
+        $existingCategory->store_id = $this->store->id;
+        $existingCategory->save();
         $existingCategoryId = $existingCategory->id;
 
         $localCategoryId = (string) \Illuminate\Support\Str::uuid();
@@ -1533,10 +1582,11 @@ class SyncEndpointTest extends TestCase
 
     public function test_push_sync_reports_id_map_for_duplicate_supplier_name()
     {
-        $existingSupplier = \App\Models\Supplier::create([
-            'name' => 'MedPlus Distributors',
-            'user_id' => $this->user->id,
-        ]);
+        $existingSupplier = new \App\Models\Supplier();
+        $existingSupplier->name = 'MedPlus Distributors';
+        $existingSupplier->user_id = $this->user->id;
+        $existingSupplier->store_id = $this->store->id;
+        $existingSupplier->save();
         $existingSupplierId = $existingSupplier->id;
 
         $localSupplierId = (string) \Illuminate\Support\Str::uuid();

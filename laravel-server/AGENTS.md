@@ -2252,3 +2252,40 @@ query string) — do not reintroduce it or a variant.
   which ones alter existing data before confirming — a conservative
   source-text scan, so treat it as "look closer", never as a safety
   certificate.
+
+## Cross-tenant category references and `sync:repair-cross-tenant-categories` (2026-10-08)
+
+`pull()` scopes categories with `whereIn('store_id', $storeIds)`. That is
+correct and must stay, but it means a product whose `category_id` points at
+another store's category — or at a `NULL`-store row, since `whereIn` never
+matches `NULL` — resolves to nothing on every device and renders
+"Uncategorized" forever. The server looks healthy the whole time: every
+product has a `category_id`, so `COUNT(*) WHERE category_id IS NULL` is 0.
+
+Production reached this state because the push-time natural-key collision
+handler once matched a pushed category by name across all stores, remapping a
+client's new `drugs` onto an unrelated tenant's `drugs`. Scoping was added in
+`2026_09_12_000000_scope_category_uniqueness_to_store.php`; the already
+mis-pointed rows were not repaired. See `docs/KNOWN_BUGS.md` A-189.
+
+- **Detect** (read-only, whole platform):
+  ```sql
+  SELECT p.store_id AS product_store, c.store_id AS category_store, COUNT(*)
+  FROM products p JOIN categories c ON c.id = p.category_id
+  WHERE p.deleted_at IS NULL AND (c.store_id IS NULL OR c.store_id <> p.store_id)
+  GROUP BY p.store_id, c.store_id;
+  ```
+- **Repair:** `php artisan sync:repair-cross-tenant-categories` reports by
+  default and writes only with `--apply`; `--store=<id>` narrows it. It finds
+  or creates a same-named category (case-insensitive) owned by the product's
+  own store and repoints the product. It never modifies, reparents or deletes
+  the other tenant's rows — that is another customer's data.
+- **Why Eloquent and not raw SQL:** repointing has to bump `products.updated_at`
+  so clients re-pull, and a raw `UPDATE ... NOW()` against this box writes
+  ~4 hours behind UTC, so the corrected rows could never pass the pull's
+  `updated_at` filter (root `AGENTS.md` §7).
+- **Run it per store.** Every repointed product re-downloads to every device on
+  that store's next sync, which is the blast radius `docs/KNOWN_BUGS.md` A-185
+  describes.
+- Products with a `NULL` `store_id` are counted and skipped: there is no owning
+  store to repoint them to, and inventing one would be a guess.

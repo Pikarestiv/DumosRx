@@ -10,15 +10,18 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
-#### A-192. `client/` — push rejected its own server's UUIDs, parking products in the queue forever (FIXED, kept here until deployed)
-- **Found:** 2026-10-08 in production, `DUMOSRX-CLIENT-22`: "Sync item stuck after 1 attempts on products/… : Invalid category_id (not a UUID)", 4 products on store `571582a9` from an Android till.
-- **Location:** `client/lib/db/sync-engine/push.ts`, the pre-push foreign-key guard.
-- **What was wrong:** the guard's UUID pattern used `[1-5]` for the version nibble, admitting only UUID v1–v5. The client generates ids with `crypto.randomUUID()` (v4), so client-created rows always passed and the limit went unnoticed. **Laravel's `HasUuids` emits v7** — e.g. `01a11c6e-12dc-72a6-…` — so any row the SERVER created, once referenced by a product's `category_id` or `supplier_id`, was rejected by the client's own guard and parked in `_sync_queue` indefinitely.
-- **Trigger:** `sync:repair-cross-tenant-categories` (A-189) created one category server-side for that store. Cynthia's store created zero, which is exactly why only Favour's store threw this.
-- **Fix:** version nibble widened to `[1-8]`, covering every UUID version that exists while keeping the structural check — a category *name* or the nil UUID is still rejected, which is the guard's actual purpose. Verified old-vs-new against real production ids.
-- **Why the regex and not the id:** v7 is a valid UUID. Generating v4 server-side would have hidden a guard that rejects anything server-created a client references — a latent trap for every future such row, and a textbook root `AGENTS.md` §11 case (the client encoded an assumption about id format that the server was free to change, and did).
-- **No data lost:** rejected rows are parked, not dropped — the guard exists so one bad row cannot block the whole queue. They push on the next sync once this ships.
-- **Regression coverage:** `client/__tests__/push-accepts-server-generated-uuid-v7.test.ts` — v7 passes, v4 still passes, a bare name still rejected.
+#### A-193. `client/` — `verifyStockIntegrity()` has no index to lean on, and its Sentry report does not coalesce
+- **Found:** 2026-10-08, adversarial review of the stock-integrity branch before merge.
+- **Location:** `client/lib/db/sync-engine/stock-integrity.ts`, `client/lib/db/schema-migrations.ts` (index list), `client/lib/utils/error-logger.ts`.
+- **What's wrong:** two separate things, both cheap to fix. (a) `stock_movements` is indexed on `product_id`, `reference_id` and `(store_id, created_at)` but **not `stock_batch_id`**, which is what the verify query joins and groups on — so on sql.js it nested-loop scans the movement log per batch (~2,500 batches against tens of thousands of movements) once per 24h. The spec's Performance section asserted this was cheap without checking for the index. (b) `logCrash()` writes a `feedback` row and queues it for sync, and its fingerprint (`area|message|firstStackLine`) does not normalise digits while the message embeds the counts and net delta — so a device whose numbers move uploads a brand-new bug row every day instead of coalescing.
+- **Consequence:** slow app-open on a large catalogue, plus daily synced noise from any device with persistent divergence. Neither is data loss.
+- **Fix:** add the `stock_movements(stock_batch_id)` index; either normalise digits in the crash fingerprint or move the counts out of the message into the context payload.
+
+#### A-194. `client/` — a test filename asserts the opposite of the property it pins
+- **Found:** 2026-10-08, same review.
+- **Location:** `client/__tests__/reconcile-refuses-with-pending-deltas.test.ts`.
+- **What's wrong:** the file pins that reconciliation **proceeds** while a delta is pending (the A-173 ruling), but its name says it refuses. That guard has already been reinstated by accident once — on 2026-10-08, caught only by this test — so the misleading name is an active trap for the next person who greps before editing.
+- **Fix:** rename to match what it asserts, e.g. `reconcile-proceeds-with-pending-deltas.test.ts`.
 
 #### A-189. `laravel-server/` — 5,088 products across two tenants reference each other's `categories` rows, so their category can never reach any device
 - **Found:** 2026-10-08, investigating a store reporting "duplicates" and a catalogue that showed `UNCATEGORIZED` on 98.6% of products even after a factory reset and a clean re-sync.

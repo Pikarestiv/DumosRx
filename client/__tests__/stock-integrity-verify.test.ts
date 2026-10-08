@@ -96,18 +96,38 @@ describe("verifyStockIntegrity", () => {
     expect(report.unreconstructable).toBe(0);
   });
 
-  it("counts an unpushed local sale, so a later fold cannot discard unsynced work", async () => {
+  it("counts a locally-created movement the same as a pulled one, so an unsynced sale is never invisible", async () => {
     batch("b1", 8);
     movement("m1", "b1", 10);
-    movement("m2", "b1", -2);
     db.run(
-      `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
-       VALUES ('stock_movements', 'm2', 'INSERT', '{}', '2026-10-08T00:00:00Z')`,
+      `INSERT INTO stock_movements (id, product_id, stock_batch_id, movement_type, quantity, _deleted, _synced)
+       VALUES ('m2', 'prod-b1', 'b1', 'sale', -2, 0, 0)`,
     );
 
     const report = await verifyStockIntegrity();
 
     expect(report.consistent).toBe(1);
+    expect(report.diverged).toBe(0);
+  });
+
+  it("treats a batch floored at 0 by an oversell as consistent, not diverged", async () => {
+    batch("b1", 0);
+    movement("m1", "b1", 5);
+    movement("m2", "b1", -8);
+
+    const report = await verifyStockIntegrity();
+
+    expect(report.consistent).toBe(1);
+    expect(report.diverged).toBe(0);
+  });
+
+  it("keeps a legacy no-opening-movement batch unreconstructable once it has sales", async () => {
+    batch("b1", 38);
+    movement("m1", "b1", -2);
+
+    const report = await verifyStockIntegrity();
+
+    expect(report.unreconstructable).toBe(1);
     expect(report.diverged).toBe(0);
   });
 

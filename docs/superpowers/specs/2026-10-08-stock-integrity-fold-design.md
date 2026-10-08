@@ -1,7 +1,7 @@
 # Stock integrity: divergence detection and fold-from-scratch — design
 
 **Date:** 2026-10-08
-**Status:** phase 1 shipped (detection + interlock, no writes). Phase 2 (`foldStockQuantities()`) not started — see Implementation notes.
+**Status:** phase 1 shipped — **detection only, no writes and no interlock**. The Health Sync interlock was built and then withdrawn before merge (see §4). Phase 2 (`foldStockQuantities()`) not started.
 **Scope:** `client/` only. No server change, no admin surface.
 **Related:** `docs/KNOWN_BUGS.md` A-176 · `docs/FIXED_BUGS.md` A-148, A-173, A-191
 
@@ -109,28 +109,41 @@ blind is how you turn a display bug into a data-loss incident.
 Rationale for detect-first is unchanged from the brainstorm: the unreconstructable
 case is a genuine destructive edge and we do not yet know its prevalence.
 
-### 4. The Health Sync interlock
+### 4. The Health Sync interlock — built, then withdrawn before merge
 
-`reconcileStockQuantities()` must refuse when the device is not demonstrably
-sound — specifically, when `verifyStockIntegrity()` reports any `diverged`
-batch. Such a batch exists locally, so it *is* in the payload this function
-sends, and pushing it would make the device's wrong number permanent as a
-`sync_reconciliation` movement.
+An interlock refusing `reconcileStockQuantities()` on any `diverged` batch was
+implemented and then **removed during pre-merge review**. The reasoning that
+justified it was sound in the abstract and wrong against this classifier:
 
-**Corrected during implementation: this spec originally also called for
+- **A floored batch reads as diverged forever.** `stock_batches.quantity` is
+  floored at 0 in four places (`queries/inventory.ts:538` and `:800-856`,
+  `pull.ts:393`, `SyncController.php:1345`) while the movement keeps its full
+  size. An oversell of 3 units leaves quantity `0` against a sum of `-3`.
+- **A legacy A-148 batch reads as diverged the moment anything sells from it.**
+  The `unreconstructable` carve-out originally fired only at zero movements, so
+  one sale against an imported batch flipped it to `diverged`.
+- Either case made Health Sync throw **for the entire store**, permanently —
+  and Health Sync is the *only* repair A-148 batches have. Phase 1 ships no
+  fold, so the error told the owner to "repair those first" with nothing to
+  repair with.
+- It also ran *before* `syncFn(true)`, so a merely stale device was refused
+  before the forced sync it needed could run — the same shape of defect as the
+  pending-delta guard below.
+
+The classifier was fixed for the first two cases regardless (a floored
+quantity and a batch with no inbound movement are no longer `diverged`),
+because they also produced false divergence *reports*. But the interlock stays
+out until phase 2 exists: a guard that blocks the only repair path is worse
+than no guard.
+
+**Also corrected during implementation: this spec originally called for
 refusing while `_pending_stock_deltas` is non-empty. That is wrong and was not
-built.** The same guard was written and then removed in the A-173 review
-(`docs/FIXED_BUGS.md`): a delta stays pending only while its `stock_batches`
-row is *absent* locally — that absence is what defers it — and an absent batch
-is not in the payload, which the server only applies to batches it receives.
-The guard therefore protected nothing while refusing repairs permanently, for
-exactly the cursor-stranded devices A-176 describes that most need them.
-`client/__tests__/reconcile-refuses-with-pending-deltas.test.ts` pins the
-opposite property and was the test that caught the reinstated guard.
-
-`docs/KNOWN_BUGS.md` A-176 did claim "reconciliation refuses while deltas are
-pending". That claim was false, but the fix is to **delete** it, not to
-implement it; A-176 has been corrected accordingly.
+built.** The same guard was written and removed in the A-173 review: a delta
+stays pending only while its `stock_batches` row is *absent* locally, and an
+absent batch is not in the payload, which the server only applies to batches it
+receives. `client/AGENTS.md` carries a standing rule against reinstating it,
+and `client/__tests__/reconcile-refuses-with-pending-deltas.test.ts` pins the
+opposite property.
 
 ### 5. Exposure
 

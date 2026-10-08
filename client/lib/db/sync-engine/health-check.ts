@@ -117,7 +117,6 @@ async function reportStockIntegrity(): Promise<void> {
  * time either way, tagged givingUp so the two cases stay distinguishable
  * in Sentry.
  */
-
 export async function checkSyncHealth(): Promise<void> {
   if (typeof window === "undefined") return;
   if (isImpersonatedSession()) return;

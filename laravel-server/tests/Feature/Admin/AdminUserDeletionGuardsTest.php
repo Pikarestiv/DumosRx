@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\Role;
 use App\Models\Store;
 use App\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -17,6 +19,8 @@ class AdminUserDeletionGuardsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->seed(RolesAndPermissionsSeeder::class);
 
         $this->superAdmin = User::create([
             'first_name' => 'Super',
@@ -138,5 +142,89 @@ class AdminUserDeletionGuardsTest extends TestCase
             $before,
             \App\Models\ActivityLog::where('action', 'USER_DELETION')->count(),
         );
+    }
+
+    #[Test]
+    public function it_refuses_self_deletion_on_the_self_branch_alone_when_neither_role_signal_is_a_platform_role(): void
+    {
+        $actor = $this->makeUser('store_owner');
+
+        \Illuminate\Support\Facades\Auth::login($actor);
+
+        $threw = false;
+
+        try {
+            app(\App\Services\Admin\AdminUserService::class)->deleteUser($actor->id);
+        } catch (\App\Exceptions\StoreActionBlockedException $e) {
+            $threw = true;
+        }
+
+        $this->assertTrue($threw, 'Expected deleteUser() to refuse self-deletion via the self branch alone.');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $actor->id,
+            'deleted_at' => null,
+        ]);
+    }
+
+    #[Test]
+    public function it_refuses_to_delete_a_user_holding_a_custom_platform_role(): void
+    {
+        $customRole = Role::create([
+            'name' => 'Regional Lead',
+            'slug' => 'regional-lead-'.uniqid(),
+            'is_system' => false,
+        ]);
+
+        $target = $this->makeUser('store_owner');
+        $target->role_id = $customRole->id;
+        $target->save();
+
+        $this->actingAs($this->superAdmin)
+            ->deleteJson("/api/v1/admin/users/{$target->id}")
+            ->assertStatus(422);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $target->id,
+            'deleted_at' => null,
+        ]);
+    }
+
+    #[Test]
+    public function it_refuses_to_delete_a_user_whose_legacy_role_column_disagrees_with_their_resolved_platform_role(): void
+    {
+        $target = $this->makeUser('store_owner');
+        $target->role_id = Role::where('slug', 'platform_admin')->value('id');
+        $target->save();
+
+        $this->actingAs($this->superAdmin)
+            ->deleteJson("/api/v1/admin/users/{$target->id}")
+            ->assertStatus(422);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $target->id,
+            'deleted_at' => null,
+        ]);
+    }
+
+    #[Test]
+    public function it_refuses_deletion_when_there_is_no_authenticated_admin(): void
+    {
+        $target = $this->makeUser('store_owner');
+
+        $threw = false;
+
+        try {
+            app(\App\Services\Admin\AdminUserService::class)->deleteUser($target->id);
+        } catch (\App\Exceptions\StoreActionBlockedException $e) {
+            $threw = true;
+        }
+
+        $this->assertTrue($threw, 'Expected deleteUser() to refuse when no admin is authenticated.');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $target->id,
+            'deleted_at' => null,
+        ]);
     }
 }

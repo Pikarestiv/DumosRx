@@ -494,13 +494,27 @@ transaction, before the target's stores are archived or the user row is
 touched, so a refused deletion leaves no partial side effect and writes no
 `USER_DELETION` activity log entry:
 
+- Refuses outright when there is no authenticated actor (`Auth::id()` is
+  `null`) — a command or queued job calling `deleteUser()` with nobody
+  signed in is refused rather than silently no-op'ing the self-check.
 - Refuses when the target id equals `Auth::id()` — the caller cannot delete
   themselves, last-super_admin-or-not.
-- Refuses when the target's `role` is in `PROTECTED_ROLES`
-  (`super_admin|platform_admin|agent`) — any platform account, not only the
-  caller's own.
+- Refuses when the target holds a platform role, checked against **both**
+  role signals a user can carry: the legacy `users.role` column and the
+  resolved RBAC role (`userRole->slug`, via `role_id`). The platform set is
+  `self::platformRoleSlugs()` (from the `UpdatesUserProfiles` trait this
+  class already uses for the profile-edit guards) — `super_admin`,
+  `platform_admin`, `agent`, **plus every custom role** (`Role::is_system =
+  false`), not a separate hardcoded list. `AdminRoleService::createRole()`
+  is the only creator of non-system roles, is itself super_admin-only, and
+  force-adds `manage_platform` to every one it creates, so every non-system
+  role is a platform role by construction — there is no store-scoped custom
+  role this would wrongly catch. Checking only the legacy column would miss
+  a user whose `role` says `store_owner` while `role_id` points at a
+  platform `Role` — the same mismatch a direct `role_id` write (or a stale
+  migration) can produce.
 
-Both branches throw the existing `App\Exceptions\StoreActionBlockedException`
+All three branches throw the existing `App\Exceptions\StoreActionBlockedException`
 (the same one `AdminStoreDeletionService` throws for store archive/purge
 refusals, kept to one error shape across both destructive admin flows)
 rather than a new exception type.

@@ -138,8 +138,6 @@ class AdminUserService
         self::ACCOUNT_TYPE_PLATFORM,
     ];
 
-    private const PROTECTED_ROLES = ['super_admin', 'platform_admin', 'agent'];
-
     private function constrainToAccountType($query, $accountType)
     {
         switch ($accountType) {
@@ -458,13 +456,23 @@ class AdminUserService
 
     private function assertDeletionAllowed(User $user): void
     {
-        if ($user->id === Auth::id()) {
+        $actorId = Auth::id();
+
+        if ($actorId === null) {
+            throw new StoreActionBlockedException('No authenticated admin is performing this deletion.');
+        }
+
+        if ($user->id === $actorId) {
             throw new StoreActionBlockedException('You cannot delete your own account.');
         }
 
-        if (in_array($user->role, self::PROTECTED_ROLES, true)) {
+        $platformRoleSlugs = self::platformRoleSlugs();
+        $resolvedRole = $user->userRole?->slug;
+        $displayRole = $resolvedRole ?? $user->role;
+
+        if (in_array($user->role, $platformRoleSlugs, true) || ($resolvedRole !== null && in_array($resolvedRole, $platformRoleSlugs, true))) {
             throw new StoreActionBlockedException(
-                "This is a platform account ({$user->role}). Platform accounts cannot be deleted from the users directory."
+                "This is a platform account ({$displayRole}). Platform accounts cannot be deleted from the users directory."
             );
         }
     }

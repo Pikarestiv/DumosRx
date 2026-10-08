@@ -34,12 +34,12 @@ class AdminListSortingTest extends TestCase
         ]);
     }
 
-    private function makeOwnerWithStore(string $first, string $last, string $storeName): Store
+    private function makeOwnerWithStore(string $first, string $last, string $storeName, ?string $email = null): Store
     {
         $owner = User::create([
             'first_name' => $first,
             'last_name' => $last,
-            'email' => strtolower($first).'-'.uniqid().'@dumosrx.com',
+            'email' => $email ?? strtolower($first).'-'.uniqid().'@dumosrx.com',
             'password' => bcrypt('password'),
             'role' => 'store_owner',
         ]);
@@ -92,18 +92,24 @@ class AdminListSortingTest extends TestCase
     }
 
     #[Test]
-    public function it_sorts_users_by_email(): void
+    public function it_sorts_users_by_email_in_both_directions(): void
     {
-        $this->makeOwnerWithStore('Ada', 'One', 'Store A');
-        $this->makeOwnerWithStore('Bola', 'Two', 'Store B');
+        $this->makeOwnerWithStore('Zed', 'One', 'Store A', 'zed-sort@dumosrx.com');
+        $this->makeOwnerWithStore('Ada', 'Two', 'Store B', 'ada-sort@dumosrx.com');
 
-        $emails = collect(
+        $asc = collect(
             $this->actingAs($this->superAdmin)
                 ->getJson('/api/v1/admin/users?account_type=owners&sort=email&direction=asc')
                 ->json('data'),
         )->pluck('email')->all();
+        $this->assertSame(['ada-sort@dumosrx.com', 'zed-sort@dumosrx.com'], $asc);
 
-        $this->assertSame(collect($emails)->sort()->values()->all(), $emails);
+        $desc = collect(
+            $this->actingAs($this->superAdmin)
+                ->getJson('/api/v1/admin/users?account_type=owners&sort=email&direction=desc')
+                ->json('data'),
+        )->pluck('email')->all();
+        $this->assertSame(['zed-sort@dumosrx.com', 'ada-sort@dumosrx.com'], $desc);
     }
 
     #[Test]
@@ -146,6 +152,32 @@ class AdminListSortingTest extends TestCase
 
         $this->actingAs($this->superAdmin)
             ->getJson('/api/v1/admin/users?sort[]=name')
+            ->assertOk();
+    }
+
+    #[Test]
+    public function array_valued_string_filters_do_not_error(): void
+    {
+        $this->makeOwnerWithStore('Ada', 'One', 'Alpha Pharmacy');
+
+        $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/users?role[]=a&role[]=b')
+            ->assertOk();
+
+        $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/users?search[]=a&search[]=b')
+            ->assertOk();
+
+        $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/stores?search[]=a&search[]=b')
+            ->assertOk();
+
+        $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/stores?status[]=a')
+            ->assertOk();
+
+        $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/stores?plan[]=a')
             ->assertOk();
     }
 

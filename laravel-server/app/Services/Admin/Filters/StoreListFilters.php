@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin\Filters;
 
+use App\Services\Admin\Support\QueryInput;
 use Illuminate\Http\Request;
 
 class StoreListFilters
@@ -22,9 +23,9 @@ class StoreListFilters
     {
         return new self(
             page: max(1, (int) $request->query('page', 1)),
-            search: $request->query('search'),
-            status: $request->query('status'),
-            plan: $request->query('plan'),
+            search: QueryInput::stringOrNull($request->query('search')),
+            status: QueryInput::stringOrNull($request->query('status')),
+            plan: QueryInput::stringOrNull($request->query('plan')),
             archived: in_array($request->query('archived'), ['only', 'all'], true)
                 ? $request->query('archived')
                 : 'active',

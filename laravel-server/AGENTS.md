@@ -554,6 +554,53 @@ row that the service would refuse never renders a control that fails on
 click; `can_delete` is advisory only — the service re-checks on the actual
 `DELETE` call regardless of what the client sends.
 
+## Server-side sort and filter on `GET /admin/stores` and `GET /admin/users`
+
+Both list endpoints accept `sort`, `direction`, and a `page` that is clamped
+via `max(1, (int) ...)` — never a raw pass-through of the query value, which
+used to let a non-numeric or negative `page` reach the paginator directly.
+
+**`ListSortResolver`** (`app/Services/Admin/Support/ListSortResolver.php`) is
+the only thing allowed to turn a request's `sort` value into an `orderBy()`
+column. Its `storeColumns()`/`userColumns()` `match` arms *are* the
+allow-list — no request value ever reaches `orderBy()` directly, so there is
+no SQL-injection surface here regardless of what `sort` contains. An
+unrecognized value returns `[]`, and the service falls back to `latest()`.
+
+- Stores: `name`, `created_at`, `status`, `total_revenue`.
+- Users: `name` (sorts by `first_name` then `last_name`), `email`,
+  `created_at`, `last_login_at`, `role`.
+- **Deliberately excluded:** `plan`, `owner` (stores) and anything derived
+  only after the paginated query returns (e.g. a subscription lookup or a
+  computed display string). Sorting by one of these would only reorder the
+  10 rows already on the current page, not the full result set — silently
+  wrong instead of refused. `AdminListSortingTest::columns_computed_after_the_query_are_not_sortable`
+  pins this for `plan`.
+- `ListSortResolver::direction()` accepts only an exact lowercase `asc`;
+  anything else, including `ASC` or `Ascending`, defaults to `desc`. The
+  frontend must send lowercase.
+- Both services append a deterministic id tiebreaker (`stores.id` /
+  `users.id`) after the allow-listed columns, but **only** on the
+  explicit-sort branch — the `latest()` fallback is untouched. `status`
+  (stores) and `role` (users) are low-cardinality; without the tiebreaker,
+  two independent LIMIT/OFFSET pages over a tie-heavy sort could return the
+  same row twice and skip another entirely. Pinned by
+  `AdminListSortingTest::store_pagination_is_stable_under_a_tie_heavy_status_sort`
+  and `::user_pagination_is_stable_under_a_tie_heavy_role_sort`.
+
+**`StoreListFilters`/`UserListFilters`** (`app/Services/Admin/Filters/`) exist
+because `getStores()`/`getGlobalUsers()` were already at the limit of a
+readable positional-argument list. Each is a `fromRequest()`-constructed
+readonly DTO; every `?string`-typed property is built via
+`QueryInput::stringOrNull()`, because an array-valued query param (e.g.
+`?role[]=a&role[]=b`) fed straight into a promoted `?string` property threw
+an uncaught `TypeError` and turned a 200 into a 500. `QueryInputTest` and
+`AdminListSortingTest::array_valued_string_filters_do_not_error` cover this.
+
+`StoreListFilters::demo` is `all` (default) | `only` | `exclude`, mirroring
+the existing `archived` filter's shape (`active` default here, `only`/`all`
+there) rather than inventing a different convention.
+
 ## A voided sale is not revenue — including on the admin surfaces
 
 `Sale` uses `SoftDeletes`, and a voided or `POST /dashboard/reset`-cleared

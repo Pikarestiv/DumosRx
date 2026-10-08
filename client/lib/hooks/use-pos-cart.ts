@@ -6,6 +6,7 @@ import { persist } from "zustand/middleware";
 import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
 import {
   calculateSubtotal,
   calculateTax,
@@ -324,6 +325,8 @@ export function usePOSCart(products: Product[]) {
     [products, setCart, removeFromCart],
   );
 
+  const displayName = useDisplayName();
+
   const addToCart = useCallback(
     (product: Product) => {
       const existingItem = cart.find((item) => item.id === product.id);
@@ -345,12 +348,12 @@ export function usePOSCart(products: Product[]) {
           original_unit_price: product.unit_price,
         };
         setCart((prev) => [...prev, cartItem]);
-        toast.success(`${product.name} added to cart`);
+        toast.success(`${displayName(product.name)} added to cart`);
       } else {
         toast.error("This item is out of stock");
       }
     },
-    [cart, setCart, updateQuantity],
+    [cart, setCart, updateQuantity, displayName],
   );
 
   const updateUnitPrice = useCallback(

@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/context/auth-context";
 import { queryKeys } from "@/lib/query-keys";
 import { devLog } from "@/lib/utils/dev-log";
 import { getDeviceId } from "@/lib/utils/device-id";
+import { getDeviceLabel } from "@/lib/utils/device-label";
 import { useWidgetSnapshotSync } from "@/lib/hooks/use-widget-snapshot-sync";
 import { useWidgetDeeplink } from "@/lib/hooks/use-widget-deeplink";
 import { APP_EVENTS, onAppEvent } from "@/lib/events";
@@ -267,6 +268,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   React.useEffect(() => {
     if (typeof window !== "undefined") {
       Sentry.setTag("device_id", getDeviceId());
+      Sentry.setTag("device_name", getDeviceLabel());
     }
   }, []);
 

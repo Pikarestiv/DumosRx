@@ -82,6 +82,8 @@ interface LowercasedProduct {
   barcode: string;
   nameWords: string[];
   genericWords: string[];
+  squashedName: string;
+  squashedGeneric: string;
 }
 
 /**
@@ -115,11 +117,21 @@ function lowercaseIndexFor<
       barcode: (med.barcode || "").toLowerCase(),
       nameWords: name.split(/\s+/),
       genericWords: generic ? generic.split(/\s+/) : [],
+      squashedName: squashForMatching(name),
+      squashedGeneric: squashForMatching(generic),
     };
   });
 
   lowercaseIndexCache.set(products, index);
   return index;
+}
+
+/** Strips everything that isn't a letter or digit, so the spellings a
+ * cashier types interchangeably — "M&B", "M B", "M & B", "MB" — collapse to
+ * one key. Punctuation-only differences must not hide a product at the till.
+ * See docs/KNOWN_BUGS.md. */
+export function squashForMatching(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 export function searchProducts<
@@ -136,6 +148,7 @@ export function searchProducts<
   }
 
   const tokens = term.split(/\s+/).filter(Boolean);
+  const squashedTerm = squashForMatching(term);
 
   // 1. Initial Strict Search (Tiers 1-3)
   const index = lowercaseIndexFor(products);
@@ -173,6 +186,18 @@ export function searchProducts<
         );
         if (allTokensMatch) {
           score += 20;
+        }
+      }
+
+      // Tier 3.5: Punctuation-insensitive match. Scored below the tiers
+      // above so it only ever adds results, never reorders existing ones.
+      if (score === 0 && squashedTerm) {
+        const { squashedName, squashedGeneric } = index[i];
+        if (
+          squashedName.includes(squashedTerm) ||
+          (squashedGeneric && squashedGeneric.includes(squashedTerm))
+        ) {
+          score += 10;
         }
       }
 

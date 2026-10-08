@@ -32,3 +32,12 @@ export function capitalizeWords(s: string): string {
 export function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
+
+/** String-level equivalent of useUppercaseDisplayClass(), for text that goes
+ * somewhere CSS cannot reach it — a toast body, a printed line, an aria
+ * label. Mirrors that hook exactly: uppercase when the store wants it,
+ * otherwise per-word capitalization, never raw storage lowercase. */
+export function useDisplayName(): (value: string) => string {
+  const uppercase = useUppercaseDisplay();
+  return (value: string) => (uppercase ? value.toUpperCase() : capitalizeWords(value));
+}

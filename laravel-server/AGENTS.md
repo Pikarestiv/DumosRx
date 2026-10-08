@@ -2289,3 +2289,22 @@ mis-pointed rows were not repaired. See `docs/KNOWN_BUGS.md` A-189.
   describes.
 - Products with a `NULL` `store_id` are counted and skipped: there is no owning
   store to repoint them to, and inventing one would be a guess.
+
+## Running artisan on the production box (Namecheap shared hosting)
+
+The default `php` on that server is **7.4.33**; this app requires >= 8.2, so a
+bare `php artisan …` fails with a Composer platform error before it runs
+anything. Use the 8.2 binary explicitly:
+
+```bash
+cd ~/api.dumosrx.com
+/opt/alt/php82/usr/bin/php artisan <command>
+# or: alias p82=/opt/alt/php82/usr/bin/php
+```
+
+This affects the CLI only — the web app itself is served under 8.2, which is
+why nothing else breaks. There is also no generic command-runner endpoint by
+design: `/admin/maintenance` exposes only `migrations` and `roles/sync`
+(`AdminMaintenanceController`, `role:super_admin`), so anything else needs
+terminal access. Worth remembering before writing a command that an operator
+has no way to invoke.

@@ -207,8 +207,10 @@ class AdminUserService
             collect($paginator->items())->pluck('id'),
         );
 
+        $actorId = Auth::id();
+
         return [
-            'data' => collect($paginator->items())->map(function ($user) use ($latestDeviceByUser) {
+            'data' => collect($paginator->items())->map(function ($user) use ($latestDeviceByUser, $actorId) {
                 $device = $latestDeviceByUser->get($user->id);
 
                 return [
@@ -236,6 +238,7 @@ class AdminUserService
                     'deletionReason' => $user->deletion_reason,
                     'lastSyncedAt' => $device ? $device->last_synced_at?->diffForHumans() : null,
                     'lastSyncDevice' => $device ? ($device->device_label ?: $device->device_id) : null,
+                    'can_delete' => $this->canDeleteUser($user, $actorId),
                 ];
             }),
             'meta' => [
@@ -462,19 +465,40 @@ class AdminUserService
             throw new StoreActionBlockedException('No authenticated admin is performing this deletion.');
         }
 
-        if ($user->id === $actorId) {
-            throw new StoreActionBlockedException('You cannot delete your own account.');
-        }
+        if (! $this->canDeleteUser($user, $actorId)) {
+            if ($user->id === $actorId) {
+                throw new StoreActionBlockedException('You cannot delete your own account.');
+            }
 
-        $platformRoleSlugs = self::platformRoleSlugs();
-        $resolvedRole = $user->userRole?->slug;
-        $displayRole = $resolvedRole ?? $user->role;
+            $resolvedRole = $user->userRole?->slug;
+            $displayRole = $resolvedRole ?? $user->role;
 
-        if (in_array($user->role, $platformRoleSlugs, true) || ($resolvedRole !== null && in_array($resolvedRole, $platformRoleSlugs, true))) {
             throw new StoreActionBlockedException(
                 "This is a platform account ({$displayRole}). Platform accounts cannot be deleted from the users directory."
             );
         }
+    }
+
+    /**
+     * Single source of truth for whether $user may be deleted by the
+     * actor identified by $actorId: shared by assertDeletionAllowed()
+     * (the enforcement) and getGlobalUsers()'s advisory `can_delete` flag,
+     * so the two can never disagree.
+     */
+    public function canDeleteUser(User $user, ?string $actorId): bool
+    {
+        if ($actorId === null || $user->id === $actorId) {
+            return false;
+        }
+
+        $platformRoleSlugs = self::platformRoleSlugs();
+        $resolvedRole = $user->userRole?->slug;
+
+        if (in_array($user->role, $platformRoleSlugs, true) || ($resolvedRole !== null && in_array($resolvedRole, $platformRoleSlugs, true))) {
+            return false;
+        }
+
+        return true;
     }
 
     public function forcePasswordReset($id)

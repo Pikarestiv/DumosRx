@@ -121,8 +121,9 @@ export function PurgeStoreDialog({
           <DialogDescription className="text-slate-500 dark:text-slate-400 font-medium pt-2">
             This erases <span className="font-bold text-slate-900 dark:text-white">{store?.name}</span>{" "}
             and everything scoped to it — products, sales, stock records, customers and its staff
-            accounts. It cannot be undone and there is no backup. Archive it instead if you only
-            want it out of the way.
+            accounts. If this is the owner&apos;s only store, their account is deleted too. It
+            cannot be undone and there is no backup. Archive it instead if you only want it out of
+            the way.
           </DialogDescription>
         </DialogHeader>
 

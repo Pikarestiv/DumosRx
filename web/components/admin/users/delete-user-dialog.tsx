@@ -13,9 +13,6 @@ export function DeleteUserDialog({
   setSelectedUser,
   deleteMutation,
 }: BaseDialogProps & { deleteMutation: ReturnType<typeof useDeleteUserMutation> }) {
-  // This dialog is one row-menu click away and erases the user's stores,
-  // sales and products irreversibly, so a generic confirm button isn't enough:
-  // the admin has to type the account's email back before it unlocks.
   const [confirmEmail, setConfirmEmail] = useState("");
   const emailMatches =
     !!selectedUser?.email &&
@@ -30,8 +27,8 @@ export function DeleteUserDialog({
     if (!selectedUser || !emailMatches) return;
     deleteMutation.mutate(selectedUser.id, {
       onSuccess: () => {
-        toast.success("Account Deleted", {
-          description: `${selectedUser.name}'s account and all associated data have been permanently deleted.`,
+        toast.success("Account Deactivated", {
+          description: `${selectedUser.name}'s account was deactivated and their stores archived.`,
         });
         close();
         setSelectedUser(null);
@@ -56,18 +53,20 @@ export function DeleteUserDialog({
       }}
       icon={Trash2}
       tone="red"
-      title="Permanently Delete User?"
+      title="Delete User Account?"
       description={
         <>
-          Are you sure you want to permanently delete{" "}
+          Deactivates{" "}
           <span className="font-bold text-slate-900 dark:text-white">
             {selectedUser?.name}
-          </span>
-          ? This action is irreversible and will erase all their associated
-          data, including stores, sales, and products.
+          </span>{" "}
+          and archives the stores they own, signing them out so those stores
+          stop syncing. The account and its data are retained and can be
+          restored — this does not free the email address. To remove a store
+          and its data for good, use Delete Forever on the store itself.
         </>
       }
-      confirmLabel="Yes, Permanently Delete"
+      confirmLabel="Yes, Delete Account"
       isPending={deleteMutation.isPending}
       confirmDisabled={!emailMatches}
       onConfirm={handleDelete}

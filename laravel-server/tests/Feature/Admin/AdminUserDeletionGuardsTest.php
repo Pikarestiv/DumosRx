@@ -208,6 +208,38 @@ class AdminUserDeletionGuardsTest extends TestCase
     }
 
     #[Test]
+    public function it_exposes_a_can_delete_flag_that_matches_the_deletion_guard(): void
+    {
+        $owner = $this->makeUser('store_owner');
+        $store = Store::create([
+            'name' => 'Target Pharmacy',
+            'user_id' => $owner->id,
+            'device_id' => 'TEST-'.uniqid(),
+        ]);
+        $staff = $this->makeUser('admin');
+        $staff->store_id = $store->id;
+        $staff->save();
+
+        $service = app(\App\Services\Admin\AdminUserService::class);
+
+        $this->assertFalse(
+            $service->canDeleteUser($this->superAdmin->fresh(), $this->superAdmin->id),
+            'The actor should not be able to delete their own account.'
+        );
+
+        foreach (['super_admin', 'platform_admin', 'agent'] as $role) {
+            $platformUser = $this->makeUser($role);
+            $this->assertFalse(
+                $service->canDeleteUser($platformUser, $this->superAdmin->id),
+                "A {$role} account should not be deletable."
+            );
+        }
+
+        $this->assertTrue($service->canDeleteUser($owner->fresh(), $this->superAdmin->id));
+        $this->assertTrue($service->canDeleteUser($staff->fresh(), $this->superAdmin->id));
+    }
+
+    #[Test]
     public function it_refuses_deletion_when_there_is_no_authenticated_admin(): void
     {
         $target = $this->makeUser('store_owner');

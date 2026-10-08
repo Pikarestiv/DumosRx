@@ -184,6 +184,12 @@ export interface AdminUser {
    * back to its raw id if unlabeled. See `useStaffDevices` for the full
    * per-device history. */
   lastSyncDevice?: string | null;
+  /** Advisory only: mirrors the server's deletion guard
+   * (`AdminUserService::canDeleteUser`) so the row-level Delete control can
+   * hide itself for undeletable accounts. The server still enforces this
+   * independently on DELETE /admin/users/{id} - never trust this flag as
+   * the actual guard. Absent is treated as permissive. */
+  can_delete?: boolean;
 }
 
 /** One row of a staff member's full sync history - `GET

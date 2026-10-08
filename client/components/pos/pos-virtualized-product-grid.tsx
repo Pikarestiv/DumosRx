@@ -132,6 +132,42 @@ export function VirtualizedProductGrid({
     scrollMargin,
   });
 
+  // Reveal a product the moment its cart quantity goes up, wherever the add
+  // came from — a card tap, a barcode scan, the search box, a suggestion
+  // chip. Keyed off the quantity map rather than addToCart so every route in
+  // is covered, and only scrolls when the card is actually off-screen, since
+  // scrolling under a cashier who can already see the card is worse than
+  // doing nothing.
+  const previousQuantities = useRef<Map<string, number> | null>(null);
+
+  useEffect(() => {
+    const previous = previousQuantities.current;
+    previousQuantities.current = new Map(cartQuantityMap);
+
+    // First run has no baseline: a restored cart is not a fresh add.
+    if (previous === null) return;
+
+    let addedId: string | null = null;
+    for (const [id, quantity] of cartQuantityMap) {
+      if (quantity > (previous.get(id) ?? 0)) {
+        addedId = id;
+        break;
+      }
+    }
+    if (addedId === null) return;
+
+    const productIndex = products.findIndex((product) => product.id === addedId);
+    if (productIndex < 0) return;
+
+    const rowIndex = Math.floor(productIndex / columns);
+    const alreadyVisible = rowVirtualizer
+      .getVirtualItems()
+      .some((row) => row.index === rowIndex);
+    if (alreadyVisible) return;
+
+    rowVirtualizer.scrollToIndex(rowIndex, { align: "center" });
+  }, [cartQuantityMap, products, columns, rowVirtualizer]);
+
   return (
     <div
       ref={containerRef}

@@ -2,6 +2,7 @@
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 interface Props {
   categories: string[];
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function POSCategoryFilter({ categories, value, onChange }: Props) {
+  const caseClass = useUppercaseDisplayClass();
   if (categories.length === 0) return null;
 
   return (
@@ -39,6 +41,7 @@ export function POSCategoryFilter({ categories, value, onChange }: Props) {
               "data-[state=inactive]:border-border data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground",
               // inactive + hover
               "data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:text-primary data-[state=inactive]:hover:border-primary/50",
+              caseClass,
             )}
           >
             {category}

@@ -199,18 +199,20 @@ class AdminUserService
             foreach ($sortColumns as $column) {
                 $query->orderBy($column, $direction);
             }
+            $query->orderBy('users.id');
         }
 
-        $paginator = $query->with(['store', 'employerStore'])->paginate(10, ['*'], 'page', $filters->page);
+        $paginator = $query->with(['store', 'employerStore', 'userRole'])->paginate(10, ['*'], 'page', $filters->page);
 
         $latestDeviceByUser = $this->deviceService->latestDevicePerUser(
             collect($paginator->items())->pluck('id'),
         );
 
         $actorId = Auth::id();
+        $platformRoleSlugs = self::platformRoleSlugs();
 
         return [
-            'data' => collect($paginator->items())->map(function ($user) use ($latestDeviceByUser, $actorId) {
+            'data' => collect($paginator->items())->map(function ($user) use ($latestDeviceByUser, $actorId, $platformRoleSlugs) {
                 $device = $latestDeviceByUser->get($user->id);
 
                 return [
@@ -238,7 +240,7 @@ class AdminUserService
                     'deletionReason' => $user->deletion_reason,
                     'lastSyncedAt' => $device ? $device->last_synced_at?->diffForHumans() : null,
                     'lastSyncDevice' => $device ? ($device->device_label ?: $device->device_id) : null,
-                    'can_delete' => $this->canDeleteUser($user, $actorId),
+                    'can_delete' => $this->canDeleteUser($user, $actorId, $platformRoleSlugs),
                 ];
             }),
             'meta' => [
@@ -479,19 +481,15 @@ class AdminUserService
         }
     }
 
-    /**
-     * Single source of truth for whether $user may be deleted by the
-     * actor identified by $actorId: shared by assertDeletionAllowed()
-     * (the enforcement) and getGlobalUsers()'s advisory `can_delete` flag,
-     * so the two can never disagree.
-     */
-    public function canDeleteUser(User $user, ?string $actorId): bool
+    /** Single source of truth for assertDeletionAllowed() and the
+     * `can_delete` flag — see AGENTS.md. */
+    public function canDeleteUser(User $user, ?string $actorId, ?array $platformRoleSlugs = null): bool
     {
         if ($actorId === null || $user->id === $actorId) {
             return false;
         }
 
-        $platformRoleSlugs = self::platformRoleSlugs();
+        $platformRoleSlugs ??= self::platformRoleSlugs();
         $resolvedRole = $user->userRole?->slug;
 
         if (in_array($user->role, $platformRoleSlugs, true) || ($resolvedRole !== null && in_array($resolvedRole, $platformRoleSlugs, true))) {

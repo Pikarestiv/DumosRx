@@ -501,10 +501,13 @@ Covered by `tests/Feature/Admin/AdminUserProfileUpdateTest.php`.
 
 `DELETE /admin/users/{id}` (`AdminUserController::deleteUser` →
 `AdminUserService::deleteUser()`) is a super_admin-only, destructive
-(soft-delete, despite the UI copy calling it permanent) endpoint. Before
-2026-10-08 the only friction was a client-side type-the-email confirmation
-dialog — the service deleted whatever id it was given, including the
-caller's own account and other platform accounts.
+soft-delete endpoint; the dialog copy now says exactly that — records are
+kept, not erased, the email becomes reusable, and there is no restore
+button in the admin panel, rather than calling the deletion permanent or
+promising an undo that doesn't exist. Before 2026-10-08 the only friction
+was a client-side type-the-email confirmation dialog — the service deleted
+whatever id it was given, including the caller's own account and other
+platform accounts.
 
 `AdminUserService::assertDeletionAllowed()` now runs first, inside the same
 transaction, before the target's stores are archived or the user row is
@@ -542,6 +545,14 @@ Ordinary deletions (a store owner, a staff account) are unaffected — staff
 own no stores, so the owner-stores archive loop never touches their
 employer's store. Covered by
 `tests/Feature/Admin/AdminUserDeletionGuardsTest.php`.
+
+`AdminUserService::canDeleteUser()` is the single source of truth behind
+both `assertDeletionAllowed()` (the enforcement) and `getGlobalUsers()`'s
+advisory `can_delete` row flag, so the two can never disagree. The admin
+users table hides its Delete action whenever `can_delete === false`, so a
+row that the service would refuse never renders a control that fails on
+click; `can_delete` is advisory only — the service re-checks on the actual
+`DELETE` call regardless of what the client sends.
 
 ## A voided sale is not revenue — including on the admin surfaces
 

@@ -58,6 +58,7 @@ const HEADER_ALIASES: Record<string, ProductField> = {
   "selling price": "selling_price",
   "price": "selling_price",
   "p.selling": "selling_price",
+  "stock quantity": "quantity",
   "qty 1": "quantity",
   "qty": "quantity",
   "quantity": "quantity",

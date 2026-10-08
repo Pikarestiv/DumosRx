@@ -203,6 +203,17 @@ export function ImportMappingDialog({
               {headers.length} columns automatically. Review or correct any
               below.
             </p>
+            {!Object.values(mapping).includes("quantity") && (
+              <div className="flex gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+                <p className="text-amber-900 dark:text-amber-200">
+                  No column is mapped to{" "}
+                  <span className="font-semibold">Stock Quantity</span>, so every
+                  product will be imported with no stock. Map it below if your
+                  file has quantities.
+                </p>
+              </div>
+            )}
             <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
               {headers.map((header) => (
                 <div

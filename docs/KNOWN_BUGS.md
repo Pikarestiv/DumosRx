@@ -10,6 +10,14 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
+#### A-195. `client/` — the app's own product export could not be re-imported with its stock (FIXED, pending deploy)
+- **Found:** 2026-10-08, owner re-imported a DumosRx xlsx export into a local store and every product landed at 0 stock.
+- **Root cause:** the exporter writes the column `Stock Quantity` (`EXPORT_COLUMNS` in `client/lib/utils/product-import-export.ts`), but `HEADER_ALIASES` knew `qty 1`, `qty`, `quantity`, `stock`, `available` and `qty machine` — not that phrase. `detectColumnMapping()` fell through to `"ignore"`, so `row.quantity` was `undefined` and `importProductRows()` skipped the opening-stock batch entirely.
+- **Cost price was collateral, not a second bug:** cost lives on `stock_batches`, and the batch is only created when a quantity is present, so dropping the quantity left nowhere to store it. Both columns read 0 in the re-export.
+- **Why it went unnoticed:** every *other* export label already had an alias, and the importer was built against third-party files (QuickBooks POS, Moniebook) rather than against our own output. The export→edit→re-import round trip is a documented workflow — `EXPORT_COLUMNS`' own comment calls it "the bulk way to publish a catalog online".
+- **Fix:** added the `stock quantity` alias, plus `client/__tests__/product-export-import-round-trip.test.ts`, which asserts **every** `EXPORT_COLUMNS` label maps back to the field it came from. Adding an export column without an alias now fails there instead of in a store.
+- **Also:** the import dialog showed only "N of M columns matched" and never flagged a missing quantity mapping, so a whole catalogue could import at zero stock with no warning at any step. It now warns explicitly when no column maps to quantity.
+
 #### A-193. `client/` — `verifyStockIntegrity()` has no index to lean on, and its Sentry report does not coalesce
 - **Found:** 2026-10-08, adversarial review of the stock-integrity branch before merge.
 - **Location:** `client/lib/db/sync-engine/stock-integrity.ts`, `client/lib/db/schema-migrations.ts` (index list), `client/lib/utils/error-logger.ts`.

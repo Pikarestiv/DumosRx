@@ -22,7 +22,18 @@ import {
 } from "./conflict-log";
 import { execute, query, transaction } from "../core";
 import { isExpectedSyncRestriction } from "@/lib/utils/error-logger";
-import { toast } from "sonner";
+import { toast } from "sonner";/**
+ * Structural UUID check for foreign keys this client is about to push. The
+ * version nibble accepts 1-8, not 1-5: Laravel's HasUuids emits v7, so any
+ * row the SERVER created (and that a product then references) was rejected
+ * here as "not a UUID" and parked in the queue forever — which is what
+ * happened to products repointed onto a category created by
+ * sync:repair-cross-tenant-categories. See docs/KNOWN_BUGS.md.
+ */
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+
 
 // Terminal: the queued payload is frozen, so resending can never change the
 // outcome. See client/AGENTS.md, "Push details (sync-engine/push.ts)".
@@ -355,7 +366,6 @@ export async function pushChanges(
           delete item.payload.brand_name;
           delete item.payload.supplier_id;
 
-          const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
           // Prevent bad payloads from blocking the entire sync queue
           if (
             item.payload.category_id &&

@@ -366,6 +366,23 @@ the web panel always sends it: the dialog quotes the filtered list's own total
 as the recipient count, so without it "Notify All Filtered" would mail a wider
 set than the number shown.
 
+`PUT /admin/stores/{id}/referrer` (`AdminStoreReferrerService`, super_admin
+only) lets a super admin correct who referred a store's owner — e.g. when a
+manager referred someone who signed up without using the referral link.
+Attribution lives on the owner (`users.referred_by_id`), never on the store,
+mirroring the sibling `PUT /admin/stores/{id}/account-manager`. It is
+forward-only: it writes `referred_by_id` and an `ActivityLog` row
+(`STORE_REFERRER_REASSIGNED`, both the previous and new referrer id in
+`properties`) and nothing else — it never touches `referral_credit_transactions`
+or any other credit/commission row, so past referral payouts stay exactly as
+they were computed. Reassigning to the current referrer is accepted as a
+no-op (no second audit entry); a self-referral, an unknown referrer id, or a
+store with no owner are all refused with a 422. Because
+`AccountManagerController::resolveFor()` falls back to the referral when a
+store's owner has no explicit `account_manager_id`, changing the referrer can
+also change that store's *resolved* account manager — the two endpoints are
+independent writes, but not independent reads.
+
 `GET /admin/stores/{id}` (`AdminStoreDetailService`, super_admin only, 404 for
 an unknown id) is the single-store payload behind the admin panel's Store
 Details page: store profile, owner, current subscription, account manager,

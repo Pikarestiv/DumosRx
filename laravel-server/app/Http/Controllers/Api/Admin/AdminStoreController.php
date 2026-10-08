@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\ManagesAdminSessionCookie;
 use App\Models\ActivityLog;
 use App\Services\Admin\AdminFleetMetricsService;
 use App\Services\Admin\AdminStoreDetailService;
+use App\Services\Admin\AdminStoreReferrerService;
 use App\Services\Admin\AdminStoreService;
 use App\Services\Admin\Filters\StoreListFilters;
 use Illuminate\Http\Request;
@@ -21,10 +22,16 @@ class AdminStoreController extends AdminBaseController
 
     protected $fleetMetrics;
 
-    public function __construct(AdminStoreService $adminStoreService, AdminFleetMetricsService $fleetMetrics)
-    {
+    protected $adminStoreReferrerService;
+
+    public function __construct(
+        AdminStoreService $adminStoreService,
+        AdminFleetMetricsService $fleetMetrics,
+        AdminStoreReferrerService $adminStoreReferrerService,
+    ) {
         $this->adminStoreService = $adminStoreService;
         $this->fleetMetrics = $fleetMetrics;
+        $this->adminStoreReferrerService = $adminStoreReferrerService;
     }
 
     #[OA\Get(
@@ -420,6 +427,39 @@ class AdminStoreController extends AdminBaseController
         $owner->save();
 
         return response()->json(['message' => 'Account manager updated successfully']);
+    }
+
+    #[OA\Put(
+        path: '/admin/stores/{id}/referrer',
+        summary: "Reassign who referred a store's owner",
+        description: 'Forward-only: sets users.referred_by_id on the store owner and writes an audit entry. Never rewrites existing referral credit or commission rows.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            properties: [new OA\Property(property: 'referrer_id', type: 'string', nullable: true)],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Reassigned'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 422, description: 'Unknown referrer, or a self-referral'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
+    public function updateReferrer(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'referrer_id' => ['present', 'nullable', 'string'],
+        ]);
+
+        return $this->withErrorResponse('Update Referrer', 'Failed to reassign the referrer', function () use ($id, $validated) {
+            $referrer = $this->adminStoreReferrerService->updateReferrer($id, $validated['referrer_id']);
+
+            return response()->json([
+                'message' => 'Referrer reassigned.',
+                'referrer' => $referrer,
+            ]);
+        });
     }
 
     #[OA\Post(

@@ -109,6 +109,38 @@ class AdminUserDeletionGuardsTest extends TestCase
     }
 
     #[Test]
+    public function it_frees_the_deleted_owners_original_email_for_reuse(): void
+    {
+        $originalEmail = 'reusable-'.uniqid().'@dumosrx.com';
+        $owner = $this->makeUser('store_owner');
+        $owner->email = $originalEmail;
+        $owner->save();
+
+        $this->actingAs($this->superAdmin)
+            ->deleteJson("/api/v1/admin/users/{$owner->id}")
+            ->assertOk();
+
+        $this->assertDatabaseMissing('users', [
+            'email' => $originalEmail,
+            'deleted_at' => null,
+        ]);
+
+        $newUser = User::create([
+            'first_name' => 'New',
+            'last_name' => 'Owner',
+            'email' => $originalEmail,
+            'password' => bcrypt('password'),
+            'role' => 'store_owner',
+        ]);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $newUser->id,
+            'email' => $originalEmail,
+            'deleted_at' => null,
+        ]);
+    }
+
+    #[Test]
     public function it_still_deletes_an_ordinary_staff_account(): void
     {
         $owner = $this->makeUser('store_owner');

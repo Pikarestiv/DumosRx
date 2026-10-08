@@ -61,7 +61,10 @@ describe("destructive action copy", () => {
     expect(body).not.toMatch(/permanently/i);
     expect(body).not.toMatch(/irreversibl/i);
     expect(body).not.toMatch(/cannot be undone/i);
+    expect(body).not.toMatch(/deactivat/i);
+    expect(body).not.toMatch(/can be restored/i);
     expect(body).toMatch(/archiv/i);
+    expect(body).toMatch(/email address becomes available/i);
   });
 
   it("tells the admin that purging a store can remove the owner account", () => {

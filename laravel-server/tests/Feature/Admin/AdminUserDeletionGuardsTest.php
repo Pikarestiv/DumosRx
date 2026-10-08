@@ -272,6 +272,22 @@ class AdminUserDeletionGuardsTest extends TestCase
     }
 
     #[Test]
+    public function it_exposes_can_delete_in_the_users_list_response_body(): void
+    {
+        $owner = $this->makeUser('store_owner');
+        $platformUser = $this->makeUser('platform_admin');
+
+        $response = $this->actingAs($this->superAdmin)
+            ->getJson('/api/v1/admin/users')
+            ->assertOk();
+
+        $rows = collect($response->json('data'));
+
+        $this->assertTrue($rows->firstWhere('id', $owner->id)['can_delete']);
+        $this->assertFalse($rows->firstWhere('id', $platformUser->id)['can_delete']);
+    }
+
+    #[Test]
     public function it_refuses_deletion_when_there_is_no_authenticated_admin(): void
     {
         $target = $this->makeUser('store_owner');

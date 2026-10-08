@@ -421,8 +421,8 @@ class AdminUserController extends AdminBaseController
 
     #[OA\Delete(
         path: '/admin/users/{id}',
-        summary: 'Permanently delete a user and all associated data',
-        description: 'Irreversible; not a soft delete.',
+        summary: 'Archive a user account and the stores they own',
+        description: 'Soft-deletes the user and any stores they own; the email becomes reusable, there is no restore endpoint.',
         tags: ['Admin'],
         security: [['sanctum' => []]],
         parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
@@ -442,7 +442,7 @@ class AdminUserController extends AdminBaseController
                 return response()->json(['error' => $e->getMessage()], 422);
             }
 
-            return response()->json(['message' => 'User and associated data permanently deleted']);
+            return response()->json(['message' => 'User account and the stores they own have been archived']);
         });
     }
 

@@ -1601,11 +1601,18 @@ class SyncController extends Controller
      *   ("Optional for local staff" in the web staff form), so
      *   $payload['email'] is then simply absent and must not be accessed
      *   unguarded like the sibling username/store_id checks already don't.
-     * - categories/suppliers: store-scoped, because an unscoped check meant
-     *   a generic name (Cosmetics, Drugs) reused by an unrelated store got
-     *   silently merged into that other store's row, and a later
-     *   rename/delete there orphaned this store's products with no action of
-     *   its own. See 2026_09_12_000000_scope_category_uniqueness_to_store.
+     * - categories/suppliers: matched ONLY within the pushing payload's own
+     *   store, because an unscoped check meant a generic name (Cosmetics,
+     *   Drugs) reused by an unrelated store got silently merged into that
+     *   other store's row, and a later rename/delete there orphaned this
+     *   store's products with no action of its own. See
+     *   2026_09_12_000000_scope_category_uniqueness_to_store. The match also
+     *   no longer falls back to a NULL-store row: pull() scopes these tables
+     *   with whereIn('store_id', ...), which never matches NULL, so a product
+     *   remapped onto an unowned category could never resolve it on any
+     *   device again (docs/KNOWN_BUGS.md A-189). A payload that genuinely
+     *   carries no store_id still matches NULL-store rows, which is the
+     *   pre-multi-tenancy path the id_map regression test covers.
      */
     private function findDuplicateInsertConflict(string $modelClass, string $tableName, array $payload, $recordId)
     {
@@ -1628,11 +1635,13 @@ class SyncController extends Controller
         }
 
         if (($tableName === 'categories' || $tableName === 'suppliers') && !empty($payload['name'])) {
+            $payloadStoreId = $payload['store_id'] ?? null;
             $conflict = $modelClass::where('name', $payload['name'])
-                ->where(function ($q) use ($payload) {
-                    $q->where('store_id', $payload['store_id'] ?? null)
-                      ->orWhereNull('store_id');
-                })
+                ->when(
+                    $payloadStoreId === null,
+                    fn ($q) => $q->whereNull('store_id'),
+                    fn ($q) => $q->where('store_id', $payloadStoreId),
+                )
                 ->first();
             if ($conflict) {
                 $label = $tableName === 'categories' ? 'category' : 'supplier';

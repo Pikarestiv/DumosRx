@@ -451,16 +451,35 @@ Pest tests. The UI selection guard in §2.7 stays as well; both layers.
 `$user->delete()` and `$store->delete()` — both soft. But
 `delete-user-dialog.tsx` says the account "erases the user's stores, sales and
 products irreversibly" and its success toast says "account and all associated
-data have been permanently deleted". Both are false: the rows remain, and the
-email stays taken by the soft-deleted user.
+data have been permanently deleted". Both are false: the rows remain.
 
-This matters directly for the stated goal behind §2.7 — clearing out test
-accounts. Bulk-deleting them will *not* free their email addresses or remove
-their rows.
+**Correction to an earlier draft of this spec.** This section previously
+claimed the soft-deleted user's email "stays taken". That is wrong, and the
+error was caught in review of the §7.2 fix itself. `User::boot()`'s `deleting`
+hook (`app/Models/User.php:325-334`) fires on every soft delete and suffixes
+both `email` and `username` with `_del_<timestamp>`, then saves. So a soft
+delete **does** free the original email and username for reuse.
+
+What this means for the stated goal behind §2.7 — clearing out test accounts:
+bulk-deleting them DOES free their email addresses, but leaves their rows in
+place (soft-deleted). It is therefore more useful for that cleanup than the
+earlier draft of this spec claimed, while still not being the data removal
+that store purge (§3.2) performs.
+
+**Also relevant:** there is no user-restore path in the admin panel. Only
+`POST /admin/stores/{id}/restore` exists; no equivalent route, handler or
+button exists for users, so a soft-deleted account can only be brought back
+by direct database access. Copy must not promise a restore the UI cannot
+deliver.
 
 **Fix:** correct the copy on the single and bulk dialogs to describe what it
-does (deactivates and archives the account and its stores, recoverable), and
-point at store purge (§3.2) as the operation that genuinely removes data.
+actually does — archives the account and the stores it owns, signs everyone
+out so those stores stop syncing, retains the records, frees the email for
+reuse, and offers no one-click undo — and point at store purge (§3.2) as the
+operation that genuinely removes data. The copy must also avoid the verb
+"deactivate", which already names a distinct, less destructive action sitting
+directly above Delete in the same row menu (`deactivateUser()` sets
+`is_active = false` only and is reversible via Reactivate).
 `docs/ADMIN_STORE_LIFECYCLE.md` is checked for the same inaccuracy and
 corrected if present.
 

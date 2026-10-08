@@ -6,7 +6,9 @@ use App\Http\Controllers\Concerns\ManagesAdminSessionCookie;
 use App\Models\ActivityLog;
 use App\Services\Admin\AdminFleetMetricsService;
 use App\Services\Admin\AdminStoreDetailService;
+use App\Services\Admin\AdminStoreReferrerService;
 use App\Services\Admin\AdminStoreService;
+use App\Services\Admin\Filters\StoreListFilters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -20,10 +22,16 @@ class AdminStoreController extends AdminBaseController
 
     protected $fleetMetrics;
 
-    public function __construct(AdminStoreService $adminStoreService, AdminFleetMetricsService $fleetMetrics)
-    {
+    protected $adminStoreReferrerService;
+
+    public function __construct(
+        AdminStoreService $adminStoreService,
+        AdminFleetMetricsService $fleetMetrics,
+        AdminStoreReferrerService $adminStoreReferrerService,
+    ) {
         $this->adminStoreService = $adminStoreService;
         $this->fleetMetrics = $fleetMetrics;
+        $this->adminStoreReferrerService = $adminStoreReferrerService;
     }
 
     #[OA\Get(
@@ -37,6 +45,9 @@ class AdminStoreController extends AdminBaseController
             new OA\Parameter(name: 'status', in: 'query', schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'plan', in: 'query', schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'archived', in: 'query', description: 'active (default), only, or all', schema: new OA\Schema(type: 'string', enum: ['active', 'only', 'all'])),
+            new OA\Parameter(name: 'demo', in: 'query', description: 'all (default), only, or exclude', schema: new OA\Schema(type: 'string', enum: ['all', 'only', 'exclude'])),
+            new OA\Parameter(name: 'sort', in: 'query', description: 'name, created_at, status or total_revenue. Anything else keeps the default newest-first ordering.', schema: new OA\Schema(type: 'string', enum: ['name', 'created_at', 'status', 'total_revenue'])),
+            new OA\Parameter(name: 'direction', in: 'query', description: 'asc or desc (default)', schema: new OA\Schema(type: 'string', enum: ['asc', 'desc'])),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Stores', content: new OA\JsonContent(type: 'object')),
@@ -47,15 +58,10 @@ class AdminStoreController extends AdminBaseController
     public function stores(Request $request)
     {
         return $this->withErrorResponse('Stores', 'Failed to fetch stores', function () use ($request) {
-            $page = $request->query('page', 1);
-            $search = $request->query('search');
-            $status = $request->query('status');
-            $plan = $request->query('plan');
-            $archived = in_array($request->query('archived'), ['only', 'all'], true)
-                ? $request->query('archived')
-                : 'active';
             $includeRevenue = (bool) $request->user()?->hasRole('super_admin');
-            $payload = $this->adminStoreService->getStores($page, $search, $status, $plan, $archived, $includeRevenue);
+            $payload = $this->adminStoreService->getStores(
+                StoreListFilters::fromRequest($request, $includeRevenue),
+            );
 
             if ($includeRevenue) {
                 $payload['stock_value_by_currency'] = $this->fleetMetrics->stockValueByCurrency();
@@ -421,6 +427,39 @@ class AdminStoreController extends AdminBaseController
         $owner->save();
 
         return response()->json(['message' => 'Account manager updated successfully']);
+    }
+
+    #[OA\Put(
+        path: '/admin/stores/{id}/referrer',
+        summary: "Reassign who referred a store's owner",
+        description: 'Forward-only: sets users.referred_by_id on the store owner and writes an audit entry. Never rewrites existing referral credit or commission rows.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            properties: [new OA\Property(property: 'referrer_id', type: 'string', nullable: true)],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Reassigned'),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 422, description: 'Unknown referrer, or a self-referral'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
+    public function updateReferrer(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'referrer_id' => ['present', 'nullable', 'string'],
+        ]);
+
+        return $this->withErrorResponse('Update Referrer', 'Failed to reassign the referrer', function () use ($id, $validated) {
+            $referrer = $this->adminStoreReferrerService->updateReferrer($id, $validated['referrer_id']);
+
+            return response()->json([
+                'message' => 'Referrer reassigned.',
+                'referrer' => $referrer,
+            ]);
+        });
     }
 
     #[OA\Post(

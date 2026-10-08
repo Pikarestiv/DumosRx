@@ -184,6 +184,9 @@ export interface AdminUser {
    * back to its raw id if unlabeled. See `useStaffDevices` for the full
    * per-device history. */
   lastSyncDevice?: string | null;
+  /** Server-computed hint that this row's deletion would be refused;
+   * advisory only — the server still enforces it on delete. */
+  can_delete?: boolean;
 }
 
 /** One row of a staff member's full sync history - `GET

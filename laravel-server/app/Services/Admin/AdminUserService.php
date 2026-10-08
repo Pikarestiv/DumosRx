@@ -2,12 +2,15 @@
 
 namespace App\Services\Admin;
 
+use App\Exceptions\StoreActionBlockedException;
 use App\Mail\AdminNotification;
 use App\Models\ActivityLog;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Admin\Concerns\ResolvesTrialDuration;
 use App\Services\Admin\Concerns\UpdatesUserProfiles;
+use App\Services\Admin\Filters\UserListFilters;
+use App\Services\Admin\Support\ListSortResolver;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -160,21 +163,22 @@ class AdminUserService
         return User::findOrFail($id)->effective_permissions;
     }
 
-    public function getGlobalUsers($page = 1, $search = null, $role = null, $accountType = null, $storeId = null)
+    public function getGlobalUsers(UserListFilters $filters)
     {
         $query = User::query();
 
-        $this->constrainToAccountType($query, $accountType);
+        $this->constrainToAccountType($query, $filters->accountType);
 
-        if ($storeId) {
-            $query->where(function ($q) use ($storeId) {
-                $q->where('users.store_id', $storeId)
-                    ->orWhereHas('stores', fn ($sq) => $sq->where('stores.id', $storeId));
+        if ($filters->storeId) {
+            $query->where(function ($q) use ($filters) {
+                $q->where('users.store_id', $filters->storeId)
+                    ->orWhereHas('stores', fn ($sq) => $sq->where('stores.id', $filters->storeId));
             });
         }
 
-        if ($search) {
-            $query->where(function ($q) use ($search) {
+        if ($filters->search) {
+            $query->where(function ($q) use ($filters) {
+                $search = $filters->search;
                 $q->where('first_name', 'like', "%{$search}%")
                     ->orWhere('last_name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%")
@@ -182,18 +186,33 @@ class AdminUserService
             });
         }
 
-        if ($role) {
-            $query->where('role', $role);
+        if ($filters->role) {
+            $query->where('role', $filters->role);
         }
 
-        $paginator = $query->with(['store', 'employerStore'])->latest()->paginate(10, ['*'], 'page', $page);
+        $sortColumns = ListSortResolver::userColumns($filters->sort);
+
+        if ($sortColumns === []) {
+            $query->latest();
+        } else {
+            $direction = ListSortResolver::direction($filters->direction);
+            foreach ($sortColumns as $column) {
+                $query->orderBy($column, $direction);
+            }
+            $query->orderBy('users.id');
+        }
+
+        $paginator = $query->with(['store', 'employerStore', 'userRole'])->paginate(10, ['*'], 'page', $filters->page);
 
         $latestDeviceByUser = $this->deviceService->latestDevicePerUser(
             collect($paginator->items())->pluck('id'),
         );
 
+        $actorId = Auth::id();
+        $platformRoleSlugs = self::platformRoleSlugs();
+
         return [
-            'data' => collect($paginator->items())->map(function ($user) use ($latestDeviceByUser) {
+            'data' => collect($paginator->items())->map(function ($user) use ($latestDeviceByUser, $actorId, $platformRoleSlugs) {
                 $device = $latestDeviceByUser->get($user->id);
 
                 return [
@@ -221,6 +240,7 @@ class AdminUserService
                     'deletionReason' => $user->deletion_reason,
                     'lastSyncedAt' => $device ? $device->last_synced_at?->diffForHumans() : null,
                     'lastSyncDevice' => $device ? ($device->device_label ?: $device->device_id) : null,
+                    'can_delete' => $this->canDeleteUser($user, $actorId, $platformRoleSlugs),
                 ];
             }),
             'meta' => [
@@ -414,6 +434,8 @@ class AdminUserService
         return DB::transaction(function () use ($id) {
             $user = User::findOrFail($id);
 
+            $this->assertDeletionAllowed($user);
+
             $userEmail = $user->email;
 
             foreach ($user->stores as $store) {
@@ -435,6 +457,46 @@ class AdminUserService
 
             return true;
         });
+    }
+
+    private function assertDeletionAllowed(User $user): void
+    {
+        $actorId = Auth::id();
+
+        if ($actorId === null) {
+            throw new StoreActionBlockedException('No authenticated admin is performing this deletion.');
+        }
+
+        if (! $this->canDeleteUser($user, $actorId)) {
+            if ($user->id === $actorId) {
+                throw new StoreActionBlockedException('You cannot delete your own account.');
+            }
+
+            $resolvedRole = $user->userRole?->slug;
+            $displayRole = $resolvedRole ?? $user->role;
+
+            throw new StoreActionBlockedException(
+                "This is a platform account ({$displayRole}). Platform accounts cannot be deleted from the users directory."
+            );
+        }
+    }
+
+    /** Single source of truth for assertDeletionAllowed() and the
+     * `can_delete` flag — see AGENTS.md. */
+    public function canDeleteUser(User $user, ?string $actorId, ?array $platformRoleSlugs = null): bool
+    {
+        if ($actorId === null || $user->id === $actorId) {
+            return false;
+        }
+
+        $platformRoleSlugs ??= self::platformRoleSlugs();
+        $resolvedRole = $user->userRole?->slug;
+
+        if (in_array($user->role, $platformRoleSlugs, true) || ($resolvedRole !== null && in_array($resolvedRole, $platformRoleSlugs, true))) {
+            return false;
+        }
+
+        return true;
     }
 
     public function forcePasswordReset($id)

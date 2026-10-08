@@ -366,6 +366,23 @@ the web panel always sends it: the dialog quotes the filtered list's own total
 as the recipient count, so without it "Notify All Filtered" would mail a wider
 set than the number shown.
 
+`PUT /admin/stores/{id}/referrer` (`AdminStoreReferrerService`, super_admin
+only) lets a super admin correct who referred a store's owner — e.g. when a
+manager referred someone who signed up without using the referral link.
+Attribution lives on the owner (`users.referred_by_id`), never on the store,
+mirroring the sibling `PUT /admin/stores/{id}/account-manager`. It is
+forward-only: it writes `referred_by_id` and an `ActivityLog` row
+(`STORE_REFERRER_REASSIGNED`, both the previous and new referrer id in
+`properties`) and nothing else — it never touches `referral_credit_transactions`
+or any other credit/commission row, so past referral payouts stay exactly as
+they were computed. Reassigning to the current referrer is accepted as a
+no-op (no second audit entry); a self-referral, an unknown referrer id, or a
+store with no owner are all refused with a 422. Because
+`AccountManagerController::resolveFor()` falls back to the referral when a
+store's owner has no explicit `account_manager_id`, changing the referrer can
+also change that store's *resolved* account manager — the two endpoints are
+independent writes, but not independent reads.
+
 `GET /admin/stores/{id}` (`AdminStoreDetailService`, super_admin only, 404 for
 an unknown id) is the single-store payload behind the admin panel's Store
 Details page: store profile, owner, current subscription, account manager,
@@ -479,6 +496,118 @@ writes no log at all. Note `A-131` in `docs/KNOWN_BUGS.md`: the
 passes is not a real column and is silently dropped, so never assert on it.
 
 Covered by `tests/Feature/Admin/AdminUserProfileUpdateTest.php`.
+
+## Deleting a platform user: the guard sits on the service, not the dialog
+
+`DELETE /admin/users/{id}` (`AdminUserController::deleteUser` →
+`AdminUserService::deleteUser()`) is a super_admin-only, destructive
+soft-delete endpoint; the dialog copy now says exactly that — records are
+kept, not erased, the email becomes reusable, and there is no restore
+button in the admin panel, rather than calling the deletion permanent or
+promising an undo that doesn't exist. Before 2026-10-08 the only friction
+was a client-side type-the-email confirmation dialog — the service deleted
+whatever id it was given, including the caller's own account and other
+platform accounts.
+
+`AdminUserService::assertDeletionAllowed()` now runs first, inside the same
+transaction, before the target's stores are archived or the user row is
+touched, so a refused deletion leaves no partial side effect and writes no
+`USER_DELETION` activity log entry:
+
+- Refuses outright when there is no authenticated actor (`Auth::id()` is
+  `null`) — a command or queued job calling `deleteUser()` with nobody
+  signed in is refused rather than silently no-op'ing the self-check.
+- Refuses when the target id equals `Auth::id()` — the caller cannot delete
+  themselves, last-super_admin-or-not.
+- Refuses when the target holds a platform role, checked against **both**
+  role signals a user can carry: the legacy `users.role` column and the
+  resolved RBAC role (`userRole->slug`, via `role_id`). The platform set is
+  `self::platformRoleSlugs()` (from the `UpdatesUserProfiles` trait this
+  class already uses for the profile-edit guards) — `super_admin`,
+  `platform_admin`, `agent`, **plus every custom role** (`Role::is_system =
+  false`), not a separate hardcoded list. `AdminRoleService::createRole()`
+  is the only creator of non-system roles, is itself super_admin-only, and
+  force-adds `manage_platform` to every one it creates, so every non-system
+  role is a platform role by construction — there is no store-scoped custom
+  role this would wrongly catch. Checking only the legacy column would miss
+  a user whose `role` says `store_owner` while `role_id` points at a
+  platform `Role` — the same mismatch a direct `role_id` write (or a stale
+  migration) can produce.
+
+All three branches throw the existing `App\Exceptions\StoreActionBlockedException`
+(the same one `AdminStoreDeletionService` throws for store archive/purge
+refusals, kept to one error shape across both destructive admin flows)
+rather than a new exception type.
+`AdminUserController::deleteUser()` catches it and returns 422 with the
+message intact, mirroring `AdminStoreDeletionController`; without that catch
+`AdminBaseController::withErrorResponse()` would fold it into a generic 500.
+Ordinary deletions (a store owner, a staff account) are unaffected — staff
+own no stores, so the owner-stores archive loop never touches their
+employer's store. Covered by
+`tests/Feature/Admin/AdminUserDeletionGuardsTest.php`.
+
+`AdminUserService::canDeleteUser()` is the single source of truth behind
+both `assertDeletionAllowed()` (the enforcement) and `getGlobalUsers()`'s
+advisory `can_delete` row flag, so the two can never disagree. The admin
+users table hides its Delete action whenever `can_delete === false`, so a
+row that the service would refuse never renders a control that fails on
+click; `can_delete` is advisory only — the service re-checks on the actual
+`DELETE` call regardless of what the client sends.
+
+## Server-side sort and filter on `GET /admin/stores` and `GET /admin/users`
+
+Both list endpoints accept `sort`, `direction`, and a `page` that is clamped
+via `max(1, (int) ...)` — never a raw pass-through of the query value, which
+used to let a non-numeric or negative `page` reach the paginator directly.
+
+**`ListSortResolver`** (`app/Services/Admin/Support/ListSortResolver.php`) is
+the only thing allowed to turn a request's `sort` value into an `orderBy()`
+column. Its `storeColumns()`/`userColumns()` `match` arms *are* the
+allow-list — no request value ever reaches `orderBy()` directly, so there is
+no SQL-injection surface here regardless of what `sort` contains. An
+unrecognized value returns `[]`, and the service falls back to `latest()`.
+
+- Stores: `name`, `created_at`, `status`, `total_revenue`.
+- Users: `name` (sorts by `first_name` then `last_name`), `email`,
+  `created_at`, `last_login_at`, `role`.
+- **Deliberately excluded:** `plan` and `owner` (stores), `last_sync`
+  (users/staff), and anything else derived only after the paginated query
+  returns — `plan` comes from the owner's latest subscription in PHP, `owner`
+  is a concatenation across a relation, and `last_sync` comes from the
+  post-query `latestDevicePerUser()` lookup. Sorting by one of these would
+  only reorder the 10 rows already on the current page, not the full result
+  set — silently wrong instead of refused. Their headers render as plain,
+  non-interactive headers.
+  `AdminListSortingTest::columns_computed_after_the_query_are_not_sortable`
+  pins this for `plan`.
+- `ListSortResolver::direction()` accepts only an exact lowercase `asc`;
+  anything else, including `ASC` or `Ascending`, defaults to `desc`. The
+  frontend must send lowercase.
+- Both services append a deterministic id tiebreaker (`stores.id` /
+  `users.id`) after the allow-listed columns, but **only** on the
+  explicit-sort branch — the `latest()` fallback is untouched. `status`
+  (stores) and `role` (users) are low-cardinality; without the tiebreaker,
+  two independent LIMIT/OFFSET pages over a tie-heavy sort could return the
+  same row twice and skip another entirely.
+  `AdminListSortingTest::store_pagination_is_stable_under_a_tie_heavy_status_sort`
+  and `::user_pagination_is_stable_under_a_tie_heavy_role_sort` describe this,
+  but **do not currently protect it**: the suite runs SQLite `:memory:`, which
+  returns tied rows in a deterministic rowid order, so both tests still pass
+  with the tiebreaker lines removed (verified). Keep the tiebreaker regardless
+  — MySQL gives no such guarantee. See the entry in `docs/KNOWN_BUGS.md`.
+
+**`StoreListFilters`/`UserListFilters`** (`app/Services/Admin/Filters/`) exist
+because `getStores()`/`getGlobalUsers()` were already at the limit of a
+readable positional-argument list. Each is a `fromRequest()`-constructed
+readonly DTO; every `?string`-typed property is built via
+`QueryInput::stringOrNull()`, because an array-valued query param (e.g.
+`?role[]=a&role[]=b`) fed straight into a promoted `?string` property threw
+an uncaught `TypeError` and turned a 200 into a 500. `QueryInputTest` and
+`AdminListSortingTest::array_valued_string_filters_do_not_error` cover this.
+
+`StoreListFilters::demo` is `all` (default) | `only` | `exclude`, mirroring
+the existing `archived` filter's shape (`active` default here, `only`/`all`
+there) rather than inventing a different convention.
 
 ## A voided sale is not revenue — including on the admin surfaces
 

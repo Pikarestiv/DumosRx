@@ -33,7 +33,7 @@ export function SystemHealth({ liveOperations, securityAlerts }: SystemHealthPro
                     {liveOperations.sync_success_rate_today ? (
                         <span className="text-sm font-black text-emerald-500 dark:text-emerald-400">{liveOperations.sync_success_rate_today}</span>
                     ) : (
-                        <span className="text-sm font-bold text-muted-foreground">No sync activity</span>
+                        <span className="text-sm font-bold text-muted-foreground">No activity</span>
                     )}
                 </div>
             </div>

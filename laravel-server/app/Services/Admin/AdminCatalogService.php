@@ -109,21 +109,35 @@ class AdminCatalogService
         ];
     }
 
-    public function standardizeCatalog()
+    public function standardizeCatalog(bool $dryRun = false, ?string $storeId = null)
     {
-        $updatedCount = 0;
+        $blankGeneric = fn () => Product::query()
+            ->when($storeId, fn ($q) => $q->where('store_id', $storeId))
+            ->where(fn ($q) => $q->whereNull('generic_name')->orWhere('generic_name', ''));
 
-        $updatedCount += Product::where(function ($q) {
-            $q->whereNull('generic_name')->orWhere('generic_name', '');
-        })->update(['generic_name' => 'General']);
+        $blankManufacturer = fn () => Product::query()
+            ->when($storeId, fn ($q) => $q->where('store_id', $storeId))
+            ->where(fn ($q) => $q->whereNull('manufacturer')->orWhere('manufacturer', ''));
 
-        $updatedCount += Product::where(function ($q) {
-            $q->whereNull('manufacturer')->orWhere('manufacturer', '');
-        })->update(['manufacturer' => 'Unknown']);
+        if ($dryRun) {
+            $count = $blankGeneric()->count() + $blankManufacturer()->count();
+
+            return [
+                'count' => $count,
+                'dry_run' => true,
+                'store_id' => $storeId,
+                'message' => "{$count} blank catalog fields would be backfilled. Nothing was written.",
+            ];
+        }
+
+        $count = $blankGeneric()->update(['generic_name' => 'General'])
+            + $blankManufacturer()->update(['manufacturer' => 'Unknown']);
 
         return [
-            'count' => $updatedCount,
-            'message' => "Successfully standardized {$updatedCount} catalog entries.",
+            'count' => $count,
+            'dry_run' => false,
+            'store_id' => $storeId,
+            'message' => "Backfilled {$count} blank catalog fields.",
         ];
     }
 

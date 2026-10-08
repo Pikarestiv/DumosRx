@@ -13,9 +13,6 @@ export function DeleteUserDialog({
   setSelectedUser,
   deleteMutation,
 }: BaseDialogProps & { deleteMutation: ReturnType<typeof useDeleteUserMutation> }) {
-  // This dialog is one row-menu click away and erases the user's stores,
-  // sales and products irreversibly, so a generic confirm button isn't enough:
-  // the admin has to type the account's email back before it unlocks.
   const [confirmEmail, setConfirmEmail] = useState("");
   const emailMatches =
     !!selectedUser?.email &&
@@ -30,8 +27,8 @@ export function DeleteUserDialog({
     if (!selectedUser || !emailMatches) return;
     deleteMutation.mutate(selectedUser.id, {
       onSuccess: () => {
-        toast.success("Account Deleted", {
-          description: `${selectedUser.name}'s account and all associated data have been permanently deleted.`,
+        toast.success("Account Archived", {
+          description: `${selectedUser.name}'s account and their stores were archived. The records are kept, not erased, and there is no one-click undo in the admin panel.`,
         });
         close();
         setSelectedUser(null);
@@ -56,18 +53,22 @@ export function DeleteUserDialog({
       }}
       icon={Trash2}
       tone="red"
-      title="Permanently Delete User?"
+      title="Delete User Account?"
       description={
         <>
-          Are you sure you want to permanently delete{" "}
+          Archives{" "}
           <span className="font-bold text-slate-900 dark:text-white">
             {selectedUser?.name}
           </span>
-          ? This action is irreversible and will erase all their associated
-          data, including stores, sales, and products.
+          &apos;s account and the stores they own, signing everyone out so
+          those stores stop syncing. The records are kept rather than
+          erased, but their email address becomes available for another
+          account to use, and there is no one-click undo in the admin panel.
+          To erase a store and its data for good, use Delete Forever on the
+          store itself.
         </>
       }
-      confirmLabel="Yes, Permanently Delete"
+      confirmLabel="Yes, Delete Account"
       isPending={deleteMutation.isPending}
       confirmDisabled={!emailMatches}
       onConfirm={handleDelete}

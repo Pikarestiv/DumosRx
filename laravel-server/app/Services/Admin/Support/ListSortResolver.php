@@ -2,11 +2,9 @@
 
 namespace App\Services\Admin\Support;
 
-/**
- * @return list<string>
- */
 class ListSortResolver
 {
+    /** @return list<string> */
     public static function storeColumns(mixed $sort): array
     {
         return match ($sort) {
@@ -18,6 +16,7 @@ class ListSortResolver
         };
     }
 
+    /** @return list<string> */
     public static function userColumns(mixed $sort): array
     {
         return match ($sort) {

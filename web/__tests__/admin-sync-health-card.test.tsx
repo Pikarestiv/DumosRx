@@ -24,7 +24,7 @@ describe("SyncHealthCard", () => {
       />,
     );
 
-    expect(screen.getAllByText(/no sync activity/i)).toHaveLength(2);
+    expect(screen.getAllByText(/no activity/i)).toHaveLength(2);
     expect(screen.queryByText("0%")).toBeNull();
   });
 
@@ -69,6 +69,6 @@ describe("SyncHealthCard", () => {
   it("does not crash when the payload is missing entirely", () => {
     render(<SyncHealthCard data={undefined} isLoading={false} />);
 
-    expect(screen.getAllByText(/no sync activity/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/no activity/i).length).toBeGreaterThan(0);
   });
 });

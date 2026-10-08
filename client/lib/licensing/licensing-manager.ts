@@ -4,6 +4,7 @@
  */
 
 import { getStoreProfile, updateStoreMonotonicTime } from "@/lib/db/queries/setup";
+import { readServerClock, describeDrift } from "./server-clock";
 
 const LICENSE_TIERS = ["free", "local", "pro", "enterprise"] as const;
 export type LicenseTier = (typeof LICENSE_TIERS)[number];
@@ -30,6 +31,10 @@ export interface LicenseInfo {
   isSuspended: boolean;
   isTrial?: boolean;
   message?: string;
+  /** Populated only on the clock-tampered branch, for the lock screen's
+   * technical details. */
+  monotonicWatermark?: string;
+  localTime?: string;
 }
 
 export async function checkLicenseStatus(): Promise<LicenseInfo> {
@@ -57,13 +62,15 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
   // 1. Check for clock tampering
   // If current time is earlier than the last recorded action time, someone rolled back the clock.
   if (profile.last_monotonic_time && nowIso < profile.last_monotonic_time) {
-    return { 
-      isValid: false, 
-      tier: toLicenseTier(profile.subscription_tier), 
-      expiryDate: null, 
+    return {
+      isValid: false,
+      tier: toLicenseTier(profile.subscription_tier),
+      expiryDate: null,
       isClockTampered: true,
       isSuspended: false,
-      message: "System clock discrepancy detected. Please ensure your computer date is correct and sync online."
+      monotonicWatermark: profile.last_monotonic_time,
+      localTime: nowIso,
+      message: "System clock discrepancy detected. Connect to the internet and press Check Again — this can only be cleared online.",
     };
   }
 
@@ -129,3 +136,52 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
   }
 }
 
+/**
+ * Clears a clock lock, but only against authoritative server time.
+ *
+ * A device whose wall clock ran fast wrote that future time into
+ * `last_monotonic_time`, so correcting the clock makes every later check read
+ * as a rollback and the device locks out permanently (docs/KNOWN_BUGS.md
+ * A-191). The watermark is device-local: the pull strips it and a factory
+ * reset preserves it, so nothing else can repair it.
+ *
+ * This is the only route out, and it is deliberately online-only — the store
+ * owner is the party the backdating check exists to stop, so an offline
+ * override would hand the escape hatch to the adversary. Returns true when the
+ * watermark was reset. See
+ * docs/superpowers/specs/2026-10-08-license-clock-recovery-design.md.
+ */
+export async function reconcileClockWithServer(): Promise<
+  { reconciled: boolean; reason: string }
+> {
+  const profile = await getStoreProfile();
+  if (!profile) return { reconciled: false, reason: "No store profile on this device." };
+
+  if (!profile.last_monotonic_time) {
+    return { reconciled: false, reason: "No clock watermark recorded." };
+  }
+
+  const reading = await readServerClock();
+  if (!reading) {
+    return {
+      reconciled: false,
+      reason: "Could not reach our servers to confirm the time. Connect to the internet and try again.",
+    };
+  }
+
+  if (!reading.agrees) {
+    return {
+      reconciled: false,
+      reason: `This device's clock is ${describeDrift(reading.driftMs)}. Correct the date and time, then try again.`,
+    };
+  }
+
+  const serverNowIso = reading.serverNow.toISOString();
+  if (serverNowIso >= profile.last_monotonic_time) {
+    return { reconciled: false, reason: "The clock watermark is not ahead of server time." };
+  }
+
+  await updateStoreMonotonicTime(profile.id, serverNowIso);
+
+  return { reconciled: true, reason: "Clock verified against our servers." };
+}

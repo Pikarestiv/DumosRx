@@ -227,6 +227,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
   const [license, setLicense] = useState<LicenseInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [deviceId, setDeviceId] = useState("DUMOS-OFFLINE-772X");
+  const [clockNotice, setClockNotice] = useState<string | null>(null);
   // Bumped at the start of every performCheck() run so an overlapping
   // earlier run (e.g. a storeProfile change firing again while a prior
   // run's sync-timeout race is still resolving) can tell it's stale once it
@@ -243,6 +244,16 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
 
     if (options.refreshFromCloud && typeof window !== "undefined" && navigator.onLine) {
       setLoading(true);
+      // Only route out of a clock lock, and deliberately online-only: the
+      // watermark is device-local, so neither sync nor a factory reset can
+      // repair it (A-191).
+      try {
+        const { reconcileClockWithServer } = await import("@/lib/licensing/licensing-manager");
+        const outcome = await reconcileClockWithServer();
+        setClockNotice(outcome.reconciled ? null : outcome.reason);
+      } catch (e) {
+        console.error("[LicenseGuard] Clock reconciliation failed:", e);
+      }
       try {
         const { sync } = await import("@/lib/db/sync-engine");
         await Promise.race([
@@ -375,6 +386,16 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
             {license?.expiryDate && (
               <p>Last Valid Date: {formatDateToDDMMYYYY(license.expiryDate)}</p>
             )}
+            {license?.isClockTampered && license?.localTime && (
+              <p>This device reads: {new Date(license.localTime).toLocaleString("en-GB")}</p>
+            )}
+            {license?.isClockTampered && license?.monotonicWatermark && (
+              <p>
+                Last recorded activity:{" "}
+                {new Date(license.monotonicWatermark).toLocaleString("en-GB")}
+              </p>
+            )}
+            {clockNotice && <p className="mt-2 text-destructive">{clockNotice}</p>}
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-2">

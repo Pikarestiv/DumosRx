@@ -570,11 +570,15 @@ unrecognized value returns `[]`, and the service falls back to `latest()`.
 - Stores: `name`, `created_at`, `status`, `total_revenue`.
 - Users: `name` (sorts by `first_name` then `last_name`), `email`,
   `created_at`, `last_login_at`, `role`.
-- **Deliberately excluded:** `plan`, `owner` (stores) and anything derived
-  only after the paginated query returns (e.g. a subscription lookup or a
-  computed display string). Sorting by one of these would only reorder the
-  10 rows already on the current page, not the full result set — silently
-  wrong instead of refused. `AdminListSortingTest::columns_computed_after_the_query_are_not_sortable`
+- **Deliberately excluded:** `plan` and `owner` (stores), `last_sync`
+  (users/staff), and anything else derived only after the paginated query
+  returns — `plan` comes from the owner's latest subscription in PHP, `owner`
+  is a concatenation across a relation, and `last_sync` comes from the
+  post-query `latestDevicePerUser()` lookup. Sorting by one of these would
+  only reorder the 10 rows already on the current page, not the full result
+  set — silently wrong instead of refused. Their headers render as plain,
+  non-interactive headers.
+  `AdminListSortingTest::columns_computed_after_the_query_are_not_sortable`
   pins this for `plan`.
 - `ListSortResolver::direction()` accepts only an exact lowercase `asc`;
   anything else, including `ASC` or `Ascending`, defaults to `desc`. The
@@ -584,9 +588,13 @@ unrecognized value returns `[]`, and the service falls back to `latest()`.
   explicit-sort branch — the `latest()` fallback is untouched. `status`
   (stores) and `role` (users) are low-cardinality; without the tiebreaker,
   two independent LIMIT/OFFSET pages over a tie-heavy sort could return the
-  same row twice and skip another entirely. Pinned by
+  same row twice and skip another entirely.
   `AdminListSortingTest::store_pagination_is_stable_under_a_tie_heavy_status_sort`
-  and `::user_pagination_is_stable_under_a_tie_heavy_role_sort`.
+  and `::user_pagination_is_stable_under_a_tie_heavy_role_sort` describe this,
+  but **do not currently protect it**: the suite runs SQLite `:memory:`, which
+  returns tied rows in a deterministic rowid order, so both tests still pass
+  with the tiebreaker lines removed (verified). Keep the tiebreaker regardless
+  — MySQL gives no such guarantee. See the entry in `docs/KNOWN_BUGS.md`.
 
 **`StoreListFilters`/`UserListFilters`** (`app/Services/Admin/Filters/`) exist
 because `getStores()`/`getGlobalUsers()` were already at the limit of a

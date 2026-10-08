@@ -10,6 +10,8 @@ use App\Models\Store;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Services\Admin\Concerns\ResolvesTrialDuration;
+use App\Services\Admin\Filters\StoreListFilters;
+use App\Services\Admin\Support\ListSortResolver;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -100,7 +102,7 @@ class AdminStoreService
             });
     }
 
-    public function getStores($page = 1, $search = null, $status = null, $plan = null, $archived = 'active', bool $includeRevenue = false)
+    public function getStores(StoreListFilters $filters)
     {
         // Correlated subquery instead of a plain withSum('sales', ...), for
         // two reasons:
@@ -123,41 +125,58 @@ class AdminStoreService
         $query = Store::with(['user.subscriptions', 'user.accountManager', 'user.registeredBy'])
             ->addSelect(['total_revenue' => self::revenueSubquery()]);
 
-        if ($archived === 'only') {
+        if ($filters->archived === 'only') {
             $query->onlyTrashed();
-        } elseif ($archived === 'all') {
+        } elseif ($filters->archived === 'all') {
             $query->withTrashed();
         }
 
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('id', 'like', "%{$search}%")
-                    ->orWhere('device_id', 'like', "%{$search}%")
-                    ->orWhereHas('user', function ($uq) use ($search) {
-                        $uq->where('first_name', 'like', "%{$search}%")
-                            ->orWhere('last_name', 'like', "%{$search}%")
-                            ->orWhere('email', 'like', "%{$search}%");
+        if ($filters->demo === 'only') {
+            $query->where('is_demo', true);
+        } elseif ($filters->demo === 'exclude') {
+            $query->where('is_demo', false);
+        }
+
+        if ($filters->search) {
+            $query->where(function ($q) use ($filters) {
+                $q->where('name', 'like', "%{$filters->search}%")
+                    ->orWhere('id', 'like', "%{$filters->search}%")
+                    ->orWhere('device_id', 'like', "%{$filters->search}%")
+                    ->orWhereHas('user', function ($uq) use ($filters) {
+                        $uq->where('first_name', 'like', "%{$filters->search}%")
+                            ->orWhere('last_name', 'like', "%{$filters->search}%")
+                            ->orWhere('email', 'like', "%{$filters->search}%");
                     });
             });
         }
 
-        if ($status && $status !== 'all') {
-            $query->whereRaw('LOWER(COALESCE(status, ?)) = ?', ['', strtolower($status)]);
+        if ($filters->status && $filters->status !== 'all') {
+            $query->whereRaw('LOWER(COALESCE(status, ?)) = ?', ['', strtolower($filters->status)]);
         }
 
-        if ($plan && $plan !== 'all') {
-            $query->whereHas('user.subscriptions', function ($sq) use ($plan) {
+        if ($filters->plan && $filters->plan !== 'all') {
+            $query->whereHas('user.subscriptions', function ($sq) use ($filters) {
                 $sq->where('status', 'active')
                     ->where('end_date', '>', now())
-                    ->where('plan_name', $plan);
+                    ->where('plan_name', $filters->plan);
             });
         }
 
-        $paginator = $query->latest()->paginate(10, ['*'], 'page', $page);
+        $sortColumns = ListSortResolver::storeColumns($filters->sort);
+
+        if ($sortColumns === []) {
+            $query->latest();
+        } else {
+            $direction = ListSortResolver::direction($filters->direction);
+            foreach ($sortColumns as $column) {
+                $query->orderBy($column, $direction);
+            }
+        }
+
+        $paginator = $query->paginate(10, ['*'], 'page', $filters->page);
 
         return [
-            'data' => collect($paginator->items())->map(function ($store) use ($includeRevenue) {
+            'data' => collect($paginator->items())->map(function ($store) use ($filters) {
                 $plan = 'free';
                 if ($store->user && $store->user->subscriptions->isNotEmpty()) {
                     $sub = $store->user->subscriptions->sortByDesc('created_at')->first();
@@ -190,7 +209,7 @@ class AdminStoreService
                     'account_manager_is_explicit' => (bool) ($store->user?->account_manager_id),
                 ];
 
-                if ($includeRevenue) {
+                if ($filters->includeRevenue) {
                     $payload['revenue'] = '₦'.number_format($store->total_revenue ?? 0);
                 }
 

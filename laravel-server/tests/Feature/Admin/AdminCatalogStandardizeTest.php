@@ -161,7 +161,9 @@ class AdminCatalogStandardizeTest extends TestCase
             ->assertJsonPath('store_id', $this->storeA->id);
 
         $this->assertSame('General', $inScope->fresh()->generic_name);
+        $this->assertSame('Unknown', $inScope->fresh()->manufacturer);
         $this->assertNull($outOfScope->fresh()->generic_name);
+        $this->assertSame('', $outOfScope->fresh()->manufacturer);
     }
 
     #[Test]
@@ -175,7 +177,9 @@ class AdminCatalogStandardizeTest extends TestCase
             ->assertOk();
 
         $this->assertSame('General', $a->fresh()->generic_name);
+        $this->assertSame('Unknown', $a->fresh()->manufacturer);
         $this->assertSame('General', $b->fresh()->generic_name);
+        $this->assertSame('Unknown', $b->fresh()->manufacturer);
     }
 
     #[Test]

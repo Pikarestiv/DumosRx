@@ -5,6 +5,7 @@
 
 import { getStoreProfile, updateStoreMonotonicTime } from "@/lib/db/queries/setup";
 import { readServerClock, describeDrift } from "./server-clock";
+import { boundedNowIso } from "./monotonic-clock";
 
 const LICENSE_TIERS = ["free", "local", "pro", "enterprise"] as const;
 export type LicenseTier = (typeof LICENSE_TIERS)[number];
@@ -74,8 +75,9 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
     };
   }
 
-  // 2. Update monotonic time for next check
-  await updateStoreMonotonicTime(profile.id, nowIso);
+  // 2. Update monotonic time for next check, forward-bounded so a wall clock
+  // that leaps cannot poison the watermark and lock the device out (A-191).
+  await updateStoreMonotonicTime(profile.id, boundedNowIso());
 
   // 3. Free tier is always valid if there's no license token
   if ((!profile.subscription_tier || profile.subscription_tier === "free") && !profile.license_token) {

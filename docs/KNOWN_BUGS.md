@@ -10,14 +10,6 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
-#### A-191. `client/` — a clock that runs fast locks a store out of its own POS permanently, with no recovery path
-- **Found:** 2026-10-08, same incident as A-190.
-- **Location:** `client/lib/licensing/licensing-manager.ts` (the monotonic check and `updateStoreMonotonicTime`), `client/components/auth/license-guard.tsx` (`performCheck`).
-- **What's wrong:** while a device's clock is fast, every `checkLicenseStatus()` writes that future time into `stores.last_monotonic_time`. Correcting the clock then makes `nowIso < last_monotonic_time`, which the guard reads as a deliberate rollback and hard-locks on. Nothing clears it: "Check Again" only re-runs the same purely local comparison (no server time is ever consulted), the pull strips `last_monotonic_time` via `DEVICE_LOCAL_PULL_COLUMNS` so the server cannot correct it, and `stores` is absent from `LOCAL_WIPE_TABLES` so a factory reset preserves it. The device stays locked until real time passes the watermark — however many hours the clock had jumped.
-- **Consequence:** a shop cannot sell. Observed on a live store's laptop. The anti-backdating behaviour is correct for its threat model; the gap is that it cannot tell a broken clock from an attack and offers no way back.
-- **Not yet fixed — needs explicit instruction** per `.agents/AGENTS.md` §8 (do not alter the `LicenseGuard` anti-backdating logic without it). Design proposed in `docs/superpowers/specs/2026-10-08-license-clock-recovery-design.md`: reconcile against the server's `server_timestamp` on "Check Again", and bound how far ahead a watermark may be written. Clearing a clock lock requires online access by design — there is deliberately no offline override, since the store owner is the party a backdating check exists to stop.
-- **Workaround today:** wait until real time passes the watermark (it is frozen, not still climbing — the tamper branch returns before the write), or restore a `.drx` backup taken before the clock skewed.
-
 #### A-189. `laravel-server/` — 5,088 products across two tenants reference each other's `categories` rows, so their category can never reach any device
 - **Found:** 2026-10-08, investigating a store reporting "duplicates" and a catalogue that showed `UNCATEGORIZED` on 98.6% of products even after a factory reset and a clean re-sync.
 - **Location:** `categories.store_id` / `products.category_id` data, plus `SyncController::pull()`'s `'categories' => $query->whereIn('store_id', $storeIds)` scoping.

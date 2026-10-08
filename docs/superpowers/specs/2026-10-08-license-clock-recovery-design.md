@@ -1,7 +1,7 @@
 # License clock-discrepancy recovery — design
 
 **Date:** 2026-10-08
-**Status:** §1 and §4 implemented 2026-10-08; §2 outstanding
+**Status:** implemented 2026-10-08 (§1, §2, §4). §3's superadmin exception deferred to the admin-login work.
 **Touches:** `client/lib/licensing/licensing-manager.ts`, `client/components/auth/license-guard.tsx`, `laravel-server` (a time endpoint or an existing response header)
 
 > `.agents/AGENTS.md` §8 forbids altering the `LicenseGuard` anti-backdating
@@ -154,10 +154,14 @@ Shipped:
 - Tests: `client/__tests__/license-clock-reconciliation.test.ts` (5 cases,
   including the offline-stays-locked and clock-still-wrong guards).
 
-Still outstanding — **§2, bounding the watermark on write.** This is the half
-that prevents a device reaching the locked state at all, and it is the harder
-one: a purely local forward bound cannot distinguish a clock that jumped from a
-device that was legitimately switched off for a week. The approach to try is a
-monotonic reference (`performance.now()`) captured alongside server time at each
-sync, so elapsed time can be measured without trusting the wall clock within a
-session. Not attempted yet.
+§2 shipped as `client/lib/licensing/monotonic-clock.ts`. `boundedWallClock()`
+projects forward from an anchor using `performance.now()` and clamps any wall
+clock that outruns it; `readServerClock()` re-anchors to authoritative server
+time on every successful read. A device legitimately switched off for a week is
+not clamped, because its monotonic clock advanced with it.
+
+One bug was caught by the tests during implementation: the first version
+re-anchored to the ceiling (which already included `MAX_FORWARD_DRIFT_MS`), so
+each clamped write added another five minutes and a persistently fast clock
+re-poisoned the watermark by degrees. It now anchors and returns the projected
+value, so the slack governs only *when* to clamp.

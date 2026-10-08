@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "@/lib/constants";
+import { anchorClock } from "./monotonic-clock";
 
 /**
  * Tolerance for "this device's clock agrees with the server". Wide enough to
@@ -44,6 +45,8 @@ export async function readServerClock(): Promise<ServerClockReading | null> {
 
     const localNow = new Date();
     const driftMs = localNow.getTime() - serverNow.getTime();
+
+    anchorClock(serverNow.getTime());
 
     return {
       serverNow,

@@ -352,13 +352,24 @@ erroring.
 Allow-listed columns, chosen as the ones backed by a real column or an
 existing select expression:
 
-- **Stores:** name, created_at, status, plan, total_revenue (already an
+- **Stores:** name, created_at, status, total_revenue (already an
   `addSelect` subquery, so it is sortable without new joins)
-- **Users:** name, email, created_at, last_login_at, role
+- **Users:** email, created_at, last_login_at, role, and name via
+  `first_name`/`last_name` (two columns, ordered in that order)
 
-`last_sync` is deliberately not sortable: it comes from a post-query
-per-row device lookup, not from the paginated query, so sorting by it would
-sort only the current page and read as broken.
+Three visible columns are deliberately **not** sortable, because each is
+computed after the paginated query returns and sorting by it would reorder
+only the current page — which reads as broken rather than as unsupported:
+
+- `plan` on stores — derived in PHP from the owner's latest subscription
+  (`AdminStoreService.php:161`), not a column on `stores`
+- `owner` on stores — a `first_name`/`last_name` concatenation across the
+  `user` relation; sortable only by adding a join or correlated subselect
+- `last_sync` on users/staff — comes from the post-query
+  `latestDevicePerUser()` lookup, not from the paginated query
+
+Their headers render as plain, non-interactive headers. A header that looks
+sortable and sorts one page is worse than one that does not offer it.
 
 Sort state resets to page 1 on change and is held alongside the existing
 filter state.

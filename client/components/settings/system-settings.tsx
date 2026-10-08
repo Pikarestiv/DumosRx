@@ -11,7 +11,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
-import { APP_NAME, APP_VERSION, SUPPORT_EMAIL } from "@/lib/constants";
+import { APP_NAME, APP_VERSION, BUILD_SHA, SUPPORT_EMAIL } from "@/lib/constants";
 import { isTauri } from "@/lib/db/core";
 import Link from "next/link";
 import { IosInstallCard } from "./ios-install-card";
@@ -64,6 +64,13 @@ export function SystemSettings() {
               Application Version
             </Label>
             <p className="text-sm font-medium">{APP_VERSION}</p>
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <Label className="text-muted-foreground font-normal">Build</Label>
+            <p className="text-sm font-mono font-medium select-all">{BUILD_SHA}</p>
           </div>
 
           <Separator />

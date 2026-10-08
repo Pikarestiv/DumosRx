@@ -51,6 +51,7 @@ jobs:
           NEXT_PUBLIC_API_URL: https://api.dumosrx.com/api/v1
           NEXT_PUBLIC_SENTRY_DSN: https://8be353a77abf446cb9f6a52e08fb89b3@o4511910923796480.ingest.us.sentry.io/4511910931464192
           NEXT_PUBLIC_SENTRY_ENVIRONMENT: production
+          NEXT_PUBLIC_BUILD_SHA: ${{ github.sha }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
       - name: 📂 Sync files

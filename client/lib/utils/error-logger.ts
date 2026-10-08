@@ -3,7 +3,7 @@
  */
 
 import * as Sentry from "@sentry/nextjs";
-import { SYSTEM_EMAIL } from "@/lib/constants";
+import { SYSTEM_EMAIL, BUILD_SHA } from "@/lib/constants";
 import { getDeviceId } from "@/lib/utils/device-id";
 import { getDeviceLabel } from "@/lib/utils/device-label";
 import {
@@ -200,6 +200,7 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
         fatal: String(isFatal),
         device_id: deviceId,
         device_name: deviceLabel,
+        build_sha: BUILD_SHA,
         area: context.area,
       },
       extra: { url: info.url, userAgent: info.userAgent, ...context },
@@ -226,7 +227,7 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
         context.area ? `client-crash/${context.area}` : "client-crash",
         isFatal ? 500 : 200,
         message,
-        { stack, deviceId, deviceLabel, isFatal, ...context },
+        { stack, deviceId, deviceLabel, buildSha: BUILD_SHA, isFatal, ...context },
         apiClient.getBaseURL(),
         getAuthToken(),
       );

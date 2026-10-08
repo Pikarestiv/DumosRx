@@ -3,12 +3,6 @@
 namespace App\Services\Admin\Support;
 
 /**
- * Turns a request's `sort`/`direction` pair into real column names. The
- * match arms ARE the allow-list: an unrecognised key returns no columns and
- * the caller keeps its default ordering, so no request value can reach
- * orderBy(). See docs/superpowers/specs/2026-10-08-admin-panel-improvements-design.md
- * for which visible columns are deliberately absent and why.
- *
  * @return list<string>
  */
 class ListSortResolver

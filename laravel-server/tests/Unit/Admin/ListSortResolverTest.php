@@ -48,6 +48,8 @@ class ListSortResolverTest extends TestCase
             str_repeat('a', 10000),
             '',
             null,
+            ['name'],
+            ['name' => 'asc'],
         ];
 
         foreach ($hostile as $value) {

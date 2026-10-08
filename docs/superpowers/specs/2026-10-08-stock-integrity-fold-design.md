@@ -1,7 +1,7 @@
 # Stock integrity: divergence detection and fold-from-scratch — design
 
 **Date:** 2026-10-08
-**Status:** phase 1 shipped — **detection only, no writes and no interlock**. The Health Sync interlock was built and then withdrawn before merge (see §4). Phase 2 (`foldStockQuantities()`) not started.
+**Status:** phase 1 and phase 2 shipped. The Health Sync interlock was built and withdrawn before merge (see §4); `foldStockQuantities()` is support-triggered only, never automatic.
 **Scope:** `client/` only. No server change, no admin surface.
 **Related:** `docs/KNOWN_BUGS.md` A-176 · `docs/FIXED_BUGS.md` A-148, A-173, A-191
 
@@ -254,3 +254,30 @@ correct at 46,097) is measured and reproducible.
    data, then verify against `DRX-Y8UK10GC3` (+213 units, server known correct
    at 46,097).
 4. Open questions 2 and 3 remain open and want the same fleet data.
+
+## Phase 2 notes (2026-10-09)
+
+`foldStockQuantities()` rebuilds each `diverged` batch's quantity from the sum
+of its own movements, applying the same `MAX(0, …)` floor the pull's delta path
+uses. `unreconstructable` batches are refused and returned by id, never folded.
+
+- **Local-only and not queued.** The server derives `stock_batches.quantity`
+  from movement deltas and ignores a pushed value, so there is nothing to send.
+  The fold writes no `sync_reconciliation` movement either: it is not a claim
+  about the truth, it is this device catching up to a log it already holds.
+- **Unsynced work survives**, which is what makes this safe where a factory
+  reset is not. A sale rung on this device and not yet pushed is already a
+  local movement row, so it is in the sum. Pinned by a test that queues one and
+  asserts both the quantity and that the queue entry is untouched.
+- **Triggering stays manual.** `window.__foldStockQuantities()` for a support
+  session, and a confirm-gated action in the diagnostics console, which is
+  itself only reachable during a superadmin handoff. Not wired into
+  `checkSyncHealth()`: the detection data the rollout plan called for does not
+  exist yet, and an automatic write to stock numbers should not go out ahead of
+  it.
+- Coverage: `client/__tests__/stock-integrity-fold.test.ts` (8 cases, including
+  idempotence, the floor, the unsynced-sale property, and that it writes no
+  movements of its own).
+
+Open question 2 from above is now answered in practice: `unreconstructable`
+batches stay reported-only, and the console names them so a human can decide.

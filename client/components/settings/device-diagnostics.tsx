@@ -3,9 +3,11 @@
 import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Copy, RefreshCw } from "lucide-react";
+import { Copy, RefreshCw, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { foldStockQuantities } from "@/lib/db/sync-engine/stock-integrity";
 import { collectDeviceDiagnostics } from "@/lib/db/queries/diagnostics";
 import type { DeviceDiagnostics } from "@/lib/db/queries/diagnostics";
 import { useStore } from "@/lib/context/store-context";
@@ -81,6 +83,7 @@ function buildReport(
 export function DeviceDiagnosticsPanel() {
   const { storeProfile } = useStore();
   const [copied, setCopied] = useState(false);
+  const [showFoldConfirm, setShowFoldConfirm] = useState(false);
 
   const { data, isFetching, refetch } = useQuery({
     queryKey: ["device-diagnostics"],
@@ -229,8 +232,44 @@ export function DeviceDiagnosticsPanel() {
               <Row label="Stock updates not yet applied" value={data.pendingDeltas.length} />
             </>
           )}
+          {data && data.integrity.diverged > 0 && (
+            <div className="pt-3">
+              <Button variant="outline" size="sm" onClick={() => setShowFoldConfirm(true)}>
+                <Wrench className="h-4 w-4 mr-2" />
+                Rebuild {data.integrity.diverged} batch
+                {data.integrity.diverged === 1 ? "" : "es"} from history
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={showFoldConfirm}
+        onOpenChange={setShowFoldConfirm}
+        title="Rebuild stock from movement history"
+        description={
+          data
+            ? `Sets ${data.integrity.diverged} batch(es) back to the sum of their own stock movements, on this device only. Nothing is sent to the cloud, and the ${data.integrity.unreconstructable} batch(es) with no movement behind them are left untouched.`
+            : ""
+        }
+        confirmLabel="Rebuild"
+        onConfirm={async () => {
+          try {
+            const result = await foldStockQuantities();
+            toast.success(
+              `Rebuilt ${result.folded} batch(es), correcting ${result.unitsCorrected} unit(s).` +
+                (result.refused > 0 ? ` ${result.refused} left untouched.` : ""),
+            );
+            await refetch();
+          } catch (error) {
+            toast.error(
+              error instanceof Error ? error.message : "Could not rebuild stock.",
+            );
+          }
+          setShowFoldConfirm(false);
+        }}
+      />
 
       <Card className={CARD}>
         <CardHeader>

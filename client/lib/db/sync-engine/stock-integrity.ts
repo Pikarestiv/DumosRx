@@ -1,4 +1,4 @@
-import { query, getActiveStoreId } from "../core";
+import { query, execute, transaction, getActiveStoreId } from "../core";
 
 /**
  * Divergence between a batch's stored `quantity` and the sum of its own
@@ -140,4 +140,56 @@ export function summarizeIntegrity(report: StockIntegrityReport): Record<string,
     unreconstructable: report.unreconstructable,
     netUnitDelta: report.netUnitDelta,
   };
+}
+
+export interface FoldResult {
+  folded: number;
+  refused: number;
+  unitsCorrected: number;
+  refusedBatchIds: string[];
+}
+
+/**
+ * Rebuilds each diverged batch's `quantity` from its own movement log.
+ *
+ * The log is the authority: `stock_movements` is append-only and never
+ * pruned, and it already includes anything this device created but has not
+ * pushed, so a fold cannot discard unsynced work the way a factory reset
+ * can. `unreconstructable` batches are refused, never folded — computing 0
+ * for a batch whose opening stock was never recorded would destroy the only
+ * record of it (A-148).
+ *
+ * Local-only and deliberately not queued: the server derives
+ * `stock_batches.quantity` from movement deltas and ignores a pushed value,
+ * so there is nothing to send. This brings the device back in line with a
+ * log it already holds; it is not a claim about the truth, which is why it
+ * writes no `sync_reconciliation` movement.
+ */
+export async function foldStockQuantities(): Promise<FoldResult> {
+  const report = await verifyStockIntegrity();
+
+  const result: FoldResult = {
+    folded: 0,
+    refused: report.unreconstructable,
+    unitsCorrected: 0,
+    refusedBatchIds: report.unreconstructableBatches.map((batch) => batch.batchId),
+  };
+
+  if (report.divergedBatches.length === 0) return result;
+
+  await transaction(async () => {
+    for (const batch of report.divergedBatches) {
+      // Same floor the pull's delta path applies, so an oversell floored on
+      // the originating device does not diverge again here.
+      const corrected = Math.max(0, batch.movementQuantity);
+      await execute("UPDATE stock_batches SET quantity = ? WHERE id = ?", [
+        corrected,
+        batch.batchId,
+      ]);
+      result.folded++;
+      result.unitsCorrected += Math.abs(batch.batchQuantity - corrected);
+    }
+  });
+
+  return result;
 }

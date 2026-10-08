@@ -5,7 +5,7 @@ import { apiClient } from "@/lib/api/client";
 import { queryClient } from "@/lib/query-client";
 import { query, execute, isTauri, isWriterTab } from "../core";
 import { reconcileStockQuantities as reconcileStockQuantitiesImpl } from "./reconcile-quantities";
-import { verifyStockIntegrity } from "./stock-integrity";
+import { verifyStockIntegrity, foldStockQuantities } from "./stock-integrity";
 import { getValidColumns } from "./schema";
 import { getSyncQueueBreakdown } from "@/lib/db/queries/setup";
 import { pruneSyncedAuditLogs } from "../retention";
@@ -70,6 +70,7 @@ if (typeof window !== "undefined") {
   window.__forceFullResync = forceFullResync;
   window.__reconcileStockQuantities = reconcileStockQuantities;
   window.__verifyStockIntegrity = verifyStockIntegrity;
+  window.__foldStockQuantities = foldStockQuantities;
 }
 
 /**

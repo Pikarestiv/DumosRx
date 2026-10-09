@@ -61,6 +61,20 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(30)->by($request->ip());
         });
 
+        // On-till admin inspection login. Every key carries the IP because
+        // device_id and email are attacker-controlled: rotating a device_id
+        // per request would otherwise defeat the limit entirely. See
+        // docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md.
+        RateLimiter::for('till-session', function (Request $request) {
+            $email = $request->input('email');
+
+            return [
+                Limit::perMinute(10)->by($request->ip()),
+                Limit::perMinute(5)->by($request->ip().'|'.$request->input('device_id')),
+                Limit::perMinute(10)->by(is_string($email) ? $email : 'anon'),
+            ];
+        });
+
         // Public storefront "start an online payment" step. Every call makes
         // an outbound transaction/initialize request to Paystack, so it needs
         // a ceiling even though it's unauthenticated - but a generous one: a

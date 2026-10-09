@@ -1132,6 +1132,58 @@ have reintroduced exactly this.
 The outer catch is `\Throwable`, not `\Exception`, on purpose: an `\Error`
 was previously uncaught, so the request died with no rollback and no record.
 
+## On-till admin inspection: why the credential is not a Sanctum token
+
+An admin standing at a store's own till signs in with their email plus a
+12-digit **till access code** (`admin_till_codes`) and gets a read-only
+inspection session (`admin_till_sessions`). Full design in
+`docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md`.
+
+`POST /api/v1/app/admin-till-session` returns an **opaque session id**, never a
+token. That is deliberate and must not be "simplified" back to Sanctum:
+
+- `AdminStoreController::restoreSession()` resolves a `PersonalAccessToken`
+  from the request **body** and never checks its abilities, then mints an
+  `admin-refresh` cookie for its owner. The public cookie-only
+  `/admin/session/refresh` turns that into a general-ability `web` token, and
+  the bearer on the request only has to satisfy `auth:sanctum` — which the
+  till's own `['*']` sync token does. `AuthHandoffController::create()` has the
+  same body-token pattern. So any narrowly-scoped Sanctum token read off a till
+  would launder into a durable full superadmin session. See `docs/KNOWN_BUGS.md`
+  A-199.
+- An opaque id is not a `PersonalAccessToken`, so `findToken()` never resolves
+  it and both laundering paths are dead by construction.
+- It is also less code: no `ability` middleware alias (which is **not**
+  registered in `bootstrap/app.php`), no global ability-reject middleware, no
+  Authorization override on the exit call, and the audit log gets its duration
+  free from `ended_at - started_at`.
+
+**Both routes are public and throttled.** `end` is unauthenticated on purpose:
+the opaque id is the proof, ending a session can only ever reduce access, and
+it always returns 200 so a replayed or unknown id reveals nothing.
+
+**Uniform rejection.** Every failure returns exactly
+`401 {"error": "Wrong password."}` — wrong code, unknown email, non-admin,
+revoked code, missing or malformed field. The controller deliberately does
+**not** use `$request->validate()`, because a 422 on an over-long code is
+itself a signal, and it uses `is_string()` rather than a `(string)` cast so an
+array input cannot raise a 500. `verify()` always performs exactly
+`EQUALIZED_CHECKS` (3) bcrypt comparisons against a dummy hash built at the
+app's own cost, so response time never separates "no such admin" from "wrong
+code".
+
+**Three active codes is the maximum**, enforced at both issue paths, precisely
+because `EQUALIZED_CHECKS` bounds how many `verify()` will ever test — a fourth
+code would silently never work.
+
+**`scopeLive()` matches on `ended_at` only**, not `expires_at > now()`. A
+session that hit the 4-hour cap must still be closable or its audit duration
+is lost.
+
+The session authorises nothing on the server: after `create`, the only request
+carrying the id is `end`. Nothing heavier should be hung off it without first
+giving the server a way to verify it on every call.
+
 ## Sync commands: acting on a device (stuck-data Phase 4)
 
 `SyncCommandService` is the only thing in the system that lets an operator act

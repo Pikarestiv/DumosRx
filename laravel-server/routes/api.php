@@ -60,6 +60,10 @@ Route::prefix('v1')->group(function () {
     // Own (more generous) limiter: one impersonation round trip is already 6
     // handoff calls from a single IP, which the 5/min `auth` limiter would
     // starve. See the 'handoff' limiter in AppServiceProvider.
+    Route::middleware('throttle:till-session')->group(function () {
+        Route::post('/app/admin-till-session', [\App\Http\Controllers\Api\App\AdminTillSessionController::class, 'create']);
+        Route::post('/app/admin-till-session/end', [\App\Http\Controllers\Api\App\AdminTillSessionController::class, 'end']);
+    });
     Route::middleware('throttle:handoff')->group(function () {
         Route::post('/auth/handoff', [AuthHandoffController::class, 'create']);
         Route::post('/auth/handoff/consume', [AuthHandoffController::class, 'consume']);

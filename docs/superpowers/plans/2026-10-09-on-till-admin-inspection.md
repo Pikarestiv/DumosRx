@@ -10,6 +10,13 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md`
 
+**One secret, one screen.** The admin types their email and their 12-digit till
+access code into the *same* form, as the two fields that form already has
+(identifier + PIN, with the PIN field widened to 12 digits). There is no second
+modal and no second code: the "till access code" and "the 12 digits from the
+admin panel" are the same single credential, generated at
+`/admin/settings` (Task 5) and typed once at the till.
+
 ## Global Constraints
 
 - Conventional Commits, **single sentence, no multiline body** (root `AGENTS.md` §10).
@@ -28,11 +35,11 @@
 
 Five things the spec implies that no task's happy path exercises. Each has its test added to the owning task.
 
-1. **A store owner signing in with their email while offline** must still log in locally and never reach the network (Task 6). This is the regression that would lock a store out of its own till.
-2. **An admin email that also exists as a local user** falls through to the ordinary PIN login, not the admin path (Task 6) — the documented constraint, pinned so it stays a known limit rather than a surprise.
+1. **A store owner signing in with their email while offline** must still log in locally and never reach the network (Task 8). This is the regression that would lock a store out of its own till.
+2. **An admin email that also exists as a local user** falls through to the ordinary PIN login, not the admin path (Task 8) — the documented constraint, pinned so it stays a known limit rather than a surprise.
 3. **A revoked or expired code** is rejected with the same body and status as a wrong one (Task 3), so the endpoint can't be used to enumerate admins.
-4. **An expired inspection session** stops being read as active and stops blocking writes (Task 5), so a stale `sessionStorage` entry can't leave a till permanently read-only.
-5. **Exiting the session leaves the staff session byte-identical** — `dumos_user`, active store id, auth token and PIN state unchanged (Task 7).
+4. **An expired inspection session** stops being read as active and stops blocking writes (Task 7), so a stale `sessionStorage` entry can't leave a till permanently read-only.
+5. **Exiting the session leaves the staff session byte-identical** — `dumos_user`, active store id, auth token and PIN state unchanged (Task 9).
 
 ---
 
@@ -61,7 +68,7 @@ Five things the spec implies that no task's happy path exercises. Each has its t
 - Modify `lib/constants/settings-tabs.ts` — fixes A-198.
 - Modify `client/AGENTS.md`; modify `docs/KNOWN_BUGS.md` / `docs/FIXED_BUGS.md` (A-198).
 
-Tasks 1–4 are server-side and independently shippable; the client cannot work without them, so build in order.
+Tasks 1–5 are server-side and independently shippable; the client cannot work without them, so build in order.
 
 ---
 
@@ -642,7 +649,222 @@ git commit -m "feat: mint a short-lived read-only inspection token from an admin
 
 ---
 
-### Task 4: Verify the server end-to-end before touching the client
+### Task 4: Till-code endpoints for the admin panel
+
+**Files:**
+- Modify: `laravel-server/app/Http/Controllers/Api/Admin/AdminUserController.php`
+- Modify: `laravel-server/routes/api.php`
+- Test: `laravel-server/tests/Feature/Admin/AdminTillCodeApiTest.php`
+
+**Interfaces:**
+- Consumes: `AdminTillCode` (Task 1), `IssueAdminTillCode::ELIGIBLE_ROLES` (Task 2).
+- Produces, all under the existing `permission:manage_platform` admin group:
+  - `GET /api/v1/admin/till-codes/mine` -> `{codes: [{id, label, last_used_at, created_at}]}` (never the hash)
+  - `POST /api/v1/admin/till-codes` taking `{label?}` -> `{id, code}` where `code` is the 12 digits, returned **once**
+  - `DELETE /api/v1/admin/till-codes/{id}` -> `{ok: true}`
+
+**Self-service only: an admin issues and revokes their own codes.** A code is a
+credential for acting as that admin, so no admin can mint one for anybody else
+and `admin_id` is always `$request->user()->id`, never taken from input.
+Super-admin revocation of someone else's code is deliberately deferred.
+
+The artisan command from Task 2 stays as the bootstrap path: the first code,
+and the way back in if the panel is unreachable.
+
+- [ ] **Step 1: Write the failing tests**
+
+```php
+public function test_an_admin_issues_a_code_for_themselves_and_sees_it_once(): void
+{
+    $admin = User::factory()->create(['role' => 'platform_admin']);
+
+    $response = $this->actingAs($admin)->postJson('/api/v1/admin/till-codes', ['label' => 'agidi']);
+
+    $response->assertOk()->assertJsonStructure(['id', 'code']);
+    $this->assertSame(12, strlen((string) $response->json('code')));
+
+    $listed = $this->actingAs($admin)->getJson('/api/v1/admin/till-codes/mine');
+    $listed->assertOk();
+    $this->assertSame('agidi', $listed->json('codes.0.label'));
+    $this->assertArrayNotHasKey('code_hash', $listed->json('codes.0'));
+    $this->assertArrayNotHasKey('code', $listed->json('codes.0'));
+}
+
+public function test_an_admin_cannot_mint_a_code_for_another_admin(): void
+{
+    $admin = User::factory()->create(['role' => 'platform_admin']);
+    $other = User::factory()->create(['role' => 'platform_admin']);
+
+    $this->actingAs($admin)->postJson('/api/v1/admin/till-codes', [
+        'label' => 'sneaky',
+        'admin_id' => $other->id,
+    ])->assertOk();
+
+    $this->assertSame(0, AdminTillCode::where('admin_id', $other->id)->count());
+    $this->assertSame(1, AdminTillCode::where('admin_id', $admin->id)->count());
+}
+
+public function test_listing_shows_only_the_callers_own_codes(): void
+{
+    $admin = User::factory()->create(['role' => 'platform_admin']);
+    $other = User::factory()->create(['role' => 'platform_admin']);
+    AdminTillCode::create(['admin_id' => $other->id, 'code_hash' => Hash::make('111111111111')]);
+
+    $this->actingAs($admin)->getJson('/api/v1/admin/till-codes/mine')
+        ->assertOk()
+        ->assertJsonCount(0, 'codes');
+}
+
+public function test_revoking_someone_elses_code_is_not_found(): void
+{
+    $admin = User::factory()->create(['role' => 'platform_admin']);
+    $other = User::factory()->create(['role' => 'platform_admin']);
+    $theirs = AdminTillCode::create(['admin_id' => $other->id, 'code_hash' => Hash::make('111111111111')]);
+
+    $this->actingAs($admin)->deleteJson("/api/v1/admin/till-codes/{$theirs->id}")
+        ->assertStatus(404);
+
+    $this->assertNull($theirs->fresh()->revoked_at);
+}
+
+public function test_a_store_owner_cannot_reach_these_routes(): void
+{
+    $owner = User::factory()->create(['role' => 'store_owner']);
+
+    $this->actingAs($owner)->postJson('/api/v1/admin/till-codes')->assertForbidden();
+}
+```
+
+- [ ] **Step 2: Run to verify they fail**
+
+Run: `cd laravel-server && php artisan test --filter=AdminTillCodeApiTest`
+Expected: FAIL - 404, the routes do not exist.
+
+- [ ] **Step 3: Add the controller methods**
+
+In `AdminUserController`, extracting the 12-digit generation into
+`AdminTillSessionService::generateCode(): string` so the command and the
+endpoint share one implementation (DRY; update Task 2's command to call it):
+
+```php
+public function myTillCodes(Request $request)
+{
+    $codes = AdminTillCode::active()
+        ->where('admin_id', $request->user()->id)
+        ->orderByDesc('created_at')
+        ->get(['id', 'label', 'last_used_at', 'created_at']);
+
+    return response()->json(['codes' => $codes]);
+}
+
+public function issueTillCode(Request $request, AdminTillSessionService $sessions)
+{
+    $validated = $request->validate(['label' => 'nullable|string|max:64']);
+
+    $code = $sessions->generateCode();
+
+    $row = AdminTillCode::create([
+        'admin_id' => $request->user()->id,
+        'code_hash' => Hash::make($code),
+        'label' => $validated['label'] ?? null,
+    ]);
+
+    return response()->json(['id' => $row->id, 'code' => $code]);
+}
+
+public function revokeTillCode(Request $request, string $id)
+{
+    $row = AdminTillCode::active()
+        ->where('admin_id', $request->user()->id)
+        ->where('id', $id)
+        ->firstOrFail();
+
+    $row->update(['revoked_at' => now()]);
+
+    return response()->json(['ok' => true]);
+}
+```
+
+`admin_id` comes from `$request->user()` in all three. The second test exists
+to pin that an `admin_id` in the payload is ignored rather than honoured.
+
+- [ ] **Step 4: Add the routes**
+
+Inside the existing `Route::middleware(['permission:manage_platform', 'subscription'])->prefix('admin')` group in `routes/api.php`:
+
+```php
+Route::get('/till-codes/mine', [AdminUserController::class, 'myTillCodes']);
+Route::post('/till-codes', [AdminUserController::class, 'issueTillCode']);
+Route::delete('/till-codes/{id}', [AdminUserController::class, 'revokeTillCode']);
+```
+
+Not `role:super_admin`: a `platform_admin` is exactly who stands at a till.
+
+- [ ] **Step 5: Run to verify they pass**
+
+Run: `cd laravel-server && php artisan test --filter=AdminTillCodeApiTest`
+Expected: PASS (5 tests).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add laravel-server/app/Http/Controllers/Api/Admin/AdminUserController.php laravel-server/app/Services/Admin/AdminTillSessionService.php laravel-server/app/Console/Commands/IssueAdminTillCode.php laravel-server/routes/api.php laravel-server/tests/Feature/Admin/AdminTillCodeApiTest.php
+git commit -m "feat: let a platform admin issue and revoke their own till access codes over the API, never one for another admin"
+```
+
+---
+
+### Task 5: The admin panel UI for till codes
+
+**Files:**
+- Create: `web/components/admin/settings/till-codes-card.tsx`
+- Modify: `web/app/admin/settings/page.tsx`
+- Test: `web/__tests__/till-codes-card.test.tsx` (match whatever test setup `web/` already uses; if it has none, cover this in the Task 12 browser pass instead and say so in the commit)
+
+**Interfaces:**
+- Consumes: the three endpoints from Task 4.
+- Produces: `<TillCodesCard />` on the admin settings page.
+
+So an admin never touches cPanel or a terminal for this.
+
+- [ ] **Step 1: Build the card**
+
+A card on `/admin/settings` titled "Till access codes", with the house card
+classes from root `AGENTS.md` §6 - `bg-white dark:bg-slate-900 rounded-3xl
+border border-slate-200 dark:border-slate-800 shadow-sm`, copied from
+`web/components/admin/dashboard/recent-stores.tsx`, never `bg-card`.
+
+It shows the caller's active codes (label, created, last used - never the code
+itself), a "Generate code" button taking an optional label, and a revoke
+action per row behind an `AlertDialog`, never `window.confirm` (§9).
+
+- [ ] **Step 2: Show a generated code exactly once**
+
+On generate, display the 12 digits in a dialog with a copy button and a plain
+line saying it will not be shown again, then drop it from component state on
+close. Do not write it to `localStorage`, a query cache that outlives the
+dialog, or a toast that persists.
+
+Copy for the card, so an admin reading it knows what it is for: this code
+signs you in to a store's own till for read-only inspection. It is not your
+password and cannot be used in this panel.
+
+- [ ] **Step 3: Verify in the browser**
+
+Run `web/`'s dev server, sign in to the admin panel, generate a code, confirm
+it appears once, confirm the list never renders the code or a hash, revoke it,
+confirm it leaves the list.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add web/components/admin/settings/till-codes-card.tsx web/app/admin/settings/page.tsx web/AGENTS.md
+git commit -m "feat: generate and revoke till access codes from the admin panel settings page, showing each code only once"
+```
+
+---
+
+### Task 6: Verify the server end-to-end before touching the client
 
 **Files:** none changed.
 
@@ -670,7 +892,7 @@ This task is a gate, not a change.
 
 ---
 
-### Task 5: The client session module
+### Task 7: The client session module
 
 **Files:**
 - Create: `client/lib/utils/till-inspection.ts`
@@ -851,7 +1073,7 @@ git commit -m "feat: hold an admin till inspection session in sessionStorage so 
 
 ---
 
-### Task 6: The lock-screen discriminator
+### Task 8: The lock-screen discriminator
 
 **Files:**
 - Create: `client/lib/api/admin-till-session.ts`
@@ -860,7 +1082,7 @@ git commit -m "feat: hold an admin till inspection session in sessionStorage so 
 - Test: `client/__tests__/admin-till-login-discriminator.test.ts`
 
 **Interfaces:**
-- Consumes: `startTillInspectionSession` (Task 5), the endpoint (Task 3).
+- Consumes: `startTillInspectionSession` (Task 7), the endpoint (Task 3).
 - Produces: `requestAdminTillSession(email: string, code: string): Promise<TillInspectionSession | null>` and `shouldAttemptAdminTillLogin(identifier: string, localCandidateCount: number): boolean`.
 
 **This is the task carrying Review Focus items 1 and 2.** The whole discriminator rests on `login()` already calling `getUsersByUsernameOrEmail()` at line 299, so the local lookup costs nothing extra.
@@ -1005,14 +1227,14 @@ git commit -m "feat: start an admin inspection session from an email that matche
 
 ---
 
-### Task 7: Read-only enforcement at the write helpers
+### Task 9: Read-only enforcement at the write helpers
 
 **Files:**
 - Modify: `client/lib/db/base-helpers.ts:156` (`insert`), `:230` (`update`), `:320` (`softDelete`)
 - Test: `client/__tests__/till-inspection-read-only.test.ts`
 
 **Interfaces:**
-- Consumes: `isTillInspectionSession`, `READ_ONLY_REFUSAL_MESSAGE` (Task 5).
+- Consumes: `isTillInspectionSession`, `READ_ONLY_REFUSAL_MESSAGE` (Task 7).
 - Produces: `assertWritable(): void`, thrown from all three helpers.
 
 One guard at the three functions every write already goes through. `foldStockQuantities()` writes quantities directly rather than via `update()` and so is unaffected — which is why the repair allowlist needs no bypass flag. State that in the doc rather than adding a mechanism.
@@ -1095,7 +1317,7 @@ git commit -m "fix: refuse every local write during an admin inspection session 
 
 ---
 
-### Task 8: The banner, the exit, and the diagnostics gate
+### Task 10: The banner, the exit, and the diagnostics gate
 
 **Files:**
 - Create: `client/components/dashboard/till-inspection-banner.tsx`
@@ -1105,7 +1327,7 @@ git commit -m "fix: refuse every local write during an admin inspection session 
 - Test: `client/__tests__/till-inspection-banner.test.tsx`
 
 **Interfaces:**
-- Consumes: `getTillInspectionSession`, `endTillInspectionSession` (Task 5); the `end` endpoint (Task 3).
+- Consumes: `getTillInspectionSession`, `endTillInspectionSession` (Task 7); the `end` endpoint (Task 3).
 - Produces: `<TillInspectionBanner />`.
 
 Also closes **A-198**: `diagnostics` joins `ALL_SETTINGS_TABS` *and* `ADMIN_ONLY_SETTINGS_TABS` in the same change, so client-side navigation works and it is not reachable by every role. The spec's §2 rule means `KNOWN_BUGS.md` loses the A-198 entry and `FIXED_BUGS.md` gains it, in this commit.
@@ -1183,7 +1405,7 @@ git commit -m "feat: show a persistent read-only banner during an admin inspecti
 
 ---
 
-### Task 9: The clock-override repair action
+### Task 11: The clock-override repair action
 
 **Files:**
 - Modify: `client/components/auth/license-guard.tsx`
@@ -1191,10 +1413,28 @@ git commit -m "feat: show a persistent read-only banner during an admin inspecti
 - Test: `client/__tests__/clock-override.test.ts`
 
 **Interfaces:**
-- Consumes: `getTillInspectionSession` (Task 5).
+- Consumes: `getTillInspectionSession` (Task 7).
 - Produces: `overrideClockLockout(): Promise<void>` — clears the tampered-clock lockout, available only while an inspection session is active.
 
 The second and last entry on the repair allowlist. It is available to `platform_admin` and `super_admin` (the session cannot exist for anyone else), and requires the online session by construction — which was the original requirement: the owner is a plausible tamperer, so no owner PIN lifts it.
+
+**Reachability, which the rest of this plan got wrong.** `license-guard.tsx:358`
+returns the clock-discrepancy card **instead of `children`**, so while a device
+is in clock-tamper state the whole app is unreachable — including the lock
+screen, "someone else", and therefore the admin login this override depends
+on. An admin standing at that till would have no way in.
+
+So the admin entry must live **on the LicenseGuard card itself**, beside its
+existing "Check Again" and "Renew Subscription" buttons, not only on the lock
+screen. That is sound rather than a workaround: the card already states the
+lockout "can only be cleared online", and an inspection session is online-only
+anyway, so the two constraints agree. It reuses the same email + code form,
+the same endpoint and the same credential — no second mechanism.
+
+Build the form once as `components/auth/admin-till-login.tsx` (email field,
+12-digit code field, uniform `Wrong password.` failure). Task 8 mounts it from
+the lock screen; this task mounts it from the LicenseGuard card. Note the
+ordering consequence: extract that component in Task 8, not here.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1209,7 +1449,19 @@ it("clears a clock lockout while an inspection session is active", async () => {
 it("refuses without an inspection session", async () => {
   await expect(overrideClockLockout()).rejects.toThrow(/inspection session/i);
 });
+
+it("offers the admin entry on the clock-discrepancy card, which replaces the whole app", () => {
+  // license-guard.tsx returns this card INSTEAD of children, so without an
+  // entry here a tampered till could never be unlocked by an admin.
+  render(<LicenseGuard><div>app</div></LicenseGuard>);
+
+  expect(screen.queryByText("app")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /admin access/i })).toBeInTheDocument();
+});
 ```
+
+Mock `checkLicenseStatus()` to resolve `{ isValid: false, isClockTampered: true }`
+for that second test.
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -1271,7 +1523,7 @@ git commit -m "feat: let a platform admin clear a tampered-clock lockout from an
 
 ---
 
-### Task 10: Documentation and the browser smoke test
+### Task 12: Documentation and the browser smoke test
 
 **Files:**
 - Modify: `client/AGENTS.md`, `laravel-server/AGENTS.md`
@@ -1297,6 +1549,11 @@ Root `AGENTS.md` §9 requires it: this change spans a server permission model an
 4. Wrong code → `Wrong password.`; correct code → banner appears, Settings shows Diagnostics.
 5. Try to edit a product → refused with the read-only message.
 6. End session → the staff user is still signed in, the active store is unchanged, sync still runs.
+7. Force the clock-tamper state (set the device clock back after a sync, so
+   `last_monotonic_time` is ahead of now) and confirm the discrepancy card
+   appears **with** an "Admin access" entry, that the email + code form works
+   from there, and that the override clears the lockout. This is the one path
+   that has no reachable fallback if it is broken.
 
 - [ ] **Step 4: Flip the spec's status and commit**
 

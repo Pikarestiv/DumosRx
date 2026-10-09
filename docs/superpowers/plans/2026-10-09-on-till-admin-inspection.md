@@ -6,7 +6,7 @@
 
 **Architecture:** The credential is **not a Sanctum token**. `POST /app/admin-till-session` verifies an email plus a hashed till code and returns an **opaque session id** backing a row in `admin_till_sessions`. Both endpoints are public and throttled, so no bearer is ever sent or cleared. The client recognises the admin path locally — an identifier containing `@` matching no user on this device — so staff logins stay offline. The session renders at a dedicated `/inspect` route outside the dashboard, because `DashboardLayout` hard-requires a staff `user`. Read-only is enforced by a guard in `insert` / `update` / `softDelete` / `remove`.
 
-**Tech Stack:** Laravel 11 (Eloquent, PHPUnit), Next.js/React client (TanStack Query, Vitest, sql.js).
+**Tech Stack:** Laravel 12 (Eloquent, PHPUnit) — `composer.lock` pins `laravel/framework v12.69.2`, so `HasUuids` generates UUID **v7**, Next.js/React client (TanStack Query, Vitest, sql.js).
 
 **Spec:** `docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md`
 
@@ -77,10 +77,22 @@ ability check. Not introduced here, not fixed here, but now known.
   "Stay signed in" button. The session never ends silently.
 - **Hard cap: 4 hours**, regardless of activity, carried on the row's
   `expires_at` so the server agrees.
-- `expires_at` is returned by the server as an ISO string and stored alongside
-  the client's own idle deadline. **Either one expiring is terminal.** The
-  client's clock cannot be trusted — a tampered clock is the whole point of
-  Task 11 — so the server value is the backstop and the idle timer is the UX.
+- Both deadlines are held client-side and **either one expiring is terminal**.
+  The hard cap is derived from the server's `expires_in` duration against this
+  device's clock, not from its absolute `expires_at` — a till whose clock runs
+  hours fast would otherwise read a brand-new session as already dead.
+
+**Be honest about what these deadlines are.** Nothing on the server ever
+re-verifies the session: after `create`, the only request carrying the
+`session_id` is `end`. So a clock set backwards after login extends both
+deadlines, and the row's `expires_at` is audit data rather than enforcement.
+
+That is acceptable **only** because the session grants so little: read-only
+viewing of this device's own local data, the fold, and the clock override. All
+three are harmless to prolong, and none of them reach the server. The real
+control is the narrowness of what a session can do, not its lifetime. Do not
+later hang anything heavier off this session without first giving the server a
+way to verify it on each call.
 
 ## Review Focus
 
@@ -172,7 +184,7 @@ class AdminTillSessionTest extends TestCase
 
     public function test_active_scope_excludes_revoked_codes(): void
     {
-        $admin = User::create(['role' => 'platform_admin']);
+        $admin = $this->admin();
 
         AdminTillCode::create([
             'admin_id' => $admin->id,
@@ -262,9 +274,36 @@ Schema::create('admin_till_sessions', function (Blueprint $table) {
 server is 1000 bytes under utf8mb4 and `sync_commands` already hit that
 ceiling. `SchemaIndexKeyLengthTest` pins it.
 
-Create `AdminTillSession` beside `AdminTillCode` with `HasUuids`, the same
-fillable list, `started_at` / `expires_at` / `ended_at` cast to `datetime`, and
-`scopeLive($query)` filtering `whereNull('ended_at')->where('expires_at', '>', now())`.
+Create `AdminTillSession` beside `AdminTillCode` with `HasUuids` and **its own**
+fillable list — not `AdminTillCode`'s, or `create()` silently drops
+`device_id` and `started_at` and fails NOT NULL:
+
+```php
+protected $fillable = [
+    'admin_id', 'store_id', 'device_id',
+    'started_at', 'expires_at', 'ended_at', 'end_reason',
+];
+
+protected $casts = [
+    'started_at' => 'datetime',
+    'expires_at' => 'datetime',
+    'ended_at' => 'datetime',
+];
+
+public function admin()
+{
+    return $this->belongsTo(User::class, 'admin_id');
+}
+
+// Matches on ended_at only. Including `expires_at > now()` would make a
+// session that hit the 4h cap impossible to close, losing its audit duration.
+public function scopeLive($query)
+{
+    return $query->whereNull('ended_at');
+}
+```
+
+`end()` reads `$session->admin`, so that relation is required.
 
 - [ ] **Step 4: Write the model**
 
@@ -338,7 +377,7 @@ A console command rather than admin-panel UI: a code is issued rarely, by you, a
 ```php
 public function test_issuing_a_code_stores_only_a_hash_and_prints_the_code_once(): void
 {
-    $admin = User::create(['role' => 'platform_admin', 'email' => 'ops@dumosrx.com']);
+    $admin = $this->admin('platform_admin', 'ops@dumosrx.com');
 
     $this->artisan('admin:till-code', ['email' => 'ops@dumosrx.com', '--label' => 'agidi'])
         ->assertExitCode(0);
@@ -353,7 +392,7 @@ public function test_issuing_a_code_stores_only_a_hash_and_prints_the_code_once(
 
 public function test_revoking_marks_every_active_code_for_that_admin(): void
 {
-    $admin = User::create(['role' => 'platform_admin', 'email' => 'ops@dumosrx.com']);
+    $admin = $this->admin('platform_admin', 'ops@dumosrx.com');
     AdminTillCode::create(['admin_id' => $admin->id, 'code_hash' => Hash::make('111111111111')]);
     AdminTillCode::create(['admin_id' => $admin->id, 'code_hash' => Hash::make('222222222222')]);
 
@@ -365,7 +404,7 @@ public function test_revoking_marks_every_active_code_for_that_admin(): void
 
 public function test_refuses_a_user_who_is_not_a_platform_admin(): void
 {
-    User::create(['role' => 'store_owner', 'email' => 'owner@shop.com']);
+    $this->admin('store_owner', 'owner@shop.com');
 
     $this->artisan('admin:till-code', ['email' => 'owner@shop.com'])
         ->assertExitCode(1);
@@ -459,7 +498,7 @@ git commit -m "feat: add an admin:till-code command that issues a 12-digit till 
 
 **Interfaces:**
 - Consumes: `AdminTillCode::active()` (Task 1).
-- Produces: `POST /api/v1/app/admin-till-session` taking `{email, code, store_id, device_id}` → `200 {token, expires_in, admin: {id, first_name, last_name, email, role}}`, or `401 {error: "Wrong password."}`. And `POST /api/v1/app/admin-till-session/end` (bearer, ability `till-inspect`) → `200 {ok: true}`.
+- Produces: `POST /api/v1/app/admin-till-session` taking `{email, code, store_id, device_id}` → `200 {session_id, expires_in, expires_at, admin: {id, first_name, last_name, email, role}}`, or `401 {error: "Wrong password."}`. And `POST /api/v1/app/admin-till-session/end` — **public, unauthenticated** — taking `{session_id, reason?}` → always `200 {ok: true}`.
 - `AdminTillSessionService::verify(string $email, string $code): ?User` and `::issue(User $admin, string $storeId, string $deviceId): array`.
 
 **The uniform-failure requirement is the whole point of this task.** Every rejection returns the same status, the same body, and runs one `Hash::check` against a dummy hash when no admin is found, so response timing does not separate "unknown email" from "wrong code".
@@ -469,12 +508,14 @@ git commit -m "feat: add an admin:till-code command that issues a 12-digit till 
 ```php
 private const DUMMY = '$2y$12$usesomesillystringfore7hnbRJHxXVLeakoG8K30oukPsA.ztMG/u';
 
+// Also creates the non-admin row the rejection matrix needs, exactly once.
 private function seedAdminWithCode(string $code = '123456789012'): User
 {
-    $admin = User::create([
-        'role' => 'platform_admin',
-        'email' => 'ops@dumosrx.com',
-    ]);
+    if (!User::where('email', 'owner@shop.com')->exists()) {
+        $this->admin('store_owner', 'owner@shop.com');
+    }
+
+    $admin = $this->admin('platform_admin', 'ops@dumosrx.com');
     AdminTillCode::create([
         'admin_id' => $admin->id,
         'code_hash' => Hash::make($code),
@@ -483,7 +524,7 @@ private function seedAdminWithCode(string $code = '123456789012'): User
     return $admin;
 }
 
-public function test_a_valid_email_and_code_mints_an_inspection_token(): void
+public function test_a_valid_email_and_code_opens_an_inspection_session(): void
 {
     $admin = $this->seedAdminWithCode();
 
@@ -596,7 +637,12 @@ public function test_entry_is_audit_logged_with_the_device_and_store(): void
 }
 ```
 
-Add `User::create(['role' => 'store_owner', 'email' => 'owner@shop.com'])` to `seedAdminWithCode()` so the "not an admin" row exists.
+`seedAdminWithCode()` creates the `owner@shop.com` row itself, guarded by an
+`exists()` check so a test that also needs it does not trip the unique index on
+`users.email`. Every admin in these tests comes from the `admin()` helper in
+Task 1 Step 1 — a bare `User::create(['role' => ..., 'email' => ...])` fails on
+the NOT NULL `first_name` / `last_name` / `password` columns
+(`0001_01_01_000000_create_users_table.php:17-18`).
 
 - [ ] **Step 2: Run to verify they fail**
 
@@ -612,6 +658,7 @@ namespace App\Services\Admin;
 
 use App\Models\ActivityLog;
 use App\Models\AdminTillCode;
+use App\Models\AdminTillSession;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
@@ -621,13 +668,19 @@ class AdminTillSessionService
 
     public const MAX_SESSION_HOURS = 4;
 
-    // Compared against when no admin matches, so a rejection costs the same
-    // time whether the email exists or not.
-    private const TIMING_EQUALIZER_HASH = '$2y$12$usesomesillystringfore7hnbRJHxXVLeakoG8K30oukPsA.ztMG/u';
+    private static ?string $equalizerHash = null;
+
+    // Built at the app's configured bcrypt cost, not a literal: Hash::check
+    // uses the cost embedded in each hash, so a literal at a different cost
+    // would make "admin with codes" distinguishable from "no admin" by timing.
+    private function equalizerHash(): string
+    {
+        return self::$equalizerHash ??= Hash::make('equaliser');
+    }
 
     // Every rejection costs exactly this many bcrypt comparisons, so response
     // time never separates "unknown email" from "wrong code".
-    private const EQUALIZED_CHECKS = 3;
+    public const EQUALIZED_CHECKS = 3;
 
     public function verify(string $email, string $code): ?User
     {
@@ -651,7 +704,7 @@ class AdminTillSessionService
 
         for ($i = 0; $i < self::EQUALIZED_CHECKS; $i++) {
             $row = $hashes[$i] ?? null;
-            $hash = $row->code_hash ?? self::TIMING_EQUALIZER_HASH;
+            $hash = $row->code_hash ?? $this->equalizerHash();
 
             if (Hash::check($code, $hash) && $row && !$matched) {
                 $matched = $row;
@@ -681,6 +734,9 @@ class AdminTillSessionService
 
         return [
             'session_id' => $session->id,
+            // Seconds, not an absolute timestamp: the client has to turn this
+            // into a local deadline because its own clock may be hours off.
+            'expires_in' => self::MAX_SESSION_HOURS * 3600,
             'expires_at' => $session->expires_at->toIso8601String(),
             'admin' => $admin->only(['id', 'first_name', 'last_name', 'email', 'role']),
         ];
@@ -753,11 +809,20 @@ class AdminTillSessionController extends Controller
     // missing field distinguishes cases the spec requires to be uniform.
     public function create(Request $request)
     {
-        $email = (string) $request->input('email', '');
-        $code = (string) $request->input('code', '');
-        $deviceId = (string) $request->input('device_id', '');
+        $email = $request->input('email');
+        $code = $request->input('code');
+        $deviceId = $request->input('device_id');
 
-        if ($email === '' || $code === '' || $deviceId === '' || strlen($code) > 64) {
+        // is_string, not a (string) cast: an array input would raise
+        // "Array to string conversion" and surface as a 500, which is itself
+        // a distinguishable response.
+        foreach ([$email, $code, $deviceId] as $field) {
+            if (!is_string($field) || $field === '') {
+                return response()->json(self::REJECTION, 401);
+            }
+        }
+
+        if (strlen($code) > 64 || strlen($deviceId) > 64) {
             return response()->json(self::REJECTION, 401);
         }
 
@@ -767,11 +832,16 @@ class AdminTillSessionController extends Controller
             return response()->json(self::REJECTION, 401);
         }
 
+        // Validated only after a successful auth, and never fatally: both
+        // admin_till_sessions.store_id and activity_logs.store_id are uuid
+        // columns, so anything that is not one is stored as null rather than
+        // raising a 500.
         $storeId = $request->input('store_id');
+        $storeId = is_string($storeId) && \Illuminate\Support\Str::isUuid($storeId)
+            ? $storeId
+            : null;
 
-        return response()->json(
-            $this->sessions->issue($admin, $storeId ? (string) $storeId : null, $deviceId),
-        );
+        return response()->json($this->sessions->issue($admin, $storeId, $deviceId));
     }
 
     // Public and unauthenticated: the opaque session id is the proof, and
@@ -779,10 +849,18 @@ class AdminTillSessionController extends Controller
     // already-expired id reveals nothing.
     public function end(Request $request)
     {
-        $sessionId = (string) $request->input('session_id', '');
+        $sessionId = $request->input('session_id');
+        $reason = $request->input('reason');
 
-        if ($sessionId !== '') {
-            $this->sessions->end($sessionId);
+        // Allowlist via match, never a lookup keyed on input (§8).
+        $endReason = match ($reason) {
+            'idle' => 'idle',
+            'expired' => 'expired',
+            default => 'signed_out',
+        };
+
+        if (is_string($sessionId) && $sessionId !== '') {
+            $this->sessions->end($sessionId, $endReason);
         }
 
         return response()->json(['ok' => true]);
@@ -803,7 +881,12 @@ RateLimiter::for('till-session', function (Request $request) {
     return [
         Limit::perMinute(10)->by($request->ip()),
         Limit::perMinute(5)->by($request->ip().'|'.$request->input('device_id')),
-        Limit::perMinute(10)->by((string) $request->input('email')),
+        // An email-keyed bucket lets anyone who knows an admin's address
+        // hold their till login at 10/min. Accepted: it blocks nothing else,
+        // and the alternative is no per-admin limit at all.
+        Limit::perMinute(10)->by(
+            is_string($request->input('email')) ? $request->input('email') : 'anon',
+        ),
     ];
 });
 ```
@@ -821,40 +904,6 @@ Route::middleware('throttle:till-session')->group(function () {
 });
 ```
 
-**Two things must land with this or the credential is far more dangerous than
-the spec intends.**
-
-First, **`ability` is not a registered middleware alias.**
-`laravel-server/bootstrap/app.php:20-26` aliases only `subscription`,
-`permission`, `role`, `account_status` and `restrict_api_docs`. Sanctum 4 ships
-`CheckForAnyAbility`, but Laravel 11 needs it registered:
-
-```php
-'ability' => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
-```
-
-Without it the route throws `Target class [ability] does not exist` at request
-time.
-
-Second, and worse: **nothing else in this codebase checks `tokenCan`.** The
-`auth:sanctum` group (`routes/api.php:117`) and the `permission:manage_platform`
-admin group (`:183`) authenticate *any* Sanctum token belonging to the user —
-and the user we just minted a token for **is a platform admin**. So a
-`till-inspect` token would pass `/admin/*` (including `impersonate_store` and
-password resets) and `/app/sync/push` with any `X-Store-Id`.
-
-The spec says this credential is "useless anywhere else in the platform" and
-that a stolen code "buys a list of harmless repairs". As first drafted it buys
-30 minutes of full admin API — the opposite of the feature's purpose.
-
-So add a **global** reject rather than per-route opt-ins, which can be
-forgotten: a middleware in the `auth:sanctum` group that 403s any token whose
-abilities contain `till-inspect` and not `*`, on every route except
-`admin-till-session/end`. Test it by minting an inspection token and asserting
-403 on `/admin/stores`, 403 on `/app/sync/push`, and 200 on `end`.
-
-Log a `KNOWN_BUGS.md` entry while here: `admin-refresh` tokens have the same
-unchecked-ability gap today.
 
 
 - [ ] **Step 6: Run the tests**
@@ -868,7 +917,7 @@ Add to `laravel-server/AGENTS.md`: the table, the endpoint, the `ELIGIBLE_ROLES`
 
 ```bash
 git add laravel-server/app/Services/Admin/AdminTillSessionService.php laravel-server/app/Http/Controllers/Api/App/AdminTillSessionController.php laravel-server/routes/api.php laravel-server/app/Providers/AppServiceProvider.php laravel-server/tests/Feature/App/AdminTillSessionTest.php laravel-server/AGENTS.md
-git commit -m "feat: mint a short-lived read-only inspection token from an admin email and till access code, rejecting every failure identically"
+git commit -m "feat: open a read-only on-till inspection session from an admin email and till access code, rejecting every failure identically"
 ```
 
 ---
@@ -900,7 +949,7 @@ and the way back in if the panel is unreachable.
 ```php
 public function test_an_admin_issues_a_code_for_themselves_and_sees_it_once(): void
 {
-    $admin = User::create(['role' => 'platform_admin']);
+    $admin = $this->admin();
 
     $response = $this->actingAs($admin)->postJson('/api/v1/admin/till-codes', ['label' => 'agidi']);
 
@@ -916,8 +965,8 @@ public function test_an_admin_issues_a_code_for_themselves_and_sees_it_once(): v
 
 public function test_an_admin_cannot_mint_a_code_for_another_admin(): void
 {
-    $admin = User::create(['role' => 'platform_admin']);
-    $other = User::create(['role' => 'platform_admin']);
+    $admin = $this->admin();
+    $other = $this->admin();
 
     $this->actingAs($admin)->postJson('/api/v1/admin/till-codes', [
         'label' => 'sneaky',
@@ -930,8 +979,8 @@ public function test_an_admin_cannot_mint_a_code_for_another_admin(): void
 
 public function test_listing_shows_only_the_callers_own_codes(): void
 {
-    $admin = User::create(['role' => 'platform_admin']);
-    $other = User::create(['role' => 'platform_admin']);
+    $admin = $this->admin();
+    $other = $this->admin();
     AdminTillCode::create(['admin_id' => $other->id, 'code_hash' => Hash::make('111111111111')]);
 
     $this->actingAs($admin)->getJson('/api/v1/admin/till-codes/mine')
@@ -941,8 +990,8 @@ public function test_listing_shows_only_the_callers_own_codes(): void
 
 public function test_revoking_someone_elses_code_is_not_found(): void
 {
-    $admin = User::create(['role' => 'platform_admin']);
-    $other = User::create(['role' => 'platform_admin']);
+    $admin = $this->admin();
+    $other = $this->admin();
     $theirs = AdminTillCode::create(['admin_id' => $other->id, 'code_hash' => Hash::make('111111111111')]);
 
     $this->actingAs($admin)->deleteJson("/api/v1/admin/till-codes/{$theirs->id}")
@@ -953,7 +1002,7 @@ public function test_revoking_someone_elses_code_is_not_found(): void
 
 public function test_a_store_owner_cannot_reach_these_routes(): void
 {
-    $owner = User::create(['role' => 'store_owner']);
+    $owner = $this->admin('store_owner');
 
     $this->actingAs($owner)->postJson('/api/v1/admin/till-codes')->assertForbidden();
 }
@@ -984,6 +1033,15 @@ public function myTillCodes(Request $request)
 public function issueTillCode(Request $request, AdminTillSessionService $sessions)
 {
     $validated = $request->validate(['label' => 'nullable|string|max:64']);
+
+    // EQUALIZED_CHECKS bounds how many codes verify() will ever test, so a
+    // fourth active code would silently never work.
+    if (AdminTillCode::active()->where('admin_id', $request->user()->id)->count()
+        >= AdminTillSessionService::EQUALIZED_CHECKS) {
+        return response()->json([
+            'error' => 'Revoke an existing code first; three active codes is the maximum.',
+        ], 422);
+    }
 
     $code = $sessions->generateCode();
 
@@ -1116,7 +1174,7 @@ curl -s -X POST http://localhost:8000/api/v1/app/admin-till-session \
   -d '{"email":"your-admin@dumosrx.com","code":"<printed code>","store_id":"<a local store uuid>","device_id":"dev-check"}'
 ```
 
-Expected: a JSON body with `token`, `expires_in: 1800` and `admin`. Re-run with a wrong code: exactly `{"error":"Wrong password."}` and 401. **Local only — never against `api.dumosrx.com`** (user standing rule).
+Expected: a JSON body with `session_id`, `expires_in: 14400` and `admin`, and a matching row in `admin_till_sessions` with `ended_at` null. Re-run with a wrong code: exactly `{"error":"Wrong password."}` and 401, and no new row. **Local only — never against `api.dumosrx.com`** (user standing rule).
 
 - [ ] **Step 3: Commit nothing**
 
@@ -1152,6 +1210,7 @@ import {
   getTillInspectionSession,
   isTillInspectionSession,
   endTillInspectionSession,
+  extendTillInspectionSession,
   type TillInspectionSession,
 } from "@/lib/utils/till-inspection";
 
@@ -1164,7 +1223,7 @@ const live = (): TillInspectionSession => ({
     role: "platform_admin",
   },
   sessionId: "sess-1",
-  serverExpiresAt: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+  hardExpiresAt: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
   idleExpiresAt: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
   storeId: "store-1",
   deviceId: "till-7",
@@ -1180,7 +1239,7 @@ describe("till inspection session", () => {
   });
 
   it("reads back a started session", () => {
-    startTillInspectionSession(session(new Date(Date.now() + 60_000).toISOString()));
+    startTillInspectionSession(live());
 
     expect(isTillInspectionSession()).toBe(true);
     expect(getTillInspectionSession()?.admin.email).toBe("ops@dumosrx.com");
@@ -1200,7 +1259,7 @@ describe("till inspection session", () => {
     startTillInspectionSession({
       ...live(),
       idleExpiresAt: new Date(Date.now() + 60_000).toISOString(),
-      serverExpiresAt: new Date(Date.now() - 1_000).toISOString(),
+      hardExpiresAt: new Date(Date.now() - 1_000).toISOString(),
     });
 
     expect(isTillInspectionSession()).toBe(false);
@@ -1215,11 +1274,11 @@ describe("till inspection session", () => {
     expect(new Date(extended!.idleExpiresAt).getTime()).toBeGreaterThan(
       new Date(original.idleExpiresAt).getTime(),
     );
-    expect(extended!.serverExpiresAt).toBe(original.serverExpiresAt);
+    expect(extended!.hardExpiresAt).toBe(original.hardExpiresAt);
   });
 
   it("clears on end", () => {
-    startTillInspectionSession(session(new Date(Date.now() + 60_000).toISOString()));
+    startTillInspectionSession(live());
     endTillInspectionSession();
 
     expect(isTillInspectionSession()).toBe(false);
@@ -1267,8 +1326,8 @@ export interface TillInspectionSession {
     role: string;
   };
   sessionId: string;
-  /** Server-authoritative hard cap. The backstop a tampered device clock cannot move. */
-  serverExpiresAt: string;
+  /** Hard cap, derived locally from the server's duration (see Task 8). */
+  hardExpiresAt: string;
   /** Rolling idle deadline, extended on interaction. The UX control. */
   idleExpiresAt: string;
   storeId: string | null;
@@ -1305,7 +1364,7 @@ export function getTillInspectionSession(): TillInspectionSession | null {
     // server cap is the control a wrong device clock cannot talk past.
     const now = Date.now();
     const idle = new Date(session.idleExpiresAt).getTime();
-    const hard = new Date(session.serverExpiresAt).getTime();
+    const hard = new Date(session.hardExpiresAt).getTime();
     if (!(idle > now) || !(hard > now)) return null;
 
     return session;
@@ -1334,7 +1393,7 @@ export function msUntilInspectionExpiry(): number | null {
   if (!session) return null;
   return Math.min(
     new Date(session.idleExpiresAt).getTime(),
-    new Date(session.serverExpiresAt).getTime(),
+    new Date(session.hardExpiresAt).getTime(),
   ) - Date.now();
 }
 
@@ -1351,7 +1410,7 @@ export function endTillInspectionSession(): void {
 - [ ] **Step 5: Run to verify it passes**
 
 Run: `cd client && npx vitest run __tests__/till-inspection-session.test.ts`
-Expected: PASS (6 tests).
+Expected: PASS (8 tests).
 
 - [ ] **Step 6: Commit**
 
@@ -1441,8 +1500,11 @@ refresh-or-clear logic anywhere near it:
 ```ts
 import { getDeviceId } from "@/lib/utils/device-id";
 import { getStoredActiveStoreId } from "@/lib/storage-keys";
-import { getApiBaseUrl } from "@/lib/api/client";
-import type { TillInspectionSession } from "@/lib/utils/till-inspection";
+import { API_BASE_URL } from "@/lib/constants";
+import {
+  IDLE_TIMEOUT_MS,
+  type TillInspectionSession,
+} from "@/lib/utils/till-inspection";
 
 export const TILL_CODE_LENGTH = 12;
 export const UNIFORM_REJECTION = "Wrong password.";
@@ -1462,7 +1524,7 @@ export async function requestAdminTillSession(
   const deviceId = getDeviceId();
   const storeId = getStoredActiveStoreId();
 
-  const response = await fetch(`${getApiBaseUrl()}/app/admin-till-session`, {
+  const response = await fetch(`${API_BASE_URL}/app/admin-till-session`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -1478,21 +1540,33 @@ export async function requestAdminTillSession(
   const body = await response.json();
   if (!body?.session_id) return null;
 
+  // Both deadlines are derived from THIS device's clock, from the server's
+  // duration rather than its absolute timestamp. A till whose clock is hours
+  // ahead would otherwise compare the server's `expires_at` against a later
+  // `Date.now()` and read the session as already dead the moment it started —
+  // on exactly the misconfigured-clock device this feature exists to inspect.
+  const now = Date.now();
+
   return {
     admin: body.admin,
     sessionId: body.session_id,
-    serverExpiresAt: body.expires_at,
-    idleExpiresAt: new Date(Date.now() + IDLE_TIMEOUT_MS).toISOString(),
+    hardExpiresAt: new Date(now + body.expires_in * 1000).toISOString(),
+    idleExpiresAt: new Date(now + IDLE_TIMEOUT_MS).toISOString(),
     storeId: storeId ?? null,
     deviceId,
   };
 }
 
-export async function endAdminTillSession(sessionId: string): Promise<void> {
-  await fetch(`${getApiBaseUrl()}/app/admin-till-session/end`, {
+export type TillSessionEndReason = "signed_out" | "idle" | "expired";
+
+export async function endAdminTillSession(
+  sessionId: string,
+  reason: TillSessionEndReason = "signed_out",
+): Promise<void> {
+  await fetch(`${API_BASE_URL}/app/admin-till-session/end`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ session_id: sessionId }),
+    body: JSON.stringify({ session_id: sessionId, reason }),
   }).catch(() => {});
 }
 ```
@@ -1509,9 +1583,11 @@ than the uniform rejection. It leaks nothing about which emails are admins,
 and the uniform message would send an admin hunting for a typo that is not
 there.
 
-Check whether `getApiBaseUrl` is exported from `lib/api/client.ts`; if not,
-read the base URL the same way that module does rather than hardcoding it
-(root `AGENTS.md` §4 forbids hardcoded endpoints).
+`getApiBaseUrl` is **not** exported from `lib/api/client.ts` (only `apiClient`,
+at `:261`). Use `API_BASE_URL` from `lib/constants.ts:14` — and check
+`base-client.ts:24-27`, which selects a staging URL under a different env var.
+Mirror that selection, or a staging build will send admin logins to
+production.
 
 - [ ] **Step 3b: Assert a wrong code does not unlink the till**
 
@@ -1563,8 +1639,8 @@ is (line 254's `setIsImpersonating(isImpersonatedSession())` is the pattern).
 
 **Returning `true` here does not make anything visible, and two review rounds
 caught the first draft of this plan getting that wrong.** The flow is
-`dashboard-lock-overlay.tsx:81` -> `window.location.href = "/login?mode=new"`
--> `use-login-page.tsx:106` `router.push("/dashboard")`. Two failures:
+`dashboard-lock-overlay.tsx:77` -> `window.location.href = "/login?mode=new"`
+-> `hooks/use-login.ts:30` `router.push("/dashboard")`. Two failures:
 
 1. The admin arrived via the lock screen, so `isLocked` is `true` and
    persisted in `localStorage` (`use-auto-lock.ts:60-64`). `dashboard-layout.tsx:368`
@@ -1587,7 +1663,17 @@ and nothing else. `device-diagnostics.tsx:88` needs only
 `useStore().storeProfile`, never `user` — verified — so it works with no staff
 user signed in.
 
-`use-login-page.tsx` must then route on the outcome:
+The push to change is **`client/hooks/use-login.ts:30`**, not anything in
+`use-login-page.tsx`. Verified chain: `dashboard-lock-overlay.tsx:77`
+(`window.location.href = "/login?mode=new"`) -> `components/auth/login-tab.tsx:77-84`
+-> `TraditionalLoginForm onSubmit={handleLogin}` -> `hooks/use-login.ts:30`
+`router.push("/dashboard")`.
+
+`use-login-page.tsx:106` is the **Back button's** push inside `handleBack`, and
+`:91`'s effect is gated on `canHandOffToDashboardLock`, which requires
+`!isNewCredentialsMode` — so on `/login?mode=new` it never fires at all.
+Changing that file would leave the admin on `/dashboard` with exactly the
+failure this task exists to prevent.
 
 ```ts
 router.push(isTillInspectionSession() ? "/inspect" : "/dashboard");
@@ -1690,7 +1776,7 @@ One guard at the three functions every write already goes through. `foldStockQua
 
 ```ts
 it("refuses an insert during an inspection session", async () => {
-  startTillInspectionSession(activeSession());
+  startTillInspectionSession(live());
 
   await expect(insert("products", { name: "paracetamol" })).rejects.toThrow(
     READ_ONLY_REFUSAL_MESSAGE,
@@ -1698,7 +1784,7 @@ it("refuses an insert during an inspection session", async () => {
 });
 
 it("refuses an update and a soft delete during an inspection session", async () => {
-  startTillInspectionSession(activeSession());
+  startTillInspectionSession(live());
 
   await expect(update("products", "p1", { name: "x" })).rejects.toThrow(
     READ_ONLY_REFUSAL_MESSAGE,
@@ -1712,7 +1798,7 @@ it("writes normally once the session has ended, leaving staff state untouched", 
   localStorage.setItem("dumos_user", '{"id":"u1"}');
   localStorage.setItem("dumos_active_store_id", "store-1");
 
-  startTillInspectionSession(activeSession());
+  startTillInspectionSession(live());
   endTillInspectionSession();
 
   await expect(insert("products", { name: "paracetamol" })).resolves.toBeTypeOf("string");
@@ -1721,7 +1807,7 @@ it("writes normally once the session has ended, leaving staff state untouched", 
 });
 
 it("does not block the fold, which bypasses update() by design", async () => {
-  startTillInspectionSession(activeSession());
+  startTillInspectionSession(live());
 
   await expect(foldStockQuantities()).resolves.toBeDefined();
 });
@@ -1785,7 +1871,7 @@ Also closes **A-198**: `diagnostics` joins `ALL_SETTINGS_TABS` *and* `ADMIN_ONLY
 
 ```tsx
 it("shows the admin's email and the read-only state while a session is active", () => {
-  startTillInspectionSession(activeSession());
+  startTillInspectionSession(live());
   render(<TillInspectionBanner />);
 
   expect(screen.getByText(/read-only/i)).toBeInTheDocument();
@@ -1798,7 +1884,7 @@ it("renders nothing with no session", () => {
 });
 
 it("clears the session when the admin ends it", async () => {
-  startTillInspectionSession(activeSession());
+  startTillInspectionSession(live());
   render(<TillInspectionBanner />);
 
   await userEvent.click(screen.getByRole("button", { name: /end session/i }));
@@ -1883,7 +1969,7 @@ beside it, and assert it:
 
 ```ts
 it("ends an inspection session on logout, so the till is not left read-only", async () => {
-  startTillInspectionSession(activeSession());
+  startTillInspectionSession(live());
   await logout();
 
   expect(isTillInspectionSession()).toBe(false);
@@ -1934,8 +2020,16 @@ the same endpoint and the same credential — no second mechanism.
 
 Build the form once as `components/auth/admin-till-login.tsx` (email field,
 12-digit code field, uniform `Wrong password.` failure). Task 8 mounts it from
-the lock screen; this task mounts it from the LicenseGuard card. Note the
-ordering consequence: extract that component in Task 8, not here.
+the lock screen; this task mounts it from the blocked licence card. Extract
+that component in Task 8, not here.
+
+**The form must not navigate itself** — give it an `onSuccess` callback. A
+`router.push("/inspect")` from the card would just re-render the card, because
+`LicenseGuard` wraps everything (`app/layout.tsx:99`) and the tampered branch
+returns the card instead of `children`. The lock screen passes the push; the
+card passes a state flip that re-reads `isTillInspectionSession()` and reveals
+the override button, then calls `performCheck()` afterwards so the licence is
+re-evaluated.
 
 - [ ] **Step 1: Write the failing test**
 

@@ -91,8 +91,20 @@ also gives the audit log its exit duration for free.
 
 **Lifetime:** 20 minutes idle, extended by interaction, with a visible
 countdown and a "Stay signed in" button at two minutes remaining — the session
-never ends silently. A four-hour hard cap sits on the session row, so the
-server has the final say and a tampered device clock cannot extend it.
+never ends silently. A four-hour hard cap sits beside it.
+
+Both deadlines are enforced on the device, and nothing on the server
+re-verifies a session once it has started — after login, the only request
+carrying the session id is the one that ends it. So a clock set backwards
+could extend a session, and the row's `expires_at` is audit data rather than
+enforcement.
+
+That is acceptable because of how little a session grants: read-only viewing
+of the device's own local data, the fold, and the clock override. None of them
+reach the server and none are harmful to prolong. **The control is the
+narrowness of what a session can do, not its lifetime** — so nothing heavier
+should be hung off this session without first giving the server a way to
+verify it on every call.
 
 ## Failure messaging
 

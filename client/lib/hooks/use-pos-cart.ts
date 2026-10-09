@@ -277,6 +277,8 @@ export function usePOSCart(products: Product[]) {
     [subtotal, tax, calculatedDiscount]
   );
 
+  const displayName = useDisplayName();
+
   const removeFromCart = useCallback(
     (id: string) => {
       const removed = cart.find((item) => item.id === id);
@@ -294,7 +296,7 @@ export function usePOSCart(products: Product[]) {
         },
       });
     },
-    [cart, setCart],
+    [cart, setCart, displayName],
   );
 
   const updateQuantity = useCallback(
@@ -324,8 +326,6 @@ export function usePOSCart(products: Product[]) {
     },
     [products, setCart, removeFromCart],
   );
-
-  const displayName = useDisplayName();
 
   const addToCart = useCallback(
     (product: Product) => {

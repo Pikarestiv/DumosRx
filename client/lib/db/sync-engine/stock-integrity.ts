@@ -14,6 +14,10 @@ import {
 export type BatchVerdict =
   | "consistent"
   | "diverged"
+  /** Disagrees with the log, but has a delta still queued to apply — so the
+   * disagreement may be the queued work, and folding it would let the drain
+   * apply the same delta twice. Reported, never folded. */
+  | "pending"
   /** Holds stock with no movement behind it, so the log cannot rebuild it
    * (A-148); folding one would compute 0 and destroy the only record. */
   | "unreconstructable";
@@ -33,6 +37,8 @@ export interface StockIntegrityReport {
   checked: number;
   consistent: number;
   diverged: number;
+  /** Disagrees with the log but has unapplied deltas; not safe to fold. */
+  pending: number;
   unreconstructable: number;
   /** Net units this device is over (positive) or under (negative) the log. */
   netUnitDelta: number;
@@ -61,11 +67,14 @@ function classify(
   // movement at all means the opening stock was never recorded (A-148).
   const unreconstructable = batchQuantity > 0 && inboundCount === 0;
 
+  const matches = batchQuantity === replayed;
   const verdict: BatchVerdict = unreconstructable
     ? "unreconstructable"
-    : batchQuantity === replayed || awaitingDelta
+    : matches
       ? "consistent"
-      : "diverged";
+      : awaitingDelta
+        ? "pending"
+        : "diverged";
 
   return {
     batchId,
@@ -92,10 +101,12 @@ export async function verifyStockIntegrity(): Promise<StockIntegrityReport> {
     storeId ? [storeId] : [],
   );
 
-  // Ordered, because quantity is path-dependent: both the pull
-  // (`MAX(0, quantity + ?)`) and the server apply the floor once per
-  // movement, not once over the sum. A batch oversold to 0 and then
-  // restocked has a correct quantity that its raw sum disagrees with.
+  // Ordered by rowid — local insert order — because that is the order THIS
+  // device applied the deltas in, and so the order that produced the stored
+  // quantity. Not created_at: it is nullable, second-resolution from MySQL
+  // so bulk imports collide, and a sale rung offline on another till arrives
+  // days after its own timestamp. Any of those reorders the replay past a
+  // floor event and makes a correct batch look diverged.
   const movements = await query<{
     stock_batch_id: string;
     quantity: number | null;
@@ -104,7 +115,7 @@ export async function verifyStockIntegrity(): Promise<StockIntegrityReport> {
        FROM stock_movements sm
        JOIN stock_batches sb ON sb.id = sm.stock_batch_id
       WHERE sm._deleted = 0 AND sb._deleted = 0 AND sb.is_active = 1${storeId ? " AND sb.store_id = ?" : ""}
-      ORDER BY sm.stock_batch_id, sm.created_at, sm.id`,
+      ORDER BY sm.stock_batch_id, sm.rowid`,
     storeId ? [storeId] : [],
   );
 
@@ -131,6 +142,7 @@ export async function verifyStockIntegrity(): Promise<StockIntegrityReport> {
     checked: batches.length,
     consistent: 0,
     diverged: 0,
+    pending: 0,
     unreconstructable: 0,
     netUnitDelta: 0,
     divergedBatches: [],
@@ -154,6 +166,11 @@ export async function verifyStockIntegrity(): Promise<StockIntegrityReport> {
 
     report.netUnitDelta += entry.delta;
 
+    if (entry.verdict === "pending") {
+      report.pending++;
+      continue;
+    }
+
     if (entry.verdict === "diverged") {
       report.diverged++;
       report.divergedBatches.push(entry);
@@ -171,6 +188,7 @@ export function summarizeIntegrity(report: StockIntegrityReport): Record<string,
   return {
     checked: report.checked,
     diverged: report.diverged,
+    pending: report.pending,
     unreconstructable: report.unreconstructable,
     netUnitDelta: report.netUnitDelta,
   };

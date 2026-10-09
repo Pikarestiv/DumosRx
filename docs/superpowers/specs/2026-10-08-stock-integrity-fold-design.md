@@ -257,9 +257,11 @@ correct at 46,097) is measured and reproducible.
 
 ## Phase 2 notes (2026-10-09)
 
-`foldStockQuantities()` rebuilds each `diverged` batch's quantity from the sum
-of its own movements, applying the same `MAX(0, …)` floor the pull's delta path
-uses. `unreconstructable` batches are refused and returned by id, never folded.
+`foldStockQuantities()` rebuilds each `diverged` batch's quantity by **replaying**
+its own movements in local insert order (`ORDER BY rowid`), applying
+`MAX(0, running + delta)` after each one exactly as the pull does. Not a floored
+sum, and not `created_at` order — see `client/AGENTS.md` for why both of those
+are wrong and what each cost. `unreconstructable` batches are refused and returned by id, never folded.
 
 - **Local-only and not queued.** The server derives `stock_batches.quantity`
   from movement deltas and ignores a pushed value, so there is nothing to send.
@@ -275,9 +277,10 @@ uses. `unreconstructable` batches are refused and returned by id, never folded.
   `checkSyncHealth()`: the detection data the rollout plan called for does not
   exist yet, and an automatic write to stock numbers should not go out ahead of
   it.
-- Coverage: `client/__tests__/stock-integrity-fold.test.ts` (8 cases, including
-  idempotence, the floor, the unsynced-sale property, and that it writes no
-  movements of its own).
+- Coverage: `client/__tests__/stock-integrity-fold.test.ts` (14 cases, including
+  idempotence, the floor, the unsynced-sale property, a late-arriving offline
+  sale, colliding and NULL `created_at`, and that it writes no movements of
+  its own).
 
 Open question 2 from above is now answered in practice: `unreconstructable`
 batches stay reported-only, and the console names them so a human can decide.

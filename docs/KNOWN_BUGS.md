@@ -13,15 +13,15 @@ handful of things actually worth your attention aren't buried in it.
 #### A-196. `client/` — `pos-cart.tsx` is 429 lines, over the 350-line limit
 - **Found:** 2026-10-09, lint during review of the cart-reveal change.
 - **Location:** `client/components/pos/pos-cart.tsx`.
-- **What's wrong:** root `AGENTS.md` §4 requires files strictly below 350 lines. This one was already at 425 before the reveal work; extracting that logic into `lib/hooks/use-reveal-changed-cart-line.ts` brought it back to 429 rather than under the limit. Pre-existing, not introduced by that change, but now measured.
+- **What's wrong:** root `AGENTS.md` §4 requires files strictly below 350 lines. The cart-reveal work took it to 473; extracting that logic into `lib/hooks/use-reveal-changed-cart-line.ts` cut 44 lines back to 429, which is still over. The violation predates both changes.
 - **Why it went unnoticed:** **no CI job runs lint.** `checks.yml` is `tsc` + `vitest` only, and neither deploy workflow lints either, so §4's line limit and the no-unused-imports rule are unenforced on every PR.
 - **Fix:** split the cart's totals/discount section out of the component; separately, add an eslint step to `checks.yml` so this class of violation fails a PR rather than being found by hand.
 
 #### A-193. `client/` — the stock-integrity Sentry report does not coalesce, so a drifted device uploads a new bug row daily
 - **Found:** 2026-10-08, adversarial review of the stock-integrity branch before merge.
 - **Location:** `client/lib/db/sync-engine/stock-integrity.ts`, `client/lib/db/schema-migrations.ts` (index list), `client/lib/utils/error-logger.ts`.
-- **What's wrong:** two separate things, both cheap to fix. (a) `stock_movements` is indexed on `product_id`, `reference_id` and `(store_id, created_at)` but **not `stock_batch_id`**, which is what the verify query joins and groups on — so on sql.js it nested-loop scans the movement log per batch (~2,500 batches against tens of thousands of movements) once per 24h. The spec's Performance section asserted this was cheap without checking for the index. (b) `logCrash()` writes a `feedback` row and queues it for sync, and its fingerprint (`area|message|firstStackLine`) does not normalise digits while the message embeds the counts and net delta — so a device whose numbers move uploads a brand-new bug row every day instead of coalescing.
-- **Consequence:** slow app-open on a large catalogue, plus daily synced noise from any device with persistent divergence. Neither is data loss.
+- **What's wrong:** `logCrash()` writes a `feedback` row and queues it for sync, and its fingerprint (`area|message|firstStackLine`) does not normalise digits while the message embeds the counts and net delta — so a device whose numbers move uploads a brand-new bug row every day instead of coalescing.
+- **Consequence:** daily synced noise from any device with persistent divergence. Not data loss.
 - **Fix:** `logCrash`'s fingerprint is `area|message|firstStackLine` with no digit normalisation, while the message embeds the counts and net delta — so a device whose numbers move uploads a new synced `feedback` row every day instead of coalescing. Either normalise digits in the fingerprint or move the counts out of the message into the context payload. (The missing `stock_movements(stock_batch_id)` index, originally logged here as the other half, was added 2026-10-09.)
 
 #### A-189. `laravel-server/` — 5,088 products across two stores reference each other's `categories` rows, so their category can never reach any device

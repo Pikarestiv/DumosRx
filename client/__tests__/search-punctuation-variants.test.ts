@@ -81,4 +81,18 @@ describe("search tolerates punctuation and spacing variants", () => {
 
     expect(searchProducts("vitaminb", catalogue).results).toHaveLength(1);
   });
+
+  it("prefers a word-start match over one that straddles a squashed boundary, at any length", () => {
+    // The b12 case above is also saved by the minimum-length gate, so it
+    // cannot prove the grading. This term is long enough to clear that gate,
+    // leaving only the 18/14/12/6 bands to decide the order.
+    const catalogue = [
+      { id: "1", name: "paracetamol tab 120s" },
+      { id: "2", name: "vitamin b-120 syrup" },
+    ];
+
+    const results = searchProducts("b120", catalogue).results.map((p) => p.name);
+
+    expect(results[0]).toBe("vitamin b-120 syrup");
+  });
 });

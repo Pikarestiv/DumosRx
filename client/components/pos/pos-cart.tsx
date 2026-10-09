@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useEffect, useRef} from "react";
+import { memo, useState, useEffect } from "react";
 import {
   ShoppingCart,
   Trash2,

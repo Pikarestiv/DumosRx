@@ -46,7 +46,8 @@ describe("foldStockQuantities", () => {
 
   beforeEach(() => {
     db.run(
-      `DELETE FROM stock_batches; DELETE FROM stock_movements; DELETE FROM _sync_queue;`,
+      `DELETE FROM stock_batches; DELETE FROM stock_movements;
+       DELETE FROM _sync_queue; DELETE FROM _pending_stock_deltas;`,
     );
   });
 
@@ -64,6 +65,20 @@ describe("foldStockQuantities", () => {
     db.run(
       `INSERT INTO stock_movements (id, product_id, stock_batch_id, movement_type, quantity, _deleted, _synced, created_at)
        VALUES ('${id}', 'prod-${batchId}', '${batchId}', 'purchase', ${quantity}, 0, ${synced}, '${at}')`,
+    );
+  }
+
+  function movementAt(
+    id: string,
+    batchId: string,
+    quantity: number,
+    createdAt: string | null,
+  ) {
+    db.run(
+      `INSERT INTO stock_movements (id, product_id, stock_batch_id, movement_type, quantity, _deleted, _synced, created_at)
+       VALUES ('${id}', 'prod-${batchId}', '${batchId}', 'purchase', ${quantity}, 0, 1, ${
+         createdAt === null ? "NULL" : `'${createdAt}'`
+       })`,
     );
   }
 
@@ -201,5 +216,49 @@ describe("foldStockQuantities", () => {
 
     expect(result.folded).toBe(0);
     expect(quantityOf("b1")).toBe(10);
+  });
+
+  it("replays in the order this device applied the deltas, not by created_at", async () => {
+    // A sale rung up offline on another till on day 2 only reaches this
+    // device on day 4, after a day-3 oversell floored the batch to 0 and a
+    // goods receipt refilled it. The device applied it last, so the stored
+    // quantity is 2. Sorting the replay by created_at puts it back in the
+    // middle, past the floor, and "corrects" a correct batch upward.
+    batch("b1", 2);
+    movementAt("m1", "b1", 10, "2026-10-01T09:00:00Z");
+    movementAt("m3", "b1", -12, "2026-10-03T09:00:00Z");
+    movementAt("m4", "b1", 3, "2026-10-03T17:00:00Z");
+    movementAt("m2", "b1", -1, "2026-10-02T11:00:00Z");
+
+    const result = await foldStockQuantities();
+
+    expect(result.folded).toBe(0);
+    expect(quantityOf("b1")).toBe(2);
+  });
+
+  it("is not thrown off by movements sharing a created_at", async () => {
+    // MySQL DATETIME is second-resolution, so round-tripped movements from a
+    // bulk import routinely collide. A UUID tiebreak would order them
+    // arbitrarily and could replay the restock before the oversell.
+    batch("b1", 3);
+    movementAt("m1", "b1", 10, "2026-10-01T09:00:00Z");
+    movementAt("m2", "b1", -12, "2026-10-01T09:00:00Z");
+    movementAt("m3", "b1", 3, "2026-10-01T09:00:00Z");
+
+    const result = await foldStockQuantities();
+
+    expect(result.folded).toBe(0);
+    expect(quantityOf("b1")).toBe(3);
+  });
+
+  it("is not thrown off by a movement with no created_at", async () => {
+    batch("b1", 6);
+    movementAt("m1", "b1", 10, "2026-10-01T09:00:00Z");
+    movementAt("m2", "b1", -4, null);
+
+    const result = await foldStockQuantities();
+
+    expect(result.folded).toBe(0);
+    expect(quantityOf("b1")).toBe(6);
   });
 });

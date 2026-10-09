@@ -17,7 +17,13 @@ import { AppearancePanel } from "./panels/appearance-panel";
 import { BusinessInfoPanel } from "./panels/business-info-panel";
 import { AlertsPanel } from "./panels/alerts-panel";
 import { DangerZonePanel } from "./panels/danger-zone-panel";
-import { DeviceDiagnosticsPanel } from "@/components/settings/device-diagnostics";
+const DeviceDiagnosticsPanel = dynamic(
+  () =>
+    import("@/components/settings/device-diagnostics").then(
+      (m) => m.DeviceDiagnosticsPanel,
+    ),
+  { ssr: false },
+);
 import { isImpersonatedSession } from "@/lib/utils/impersonation";
 import { SecurityPanel } from "./panels/security-panel";
 import { PaymentMethodsPanel } from "./panels/payment-methods-panel";

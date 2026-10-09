@@ -145,10 +145,11 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
 }
 
 /**
- * The admin-present version of reconcileClockWithServer(): still requires a
- * live server reading, so server time remains the authority and a tampered
- * device cannot talk its way out — but it skips the `reading.agrees` refusal,
- * which is exactly the case a physically-present admin is there to resolve.
+ * The admin-present version of reconcileClockWithServer(): still requires an
+ * authoritative server reading, so a tampered device cannot talk its way out —
+ * but it takes that reading from readInspectionServerClock(), which the server
+ * refuses without a live session row, and applies no device-agreement check.
+ * Disagreement is exactly the case a physically-present admin resolves.
  *
  * Only reachable from an on-till inspection session, which is online-only and
  * exists only for platform_admin and above. See

@@ -8,9 +8,10 @@ import {
   type TillInspectionSession,
 } from "@/lib/utils/till-inspection";
 
-const { ended, beaconed } = vi.hoisted(() => ({
+const { ended, beaconed, server } = vi.hoisted(() => ({
   ended: { calls: [] as string[] },
   beaconed: { calls: [] as string[] },
+  server: { clock: new Date() as Date | null },
 }));
 
 vi.mock("@/lib/api/admin-till-session", () => ({
@@ -20,6 +21,7 @@ vi.mock("@/lib/api/admin-till-session", () => ({
   beaconAdminTillSessionEnd: vi.fn((id: string) => {
     beaconed.calls.push(id);
   }),
+  readInspectionServerClock: vi.fn(async () => server.clock),
 }));
 
 vi.mock("@/lib/context/store-context", () => ({
@@ -49,6 +51,7 @@ describe("TillInspectionBanner", () => {
     sessionStorage.clear();
     ended.calls = [];
     beaconed.calls = [];
+    server.clock = new Date();
     assign.mockClear();
     Object.defineProperty(window, "location", {
       configurable: true,
@@ -171,5 +174,26 @@ describe("TillInspectionBanner", () => {
 
     await waitFor(() => expect(ended.calls).toEqual(["signed_out"]));
     expect(beaconed.calls).toEqual([]);
+  });
+
+  it("clears a session the server no longer recognises, which a reload can cause", async () => {
+    // pagehide fires on F5 too, so the beacon closes the row while
+    // sessionStorage survives — leaving a client session the server has
+    // already ended, with writes blocked and the override refused.
+    server.clock = null;
+    startTillInspectionSession(live());
+    render(<TillInspectionBanner />);
+
+    await waitFor(() => expect(isTillInspectionSession()).toBe(false));
+    expect(assign).toHaveBeenCalledWith("/login");
+  });
+
+  it("keeps a session the server still recognises", async () => {
+    startTillInspectionSession(live());
+    render(<TillInspectionBanner />);
+
+    await waitFor(() => expect(screen.getByText(/read-only/i)).toBeTruthy());
+    expect(isTillInspectionSession()).toBe(true);
+    expect(assign).not.toHaveBeenCalled();
   });
 });

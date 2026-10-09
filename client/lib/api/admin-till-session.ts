@@ -10,6 +10,14 @@ export const TILL_CODE_LENGTH = 12;
 
 const REQUEST_TIMEOUT_MS = 15_000;
 
+/** AbortSignal.timeout needs Safari 16 / Chrome 103; older WebViews throw
+ * synchronously, which inside close() would strand the session. */
+function timeoutSignal(): AbortSignal | undefined {
+  return typeof AbortSignal?.timeout === "function"
+    ? AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+    : undefined;
+}
+
 export const UNIFORM_REJECTION = "Wrong password.";
 
 export const OFFLINE_MESSAGE = "Admin access needs an internet connection.";
@@ -58,7 +66,7 @@ export async function requestAdminTillSession(
       }),
       // Without this a hung request leaves the login spinner forever, on a
       // till whose network is the thing under investigation.
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: timeoutSignal(),
     },
   );
 
@@ -99,7 +107,7 @@ export async function readInspectionServerClock(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: sessionId }),
         cache: "no-store",
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        signal: timeoutSignal(),
       },
     );
 
@@ -122,7 +130,7 @@ export async function endAdminTillSession(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_id: sessionId, reason }),
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    signal: timeoutSignal(),
   }).catch(() => {});
 }
 

@@ -261,6 +261,30 @@ class AdminTillSessionTest extends TestCase
         );
     }
 
+    /**
+     * @dataProvider endReasonProvider
+     */
+    public function test_each_permitted_end_reason_is_stored(string $reason): void
+    {
+        $this->seedAdminWithCode();
+        $sessionId = $this->open()->assertOk()->json('session_id');
+
+        $this->postJson('/api/v1/app/admin-till-session/end', [
+            'session_id' => $sessionId,
+            'reason' => $reason,
+        ])->assertOk();
+
+        $this->assertSame($reason, AdminTillSession::findOrFail($sessionId)->end_reason);
+    }
+
+    public static function endReasonProvider(): array
+    {
+        // 'closed' is what the pagehide beacon sends, so tidying the match in
+        // the controller would otherwise silently downgrade every tab close
+        // to signed_out.
+        return [['signed_out'], ['idle'], ['expired'], ['closed']];
+    }
+
     public function test_an_unrecognised_end_reason_falls_back_rather_than_being_stored(): void
     {
         $this->seedAdminWithCode();

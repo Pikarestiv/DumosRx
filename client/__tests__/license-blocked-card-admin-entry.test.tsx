@@ -18,6 +18,22 @@ vi.mock("@/lib/licensing/licensing-manager", () => ({
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+// The card now mounts TillInspectionBanner, which reads useStore(). In the app
+// StoreProvider sits above LicenseGuard in the root layout; here it does not.
+vi.mock("@/lib/context/store-context", () => ({
+  useStore: () => ({ storeProfile: { id: "s1", name: "Agidi Branch" } }),
+}));
+
+vi.mock("@/lib/api/admin-till-session", () => ({
+  endAdminTillSession: vi.fn(async () => {}),
+  beaconAdminTillSessionEnd: vi.fn(),
+  readInspectionServerClock: vi.fn(async () => new Date()),
+  requestAdminTillSession: vi.fn(async () => null),
+  TILL_CODE_LENGTH: 12,
+  UNIFORM_REJECTION: "Wrong password.",
+  OFFLINE_MESSAGE: "Admin access needs an internet connection.",
+}));
+
 const live = (): TillInspectionSession => ({
   admin: {
     id: "a1",
@@ -107,5 +123,20 @@ describe("LicenseBlockedCard admin entry", () => {
     renderCard();
 
     expect(screen.getByText(/DUMOS-TEST-1/)).toBeTruthy();
+  });
+
+  it("mounts the session banner so the card path has an exit and an idle timer", async () => {
+    // Without this the blocked-card entry point reported no exit at all: no
+    // End Session, no idle timer, no pagehide beacon.
+    startTillInspectionSession(live());
+    renderCard();
+
+    expect(await screen.findByRole("button", { name: /end session/i })).toBeTruthy();
+  });
+
+  it("shows no banner when no session is live", () => {
+    renderCard();
+
+    expect(screen.queryByRole("button", { name: /end session/i })).toBeNull();
   });
 });

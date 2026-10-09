@@ -278,9 +278,10 @@ and `synchronous = NORMAL`.
     opened. Nothing on the server re-verifies a session after login, so these
     are UX and a stale-tab net rather than enforcement; the real control is
     how little a session can do.
-  - **The settings gate both grants and denies.** `canAccessSettingsTab()`
-    returns `isInspecting` for the diagnostics tab and `false` for every other
-    tab while a session is live. Granting alone was not enough: the
+  - **The settings gate both grants and denies.** `canAccessSettingsTab()` takes
+    `{ inspecting, impersonating }` and grants the diagnostics tab to **either**
+    support session, while denying every other tab to an inspection session
+    only. Granting alone was not enough: the
     fall-through grants admin-only tabs on `isAdmin`, which is the *locked
     staff user's* role, so on an owner's device an inspecting admin still
     reached Data's restore and Danger Zone's factory reset — both raw
@@ -319,10 +320,11 @@ and `synchronous = NORMAL`.
     the commonest exit on a desktop till. Clock-based expiry remains the
     backstop.
   - `overrideClockLockout()` is the admin-present form of
-    `reconcileClockWithServer()`: it still requires a live `readServerClock()`
-    reading, so server time stays the authority, but skips the `agrees`
-    refusal, which is exactly the case a present admin resolves. Do not relax
-    `reconcileClockWithServer()` itself.
+    `reconcileClockWithServer()`: it still requires an authoritative server
+    reading, but takes it from `readInspectionServerClock()` (which the server
+    refuses without a live session row) rather than the public `/health`, and
+    applies no device-agreement check — disagreement is exactly the case a
+    present admin resolves. Do not relax `reconcileClockWithServer()` itself.
 
 - **The device diagnostics console** (`components/settings/device-diagnostics.tsx`,
   `lib/db/queries/diagnostics.ts`) is a read-only snapshot of one device's own

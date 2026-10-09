@@ -6,8 +6,6 @@ import { useTheme } from "@/components/theme-provider";
 import { useStore, StoreType } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { hasPermission } from "@/lib/hooks/use-permissions";
-
-
 import { toast } from "sonner";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { apiClient } from "@/lib/api/client";

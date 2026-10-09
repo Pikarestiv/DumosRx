@@ -72,8 +72,10 @@ export function LicenseBlockedCard({
   };
 
   return (
-
     <div className="min-h-screen flex items-center justify-center bg-neutral-950 p-4">
+      {/* Carries the idle timer, the countdown, End Session and the pagehide
+          beacon. Without it this entry point reports no exit at all. */}
+      {inspecting && <TillInspectionBanner />}
       <Card className="max-w-md w-full border-destructive/50 shadow-2xl shadow-destructive/10">
         <CardHeader className="text-center">
           <div className="mx-auto w-16 h-16 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-4">

@@ -13,6 +13,7 @@ import {
 import {
   endAdminTillSession,
   beaconAdminTillSessionEnd,
+  readInspectionServerClock,
   type TillSessionEndReason,
 } from "@/lib/api/admin-till-session";
 import { useStore } from "@/lib/context/store-context";
@@ -56,8 +57,32 @@ export function TillInspectionBanner() {
 
   // Read after mount, never during render: a render-time sessionStorage read
   // disagrees with the prerender pass and React reports a hydration mismatch.
+  //
+  // Also reconciles with the server, because `pagehide` fires on a reload too:
+  // the beacon closes the row while sessionStorage survives, leaving a client
+  // session the server has already ended — writes blocked, the override
+  // refused, and the audit log claiming an exit that had not happened. The row
+  // is the authority, so a session it no longer recognises is cleared here.
   useEffect(() => {
-    setSession(getTillInspectionSession());
+    const local = getTillInspectionSession();
+    setSession(local);
+
+    if (!local || !navigator.onLine) return;
+
+    let cancelled = false;
+    void readInspectionServerClock(local.sessionId).then((serverNow) => {
+      if (cancelled || serverNow) return;
+      endTillInspectionSession();
+      setSession(null);
+      window.location.href = "/login";
+    });
+
+    return () => {
+      cancelled = true;
+    };
+    // Mount-only by design: this establishes `session`, so depending on it
+    // would re-run the server reconciliation on every change it makes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

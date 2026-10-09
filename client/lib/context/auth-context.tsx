@@ -9,6 +9,7 @@ import {
   shouldAttemptAdminTillLogin,
   requestAdminTillSession,
   endAdminTillSession,
+  TILL_CODE_LENGTH,
   UNIFORM_REJECTION,
   OFFLINE_MESSAGE,
 } from "@/lib/api/admin-till-session";
@@ -321,7 +322,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // setDbUser/setStoredUser/setUser: an inspection session is an overlay,
     // not a login. See
     // docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md.
-    if (pin && shouldAttemptAdminTillLogin(cleanIdentifier, candidates.length)) {
+    if (
+      pin?.length === TILL_CODE_LENGTH &&
+      shouldAttemptAdminTillLogin(cleanIdentifier, candidates.length)
+    ) {
       if (!navigator.onLine) {
         throw new Error(OFFLINE_MESSAGE);
       }

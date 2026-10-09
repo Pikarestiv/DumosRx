@@ -75,4 +75,14 @@ describe("useAdminTillCodeMode", () => {
 
     expect(result.current).toBe(false);
   });
+
+  it("does not flip while an email is still being typed", async () => {
+    const { result } = renderHook(() => useAdminTillCodeMode("josh@gm"));
+
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    expect(result.current).toBe(false);
+    // No point querying for something that cannot be a login identifier yet.
+    expect(lookup.calls).toEqual([]);
+  });
 });

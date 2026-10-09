@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { getUsersByUsernameOrEmail } from "@/lib/db/queries/auth";
-import { shouldAttemptAdminTillLogin } from "@/lib/api/admin-till-session";
+import {
+  shouldAttemptAdminTillLogin,
+  looksLikeCompleteEmail,
+} from "@/lib/api/admin-till-session";
 
 const DEBOUNCE_MS = 400;
 
@@ -16,7 +19,8 @@ const DEBOUNCE_MS = 400;
 export function useAdminTillCodeMode(identifier: string): boolean {
   const candidate = identifier.trim();
   // Derived synchronously so the common case needs no effect and no state.
-  const looksLikeEmail = candidate.includes("@");
+  // A COMPLETE email, so the field cannot flip mid-typing.
+  const looksLikeEmail = looksLikeCompleteEmail(candidate);
   const [unknownLocally, setUnknownLocally] = useState(false);
 
   useEffect(() => {

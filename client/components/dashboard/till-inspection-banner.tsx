@@ -82,7 +82,7 @@ export function TillInspectionBanner() {
     };
     // Mount-only by design: this establishes `session`, so depending on it
     // would re-run the server reconciliation on every change it makes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   useEffect(() => {
@@ -124,7 +124,7 @@ export function TillInspectionBanner() {
       window.removeEventListener("pagehide", onPageHide);
       clearInterval(timer);
     };
-  }, [close]);
+  }, [close, session]);
 
   if (!session) return null;
 

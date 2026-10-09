@@ -250,6 +250,15 @@ and `synchronous = NORMAL`.
   at a store's own till signs in with their email plus a 12-digit till access
   code and gets a read-only session. Full design in
   `docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md`.
+  - **It needs a 12-digit code AND a complete email.** The branch is gated on
+    `pin.length === TILL_CODE_LENGTH`, because a 4-digit PIN can never be a
+    till code — without that gate a staff member mistyping an owner's email
+    was sent down the admin path: a network round-trip, a spinner up to 15s,
+    and an "admin access needs an internet connection" message for what used
+    to be an instant local "Invalid credentials". The email must also be
+    *complete* (`looksLikeCompleteEmail`), or the login field flipped between
+    the 4-slot PIN and the 12-digit code while an owner typed their own
+    address, remounting the input under their fingers.
   - **The discriminator is "an email that matches no user on this device"**,
     not "an email was typed". `lib/db/queries/auth.ts:26` already accepts an
     email as an ordinary login identifier, so a store owner signing in with

@@ -36,6 +36,15 @@ describe("shouldAttemptAdminTillLogin", () => {
     expect(shouldAttemptAdminTillLogin("  ops@dumosrx.com ", 0)).toBe(true);
   });
 
+  it("waits for a complete email, so the field cannot flip mid-typing", () => {
+    // An owner typing their own address pauses constantly. Firing on a bare
+    // "@" swapped the 4-slot PIN for the 12-digit code field and back again,
+    // remounting the input under their fingers.
+    for (const partial of ["josh@", "josh@gm", "josh@gmail", "@dumosrx.com", "josh@."]) {
+      expect(shouldAttemptAdminTillLogin(partial, 0), partial).toBe(false);
+    }
+  });
+
   it("sends a deactivated owner's email online rather than failing locally", () => {
     // getUsersByUsernameOrEmail filters `is_active = 1 AND _deleted = 0`, so a
     // deactivated owner matches nothing locally and reaches the admin path,

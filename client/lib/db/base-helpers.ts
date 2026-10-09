@@ -157,14 +157,8 @@ function withNormalizedName(
   return record;
 }
 
-/**
- * The one choke point every local write passes through. Gating buttons alone
- * is how a "read-only" mode ends up writing via some path nobody remembered.
- *
- * The fold and the clock override deliberately bypass these helpers (raw
- * `execute`), which is why they need no exception here. Sync's pull also
- * writes raw, so a read-only session does not stop the till syncing.
- */
+// The one choke point every local write passes through; see client/AGENTS.md,
+// "On-till admin inspection", for what deliberately bypasses it.
 function assertWritable(): void {
   if (isTillInspectionSession()) {
     throw new Error(READ_ONLY_REFUSAL_MESSAGE);

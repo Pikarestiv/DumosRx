@@ -32,11 +32,18 @@ export type TillSessionEndReason = "signed_out" | "idle" | "expired" | "closed";
  * accepts an email as an ordinary login identifier, so a store owner signing
  * in with theirs must stay local and offline.
  */
+const COMPLETE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/** A whole email, not a half-typed one — see shouldAttemptAdminTillLogin. */
+export function looksLikeCompleteEmail(identifier: string): boolean {
+  return COMPLETE_EMAIL.test(identifier.trim());
+}
+
 export function shouldAttemptAdminTillLogin(
   identifier: string,
   localCandidateCount: number,
 ): boolean {
-  return localCandidateCount === 0 && identifier.trim().includes("@");
+  return localCandidateCount === 0 && COMPLETE_EMAIL.test(identifier.trim());
 }
 
 /**

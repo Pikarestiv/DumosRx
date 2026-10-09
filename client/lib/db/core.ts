@@ -1211,12 +1211,8 @@ export async function logAction(
   overrideStoreId?: string,
   // Groups one multi-step operation's rows in the Activity Log.
   correlationId?: string,
-  // Attributes the row to someone other than the locally logged-in user. Only
-  // for an actor the SERVER knows but this device does not — an admin running
-  // a repair from an on-till inspection session. SyncController backfills
-  // `user_id` from the sync token whenever the id is missing or unknown to it,
-  // so leaving this unset makes the server's record name the token's owner
-  // (typically the store owner) as the actor.
+  // An actor the server knows but this device does not — see client/AGENTS.md,
+  // "On-till admin inspection", for why leaving it unset misattributes.
   actorId?: string,
 ) {
   if (!db) return;

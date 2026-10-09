@@ -7,6 +7,10 @@ import {
 /**
  * Support tools for a DevTools session, deliberately not in-app buttons.
  * Extracted from index.ts to keep it under the 350-line limit (AGENTS.md §4).
+ *
+ * This forms a cycle with index.ts, which imports this file for its side
+ * effect. Safe only because the imports below are hoisted function
+ * declarations — see __tests__/devtools-hooks-binding.test.ts.
  */
 if (typeof window !== "undefined") {
   window.__forceFullResync = forceFullResync;

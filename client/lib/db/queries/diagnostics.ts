@@ -1,4 +1,18 @@
 import { query, getActiveStoreId } from "@/lib/db/core";
+import {
+  stuckQueueRows,
+  orphanedUnsyncedRows,
+  recentCrashes,
+  clockState,
+  deltaHealth,
+  missingTables,
+  crashTelemetryQueued,
+  type StuckRow,
+  type OrphanCount,
+  type CrashRow,
+  type ClockState,
+  type DeltaHealth,
+} from "./diagnostics-detail";
 import { verifyStockIntegrity } from "@/lib/db/sync-engine/stock-integrity";
 import type { StockIntegrityReport } from "@/lib/db/sync-engine/stock-integrity";
 
@@ -39,11 +53,21 @@ export interface ResolutionCounts {
 export interface DeviceDiagnostics {
   queue: QueuedItemSummary[];
   queueTotal: number;
+  /** Of queueTotal. The dashboard indicator excludes these, so showing one
+   * number made the two disagree and sent support chasing the difference. */
+  crashTelemetryQueued: number;
   syncState: SyncStateRow[];
   pendingDeltas: PendingDeltaRow[];
+  deltas: DeltaHealth;
+  /** Unresolved only. This counted resolved rows too. */
   conflicts: number;
   integrity: StockIntegrityReport;
   resolution: ResolutionCounts;
+  stuckRows: StuckRow[];
+  orphans: OrphanCount[];
+  crashes: CrashRow[];
+  clock: ClockState;
+  missingTables: string[];
 }
 
 async function queueSummary(): Promise<QueuedItemSummary[]> {
@@ -122,18 +146,38 @@ export async function collectDeviceDiagnostics(): Promise<DeviceDiagnostics> {
         `SELECT movement_id, stock_batch_id, quantity, attempts
            FROM _pending_stock_deltas ORDER BY attempts DESC LIMIT 50`,
       ),
-      countOf("SELECT COUNT(*) AS count FROM _sync_conflicts"),
+      countOf(
+        "SELECT COUNT(*) AS count FROM _sync_conflicts WHERE resolved_at IS NULL",
+      ),
       verifyStockIntegrity(),
       resolutionCounts(storeId),
+    ]);
+
+  const [crashTelemetry, stuckRows, orphans, crashes, clock, missing, deltas] =
+    await Promise.all([
+      crashTelemetryQueued(),
+      stuckQueueRows(),
+      orphanedUnsyncedRows(),
+      recentCrashes(),
+      clockState(),
+      missingTables(),
+      deltaHealth(),
     ]);
 
   return {
     queue,
     queueTotal: queue.reduce((total, row) => total + Number(row.pending ?? 0), 0),
+    crashTelemetryQueued: crashTelemetry,
     syncState,
     pendingDeltas,
+    deltas,
     conflicts,
     integrity,
     resolution,
+    stuckRows,
+    orphans,
+    crashes,
+    clock,
+    missingTables: missing,
   };
 }

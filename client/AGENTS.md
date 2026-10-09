@@ -355,10 +355,36 @@ and `synchronous = NORMAL`.
     must grant **both** sessions: gating it on inspection alone silently sent
     an impersonating superadmin to Appearance, breaking the only path that had
     ever reached the console.
-  - "Copy report" deliberately omits `last_error` verbatim: a driver error
-    quotes the whole attempted statement, which can carry a real row (a
-    password hash, a customer's details) into a pasted support ticket. The
-    screen shows it; the clipboard does not.
+  - **Privacy governs the clipboard, not completeness.** A sync `last_error`'s
+    first 300 chars can be a driver error quoting the whole attempted
+    statement, so it can carry a real row — a password hash, a customer's
+    details — into a pasted support ticket. The report therefore emits reason
+    **classes** via `canonicaliseReason()`, never raw errors; withholds a crash
+    message matching `/SQLSTATE|INSERT|UPDATE|SELECT|constraint/i`; never reads
+    `stores.license_token`; and never includes an `audit_logs.details` blob
+    (A-130 once put a plaintext temporary password there). The screen may show
+    more than the clipboard. Pinned by `__tests__/diagnostics-detail.test.ts`.
+  - **What it captures, and why each field exists.** A 2026-10-09 audit scored
+    the first version against real incidents: 7 caught, 6 half, 7 missed. The
+    fields added to close those gaps, each tied to the bug that needed it:
+    stuck queue rows with the **`store_id` read out of the frozen payload**
+    (A-162/A-165/A-167 — "the one datum nobody has"); rows at `_synced = 0`
+    with no queue entry, i.e. what the device re-queues every boot (the
+    repeated "changes could not be saved" loops); the on-device crash log from
+    `feedback` coalesced by fingerprint (the only thing that *changes* when a
+    bug is triggered, so it is what makes reproduce-then-inspect work);
+    the clock watermark vs the device clock (A-191's lockout); missing tables
+    from `sqlite_master` (A-188 asked for exactly this query); platform and
+    user agent (A-158); and delta age plus the count whose product is gone
+    locally (A-176a — tells you whether a resync can help).
+  - **Three numbers were wrong and are fixed:** `queueTotal` counted crash
+    telemetry while the dashboard indicator excludes it, so the two disagreed
+    and support chased the difference; `conflicts` counted resolved rows; and
+    the unapplied-delta figure was `pendingDeltas.length` under a `LIMIT 50`,
+    which understated.
+  - **Refresh shows a "Read at" time.** Every query is local SQLite finishing
+    in milliseconds, so the spinner never visibly spins and unchanged numbers
+    made the button look dead. The timestamp is the proof it read.
   - `window.__verifyStockIntegrity` is always exposed (read-only);
     `window.__foldStockQuantities` is gated, because it writes.
   - `foldStockQuantities()` writes quantities directly rather than through

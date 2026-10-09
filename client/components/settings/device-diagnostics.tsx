@@ -15,6 +15,9 @@ import { getDeviceId } from "@/lib/utils/device-id";
 import { getDeviceLabel } from "@/lib/utils/device-label";
 import { APP_VERSION, BUILD_SHA } from "@/lib/constants";
 import { getLastSyncTime } from "@/lib/storage-keys";
+import { buildReport } from "./diagnostics/diagnostics-report";
+import { DiagnosticsDetailCards } from "./diagnostics/diagnostics-detail-cards";
+import { isTauri } from "@/lib/db/core";
 
 const CARD =
   "bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm";
@@ -38,58 +41,12 @@ function hoursSince(iso: string | null): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-function buildReport(
-  data: DeviceDiagnostics,
-  identity: Record<string, string>,
-): string {
-  const lines: string[] = ["DumosRx device report", ""];
-
-  for (const [key, value] of Object.entries(identity)) {
-    lines.push(`${key}: ${value}`);
-  }
-
-  lines.push("", `Sync queue: ${data.queueTotal} item(s), ${data.conflicts} conflict(s)`);
-  for (const row of data.queue) {
-    lines.push(
-      `  ${row.table_name}: ${row.pending} pending, ${row.retrying} retrying` +
-        // Deliberately omitted: a driver error quotes the whole attempted
-        // statement, so it can carry a verbatim row (a staff password hash,
-        // a customer's details) into a pasted support ticket.
-        (row.last_error ? " (has a sync error, see the screen)" : ""),
-    );
-  }
-
-  lines.push("", "Sync state");
-  for (const row of data.syncState) {
-    lines.push(
-      `  ${row.table_name}: last synced ${row.last_synced_at ?? "never"}` +
-        (row.server_cursor ? " (mid-window)" : ""),
-    );
-  }
-
-  lines.push(
-    "",
-    `Stock integrity: ${data.integrity.checked} batch(es) checked, ` +
-      `${data.integrity.diverged} diverged, ${data.integrity.unreconstructable} unreconstructable, ` +
-      `net ${data.integrity.netUnitDelta >= 0 ? "+" : ""}${data.integrity.netUnitDelta} units`,
-    `Awaiting a delta not yet applied: ${data.integrity.pending}`,
-    `Unapplied stock deltas: ${data.pendingDeltas.length}`,
-    "",
-    `Products: ${data.resolution.products}`,
-    `  category that cannot be resolved on this device: ${data.resolution.unresolvableCategory}`,
-    `  without any active batch: ${data.resolution.productsWithoutBatches}`,
-    `  batches holding stock with no movement behind them: ${data.resolution.batchesWithoutMovements}`,
-  );
-
-  return lines.join("\n");
-}
-
 export function DeviceDiagnosticsPanel() {
   const { storeProfile } = useStore();
   const [copied, setCopied] = useState(false);
   const [showFoldConfirm, setShowFoldConfirm] = useState(false);
 
-  const { data, isFetching, refetch } = useQuery({
+  const { data, isFetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["device-diagnostics"],
     queryFn: collectDeviceDiagnostics,
     staleTime: 0,
@@ -102,6 +59,9 @@ export function DeviceDiagnosticsPanel() {
       Store: `${storeProfile?.name ?? "unknown"} (${storeProfile?.id ?? "unknown"})`,
       "Last sync": getLastSyncTime() ?? "never",
       Online: typeof navigator !== "undefined" && navigator.onLine ? "yes" : "no",
+      Platform: `${isTauri() ? "desktop" : "web"} · ${
+        typeof navigator !== "undefined" ? navigator.userAgent : "unknown"
+      }`,
     }),
     [storeProfile],
   );
@@ -124,7 +84,8 @@ export function DeviceDiagnosticsPanel() {
           What this device believes about its own sync. Everything here is read
           from the local database and nothing is changed by opening this page.
         </p>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => void refetch()} disabled={isFetching}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
             Refresh
@@ -133,6 +94,15 @@ export function DeviceDiagnosticsPanel() {
             <Copy className="h-4 w-4 mr-2" />
             {copied ? "Copied" : "Copy report"}
           </Button>
+          </div>
+          {/* Every query here is local SQLite and finishes in milliseconds, so
+              the spinner never visibly spins and identical numbers look like a
+              dead button. The timestamp is the proof it read. */}
+          {dataUpdatedAt > 0 && (
+            <span className="text-xs text-muted-foreground tabular-nums">
+              Read at {new Date(dataUpdatedAt).toLocaleTimeString("en-GB")}
+            </span>
+          )}
         </div>
       </div>
 
@@ -177,6 +147,12 @@ export function DeviceDiagnosticsPanel() {
               }
             />
           ))}
+          {data && data.crashTelemetryQueued > 0 && (
+            <Row
+              label="of which crash reports"
+              value={`${data.crashTelemetryQueued} (the dashboard count excludes these)`}
+            />
+          )}
           {data && data.conflicts > 0 && (
             <Row label="Unresolved conflicts" value={data.conflicts} />
           )}
@@ -237,7 +213,19 @@ export function DeviceDiagnosticsPanel() {
                 label="Waiting on a delta, not yet comparable"
                 value={data.integrity.pending}
               />
-              <Row label="Stock updates not yet applied" value={data.pendingDeltas.length} />
+              <Row label="Stock updates not yet applied" value={data.deltas.total} />
+              {data.deltas.chronic > 0 && (
+                <Row
+                  label="of those, stuck 10+ rounds"
+                  value={data.deltas.chronic}
+                />
+              )}
+              {data.deltas.productMissing > 0 && (
+                <Row
+                  label="whose product is gone locally"
+                  value={`${data.deltas.productMissing} — a resync will not clear these`}
+                />
+              )}
             </>
           )}
           {data && data.integrity.diverged > 0 && (
@@ -251,6 +239,8 @@ export function DeviceDiagnosticsPanel() {
           )}
         </CardContent>
       </Card>
+
+      {data && <DiagnosticsDetailCards data={data} />}
 
       <ConfirmDialog
         open={showFoldConfirm}

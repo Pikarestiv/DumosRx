@@ -5,6 +5,7 @@
 
 import { getStoreProfile, updateStoreMonotonicTime } from "@/lib/db/queries/setup";
 import { readServerClock, describeDrift } from "./server-clock";
+import { readInspectionServerClock } from "@/lib/api/admin-till-session";
 import { getTillInspectionSession } from "@/lib/utils/till-inspection";
 import {
   logTillRepair,
@@ -171,28 +172,31 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
 export async function overrideClockLockout(): Promise<
   { ok: boolean; reason: string }
 > {
-  if (!getTillInspectionSession()) {
+  const session = getTillInspectionSession();
+  if (!session) {
     throw new Error("Requires an admin inspection session.");
   }
 
   const profile = await getStoreProfile();
   if (!profile) return { ok: false, reason: "No store profile on this device." };
 
-  const reading = await readServerClock();
-  if (!reading) {
+  // Deliberately NOT the public /health endpoint: this call carries the
+  // session id and the server refuses it unless a live admin_till_sessions row
+  // exists, so the authority is a server-side row rather than a sessionStorage
+  // flag anyone could forge in devtools.
+  const serverNow = await readInspectionServerClock(session.sessionId);
+  if (!serverNow) {
     return {
       ok: false,
       reason:
-        "Could not reach our servers to confirm the time. Connect to the internet and try again.",
+        "Could not confirm the time with our servers for this session. Check the connection and try again.",
     };
   }
 
-  await updateStoreMonotonicTime(profile.id, reading.serverNow.toISOString());
+  await updateStoreMonotonicTime(profile.id, serverNow.toISOString());
 
   await logTillRepair(TILL_REPAIR_ACTIONS.clockOverride, profile.id, {
-    server_now: reading.serverNow.toISOString(),
-    device_agreed: reading.agrees,
-    drift_ms: reading.driftMs,
+    server_now: serverNow.toISOString(),
   });
 
   return { ok: true, reason: "Clock watermark reset to server time by admin override." };

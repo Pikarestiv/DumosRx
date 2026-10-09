@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TillInspectionBanner } from "@/components/dashboard/till-inspection-banner";
 import { DeviceDiagnosticsPanel } from "@/components/settings/device-diagnostics";
@@ -15,12 +15,20 @@ import { isTillInspectionSession } from "@/lib/utils/till-inspection";
  */
 export default function InspectPage() {
   const router = useRouter();
+  // Mounted flag: reading sessionStorage during render makes the server/
+  // prerender pass and the first client pass disagree, which React reports as
+  // a hydration mismatch. auth-context avoids the same trap.
+  const [mounted, setMounted] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
 
   useEffect(() => {
-    if (!isTillInspectionSession()) router.replace("/login");
+    const live = isTillInspectionSession();
+    setMounted(true);
+    setHasSession(live);
+    if (!live) router.replace("/login");
   }, [router]);
 
-  if (!isTillInspectionSession()) return null;
+  if (!mounted || !hasSession) return null;
 
   return (
     <div className="min-h-screen bg-background">

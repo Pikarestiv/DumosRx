@@ -379,4 +379,50 @@ class AdminTillSessionTest extends TestCase
 
         $this->assertNotNull(AdminTillSession::findOrFail($sessionId)->ended_at);
     }
+
+    public function test_server_time_is_refused_without_a_live_session(): void
+    {
+        // The client-side session flag is forgeable (sessionStorage in a PWA),
+        // so the clock override's authority has to be a row on the server.
+        $this->postJson('/api/v1/app/admin-till-session/server-time', [
+            'session_id' => (string) \Illuminate\Support\Str::uuid(),
+        ])->assertStatus(401);
+
+        $this->postJson('/api/v1/app/admin-till-session/server-time', [])
+            ->assertStatus(401);
+    }
+
+    public function test_server_time_is_served_to_a_live_session(): void
+    {
+        $this->seedAdminWithCode();
+        $sessionId = $this->open()->assertOk()->json('session_id');
+
+        $this->postJson('/api/v1/app/admin-till-session/server-time', [
+            'session_id' => $sessionId,
+        ])->assertOk()->assertJsonStructure(['timestamp', 'session_id']);
+    }
+
+    public function test_server_time_is_refused_once_the_session_has_ended(): void
+    {
+        $this->seedAdminWithCode();
+        $sessionId = $this->open()->assertOk()->json('session_id');
+
+        $this->postJson('/api/v1/app/admin-till-session/end', ['session_id' => $sessionId]);
+
+        $this->postJson('/api/v1/app/admin-till-session/server-time', [
+            'session_id' => $sessionId,
+        ])->assertStatus(401);
+    }
+
+    public function test_server_time_is_refused_past_the_hard_cap(): void
+    {
+        $this->seedAdminWithCode();
+        $sessionId = $this->open()->assertOk()->json('session_id');
+
+        AdminTillSession::where('id', $sessionId)->update(['expires_at' => now()->subHour()]);
+
+        $this->postJson('/api/v1/app/admin-till-session/server-time', [
+            'session_id' => $sessionId,
+        ])->assertStatus(401);
+    }
 }

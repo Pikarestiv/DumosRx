@@ -65,6 +65,7 @@ Route::prefix('v1')->group(function () {
     });
     Route::middleware('throttle:till-session-end')->group(function () {
         Route::post('/app/admin-till-session/end', [\App\Http\Controllers\Api\App\AdminTillSessionController::class, 'end']);
+        Route::post('/app/admin-till-session/server-time', [\App\Http\Controllers\Api\App\AdminTillSessionController::class, 'serverTime']);
     });
     Route::middleware('throttle:handoff')->group(function () {
         Route::post('/auth/handoff', [AuthHandoffController::class, 'create']);

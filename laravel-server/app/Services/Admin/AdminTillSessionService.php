@@ -92,6 +92,15 @@ class AdminTillSessionService
         ];
     }
 
+    /** A session that is open AND still inside its hard cap. */
+    public function liveSession(string $sessionId): ?AdminTillSession
+    {
+        return AdminTillSession::live()
+            ->where('id', $sessionId)
+            ->where('expires_at', '>', now())
+            ->first();
+    }
+
     public function end(string $sessionId, string $reason = 'signed_out'): bool
     {
         $session = AdminTillSession::live()->where('id', $sessionId)->first();

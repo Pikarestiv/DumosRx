@@ -306,6 +306,18 @@ and `synchronous = NORMAL`.
     (`components/auth/admin-till-login.tsx`) takes an `onSuccess` callback and
     never navigates itself — a router push from the card would just re-render
     the card.
+  - **The override is authorised by the server, not the client flag.** The
+    `dumos_till_inspection` entry is forgeable in devtools, so
+    `overrideClockLockout()` reads its time from
+    `POST /app/admin-till-session/server-time`, which 401s unless a live
+    `admin_till_sessions` row exists and is still inside its hard cap. It
+    deliberately does **not** use the public `/health` endpoint. The call
+    doubles as the authorisation it would otherwise lack.
+  - **Exit is reported on four paths**: the End Session button, the idle/hard
+    deadline, `logout()`, and `pagehide` via `navigator.sendBeacon` — the last
+    because an awaited fetch is cancelled with the page, and closing the app is
+    the commonest exit on a desktop till. Clock-based expiry remains the
+    backstop.
   - `overrideClockLockout()` is the admin-present form of
     `reconcileClockWithServer()`: it still requires a live `readServerClock()`
     reading, so server time stays the authority, but skips the `agrees`

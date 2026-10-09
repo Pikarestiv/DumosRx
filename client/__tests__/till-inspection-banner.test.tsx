@@ -8,11 +8,17 @@ import {
   type TillInspectionSession,
 } from "@/lib/utils/till-inspection";
 
-const { ended } = vi.hoisted(() => ({ ended: { calls: [] as string[] } }));
+const { ended, beaconed } = vi.hoisted(() => ({
+  ended: { calls: [] as string[] },
+  beaconed: { calls: [] as string[] },
+}));
 
 vi.mock("@/lib/api/admin-till-session", () => ({
   endAdminTillSession: vi.fn(async (_id: string, reason: string) => {
     ended.calls.push(reason);
+  }),
+  beaconAdminTillSessionEnd: vi.fn((id: string) => {
+    beaconed.calls.push(id);
   }),
 }));
 
@@ -42,6 +48,7 @@ describe("TillInspectionBanner", () => {
   beforeEach(() => {
     sessionStorage.clear();
     ended.calls = [];
+    beaconed.calls = [];
     assign.mockClear();
     Object.defineProperty(window, "location", {
       configurable: true,
@@ -142,5 +149,27 @@ describe("TillInspectionBanner", () => {
     fireEvent.click(button);
 
     await waitFor(() => expect(ended.calls).toEqual(["signed_out"]));
+  });
+
+  it("beacons an exit when the page is hidden, so closing the app still records one", async () => {
+    startTillInspectionSession(live());
+    render(<TillInspectionBanner />);
+    await waitFor(() => expect(screen.getByText(/read-only/i)).toBeTruthy());
+
+    window.dispatchEvent(new Event("pagehide"));
+
+    expect(beaconed.calls).toEqual(["sess-1"]);
+  });
+
+  it("does not beacon when the session is already closing", async () => {
+    startTillInspectionSession(live());
+    render(<TillInspectionBanner />);
+    await waitFor(() => expect(screen.getByText(/read-only/i)).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: /end session/i }));
+    window.dispatchEvent(new Event("pagehide"));
+
+    await waitFor(() => expect(ended.calls).toEqual(["signed_out"]));
+    expect(beaconed.calls).toEqual([]);
   });
 });

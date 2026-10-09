@@ -1,13 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { clock, store } = vi.hoisted(() => ({
-  clock: { reading: null as null | { serverNow: Date; agrees: boolean; driftMs: number } },
+  clock: {
+    reading: null as null | { serverNow: Date; agrees: boolean; driftMs: number },
+    serverNow: new Date("2026-10-09T12:00:00Z") as Date | null,
+    serverAccepts: ["sess-1"] as string[],
+  },
   store: { profile: null as null | { id: string }, written: [] as string[] },
 }));
 
 vi.mock("@/lib/licensing/server-clock", () => ({
   readServerClock: vi.fn(async () => clock.reading),
   describeDrift: (ms: number) => `${ms}ms off`,
+}));
+
+vi.mock("@/lib/api/admin-till-session", () => ({
+  // Mirrors the server: time is served only for a session the SERVER accepts,
+  // so a forged sessionStorage flag cannot authorise an override.
+  readInspectionServerClock: vi.fn(async (sessionId: string) =>
+    clock.serverAccepts.includes(sessionId) ? clock.serverNow : null,
+  ),
 }));
 
 vi.mock("@/lib/db/queries/setup", () => ({
@@ -51,6 +63,8 @@ describe("overrideClockLockout", () => {
     store.profile = { id: "s1" };
     store.written = [];
     clock.reading = { serverNow: new Date("2026-10-09T12:00:00Z"), agrees: true, driftMs: 0 };
+    clock.serverNow = new Date("2026-10-09T12:00:00Z");
+    clock.serverAccepts = ["sess-1"];
   });
 
   it("refuses without an inspection session", async () => {
@@ -80,13 +94,14 @@ describe("overrideClockLockout", () => {
   });
 
   it("refuses when the server cannot be reached, so an offline device cannot self-clear", async () => {
-    clock.reading = null;
+    clock.serverNow = null;
+    clock.serverAccepts = [];
     startTillInspectionSession(live());
 
     const result = await overrideClockLockout();
 
     expect(result.ok).toBe(false);
-    expect(result.reason).toMatch(/internet/i);
+    expect(result.reason).toMatch(/connection/i);
     expect(store.written).toEqual([]);
   });
 
@@ -100,6 +115,18 @@ describe("overrideClockLockout", () => {
   it("reports a missing store profile rather than throwing", async () => {
     store.profile = null;
     startTillInspectionSession(live());
+
+    const result = await overrideClockLockout();
+
+    expect(result.ok).toBe(false);
+    expect(store.written).toEqual([]);
+  });
+
+  it("refuses a forged session the server does not recognise", async () => {
+    // The sessionStorage flag is forgeable in devtools; the authority is a
+    // live admin_till_sessions row, which only the server can confirm.
+    clock.serverAccepts = [];
+    startTillInspectionSession({ ...live(), sessionId: "forged" });
 
     const result = await overrideClockLockout();
 

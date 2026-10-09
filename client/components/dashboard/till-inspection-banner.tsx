@@ -10,7 +10,11 @@ import {
   msUntilInspectionExpiry,
   IDLE_WARNING_MS,
 } from "@/lib/utils/till-inspection";
-import { endAdminTillSession, type TillSessionEndReason } from "@/lib/api/admin-till-session";
+import {
+  endAdminTillSession,
+  beaconAdminTillSessionEnd,
+  type TillSessionEndReason,
+} from "@/lib/api/admin-till-session";
 import { useStore } from "@/lib/context/store-context";
 
 const EXTEND_THROTTLE_MS = 30_000;
@@ -26,7 +30,7 @@ function hardCapReached(session: { hardExpiresAt: string } | null): boolean {
  */
 export function TillInspectionBanner() {
   const { storeProfile } = useStore();
-  const [session] = useState(() => getTillInspectionSession());
+  const [session, setSession] = useState<ReturnType<typeof getTillInspectionSession>>(null);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const closing = useRef(false);
 
@@ -50,6 +54,12 @@ export function TillInspectionBanner() {
     [session],
   );
 
+  // Read after mount, never during render: a render-time sessionStorage read
+  // disagrees with the prerender pass and React reports a hydration mismatch.
+  useEffect(() => {
+    setSession(getTillInspectionSession());
+  }, []);
+
   useEffect(() => {
     let lastExtend = Date.now();
 
@@ -59,8 +69,17 @@ export function TillInspectionBanner() {
       extendTillInspectionSession();
     };
 
+    // pagehide, not unload: an awaited fetch is cancelled with the page, so
+    // closing the app — the commonest exit on a desktop till — otherwise left
+    // the session row open with no exit and no duration.
+    const onPageHide = () => {
+      const current = getTillInspectionSession();
+      if (current && !closing.current) beaconAdminTillSessionEnd(current.sessionId);
+    };
+
     window.addEventListener("pointerdown", onActivity);
     window.addEventListener("keydown", onActivity);
+    window.addEventListener("pagehide", onPageHide);
 
     const timer = setInterval(() => {
       const left = msUntilInspectionExpiry();
@@ -77,6 +96,7 @@ export function TillInspectionBanner() {
     return () => {
       window.removeEventListener("pointerdown", onActivity);
       window.removeEventListener("keydown", onActivity);
+      window.removeEventListener("pagehide", onPageHide);
       clearInterval(timer);
     };
   }, [close]);

@@ -51,6 +51,32 @@ class AdminTillSessionController extends Controller
         ));
     }
 
+    /**
+     * Server time, but only for a live inspection session. The clock override
+     * needs an authoritative clock anyway, so this doubles as the server-side
+     * authorisation it would otherwise lack: the client flag in sessionStorage
+     * is forgeable, a row in admin_till_sessions is not.
+     */
+    public function serverTime(Request $request)
+    {
+        $sessionId = $request->input('session_id');
+
+        if (!is_string($sessionId) || $sessionId === '') {
+            return response()->json(['error' => 'No inspection session.'], 401);
+        }
+
+        $session = $this->sessions->liveSession($sessionId);
+
+        if (!$session) {
+            return response()->json(['error' => 'No inspection session.'], 401);
+        }
+
+        return response()->json([
+            'timestamp' => now()->toIso8601String(),
+            'session_id' => $session->id,
+        ]);
+    }
+
     public function end(Request $request)
     {
         $sessionId = $request->input('session_id');

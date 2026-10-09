@@ -8,6 +8,8 @@ import {
 
 export const TILL_CODE_LENGTH = 12;
 
+const REQUEST_TIMEOUT_MS = 15_000;
+
 export const UNIFORM_REJECTION = "Wrong password.";
 
 export const OFFLINE_MESSAGE = "Admin access needs an internet connection.";
@@ -54,6 +56,9 @@ export async function requestAdminTillSession(
         store_id: storeId,
         device_id: deviceId,
       }),
+      // Without this a hung request leaves the login spinner forever, on a
+      // till whose network is the thing under investigation.
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     },
   );
 
@@ -78,6 +83,37 @@ export async function requestAdminTillSession(
   };
 }
 
+/**
+ * Server time, served only while the session row is live. The clock override
+ * uses this rather than the public /health endpoint so the server — not a
+ * forgeable sessionStorage flag — is what authorises it.
+ */
+export async function readInspectionServerClock(
+  sessionId: string,
+): Promise<Date | null> {
+  try {
+    const response = await fetch(
+      `${apiClient.getBaseURL()}/app/admin-till-session/server-time`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId }),
+        cache: "no-store",
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      },
+    );
+
+    if (!response.ok) return null;
+
+    const body = await response.json();
+    const serverNow = new Date(body?.timestamp);
+
+    return Number.isNaN(serverNow.getTime()) ? null : serverNow;
+  } catch {
+    return null;
+  }
+}
+
 export async function endAdminTillSession(
   sessionId: string,
   reason: TillSessionEndReason = "signed_out",
@@ -86,5 +122,26 @@ export async function endAdminTillSession(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_id: sessionId, reason }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   }).catch(() => {});
+}
+
+/**
+ * Exit on tab close or app quit, where an awaited fetch is cancelled with the
+ * page. Closing the app is the most common exit on a desktop till, and without
+ * this the session row kept no exit row and no duration.
+ */
+export function beaconAdminTillSessionEnd(sessionId: string): void {
+  const payload = JSON.stringify({ session_id: sessionId, reason: "expired" });
+
+  try {
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(
+        `${apiClient.getBaseURL()}/app/admin-till-session/end`,
+        new Blob([payload], { type: "application/json" }),
+      );
+    }
+  } catch {
+    /* best effort; clock-based expiry is the backstop */
+  }
 }

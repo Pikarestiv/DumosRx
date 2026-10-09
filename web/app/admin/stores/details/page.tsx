@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 import { StoreStaffList } from "@/components/admin/stores/store-staff-list";
+import { StoreDetailActions } from "@/components/admin/stores/details/store-detail-actions";
 import { AccountManagerCard } from "@/components/admin/stores/details/account-manager-card";
 import {
   DetailCard,
@@ -97,7 +98,8 @@ function StoreDetailsContent() {
               Owned by {store.owner?.name ?? "—"} · Registered {store.created_at}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <StoreDetailActions store={store} onChanged={() => void refetch()} />
             <Badge
               className={
                 store.status === "Suspended"

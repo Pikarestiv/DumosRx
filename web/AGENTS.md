@@ -425,6 +425,54 @@ ordinary Retry and fires it again. The match is on all three fields: a pending
 command for a different row, a different device, or one already `applied`,
 must leave the buttons alone.
 
+### Requesting a device report (2026-10-09)
+
+`send_device_report` shipped end to end on 2026-10-08 — `SyncCommandService`,
+the client handler in `sync-commands.ts`, server tests — with **nothing in
+`web/` that issued it**. The feature was unusable from the panel for a day,
+and it was needed on the first real incident after it shipped. If you add a
+sync command action server-side, add its trigger in the same change or it
+does not exist.
+
+`device-report-action.tsx` sits in each row of the stock-divergence list,
+which is the right place: that list is where you have just read a device's
+drift and decided you want its diagnostics. It follows `StuckItemActions`
+exactly — `checkIsSuperAdmin` itself (the panel is `view_platform_health`, the
+route is `role:super_admin`), and a `pending` command for this device and this
+action replaces the button rather than offering a second one.
+
+**A command needs an exact `device_id`.** `SyncCommandService::pendingFor()`
+claims with `where('device_id', $deviceId)`, so a command carrying a null or
+empty one is never claimed by any device and sits `pending` for ever. The API
+validates `device_id` as `required`; the control passes the row's own id and a
+test pins that it is non-empty. Do not add a "request from any device of this
+store" affordance without changing the claim side first.
+
+**Identifying the on-site device:** `user_devices.store_id` is the device's
+*last active* store, not where it lives, so a store switch rewrites it and
+every device of a multi-store owner reads as whichever store they opened last.
+Use `device_stock_reports` (a device only reports for the store it counted) or
+a staff member's own sync history via `StaffDeviceHistory` — staff accounts
+only ever sign in on the shop's own terminal.
+
+### Store actions live in one hook, used by two surfaces (2026-10-09)
+
+`hooks/use-store-actions.ts` owns every store-level action: the six mutations,
+the dialog open state, the selected store, and the handler bodies. It returns
+`{ handlers, pendingStoreId, dialogHost }`, which spread straight into
+`StoreRowActions` and `StoreDialogHost`.
+
+Both the fleet list (`app/admin/stores/page.tsx`, which went from 320 lines to
+174) and the store detail page use it, so the two surfaces cannot drift apart —
+previously the detail page offered no actions at all and an operator had to go
+back to the list and find the row's kebab menu. `StoreDetailActions` adds the
+`AdminStoreDetail` → `AdminStoreSummary` mapping and the labelled trigger; it
+is the only place that mapping belongs.
+
+`StoreRowActions` takes `trigger`: `"icon"` (default, the fleet row's kebab) or
+`"labelled"` (the detail page's visible "Actions" button). Both carry the same
+`aria-label`, so a test or a screen reader addresses them identically.
+
 ### Admin PWA and the production server switcher (2026-10-07)
 
 - **Scoped to `/admin/`, deliberately.** `public/admin-manifest.webmanifest`

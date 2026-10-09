@@ -12,7 +12,7 @@ import type { useStoreDeletionActions } from "@/hooks/use-store-deletion-actions
 import type { useStoreImpersonation } from "@/hooks/use-store-impersonation";
 import type { AdminStoreSummary } from "@/lib/types/admin";
 
-interface StoreDialogHostProps {
+export interface StoreDialogHostProps {
   selectedStore: AdminStoreSummary | null;
   suspend: { isOpen: boolean; onOpenChange: (open: boolean) => void; onConfirm: (reason: string) => void; isPending: boolean };
   trial: { isOpen: boolean; onOpenChange: (open: boolean) => void; onConfirm: (plan: string, duration?: string, endDate?: string) => void; isPending: boolean };

@@ -1,7 +1,23 @@
 # On-till admin inspection session
 
 **Date:** 2026-10-09
-**Status:** implemented 2026-10-09 (Tasks 1-11); browser smoke test outstanding
+**Status:** shipped — merged to `main` 2026-10-09 in PR #149 (29 commits).
+
+**Outstanding: no part of this has been exercised in a browser.** Everything is
+unit-tested and the server was verified over HTTP, but nothing has been
+clicked. Four checks, each covering something no review could verify:
+
+1. Impersonate a store, then open `/settings/diagnostics` — the console must
+   render. Gating this on the inspection session alone once broke it, because
+   impersonation is the only path that ever reached it.
+2. Lock a till with staff signed in, do an admin visit, End Session — the lock
+   overlay must still be up. A till code unlocking the staff session it
+   overlays was the worst defect found in review.
+3. Close a tab during a session on `/inspect`, then check the
+   `admin_till_sessions` row gets `end_reason: closed`. `sendBeacon`'s
+   cross-origin preflight is the one thing not verifiable outside a browser.
+4. The blocked-licence-card path on a clock-tampered device: admin login, the
+   override, and confirm the banner and End Session are present.
 
 ## Why
 

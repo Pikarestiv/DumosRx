@@ -10,6 +10,13 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md`
 
+**Status: complete.** All 12 tasks shipped and merged to `main` 2026-10-09
+(PR #149). Kept for its reasoning, not as a worklist — several decisions below
+were corrected during the build and the authoritative record of what was built
+is `client/AGENTS.md` ("On-till admin inspection") and
+`laravel-server/AGENTS.md`. Where this plan and those disagree, they are
+right.
+
 ## Why this is not a Sanctum token — read before changing it back
 
 Two review rounds killed the token design. `AdminStoreController::restoreSession()`

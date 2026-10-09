@@ -55,9 +55,8 @@ async function getLocalCounts(storeId: string): Promise<Record<string, number>> 
 }
 
 /**
- * Reports batch-vs-movement-log divergence to Sentry. Deliberately
- * report-only: folding is enabled once fleet data shows how common
- * `unreconstructable` batches actually are. See
+ * Reports batch-vs-movement-log divergence to Sentry. This check never
+ * repairs; `foldStockQuantities()` is support-triggered only. See
  * docs/superpowers/specs/2026-10-08-stock-integrity-fold-design.md.
  */
 async function reportStockIntegrity(): Promise<void> {

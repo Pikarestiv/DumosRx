@@ -81,6 +81,20 @@ describe("collectDeviceDiagnostics", () => {
     expect(products?.last_error).toBe("Invalid category_id");
   });
 
+  it("reports the most recent sync error for a table, not the alphabetical one", async () => {
+    // MAX(last_error) is a string max: 'Zebra' at 10:00 beat 'Alpha' at 12:00,
+    // so support read a stale error off the console during an incident.
+    db.run(
+      `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at, retry_count, last_error)
+       VALUES ('products', 'p1', 'UPDATE', '{}', '2026-10-08T10:00:00Z', 1, 'Zebra: stale connection'),
+              ('products', 'p2', 'UPDATE', '{}', '2026-10-08T12:00:00Z', 1, 'Alpha: invalid category_id')`,
+    );
+
+    const report = await collectDeviceDiagnostics();
+
+    expect(report.queue[0].last_error).toBe("Alpha: invalid category_id");
+  });
+
   it("counts a product whose category this device cannot resolve", async () => {
     db.run(`INSERT INTO categories (id, name, _deleted) VALUES ('c-live', 'drugs', 0)`);
     db.run(

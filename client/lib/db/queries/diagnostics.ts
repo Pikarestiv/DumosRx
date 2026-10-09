@@ -52,7 +52,10 @@ async function queueSummary(): Promise<QueuedItemSummary[]> {
             COUNT(*) AS pending,
             SUM(CASE WHEN retry_count > 0 THEN 1 ELSE 0 END) AS retrying,
             MIN(created_at) AS oldest,
-            MAX(last_error) AS last_error
+            (SELECT q.last_error FROM _sync_queue q
+               WHERE q.table_name = _sync_queue.table_name
+                 AND q.last_error IS NOT NULL
+               ORDER BY q.created_at DESC LIMIT 1) AS last_error
        FROM _sync_queue
       GROUP BY table_name
       ORDER BY pending DESC`,

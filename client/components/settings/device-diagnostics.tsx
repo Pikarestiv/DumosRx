@@ -72,6 +72,7 @@ function buildReport(
     `Stock integrity: ${data.integrity.checked} batch(es) checked, ` +
       `${data.integrity.diverged} diverged, ${data.integrity.unreconstructable} unreconstructable, ` +
       `net ${data.integrity.netUnitDelta >= 0 ? "+" : ""}${data.integrity.netUnitDelta} units`,
+    `Awaiting a delta not yet applied: ${data.integrity.pending}`,
     `Unapplied stock deltas: ${data.pendingDeltas.length}`,
     "",
     `Products: ${data.resolution.products}`,
@@ -231,6 +232,10 @@ export function DeviceDiagnosticsPanel() {
               <Row
                 label="Hold stock with no movement behind them"
                 value={data.integrity.unreconstructable}
+              />
+              <Row
+                label="Waiting on a delta, not yet comparable"
+                value={data.integrity.pending}
               />
               <Row label="Stock updates not yet applied" value={data.pendingDeltas.length} />
             </>

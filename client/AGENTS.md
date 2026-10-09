@@ -245,6 +245,28 @@ and `synchronous = NORMAL`.
 
 ### Backup, restore, wipes and diagnostics (`core.ts`)
 
+- **The device diagnostics console** (`components/settings/device-diagnostics.tsx`,
+  `lib/db/queries/diagnostics.ts`) is a read-only snapshot of one device's own
+  sync state: the queue by table, how far each table has synced, unapplied
+  deltas, unresolved conflicts, stock-integrity verdicts and the catalogue
+  counts behind A-189. It exists because none of that was reachable from
+  inside the app during the 2026-10-08 incident and had to be relayed by hand.
+  Every query in it is a `SELECT`, pinned by a full-snapshot test.
+  - It renders only when `isImpersonatedSession()` is true, and that render
+    check is the **only** gate — the tab is ungated by role and missing from
+    `ALL_SETTINGS_TABS` (A-198). Do not add a trigger for it without adding
+    the permission gate in the same change.
+  - "Copy report" deliberately omits `last_error` verbatim: a driver error
+    quotes the whole attempted statement, which can carry a real row (a
+    password hash, a customer's details) into a pasted support ticket. The
+    screen shows it; the clipboard does not.
+  - `window.__verifyStockIntegrity` is always exposed (read-only);
+    `window.__foldStockQuantities` is gated, because it writes.
+  - `foldStockQuantities()` writes quantities directly rather than through
+    `update()`, so a local repair never queues a push and never claims the
+    server's number. It refuses any batch the log cannot account for, and
+    refuses to run at all without an active store.
+
 - **`restoreDatabase()` (web).** Builds the candidate as a throwaway sql.js
   instance first, so a malformed file throws with the live database fully
   intact, then sanity-checks it against `RESTORE_SANITY_CHECK_TABLES`
@@ -891,8 +913,16 @@ admin panel. The constraints are not negotiable:
   does `MAX(0, quantity + ?)` and `SyncController` does the same server-side —
   never once over the sum. A batch oversold to 0 and then restocked by 3 holds
   a correct `3` while its raw sum reads `1`. Anything deriving a quantity from
-  the log must replay the movements in `created_at` order applying
-  `MAX(0, running + delta)` (`replayMovements()` in `sync-engine/stock-integrity.ts`).
+  the log must replay the movements in **local insert order (`ORDER BY
+  rowid`)** applying `MAX(0, running + delta)` (`replayMovements()` in
+  `sync-engine/stock-integrity.ts`). **Never `created_at`**: it is nullable,
+  second-resolution from MySQL so bulk imports collide, and a sale rung up
+  offline on another till arrives days after its own timestamp — any of those
+  reorders the replay past a floor event, so a correct batch reads as diverged
+  and a fold invents units. `rowid` is the order this device actually applied
+  the deltas in, and so the order that produced the stored quantity. Three
+  tests in `__tests__/stock-integrity-fold.test.ts` exist solely to forbid
+  `created_at`.
   A first cut of `foldStockQuantities()` compared against the raw sum and
   silently destroyed two real units on exactly that shape; caught in review,
   never shipped.
@@ -1093,8 +1123,10 @@ one repair path:
   proxy for "this device is wrong": a batch floored at 0 by an oversell, and a
   legacy A-148 batch with any sales against it, both read as diverged. The
   guard therefore threw for the whole store, permanently, and Health Sync is
-  the *only* repair A-148 batches have. Do not reinstate it until
-  `foldStockQuantities()` exists to give the owner something to repair *with*.
+  the *only* repair A-148 batches have. `foldStockQuantities()` now exists,
+  which was the original precondition — but it is not sufficient, because the
+  false-divergence shapes above are what made the guard unsafe, not the
+  absence of a repair. Do not reinstate it.
   The classifier was corrected for both cases anyway — see
   `sync-engine/stock-integrity.ts` — because they also produced false
   divergence reports. Detection ships; enforcement does not.

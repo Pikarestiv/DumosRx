@@ -49,6 +49,9 @@ export interface StockIntegrityReport {
 
 /** Replays the log the way both the pull and the server do: the floor is
  * applied after every movement, never once over the sum. */
+// Depends on no movement ever being soft-deleted: the replay filters
+// `_deleted = 0` while its delta stays in `quantity`, so the first void-sale
+// soft-delete would make a fold destroy stock. Nothing soft-deletes one today.
 export function replayMovements(deltas: number[]): number {
   return deltas.reduce((running, delta) => Math.max(0, running + delta), 0);
 }
@@ -164,12 +167,12 @@ export async function verifyStockIntegrity(): Promise<StockIntegrityReport> {
       continue;
     }
 
-    report.netUnitDelta += entry.delta;
-
     if (entry.verdict === "pending") {
       report.pending++;
       continue;
     }
+
+    report.netUnitDelta += entry.delta;
 
     if (entry.verdict === "diverged") {
       report.diverged++;

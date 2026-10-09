@@ -135,6 +135,28 @@ describe("foldStockQuantities", () => {
     expect(queued[0].values[0][0]).toBe(1);
   });
 
+  it("keeps netUnitDelta to the batches it actually reports, not pending ones", async () => {
+    // Counted pending batches, so a device mid-backfill with 500 deferred
+    // deltas reported "2 diverged (net +4,100 units)" and sent triage after a
+    // phantom. The net must describe the set the lists contain.
+    batch("b1", 10);
+    movement("m1", "b1", 10);
+    movement("m2", "b1", 5);
+    db.run(
+      `INSERT INTO _pending_stock_deltas (movement_id, stock_batch_id, quantity, attempts)
+       VALUES ('m2', 'b1', 5, 1)`,
+    );
+
+    const { verifyStockIntegrity } = await import(
+      "@/lib/db/sync-engine/stock-integrity"
+    );
+    const report = await verifyStockIntegrity();
+
+    expect(report.pending).toBe(1);
+    expect(report.diverged).toBe(0);
+    expect(report.netUnitDelta).toBe(0);
+  });
+
   it("leaves a consistent batch alone", async () => {
     batch("b1", 5);
     movement("m1", "b1", 5);

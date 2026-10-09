@@ -10,6 +10,13 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
+#### A-200. `web/` — the admin settings Account Manager tab 404s on a direct visit or reload
+- **Found:** 2026-10-09, adding the Till Access tab beside it.
+- **Location:** `web/app/admin/settings/[[...tab]]/page.tsx` (`generateStaticParams`), `web/app/admin/settings/[[...tab]]/settings-client.tsx` (the `account-manager` `TabsTrigger`).
+- **What's wrong:** `next.config` uses `output: "export"`, so every optional-catch-all route segment must be listed in `generateStaticParams` to exist as a static page. `account-manager` is rendered as a tab trigger and has its own `TabsContent`, but was never added to `generateStaticParams`. Clicking the tab works (client-side routing), so it looks fine — but the URL it produces has no exported page, so a reload, a bookmark, or a link shared to a colleague 404s.
+- **Consequence:** one admin settings tab is unreachable by URL. Low severity, invisible in dev (`next dev` serves it fine) and only reproducible against an exported build — which is why it survived.
+- **Fix:** added `{ tab: ["account-manager"] }` alongside the new `{ tab: ["till-codes"] }` in the same change. Kept as a record because the class of bug recurs: **any new tab under an `output: "export"` catch-all needs its `generateStaticParams` entry, and nothing in CI checks it.** A test asserting every `TabsTrigger` value has a matching entry would close it permanently.
+
 #### A-199. `laravel-server/` — two endpoints resolve a Personal Access Token from the request body without checking its abilities
 - **Found:** 2026-10-09, second adversarial review of the on-till admin inspection plan.
 - **Location:** `app/Http/Controllers/Api/Admin/AdminStoreController.php:518-529` (`restoreSession`), `app/Http/Controllers/Api/AuthHandoffController.php:32-48` (`create`).

@@ -10,14 +10,6 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
-#### A-202. `client/`+`laravel-server/` — every staff account reads "Never synced" in the admin panel, because sync is attributed to the account that linked the device, never the staff member using it
-- **Found:** 2026-10-09, while identifying which of Cynthia's devices holds the Agidi store's overstated stock (see `docs/superpowers/specs/2026-10-08-stock-integrity-fold-design.md` for that incident).
-- **Location:** `app/Services/Web/UserDeviceTracker.php:50` (`$user` is `$request->user()`, passed from `SyncController.php:193`, `:913`, `:2435`), against `client/lib/context/auth-context.tsx:797` — the only `setToken()` call in the client.
-- **What's wrong:** the API token is minted once, by `linkCloudAccount(email, password)`, and that function refuses a second account outright ("This device is already linked to …"). A staff PIN login is **local only** — it authenticates against the device's own SQLite `users` table and never obtains a token. So `$request->user()` during a push or pull is always the linking account (the store owner), and `user_devices` can only ever hold owner rows.
-- **Consequence:** `AdminUserDeviceService::getUserDevices($staffId)` returns `[]` by construction, so the Store Staff list shows "Never synced" against every staff member of every store, permanently, however much they sell. Observed on a store with 5 active staff who demonstrably sync daily. The "Sync history" drill-down (`StaffDeviceHistory`) is dead UI for the same reason. It also means `user_devices` cannot be used to identify a store's on-site terminal — the question this was found while asking.
-- **Not a data-attribution bug.** Business rows carry their own local actor (`performed_by` / `user_id` written client-side, see commit `bc0fc96e`, which stopped a pushed audit row being reattributed to whoever synced). Only this visibility table is affected. Do not "fix" it by reattributing business data.
-- **Fix:** have the client send the active local user's id in a header beside `X-Device-Id`, and have `UserDeviceTracker::touch()` attribute to that user **after** verifying they belong to the authenticated store. The value is self-asserted and so must never reach an authorization decision — which is already this table's documented contract ("never consulted for sync correctness or authorization"). Alternatively, if per-staff attribution is not wanted, remove the column and the drill-down rather than shipping a field that is always empty.
-
 #### A-199. `laravel-server/` — two endpoints resolve a Personal Access Token from the request body without checking its abilities
 - **Found:** 2026-10-09, second adversarial review of the on-till admin inspection plan.
 - **Location:** `app/Http/Controllers/Api/Admin/AdminStoreController.php:518-529` (`restoreSession`), `app/Http/Controllers/Api/AuthHandoffController.php:32-48` (`create`).

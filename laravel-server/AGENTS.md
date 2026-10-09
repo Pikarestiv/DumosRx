@@ -758,6 +758,27 @@ migration here **and** the corresponding update on the `client/` side
   trust it for anything security- or correctness-relevant, unlike
   `device_id`. `tests/Feature/UserDeviceTrackingTest.php` and
   `tests/Feature/Admin/AdminUserSyncVisibilityTest.php` guard it.
+- **Attributed to the staff member at the till, not the bearer (A-202,
+  2026-10-09).** `touch()` resolves `X-Acting-User-Id` first and only falls
+  back to `$request->user()`. This is not a nicety: the API token is minted
+  once by the client's `linkCloudAccount()` (its only `setToken()` call, which
+  refuses a second account), and a staff PIN login authenticates against the
+  device's own SQLite `users` table without ever obtaining a token. So the
+  bearer is **always** the account that linked the device, and before this fix
+  `user_devices` could only ever hold owner rows — every staff member read
+  "Never synced" permanently, on every store, and `getUserDevices($staffId)`
+  returned `[]` by construction. **The header is self-asserted**, so
+  `resolveActingUserId()` accepts it only for a user whose `store_id` already
+  equals the ownership-verified `$storeId`, and it must never reach an
+  authorization decision — the same contract this whole table already carries.
+  A build that sends no header keeps the bearer attribution it always had, so
+  no device in the field breaks (§11). An owner has no `store_id` and so
+  resolves to the bearer anyway, which is correct.
+- **`user_devices` cannot identify a store's on-site terminal.** `store_id`
+  here is the device's *last active* store, so a store switch rewrites it and
+  every device of a multi-store owner reads as whichever they opened last. For
+  "which device holds this store's data", use `device_stock_reports` — a device
+  only ever reports for the store it actually counted.
 - **The `stores` response is scoped to the authenticated IDENTITY, not to
   the account — and the client prunes against it.** `stores` is exempt from
   the last-synced cursor and the 500-row cap (`fetchPullPage()`), so the

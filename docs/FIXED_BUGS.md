@@ -2,6 +2,17 @@
 
 A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since been fixed. `KNOWN_BUGS.md` only ever holds *open* items — an entry is removed from it outright the moment it's fixed, not marked done in place — so this file is where the record of "what it was and when it got fixed" lives instead. Git history has the exact diffs; this is a scannable index into that history, one entry per fix, newest first.
 
+## 2026-10-09
+
+### A-202 — every staff account read "Never synced" in the admin panel, because a sync was attributed to the account that linked the device rather than the staff member using it
+- **Found:** 2026-10-09, while trying to identify which of one owner's devices held a store's overstated stock. Spotted by the owner, not by review: five demonstrably active staff all showing "Never synced".
+- **Root cause.** `UserDeviceTracker::touch()` attributed the row to `$request->user()`, the bearer. The API token is minted once by `linkCloudAccount()` in `client/lib/context/auth-context.tsx:797` — the client's only `setToken()` call, and it refuses a second account outright. A staff PIN login authenticates against the device's own SQLite `users` table and never obtains a token, so the bearer is always the linking account (the owner). `user_devices` could therefore only ever hold owner rows, and `AdminUserDeviceService::getUserDevices($staffId)` returned `[]` **by construction** — the Store Staff list's "Never synced" and its `StaffDeviceHistory` drill-down were dead UI for every staff member of every store, permanently.
+- **Fix.** The client stamps `X-Acting-User-Id` from `getStoredUser()?.id` alongside the existing device headers (`client/lib/api/client.ts`, now via one `syncHeaders()` helper instead of the same block copied into four call sites). `UserDeviceTracker::resolveActingUserId()` accepts it **only** for a user whose `store_id` already matches the caller's ownership-verified `$storeId`, and falls back to the bearer otherwise. The header is self-asserted, so it never reaches an authorization decision — which was already this table's documented contract.
+- **Backward compatible by construction (§11).** A device on an older build sends no header and keeps the bearer attribution it has always had; no column changed, no backfill, nothing for an old client to misread. The shim can go when no build without the header is still syncing — i.e. never deliberately, since the fallback is also the correct behaviour for an owner login (an owner has no `store_id`, so they resolve to the bearer anyway).
+- **Not a data-attribution bug, and must not be "fixed" as one.** Business rows already carry their own local actor (`performed_by` / `user_id`, written client-side; commit `bc0fc96e` stopped a pushed audit row being reattributed to whoever synced). Only this visibility table was affected.
+- **Tests.** `tests/Feature/App/UserDeviceAttributionTest.php` — the staff member is credited over the bearer; a header-less client still credits the bearer; a user of another store is refused; an unknown id falls back; two staff on one terminal get two rows.
+- **Consequence for device identification:** `user_devices` could not previously tell you which terminal is on-site, and `user_devices.store_id` is only the device's *last active* store in any case. `device_stock_reports` remains the reliable signal for "which device holds this store's data".
+
 ## 2026-10-08
 
 ### A-184 — `DELETE /admin/users/{id}` deleted whatever id it was given, including the caller's own account and other platform accounts

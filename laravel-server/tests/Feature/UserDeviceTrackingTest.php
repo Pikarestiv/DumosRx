@@ -172,4 +172,102 @@ class UserDeviceTrackingTest extends TestCase
         $this->assertSame($this->store->id, $device->store_id);
         $this->assertNotSame($this->outsiderStore->id, $device->store_id);
     }
+
+    private function staffOf(Store $store): User
+    {
+        return User::create([
+            'first_name' => 'Till', 'last_name' => 'Staff',
+            'email' => 'staff-'.uniqid().'@dumosrx.com',
+            'password' => bcrypt('password'),
+            'role' => 'sales_staff',
+            'store_id' => $store->id,
+        ]);
+    }
+
+    /**
+     * A staff PIN login never mints its own API token, so the bearer is always
+     * the account that linked the device. Without X-Acting-User-Id every staff
+     * member read "Never synced" for ever - see docs/FIXED_BUGS.md A-202.
+     */
+    #[Test]
+    public function the_signed_in_staff_member_is_credited_rather_than_the_bearer(): void
+    {
+        $staff = $this->staffOf($this->store);
+
+        $this->actingAs($this->owner)
+            ->withHeaders([
+                'X-Device-Id' => 'DRX-TILL',
+                'X-Device-Label' => 'Edge on Windows',
+                'X-Acting-User-Id' => $staff->id,
+            ])
+            ->getJson('/api/v1/app/sync/counts')
+            ->assertStatus(200);
+
+        $this->assertNotNull(UserDevice::where('user_id', $staff->id)->where('device_id', 'DRX-TILL')->first());
+        $this->assertEquals(0, UserDevice::where('user_id', $this->owner->id)->count());
+    }
+
+    /** An older build sends no such header and must keep the attribution it
+     * has always had, rather than losing its row. */
+    #[Test]
+    public function a_client_that_sends_no_acting_user_still_credits_the_bearer(): void
+    {
+        $this->actingAs($this->owner)
+            ->withHeaders(['X-Device-Id' => 'DRX-OLD-BUILD'])
+            ->getJson('/api/v1/app/sync/counts')
+            ->assertStatus(200);
+
+        $this->assertNotNull(UserDevice::where('user_id', $this->owner->id)->where('device_id', 'DRX-OLD-BUILD')->first());
+    }
+
+    /** The header is self-asserted, so a user of someone else's store must
+     * never be credited with a sync from this one. */
+    #[Test]
+    public function an_acting_user_from_another_store_is_refused(): void
+    {
+        $outsiderStaff = $this->staffOf($this->outsiderStore);
+
+        $this->actingAs($this->owner)
+            ->withHeaders([
+                'X-Device-Id' => 'DRX-FORGED',
+                'X-Acting-User-Id' => $outsiderStaff->id,
+            ])
+            ->getJson('/api/v1/app/sync/counts')
+            ->assertStatus(200);
+
+        $this->assertEquals(0, UserDevice::where('user_id', $outsiderStaff->id)->count());
+        $this->assertNotNull(UserDevice::where('user_id', $this->owner->id)->where('device_id', 'DRX-FORGED')->first());
+    }
+
+    #[Test]
+    public function an_unknown_acting_user_falls_back_to_the_bearer(): void
+    {
+        $this->actingAs($this->owner)
+            ->withHeaders([
+                'X-Device-Id' => 'DRX-GHOST',
+                'X-Acting-User-Id' => (string) \Illuminate\Support\Str::uuid(),
+            ])
+            ->getJson('/api/v1/app/sync/counts')
+            ->assertStatus(200);
+
+        $this->assertNotNull(UserDevice::where('user_id', $this->owner->id)->where('device_id', 'DRX-GHOST')->first());
+    }
+
+    /** Two staff on one terminal are two rows, which is the point: the
+     * question is which device a given staff member syncs from. */
+    #[Test]
+    public function two_staff_on_one_device_each_get_their_own_row(): void
+    {
+        $first = $this->staffOf($this->store);
+        $second = $this->staffOf($this->store);
+
+        foreach ([$first, $second] as $staff) {
+            $this->actingAs($this->owner)
+                ->withHeaders(['X-Device-Id' => 'DRX-SHARED', 'X-Acting-User-Id' => $staff->id])
+                ->getJson('/api/v1/app/sync/counts')
+                ->assertStatus(200);
+        }
+
+        $this->assertEquals(2, UserDevice::where('device_id', 'DRX-SHARED')->count());
+    }
 }

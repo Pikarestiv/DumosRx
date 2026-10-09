@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LicenseBlockedCard } from "./license-blocked-card";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { getDeviceId } from "@/lib/utils/device-id";
 import {
@@ -355,82 +356,13 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // If clock is tampered or license expired/suspended, show lock screen
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-950 p-4">
-      <Card className="max-w-md w-full border-destructive/50 shadow-2xl shadow-destructive/10">
-        <CardHeader className="text-center">
-          <div className="mx-auto w-16 h-16 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-4">
-            {license?.isClockTampered ? (
-              <Clock className="h-8 w-8" />
-            ) : (
-              <Lock className="h-8 w-8" />
-            )}
-          </div>
-          <CardTitle className="text-2xl font-black">
-            {license?.isClockTampered
-              ? "Clock Discrepancy"
-              : isSuspended
-                ? "Account Suspended"
-                : "Subscription Expired"}
-          </CardTitle>
-          <CardDescription>{license?.message}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="p-4 bg-muted rounded-lg text-sm">
-            <p className="flex items-center gap-2 font-bold text-muted-foreground mb-1 uppercase tracking-widest text-[10px]">
-              <AlertOctagon className="h-3 w-3" />
-              Technical Details
-            </p>
-            <p>Device ID: {deviceId}</p>
-            {license?.expiryDate && (
-              <p>Last Valid Date: {formatDateToDDMMYYYY(license.expiryDate)}</p>
-            )}
-            {license?.isClockTampered && license?.localTime && (
-              <p>This device reads: {new Date(license.localTime).toLocaleString("en-GB")}</p>
-            )}
-            {license?.isClockTampered && license?.monotonicWatermark && (
-              <p>
-                Last recorded activity:{" "}
-                {new Date(license.monotonicWatermark).toLocaleString("en-GB")}
-              </p>
-            )}
-            {clockNotice && <p className="mt-2 text-destructive">{clockNotice}</p>}
-          </div>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-2">
-          {!isSuspended && (
-            <>
-              <Button
-                className="w-full bg-accent hover:bg-accent/90 font-bold"
-                onClick={() => void performCheck({ refreshFromCloud: true })}
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Check Again
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  window.location.href = "/settings/billing";
-                }}
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Renew Subscription
-              </Button>
-            </>
-          )}
-          {isSuspended && (
-            <Button
-              className="w-full bg-accent hover:bg-accent/90 font-bold"
-              onClick={() => void performCheck({ refreshFromCloud: true })}
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh Account Status
-            </Button>
-          )}
-        </CardFooter>
-      </Card>
-    </div>
+    <LicenseBlockedCard
+      license={license}
+      deviceId={deviceId}
+      clockNotice={clockNotice}
+      isSuspended={isSuspended}
+      onRecheck={() => void performCheck({ refreshFromCloud: true })}
+    />
   );
 }

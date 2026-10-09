@@ -14,25 +14,23 @@ const DEBOUNCE_MS = 400;
  * gated on a 4-digit length.
  */
 export function useAdminTillCodeMode(identifier: string): boolean {
-  const [codeMode, setCodeMode] = useState(false);
+  const candidate = identifier.trim();
+  // Derived synchronously so the common case needs no effect and no state.
+  const looksLikeEmail = candidate.includes("@");
+  const [unknownLocally, setUnknownLocally] = useState(false);
 
   useEffect(() => {
-    const candidate = identifier.trim();
-
-    if (!candidate.includes("@")) {
-      setCodeMode(false);
-      return;
-    }
+    if (!looksLikeEmail) return;
 
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
         const matches = await getUsersByUsernameOrEmail(candidate);
         if (!cancelled) {
-          setCodeMode(shouldAttemptAdminTillLogin(candidate, matches.length));
+          setUnknownLocally(shouldAttemptAdminTillLogin(candidate, matches.length));
         }
       } catch {
-        if (!cancelled) setCodeMode(false);
+        if (!cancelled) setUnknownLocally(false);
       }
     }, DEBOUNCE_MS);
 
@@ -40,7 +38,7 @@ export function useAdminTillCodeMode(identifier: string): boolean {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [identifier]);
+  }, [candidate, looksLikeEmail]);
 
-  return codeMode;
+  return looksLikeEmail && unknownLocally;
 }

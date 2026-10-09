@@ -5,6 +5,7 @@
 
 import { getStoreProfile, updateStoreMonotonicTime } from "@/lib/db/queries/setup";
 import { readServerClock, describeDrift } from "./server-clock";
+import { getTillInspectionSession } from "@/lib/utils/till-inspection";
 import { boundedNowIso } from "./monotonic-clock";
 
 const LICENSE_TIERS = ["free", "local", "pro", "enterprise"] as const;
@@ -153,6 +154,40 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
  * watermark was reset. See
  * docs/superpowers/specs/2026-10-08-license-clock-recovery-design.md.
  */
+/**
+ * The admin-present version of reconcileClockWithServer(): still requires a
+ * live server reading, so server time remains the authority and a tampered
+ * device cannot talk its way out — but it skips the `reading.agrees` refusal,
+ * which is exactly the case a physically-present admin is there to resolve.
+ *
+ * Only reachable from an on-till inspection session, which is online-only and
+ * exists only for platform_admin and above. See
+ * docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md.
+ */
+export async function overrideClockLockout(): Promise<
+  { ok: boolean; reason: string }
+> {
+  if (!getTillInspectionSession()) {
+    throw new Error("Requires an admin inspection session.");
+  }
+
+  const profile = await getStoreProfile();
+  if (!profile) return { ok: false, reason: "No store profile on this device." };
+
+  const reading = await readServerClock();
+  if (!reading) {
+    return {
+      ok: false,
+      reason:
+        "Could not reach our servers to confirm the time. Connect to the internet and try again.",
+    };
+  }
+
+  await updateStoreMonotonicTime(profile.id, reading.serverNow.toISOString());
+
+  return { ok: true, reason: "Clock watermark reset to server time by admin override." };
+}
+
 export async function reconcileClockWithServer(): Promise<
   { reconciled: boolean; reason: string }
 > {

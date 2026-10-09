@@ -23,6 +23,8 @@ export const ADMIN_ONLY_SETTINGS_TABS = [
   "danger-zone",
 ] as const;
 
+export const DIAGNOSTICS_SETTINGS_TAB = "diagnostics";
+
 export const ALL_SETTINGS_TABS = [
   "appearance",
   "personal-info",
@@ -41,6 +43,7 @@ export const ALL_SETTINGS_TABS = [
   "billing",
   "roles",
   "danger-zone",
+  DIAGNOSTICS_SETTINGS_TAB,
 ] as const;
 
 /**
@@ -75,7 +78,15 @@ export function canAccessSettingsTab(
   tab: string,
   isAdmin: boolean,
   hasKey: (key: string) => boolean,
+  isInspecting = false,
 ): boolean {
+  // Scoped to this one tab on purpose. A blanket `|| isInspecting` would also
+  // unlock `data` and `danger-zone`, whose restore and factory-reset paths go
+  // through core.ts raw and so sit OUTSIDE the read-only write guard — handing
+  // an inspection session the one button that destroys the evidence it came
+  // to collect.
+  if (tab === DIAGNOSTICS_SETTINGS_TAB) return isInspecting;
+
   const required = SETTINGS_TAB_PERMISSIONS[tab];
   if (required) return hasKey(required);
   return isAdmin || !(ADMIN_ONLY_SETTINGS_TABS as readonly string[]).includes(tab);

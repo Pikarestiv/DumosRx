@@ -16,6 +16,7 @@ import { apiClient } from "@/lib/api/client";
 import { useSettingsForm } from "./use-settings-form";
 import { useSettingsSecurity } from "./use-settings-security";
 import { useSettingsSync } from "./use-settings-sync";
+import { useSettingsTabResolution } from "./use-settings-tab-resolution";
 
 /**
  * Resolves the user's typed/selected auto-sync interval against the
@@ -118,66 +119,15 @@ export function useSettings() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Old tab keys ("account", "store") kept working after the settings
-  // restructure so any bookmarked/shared links still land somewhere sane.
-  const TAB_ALIASES: Record<string, string> = {
-    account: "personal-info",
-    store: "business-info",
-  };
-
-  // The Store & Settings tabs resolve against their own permission key and
-  // the rest against the coarse isAdmin check, in one place that the tab
-  // rail, the mobile list and the URL effect below all share — so a hidden
-  // trigger and a typed /settings/<tab> can never disagree.
-  const canAccessTab = useCallback(
-    (tab: string) =>
-      canAccessSettingsTab(tab, isAdmin, (key) =>
-        hasPermission(user, permissionGroup, key),
-      ),
-    [isAdmin, user, permissionGroup],
-  );
-
-  // Tab activation from URL
-  useEffect(() => {
-    const tab = tabParam;
-    if (tab) {
-      let internalTab = tab;
-      if (tab === "general") {
-        internalTab = "appearance";
-      } else if (tab === "alerts") {
-        internalTab = "notifications";
-      } else if (TAB_ALIASES[tab]) {
-        internalTab = TAB_ALIASES[tab];
-      }
-
-      if (internalTab === "cloud") {
-        internalTab = "data";
-        if (!isCloudLinked) {
-          syncState.setIsCloudLinkOpen(true);
-        }
-      }
-
-      if (!(ALL_SETTINGS_TABS as readonly string[]).includes(internalTab)) {
-        return;
-      }
-
-      if (!canAccessTab(internalTab)) {
-        setActiveTab("appearance");
-        return;
-      }
-
-      if (activeTab !== internalTab) {
-        setActiveTab(internalTab);
-      }
-    }
-    // syncState.setIsCloudLinkOpen (a useState setter, referentially stable
-    // across renders), not the whole `syncState` object: useSettingsSync()
-    // returns a fresh object literal every render, so depending on it here
-    // made this effect - including its unconditional dialog-open call below
-    // - rerun on every render for as long as the route stayed on the
-    // "cloud" alias, reopening the Link DumosRx Cloud dialog immediately
-    // after the user closed it. See __tests__/settings-cloud-link-dialog-loop.test.ts.
-  }, [tabParam, isCloudLinked, canAccessTab, activeTab, syncState.setIsCloudLinkOpen]);
+  const { canAccessTab } = useSettingsTabResolution({
+    tabParam,
+    activeTab,
+    setActiveTab,
+    isAdmin,
+    hasKey: (key: string) => hasPermission(user, permissionGroup, key),
+    isCloudLinked,
+    openCloudLink: syncState.setIsCloudLinkOpen,
+  });
 
   // Tab change handler that updates URL
   const handleTabChange = (value: string) => {

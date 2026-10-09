@@ -31,13 +31,6 @@ handful of things actually worth your attention aren't buried in it.
 - **Consequence:** the device's quantity ends up below the server's, permanently, with no error anywhere. 34 of 300 randomised histories hit it. This is the shape of the "958 products at exactly twice their opening stock" case — `foldStockQuantities()` is a correct repair for it (it converges on the server's value), but the drift keeps recurring until the drain is fixed.
 - **Fix:** drain per page rather than per round, or order the drain ahead of the page's own movements. `client/AGENTS.md`'s deferral section documents the mechanism as safe and should be corrected along with it.
 
-#### A-198. `client/` — the diagnostics settings tab is absent from `ALL_SETTINGS_TABS` and ungated by role
-- **Found:** 2026-10-09, fourth review pass.
-- **Location:** `client/lib/constants/settings-tabs.ts`, `client/lib/hooks/use-settings.ts`, `client/components/settings/settings-client.tsx`.
-- **What's wrong:** two separate gaps. `diagnostics` is not in `ALL_SETTINGS_TABS`, so `use-settings.ts`' URL resolution early-returns for it and a client-side navigation to `/settings/diagnostics` renders the Appearance panel instead; it works today only because `activeTab` is seeded from the URL on mount. And `canAccessSettingsTab("diagnostics", …)` returns **true for every role**, because the tab is in neither `SETTINGS_TAB_PERMISSIONS` nor `ADMIN_ONLY_SETTINGS_TABS` — the `isImpersonatedSession()` render check in `settings-client.tsx` is the only thing holding it closed.
-- **Consequence:** none today, since nothing links to the tab. But adding a trigger without also adding the gate would expose the console to every role, and adding it to `ALL_SETTINGS_TABS` first would do so immediately. Both must land together.
-- **Fix:** add `diagnostics` to `ALL_SETTINGS_TABS` and to the admin-only list (or give it its own permission key) in the same change that adds any trigger for it. Deliberately left out for now rather than half-done.
-
 #### A-196. `client/` — `pos-cart.tsx` is 429 lines, over the 350-line limit
 - **Found:** 2026-10-09, lint during review of the cart-reveal change.
 - **Location:** `client/components/pos/pos-cart.tsx`.

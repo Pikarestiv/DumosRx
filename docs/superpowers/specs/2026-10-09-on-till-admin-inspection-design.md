@@ -1,7 +1,7 @@
 # On-till admin inspection session
 
 **Date:** 2026-10-09
-**Status:** design approved, not implemented
+**Status:** implemented 2026-10-09 (Tasks 1-11); browser smoke test outstanding
 
 ## Why
 

@@ -245,6 +245,58 @@ and `synchronous = NORMAL`.
 
 ### Backup, restore, wipes and diagnostics (`core.ts`)
 
+- **On-till admin inspection** (`lib/utils/till-inspection.ts`,
+  `lib/api/admin-till-session.ts`, `app/inspect/page.tsx`). An admin standing
+  at a store's own till signs in with their email plus a 12-digit till access
+  code and gets a read-only session. Full design in
+  `docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md`.
+  - **The discriminator is "an email that matches no user on this device"**,
+    not "an email was typed". `lib/db/queries/auth.ts:26` already accepts an
+    email as an ordinary login identifier, so a store owner signing in with
+    theirs must stay local and offline. The check runs inside `login()` right
+    after the lookup it already performs, so it costs nothing extra. There is
+    no secret in the bundle and no gesture.
+  - **Known constraint:** an admin whose email is also on a local user record
+    on that device cannot reach the admin path — they get the local PIN login.
+    Use an admin email that is not on any staff record.
+  - **It renders at `/inspect`, outside `(dashboard)`.** `DashboardLayout`
+    hard-requires a staff `user` and redirects to `/login` without one, so on
+    a till logged out for the night (the normal state) an admin would be stuck
+    in a redirect loop. Never synthesise a fake `user` to satisfy the layout —
+    that is how a read-only session acquires an identity it later writes under.
+  - **The session is an overlay**: it never calls `setDbUser()`, never touches
+    `dumos_user`, the active store or the auth token, and never stops sync.
+    It lives in `sessionStorage`, so it dies on restart.
+  - **Read-only is enforced in `insert`/`update`/`softDelete`/`remove`**
+    (`base-helpers.ts`), not by hiding buttons. `remove()` matters: it hard
+    deletes. The fold, the clock override and sync's pull all write via raw
+    `execute`, which is why they are unaffected and need no exception.
+  - **Two deadlines, both local.** A 20-minute idle timer extended by real
+    interaction, and a 4-hour cap derived from the server's `expires_in`
+    **duration** — never its absolute `expires_at`, which on a till whose
+    clock runs hours fast would read as already expired the moment the session
+    opened. Nothing on the server re-verifies a session after login, so these
+    are UX and a stale-tab net rather than enforcement; the real control is
+    how little a session can do.
+  - **The diagnostics tab gate is scoped to that one tab.** A blanket
+    `|| isInspecting` in `canAccessSettingsTab()` would also unlock `data` and
+    `danger-zone`, whose restore and factory-reset paths run through `core.ts`
+    raw, outside the write guard — handing an inspection session the one button
+    that destroys the evidence it came to collect.
+  - **The entry also lives on the blocked licence card**
+    (`components/auth/license-blocked-card.tsx`), because `LicenseGuard`
+    returns that card *instead of* its children: while a device is
+    clock-tampered there is no app, no lock screen and no "someone else", so
+    that is the only way in. The shared form
+    (`components/auth/admin-till-login.tsx`) takes an `onSuccess` callback and
+    never navigates itself — a router push from the card would just re-render
+    the card.
+  - `overrideClockLockout()` is the admin-present form of
+    `reconcileClockWithServer()`: it still requires a live `readServerClock()`
+    reading, so server time stays the authority, but skips the `agrees`
+    refusal, which is exactly the case a present admin resolves. Do not relax
+    `reconcileClockWithServer()` itself.
+
 - **The device diagnostics console** (`components/settings/device-diagnostics.tsx`,
   `lib/db/queries/diagnostics.ts`) is a read-only snapshot of one device's own
   sync state: the queue by table, how far each table has synced, unapplied

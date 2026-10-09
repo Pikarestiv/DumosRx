@@ -17,6 +17,81 @@ modal and no second code: the "till access code" and "the 12 digits from the
 admin panel" are the same single credential, generated at
 `/admin/settings` (Task 5) and typed once at the till.
 
+## Corrections from review — binding on every task
+
+A review pass verified every file:line this plan cites. These were wrong in
+the first draft and are corrected in the tasks below; they are repeated here
+because each one would have been built wrong:
+
+- **`User::factory()` does not exist.** There is no `laravel-server/database/factories/`
+  directory at all. Every test in Tasks 1-5 as first drafted would have failed
+  on an undefined factory. The `User::create([...])` calls below are shorthand:
+  give each one the required columns the way
+  `tests/Feature/Admin/AdminActivityFeedTest.php:33-42` does, via a private
+  helper in the test class:
+
+  ```php
+  private function admin(string $role = 'platform_admin', ?string $email = null): User
+  {
+      return User::create([
+          'first_name' => 'Platform',
+          'last_name' => 'Tester',
+          'email' => $email ?? $role.'-'.uniqid().'@dumosrx.com',
+          'password' => bcrypt('password'),
+          'role' => $role,
+      ]);
+  }
+  ```
+
+  A bare `User::create(['role' => ..., 'email' => ...])` will fail on the
+  NOT NULL columns.
+- **`platform_admin`'s `manage_platform` grant is seeded, not migrated**
+  (`database/seeders/RolesAndPermissionsSeeder.php:92`), so Task 4's tests must
+  run that seeder or they 403.
+- **`apiClient.post` does not exist** — `request()` is `protected`. See Task 8.
+- **`client/lib/hooks/use-settings.ts` is actually `client/hooks/use-settings.ts`,
+  and it is 349 lines** — one line from breaking §4. Extract before adding.
+- **`components/settings/settings-client.tsx` is actually
+  `client/app/(dashboard)/settings/[tab]/settings-client.tsx:242-244`.**
+- **`web/app/admin/settings/page.tsx` does not exist** — it is
+  `web/app/admin/settings/[[...tab]]/page.tsx` plus its `settings-client.tsx`,
+  with `generateStaticParams` for the static export. A new tab needs an entry
+  there or it 404s in the export.
+- **`client/components/auth/license-guard.tsx` is 436 lines**, already over the
+  350-line limit. The card must be extracted before a form is added to it.
+- **`base-helpers.ts:362` `remove()`** hard-deletes `held_transactions` and
+  `payment_accounts` and must carry `assertWritable()` too. Task 9 covers
+  insert/update/softDelete only as first drafted.
+- **`verify()` must use `User::hasRole()`** (`app/Models/User.php:230-236`),
+  which honours the `userRole` pivot, not a bare `role` column comparison — an
+  admin whose role is held via `role_id` would otherwise be rejected.
+- **The rate limiter must also key on IP.** `->by($request->input('device_id'))`
+  is attacker-controlled; rotating it per request defeats the limit.
+- **Equalise the hash-check count.** `verify()` as drafted runs one
+  `Hash::check` per active code, so an admin with three codes costs 3x an
+  unknown email — a timing signal. Check a fixed number of candidates.
+- **Validation failures return 422, not 401** (a code over 64 chars, a missing
+  field), which distinguishes cases the spec requires to be uniform. Validate
+  loosely and return the uniform 401 for anything that fails verification.
+- **The `end` endpoint cannot succeed as drafted**: `apiClient` sends the till's
+  sync token (`base-client.ts:105`), not the inspection token, so
+  `ability:till-inspect` 403s and the exit is never logged. It needs a
+  per-call Authorization override. The spec also asks for **duration** in the
+  audit log, which `end()` does not record.
+
+**Cleared by the same review, so do not "fix" these:** the read-only guard does
+*not* break sync — `sync-engine/pull.ts` writes via raw `execute()`
+(`:336, :375, :392, :460, :483, :507, :518, :546, :551`), never the helpers.
+`foldStockQuantities` (`stock-integrity.ts:223`) and `updateStoreMonotonicTime`
+(`queries/setup.ts:103-105`) are also raw `execute`, so neither the fold nor
+the clock override is blocked. Sanctum is v4.2.4, so
+`createToken($name, $abilities, $expiresAt)` is supported. `ActivityLog`'s
+fillable columns match what this plan writes, and the table is `activity_logs`.
+`AuthProvider` is mounted above `LicenseGuard` (`app/layout.tsx:96-100`), which
+already calls `useAuth()`, so the card can call `login()`.
+
+---
+
 ## Global Constraints
 
 - Conventional Commits, **single sentence, no multiline body** (root `AGENTS.md` §10).
@@ -102,7 +177,7 @@ class AdminTillSessionTest extends TestCase
 
     public function test_active_scope_excludes_revoked_codes(): void
     {
-        $admin = User::factory()->create(['role' => 'platform_admin']);
+        $admin = User::create(['role' => 'platform_admin']);
 
         AdminTillCode::create([
             'admin_id' => $admin->id,
@@ -241,7 +316,7 @@ A console command rather than admin-panel UI: a code is issued rarely, by you, a
 ```php
 public function test_issuing_a_code_stores_only_a_hash_and_prints_the_code_once(): void
 {
-    $admin = User::factory()->create(['role' => 'platform_admin', 'email' => 'ops@dumosrx.com']);
+    $admin = User::create(['role' => 'platform_admin', 'email' => 'ops@dumosrx.com']);
 
     $this->artisan('admin:till-code', ['email' => 'ops@dumosrx.com', '--label' => 'agidi'])
         ->assertExitCode(0);
@@ -256,7 +331,7 @@ public function test_issuing_a_code_stores_only_a_hash_and_prints_the_code_once(
 
 public function test_revoking_marks_every_active_code_for_that_admin(): void
 {
-    $admin = User::factory()->create(['role' => 'platform_admin', 'email' => 'ops@dumosrx.com']);
+    $admin = User::create(['role' => 'platform_admin', 'email' => 'ops@dumosrx.com']);
     AdminTillCode::create(['admin_id' => $admin->id, 'code_hash' => Hash::make('111111111111')]);
     AdminTillCode::create(['admin_id' => $admin->id, 'code_hash' => Hash::make('222222222222')]);
 
@@ -268,7 +343,7 @@ public function test_revoking_marks_every_active_code_for_that_admin(): void
 
 public function test_refuses_a_user_who_is_not_a_platform_admin(): void
 {
-    User::factory()->create(['role' => 'store_owner', 'email' => 'owner@shop.com']);
+    User::create(['role' => 'store_owner', 'email' => 'owner@shop.com']);
 
     $this->artisan('admin:till-code', ['email' => 'owner@shop.com'])
         ->assertExitCode(1);
@@ -374,7 +449,7 @@ private const DUMMY = '$2y$12$usesomesillystringfore7hnbRJHxXVLeakoG8K30oukPsA.z
 
 private function seedAdminWithCode(string $code = '123456789012'): User
 {
-    $admin = User::factory()->create([
+    $admin = User::create([
         'role' => 'platform_admin',
         'email' => 'ops@dumosrx.com',
     ]);
@@ -460,7 +535,7 @@ public function test_entry_is_audit_logged_with_the_device_and_store(): void
 }
 ```
 
-Add `User::factory()->create(['role' => 'store_owner', 'email' => 'owner@shop.com'])` to `seedAdminWithCode()` so the "not an admin" row exists.
+Add `User::create(['role' => 'store_owner', 'email' => 'owner@shop.com'])` to `seedAdminWithCode()` so the "not an admin" row exists.
 
 - [ ] **Step 2: Run to verify they fail**
 
@@ -633,6 +708,42 @@ Route::middleware(['auth:sanctum', 'ability:till-inspect'])->group(function () {
 });
 ```
 
+**Two things must land with this or the credential is far more dangerous than
+the spec intends.**
+
+First, **`ability` is not a registered middleware alias.**
+`laravel-server/bootstrap/app.php:20-26` aliases only `subscription`,
+`permission`, `role`, `account_status` and `restrict_api_docs`. Sanctum 4 ships
+`CheckForAnyAbility`, but Laravel 11 needs it registered:
+
+```php
+'ability' => \Laravel\Sanctum\Http\Middleware\CheckForAnyAbility::class,
+```
+
+Without it the route throws `Target class [ability] does not exist` at request
+time.
+
+Second, and worse: **nothing else in this codebase checks `tokenCan`.** The
+`auth:sanctum` group (`routes/api.php:117`) and the `permission:manage_platform`
+admin group (`:183`) authenticate *any* Sanctum token belonging to the user —
+and the user we just minted a token for **is a platform admin**. So a
+`till-inspect` token would pass `/admin/*` (including `impersonate_store` and
+password resets) and `/app/sync/push` with any `X-Store-Id`.
+
+The spec says this credential is "useless anywhere else in the platform" and
+that a stolen code "buys a list of harmless repairs". As first drafted it buys
+30 minutes of full admin API — the opposite of the feature's purpose.
+
+So add a **global** reject rather than per-route opt-ins, which can be
+forgotten: a middleware in the `auth:sanctum` group that 403s any token whose
+abilities contain `till-inspect` and not `*`, on every route except
+`admin-till-session/end`. Test it by minting an inspection token and asserting
+403 on `/admin/stores`, 403 on `/app/sync/push`, and 200 on `end`.
+
+Log a `KNOWN_BUGS.md` entry while here: `admin-refresh` tokens have the same
+unchecked-ability gap today.
+
+
 - [ ] **Step 6: Run the tests**
 
 Run: `cd laravel-server && php artisan test --filter=AdminTillSessionTest`
@@ -676,7 +787,7 @@ and the way back in if the panel is unreachable.
 ```php
 public function test_an_admin_issues_a_code_for_themselves_and_sees_it_once(): void
 {
-    $admin = User::factory()->create(['role' => 'platform_admin']);
+    $admin = User::create(['role' => 'platform_admin']);
 
     $response = $this->actingAs($admin)->postJson('/api/v1/admin/till-codes', ['label' => 'agidi']);
 
@@ -692,8 +803,8 @@ public function test_an_admin_issues_a_code_for_themselves_and_sees_it_once(): v
 
 public function test_an_admin_cannot_mint_a_code_for_another_admin(): void
 {
-    $admin = User::factory()->create(['role' => 'platform_admin']);
-    $other = User::factory()->create(['role' => 'platform_admin']);
+    $admin = User::create(['role' => 'platform_admin']);
+    $other = User::create(['role' => 'platform_admin']);
 
     $this->actingAs($admin)->postJson('/api/v1/admin/till-codes', [
         'label' => 'sneaky',
@@ -706,8 +817,8 @@ public function test_an_admin_cannot_mint_a_code_for_another_admin(): void
 
 public function test_listing_shows_only_the_callers_own_codes(): void
 {
-    $admin = User::factory()->create(['role' => 'platform_admin']);
-    $other = User::factory()->create(['role' => 'platform_admin']);
+    $admin = User::create(['role' => 'platform_admin']);
+    $other = User::create(['role' => 'platform_admin']);
     AdminTillCode::create(['admin_id' => $other->id, 'code_hash' => Hash::make('111111111111')]);
 
     $this->actingAs($admin)->getJson('/api/v1/admin/till-codes/mine')
@@ -717,8 +828,8 @@ public function test_listing_shows_only_the_callers_own_codes(): void
 
 public function test_revoking_someone_elses_code_is_not_found(): void
 {
-    $admin = User::factory()->create(['role' => 'platform_admin']);
-    $other = User::factory()->create(['role' => 'platform_admin']);
+    $admin = User::create(['role' => 'platform_admin']);
+    $other = User::create(['role' => 'platform_admin']);
     $theirs = AdminTillCode::create(['admin_id' => $other->id, 'code_hash' => Hash::make('111111111111')]);
 
     $this->actingAs($admin)->deleteJson("/api/v1/admin/till-codes/{$theirs->id}")
@@ -729,7 +840,7 @@ public function test_revoking_someone_elses_code_is_not_found(): void
 
 public function test_a_store_owner_cannot_reach_these_routes(): void
 {
-    $owner = User::factory()->create(['role' => 'store_owner']);
+    $owner = User::create(['role' => 'store_owner']);
 
     $this->actingAs($owner)->postJson('/api/v1/admin/till-codes')->assertForbidden();
 }
@@ -818,7 +929,7 @@ git commit -m "feat: let a platform admin issue and revoke their own till access
 
 **Files:**
 - Create: `web/components/admin/settings/till-codes-card.tsx`
-- Modify: `web/app/admin/settings/page.tsx`
+- Modify: `web/app/admin/settings/[[...tab]]/settings-client.tsx` (the tab list) and, if a new tab is added, `web/app/admin/settings/[[...tab]]/page.tsx`'s `generateStaticParams`
 - Test: `web/__tests__/till-codes-card.test.tsx` (match whatever test setup `web/` already uses; if it has none, cover this in the Task 12 browser pass instead and say so in the commit)
 
 **Interfaces:**
@@ -829,7 +940,15 @@ So an admin never touches cPanel or a terminal for this.
 
 - [ ] **Step 1: Build the card**
 
-A card on `/admin/settings` titled "Till access codes", with the house card
+`web/app/admin/settings/page.tsx` **does not exist**: the route is
+`web/app/admin/settings/[[...tab]]/page.tsx` (18 lines, with
+`generateStaticParams` for the static export) plus its own
+`settings-client.tsx` holding the Tabs (billing / security /
+admin-permissions / ...). Add the card to an existing tab, or add a new tab
+**and** its `generateStaticParams` entry — without that entry the tab 404s in
+the static export.
+
+A card titled "Till access codes", with the house card
 classes from root `AGENTS.md` §6 - `bg-white dark:bg-slate-900 rounded-3xl
 border border-slate-200 dark:border-slate-800 shadow-sm`, copied from
 `web/components/admin/dashboard/recent-stores.tsx`, never `bg-card`.
@@ -1117,6 +1236,14 @@ describe("shouldAttemptAdminTillLogin", () => {
   it("ignores surrounding whitespace and case", () => {
     expect(shouldAttemptAdminTillLogin("  OPS@DumosRx.com ", 0)).toBe(true);
   });
+
+  it("sends a deactivated owner's email online rather than failing locally", () => {
+    // getUsersByUsernameOrEmail filters `is_active = 1 AND _deleted = 0`
+    // (queries/auth.ts:26-33), so a deactivated owner matches nothing locally
+    // and reaches the admin path, failing with the uniform message. Pinned so
+    // the behaviour is deliberate rather than discovered at a counter.
+    expect(shouldAttemptAdminTillLogin("deactivated-owner@shop.com", 0)).toBe(true);
+  });
 });
 ```
 
@@ -1337,7 +1464,11 @@ function assertWritable(): void {
 }
 ```
 
-Call `assertWritable();` as the first statement of `insert`, `update` and `softDelete`.
+Call `assertWritable();` as the first statement of `insert`, `update`,
+`softDelete` **and `remove()`** (`base-helpers.ts:362`), which hard-deletes
+`held_transactions` and `payment_accounts` — callers in `use-sales-data.ts:27`,
+`use-payment-accounts.ts:71` and `use-pos-held-transactions.ts:144`. A
+read-only session that still permits a hard delete is not read-only.
 
 - [ ] **Step 4: Run to verify it passes**
 
@@ -1358,7 +1489,7 @@ git commit -m "fix: refuse every local write during an admin inspection session 
 **Files:**
 - Create: `client/components/dashboard/till-inspection-banner.tsx`
 - Modify: `client/components/dashboard/dashboard-layout.tsx` (mount it beside `ImpersonationBanner`)
-- Modify: `client/components/settings/settings-client.tsx:243`
+- Modify: `client/app/(dashboard)/settings/[tab]/settings-client.tsx:242-244`
 - Modify: `client/lib/constants/settings-tabs.ts`
 - Test: `client/__tests__/till-inspection-banner.test.tsx`
 
@@ -1405,9 +1536,24 @@ Copy `components/dashboard/impersonation-banner.tsx`'s structure (fixed top bar,
 
 - [ ] **Step 4: Gate the diagnostics tab on the inspection session**
 
-`settings-client.tsx:243` currently renders the console when `isImpersonatedSession()`. Change to render when `isTillInspectionSession() || isImpersonatedSession()` — an on-till session is the case this was built for, and the handoff keeps working for looking at data.
+`client/app/(dashboard)/settings/[tab]/settings-client.tsx:242-244` currently renders the console when `isImpersonatedSession()`. Change to render when `isTillInspectionSession() || isImpersonatedSession()` — an on-till session is the case this was built for, and the handoff keeps working for looking at data.
 
-In `settings-tabs.ts`, add `"diagnostics"` to **both** `ALL_SETTINGS_TABS` and `ADMIN_ONLY_SETTINGS_TABS`.
+In `settings-tabs.ts`, add `"diagnostics"` to `ALL_SETTINGS_TABS`.
+
+**Do not simply add it to `ADMIN_ONLY_SETTINGS_TABS` and call it gated.** That
+list resolves against `isAdmin` from `useAuth()` (`client/hooks/use-settings.ts:43`)
+— which is the **signed-in cashier**, not the inspecting admin. With a cashier
+logged in, `:160-166` would bounce `/settings/diagnostics` straight back to
+Appearance. On an owner's own device it would open, so the smoke test would
+pass by accident and the bug would ship.
+
+`canAccessSettingsTab` must OR in `isTillInspectionSession()`. Note
+`client/hooks/use-settings.ts` is **349 lines** — one line from breaking §4 —
+so extract something from it in the same pass rather than pushing it over.
+
+Add a test with a cashier (non-admin) as the signed-in user and an active
+inspection session, asserting the tab resolves to `diagnostics` and not
+`appearance`. That is the case that would otherwise ship broken.
 
 - [ ] **Step 5: End the session on explicit sign-out**
 
@@ -1541,9 +1687,21 @@ export async function overrideClockLockout(): Promise<{ ok: boolean; reason: str
 }
 ```
 
-Surface the button inside the admin section only. Do **not** alter
-`LicenseGuard`'s anti-backdating logic itself (§8), and do not relax
-`reconcileClockWithServer()` — the override is a separate, audited path.
+**The override button goes on the discrepancy card, not in the diagnostics
+section.** The admin section is Settings -> Diagnostics, and
+`license-guard.tsx:357-436` returns the card *instead of* `children`, so
+Settings is unreachable while the device is tampered. Putting the button in
+Diagnostics would leave the one path with no fallback still broken — which is
+what the first draft of this plan did by saying only "the admin section".
+
+`license-guard.tsx` is also **436 lines today**, already over §4's 350-line
+limit, so extract the blocking card into
+`components/auth/license-blocked-card.tsx` first and put the login form and the
+override button there. That extraction is part of this task, not a follow-up.
+
+Do **not** alter `LicenseGuard`'s anti-backdating logic itself (§8), and do
+not relax `reconcileClockWithServer()` — the override is a separate, audited
+path.
 
 - [ ] **Step 4: Run to verify it passes**
 

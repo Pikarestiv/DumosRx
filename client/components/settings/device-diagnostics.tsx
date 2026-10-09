@@ -89,7 +89,6 @@ export function DeviceDiagnosticsPanel() {
         report: buildReport(data, identity),
         storeName: storeProfile?.name,
         deviceLabel: getDeviceLabel(),
-        contactEmail: storeProfile?.email ?? null,
       });
       toast.success("Report sent to support.");
     } catch (error) {

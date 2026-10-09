@@ -3,6 +3,7 @@ import {
   downloadDiagnosticsReport,
   sendDiagnosticsReport,
 } from "@/lib/utils/diagnostics-delivery";
+import { SUPPORT_EMAIL } from "@/lib/constants";
 import {
   startTillInspectionSession,
   IDLE_TIMEOUT_MS,
@@ -59,12 +60,11 @@ describe("sendDiagnosticsReport", () => {
   beforeEach(() => sessionStorage.clear());
   afterEach(() => vi.unstubAllGlobals());
 
-  const send = (contactEmail?: string | null) =>
+  const send = () =>
     sendDiagnosticsReport({
       report: "the report",
       storeName: "Agidi",
       deviceLabel: "Till 7",
-      contactEmail,
     });
 
   it("files it under the inspecting admin's own address", async () => {
@@ -74,33 +74,28 @@ describe("sendDiagnosticsReport", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await send("owner@shop.com");
+    await send();
 
     const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
-    // The admin is the correspondent, not whatever address the store has on
-    // file — and it comes from the server-issued session, not the till.
+    // From the server-issued session, never anything typed on the till.
     expect(body.email).toBe("ops@dumosrx.com");
     expect(body.message).toBe("the report");
     expect(fetchMock.mock.calls[0][0]).toBe("https://api.test/api/v1/support");
   });
 
-  it("uses the store's address when there is no inspection session", async () => {
+  it("falls back to DumosRx support, never the store's own address", async () => {
+    // The report goes TO support; the owner has no use for it, and putting
+    // their address on it only mislabels the sender.
     const fetchMock = vi.fn(
       async (_url: string, _init?: RequestInit) => new Response("{}", { status: 200 }),
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await send("owner@shop.com");
+    await send();
 
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).email).toBe(
-      "owner@shop.com",
+      SUPPORT_EMAIL,
     );
-  });
-
-  it("refuses with no address rather than posting a ticket nobody can answer", async () => {
-    vi.stubGlobal("fetch", vi.fn());
-
-    await expect(send(null)).rejects.toThrow(/Download the report/);
   });
 
   it("sends no bearer token, so a 401 cannot unlink the till", async () => {

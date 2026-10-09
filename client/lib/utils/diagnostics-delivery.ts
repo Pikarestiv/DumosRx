@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/api/client";
 import { buildExportFilename } from "@/lib/utils/export-filename";
+import { SUPPORT_EMAIL } from "@/lib/constants";
 import { getTillInspectionSession } from "@/lib/utils/till-inspection";
 
 /**
@@ -41,20 +42,14 @@ export async function sendDiagnosticsReport(options: {
   report: string;
   storeName: string | null | undefined;
   deviceLabel: string;
-  contactEmail?: string | null;
 }): Promise<void> {
-  const { report, storeName, deviceLabel, contactEmail } = options;
+  const { report, storeName, deviceLabel } = options;
   const session = getTillInspectionSession();
 
-  // The admin running the inspection is the right correspondent; their address
-  // comes from the server-issued session, not from anything typed on the till.
-  const email = session?.admin.email ?? contactEmail;
-
-  if (!email) {
-    throw new Error(
-      "No address to send from. Download the report and attach it instead.",
-    );
-  }
+  // The inspecting admin, so a reply reaches whoever is standing at the till;
+  // otherwise DumosRx support, never the store's own address — the report goes
+  // TO support and the owner has no use for it.
+  const email = session?.admin.email ?? SUPPORT_EMAIL;
 
   // Plain fetch, no bearer: `/support` is public, and routing it through
   // apiClient would put it on the 401 refresh-and-clear path that can unlink

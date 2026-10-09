@@ -392,9 +392,10 @@ and `synchronous = NORMAL`.
     because routing it through `apiClient` would put it on the 401
     refresh-and-clear path that can unlink the till's own sync token. *Copy*
     remains for pasting into a chat. The correspondent is the inspecting
-    admin's own address from the server-issued session, falling back to the
-    store's; with neither it refuses rather than filing a ticket nobody can
-    answer.
+    admin's own address from the server-issued session, falling back to
+    `SUPPORT_EMAIL` — **never the store's own address**, because the report
+    goes *to* support and the owner has no use for it, so putting theirs on it
+    only mislabels the sender.
   - **Refresh shows a "Read at" time.** Every query is local SQLite finishing
     in milliseconds, so the spinner never visibly spins and unchanged numbers
     made the button look dead. The timestamp is the proof it read.

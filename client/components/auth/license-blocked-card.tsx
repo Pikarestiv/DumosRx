@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Clock, Lock, AlertOctagon, RefreshCw, ExternalLink, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,7 +46,13 @@ export function LicenseBlockedCard({
   onRecheck,
 }: Props) {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
-  const [inspecting, setInspecting] = useState(() => isTillInspectionSession());
+  // Read after mount, never during render: a render-time sessionStorage read
+  // disagrees with the prerender pass and React reports a hydration mismatch.
+  const [inspecting, setInspecting] = useState(false);
+
+  useEffect(() => {
+    setInspecting(isTillInspectionSession());
+  }, []);
   const [isOverriding, setIsOverriding] = useState(false);
 
   const override = async () => {

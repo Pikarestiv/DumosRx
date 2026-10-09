@@ -14,7 +14,14 @@ use Illuminate\Support\Str;
 class SyncCommandService
 {
     /** A closed set. Nothing here may touch a business table's contents. */
-    private const ACTIONS = ['retry', 'send_payload', 'abandon'];
+    private const ACTIONS = ['retry', 'send_payload', 'abandon', 'send_device_report'];
+
+    /**
+     * Actions that act on the device as a whole rather than one queued row,
+     * so table_name/record_id are meaningless for them. Kept explicit: a
+     * future row-scoped action must not silently become device-wide.
+     */
+    private const DEVICE_WIDE_ACTIONS = ['send_device_report'];
 
     /**
      * Tables whose rows may be discarded, as an ALLOWLIST. A business record
@@ -37,6 +44,11 @@ class SyncCommandService
     ): SyncCommand {
         if (! in_array($action, self::ACTIONS, true)) {
             throw new \InvalidArgumentException("Unsupported sync command: {$action}");
+        }
+
+        if (in_array($action, self::DEVICE_WIDE_ACTIONS, true)) {
+            $tableName = null;
+            $recordId = null;
         }
 
         if ($action === 'abandon' && ! in_array((string) $tableName, self::ABANDONABLE_TABLES, true)) {

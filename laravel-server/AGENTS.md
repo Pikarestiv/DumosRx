@@ -1132,6 +1132,20 @@ have reintroduced exactly this.
 The outer catch is `\Throwable`, not `\Exception`, on purpose: an `\Error`
 was previously uncaught, so the request died with no rollback and no record.
 
+## Remote device report (`send_device_report`)
+
+`SyncCommandService::ACTIONS` gains `send_device_report`, and
+`DEVICE_WIDE_ACTIONS` marks it as acting on the device rather than one queued
+row — so `table_name`/`record_id` are nulled on issue. Carrying them would
+imply a row scope the action does not have.
+
+Issuing stays `role:super_admin` (`/stores/{id}/sync-commands`). The device
+delivers over its own outbound channels (the public `/support` endpoint and
+Sentry), never through the sync queue — the queue is often the thing that is
+stuck, which is why the command exists. See `client/AGENTS.md` for the device
+half and its one real limitation: the command rides the **pull**, so it cannot
+reach a device with no working connection.
+
 ## On-till admin inspection: why the credential is not a Sanctum token
 
 An admin standing at a store's own till signs in with their email plus a

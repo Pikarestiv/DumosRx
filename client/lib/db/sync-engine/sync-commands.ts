@@ -1,4 +1,5 @@
 import { query, execute } from "../core";
+import { sendDeviceReportOnRequest } from "./device-report-command";
 import { markConflictSettled } from "../base-helpers";
 
 export interface SyncCommand {
@@ -112,6 +113,10 @@ async function applyOne(command: SyncCommand): Promise<SyncCommandResult> {
       return abandonQueued(command);
     case "send_payload":
       return { id: command.id, status: "refused", result: "send_payload is not implemented yet" };
+    case "send_device_report": {
+      const outcome = await sendDeviceReportOnRequest(command.id);
+      return { id: command.id, ...outcome };
+    }
     default:
       return { id: command.id, status: "refused", result: `unknown action: ${command.action}` };
   }

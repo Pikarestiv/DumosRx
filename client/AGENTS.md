@@ -382,6 +382,27 @@ and `synchronous = NORMAL`.
     and support chased the difference; `conflicts` counted resolved rows; and
     the unapplied-delta figure was `pendingDeltas.length` under a `LIMIT 50`,
     which understated.
+  - **A super_admin can ask one device, once, to send its own report**
+    (`sync-engine/device-report-command.ts`, action `send_device_report`).
+    This exists because the ordinary telemetry channel fails exactly when it is
+    needed: crash rows live in `feedback`, which rides the sync queue, so a
+    till whose push is jammed stops reporting at the moment it has most to say.
+    The report goes out over the plain `/support` POST and to Sentry — both
+    fire-and-forget HTTP, neither touching the queue — and succeeds if
+    **either** lands, because a missing Sentry DSN must not stop the email and
+    an unreachable support endpoint must not stop Sentry. With neither it
+    refuses and writes no audit row: claiming a report was sent when none was
+    is worse than no record.
+    - **The command arrives on the next PULL**, so this covers a stuck push
+      (the common case) and cannot help a device with no working connection at
+      all. That is what the on-till inspection session is for.
+    - **It is logged on the device** (`DEVICE_REPORT_SENT_ON_REQUEST`) so the
+      store can see a report left their till. An outbound collection the owner
+      cannot discover is not one worth having.
+    - `send_device_report` is in `SyncCommandService::DEVICE_WIDE_ACTIONS`, so
+      any `table_name`/`record_id` is discarded — carrying one would imply a
+      row scope the action does not have and would read as one in the activity
+      log. Issuing it stays `role:super_admin`.
   - **Three ways off the device, and the choice matters.** *Download* writes a
     `.txt` via `buildExportFilename()` and works with no network — the only
     route that survives a dead sync engine, which is when a broken till most

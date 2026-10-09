@@ -25,8 +25,9 @@ the problem. This is the access path that lets them.
 - **Offline admin access.** v1 is online-only, stated plainly in the UI. An
   inspection session is authenticated server-side on every entry; there is no
   cached admin credential on the till, by design.
-- **Write access.** Not a "fix it from here" mode. The one write is the
-  support-triggered local fold, which is already gated and queues nothing.
+- **General write access.** Not a "fix it from here" mode, for any role
+  including superadmin. See *Repair actions* below: a fixed allowlist of named
+  operations, never free editing.
 - **Replacing impersonation.** The admin-panel handoff keeps working for
   looking at a store's *data*. This is for looking at a *device*.
 
@@ -116,8 +117,39 @@ Gating the UI alone is how a "read-only" mode ends up writing through some
 path nobody remembered. Buttons are still hidden or disabled, but that is
 courtesy, not the control.
 
-The local fold is the one deliberate exception: it writes quantities directly
-rather than through `update()`, queues nothing, and is already gated.
+Repair actions (below) are the only exception, and each is named rather than
+general.
+
+## Repair actions
+
+Read-only is the rule for every role, superadmin included. Pure read-only is
+nonetheless too strict: the tampered-clock override has to write something, so
+the model is read-only **plus a fixed allowlist of named repairs**.
+
+Each entry is a known, idempotent, individually audited operation. v1 carries
+two:
+
+- **`fold_stock_quantities`** — rebuilds diverged batch quantities from the
+  movement log, locally. Writes quantities directly rather than through
+  `update()`, so it queues nothing and never claims the server's number.
+- **`override_clock_lockout`** — clears a tampered-clock lockout. Available to
+  `platform_admin` and above. Requires the online session by construction,
+  which was the original requirement: the owner is a plausible tamperer, so no
+  owner PIN can lift it.
+
+A resync and a health sync are plausible later entries;
+`sync-engine/sync-commands.ts` is the existing prior art for named commands.
+
+Nothing outside the allowlist can write, and the allowlist is a literal list
+in code, never assembled from input (root `AGENTS.md` §8). Every invocation is
+audit-logged with the admin, device, store and outcome.
+
+The reason for an allowlist rather than a write-capable admin mode: a device
+stops being evidence the moment someone can type into it, and anything written
+on a till syncs upward and becomes the server's truth with no record of what
+was typed. A named action is reviewable afterwards; a free-text edit is not. A
+stolen till access code also then buys a list of harmless repairs rather than
+write access to a tenant.
 
 ## Visibility and audit
 
@@ -151,9 +183,13 @@ inspection session. Nothing to shim, nothing to retire.
   server permission model and a frontend rendering around it, which is exactly
   the case where backend-only verification misses the bug.
 
-## Open
+## Settled, deliberately not built
 
-- Whether a store owner should be able to grant access from their side, so an
-  admin is not asking a cashier to hand over a till on their say-so.
-- Superadmin override of a tampered-clock lockout, noted earlier and still
-  pending; it will likely want this same session.
+- **No access-granting by the store owner.** An admin standing at the till is
+  the access grant. Adding an owner-side approval would mean an admin
+  investigating a store cannot work without the cooperation of the person
+  whose store is under investigation. The protections are physical presence
+  plus the till access code, not consent.
+- **The clock override belongs to `platform_admin` and above**, via the
+  allowlist above. Read as platform admins *and* superadmins, superadmin being
+  the broader role; say so if you meant platform admins only.

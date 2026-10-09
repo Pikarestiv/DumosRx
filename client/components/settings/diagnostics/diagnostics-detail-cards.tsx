@@ -67,6 +67,59 @@ export function DiagnosticsDetailCards({ data }: { data: DeviceDiagnostics }) {
         </Card>
       )}
 
+      {data.lastSyncOutcome && !data.lastSyncOutcome.success && (
+        <Card className={`${CARD} border-destructive/50`}>
+          <CardHeader>
+            <CardTitle className="text-base text-destructive">
+              The last sync attempt failed
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            <p>
+              {ago(data.lastSyncOutcome.at)} ·{" "}
+              <strong>{data.lastSyncOutcome.reason ?? "unknown reason"}</strong>
+            </p>
+            <p className="text-muted-foreground text-xs">
+              &quot;Last synced&quot; above only moves when a round succeeds, so
+              a device failing every attempt looks the same as one that simply
+              has not synced yet. This is the attempt.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {data.conflictGroups.length > 0 && (
+        <Card className={CARD}>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Changes the server refused outright
+            </CardTitle>
+          </CardHeader>
+          <CardContent className={DIVIDE}>
+            <p className="pb-2 text-xs text-muted-foreground">
+              Dropped, not retried — the store&apos;s change is gone unless
+              something later supersedes it.
+            </p>
+            {data.conflictGroups.map((group) => (
+              <div
+                key={`${group.table_name}-${group.reason}`}
+                className="flex items-start justify-between gap-3 py-1.5 text-sm"
+              >
+                <span>
+                  {group.table_name}
+                  <span className="block text-xs text-muted-foreground">
+                    {group.reason}
+                  </span>
+                </span>
+                <span className="font-medium shrink-0">
+                  {group.count} · {ago(group.latest)}
+                </span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {data.stuckRows.length > 0 && (
         <Card className={CARD}>
           <CardHeader>

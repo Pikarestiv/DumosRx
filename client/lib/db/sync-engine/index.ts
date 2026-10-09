@@ -1,6 +1,7 @@
 import { pushChanges } from "./push";
 import { pullChanges } from "./pull";
 import { SyncResult, PullResponse } from "./types";
+import { recordSyncOutcome } from "./sync-outcome";
 import { apiClient } from "@/lib/api/client";
 import { queryClient } from "@/lib/query-client";
 import { query, execute, isTauri, isWriterTab } from "../core";
@@ -85,7 +86,28 @@ if (typeof window !== "undefined") {
  * Main Sync Function. One push-then-pull cycle; every guard it applies is
  * documented in client/AGENTS.md, "`sync()` and friends".
  */
+/**
+ * Records every attempt's outcome, then returns it. A wrapper rather than a
+ * line at each `return` so an exit path added later cannot forget — see
+ * sync-outcome.ts for why the last ATTEMPT is the number that was missing.
+ */
 export async function sync(
+  isManual: boolean = false,
+  isSetup: boolean = false,
+  onCriticalTablesReady?: (pullSucceeded: boolean) => void,
+): Promise<SyncResult> {
+  const result = await runSync(isManual, isSetup, onCriticalTablesReady);
+
+  // A refused concurrent call is not an attempt; recording it would overwrite
+  // the real outcome with "a sync was already running".
+  if (result.error !== SYNC_IN_PROGRESS_ERROR) {
+    recordSyncOutcome(result);
+  }
+
+  return result;
+}
+
+async function runSync(
   isManual: boolean = false,
   isSetup: boolean = false,
   // Setup-only: fires once store/user identity is pulled, with whether the

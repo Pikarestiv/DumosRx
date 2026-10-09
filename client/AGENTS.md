@@ -396,6 +396,27 @@ and `synchronous = NORMAL`.
     `SUPPORT_EMAIL` — **never the store's own address**, because the report
     goes *to* support and the owner has no use for it, so putting theirs on it
     only mislabels the sender.
+  - **The last sync ATTEMPT, not just the last success**
+    (`sync-engine/sync-outcome.ts`). `last_sync_time` is stamped only when a
+    round succeeds, so a device failing every round for two days read exactly
+    like one that had simply never synced, and the reason lived in the sync
+    indicator's React state and died on navigation. `sync()` is now a thin
+    wrapper that records the outcome of every attempt — a wrapper rather than a
+    line at each `return`, so an exit path added later cannot forget. A refused
+    concurrent call is deliberately not recorded; it would overwrite a real
+    outcome with "a sync was already running". The reason is canonicalised, so
+    a driver error never reaches the report.
+  - **The terminal-conflict ledger now covers every table, bounded by a row
+    cap** (`sync-engine/conflict-log.ts`). It was allowlisted to
+    `purchase_order_items` to stay small, which meant a terminal drop
+    (`version_conflict`, `stale_timestamp`) on any other table left **no local
+    trace**: once the push finished, the queue was empty and the conflict count
+    was zero. That is why the repeated "50 changes could not be saved" loops
+    were never diagnosable. `MAX_LEDGER_ROWS` (500) replaces the allowlist, and
+    `pruneConflictLedger()` deletes **resolved rows first, oldest first**, so an
+    unresolved drop survives until something settles it. The purchase-order
+    panel still filters to its own table and record ids and is unaffected.
+
   - **Refresh shows a "Read at" time.** Every query is local SQLite finishing
     in milliseconds, so the spinner never visibly spins and unchanged numbers
     made the button look dead. The timestamp is the proof it read.

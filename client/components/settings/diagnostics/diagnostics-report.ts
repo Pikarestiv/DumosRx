@@ -75,6 +75,27 @@ export function buildReport(
     }
   }
 
+  if (data.lastSyncOutcome) {
+    const outcome = data.lastSyncOutcome;
+    lines.push(
+      "",
+      `Last sync ATTEMPT: ${outcome.at} — ${
+        outcome.success
+          ? `ok (pushed ${outcome.pushed}, pulled ${outcome.pulled})`
+          : `FAILED: ${outcome.reason ?? "unknown"}`
+      }`,
+    );
+  }
+
+  if (data.conflictGroups.length > 0) {
+    lines.push("", "Changes the server refused outright");
+    for (const group of data.conflictGroups) {
+      lines.push(
+        `  ${group.table_name} · ${group.reason} · ${group.count} · latest ${group.latest ?? "unknown"}`,
+      );
+    }
+  }
+
   lines.push("", "Sync state");
   for (const row of data.syncState) {
     lines.push(

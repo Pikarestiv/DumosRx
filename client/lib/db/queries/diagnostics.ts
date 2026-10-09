@@ -7,6 +7,8 @@ import {
   deltaHealth,
   missingTables,
   crashTelemetryQueued,
+  unresolvedConflicts,
+  type ConflictGroup,
   type StuckRow,
   type OrphanCount,
   type CrashRow,
@@ -14,6 +16,10 @@ import {
   type DeltaHealth,
 } from "./diagnostics-detail";
 import { verifyStockIntegrity } from "@/lib/db/sync-engine/stock-integrity";
+import {
+  readSyncOutcome,
+  type SyncOutcome,
+} from "@/lib/db/sync-engine/sync-outcome";
 import type { StockIntegrityReport } from "@/lib/db/sync-engine/stock-integrity";
 
 /**
@@ -64,6 +70,8 @@ export interface DeviceDiagnostics {
   integrity: StockIntegrityReport;
   resolution: ResolutionCounts;
   stuckRows: StuckRow[];
+  conflictGroups: ConflictGroup[];
+  lastSyncOutcome: SyncOutcome | null;
   orphans: OrphanCount[];
   crashes: CrashRow[];
   clock: ClockState;
@@ -153,7 +161,16 @@ export async function collectDeviceDiagnostics(): Promise<DeviceDiagnostics> {
       resolutionCounts(storeId),
     ]);
 
-  const [crashTelemetry, stuckRows, orphans, crashes, clock, missing, deltas] =
+  const [
+    crashTelemetry,
+    stuckRows,
+    orphans,
+    crashes,
+    clock,
+    missing,
+    deltas,
+    conflictGroups,
+  ] =
     await Promise.all([
       crashTelemetryQueued(),
       stuckQueueRows(),
@@ -162,6 +179,7 @@ export async function collectDeviceDiagnostics(): Promise<DeviceDiagnostics> {
       clockState(),
       missingTables(),
       deltaHealth(),
+      unresolvedConflicts(),
     ]);
 
   return {
@@ -175,6 +193,8 @@ export async function collectDeviceDiagnostics(): Promise<DeviceDiagnostics> {
     integrity,
     resolution,
     stuckRows,
+    conflictGroups,
+    lastSyncOutcome: readSyncOutcome(),
     orphans,
     crashes,
     clock,

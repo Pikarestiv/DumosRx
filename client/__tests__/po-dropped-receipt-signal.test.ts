@@ -145,7 +145,12 @@ describe("dropped-receipt signal for a purchase order", () => {
     expect((await procurement.getDroppedReceiptSignal("po1"))?.lineCount).toBe(1);
   });
 
-  it("logs nothing for a table outside the allow-list, so the ledger stays bounded", async () => {
+  it("records other tables too, but keeps them out of the purchase-order signal", async () => {
+    // The ledger used to be allowlisted to purchase_order_items so it stayed
+    // small; it now logs every table (a terminal drop elsewhere left no trace
+    // at all) and is bounded by a row cap instead — see
+    // __tests__/conflict-ledger-bounded.test.ts. What must not change is that
+    // this reader only ever sees its own table's rows.
     seedOrder("po1", ["item1"]);
     await conflictLog.recordTerminalConflict({
       table_name: "products",
@@ -154,7 +159,8 @@ describe("dropped-receipt signal for a purchase order", () => {
       fields: "name",
     });
 
-    expect(await conflictLog.getUnresolvedConflicts("products", ["prod1"])).toEqual([]);
+    expect(await conflictLog.getUnresolvedConflicts("products", ["prod1"])).toHaveLength(1);
+    expect(await procurement.getDroppedReceiptSignal("po1")).toBeNull();
   });
 
   it("treats a conflict with no recorded field list as possibly a receipt, rather than hiding it", async () => {

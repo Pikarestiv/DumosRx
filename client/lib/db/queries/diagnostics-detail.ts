@@ -46,11 +46,32 @@ export interface ClockState {
   suspensionReason: string | null;
 }
 
+export interface ConflictGroup {
+  table_name: string;
+  reason: string;
+  count: number;
+  latest: string | null;
+}
+
 export interface DeltaHealth {
   total: number;
   maxAttempts: number;
   chronic: number;
   productMissing: number;
+}
+
+/** Terminal drops, grouped. Every table writes to the ledger now, so this is
+ * the first view of a change the server refused outright — the "50 changes
+ * could not be saved" shape, previously invisible once the push finished. */
+export async function unresolvedConflicts(): Promise<ConflictGroup[]> {
+  return query<ConflictGroup>(
+    `SELECT table_name, reason, COUNT(*) AS count, MAX(detected_at) AS latest
+       FROM _sync_conflicts
+      WHERE resolved_at IS NULL
+      GROUP BY table_name, reason
+      ORDER BY latest DESC
+      LIMIT 20`,
+  );
 }
 
 /** A-162/A-165/A-167: the one datum nobody had was the `store_id` INSIDE the

@@ -150,12 +150,23 @@ describe("repair auditing", () => {
     expect(JSON.parse(String(queued[0][0])).user_id).toBe("admin-1");
   });
 
-  it("falls back to the local user with no inspection session", async () => {
+  it("falls back to the signed-in local user with no inspection session", async () => {
+    // Asserting null here proved nothing: null is what any implementation
+    // yields when no current user was ever set. Set one, so the fallback is
+    // what the assertion actually measures.
+    core.setCurrentUser({
+      id: "cashier-1",
+      first_name: "Ada",
+      last_name: "Cashier",
+      role: "sales_staff",
+    });
     divergedBatch();
 
     await fold();
 
     const rows = db.exec(`SELECT user_id FROM audit_logs`)[0].values;
-    expect(rows[0][0]).toBeNull();
+    expect(rows[0][0]).toBe("cashier-1");
+
+    core.setCurrentUser(null);
   });
 });

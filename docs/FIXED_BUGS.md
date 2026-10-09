@@ -1392,6 +1392,14 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 All of `SF-P0-1`, `SF-P1-1`, `SF-P1-3`, `SF-P2-1`…`SF-P2-6` and `SF-P3-1`…`SF-P3-6`. **`SF-P1-2` (wiring the built-and-tested Paystack flow into the storefront UI) was deliberately left open** — enabling real online payment collection is a business decision, not a routine bug fix, and was explicitly deferred to its own round. Nothing below makes Paystack reachable from a client; `checkout-form.tsx` still offers only `in_store`/`transfer`. **It was closed the same day**, once the subaccount payment design that deferral was waiting on shipped — see the entry immediately below.
 
+#### A-201. `laravel-server/` — an audit row from an admin soft-deleted mid-session is re-attributed to the store owner
+- **Found:** 2026-10-09, reviewing the on-till inspection repair-audit attribution fix.
+- **Location:** `app/Http/Controllers/Api/App/SyncController.php`, the `audit_logs` branch (`!User::where('id', $payload['user_id'])->exists()`).
+- **What's wrong:** `User` uses `SoftDeletes`, so the default query scope excludes trashed rows and `exists()` returns false for a soft-deleted user. The backfill then replaces the client's `user_id` with the sync token's owner — typically the store owner. For an on-till inspection repair (`ADMIN_TILL_FOLD_STOCK_QUANTITIES`, `ADMIN_TILL_OVERRIDE_CLOCK_LOCKOUT`) that means the server's record names the owner as having run it, which is exactly the misattribution the `actorId` fix closes for the ordinary case.
+- **Why the window is narrow:** `AdminTillSessionService::verify()` resolves the admin through the same soft-delete-scoped query, so a trashed admin cannot start a session at all. The only path is an admin soft-deleted *during* a live session who then runs a repair.
+- **Consequence:** one misattributed audit row in a rare window. No access is granted or lost — `is_active` and the role check still gate entry, and `server-time` still authorises the override against a live session row.
+- **Fixed:** 2026-10-09. `User::withTrashed()->where('id', ...)->exists()` in that branch. The FK accepts a trashed id (`foreignUuid('user_id')->constrained()->onDelete('cascade')` — the `users` row still exists), so keeping the client's id is both safe and more truthful than substituting whoever happened to push. Behaviour changes only for a soft-deleted actor; a hard-deleted or unknown id still falls back, which is what protects the FK. Pinned by `tests/Feature/SyncEndpointTest.php::test_a_pushed_audit_row_keeps_a_soft_deleted_actor_rather_than_reattributing_it`, mutation-checked.
+
 #### A-200. `web/` — the admin settings Account Manager tab 404s on a direct visit or reload
 - **Found:** 2026-10-09, adding the Till Access tab beside it.
 - **Location:** `web/app/admin/settings/[[...tab]]/page.tsx` (`generateStaticParams`), `web/app/admin/settings/[[...tab]]/settings-client.tsx` (the `account-manager` `TabsTrigger`).

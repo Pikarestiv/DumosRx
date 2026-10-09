@@ -1275,7 +1275,7 @@ export async function logAction(
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
-      actorId ?? currentUser?.id ?? null,
+      actorId || currentUser?.id || null,
       storeId,
       action,
       table,
@@ -1291,7 +1291,7 @@ export async function logAction(
   // Enqueue log action into the sync queue so it gets synced to the server
   const record = {
     id,
-    user_id: actorId ?? currentUser?.id ?? null,
+    user_id: actorId || currentUser?.id || null,
     store_id: storeId,
     action,
     table_name: table,

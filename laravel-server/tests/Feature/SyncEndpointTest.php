@@ -2003,6 +2003,52 @@ class SyncEndpointTest extends TestCase
         $this->assertSame('sold 2 items', $properties['details']);
     }
 
+    public function test_a_pushed_audit_row_keeps_a_soft_deleted_actor_rather_than_reattributing_it(): void
+    {
+        // The default User scope excludes trashed rows, so exists() was false
+        // for a soft-deleted actor and the row was rewritten to the sync
+        // token's owner. For an on-till admin repair that named the STORE
+        // OWNER as having run it. See docs/FIXED_BUGS.md A-201.
+        $actor = \App\Models\User::create([
+            'first_name' => 'Gone',
+            'last_name' => 'Admin',
+            'email' => 'gone-'.uniqid().'@dumosrx.com',
+            'password' => bcrypt('password'),
+            'role' => 'platform_admin',
+        ]);
+        $actorId = $actor->id;
+        $actor->delete();
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'audit_logs',
+                    'operation' => 'INSERT',
+                    'record_id' => 'local_log_trashed',
+                    'payload' => [
+                        'id' => 'local_log_trashed',
+                        'user_id' => $actorId,
+                        'action' => 'ADMIN_TILL_OVERRIDE_CLOCK_LOCKOUT',
+                        'table_name' => 'admin_till_sessions',
+                        'record_id' => 'sess-1',
+                        'details' => '{"admin_email":"gone@dumosrx.com"}',
+                        '_synced' => 0,
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(200)->assertJsonCount(0, 'failed');
+
+        $log = DB::table('activity_logs')
+            ->where('action', 'ADMIN_TILL_OVERRIDE_CLOCK_LOCKOUT')
+            ->first();
+        $this->assertNotNull($log, 'the audit row should have been inserted');
+        $this->assertSame($actorId, $log->user_id);
+        $this->assertNotSame($this->user->id, $log->user_id);
+    }
+
     /**
      * push() derives first_name/last_name from a users payload's `name` and
      * now also strips the untranslated `name` key before writing — the

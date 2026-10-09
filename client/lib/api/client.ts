@@ -4,7 +4,35 @@ import type { SyncChange } from "@/lib/types/sync";
 import type { CurrentUser, Session } from "@/lib/types/user";
 import { getDeviceId } from "@/lib/utils/device-id";
 import { getDeviceLabel } from "@/lib/utils/device-label";
-import { getStoredActiveStoreId } from "@/lib/storage-keys";
+import { getStoredActiveStoreId, getStoredUser } from "@/lib/storage-keys";
+
+/**
+ * The device/store/actor stamp every sync call carries. X-Acting-User-Id is
+ * the locally signed-in user, which is the only place that fact exists: a
+ * staff PIN login never mints its own API token, so the bearer always names
+ * the account that linked the device. Self-asserted, and the server treats it
+ * as visibility only - see A-202 and laravel-server/AGENTS.md.
+ */
+function syncHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (typeof window === "undefined") {
+    return headers;
+  }
+
+  const activeStoreId = getStoredActiveStoreId();
+  if (activeStoreId) {
+    headers["X-Store-Id"] = activeStoreId;
+  }
+  headers["X-Device-Id"] = getDeviceId();
+  headers["X-Device-Label"] = getDeviceLabel();
+
+  const actingUserId = getStoredUser()?.id;
+  if (actingUserId) {
+    headers["X-Acting-User-Id"] = actingUserId;
+  }
+
+  return headers;
+}
 
 class ApiClient extends FleetBillingApiClient {
   // Auth endpoints
@@ -131,16 +159,8 @@ class ApiClient extends FleetBillingApiClient {
     if (isSetup) params.append("setup", "1");
     if (params.toString()) url += `?${params.toString()}`;
 
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = syncHeaders();
     if (runId) headers["X-Sync-Run-Id"] = runId;
-    if (typeof window !== "undefined") {
-      const activeStoreId = getStoredActiveStoreId();
-      if (activeStoreId) {
-        headers["X-Store-Id"] = activeStoreId;
-      }
-      headers["X-Device-Id"] = getDeviceId();
-      headers["X-Device-Label"] = getDeviceLabel();
-    }
 
     return this.request(url, {
       method: "POST",
@@ -153,15 +173,7 @@ class ApiClient extends FleetBillingApiClient {
   // pull, just COUNT(*)s a device periodically checks itself against. See
   // lib/db/sync-engine/health-check.ts for why this exists.
   async getSyncCounts(): Promise<{ success: boolean; counts: Record<string, number> }> {
-    const headers: Record<string, string> = {};
-    if (typeof window !== "undefined") {
-      const activeStoreId = getStoredActiveStoreId();
-      if (activeStoreId) {
-        headers["X-Store-Id"] = activeStoreId;
-      }
-      headers["X-Device-Id"] = getDeviceId();
-      headers["X-Device-Label"] = getDeviceLabel();
-    }
+    const headers = syncHeaders();
 
     return this.request("/app/sync/counts", { headers });
   }
@@ -189,15 +201,7 @@ class ApiClient extends FleetBillingApiClient {
       updated_at: string;
     }[];
   }> {
-    const headers: Record<string, string> = {};
-    if (typeof window !== "undefined") {
-      const activeStoreId = getStoredActiveStoreId();
-      if (activeStoreId) {
-        headers["X-Store-Id"] = activeStoreId;
-      }
-      headers["X-Device-Id"] = getDeviceId();
-      headers["X-Device-Label"] = getDeviceLabel();
-    }
+    const headers = syncHeaders();
 
     return this.request("/app/sync/reconcile-quantities", {
       method: "POST",
@@ -223,16 +227,8 @@ class ApiClient extends FleetBillingApiClient {
     if (isSetup) params.append("setup", "1");
     if (params.toString()) url += `?${params.toString()}`;
 
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = syncHeaders();
     if (runId) headers["X-Sync-Run-Id"] = runId;
-    if (typeof window !== "undefined") {
-      const activeStoreId = getStoredActiveStoreId();
-      if (activeStoreId) {
-        headers["X-Store-Id"] = activeStoreId;
-      }
-      headers["X-Device-Id"] = getDeviceId();
-      headers["X-Device-Label"] = getDeviceLabel();
-    }
 
     return this.request(url, {
       method: "POST",

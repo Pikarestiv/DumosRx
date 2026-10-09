@@ -70,7 +70,15 @@ if (typeof window !== "undefined") {
   window.__forceFullResync = forceFullResync;
   window.__reconcileStockQuantities = reconcileStockQuantities;
   window.__verifyStockIntegrity = verifyStockIntegrity;
-  window.__foldStockQuantities = foldStockQuantities;
+  // Gated, unlike its read-only neighbour: this one writes to stock numbers,
+  // so it stays inside the same support-session boundary as the UI action.
+  window.__foldStockQuantities = async () => {
+    const { isImpersonatedSession } = await import("@/lib/utils/impersonation");
+    if (!isImpersonatedSession()) {
+      throw new Error("Stock rebuild is only available in a support session.");
+    }
+    return foldStockQuantities();
+  };
 }
 
 /**

@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
 import type { POSProduct } from "@/lib/types/product";
 
 interface Params {
@@ -10,6 +11,8 @@ interface Params {
 
 /** Barcode-scan handling for the POS search box: Enter-to-scan and the shared scan-success lookup. */
 export function usePOSScan({ products, searchTerm, setSearchTerm, addToCart }: Params) {
+  const displayName = useDisplayName();
+
   const handleScanSuccess = (scannedBarcode: string) => {
     const query = scannedBarcode.toLowerCase().trim();
     const barcodeMatch = products.find(
@@ -20,7 +23,7 @@ export function usePOSScan({ products, searchTerm, setSearchTerm, addToCart }: P
     if (barcodeMatch) {
       addToCart(barcodeMatch);
       setSearchTerm("");
-      toast.success(`Scanned: ${barcodeMatch.name}`);
+      toast.success(`Scanned: ${displayName(barcodeMatch.name)}`);
     } else {
       toast.error(`No product found for barcode: ${scannedBarcode}`);
     }

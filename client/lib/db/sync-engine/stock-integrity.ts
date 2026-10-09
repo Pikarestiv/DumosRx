@@ -1,4 +1,10 @@
-import { query, execute, transaction, getActiveStoreId } from "../core";
+import {
+  query,
+  execute,
+  transaction,
+  getActiveStoreId,
+  queueTableInvalidation,
+} from "../core";
 
 /**
  * Divergence between a batch's stored `quantity` and the sum of its own
@@ -34,74 +40,95 @@ export interface StockIntegrityReport {
   unreconstructableBatches: BatchIntegrity[];
 }
 
-interface IntegrityRow {
-  batch_id: string;
-  product_id: string;
-  batch_qty: number | null;
-  movement_qty: number | null;
-  movement_count: number | null;
-  inbound_count: number | null;
+
+/** Replays the log the way both the pull and the server do: the floor is
+ * applied after every movement, never once over the sum. */
+export function replayMovements(deltas: number[]): number {
+  return deltas.reduce((running, delta) => Math.max(0, running + delta), 0);
 }
 
-function classify(row: IntegrityRow): BatchIntegrity {
-  const batchQuantity = Number(row.batch_qty ?? 0);
-  const movementQuantity = Number(row.movement_qty ?? 0);
-  const movementCount = Number(row.movement_count ?? 0);
-
-  const inboundCount = Number(row.inbound_count ?? 0);
+function classify(
+  batchId: string,
+  productId: string,
+  batchQuantity: number,
+  deltas: number[],
+  awaitingDelta: boolean,
+): BatchIntegrity {
+  const replayed = replayMovements(deltas);
+  const inboundCount = deltas.filter((delta) => delta > 0).length;
 
   // The log can only rebuild a balance it can account for. No inbound
-  // movement at all means the opening stock was never recorded (A-148) —
-  // true whether the batch has no movements or only outbound ones.
+  // movement at all means the opening stock was never recorded (A-148).
   const unreconstructable = batchQuantity > 0 && inboundCount === 0;
-
-  // stock_batches.quantity is floored at 0 in four places while the movement
-  // keeps its full size (inventory.ts, pull.ts, SyncController), so an
-  // oversold batch legitimately sits above its own negative sum.
-  const reconciles =
-    batchQuantity === movementQuantity ||
-    batchQuantity === Math.max(0, movementQuantity);
 
   const verdict: BatchVerdict = unreconstructable
     ? "unreconstructable"
-    : reconciles
+    : batchQuantity === replayed || awaitingDelta
       ? "consistent"
       : "diverged";
 
   return {
-    batchId: row.batch_id,
-    productId: row.product_id,
+    batchId,
+    productId,
     batchQuantity,
-    movementQuantity,
-    movementCount,
+    movementQuantity: replayed,
+    movementCount: deltas.length,
     verdict,
-    delta: batchQuantity - movementQuantity,
+    delta: batchQuantity - replayed,
   };
 }
 
-/**
- * Read-only audit of every active batch against its own movement log. Writes
- * nothing, so it is safe to run anywhere including production.
- */
 export async function verifyStockIntegrity(): Promise<StockIntegrityReport> {
   const storeId = getActiveStoreId();
 
-  const rows = await query<IntegrityRow>(
-    `SELECT sb.id AS batch_id,
-            sb.product_id AS product_id,
-            sb.quantity AS batch_qty,
-            COALESCE(SUM(CASE WHEN sm._deleted = 0 THEN sm.quantity ELSE 0 END), 0) AS movement_qty,
-            COUNT(CASE WHEN sm._deleted = 0 THEN 1 END) AS movement_count,
-            COUNT(CASE WHEN sm._deleted = 0 AND sm.quantity > 0 THEN 1 END) AS inbound_count
+  const batches = await query<{
+    batch_id: string;
+    product_id: string;
+    batch_qty: number | null;
+  }>(
+    `SELECT sb.id AS batch_id, sb.product_id AS product_id, sb.quantity AS batch_qty
        FROM stock_batches sb
-       LEFT JOIN stock_movements sm ON sm.stock_batch_id = sb.id
-      WHERE sb._deleted = 0 AND sb.is_active = 1${storeId ? " AND sb.store_id = ?" : ""}
-      GROUP BY sb.id, sb.product_id, sb.quantity`,
+      WHERE sb._deleted = 0 AND sb.is_active = 1${storeId ? " AND sb.store_id = ?" : ""}`,
     storeId ? [storeId] : [],
   );
 
+  // Ordered, because quantity is path-dependent: both the pull
+  // (`MAX(0, quantity + ?)`) and the server apply the floor once per
+  // movement, not once over the sum. A batch oversold to 0 and then
+  // restocked has a correct quantity that its raw sum disagrees with.
+  const movements = await query<{
+    stock_batch_id: string;
+    quantity: number | null;
+  }>(
+    `SELECT sm.stock_batch_id, sm.quantity
+       FROM stock_movements sm
+       JOIN stock_batches sb ON sb.id = sm.stock_batch_id
+      WHERE sm._deleted = 0 AND sb._deleted = 0 AND sb.is_active = 1${storeId ? " AND sb.store_id = ?" : ""}
+      ORDER BY sm.stock_batch_id, sm.created_at, sm.id`,
+    storeId ? [storeId] : [],
+  );
+
+  const byBatch = new Map<string, number[]>();
+  for (const movement of movements) {
+    const list = byBatch.get(movement.stock_batch_id);
+    const value = Number(movement.quantity ?? 0);
+    if (list) list.push(value);
+    else byBatch.set(movement.stock_batch_id, [value]);
+  }
+
+  // A delta that has not been applied yet is not a disagreement, it is work
+  // in progress — and folding it in would let the pending drain apply it a
+  // second time.
+  const awaitingDelta = new Set(
+    (
+      await query<{ stock_batch_id: string }>(
+        "SELECT DISTINCT stock_batch_id FROM _pending_stock_deltas",
+      )
+    ).map((row) => row.stock_batch_id),
+  );
+
   const report: StockIntegrityReport = {
-    checked: rows.length,
+    checked: batches.length,
     consistent: 0,
     diverged: 0,
     unreconstructable: 0,
@@ -110,8 +137,15 @@ export async function verifyStockIntegrity(): Promise<StockIntegrityReport> {
     unreconstructableBatches: [],
   };
 
-  for (const row of rows) {
-    const entry = classify(row);
+  for (const row of batches) {
+    const deltas = byBatch.get(row.batch_id) ?? [];
+    const entry = classify(
+      row.batch_id,
+      row.product_id,
+      Number(row.batch_qty ?? 0),
+      deltas,
+      awaitingDelta.has(row.batch_id),
+    );
 
     if (entry.verdict === "consistent") {
       report.consistent++;
@@ -166,30 +200,47 @@ export interface FoldResult {
  * writes no `sync_reconciliation` movement.
  */
 export async function foldStockQuantities(): Promise<FoldResult> {
-  const report = await verifyStockIntegrity();
+  // Without an active store the audit widens to every store on the device.
+  // Harmless for a read; for a write it would rewrite another branch's
+  // quantities (A-189 established at least one owner runs two).
+  if (!getActiveStoreId()) {
+    throw new Error(
+      "No active store on this device, so there is nothing safe to rebuild.",
+    );
+  }
 
   const result: FoldResult = {
     folded: 0,
-    refused: report.unreconstructable,
+    refused: 0,
     unitsCorrected: 0,
-    refusedBatchIds: report.unreconstructableBatches.map((batch) => batch.batchId),
+    refusedBatchIds: [],
   };
 
-  if (report.divergedBatches.length === 0) return result;
-
   await transaction(async () => {
+    // Inside the transaction, not before it: query() releases its queue slot
+    // before returning, so a report taken outside could be invalidated by a
+    // sale or a pull page landing in between — and the fold writes an
+    // absolute value, which would silently undo it.
+    const report = await verifyStockIntegrity();
+
+    result.refused = report.unreconstructable;
+    result.refusedBatchIds = report.unreconstructableBatches.map((b) => b.batchId);
+
     for (const batch of report.divergedBatches) {
-      // Same floor the pull's delta path applies, so an oversell floored on
-      // the originating device does not diverge again here.
-      const corrected = Math.max(0, batch.movementQuantity);
       await execute("UPDATE stock_batches SET quantity = ? WHERE id = ?", [
-        corrected,
+        batch.movementQuantity,
         batch.batchId,
       ]);
       result.folded++;
-      result.unitsCorrected += Math.abs(batch.batchQuantity - corrected);
+      result.unitsCorrected += Math.abs(batch.batchQuantity - batch.movementQuantity);
     }
   });
+
+  // Raw execute() bypasses base-helpers, so nothing queued an invalidation
+  // and every stock figure on screen would stay stale until a reload.
+  if (result.folded > 0) {
+    queueTableInvalidation("stock_batches");
+  }
 
   return result;
 }

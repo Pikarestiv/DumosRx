@@ -177,6 +177,19 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 - **Fix.** `clearDatabaseForNewStore()` now also calls `clearRecentUsers()`. Scoped to this function only, not `resetDatabase()` — that one deliberately keeps the current account's `users`/`stores` rows (it only clears transactional data), so its `recentUsers` entry is still valid and shouldn't be purged.
 - **Regression coverage:** `client/__tests__/clear-database-for-new-store-clears-recent-users.test.ts` — seeds a `users` row and a matching `recentUsers` cache entry, runs the real `clearDatabaseForNewStore()` against a real sql.js database, and asserts both are gone afterward. Confirmed RED by reverting the fix and re-running.
 
+### A-194 — a test filename asserted the opposite of the property it pinned
+- **Found:** 2026-10-08, adversarial review before merge.
+- **Root cause.** `reconcile-refuses-with-pending-deltas.test.ts` pinned that reconciliation **proceeds** while a delta is pending (the A-173 ruling), but its name said it refuses. That guard had already been reinstated by accident once — on 2026-10-08, caught only by this test — so the misleading name was an active trap for anyone grepping before editing.
+- **Fix.** Renamed to `reconcile-proceeds-with-pending-deltas.test.ts`, with the four references in `client/AGENTS.md`, `docs/FIXED_BUGS.md`, `docs/KNOWN_BUGS.md` and the stock-integrity spec updated to match.
+
+### A-195 — the app's own product export could not be re-imported with its stock
+- **Found:** 2026-10-08, owner re-imported a DumosRx xlsx export into a local store and every product landed at 0 stock.
+- **Root cause:** the exporter writes the column `Stock Quantity` (`EXPORT_COLUMNS` in `client/lib/utils/product-import-export.ts`), but `HEADER_ALIASES` knew `qty 1`, `qty`, `quantity`, `stock`, `available` and `qty machine` — not that phrase. `detectColumnMapping()` fell through to `"ignore"`, so `row.quantity` was `undefined` and `importProductRows()` skipped the opening-stock batch entirely.
+- **Cost price was collateral, not a second bug:** cost lives on `stock_batches`, and the batch is only created when a quantity is present, so dropping the quantity left nowhere to store it. Both columns read 0 in the re-export.
+- **Why it went unnoticed:** every *other* export label already had an alias, and the importer was built against third-party files (QuickBooks POS, Moniebook) rather than against our own output. The export→edit→re-import round trip is a documented workflow — `EXPORT_COLUMNS`' own comment calls it "the bulk way to publish a catalog online".
+- **Fix:** added the `stock quantity` alias, plus `client/__tests__/product-export-import-round-trip.test.ts`, which asserts **every** `EXPORT_COLUMNS` label maps back to the field it came from. Adding an export column without an alias now fails there instead of in a store.
+- **Also:** the import dialog showed only "N of M columns matched" and never flagged a missing quantity mapping, so a whole catalogue could import at zero stock with no warning at any step. It now warns explicitly when no column maps to quantity.
+
 ### A-192 — the client rejected its own server's UUIDs, parking products in the sync queue and inventing categories named after ids
 - **Found:** 2026-10-08 in production, `DUMOSRX-CLIENT-22`: "Sync item stuck after 1 attempts on products/… : Invalid category_id (not a UUID)", 4 products on store `571582a9` from an Android till.
 - **Location:** `client/lib/db/sync-engine/push.ts`, the pre-push foreign-key guard.

@@ -18,6 +18,8 @@ vi.mock("idb-keyval", () => ({
  * foldStockQuantities() does that rebuild in place — and must refuse any
  * batch the log cannot account for.
  */
+const STORE_ID = "store-1";
+
 describe("foldStockQuantities", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -33,7 +35,13 @@ describe("foldStockQuantities", () => {
     });
     db = new SQL.Database();
     db.run(SCHEMA_SQL);
+    // SCHEMA_SQL predates multi-store; schema-migrations.ts adds store_id at
+    // runtime. Added here so the store-scoped query branch is actually
+    // exercised instead of silently falling through to "every store".
+    db.run(`ALTER TABLE stock_batches ADD COLUMN store_id TEXT`);
+    db.run(`ALTER TABLE products ADD COLUMN store_id TEXT`);
     core.__setDatabaseForTesting(db);
+    core.setActiveStoreId(STORE_ID);
   });
 
   beforeEach(() => {
@@ -44,15 +52,18 @@ describe("foldStockQuantities", () => {
 
   function batch(id: string, quantity: number) {
     db.run(
-      `INSERT INTO stock_batches (id, product_id, batch_number, quantity, is_active, _deleted)
-       VALUES ('${id}', 'prod-${id}', 'Opening Stock', ${quantity}, 1, 0)`,
+      `INSERT INTO stock_batches (id, product_id, batch_number, quantity, is_active, _deleted, store_id)
+       VALUES ('${id}', 'prod-${id}', 'Opening Stock', ${quantity}, 1, 0, '${STORE_ID}')`,
     );
   }
 
+  let clock = 0;
   function movement(id: string, batchId: string, quantity: number, synced = 1) {
+    clock += 1;
+    const at = `2026-10-01T00:00:${String(clock).padStart(2, "0")}Z`;
     db.run(
-      `INSERT INTO stock_movements (id, product_id, stock_batch_id, movement_type, quantity, _deleted, _synced)
-       VALUES ('${id}', 'prod-${batchId}', '${batchId}', 'purchase', ${quantity}, 0, ${synced})`,
+      `INSERT INTO stock_movements (id, product_id, stock_batch_id, movement_type, quantity, _deleted, _synced, created_at)
+       VALUES ('${id}', 'prod-${batchId}', '${batchId}', 'purchase', ${quantity}, 0, ${synced}, '${at}')`,
     );
   }
 
@@ -149,5 +160,46 @@ describe("foldStockQuantities", () => {
 
     expect(second.folded).toBe(0);
     expect(quantityOf("b1")).toBe(5);
+  });
+
+  it("does not destroy stock on a batch that was floored and then restocked", async () => {
+    // Both the pull and the server apply MAX(0, …) after EVERY movement, so
+    // quantity is path-dependent: +10, -12, +3 lands on 3, not on the raw
+    // sum of 1. Folding to the sum silently destroyed two real units.
+    batch("b1", 3);
+    movement("m1", "b1", 10);
+    movement("m2", "b1", -12);
+    movement("m3", "b1", 3);
+
+    const result = await foldStockQuantities();
+
+    expect(result.folded).toBe(0);
+    expect(quantityOf("b1")).toBe(3);
+  });
+
+  it("rebuilds a genuinely diverged batch to its replayed value, not its raw sum", async () => {
+    batch("b1", 99);
+    movement("m1", "b1", 10);
+    movement("m2", "b1", -12);
+    movement("m3", "b1", 3);
+
+    await foldStockQuantities();
+
+    expect(quantityOf("b1")).toBe(3);
+  });
+
+  it("refuses a batch whose delta has not been applied yet, so the drain cannot double it", async () => {
+    batch("b1", 10);
+    movement("m1", "b1", 10);
+    movement("m2", "b1", 5);
+    db.run(
+      `INSERT INTO _pending_stock_deltas (movement_id, stock_batch_id, quantity, attempts)
+       VALUES ('m2', 'b1', 5, 1)`,
+    );
+
+    const result = await foldStockQuantities();
+
+    expect(result.folded).toBe(0);
+    expect(quantityOf("b1")).toBe(10);
   });
 });

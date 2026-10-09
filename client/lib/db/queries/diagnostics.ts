@@ -96,10 +96,12 @@ async function resolutionCounts(storeId: string | null): Promise<ResolutionCount
     batchesWithoutMovements: await countOf(
       `SELECT COUNT(*) AS count FROM stock_batches sb
         WHERE sb._deleted = 0 AND sb.is_active = 1 AND sb.quantity > 0
+          ${storeId ? "AND sb.store_id = ?" : ""}
           AND NOT EXISTS (
             SELECT 1 FROM stock_movements sm
              WHERE sm.stock_batch_id = sb.id AND sm._deleted = 0
           )`,
+      args,
     ),
   };
 }

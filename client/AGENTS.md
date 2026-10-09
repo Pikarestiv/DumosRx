@@ -886,6 +886,16 @@ admin panel. The constraints are not negotiable:
   every other device applying the raw delta. Movements are an immutable log,
   so the insert branch sees each one exactly once — a missed delta is lost
   forever, which is why the deferral below exists.
+- **`stock_batches.quantity` is path-dependent, so `SUM(movements)` is NOT a
+  faithful reconstruction.** The floor is applied once per movement — `pull.ts`
+  does `MAX(0, quantity + ?)` and `SyncController` does the same server-side —
+  never once over the sum. A batch oversold to 0 and then restocked by 3 holds
+  a correct `3` while its raw sum reads `1`. Anything deriving a quantity from
+  the log must replay the movements in `created_at` order applying
+  `MAX(0, running + delta)` (`replayMovements()` in `sync-engine/stock-integrity.ts`).
+  A first cut of `foldStockQuantities()` compared against the raw sum and
+  silently destroyed two real units on exactly that shape; caught in review,
+  never shipped.
 - **Deferred movement deltas** (`sync-engine/deferred-stock-deltas.ts`).
   Batches and movements paginate independently, so a movement can arrive on
   an earlier page than the batch it references, where the delta would

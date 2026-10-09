@@ -284,7 +284,7 @@ export function usePOSCart(products: Product[]) {
       if (!removed) return;
       // A swipe-to-remove is easy to trigger by accident while scrolling the
       // cart on a phone, so every removal is reversible rather than silent.
-      toast(`${removed.name} removed from cart`, {
+      toast(`${displayName(removed.name)} removed from cart`, {
         action: {
           label: "Undo",
           onClick: () =>

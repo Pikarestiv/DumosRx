@@ -17,6 +17,8 @@ vi.mock("idb-keyval", () => ({
  *
  * verifyStockIntegrity() must never write.
  */
+const STORE_ID = "store-1";
+
 describe("verifyStockIntegrity", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -32,7 +34,13 @@ describe("verifyStockIntegrity", () => {
     });
     db = new SQL.Database();
     db.run(SCHEMA_SQL);
+    // SCHEMA_SQL predates multi-store; schema-migrations.ts adds store_id at
+    // runtime. Added here so the store-scoped query branch is actually
+    // exercised instead of silently falling through to "every store".
+    db.run(`ALTER TABLE stock_batches ADD COLUMN store_id TEXT`);
+    db.run(`ALTER TABLE products ADD COLUMN store_id TEXT`);
     core.__setDatabaseForTesting(db);
+    core.setActiveStoreId(STORE_ID);
   });
 
   beforeEach(() => {
@@ -41,8 +49,8 @@ describe("verifyStockIntegrity", () => {
 
   function batch(id: string, quantity: number, isActive = 1, deleted = 0) {
     db.run(
-      `INSERT INTO stock_batches (id, product_id, batch_number, quantity, is_active, _deleted)
-       VALUES ('${id}', 'prod-${id}', 'Opening Stock', ${quantity}, ${isActive}, ${deleted})`,
+      `INSERT INTO stock_batches (id, product_id, batch_number, quantity, is_active, _deleted, store_id)
+       VALUES ('${id}', 'prod-${id}', 'Opening Stock', ${quantity}, ${isActive}, ${deleted}, '${STORE_ID}')`,
     );
   }
 

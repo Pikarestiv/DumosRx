@@ -61,7 +61,7 @@ describe("POS cart removal undo", () => {
 
     const undoToast = toastCalls.find((c) => c.options?.action?.label === "Undo");
     expect(undoToast).toBeTruthy();
-    expect(undoToast!.message).toContain("Panadol");
+    expect(undoToast!.message).toMatch(/panadol/i);
 
     act(() => undoToast!.options!.action!.onClick());
     expect(result.current.cart).toHaveLength(1);

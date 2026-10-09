@@ -8,8 +8,8 @@ import { Combobox } from "@/components/ui/combobox";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Upload, AlertTriangle, FileSpreadsheet} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { AlertTriangle } from "lucide-react";
+import { ImportDropZone } from "./import-drop-zone";
 import { useAuth } from "@/lib/context/auth-context";
 import {
   readWorkbookFile,
@@ -64,7 +64,6 @@ export function ImportMappingDialog({
   const [result, setResult] = useState<ImportResult | null>(null);
   const [updateStockForMatched, setUpdateStockForMatched] = useState(false);
   const [duplicateNames, setDuplicateNames] = useState<string[]>([]);
-  const [isDraggingFile, setIsDraggingFile] = useState(false);
   const { user } = useAuth();
 
   const reset = () => {
@@ -158,53 +157,10 @@ export function ImportMappingDialog({
     >
       <div className="flex flex-col gap-4 p-4">
         {step === "pick-file" && (
-          <div className="flex flex-col gap-3">
-            <label
-              htmlFor="product-import-file"
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDraggingFile(true);
-              }}
-              onDragLeave={() => setIsDraggingFile(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setIsDraggingFile(false);
-                const file = e.dataTransfer.files?.[0];
-                if (file) void handleFile(file);
-              }}
-              className={cn(
-                "flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors",
-                isDraggingFile
-                  ? "border-primary bg-primary/5"
-                  : "border-border bg-white hover:border-primary/50 hover:bg-primary/5 dark:bg-slate-900",
-              )}
-            >
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <FileSpreadsheet className="h-7 w-7" />
-              </span>
-              <span className="flex flex-col gap-1">
-                <span className="text-base font-semibold">
-                  Drop your spreadsheet here
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  or click to choose a file from this device
-                </span>
-              </span>
-              <span className="text-xs text-muted-foreground">
-                CSV or XLSX. Save older .xls files as .xlsx first.
-              </span>
-            </label>
-            <input
-              type="file"
-              id="product-import-file"
-              className="hidden"
-              accept=".csv,.xls,.xlsx"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void handleFile(file);
-              }}
-            />
-          </div>
+          <ImportDropZone
+            onFile={(file) => void handleFile(file)}
+            onReject={(message) => toast.error(message)}
+          />
         )}
 
         {step === "pick-sheet" && workbook && (

@@ -83,8 +83,8 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
     <div
       data-cart-item-id={item.id}
       className={cn(
-        "relative overflow-hidden rounded-lg transition-colors duration-500",
-        highlighted && "bg-primary/10 motion-reduce:transition-none",
+        "relative overflow-hidden rounded-lg transition-colors duration-500 motion-reduce:transition-none",
+        highlighted && "bg-primary/10",
       )}
     >
       {!isLocked && (

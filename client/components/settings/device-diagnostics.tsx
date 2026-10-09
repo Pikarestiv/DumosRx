@@ -52,7 +52,10 @@ function buildReport(
   for (const row of data.queue) {
     lines.push(
       `  ${row.table_name}: ${row.pending} pending, ${row.retrying} retrying` +
-        (row.last_error ? ` — last error: ${row.last_error}` : ""),
+        // Deliberately omitted: a driver error quotes the whole attempted
+        // statement, so it can carry a verbatim row (a staff password hash,
+        // a customer's details) into a pasted support ticket.
+        (row.last_error ? " (has a sync error, see the screen)" : ""),
     );
   }
 

@@ -16,7 +16,7 @@ export const OFFLINE_MESSAGE = "Admin access needs an internet connection.";
 
 export const NO_STORE_MESSAGE = "This device has no store set up yet.";
 
-export type TillSessionEndReason = "signed_out" | "idle" | "expired";
+export type TillSessionEndReason = "signed_out" | "idle" | "expired" | "closed";
 
 /**
  * True only for an identifier that looks like an email AND matches no user on
@@ -132,7 +132,7 @@ export async function endAdminTillSession(
  * this the session row kept no exit row and no duration.
  */
 export function beaconAdminTillSessionEnd(sessionId: string): void {
-  const payload = JSON.stringify({ session_id: sessionId, reason: "expired" });
+  const payload = JSON.stringify({ session_id: sessionId, reason: "closed" });
 
   try {
     if (navigator.sendBeacon) {

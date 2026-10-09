@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { AdminTillLogin } from "./admin-till-login";
+import { TillInspectionBanner } from "@/components/dashboard/till-inspection-banner";
 import { overrideClockLockout } from "@/lib/licensing/licensing-manager";
 import { isTillInspectionSession } from "@/lib/utils/till-inspection";
 import type { LicenseInfo } from "@/lib/licensing/licensing-manager";

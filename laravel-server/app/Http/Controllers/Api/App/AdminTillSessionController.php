@@ -85,6 +85,7 @@ class AdminTillSessionController extends Controller
         $endReason = match ($reason) {
             'idle' => 'idle',
             'expired' => 'expired',
+            'closed' => 'closed',
             default => 'signed_out',
         };
 

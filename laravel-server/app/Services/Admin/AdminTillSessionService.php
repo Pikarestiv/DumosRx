@@ -39,7 +39,12 @@ class AdminTillSessionService
     {
         $admin = User::where('email', $email)->first();
 
-        if ($admin && !$admin->hasRole(self::ELIGIBLE_ROLES)) {
+        // is_active as well as role: deactivating an admin is the documented
+        // off-boarding path (AdminUserController::deactivate), and it does not
+        // cascade to their till codes — so without this an off-boarded admin
+        // kept read access to every store till, the fold and the clock
+        // override until somebody separately remembered to revoke the codes.
+        if ($admin && (!$admin->is_active || !$admin->hasRole(self::ELIGIBLE_ROLES))) {
             $admin = null;
         }
 

@@ -145,21 +145,6 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
 }
 
 /**
- * Clears a clock lock, but only against authoritative server time.
- *
- * A device whose wall clock ran fast wrote that future time into
- * `last_monotonic_time`, so correcting the clock makes every later check read
- * as a rollback and the device locks out permanently (docs/KNOWN_BUGS.md
- * A-191). The watermark is device-local: the pull strips it and a factory
- * reset preserves it, so nothing else can repair it.
- *
- * This is the only route out, and it is deliberately online-only — the store
- * owner is the party the backdating check exists to stop, so an offline
- * override would hand the escape hatch to the adversary. Returns true when the
- * watermark was reset. See
- * docs/superpowers/specs/2026-10-08-license-clock-recovery-design.md.
- */
-/**
  * The admin-present version of reconcileClockWithServer(): still requires a
  * live server reading, so server time remains the authority and a tampered
  * device cannot talk its way out — but it skips the `reading.agrees` refusal,
@@ -202,6 +187,21 @@ export async function overrideClockLockout(): Promise<
   return { ok: true, reason: "Clock watermark reset to server time by admin override." };
 }
 
+/**
+ * Clears a clock lock, but only against authoritative server time.
+ *
+ * A device whose wall clock ran fast wrote that future time into
+ * `last_monotonic_time`, so correcting the clock makes every later check read
+ * as a rollback and the device locks out permanently (docs/KNOWN_BUGS.md
+ * A-191). The watermark is device-local: the pull strips it and a factory
+ * reset preserves it, so nothing else can repair it.
+ *
+ * This is the only route out, and it is deliberately online-only — the store
+ * owner is the party the backdating check exists to stop, so an offline
+ * override would hand the escape hatch to the adversary. Returns true when the
+ * watermark was reset. See
+ * docs/superpowers/specs/2026-10-08-license-clock-recovery-design.md.
+ */
 export async function reconcileClockWithServer(): Promise<
   { reconciled: boolean; reason: string }
 > {

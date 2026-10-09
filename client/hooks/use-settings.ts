@@ -6,10 +6,8 @@ import { useTheme } from "@/components/theme-provider";
 import { useStore, StoreType } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { hasPermission } from "@/lib/hooks/use-permissions";
-import {
-  ALL_SETTINGS_TABS,
-  canAccessSettingsTab,
-} from "@/lib/constants/settings-tabs";
+
+
 import { toast } from "sonner";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { apiClient } from "@/lib/api/client";

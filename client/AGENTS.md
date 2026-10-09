@@ -331,10 +331,12 @@ and `synchronous = NORMAL`.
   counts behind A-189. It exists because none of that was reachable from
   inside the app during the 2026-10-08 incident and had to be relayed by hand.
   Every query in it is a `SELECT`, pinned by a full-snapshot test.
-  - It renders only when `isImpersonatedSession()` is true, and that render
-    check is the **only** gate — the tab is ungated by role and missing from
-    `ALL_SETTINGS_TABS` (A-198). Do not add a trigger for it without adding
-    the permission gate in the same change.
+  - It renders for either support session — `isTillInspectionSession()` or
+    `isImpersonatedSession()` — and `diagnostics` is in `ALL_SETTINGS_TABS`
+    with its own rule in `canAccessSettingsTab()` (A-198, fixed). That rule
+    must grant **both** sessions: gating it on inspection alone silently sent
+    an impersonating superadmin to Appearance, breaking the only path that had
+    ever reached the console.
   - "Copy report" deliberately omits `last_error` verbatim: a driver error
     quotes the whole attempted statement, which can carry a real row (a
     password hash, a customer's details) into a pasted support ticket. The

@@ -74,22 +74,35 @@ export const SETTINGS_TAB_PERMISSIONS: Record<string, string> = {
  * render harness. `hasKey` is the caller's own permission check
  * (useHasPermission in a component, hasPermission() in a hook).
  */
+/** The two support sessions that can see the diagnostics console. They differ:
+ * an on-till inspection is read-only and must be denied every other tab,
+ * while an impersonation handoff keeps the tabs it always had. */
+export interface SupportSessionAccess {
+  inspecting?: boolean;
+  impersonating?: boolean;
+}
+
 export function canAccessSettingsTab(
   tab: string,
   isAdmin: boolean,
   hasKey: (key: string) => boolean,
-  isInspecting = false,
+  support: SupportSessionAccess = {},
 ): boolean {
-  if (tab === DIAGNOSTICS_SETTINGS_TAB) return isInspecting;
+  // Both support sessions, not just inspection: the impersonation handoff was
+  // the ONLY path that ever reached this console, and gating it on inspection
+  // alone sent an impersonating superadmin to Appearance instead.
+  if (tab === DIAGNOSTICS_SETTINGS_TAB) {
+    return !!support.inspecting || !!support.impersonating;
+  }
 
-  // An inspection session is read-only, so it must be DENIED the tabs whose
-  // actions bypass the write guard. Returning only `isInspecting` for the
-  // diagnostics tab was not enough: the fall-through below grants every
-  // admin-only tab on `isAdmin`, which is the *locked staff user's* role — so
-  // on an owner's device an inspecting admin still reached Data's restore and
-  // Danger Zone's factory reset, both raw `execute` and both able to destroy
-  // the evidence the session came to collect.
-  if (isInspecting) return false;
+  // An on-till inspection is read-only, so it is denied the tabs whose actions
+  // bypass the write guard. Granting diagnostics was not enough on its own:
+  // the fall-through below grants every admin-only tab on `isAdmin`, which is
+  // the *locked staff user's* role — so on an owner's device an inspecting
+  // admin still reached Data's restore and Danger Zone's factory reset, both
+  // raw `execute`, both able to destroy the evidence. Impersonation is
+  // deliberately NOT denied here; it keeps the access it has always had.
+  if (support.inspecting) return false;
 
   const required = SETTINGS_TAB_PERMISSIONS[tab];
   if (required) return hasKey(required);

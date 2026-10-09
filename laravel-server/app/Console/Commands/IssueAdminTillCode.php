@@ -22,7 +22,8 @@ class IssueAdminTillCode extends Command
     {
         $admin = User::where('email', $this->argument('email'))->first();
 
-        if (!$admin || !$admin->hasRole(AdminTillSessionService::ELIGIBLE_ROLES)) {
+        if (!$admin || !$admin->is_active
+            || !$admin->hasRole(AdminTillSessionService::ELIGIBLE_ROLES)) {
             $this->error('No platform admin with that email.');
 
             return 1;

@@ -4,6 +4,7 @@ import {
   canAccessSettingsTab,
 } from "@/lib/constants/settings-tabs";
 import { isTillInspectionSession } from "@/lib/utils/till-inspection";
+import { isImpersonatedSession } from "@/lib/utils/impersonation";
 
 /**
  * Resolves `/settings/<tab>` to an internal tab, honouring the legacy aliases
@@ -40,7 +41,10 @@ export function useSettingsTabResolution({
 }: Params) {
   const canAccessTab = useCallback(
     (tab: string) =>
-      canAccessSettingsTab(tab, isAdmin, hasKey, isTillInspectionSession()),
+      canAccessSettingsTab(tab, isAdmin, hasKey, {
+        inspecting: isTillInspectionSession(),
+        impersonating: isImpersonatedSession(),
+      }),
     [isAdmin, hasKey],
   );
 

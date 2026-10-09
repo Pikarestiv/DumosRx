@@ -100,7 +100,14 @@ class AdminTillSessionTest extends TestCase
     private function seedAdminWithCode(string $code = '123456789012'): User
     {
         if (!User::where('email', 'owner@shop.com')->exists()) {
-            $this->admin('store_owner', 'owner@shop.com');
+            $owner = $this->admin('store_owner', 'owner@shop.com');
+            // A VALID code, so the 'not an admin' rejection below is produced
+            // by the role gate and not merely by the absence of a code. With
+            // no code here, disabling the role check entirely still passed.
+            AdminTillCode::create([
+                'admin_id' => $owner->id,
+                'code_hash' => Hash::make($code),
+            ]);
         }
 
         $admin = $this->admin('platform_admin', 'ops@dumosrx.com');
@@ -313,7 +320,12 @@ class AdminTillSessionTest extends TestCase
         $this->artisan('admin:till-code', ['email' => 'ops@dumosrx.com'])
             ->assertExitCode(1);
 
-        $this->assertSame(3, AdminTillCode::active()->count());
+        $this->assertSame(
+            3,
+            AdminTillCode::active()
+                ->where('admin_id', User::where('email', 'ops@dumosrx.com')->value('id'))
+                ->count(),
+        );
     }
 
     public function test_an_admin_whose_role_is_held_only_on_the_pivot_still_verifies(): void
@@ -424,5 +436,25 @@ class AdminTillSessionTest extends TestCase
         $this->postJson('/api/v1/app/admin-till-session/server-time', [
             'session_id' => $sessionId,
         ])->assertStatus(401);
+    }
+
+    public function test_a_deactivated_admin_is_refused_even_with_a_valid_code(): void
+    {
+        $admin = $this->seedAdminWithCode();
+        $admin->forceFill(['is_active' => false])->save();
+
+        $this->open()->assertStatus(401)->assertExactJson(['error' => 'Wrong password.']);
+        $this->assertSame(0, AdminTillSession::count());
+    }
+
+    public function test_the_console_refuses_a_deactivated_admin(): void
+    {
+        $admin = $this->admin('platform_admin', 'gone@dumosrx.com');
+        $admin->forceFill(['is_active' => false])->save();
+
+        $this->artisan('admin:till-code', ['email' => 'gone@dumosrx.com'])
+            ->assertExitCode(1);
+
+        $this->assertSame(0, AdminTillCode::where('admin_id', $admin->id)->count());
     }
 }

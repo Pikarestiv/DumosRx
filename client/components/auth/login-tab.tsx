@@ -1,6 +1,7 @@
 "use client";
 
 import { CardHeader } from "@/components/ui/card";
+import { useAdminTillCodeMode } from "@/lib/hooks/use-admin-till-code-mode";
 import { TraditionalLoginForm } from "@/components/auth/traditional-login-form";
 import { LockScreen } from "@/components/auth/lock-screen";
 import { AuthCardShell } from "@/components/auth/auth-card-shell";
@@ -52,6 +53,8 @@ export function LoginTab({
     userCount > 0 &&
     (recentUsers.length === 0 || showTraditionalLogin || isNewCredentialsMode);
 
+  const codeMode = useAdminTillCodeMode(username);
+
   return (
     <AuthCardShell variant="page" header={authHeader}>
       {userCount === 0 && (
@@ -85,6 +88,7 @@ export function LoginTab({
           onGoToRegister={onGoToRegister}
           onGoToCloud={onGoToCloud}
           onCancel={onCancel}
+          codeMode={codeMode}
         />
       )}
     </AuthCardShell>

@@ -23,7 +23,7 @@ const KNOWN_REASONS = [
   "schema_mismatch",
 ];
 
-function canonicaliseReason(raw: string | null): string {
+export function canonicaliseReason(raw: string | null): string {
   const text = (raw ?? "").replace(/^\[REPORTED\]\s*/, "").trim();
 
   if (KNOWN_REASONS.includes(text)) {

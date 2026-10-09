@@ -24,6 +24,7 @@ const DeviceDiagnosticsPanel = dynamic(
     ),
   { ssr: false },
 );
+import { isTillInspectionSession } from "@/lib/utils/till-inspection";
 import { isImpersonatedSession } from "@/lib/utils/impersonation";
 import { SecurityPanel } from "./panels/security-panel";
 import { PaymentMethodsPanel } from "./panels/payment-methods-panel";
@@ -239,7 +240,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
           {/* Support surface, not a store feature: only rendered during a
               superadmin handoff, and re-checked here rather than trusting
               that nothing linked to it. */}
-          {isImpersonatedSession() && (
+          {(isTillInspectionSession() || isImpersonatedSession()) && (
             <TabsContent value="diagnostics">
               <DeviceDiagnosticsPanel />
             </TabsContent>

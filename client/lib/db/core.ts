@@ -1211,6 +1211,9 @@ export async function logAction(
   overrideStoreId?: string,
   // Groups one multi-step operation's rows in the Activity Log.
   correlationId?: string,
+  // An actor the server knows but this device does not — see client/AGENTS.md,
+  // "On-till admin inspection", for why leaving it unset misattributes.
+  actorId?: string,
 ) {
   if (!db) return;
   const now = new Date().toISOString();
@@ -1268,7 +1271,7 @@ export async function logAction(
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
-      currentUser?.id || null,
+      actorId || currentUser?.id || null,
       storeId,
       action,
       table,
@@ -1284,7 +1287,7 @@ export async function logAction(
   // Enqueue log action into the sync queue so it gets synced to the server
   const record = {
     id,
-    user_id: currentUser?.id || null,
+    user_id: actorId || currentUser?.id || null,
     store_id: storeId,
     action,
     table_name: table,

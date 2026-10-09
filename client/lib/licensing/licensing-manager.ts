@@ -5,6 +5,12 @@
 
 import { getStoreProfile, updateStoreMonotonicTime } from "@/lib/db/queries/setup";
 import { readServerClock, describeDrift } from "./server-clock";
+import { readInspectionServerClock } from "@/lib/api/admin-till-session";
+import { getTillInspectionSession } from "@/lib/utils/till-inspection";
+import {
+  logTillRepair,
+  TILL_REPAIR_ACTIONS,
+} from "@/lib/utils/till-inspection-audit";
 import { boundedNowIso } from "./monotonic-clock";
 
 const LICENSE_TIERS = ["free", "local", "pro", "enterprise"] as const;
@@ -136,6 +142,50 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
   } catch (_e) {
     return { isValid: false, tier: "free", expiryDate: null, isClockTampered: false, isSuspended: false, message: "Invalid license token." };
   }
+}
+
+/**
+ * The admin-present version of reconcileClockWithServer(): still requires an
+ * authoritative server reading, so a tampered device cannot talk its way out —
+ * but it takes that reading from readInspectionServerClock(), which the server
+ * refuses without a live session row, and applies no device-agreement check.
+ * Disagreement is exactly the case a physically-present admin resolves.
+ *
+ * Only reachable from an on-till inspection session, which is online-only and
+ * exists only for platform_admin and above. See
+ * docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md.
+ */
+export async function overrideClockLockout(): Promise<
+  { ok: boolean; reason: string }
+> {
+  const session = getTillInspectionSession();
+  if (!session) {
+    throw new Error("Requires an admin inspection session.");
+  }
+
+  const profile = await getStoreProfile();
+  if (!profile) return { ok: false, reason: "No store profile on this device." };
+
+  // Deliberately NOT the public /health endpoint: this call carries the
+  // session id and the server refuses it unless a live admin_till_sessions row
+  // exists, so the authority is a server-side row rather than a sessionStorage
+  // flag anyone could forge in devtools.
+  const serverNow = await readInspectionServerClock(session.sessionId);
+  if (!serverNow) {
+    return {
+      ok: false,
+      reason:
+        "Could not confirm the time with our servers for this session. Check the connection and try again.",
+    };
+  }
+
+  await updateStoreMonotonicTime(profile.id, serverNow.toISOString());
+
+  await logTillRepair(TILL_REPAIR_ACTIONS.clockOverride, profile.id, {
+    server_now: serverNow.toISOString(),
+  });
+
+  return { ok: true, reason: "Clock watermark reset to server time by admin override." };
 }
 
 /**

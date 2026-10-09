@@ -3,6 +3,7 @@
 import type React from "react";
 
 import { useState, useEffect } from "react";
+import { isTillInspectionSession } from "@/lib/utils/till-inspection";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
 import { FeedbackForm } from "@/components/feedback/feedback-form";
@@ -198,6 +199,16 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   };
 
   useEffect(() => {
+    // An inspection session belongs at /inspect, which carries the banner, the
+    // End Session button and the idle timer. Reaching the dashboard with one
+    // live showed a full staff UI with no indication anybody else was signed
+    // in, and left every staff write failing with the read-only message for
+    // up to 20 minutes with no way out.
+    if (isTillInspectionSession()) {
+      router.replace("/inspect");
+      return;
+    }
+
     if (!user) {
       router.push("/login");
     }

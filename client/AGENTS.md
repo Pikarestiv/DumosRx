@@ -245,6 +245,103 @@ and `synchronous = NORMAL`.
 
 ### Backup, restore, wipes and diagnostics (`core.ts`)
 
+- **On-till admin inspection** (`lib/utils/till-inspection.ts`,
+  `lib/api/admin-till-session.ts`, `app/inspect/page.tsx`). An admin standing
+  at a store's own till signs in with their email plus a 12-digit till access
+  code and gets a read-only session. Full design in
+  `docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md`.
+  - **It needs a 12-digit code AND a complete email.** The branch is gated on
+    `pin.length === TILL_CODE_LENGTH`, because a 4-digit PIN can never be a
+    till code — without that gate a staff member mistyping an owner's email
+    was sent down the admin path: a network round-trip, a spinner up to 15s,
+    and an "admin access needs an internet connection" message for what used
+    to be an instant local "Invalid credentials". The email must also be
+    *complete* (`looksLikeCompleteEmail`), or the login field flipped between
+    the 4-slot PIN and the 12-digit code while an owner typed their own
+    address, remounting the input under their fingers.
+  - **The discriminator is "an email that matches no user on this device"**,
+    not "an email was typed". `lib/db/queries/auth.ts:26` already accepts an
+    email as an ordinary login identifier, so a store owner signing in with
+    theirs must stay local and offline. The check runs inside `login()` right
+    after the lookup it already performs, so it costs nothing extra. There is
+    no secret in the bundle and no gesture.
+  - **Known constraint:** an admin whose email is also on a local user record
+    on that device cannot reach the admin path — they get the local PIN login.
+    Use an admin email that is not on any staff record.
+  - **It renders at `/inspect`, outside `(dashboard)`.** `DashboardLayout`
+    hard-requires a staff `user` and redirects to `/login` without one, so on
+    a till logged out for the night (the normal state) an admin would be stuck
+    in a redirect loop. Never synthesise a fake `user` to satisfy the layout —
+    that is how a read-only session acquires an identity it later writes under.
+  - **The session is an overlay**: it never calls `setDbUser()`, never touches
+    `dumos_user`, the active store or the auth token, and never stops sync.
+    It lives in `sessionStorage`, so it dies on restart.
+  - **Read-only is enforced in `insert`/`update`/`softDelete`/`remove`**
+    (`base-helpers.ts`), not by hiding buttons. `remove()` matters: it hard
+    deletes. The fold, the clock override and sync's pull all write via raw
+    `execute`, which is why they are unaffected and need no exception.
+  - **Two deadlines, both local.** A 20-minute idle timer extended by real
+    interaction, and a 4-hour cap derived from the server's `expires_in`
+    **duration** — never its absolute `expires_at`, which on a till whose
+    clock runs hours fast would read as already expired the moment the session
+    opened. Nothing on the server re-verifies a session after login, so these
+    are UX and a stale-tab net rather than enforcement; the real control is
+    how little a session can do.
+  - **The settings gate both grants and denies.** `canAccessSettingsTab()` takes
+    `{ inspecting, impersonating }` and grants the diagnostics tab to **either**
+    support session, while denying every other tab to an inspection session
+    only. Granting alone was not enough: the
+    fall-through grants admin-only tabs on `isAdmin`, which is the *locked
+    staff user's* role, so on an owner's device an inspecting admin still
+    reached Data's restore and Danger Zone's factory reset — both raw
+    `execute`, both able to destroy the evidence the session came to collect.
+  - **The admin branch must not call `unlock()` or set
+    `dumos_session_authenticated`.** `/inspect` needs neither, and setting them
+    turned a till code into a way to unlock whatever staff session was locked
+    on the device: on exit, `/login` → `/dashboard` found the marker and
+    skipped the lock. `DashboardLayout` also redirects to `/inspect` whenever a
+    session is live, so the dashboard can never render without the banner, the
+    End Session button and the idle timer.
+  - **Both repairs audit against the admin**
+    (`lib/utils/till-inspection-audit.ts`). `logAction` attributes `user_id` to
+    whoever the local DB still points at — the cashier, or nobody — so the
+    admin id, email, session and device go in the details explicitly **and the
+    admin's id is passed as `logAction`'s `actorId`**. Both halves matter:
+    `logAction` otherwise defaults `user_id` to whoever the local DB points at,
+    and `SyncController` then backfills an empty or unknown id from the sync
+    token's owner — so the server's `activity_logs` named the **store owner**
+    as having run the clock override, backwards for the one repair whose
+    premise is that the owner is the suspected tamperer. The admin's id is
+    known to the server, so it survives the push intact. The audit row does
+    queue for sync; that is intended, and is why the fold's queue assertions
+    are scoped to the stock tables rather than a raw count.
+  - **The entry also lives on the blocked licence card**
+    (`components/auth/license-blocked-card.tsx`), because `LicenseGuard`
+    returns that card *instead of* its children: while a device is
+    clock-tampered there is no app, no lock screen and no "someone else", so
+    that is the only way in. The shared form
+    (`components/auth/admin-till-login.tsx`) takes an `onSuccess` callback and
+    never navigates itself — a router push from the card would just re-render
+    the card.
+  - **The override is authorised by the server, not the client flag.** The
+    `dumos_till_inspection` entry is forgeable in devtools, so
+    `overrideClockLockout()` reads its time from
+    `POST /app/admin-till-session/server-time`, which 401s unless a live
+    `admin_till_sessions` row exists and is still inside its hard cap. It
+    deliberately does **not** use the public `/health` endpoint. The call
+    doubles as the authorisation it would otherwise lack.
+  - **Exit is reported on four paths**: the End Session button, the idle/hard
+    deadline, `logout()`, and `pagehide` via `navigator.sendBeacon` — the last
+    because an awaited fetch is cancelled with the page, and closing the app is
+    the commonest exit on a desktop till. Clock-based expiry remains the
+    backstop.
+  - `overrideClockLockout()` is the admin-present form of
+    `reconcileClockWithServer()`: it still requires an authoritative server
+    reading, but takes it from `readInspectionServerClock()` (which the server
+    refuses without a live session row) rather than the public `/health`, and
+    applies no device-agreement check — disagreement is exactly the case a
+    present admin resolves. Do not relax `reconcileClockWithServer()` itself.
+
 - **The device diagnostics console** (`components/settings/device-diagnostics.tsx`,
   `lib/db/queries/diagnostics.ts`) is a read-only snapshot of one device's own
   sync state: the queue by table, how far each table has synced, unapplied
@@ -252,14 +349,116 @@ and `synchronous = NORMAL`.
   counts behind A-189. It exists because none of that was reachable from
   inside the app during the 2026-10-08 incident and had to be relayed by hand.
   Every query in it is a `SELECT`, pinned by a full-snapshot test.
-  - It renders only when `isImpersonatedSession()` is true, and that render
-    check is the **only** gate — the tab is ungated by role and missing from
-    `ALL_SETTINGS_TABS` (A-198). Do not add a trigger for it without adding
-    the permission gate in the same change.
-  - "Copy report" deliberately omits `last_error` verbatim: a driver error
-    quotes the whole attempted statement, which can carry a real row (a
-    password hash, a customer's details) into a pasted support ticket. The
-    screen shows it; the clipboard does not.
+  - It renders for either support session — `isTillInspectionSession()` or
+    `isImpersonatedSession()` — and `diagnostics` is in `ALL_SETTINGS_TABS`
+    with its own rule in `canAccessSettingsTab()` (A-198, fixed). That rule
+    must grant **both** sessions: gating it on inspection alone silently sent
+    an impersonating superadmin to Appearance, breaking the only path that had
+    ever reached the console.
+  - **Privacy governs the clipboard, not completeness.** A sync `last_error`'s
+    first 300 chars can be a driver error quoting the whole attempted
+    statement, so it can carry a real row — a password hash, a customer's
+    details — into a pasted support ticket. The report therefore emits reason
+    **classes** via `canonicaliseReason()`, never raw errors; withholds a crash
+    message matching `/SQLSTATE|INSERT|UPDATE|SELECT|constraint/i`; never reads
+    `stores.license_token`; and never includes an `audit_logs.details` blob
+    (A-130 once put a plaintext temporary password there). The screen may show
+    more than the clipboard. Pinned by `__tests__/diagnostics-detail.test.ts`.
+  - **What it captures, and why each field exists.** A 2026-10-09 audit scored
+    the first version against real incidents: 7 caught, 6 half, 7 missed. The
+    fields added to close those gaps, each tied to the bug that needed it:
+    stuck queue rows with the **`store_id` read out of the frozen payload**
+    (A-162/A-165/A-167 — "the one datum nobody has"); rows at `_synced = 0`
+    with no queue entry, i.e. what the device re-queues every boot (the
+    repeated "changes could not be saved" loops); the on-device crash log from
+    `feedback` coalesced by fingerprint (the only thing that *changes* when a
+    bug is triggered, so it is what makes reproduce-then-inspect work);
+    the clock watermark vs the device clock (A-191's lockout); missing tables
+    from `sqlite_master` (A-188 asked for exactly this query); platform and
+    user agent (A-158); and delta age plus the count whose product is gone
+    locally (A-176a — tells you whether a resync can help).
+  - **Three numbers were wrong and are fixed:** `queueTotal` counted crash
+    telemetry while the dashboard indicator excludes it, so the two disagreed
+    and support chased the difference; `conflicts` counted resolved rows; and
+    the unapplied-delta figure was `pendingDeltas.length` under a `LIMIT 50`,
+    which understated.
+  - **A super_admin can ask one device, once, to send its own report**
+    (`sync-engine/device-report-command.ts`, action `send_device_report`).
+    This exists because the ordinary telemetry channel fails exactly when it is
+    needed: crash rows live in `feedback`, which rides the sync queue, so a
+    till whose push is jammed stops reporting at the moment it has most to say.
+    The report goes out over the plain `/support` POST and to Sentry — both
+    fire-and-forget HTTP, neither touching the queue — and succeeds if
+    **either** lands, because a missing Sentry DSN must not stop the email and
+    an unreachable support endpoint must not stop Sentry. With neither it
+    refuses and writes no audit row: claiming a report was sent when none was
+    is worse than no record.
+    - **The command rides the PUSH response**
+      (`SyncController::exchangeSyncCommands`, applied in `push.ts`), not the
+      pull. So a device whose rows fail *individually* — the "50 changes could
+      not be saved" shape, where the request succeeds and `failed[]` is
+      populated — does receive it, which is the field case. A device whose push
+      **request** fails outright (413, 500, timeout), or that has no connection
+      at all, never does; those need the on-till session.
+    - **Only the `/support` POST decides `applied`.** `Sentry.captureMessage`
+      never throws — with no DSN it is a silent no-op and transport failures
+      are async — so it can never prove delivery and is recorded as
+      `sentry (unconfirmed)`. Marking the command applied on Sentry alone would
+      write an audit row for a report nobody received.
+    - **It is logged on the device** (`DEVICE_REPORT_SENT_ON_REQUEST`) so the
+      store can see a report left their till — an outbound collection the owner
+      cannot discover is not one worth having. `issued_by` travels with the
+      command and is passed as `logAction`'s `actorId`, or the row would name
+      whoever happened to be signed in at the till as having sent it.
+    - `send_device_report` is in `SyncCommandService::DEVICE_WIDE_ACTIONS`, so
+      any `table_name`/`record_id` is discarded — carrying one would imply a
+      row scope the action does not have and would read as one in the activity
+      log. Issuing it stays `role:super_admin`.
+  - **Three ways off the device, and the choice matters.** *Download* writes a
+    `.txt` via `buildExportFilename()` and works with no network — the only
+    route that survives a dead sync engine, which is when a broken till most
+    needs it. *Send to support* POSTs straight to the public `/support`
+    endpoint: filing a local `feedback` row instead would queue the report
+    behind the very sync queue it is reporting on, and `insert()` refuses
+    during a read-only inspection session anyway. It carries no bearer token,
+    because routing it through `apiClient` would put it on the 401
+    refresh-and-clear path that can unlink the till's own sync token. *Copy*
+    remains for pasting into a chat. The correspondent is the inspecting
+    admin's own address from the server-issued session, falling back to
+    `SUPPORT_EMAIL` — **never the store's own address**, because the report
+    goes *to* support and the owner has no use for it, so putting theirs on it
+    only mislabels the sender.
+  - **The last sync ATTEMPT, not just the last success**
+    (`sync-engine/sync-outcome.ts`). `last_sync_time` is stamped only when a
+    round succeeds, so a device failing every round for two days read exactly
+    like one that had simply never synced, and the reason lived in the sync
+    indicator's React state and died on navigation. `sync()` is now a thin
+    wrapper that records the outcome of every attempt — a wrapper rather than a
+    line at each `return`, so an exit path added later cannot forget.
+    - **`NOT_AN_ATTEMPT` excludes the three pre-flight refusals**, and two of
+      them matter more than they look: an inspection session's own mount tick
+      is refused as impersonated, and a second PWA tab is refused as read-only
+      while sharing this `localStorage` key with the writer tab — so both fire
+      during the very session that reads the outcome, and recording them would
+      erase the datum this exists to preserve.
+    - **`classifyReason()` runs before `canonicaliseReason()`**, which knows
+      only the server's refusal vocabulary: without it every sync-level failure
+      collapsed to `other`, including the stuck-push case, which made the card
+      useless. A driver error still never reaches the report.
+  - **The terminal-conflict ledger now covers every table, bounded by a row
+    cap** (`sync-engine/conflict-log.ts`). It was allowlisted to
+    `purchase_order_items` to stay small, which meant a terminal drop
+    (`version_conflict`, `stale_timestamp`) on any other table left **no local
+    trace**: once the push finished, the queue was empty and the conflict count
+    was zero. That is why the repeated "50 changes could not be saved" loops
+    were never diagnosable. `MAX_LEDGER_ROWS` (500) replaces the allowlist, and
+    `pruneConflictLedger()` deletes **resolved rows first, oldest first**, so an
+    unresolved drop survives until something settles it. The purchase-order
+    panel still filters to its own table and record ids and is unaffected.
+
+  - **Refresh shows a "Read at" time.** Every query is local SQLite finishing
+    in milliseconds, so the spinner never visibly spins and unchanged numbers
+    made the button look dead. The timestamp is the proof it read.
   - `window.__verifyStockIntegrity` is always exposed (read-only);
     `window.__foldStockQuantities` is gated, because it writes.
   - `foldStockQuantities()` writes quantities directly rather than through

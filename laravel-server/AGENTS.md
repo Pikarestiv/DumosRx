@@ -1132,6 +1132,97 @@ have reintroduced exactly this.
 The outer catch is `\Throwable`, not `\Exception`, on purpose: an `\Error`
 was previously uncaught, so the request died with no rollback and no record.
 
+## Remote device report (`send_device_report`)
+
+`SyncCommandService::ACTIONS` gains `send_device_report`, and
+`DEVICE_WIDE_ACTIONS` marks it as acting on the device rather than one queued
+row — so `table_name`/`record_id` are nulled on issue. Carrying them would
+imply a row scope the action does not have.
+
+Issuing stays `role:super_admin` (`/stores/{id}/sync-commands`). The device
+delivers over its own outbound channels (the public `/support` endpoint and
+Sentry), never through the sync queue — the queue is often the thing that is
+stuck, which is why the command exists.
+
+`pendingFor()` also sends `issued_by`, so the device's own audit row names the
+admin who asked rather than whoever is signed in at the till.
+
+The limitation: commands ride the **push response**
+(`exchangeSyncCommands`), so a device whose rows fail individually still
+receives them, but one whose push request fails outright does not. See
+`client/AGENTS.md` for the device half.
+
+## On-till admin inspection: why the credential is not a Sanctum token
+
+An admin standing at a store's own till signs in with their email plus a
+12-digit **till access code** (`admin_till_codes`) and gets a read-only
+inspection session (`admin_till_sessions`). Full design in
+`docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md`.
+
+`POST /api/v1/app/admin-till-session` returns an **opaque session id**, never a
+token. That is deliberate and must not be "simplified" back to Sanctum:
+
+- `AdminStoreController::restoreSession()` resolves a `PersonalAccessToken`
+  from the request **body** and never checks its abilities, then mints an
+  `admin-refresh` cookie for its owner. The public cookie-only
+  `/admin/session/refresh` turns that into a general-ability `web` token, and
+  the bearer on the request only has to satisfy `auth:sanctum` — which the
+  till's own `['*']` sync token does. `AuthHandoffController::create()` has the
+  same body-token pattern. So any narrowly-scoped Sanctum token read off a till
+  would launder into a durable full superadmin session. See `docs/KNOWN_BUGS.md`
+  A-199.
+- An opaque id is not a `PersonalAccessToken`, so `findToken()` never resolves
+  it and both laundering paths are dead by construction.
+- It is also less code: no `ability` middleware alias (which is **not**
+  registered in `bootstrap/app.php`), no global ability-reject middleware, no
+  Authorization override on the exit call, and the audit log gets its duration
+  free from `ended_at - started_at`.
+
+**Writing a test for an admin-permissioned route: three things are required**,
+and each one fails silently on its own.
+
+- `role_id`, not just the `role` string. `User::hasPermission()` resolves only
+  through the `userRole` (`role_id`) relation or a direct grant; the `role`
+  column satisfies `hasRole()` but confers **no permissions**. A test that
+  grants a role via the string column alone 403s on any `permission:` route.
+- `role_id` is **not in `User::$fillable`**, so `User::create(['role_id' => ...])`
+  drops it without complaint. Use `forceFill([...])->save()`. Existing tests
+  that pass `role_id` to `create()` are really being authorised by the string
+  column — the pivot there is decorative.
+- `'is_active' => true` explicitly. The column defaults to true in the
+  migration but does not come out that way through `User::create()`, and the
+  `account_status` middleware answers `403 ACCOUNT_SUSPENDED` rather than
+  anything that names the cause.
+- Routes under `permission:manage_platform` also need
+  `$this->seed(RolesAndPermissionsSeeder::class)`, because that grant is
+  seeded, not migrated.
+
+**Both routes are public and throttled.** `end` is unauthenticated on purpose:
+the opaque id is the proof, ending a session can only ever reduce access, and
+it always returns 200 so a replayed or unknown id reveals nothing.
+
+**Uniform rejection.** Every failure returns exactly
+`401 {"error": "Wrong password."}` — wrong code, unknown email, non-admin,
+revoked code, missing or malformed field. The controller deliberately does
+**not** use `$request->validate()`, because a 422 on an over-long code is
+itself a signal, and it uses `is_string()` rather than a `(string)` cast so an
+array input cannot raise a 500. `verify()` always performs exactly
+`EQUALIZED_CHECKS` (3) bcrypt comparisons against a dummy hash built at the
+app's own cost, so response time never separates "no such admin" from "wrong
+code".
+
+**Three active codes is the maximum**, enforced at both issue paths, precisely
+because `EQUALIZED_CHECKS` bounds how many `verify()` will ever test — a fourth
+code would silently never work.
+
+**`scopeLive()` matches on `ended_at` only**, not `expires_at > now()`. A
+session that hit the 4-hour cap must still be closable or its audit duration
+is lost.
+
+The session authorises nothing on the server: after `create`, the only request
+carrying the id is `end`. Nothing heavier should be hung off it without first
+giving the server a way to verify it on every call.
+
 ## Sync commands: acting on a device (stuck-data Phase 4)
 
 `SyncCommandService` is the only thing in the system that lets an operator act

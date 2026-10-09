@@ -5,6 +5,20 @@ import type { RecentUser } from "@/lib/types/user";
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { setCurrentUser as setDbUser, logAction } from "@/lib/db/local-database";
+import {
+  shouldAttemptAdminTillLogin,
+  requestAdminTillSession,
+  endAdminTillSession,
+  TILL_CODE_LENGTH,
+  UNIFORM_REJECTION,
+  OFFLINE_MESSAGE,
+} from "@/lib/api/admin-till-session";
+import {
+  startTillInspectionSession,
+  endTillInspectionSession,
+  getTillInspectionSession,
+  isTillInspectionSession,
+} from "@/lib/utils/till-inspection";
 import { apiClient } from "@/lib/api/client";
 import { withNetworkRetry } from "@/lib/api/retry-on-network-error";
 import {
@@ -152,6 +166,7 @@ interface AuthContextType {
    * own. Backed by lib/utils/impersonation.ts's isImpersonatedSession(),
    * the same check the sync engine itself uses. */
   isImpersonating: boolean;
+  isInspecting: boolean;
 }
 
 /** Plain role-tier utility, NOT a permission gate - kept only for the two
@@ -201,6 +216,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // and a value derived from it would mismatch on hydration. The mount
   // effect below sets it, and login/loginFromHandoff/logout keep it current.
   const [isImpersonating, setIsImpersonating] = useState(false);
+  const [isInspecting, setIsInspecting] = useState(false);
 
   useEffect(() => {
     // Check for saved user in session
@@ -252,6 +268,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // cleared but "End Session" never completed — still reads as
     // impersonated, exactly as the sync engine's own gate sees it.
     setIsImpersonating(isImpersonatedSession());
+    setIsInspecting(isTillInspectionSession());
 
     setIsHydrated(true);
 
@@ -297,6 +314,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     let candidates = await getUsersByUsernameOrEmail(cleanIdentifier);
+
+    // An email that matches no user on this device is the on-till admin path.
+    // Deliberately AFTER the local lookup, so a store owner signing in with
+    // their own email stays local and offline (lib/db/queries/auth.ts:26
+    // already accepts an email as an ordinary identifier). Nothing here calls
+    // setDbUser/setStoredUser/setUser: an inspection session is an overlay,
+    // not a login. See
+    // docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md.
+    if (
+      pin?.length === TILL_CODE_LENGTH &&
+      shouldAttemptAdminTillLogin(cleanIdentifier, candidates.length)
+    ) {
+      if (!navigator.onLine) {
+        throw new Error(OFFLINE_MESSAGE);
+      }
+
+      const session = await requestAdminTillSession(cleanIdentifier, pin).catch(
+        () => null,
+      );
+
+      if (!session) {
+        recordLoginFailure(cleanIdentifier);
+        throw new Error(UNIFORM_REJECTION);
+      }
+
+      // Never both: sync-engine hard-disables sync for an impersonated
+      // session, while the inspection banner states sync keeps running.
+      clearImpersonatedSession();
+      startTillInspectionSession(session);
+      setIsInspecting(true);
+      setIsImpersonating(false);
+
+      // Deliberately does NOT unlock() or set dumos_session_authenticated.
+      // /inspect sits outside the dashboard and needs neither, and setting
+      // them turned a till code into a way to unlock whatever staff session
+      // was locked on the device: on exit, /login -> /dashboard would find
+      // the marker and skip the lock. The staff session must resume exactly
+      // as it was, which means still locked.
+      return true;
+    }
     // Usernames are unique per store, not globally (UNIQUE(store_id,
     // username)) — on a multi-store device, more than one row can share this
     // identifier. Narrow to whichever of them actually match the PIN typed;
@@ -652,6 +709,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }).catch(() => {});
     }
     setUser(null);
+    // Fire-and-forget so the server closes the row and records a duration;
+    // without this any logout mid-inspection left an open session with no
+    // exit audit entry at all.
+    const inspection = getTillInspectionSession();
+    if (inspection) {
+      void endAdminTillSession(inspection.sessionId, "signed_out");
+    }
+    endTillInspectionSession();
+    setIsInspecting(false);
     setDbUser(null);
     Sentry.setUser(null);
     clearStoredUser();
@@ -825,6 +891,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       linkCloudAccount,
       isCloudLinked,
       isImpersonating,
+      isInspecting,
     }),
     [
       user,
@@ -842,6 +909,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       linkCloudAccount,
       isCloudLinked,
       isImpersonating,
+      isInspecting,
     ],
   );
 

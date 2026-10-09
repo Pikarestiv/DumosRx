@@ -14,7 +14,14 @@ use Illuminate\Support\Str;
 class SyncCommandService
 {
     /** A closed set. Nothing here may touch a business table's contents. */
-    private const ACTIONS = ['retry', 'send_payload', 'abandon'];
+    private const ACTIONS = ['retry', 'send_payload', 'abandon', 'send_device_report'];
+
+    /**
+     * Actions that act on the device as a whole rather than one queued row,
+     * so table_name/record_id are meaningless for them. Kept explicit: a
+     * future row-scoped action must not silently become device-wide.
+     */
+    private const DEVICE_WIDE_ACTIONS = ['send_device_report'];
 
     /**
      * Tables whose rows may be discarded, as an ALLOWLIST. A business record
@@ -37,6 +44,11 @@ class SyncCommandService
     ): SyncCommand {
         if (! in_array($action, self::ACTIONS, true)) {
             throw new \InvalidArgumentException("Unsupported sync command: {$action}");
+        }
+
+        if (in_array($action, self::DEVICE_WIDE_ACTIONS, true)) {
+            $tableName = null;
+            $recordId = null;
         }
 
         if ($action === 'abandon' && ! in_array((string) $tableName, self::ABANDONABLE_TABLES, true)) {
@@ -103,11 +115,14 @@ class SyncCommandService
 
         $commands = SyncCommand::whereIn('id', $candidates)->where('status', 'sent')->get();
 
+        // issued_by travels with the command so the device's own audit row
+        // names the admin who asked, not whoever is signed in at the till.
         return $commands->map(fn (SyncCommand $c) => [
             'id' => $c->id,
             'action' => $c->action,
             'table_name' => $c->table_name,
             'record_id' => $c->record_id,
+            'issued_by' => $c->issued_by,
         ])->all();
     }
 

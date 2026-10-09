@@ -1,6 +1,11 @@
 import { pushChanges } from "./push";
 import { pullChanges } from "./pull";
 import { SyncResult, PullResponse } from "./types";
+import {
+  recordSyncOutcome,
+  READ_ONLY_TAB_MESSAGE,
+  SYNC_IN_PROGRESS_ERROR,
+} from "./sync-outcome";
 import { apiClient } from "@/lib/api/client";
 import { queryClient } from "@/lib/query-client";
 import { query, execute, isTauri, isWriterTab } from "../core";
@@ -40,7 +45,7 @@ function newSyncRunId(): string {
 
 /** Returned instead of a real failure when another sync already holds the
  * mutex. Callers must treat it as a no-op, not an error (see SyncIndicator). */
-export const SYNC_IN_PROGRESS_ERROR = "Sync already in progress";
+export { SYNC_IN_PROGRESS_ERROR } from "./sync-outcome";
 
 /**
  * Escape hatch for a device whose pull cursor has drifted ahead of rows it
@@ -65,27 +70,31 @@ export async function reconcileStockQuantities(): Promise<{
   return reconcileStockQuantitiesImpl(sync);
 }
 
-if (typeof window !== "undefined") {
-  // Support tools for a DevTools session, deliberately not in-app buttons.
-  window.__forceFullResync = forceFullResync;
-  window.__reconcileStockQuantities = reconcileStockQuantities;
-  window.__verifyStockIntegrity = verifyStockIntegrity;
-  // Gated, unlike its read-only neighbour: this one writes to stock numbers,
-  // so it stays inside the same support-session boundary as the UI action.
-  window.__foldStockQuantities = async () => {
-    const { isImpersonatedSession } = await import("@/lib/utils/impersonation");
-    if (!isImpersonatedSession()) {
-      throw new Error("Stock rebuild is only available in a support session.");
-    }
-    return foldStockQuantities();
-  };
+// DevTools support hooks, kept out of this file so it stays under the
+// 350-line limit. Imported for its side effect.
+import "./devtools-hooks";
+
+/**
+ * Records every attempt's outcome, then returns it. A wrapper rather than a
+ * line at each `return` so an exit path added later cannot forget — see
+ * sync-outcome.ts for why the last ATTEMPT is the number that was missing.
+ */
+export async function sync(
+  isManual: boolean = false,
+  isSetup: boolean = false,
+  onCriticalTablesReady?: (pullSucceeded: boolean) => void,
+): Promise<SyncResult> {
+  const result = await runSync(isManual, isSetup, onCriticalTablesReady);
+  recordSyncOutcome(result);
+
+  return result;
 }
 
 /**
- * Main Sync Function. One push-then-pull cycle; every guard it applies is
- * documented in client/AGENTS.md, "`sync()` and friends".
+ * One push-then-pull cycle; every guard it applies is documented in
+ * client/AGENTS.md, "`sync()` and friends".
  */
-export async function sync(
+async function runSync(
   isManual: boolean = false,
   isSetup: boolean = false,
   // Setup-only: fires once store/user identity is pulled, with whether the
@@ -121,7 +130,7 @@ export async function sync(
       success: false,
       pushed: 0,
       pulled: 0,
-      error: "This tab is read-only. Switch to the tab where DumosRx is active to sync.",
+      error: READ_ONLY_TAB_MESSAGE,
     };
   }
 

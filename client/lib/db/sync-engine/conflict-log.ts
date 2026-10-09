@@ -6,10 +6,17 @@ import { query, execute } from "../core";
  * "The terminal-conflict ledger (A-26)", for why it exists and what reads it.
  */
 
-// Only tables whose dropped change leaves real-world state unaccounted for
-// are logged, so the ledger stays small and every row has a reader. Extend
-// this alongside a surface that actually reads the new table's rows.
-export const CONFLICT_LOGGED_TABLES = new Set(["purchase_order_items"]);
+/**
+ * Every table is logged now, not just `purchase_order_items`. A terminal drop
+ * (`version_conflict`, `stale_timestamp`) left no local trace for any other
+ * table, so the "50 changes could not be saved" loop was invisible the moment
+ * the push finished: the queue was empty and the conflict count was zero.
+ *
+ * The ledger is bounded instead of allowlisted — see pruneConflictLedger().
+ * The device diagnostics console is the reader for the widened set; the
+ * purchase-order panel still filters to its own table and record ids.
+ */
+const MAX_LEDGER_ROWS = 500;
 
 export interface RecordedConflict {
   id: number;
@@ -46,7 +53,6 @@ export async function recordTerminalConflict(conflict: {
   reason: string;
   fields: string | null;
 }): Promise<void> {
-  if (!CONFLICT_LOGGED_TABLES.has(conflict.table_name)) return;
   await execute(
     `INSERT INTO _sync_conflicts (table_name, record_id, reason, fields, detected_at)
      VALUES (?, ?, ?, ?, ?)`,
@@ -58,6 +64,30 @@ export async function recordTerminalConflict(conflict: {
       new Date().toISOString(),
     ],
   );
+
+  await pruneConflictLedger();
+}
+
+/**
+ * Keeps the ledger bounded now that every table writes to it. Resolved rows
+ * go first and oldest-first within that, so an unresolved drop survives until
+ * something settles it — the whole point of the ledger.
+ */
+async function pruneConflictLedger(): Promise<void> {
+  const rows = await query<{ count: number }>(
+    `SELECT COUNT(*) AS count FROM _sync_conflicts`,
+  );
+  const excess = Number(rows[0]?.count ?? 0) - MAX_LEDGER_ROWS;
+  if (excess <= 0) return;
+
+  await execute(
+    `DELETE FROM _sync_conflicts WHERE id IN (
+       SELECT id FROM _sync_conflicts
+       ORDER BY (resolved_at IS NULL) ASC, detected_at ASC
+       LIMIT ?
+     )`,
+    [excess],
+  );
 }
 
 /** A later change to the same record reaching the server means whatever the
@@ -66,11 +96,10 @@ export async function recordTerminalConflict(conflict: {
 export async function resolveConflictsForRecords(
   records: { table_name: string; record_id: string }[],
 ): Promise<void> {
-  const logged = records.filter((r) => CONFLICT_LOGGED_TABLES.has(r.table_name));
-  if (logged.length === 0) return;
+  if (records.length === 0) return;
 
   const now = new Date().toISOString();
-  for (const record of logged) {
+  for (const record of records) {
     await execute(
       `UPDATE _sync_conflicts SET resolved_at = ?
        WHERE table_name = ? AND record_id = ? AND resolved_at IS NULL`,

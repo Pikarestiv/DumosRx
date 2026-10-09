@@ -7,8 +7,9 @@ import { SuggestionsConfigTab } from "@/components/admin/views/suggestions-confi
 import { IntegrationsTab } from "@/components/admin/views/integrations-tab";
 import { SecurityConfigTab } from "@/components/admin/views/security-config-tab";
 import { AdminPermissionsCard } from "@/components/admin/views/admin-permissions-card";
+import { TillCodesCard } from "@/components/admin/views/till-codes-card";
 import { DefaultAccountManagerCard } from "@/components/admin/views/default-account-manager-card";
-import { Settings, CreditCard, Sparkles, Plug, ShieldCheck, Users, UserCog } from "lucide-react";
+import { Settings, CreditCard, Sparkles, Plug, ShieldCheck, Users, UserCog, KeyRound } from "lucide-react";
 
 const DEFAULT_TAB = "billing";
 
@@ -62,6 +63,10 @@ export default function PlatformSettingsPage() {
             <UserCog className="h-4 w-4" />
             Account Manager
           </TabsTrigger>
+          <TabsTrigger value="till-codes" className="flex items-center gap-2 px-4 shrink-0">
+            <KeyRound className="h-4 w-4" />
+            Till Access
+          </TabsTrigger>
           <TabsTrigger value="admin-permissions" className="flex items-center gap-2 px-4 shrink-0">
             <Users className="h-4 w-4" />
             Admin Permissions
@@ -86,6 +91,10 @@ export default function PlatformSettingsPage() {
 
         <TabsContent value="account-manager" className="focus-visible:outline-none focus-visible:ring-0">
           <DefaultAccountManagerCard />
+        </TabsContent>
+
+        <TabsContent value="till-codes" className="focus-visible:outline-none focus-visible:ring-0">
+          <TillCodesCard />
         </TabsContent>
 
         <TabsContent value="admin-permissions" className="focus-visible:outline-none focus-visible:ring-0">

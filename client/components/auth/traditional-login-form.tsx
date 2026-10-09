@@ -8,6 +8,7 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { User, Loader2 } from "lucide-react";
+import { TILL_CODE_LENGTH } from "@/lib/api/admin-till-session";
 import { motion } from "framer-motion";
 
 interface TraditionalLoginFormProps {
@@ -21,6 +22,8 @@ interface TraditionalLoginFormProps {
   onGoToRegister?: () => void;
   onGoToCloud?: () => void;
   onCancel?: () => void;
+  /** Swaps the 4-slot PIN for a masked 12-digit till access code field. */
+  codeMode?: boolean;
 }
 
 export function TraditionalLoginForm({
@@ -34,7 +37,9 @@ export function TraditionalLoginForm({
   onGoToRegister,
   onGoToCloud,
   onCancel,
+  codeMode = false,
 }: TraditionalLoginFormProps) {
+  const requiredLength = codeMode ? TILL_CODE_LENGTH : 4;
   return (
     <form onSubmit={onSubmit} className="flex flex-col justify-center">
       <div className="px-10 pb-3 text-center space-y-1.5">
@@ -64,12 +69,27 @@ export function TraditionalLoginForm({
         </div>
         <div className="space-y-1.5 w-[276px] mx-auto">
           <Label htmlFor="pin" className="text-sm font-medium">
-            PIN
+            {codeMode ? "Till access code" : "PIN"}
           </Label>
           <motion.div
             animate={hasError ? { x: [-10, 10, -10, 10, -5, 5, 0] } : {}}
             transition={{ duration: 0.4 }}
           >
+            {codeMode ? (
+              <Input
+                id="pin"
+                type="password"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={TILL_CODE_LENGTH}
+                value={pin}
+                onChange={(event) =>
+                  setPin(event.target.value.replace(/\D/g, "").slice(0, TILL_CODE_LENGTH))
+                }
+                placeholder="12-digit code"
+                className="text-center tracking-[0.3em] font-mono"
+              />
+            ) : (
             <InputOTP
               id="pin"
               maxLength={4}
@@ -89,6 +109,7 @@ export function TraditionalLoginForm({
                 ))}
               </InputOTPGroup>
             </InputOTP>
+            )}
           </motion.div>
         </div>
       </CardContent>
@@ -121,7 +142,7 @@ export function TraditionalLoginForm({
         <Button
           type="submit"
           className="h-11 text-base font-bold shadow-lg active:scale-[0.98] w-[276px] mx-auto"
-          disabled={isLoading || pin.length !== 4}
+          disabled={isLoading || pin.length !== requiredLength}
         >
           {!!isLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
           {!isLoading && "Authorize Entry"}

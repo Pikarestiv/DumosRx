@@ -61,6 +61,33 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(30)->by($request->ip());
         });
 
+        // On-till admin inspection login. The IP-bound keys are the real
+        // limit, because device_id is attacker-controlled and rotating it
+        // would otherwise defeat one entirely. The email key is deliberately
+        // NOT IP-bound: it is a per-admin brute-force cap, which also means
+        // anyone who knows an admin's address can hold their till login at
+        // 10/min. Accepted — it blocks nothing else, and the alternative is
+        // no per-admin cap at all. See
+        // docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md.
+        RateLimiter::for('till-session', function (Request $request) {
+            $email = $request->input('email');
+
+            return [
+                Limit::perMinute(10)->by($request->ip()),
+                Limit::perMinute(5)->by($request->ip().'|'.$request->input('device_id')),
+                Limit::perMinute(10)->by(is_string($email) ? $email : 'anon'),
+            ];
+        });
+
+        // Ending a session needs its own bucket, per IP only. Sharing the
+        // login limiter put every `end` call on the platform into one global
+        // 'anon' key (the request carries no email), so ten posts a minute
+        // from anywhere stopped every till from closing its session — losing
+        // the exit audit row and its duration for all of them.
+        RateLimiter::for('till-session-end', function (Request $request) {
+            return Limit::perMinute(30)->by($request->ip());
+        });
+
         // Public storefront "start an online payment" step. Every call makes
         // an outbound transaction/initialize request to Paystack, so it needs
         // a ceiling even though it's unauthenticated - but a generous one: a

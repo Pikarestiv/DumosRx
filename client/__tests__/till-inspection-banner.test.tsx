@@ -1,0 +1,199 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor, act, fireEvent } from "@testing-library/react";
+import { TillInspectionBanner } from "@/components/dashboard/till-inspection-banner";
+import {
+  startTillInspectionSession,
+  isTillInspectionSession,
+  IDLE_TIMEOUT_MS,
+  type TillInspectionSession,
+} from "@/lib/utils/till-inspection";
+
+const { ended, beaconed, server } = vi.hoisted(() => ({
+  ended: { calls: [] as string[] },
+  beaconed: { calls: [] as string[] },
+  server: { clock: new Date() as Date | null },
+}));
+
+vi.mock("@/lib/api/admin-till-session", () => ({
+  endAdminTillSession: vi.fn(async (_id: string, reason: string) => {
+    ended.calls.push(reason);
+  }),
+  beaconAdminTillSessionEnd: vi.fn((id: string) => {
+    beaconed.calls.push(id);
+  }),
+  readInspectionServerClock: vi.fn(async () => server.clock),
+}));
+
+vi.mock("@/lib/context/store-context", () => ({
+  useStore: () => ({ storeProfile: { id: "s1", name: "Agidi Branch" } }),
+}));
+
+const assign = vi.fn();
+
+const live = (overrides: Partial<TillInspectionSession> = {}): TillInspectionSession => ({
+  admin: {
+    id: "a1",
+    first_name: "Ops",
+    last_name: "Admin",
+    email: "ops@dumosrx.com",
+    role: "platform_admin",
+  },
+  sessionId: "sess-1",
+  hardExpiresAt: new Date(Date.now() + 4 * 3600 * 1000).toISOString(),
+  idleExpiresAt: new Date(Date.now() + IDLE_TIMEOUT_MS).toISOString(),
+  storeId: "s1",
+  deviceId: "till-7",
+  ...overrides,
+});
+
+describe("TillInspectionBanner", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    ended.calls = [];
+    beaconed.calls = [];
+    server.clock = new Date();
+    assign.mockClear();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { set href(url: string) { assign(url); }, get href() { return "/"; } },
+    });
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it("renders nothing with no session", () => {
+    const { container } = render(<TillInspectionBanner />);
+    expect(container.innerHTML).toBe("");
+  });
+
+  it("names the admin and the store, and says it is read-only", () => {
+    startTillInspectionSession(live());
+    render(<TillInspectionBanner />);
+
+    expect(screen.getByText(/read-only admin inspection/i)).toBeTruthy();
+    expect(screen.getByText(/ops@dumosrx.com/)).toBeTruthy();
+    expect(screen.getByText(/Agidi Branch/)).toBeTruthy();
+  });
+
+  it("warns with a countdown inside the warning window rather than ending silently", () => {
+    vi.useFakeTimers();
+    startTillInspectionSession(live({
+      idleExpiresAt: new Date(Date.now() + 90_000).toISOString(),
+    }));
+    render(<TillInspectionBanner />);
+
+    act(() => void vi.advanceTimersByTime(1_000));
+
+    expect(screen.getByText(/ending in/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /stay signed in/i })).toBeTruthy();
+  });
+
+  it("shows no countdown while the session is comfortably alive", () => {
+    vi.useFakeTimers();
+    startTillInspectionSession(live());
+    render(<TillInspectionBanner />);
+
+    act(() => void vi.advanceTimersByTime(1_000));
+
+    expect(screen.queryByText(/ending in/i)).toBeNull();
+  });
+
+  it("ends the session as idle when both deadlines pass", async () => {
+    vi.useFakeTimers();
+    startTillInspectionSession(live({
+      idleExpiresAt: new Date(Date.now() + 500).toISOString(),
+    }));
+    render(<TillInspectionBanner />);
+
+    // Several ticks, not one: the interval keeps firing while the POST is in
+    // flight, and a single tick hid a repeated end() that wrote duplicate
+    // exit rows to the audit log.
+    await act(async () => {
+      vi.advanceTimersByTime(5_000);
+    });
+
+    expect(ended.calls).toEqual(["idle"]);
+    expect(isTillInspectionSession()).toBe(false);
+    expect(assign).toHaveBeenCalledWith("/login");
+  });
+
+  it("ends the session as signed_out on the button, and clears it locally", async () => {
+    startTillInspectionSession(live());
+    render(<TillInspectionBanner />);
+
+    fireEvent.click(screen.getByRole("button", { name: /end session/i }));
+
+    await waitFor(() => expect(ended.calls).toEqual(["signed_out"]));
+    expect(isTillInspectionSession()).toBe(false);
+    expect(assign).toHaveBeenCalledWith("/login");
+  });
+
+  it("reports a hard-cap expiry as expired, not idle", async () => {
+    vi.useFakeTimers();
+    startTillInspectionSession(live({
+      idleExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+      hardExpiresAt: new Date(Date.now() + 500).toISOString(),
+    }));
+    render(<TillInspectionBanner />);
+
+    await act(async () => {
+      vi.advanceTimersByTime(3_000);
+    });
+
+    expect(ended.calls).toEqual(["expired"]);
+  });
+
+  it("ends only once even when the button is clicked twice", async () => {
+    startTillInspectionSession(live());
+    render(<TillInspectionBanner />);
+
+    const button = screen.getByRole("button", { name: /end session/i });
+    fireEvent.click(button);
+    fireEvent.click(button);
+
+    await waitFor(() => expect(ended.calls).toEqual(["signed_out"]));
+  });
+
+  it("beacons an exit when the page is hidden, so closing the app still records one", async () => {
+    startTillInspectionSession(live());
+    render(<TillInspectionBanner />);
+    await waitFor(() => expect(screen.getByText(/read-only/i)).toBeTruthy());
+
+    window.dispatchEvent(new Event("pagehide"));
+
+    expect(beaconed.calls).toEqual(["sess-1"]);
+  });
+
+  it("does not beacon when the session is already closing", async () => {
+    startTillInspectionSession(live());
+    render(<TillInspectionBanner />);
+    await waitFor(() => expect(screen.getByText(/read-only/i)).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: /end session/i }));
+    window.dispatchEvent(new Event("pagehide"));
+
+    await waitFor(() => expect(ended.calls).toEqual(["signed_out"]));
+    expect(beaconed.calls).toEqual([]);
+  });
+
+  it("clears a session the server no longer recognises, which a reload can cause", async () => {
+    // pagehide fires on F5 too, so the beacon closes the row while
+    // sessionStorage survives — leaving a client session the server has
+    // already ended, with writes blocked and the override refused.
+    server.clock = null;
+    startTillInspectionSession(live());
+    render(<TillInspectionBanner />);
+
+    await waitFor(() => expect(isTillInspectionSession()).toBe(false));
+    expect(assign).toHaveBeenCalledWith("/login");
+  });
+
+  it("keeps a session the server still recognises", async () => {
+    startTillInspectionSession(live());
+    render(<TillInspectionBanner />);
+
+    await waitFor(() => expect(screen.getByText(/read-only/i)).toBeTruthy());
+    expect(isTillInspectionSession()).toBe(true);
+    expect(assign).not.toHaveBeenCalled();
+  });
+});

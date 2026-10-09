@@ -15,6 +15,10 @@ import {
   transaction,
   isInTransaction,
 } from "./core";
+import {
+  isTillInspectionSession,
+  READ_ONLY_REFUSAL_MESSAGE,
+} from "@/lib/utils/till-inspection";
 import { queryClient } from "../query-client";
 import { truncateForLog } from "../utils/error-truncation";
 import type { SyncQueueItem } from "@/lib/types/sync";
@@ -153,11 +157,21 @@ function withNormalizedName(
   return record;
 }
 
+// The one choke point every local write passes through; see client/AGENTS.md,
+// "On-till admin inspection", for what deliberately bypasses it.
+function assertWritable(): void {
+  if (isTillInspectionSession()) {
+    throw new Error(READ_ONLY_REFUSAL_MESSAGE);
+  }
+}
+
 export async function insert(
   table: string,
   data: Record<string, unknown>,
   options?: { action?: string; storeId?: string; correlationId?: string },
 ): Promise<string> {
+  assertWritable();
+
   const id = (data.id as string) || generateId();
   const now = new Date().toISOString();
 
@@ -233,6 +247,8 @@ export async function update(
   data: Record<string, unknown>,
   options?: { action?: string; storeId?: string; correlationId?: string },
 ): Promise<void> {
+  assertWritable();
+
   const ownership = await assertStoreOwnership(table, id, options?.storeId);
 
   const now = new Date().toISOString();
@@ -318,6 +334,8 @@ export async function update(
 }
 
 export async function softDelete(table: string, id: string, options?: { storeId?: string; correlationId?: string }): Promise<void> {
+  assertWritable();
+
   const ownership = await assertStoreOwnership(table, id, options?.storeId);
 
   const now = new Date().toISOString();
@@ -364,6 +382,8 @@ export async function remove(
   id: string,
   options?: { action?: string; storeId?: string; correlationId?: string },
 ): Promise<void> {
+  assertWritable();
+
   // Ignores the returned needsClaim (if the row is a legacy row) — this is
   // a hard, unrecoverable DELETE, so claiming it first only to destroy it
   // in the very next statement protects nothing.

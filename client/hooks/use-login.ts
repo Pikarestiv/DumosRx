@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isTillInspectionSession } from "@/lib/utils/till-inspection";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/context/auth-context";
@@ -27,7 +28,9 @@ export function useLogin() {
         // Left `isLoading` true: router.push() doesn't await the route
         // transition, so resetting it here would flip the form back to its
         // idle state for one frame while /dashboard is still loading.
-        router.push("/dashboard");
+        // An inspection session renders at /inspect, not the dashboard:
+        // DashboardLayout requires a staff user and would bounce it.
+        router.push(isTillInspectionSession() ? "/inspect" : "/dashboard");
       } else {
         setPin("");
         setHasError(true);

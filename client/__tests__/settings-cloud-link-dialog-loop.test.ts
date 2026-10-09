@@ -22,6 +22,12 @@ import path from 'path';
 // /settings/cloud on a non-cloud-linked store, the dialog reappeared
 // immediately after every dismissal attempt.
 //
+// The effect now lives in hooks/use-settings-tab-resolution.ts, extracted when
+// use-settings.ts hit the 350-line limit. The guarantee is unchanged and is
+// now checked on both sides of the boundary: the extracted effect must depend
+// on its stable `openCloudLink` prop, and use-settings.ts must pass the stable
+// setter rather than the whole syncState object.
+//
 // This test parses the hook's source (no component-rendering harness exists
 // in this repo yet - see dashboard-action-center-routes.test.ts /
 // profit-loss-tab-currency-formatting.test.ts for the same source-inspection
@@ -31,17 +37,35 @@ import path from 'path';
 
 describe('useSettings: cloud-link dialog effect dependencies', () => {
   it('does not depend on the whole (unstable) syncState object', () => {
-    const source = fs.readFileSync(
-      path.join(__dirname, '../hooks/use-settings.ts'),
+    const resolution = fs.readFileSync(
+      path.join(__dirname, '../hooks/use-settings-tab-resolution.ts'),
       'utf-8',
     );
 
-    const effectMatch = source.match(
-      /useEffect\(\(\) => \{[\s\S]*?syncState\.setIsCloudLinkOpen\(true\);[\s\S]*?\}, \[([^\]]*)\]\);/,
+    const effectMatch = resolution.match(
+      /useEffect\(\(\) => \{[\s\S]*?openCloudLink\(true\);[\s\S]*?\}, \[([^\]]*)\]\);/,
     );
-    expect(effectMatch, 'expected to find the tab-resolution effect that calls syncState.setIsCloudLinkOpen').not.toBeNull();
+    expect(effectMatch, 'expected to find the tab-resolution effect that opens the cloud-link dialog').not.toBeNull();
 
     const depsList = effectMatch![1];
+
+    // The caller must hand over the referentially stable useState setter, not
+    // the whole object literal useSettingsSync() rebuilds every render.
+    const caller = fs.readFileSync(
+      path.join(__dirname, '../hooks/use-settings.ts'),
+      'utf-8',
+    );
+    expect(caller).toMatch(/openCloudLink:\s*syncState\.setIsCloudLinkOpen/);
+    expect(caller).not.toMatch(/openCloudLink:\s*syncState\s*[,}]/);
+
+    // `hasKey` feeds canAccessTab, which the effect depends on. Passing an
+    // inline closure recreates it every render and reinstates the loop by a
+    // different route — which is exactly what happened when the effect was
+    // extracted into use-settings-tab-resolution.ts.
+    expect(caller, 'hasKey must be memoised or canAccessTab is unstable').toMatch(
+      /const hasKey = useCallback\(/,
+    );
+    expect(caller).not.toMatch(/hasKey:\s*\(key/);
 
     // The bug: a bare `syncState` dependency - a fresh object every render -
     // makes this effect (and its unconditional dialog-open call) rerun on
@@ -51,6 +75,6 @@ describe('useSettings: cloud-link dialog effect dependencies', () => {
     // The fix: depend on the specific stable setter this effect actually
     // calls, so it only reruns when tabParam/isCloudLinked/isAdmin/activeTab
     // genuinely change.
-    expect(depsList).toMatch(/syncState\.setIsCloudLinkOpen/);
+    expect(depsList).toMatch(/openCloudLink/);
   });
 });

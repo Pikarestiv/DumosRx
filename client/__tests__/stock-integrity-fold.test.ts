@@ -130,9 +130,20 @@ describe("foldStockQuantities", () => {
     await foldStockQuantities();
 
     expect(quantityOf("b1")).toBe(7);
-    // The queued push is untouched: the fold is local and claims nothing.
-    const queued = db.exec(`SELECT COUNT(*) FROM _sync_queue`);
-    expect(queued[0].values[0][0]).toBe(1);
+    // The queued push is untouched: the fold rewrites quantities locally and
+    // never claims a stock figure to the server. Scoped to the stock tables
+    // rather than a raw queue count, because the fold DOES queue one
+    // audit_logs row naming the admin who ran it — that is meant to sync.
+    const stockQueued = db.exec(
+      `SELECT COUNT(*) FROM _sync_queue
+        WHERE table_name IN ('stock_batches', 'stock_movements')`,
+    );
+    expect(stockQueued[0].values[0][0]).toBe(1);
+
+    const audited = db.exec(
+      `SELECT COUNT(*) FROM _sync_queue WHERE table_name = 'audit_logs'`,
+    );
+    expect(audited[0].values[0][0]).toBe(1);
   });
 
   it("keeps netUnitDelta to the batches it actually reports, not pending ones", async () => {

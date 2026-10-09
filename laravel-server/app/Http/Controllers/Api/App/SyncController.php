@@ -1869,9 +1869,16 @@ class SyncController extends Controller
             // to the authenticated user making this sync request
             // whenever the client's id doesn't actually exist, not
             // only when it's missing.
+            // withTrashed: User uses SoftDeletes, so the default scope made a
+            // soft-deleted actor fail exists() and the row was rewritten to the
+            // sync token's owner — typically the store owner. The FK accepts a
+            // trashed id (the users row still exists), and keeping the client's
+            // id is more truthful than substituting whoever happened to push.
+            // Matters most for an on-till admin repair: see docs/FIXED_BUGS.md
+            // A-201.
             if (
                 empty($payload['user_id']) ||
-                !User::where('id', $payload['user_id'])->exists()
+                !User::withTrashed()->where('id', $payload['user_id'])->exists()
             ) {
                 $payload['user_id'] = $currentUser->id ?? null;
             }

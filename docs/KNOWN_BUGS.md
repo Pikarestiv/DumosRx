@@ -10,19 +10,19 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
+#### A-199. `laravel-server/` — two endpoints resolve a Personal Access Token from the request body without checking its abilities
+- **Found:** 2026-10-09, second adversarial review of the on-till admin inspection plan.
+- **Location:** `app/Http/Controllers/Api/Admin/AdminStoreController.php:518-529` (`restoreSession`), `app/Http/Controllers/Api/AuthHandoffController.php:32-48` (`create`).
+- **What's wrong:** both call `PersonalAccessToken::findToken($validated['token'])` on a token taken from the **request body** and act on its owner without ever checking that token's abilities. `restoreSession` then mints an `admin-refresh` cookie for that owner, and the public cookie-only `/admin/session/refresh` (`routes/api.php:58`) turns that into a general-ability `web` token. The bearer on the request only has to satisfy `auth:sanctum`, which the till's own `['*']` sync token does.
+- **Consequence:** any Sanctum token belonging to a super_admin, however narrowly scoped it was meant to be, can be escalated to a durable full superadmin session by whoever holds it. No such narrow token is minted today, which is why this is latent rather than live — but it is precisely why the on-till inspection credential is deliberately **not** a Sanctum token (see `docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md`). Any future narrowly-scoped token walks straight into it.
+- **Fix:** require `->can('*')` (or an explicit expected ability) on the body token in both handlers, and prefer deriving the identity from the authenticated bearer rather than from a body token at all.
+
 #### A-197. `client/` — the deferred-delta drain runs per round, not per page, so a batch whose movement arrived first holds a quantity the server disagrees with
 - **Found:** 2026-10-09, differential fuzzing of `pullChanges()` against the server's own derivation during the fourth review pass of the stock-integrity branch.
 - **Location:** `client/lib/db/sync-engine/pull.ts` (the drains at the start of a round and after the page loop), `client/lib/db/sync-engine/deferred-stock-deltas.ts`.
 - **What's wrong:** `applyDeferredStockDeltas()` runs only at the start of a round and after every page, never between pages. A delta deferred on page 1 is therefore applied *after* page N's movements for the same batch — and because the floor is `MAX(0, quantity + delta)` per movement, the order is not commutative. On a first full sync of a large store, a batch's opening receipt defers while its later sales apply against 0 and are clamped away.
 - **Consequence:** the device's quantity ends up below the server's, permanently, with no error anywhere. 34 of 300 randomised histories hit it. This is the shape of the "958 products at exactly twice their opening stock" case — `foldStockQuantities()` is a correct repair for it (it converges on the server's value), but the drift keeps recurring until the drain is fixed.
 - **Fix:** drain per page rather than per round, or order the drain ahead of the page's own movements. `client/AGENTS.md`'s deferral section documents the mechanism as safe and should be corrected along with it.
-
-#### A-198. `client/` — the diagnostics settings tab is absent from `ALL_SETTINGS_TABS` and ungated by role
-- **Found:** 2026-10-09, fourth review pass.
-- **Location:** `client/lib/constants/settings-tabs.ts`, `client/lib/hooks/use-settings.ts`, `client/components/settings/settings-client.tsx`.
-- **What's wrong:** two separate gaps. `diagnostics` is not in `ALL_SETTINGS_TABS`, so `use-settings.ts`' URL resolution early-returns for it and a client-side navigation to `/settings/diagnostics` renders the Appearance panel instead; it works today only because `activeTab` is seeded from the URL on mount. And `canAccessSettingsTab("diagnostics", …)` returns **true for every role**, because the tab is in neither `SETTINGS_TAB_PERMISSIONS` nor `ADMIN_ONLY_SETTINGS_TABS` — the `isImpersonatedSession()` render check in `settings-client.tsx` is the only thing holding it closed.
-- **Consequence:** none today, since nothing links to the tab. But adding a trigger without also adding the gate would expose the console to every role, and adding it to `ALL_SETTINGS_TABS` first would do so immediately. Both must land together.
-- **Fix:** add `diagnostics` to `ALL_SETTINGS_TABS` and to the admin-only list (or give it its own permission key) in the same change that adds any trigger for it. Deliberately left out for now rather than half-done.
 
 #### A-196. `client/` — `pos-cart.tsx` is 429 lines, over the 350-line limit
 - **Found:** 2026-10-09, lint during review of the cart-reveal change.

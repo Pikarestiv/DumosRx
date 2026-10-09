@@ -60,6 +60,13 @@ Route::prefix('v1')->group(function () {
     // Own (more generous) limiter: one impersonation round trip is already 6
     // handoff calls from a single IP, which the 5/min `auth` limiter would
     // starve. See the 'handoff' limiter in AppServiceProvider.
+    Route::middleware('throttle:till-session')->group(function () {
+        Route::post('/app/admin-till-session', [\App\Http\Controllers\Api\App\AdminTillSessionController::class, 'create']);
+    });
+    Route::middleware('throttle:till-session-end')->group(function () {
+        Route::post('/app/admin-till-session/end', [\App\Http\Controllers\Api\App\AdminTillSessionController::class, 'end']);
+        Route::post('/app/admin-till-session/server-time', [\App\Http\Controllers\Api\App\AdminTillSessionController::class, 'serverTime']);
+    });
     Route::middleware('throttle:handoff')->group(function () {
         Route::post('/auth/handoff', [AuthHandoffController::class, 'create']);
         Route::post('/auth/handoff/consume', [AuthHandoffController::class, 'consume']);
@@ -181,6 +188,13 @@ Route::prefix('v1')->group(function () {
         Route::post('/admin/restore-session', [AdminStoreController::class, 'restoreSession']);
 
         Route::middleware(['permission:manage_platform', 'subscription'])->prefix('admin')->group(function () {
+            // Self-service only: admin_id always comes from the authenticated
+            // caller, never from input, so no admin can mint a credential that
+            // acts as another admin.
+            Route::get('/till-codes/mine', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'mine']);
+            Route::post('/till-codes', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'issue']);
+            Route::delete('/till-codes/{id}', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'revoke']);
+
             // super_admin-only actions (stricter than the group's manage_platform
             // permission, which platform_admin/agent can also hold) get the
             // check via route middleware instead of a per-method guard clause.

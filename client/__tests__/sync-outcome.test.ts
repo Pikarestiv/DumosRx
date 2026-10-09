@@ -75,4 +75,46 @@ describe("sync outcome", () => {
     expect(() => recordSyncOutcome({ success: true, pushed: 0, pulled: 0 })).not.toThrow();
     spy.mockRestore();
   });
+
+  it("names each sync-level failure instead of collapsing every one to 'other'", () => {
+    // canonicaliseReason knows the SERVER's refusal vocabulary, so every
+    // sync-level failure came out as "other" — including the stuck-push case
+    // this exists to diagnose, which made the card useless.
+    const cases: [string, string][] = [
+      ["Offline. Changes are saved locally and will sync.", "network"],
+      ["Failed to fetch", "network"],
+      ["Unauthenticated. Please link your cloud account in settings.", "unauthenticated"],
+      ["3 batch(es) failed to push; will retry automatically", "batches_failed"],
+      ["SYNC_THROTTLED", "throttled"],
+    ];
+
+    for (const [error, expected] of cases) {
+      recordSyncOutcome({ success: false, pushed: 0, pulled: 0, error });
+      expect(readSyncOutcome()!.reason, error).toBe(expected);
+    }
+  });
+
+  it("does not record a refused pre-flight, which would overwrite a real outcome", async () => {
+    const { SYNC_IN_PROGRESS_ERROR, READ_ONLY_TAB_MESSAGE } = await import(
+      "@/lib/db/sync-engine/sync-outcome"
+    );
+    const { SYNC_DISABLED_IMPERSONATION_MESSAGE } = await import(
+      "@/lib/utils/impersonation"
+    );
+
+    recordSyncOutcome({ success: true, pushed: 5, pulled: 9 });
+
+    // An inspection session's own mount tick is refused as impersonated, and a
+    // second PWA tab is refused as read-only while sharing this storage key —
+    // so both fire during the very session that reads the outcome.
+    for (const error of [
+      SYNC_IN_PROGRESS_ERROR,
+      READ_ONLY_TAB_MESSAGE,
+      SYNC_DISABLED_IMPERSONATION_MESSAGE,
+    ]) {
+      recordSyncOutcome({ success: false, pushed: 0, pulled: 0, error });
+      expect(readSyncOutcome()!.success, error).toBe(true);
+      expect(readSyncOutcome()!.pushed).toBe(5);
+    }
+  });
 });

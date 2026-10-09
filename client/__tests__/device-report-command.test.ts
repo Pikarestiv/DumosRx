@@ -87,14 +87,23 @@ describe("sendDeviceReportOnRequest", () => {
     expect(details.delivered_to).toContain("support");
   });
 
-  it("still succeeds on Sentry alone when support cannot be reached", async () => {
+  it("refuses when the support POST fails, because only it can confirm anything", async () => {
+    // Sentry.captureMessage never throws: with no DSN it is a silent no-op and
+    // transport failures are async. Marking this applied on Sentry alone would
+    // record a report nobody received.
     delivery.throws = true;
 
     const outcome = await send("cmd-1");
 
-    expect(outcome.status).toBe("applied");
-    expect(outcome.result).toMatch(/sentry/);
-    expect(auditRows()).toHaveLength(1);
+    expect(outcome.status).toBe("refused");
+    expect(auditRows()).toHaveLength(0);
+  });
+
+  it("calls Sentry delivery 'unconfirmed', since it cannot prove anything", async () => {
+    await send("cmd-1");
+
+    const details = JSON.parse(String(auditRows()[0][1]));
+    expect(details.delivered_to).toMatch(/unconfirmed/);
   });
 
   it("still succeeds over support alone when Sentry has no DSN", async () => {
@@ -106,16 +115,11 @@ describe("sendDeviceReportOnRequest", () => {
     expect(outcome.result).toMatch(/support/);
   });
 
-  it("refuses, and logs nothing, when neither channel is reachable", async () => {
-    sentry.throws = true;
-    delivery.throws = true;
+  it("records the issuing admin as the actor, not whoever is at the till", async () => {
+    await send("cmd-1", "admin-7");
 
-    const outcome = await send("cmd-1");
-
-    expect(outcome.status).toBe("refused");
-    // No audit row: claiming a report was sent when none was is worse than
-    // no record at all.
-    expect(auditRows()).toHaveLength(0);
+    const rows = db.exec(`SELECT user_id FROM audit_logs`)[0].values;
+    expect(rows[0][0]).toBe("admin-7");
   });
 
   it("never writes through the sync queue, which is the thing that may be stuck", async () => {

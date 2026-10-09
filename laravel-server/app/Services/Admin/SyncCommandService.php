@@ -115,11 +115,14 @@ class SyncCommandService
 
         $commands = SyncCommand::whereIn('id', $candidates)->where('status', 'sent')->get();
 
+        // issued_by travels with the command so the device's own audit row
+        // names the admin who asked, not whoever is signed in at the till.
         return $commands->map(fn (SyncCommand $c) => [
             'id' => $c->id,
             'action' => $c->action,
             'table_name' => $c->table_name,
             'record_id' => $c->record_id,
+            'issued_by' => $c->issued_by,
         ])->all();
     }
 

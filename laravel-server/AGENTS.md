@@ -1142,9 +1142,15 @@ imply a row scope the action does not have.
 Issuing stays `role:super_admin` (`/stores/{id}/sync-commands`). The device
 delivers over its own outbound channels (the public `/support` endpoint and
 Sentry), never through the sync queue — the queue is often the thing that is
-stuck, which is why the command exists. See `client/AGENTS.md` for the device
-half and its one real limitation: the command rides the **pull**, so it cannot
-reach a device with no working connection.
+stuck, which is why the command exists.
+
+`pendingFor()` also sends `issued_by`, so the device's own audit row names the
+admin who asked rather than whoever is signed in at the till.
+
+The limitation: commands ride the **push response**
+(`exchangeSyncCommands`), so a device whose rows fail individually still
+receives them, but one whose push request fails outright does not. See
+`client/AGENTS.md` for the device half.
 
 ## On-till admin inspection: why the credential is not a Sanctum token
 

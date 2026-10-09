@@ -17,14 +17,18 @@ import { getStoredActiveStoreId } from "@/lib/storage-keys";
  * report instead goes out over a plain POST that never touches the queue, and
  * to Sentry, which is also fire-and-forget HTTP.
  *
- * The command itself arrives on the next PULL, so this covers a stuck push —
- * the common case — and cannot help a device with no working connection at
- * all. That is what the on-till inspection session is for.
+ * The command rides the PUSH response (SyncController::exchangeSyncCommands),
+ * not the pull. So a device whose rows fail individually — the "50 changes
+ * could not be saved" shape, where the request succeeds and `failed[]` is
+ * populated — does receive it. A device whose push REQUEST fails outright
+ * (413, 500, timeout) never does, and nor does one with no connection at all.
+ * Those are what the on-till inspection session is for.
  */
 export const DEVICE_REPORT_AUDIT_ACTION = "DEVICE_REPORT_SENT_ON_REQUEST";
 
 export async function sendDeviceReportOnRequest(
   commandId: string,
+  issuedBy?: string | null,
 ): Promise<{ status: "applied" | "refused"; result: string }> {
   const data = await collectDeviceDiagnostics();
 
@@ -58,9 +62,12 @@ export async function sendDeviceReportOnRequest(
         report,
       },
     });
-    delivered.push("sentry");
+    // "unconfirmed" is the honest word: captureMessage never throws, a
+    // missing DSN makes it a silent no-op, and transport failures are async.
+    // It can never prove delivery, so it must not be what makes this applied.
+    delivered.push("sentry (unconfirmed)");
   } catch {
-    /* a missing DSN must not stop the email below */
+    /* a missing DSN must not stop the support POST below */
   }
 
   try {
@@ -71,20 +78,27 @@ export async function sendDeviceReportOnRequest(
     });
     delivered.push("support");
   } catch (error) {
-    if (delivered.length === 0) {
-      return {
-        status: "refused",
-        result: error instanceof Error ? error.message : "could not deliver the report",
-      };
-    }
+    // Only the support POST can confirm anything, so only it decides. Marking
+    // this applied on Sentry alone would record a report nobody received.
+    return {
+      status: "refused",
+      result: error instanceof Error ? error.message : "could not deliver the report",
+    };
   }
 
   // Recorded on the device so the store can see a report left their till. An
   // outbound collection the owner cannot discover is not one worth having.
-  await logAction(DEVICE_REPORT_AUDIT_ACTION, "sync_commands", commandId, {
-    delivered_to: delivered.join(","),
-    requested_remotely: true,
-  }).catch(() => {});
+  await logAction(
+    DEVICE_REPORT_AUDIT_ACTION,
+    "sync_commands",
+    commandId,
+    { delivered_to: delivered.join(","), requested_remotely: true },
+    undefined,
+    undefined,
+    // The admin who issued it. Without this the row names whoever happened to
+    // be signed in at the till as having sent a device report.
+    issuedBy ?? undefined,
+  ).catch(() => {});
 
   return { status: "applied", result: `report sent via ${delivered.join(" + ")}` };
 }

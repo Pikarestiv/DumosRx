@@ -393,12 +393,23 @@ and `synchronous = NORMAL`.
     an unreachable support endpoint must not stop Sentry. With neither it
     refuses and writes no audit row: claiming a report was sent when none was
     is worse than no record.
-    - **The command arrives on the next PULL**, so this covers a stuck push
-      (the common case) and cannot help a device with no working connection at
-      all. That is what the on-till inspection session is for.
+    - **The command rides the PUSH response**
+      (`SyncController::exchangeSyncCommands`, applied in `push.ts`), not the
+      pull. So a device whose rows fail *individually* — the "50 changes could
+      not be saved" shape, where the request succeeds and `failed[]` is
+      populated — does receive it, which is the field case. A device whose push
+      **request** fails outright (413, 500, timeout), or that has no connection
+      at all, never does; those need the on-till session.
+    - **Only the `/support` POST decides `applied`.** `Sentry.captureMessage`
+      never throws — with no DSN it is a silent no-op and transport failures
+      are async — so it can never prove delivery and is recorded as
+      `sentry (unconfirmed)`. Marking the command applied on Sentry alone would
+      write an audit row for a report nobody received.
     - **It is logged on the device** (`DEVICE_REPORT_SENT_ON_REQUEST`) so the
-      store can see a report left their till. An outbound collection the owner
-      cannot discover is not one worth having.
+      store can see a report left their till — an outbound collection the owner
+      cannot discover is not one worth having. `issued_by` travels with the
+      command and is passed as `logAction`'s `actorId`, or the row would name
+      whoever happened to be signed in at the till as having sent it.
     - `send_device_report` is in `SyncCommandService::DEVICE_WIDE_ACTIONS`, so
       any `table_name`/`record_id` is discarded — carrying one would imply a
       row scope the action does not have and would read as one in the activity
@@ -423,10 +434,17 @@ and `synchronous = NORMAL`.
     like one that had simply never synced, and the reason lived in the sync
     indicator's React state and died on navigation. `sync()` is now a thin
     wrapper that records the outcome of every attempt — a wrapper rather than a
-    line at each `return`, so an exit path added later cannot forget. A refused
-    concurrent call is deliberately not recorded; it would overwrite a real
-    outcome with "a sync was already running". The reason is canonicalised, so
-    a driver error never reaches the report.
+    line at each `return`, so an exit path added later cannot forget.
+    - **`NOT_AN_ATTEMPT` excludes the three pre-flight refusals**, and two of
+      them matter more than they look: an inspection session's own mount tick
+      is refused as impersonated, and a second PWA tab is refused as read-only
+      while sharing this `localStorage` key with the writer tab — so both fire
+      during the very session that reads the outcome, and recording them would
+      erase the datum this exists to preserve.
+    - **`classifyReason()` runs before `canonicaliseReason()`**, which knows
+      only the server's refusal vocabulary: without it every sync-level failure
+      collapsed to `other`, including the stuck-push case, which made the card
+      useless. A driver error still never reaches the report.
   - **The terminal-conflict ledger now covers every table, bounded by a row
     cap** (`sync-engine/conflict-log.ts`). It was allowlisted to
     `purchase_order_items` to stay small, which meant a terminal drop

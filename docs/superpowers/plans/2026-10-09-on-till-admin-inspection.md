@@ -1196,7 +1196,40 @@ It must not call `setDbUser()`, `setStoredUser()`, `setUser()`, or clear the POS
 
 - [ ] **Step 5: Relax the PIN field in admin mode**
 
-`traditional-login-form.tsx` hard-codes `maxLength={4}` and `disabled={... pin.length !== 4}`. Add a prop:
+**Do not widen the OTP.** `traditional-login-form.tsx:73-88` renders an
+`InputOTP` with four `InputOTPSlot` boxes, `aspect-square`, inside a fixed
+`w-[276px]`. Twelve slots would be ~20px square cells and would not survive a
+phone viewport.
+
+Swap the component instead. In admin mode render a single masked numeric
+`Input` in place of the OTP group, which is also the right call on two counts
+beyond layout: 12 digits shown as 12 large boxes on a shop counter is
+shoulder-surfing bait, and a standing 12-digit credential needs to be
+pasteable from a password manager rather than typed on a touchscreen.
+
+```tsx
+{codeMode ? (
+  <Input
+    id="pin"
+    type="password"
+    inputMode="numeric"
+    autoComplete="one-time-code"
+    maxLength={TILL_CODE_LENGTH}
+    value={pin}
+    onChange={(event) => setPin(event.target.value.replace(/\D/g, ""))}
+    placeholder="12-digit code"
+  />
+) : (
+  /* the existing InputOTP block, unchanged */
+)}
+```
+
+The label becomes "Till access code" in admin mode and stays "PIN" otherwise.
+The staff path must be byte-identical to today — a regression here breaks every
+login on the device, so assert the four-slot OTP still renders when
+`codeMode` is false.
+
+Add a prop:
 
 ```ts
   codeMode?: boolean;
@@ -1204,14 +1237,17 @@ It must not call `setDbUser()`, `setStoredUser()`, `setUser()`, or clear the POS
 
 and use it:
 
-```tsx
-              maxLength={codeMode ? TILL_CODE_LENGTH : 4}
-```
+and gate the submit button on the right length:
+
 ```tsx
             disabled={isLoading || pin.length !== (codeMode ? TILL_CODE_LENGTH : 4)}
 ```
 
-The parent sets `codeMode` once the typed identifier contains `@` and a `getUsersByUsernameOrEmail()` lookup for it returns nothing — the same predicate as `shouldAttemptAdminTillLogin`, run on blur. Label the field "Till access code" in that mode.
+The parent sets `codeMode` once the typed identifier contains `@` and a
+`getUsersByUsernameOrEmail()` lookup for it returns nothing — the same
+predicate as `shouldAttemptAdminTillLogin`, run on blur **and** on a debounce
+as the identifier changes. If that never fires the admin cannot submit at all,
+so cover both triggers with a test.
 
 - [ ] **Step 6: Run the tests**
 

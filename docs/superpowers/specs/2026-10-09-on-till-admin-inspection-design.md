@@ -74,9 +74,25 @@ Server side:
   `last_used_at`, `revoked_at`, `created_at`. Per-admin, rotatable, revocable
   without touching the admin's real credentials.
 - Hashed at rest like a password. Never recoverable, only reissued.
+- Issued and revoked by the admin themselves from the admin panel
+  (`/admin/settings`), never for another admin; an artisan command remains as
+  the bootstrap path for the first code.
 - `POST /api/app/admin-till-session` takes the email, the code, the store id
-  and the device id; returns a short-lived inspection token plus the admin's
-  identity. Rate-limited per device and per admin.
+  and the device id; returns an **opaque session id** plus the admin's
+  identity. Rate-limited per IP, per device and per admin.
+
+**The session is deliberately not a Sanctum token.** `restoreSession()` and
+`AuthHandoffController::create()` both resolve a Personal Access Token from the
+request *body* without checking its abilities, so a narrowly-scoped token read
+off a till would launder into a durable full superadmin session — see
+`docs/KNOWN_BUGS.md` A-199. An opaque id is not a `PersonalAccessToken`, so
+`findToken()` never resolves it and both paths are dead by construction. It
+also gives the audit log its exit duration for free.
+
+**Lifetime:** 20 minutes idle, extended by interaction, with a visible
+countdown and a "Stay signed in" button at two minutes remaining — the session
+never ends silently. A four-hour hard cap sits on the session row, so the
+server has the final say and a tampered device clock cannot extend it.
 
 ## Failure messaging
 

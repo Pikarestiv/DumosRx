@@ -10,6 +10,13 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
+#### A-199. `laravel-server/` — two endpoints resolve a Personal Access Token from the request body without checking its abilities
+- **Found:** 2026-10-09, second adversarial review of the on-till admin inspection plan.
+- **Location:** `app/Http/Controllers/Api/Admin/AdminStoreController.php:518-529` (`restoreSession`), `app/Http/Controllers/Api/AuthHandoffController.php:32-48` (`create`).
+- **What's wrong:** both call `PersonalAccessToken::findToken($validated['token'])` on a token taken from the **request body** and act on its owner without ever checking that token's abilities. `restoreSession` then mints an `admin-refresh` cookie for that owner, and the public cookie-only `/admin/session/refresh` (`routes/api.php:58`) turns that into a general-ability `web` token. The bearer on the request only has to satisfy `auth:sanctum`, which the till's own `['*']` sync token does.
+- **Consequence:** any Sanctum token belonging to a super_admin, however narrowly scoped it was meant to be, can be escalated to a durable full superadmin session by whoever holds it. No such narrow token is minted today, which is why this is latent rather than live — but it is precisely why the on-till inspection credential is deliberately **not** a Sanctum token (see `docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md`). Any future narrowly-scoped token walks straight into it.
+- **Fix:** require `->can('*')` (or an explicit expected ability) on the body token in both handlers, and prefer deriving the identity from the authenticated bearer rather than from a body token at all.
+
 #### A-197. `client/` — the deferred-delta drain runs per round, not per page, so a batch whose movement arrived first holds a quantity the server disagrees with
 - **Found:** 2026-10-09, differential fuzzing of `pullChanges()` against the server's own derivation during the fourth review pass of the stock-integrity branch.
 - **Location:** `client/lib/db/sync-engine/pull.ts` (the drains at the start of a round and after the page loop), `client/lib/db/sync-engine/deferred-stock-deltas.ts`.

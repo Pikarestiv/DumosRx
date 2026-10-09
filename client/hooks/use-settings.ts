@@ -119,12 +119,17 @@ export function useSettings() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  const hasKey = useCallback(
+    (key: string) => hasPermission(user, permissionGroup, key),
+    [user, permissionGroup],
+  );
+
   const { canAccessTab } = useSettingsTabResolution({
     tabParam,
     activeTab,
     setActiveTab,
     isAdmin,
-    hasKey: (key: string) => hasPermission(user, permissionGroup, key),
+    hasKey,
     isCloudLinked,
     openCloudLink: syncState.setIsCloudLinkOpen,
   });

@@ -102,8 +102,16 @@ class AdminTillSessionService
 
         $session->update(['ended_at' => now(), 'end_reason' => $reason]);
 
+        // withTrashed: User uses SoftDeletes, and an admin deleted mid-session
+        // would otherwise make the relation null and the typed log() throw.
+        $admin = $session->admin()->withTrashed()->first();
+
+        if (!$admin) {
+            return true;
+        }
+
         $this->log(
-            $session->admin,
+            $admin,
             $session->store_id,
             $session->device_id,
             'admin_till_session_ended',

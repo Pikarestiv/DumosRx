@@ -6,6 +6,10 @@
 import { getStoreProfile, updateStoreMonotonicTime } from "@/lib/db/queries/setup";
 import { readServerClock, describeDrift } from "./server-clock";
 import { getTillInspectionSession } from "@/lib/utils/till-inspection";
+import {
+  logTillRepair,
+  TILL_REPAIR_ACTIONS,
+} from "@/lib/utils/till-inspection-audit";
 import { boundedNowIso } from "./monotonic-clock";
 
 const LICENSE_TIERS = ["free", "local", "pro", "enterprise"] as const;
@@ -184,6 +188,12 @@ export async function overrideClockLockout(): Promise<
   }
 
   await updateStoreMonotonicTime(profile.id, reading.serverNow.toISOString());
+
+  await logTillRepair(TILL_REPAIR_ACTIONS.clockOverride, profile.id, {
+    server_now: reading.serverNow.toISOString(),
+    device_agreed: reading.agrees,
+    drift_ms: reading.driftMs,
+  });
 
   return { ok: true, reason: "Clock watermark reset to server time by admin override." };
 }

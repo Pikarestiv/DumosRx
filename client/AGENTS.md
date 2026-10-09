@@ -278,11 +278,26 @@ and `synchronous = NORMAL`.
     opened. Nothing on the server re-verifies a session after login, so these
     are UX and a stale-tab net rather than enforcement; the real control is
     how little a session can do.
-  - **The diagnostics tab gate is scoped to that one tab.** A blanket
-    `|| isInspecting` in `canAccessSettingsTab()` would also unlock `data` and
-    `danger-zone`, whose restore and factory-reset paths run through `core.ts`
-    raw, outside the write guard — handing an inspection session the one button
-    that destroys the evidence it came to collect.
+  - **The settings gate both grants and denies.** `canAccessSettingsTab()`
+    returns `isInspecting` for the diagnostics tab and `false` for every other
+    tab while a session is live. Granting alone was not enough: the
+    fall-through grants admin-only tabs on `isAdmin`, which is the *locked
+    staff user's* role, so on an owner's device an inspecting admin still
+    reached Data's restore and Danger Zone's factory reset — both raw
+    `execute`, both able to destroy the evidence the session came to collect.
+  - **The admin branch must not call `unlock()` or set
+    `dumos_session_authenticated`.** `/inspect` needs neither, and setting them
+    turned a till code into a way to unlock whatever staff session was locked
+    on the device: on exit, `/login` → `/dashboard` found the marker and
+    skipped the lock. `DashboardLayout` also redirects to `/inspect` whenever a
+    session is live, so the dashboard can never render without the banner, the
+    End Session button and the idle timer.
+  - **Both repairs audit against the admin**
+    (`lib/utils/till-inspection-audit.ts`). `logAction` attributes `user_id` to
+    whoever the local DB still points at — the cashier, or nobody — so the
+    admin id, email, session and device go in the details explicitly. The audit
+    row does queue for sync; that is intended, and is why the fold's
+    queue assertions are scoped to the stock tables rather than a raw count.
   - **The entry also lives on the blocked licence card**
     (`components/auth/license-blocked-card.tsx`), because `LicenseGuard`
     returns that card *instead of* its children: while a device is

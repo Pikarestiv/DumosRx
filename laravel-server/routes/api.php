@@ -62,6 +62,8 @@ Route::prefix('v1')->group(function () {
     // starve. See the 'handoff' limiter in AppServiceProvider.
     Route::middleware('throttle:till-session')->group(function () {
         Route::post('/app/admin-till-session', [\App\Http\Controllers\Api\App\AdminTillSessionController::class, 'create']);
+    });
+    Route::middleware('throttle:till-session-end')->group(function () {
         Route::post('/app/admin-till-session/end', [\App\Http\Controllers\Api\App\AdminTillSessionController::class, 'end']);
     });
     Route::middleware('throttle:handoff')->group(function () {

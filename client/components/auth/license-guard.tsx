@@ -3,37 +3,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LicenseBlockedCard } from "./license-blocked-card";
 import { MobileRestrictionGuard } from "./mobile-restriction-guard";
-import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { getDeviceId } from "@/lib/utils/device-id";
 import {
   checkLicenseStatus,
   LicenseInfo,
 } from "@/lib/licensing/licensing-manager";
-import {
-  AlertOctagon,
-  RefreshCw,
-  Clock,
-  Lock,
-  ExternalLink,
-} from "lucide-react";
+
+
 import { SplashScreen } from "@/components/ui/splash-screen";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+
+
 import { useStore } from "@/lib/context/store-context";
-import { useAuth } from "@/lib/context/auth-context";
 import { usePathname } from "next/navigation";
 import { useTheme } from "@/components/theme-provider";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
-import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
-import { isNativeMobileApp } from "@/lib/utils";
-import { toast } from "sonner";
 import { APP_EVENTS, onAppEvent } from "@/lib/events";
 
 function ThemeRestrictor() {

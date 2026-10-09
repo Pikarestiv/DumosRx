@@ -9,6 +9,7 @@ const { state } = vi.hoisted(() => ({
     codes: [] as AdminTillCode[],
     issued: "123456789012",
     revoked: [] as string[],
+    resets: 0,
   },
 }));
 
@@ -20,6 +21,9 @@ vi.mock("@/lib/api/admin-hooks-till-codes", async (importOriginal) => {
     useIssueTillCodeMutation: () => ({
       mutateAsync: async () => ({ id: "c-new", code: state.issued }),
       isPending: false,
+      reset: () => {
+        state.resets += 1;
+      },
     }),
     useRevokeTillCodeMutation: () => ({
       mutateAsync: async (id: string) => {
@@ -43,6 +47,7 @@ describe("TillCodesCard", () => {
   beforeEach(() => {
     state.codes = [];
     state.revoked = [];
+    state.resets = 0;
   });
 
   it("invites the admin to generate one when none exist", () => {
@@ -74,6 +79,10 @@ describe("TillCodesCard", () => {
     await waitFor(() =>
       expect(screen.queryByText("123456789012")).not.toBeInTheDocument(),
     );
+
+    // Clearing our own copy is not enough: the mutation keeps its result in
+    // observer state (and devtools) for the life of the page.
+    expect(state.resets).toBe(1);
   });
 
   it("refuses a fourth code rather than letting the server reject it", () => {

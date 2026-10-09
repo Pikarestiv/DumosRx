@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   canAccessSettingsTab,
   ALL_SETTINGS_TABS,
-  ADMIN_ONLY_SETTINGS_TABS,
 } from "@/lib/constants/settings-tabs";
 
 /**
@@ -38,17 +37,28 @@ describe("the diagnostics settings tab", () => {
     );
   });
 
-  it("opens no other admin-only tab for an inspecting admin", () => {
-    for (const tab of ADMIN_ONLY_SETTINGS_TABS) {
+  it("opens no other tab for an inspecting admin, even on an owner's device", () => {
+    // isAdmin=true and allKeys: the locked staff user is the OWNER. The first
+    // version of this test used isAdmin=false, so it passed with the feature's
+    // parameter deleted and proved nothing — an inspecting admin on an owner's
+    // till still reached Data's restore and Danger Zone's factory reset.
+    for (const tab of ALL_SETTINGS_TABS) {
+      if (tab === "diagnostics") continue;
       expect(
-        canAccessSettingsTab(tab, false, noKeys, true),
+        canAccessSettingsTab(tab, true, allKeys, true),
         `${tab} must stay closed to a read-only inspection session`,
       ).toBe(false);
     }
   });
 
-  it("keeps danger-zone and data closed specifically, since they write outside the guard", () => {
-    expect(canAccessSettingsTab("danger-zone", false, noKeys, true)).toBe(false);
-    expect(canAccessSettingsTab("data", false, noKeys, true)).toBe(false);
+  it("keeps danger-zone and data closed against an owner-level signed-in user", () => {
+    expect(canAccessSettingsTab("danger-zone", true, allKeys, true)).toBe(false);
+    expect(canAccessSettingsTab("data", true, allKeys, true)).toBe(false);
+  });
+
+  it("leaves the ordinary rules untouched when no inspection is live", () => {
+    expect(canAccessSettingsTab("danger-zone", true, allKeys, false)).toBe(true);
+    expect(canAccessSettingsTab("appearance", false, noKeys, false)).toBe(true);
+    expect(canAccessSettingsTab("danger-zone", false, noKeys, false)).toBe(false);
   });
 });

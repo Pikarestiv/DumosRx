@@ -346,4 +346,37 @@ class AdminTillSessionTest extends TestCase
             'device_id' => 'till-7',
         ])->assertOk();
     }
+
+    public function test_ending_a_session_whose_admin_was_deleted_still_closes_it(): void
+    {
+        $this->seedAdminWithCode();
+        $sessionId = $this->open()->assertOk()->json('session_id');
+
+        User::where('email', 'ops@dumosrx.com')->first()->delete();
+
+        $this->postJson('/api/v1/app/admin-till-session/end', ['session_id' => $sessionId])
+            ->assertOk();
+
+        $this->assertNotNull(AdminTillSession::findOrFail($sessionId)->ended_at);
+    }
+
+    public function test_the_end_endpoint_has_its_own_rate_limit_bucket(): void
+    {
+        // Sharing the login limiter keyed every end call to one global 'anon'
+        // bucket, so ten posts a minute from anywhere stopped every till on
+        // the platform from closing its session.
+        $this->seedAdminWithCode();
+        $sessionId = $this->open()->assertOk()->json('session_id');
+
+        for ($i = 0; $i < 12; $i++) {
+            $this->postJson('/api/v1/app/admin-till-session/end', [
+                'session_id' => 'not-a-session',
+            ])->assertOk();
+        }
+
+        $this->postJson('/api/v1/app/admin-till-session/end', ['session_id' => $sessionId])
+            ->assertOk();
+
+        $this->assertNotNull(AdminTillSession::findOrFail($sessionId)->ended_at);
+    }
 }

@@ -43,6 +43,14 @@ export function TillCodesCard() {
   const codes = data?.codes ?? [];
   const atLimit = codes.length >= MAX_ACTIVE_TILL_CODES;
 
+  // issue.reset() too: the mutation keeps its result in observer state (and
+  // React Query devtools) after the dialog closes, so clearing only our own
+  // copy would leave the code readable for the life of the page.
+  const dismissCode = () => {
+    setIssuedCode(null);
+    issue.reset();
+  };
+
   const handleIssue = async () => {
     const result = await issue.mutateAsync(label.trim() || null);
     setIssuedCode(result.code);
@@ -122,7 +130,7 @@ export function TillCodesCard() {
       <Dialog
         open={!!issuedCode}
         onOpenChange={(open) => {
-          if (!open) setIssuedCode(null);
+          if (!open) dismissCode();
         }}
       >
         <DialogContent>
@@ -136,7 +144,7 @@ export function TillCodesCard() {
           <p className="text-3xl font-mono font-semibold tracking-[0.2em] text-center py-4 select-all">
             {issuedCode}
           </p>
-          <Button variant="outline" onClick={() => setIssuedCode(null)}>
+          <Button variant="outline" onClick={dismissCode}>
             I have written it down
           </Button>
         </DialogContent>

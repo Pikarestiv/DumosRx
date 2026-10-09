@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ShieldAlert, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,10 @@ import { useStore } from "@/lib/context/store-context";
 
 const EXTEND_THROTTLE_MS = 30_000;
 
+function hardCapReached(session: { hardExpiresAt: string } | null): boolean {
+  return !!session && new Date(session.hardExpiresAt).getTime() <= Date.now();
+}
+
 /**
  * Always on screen for the whole inspection session, so staff can never be
  * unaware that someone else is looking at their till. Also owns the idle
@@ -24,6 +28,7 @@ export function TillInspectionBanner() {
   const { storeProfile } = useStore();
   const [session] = useState(() => getTillInspectionSession());
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
+  const closing = useRef(false);
 
   // Uses the id captured at mount, not a fresh read: on the idle path the
   // session has already expired, so re-reading storage returns null and the
@@ -31,6 +36,12 @@ export function TillInspectionBanner() {
   // and no duration.
   const close = useCallback(
     async (reason: TillSessionEndReason) => {
+      // Guarded: the 1s interval keeps firing while the POST is in flight, so
+      // without this the idle path called end repeatedly and wrote duplicate
+      // exit rows to the audit log.
+      if (closing.current) return;
+      closing.current = true;
+
       const sessionId = session?.sessionId ?? getTillInspectionSession()?.sessionId;
       if (sessionId) await endAdminTillSession(sessionId, reason);
       endTillInspectionSession();
@@ -54,7 +65,10 @@ export function TillInspectionBanner() {
     const timer = setInterval(() => {
       const left = msUntilInspectionExpiry();
       if (left === null || left <= 0) {
-        void close("idle");
+        clearInterval(timer);
+        // Which deadline won decides the reason, so the audit log can tell an
+        // abandoned till from one that simply ran out its four hours.
+        void close(hardCapReached(session) ? "expired" : "idle");
         return;
       }
       setRemainingMs(left <= IDLE_WARNING_MS ? left : null);

@@ -8,12 +8,14 @@ import { setCurrentUser as setDbUser, logAction } from "@/lib/db/local-database"
 import {
   shouldAttemptAdminTillLogin,
   requestAdminTillSession,
+  endAdminTillSession,
   UNIFORM_REJECTION,
   OFFLINE_MESSAGE,
 } from "@/lib/api/admin-till-session";
 import {
   startTillInspectionSession,
   endTillInspectionSession,
+  getTillInspectionSession,
   isTillInspectionSession,
 } from "@/lib/utils/till-inspection";
 import { apiClient } from "@/lib/api/client";
@@ -339,9 +341,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       startTillInspectionSession(session);
       setIsInspecting(true);
       setIsImpersonating(false);
-      sessionStorage.setItem("dumos_session_authenticated", "1");
-      useAutoLockStore.getState().unlock();
 
+      // Deliberately does NOT unlock() or set dumos_session_authenticated.
+      // /inspect sits outside the dashboard and needs neither, and setting
+      // them turned a till code into a way to unlock whatever staff session
+      // was locked on the device: on exit, /login -> /dashboard would find
+      // the marker and skip the lock. The staff session must resume exactly
+      // as it was, which means still locked.
       return true;
     }
     // Usernames are unique per store, not globally (UNIQUE(store_id,
@@ -699,6 +705,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }).catch(() => {});
     }
     setUser(null);
+    // Fire-and-forget so the server closes the row and records a duration;
+    // without this any logout mid-inspection left an open session with no
+    // exit audit entry at all.
+    const inspection = getTillInspectionSession();
+    if (inspection) {
+      void endAdminTillSession(inspection.sessionId, "signed_out");
+    }
     endTillInspectionSession();
     setIsInspecting(false);
     setDbUser(null);

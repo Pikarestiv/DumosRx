@@ -95,8 +95,11 @@ describe("TillInspectionBanner", () => {
     }));
     render(<TillInspectionBanner />);
 
+    // Several ticks, not one: the interval keeps firing while the POST is in
+    // flight, and a single tick hid a repeated end() that wrote duplicate
+    // exit rows to the audit log.
     await act(async () => {
-      vi.advanceTimersByTime(1_500);
+      vi.advanceTimersByTime(5_000);
     });
 
     expect(ended.calls).toEqual(["idle"]);
@@ -113,5 +116,31 @@ describe("TillInspectionBanner", () => {
     await waitFor(() => expect(ended.calls).toEqual(["signed_out"]));
     expect(isTillInspectionSession()).toBe(false);
     expect(assign).toHaveBeenCalledWith("/login");
+  });
+
+  it("reports a hard-cap expiry as expired, not idle", async () => {
+    vi.useFakeTimers();
+    startTillInspectionSession(live({
+      idleExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+      hardExpiresAt: new Date(Date.now() + 500).toISOString(),
+    }));
+    render(<TillInspectionBanner />);
+
+    await act(async () => {
+      vi.advanceTimersByTime(3_000);
+    });
+
+    expect(ended.calls).toEqual(["expired"]);
+  });
+
+  it("ends only once even when the button is clicked twice", async () => {
+    startTillInspectionSession(live());
+    render(<TillInspectionBanner />);
+
+    const button = screen.getByRole("button", { name: /end session/i });
+    fireEvent.click(button);
+    fireEvent.click(button);
+
+    await waitFor(() => expect(ended.calls).toEqual(["signed_out"]));
   });
 });

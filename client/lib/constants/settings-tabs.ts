@@ -80,12 +80,16 @@ export function canAccessSettingsTab(
   hasKey: (key: string) => boolean,
   isInspecting = false,
 ): boolean {
-  // Scoped to this one tab on purpose. A blanket `|| isInspecting` would also
-  // unlock `data` and `danger-zone`, whose restore and factory-reset paths go
-  // through core.ts raw and so sit OUTSIDE the read-only write guard — handing
-  // an inspection session the one button that destroys the evidence it came
-  // to collect.
   if (tab === DIAGNOSTICS_SETTINGS_TAB) return isInspecting;
+
+  // An inspection session is read-only, so it must be DENIED the tabs whose
+  // actions bypass the write guard. Returning only `isInspecting` for the
+  // diagnostics tab was not enough: the fall-through below grants every
+  // admin-only tab on `isAdmin`, which is the *locked staff user's* role — so
+  // on an owner's device an inspecting admin still reached Data's restore and
+  // Danger Zone's factory reset, both raw `execute` and both able to destroy
+  // the evidence the session came to collect.
+  if (isInspecting) return false;
 
   const required = SETTINGS_TAB_PERMISSIONS[tab];
   if (required) return hasKey(required);

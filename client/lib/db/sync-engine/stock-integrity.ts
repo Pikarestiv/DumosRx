@@ -5,6 +5,10 @@ import {
   getActiveStoreId,
   queueTableInvalidation,
 } from "../core";
+import {
+  logTillRepair,
+  TILL_REPAIR_ACTIONS,
+} from "@/lib/utils/till-inspection-audit";
 
 /**
  * Divergence between a batch's stored `quantity` and the sum of its own
@@ -262,6 +266,12 @@ export async function foldStockQuantities(): Promise<FoldResult> {
   if (result.folded > 0) {
     queueTableInvalidation("stock_batches");
   }
+
+  await logTillRepair(TILL_REPAIR_ACTIONS.fold, getActiveStoreId() ?? "unknown", {
+    folded: result.folded,
+    refused: result.refused,
+    units_corrected: result.unitsCorrected,
+  });
 
   return result;
 }

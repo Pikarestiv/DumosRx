@@ -58,6 +58,15 @@ describe('useSettings: cloud-link dialog effect dependencies', () => {
     expect(caller).toMatch(/openCloudLink:\s*syncState\.setIsCloudLinkOpen/);
     expect(caller).not.toMatch(/openCloudLink:\s*syncState\s*[,}]/);
 
+    // `hasKey` feeds canAccessTab, which the effect depends on. Passing an
+    // inline closure recreates it every render and reinstates the loop by a
+    // different route — which is exactly what happened when the effect was
+    // extracted into use-settings-tab-resolution.ts.
+    expect(caller, 'hasKey must be memoised or canAccessTab is unstable').toMatch(
+      /const hasKey = useCallback\(/,
+    );
+    expect(caller).not.toMatch(/hasKey:\s*\(key/);
+
     // The bug: a bare `syncState` dependency - a fresh object every render -
     // makes this effect (and its unconditional dialog-open call) rerun on
     // every render for as long as the route stays on the cloud alias.

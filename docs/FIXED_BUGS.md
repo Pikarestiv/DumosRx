@@ -1392,6 +1392,14 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 All of `SF-P0-1`, `SF-P1-1`, `SF-P1-3`, `SF-P2-1`…`SF-P2-6` and `SF-P3-1`…`SF-P3-6`. **`SF-P1-2` (wiring the built-and-tested Paystack flow into the storefront UI) was deliberately left open** — enabling real online payment collection is a business decision, not a routine bug fix, and was explicitly deferred to its own round. Nothing below makes Paystack reachable from a client; `checkout-form.tsx` still offers only `in_store`/`transfer`. **It was closed the same day**, once the subaccount payment design that deferral was waiting on shipped — see the entry immediately below.
 
+#### A-200. `web/` — the admin settings Account Manager tab 404s on a direct visit or reload
+- **Found:** 2026-10-09, adding the Till Access tab beside it.
+- **Location:** `web/app/admin/settings/[[...tab]]/page.tsx` (`generateStaticParams`), `web/app/admin/settings/[[...tab]]/settings-client.tsx` (the `account-manager` `TabsTrigger`).
+- **What's wrong:** `next.config` uses `output: "export"`, so every optional-catch-all route segment must be listed in `generateStaticParams` to exist as a static page. `account-manager` is rendered as a tab trigger and has its own `TabsContent`, but was never added to `generateStaticParams`. Clicking the tab works (client-side routing), so it looks fine — but the URL it produces has no exported page, so a reload, a bookmark, or a link shared to a colleague 404s.
+- **Consequence:** one admin settings tab is unreachable by URL. Low severity, invisible in dev (`next dev` serves it fine) and only reproducible against an exported build — which is why it survived.
+- **Fix:** added `{ tab: ["account-manager"] }` alongside the new `{ tab: ["till-codes"] }` in the same change. Kept as a record because the class of bug recurs: **any new tab under an `output: "export"` catch-all needs its `generateStaticParams` entry, and nothing in CI checks it.** A test asserting every `TabsTrigger` value has a matching entry would close it permanently.
+- **Fixed:** 2026-10-09, in the same change that added the Till Access tab beside it.
+
 #### A-198. `client/` — the diagnostics settings tab is absent from `ALL_SETTINGS_TABS` and ungated by role
 - **Found:** 2026-10-09, fourth review pass.
 - **Location:** `client/lib/constants/settings-tabs.ts`, `client/lib/hooks/use-settings.ts`, `client/components/settings/settings-client.tsx`.

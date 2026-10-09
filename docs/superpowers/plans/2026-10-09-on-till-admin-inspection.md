@@ -382,6 +382,9 @@ public function test_issuing_a_code_stores_only_a_hash_and_prints_the_code_once(
     $this->artisan('admin:till-code', ['email' => 'ops@dumosrx.com', '--label' => 'agidi'])
         ->assertExitCode(0);
 
+    // Note: `$this->artisan()` does not expose rendered output. A test that
+    // needs the printed code back must use Artisan::call() + Artisan::output().
+
     $row = AdminTillCode::where('admin_id', $admin->id)->firstOrFail();
 
     $this->assertSame('agidi', $row->label);
@@ -396,7 +399,7 @@ public function test_revoking_marks_every_active_code_for_that_admin(): void
     AdminTillCode::create(['admin_id' => $admin->id, 'code_hash' => Hash::make('111111111111')]);
     AdminTillCode::create(['admin_id' => $admin->id, 'code_hash' => Hash::make('222222222222')]);
 
-    $this->artisan('admin:till-code', ['email' => 'ops@dumosrx.com', '--revoke'])
+    $this->artisan('admin:till-code', ['email' => 'ops@dumosrx.com', '--revoke' => true])
         ->assertExitCode(0);
 
     $this->assertSame(0, AdminTillCode::active()->where('admin_id', $admin->id)->count());

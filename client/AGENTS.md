@@ -296,9 +296,16 @@ and `synchronous = NORMAL`.
   - **Both repairs audit against the admin**
     (`lib/utils/till-inspection-audit.ts`). `logAction` attributes `user_id` to
     whoever the local DB still points at — the cashier, or nobody — so the
-    admin id, email, session and device go in the details explicitly. The audit
-    row does queue for sync; that is intended, and is why the fold's
-    queue assertions are scoped to the stock tables rather than a raw count.
+    admin id, email, session and device go in the details explicitly **and the
+    admin's id is passed as `logAction`'s `actorId`**. Both halves matter:
+    `logAction` otherwise defaults `user_id` to whoever the local DB points at,
+    and `SyncController` then backfills an empty or unknown id from the sync
+    token's owner — so the server's `activity_logs` named the **store owner**
+    as having run the clock override, backwards for the one repair whose
+    premise is that the owner is the suspected tamperer. The admin's id is
+    known to the server, so it survives the push intact. The audit row does
+    queue for sync; that is intended, and is why the fold's queue assertions
+    are scoped to the stock tables rather than a raw count.
   - **The entry also lives on the blocked licence card**
     (`components/auth/license-blocked-card.tsx`), because `LicenseGuard`
     returns that card *instead of* its children: while a device is

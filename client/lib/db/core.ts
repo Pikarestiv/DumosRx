@@ -1211,6 +1211,13 @@ export async function logAction(
   overrideStoreId?: string,
   // Groups one multi-step operation's rows in the Activity Log.
   correlationId?: string,
+  // Attributes the row to someone other than the locally logged-in user. Only
+  // for an actor the SERVER knows but this device does not — an admin running
+  // a repair from an on-till inspection session. SyncController backfills
+  // `user_id` from the sync token whenever the id is missing or unknown to it,
+  // so leaving this unset makes the server's record name the token's owner
+  // (typically the store owner) as the actor.
+  actorId?: string,
 ) {
   if (!db) return;
   const now = new Date().toISOString();
@@ -1268,7 +1275,7 @@ export async function logAction(
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
-      currentUser?.id || null,
+      actorId ?? currentUser?.id ?? null,
       storeId,
       action,
       table,
@@ -1284,7 +1291,7 @@ export async function logAction(
   // Enqueue log action into the sync queue so it gets synced to the server
   const record = {
     id,
-    user_id: currentUser?.id || null,
+    user_id: actorId ?? currentUser?.id ?? null,
     store_id: storeId,
     action,
     table_name: table,

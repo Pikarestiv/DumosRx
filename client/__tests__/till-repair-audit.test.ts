@@ -123,4 +123,39 @@ describe("repair auditing", () => {
     expect(details.admin_email).toBeNull();
     expect(details.folded).toBe(1);
   });
+
+  it("sets the admin as the row's actor, not just a detail", async () => {
+    // user_id is what the Activity Log and the server's activity_logs show.
+    // SyncController backfills an empty or unknown id from the sync token's
+    // owner, so leaving it unset made the server's record name the STORE
+    // OWNER as having run the clock override.
+    startSession();
+    divergedBatch();
+
+    await fold();
+
+    const rows = db.exec(`SELECT user_id FROM audit_logs`)[0].values;
+    expect(rows[0][0]).toBe("admin-1");
+  });
+
+  it("queues the pushed row with the admin as actor too", async () => {
+    startSession();
+    divergedBatch();
+
+    await fold();
+
+    const queued = db.exec(
+      `SELECT payload FROM _sync_queue WHERE table_name = 'audit_logs'`,
+    )[0].values;
+    expect(JSON.parse(String(queued[0][0])).user_id).toBe("admin-1");
+  });
+
+  it("falls back to the local user with no inspection session", async () => {
+    divergedBatch();
+
+    await fold();
+
+    const rows = db.exec(`SELECT user_id FROM audit_logs`)[0].values;
+    expect(rows[0][0]).toBeNull();
+  });
 });

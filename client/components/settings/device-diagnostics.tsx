@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Copy, RefreshCw, Wrench } from "lucide-react";
+import { Copy, Download, RefreshCw, Send, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -18,6 +18,10 @@ import { getLastSyncTime } from "@/lib/storage-keys";
 import { buildReport } from "./diagnostics/diagnostics-report";
 import { DiagnosticsDetailCards } from "./diagnostics/diagnostics-detail-cards";
 import { isTauri } from "@/lib/db/core";
+import {
+  downloadDiagnosticsReport,
+  sendDiagnosticsReport,
+} from "@/lib/utils/diagnostics-delivery";
 
 const CARD =
   "bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm";
@@ -44,6 +48,7 @@ function hoursSince(iso: string | null): string {
 export function DeviceDiagnosticsPanel() {
   const { storeProfile } = useStore();
   const [copied, setCopied] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [showFoldConfirm, setShowFoldConfirm] = useState(false);
 
   const { data, isFetching, refetch, dataUpdatedAt } = useQuery({
@@ -65,6 +70,35 @@ export function DeviceDiagnosticsPanel() {
     }),
     [storeProfile],
   );
+
+  // Works with no network, which is exactly when a broken till most needs it.
+  const download = useCallback(() => {
+    if (!data) return;
+    const filename = downloadDiagnosticsReport(
+      buildReport(data, identity),
+      storeProfile?.name,
+    );
+    toast.success(`Saved ${filename}`);
+  }, [data, identity, storeProfile]);
+
+  const send = useCallback(async () => {
+    if (!data) return;
+    setIsSending(true);
+    try {
+      await sendDiagnosticsReport({
+        report: buildReport(data, identity),
+        storeName: storeProfile?.name,
+        deviceLabel: getDeviceLabel(),
+        contactEmail: storeProfile?.email ?? null,
+      });
+      toast.success("Report sent to support.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not send the report.",
+      );
+    }
+    setIsSending(false);
+  }, [data, identity, storeProfile]);
 
   const copyReport = useCallback(async () => {
     if (!data) return;
@@ -89,6 +123,24 @@ export function DeviceDiagnosticsPanel() {
           <Button variant="outline" size="sm" onClick={() => void refetch()} disabled={isFetching}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
             Refresh
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => data && download()}
+            disabled={!data}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Download
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void send()}
+            disabled={!data || isSending}
+          >
+            <Send className="h-4 w-4 mr-2" />
+            {isSending ? "Sending…" : "Send to support"}
           </Button>
           <Button size="sm" onClick={() => void copyReport()} disabled={!data}>
             <Copy className="h-4 w-4 mr-2" />

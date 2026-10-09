@@ -382,6 +382,19 @@ and `synchronous = NORMAL`.
     and support chased the difference; `conflicts` counted resolved rows; and
     the unapplied-delta figure was `pendingDeltas.length` under a `LIMIT 50`,
     which understated.
+  - **Three ways off the device, and the choice matters.** *Download* writes a
+    `.txt` via `buildExportFilename()` and works with no network — the only
+    route that survives a dead sync engine, which is when a broken till most
+    needs it. *Send to support* POSTs straight to the public `/support`
+    endpoint: filing a local `feedback` row instead would queue the report
+    behind the very sync queue it is reporting on, and `insert()` refuses
+    during a read-only inspection session anyway. It carries no bearer token,
+    because routing it through `apiClient` would put it on the 401
+    refresh-and-clear path that can unlink the till's own sync token. *Copy*
+    remains for pasting into a chat. The correspondent is the inspecting
+    admin's own address from the server-issued session, falling back to the
+    store's; with neither it refuses rather than filing a ticket nobody can
+    answer.
   - **Refresh shows a "Read at" time.** Every query is local SQLite finishing
     in milliseconds, so the spinner never visibly spins and unchanged numbers
     made the button look dead. The timestamp is the proof it read.

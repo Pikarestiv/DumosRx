@@ -126,6 +126,39 @@ The Namecheap shared-hosting box's MySQL is configured with `time_zone = SYSTEM`
 
 From now on, every commit message must follow the [Conventional Commits](https://www.conventionalcommits.org/) format (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, etc.) and be a single sentence — no multiline bodies.
 
+## 12. 💣 Never Run a Destructive Command to Answer a Read-Only Question
+
+**`php artisan tinker` reads `.env`, not `phpunit.xml`.** Anything run through
+it hits the real configured database — locally that is MySQL `dumosrx` on
+`127.0.0.1`, with whatever dev data is in it. The test suite's in-memory SQLite
+is only ever used by `php artisan test`.
+
+This rule exists because an agent ran `migrate:fresh` inside a `tinker
+--execute` to find out which role slugs the seeder creates, and dropped every
+table in the local dev database to answer a question a `SELECT` would have
+answered. Nine roles survived; every user, store, product and sale did not.
+
+- **To inspect, only read.** `DB::table(...)->count()`, `->pluck()`,
+  `->get()`, `Model::where(...)->first()`. Never `migrate`, `migrate:fresh`,
+  `migrate:rollback`, `db:seed`, `db:wipe`, `truncate()`, `delete()`,
+  `update()` or `save()` in a command whose purpose is to find something out.
+- **To find out what a seeder or migration produces, read its source.** The
+  file is right there and cannot destroy anything.
+- **To test behaviour, write a test.** `php artisan test` runs against
+  `:memory:` and can drop whatever it likes safely. That is the only place a
+  schema rebuild belongs.
+- **Before any command that writes, say which database it will hit** and get
+  the user's word — including locally. "It's only local" is not the user's
+  call to make on their behalf.
+- Production is covered separately and absolutely: no investigation or
+  verification touches `dumosrx.com` or `api.dumosrx.com` without explicit
+  clearance.
+
+The same trap applies to any CLI that resolves its own config: `php artisan
+db:*`, `npm run` scripts that migrate, and `mysql` invoked with the app's
+credentials. If a command's name contains `fresh`, `reset`, `wipe`, `drop`,
+`prune` or `truncate`, it is not an inspection tool.
+
 ## 11. 🔁 Breaking Changes Must Carry Backward Compatibility
 
 Old clients stay in the field indefinitely. The PWA caches its own app shell,

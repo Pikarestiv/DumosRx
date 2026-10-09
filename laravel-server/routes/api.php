@@ -185,6 +185,13 @@ Route::prefix('v1')->group(function () {
         Route::post('/admin/restore-session', [AdminStoreController::class, 'restoreSession']);
 
         Route::middleware(['permission:manage_platform', 'subscription'])->prefix('admin')->group(function () {
+            // Self-service only: admin_id always comes from the authenticated
+            // caller, never from input, so no admin can mint a credential that
+            // acts as another admin.
+            Route::get('/till-codes/mine', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'mine']);
+            Route::post('/till-codes', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'issue']);
+            Route::delete('/till-codes/{id}', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'revoke']);
+
             // super_admin-only actions (stricter than the group's manage_platform
             // permission, which platform_admin/agent can also hold) get the
             // check via route middleware instead of a per-method guard clause.

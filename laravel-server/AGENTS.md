@@ -1158,6 +1158,25 @@ token. That is deliberate and must not be "simplified" back to Sanctum:
   Authorization override on the exit call, and the audit log gets its duration
   free from `ended_at - started_at`.
 
+**Writing a test for an admin-permissioned route: three things are required**,
+and each one fails silently on its own.
+
+- `role_id`, not just the `role` string. `User::hasPermission()` resolves only
+  through the `userRole` (`role_id`) relation or a direct grant; the `role`
+  column satisfies `hasRole()` but confers **no permissions**. A test that
+  grants a role via the string column alone 403s on any `permission:` route.
+- `role_id` is **not in `User::$fillable`**, so `User::create(['role_id' => ...])`
+  drops it without complaint. Use `forceFill([...])->save()`. Existing tests
+  that pass `role_id` to `create()` are really being authorised by the string
+  column — the pivot there is decorative.
+- `'is_active' => true` explicitly. The column defaults to true in the
+  migration but does not come out that way through `User::create()`, and the
+  `account_status` middleware answers `403 ACCOUNT_SUSPENDED` rather than
+  anything that names the cause.
+- Routes under `permission:manage_platform` also need
+  `$this->seed(RolesAndPermissionsSeeder::class)`, because that grant is
+  seeded, not migrated.
+
 **Both routes are public and throttled.** `end` is unauthenticated on purpose:
 the opaque id is the proof, ending a session can only ever reduce access, and
 it always returns 200 so a replayed or unknown id reveals nothing.

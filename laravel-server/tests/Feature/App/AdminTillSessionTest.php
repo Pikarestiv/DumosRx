@@ -315,4 +315,35 @@ class AdminTillSessionTest extends TestCase
 
         $this->assertSame(3, AdminTillCode::active()->count());
     }
+
+    public function test_an_admin_whose_role_is_held_only_on_the_pivot_still_verifies(): void
+    {
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+
+        // The `role` column says something harmless; the real grant is role_id.
+        // A bare column comparison in verify() would reject this admin.
+        $admin = User::create([
+            'first_name' => 'Pivot',
+            'last_name' => 'Admin',
+            'email' => 'pivot@dumosrx.com',
+            'password' => bcrypt('password'),
+            'role' => 'pharmacist',
+        ]);
+        // role_id is not in User::$fillable, so create() drops it silently —
+        // a test that "grants" a role that way is really granting it via the
+        // string column and proves nothing about the pivot.
+        $admin->forceFill([
+            'role_id' => \App\Models\Role::where('slug', 'platform_admin')->value('id'),
+        ])->save();
+        AdminTillCode::create([
+            'admin_id' => $admin->id,
+            'code_hash' => Hash::make('123456789012'),
+        ]);
+
+        $this->postJson('/api/v1/app/admin-till-session', [
+            'email' => 'pivot@dumosrx.com',
+            'code' => '123456789012',
+            'device_id' => 'till-7',
+        ])->assertOk();
+    }
 }

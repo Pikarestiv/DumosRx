@@ -1,7 +1,7 @@
 # Stock integrity: divergence detection and fold-from-scratch — design
 
 **Date:** 2026-10-08
-**Status:** phase 1 shipped — **detection only, no writes and no interlock**. The Health Sync interlock was built and then withdrawn before merge (see §4). Phase 2 (`foldStockQuantities()`) not started.
+**Status:** phase 1 and phase 2 shipped. The Health Sync interlock was built and withdrawn before merge (see §4); `foldStockQuantities()` is support-triggered only, never automatic.
 **Scope:** `client/` only. No server change, no admin surface.
 **Related:** `docs/KNOWN_BUGS.md` A-176 · `docs/FIXED_BUGS.md` A-148, A-173, A-191
 
@@ -142,7 +142,7 @@ built.** The same guard was written and removed in the A-173 review: a delta
 stays pending only while its `stock_batches` row is *absent* locally, and an
 absent batch is not in the payload, which the server only applies to batches it
 receives. `client/AGENTS.md` carries a standing rule against reinstating it,
-and `client/__tests__/reconcile-refuses-with-pending-deltas.test.ts` pins the
+and `client/__tests__/reconcile-proceeds-with-pending-deltas.test.ts` pins the
 opposite property.
 
 ### 5. Exposure
@@ -225,8 +225,8 @@ correct at 46,097) is measured and reproducible.
   is the only repair for those batches (A-148), so blocking on them would
   disable the one thing that fixes them.
 - **Exposure** — `window.__verifyStockIntegrity`, no in-app button.
-- **Tests** — `client/__tests__/stock-integrity-verify.test.ts` and
-  `client/__tests__/health-sync-interlock.test.ts`.
+- **Tests** — `client/__tests__/stock-integrity-verify.test.ts`. The
+  interlock's own test file was removed with the interlock; see §4.
 
 ### Decisions settled by implementation
 
@@ -254,3 +254,33 @@ correct at 46,097) is measured and reproducible.
    data, then verify against `DRX-Y8UK10GC3` (+213 units, server known correct
    at 46,097).
 4. Open questions 2 and 3 remain open and want the same fleet data.
+
+## Phase 2 notes (2026-10-09)
+
+`foldStockQuantities()` rebuilds each `diverged` batch's quantity by **replaying**
+its own movements in local insert order (`ORDER BY rowid`), applying
+`MAX(0, running + delta)` after each one exactly as the pull does. Not a floored
+sum, and not `created_at` order — see `client/AGENTS.md` for why both of those
+are wrong and what each cost. `unreconstructable` batches are refused and returned by id, never folded.
+
+- **Local-only and not queued.** The server derives `stock_batches.quantity`
+  from movement deltas and ignores a pushed value, so there is nothing to send.
+  The fold writes no `sync_reconciliation` movement either: it is not a claim
+  about the truth, it is this device catching up to a log it already holds.
+- **Unsynced work survives**, which is what makes this safe where a factory
+  reset is not. A sale rung on this device and not yet pushed is already a
+  local movement row, so it is in the sum. Pinned by a test that queues one and
+  asserts both the quantity and that the queue entry is untouched.
+- **Triggering stays manual.** `window.__foldStockQuantities()` for a support
+  session, and a confirm-gated action in the diagnostics console, which is
+  itself only reachable during a superadmin handoff. Not wired into
+  `checkSyncHealth()`: the detection data the rollout plan called for does not
+  exist yet, and an automatic write to stock numbers should not go out ahead of
+  it.
+- Coverage: `client/__tests__/stock-integrity-fold.test.ts` (14 cases, including
+  idempotence, the floor, the unsynced-sale property, a late-arriving offline
+  sale, colliding and NULL `created_at`, and that it writes no movements of
+  its own).
+
+Open question 2 from above is now answered in practice: `unreconstructable`
+batches stay reported-only, and the console names them so a human can decide.

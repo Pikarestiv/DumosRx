@@ -277,6 +277,8 @@ export function usePOSCart(products: Product[]) {
     [subtotal, tax, calculatedDiscount]
   );
 
+  const displayName = useDisplayName();
+
   const removeFromCart = useCallback(
     (id: string) => {
       const removed = cart.find((item) => item.id === id);
@@ -284,7 +286,7 @@ export function usePOSCart(products: Product[]) {
       if (!removed) return;
       // A swipe-to-remove is easy to trigger by accident while scrolling the
       // cart on a phone, so every removal is reversible rather than silent.
-      toast(`${removed.name} removed from cart`, {
+      toast(`${displayName(removed.name)} removed from cart`, {
         action: {
           label: "Undo",
           onClick: () =>
@@ -294,7 +296,7 @@ export function usePOSCart(products: Product[]) {
         },
       });
     },
-    [cart, setCart],
+    [cart, setCart, displayName],
   );
 
   const updateQuantity = useCallback(
@@ -324,8 +326,6 @@ export function usePOSCart(products: Product[]) {
     },
     [products, setCart, removeFromCart],
   );
-
-  const displayName = useDisplayName();
 
   const addToCart = useCallback(
     (product: Product) => {

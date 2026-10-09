@@ -59,6 +59,10 @@ declare global {
      * Safe anywhere, including production: it never writes. Exposed for a
      * support session; see lib/db/sync-engine/stock-integrity.ts. */
     __verifyStockIntegrity?: () => Promise<import("@/lib/db/sync-engine/stock-integrity").StockIntegrityReport>;
+    /** Rebuilds each diverged batch's quantity from its own movement log,
+     * refusing any batch the log cannot account for. Local-only; nothing is
+     * pushed. See lib/db/sync-engine/stock-integrity.ts. */
+    __foldStockQuantities?: () => Promise<import("@/lib/db/sync-engine/stock-integrity").FoldResult>;
     /** Legacy IE/Edge-on-iOS marker, used only to help detect real iOS Safari. */
     MSStream?: unknown;
   }

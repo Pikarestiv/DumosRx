@@ -66,6 +66,11 @@ export interface SearchProductResult<T> {
 // "suggestions" for what should just be an empty result.
 const MIN_FUZZY_TERM_LENGTH = 4;
 
+// A squashed term shorter than this matches too much mid-string once spaces
+// are gone ("nc" hits "zinc" and "vitamin c" alike), so below it only
+// whole-name and word-start matches count.
+const MIN_SQUASHED_SUBSTRING_LENGTH = 4;
+
 // Allowed Levenshtein distance scales with term length instead of a flat 3
 // for every term: a fixed cap of 3 let a 4-character term match almost
 // anything (up to 3 of its 4 characters could differ), which is most of the
@@ -84,6 +89,7 @@ interface LowercasedProduct {
   genericWords: string[];
   squashedName: string;
   squashedGeneric: string;
+  squashedWords: string[];
 }
 
 /**
@@ -119,6 +125,7 @@ function lowercaseIndexFor<
       genericWords: generic ? generic.split(/\s+/) : [],
       squashedName: squashForMatching(name),
       squashedGeneric: squashForMatching(generic),
+      squashedWords: name.split(/\s+/).map(squashForMatching).filter(Boolean),
     };
   });
 
@@ -189,15 +196,30 @@ export function searchProducts<
         }
       }
 
-      // Tier 3.5: Punctuation-insensitive match. Scored below the tiers
-      // above so it only ever adds results, never reorders existing ones.
+      // Tier 3.5: punctuation-insensitive match, graded. Every band sits
+      // below tier 3's 20, so this only ever adds results and never reorders
+      // existing ones — but the bands matter among themselves: squashing
+      // deletes spaces, so a mid-string hit can straddle two words
+      // ("paracetamol tab 12s" contains "b12"). A flat score let that
+      // outrank a real "vitamin b-12" on a till.
       if (score === 0 && squashedTerm) {
-        const { squashedName, squashedGeneric } = index[i];
-        if (
-          squashedName.includes(squashedTerm) ||
-          (squashedGeneric && squashedGeneric.includes(squashedTerm))
+        const { squashedName, squashedGeneric, squashedWords } = index[i];
+
+        if (squashedName === squashedTerm || squashedGeneric === squashedTerm) {
+          score += 18;
+        } else if (
+          squashedName.startsWith(squashedTerm) ||
+          (squashedGeneric && squashedGeneric.startsWith(squashedTerm))
         ) {
-          score += 10;
+          score += 14;
+        } else if (squashedWords.some((word) => word.startsWith(squashedTerm))) {
+          score += 12;
+        } else if (
+          squashedTerm.length >= MIN_SQUASHED_SUBSTRING_LENGTH &&
+          (squashedName.includes(squashedTerm) ||
+            (squashedGeneric && squashedGeneric.includes(squashedTerm)))
+        ) {
+          score += 6;
         }
       }
 

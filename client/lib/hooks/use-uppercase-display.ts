@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useStore } from "@/lib/context/store-context";
 
 /** Product/category names are always stored lowercase (see withNormalizedName
@@ -39,5 +40,10 @@ export function capitalize(s: string): string {
  * otherwise per-word capitalization, never raw storage lowercase. */
 export function useDisplayName(): (value: string) => string {
   const uppercase = useUppercaseDisplay();
-  return (value: string) => (uppercase ? value.toUpperCase() : capitalizeWords(value));
+  // Stable identity: this ends up in addToCart's dep array, and a fresh
+  // closure each render re-renders every visible POS product card.
+  return useCallback(
+    (value: string) => (uppercase ? value.toUpperCase() : capitalizeWords(value)),
+    [uppercase],
+  );
 }

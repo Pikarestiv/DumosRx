@@ -17,6 +17,14 @@ import { AppearancePanel } from "./panels/appearance-panel";
 import { BusinessInfoPanel } from "./panels/business-info-panel";
 import { AlertsPanel } from "./panels/alerts-panel";
 import { DangerZonePanel } from "./panels/danger-zone-panel";
+const DeviceDiagnosticsPanel = dynamic(
+  () =>
+    import("@/components/settings/device-diagnostics").then(
+      (m) => m.DeviceDiagnosticsPanel,
+    ),
+  { ssr: false },
+);
+import { isImpersonatedSession } from "@/lib/utils/impersonation";
 import { SecurityPanel } from "./panels/security-panel";
 import { PaymentMethodsPanel } from "./panels/payment-methods-panel";
 import { ReceiptSettingsPanel } from "./panels/receipt-settings-panel";
@@ -76,6 +84,7 @@ const TAB_LABELS: Record<string, string> = {
   "product-units": "Product Units",
   roles: "Roles & Permissions",
   "danger-zone": "Danger Zone",
+  diagnostics: "Diagnostics",
 };
 
 export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
@@ -224,6 +233,15 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
           {s.isAdmin && (
             <TabsContent value="danger-zone">
               <DangerZonePanel {...s} />
+            </TabsContent>
+          )}
+
+          {/* Support surface, not a store feature: only rendered during a
+              superadmin handoff, and re-checked here rather than trusting
+              that nothing linked to it. */}
+          {isImpersonatedSession() && (
+            <TabsContent value="diagnostics">
+              <DeviceDiagnosticsPanel />
             </TabsContent>
           )}
         </div>

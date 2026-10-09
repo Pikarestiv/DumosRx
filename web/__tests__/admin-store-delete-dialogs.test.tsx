@@ -142,3 +142,34 @@ describe("StoreRowActions destructive entries", () => {
     expect(screen.queryByText("Delete Permanently")).not.toBeInTheDocument();
   });
 });
+
+describe("StoreRowActions trigger variants", () => {
+  const renderTrigger = (trigger?: "icon" | "labelled") =>
+    render(
+      <StoreRowActions
+        store={store}
+        isSuperAdmin
+        canGrantTrials
+        canImpersonate
+        canManageAccountStatus
+        pendingStoreId={null}
+        trigger={trigger}
+        router={{ push: vi.fn() } as unknown as AppRouterInstance}
+        {...rowActionHandlers}
+      />,
+    );
+
+  /** The store detail page needs a visible control, not a bare kebab, but it
+   * opens the same menu — so the label is the only difference. */
+  it("labels the trigger on request and keeps the same accessible name", () => {
+    renderTrigger("labelled");
+
+    expect(screen.getByRole("button", { name: /actions for/i }).textContent).toContain("Actions");
+  });
+
+  it("stays a bare icon by default, as the fleet row needs", () => {
+    renderTrigger();
+
+    expect(screen.getByRole("button", { name: /actions for/i }).textContent).toBe("");
+  });
+});

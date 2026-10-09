@@ -5,23 +5,34 @@ import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useStoreStockDivergence } from "@/lib/api/admin-hooks-sync";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import type { StoreStockDivergence } from "@/lib/types/admin-platform";
+import { DeviceReportAction } from "./device-report-action";
 
 export function StoreStockDivergencePanel({ storeId }: { storeId: string }) {
   const { data, isLoading, isError } = useStoreStockDivergence(storeId);
 
-  return <StoreStockDivergenceSection data={data} isLoading={isLoading} isError={isError} />;
+  return (
+    <StoreStockDivergenceSection
+      data={data}
+      isLoading={isLoading}
+      isError={isError}
+      storeId={storeId}
+    />
+  );
 }
 
 interface StoreStockDivergenceSectionProps {
   data?: StoreStockDivergence;
   isLoading: boolean;
   isError?: boolean;
+  /** Omitted renders the list read-only, with no per-device controls. */
+  storeId?: string;
 }
 
 export function StoreStockDivergenceSection({
   data,
   isLoading,
   isError,
+  storeId,
 }: StoreStockDivergenceSectionProps) {
   if (isError) {
     return (
@@ -75,7 +86,11 @@ export function StoreStockDivergenceSection({
               </p>
             </div>
 
-            <div className="text-right shrink-0">
+            <div className="flex items-center gap-3 shrink-0">
+              {storeId && (
+                <DeviceReportAction storeId={storeId} deviceId={device.device_id} />
+              )}
+              <div className="text-right">
               {device.diverged ? (
                 <Badge variant="destructive">
                   {device.quantity_delta > 0 ? "+" : ""}
@@ -89,6 +104,7 @@ export function StoreStockDivergenceSection({
                   {formatDateToDDMMYYYY(device.reported_at)}
                 </p>
               )}
+              </div>
             </div>
           </li>
         ))}

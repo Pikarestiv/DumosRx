@@ -1,5 +1,6 @@
 import {
   MoreVertical,
+  ChevronDown,
   ExternalLink,
   CreditCard,
   History,
@@ -49,6 +50,9 @@ interface StoreRowActionsProps extends StoreRowActionHandlers {
   canManageAccountStatus: boolean;
   pendingStoreId: string | null;
   router: AppRouterInstance;
+  /** "icon" is the fleet row's bare kebab; "labelled" is the store detail
+   * page's visible Actions button. */
+  trigger?: "icon" | "labelled";
 }
 
 const ITEM_CLASS = "rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold";
@@ -61,6 +65,7 @@ export function StoreRowActions({
   canManageAccountStatus,
   pendingStoreId,
   router,
+  trigger = "icon",
   handleImpersonate,
   handleViewBilling,
   setSelectedStore,
@@ -78,14 +83,25 @@ export function StoreRowActions({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={`Actions for ${store.name}`}
-          className="hover:bg-indigo-50 dark:hover:bg-indigo-500/10"
-        >
-          <MoreVertical className="h-4 w-4 text-slate-400" />
-        </Button>
+        {trigger === "labelled" ? (
+          <Button
+            variant="outline"
+            aria-label={`Actions for ${store.name}`}
+            className="border-2 font-bold dark:bg-slate-900 dark:border-slate-800"
+          >
+            Actions
+            <ChevronDown className="h-4 w-4 ml-2 text-slate-400" />
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Actions for ${store.name}`}
+            className="hover:bg-indigo-50 dark:hover:bg-indigo-500/10"
+          >
+            <MoreVertical className="h-4 w-4 text-slate-400" />
+          </Button>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"

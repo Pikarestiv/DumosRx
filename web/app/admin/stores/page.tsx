@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAdminStores, useSuspendStoreMutation, useUnsuspendStoreMutation, useGrantTrialMutation, useActivatePlanMutation, useMarkStoreDemoMutation, useUnmarkStoreDemoMutation } from "@/lib/api/admin-hooks";
+import { useAdminStores } from "@/lib/api/admin-hooks";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
 import { StoreTable } from "@/components/admin/stores/store-table";
@@ -17,13 +17,11 @@ import { StorePagination } from "@/components/admin/stores/store-pagination";
 import { StoreDialogHost } from "@/components/admin/stores/store-dialog-host";
 import { FleetStockValueCard } from "@/components/admin/stores/fleet-stock-value-card";
 import { useAdminAuthStore, checkHasPermission } from "@/lib/store/use-admin-auth-store";
-import { useStoreDeletionActions } from "@/hooks/use-store-deletion-actions";
-import { useStoreImpersonation } from "@/hooks/use-store-impersonation";
+import { useStoreActions } from "@/hooks/use-store-actions";
 import type { AdminStoresArchivedScope } from "@/lib/api/admin-hooks-stores";
 import { downloadStoreFleetCsv } from "@/lib/admin-store-export";
 import { toast } from "sonner";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
-import type { AdminStoreSummary } from "@/lib/types/admin";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -40,12 +38,6 @@ export default function StoresManagement() {
   const [prevInitialSearch, setPrevInitialSearch] = useState(initialSearch);
   const [statusFilter, setStatusFilter] = useState("all");
   const [planFilter, setPlanFilter] = useState("all");
-  const [selectedStore, setSelectedStore] = useState<AdminStoreSummary | null>(null);
-  const [isSuspendDialogOpen, setIsSuspendDialogOpen] = useState(false);
-  const [isTrialDialogOpen, setIsTrialDialogOpen] = useState(false);
-  const [isActivatePlanDialogOpen, setIsActivatePlanDialogOpen] = useState(false);
-  const [isBillingDialogOpen, setIsBillingDialogOpen] = useState(false);
-
   const [archivedScope, setArchivedScope] = useState<AdminStoresArchivedScope>("active");
 
   const debouncedSearch = useDebounce(search, SEARCH_DEBOUNCE_MS);
@@ -57,12 +49,6 @@ export default function StoresManagement() {
     planFilter === "all" ? "" : planFilter,
     archivedScope
   );
-  const suspendMutation = useSuspendStoreMutation();
-  const unsuspendMutation = useUnsuspendStoreMutation();
-  const grantTrialMutation = useGrantTrialMutation();
-  const activatePlanMutation = useActivatePlanMutation();
-  const markDemoMutation = useMarkStoreDemoMutation();
-  const unmarkDemoMutation = useUnmarkStoreDemoMutation();
 
   if (initialSearch !== prevInitialSearch) {
     setPrevInitialSearch(initialSearch);
@@ -85,122 +71,7 @@ export default function StoresManagement() {
   const storeList = useMemo(() => response?.data ?? [], [response]);
   const storeMeta = response?.meta;
 
-  const deletion = useStoreDeletionActions(() => void refetch());
-  const impersonation = useStoreImpersonation();
-
-  // Which row (if any) has an unsuspend/demo mutation in flight. TanStack
-  // exposes the in-flight mutation's own `variables` (the store id here),
-  // so no extra state is needed to identify the busy row.
-  const pendingStoreId =
-    (unsuspendMutation.isPending ? unsuspendMutation.variables : undefined) ??
-    (markDemoMutation.isPending ? markDemoMutation.variables : undefined) ??
-    (unmarkDemoMutation.isPending ? unmarkDemoMutation.variables : undefined) ??
-    null;
-
-  const handleSuspend = (reason: string) => {
-    if (!selectedStore) return;
-    
-    suspendMutation.mutate({ id: selectedStore.id, reason }, {
-      onSuccess: () => {
-        toast.success("Account Suspended", {
-          description: `${selectedStore.name} has been suspended successfully.`,
-        });
-        setIsSuspendDialogOpen(false);
-        setSelectedStore(null);
-        void refetch();
-      },
-      onError: (err) => {
-        toast.error("Action Failed", {
-          description: err.message || "Failed to suspend store.",
-        });
-      }
-    });
-  };
-
-  const handleUnsuspend = (store: AdminStoreSummary) => {
-    // Belt-and-braces against a double fire; the row's menu item is already
-    // disabled while this runs.
-    if (unsuspendMutation.isPending) return;
-
-    unsuspendMutation.mutate(store.id, {
-      onSuccess: () => {
-        toast.success("Account Re-activated", {
-          description: `${store.name} has been re-activated successfully.`,
-        });
-        void refetch();
-      },
-      onError: (err) => {
-        toast.error("Action Failed", {
-          description: err.message || "Failed to unsuspend store.",
-        });
-      }
-    });
-  };
-
-  const handleGrantTrial = (plan: string, duration?: string, endDate?: string) => {
-    if (!selectedStore) return;
-
-    grantTrialMutation.mutate({ id: selectedStore.id, plan, duration, endDate }, {
-      onSuccess: () => {
-        const durationLabel = endDate ? `until ${endDate}` : duration;
-        toast.success("Trial Granted", {
-          description: `Granted ${durationLabel} ${plan} trial to ${selectedStore.name}.`,
-        });
-        setIsTrialDialogOpen(false);
-        setSelectedStore(null);
-        void refetch();
-      },
-      onError: (err) => {
-        toast.error("Action Failed", {
-          description: err.message || "Failed to grant trial.",
-        });
-      }
-    });
-  };
-
-  const handleActivatePlan = (plan: string, billingCycle: string, amount: number, reference?: string) => {
-    if (!selectedStore) return;
-
-    activatePlanMutation.mutate({ id: selectedStore.id, plan, billingCycle, amount, reference }, {
-      onSuccess: () => {
-        toast.success("Plan Activated", {
-          description: `Activated ${billingCycle} ${plan} plan for ${selectedStore.name}.`,
-        });
-        setIsActivatePlanDialogOpen(false);
-        setSelectedStore(null);
-        void refetch();
-      },
-      onError: (err) => {
-        toast.error("Action Failed", {
-          description: err.message || "Failed to activate plan.",
-        });
-      }
-    });
-  };
-
-  const handleToggleDemo = (store: AdminStoreSummary) => {
-    const mutation = store.is_demo ? unmarkDemoMutation : markDemoMutation;
-    if (mutation.isPending) return;
-
-    mutation.mutate(store.id, {
-      onSuccess: () => {
-        toast.success(store.is_demo ? "Demo Flag Removed" : "Marked as Demo", {
-          description: `${store.name} ${store.is_demo ? "is no longer" : "is now"} flagged as a demo account.`,
-        });
-        void refetch();
-      },
-      onError: (err) => {
-        toast.error("Action Failed", {
-          description: err.message || "Failed to update demo flag.",
-        });
-      }
-    });
-  };
-
-  const handleViewBilling = (store: AdminStoreSummary) => {
-    setSelectedStore(store);
-    setIsBillingDialogOpen(true);
-  };
+  const actions = useStoreActions(() => void refetch());
 
   if (isLoading && !response) {
     return <AdminSkeleton />;
@@ -280,18 +151,8 @@ export default function StoresManagement() {
             <StoreTable 
               storeList={storeList}
               isLoading={isLoading}
-              handleImpersonate={impersonation.handleImpersonate}
-              handleViewBilling={handleViewBilling}
-              setSelectedStore={setSelectedStore}
-              setIsSuspendDialogOpen={setIsSuspendDialogOpen}
-              setIsTrialDialogOpen={setIsTrialDialogOpen}
-              setIsActivatePlanDialogOpen={setIsActivatePlanDialogOpen}
-              handleUnsuspend={handleUnsuspend}
-              handleToggleDemo={handleToggleDemo}
-              handleArchive={deletion.handleArchive}
-              handleRestore={deletion.handleRestore}
-              handlePurge={deletion.handlePurge}
-              pendingStoreId={pendingStoreId}
+              {...actions.handlers}
+              pendingStoreId={actions.pendingStoreId}
               router={router}
             />
             )}
@@ -306,15 +167,7 @@ export default function StoresManagement() {
         </CardContent>
       </Card>
 
-      <StoreDialogHost
-        selectedStore={selectedStore}
-        suspend={{ isOpen: isSuspendDialogOpen, onOpenChange: setIsSuspendDialogOpen, onConfirm: handleSuspend, isPending: suspendMutation.isPending }}
-        trial={{ isOpen: isTrialDialogOpen, onOpenChange: setIsTrialDialogOpen, onConfirm: handleGrantTrial, isPending: grantTrialMutation.isPending }}
-        activatePlan={{ isOpen: isActivatePlanDialogOpen, onOpenChange: setIsActivatePlanDialogOpen, onConfirm: handleActivatePlan, isPending: activatePlanMutation.isPending }}
-        billing={{ isOpen: isBillingDialogOpen, onOpenChange: setIsBillingDialogOpen }}
-        deletion={deletion}
-        impersonation={impersonation}
-      />
+      <StoreDialogHost {...actions.dialogHost} />
     </div>
   );
 }

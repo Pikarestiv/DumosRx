@@ -14,6 +14,7 @@ export const STORAGE_KEYS = {
   deviceId: "dumos_device_id",
   impersonatedUser: "dumos_impersonated_user",
   impersonatorReturnCode: "impersonator_handoff_return_code",
+  tillInspection: "dumos_till_inspection",
   pendingCrashes: "dumosrx_pending_crashes",
   clearedLegacyV2: "dumosrx_cleared_legacy_v2",
   justRestored: "dumos_just_restored",

@@ -192,6 +192,32 @@ from `WEB_APP_URL` like `app/sitemap.ts` already was.
 `__tests__/no-hardcoded-domains.test.ts` scans those three directories and
 fails on any new literal.
 
+## What an admin card may render from a failed request (A-224)
+
+`lib/api/base-client.ts`'s response interceptor no longer promotes
+`error.response.data.message` onto `error.message` unconditionally — it asks
+`presentableErrorMessage(status, data)` first, and every admin card inherits
+that decision because they all render `error.message`.
+
+- A **5xx**, a status-less response, a body carrying Laravel's debug keys
+  (`exception`/`file`/`line`/`trace`), or a message matching
+  `EXCEPTION_SHAPED_MESSAGE` becomes `SERVER_FAULT_MESSAGE`. Before this, a
+  `QueryException` rendered verbatim in the Till Access card, bcrypt hash,
+  encrypted code value, DB host and schema name included.
+- A **deliberate 4xx refusal keeps the server's own wording** — the 422
+  till-code cap, the 422 storefront-slug messages. That is A-207's fix and it
+  must not regress: an invisible refusal costs more than a blunt one.
+- The **raw** message still goes to the log buffer and the
+  `/logs/client-error` report. Detail belongs in the log; the card gets a
+  sentence an operator can act on.
+
+So: do not add a card that reads `error.response.data.message` directly, and
+do not widen the gate to make a 500 "more helpful". If a 5xx needs a specific
+message, the server should return it as a deliberate 4xx. The one other direct
+reader, `components/admin/views/email-templates-tab.tsx`, routes through the
+same helper (it still prefers a 422's per-field `errors`, which is detail the
+server validated on purpose).
+
 ## Telemetry redaction and session-end cache hygiene (A-100/A-107)
 
 `lib/api/logger.ts`'s `sanitizePayload` masks (never drops) sensitive values,

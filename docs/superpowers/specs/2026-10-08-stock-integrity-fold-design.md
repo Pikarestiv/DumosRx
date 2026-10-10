@@ -342,7 +342,7 @@ movements apply their deltas on top of the folded value.
 
 | Failure mode | Answer |
 | --- | --- |
-| Folding mid-sale clobbers a concurrent write | The fold re-verifies **inside** its own transaction, so the report it writes from cannot be stale |
+| Folding mid-sale clobbers a concurrent write | The fold re-verifies **inside** its own transaction, so the report it writes from cannot be stale. **That is only half the guarantee, and this row used to claim the whole of it:** the sale side has to be atomic too, or the fold's re-verify reads a legitimately half-written sale as divergence. It was not until A-219 made `recordSaleItemStock()` write each batch's deduction and its `stock_movements` row in one transaction |
 | Folding a batch whose opening stock was never logged | `unreconstructable` refused by the fold itself: refused whenever the stored quantity exceeds the log's total inbound, not merely when the batch has no movements (A-148, corrected by A-215) |
 | An over-count the log cannot explain (e.g. the 2026-10-08 doubled-opening-stock shape: 10 held against a single `+5`) | Refused, not folded. It is indistinguishable from an A-148 surplus, and a refused batch is visible and repairable where destroyed stock is not. Repairable over-counts are the ones the log accounts for — an outbound delta that never reached `quantity`, or a floor path-dependence |
 | Folding a batch whose delta has not applied yet | `pending` verdict, refused |

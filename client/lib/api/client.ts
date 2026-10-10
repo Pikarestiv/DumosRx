@@ -14,9 +14,13 @@ import { APP_VERSION, BUILD_SHA } from "@/lib/constants";
  * the account that linked the device. Self-asserted, and the server treats it
  * as visibility only - see A-202 and laravel-server/AGENTS.md.
  *
- * X-App-Version/X-Build-Sha name the bundle. Unlike the stamp above these
- * are load-bearing: the server refuses Health Sync below a minimum version
- * (A-213), and an absent header means "too old".
+ * X-App-Version/X-Build-Sha name the bundle, and are visibility only too:
+ * nothing on the server gates on them. The only reader is the reconciliation
+ * activity log's `app_version` property (`SyncController.php`), and Health
+ * Sync is refused unconditionally by `config('dumos.health_sync_enabled')`,
+ * not by any version floor. A version gate was considered for A-213 and
+ * discarded - see docs/FIXED_BUGS.md A-213. Do not write code that leans on
+ * one existing.
  */
 function syncHeaders(): Record<string, string> {
   const headers: Record<string, string> = {};

@@ -1789,6 +1789,29 @@ registry; the shared, multi-module values also have typed accessors
 `writeJsonItem` for the rest. The accessors never throw: a missing or corrupt
 value comes back as the fallback.
 
+**A stored timestamp is validated by its accessor, not by its readers (A-223).**
+`getLastSyncTime()` returns `null` for anything failing
+`Number.isNaN(new Date(v).getTime())`. It used to return the raw string, and a
+single bad write (`"undefined"`) reached `formatDistanceToNow()` in
+`sync-indicator.tsx` — which renders in the dashboard shell — so the whole app
+showed the error boundary on every page. Guarding at the accessor means all
+four consumers inherit it through null handling they already had. Any new
+timestamp accessor added here does the same; a reader that parses dates itself
+is the shape that caused this.
+
+**The crash boundary's reset is deliberately hard to reach.**
+`components/tauri/error-boundary.tsx` offers Reload as the only button;
+"Reset App Data" is a small link that reveals an in-page panel naming what is
+destroyed (local data *including anything not yet synced*) before the delete
+is clickable. It uses plain component state rather than the house
+`AlertDialog`, and talks to `indexedDB.deleteDatabase("keyval-store")` —
+idb-keyval's default DB, where `core.ts` persists the sql.js binary — instead
+of importing `resetDatabase()`, because this component runs after the app has
+already crashed and must not pull the possibly-broken db module graph back in.
+Do not make it a sibling button of Reload again: that layout, plus a
+`window.confirm` that said "all local data" without saying it included unpushed
+sales, is what A-223 turned a one-character storage corruption into.
+
 No new bare string key, anywhere. A module-private key still goes in
 `STORAGE_KEYS` and the module aliases it (`const PEEK_KEY =
 STORAGE_KEYS.sidebarPeekEnabled`), so the registry stays the one place that

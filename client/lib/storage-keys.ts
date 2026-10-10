@@ -156,7 +156,9 @@ export function setStoredActiveStoreId(storeId: string): void {
 }
 
 export function getLastSyncTime(): string | null {
-  return read(STORAGE_KEYS.lastSyncTime);
+  const stored = read(STORAGE_KEYS.lastSyncTime);
+  if (!stored || Number.isNaN(new Date(stored).getTime())) return null;
+  return stored;
 }
 
 export function setLastSyncTime(isoTimestamp: string): void {

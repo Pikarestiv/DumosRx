@@ -23,11 +23,12 @@ describe("pull window rewind budget", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
   let rewindPullWindow: typeof import("@/lib/db/sync-engine/pull-window").rewindPullWindow;
+  let restoreExhaustedPullWindows: typeof import("@/lib/db/sync-engine/pull-window").restoreExhaustedPullWindows;
   let MAX_PULL_WINDOW_REWINDS: number;
 
   beforeAll(async () => {
     core = await import("@/lib/db/core");
-    ({ rewindPullWindow, MAX_PULL_WINDOW_REWINDS } = await import(
+    ({ rewindPullWindow, restoreExhaustedPullWindows, MAX_PULL_WINDOW_REWINDS } = await import(
       "@/lib/db/sync-engine/pull-window"
     ));
 
@@ -68,6 +69,39 @@ describe("pull window rewind budget", () => {
 
     expect(await rewindPullWindow("products", "version_conflict")).toBe(false);
     expect(windowFor("products")).toBe("2026-10-10T00:00:00Z");
+  });
+
+  it("restores an exhausted baseline on a later round even though the fault stopped firing", async () => {
+    for (let i = 0; i < MAX_PULL_WINDOW_REWINDS; i++) {
+      await rewindPullWindow("products", "version_conflict");
+    }
+    expect(windowFor("products")).toBeNull();
+
+    expect(await restoreExhaustedPullWindows()).toEqual(["products"]);
+
+    expect(windowFor("products")).toBe("2026-10-10T00:00:00Z");
+    expect(logCrash).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports again every round while the device still cannot converge", async () => {
+    for (let i = 0; i < MAX_PULL_WINDOW_REWINDS; i++) {
+      await rewindPullWindow("products", "version_conflict");
+    }
+
+    await restoreExhaustedPullWindows();
+    await restoreExhaustedPullWindows();
+
+    expect(logCrash).toHaveBeenCalledTimes(2);
+    expect(windowFor("products")).toBe("2026-10-10T00:00:00Z");
+  });
+
+  it("leaves a table inside its budget alone", async () => {
+    await rewindPullWindow("products", "version_conflict");
+
+    expect(await restoreExhaustedPullWindows()).toEqual([]);
+
+    expect(windowFor("products")).toBeNull();
+    expect(logCrash).not.toHaveBeenCalled();
   });
 
   it("refreshes the budget once the table drains skip-free", async () => {

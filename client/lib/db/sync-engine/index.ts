@@ -1,5 +1,6 @@
 import { pushChanges } from "./push";
 import { pullChanges } from "./pull";
+import { stampPullWindowUnlessRewinding } from "./pull-window";
 import { SyncResult, PullResponse } from "./types";
 import {
   recordSyncOutcome,
@@ -322,11 +323,7 @@ export async function syncSubscriptionStatus(): Promise<{
       }
     }
 
-    // Update the sync state timestamp for the stores table
-    await execute(
-      "INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)",
-      ["stores", response.server_timestamp]
-    );
+    await stampPullWindowUnlessRewinding("stores", response.server_timestamp);
 
     // Prefix-only keys, so every store/user-scoped variant is matched.
     if (typeof window !== "undefined") {

@@ -43,6 +43,12 @@ A fresh worktree also has no gitignored `storage/framework/{cache,sessions,views
 which surfaces as "Please provide a valid cache path" on a handful of tests.
 Create those directories; it is not a code failure.
 
+It also has no gitignored `laravel-server/.env`, so there is no `APP_KEY` and
+every test touching encryption fails — ten `AdminTillCode` cases, with an error
+that names encryption rather than the missing file. Copy `.env` in too. None of
+these three are code failures; a worktree baseline that is not green before you
+start is almost always one of them.
+
 ## 1. 👑 Codebase is the Absolute Source of Truth
 
 Project documentation can quickly become outdated. **Always treat the current state of the codebase (e.g., database migrations, current typescript interfaces) as the absolute source of truth.**

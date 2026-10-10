@@ -6,7 +6,7 @@ import { logCrash } from "@/lib/utils/error-logger";
  * back and the device reports instead of grinding. Reset to zero whenever
  * the table drains skip-free (PULL_PROGRESS.completeWindow), so this only
  * bites a table that genuinely cannot re-stamp its window. Rationale and
- * the A-218/A-227 failure paths: client/AGENTS.md, "Pull window rewinds".
+ * the A-218/A-229 failure paths: client/AGENTS.md, "Pull window rewinds".
  */
 export const MAX_PULL_WINDOW_REWINDS = 3;
 
@@ -29,7 +29,7 @@ const STAMP_SQL = `INSERT INTO _sync_state (table_name, last_synced_at) VALUES (
 /**
  * The only way a caller outside this module may advance a pull window. It
  * names the one column it owns — an INSERT OR REPLACE reverted the rewind
- * bookkeeping to its schema defaults (A-226) — and refuses to stamp over a
+ * bookkeeping to its schema defaults (A-228) — and refuses to stamp over a
  * rewind in flight, because a newer stamp cancels the re-pull.
  */
 export async function stampPullWindowUnlessRewinding(

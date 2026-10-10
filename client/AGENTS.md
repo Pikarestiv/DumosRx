@@ -1180,7 +1180,7 @@ So the rewind now:
   rather than `MAX_NON_IMPROVING_RESYNCS`' 2 only because these are spent per
   sync round, not per day.
 
-**The restore does not depend on the fault firing again (A-227).**
+**The restore does not depend on the fault firing again (A-229).**
 `restoreExhaustedPullWindows()` runs unconditionally at the top of
 `pullChanges()` and puts back the baseline of every table whose
 `rewind_count` has reached the budget. Inside `rewindPullWindow()` alone it was
@@ -1207,7 +1207,7 @@ window from outside `pull.ts` is `stampPullWindowUnlessRewinding()`.
 `syncSubscriptionStatus()` stamped its stores window with `INSERT OR REPLACE`,
 which deletes the row and re-inserts it, so `rewind_count` and `rewound_from`
 reverted to their schema defaults and cancelled a live `stores` rewind
-(A-226). That helper also refuses to stamp mid-rewind
+(A-228). That helper also refuses to stamp mid-rewind
 (`WHERE rewind_count = 0`): a newer `last_synced_at` means the full re-pull
 never happens.
 

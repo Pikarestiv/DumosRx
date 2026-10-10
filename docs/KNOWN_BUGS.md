@@ -10,6 +10,14 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
+#### A-208. `laravel-server/` — an admin till access code never expires, so a forgotten one stays a working credential for ever
+- **Found:** 2026-10-10, reviewing the super_admin code-visibility change (`docs/FIXED_BUGS.md` A-207).
+- **Location:** `app/Models/AdminTillCode.php:27` — `scopeActive()` is `whereNull('revoked_at')` and nothing else.
+- **What's wrong:** the *session* a code opens expires after four hours (`AdminTillSessionService::MAX_SESSION_HOURS`), but the *code* itself has no lifetime. It is valid from issue until someone explicitly revokes it. Nothing prompts that, nothing ages it out, and an admin who leaves the company keeps a working till credential until a human remembers the row exists.
+- **Why it matters more now:** before 2026-10-10 a forgotten code was at least unreadable — only its bcrypt hash was stored, so even its owner could not recover it. A-207 deliberately made codes recoverable by a super_admin (encrypted at rest, audited), which is the right call for the operational need but turns a forgotten code into a **durable, readable** credential. The two changes are individually defensible and compound.
+- **Consequence:** the blast radius of a stale row grows with time rather than shrinking. The three-active-codes cap limits how many exist per admin but says nothing about how old they are, and the cap is itself pinned to `EQUALIZED_CHECKS` because `verify()` does a fixed number of bcrypt comparisons for timing equalisation — so raising it to make room is not free either.
+- **Fix:** give a code an `expires_at` and include it in `scopeActive()`, defaulting to something short enough that a forgotten one dies on its own (90 days is a starting point, not a researched number). Existing rows have no expiry, so §11 applies: treat a null `expires_at` as "never expires" on read and backfill deliberately rather than letting the filter silently retire every live code the day it ships. Surfacing age and `last_used_at` in the reveal card — already returned by `revealAll()` — is the cheap half, and worth doing even if the expiry is deferred.
+
 #### A-206. `client/` — a non-JSON 2xx from the sync API is reported without the one detail that would identify it, leaving a device stuck in a pull loop nobody can diagnose
 - **Found:** 2026-10-10 in Sentry (`DUMOSRX-CLIENT-20`, 9 events, first seen 2026-10-07, still occurring on the current build `a120bf9c`).
 - **Location:** `client/lib/api/base-client.ts:62-74` (`parseJsonResponse()`).

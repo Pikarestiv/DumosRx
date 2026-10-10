@@ -172,4 +172,34 @@ describe("StoreRowActions trigger variants", () => {
 
     expect(screen.getByRole("button", { name: /actions for/i }).textContent).toBe("");
   });
+
+  /** The detail page's own menu should not offer to navigate to the page it
+   * is already on. */
+  it("omits View Store Details when it is already on the store detail page", async () => {
+    render(
+      <StoreRowActions
+        store={store}
+        isSuperAdmin
+        canGrantTrials
+        canImpersonate
+        canManageAccountStatus
+        pendingStoreId={null}
+        trigger="labelled"
+        onStoreDetailPage
+        router={{ push: vi.fn() } as unknown as AppRouterInstance}
+        {...rowActionHandlers}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: /actions for/i }));
+    await screen.findByText("Archive Store");
+    expect(screen.queryByText("View Store Details")).not.toBeInTheDocument();
+  });
+
+  it("keeps View Store Details everywhere else", async () => {
+    renderTrigger("icon");
+
+    await userEvent.click(screen.getByRole("button", { name: /actions for/i }));
+    expect(await screen.findByText("View Store Details")).toBeInTheDocument();
+  });
 });

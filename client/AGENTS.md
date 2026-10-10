@@ -466,6 +466,52 @@ and `synchronous = NORMAL`.
     server's number. It refuses any batch the log cannot account for, and
     refuses to run at all without an active store.
 
+- **Stock drift now heals itself** (`sync-engine/stock-auto-heal.ts`,
+  `healStockIntegrity()`, called from `checkSyncHealth()`). The device verifies
+  its batches against their own movement logs once per 24h, folds what the log
+  can rebuild, re-verifies, and reports the outcome once to Sentry under
+  `area: "stock-autoheal"`. Design decisions worth not relitigating:
+  - **A fold can only move a device towards the server.** Local `quantity` is
+    derived purely from local movements (`pull.ts` strips the pulled value), so
+    `replayMovements()` over the local log *is* the best value this device can
+    possibly hold. That is the whole safety argument for writing automatically.
+  - **Silent to the owner, loud to us.** A till announcing "we changed your
+    stock numbers" to a staff member mid-shift invites exactly the distrust
+    this work exists to remove, and there is no action for them to take. The
+    Sentry report and the `AUTO_HEAL_STOCK_QUANTITIES` audit row are the
+    record. That audit action is **separate from**
+    `ADMIN_TILL_FOLD_STOCK_QUANTITIES` on purpose: attributing an unattended
+    repair to an admin session that never ran it would misname who changed the
+    numbers, which is the question a staff dispute turns on.
+  - **Three refusals.** `unreconstructable` batches are never folded (the fold
+    itself enforces this — computing 0 would destroy the only record of real
+    stock, A-148); nor are `pending` ones (their delta has yet to apply).
+    `healStockIntegrity()` adds two of its own and names them in the report as
+    `healSkipped`: it will not write while the `stock_movements` pull window is
+    still mid-stream (`last_synced_at` unset or a `server_cursor` left over),
+    because the log is then known-incomplete; and it will not write during an
+    on-till inspection session.
+  - **No blast-radius cap.** One was considered and rejected: the two real
+    incidents were 255 of 1,952 and 958 of 2,495 batches, so any cap worth
+    having would have blocked both repairs.
+  - **A heal that does not converge reports as a failure**, not a success —
+    `divergedAfter > 0` gets its own message so it is searchable.
+  - **The 24h health check is the only trigger.** It already runs in the writer
+    tab/Tauri only, skips impersonated sessions, and requires a completed sync
+    round and an active store, so no new scheduler or set of guards is needed.
+    Drift is created by pulls, which the fold converges on regardless of how
+    long it waited.
+  - **Reconciling this with the read-only inspection session.** The on-till
+    inspection session refuses every ordinary local write at
+    `base-helpers.ts`'s `assertWritable()`, and the fold bypasses that by using
+    raw `execute()`. That bypass is for the *deliberate, confirm-gated* repair
+    an admin clicks in the diagnostics console, audited to that admin. An
+    unattended automatic write during the same session would be a different
+    thing wearing the same bypass, and would land in the audit trail without
+    an actor, so `healStockIntegrity()` refuses outright while a session is
+    live. Do not "simplify" that by removing the check, and do not weaken
+    `assertWritable()` to let the automatic path through.
+
 - **`restoreDatabase()` (web).** Builds the candidate as a throwaway sql.js
   instance first, so a malformed file throws with the live database fully
   intact, then sanity-checks it against `RESTORE_SANITY_CHECK_TABLES`
@@ -584,8 +630,10 @@ flag; most deletes are soft; see `remove()` vs `softDelete()` below).
 `remove()` (hard delete). Every one of them, on every call, automatically:
 
 1. Writes the row to local SQLite
-2. Appends an entry to `_sync_queue` (via `addToSyncQueue`) so the sync
-   engine picks it up on the next push
+2. Queues the change in `_sync_queue` (via `addToSyncQueue`) so the sync
+   engine picks it up on the next push. **An `UPDATE` collapses onto the
+   record's single pending `UPDATE` rather than appending a second row** —
+   see "Queue collapsing" below
 3. Writes an activity-log entry (`logAction`)
 4. Invalidates the right React Query caches (`invalidateQueriesForTable`,
    matched against each query's `meta.tables`, see query-keys below)
@@ -731,6 +779,40 @@ Call `sync(true)` before any workflow where stale local data would be
 actively misleading (e.g. `StockAudits` syncs on mount before showing
 counts, see `components/stock-batch/stock-audits.tsx`).
 
+#### Queue collapsing (`addToSyncQueue`, A-203)
+
+An `UPDATE` whose record has **exactly one** pending `_sync_queue` row, and
+that row is an `UPDATE`, is collapsed: the two payloads are merged and the old
+row is deleted and reinserted carrying its original `created_at`,
+`retry_count` and `next_retry_at`. Every part of that is deliberate:
+
+- **Merged, never replaced.** An `update()` payload carries only the fields
+  that edit changed, so overwriting the pending payload would silently drop
+  the earlier edit's fields.
+- **Delete-and-reinsert, not an in-place `UPDATE`.** `markSynced()` deletes
+  the pushed row by id and flags the record `_synced = 1`. Rewriting the
+  payload of a row that is already in flight would therefore have the new edit
+  deleted and the record marked synced without it — the exact silent
+  divergence this whole area exists to prevent. A new row survives that race;
+  `remove()` already deletes pending rows mid-flight the same way.
+- **Only one pending row, and only `UPDATE`.** An `INSERT` must stay an
+  `INSERT` (and must not be re-sent as one after it has landed), a pending
+  `DELETE` must not be overwritten, and a pre-existing multi-row backlog is
+  left for push-time `coalescePendingUpdates()` and the backed-off-sibling
+  hold-back to order — that logic is **not** dead, old devices still carry
+  such backlogs, and the two tests that cover it now seed the second row
+  directly for that reason.
+- **The original `created_at` is kept**, so a repeatedly-edited record cannot
+  be pushed to the back of the FIFO queue forever.
+
+Why it matters beyond queue size: the queue is strictly FIFO and drains 50 at
+a time, so a catalogue-wide pass used to leave every sale rung afterwards
+waiting dozens of rounds — and `pull.ts` skips any row with a queued local
+edit, so the same backlog **blocked incoming server changes** to those rows.
+A successful server-side category repair was invisible on a till for four days
+that way. `audit_logs` solves the same problem its own way in `core.ts`
+(in-place payload rewrite), which carries the in-flight race described above.
+
 #### Push details (`sync-engine/push.ts`)
 
 - **Terminal vs retryable rejections.** `NON_RETRYABLE_CONFLICT_REASONS`
@@ -742,9 +824,22 @@ counts, see `components/stock-batch/stock-audits.tsx`).
   stays impossible, and the caller's own grants do not change by resending.
   Routing any of them through `recordSyncFailure()`'s backoff would loop
   until the cap and then report a permanently stuck item. They are deleted
-  from `_sync_queue` outright instead; the next pull brings the server's
-  real value down, now that nothing local blocks it (see pull's
-  pending-local-edit skip). A `forbidden` rejection is deliberately *not* in
+  from `_sync_queue` outright instead. **Dropping the row is not by itself
+  enough to bring the server's value down, and this file used to say it was
+  (A-205).** Nothing server-side changes when a push is refused, so nothing
+  bumps that row's `updated_at`; once the device's pull watermark passes it —
+  which ordinary syncing does within minutes — the incremental pull never
+  offers the row again and the device keeps the value that *lost*, for good.
+  Confirmed live against `products.category_id`, four days on a till. So for
+  the reasons where the server kept a row this device disagrees with
+  (`REASONS_NEEDING_REPULL`: `version_conflict`, `stale_timestamp`) the drop
+  also deletes that table's `_sync_state` row, reopening its pull window so
+  the server re-offers it. `permission_denied` is deliberately **excluded**:
+  no pull can settle it (`REASONS_SETTLING_SOURCE_ROW` flags the source row
+  instead), and a plan-gated queue would otherwise rewind the window on every
+  single round. The rewind is coarse — it re-pulls the whole table, because
+  the sync API still has no by-id re-send endpoint — and is marked as a
+  `shortcut:` in `push.ts` for whenever one exists. A `forbidden` rejection is deliberately *not* in
   this set, and that exclusion has been re-confirmed against the server rather
   than inherited: `resolveOwnershipIdentity()` gives a staff session only its
   own `store_id` where an owner gets every store they own, so a staff login
@@ -1137,15 +1232,43 @@ admin panel. The constraints are not negotiable:
   was lost for good the moment any *later* page of that round threw (a
   network drop is the ordinary case), permanently understating on-hand
   stock. That was `A-54`; see `docs/FIXED_BUGS.md`.
-  `applyDeferredStockDeltas()` drains the table at the start of every pull
-  and again at the end of every round, applying each delta and deleting its
-  row in one transaction so nothing can be applied twice. A deferral whose
+  `applyDeferredStockDeltas()` drains the table at the start of every pull,
+  **again inside each page transaction as soon as a page carrying
+  `stock_batches` rows has applied them, before any other table of that page
+  is touched**, and once more at the end of the round, applying each delta and
+  deleting its row in one transaction so nothing can be applied twice.
+  **The mid-round drain is load-bearing, not an optimisation.** This section
+  used to describe start-and-end draining as safe; it is not. The floor is
+  `MAX(0, quantity + delta)` *per movement*, so the order deltas apply in is
+  not commutative. A batch's opening receipt deferred on page 1, applied after
+  page N's sales for the same batch, leaves every one of those sales clamped
+  against 0 and the device reading its full opening stock — the device ends up
+  **over** the server, permanently, with no error anywhere. That was A-197: 34
+  of 300 randomised histories hit it, and in the field a till read 80 units of
+  an item the server had at 52, with 255 of 1,952 batches diverged and 841
+  units overstated. Pinned by
+  `__tests__/pull-deferred-delta-order-across-pages.test.ts`, which fuzzes
+  page splits against the server's own derivation. Two things the mid-round
+  drain must keep doing: it passes `countAttempts: false`, because it runs
+  several times a round and would otherwise race a long first sync to the
+  chronic-reporting threshold while the batches were still arriving; and it
+  discards deltas for movements the *same page* soft-deletes
+  (`discardDeferredStockDeltas()`), because it runs before those soft-deletes
+  are written and would otherwise apply a delta the server has voided.
+  The drain reads `ORDER BY rowid` for the same non-commutativity reason.
+  A deferral whose
   movement has since been soft-deleted is discarded rather than applied
   (matching the insert path's `!_deleted` gate); a deferral whose batch
   still does not exist is **kept and retried**, never dropped, and reported
   via `logCrash` once it has waited `REPORT_AFTER_ATTEMPTS` rounds — only a
   batch arriving can settle it, and dropping it would be the silent loss all
-  over again. `stock_movements`' cursor stamps (both the window stamp and
+  over again. **At that same threshold the pull also clears
+  `_sync_state`'s `stock_batches` row**, reopening that table's window so the
+  server re-offers a batch whose `updated_at` has fallen behind the cursor
+  (A-176). That is the only thing that makes a cursor-stranded batch arrive
+  without an operator running Force Full Resync, it is rate-limited by the
+  same reporting threshold (so roughly one re-pull per ten rounds, not per
+  round), and it is scoped to the one table that can settle the delta. `stock_movements`' cursor stamps (both the window stamp and
   the mid-window position) are still held back and committed in the same
   transaction as the drain. Within a page, `stock_batches` is sorted first
   explicitly — the server's table order happens to match today, but that is
@@ -3226,7 +3349,8 @@ pre-backfill array.
   (the exception message still carries the specific detail into the log), and
   `push.ts`'s `NON_RETRYABLE_CONFLICT_REASONS` lists it beside
   `version_conflict`: the queue row is dropped on the first response instead
-  of retried forever, and the next pull brings the server's row down. It is
+  of retried forever. No window rewind for this reason, and no pull settles
+  it — the source row is flagged settled instead (see "Push details"). It is
   also in `SILENT_TERMINAL_REASONS`, so no "could not be saved" toast fires —
   the user never made the edit the backfill queued on their behalf, and the
   matrix UI gates a *real* group edit behind `manage_roles_permissions`

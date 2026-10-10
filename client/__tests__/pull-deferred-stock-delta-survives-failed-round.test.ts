@@ -167,6 +167,72 @@ describe("pullChanges recovers a deferred stock delta after a failed pull round"
     expect(pendingDeltaCount()).toBe(0);
   });
 
+  /**
+   * A-176: a batch whose `updated_at` predates the device's pull cursor is
+   * never re-sent, so its deferred delta can never resolve. Rewinding the
+   * `stock_batches` window makes the server re-offer it, which is the same
+   * machinery the operator's manual "Force full resync" relies on, scoped to
+   * the one table that can settle the delta.
+   */
+  it("rewinds the stock_batches pull window once a deferral has gone chronic", async () => {
+    db.run(
+      `INSERT INTO _sync_state (table_name, last_synced_at) VALUES
+         ('stock_batches', '2026-10-01T00:00:00Z'), ('products', '2026-10-01T00:00:00Z')`,
+    );
+    db.run(
+      `INSERT INTO _pending_stock_deltas (movement_id, stock_batch_id, quantity, attempts)
+       VALUES ('move-chronic', 'batch-stranded', 12, 9)`,
+    );
+    db.run(
+      `INSERT INTO stock_movements (id, stock_batch_id, product_id, quantity, movement_type, _deleted)
+       VALUES ('move-chronic', 'batch-stranded', 'prod-1', 12, 'purchase', 0)`,
+    );
+
+    apiClient.pullChanges.mockResolvedValueOnce({
+      success: true,
+      changes: { products: [] },
+      server_timestamp: "2026-10-02T00:00:00Z",
+      has_more: {},
+    });
+
+    await pullChanges();
+
+    expect(
+      db.exec(`SELECT last_synced_at FROM _sync_state WHERE table_name = 'stock_batches'`).length,
+    ).toBe(0);
+    // Only the table that can settle the delta is re-pulled.
+    expect(
+      db.exec(`SELECT last_synced_at FROM _sync_state WHERE table_name = 'products'`).length,
+    ).toBe(1);
+  });
+
+  it("does not rewind while a deferral is young enough to settle on its own", async () => {
+    db.run(
+      `INSERT INTO _sync_state (table_name, last_synced_at) VALUES ('stock_batches', '2026-10-01T00:00:00Z')`,
+    );
+    db.run(
+      `INSERT INTO _pending_stock_deltas (movement_id, stock_batch_id, quantity, attempts)
+       VALUES ('move-young', 'batch-soon', 12, 1)`,
+    );
+    db.run(
+      `INSERT INTO stock_movements (id, stock_batch_id, product_id, quantity, movement_type, _deleted)
+       VALUES ('move-young', 'batch-soon', 'prod-1', 12, 'purchase', 0)`,
+    );
+
+    apiClient.pullChanges.mockResolvedValueOnce({
+      success: true,
+      changes: { products: [] },
+      server_timestamp: "2026-10-02T00:00:00Z",
+      has_more: {},
+    });
+
+    await pullChanges();
+
+    expect(
+      db.exec(`SELECT last_synced_at FROM _sync_state WHERE table_name = 'stock_batches'`).length,
+    ).toBe(1);
+  });
+
   it("discards a deferral whose movement has since been soft-deleted by the server", async () => {
     apiClient.pullChanges.mockResolvedValueOnce({
       success: true,

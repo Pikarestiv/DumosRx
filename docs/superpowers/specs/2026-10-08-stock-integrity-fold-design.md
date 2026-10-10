@@ -1,7 +1,7 @@
 # Stock integrity: divergence detection and fold-from-scratch — design
 
 **Date:** 2026-10-08
-**Status:** phase 1 and phase 2 shipped. The Health Sync interlock was built and withdrawn before merge (see §4); `foldStockQuantities()` is support-triggered only, never automatic.
+**Status:** phases 1, 2 and 3 shipped. The Health Sync interlock was built and withdrawn before merge (see §4). `foldStockQuantities()` runs **automatically** from the 24-hourly health check as of 2026-10-10 — see "Phase 3 notes" at the end of this file, which supersedes every statement below that calls it support-triggered only.
 **Scope:** `client/` only. No server change, no admin surface.
 **Related:** `docs/KNOWN_BUGS.md` A-176 · `docs/FIXED_BUGS.md` A-148, A-173, A-191
 
@@ -54,6 +54,8 @@ real-world fixture to verify this work against.
 - Remote triggering. That is the remote-maintenance-commands spec.
 - Fixing A-176 (stranded deltas). Separate cause, separate fix. Fold repairs the
   *symptom* a stranded delta leaves behind, but the delta still strands.
+  (Fixed separately on 2026-10-10 by reopening the `stock_batches` pull window
+  when a deferral goes chronic — `docs/FIXED_BUGS.md` A-176b.)
 
 ## Design
 
@@ -216,7 +218,9 @@ correct at 46,097) is measured and reproducible.
   from both the sum and the count) and `summarizeIntegrity()` for the Sentry
   payload. Classification is as specified above.
 - **`health-check.ts`** — `reportStockIntegrity()`, called from
-  `checkSyncHealth()`, reporting under `area: "stock-integrity"` with the ten
+  `checkSyncHealth()` (replaced in phase 3 by `healStockIntegrity()` in
+  `stock-auto-heal.ts`, reporting under `area: "stock-autoheal"`), reporting
+  under `area: "stock-integrity"` with the ten
   worst-diverged batches. Returns silently when nothing diverges, and swallows
   its own failures so the check can never break the row-count deficit path
   that follows it.
@@ -284,3 +288,83 @@ are wrong and what each cost. `unreconstructable` batches are refused and return
 
 Open question 2 from above is now answered in practice: `unreconstructable`
 batches stay reported-only, and the console names them so a human can decide.
+
+## Phase 3 notes (2026-10-10) — automatic self-repair
+
+**Status: shipped.** `healStockIntegrity()`
+(`client/lib/db/sync-engine/stock-auto-heal.ts`), called from
+`checkSyncHealth()`, replaces phase 1's report-only `reportStockIntegrity()`.
+
+### The gate the rollout plan named is now cleared
+
+Phase 1 said auto-fold waits on fleet data, "above all **how many
+`unreconstructable` batches exist**". Measured on the real store on 2026-10-10
+(`DRX-ZKI5K81UG`): `checked 1952, diverged 255, unreconstructable 0,
+netUnitDelta 841`. The fold repaired all 255, refused 0, and the re-verify
+returned `1952 0 0 0`; `PENTAZOCINE INJ` went 80 → 52, matching the server.
+
+The deeper safety argument, which the measurement supports rather than
+replaces: local `quantity` is derived **only** from local movements, because
+`pull.ts` strips the pulled value. So `replayMovements()` over the local log is
+by construction the best value this device can hold, and a fold can only move
+it towards the server, never away. An incomplete log is self-correcting — later
+movements apply their deltas on top of the folded value.
+
+### Answers to the open questions
+
+- **Q3 (does a fold surface in the owner's UI?) — no, silent.** A till telling
+  a staff member mid-shift that its stock numbers were just changed invites
+  exactly the distrust this work exists to remove, and offers no action. The
+  Sentry report (`area: "stock-autoheal"`) and the audit row are the record.
+- **Q2 (unreconstructable backfill offer?) — still reported-only**, now with
+  zero of them observed in the field, so there is nothing to design against
+  yet. The report names them (`refusedBatchIds`).
+- **Cadence: the existing 24h health check, no new trigger.** It already runs
+  in the writer tab/Tauri only, skips impersonated sessions, and requires a
+  completed sync round and an active store. A second trigger (e.g. after any
+  pull that deferred a delta) would be more code and more guards for a
+  divergence that is no longer being created now A-197 is fixed; the heal
+  converges whenever it runs.
+
+### Failure modes considered, and what each is answered by
+
+| Failure mode | Answer |
+| --- | --- |
+| Folding mid-sale clobbers a concurrent write | The fold re-verifies **inside** its own transaction, so the report it writes from cannot be stale |
+| Folding a batch whose opening stock was never logged | `unreconstructable` refused by the fold itself (A-148) |
+| Folding a batch whose delta has not applied yet | `pending` verdict, refused |
+| Folding mid-first-sync, or mid-window | Refused while `stock_movements`' pull window is unstamped or has a leftover `server_cursor` (`healSkipped: movement-log-incomplete`) |
+| An unattended write during a read-only inspection session | Refused (`healSkipped: inspection-session`) — see below |
+| Repairing the same drift every day forever | A-197's drain fix removes the cause; a heal that does not converge reports `divergedAfter > 0` as its own searchable failure |
+| A fold rewriting another branch's numbers | The fold already refuses without an active store, and is store-scoped |
+| A mass rewrite from a bad classifier | No blast-radius cap, deliberately: the two real incidents were 255/1,952 and 958/2,495, so any useful cap would have blocked both repairs. The classifier is what is tested instead |
+
+### The read-only inspection session conflict, stated explicitly
+
+The founder's ask was that the manual repairs be runnable from a support
+session rather than a browser console; the on-till inspection session is
+deliberately read-only and refuses every local write. Both already hold today,
+and this is the reconciliation, unchanged by phase 3:
+
+- `assertWritable()` in `base-helpers.ts` refuses every **ordinary** write
+  during an inspection session.
+- `foldStockQuantities()` writes through raw `execute()`, bypassing that, and
+  is reachable in the session only as a **confirm-gated** diagnostics-console
+  action, audited to the admin who clicked it
+  (`ADMIN_TILL_FOLD_STOCK_QUANTITIES`, with the admin's real id so the
+  server-side row does not name the store owner).
+- The **automatic** heal is refused during an inspection session. It would use
+  the same bypass for a different thing — an unattended write — and would
+  record a repair with no actor. The guard is in `healStockIntegrity()`, not in
+  `assertWritable()`, precisely so the deliberate action stays available while
+  the unattended one does not.
+
+Audit action: `AUTO_HEAL_STOCK_QUANTITIES`, separate from the admin action so
+the audit trail never names an admin for a repair no admin triggered.
+
+### Coverage
+
+`client/__tests__/stock-integrity-auto-heal.test.ts` (8 cases: the real
+Pentazocine fold, the unreconstructable refusal, a consistent device reporting
+nothing, both `healSkipped` refusals, the pending-delta refusal, the audit
+action, and a non-converging heal).

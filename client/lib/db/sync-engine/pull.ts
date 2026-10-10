@@ -8,6 +8,7 @@ import { STORAGE_KEYS, getStoredUser } from "@/lib/storage-keys";
 import {
   applyDeferredStockDeltas,
   countDeferredStockDeltas,
+  discardDeferredStockDeltas,
   recordDeferredStockDelta,
   type DeferredStockDelta,
 } from "./deferred-stock-deltas";
@@ -198,6 +199,10 @@ export async function pullChanges(
 
     let hasMoreAny = true;
     let page = 0;
+    // Survives the page boundary: a page can carry batches and no movements,
+    // and the drain still owes those batches' deferred deltas priority over
+    // the next page's movements (A-197).
+    let batchesArrivedSinceDrain = false;
 
     while (hasMoreAny && page < MAX_PULL_PAGES) {
       page++;
@@ -231,6 +236,25 @@ export async function pullChanges(
       await transaction(async () => {
         for (const [table, records] of orderedEntries) {
           if (!Array.isArray(records)) continue;
+
+          // An arriving batch can resolve a delta deferred earlier in this
+          // round, and that delta has to apply BEFORE any later movement for
+          // the same batch: the floor is MAX(0, …) per movement, so the order
+          // is not commutative and a late opening receipt leaves every sale
+          // against it clamped away (A-197).
+          if (batchesArrivedSinceDrain && table !== "stock_batches") {
+            batchesArrivedSinceDrain = false;
+            const voidedMovements = changes.stock_movements;
+            if (Array.isArray(voidedMovements)) {
+              await discardDeferredStockDeltas(
+                voidedMovements.filter((r) => r._deleted).map((r) => String(r.id)),
+              );
+            }
+            await applyDeferredStockDeltas({ countAttempts: false });
+          }
+          if (table === "stock_batches" && records.length > 0) {
+            batchesArrivedSinceDrain = true;
+          }
 
           const validColumns = await getValidColumns(table);
 
@@ -554,6 +578,13 @@ export async function pullChanges(
           ]);
         }
       });
+    }
+
+    // A stranded batch is only re-sent if it is updated again, so a chronic
+    // deferral needs the window reopened or it never resolves (A-176). Rate
+    // limited by the reporting threshold that fills this array.
+    if (unresolvedDeltas.length > 0) {
+      await execute("DELETE FROM _sync_state WHERE table_name = 'stock_batches'");
     }
 
     for (const d of unresolvedDeltas) {

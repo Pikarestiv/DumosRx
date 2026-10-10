@@ -59,10 +59,20 @@ export async function countDeferredStockDeltas(): Promise<number> {
  * twice. Must be called inside a `transaction()`. Returns the deltas whose
  * batch has been unreachable long enough to be worth reporting; they stay
  * pending, since only a batch arriving can settle them.
+ *
+ * `countAttempts: false` applies whatever is resolvable without charging an
+ * attempt against what is not — for the mid-round drains, which run several
+ * times per round and would otherwise race a long first sync to the
+ * reporting threshold while the batches were still on their way.
  */
-export async function applyDeferredStockDeltas(): Promise<DeferredStockDelta[]> {
+export async function applyDeferredStockDeltas(
+  options: { countAttempts?: boolean } = {},
+): Promise<DeferredStockDelta[]> {
+  const countAttempts = options.countAttempts !== false;
+  // rowid, i.e. the order the deltas were deferred in, which is the order the
+  // server applied them in; the floor makes a replay order-dependent.
   const pending = await query<DeferredStockDelta>(
-    "SELECT movement_id, stock_batch_id, quantity, attempts FROM _pending_stock_deltas",
+    "SELECT movement_id, stock_batch_id, quantity, attempts FROM _pending_stock_deltas ORDER BY rowid",
   );
   const unresolved: DeferredStockDelta[] = [];
 
@@ -84,6 +94,7 @@ export async function applyDeferredStockDeltas(): Promise<DeferredStockDelta[]> 
     ]);
 
     if (batch.length === 0) {
+      if (!countAttempts) continue;
       const attempts = delta.attempts + 1;
       await execute(
         "UPDATE _pending_stock_deltas SET attempts = ? WHERE movement_id = ?",
@@ -107,4 +118,15 @@ export async function applyDeferredStockDeltas(): Promise<DeferredStockDelta[]> 
 
 async function discard(movementId: string): Promise<void> {
   await execute("DELETE FROM _pending_stock_deltas WHERE movement_id = ?", [movementId]);
+}
+
+/**
+ * Drops deltas for movements the server has voided. The drain already does
+ * this from the local row, but a mid-round drain runs before that page's own
+ * soft-deletes have been written, so the void has to be read off the payload.
+ */
+export async function discardDeferredStockDeltas(movementIds: string[]): Promise<void> {
+  for (const movementId of movementIds) {
+    await discard(movementId);
+  }
 }

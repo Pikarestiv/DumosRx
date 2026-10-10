@@ -11,7 +11,7 @@ handful of things actually worth your attention aren't buried in it.
 ## Open bugs awaiting a fix
 
 
-#### A-206. `client/` — the `audit_logs` dedup rewrites a pending `_sync_queue` payload in place, which is lost if that row is already in flight
+#### A-209. `client/` — the `audit_logs` dedup rewrites a pending `_sync_queue` payload in place, which is lost if that row is already in flight
 - **Found:** 2026-10-10, while fixing A-203. Not a regression from it; the path is older.
 - **Location:** `lib/db/core.ts:1243-1262` (`logAction`'s dedup branch).
 - **What's wrong:** on a repeat of the same action it bumps `occurrence_count` on the local `audit_logs` row and rewrites that row's pending `_sync_queue` INSERT payload **in place**. `getPendingSyncItems()` reads queue rows, the push awaits the network, and `markSynced()` then deletes the pushed rows by id and flags the record `_synced = 1`. A bump landing inside that window is written into a row that is about to be deleted, so the server keeps the pre-bump `occurrence_count` and the local row reads `_synced = 1` with a value that was never sent.

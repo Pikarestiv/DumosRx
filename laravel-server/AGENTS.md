@@ -2502,6 +2502,65 @@ mis-pointed rows were not repaired. See `docs/KNOWN_BUGS.md` A-189.
 - Products with a `NULL` `store_id` are counted and skipped: there is no owning
   store to repoint them to, and inventing one would be a guess.
 
+## Health Sync zeroing repair: `sync:repair-health-sync-reconciliation` (2026-10-10)
+
+One Health Sync run at `2026-10-10 08:53:29` accepted a half-rebuilt device's
+local quantities as truth and wrote 146 `sync_reconciliation` movements
+(−13,104 units on one store, −18 on another), zeroing batches whose own
+movement log still held the real figure. The cause is `docs/KNOWN_BUGS.md`
+A-214/A-213; this section is the repair only.
+
+```bash
+php artisan sync:repair-health-sync-reconciliation                 # report
+php artisan sync:repair-health-sync-reconciliation --store=<id> --apply
+```
+
+- **Arithmetic.** For each affected batch the target is
+  `SUM(all its movements) − SUM(the bad sync_reconciliation deltas)`, which is
+  identical to the log sum excluding those rows, and — because each reversal
+  cancels its own row — identical to the full log sum once the repair has run.
+  Movements recorded *after* the incident (sales rung against the zero,
+  deliveries, counts) are part of that sum and are preserved: the command
+  restores the reconciliation delta, it does not reset the batch to its
+  pre-incident number. A target below zero is stored clamped at 0 and reported,
+  because the deficit belongs in the log, not in the column.
+- **Reversal, never deletion.** Each bad row gets a `sync_reconciliation_reversal`
+  movement of the opposite sign, with `reference_id` = the reversed movement's
+  id, `reference_type = 'stock_movement'`, and the reversed row's own
+  `performed_by`. The log stays append-only, which the derived-quantity design
+  (`docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`)
+  requires, and the incident stays visible instead of being erased.
+- **Idempotent, and bounded to the incident.** A bad row that already has a
+  reversal pointing at it is skipped, so a second `--apply` reports nothing and
+  writes nothing. The scan is also limited to `movement_date <=
+  '2026-10-10 10:00:00'` (`INCIDENT_THROUGH`), so a legitimate future
+  reconciliation is never swept up — widen that constant deliberately or not at
+  all.
+- **Eloquent timestamps only** (root `AGENTS.md` §7). Both the reversal rows and
+  the batch quantity are written through models, so `updated_at` is PHP-UTC. A
+  raw `UPDATE … NOW()` here would stamp ~4 hours behind UTC and the corrected
+  rows would never pass the pull's `updated_at` filter — the corrections would
+  reach no device at all.
+- **How devices converge.** The reversals pull down as ordinary
+  `stock_movements` rows and `pull.ts`'s INSERT branch applies each delta to
+  `stock_batches.quantity` (`MAX(0, quantity + delta)`); there is no
+  movement-type allowlist there, so every build in the field already handles the
+  new type (`client/AGENTS.md`, "`pull.ts` has no `sync_reconciliation` special
+  case — on purpose"). The device that caused the incident already holds the bad
+  row, so it too applies only the reversal. A device missing the batch row
+  defers the delta until the batch arrives, which can take ~10 rounds
+  (`docs/FIXED_BUGS.md` A-176b). The server's own `quantity` is stripped on
+  pull, so the movement is the only channel — which is why deleting the bad rows
+  would have fixed nothing on any device.
+- **Owner-facing lists show the reversal, by design.** The client excludes
+  `sync_reconciliation` from owner movement lists and stock-value sums; the
+  reversal is not excluded, because it restores real stock value and the store
+  should be able to see where the correction came from.
+- **Tests:** `tests/Feature/HealthSyncReconciliationRepairTest.php` — exact
+  restore, post-incident movements interleaved and preserved, double `--apply`,
+  report mode writing nothing, `--store=` scoping, untouched batches, a
+  post-window reconciliation left alone, and the clamp.
+
 ## Running artisan on the production box (Namecheap shared hosting)
 
 The default `php` on that server is **7.4.33**; this app requires >= 8.2, so a

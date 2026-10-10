@@ -1176,9 +1176,30 @@ So the rewind now:
   the counter resets, and nothing changes for it;
 - after `MAX_PULL_WINDOW_REWINDS` (3) such rewinds, restores `rewound_from`,
   stops rewinding, and `logCrash`es under `area: "sync-pull-window"`. A device
-  that cannot converge says so once and goes back to incremental pulls instead
-  of grinding. 3 rather than `MAX_NON_IMPROVING_RESYNCS`' 2 only because these
-  are spent per sync round, not per day.
+  that cannot converge goes back to incremental pulls instead of grinding. 3
+  rather than `MAX_NON_IMPROVING_RESYNCS`' 2 only because these are spent per
+  sync round, not per day.
+
+**The restore does not depend on the fault firing again (A-227).**
+`restoreExhaustedPullWindows()` runs unconditionally at the top of
+`pullChanges()` and puts back the baseline of every table whose
+`rewind_count` has reached the budget. Inside `rewindPullWindow()` alone it was
+unreachable in exactly the case it exists for: both callers fire only on a live
+fault, so a device that rewound two or three times and then stopped hitting the
+fault kept `last_synced_at = NULL` for ever — a full re-pull of that table every
+round, the A-218 grind the budget was supposed to bound. `stock_batches` is the
+realistic victim, because it is routinely in `skippedTables` (any pending
+`_sync_queue` row) and so never re-stamps.
+
+`rewind_count` is deliberately **not** reset by the restore: it stays at the
+budget so further rewinds keep being refused, and only
+`PULL_PROGRESS.completeWindow` — a genuine skip-free drain — clears it. The
+restore is idempotent (`COALESCE(rewound_from, last_synced_at)` with
+`rewound_from` nulled), so a stuck table re-reports once per round rather than
+once ever: the old `logCrash` was guarded on `rewound_from`, which the restore
+had just nulled, so every later occurrence returned silently. Per-round
+reporting is the `health-check.ts` precedent ("still logs every time either
+way, tagged givingUp").
 
 Because `_sync_state` now carries state two different writers care about,
 **every writer must name the columns it owns.** `syncSubscriptionStatus()`

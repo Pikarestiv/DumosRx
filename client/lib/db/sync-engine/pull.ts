@@ -4,7 +4,7 @@ import { PullResponse } from "./types";
 import { getValidColumns } from "./schema";
 import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconcile-identity";
 import { logCrash } from "@/lib/utils/error-logger";
-import { rewindPullWindow } from "./pull-window";
+import { restoreExhaustedPullWindows, rewindPullWindow } from "./pull-window";
 import { STORAGE_KEYS, getStoredUser } from "@/lib/storage-keys";
 import {
   applyDeferredStockDeltas,
@@ -140,6 +140,8 @@ export async function pullChanges(
   };
 
   try {
+    await restoreExhaustedPullWindows();
+
     // Get last sync timestamp for each table
     const syncState = await query<{
       table_name: string;

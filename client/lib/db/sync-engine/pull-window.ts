@@ -6,7 +6,7 @@ import { logCrash } from "@/lib/utils/error-logger";
  * back and the device reports instead of grinding. Reset to zero whenever
  * the table drains skip-free (PULL_PROGRESS.completeWindow), so this only
  * bites a table that genuinely cannot re-stamp its window. Rationale and
- * the A-218 failure path: client/AGENTS.md, "Pull window rewinds".
+ * the A-218/A-227 failure paths: client/AGENTS.md, "Pull window rewinds".
  */
 export const MAX_PULL_WINDOW_REWINDS = 3;
 
@@ -19,8 +19,39 @@ const REWIND_SQL = `INSERT INTO _sync_state (table_name, last_synced_at, server_
      rewind_count = rewind_count + 1`;
 
 const RESTORE_SQL = `UPDATE _sync_state
-   SET last_synced_at = rewound_from, rewound_from = NULL, server_cursor = NULL
-   WHERE table_name = ? AND rewound_from IS NOT NULL`;
+   SET last_synced_at = COALESCE(rewound_from, last_synced_at), rewound_from = NULL, server_cursor = NULL
+   WHERE table_name = ?`;
+
+const EXHAUSTED_SQL = `SELECT table_name FROM _sync_state WHERE rewind_count >= ?`;
+
+async function restoreBaseline(table: string, cause: string): Promise<void> {
+  await execute(RESTORE_SQL, [table]);
+  logCrash(
+    new Error(
+      `Pull window rewind budget exhausted for ${table} (${cause}); baseline restored, this device cannot converge on its own`,
+    ),
+    false,
+    { area: "sync-pull-window", table },
+  );
+}
+
+/**
+ * Runs at the start of every pull round, unconditionally: the budget is spent
+ * by live faults, but the fault may never fire again, and until this ran only
+ * inside rewindPullWindow() such a table kept a null window for ever. See
+ * client/AGENTS.md, "Pull window rewinds".
+ */
+export async function restoreExhaustedPullWindows(): Promise<string[]> {
+  const exhausted = await query<{ table_name: string }>(EXHAUSTED_SQL, [
+    MAX_PULL_WINDOW_REWINDS,
+  ]);
+
+  for (const { table_name } of exhausted) {
+    await restoreBaseline(table_name, "budget still exhausted");
+  }
+
+  return exhausted.map((row) => row.table_name);
+}
 
 /**
  * shortcut: rewinds the whole table's window rather than re-requesting the
@@ -35,16 +66,7 @@ export async function rewindPullWindow(table: string, cause: string): Promise<bo
   );
 
   if ((state?.rewind_count ?? 0) >= MAX_PULL_WINDOW_REWINDS) {
-    if (state?.rewound_from) {
-      await execute(RESTORE_SQL, [table]);
-      logCrash(
-        new Error(
-          `Pull window rewind budget exhausted for ${table} (${cause}); baseline restored, this device cannot converge on its own`,
-        ),
-        false,
-        { area: "sync-pull-window", table },
-      );
-    }
+    await restoreBaseline(table, cause);
     return false;
   }
 

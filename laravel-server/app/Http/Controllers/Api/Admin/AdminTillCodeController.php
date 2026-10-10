@@ -44,12 +44,9 @@ class AdminTillCodeController extends AdminBaseController
 
         $code = $this->sessions->generateCode();
 
-        $row = AdminTillCode::create([
-            'admin_id' => $adminId,
-            'code_hash' => $this->sessions->hashCode($code),
-            'code_encrypted' => $this->sessions->encryptCode($code),
-            'label' => $validated['label'] ?? null,
-        ]);
+        $row = AdminTillCode::create(
+            $this->sessions->newCodeAttributes($code, $adminId, $validated['label'] ?? null),
+        );
 
         return response()->json(['id' => $row->id, 'code' => $code]);
     }

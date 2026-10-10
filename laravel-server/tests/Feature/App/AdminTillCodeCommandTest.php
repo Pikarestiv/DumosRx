@@ -98,4 +98,22 @@ class AdminTillCodeCommandTest extends TestCase
 
         $this->assertSame(1, AdminTillCode::where('admin_id', $admin->id)->count());
     }
+
+    public function test_the_command_still_issues_when_the_encrypted_column_is_missing(): void
+    {
+        \Illuminate\Support\Facades\Schema::table(
+            'admin_till_codes',
+            fn ($table) => $table->dropColumn('code_encrypted'),
+        );
+
+        $admin = $this->admin('platform_admin', 'ops@dumosrx.com');
+
+        $this->artisan('admin:till-code', ['email' => 'ops@dumosrx.com'])
+            ->assertExitCode(0);
+
+        $row = AdminTillCode::where('admin_id', $admin->id)->firstOrFail();
+
+        $this->assertNotEmpty($row->code_hash);
+        $this->assertNull($row->revoked_at);
+    }
 }

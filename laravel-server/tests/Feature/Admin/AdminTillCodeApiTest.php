@@ -186,6 +186,30 @@ class AdminTillCodeApiTest extends TestCase
         $this->assertSame($code, \Illuminate\Support\Facades\Crypt::decryptString($stored));
     }
 
+    public function test_a_code_still_issues_when_the_encrypted_column_has_not_been_migrated_yet(): void
+    {
+        \Illuminate\Support\Facades\Schema::table(
+            'admin_till_codes',
+            fn ($table) => $table->dropColumn('code_encrypted'),
+        );
+
+        $admin = $this->admin();
+
+        $response = $this->actingAs($admin)->postJson('/api/v1/admin/till-codes', ['label' => 'agidi']);
+
+        $response->assertOk()->assertJsonStructure(['id', 'code']);
+        $this->assertTrue(Hash::check(
+            $response->json('code'),
+            AdminTillCode::where('admin_id', $admin->id)->firstOrFail()->code_hash,
+        ));
+
+        $revealed = $this->actingAs($this->admin('super_admin'))
+            ->getJson('/api/v1/admin/till-codes/all')
+            ->assertOk();
+
+        $this->assertNull(collect($revealed->json('codes'))->firstWhere('label', 'agidi')['code']);
+    }
+
     public function test_a_super_admin_read_is_audited(): void
     {
         $owner = $this->admin();

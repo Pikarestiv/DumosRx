@@ -2403,6 +2403,52 @@ The human-facing surfaces are unchanged and still the place to act:
 (both `role:super_admin`), the Operations "Database schema" card and the
 Maintenance "Pending migrations" panel.
 
+## A column a release adds must not be written unconditionally (A-225)
+
+The deploy above detects a schema that is behind, but it detects it *after*
+the FTP sync. On FTP-only hosting code and schema can never land at the same
+instant, so between the upload and someone pressing Maintenance → Run there
+is always a window in which the new code is live against the old schema. A
+write to a column that window has not created yet is a hard 500, not a
+degraded feature — that is exactly how `admin_till_codes.code_encrypted` took
+down till-code generation on dev on 2026-10-10.
+
+**So: any change that adds a column and writes to it must tolerate the column
+being absent**, degrading to whatever the pre-migration rows already do.
+
+The worked example is the sync engine. `SyncController::applyPullCursor()`
+(`:975`) and `stampSyncedAt()` (`:1540`) probe `Schema::hasColumn()` before
+touching `_synced_at`, each behind its own array cache, because the probe is a
+real INFORMATION_SCHEMA round trip Laravel does not memoize. Follow that
+idiom, not a new one. `AdminTillSessionService::newCodeAttributes()` is the
+small version: one nullable `$hasEncryptedColumn` on the service, resolved
+once per instance, omitting `code_encrypted` from the insert when it is not
+there. The code still issues with its hash; it is simply not recoverable
+later, which `revealAll()` already reports as `null` for rows predating the
+column. Both writers (the controller and `admin:till-code`) call that one
+method, so there is a single place to delete when the shim retires.
+
+- **The read side usually needs nothing.** `$row->code_encrypted` on a model
+  whose table lacks the column is just a missing attribute — `null` — so a
+  falsy check covers it. Explicit `->get(['code_encrypted'])` or a raw
+  `select` does *not*; don't name the new column in a column list.
+- **Retirable when** every host the release reaches has run
+  `2026_10_10_000001_add_code_encrypted_to_admin_till_codes`. The health gate
+  makes that checkable: `GET /health?schema=1` reporting `true` on production
+  and dev is the signal to drop the probe.
+- **The alternative, and when to prefer it:** split the change across two
+  deploys — migration-only release first, run it, then the release whose code
+  writes the column. That needs no shim at all and is the better choice when
+  the write cannot degrade gracefully (a `NOT NULL` column, a column the
+  feature is meaningless without, a unique index the code depends on). The
+  probe is for when the feature can lose one property and still work; two
+  deploys are for when it cannot. Choose deliberately.
+- **A new *table* has no middle ground.** Four of the five unreleased
+  migrations (`device_stock_reports`, `device_queue_reports`, `sync_commands`,
+  `admin_till_*`) are `Schema::create`; against a behind host the whole
+  feature 500s and no probe helps. The deploy gate is the only mitigation —
+  which is why it fails the job rather than warning.
+
 ## Testing
 
 ```

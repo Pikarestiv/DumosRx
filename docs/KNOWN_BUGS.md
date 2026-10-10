@@ -10,6 +10,13 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
+#### A-211. `client/` — a stock count records the difference it saw, not the number counted, so counting on a device that is behind sync writes the wrong correction
+- **Found:** 2026-10-10, in review of the derived-stock-quantity design (`docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`). Raised by a reviewer; confirmed in the code.
+- **Location:** `client/lib/db/queries/inventory.ts:659` — `submitStockAudit()` computes `diff = item.countedQty - currentSystemQty` and writes that difference as the adjustment movement.
+- **What's wrong:** the count is stored as a **delta against whatever this device currently believes**, not as the absolute quantity a human observed. If the device is behind — a sale from another till has not arrived yet — the delta is computed against a stale baseline and is wrong by exactly the amount that is missing. Worked example: the device shows 10 but is missing a sale of 2 (the shelf really has 8). The user counts 8, so the adjustment is `8 - 10 = -2`. The missing sale then syncs, also -2. The product settles at 6 with 8 physically present. The count made it worse.
+- **Consequence:** a stock count is the instrument a store uses to settle a disagreement between the records and the shelf, so an unreliable one undermines the whole reconciliation story. Today this is latent because counts are rare; the derived-quantity design leans on counts to settle every oversell deficit, which makes it load-bearing.
+- **Fix:** record the count as an **absolute observation** ("at this moment a human counted 8") rather than a difference, and derive the correction from it. The honest difficulty, which must not be hand-waved: a count taken offline and a sale that arrives afterwards but is dated earlier are genuinely ambiguous, and this codebase already knows not to trust `created_at` for ordering (commit `24257592`). A cheaper interim guard is to refuse a count on a device that has not synced recently, or to compute the adjustment server-side where the full log is present. Decide before Stage 1 of the derived-quantity work, not after.
+
 #### A-210. `laravel-server/` — the deploy pipeline never runs migrations, so a feature ships green with its table missing and fails only at runtime
 - **Found:** 2026-10-10, tracing why till-code generation "stopped working" in production. The founder saw a Sentry report of `Base table or view not found: admin_till_codes`.
 - **Location:** `.github/workflows/deploy-backend.yml` — the deploy is `composer install`, `l5-swagger:generate`, then `SamKirkland/FTP-Deploy-Action`. There is no SSH step and no `php artisan migrate` anywhere in the workflow.

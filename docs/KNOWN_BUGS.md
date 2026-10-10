@@ -10,6 +10,15 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
+#### A-210. `laravel-server/` — the deploy pipeline never runs migrations, so a feature ships green with its table missing and fails only at runtime
+- **Found:** 2026-10-10, tracing why till-code generation "stopped working" in production. The founder saw a Sentry report of `Base table or view not found: admin_till_codes`.
+- **Location:** `.github/workflows/deploy-backend.yml` — the deploy is `composer install`, `l5-swagger:generate`, then `SamKirkland/FTP-Deploy-Action`. There is no SSH step and no `php artisan migrate` anywhere in the workflow.
+- **What's wrong:** code reaches production by FTP file sync; schema does not. Every migration has to be remembered and run by hand on the server. Nothing in CI, the deploy, or the PR template prompts it, and the deploy reports success either way.
+- **Consequence:** `admin_till_codes` shipped with PR #149 on 2026-10-09 and its table was never created, so **the on-till inspection feature has never worked in production** — every code generation failed against a missing table. That failure was invisible for a second reason (see `docs/FIXED_BUGS.md` A-207), which is why it read as "stopped working" rather than "was never installed". This is not specific to that feature: any change carrying a migration has the same gap, and the symptom is always a runtime 500 on a table nobody noticed was absent.
+- **Immediate check:** `php artisan migrate:status` on the production host is read-only and lists every pending migration. Expect more than one.
+- **Fix:** run migrations as part of the deploy. FTP-only hosting makes the usual SSH step awkward, so the realistic options are a post-deploy authenticated HTTP endpoint that runs `migrate --force` (gated to super_admin, audited, and refusing anything destructive), a scheduled task on the host that applies pending migrations, or — at minimum — a deploy-time check that **fails the workflow** when the shipped code carries a migration the database does not have. Doing nothing and relying on memory is what produced this.
+- **Related:** the pending `code_encrypted` migration on the A-207 branch has the same requirement, and so will anything merged after it.
+
 #### A-208. `laravel-server/` — an admin till access code never expires, so a forgotten one stays a working credential for ever
 - **Found:** 2026-10-10, reviewing the super_admin code-visibility change (`docs/FIXED_BUGS.md` A-207).
 - **Location:** `app/Models/AdminTillCode.php:27` — `scopeActive()` is `whereNull('revoked_at')` and nothing else.

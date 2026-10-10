@@ -10,6 +10,13 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
+#### A-228. `client/` — the subscription sync advances the whole `stores` pull window although it only applies four fields of what it fetched
+- **Found:** 2026-10-10, while fixing A-226 in the same writer.
+- **Location:** `lib/db/sync-engine/index.ts` — `syncSubscriptionStatus()`'s `STAMP_STORES_WINDOW_SQL`.
+- **What's wrong:** it pulls with `last_synced: { stores: "" }`, so the server returns the **full** store records, applies only `SUBSCRIPTION_FIELDS` (`subscription_tier`, `status`, `suspension_reason`, `license_token`, `updated_at`) to protect local-only columns — correct, and covered by tests — and then stamps `_sync_state.last_synced_at` for `stores` with the response's `server_timestamp`. The ordinary pull therefore asks for stores changed *after* that stamp, and any server-side change to a non-subscription column (`name`, `address`, `receipt_footer`, storefront fields) that fell inside the skipped interval is never re-sent, because the row's `updated_at` is now behind the window. The device keeps a stale value indefinitely unless that store is edited again.
+- **Why it has not obviously bitten:** store-profile edits mostly originate on the device, and the owner dashboard's edits bump `updated_at` again on the next change. A single server-side rename landing between a sync round and the next subscription poll is enough.
+- **Fix:** either stop stamping the window here (this path is not a pull of `stores`, it is a projection of it — the ordinary pull owns that cursor), or apply every synced column it received, as `pull.ts` does, rather than a five-field subset. The first is smaller and matches who owns the column; `__tests__/sync-subscription-status.test.ts` "stamps the stores pull cursor with the server timestamp" pins the current behaviour and would be the test to change, so check first whether a free-tier device (full sync off) relies on this stamp for anything.
+
 #### A-217. `laravel-server/`+`client/` — a clamped batch's stored quantity is a sum-level clamp on the server and a per-movement replay on the client, so the two can never agree
 - **Found:** 2026-10-10, in the review that produced A-215/A-216.
 - **What's wrong:** where a batch's log sums below zero, the server stores `max(0, SUM(quantity))` (`HealthSyncReconciliationRepairService`, `SyncController::writeQuantityReconciliation()`) while the client's `replayMovements()` applies `max(0, running + delta)` **after every movement**. The per-movement floor is always ≥ the floored sum, so for any batch that ever went negative mid-log the two figures differ permanently, by construction. Neither side is drifting; they are computing different functions.

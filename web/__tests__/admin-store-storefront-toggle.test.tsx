@@ -62,3 +62,66 @@ describe("StoreStorefrontCard toggle", () => {
     expect(screen.getByText("Published")).toBeInTheDocument();
   });
 });
+
+/**
+ * The toggle refuses (422) to publish a store with no slug, which left the
+ * admin with nothing to do about it — the slug was read-only on this page.
+ */
+describe("StoreStorefrontCard slug editing", () => {
+  beforeEach(() => {
+    authState.permissions = ["manage_account_status"];
+    toggleMutate.mockClear();
+  });
+
+  it("sets the slug on a store that has none, in the same call as publishing", async () => {
+    render(<StoreStorefrontCard store={storeWith(false, null)} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /set address/i }));
+    await userEvent.type(screen.getByLabelText(/storefront address/i), "corner-pharmacy-ikeja");
+    await userEvent.click(screen.getByRole("button", { name: /^save address$/i }));
+
+    expect(toggleMutate.mock.calls[0][0]).toEqual({
+      id: "store-1",
+      enabled: false,
+      storeSlug: "corner-pharmacy-ikeja",
+    });
+  });
+
+  it("does not submit an empty slug", async () => {
+    render(<StoreStorefrontCard store={storeWith(false, null)} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /set address/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^save address$/i }));
+
+    expect(toggleMutate).not.toHaveBeenCalled();
+  });
+
+  it("confirms before replacing a slug that is already live, naming the URL that breaks", async () => {
+    render(<StoreStorefrontCard store={storeWith(true, "corner-pharmacy")} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /change address/i }));
+    await userEvent.clear(screen.getByLabelText(/storefront address/i));
+    await userEvent.type(screen.getByLabelText(/storefront address/i), "new-address");
+    await userEvent.click(screen.getByRole("button", { name: /^save address$/i }));
+
+    expect(toggleMutate).not.toHaveBeenCalled();
+    expect(screen.getByText(/corner-pharmacy/)).toBeInTheDocument();
+    expect(screen.getByText(/stop working|no longer|break/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /change the address/i }));
+
+    expect(toggleMutate.mock.calls[0][0]).toEqual({
+      id: "store-1",
+      enabled: true,
+      storeSlug: "new-address",
+    });
+  });
+
+  it("hides the slug control entirely, not disabled, without manage_account_status", () => {
+    authState.permissions = [];
+
+    render(<StoreStorefrontCard store={storeWith(false, null)} />);
+
+    expect(screen.queryByRole("button", { name: /set address|change address/i })).not.toBeInTheDocument();
+  });
+});

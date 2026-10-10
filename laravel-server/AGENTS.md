@@ -188,7 +188,12 @@ without updating that.
   `AdminStoreStorefrontController`/`AdminStoreStorefrontService`, since
   suspending a store already takes its storefront offline; enabling a store
   with no `store_slug` is refused, and the public endpoints still re-check the
-  owner's `store_url` entitlement) and `impersonate_store`.
+  owner's `store_url` entitlement. **The same endpoint and the same permission
+  also set `store_slug`**, via an optional `store_slug` in the body — the slug
+  is a public URL, so it is refused on a collision checked `withTrashed()`, on
+  a value that slugifies to empty or over 100 chars, and when `Store::saving()`
+  silently reverts it under the 6-month cooldown; see `web/AGENTS.md`, "The same
+  card sets the slug") and `impersonate_store`.
   - **Enforced by omission, not by a deny-list.** A never-delegatable action
     (delete a user/store, edit another admin's profile/role, coupons and
     referral payouts, the subscription/platform config endpoints) simply has

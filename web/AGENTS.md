@@ -933,6 +933,34 @@ disable rule above. Three things to know before changing it:
   current `store_url` entitlement, so a published store on a downgraded plan
   still serves nothing. The server refuses to enable a store with no slug
   (422) rather than reporting "Published" for a page that resolves to nothing.
+- **The same card sets the slug, because refusing without one left no way out.**
+  The slug used to be read-only here, so a slugless store could not be published
+  from the panel at all — the toggle just failed. `PUT .../storefront` now
+  accepts an optional `store_slug` beside `enabled`, under the *same*
+  `manage_account_status` gate, and the card shows a "Set address" /
+  "Change address" control that is hidden (not disabled) without it.
+  `AdminStoreStorefrontService::applySlug()` slugifies via `Str::slug` — the
+  same normalisation `StoreController::checkSlug()` uses, so the admin panel and
+  the owner's app cannot disagree about what a given input becomes — and refuses
+  with 422 rather than storing a surprise when the result is empty or over 100
+  characters, when another store holds it, or when the 6-month cooldown is live.
+  Two specifics worth not rediscovering:
+  - **Uniqueness must be checked `withTrashed()`.** `store_slug` is DB-unique
+    across soft-deleted rows, so an archived store's slug is not free. It is
+    also a public URL: a collision would serve one store's page at another's
+    address, which is why this is a hard refusal and not a last-write-wins.
+  - **`Store::saving()` reverts the slug attribute instead of failing** when the
+    cooldown is live, so a naive write gets a 200 reporting a slug that was
+    never stored. `applySlug()` saves, re-reads, and throws if what came back
+    is not what it asked for — reusing the model hook as the single source of
+    truth for the cooldown rather than duplicating the 6-month rule here.
+- **Changing a live slug is confirmed; setting a first one is not.** Replacing
+  an existing slug breaks every link already shared or printed, so the card
+  raises a `ConfirmDialog` naming the `/store/<slug>` URL that stops resolving
+  and the 6-month limit. A store with no slug has no URL to break and nothing
+  to warn about, so that path submits directly — a confirmation with no cost
+  behind it is the kind users learn to click through, which is exactly how
+  A-213's retired Health Sync button kept being pressed.
 - **The published page is stale until the next rebuild.** Saving stamps
   `storefront_dirty_at` via `Store::boot()`'s `saved` hook (the flag is in
   `STOREFRONT_PUBLISHED_FIELDS`), and the scheduled `storefront:rebuild-if-dirty`
@@ -943,7 +971,10 @@ disable rule above. Three things to know before changing it:
   `stores.updated_at`, so a device converges on the next pull; a device holding
   an unsynced local change to the same field still wins when it pushes. Don't
   "fix" that by adding the column to the forbidden list, which would break the
-  owner's own in-app toggle.
+  owner's own in-app toggle. The same holds for `store_slug`: the admin write
+  goes through `->save()`, which bumps `updated_at` (pinned by a test), so
+  devices pull the new slug. The owner's app enforces the same 6-month cooldown
+  client-side, so the two writers cannot race each other into a loop.
 
 **`·` is this page's separator, not an em dash.** `Last Active` on
 Operational Metrics rendered `50 minutes ago — Device sync` and now reads

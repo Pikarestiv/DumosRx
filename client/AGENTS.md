@@ -1499,8 +1499,23 @@ sale lands for another −2, and the shelf holding 8 settles at 6.
 current behaviour.** `POST /app/sync/reconcile-quantities` answers 410 for
 every caller (`config/dumos.php`'s hard-off `health_sync_enabled`), because one
 run from a half-rebuilt till removed 13,104 real units from a live store — see
-`docs/KNOWN_BUGS.md` A-214/A-213 and `docs/FIXED_BUGS.md`. The button stays in
-Settings → Data and shows the server's refusal. Two client-side rules survive
+`docs/KNOWN_BUGS.md` A-214/A-213 and `docs/FIXED_BUGS.md`.
+
+**The UI control is gone as of 2026-10-10.** The Health Sync card and its
+confirm dialog are out of `components/settings/data-settings-sync-maintenance.tsx`
+(which now only carries Force Full Resync), and
+`handleReconcileStockQuantities` is out of `hooks/use-settings-sync.ts` and the
+whole prop chain through `data-settings.tsx` and the data panel. Two confident
+descriptions and a confirmation step in front of a feature that answers 410 is
+worse than no control: the user reads that it works, clicks through, and is
+then told it is retired. **What deliberately remains:** `reconcileStockQuantities()`
+itself, the `window.__reconcileStockQuantities` DevTools hook for a support
+session, and every regression test over them — the endpoint still exists behind
+`health_sync_enabled`, so the code path and its guards must stay honest for the
+day the `opening_quantity` work restores it. Re-adding a user-facing button is
+part of *that* work, not a separate decision.
+
+Two client-side rules survive
 and must stay even if the endpoint is ever restored: the pre-flight requires
 `movementLogIsComplete()` (exported from `sync-engine/stock-auto-heal.ts` —
 a succeeded sync round is **not** a complete one, and a device mid-rebuild
@@ -1519,9 +1534,8 @@ one repair path:
   first runs a real `sync(true)` (push then pull) and throws if that fails,
   then posts every local non-deleted batch for the active store as
   `{id, quantity}` to `POST /app/sync/reconcile-quantities`, and the server
-  decides what to correct. It is explicit and human-confirmed only —
-  Settings > Data > "Health Sync", plus
-  `window.__reconcileStockQuantities` for a support session. Never call it
+  decides what to correct. Its only remaining caller is
+  `window.__reconcileStockQuantities` in a support session. Never call it
   automatically or on a timer: it asserts *this* device's quantities as
   authoritative, so the forced sync exists specifically to catch this device
   up on every other device's movements first — it narrows, but does not
@@ -1746,6 +1760,24 @@ retries forever. `stock_batches.cost_price` is the case that hit production
 added the `zeroNullStockBatchCostPrices()` local repair in
 `schema-migrations.ts`). Dropping the key restores the original, working
 behaviour: absent means "server, use your default."
+
+## What counts as a reportable API error (`lib/api/base-client.ts`)
+
+`UNREPORTED_STATUSES` (401, 410) is the list of statuses that are a *deliberate
+server decision*, not a fault. They never POST to `/logs/client-error` and they
+log at `console.warn`, not `console.error`, so they do not file a Sentry issue.
+410 is on the list because A-213's retired Health Sync endpoint refuses with it
+by design: every press would have filed an issue for the endpoint working
+exactly as intended. Add a status here only when the server returning it means
+"no, on purpose" for every caller.
+
+Found while doing that: the `catch` block used to decide whether a thrown error
+was already reported by string-matching `"HTTP error!"` on the message. Any HTTP
+error whose body carried a `message` therefore failed that match and was
+reported a *second* time as a status-0 network error — so every 4xx/5xx with a
+server message produced two reports, one of them misattributed. It now reads the
+`status` the response path stamps on the thrown error, which is the fact it was
+trying to infer.
 
 ## Cloud setup/registration network calls: `withNetworkRetry()` (`lib/api/retry-on-network-error.ts`)
 

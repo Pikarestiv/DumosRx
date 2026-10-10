@@ -254,16 +254,16 @@ describe("reconcileStockQuantities", () => {
       checked: 1,
     });
   });
-  // A-213: the server refuses this endpoint below a minimum app version. An
-  // invisible refusal is what A-207 cost, so the message must reach the caller.
+  // A-213: the server refuses this endpoint outright. An invisible refusal is
+  // what A-207 cost, so the message must reach the caller.
   it("surfaces the server's version refusal instead of resolving quietly", async () => {
     vi.mocked(query).mockResolvedValue([{ id: "batch-a", quantity: 12 }]);
     vi.mocked(apiClient.reconcileStockQuantities).mockRejectedValue(
-      new Error("Health Sync is not available on this version of DumosRx."),
+      new Error("Health Sync has been retired and no longer runs."),
     );
 
     await expect(reconcileStockQuantities()).rejects.toThrow(
-      /not available on this version/i,
+      /has been retired/i,
     );
   });
 });

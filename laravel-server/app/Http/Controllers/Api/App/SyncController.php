@@ -2481,7 +2481,7 @@ class SyncController extends Controller
         ]);
     }
 
-    public const HEALTH_SYNC_DISABLED_MESSAGE = 'Health Sync is turned off. It copied this device\'s own stock figures to the cloud, which removed real stock from a live store, so it no longer runs. Nothing was sent and nothing changed. If stock looks wrong on this device, run a Force Full Resync or contact support.';
+    public const HEALTH_SYNC_DISABLED_MESSAGE = 'Health Sync has been retired and no longer runs. Nothing was sent and nothing has changed on this device. If stock looks wrong here, run a Force Full Resync from this screen, or contact support.';
 
     public const RECONCILIATION_MOVEMENT_TYPE = 'sync_reconciliation';
     public const RECONCILIATION_REASON = 'Automatic stock quantity reconciliation';

@@ -1559,9 +1559,18 @@ one repair path:
   (`lib/db/queries/products.ts`) and the dashboard recent-activity feed's
   movements query (`getDashboardOverviewData()` in
   `lib/db/queries/reports.ts`) each carry an explicit
-  `movement_type != 'sync_reconciliation'` — the first three surfaces found
-  to have no type filter at all, and the last two were only caught on
-  review after the initial implementation missed them. `getStockAdjustments()`
+  `movement_type NOT IN (…)` built from `HIDDEN_MOVEMENT_TYPES` /
+  `HIDDEN_MOVEMENT_TYPES_SQL` (`lib/db/movement-types.ts`) — the first three
+  surfaces found to have no type filter at all, and the last two were only
+  caught on review after the initial implementation missed them. **The list
+  is the point: a single constant was not enough** — the A-214 repair's
+  `sync_reconciliation_reversal` rows were in none of the three until A-221,
+  so 146 movements reading "A-214 repair: reverses Health Sync …" would have
+  appeared in the owner's movement list, dashboard feed and product
+  histories, which is exactly what A-148 went to trouble to prevent ("staff
+  think they're being accused"). A new sync-bookkeeping movement type goes in
+  `HIDDEN_MOVEMENT_TYPES` and nowhere else. Old bundles in the field can
+  never be fixed and will show those rows. `getStockAdjustments()`
   and `getStockMoM()`'s added/removed-value sums already exclude it through
   their own `= 'adjustment'` / `IN (...)` allowlists. If you add a new
   `stock_movements` query with no type filter, assume it needs this

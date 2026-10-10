@@ -3,7 +3,7 @@ import { getActiveStoreId } from "@/lib/db/core";
 import type { Product, ProductWithDetails, ProductWithStockRow, POSProduct } from "@/lib/types/product";
 import type { AuditLogRow } from "@/lib/types/audit-log";
 import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
-import { RECONCILIATION_MOVEMENT_TYPE } from "@/lib/db/movement-types";
+import { HIDDEN_MOVEMENT_TYPES, HIDDEN_MOVEMENT_TYPES_SQL } from "@/lib/db/movement-types";
 
 export async function getProductsWithDetails() {
   const storeId = getActiveStoreId();
@@ -173,9 +173,11 @@ export async function getProductHistory(productId: string, viewerId?: string) {
     `SELECT sm.*, TRIM(u.first_name || ' ' || u.last_name) as performed_by_name
      FROM stock_movements sm
      LEFT JOIN users u ON u.id = sm.performed_by
-     WHERE sm.product_id = ? AND sm.movement_type != ?${viewerId ? " AND sm.performed_by = ?" : ""}
+     WHERE sm.product_id = ? AND sm.movement_type NOT IN ${HIDDEN_MOVEMENT_TYPES_SQL}${viewerId ? " AND sm.performed_by = ?" : ""}
      ORDER BY sm.created_at DESC`,
-    viewerId ? [productId, RECONCILIATION_MOVEMENT_TYPE, viewerId] : [productId, RECONCILIATION_MOVEMENT_TYPE]
+    viewerId
+      ? [productId, ...HIDDEN_MOVEMENT_TYPES, viewerId]
+      : [productId, ...HIDDEN_MOVEMENT_TYPES]
   );
 
   return {

@@ -370,7 +370,7 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
 
       await pushChanges();
 
-      expect(windowFor("products").length).toBe(0);
+      expect(windowFor("products")[0].values[0][0]).toBeNull();
       // Only the table that actually lost a conflict is re-pulled.
       expect(windowFor("sales")[0].values[0][0]).toBe("2026-10-10T00:00:00Z");
     });

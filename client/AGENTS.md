@@ -848,13 +848,14 @@ that way. `audit_logs` solves the same problem its own way in `core.ts`
   Confirmed live against `products.category_id`, four days on a till. So for
   the reasons where the server kept a row this device disagrees with
   (`REASONS_NEEDING_REPULL`: `version_conflict`, `stale_timestamp`) the drop
-  also deletes that table's `_sync_state` row, reopening its pull window so
-  the server re-offers it. `permission_denied` is deliberately **excluded**:
+  also rewinds that table's pull window (`rewindPullWindow()`,
+  `sync-engine/pull-window.ts`) so the server re-offers it. `permission_denied` is deliberately **excluded**:
   no pull can settle it (`REASONS_SETTLING_SOURCE_ROW` flags the source row
   instead), and a plan-gated queue would otherwise rewind the window on every
   single round. The rewind is coarse — it re-pulls the whole table, because
   the sync API still has no by-id re-send endpoint — and is marked as a
-  `shortcut:` in `push.ts` for whenever one exists. A `forbidden` rejection is deliberately *not* in
+  `shortcut:` in `pull-window.ts` for whenever one exists. **It is also
+  budgeted; see "Pull window rewinds" below.** A `forbidden` rejection is deliberately *not* in
   this set, and that exclusion has been re-confirmed against the server rather
   than inherited: `resolveOwnershipIdentity()` gives a staff session only its
   own `store_id` where an owner gets every store they own, so a staff login
@@ -1148,6 +1149,42 @@ admin panel. The constraints are not negotiable:
   asserted "no API call at all" for the backed-off case; they now assert the
   precise property instead — the backed-off row is never *sent*.
 
+#### Pull window rewinds (`sync-engine/pull-window.ts`)
+
+Both reasons a device re-opens a table's pull window — a terminal push
+conflict (A-205) and a chronically unresolved stock delta (A-176b) — go
+through `rewindPullWindow(table, cause)`. It never deletes the `_sync_state`
+row any more, because `pullChanges()` reads a missing or null
+`last_synced_at` as "pull this table from timestamp zero" and that state is
+unrecoverable once lost: the re-stamp is gated on the table having drained
+skip-free, and *any* row with a pending `_sync_queue` entry puts the table in
+`skippedTables`. A queue row parked indefinitely — a `forbidden` rejection,
+deliberately retried for ever per A-165 — therefore kept the table skipped for
+ever, so the window was never re-stamped and every later round re-requested
+the whole catalogue. ~38 pages of `products` per round on shared hosting, on a
+till with one serialized DB connection, for ever, invisible to the row-count
+health check because the counts match (A-218).
+
+So the rewind now:
+
+- stashes the pre-rewind stamp in `_sync_state.rewound_from` and nulls
+  `last_synced_at`, rather than dropping the row;
+- counts rewinds per table in `_sync_state.rewind_count`, which
+  `PULL_PROGRESS.completeWindow` resets to zero — so the budget only ever
+  counts *consecutive* rewinds that failed to re-stamp. The ordinary A-205
+  case drops the conflicting queue row before rewinding, so the table drains,
+  the counter resets, and nothing changes for it;
+- after `MAX_PULL_WINDOW_REWINDS` (3) such rewinds, restores `rewound_from`,
+  stops rewinding, and `logCrash`es under `area: "sync-pull-window"`. A device
+  that cannot converge says so once and goes back to incremental pulls instead
+  of grinding. 3 rather than `MAX_NON_IMPROVING_RESYNCS`' 2 only because these
+  are spent per sync round, not per day.
+
+The caller gets `false` when the rewind was refused, and neither call site has
+anything better to do with it than carry on — the point is the report. A by-id
+re-send endpoint would remove this mechanism entirely; that is the `shortcut:`
+on the function, and the condition for deleting it.
+
 #### Pull details (`sync-engine/pull.ts`)
 
 - **`MAX_PULL_PAGES` (1000) is a safety bound, not a correctness ceiling.**
@@ -1277,13 +1314,15 @@ admin panel. The constraints are not negotiable:
   still does not exist is **kept and retried**, never dropped, and reported
   via `logCrash` once it has waited `REPORT_AFTER_ATTEMPTS` rounds — only a
   batch arriving can settle it, and dropping it would be the silent loss all
-  over again. **At that same threshold the pull also clears
-  `_sync_state`'s `stock_batches` row**, reopening that table's window so the
+  over again. **At that same threshold the pull also rewinds
+  `stock_batches`' window**, so the
   server re-offers a batch whose `updated_at` has fallen behind the cursor
   (A-176). That is the only thing that makes a cursor-stranded batch arrive
   without an operator running Force Full Resync, it is rate-limited by the
   same reporting threshold (so roughly one re-pull per ten rounds, not per
-  round), and it is scoped to the one table that can settle the delta. `stock_movements`' cursor stamps (both the window stamp and
+  round), and it is scoped to the one table that can settle the delta — and, since A-218, it spends from
+  the same per-table rewind budget as the push side (see below).
+  `stock_movements`' cursor stamps (both the window stamp and
   the mid-window position) are still held back and committed in the same
   transaction as the drain. Within a page, `stock_batches` is sorted first
   explicitly — the server's table order happens to match today, but that is

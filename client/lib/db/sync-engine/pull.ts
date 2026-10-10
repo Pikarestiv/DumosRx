@@ -4,6 +4,7 @@ import { PullResponse } from "./types";
 import { getValidColumns } from "./schema";
 import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconcile-identity";
 import { logCrash } from "@/lib/utils/error-logger";
+import { rewindPullWindow } from "./pull-window";
 import { STORAGE_KEYS, getStoredUser } from "@/lib/storage-keys";
 import {
   applyDeferredStockDeltas,
@@ -84,7 +85,8 @@ const PULL_PROGRESS = {
      ON CONFLICT(table_name) DO UPDATE SET server_cursor = excluded.server_cursor`,
   completeWindow:
     `INSERT INTO _sync_state (table_name, last_synced_at, server_cursor) VALUES (?, ?, NULL)
-     ON CONFLICT(table_name) DO UPDATE SET last_synced_at = excluded.last_synced_at, server_cursor = NULL`,
+     ON CONFLICT(table_name) DO UPDATE SET last_synced_at = excluded.last_synced_at, server_cursor = NULL,
+       rewind_count = 0, rewound_from = NULL`,
 } as const;
 
 function parsePullPageCursor(raw: string | null | undefined): PullPageCursor | null {
@@ -581,10 +583,9 @@ export async function pullChanges(
     }
 
     // A stranded batch is only re-sent if it is updated again, so a chronic
-    // deferral needs the window reopened or it never resolves (A-176). Rate
-    // limited by the reporting threshold that fills this array.
+    // deferral needs the window reopened or it never resolves (A-176).
     if (unresolvedDeltas.length > 0) {
-      await execute("DELETE FROM _sync_state WHERE table_name = 'stock_batches'");
+      await rewindPullWindow("stock_batches", "unresolved stock delta");
     }
 
     for (const d of unresolvedDeltas) {

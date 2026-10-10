@@ -24,6 +24,7 @@ import { execute, query, transaction } from "../core";
 import { isExpectedSyncRestriction } from "@/lib/utils/error-logger";
 import { toast } from "sonner";
 import { isUuid } from "@/lib/utils/uuid";
+import { rewindPullWindow } from "./pull-window";
 
 // Terminal: the queued payload is frozen, so resending can never change the
 // outcome. See client/AGENTS.md, "Push details (sync-engine/push.ts)".
@@ -53,15 +54,6 @@ const REASONS_SETTLING_SOURCE_ROW = new Set(["permission_denied"]);
  * client/AGENTS.md, "Push details", and docs/FIXED_BUGS.md A-205.
  */
 const REASONS_NEEDING_REPULL = new Set(["version_conflict", "stale_timestamp"]);
-
-/**
- * shortcut: rewinds the whole table's window rather than re-requesting the one
- * row, because the sync API has no by-id re-send endpoint. Upgrade to a
- * targeted request when one exists — A-176 needs the same endpoint.
- */
-async function rewindPullWindow(table: string): Promise<void> {
-  await execute("DELETE FROM _sync_state WHERE table_name = ?", [table]);
-}
 
 const SYNC_BATCH_SIZE = 50;
 
@@ -525,7 +517,7 @@ export async function pushChanges(
               });
 
               if (REASONS_NEEDING_REPULL.has(f.reason)) {
-                await rewindPullWindow(f.table_name);
+                await rewindPullWindow(f.table_name, f.reason);
               }
 
               if (wasRetried) {

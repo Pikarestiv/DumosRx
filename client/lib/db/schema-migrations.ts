@@ -619,7 +619,10 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
     ],
   },
   { table: "_sync_queue", columns: ["next_retry_at TEXT"] },
-  { table: "_sync_state", columns: ["server_cursor TEXT"] },
+  {
+    table: "_sync_state",
+    columns: ["server_cursor TEXT", "rewind_count INTEGER DEFAULT 0", "rewound_from TEXT"],
+  },
 ];
 
 async function runSyncColumnMigrations(

@@ -333,6 +333,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/sync/push', [SyncController::class, 'push']);
             Route::post('/sync/pull', [SyncController::class, 'pull']);
             Route::get('/sync/counts', [SyncController::class, 'counts']);
+            Route::get('/sync/peer-freshness', [SyncController::class, 'peerFreshness']);
             Route::post('/sync/reconcile-quantities', [SyncController::class, 'reconcileQuantities']);
         });
 

@@ -330,11 +330,24 @@ become meaningful for the first time: today a non-zero `quantity_delta` could be
 either real divergence or the two replicas' different floors, and there was no
 way to tell. Under one definition, non-zero means something is wrong.
 
-`reconcileStockQuantities()` (Health Sync) asserts the device's quantities as
-truth and pushes them up. It is the A-148 batches' only repair and keeps that
-job. It gets strictly safer: the device's figure is now a function of a log the
-server also holds, so Health Sync stops being a way to push a floor artefact
-into the server.
+`reconcileStockQuantities()` (Health Sync) asserted the device's quantities as
+truth and pushed them up. **Superseded, 2026-10-10:** the paragraph that stood
+here argued it would get strictly safer. It did the opposite in the field — one
+run from a half-rebuilt till removed 13,104 units from a live store — and the
+endpoint now refuses every caller (`docs/FIXED_BUGS.md` A-213/A-214). Stage 1
+no longer has to reason about it. The A-148 class it was the only repair for is
+still undissolved, which makes Stage 4's `opening_quantity` the condition for
+retiring the endpoint outright rather than ever re-enabling it.
+
+**Prerequisites shipped (2026-10-10).** The two preconditions of Stage 1 are
+done to the extent they can be without changing the quantity definition: the
+stale-count guard (A-211 — a freshness warning on the count screen, local and
+peer, acknowledged rather than blocked) and Health Sync's refusal (A-213) with
+the completeness pre-flight and device attribution A-214 required. What stays
+open is listed in `docs/KNOWN_BUGS.md` under both IDs: the absolute-count model
+(its own design, deliberately deferred), the device-quantity code still sitting
+behind the config switch, and the repair of the 146 movements the incident
+wrote.
 
 ---
 

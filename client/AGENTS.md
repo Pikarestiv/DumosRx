@@ -1412,7 +1412,47 @@ admin panel. The constraints are not negotiable:
   revealed via max-width/max-height + opacity on the sidebar's own 300ms
   timeline, not two structurally different trees swapped by a conditional.
 
+### Counting on a device that is behind sync (A-211, 2026-10-10)
+
+`submitStockAudit()` records `countedQty - currentSystemQty` — a **delta
+against this device's own figure**, not the number a human counted. On a
+device that is behind, the delta is wrong by exactly what has not arrived: a
+device showing 10 while missing a sale of 2 writes −2 for a count of 8, the
+sale lands for another −2, and the shelf holding 8 settles at 6.
+
+- **The guard is a warning with an acknowledgement, not a block.**
+  `useCountFreshness()` (`lib/hooks/use-count-freshness.ts`) combines this
+  device's last **successful** sync (`getLastSyncTime()`) with
+  `GET /app/sync/peer-freshness`, and the cycle-count review step holds the
+  submit button until the counter acknowledges the warning. Offline-first is
+  non-negotiable: a till with no connectivity for two days must still be able
+  to count. Do not turn this into a refusal.
+- **`COUNT_STALE_AFTER_MINUTES` is 60** (`lib/utils/count-freshness.ts`). The
+  auto-sync setting offers instant/5/15/30/60/360 minutes; below 60 the
+  warning would be permanent on a store set to 30, and 360 would call a
+  day-long gap fresh. A never-synced or unparseable timestamp counts as stale.
+- **The peer half can only come from the server** — a till cannot know that
+  another till is behind. The query failing (offline) yields no peer warnings,
+  which is correct: silence is not a claim of freshness, and the local half
+  still fires.
+- **Only the cycle-count screen warns.** The catalog quick edit and the CSV
+  import reconcile stock through the same delta with no check; logged in
+  `docs/KNOWN_BUGS.md` A-211 along with the real fix (an absolute count).
+
 ### Stock quantity reconciliation and the `sync_reconciliation` movement type (2026-10-02)
+
+**Health Sync is OFF as of 2026-10-10 and the section below is history, not
+current behaviour.** `POST /app/sync/reconcile-quantities` answers 410 for
+every caller (`config/dumos.php`'s hard-off `health_sync_enabled`), because one
+run from a half-rebuilt till removed 13,104 real units from a live store — see
+`docs/KNOWN_BUGS.md` A-214/A-213 and `docs/FIXED_BUGS.md`. The button stays in
+Settings → Data and shows the server's refusal. Two client-side rules survive
+and must stay even if the endpoint is ever restored: the pre-flight requires
+`movementLogIsComplete()` (exported from `sync-engine/stock-auto-heal.ts` —
+a succeeded sync round is **not** a complete one, and a device mid-rebuild
+reads 0 for every batch whose movements have not replayed yet), and the
+refusal must be visible to the owner, never swallowed. Restoring the endpoint
+is the spec's `opening_quantity` work, not a config flip.
 
 The server never accepts a pushed `stock_batches.quantity`: it zeroes it on
 INSERT, strips it on UPDATE, and only moves it by replaying
@@ -1517,6 +1557,12 @@ list showing which device a staff member last synced from — see
 `laravel-server/AGENTS.md`, "Per-device sync visibility", for the server
 side. Best-effort UA sniffing only: never use it for anything
 security-relevant or correctness-relevant, unlike `X-Device-Id` itself.
+
+`X-App-Version`/`X-Build-Sha` (from `lib/constants.ts`) ride along on the same
+calls since 2026-10-10. Also self-asserted and for attribution only — but keep
+them: A-214's asserting bundle could not be identified after the fact because
+nothing on a sync call named it (the Sentry `build_sha` comes from the error
+logger, not from sync).
 
 ### `ServerSelector` is also reachable from Settings > Data, not just the landing page (2026-10-02)
 

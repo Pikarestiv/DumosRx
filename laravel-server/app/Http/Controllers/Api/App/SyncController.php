@@ -22,6 +22,7 @@ use App\Models\StockMovement;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\RequestedProduct;
+use App\Services\Sync\PeerSyncFreshnessService;
 use App\Services\Web\UserDeviceTracker;
 use App\Services\Web\SyncPayloadMapper;
 use OpenApi\Attributes as OA;
@@ -2467,6 +2468,21 @@ class SyncController extends Controller
         ]);
     }
 
+    public function peerFreshness(Request $request, PeerSyncFreshnessService $freshness)
+    {
+        $storeId = $this->resolvePushStoreId($request, $request->user());
+
+        return response()->json([
+            'success' => true,
+            'threshold_minutes' => PeerSyncFreshnessService::STALE_AFTER_MINUTES,
+            'stale_devices' => $storeId
+                ? $freshness->stalePeers($storeId, $request->header('X-Device-Id'))
+                : [],
+        ]);
+    }
+
+    public const HEALTH_SYNC_DISABLED_MESSAGE = 'Health Sync is turned off. It copied this device\'s own stock figures to the cloud, which removed real stock from a live store, so it no longer runs. Nothing was sent and nothing changed. If stock looks wrong on this device, run a Force Full Resync or contact support.';
+
     public const RECONCILIATION_MOVEMENT_TYPE = 'sync_reconciliation';
     public const RECONCILIATION_REASON = 'Automatic stock quantity reconciliation';
     public const RECONCILIATION_ACTION = 'STOCK_QUANTITY_AUTO_RECONCILED';
@@ -2487,6 +2503,15 @@ class SyncController extends Controller
     )]
     public function reconcileQuantities(Request $request)
     {
+        // shortcut: hard off (config/dumos.php, flipped on only by its own
+        // tests); restore with the spec's opening_quantity work.
+        if (!config('dumos.health_sync_enabled')) {
+            return response()->json([
+                'success' => false,
+                'message' => self::HEALTH_SYNC_DISABLED_MESSAGE,
+            ], 410);
+        }
+
         $request->validate([
             'batches' => 'required|array',
             'batches.*.id' => 'required|string',
@@ -2542,7 +2567,7 @@ class SyncController extends Controller
                 + ($targetQuantity - $currentQuantity);
         }
 
-        $this->logQuantityReconciliations($perStoreTotals, $currentUser);
+        $this->logQuantityReconciliations($perStoreTotals, $currentUser, $request);
 
         return response()->json([
             'success' => true,
@@ -2615,7 +2640,7 @@ class SyncController extends Controller
      * — a few hundred batches would make the properties blob disproportionate
      * to what any reader needs; the per-batch truth lives in stock_movements.
      */
-    private function logQuantityReconciliations(array $perStoreTotals, $currentUser): void
+    private function logQuantityReconciliations(array $perStoreTotals, $currentUser, Request $request): void
     {
         foreach ($perStoreTotals as $storeId => $totals) {
             $store = Store::where('id', $storeId)->first();
@@ -2631,6 +2656,9 @@ class SyncController extends Controller
                 'properties' => [
                     'batches_reconciled' => $totals['batches'],
                     'total_quantity_delta' => $totals['delta'],
+                    'device_id' => $request->header('X-Device-Id'),
+                    'device_label' => $request->header('X-Device-Label'),
+                    'app_version' => $request->header('X-App-Version'),
                 ],
             ]);
         }

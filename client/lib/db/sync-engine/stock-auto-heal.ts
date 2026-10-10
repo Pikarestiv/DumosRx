@@ -22,7 +22,7 @@ type HealSkipReason = "movement-log-incomplete" | "inspection-session";
  * is known-incomplete and a fold would mass-rewrite quantities the rest of
  * the window is about to correct anyway.
  */
-async function movementLogIsComplete(): Promise<boolean> {
+export async function movementLogIsComplete(): Promise<boolean> {
   const rows = await query<{ last_synced_at: string | null; server_cursor: string | null }>(
     "SELECT last_synced_at, server_cursor FROM _sync_state WHERE table_name = 'stock_movements'",
   );

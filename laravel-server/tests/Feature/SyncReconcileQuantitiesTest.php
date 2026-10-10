@@ -81,6 +81,8 @@ class SyncReconcileQuantitiesTest extends TestCase
             ],
         ]);
 
+        config()->set('dumos.health_sync_enabled', true);
+
         $this->withoutMiddleware();
 
         Schema::enableForeignKeyConstraints();
@@ -116,6 +118,9 @@ class SyncReconcileQuantitiesTest extends TestCase
     private function reconcile(User $as, array $batches)
     {
         return $this->actingAs($as)
+            ->withHeader('X-Device-Id', 'DRX-TILL-1')
+            ->withHeader('X-Device-Label', 'Till 1')
+            ->withHeader('X-App-Version', '0.0.40')
             ->postJson('/api/v1/app/sync/reconcile-quantities', ['batches' => $batches]);
     }
 
@@ -324,5 +329,45 @@ class SyncReconcileQuantitiesTest extends TestCase
                 'batches' => [['id' => (string) Str::uuid(), 'quantity' => -3]],
             ])
             ->assertStatus(422);
+    }
+
+    #[Test]
+    public function it_is_refused_outright_and_changes_nothing_when_health_sync_is_off(): void
+    {
+        config()->set('dumos.health_sync_enabled', false);
+
+        $batchId = $this->makeBatch($this->store->id, 0);
+
+        $this->reconcile($this->owner, [['id' => $batchId, 'quantity' => 250]])
+            ->assertStatus(410)
+            ->assertJson([
+                'success' => false,
+                'message' => SyncController::HEALTH_SYNC_DISABLED_MESSAGE,
+            ]);
+
+        $this->assertEquals(0, DB::table('stock_batches')->where('id', $batchId)->value('quantity'));
+        $this->assertEquals(0, DB::table('stock_movements')->where('stock_batch_id', $batchId)->count());
+        $this->assertCount(0, ActivityLog::where('action', 'STOCK_QUANTITY_AUTO_RECONCILED')->get());
+    }
+
+    #[Test]
+    public function health_sync_is_off_by_default(): void
+    {
+        $shipped = require config_path('dumos.php');
+
+        $this->assertFalse($shipped['health_sync_enabled'], 'Only the test suite may enable Health Sync.');
+    }
+
+    #[Test]
+    public function the_activity_log_records_which_device_asserted_the_quantities(): void
+    {
+        $batchId = $this->makeBatch($this->store->id, 0);
+
+        $this->reconcile($this->owner, [['id' => $batchId, 'quantity' => 250]])->assertStatus(200);
+
+        $log = ActivityLog::where('action', 'STOCK_QUANTITY_AUTO_RECONCILED')->firstOrFail();
+        $this->assertEquals('DRX-TILL-1', $log->properties['device_id']);
+        $this->assertEquals('Till 1', $log->properties['device_label']);
+        $this->assertEquals('0.0.40', $log->properties['app_version']);
     }
 }

@@ -86,11 +86,14 @@ export function useSettingsSync(
         return "All synced up";
       },
       // Unlike sync()/forceFullResync(), this one can genuinely reject with
-      // a specific, non-connection reason (e.g. a read-only tab) - surface it.
+      // a specific, non-connection reason (a read-only tab, or the server
+      // refusing this app version per A-213) - surface it, and for long
+      // enough to read.
       error: (e: unknown) =>
         e instanceof Error
           ? e.message
           : "Couldn't complete the health sync. Please check your connection.",
+      duration: 12000,
     });
   };
 

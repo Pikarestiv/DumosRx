@@ -1359,6 +1359,39 @@ their own queue on each push: depth, and the rows past the retry ceiling.
   store no device has reported for, and the panel says nothing can be
   concluded rather than "nothing is stuck".
 
+## Health Sync is off, and peer sync freshness (A-213/A-214/A-211, 2026-10-10)
+
+`POST /app/sync/reconcile-quantities` is the one path that ever accepted a
+**device-reported** `stock_batches.quantity` as truth, writing the signed
+difference as a `sync_reconciliation` movement. On 2026-10-10 one run from a
+half-rebuilt till removed 13,104 real units from a live store.
+
+- **It now refuses every caller with 410** and
+  `SyncController::HEALTH_SYNC_DISABLED_MESSAGE`, gated on
+  `config/dumos.php`'s `health_sync_enabled`: hard `false`, **no env
+  override**, flipped on only by `SyncReconcileQuantitiesTest` so the
+  behaviour stays specified and its regressions stay covered. Do not add an
+  env knob, and do not re-enable it in production — the retirement path is the
+  derived-quantity spec's `opening_quantity` work, which dissolves the A-148
+  class this endpoint was the only repair for. `health_sync_is_off_by_default`
+  reads the shipped config file to make a quiet flip fail CI.
+- **The refusal must stay visible.** The client surfaces the message verbatim
+  (`docs/FIXED_BUGS.md` A-207 is what a silent refusal costs).
+- **Every sync call now carries `X-App-Version` and `X-Build-Sha`.** They are
+  self-asserted, like `X-Device-Id`, and are for attribution only — but they
+  are the only way to tell which bundle is talking, which A-214 needed and did
+  not have. The reconciliation activity log records `device_id`,
+  `device_label` and `app_version` for the same reason.
+- **`GET /app/sync/peer-freshness`** answers "which OTHER devices in my store
+  are behind?" for a till about to take a stock count (A-211), from
+  `user_devices.last_synced_at` via `PeerSyncFreshnessService`. Scoped exactly
+  like a push (`resolvePushStoreId()`), the calling `X-Device-Id` excluded,
+  newest row per device (`user_devices` is unique per *user*+device, so one
+  till has one row per staff member), never-synced reported with a null age.
+  `STALE_AFTER_MINUTES` is 60 and must stay equal to the client's
+  `COUNT_STALE_AFTER_MINUTES` — see `client/AGENTS.md`, "Counting on a device
+  that is behind sync". It is a warning the client renders, never a block.
+
 ## Device stock fingerprints (stuck-data Phase 1)
 
 `StockDivergenceService` answers "which devices disagree with the cloud about

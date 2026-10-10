@@ -420,6 +420,34 @@ export async function remove(
   queueTableInvalidation(table);
 }
 
+/**
+ * The record's pending UPDATE, if it has exactly one and nothing else queued.
+ * Narrow on purpose: an INSERT must stay an INSERT, a DELETE must not be
+ * overwritten, and a pre-existing multi-row backlog is left for
+ * `withheldRecordsWithBackedOffSiblingsRemoved()` to order. See
+ * client/AGENTS.md, "Queue collapsing", and docs/FIXED_BUGS.md A-203.
+ */
+interface CollapsibleQueueRow {
+  id: number;
+  payload: string;
+  created_at: string | null;
+  retry_count: number | null;
+  next_retry_at: string | null;
+}
+
+async function collapsibleUpdate(
+  table: string,
+  recordId: string,
+): Promise<CollapsibleQueueRow | null> {
+  const queued = await query<CollapsibleQueueRow & { operation: string }>(
+    `SELECT id, operation, payload, created_at, retry_count, next_retry_at
+       FROM _sync_queue WHERE table_name = ? AND record_id = ?`,
+    [table, recordId],
+  );
+  if (queued.length !== 1 || queued[0].operation !== "UPDATE") return null;
+  return queued[0];
+}
+
 async function addToSyncQueue(
   table: string,
   recordId: string,
@@ -428,10 +456,34 @@ async function addToSyncQueue(
 ): Promise<void> {
   const now = new Date().toISOString();
 
+  const pending = operation === "UPDATE" ? await collapsibleUpdate(table, recordId) : null;
+  let merged = payload;
+  let createdAt = now;
+  let retryCount: number = 0;
+  let nextRetryAt: string | null = null;
+
+  if (pending) {
+    try {
+      // Merged, not replaced: an update() payload carries only the fields
+      // that edit changed, so replacing would drop the earlier ones.
+      merged = { ...(JSON.parse(pending.payload) as Record<string, unknown>), ...payload };
+      createdAt = pending.created_at ?? now;
+      retryCount = pending.retry_count ?? 0;
+      nextRetryAt = pending.next_retry_at;
+      await execute(`DELETE FROM _sync_queue WHERE id = ?`, [pending.id]);
+    } catch (e) {
+      console.error("[Sync] Failed to collapse queued payload; queueing a new row", e);
+      merged = payload;
+      createdAt = now;
+      retryCount = 0;
+      nextRetryAt = null;
+    }
+  }
+
   await execute(
-    `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
-     VALUES (?, ?, ?, ?, ?)`,
-    [table, recordId, operation, JSON.stringify(payload), now],
+    `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at, retry_count, next_retry_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [table, recordId, operation, JSON.stringify(merged), createdAt, retryCount, nextRetryAt],
   );
 }
 

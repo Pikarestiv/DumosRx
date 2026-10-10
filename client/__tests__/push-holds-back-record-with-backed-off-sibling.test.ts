@@ -75,6 +75,23 @@ describe("pushChanges holds back a due edit when a sibling edit for the same rec
     db.run(`DELETE FROM _sync_queue WHERE table_name = 'audit_logs'`);
   }
 
+  /**
+   * A second pending UPDATE for the same record. Seeded directly because
+   * write-time collapsing (A-203) now keeps one pending UPDATE per record, so
+   * a multi-row backlog only exists on a device that queued it before that
+   * shipped — which is exactly the state push-time coalescing is still for.
+   */
+  function queueLegacySiblingUpdate(
+    recordId: string,
+    payload: Record<string, unknown>,
+  ) {
+    db.run(
+      `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
+       VALUES ('customers', ?, 'UPDATE', ?, ?)`,
+      [recordId, JSON.stringify({ id: recordId, _version: 1, ...payload }), new Date().toISOString()],
+    );
+  }
+
   it("does not push a due edit alone while a sibling edit for the same record is backed off, and pushes both correctly once the sibling also comes due", async () => {
     const customerId = await insert("customers", {
       first_name: "Jane",
@@ -96,8 +113,7 @@ describe("pushChanges holds back a due edit when a sibling edit for the same rec
 
     // Edit B: loyalty_points, queued afterward — due right now (fresh row,
     // next_retry_at is NULL).
-    await update("customers", customerId, { loyalty_points: 25 });
-    clearAuditLogQueueNoise();
+    queueLegacySiblingUpdate(customerId, { loyalty_points: 25 });
 
     const dueRows = db.exec(
       `SELECT id FROM _sync_queue WHERE table_name = 'customers' AND (next_retry_at IS NULL OR next_retry_at <= '${new Date().toISOString()}')`,
@@ -164,8 +180,7 @@ describe("pushChanges holds back a due edit when a sibling edit for the same rec
       [farFuture, customerId],
     );
 
-    await update("customers", customerId, { loyalty_points: 25 });
-    clearAuditLogQueueNoise();
+    queueLegacySiblingUpdate(customerId, { loyalty_points: 25 });
 
     apiClient.pushChanges.mockImplementationOnce(
       async (req: { changes: Array<{ table_name: string; payload: Record<string, unknown> }> }) => {

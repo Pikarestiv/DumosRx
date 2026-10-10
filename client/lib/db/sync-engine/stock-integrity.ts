@@ -201,6 +201,11 @@ export function summarizeIntegrity(report: StockIntegrityReport): Record<string,
   };
 }
 
+/** An automatic heal is audited under its own action: an admin-attributed
+ * repair row for a run no admin triggered would misname who changed the
+ * numbers, which is the question a staff dispute turns on. */
+export type FoldTrigger = "support" | "auto-heal";
+
 export interface FoldResult {
   folded: number;
   refused: number;
@@ -224,7 +229,9 @@ export interface FoldResult {
  * log it already holds; it is not a claim about the truth, which is why it
  * writes no `sync_reconciliation` movement.
  */
-export async function foldStockQuantities(): Promise<FoldResult> {
+export async function foldStockQuantities(
+  trigger: FoldTrigger = "support",
+): Promise<FoldResult> {
   // Without an active store the audit widens to every store on the device.
   // Harmless for a read; for a write it would rewrite another branch's
   // quantities (A-189 established at least one owner runs two).
@@ -267,11 +274,16 @@ export async function foldStockQuantities(): Promise<FoldResult> {
     queueTableInvalidation("stock_batches");
   }
 
-  await logTillRepair(TILL_REPAIR_ACTIONS.fold, getActiveStoreId() ?? "unknown", {
-    folded: result.folded,
-    refused: result.refused,
-    units_corrected: result.unitsCorrected,
-  });
+  await logTillRepair(
+    trigger === "auto-heal" ? TILL_REPAIR_ACTIONS.autoHeal : TILL_REPAIR_ACTIONS.fold,
+    getActiveStoreId() ?? "unknown",
+    {
+      folded: result.folded,
+      refused: result.refused,
+      units_corrected: result.unitsCorrected,
+      trigger,
+    },
+  );
 
   return result;
 }

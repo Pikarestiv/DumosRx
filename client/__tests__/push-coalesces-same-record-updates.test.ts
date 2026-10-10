@@ -78,6 +78,23 @@ describe("pushChanges coalesces multiple pending UPDATEs for the same record", (
     db.run(`DELETE FROM _sync_queue WHERE table_name = 'audit_logs'`);
   }
 
+  /**
+   * A second pending UPDATE for the same record. Seeded directly because
+   * write-time collapsing (A-203) now keeps one pending UPDATE per record, so
+   * a multi-row backlog only exists on a device that queued it before that
+   * shipped — which is exactly the state push-time coalescing is still for.
+   */
+  function queueLegacySiblingUpdate(
+    recordId: string,
+    payload: Record<string, unknown>,
+  ) {
+    db.run(
+      `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
+       VALUES ('customers', ?, 'UPDATE', ?, ?)`,
+      [recordId, JSON.stringify({ id: recordId, _version: 1, ...payload }), new Date().toISOString()],
+    );
+  }
+
   it("merges a credit-checkout's outstanding_balance edit and a loyalty-points edit on the same customer into ONE change, carrying the earliest base _version", async () => {
     const customerId = await insert("customers", {
       first_name: "Jane", last_name: "Doe",
@@ -89,14 +106,14 @@ describe("pushChanges coalesces multiple pending UPDATEs for the same record", (
     // Mirrors use-pos-payment.ts's mixed/credit checkout: two sequential
     // update() calls on the same customer row, no sync between them.
     await update("customers", customerId, { outstanding_balance: 500 });
-    await update("customers", customerId, { loyalty_points: 25 });
     clearAuditLogQueueNoise();
+    queueLegacySiblingUpdate(customerId, { loyalty_points: 25 });
 
     const queued = db.exec(
       `SELECT id, payload FROM _sync_queue WHERE table_name = 'customers' AND operation = 'UPDATE' ORDER BY id ASC`,
     );
-    // Both edits are still two separate local queue rows before push —
-    // coalescing happens at push time, not at write time.
+    // Two separate local queue rows reach push — write-time collapsing keeps
+    // a single device at one, so this is the legacy-backlog shape.
     expect(queued[0].values.length).toBe(2);
 
     apiClient.pushChanges.mockImplementationOnce(async (req: { changes: Array<{ payload: Record<string, unknown> }> }) => {
@@ -143,8 +160,8 @@ describe("pushChanges coalesces multiple pending UPDATEs for the same record", (
     db.run(`DELETE FROM _sync_queue`);
 
     await update("customers", customerId, { outstanding_balance: 500 });
-    await update("customers", customerId, { loyalty_points: 25 });
     clearAuditLogQueueNoise();
+    queueLegacySiblingUpdate(customerId, { loyalty_points: 25 });
 
     // The representative id the coalesced change is sent (and echoed back
     // in `failed`) under is the EARLIEST underlying queue row's id.

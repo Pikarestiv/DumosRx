@@ -63,7 +63,7 @@ describe("createAndReceivePurchaseOrder", () => {
       );
       CREATE TABLE _sync_queue (
         id INTEGER PRIMARY KEY AUTOINCREMENT, table_name TEXT, record_id TEXT,
-        operation TEXT, payload TEXT, created_at TEXT, next_retry_at TEXT
+        operation TEXT, payload TEXT, created_at TEXT, retry_count INTEGER DEFAULT 0, next_retry_at TEXT
       );
       CREATE TABLE audit_logs (
         id TEXT PRIMARY KEY, user_id TEXT, store_id TEXT, action TEXT, table_name TEXT,

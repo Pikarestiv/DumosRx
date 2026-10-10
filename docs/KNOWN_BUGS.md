@@ -10,6 +10,42 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
+#### A-231. `web/` — A-224 stopped the admin card rendering a server exception, but the raw text still reaches the production console and the telemetry POST
+- **Found:** 2026-10-10, second adversarial review of the release batch.
+- **Location:** `web/lib/api/base-client.ts:224` keeps `rawServerMessage` and feeds it to `:252`'s `console.error` (in production, not just dev), `:235`'s log buffer and `:261`'s `/logs/client-error` POST, both via `sanitizePayload()` (`web/lib/api/logger.ts:85-90`).
+- **What's wrong:** `sanitizePayload` masks **by key name**. A-224's payload was a bcrypt hash and an encrypted till code embedded in the *value* of a SQL exception's `message`; `message` is not a sensitive key, so the value passes through verbatim. A-224's commit subject is true of the card and not of the console.
+- **Consequence:** an authenticated admin's own browser console, and the telemetry store, still receive the material A-224 removed from the screen. Low severity on its own — but one keystroke away during a screen-share or a support call, which is exactly the setting an admin panel is used in.
+- **Fix:** run the console and telemetry paths through the same gate as the rendered message, or sanitise by value shape as well as key name. Keeping the raw text for telemetry was deliberate (nothing should be lost from diagnostics), so the better answer is probably to send it to a field that is masked, not to drop it.
+
+#### A-232. `client/` — two load-bearing comments in `stock-integrity.ts` state things that are not true
+- **Found:** 2026-10-10, second adversarial review. Exactly the class of claim that caused today's other defects, so recorded rather than quietly corrected.
+- **Location:** `client/lib/db/sync-engine/stock-integrity.ts:55-59`.
+- **(a)** *"Depends on no movement ever being soft-deleted… Nothing soft-deletes one today."* False: the pull's UPDATE branch (`pull.ts:347-360`) writes `_deleted` for an existing `stock_movements` row **without reversing the delta it already applied**, so a server-side void does soft-delete one — which is why `deferred-stock-deltas.ts:80-89` and `pull.ts:252` exist at all.
+- **(b)** The stated hazard is also backwards. A soft-deleted *inbound* movement leaves `batchQuantity > inboundTotal`, so A-215 already refuses it; a soft-deleted *outbound* one makes the fold write the quantity **up**, matching what the server derives. The comment warns of a destructive case that is handled and misses the behaviour that actually occurs.
+- **(c)** `:55-56`'s *"the way both the pull and the server do"* asserts a cross-repo equivalence that does not hold: the pull floors per movement (`pull.ts:412`) while `SyncController::applyStockBatchDeltas` (`:1342-1347`) accumulates per batch across a whole push and applies one floored UPDATE. Related to A-217.
+- **Why it matters:** a future agent reading "the first void-sale soft-delete would make a fold destroy stock" may act on a risk that is already closed, or trust an equivalence that is false.
+
+#### A-233. `laravel-server/` — the repair's conditional update cannot fail, so `skipped: 0` does not mean what an operator would read it to mean
+- **Found:** 2026-10-10, second adversarial review.
+- **Location:** `app/Services/Sync/HealthSyncReconciliationRepairService.php:240-260`.
+- **What's wrong:** `$stored` is read under `lockForUpdate()` inside the transaction, so the row is held for the rest of it and nothing can change `quantity` before the `where('quantity', $stored)` update. The conditional therefore never fails in production. The lock is the real protection and it works; but commit `cdb5b50e` claims "a conditional update so a concurrent push is skipped and reported rather than clobbered", describing a mechanism that cannot fire, and `skipped` only ever counts **missing batch rows**.
+- **Consequence:** not a safety defect — the lock does the job. But an operator reading `skipped: 0` will conclude no concurrent push was skipped, and that number cannot say otherwise. The test pinning it presumably passes by stubbing the lock away (SQLite compiles `lockForUpdate()` out).
+- **Fix:** either describe the lock as the mechanism and drop the dead conditional, or keep the conditional and say in the output what `skipped` actually counts.
+
+#### A-234. `client/` — A-223's guard silently disables the daily health check on a device with a corrupt stored timestamp
+- **Found:** 2026-10-10, second adversarial review.
+- **Location:** `client/lib/db/sync-engine/health-check.ts:101` — `if (!getLastSyncTime()) return;`.
+- **What's wrong:** since A-223, an unparseable value returns `null`, so the device takes the "never synced" branch and skips the row-count deficit check **and `healStockIntegrity()`** entirely. Before the fix the value was truthy and the check ran — though the app was also crash-screened on every page, so nothing ran anyway.
+- **Consequence:** small and self-healing — the first successful round re-stamps a valid value (`index.ts:188`) and the check resumes. Worth knowing because the auto-heal is the thing that silently stops.
+- **Fix:** distinguish "never synced" from "cannot read the timestamp"; the latter should not suppress a health check that does not depend on the value.
+
+#### A-235. `client/` — `isInTransaction()` is not a reliable proxy for "this call holds a queue slot", and A-219 newly depends on it
+- **Found:** 2026-10-10, second adversarial review. Pre-existing shape, newly load-bearing.
+- **Location:** `client/lib/db/core.ts:617-623` and `:639-641`.
+- **What's wrong:** when `db` is still null after `initDatabase()`, or when `BEGIN` throws, `transaction()` runs `fn()` with its queue slot **reserved** but never sets `inTransaction = true`. `recordSaleItemStock()` (A-219) now uses `isInTransaction()` to decide whether to open a nested `transaction()`; in either degraded path it decides wrongly and the nested call deadlocks on `reserveDbSlot()` awaiting its own parent.
+- **Consequence:** a hung sale write on a device whose database failed to initialise — rare, and that device has larger problems, but the failure mode is a hang rather than an error.
+- **Fix:** set the in-transaction flag from the slot reservation rather than from `BEGIN` succeeding, so the two cannot disagree.
+
 #### A-230. `client/` — the subscription sync advances the whole `stores` pull window although it only applies four fields of what it fetched
 - **Found:** 2026-10-10, while fixing A-228 in the same writer.
 - **Location:** `lib/db/sync-engine/index.ts` — `syncSubscriptionStatus()`'s `STAMP_STORES_WINDOW_SQL`.

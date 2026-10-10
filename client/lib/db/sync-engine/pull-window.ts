@@ -22,6 +22,23 @@ const RESTORE_SQL = `UPDATE _sync_state
    SET last_synced_at = COALESCE(rewound_from, last_synced_at), rewound_from = NULL, server_cursor = NULL
    WHERE table_name = ?`;
 
+const STAMP_SQL = `INSERT INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)
+   ON CONFLICT(table_name) DO UPDATE SET last_synced_at = excluded.last_synced_at
+   WHERE rewind_count = 0`;
+
+/**
+ * The only way a caller outside this module may advance a pull window. It
+ * names the one column it owns — an INSERT OR REPLACE reverted the rewind
+ * bookkeeping to its schema defaults (A-226) — and refuses to stamp over a
+ * rewind in flight, because a newer stamp cancels the re-pull.
+ */
+export async function stampPullWindowUnlessRewinding(
+  table: string,
+  syncedAt: string,
+): Promise<void> {
+  await execute(STAMP_SQL, [table, syncedAt]);
+}
+
 const EXHAUSTED_SQL = `SELECT table_name FROM _sync_state WHERE rewind_count >= ?`;
 
 async function restoreBaseline(table: string, cause: string): Promise<void> {

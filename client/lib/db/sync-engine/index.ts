@@ -1,5 +1,6 @@
 import { pushChanges } from "./push";
 import { pullChanges } from "./pull";
+import { stampPullWindowUnlessRewinding } from "./pull-window";
 import { SyncResult, PullResponse } from "./types";
 import {
   recordSyncOutcome,
@@ -252,16 +253,6 @@ async function runSync(
 }
 
 /**
- * Owns `last_synced_at` for `stores` and nothing else: an INSERT OR REPLACE
- * here reverted the rewind bookkeeping to its schema defaults, and a stamp
- * mid-rewind cancels the re-pull the rewind exists to force. See
- * client/AGENTS.md, "Pull window rewinds".
- */
-const STAMP_STORES_WINDOW_SQL = `INSERT INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)
-   ON CONFLICT(table_name) DO UPDATE SET last_synced_at = excluded.last_synced_at
-   WHERE rewind_count = 0`;
-
-/**
  * Privileged Subscription Status Sync
  *
  * Pulls ONLY the `stores` table (subscription_tier, status,
@@ -332,7 +323,7 @@ export async function syncSubscriptionStatus(): Promise<{
       }
     }
 
-    await execute(STAMP_STORES_WINDOW_SQL, ["stores", response.server_timestamp]);
+    await stampPullWindowUnlessRewinding("stores", response.server_timestamp);
 
     // Prefix-only keys, so every store/user-scoped variant is matched.
     if (typeof window !== "undefined") {

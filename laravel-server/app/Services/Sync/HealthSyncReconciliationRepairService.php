@@ -59,7 +59,7 @@ class HealthSyncReconciliationRepairService
             $incidentDelta = (int) $rows->sum('quantity');
             $stored = (int) ($storedQuantities[$batchId] ?? 0);
             $logSum = (int) ($logSums[$batchId] ?? 0);
-            $target = $logSum - $incidentDelta;
+            $target = $stored - $incidentDelta;
             $storeKey = (string) ($rows->first()->store_id ?? '');
             $productName = (string) ($rows->first()->product_name ?? 'unknown product');
 
@@ -85,9 +85,11 @@ class HealthSyncReconciliationRepairService
                 $target = $written['target'];
             }
 
+            $unitsWritten = max(0, $target) - $stored;
+
             $batches++;
             $movementsReversed += $rows->count();
-            $unitsRestored += -$incidentDelta;
+            $unitsRestored += $unitsWritten;
 
             if ($target < 0) {
                 $clamped++;
@@ -99,12 +101,12 @@ class HealthSyncReconciliationRepairService
 
             $perStore[$storeKey]['batches'] = ($perStore[$storeKey]['batches'] ?? 0) + 1;
             $perStore[$storeKey]['movements'] = ($perStore[$storeKey]['movements'] ?? 0) + $rows->count();
-            $perStore[$storeKey]['units'] = ($perStore[$storeKey]['units'] ?? 0) + (-$incidentDelta);
+            $perStore[$storeKey]['units'] = ($perStore[$storeKey]['units'] ?? 0) + $unitsWritten;
 
             $corrections[] = [
                 'product' => $productName,
                 'store' => $storeKey,
-                'units' => -$incidentDelta,
+                'units' => $unitsWritten,
                 'from' => $stored,
                 'to' => max(0, $target),
             ];
@@ -248,7 +250,7 @@ class HealthSyncReconciliationRepairService
             ->lockForUpdate()
             ->sum('quantity');
 
-        $target = $logSum - $incidentDelta;
+        $target = (int) $stored - $incidentDelta;
 
         $updated = DB::table('stock_batches')
             ->where('id', $batchId)

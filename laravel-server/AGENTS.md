@@ -2626,15 +2626,46 @@ php artisan sync:repair-health-sync-reconciliation                 # report
 php artisan sync:repair-health-sync-reconciliation --store=<id> --apply
 ```
 
-- **Arithmetic.** For each affected batch the target is
-  `SUM(all its movements) − SUM(the bad sync_reconciliation deltas)`, which is
-  identical to the log sum excluding those rows, and — because each reversal
-  cancels its own row — identical to the full log sum once the repair has run.
-  Movements recorded *after* the incident (sales rung against the zero,
-  deliveries, counts) are part of that sum and are preserved: the command
-  restores the reconciliation delta, it does not reset the batch to its
-  pre-incident number. A target below zero is stored clamped at 0 and reported,
-  because the deficit belongs in the log, not in the column.
+- **Arithmetic: delta reversal, and the movement log is never summed (A-226).**
+  For each affected batch the target is
+  `stock_batches.quantity (as stored now) − SUM(the bad sync_reconciliation deltas)`.
+  It follows from one identity: the incident and everything after it were both
+  applied to the stored column, so
+  `stored = pre_incident + incidentDelta + post_incident_deltas`, hence
+  `stored − incidentDelta = pre_incident + post_incident_deltas` — exactly the
+  number the batch should hold. Movements recorded *after* the incident (sales
+  rung against the zero, deliveries, counts) are already inside `stored` and
+  are therefore preserved without being re-added; the command undoes the
+  incident, it does not reset the batch to its pre-incident number.
+  - **Why not the log sum.** The first version computed
+    `SUM(all movements) − SUM(the bad deltas)`, which equals the pre-incident
+    quantity *only if the log is complete and was never floored*. Neither holds
+    here. For the **A-148 class** (batches whose opening stock never produced a
+    movement row, `docs/KNOWN_BUGS.md` A-213) a batch holding 100 real units
+    with no movement rows at all has `logSum = −100` after the incident, so the
+    old target was `0` — the repair wrote the zero back, reported `+100 units
+    restored`, and did not trip the clamp warning because `0` is not negative.
+    Separately, for any batch whose history was floored by an oversell, raw
+    `SUM(quantity)` sits *below* the running balance the server actually kept,
+    so the target landed at or under the true figure and the repair wrote the
+    batch **down**, silently, whenever that figure was still ≥ 0. Delta
+    reversal cannot be wrong in either case because it never consults the log.
+    This is the server-side twin of the client fix in
+    `client/lib/db/sync-engine/stock-integrity.ts` (A-215), which refuses such
+    batches as `unreconstructable`.
+  - Where the log *is* complete and unfloored the two formulas agree, which is
+    what `it_keeps_movements_made_after_the_incident_and_still_lands_on_the_right_number`
+    pins (`drifted` is asserted to be 0 there, i.e. `stored === logSum`). The
+    log sum is still read, but only to count `drifted` batches for the report.
+  - A target below zero — only reachable when the bad delta was *positive* and
+    larger than the quantity now — is stored clamped at 0 and reported, because
+    the deficit belongs in the log, not in the column.
+  - **`units_restored` is what was written, not the size of the reversal**:
+    `max(0, target) − stored`, per batch and summed. The old
+    `−incidentDelta` described the reversal, so a batch left exactly where it
+    was still reported units restored (that is how the A-148 failure above
+    stayed invisible, printing `from: 0, to: 0, units: 100`). A clamped batch
+    therefore reports a negative figure, which is the truth.
 - **Reversal, never deletion.** Each bad row gets a `sync_reconciliation_reversal`
   movement of the opposite sign, with `reference_id` = the reversed movement's
   id, `reference_type = 'stock_movement'`, and the reversed row's own

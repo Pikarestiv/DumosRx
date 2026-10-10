@@ -40,7 +40,7 @@ class RepairHealthSyncReconciliation extends Command
         $this->info("Units restored: +{$result['units_restored']}");
 
         if ($result['clamped'] > 0) {
-            $this->warn("{$result['clamped']} batch(es) sum below zero once the reconciliation is removed — "
+            $this->warn("{$result['clamped']} batch(es) fall below zero once the reconciliation is removed — "
                 .'stored as 0 and the shortfall stays visible in the movement log; these need a physical count.');
         }
 
@@ -55,7 +55,7 @@ class RepairHealthSyncReconciliation extends Command
 
         if ($result['drifted'] > 0) {
             $this->warn("{$result['drifted']} batch(es) held a quantity that did not match their own movement log "
-                .'before this repair; the log total is what they are set to.');
+                .'before this repair; their stored quantity, not the log total, is what the repair builds on.');
         }
 
         if ($apply) {
@@ -88,11 +88,12 @@ class RepairHealthSyncReconciliation extends Command
     private function explainArithmetic(): void
     {
         $this->newLine();
-        $this->line('Arithmetic: each batch is set to the sum of its whole movement log minus the bad');
-        $this->line('reconciliation deltas, and a compensating movement of the opposite sign is written for');
-        $this->line('each one. Movements recorded after the incident — sales, deliveries, counts — are part of');
-        $this->line('that sum and are kept, so this restores the reconciliation delta rather than resetting the');
-        $this->line('batch to its pre-incident number. A negative total is stored as 0.');
+        $this->line('Arithmetic: each batch is set to its quantity now minus the bad reconciliation deltas,');
+        $this->line('and a compensating movement of the opposite sign is written for each one. That undoes');
+        $this->line('exactly the incident: every movement recorded after it — sales, deliveries, counts — is');
+        $this->line('already part of the quantity now and is kept. The movement log is never summed, so a');
+        $this->line('batch whose opening stock produced no movement row is still restored correctly.');
+        $this->line('"Units restored" is the change actually written to each batch; a negative total is stored as 0.');
         $this->newLine();
     }
 

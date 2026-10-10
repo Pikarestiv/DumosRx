@@ -136,18 +136,20 @@ class HealthSyncReconciliationRepairTest extends TestCase
     #[Test]
     public function it_keeps_movements_made_after_the_incident_and_still_lands_on_the_right_number(): void
     {
-        $batchId = $this->batch($this->storeA, 'FESOLATE', 0);
+        $batchId = $this->batch($this->storeA, 'FESOLATE', 15);
         $this->movement($batchId, 'purchase', 100, '2026-09-01 10:00:00');
         $this->movement($batchId, 'sync_reconciliation', -100, self::INCIDENT_AT);
-        $this->movement($batchId, 'sale', -30, '2026-10-10 11:15:00');
-        $this->movement($batchId, 'purchase', 20, '2026-10-10 13:40:00');
+        $this->movement($batchId, 'purchase', 50, '2026-10-10 11:15:00');
+        $this->movement($batchId, 'sale', -30, '2026-10-10 13:40:00');
         $this->movement($batchId, 'adjustment', -5, '2026-10-10 15:00:00');
 
-        $this->service()->apply(null);
+        $result = $this->service()->apply(null);
 
-        $this->assertSame(85, $this->quantity($batchId));
+        $this->assertSame(115, $this->quantity($batchId));
+        $this->assertSame(100, $result['units_restored']);
+        $this->assertSame(0, $result['drifted']);
         $this->assertSame(
-            85,
+            115,
             (int) DB::table('stock_movements')->where('stock_batch_id', $batchId)->sum('quantity'),
         );
     }
@@ -274,17 +276,55 @@ class HealthSyncReconciliationRepairTest extends TestCase
     }
 
     #[Test]
-    public function a_log_sum_below_zero_is_stored_clamped_and_reported(): void
+    public function an_a148_batch_with_no_movement_log_is_restored_not_left_at_zero(): void
     {
-        $batchId = $this->batch($this->storeA, 'OVERSOLD', 0);
+        $batchId = $this->batch($this->storeA, 'A-148 OPENING STOCK', 0);
+        $this->movement($batchId, 'sync_reconciliation', -100, self::INCIDENT_AT);
+
+        $result = $this->service()->apply(null);
+
+        $this->assertSame(
+            100,
+            $this->quantity($batchId),
+            'an A-148 batch holding real units with no movement rows must be restored from the reversed delta, not rebuilt from an incomplete log',
+        );
+        $this->assertSame(100, $result['units_restored']);
+        $this->assertSame(0, $result['largest'][0]['from']);
+        $this->assertSame(100, $result['largest'][0]['to']);
+    }
+
+    #[Test]
+    public function a_batch_whose_log_sum_sits_below_its_floored_balance_is_not_written_down(): void
+    {
+        $batchId = $this->batch($this->storeA, 'OVERSOLD THEN RESTOCKED', 0);
+        $this->movement($batchId, 'purchase', 100, '2026-09-01 10:00:00');
+        $this->movement($batchId, 'sale', -120, '2026-09-02 10:00:00');
+        $this->movement($batchId, 'purchase', 50, '2026-09-03 10:00:00');
+        $this->movement($batchId, 'sync_reconciliation', -50, self::INCIDENT_AT);
+
+        $result = $this->service()->apply(null);
+
+        $this->assertSame(
+            50,
+            $this->quantity($batchId),
+            'a batch whose history was floored by an oversell must be restored to its pre-incident quantity, not to its lower raw log sum',
+        );
+        $this->assertSame(50, $result['units_restored']);
+    }
+
+    #[Test]
+    public function a_reversal_larger_than_the_stored_quantity_is_clamped_and_reported(): void
+    {
+        $batchId = $this->batch($this->storeA, 'RECONCILED UPWARDS', 5);
         $this->movement($batchId, 'purchase', 10, '2026-09-01 10:00:00');
-        $this->movement($batchId, 'sync_reconciliation', -10, self::INCIDENT_AT);
-        $this->movement($batchId, 'sale', -14, '2026-10-10 12:00:00');
+        $this->movement($batchId, 'sync_reconciliation', 60, self::INCIDENT_AT);
+        $this->movement($batchId, 'sale', -65, '2026-10-10 12:00:00');
 
         $result = $this->service()->apply(null);
 
         $this->assertSame(1, $result['clamped']);
         $this->assertSame(0, $this->quantity($batchId));
+        $this->assertSame(-5, $result['units_restored']);
     }
 
     #[Test]
@@ -309,7 +349,12 @@ class HealthSyncReconciliationRepairTest extends TestCase
 
         $this->assertSame(0, $rerun['skipped']);
         $this->assertSame(1, $rerun['batches']);
-        $this->assertSame(100, $this->quantity($batchId));
+        $this->assertSame(
+            107,
+            $this->quantity($batchId),
+            "the till's 7 units are already in the stored quantity and must survive the reversal",
+        );
+        $this->assertSame(100, $rerun['units_restored']);
     }
 
     private function simulatePushBetweenReadAndWrite(string $batchId, int $pushedQuantity): void

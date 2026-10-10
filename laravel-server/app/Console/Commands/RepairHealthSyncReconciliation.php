@@ -22,7 +22,7 @@ class RepairHealthSyncReconciliation extends Command
 
         $result = $apply ? $service->apply($storeId) : $service->preview($storeId);
 
-        if ($result['batches'] === 0) {
+        if ($result['batches'] === 0 && $result['skipped'] === 0) {
             $this->info('Nothing to repair: no un-reversed sync_reconciliation movements dated on or before '
                 .HealthSyncReconciliationRepairService::INCIDENT_THROUGH.'.');
 
@@ -41,6 +41,15 @@ class RepairHealthSyncReconciliation extends Command
         if ($result['clamped'] > 0) {
             $this->warn("{$result['clamped']} batch(es) sum below zero once the reconciliation is removed — "
                 .'stored as 0 and the shortfall stays visible in the movement log; these need a physical count.');
+        }
+
+        if ($result['skipped'] > 0) {
+            $this->warn("{$result['skipped']} batch(es) had their quantity moved by a till while the repair ran, so "
+                .'nothing was written for them — not the quantity and not the reversal. Re-run the command to finish them.');
+            $this->table(
+                ['Product', 'Store id', 'Batch id'],
+                array_map(fn ($row) => [$row['product'], $row['store'], $row['batch']], $result['skipped_batches']),
+            );
         }
 
         if ($result['drifted'] > 0) {

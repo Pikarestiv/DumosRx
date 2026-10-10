@@ -245,6 +245,45 @@ class HealthSyncReconciliationRepairTest extends TestCase
     }
 
     #[Test]
+    public function a_quantity_that_moves_under_the_repair_is_skipped_rather_than_clobbered(): void
+    {
+        $batchId = $this->batch($this->storeA, 'CONCURRENT SALE', 0);
+        $this->movement($batchId, 'purchase', 100, '2026-09-01 10:00:00');
+        $this->movement($batchId, 'sync_reconciliation', -100, self::INCIDENT_AT);
+
+        $this->simulatePushBetweenReadAndWrite($batchId, 7);
+
+        $result = $this->service()->apply(null);
+
+        $this->assertSame(7, $this->quantity($batchId));
+        $this->assertSame(1, $result['skipped']);
+        $this->assertSame(0, $result['batches']);
+        $this->assertSame(0, DB::table('stock_movements')
+            ->where('movement_type', HealthSyncReconciliationRepairService::REVERSAL_MOVEMENT_TYPE)
+            ->count());
+
+        $rerun = $this->service()->apply(null);
+
+        $this->assertSame(0, $rerun['skipped']);
+        $this->assertSame(1, $rerun['batches']);
+        $this->assertSame(100, $this->quantity($batchId));
+    }
+
+    private function simulatePushBetweenReadAndWrite(string $batchId, int $pushedQuantity): void
+    {
+        $fired = false;
+
+        DB::listen(function ($query) use ($batchId, $pushedQuantity, &$fired) {
+            if ($fired || ! str_contains($query->sql, 'from "stock_batches" where "id" =')) {
+                return;
+            }
+
+            $fired = true;
+            DB::table('stock_batches')->where('id', $batchId)->update(['quantity' => $pushedQuantity]);
+        });
+    }
+
+    #[Test]
     public function the_report_names_the_largest_corrections_per_store(): void
     {
         $small = $this->batch($this->storeA, 'SMALL ITEM', 0);

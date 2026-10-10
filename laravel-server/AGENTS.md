@@ -2536,7 +2536,23 @@ php artisan sync:repair-health-sync-reconciliation --store=<id> --apply
   '2026-10-10 10:00:00'` (`INCIDENT_THROUGH`), so a legitimate future
   reconciliation is never swept up — widen that constant deliberately or not at
   all.
-- **Eloquent timestamps only** (root `AGENTS.md` §7). Both the reversal rows and
+- **Concurrency: it is meant to be run during trading hours.** Each batch's
+  quantity is written inside the repair transaction as a *locked read then
+  conditional update* — `lockForUpdate()` on the `stock_batches` row and on that
+  batch's movements (so the figures are the latest committed ones and a
+  concurrent push waits), then `where('quantity', $justRead)->update(...)`,
+  mirroring `SyncController::writeQuantityReconciliation()`. Wrapping the run in
+  `DB::transaction` alone would **not** have been enough: the bulk report reads
+  are non-locking snapshot reads, so a till's push could commit underneath them
+  and an absolute `save()` would overwrite its quantity while its movement row
+  survived. If the conditional update still matches no row, that batch is
+  abandoned whole — **no quantity write and no reversal movements**, so the
+  invariant "a reversal exists ⟺ its quantity was corrected" holds and the batch
+  is simply picked up by the next run. Skipped batches are listed in the output
+  by product and id; re-run to finish them. Report mode takes no locks at all.
+- **Eloquent timestamps only** (root `AGENTS.md` §7). The conditional update is a
+  query-builder `update()` with `now()` from PHP, which is UTC — the §7 ban is on
+  MySQL's own `NOW()`, not on Carbon's. Both the reversal rows and
   the batch quantity are written through models, so `updated_at` is PHP-UTC. A
   raw `UPDATE … NOW()` here would stamp ~4 hours behind UTC and the corrected
   rows would never pass the pull's `updated_at` filter — the corrections would
@@ -2559,7 +2575,9 @@ php artisan sync:repair-health-sync-reconciliation --store=<id> --apply
 - **Tests:** `tests/Feature/HealthSyncReconciliationRepairTest.php` — exact
   restore, post-incident movements interleaved and preserved, double `--apply`,
   report mode writing nothing, `--store=` scoping, untouched batches, a
-  post-window reconciliation left alone, and the clamp.
+  post-window reconciliation left alone, the clamp, and a quantity moved
+  underneath the repair being skipped rather than clobbered (simulated with
+  `DB::listen`, since SQLite compiles `lockForUpdate()` away).
 
 ## Running artisan on the production box (Namecheap shared hosting)
 

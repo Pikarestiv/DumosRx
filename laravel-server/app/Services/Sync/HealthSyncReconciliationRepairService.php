@@ -2,7 +2,6 @@
 
 namespace App\Services\Sync;
 
-use App\Models\StockBatch;
 use App\Models\StockMovement;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -40,6 +39,9 @@ class HealthSyncReconciliationRepairService
 
         $perStore = [];
         $corrections = [];
+        $skipped = [];
+        $batches = 0;
+        $movementsReversed = 0;
         $unitsRestored = 0;
         $clamped = 0;
         $drifted = 0;
@@ -47,16 +49,42 @@ class HealthSyncReconciliationRepairService
         foreach ($incidentRows->groupBy('stock_batch_id') as $batchId => $rows) {
             $incidentDelta = (int) $rows->sum('quantity');
             $stored = (int) ($storedQuantities[$batchId] ?? 0);
-            $target = (int) ($logSums[$batchId] ?? 0) - $incidentDelta;
+            $logSum = (int) ($logSums[$batchId] ?? 0);
+            $target = $logSum - $incidentDelta;
             $storeKey = (string) ($rows->first()->store_id ?? '');
+            $productName = (string) ($rows->first()->product_name ?? 'unknown product');
 
+            if ($apply) {
+                $written = $this->writeBatchUnderLock((string) $batchId, $incidentDelta);
+
+                if ($written === null) {
+                    $skipped[] = [
+                        'product' => $productName,
+                        'store' => $storeKey,
+                        'batch' => (string) $batchId,
+                    ];
+
+                    continue;
+                }
+
+                foreach ($rows as $row) {
+                    $this->writeReversal($row);
+                }
+
+                $stored = $written['stored'];
+                $logSum = $written['log_sum'];
+                $target = $written['target'];
+            }
+
+            $batches++;
+            $movementsReversed += $rows->count();
             $unitsRestored += -$incidentDelta;
 
             if ($target < 0) {
                 $clamped++;
             }
 
-            if ($stored !== (int) ($logSums[$batchId] ?? 0)) {
+            if ($stored !== $logSum) {
                 $drifted++;
             }
 
@@ -65,33 +93,25 @@ class HealthSyncReconciliationRepairService
             $perStore[$storeKey]['units'] = ($perStore[$storeKey]['units'] ?? 0) + (-$incidentDelta);
 
             $corrections[] = [
-                'product' => (string) ($rows->first()->product_name ?? 'unknown product'),
+                'product' => $productName,
                 'store' => $storeKey,
                 'units' => -$incidentDelta,
                 'from' => $stored,
                 'to' => max(0, $target),
             ];
-
-            if (! $apply) {
-                continue;
-            }
-
-            foreach ($rows as $row) {
-                $this->writeReversal($row);
-            }
-
-            $this->setQuantity((string) $batchId, max(0, $target));
         }
 
         usort($corrections, fn ($a, $b) => $b['units'] <=> $a['units']);
 
         return [
             'applied' => $apply,
-            'batches' => $incidentRows->pluck('stock_batch_id')->unique()->count(),
-            'movements_reversed' => $incidentRows->count(),
+            'batches' => $batches,
+            'movements_reversed' => $movementsReversed,
             'units_restored' => $unitsRestored,
             'clamped' => $clamped,
             'drifted' => $drifted,
+            'skipped' => count($skipped),
+            'skipped_batches' => $skipped,
             'per_store' => $perStore,
             'largest' => array_slice($corrections, 0, self::LARGEST_SHOWN),
         ];
@@ -173,15 +193,31 @@ class HealthSyncReconciliationRepairService
         return 'A-214 repair: reverses Health Sync sync_reconciliation movement '.$movementId;
     }
 
-    private function setQuantity(string $batchId, int $quantity): void
+    /** @return array{stored:int, log_sum:int, target:int}|null */
+    private function writeBatchUnderLock(string $batchId, int $incidentDelta): ?array
     {
-        $batch = StockBatch::find($batchId);
+        $stored = DB::table('stock_batches')->where('id', $batchId)->lockForUpdate()->value('quantity');
 
-        if (! $batch) {
-            return;
+        if ($stored === null) {
+            return null;
         }
 
-        $batch->quantity = $quantity;
-        $batch->save();
+        $logSum = (int) DB::table('stock_movements')
+            ->where('stock_batch_id', $batchId)
+            ->lockForUpdate()
+            ->sum('quantity');
+
+        $target = $logSum - $incidentDelta;
+
+        $updated = DB::table('stock_batches')
+            ->where('id', $batchId)
+            ->where('quantity', (int) $stored)
+            ->update(['quantity' => max(0, $target), 'updated_at' => now()]);
+
+        if ($updated === 0) {
+            return null;
+        }
+
+        return ['stored' => (int) $stored, 'log_sum' => $logSum, 'target' => $target];
     }
 }

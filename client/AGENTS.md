@@ -1180,6 +1180,14 @@ So the rewind now:
   of grinding. 3 rather than `MAX_NON_IMPROVING_RESYNCS`' 2 only because these
   are spent per sync round, not per day.
 
+Because `_sync_state` now carries state two different writers care about,
+**every writer must name the columns it owns.** `syncSubscriptionStatus()`
+stamped its stores window with `INSERT OR REPLACE`, which deletes the row and
+re-inserts it, so `rewind_count` and `rewound_from` reverted to their schema
+defaults and cancelled a live `stores` rewind (A-226). A stamp also refuses to
+advance a window mid-rewind (`WHERE rewind_count = 0`): a newer
+`last_synced_at` means the full re-pull never happens.
+
 The caller gets `false` when the rewind was refused, and neither call site has
 anything better to do with it than carry on — the point is the report. A by-id
 re-send endpoint would remove this mechanism entirely; that is the `shortcut:`

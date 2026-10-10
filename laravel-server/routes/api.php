@@ -210,6 +210,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/stores/{id}/unsuspend', [AdminStoreController::class, 'unsuspendStore'])->middleware('permission:manage_account_status');
             Route::post('/stores/{id}/mark-demo', [AdminStoreController::class, 'markStoreDemo'])->middleware('role:super_admin');
             Route::post('/stores/{id}/unmark-demo', [AdminStoreController::class, 'unmarkStoreDemo'])->middleware('role:super_admin');
+            Route::put('/stores/{id}/storefront', [\App\Http\Controllers\Api\Admin\AdminStoreStorefrontController::class, 'update'])->middleware('permission:manage_account_status');
             Route::post('/stores/{id}/grant-trial', [AdminStoreController::class, 'grantTrial'])->middleware('permission:grant_trials');
             Route::post('/stores/{id}/activate-plan', [AdminStoreController::class, 'activatePlan'])->middleware('permission:grant_trials');
             Route::get('/stores/{id}/billing-history', [AdminStoreController::class, 'billingHistory'])->middleware('permission:view_platform_revenue');

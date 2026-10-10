@@ -20,7 +20,9 @@ class AdminUserSyncVisibilityTest extends TestCase
     use RefreshDatabase;
 
     protected User $superAdmin;
+
     protected User $staff;
+
     protected Store $store;
 
     protected function setUp(): void
@@ -130,5 +132,42 @@ class AdminUserSyncVisibilityTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertSame('DRX-UNLABELED', $response->json('devices.0.deviceLabel'));
+    }
+
+    /**
+     * The whole A-202 chain in one test: a real sync carrying
+     * X-Acting-User-Id, then the read the founder actually looks at. Covers
+     * the join the two existing suites each only cover one half of - the
+     * write side in UserDeviceTrackingTest, the read side above - so
+     * "Never synced" for a staff member who has synced on a current build
+     * cannot come back unnoticed.
+     */
+    #[Test]
+    public function a_sync_from_a_staff_login_clears_never_synced_on_the_staff_list(): void
+    {
+        $owner = User::find($this->store->user_id);
+
+        $this->withoutMiddleware();
+        \App\Models\SystemConfig::setVal('subscription_plans', [
+            'tiers' => ['free' => ['features' => ['cloud_sync' => true], 'limits' => ['stores' => -1]]],
+        ]);
+
+        $this->actingAs($owner)
+            ->withHeaders([
+                'X-Store-Id' => $this->store->id,
+                'X-Device-Id' => 'DRX-TILL-1',
+                'X-Device-Label' => 'Chrome on Windows',
+                'X-Acting-User-Id' => $this->staff->id,
+            ])
+            ->getJson('/api/v1/app/sync/counts')
+            ->assertStatus(200);
+
+        $response = $this->actingAs($this->superAdmin)
+            ->getJson("/api/v1/admin/users?account_type=staff&store_id={$this->store->id}");
+
+        $response->assertStatus(200);
+        $row = collect($response->json('data'))->firstWhere('id', $this->staff->id);
+        $this->assertNotNull($row['lastSyncedAt']);
+        $this->assertSame('Chrome on Windows', $row['lastSyncDevice']);
     }
 }

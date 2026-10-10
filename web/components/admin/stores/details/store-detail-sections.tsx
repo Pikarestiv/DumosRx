@@ -3,7 +3,6 @@
 import {
   Activity,
   CreditCard,
-  Globe,
   Receipt,
   RefreshCw,
   Store as StoreIcon,
@@ -124,33 +123,6 @@ export function StoreSyncCard({ store }: { store: AdminStoreDetail }) {
         />
         <Field label="Device ID" value={store.sync.device_id} mono />
       </div>
-    </DetailCard>
-  );
-}
-
-export function StoreStorefrontCard({ store }: { store: AdminStoreDetail }) {
-  return (
-    <DetailCard title="Online Storefront" icon={<Globe className="h-4 w-4" />}>
-      <div className="grid grid-cols-2 gap-4">
-        <Field
-          label="Storefront"
-          value={store.storefront.online_store_enabled ? "Published" : "Disabled"}
-        />
-        <Field label="Slug" value={store.storefront.store_slug} mono />
-        <Field
-          label="Pending Rebuild"
-          value={
-            store.storefront.pending_rebuild
-              ? `Yes · changed ${store.storefront.dirty_since ?? "recently"}`
-              : "No"
-          }
-        />
-      </div>
-      {store.storefront.pending_rebuild ? (
-        <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
-          The published page is stale until the next full site rebuild.
-        </p>
-      ) : null}
     </DetailCard>
   );
 }

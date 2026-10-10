@@ -2367,6 +2367,42 @@ unique key that would have failed.
 migration is the one change in this repo that the test suite cannot verify
 for you.
 
+## The deploy does not run migrations — it refuses to call the release done (A-210)
+
+`.github/workflows/deploy-backend.yml` is FTP-only: there is no SSH on this
+host, so code arrives by file sync and schema does not. That gap shipped
+`admin_till_codes` to production on 2026-10-09 with its table absent, and
+broke till-code generation again on dev the next day against
+`code_encrypted`.
+
+**What now happens.** `GET /api/v1/health?schema=1` returns `schema_current`
+— one boolean from `AdminMaintenanceService::migrationStatus()`. The deploy
+curls it right after the FTP sync and **fails the job** with a `::error::`
+pointing at Admin → Maintenance when it is anything but `true`. The red X on
+the commit is the alert; nobody should meet a pending migration as a 500.
+
+- **The deploy deliberately does not apply migrations.** An unattended
+  `migrate --force` from CI against shared hosting, with no snapshot step and
+  only a syntactic destructive-pattern scan, is a blast radius the founder
+  should accept knowingly rather than inherit from a workflow edit. Detect,
+  refuse, and let a human press the existing Maintenance button.
+  `HealthSchemaGateTest::test_the_deploy_workflow_does_not_run_migrations_itself`
+  pins that; changing it is a decision, not a refactor.
+- **`?schema=1` is opt-in because `/health` is hot.** Every till hits it to
+  anchor its clock (`client/lib/licensing/server-clock.ts`), and the
+  comparison costs two queries plus a scan of ~162 migration files.
+- **It reports no names and no count.** The endpoint is public; a migration
+  filename is a release note nobody outside needs. An unreadable `migrations`
+  table reports `false`, never `true` — "don't know" must gate a deploy
+  exactly like "behind".
+- **Override the URL** with the `API_HEALTH_URL` repository variable if the
+  API moves; the workflow falls back to the production health URL.
+
+The human-facing surfaces are unchanged and still the place to act:
+`GET /admin/maintenance/migrations`, `POST /admin/maintenance/migrations/run`
+(both `role:super_admin`), the Operations "Database schema" card and the
+Maintenance "Pending migrations" panel.
+
 ## Testing
 
 ```

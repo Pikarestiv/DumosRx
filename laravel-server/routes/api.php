@@ -73,8 +73,16 @@ Route::prefix('v1')->group(function () {
     });
     // Documented via App\OpenApi\ClosureRoutes (swagger-php doesn't scan inline
     // closure docblocks; see that file for why).
-    Route::get('/health', function () {
-        return response()->json(['status' => 'ok', 'timestamp' => now()]);
+    Route::get('/health', function (\Illuminate\Http\Request $request, \App\Services\Admin\AdminMaintenanceService $maintenance) {
+        $body = ['status' => 'ok', 'timestamp' => now()];
+
+        // Opt-in: every till hits this endpoint to anchor its clock, and the
+        // schema comparison costs two queries plus a migrations-dir scan.
+        if ($request->boolean('schema')) {
+            $body['schema_current'] = $maintenance->migrationStatus()['pending_count'] === 0;
+        }
+
+        return response()->json($body);
     });
 
     // Client-side error telemetry - must stay public since it needs to report

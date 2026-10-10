@@ -23,7 +23,7 @@ class AdminTillCodeCommandTest extends TestCase
         ]);
     }
 
-    public function test_issuing_a_code_stores_only_a_hash(): void
+    public function test_issuing_a_code_stores_a_hash_and_a_recoverable_copy(): void
     {
         $admin = $this->admin('platform_admin', 'ops@dumosrx.com');
 
@@ -35,6 +35,10 @@ class AdminTillCodeCommandTest extends TestCase
         $this->assertSame('agidi', $row->label);
         $this->assertNotEmpty($row->code_hash);
         $this->assertNull($row->revoked_at);
+        $this->assertSame(
+            12,
+            strlen(\Illuminate\Support\Facades\Crypt::decryptString($row->code_encrypted)),
+        );
     }
 
     public function test_the_issued_code_is_twelve_digits_and_verifies_against_the_stored_hash(): void
@@ -50,8 +54,8 @@ class AdminTillCodeCommandTest extends TestCase
 
         $row = AdminTillCode::where('admin_id', $admin->id)->firstOrFail();
 
-        // The command prints the code once and never stores it, so recover it
-        // from the output to prove the stored hash actually matches.
+        // Recovered from the output rather than the row, so the assertion
+        // proves the stored hash matches what the operator was shown.
         preg_match('/\b(\d{12})\b/', \Illuminate\Support\Facades\Artisan::output(), $matches);
 
         $this->assertNotEmpty($matches, 'the command must print a 12-digit code');

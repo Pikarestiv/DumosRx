@@ -8,6 +8,7 @@ import { IntegrationsTab } from "@/components/admin/views/integrations-tab";
 import { SecurityConfigTab } from "@/components/admin/views/security-config-tab";
 import { AdminPermissionsCard } from "@/components/admin/views/admin-permissions-card";
 import { TillCodesCard } from "@/components/admin/views/till-codes-card";
+import { AllTillCodesCard } from "@/components/admin/views/all-till-codes-card";
 import { DefaultAccountManagerCard } from "@/components/admin/views/default-account-manager-card";
 import { Settings, CreditCard, Sparkles, Plug, ShieldCheck, Users, UserCog, KeyRound } from "lucide-react";
 
@@ -93,8 +94,12 @@ export default function PlatformSettingsPage() {
           <DefaultAccountManagerCard />
         </TabsContent>
 
-        <TabsContent value="till-codes" className="focus-visible:outline-none focus-visible:ring-0">
+        <TabsContent
+          value="till-codes"
+          className="focus-visible:outline-none focus-visible:ring-0 space-y-6"
+        >
           <TillCodesCard />
+          <AllTillCodesCard />
         </TabsContent>
 
         <TabsContent value="admin-permissions" className="focus-visible:outline-none focus-visible:ring-0">

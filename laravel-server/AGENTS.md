@@ -1251,7 +1251,54 @@ code".
 
 **Three active codes is the maximum**, enforced at both issue paths, precisely
 because `EQUALIZED_CHECKS` bounds how many `verify()` will ever test — a fourth
-code would silently never work.
+code would silently never work. The refusal is returned as **`message`** (with
+`error` kept beside it for any older bundle), because that is the key
+`web/lib/api/base-client.ts`'s interceptor promotes onto the thrown error —
+returning it only under `error` is how the cap became an unexplained
+do-nothing button in the panel (A-207).
+
+### Till codes are recoverable by a super_admin, on purpose
+
+`admin_till_codes.code_encrypted` holds `Crypt::encryptString($code)` beside
+the bcrypt `code_hash`, and `GET /api/v1/admin/till-codes/all`
+(`role:super_admin`, audited) returns every active code in clear. This
+**deliberately weakens** the original design's "hashed at rest, never
+recoverable, only reissued" property, at the founder's explicit request, for an
+operational reason he has not shared. Do not "fix" it back into a hash-only
+store without asking him first.
+
+What it costs and what still holds:
+
+- **A database dump alone still yields no working code.** Decryption needs
+  `APP_KEY`, which lives in `.env`, not in MySQL. The exposure added is
+  specifically "`APP_KEY` *and* the DB together", which is also already enough
+  to forge sessions, so it does not create a new worst case — it widens an
+  existing one to cover till codes.
+- **Verification is unchanged.** `verify()` still compares against
+  `code_hash`, never the encrypted copy, so the equalised-timing property and
+  the constant number of bcrypt checks are untouched.
+- **Only `super_admin`, only server-side.** The gate is route middleware
+  (`role:super_admin`), not a controller guard clause, and the panel hides the
+  card rather than disabling it (`web/AGENTS.md`).
+- **Every reveal is audited**: one `ActivityLog` row per call, action
+  `admin_till_codes_viewed`, with the viewer's `user_id` and the `code_ids` /
+  `admin_ids` shown. The panel fetches only when the super_admin clicks
+  Reveal (`staleTime: 0`, `gcTime: 0`), so the log reflects intent rather than
+  page loads.
+- **Active codes only, capped at `REVEAL_LIMIT` (50).** A revoked code cannot
+  authenticate anything, so listing it would be noise with a disclosure cost.
+- **Backward compatibility (§11).** `code_encrypted` is nullable and additive;
+  rows issued before this change keep working (they still verify by hash) and
+  simply report `code: null`, rendered as "Unavailable". Nothing is backfilled,
+  because the plaintext genuinely no longer exists. **The null branch can go
+  once every pre-2026-10-10 code has been rotated or revoked** — i.e. when
+  `SELECT COUNT(*) FROM admin_till_codes WHERE revoked_at IS NULL AND
+  code_encrypted IS NULL` is 0.
+- **A safer alternative, not taken:** reveal-on-demand with a re-entered
+  super_admin password and a short-lived one-time view, or simply letting a
+  super_admin *rotate* another admin's code (which needs no recoverable
+  storage at all, and covers "an admin lost their code"). Recorded here
+  because the founder asked for direct visibility explicitly.
 
 **`scopeLive()` matches on `ended_at` only**, not `expires_at > now()`. A
 session that hit the 4-hour cap must still be closable or its audit duration

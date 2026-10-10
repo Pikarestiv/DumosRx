@@ -183,7 +183,12 @@ without updating that.
   `view_platform_data` (the stores/users/activity-log read endpoints),
   `send_notifications` (per-user notify, bulk notify, the broadcast/announcement
   group), `reset_user_passwords` (force-reset), `manage_account_status`
-  (suspend/reactivate a store or a user) and `impersonate_store`.
+  (suspend/reactivate a store or a user, and - since 2026-10-10 - publish or
+  unpublish a store's online storefront via `PUT /admin/stores/{id}/storefront`,
+  `AdminStoreStorefrontController`/`AdminStoreStorefrontService`, since
+  suspending a store already takes its storefront offline; enabling a store
+  with no `store_slug` is refused, and the public endpoints still re-check the
+  owner's `store_url` entitlement) and `impersonate_store`.
   - **Enforced by omission, not by a deny-list.** A never-delegatable action
     (delete a user/store, edit another admin's profile/role, coupons and
     referral payouts, the subscription/platform config endpoints) simply has
@@ -774,6 +779,18 @@ migration here **and** the corresponding update on the `client/` side
   A build that sends no header keeps the bearer attribution it always had, so
   no device in the field breaks (§11). An owner has no `store_id` and so
   resolves to the bearer anyway, which is correct.
+  **Two conditions must both hold for a staff row to appear, and neither is
+  a bug when it doesn't:** the till has to be running a build that sends the
+  header (a PWA keeps its cached shell until its service worker is replaced),
+  and a *staff* user has to be the locally signed-in user at sync time — if
+  the owner is signed in at that till, crediting the owner is the correct
+  answer. The whole chain (header → `touch()` → the staff list the founder
+  actually reads) is pinned end to end by
+  `AdminUserSyncVisibilityTest::a_sync_from_a_staff_login_clears_never_synced_on_the_staff_list`,
+  verified to fail when `resolveActingUserId()` is removed. The write side's
+  own cases live in `tests/Feature/UserDeviceTrackingTest.php` — **not** in
+  the `tests/Feature/App/UserDeviceAttributionTest.php` that A-202's
+  `docs/FIXED_BUGS.md` entry originally named; that path never existed.
 - **`user_devices` cannot identify a store's on-site terminal.** `store_id`
   here is the device's *last active* store, so a store switch rewrites it and
   every device of a multi-store owner reads as whichever they opened last. For

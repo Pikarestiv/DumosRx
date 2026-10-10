@@ -889,6 +889,60 @@ and the field is typed `unknown` so the next person cannot skip the narrowing
 by accident. Apply the same treatment to any other JSON-ish `stores` column
 before rendering it.
 
+### Store Details: bounded lists, the storefront switch, separators (2026-10-10)
+
+**Long lists on this page get a max height and their own scroll, using the
+house `stable-scrollbar` utility** — now defined in `app/globals.css`, copied
+verbatim from `client/app/globals.css`, which carries the rationale for every
+declaration. Keep the two copies in step and don't write a second scrollbar
+style; `web/` had none before this, which is the only reason the class was
+added here at all.
+
+Which lists are capped is a judgement about the server's own limit, not a
+blanket rule:
+
+- *Sync Activity* → "Recent refusals" is `AdminSyncHealthService::PER_PAGE`
+  = **50** rows, each a multi-line card. On a real store that was ~50
+  identical `version_conflict` entries and the page became unusable. Capped
+  (`max-h-96`). "Recent days" is **30** one-line rows, capped at
+  `max-h-64`.
+- *Recent Activity* (8, `RECENT_ACTIVITY_LIMIT`) and *Recent Transactions*
+  (5, `RECENT_TRANSACTION_LIMIT`) are short by construction and are
+  deliberately **not** capped — a scroll region around five rows is worse
+  than the rows. If either server-side limit is raised, cap them then.
+
+**The storefront is switchable from the detail page** (`store-storefront-card.tsx`,
+split out of `store-detail-sections.tsx` once it gained behaviour) via
+`useSetStoreStorefrontMutation` → `PUT /admin/stores/{id}/storefront`, gated on
+`manage_account_status` — the same permission that governs suspending a store,
+which also takes the storefront offline. The `Switch` is **hidden** without that
+permission, leaving the read-only Published/Disabled text, per the hide-never-
+disable rule above. Three things to know before changing it:
+
+- **Setting the flag is necessary but not sufficient for a reachable page.**
+  `StorefrontController` additionally requires a `store_slug` and the owner's
+  current `store_url` entitlement, so a published store on a downgraded plan
+  still serves nothing. The server refuses to enable a store with no slug
+  (422) rather than reporting "Published" for a page that resolves to nothing.
+- **The published page is stale until the next rebuild.** Saving stamps
+  `storefront_dirty_at` via `Store::boot()`'s `saved` hook (the flag is in
+  `STOREFRONT_PUBLISHED_FIELDS`), and the scheduled `storefront:rebuild-if-dirty`
+  command picks it up. The card already surfaces that as "Pending Rebuild".
+- **The owner's device is the other writer of this column.** It is not in
+  `SyncController::STORE_SYNC_FORBIDDEN_FIELDS`, deliberately — the owner
+  toggles the same flag in the POS app's store settings. An admin toggle bumps
+  `stores.updated_at`, so a device converges on the next pull; a device holding
+  an unsynced local change to the same field still wins when it pushes. Don't
+  "fix" that by adding the column to the forbidden list, which would break the
+  owner's own in-app toggle.
+
+**`·` is this page's separator, not an em dash.** `Last Active` on
+Operational Metrics rendered `50 minutes ago — Device sync` and now reads
+`50 minutes ago · Device sync`, matching the header line, the inventory/book
+fields and the staff rows. The remaining em dashes on the page are the
+`Field` component's empty-value placeholder and prose inside toasts/dialogs,
+which are not separators — leave those alone.
+
 ## Error boundaries: `app/admin/error.tsx` and `app/global-error.tsx`
 
 Until 2026-09-29 this app had **no error boundary anywhere**, so a single

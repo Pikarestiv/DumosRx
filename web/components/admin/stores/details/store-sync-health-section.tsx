@@ -55,7 +55,7 @@ export function StoreSyncHealthSection({ data, isLoading, isError }: StoreSyncHe
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
               Recent days
             </p>
-            <div className="divide-y divide-border">
+            <div className="max-h-64 overflow-y-auto stable-scrollbar divide-y divide-border">
               {daily.map((day) => (
                 <div key={day.date} className="py-2 flex items-center justify-between gap-4 text-sm">
                   <span className="font-medium text-muted-foreground">
@@ -91,7 +91,7 @@ export function StoreSyncHealthSection({ data, isLoading, isError }: StoreSyncHe
           ) : failures.length === 0 ? (
             <p className="text-sm text-emerald-500 font-bold">No refusals recorded.</p>
           ) : (
-            <div className="space-y-2">
+            <div className="max-h-96 overflow-y-auto stable-scrollbar space-y-2 pr-1">
               {failures.map((failure) => (
                 <div
                   key={failure.id}

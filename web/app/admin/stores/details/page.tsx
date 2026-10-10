@@ -28,10 +28,10 @@ import {
   StoreProfileCard,
   StoreRecentActivityCard,
   StoreRecentTransactionsCard,
-  StoreStorefrontCard,
   StoreSubscriptionCard,
   StoreSyncCard,
 } from "@/components/admin/stores/details/store-detail-sections";
+import { StoreStorefrontCard } from "@/components/admin/stores/details/store-storefront-card";
 import { StoreSyncHealthPanel } from "@/components/admin/stores/details/store-sync-health-section";
 import { StoreStockDivergencePanel } from "@/components/admin/stores/details/store-stock-divergence-section";
 import { StoreQueueStatePanel } from "@/components/admin/stores/details/store-queue-state-section";

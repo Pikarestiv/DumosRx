@@ -1391,6 +1391,30 @@ half-rebuilt till removed 13,104 real units from a live store.
   `STALE_AFTER_MINUTES` is 60 and must stay equal to the client's
   `COUNT_STALE_AFTER_MINUTES` — see `client/AGENTS.md`, "Counting on a device
   that is behind sync". It is a warning the client renders, never a block.
+- **`PRESUMED_RETIRED_AFTER_DAYS` (7) is what makes that warning mean
+  anything (A-220).** `user_devices` has no deactivation, retirement or
+  `is_active` column — rows are only ever created or touched — so a phone
+  replaced three months ago keeps its frozen `last_synced_at` and reported as
+  a stale peer for ever. One owner has 12 registered devices, most of them
+  phones and laptops that will never sell anything, and
+  `shouldWarn = isLocalStale || stalePeers.length > 0` gates the count's
+  submit button: the banner and its "Submit anyway" checkbox appeared on
+  every count on every till, permanently, and a guard everyone reflex-clicks
+  is not a guard. A device whose last sign of life (`last_synced_at`, falling
+  back to `created_at` for a row that has never synced) is older than the
+  cutoff is now rejected before the staleness filter.
+- **Why 7 days, and why a cutoff rather than real retirement.** The warning's
+  only actionable response is "go and sync that till", so the cutoff should be
+  the longest absence a till still in service could plausibly have: a weekend
+  plus a public holiday, or a till switched off for someone's week of leave.
+  Below that (a day or two) a store that closed for a long weekend would stop
+  being warned about a till genuinely holding Saturday's unsynced sales, which
+  is the miss that costs stock; above it the nag comes back. Any device absent
+  a full week is either retired or so far behind that re-syncing it is a
+  separate problem from today's count. Real retirement (an `is_active` column,
+  or an owner-facing "this device is gone" action in the admin panel's device
+  list) is the better answer and is **deliberately not** built here: it needs
+  UI, and the cutoff removes the false warnings today without one.
 
 ## Device stock fingerprints (stuck-data Phase 1)
 

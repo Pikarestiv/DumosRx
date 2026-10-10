@@ -60,6 +60,8 @@ class SyncPeerFreshnessTest extends TestCase
         ]);
     }
 
+    /** `assertJson(['stale_devices' => []])` subset-matches and so can never
+     * fail; every "not reported" case asserts the array itself. */
     private function request(string $callingDeviceId = 'DRX-TILL-1')
     {
         return $this->actingAs($this->owner)
@@ -94,7 +96,7 @@ class SyncPeerFreshnessTest extends TestCase
         $this->device('DRX-TILL-2', 'Till 2', now()->subMinutes(5)->toDateTimeString());
         $this->device('DRX-TILL-1', 'Till 1', now()->subDays(2)->toDateTimeString());
 
-        $this->request()->assertStatus(200)->assertJson(['stale_devices' => []]);
+        $this->assertSame([], $this->request()->assertStatus(200)->json('stale_devices'));
     }
 
     #[Test]
@@ -128,7 +130,36 @@ class SyncPeerFreshnessTest extends TestCase
 
         $this->device('DRX-OTHER-1', 'Their Till', now()->subDays(2)->toDateTimeString(), $otherStore->id);
 
-        $this->request()->assertStatus(200)->assertJson(['stale_devices' => []]);
+        $this->assertSame([], $this->request()->assertStatus(200)->json('stale_devices'));
+    }
+
+    #[Test]
+    public function a_device_not_seen_since_the_retirement_cutoff_is_never_reported(): void
+    {
+        $this->device('DRX-OLD-PHONE', 'Old Phone', now()->subMonths(3)->toDateTimeString());
+
+        $this->assertSame([], $this->request()->assertStatus(200)->json('stale_devices'));
+    }
+
+    #[Test]
+    public function a_device_still_inside_the_retirement_cutoff_is_reported(): void
+    {
+        $this->device('DRX-TILL-2', 'Till 2', now()->subDays(3)->toDateTimeString());
+
+        $stale = $this->request()->assertStatus(200)->json('stale_devices');
+
+        $this->assertCount(1, $stale);
+        $this->assertEquals('DRX-TILL-2', $stale[0]['device_id']);
+    }
+
+    #[Test]
+    public function a_never_synced_row_registered_long_ago_is_never_reported(): void
+    {
+        $this->device('DRX-GHOST', 'Ghost', null);
+        UserDevice::where('device_id', 'DRX-GHOST')
+            ->update(['created_at' => now()->subMonths(3), 'updated_at' => now()->subMonths(3)]);
+
+        $this->assertSame([], $this->request()->assertStatus(200)->json('stale_devices'));
     }
 
     #[Test]
@@ -145,6 +176,6 @@ class SyncPeerFreshnessTest extends TestCase
         $this->device('DRX-TILL-2', 'Till 2', now()->subDays(2)->toDateTimeString());
         $this->device('DRX-TILL-2', 'Till 2', now()->subMinutes(2)->toDateTimeString(), null, $secondStaff);
 
-        $this->request()->assertStatus(200)->assertJson(['stale_devices' => []]);
+        $this->assertSame([], $this->request()->assertStatus(200)->json('stale_devices'));
     }
 }

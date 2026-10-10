@@ -39,6 +39,7 @@ export function TillCodesCard() {
   const [label, setLabel] = useState("");
   const [issuedCode, setIssuedCode] = useState<string | null>(null);
   const [revoking, setRevoking] = useState<AdminTillCode | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
 
   const codes = data?.codes ?? [];
   const atLimit = codes.length >= MAX_ACTIVE_TILL_CODES;
@@ -52,9 +53,18 @@ export function TillCodesCard() {
   };
 
   const handleIssue = async () => {
-    const result = await issue.mutateAsync(label.trim() || null);
-    setIssuedCode(result.code);
-    setLabel("");
+    setFailure(null);
+    try {
+      const result = await issue.mutateAsync(label.trim() || null);
+      setIssuedCode(result.code);
+      setLabel("");
+    } catch (error) {
+      setFailure(
+        error instanceof Error && error.message
+          ? error.message
+          : "Could not generate a code. Please try again.",
+      );
+    }
   };
 
   return (
@@ -94,6 +104,12 @@ export function TillCodesCard() {
           Generate code
         </Button>
       </div>
+
+      {failure && (
+        <p className="text-sm font-medium text-destructive" role="alert">
+          {failure}
+        </p>
+      )}
 
       {atLimit && (
         <p className="text-sm text-muted-foreground">
@@ -137,8 +153,7 @@ export function TillCodesCard() {
           <DialogHeader>
             <DialogTitle>Your till access code</DialogTitle>
             <DialogDescription>
-              Write this down now. It is not shown again and cannot be
-              recovered — only replaced.
+              Write this down now. It is not shown again on this screen.
             </DialogDescription>
           </DialogHeader>
           <p className="text-3xl font-mono font-semibold tracking-[0.2em] text-center py-4 select-all">

@@ -6,6 +6,11 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
+vi.mock("@/lib/utils/error-logger", async (importOriginal) => ({
+  ...((await importOriginal()) as object),
+  logCrash: vi.fn(),
+}));
+
 vi.mock("@/lib/api/client", () => ({
   apiClient: {
     pullChanges: vi.fn(),
@@ -66,6 +71,25 @@ describe("pullChanges resumes an unfinished table across sync rounds", () => {
       `INSERT INTO _sync_state (table_name, last_synced_at) VALUES ('products', '2026-08-15T00:00:00Z')`,
     );
     vi.clearAllMocks();
+  });
+
+  it("puts a table's exhausted rewind baseline back before the round asks for anything", async () => {
+    db.run(
+      `UPDATE _sync_state SET last_synced_at = NULL, rewind_count = 3, rewound_from = '2026-08-15T00:00:00Z'
+       WHERE table_name = 'products'`,
+    );
+    apiClient.pullChanges.mockResolvedValueOnce({
+      success: true,
+      changes: {},
+      server_timestamp: "2026-09-01T00:00:01Z",
+      has_more: {},
+    });
+
+    await pullChanges();
+
+    expect(apiClient.pullChanges.mock.calls[0][0].last_synced).toEqual({
+      products: "2026-08-15T00:00:00Z",
+    });
   });
 
   it("persists each committed page's keyset position and resumes from it on the next round", async () => {

@@ -192,6 +192,32 @@ from `WEB_APP_URL` like `app/sitemap.ts` already was.
 `__tests__/no-hardcoded-domains.test.ts` scans those three directories and
 fails on any new literal.
 
+## What an admin card may render from a failed request (A-224)
+
+`lib/api/base-client.ts`'s response interceptor no longer promotes
+`error.response.data.message` onto `error.message` unconditionally — it asks
+`presentableErrorMessage(status, data)` first, and every admin card inherits
+that decision because they all render `error.message`.
+
+- A **5xx**, a status-less response, a body carrying Laravel's debug keys
+  (`exception`/`file`/`line`/`trace`), or a message matching
+  `EXCEPTION_SHAPED_MESSAGE` becomes `SERVER_FAULT_MESSAGE`. Before this, a
+  `QueryException` rendered verbatim in the Till Access card, bcrypt hash,
+  encrypted code value, DB host and schema name included.
+- A **deliberate 4xx refusal keeps the server's own wording** — the 422
+  till-code cap, the 422 storefront-slug messages. That is A-207's fix and it
+  must not regress: an invisible refusal costs more than a blunt one.
+- The **raw** message still goes to the log buffer and the
+  `/logs/client-error` report. Detail belongs in the log; the card gets a
+  sentence an operator can act on.
+
+So: do not add a card that reads `error.response.data.message` directly, and
+do not widen the gate to make a 500 "more helpful". If a 5xx needs a specific
+message, the server should return it as a deliberate 4xx. The one other direct
+reader, `components/admin/views/email-templates-tab.tsx`, routes through the
+same helper (it still prefers a 422's per-field `errors`, which is detail the
+server validated on purpose).
+
 ## Telemetry redaction and session-end cache hygiene (A-100/A-107)
 
 `lib/api/logger.ts`'s `sanitizePayload` masks (never drops) sensitive values,
@@ -767,6 +793,15 @@ URL). `checkHasPermission` (from `use-admin-auth-store.ts`) already returns
   hosts a super_admin-only tab (gated per the point above, not by hiding the
   whole page from everyone else).
 
+- **A whole card that only a super_admin may see gates itself** and returns
+  `null`, rather than being conditionally rendered by its parent page:
+  `components/admin/views/all-till-codes-card.tsx` (every admin's till access
+  code in clear — see `laravel-server/AGENTS.md` for the trade-off) is dropped
+  into the Till Access tab unconditionally and hides itself for everyone else,
+  which keeps the gate testable in isolation instead of buried in
+  `settings-client.tsx`. It also fetches nothing until the super_admin clicks
+  Reveal, because the server audits every call.
+
 Covered by `__tests__/admin-action-permission-gating.test.tsx` (per-action
 hidden/shown/super_admin-bypass cases across `StoreRowActions`, `StoreTable`'s
 real slug mapping, `UserTable`, and `BroadcastsTab` including its per-row
@@ -888,6 +923,91 @@ A-29). `StorePaymentsCard` therefore narrows through
 and the field is typed `unknown` so the next person cannot skip the narrowing
 by accident. Apply the same treatment to any other JSON-ish `stores` column
 before rendering it.
+
+### Store Details: bounded lists, the storefront switch, separators (2026-10-10)
+
+**Long lists on this page get a max height and their own scroll, using the
+house `stable-scrollbar` utility** — now defined in `app/globals.css`, copied
+verbatim from `client/app/globals.css`, which carries the rationale for every
+declaration. Keep the two copies in step and don't write a second scrollbar
+style; `web/` had none before this, which is the only reason the class was
+added here at all.
+
+Which lists are capped is a judgement about the server's own limit, not a
+blanket rule:
+
+- *Sync Activity* → "Recent refusals" is `AdminSyncHealthService::PER_PAGE`
+  = **50** rows, each a multi-line card. On a real store that was ~50
+  identical `version_conflict` entries and the page became unusable. Capped
+  (`max-h-96`). "Recent days" is **30** one-line rows, capped at
+  `max-h-64`.
+- *Recent Activity* (8, `RECENT_ACTIVITY_LIMIT`) and *Recent Transactions*
+  (5, `RECENT_TRANSACTION_LIMIT`) are short by construction and are
+  deliberately **not** capped — a scroll region around five rows is worse
+  than the rows. If either server-side limit is raised, cap them then.
+
+**The storefront is switchable from the detail page** (`store-storefront-card.tsx`,
+split out of `store-detail-sections.tsx` once it gained behaviour) via
+`useSetStoreStorefrontMutation` → `PUT /admin/stores/{id}/storefront`, gated on
+`manage_account_status` — the same permission that governs suspending a store,
+which also takes the storefront offline. The `Switch` is **hidden** without that
+permission, leaving the read-only Published/Disabled text, per the hide-never-
+disable rule above. Three things to know before changing it:
+
+- **Setting the flag is necessary but not sufficient for a reachable page.**
+  `StorefrontController` additionally requires a `store_slug` and the owner's
+  current `store_url` entitlement, so a published store on a downgraded plan
+  still serves nothing. The server refuses to enable a store with no slug
+  (422) rather than reporting "Published" for a page that resolves to nothing.
+- **The same card sets the slug, because refusing without one left no way out.**
+  The slug used to be read-only here, so a slugless store could not be published
+  from the panel at all — the toggle just failed. `PUT .../storefront` now
+  accepts an optional `store_slug` beside `enabled`, under the *same*
+  `manage_account_status` gate, and the card shows a "Set address" /
+  "Change address" control that is hidden (not disabled) without it.
+  `AdminStoreStorefrontService::applySlug()` slugifies via `Str::slug` — the
+  same normalisation `StoreController::checkSlug()` uses, so the admin panel and
+  the owner's app cannot disagree about what a given input becomes — and refuses
+  with 422 rather than storing a surprise when the result is empty or over 100
+  characters, when another store holds it, or when the 6-month cooldown is live.
+  Two specifics worth not rediscovering:
+  - **Uniqueness must be checked `withTrashed()`.** `store_slug` is DB-unique
+    across soft-deleted rows, so an archived store's slug is not free. It is
+    also a public URL: a collision would serve one store's page at another's
+    address, which is why this is a hard refusal and not a last-write-wins.
+  - **`Store::saving()` reverts the slug attribute instead of failing** when the
+    cooldown is live, so a naive write gets a 200 reporting a slug that was
+    never stored. `applySlug()` saves, re-reads, and throws if what came back
+    is not what it asked for — reusing the model hook as the single source of
+    truth for the cooldown rather than duplicating the 6-month rule here.
+- **Changing a live slug is confirmed; setting a first one is not.** Replacing
+  an existing slug breaks every link already shared or printed, so the card
+  raises a `ConfirmDialog` naming the `/store/<slug>` URL that stops resolving
+  and the 6-month limit. A store with no slug has no URL to break and nothing
+  to warn about, so that path submits directly — a confirmation with no cost
+  behind it is the kind users learn to click through, which is exactly how
+  A-213's retired Health Sync button kept being pressed.
+- **The published page is stale until the next rebuild.** Saving stamps
+  `storefront_dirty_at` via `Store::boot()`'s `saved` hook (the flag is in
+  `STOREFRONT_PUBLISHED_FIELDS`), and the scheduled `storefront:rebuild-if-dirty`
+  command picks it up. The card already surfaces that as "Pending Rebuild".
+- **The owner's device is the other writer of this column.** It is not in
+  `SyncController::STORE_SYNC_FORBIDDEN_FIELDS`, deliberately — the owner
+  toggles the same flag in the POS app's store settings. An admin toggle bumps
+  `stores.updated_at`, so a device converges on the next pull; a device holding
+  an unsynced local change to the same field still wins when it pushes. Don't
+  "fix" that by adding the column to the forbidden list, which would break the
+  owner's own in-app toggle. The same holds for `store_slug`: the admin write
+  goes through `->save()`, which bumps `updated_at` (pinned by a test), so
+  devices pull the new slug. The owner's app enforces the same 6-month cooldown
+  client-side, so the two writers cannot race each other into a loop.
+
+**`·` is this page's separator, not an em dash.** `Last Active` on
+Operational Metrics rendered `50 minutes ago — Device sync` and now reads
+`50 minutes ago · Device sync`, matching the header line, the inventory/book
+fields and the staff rows. The remaining em dashes on the page are the
+`Field` component's empty-value placeholder and prose inside toasts/dialogs,
+which are not separators — leave those alone.
 
 ## Error boundaries: `app/admin/error.tsx` and `app/global-error.tsx`
 

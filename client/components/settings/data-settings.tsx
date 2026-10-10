@@ -25,7 +25,6 @@ interface DataSettingsProps {
   isCloudLinked: boolean;
   handleSync: () => void;
   handleForceFullResync: () => void;
-  handleReconcileStockQuantities: () => void;
   setIsCloudLinkOpen: (val: boolean) => void;
   handleDownloadBackup: () => void;
   handleRestoreBackup: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -44,7 +43,6 @@ export function DataSettings({
   isCloudLinked,
   handleSync,
   handleForceFullResync,
-  handleReconcileStockQuantities,
   setIsCloudLinkOpen,
   handleDownloadBackup,
   handleRestoreBackup,
@@ -268,7 +266,6 @@ export function DataSettings({
               {isCloudLinked && (
                 <DataSettingsSyncMaintenance
                   handleForceFullResync={handleForceFullResync}
-                  handleReconcileStockQuantities={handleReconcileStockQuantities}
                 />
               )}
             </div>

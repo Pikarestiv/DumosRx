@@ -19,11 +19,15 @@ class ClosureRoutes
     #[OA\Get(
         path: '/health',
         summary: 'Basic liveness check',
+        parameters: [
+            new OA\Parameter(name: 'schema', in: 'query', required: false, description: 'Also report whether the database has run every deployed migration', schema: new OA\Schema(type: 'boolean')),
+        ],
         tags: ['System Config'],
         responses: [
             new OA\Response(response: 200, description: 'OK', content: new OA\JsonContent(properties: [
                 new OA\Property(property: 'status', type: 'string', example: 'ok'),
                 new OA\Property(property: 'timestamp', type: 'string', format: 'date-time'),
+                new OA\Property(property: 'schema_current', type: 'boolean', example: true, description: 'Only present when ?schema=1'),
             ])),
         ],
     )]

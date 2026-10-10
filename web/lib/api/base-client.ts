@@ -150,6 +150,33 @@ export const shouldRecoverFromUnauthorized = (pathname: string, requestUrl?: str
   return !requestUrl.includes("/login") && !requestUrl.includes("/refresh");
 };
 
+export const SERVER_FAULT_MESSAGE =
+  "Something went wrong on the server, so that did not go through. The technical detail has been logged — try again, and contact support if it keeps happening.";
+
+const EXCEPTION_SHAPED_MESSAGE =
+  /SQLSTATE|\(Connection:|\bSQL: (insert|select|update|delete|alter|create|drop)\b|Stack trace|\\[A-Za-z]+(Exception|Error)\b/i;
+
+const DEBUG_BODY_KEYS = ["exception", "file", "line", "trace"] as const;
+
+/**
+ * The admin panel renders `error.message`, so an unhandled server exception
+ * must never reach it — see docs/FIXED_BUGS.md A-224 for the disclosure this
+ * closes, and web/AGENTS.md for why deliberate 4xx wording still passes.
+ */
+export const presentableErrorMessage = (
+  status: number | undefined,
+  data: unknown,
+): string | null => {
+  const body = (data ?? {}) as Record<string, unknown>;
+  const message = typeof body.message === "string" ? body.message.trim() : "";
+
+  if (!message) return null;
+  if (!status || status >= 500) return SERVER_FAULT_MESSAGE;
+  if (DEBUG_BODY_KEYS.some((key) => key in body)) return SERVER_FAULT_MESSAGE;
+
+  return EXCEPTION_SHAPED_MESSAGE.test(message) ? SERVER_FAULT_MESSAGE : message;
+};
+
 // Response interceptor for logging & 401 refresh
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
@@ -187,12 +214,14 @@ apiClient.interceptors.response.use(
     const status = error.response?.status;
     const method = originalRequest?.method?.toUpperCase();
     const url = originalRequest?.url;
-    const serverMessage = error.response?.data?.message;
-    if (serverMessage && typeof serverMessage === 'string') {
+    const rawServerMessage =
+      typeof error.response?.data?.message === "string" ? error.response.data.message : undefined;
+    const serverMessage = presentableErrorMessage(status, error.response?.data);
+    if (serverMessage) {
       error.message = serverMessage;
     }
 
-    const errorMessage = error.message || "Unknown error";
+    const errorMessage = rawServerMessage || error.message || "Unknown error";
     const errorDetails = error.response?.data || error.stack;
 
     // Add to buffer

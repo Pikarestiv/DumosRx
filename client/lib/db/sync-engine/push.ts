@@ -24,6 +24,7 @@ import { execute, query, transaction } from "../core";
 import { isExpectedSyncRestriction } from "@/lib/utils/error-logger";
 import { toast } from "sonner";
 import { isUuid } from "@/lib/utils/uuid";
+import { rewindPullWindow } from "./pull-window";
 
 // Terminal: the queued payload is frozen, so resending can never change the
 // outcome. See client/AGENTS.md, "Push details (sync-engine/push.ts)".
@@ -44,6 +45,15 @@ const TERMINAL_CONFLICT_SETTLES_SOURCE_ROW = new Set(["audit_logs"]);
 // Unreachable by any future pull, whatever table it's on - see A-161.
 // Deliberately excludes `forbidden`; see docs/KNOWN_BUGS.md A-165.
 const REASONS_SETTLING_SOURCE_ROW = new Set(["permission_denied"]);
+
+/**
+ * Reasons where the server kept a row this device now disagrees with, so the
+ * device has to be made to re-pull it. `permission_denied` is excluded on
+ * purpose: no pull can settle it (REASONS_SETTLING_SOURCE_ROW), and a
+ * plan-gated queue would retrigger the rewind every single round. See
+ * client/AGENTS.md, "Push details", and docs/FIXED_BUGS.md A-205.
+ */
+const REASONS_NEEDING_REPULL = new Set(["version_conflict", "stale_timestamp"]);
 
 const SYNC_BATCH_SIZE = 50;
 
@@ -474,8 +484,9 @@ export async function pushChanges(
             const underlyingIds = idsFor(f.id);
 
             if (NON_RETRYABLE_CONFLICT_REASONS.has(f.reason)) {
-              // Terminal: drop every merged queue row rather than retrying;
-              // the next pull brings the server's winning value down.
+              // Terminal: drop every merged queue row rather than retrying.
+              // The watermark rewind below is what actually brings the
+              // server's winning value down (A-205); the drop alone does not.
               const placeholders = underlyingIds.map(() => "?").join(", ");
               const priorAttempts = await query<{ retry_count: number | null }>(
                 `SELECT retry_count FROM _sync_queue WHERE id IN (${placeholders})`,
@@ -504,6 +515,10 @@ export async function pushChanges(
                     | undefined,
                 ),
               });
+
+              if (REASONS_NEEDING_REPULL.has(f.reason)) {
+                await rewindPullWindow(f.table_name, f.reason);
+              }
 
               if (wasRetried) {
                 silencedConflicts.push({ table_name: f.table_name, record_id: f.record_id });
@@ -567,7 +582,7 @@ export async function pushChanges(
         const toastableConflicts = versionConflicts.filter((conflict) => {
           if (SILENT_TERMINAL_REASONS.has(conflict.reason)) {
             console.info(
-              `[Sync] ${conflict.table_name} record ${conflict.record_id} was rejected as ${conflict.reason}; queue row dropped, the next pull brings the server's version down. No toast shown.`,
+              `[Sync] ${conflict.table_name} record ${conflict.record_id} was rejected as ${conflict.reason}; queue row dropped. No pull can settle this reason, so the local row keeps the value that lost. No toast shown.`,
             );
             return false;
           }

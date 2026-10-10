@@ -12,12 +12,13 @@ class AdminTillCode extends Model
     protected $fillable = [
         'admin_id',
         'code_hash',
+        'code_encrypted',
         'label',
         'last_used_at',
         'revoked_at',
     ];
 
-    protected $hidden = ['code_hash'];
+    protected $hidden = ['code_hash', 'code_encrypted'];
 
     protected $casts = [
         'last_used_at' => 'datetime',

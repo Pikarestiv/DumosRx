@@ -139,6 +139,28 @@ describe("syncSubscriptionStatus", () => {
     expect(rows[0].values[0][0]).toBe("2026-09-28T10:00:00Z");
   });
 
+  it("leaves an in-flight pull window rewind for stores alone", async () => {
+    db.run(
+      `INSERT INTO _sync_state (table_name, last_synced_at, rewind_count, rewound_from)
+       VALUES ('stores', NULL, 2, '2026-09-01T00:00:00Z')`,
+    );
+    pullChangesApi.mockResolvedValue({
+      changes: { stores: [{ id: "store-1", subscription_tier: "pro" }] },
+      server_timestamp: "2026-09-28T10:00:00Z",
+    });
+
+    await syncSubscriptionStatus();
+
+    const [window, count, rewoundFrom] = db.exec(
+      `SELECT last_synced_at, rewind_count, rewound_from FROM _sync_state WHERE table_name = 'stores'`,
+    )[0].values[0];
+    expect({ window, count, rewoundFrom }).toEqual({
+      window: null,
+      count: 2,
+      rewoundFrom: "2026-09-01T00:00:00Z",
+    });
+  });
+
   it("applies each record to its own store rather than bleeding across rows", async () => {
     db.run(
       `INSERT INTO stores (id, name, subscription_tier, status) VALUES ('store-2', 'Branch', 'free', 'Active')`,

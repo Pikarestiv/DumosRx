@@ -4,6 +4,7 @@ import { getTillInspectionSession } from "@/lib/utils/till-inspection";
 export const TILL_REPAIR_ACTIONS = {
   fold: "ADMIN_TILL_FOLD_STOCK_QUANTITIES",
   clockOverride: "ADMIN_TILL_OVERRIDE_CLOCK_LOCKOUT",
+  autoHeal: "AUTO_HEAL_STOCK_QUANTITIES",
 } as const;
 
 /**

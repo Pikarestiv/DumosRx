@@ -51,14 +51,12 @@ class IssueAdminTillCode extends Command
 
         $code = $this->sessions->generateCode();
 
-        AdminTillCode::create([
-            'admin_id' => $admin->id,
-            'code_hash' => $this->sessions->hashCode($code),
-            'label' => $this->option('label'),
-        ]);
+        AdminTillCode::create(
+            $this->sessions->newCodeAttributes($code, $admin->id, $this->option('label')),
+        );
 
         $this->info("Till access code for {$admin->email}: {$code}");
-        $this->warn('Shown once. Only the hash is stored.');
+        $this->warn('Shown once here; a super admin can re-read it from the admin panel.');
 
         return 0;
     }

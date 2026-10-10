@@ -41,6 +41,7 @@ import {
   selectCountedAuditItems,
 } from "./audit-derivations";
 import { useStockAuditDraftStore } from "@/lib/hooks/use-stock-audit-draft";
+import { useCountFreshness } from "@/lib/hooks/use-count-freshness";
 
 type AuditStep = "ledger" | "review" | "done";
 const ALL_CATEGORIES = ALL_AUDIT_CATEGORIES;
@@ -64,6 +65,8 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const { storeProfile } = useStore();
   const queryClient = useQueryClient();
   const [step, setStep] = useState<AuditStep>("ledger");
+  const freshness = useCountFreshness();
+  const [staleAcknowledged, setStaleAcknowledged] = useState(false);
   const [selectedCategory, setSelectedCategory] =
     useState<string>(ALL_CATEGORIES);
   const [search, setSearch] = useState("");
@@ -486,6 +489,9 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
             <AuditReviewStep
               countedItems={countedItems}
               adjustedItems={adjustedItems}
+              freshness={freshness}
+              staleAcknowledged={staleAcknowledged}
+              onStaleAcknowledgedChange={setStaleAcknowledged}
             />
           )}
 
@@ -526,7 +532,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
           {step === "review" && (
             <button
               className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
-              disabled={isSubmitting}
+              disabled={isSubmitting || (freshness.shouldWarn && !staleAcknowledged)}
               onClick={submitAudit}
             >
               {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}

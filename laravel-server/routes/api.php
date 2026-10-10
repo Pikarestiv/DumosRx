@@ -73,8 +73,16 @@ Route::prefix('v1')->group(function () {
     });
     // Documented via App\OpenApi\ClosureRoutes (swagger-php doesn't scan inline
     // closure docblocks; see that file for why).
-    Route::get('/health', function () {
-        return response()->json(['status' => 'ok', 'timestamp' => now()]);
+    Route::get('/health', function (\Illuminate\Http\Request $request, \App\Services\Admin\AdminMaintenanceService $maintenance) {
+        $body = ['status' => 'ok', 'timestamp' => now()];
+
+        // Opt-in: every till hits this endpoint to anchor its clock, and the
+        // schema comparison costs two queries plus a migrations-dir scan.
+        if ($request->boolean('schema')) {
+            $body['schema_current'] = $maintenance->migrationStatus()['pending_count'] === 0;
+        }
+
+        return response()->json($body);
     });
 
     // Client-side error telemetry - must stay public since it needs to report
@@ -192,6 +200,10 @@ Route::prefix('v1')->group(function () {
             // caller, never from input, so no admin can mint a credential that
             // acts as another admin.
             Route::get('/till-codes/mine', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'mine']);
+            // Deliberately super_admin-only and audited: see the spec's
+            // "Super-admin visibility" section for why codes are recoverable.
+            Route::get('/till-codes/all', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'all'])
+                ->middleware('role:super_admin');
             Route::post('/till-codes', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'issue']);
             Route::delete('/till-codes/{id}', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'revoke']);
 
@@ -210,6 +222,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/stores/{id}/unsuspend', [AdminStoreController::class, 'unsuspendStore'])->middleware('permission:manage_account_status');
             Route::post('/stores/{id}/mark-demo', [AdminStoreController::class, 'markStoreDemo'])->middleware('role:super_admin');
             Route::post('/stores/{id}/unmark-demo', [AdminStoreController::class, 'unmarkStoreDemo'])->middleware('role:super_admin');
+            Route::put('/stores/{id}/storefront', [\App\Http\Controllers\Api\Admin\AdminStoreStorefrontController::class, 'update'])->middleware('permission:manage_account_status');
             Route::post('/stores/{id}/grant-trial', [AdminStoreController::class, 'grantTrial'])->middleware('permission:grant_trials');
             Route::post('/stores/{id}/activate-plan', [AdminStoreController::class, 'activatePlan'])->middleware('permission:grant_trials');
             Route::get('/stores/{id}/billing-history', [AdminStoreController::class, 'billingHistory'])->middleware('permission:view_platform_revenue');
@@ -328,6 +341,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/sync/push', [SyncController::class, 'push']);
             Route::post('/sync/pull', [SyncController::class, 'pull']);
             Route::get('/sync/counts', [SyncController::class, 'counts']);
+            Route::get('/sync/peer-freshness', [SyncController::class, 'peerFreshness']);
             Route::post('/sync/reconcile-quantities', [SyncController::class, 'reconcileQuantities']);
         });
 

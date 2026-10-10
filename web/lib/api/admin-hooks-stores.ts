@@ -226,6 +226,21 @@ export const useUnmarkStoreDemoMutation = () => {
   });
 };
 
+export const useSetStoreStorefrontMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, enabled, storeSlug }: { id: string; enabled: boolean; storeSlug?: string }) =>
+      webApiClient.request<unknown>(`admin/stores/${id}/storefront`, {
+        method: "PUT",
+        body: storeSlug ? { enabled, store_slug: storeSlug } : { enabled },
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin-store-detail"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
+    },
+  });
+};
+
 export const useGrantTrialMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({

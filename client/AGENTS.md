@@ -466,6 +466,67 @@ and `synchronous = NORMAL`.
     server's number. It refuses any batch the log cannot account for, and
     refuses to run at all without an active store.
 
+- **Stock drift now heals itself** (`sync-engine/stock-auto-heal.ts`,
+  `healStockIntegrity()`, called from `checkSyncHealth()`). The device verifies
+  its batches against their own movement logs once per 24h, folds what the log
+  can rebuild, re-verifies, and reports the outcome once to Sentry under
+  `area: "stock-autoheal"`. Design decisions worth not relitigating:
+  - **A fold can only move a device towards the server.** Local `quantity` is
+    derived purely from local movements (`pull.ts` strips the pulled value), so
+    `replayMovements()` over the local log *is* the best value this device can
+    possibly hold. That is the whole safety argument for writing automatically.
+  - **Silent to the owner, loud to us.** A till announcing "we changed your
+    stock numbers" to a staff member mid-shift invites exactly the distrust
+    this work exists to remove, and there is no action for them to take. The
+    Sentry report and the `AUTO_HEAL_STOCK_QUANTITIES` audit row are the
+    record. That audit action is **separate from**
+    `ADMIN_TILL_FOLD_STOCK_QUANTITIES` on purpose: attributing an unattended
+    repair to an admin session that never ran it would misname who changed the
+    numbers, which is the question a staff dispute turns on.
+  - **Three refusals.** `unreconstructable` batches are never folded (the fold
+    itself enforces this — folding one would write off real stock the log
+    cannot see, A-148); nor are `pending` ones (their delta has yet to apply).
+  - **`unreconstructable` means "holds more than its inbound movements
+    account for", not "has no movements"** (A-215). Outbound only subtracts,
+    so a stored quantity above the log's total inbound contains stock that was
+    never logged. The old no-movements-at-all test let one `+2` adjustment
+    against a legacy A-148 batch holding 100 unlogged units flip it to
+    `diverged`, and the daily heal then wrote it down to 2 — unattended, with
+    no undo. The consequence is deliberate: an over-count the log cannot
+    explain (including the 2026-10-08 "exactly twice the opening stock" shape)
+    is now refused rather than folded, because it cannot be told apart from an
+    A-148 surplus. What still folds is an over-count the log *does* account
+    for — an outbound delta that never reached `quantity`, or a floored
+    replay. Retirement condition: once the spec's Stage 4 `opening_quantity`
+    work puts every batch's opening stock in the log (`docs/KNOWN_BUGS.md`
+    A-213), `stored > inbound` can only mean drift and this refusal can be
+    relaxed back to folding it.
+    `healStockIntegrity()` adds two of its own and names them in the report as
+    `healSkipped`: it will not write while the `stock_movements` pull window is
+    still mid-stream (`last_synced_at` unset or a `server_cursor` left over),
+    because the log is then known-incomplete; and it will not write during an
+    on-till inspection session.
+  - **No blast-radius cap.** One was considered and rejected: the two real
+    incidents were 255 of 1,952 and 958 of 2,495 batches, so any cap worth
+    having would have blocked both repairs.
+  - **A heal that does not converge reports as a failure**, not a success —
+    `divergedAfter > 0` gets its own message so it is searchable.
+  - **The 24h health check is the only trigger.** It already runs in the writer
+    tab/Tauri only, skips impersonated sessions, and requires a completed sync
+    round and an active store, so no new scheduler or set of guards is needed.
+    Drift is created by pulls, which the fold converges on regardless of how
+    long it waited.
+  - **Reconciling this with the read-only inspection session.** The on-till
+    inspection session refuses every ordinary local write at
+    `base-helpers.ts`'s `assertWritable()`, and the fold bypasses that by using
+    raw `execute()`. That bypass is for the *deliberate, confirm-gated* repair
+    an admin clicks in the diagnostics console, audited to that admin. An
+    unattended automatic write during the same session would be a different
+    thing wearing the same bypass, and would land in the audit trail without
+    an actor, so `healStockIntegrity()` refuses outright while a session is
+    live. Do not "simplify" that by removing the check, and do not weaken
+    `assertWritable()` to let the automatic path through.
+
 - **`restoreDatabase()` (web).** Builds the candidate as a throwaway sql.js
   instance first, so a malformed file throws with the live database fully
   intact, then sanity-checks it against `RESTORE_SANITY_CHECK_TABLES`
@@ -584,8 +645,10 @@ flag; most deletes are soft; see `remove()` vs `softDelete()` below).
 `remove()` (hard delete). Every one of them, on every call, automatically:
 
 1. Writes the row to local SQLite
-2. Appends an entry to `_sync_queue` (via `addToSyncQueue`) so the sync
-   engine picks it up on the next push
+2. Queues the change in `_sync_queue` (via `addToSyncQueue`) so the sync
+   engine picks it up on the next push. **An `UPDATE` collapses onto the
+   record's single pending `UPDATE` rather than appending a second row** —
+   see "Queue collapsing" below
 3. Writes an activity-log entry (`logAction`)
 4. Invalidates the right React Query caches (`invalidateQueriesForTable`,
    matched against each query's `meta.tables`, see query-keys below)
@@ -731,6 +794,40 @@ Call `sync(true)` before any workflow where stale local data would be
 actively misleading (e.g. `StockAudits` syncs on mount before showing
 counts, see `components/stock-batch/stock-audits.tsx`).
 
+#### Queue collapsing (`addToSyncQueue`, A-203)
+
+An `UPDATE` whose record has **exactly one** pending `_sync_queue` row, and
+that row is an `UPDATE`, is collapsed: the two payloads are merged and the old
+row is deleted and reinserted carrying its original `created_at`,
+`retry_count` and `next_retry_at`. Every part of that is deliberate:
+
+- **Merged, never replaced.** An `update()` payload carries only the fields
+  that edit changed, so overwriting the pending payload would silently drop
+  the earlier edit's fields.
+- **Delete-and-reinsert, not an in-place `UPDATE`.** `markSynced()` deletes
+  the pushed row by id and flags the record `_synced = 1`. Rewriting the
+  payload of a row that is already in flight would therefore have the new edit
+  deleted and the record marked synced without it — the exact silent
+  divergence this whole area exists to prevent. A new row survives that race;
+  `remove()` already deletes pending rows mid-flight the same way.
+- **Only one pending row, and only `UPDATE`.** An `INSERT` must stay an
+  `INSERT` (and must not be re-sent as one after it has landed), a pending
+  `DELETE` must not be overwritten, and a pre-existing multi-row backlog is
+  left for push-time `coalescePendingUpdates()` and the backed-off-sibling
+  hold-back to order — that logic is **not** dead, old devices still carry
+  such backlogs, and the two tests that cover it now seed the second row
+  directly for that reason.
+- **The original `created_at` is kept**, so a repeatedly-edited record cannot
+  be pushed to the back of the FIFO queue forever.
+
+Why it matters beyond queue size: the queue is strictly FIFO and drains 50 at
+a time, so a catalogue-wide pass used to leave every sale rung afterwards
+waiting dozens of rounds — and `pull.ts` skips any row with a queued local
+edit, so the same backlog **blocked incoming server changes** to those rows.
+A successful server-side category repair was invisible on a till for four days
+that way. `audit_logs` solves the same problem its own way in `core.ts`
+(in-place payload rewrite), which carries the in-flight race described above.
+
 #### Push details (`sync-engine/push.ts`)
 
 - **Terminal vs retryable rejections.** `NON_RETRYABLE_CONFLICT_REASONS`
@@ -742,9 +839,23 @@ counts, see `components/stock-batch/stock-audits.tsx`).
   stays impossible, and the caller's own grants do not change by resending.
   Routing any of them through `recordSyncFailure()`'s backoff would loop
   until the cap and then report a permanently stuck item. They are deleted
-  from `_sync_queue` outright instead; the next pull brings the server's
-  real value down, now that nothing local blocks it (see pull's
-  pending-local-edit skip). A `forbidden` rejection is deliberately *not* in
+  from `_sync_queue` outright instead. **Dropping the row is not by itself
+  enough to bring the server's value down, and this file used to say it was
+  (A-205).** Nothing server-side changes when a push is refused, so nothing
+  bumps that row's `updated_at`; once the device's pull watermark passes it —
+  which ordinary syncing does within minutes — the incremental pull never
+  offers the row again and the device keeps the value that *lost*, for good.
+  Confirmed live against `products.category_id`, four days on a till. So for
+  the reasons where the server kept a row this device disagrees with
+  (`REASONS_NEEDING_REPULL`: `version_conflict`, `stale_timestamp`) the drop
+  also rewinds that table's pull window (`rewindPullWindow()`,
+  `sync-engine/pull-window.ts`) so the server re-offers it. `permission_denied` is deliberately **excluded**:
+  no pull can settle it (`REASONS_SETTLING_SOURCE_ROW` flags the source row
+  instead), and a plan-gated queue would otherwise rewind the window on every
+  single round. The rewind is coarse — it re-pulls the whole table, because
+  the sync API still has no by-id re-send endpoint — and is marked as a
+  `shortcut:` in `pull-window.ts` for whenever one exists. **It is also
+  budgeted; see "Pull window rewinds" below.** A `forbidden` rejection is deliberately *not* in
   this set, and that exclusion has been re-confirmed against the server rather
   than inherited: `resolveOwnershipIdentity()` gives a staff session only its
   own `store_id` where an owner gets every store they own, so a staff login
@@ -1038,6 +1149,73 @@ admin panel. The constraints are not negotiable:
   asserted "no API call at all" for the backed-off case; they now assert the
   precise property instead — the backed-off row is never *sent*.
 
+#### Pull window rewinds (`sync-engine/pull-window.ts`)
+
+Both reasons a device re-opens a table's pull window — a terminal push
+conflict (A-205) and a chronically unresolved stock delta (A-176b) — go
+through `rewindPullWindow(table, cause)`. It never deletes the `_sync_state`
+row any more, because `pullChanges()` reads a missing or null
+`last_synced_at` as "pull this table from timestamp zero" and that state is
+unrecoverable once lost: the re-stamp is gated on the table having drained
+skip-free, and *any* row with a pending `_sync_queue` entry puts the table in
+`skippedTables`. A queue row parked indefinitely — a `forbidden` rejection,
+deliberately retried for ever per A-165 — therefore kept the table skipped for
+ever, so the window was never re-stamped and every later round re-requested
+the whole catalogue. ~38 pages of `products` per round on shared hosting, on a
+till with one serialized DB connection, for ever, invisible to the row-count
+health check because the counts match (A-218).
+
+So the rewind now:
+
+- stashes the pre-rewind stamp in `_sync_state.rewound_from` and nulls
+  `last_synced_at`, rather than dropping the row;
+- counts rewinds per table in `_sync_state.rewind_count`, which
+  `PULL_PROGRESS.completeWindow` resets to zero — so the budget only ever
+  counts *consecutive* rewinds that failed to re-stamp. The ordinary A-205
+  case drops the conflicting queue row before rewinding, so the table drains,
+  the counter resets, and nothing changes for it;
+- after `MAX_PULL_WINDOW_REWINDS` (3) such rewinds, restores `rewound_from`,
+  stops rewinding, and `logCrash`es under `area: "sync-pull-window"`. A device
+  that cannot converge goes back to incremental pulls instead of grinding. 3
+  rather than `MAX_NON_IMPROVING_RESYNCS`' 2 only because these are spent per
+  sync round, not per day.
+
+**The restore does not depend on the fault firing again (A-229).**
+`restoreExhaustedPullWindows()` runs unconditionally at the top of
+`pullChanges()` and puts back the baseline of every table whose
+`rewind_count` has reached the budget. Inside `rewindPullWindow()` alone it was
+unreachable in exactly the case it exists for: both callers fire only on a live
+fault, so a device that rewound two or three times and then stopped hitting the
+fault kept `last_synced_at = NULL` for ever — a full re-pull of that table every
+round, the A-218 grind the budget was supposed to bound. `stock_batches` is the
+realistic victim, because it is routinely in `skippedTables` (any pending
+`_sync_queue` row) and so never re-stamps.
+
+`rewind_count` is deliberately **not** reset by the restore: it stays at the
+budget so further rewinds keep being refused, and only
+`PULL_PROGRESS.completeWindow` — a genuine skip-free drain — clears it. The
+restore is idempotent (`COALESCE(rewound_from, last_synced_at)` with
+`rewound_from` nulled), so a stuck table re-reports once per round rather than
+once ever: the old `logCrash` was guarded on `rewound_from`, which the restore
+had just nulled, so every later occurrence returned silently. Per-round
+reporting is the `health-check.ts` precedent ("still logs every time either
+way, tagged givingUp").
+
+Because `_sync_state` now carries state two different writers care about,
+**every writer must name the columns it owns**, and the only way to advance a
+window from outside `pull.ts` is `stampPullWindowUnlessRewinding()`.
+`syncSubscriptionStatus()` stamped its stores window with `INSERT OR REPLACE`,
+which deletes the row and re-inserts it, so `rewind_count` and `rewound_from`
+reverted to their schema defaults and cancelled a live `stores` rewind
+(A-228). That helper also refuses to stamp mid-rewind
+(`WHERE rewind_count = 0`): a newer `last_synced_at` means the full re-pull
+never happens.
+
+The caller gets `false` when the rewind was refused, and neither call site has
+anything better to do with it than carry on — the point is the report. A by-id
+re-send endpoint would remove this mechanism entirely; that is the `shortcut:`
+on the function, and the condition for deleting it.
+
 #### Pull details (`sync-engine/pull.ts`)
 
 - **`MAX_PULL_PAGES` (1000) is a safety bound, not a correctness ceiling.**
@@ -1137,15 +1315,45 @@ admin panel. The constraints are not negotiable:
   was lost for good the moment any *later* page of that round threw (a
   network drop is the ordinary case), permanently understating on-hand
   stock. That was `A-54`; see `docs/FIXED_BUGS.md`.
-  `applyDeferredStockDeltas()` drains the table at the start of every pull
-  and again at the end of every round, applying each delta and deleting its
-  row in one transaction so nothing can be applied twice. A deferral whose
+  `applyDeferredStockDeltas()` drains the table at the start of every pull,
+  **again inside each page transaction as soon as a page carrying
+  `stock_batches` rows has applied them, before any other table of that page
+  is touched**, and once more at the end of the round, applying each delta and
+  deleting its row in one transaction so nothing can be applied twice.
+  **The mid-round drain is load-bearing, not an optimisation.** This section
+  used to describe start-and-end draining as safe; it is not. The floor is
+  `MAX(0, quantity + delta)` *per movement*, so the order deltas apply in is
+  not commutative. A batch's opening receipt deferred on page 1, applied after
+  page N's sales for the same batch, leaves every one of those sales clamped
+  against 0 and the device reading its full opening stock — the device ends up
+  **over** the server, permanently, with no error anywhere. That was A-197: 34
+  of 300 randomised histories hit it, and in the field a till read 80 units of
+  an item the server had at 52, with 255 of 1,952 batches diverged and 841
+  units overstated. Pinned by
+  `__tests__/pull-deferred-delta-order-across-pages.test.ts`, which fuzzes
+  page splits against the server's own derivation. Two things the mid-round
+  drain must keep doing: it passes `countAttempts: false`, because it runs
+  several times a round and would otherwise race a long first sync to the
+  chronic-reporting threshold while the batches were still arriving; and it
+  discards deltas for movements the *same page* soft-deletes
+  (`discardDeferredStockDeltas()`), because it runs before those soft-deletes
+  are written and would otherwise apply a delta the server has voided.
+  The drain reads `ORDER BY rowid` for the same non-commutativity reason.
+  A deferral whose
   movement has since been soft-deleted is discarded rather than applied
   (matching the insert path's `!_deleted` gate); a deferral whose batch
   still does not exist is **kept and retried**, never dropped, and reported
   via `logCrash` once it has waited `REPORT_AFTER_ATTEMPTS` rounds — only a
   batch arriving can settle it, and dropping it would be the silent loss all
-  over again. `stock_movements`' cursor stamps (both the window stamp and
+  over again. **At that same threshold the pull also rewinds
+  `stock_batches`' window**, so the
+  server re-offers a batch whose `updated_at` has fallen behind the cursor
+  (A-176). That is the only thing that makes a cursor-stranded batch arrive
+  without an operator running Force Full Resync, it is rate-limited by the
+  same reporting threshold (so roughly one re-pull per ten rounds, not per
+  round), and it is scoped to the one table that can settle the delta — and, since A-218, it spends from
+  the same per-table rewind budget as the push side (see below).
+  `stock_movements`' cursor stamps (both the window stamp and
   the mid-window position) are still held back and committed in the same
   transaction as the drain. Within a page, `stock_batches` is sorted first
   explicitly — the server's table order happens to match today, but that is
@@ -1289,7 +1497,62 @@ admin panel. The constraints are not negotiable:
   revealed via max-width/max-height + opacity on the sidebar's own 300ms
   timeline, not two structurally different trees swapped by a conditional.
 
+### Counting on a device that is behind sync (A-211, 2026-10-10)
+
+`submitStockAudit()` records `countedQty - currentSystemQty` — a **delta
+against this device's own figure**, not the number a human counted. On a
+device that is behind, the delta is wrong by exactly what has not arrived: a
+device showing 10 while missing a sale of 2 writes −2 for a count of 8, the
+sale lands for another −2, and the shelf holding 8 settles at 6.
+
+- **The guard is a warning with an acknowledgement, not a block.**
+  `useCountFreshness()` (`lib/hooks/use-count-freshness.ts`) combines this
+  device's last **successful** sync (`getLastSyncTime()`) with
+  `GET /app/sync/peer-freshness`, and the cycle-count review step holds the
+  submit button until the counter acknowledges the warning. Offline-first is
+  non-negotiable: a till with no connectivity for two days must still be able
+  to count. Do not turn this into a refusal.
+- **`COUNT_STALE_AFTER_MINUTES` is 60** (`lib/utils/count-freshness.ts`). The
+  auto-sync setting offers instant/5/15/30/60/360 minutes; below 60 the
+  warning would be permanent on a store set to 30, and 360 would call a
+  day-long gap fresh. A never-synced or unparseable timestamp counts as stale.
+- **The peer half can only come from the server** — a till cannot know that
+  another till is behind. The query failing (offline) yields no peer warnings,
+  which is correct: silence is not a claim of freshness, and the local half
+  still fires.
+- **Only the cycle-count screen warns.** The catalog quick edit and the CSV
+  import reconcile stock through the same delta with no check; logged in
+  `docs/KNOWN_BUGS.md` A-211 along with the real fix (an absolute count).
+
 ### Stock quantity reconciliation and the `sync_reconciliation` movement type (2026-10-02)
+
+**Health Sync is OFF as of 2026-10-10 and the section below is history, not
+current behaviour.** `POST /app/sync/reconcile-quantities` answers 410 for
+every caller (`config/dumos.php`'s hard-off `health_sync_enabled`), because one
+run from a half-rebuilt till removed 13,104 real units from a live store — see
+`docs/KNOWN_BUGS.md` A-214/A-213 and `docs/FIXED_BUGS.md`.
+
+**The UI control is gone as of 2026-10-10.** The Health Sync card and its
+confirm dialog are out of `components/settings/data-settings-sync-maintenance.tsx`
+(which now only carries Force Full Resync), and
+`handleReconcileStockQuantities` is out of `hooks/use-settings-sync.ts` and the
+whole prop chain through `data-settings.tsx` and the data panel. Two confident
+descriptions and a confirmation step in front of a feature that answers 410 is
+worse than no control: the user reads that it works, clicks through, and is
+then told it is retired. **What deliberately remains:** `reconcileStockQuantities()`
+itself, the `window.__reconcileStockQuantities` DevTools hook for a support
+session, and every regression test over them — the endpoint still exists behind
+`health_sync_enabled`, so the code path and its guards must stay honest for the
+day the `opening_quantity` work restores it. Re-adding a user-facing button is
+part of *that* work, not a separate decision.
+
+Two client-side rules survive
+and must stay even if the endpoint is ever restored: the pre-flight requires
+`movementLogIsComplete()` (exported from `sync-engine/stock-auto-heal.ts` —
+a succeeded sync round is **not** a complete one, and a device mid-rebuild
+reads 0 for every batch whose movements have not replayed yet), and the
+refusal must be visible to the owner, never swallowed. Restoring the endpoint
+is the spec's `opening_quantity` work, not a config flip.
 
 The server never accepts a pushed `stock_batches.quantity`: it zeroes it on
 INSERT, strips it on UPDATE, and only moves it by replaying
@@ -1302,9 +1565,8 @@ one repair path:
   first runs a real `sync(true)` (push then pull) and throws if that fails,
   then posts every local non-deleted batch for the active store as
   `{id, quantity}` to `POST /app/sync/reconcile-quantities`, and the server
-  decides what to correct. It is explicit and human-confirmed only —
-  Settings > Data > "Health Sync", plus
-  `window.__reconcileStockQuantities` for a support session. Never call it
+  decides what to correct. Its only remaining caller is
+  `window.__reconcileStockQuantities` in a support session. Never call it
   automatically or on a timer: it asserts *this* device's quantities as
   authoritative, so the forced sync exists specifically to catch this device
   up on every other device's movements first — it narrows, but does not
@@ -1342,9 +1604,18 @@ one repair path:
   (`lib/db/queries/products.ts`) and the dashboard recent-activity feed's
   movements query (`getDashboardOverviewData()` in
   `lib/db/queries/reports.ts`) each carry an explicit
-  `movement_type != 'sync_reconciliation'` — the first three surfaces found
-  to have no type filter at all, and the last two were only caught on
-  review after the initial implementation missed them. `getStockAdjustments()`
+  `movement_type NOT IN (…)` built from `HIDDEN_MOVEMENT_TYPES` /
+  `HIDDEN_MOVEMENT_TYPES_SQL` (`lib/db/movement-types.ts`) — the first three
+  surfaces found to have no type filter at all, and the last two were only
+  caught on review after the initial implementation missed them. **The list
+  is the point: a single constant was not enough** — the A-214 repair's
+  `sync_reconciliation_reversal` rows were in none of the three until A-221,
+  so 146 movements reading "A-214 repair: reverses Health Sync …" would have
+  appeared in the owner's movement list, dashboard feed and product
+  histories, which is exactly what A-148 went to trouble to prevent ("staff
+  think they're being accused"). A new sync-bookkeeping movement type goes in
+  `HIDDEN_MOVEMENT_TYPES` and nowhere else. Old bundles in the field can
+  never be fixed and will show those rows. `getStockAdjustments()`
   and `getStockMoM()`'s added/removed-value sums already exclude it through
   their own `= 'adjustment'` / `IN (...)` allowlists. If you add a new
   `stock_movements` query with no type filter, assume it needs this
@@ -1394,6 +1665,12 @@ list showing which device a staff member last synced from — see
 `laravel-server/AGENTS.md`, "Per-device sync visibility", for the server
 side. Best-effort UA sniffing only: never use it for anything
 security-relevant or correctness-relevant, unlike `X-Device-Id` itself.
+
+`X-App-Version`/`X-Build-Sha` (from `lib/constants.ts`) ride along on the same
+calls since 2026-10-10. Also self-asserted and for attribution only — but keep
+them: A-214's asserting bundle could not be identified after the fact because
+nothing on a sync call named it (the Sentry `build_sha` comes from the error
+logger, not from sync).
 
 ### `ServerSelector` is also reachable from Settings > Data, not just the landing page (2026-10-02)
 
@@ -1515,6 +1792,24 @@ added the `zeroNullStockBatchCostPrices()` local repair in
 `schema-migrations.ts`). Dropping the key restores the original, working
 behaviour: absent means "server, use your default."
 
+## What counts as a reportable API error (`lib/api/base-client.ts`)
+
+`UNREPORTED_STATUSES` (401, 410) is the list of statuses that are a *deliberate
+server decision*, not a fault. They never POST to `/logs/client-error` and they
+log at `console.warn`, not `console.error`, so they do not file a Sentry issue.
+410 is on the list because A-213's retired Health Sync endpoint refuses with it
+by design: every press would have filed an issue for the endpoint working
+exactly as intended. Add a status here only when the server returning it means
+"no, on purpose" for every caller.
+
+Found while doing that: the `catch` block used to decide whether a thrown error
+was already reported by string-matching `"HTTP error!"` on the message. Any HTTP
+error whose body carried a `message` therefore failed that match and was
+reported a *second* time as a status-0 network error — so every 4xx/5xx with a
+server message produced two reports, one of them misattributed. It now reads the
+`status` the response path stamps on the thrown error, which is the fact it was
+trying to infer.
+
 ## Cloud setup/registration network calls: `withNetworkRetry()` (`lib/api/retry-on-network-error.ts`)
 
 The first-run cloud account creation/link flow (`app/setup/use-onboarding.ts`'s `handleRegister()`/`handleCloudRestore()`, and `linkCloudAccount()` in `lib/context/auth-context.tsx`) wraps its `apiClient.register()`/`getStores()`/`getProfile()`/`login()` calls in `withNetworkRetry()`: up to 3 attempts with exponential backoff, against the Namecheap shared-hosting server flagged for occasional slowness (root `.agents/AGENTS.md` §7). This is the one place in `client/` this pattern is used — day-to-day PIN login never leaves local SQLite, and the sync engine's push/pull already has its own background retry/backoff that doesn't block a spinner the user is watching.
@@ -1556,6 +1851,29 @@ registry; the shared, multi-module values also have typed accessors
 `setStoredActiveStoreId`, `getLastSyncTime`/…) plus `readJsonItem`/
 `writeJsonItem` for the rest. The accessors never throw: a missing or corrupt
 value comes back as the fallback.
+
+**A stored timestamp is validated by its accessor, not by its readers (A-223).**
+`getLastSyncTime()` returns `null` for anything failing
+`Number.isNaN(new Date(v).getTime())`. It used to return the raw string, and a
+single bad write (`"undefined"`) reached `formatDistanceToNow()` in
+`sync-indicator.tsx` — which renders in the dashboard shell — so the whole app
+showed the error boundary on every page. Guarding at the accessor means all
+four consumers inherit it through null handling they already had. Any new
+timestamp accessor added here does the same; a reader that parses dates itself
+is the shape that caused this.
+
+**The crash boundary's reset is deliberately hard to reach.**
+`components/tauri/error-boundary.tsx` offers Reload as the only button;
+"Reset App Data" is a small link that reveals an in-page panel naming what is
+destroyed (local data *including anything not yet synced*) before the delete
+is clickable. It uses plain component state rather than the house
+`AlertDialog`, and talks to `indexedDB.deleteDatabase("keyval-store")` —
+idb-keyval's default DB, where `core.ts` persists the sql.js binary — instead
+of importing `resetDatabase()`, because this component runs after the app has
+already crashed and must not pull the possibly-broken db module graph back in.
+Do not make it a sibling button of Reload again: that layout, plus a
+`window.confirm` that said "all local data" without saying it included unpushed
+sales, is what A-223 turned a one-character storage corruption into.
 
 No new bare string key, anywhere. A module-private key still goes in
 `STORAGE_KEYS` and the module aliases it (`const PEEK_KEY =
@@ -3226,7 +3544,8 @@ pre-backfill array.
   (the exception message still carries the specific detail into the log), and
   `push.ts`'s `NON_RETRYABLE_CONFLICT_REASONS` lists it beside
   `version_conflict`: the queue row is dropped on the first response instead
-  of retried forever, and the next pull brings the server's row down. It is
+  of retried forever. No window rewind for this reason, and no pull settles
+  it — the source row is flagged settled instead (see "Push details"). It is
   also in `SILENT_TERMINAL_REASONS`, so no "could not be saved" toast fires —
   the user never made the edit the backfill queued on their behalf, and the
   matrix UI gates a *real* group edit behind `manage_roles_permissions`

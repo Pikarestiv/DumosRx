@@ -183,7 +183,17 @@ without updating that.
   `view_platform_data` (the stores/users/activity-log read endpoints),
   `send_notifications` (per-user notify, bulk notify, the broadcast/announcement
   group), `reset_user_passwords` (force-reset), `manage_account_status`
-  (suspend/reactivate a store or a user) and `impersonate_store`.
+  (suspend/reactivate a store or a user, and - since 2026-10-10 - publish or
+  unpublish a store's online storefront via `PUT /admin/stores/{id}/storefront`,
+  `AdminStoreStorefrontController`/`AdminStoreStorefrontService`, since
+  suspending a store already takes its storefront offline; enabling a store
+  with no `store_slug` is refused, and the public endpoints still re-check the
+  owner's `store_url` entitlement. **The same endpoint and the same permission
+  also set `store_slug`**, via an optional `store_slug` in the body — the slug
+  is a public URL, so it is refused on a collision checked `withTrashed()`, on
+  a value that slugifies to empty or over 100 chars, and when `Store::saving()`
+  silently reverts it under the 6-month cooldown; see `web/AGENTS.md`, "The same
+  card sets the slug") and `impersonate_store`.
   - **Enforced by omission, not by a deny-list.** A never-delegatable action
     (delete a user/store, edit another admin's profile/role, coupons and
     referral payouts, the subscription/platform config endpoints) simply has
@@ -774,6 +784,18 @@ migration here **and** the corresponding update on the `client/` side
   A build that sends no header keeps the bearer attribution it always had, so
   no device in the field breaks (§11). An owner has no `store_id` and so
   resolves to the bearer anyway, which is correct.
+  **Two conditions must both hold for a staff row to appear, and neither is
+  a bug when it doesn't:** the till has to be running a build that sends the
+  header (a PWA keeps its cached shell until its service worker is replaced),
+  and a *staff* user has to be the locally signed-in user at sync time — if
+  the owner is signed in at that till, crediting the owner is the correct
+  answer. The whole chain (header → `touch()` → the staff list the founder
+  actually reads) is pinned end to end by
+  `AdminUserSyncVisibilityTest::a_sync_from_a_staff_login_clears_never_synced_on_the_staff_list`,
+  verified to fail when `resolveActingUserId()` is removed. The write side's
+  own cases live in `tests/Feature/UserDeviceTrackingTest.php` — **not** in
+  the `tests/Feature/App/UserDeviceAttributionTest.php` that A-202's
+  `docs/FIXED_BUGS.md` entry originally named; that path never existed.
 - **`user_devices` cannot identify a store's on-site terminal.** `store_id`
   here is the device's *last active* store, so a store switch rewrites it and
   every device of a multi-store owner reads as whichever they opened last. For
@@ -1234,7 +1256,54 @@ code".
 
 **Three active codes is the maximum**, enforced at both issue paths, precisely
 because `EQUALIZED_CHECKS` bounds how many `verify()` will ever test — a fourth
-code would silently never work.
+code would silently never work. The refusal is returned as **`message`** (with
+`error` kept beside it for any older bundle), because that is the key
+`web/lib/api/base-client.ts`'s interceptor promotes onto the thrown error —
+returning it only under `error` is how the cap became an unexplained
+do-nothing button in the panel (A-207).
+
+### Till codes are recoverable by a super_admin, on purpose
+
+`admin_till_codes.code_encrypted` holds `Crypt::encryptString($code)` beside
+the bcrypt `code_hash`, and `GET /api/v1/admin/till-codes/all`
+(`role:super_admin`, audited) returns every active code in clear. This
+**deliberately weakens** the original design's "hashed at rest, never
+recoverable, only reissued" property, at the founder's explicit request, for an
+operational reason he has not shared. Do not "fix" it back into a hash-only
+store without asking him first.
+
+What it costs and what still holds:
+
+- **A database dump alone still yields no working code.** Decryption needs
+  `APP_KEY`, which lives in `.env`, not in MySQL. The exposure added is
+  specifically "`APP_KEY` *and* the DB together", which is also already enough
+  to forge sessions, so it does not create a new worst case — it widens an
+  existing one to cover till codes.
+- **Verification is unchanged.** `verify()` still compares against
+  `code_hash`, never the encrypted copy, so the equalised-timing property and
+  the constant number of bcrypt checks are untouched.
+- **Only `super_admin`, only server-side.** The gate is route middleware
+  (`role:super_admin`), not a controller guard clause, and the panel hides the
+  card rather than disabling it (`web/AGENTS.md`).
+- **Every reveal is audited**: one `ActivityLog` row per call, action
+  `admin_till_codes_viewed`, with the viewer's `user_id` and the `code_ids` /
+  `admin_ids` shown. The panel fetches only when the super_admin clicks
+  Reveal (`staleTime: 0`, `gcTime: 0`), so the log reflects intent rather than
+  page loads.
+- **Active codes only, capped at `REVEAL_LIMIT` (50).** A revoked code cannot
+  authenticate anything, so listing it would be noise with a disclosure cost.
+- **Backward compatibility (§11).** `code_encrypted` is nullable and additive;
+  rows issued before this change keep working (they still verify by hash) and
+  simply report `code: null`, rendered as "Unavailable". Nothing is backfilled,
+  because the plaintext genuinely no longer exists. **The null branch can go
+  once every pre-2026-10-10 code has been rotated or revoked** — i.e. when
+  `SELECT COUNT(*) FROM admin_till_codes WHERE revoked_at IS NULL AND
+  code_encrypted IS NULL` is 0.
+- **A safer alternative, not taken:** reveal-on-demand with a re-entered
+  super_admin password and a short-lived one-time view, or simply letting a
+  super_admin *rotate* another admin's code (which needs no recoverable
+  storage at all, and covers "an admin lost their code"). Recorded here
+  because the founder asked for direct visibility explicitly.
 
 **`scopeLive()` matches on `ended_at` only**, not `expires_at > now()`. A
 session that hit the 4-hour cap must still be closable or its audit duration
@@ -1294,6 +1363,63 @@ their own queue on each push: depth, and the rows past the retry ceiling.
 - **Silence is not health.** `forStore()` returns `measured: false` for a
   store no device has reported for, and the panel says nothing can be
   concluded rather than "nothing is stuck".
+
+## Health Sync is off, and peer sync freshness (A-213/A-214/A-211, 2026-10-10)
+
+`POST /app/sync/reconcile-quantities` is the one path that ever accepted a
+**device-reported** `stock_batches.quantity` as truth, writing the signed
+difference as a `sync_reconciliation` movement. On 2026-10-10 one run from a
+half-rebuilt till removed 13,104 real units from a live store.
+
+- **It now refuses every caller with 410** and
+  `SyncController::HEALTH_SYNC_DISABLED_MESSAGE`, gated on
+  `config/dumos.php`'s `health_sync_enabled`: hard `false`, **no env
+  override**, flipped on only by `SyncReconcileQuantitiesTest` so the
+  behaviour stays specified and its regressions stay covered. Do not add an
+  env knob, and do not re-enable it in production — the retirement path is the
+  derived-quantity spec's `opening_quantity` work, which dissolves the A-148
+  class this endpoint was the only repair for. `health_sync_is_off_by_default`
+  reads the shipped config file to make a quiet flip fail CI.
+- **The refusal must stay visible.** The client surfaces the message verbatim
+  (`docs/FIXED_BUGS.md` A-207 is what a silent refusal costs).
+- **Every sync call now carries `X-App-Version` and `X-Build-Sha`.** They are
+  self-asserted, like `X-Device-Id`, and are for attribution only — but they
+  are the only way to tell which bundle is talking, which A-214 needed and did
+  not have. The reconciliation activity log records `device_id`,
+  `device_label` and `app_version` for the same reason.
+- **`GET /app/sync/peer-freshness`** answers "which OTHER devices in my store
+  are behind?" for a till about to take a stock count (A-211), from
+  `user_devices.last_synced_at` via `PeerSyncFreshnessService`. Scoped exactly
+  like a push (`resolvePushStoreId()`), the calling `X-Device-Id` excluded,
+  newest row per device (`user_devices` is unique per *user*+device, so one
+  till has one row per staff member), never-synced reported with a null age.
+  `STALE_AFTER_MINUTES` is 60 and must stay equal to the client's
+  `COUNT_STALE_AFTER_MINUTES` — see `client/AGENTS.md`, "Counting on a device
+  that is behind sync". It is a warning the client renders, never a block.
+- **`PRESUMED_RETIRED_AFTER_DAYS` (7) is what makes that warning mean
+  anything (A-220).** `user_devices` has no deactivation, retirement or
+  `is_active` column — rows are only ever created or touched — so a phone
+  replaced three months ago keeps its frozen `last_synced_at` and reported as
+  a stale peer for ever. One owner has 12 registered devices, most of them
+  phones and laptops that will never sell anything, and
+  `shouldWarn = isLocalStale || stalePeers.length > 0` gates the count's
+  submit button: the banner and its "Submit anyway" checkbox appeared on
+  every count on every till, permanently, and a guard everyone reflex-clicks
+  is not a guard. A device whose last sign of life (`last_synced_at`, falling
+  back to `created_at` for a row that has never synced) is older than the
+  cutoff is now rejected before the staleness filter.
+- **Why 7 days, and why a cutoff rather than real retirement.** The warning's
+  only actionable response is "go and sync that till", so the cutoff should be
+  the longest absence a till still in service could plausibly have: a weekend
+  plus a public holiday, or a till switched off for someone's week of leave.
+  Below that (a day or two) a store that closed for a long weekend would stop
+  being warned about a till genuinely holding Saturday's unsynced sales, which
+  is the miss that costs stock; above it the nag comes back. Any device absent
+  a full week is either retired or so far behind that re-syncing it is a
+  separate problem from today's count. Real retirement (an `is_active` column,
+  or an owner-facing "this device is gone" action in the admin panel's device
+  list) is the better answer and is **deliberately not** built here: it needs
+  UI, and the cutoff removes the false warnings today without one.
 
 ## Device stock fingerprints (stuck-data Phase 1)
 
@@ -2241,6 +2367,88 @@ unique key that would have failed.
 migration is the one change in this repo that the test suite cannot verify
 for you.
 
+## The deploy does not run migrations — it refuses to call the release done (A-210)
+
+`.github/workflows/deploy-backend.yml` is FTP-only: there is no SSH on this
+host, so code arrives by file sync and schema does not. That gap shipped
+`admin_till_codes` to production on 2026-10-09 with its table absent, and
+broke till-code generation again on dev the next day against
+`code_encrypted`.
+
+**What now happens.** `GET /api/v1/health?schema=1` returns `schema_current`
+— one boolean from `AdminMaintenanceService::migrationStatus()`. The deploy
+curls it right after the FTP sync and **fails the job** with a `::error::`
+pointing at Admin → Maintenance when it is anything but `true`. The red X on
+the commit is the alert; nobody should meet a pending migration as a 500.
+
+- **The deploy deliberately does not apply migrations.** An unattended
+  `migrate --force` from CI against shared hosting, with no snapshot step and
+  only a syntactic destructive-pattern scan, is a blast radius the founder
+  should accept knowingly rather than inherit from a workflow edit. Detect,
+  refuse, and let a human press the existing Maintenance button.
+  `HealthSchemaGateTest::test_the_deploy_workflow_does_not_run_migrations_itself`
+  pins that; changing it is a decision, not a refactor.
+- **`?schema=1` is opt-in because `/health` is hot.** Every till hits it to
+  anchor its clock (`client/lib/licensing/server-clock.ts`), and the
+  comparison costs two queries plus a scan of ~162 migration files.
+- **It reports no names and no count.** The endpoint is public; a migration
+  filename is a release note nobody outside needs. An unreadable `migrations`
+  table reports `false`, never `true` — "don't know" must gate a deploy
+  exactly like "behind".
+- **Override the URL** with the `API_HEALTH_URL` repository variable if the
+  API moves; the workflow falls back to the production health URL.
+
+The human-facing surfaces are unchanged and still the place to act:
+`GET /admin/maintenance/migrations`, `POST /admin/maintenance/migrations/run`
+(both `role:super_admin`), the Operations "Database schema" card and the
+Maintenance "Pending migrations" panel.
+
+## A column a release adds must not be written unconditionally (A-225)
+
+The deploy above detects a schema that is behind, but it detects it *after*
+the FTP sync. On FTP-only hosting code and schema can never land at the same
+instant, so between the upload and someone pressing Maintenance → Run there
+is always a window in which the new code is live against the old schema. A
+write to a column that window has not created yet is a hard 500, not a
+degraded feature — that is exactly how `admin_till_codes.code_encrypted` took
+down till-code generation on dev on 2026-10-10.
+
+**So: any change that adds a column and writes to it must tolerate the column
+being absent**, degrading to whatever the pre-migration rows already do.
+
+The worked example is the sync engine. `SyncController::applyPullCursor()`
+(`:975`) and `stampSyncedAt()` (`:1540`) probe `Schema::hasColumn()` before
+touching `_synced_at`, each behind its own array cache, because the probe is a
+real INFORMATION_SCHEMA round trip Laravel does not memoize. Follow that
+idiom, not a new one. `AdminTillSessionService::newCodeAttributes()` is the
+small version: one nullable `$hasEncryptedColumn` on the service, resolved
+once per instance, omitting `code_encrypted` from the insert when it is not
+there. The code still issues with its hash; it is simply not recoverable
+later, which `revealAll()` already reports as `null` for rows predating the
+column. Both writers (the controller and `admin:till-code`) call that one
+method, so there is a single place to delete when the shim retires.
+
+- **The read side usually needs nothing.** `$row->code_encrypted` on a model
+  whose table lacks the column is just a missing attribute — `null` — so a
+  falsy check covers it. Explicit `->get(['code_encrypted'])` or a raw
+  `select` does *not*; don't name the new column in a column list.
+- **Retirable when** every host the release reaches has run
+  `2026_10_10_000001_add_code_encrypted_to_admin_till_codes`. The health gate
+  makes that checkable: `GET /health?schema=1` reporting `true` on production
+  and dev is the signal to drop the probe.
+- **The alternative, and when to prefer it:** split the change across two
+  deploys — migration-only release first, run it, then the release whose code
+  writes the column. That needs no shim at all and is the better choice when
+  the write cannot degrade gracefully (a `NOT NULL` column, a column the
+  feature is meaningless without, a unique index the code depends on). The
+  probe is for when the feature can lose one property and still work; two
+  deploys are for when it cannot. Choose deliberately.
+- **A new *table* has no middle ground.** Four of the five unreleased
+  migrations (`device_stock_reports`, `device_queue_reports`, `sync_commands`,
+  `admin_till_*`) are `Schema::create`; against a behind host the whole
+  feature 500s and no probe helps. The deploy gate is the only mitigation —
+  which is why it fails the job rather than warning.
+
 ## Testing
 
 ```
@@ -2404,6 +2612,135 @@ mis-pointed rows were not repaired. See `docs/KNOWN_BUGS.md` A-189.
   describes.
 - Products with a `NULL` `store_id` are counted and skipped: there is no owning
   store to repoint them to, and inventing one would be a guess.
+
+## Health Sync zeroing repair: `sync:repair-health-sync-reconciliation` (2026-10-10)
+
+One Health Sync run at `2026-10-10 08:53:29` accepted a half-rebuilt device's
+local quantities as truth and wrote 146 `sync_reconciliation` movements
+(−13,104 units on one store, −18 on another), zeroing batches whose own
+movement log still held the real figure. The cause is `docs/KNOWN_BUGS.md`
+A-214/A-213; this section is the repair only.
+
+```bash
+php artisan sync:repair-health-sync-reconciliation                 # report
+php artisan sync:repair-health-sync-reconciliation --store=<id> --apply
+```
+
+- **Arithmetic: delta reversal, and the movement log is never summed (A-226).**
+  For each affected batch the target is
+  `stock_batches.quantity (as stored now) − SUM(the bad sync_reconciliation deltas)`.
+  It follows from one identity: the incident and everything after it were both
+  applied to the stored column, so
+  `stored = pre_incident + incidentDelta + post_incident_deltas`, hence
+  `stored − incidentDelta = pre_incident + post_incident_deltas` — exactly the
+  number the batch should hold. Movements recorded *after* the incident (sales
+  rung against the zero, deliveries, counts) are already inside `stored` and
+  are therefore preserved without being re-added; the command undoes the
+  incident, it does not reset the batch to its pre-incident number.
+  - **Why not the log sum.** The first version computed
+    `SUM(all movements) − SUM(the bad deltas)`, which equals the pre-incident
+    quantity *only if the log is complete and was never floored*. Neither holds
+    here. For the **A-148 class** (batches whose opening stock never produced a
+    movement row, `docs/KNOWN_BUGS.md` A-213) a batch holding 100 real units
+    with no movement rows at all has `logSum = −100` after the incident, so the
+    old target was `0` — the repair wrote the zero back, reported `+100 units
+    restored`, and did not trip the clamp warning because `0` is not negative.
+    Separately, for any batch whose history was floored by an oversell, raw
+    `SUM(quantity)` sits *below* the running balance the server actually kept,
+    so the target landed at or under the true figure and the repair wrote the
+    batch **down**, silently, whenever that figure was still ≥ 0. Delta
+    reversal cannot be wrong in either case because it never consults the log.
+    This is the server-side twin of the client fix in
+    `client/lib/db/sync-engine/stock-integrity.ts` (A-215), which refuses such
+    batches as `unreconstructable`.
+  - Where the log *is* complete and unfloored the two formulas agree, which is
+    what `it_keeps_movements_made_after_the_incident_and_still_lands_on_the_right_number`
+    pins (`drifted` is asserted to be 0 there, i.e. `stored === logSum`). The
+    log sum is still read, but only to count `drifted` batches for the report.
+  - A target below zero — only reachable when the bad delta was *positive* and
+    larger than the quantity now — is stored clamped at 0 and reported, because
+    the deficit belongs in the log, not in the column.
+  - **`units_restored` is what was written, not the size of the reversal**:
+    `max(0, target) − stored`, per batch and summed. The old
+    `−incidentDelta` described the reversal, so a batch left exactly where it
+    was still reported units restored (that is how the A-148 failure above
+    stayed invisible, printing `from: 0, to: 0, units: 100`). A clamped batch
+    therefore reports a negative figure, which is the truth.
+- **Reversal, never deletion.** Each bad row gets a `sync_reconciliation_reversal`
+  movement of the opposite sign, with `reference_id` = the reversed movement's
+  id, `reference_type = 'stock_movement'`, and the reversed row's own
+  `performed_by`. The log stays append-only, which the derived-quantity design
+  (`docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`)
+  requires, and the incident stays visible instead of being erased.
+- **Idempotent, and bounded to the incident at both ends.** A bad row that
+  already has a reversal pointing at it is skipped, so a second `--apply`
+  reports nothing and writes nothing. The scan is bounded by an explicit
+  **window**, `INCIDENT_FROM`/`INCIDENT_THROUGH` =
+  `2026-10-10 08:53:00`–`08:54:00`, matched against
+  `COALESCE(created_at, movement_date)` — the run's own write time. The run
+  wrote all 146 rows inside the single second `08:53:29`; the window is a
+  minute wide only so a run that straddled a second boundary cannot fall out
+  of scope.
+  - **The lower bound is the point** (A-216). The first version had only the
+    upper bound `movement_date <= '2026-10-10 10:00:00'`, so *every*
+    `sync_reconciliation` movement ever written was in scope — including the
+    legitimate A-148 repair run of 2026-10-02 that restored a customer's
+    bulk-imported opening stock (`docs/FIXED_BUGS.md` A-148) and any
+    owner-pressed Health Sync before the incident. `--apply` would have
+    reversed those and set those batches back to a figure excluding the
+    restored stock.
+  - **Nothing falls out of scope silently.** Every run, report or apply,
+    prints the window and warns how many un-reversed `sync_reconciliation`
+    movements exist *outside* it, with their earliest and latest write times,
+    so "nothing to repair" can never hide rows the key missed. Those outside
+    rows are deliberately untouched; widen the window deliberately or not at
+    all.
+  - The per-store `STOCK_QUANTITY_AUTO_RECONCILED` activity-log rows are the
+    other fingerprint of the run and were considered as the key. They narrow
+    no further than a one-minute write window and cost a join, so the window
+    is the key and they stay the cross-check a human runs by hand.
+- **Concurrency: it is meant to be run during trading hours.** Each batch's
+  quantity is written inside the repair transaction as a *locked read then
+  conditional update* — `lockForUpdate()` on the `stock_batches` row and on that
+  batch's movements (so the figures are the latest committed ones and a
+  concurrent push waits), then `where('quantity', $justRead)->update(...)`,
+  mirroring `SyncController::writeQuantityReconciliation()`. Wrapping the run in
+  `DB::transaction` alone would **not** have been enough: the bulk report reads
+  are non-locking snapshot reads, so a till's push could commit underneath them
+  and an absolute `save()` would overwrite its quantity while its movement row
+  survived. If the conditional update still matches no row, that batch is
+  abandoned whole — **no quantity write and no reversal movements**, so the
+  invariant "a reversal exists ⟺ its quantity was corrected" holds and the batch
+  is simply picked up by the next run. Skipped batches are listed in the output
+  by product and id; re-run to finish them. Report mode takes no locks at all.
+- **Eloquent timestamps only** (root `AGENTS.md` §7). The conditional update is a
+  query-builder `update()` with `now()` from PHP, which is UTC — the §7 ban is on
+  MySQL's own `NOW()`, not on Carbon's. Both the reversal rows and
+  the batch quantity are written through models, so `updated_at` is PHP-UTC. A
+  raw `UPDATE … NOW()` here would stamp ~4 hours behind UTC and the corrected
+  rows would never pass the pull's `updated_at` filter — the corrections would
+  reach no device at all.
+- **How devices converge.** The reversals pull down as ordinary
+  `stock_movements` rows and `pull.ts`'s INSERT branch applies each delta to
+  `stock_batches.quantity` (`MAX(0, quantity + delta)`); there is no
+  movement-type allowlist there, so every build in the field already handles the
+  new type (`client/AGENTS.md`, "`pull.ts` has no `sync_reconciliation` special
+  case — on purpose"). The device that caused the incident already holds the bad
+  row, so it too applies only the reversal. A device missing the batch row
+  defers the delta until the batch arrives, which can take ~10 rounds
+  (`docs/FIXED_BUGS.md` A-176b). The server's own `quantity` is stripped on
+  pull, so the movement is the only channel — which is why deleting the bad rows
+  would have fixed nothing on any device.
+- **Owner-facing lists show the reversal, by design.** The client excludes
+  `sync_reconciliation` from owner movement lists and stock-value sums; the
+  reversal is not excluded, because it restores real stock value and the store
+  should be able to see where the correction came from.
+- **Tests:** `tests/Feature/HealthSyncReconciliationRepairTest.php` — exact
+  restore, post-incident movements interleaved and preserved, double `--apply`,
+  report mode writing nothing, `--store=` scoping, untouched batches, a
+  post-window reconciliation left alone, the clamp, and a quantity moved
+  underneath the repair being skipped rather than clobbered (simulated with
+  `DB::listen`, since SQLite compiles `lockForUpdate()` away).
 
 ## Running artisan on the production box (Namecheap shared hosting)
 

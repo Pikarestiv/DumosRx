@@ -45,6 +45,11 @@ vi.mock("../lib/utils/error-logger", () => ({
   logCrash: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("../lib/db/sync-engine/stock-auto-heal", () => ({
+  movementLogIsComplete: vi.fn().mockResolvedValue(true),
+  healStockIntegrity: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("../lib/api/client", () => ({
   apiClient: {
     reconcileStockQuantities: vi.fn(),
@@ -56,6 +61,7 @@ import { query, execute } from "../lib/db/core";
 import { apiClient } from "../lib/api/client";
 import { pushChanges } from "../lib/db/sync-engine/push";
 import { pullChanges } from "../lib/db/sync-engine/pull";
+import { movementLogIsComplete } from "../lib/db/sync-engine/stock-auto-heal";
 import { reconcileStockQuantities } from "../lib/db/sync-engine";
 
 /**
@@ -74,6 +80,18 @@ describe("reconcileStockQuantities", () => {
       pulled: 0,
       updatedTables: [],
     } as Awaited<ReturnType<typeof pullChanges>>);
+    vi.mocked(movementLogIsComplete).mockResolvedValue(true);
+  });
+
+  // A-214: a succeeded sync round is not a complete one. Mid-rebuild, batches
+  // read 0 and this endpoint would assert those zeros as truth.
+  it("refuses while the movement-log pull window is still mid-stream", async () => {
+    vi.mocked(movementLogIsComplete).mockResolvedValue(false);
+    vi.mocked(query).mockResolvedValue([{ id: "batch-a", quantity: 0 }]);
+
+    await expect(reconcileStockQuantities()).rejects.toThrow(/still rebuilding/i);
+
+    expect(apiClient.reconcileStockQuantities).not.toHaveBeenCalled();
   });
 
   it("syncs with the cloud first, before reading or posting local quantities", async () => {
@@ -235,5 +253,17 @@ describe("reconcileStockQuantities", () => {
       reconciled: 1,
       checked: 1,
     });
+  });
+  // A-213: the server refuses this endpoint outright. An invisible refusal is
+  // what A-207 cost, so the message must reach the caller.
+  it("surfaces the server's version refusal instead of resolving quietly", async () => {
+    vi.mocked(query).mockResolvedValue([{ id: "batch-a", quantity: 12 }]);
+    vi.mocked(apiClient.reconcileStockQuantities).mockRejectedValue(
+      new Error("Health Sync has been retired and no longer runs."),
+    );
+
+    await expect(reconcileStockQuantities()).rejects.toThrow(
+      /has been retired/i,
+    );
   });
 });

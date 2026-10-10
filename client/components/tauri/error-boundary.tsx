@@ -8,19 +8,23 @@ interface Props {
   children: ReactNode;
 }
 
+const IDB_KEYVAL_STORE = "keyval-store";
+
 interface State {
   hasError: boolean;
   error: Error | null;
+  resetArmed: boolean;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null,
+    resetArmed: false,
   };
 
   public static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+    return { hasError: true, error, resetArmed: false };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -35,6 +39,16 @@ export class ErrorBoundary extends Component<Props, State> {
       }
     }
   }
+
+  private wipeLocalData = () => {
+    try {
+      indexedDB.deleteDatabase(IDB_KEYVAL_STORE);
+    } catch (e) {
+      console.error("Failed to delete local database", e);
+    }
+    localStorage.clear();
+    window.location.reload();
+  };
 
   public render() {
     if (this.state.hasError) {
@@ -53,38 +67,49 @@ export class ErrorBoundary extends Component<Props, State> {
                 {this.state.error?.message || String(this.state.error)}
               </code>
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+            <div className="flex flex-col gap-4 justify-center pt-2">
               <button
                 onClick={() => window.location.reload()}
                 className="px-5 py-2.5 bg-primary text-primary-foreground font-semibold rounded-lg shadow-lg hover:bg-primary/90 transition-all text-sm cursor-pointer"
               >
                 Reload Application
               </button>
-              <button
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      "Warning: This will permanently delete all local data on this device and reset the app. This cannot be undone. Proceed?",
-                    )
-                  ) {
-                    // Deliberately talks to indexedDB directly rather than importing
-                    // resetDatabase(): this button is the last resort after the app
-                    // already crashed, so it must not pull the (possibly broken) db
-                    // module graph back in. "keyval-store" is idb-keyval's default
-                    // database, where lib/db/core.ts persists the sql.js binary.
-                    try {
-                      indexedDB.deleteDatabase("keyval-store");
-                    } catch (e) {
-                      console.error("Failed to delete local database", e);
-                    }
-                    localStorage.clear();
-                    window.location.reload();
-                  }
-                }}
-                className="px-5 py-2.5 bg-background border hover:bg-muted text-foreground font-semibold rounded-lg transition-all text-sm cursor-pointer"
-              >
-                Reset App Data
-              </button>
+
+              {!this.state.resetArmed && (
+                <button
+                  data-testid="reset-app-data"
+                  onClick={() => this.setState({ resetArmed: true })}
+                  className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors cursor-pointer"
+                >
+                  Reset App Data
+                </button>
+              )}
+
+              {this.state.resetArmed && (
+                <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-left space-y-3">
+                  <p className="text-xs text-foreground leading-relaxed">
+                    This <strong>deletes all data stored on this device</strong>, including
+                    any sales, stock changes and counts that have not yet synced to the
+                    cloud. Those are not recoverable. Try reloading first, and only reset
+                    if support has told you to.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      data-testid="reset-app-data-confirm"
+                      onClick={this.wipeLocalData}
+                      className="px-4 py-2 bg-destructive text-destructive-foreground font-semibold rounded-lg text-xs cursor-pointer hover:bg-destructive/90 transition-colors"
+                    >
+                      Delete local data and reset
+                    </button>
+                    <button
+                      onClick={() => this.setState({ resetArmed: false })}
+                      className="px-4 py-2 bg-background border hover:bg-muted text-foreground font-semibold rounded-lg text-xs cursor-pointer transition-colors"
+                    >
+                      Keep my data
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

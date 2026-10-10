@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/api/client";
 import { query, execute, getActiveStoreId } from "../core";
+import { movementLogIsComplete } from "./stock-auto-heal";
 import type { SyncResult } from "./types";
 
 interface ReconciliationMovement {
@@ -71,7 +72,9 @@ async function storeReconciliationMovementLocally(
  * quantities as authoritative, so a device that's been sitting unsynced
  * (missing other devices' sales/movements) must catch up before that
  * assertion is trustworthy. Refuses to proceed if that sync fails, rather
- * than reconciling against a snapshot that might already be stale.
+ * than reconciling against a snapshot that might already be stale — and,
+ * since a succeeded round is not a complete one, also refuses while the
+ * movement-log pull window is mid-stream (A-214).
  *
  * Refuses outright when any batch's quantity disagrees with its own movement
  * No divergence interlock here — one was written and withdrawn before
@@ -91,6 +94,12 @@ export async function reconcileStockQuantities(
         ? syncResult.error
         : "Could not sync with the cloud before reconciling.";
     throw new Error(message);
+  }
+
+  if (!(await movementLogIsComplete())) {
+    throw new Error(
+      "This device is still rebuilding its stock history. Wait for the sync to finish, then try again.",
+    );
   }
 
   const storeId = getActiveStoreId();

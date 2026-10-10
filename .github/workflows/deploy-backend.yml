@@ -80,4 +80,24 @@ jobs:
             .env.example
             .env
 
+      # This hosting has no SSH, so the deploy detects a pending migration
+      # and refuses rather than applying one - see docs/FIXED_BUGS.md A-210.
+      - name: 🧬 Check the deployed schema against the deployed code
+        env:
+          HEALTH_URL: ${{ vars.API_HEALTH_URL }}
+        run: |
+          url="${HEALTH_URL:-https://api.dumosrx.com/api/v1/health}?schema=1"
+          body=$(curl -fsS --max-time 30 "$url" || true)
+          echo "$body"
+          case "$body" in
+            *'"schema_current":true'*)
+              echo "Schema matches this release." ;;
+            *'"schema_current":false'*)
+              echo "::error::The files are deployed but the database is behind this release. Open Admin > Maintenance > Pending migrations and run them now; the deploy does not run migrations."
+              exit 1 ;;
+            *)
+              echo "::error::Could not read schema_current from $url after deploying. Check Admin > Operations > Database schema by hand before calling this release done."
+              exit 1 ;;
+          esac
+
 

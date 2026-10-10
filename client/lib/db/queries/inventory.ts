@@ -1,4 +1,4 @@
-import { query, insert, update, transaction } from "@/lib/db/local-database";
+import { query, insert, update, transaction, isInTransaction } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
 import type { FastMoverRow } from "@/lib/types/fast-mover";
 import type { StockBatch, AvailableStockBatch } from "@/lib/types/stock-batch";
@@ -181,7 +181,19 @@ interface RecordSaleItemStockParams {
  * completed sale must leave a stock_movements trace for what it sold, even
  * when the product's real stock was already fully depleted.
  */
-export async function recordSaleItemStock({
+/**
+ * The quantity write and its `stock_movements` row must land together or a
+ * concurrent stock fold reads the batch as diverged and writes the pre-sale
+ * number back — see docs/FIXED_BUGS.md A-219. Nested `transaction()` calls
+ * deadlock on core.ts's FIFO queue, so a caller that already opened one runs
+ * this inline.
+ */
+export async function recordSaleItemStock(params: RecordSaleItemStockParams) {
+  if (isInTransaction()) return writeSaleItemStock(params);
+  return transaction(() => writeSaleItemStock(params));
+}
+
+async function writeSaleItemStock({
   saleId,
   productId,
   quantity,

@@ -8,6 +8,8 @@ import {
 } from "./token-manager";
 import { STORAGE_KEYS, getAuthTokenIssuedAt } from "@/lib/storage-keys";
 
+const UNREPORTED_STATUSES = new Set([401, 410]);
+
 export class BaseApiClient {
   protected baseURL: string;
 
@@ -163,12 +165,15 @@ export class BaseApiClient {
             console.log("Request Payload:", sanitizePayload(config.body));
             console.groupEnd();
           } else {
-            console.error(
+            const log = UNREPORTED_STATUSES.has(response.status)
+              ? console.warn
+              : console.error;
+            log(
               `[API Error] ${method} ${url} - Status: ${response.status} - ${errorData.message}`,
             );
           }
 
-          if (response.status !== 401 && !url.includes("/logs/client-error")) {
+          if (!UNREPORTED_STATUSES.has(response.status) && !url.includes("/logs/client-error")) {
             reportClientError(
               method,
               url,
@@ -294,8 +299,9 @@ export class BaseApiClient {
     } catch (error) {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : "Network Error";
+      const thrownStatus = (error as { status?: number } | null)?.status;
 
-      if (!errorMessage.includes("HTTP error!")) {
+      if (thrownStatus === undefined) {
         // Network or parse error (not handled by the response.ok block)
         addLogToBuffer({
           timestamp: new Date().toISOString(),
@@ -324,7 +330,11 @@ export class BaseApiClient {
         }
       }
 
-      console.error("API request failed:", error);
+      if (thrownStatus !== undefined && UNREPORTED_STATUSES.has(thrownStatus)) {
+        console.warn("API request refused:", errorMessage);
+      } else {
+        console.error("API request failed:", error);
+      }
       throw error;
     }
   }

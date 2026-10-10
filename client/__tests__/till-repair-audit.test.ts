@@ -68,7 +68,8 @@ describe("repair auditing", () => {
     );
     db.run(
       `INSERT INTO stock_movements (id, product_id, stock_batch_id, movement_type, quantity, _deleted, _synced)
-       VALUES ('m1','prod-b1','b1','purchase',5,0,1)`,
+       VALUES ('m1','prod-b1','b1','purchase',20,0,1),
+              ('m2','prod-b1','b1','sale',-15,0,1)`,
     );
   };
 

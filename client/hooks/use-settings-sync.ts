@@ -17,7 +17,6 @@ import {
   sync,
   syncSubscriptionStatus,
   forceFullResync,
-  reconcileStockQuantities,
 } from "@/lib/db/sync-engine";
 import { markRestoredForCloudLinkNotice } from "@/lib/utils/post-restore-notice";
 import { clearToken } from "@/lib/api/token-manager";
@@ -70,27 +69,6 @@ export function useSettingsSync(
         return `Resync complete! Pushed ${data.pushed}, Pulled ${data.pulled}`;
       },
       error: "Resync failed. Please check your connection.",
-    });
-  };
-
-  // Lets the server adopt this device's own stock quantities for any batch
-  // whose opening stock never produced a movement delta the server could
-  // replay. See lib/db/sync-engine/index.ts's reconcileStockQuantities.
-  const handleReconcileStockQuantities = async () => {
-    if (!isCloudLinked) return;
-
-    toast.promise(reconcileStockQuantities(), {
-      loading: "Running health sync...",
-      success: () => {
-        refetchStore();
-        return "All synced up";
-      },
-      // Unlike sync()/forceFullResync(), this one can genuinely reject with
-      // a specific, non-connection reason (e.g. a read-only tab) - surface it.
-      error: (e: unknown) =>
-        e instanceof Error
-          ? e.message
-          : "Couldn't complete the health sync. Please check your connection.",
     });
   };
 
@@ -239,7 +217,6 @@ export function useSettingsSync(
     setSyncAfterLink,
     handleSync,
     handleForceFullResync,
-    handleReconcileStockQuantities,
     handleDownloadBackup,
     handleRestoreBackup,
     handleRestoreBackupTauri,

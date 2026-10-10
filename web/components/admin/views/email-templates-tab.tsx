@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import { webApiClient } from "@/lib/api/client";
+import { presentableErrorMessage } from "@/lib/api/base-client";
 import {
   useAdminEmailTemplates,
   useUpdateAdminEmailTemplateMutation,
@@ -15,12 +16,14 @@ import type { EmailTemplate } from "@/lib/types/admin";
 
 /**
  * The real reason a request failed, rather than a generic house string:
- * base-client already rewrites `error.message` to the server's `message`, and
- * Laravel's 422 payload carries the per-field detail under `errors`.
+ * Laravel's 422 payload carries the per-field detail under `errors`, and
+ * `presentableErrorMessage` decides whether its `message` is safe to show.
  */
 function serverErrorMessage(error: unknown, fallback: string): string {
-  const payload = (error as { response?: { data?: { message?: unknown; errors?: unknown } } })
-    ?.response?.data;
+  const response = (
+    error as { response?: { status?: number; data?: { message?: unknown; errors?: unknown } } }
+  )?.response;
+  const payload = response?.data;
 
   if (payload?.errors && typeof payload.errors === "object") {
     const details = Object.values(payload.errors as Record<string, unknown>)
@@ -29,7 +32,8 @@ function serverErrorMessage(error: unknown, fallback: string): string {
     if (details.length > 0) return details.join(" ");
   }
 
-  if (typeof payload?.message === "string" && payload.message) return payload.message;
+  const presentable = presentableErrorMessage(response?.status, payload);
+  if (presentable) return presentable;
   if (error instanceof Error && error.message) return error.message;
   return fallback;
 }

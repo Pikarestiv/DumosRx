@@ -24,6 +24,31 @@ the first time only one copy gets updated (this happened once already: the
 Playwright/IndexedDB seeding rule was written twice in this file with two
 slightly different versions before this cleanup).
 
+## 0.5 🧪 Working in a git worktree: never symlink `vendor/`
+
+An agent working in a git worktree usually has no `laravel-server/vendor/` and
+reaches for a symlink to the main checkout. **Don't.** Composer's generated
+autoloader derives its base from `dirname($vendorDir)`, which resolves through
+the symlink's realpath back to the *main* checkout — so `php artisan test`
+loads the main repo's `app/` classes and silently tests code the worktree has
+not changed. A failing-first test appears to pass, and a fix appears to work
+when nothing ran it.
+
+Copy `vendor/` into the worktree instead, or at minimum make
+`vendor/autoload.php`, `vendor/bin/` and `vendor/composer/` real files and
+symlink only the package directories. Two separate agents hit this on
+2026-10-10; both happened to notice, and either might not have.
+
+A fresh worktree also has no gitignored `storage/framework/{cache,sessions,views}`,
+which surfaces as "Please provide a valid cache path" on a handful of tests.
+Create those directories; it is not a code failure.
+
+It also has no gitignored `laravel-server/.env`, so there is no `APP_KEY` and
+every test touching encryption fails — ten `AdminTillCode` cases, with an error
+that names encryption rather than the missing file. Copy `.env` in too. None of
+these three are code failures; a worktree baseline that is not green before you
+start is almost always one of them.
+
 ## 1. 👑 Codebase is the Absolute Source of Truth
 
 Project documentation can quickly become outdated. **Always treat the current state of the codebase (e.g., database migrations, current typescript interfaces) as the absolute source of truth.**

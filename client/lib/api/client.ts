@@ -5,6 +5,7 @@ import type { CurrentUser, Session } from "@/lib/types/user";
 import { getDeviceId } from "@/lib/utils/device-id";
 import { getDeviceLabel } from "@/lib/utils/device-label";
 import { getStoredActiveStoreId, getStoredUser } from "@/lib/storage-keys";
+import { APP_VERSION, BUILD_SHA } from "@/lib/constants";
 
 /**
  * The device/store/actor stamp every sync call carries. X-Acting-User-Id is
@@ -12,6 +13,14 @@ import { getStoredActiveStoreId, getStoredUser } from "@/lib/storage-keys";
  * staff PIN login never mints its own API token, so the bearer always names
  * the account that linked the device. Self-asserted, and the server treats it
  * as visibility only - see A-202 and laravel-server/AGENTS.md.
+ *
+ * X-App-Version/X-Build-Sha name the bundle, and are visibility only too:
+ * nothing on the server gates on them. The only reader is the reconciliation
+ * activity log's `app_version` property (`SyncController.php`), and Health
+ * Sync is refused unconditionally by `config('dumos.health_sync_enabled')`,
+ * not by any version floor. A version gate was considered for A-213 and
+ * discarded - see docs/FIXED_BUGS.md A-213. Do not write code that leans on
+ * one existing.
  */
 function syncHeaders(): Record<string, string> {
   const headers: Record<string, string> = {};
@@ -25,6 +34,8 @@ function syncHeaders(): Record<string, string> {
   }
   headers["X-Device-Id"] = getDeviceId();
   headers["X-Device-Label"] = getDeviceLabel();
+  headers["X-App-Version"] = APP_VERSION;
+  headers["X-Build-Sha"] = BUILD_SHA;
 
   const actingUserId = getStoredUser()?.id;
   if (actingUserId) {
@@ -167,6 +178,21 @@ class ApiClient extends FleetBillingApiClient {
       headers,
       body: JSON.stringify(payload),
     });
+  }
+
+  // Which OTHER devices in this store are behind on sync - a question only
+  // the server can answer. Consumed by the stock-count warning (A-211).
+  async getPeerSyncFreshness(): Promise<{
+    success: boolean;
+    threshold_minutes: number;
+    stale_devices: {
+      device_id: string;
+      device_label: string | null;
+      last_synced_at: string | null;
+      minutes_behind: number | null;
+    }[];
+  }> {
+    return this.request("/app/sync/peer-freshness", { headers: syncHeaders() });
   }
 
   // Authoritative row counts, per table, for the caller's store - not a

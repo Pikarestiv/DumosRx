@@ -340,4 +340,58 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
       infoSpy.mockRestore();
     });
   });
+
+  /**
+   * A-205: dropping the queue row changes nothing server-side, so nothing
+   * bumps that row's `updated_at`. Once the pull watermark passes it the
+   * incremental pull never offers it again and the device keeps the value
+   * that LOST the conflict, permanently. The drop has to rewind the
+   * watermark for that table so the server re-offers the row.
+   */
+  describe("re-pull after a terminal conflict", () => {
+    const windowFor = (table: string) =>
+      db.exec(`SELECT last_synced_at FROM _sync_state WHERE table_name = '${table}'`);
+
+    beforeEach(() => {
+      db.run(`DELETE FROM _sync_state`);
+      db.run(
+        `INSERT INTO _sync_state (table_name, last_synced_at) VALUES
+           ('products', '2026-10-10T00:00:00Z'), ('sales', '2026-10-10T00:00:00Z')`,
+      );
+    });
+
+    it("rewinds the conflicted table's pull window so the server's winning value comes back down", async () => {
+      queueOneUpdate();
+      apiClient.pushChanges.mockResolvedValueOnce({
+        success: true,
+        processed: 0,
+        failed: [{ id: 1, table_name: "products", record_id: "p1", reason: "version_conflict" }],
+      });
+
+      await pushChanges();
+
+      expect(windowFor("products")[0].values[0][0]).toBeNull();
+      // Only the table that actually lost a conflict is re-pulled.
+      expect(windowFor("sales")[0].values[0][0]).toBe("2026-10-10T00:00:00Z");
+    });
+
+    it("does not rewind for a permission_denied drop, which no pull can settle and a gated queue would retrigger every round", async () => {
+      db.run(
+        `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at)
+         VALUES (9, 'products', 'p9', 'UPDATE', ?, '2026-10-10T00:00:00Z')`,
+        [JSON.stringify({ id: "p9", _version: 1 })],
+      );
+      apiClient.pushChanges.mockResolvedValueOnce({
+        success: true,
+        processed: 0,
+        failed: [
+          { id: 9, table_name: "products", record_id: "p9", reason: "permission_denied" },
+        ],
+      });
+
+      await pushChanges();
+
+      expect(windowFor("products")[0].values[0][0]).toBe("2026-10-10T00:00:00Z");
+    });
+  });
 });

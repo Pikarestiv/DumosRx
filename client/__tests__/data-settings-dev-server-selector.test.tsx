@@ -32,7 +32,6 @@ const baseProps = {
   isCloudLinked: false,
   handleSync: vi.fn(),
   handleForceFullResync: vi.fn(),
-  handleReconcileStockQuantities: vi.fn(),
   setIsCloudLinkOpen: vi.fn(),
   handleDownloadBackup: vi.fn(),
   handleRestoreBackup: vi.fn(),

@@ -120,4 +120,52 @@ describe("sync_reconciliation movement visibility", () => {
       ),
     ).toBe(false);
   });
+
+  /**
+   * A-221: the A-214 repair writes compensating `sync_reconciliation_reversal`
+   * movements, which are the same kind of row for the same reason and must be
+   * hidden in the same three places.
+   */
+  describe("sync_reconciliation_reversal is hidden in exactly the same places", () => {
+    it("getStockMovements hides it", async () => {
+      insertMovement("mv-sale", "sale", -4);
+      insertMovement("mv-reversal", "sync_reconciliation_reversal", -250);
+
+      const { data } = await localDb.getStockMovements();
+
+      expect(data.map((row) => row.id)).toEqual(["mv-sale"]);
+    });
+
+    it("getProductHistory hides it", async () => {
+      insertMovement("mv-sale", "sale", -4);
+      insertMovement("mv-reversal", "sync_reconciliation_reversal", -250);
+
+      const { stockMovements } = await products.getProductHistory("product-1");
+
+      expect(stockMovements.map((row) => row.id)).toEqual(["mv-sale"]);
+    });
+
+    it("the dashboard recent-activity feed never surfaces it", async () => {
+      insertMovement("mv-reversal", "sync_reconciliation_reversal", -250);
+
+      const overview = await reports.getDashboardOverviewData();
+
+      expect(
+        overview.recentActivities.some(
+          (activity) => (activity as { id?: string }).id === "mv-reversal",
+        ),
+      ).toBe(false);
+    });
+
+    it("getStockMoM's explicit allowlists still exclude it", async () => {
+      insertMovement("mv-reversal-up", "sync_reconciliation_reversal", 250);
+      insertMovement("mv-reversal-down", "sync_reconciliation_reversal", -250);
+
+      const mom = await inventory.getStockMoM();
+
+      expect(mom.currentValue).toBe(1000);
+      expect(mom.previousValue).toBe(1000);
+      expect(mom.percentChange).toBe(0);
+    });
+  });
 });

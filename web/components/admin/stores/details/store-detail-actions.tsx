@@ -49,6 +49,7 @@ export function StoreDetailActions({
       <StoreRowActions
         store={toSummary(store)}
         trigger="labelled"
+        onStoreDetailPage
         isSuperAdmin={checkIsSuperAdmin(user?.role)}
         canGrantTrials={checkHasPermission(user, "grant_trials")}
         canImpersonate={checkHasPermission(user, "impersonate_store")}

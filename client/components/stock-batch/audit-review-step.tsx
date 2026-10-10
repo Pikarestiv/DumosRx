@@ -2,21 +2,35 @@ import React from "react";
 import type { AuditItem } from "./stock-audits";
 import { formatCurrency } from "@/lib/utils";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
+import { CountFreshnessWarning } from "./count-freshness-warning";
+import type { CountFreshness } from "@/lib/hooks/use-count-freshness";
 
 interface AuditReviewStepProps {
   countedItems: AuditItem[];
   adjustedItems: AuditItem[];
+  freshness: CountFreshness;
+  staleAcknowledged: boolean;
+  onStaleAcknowledgedChange: (value: boolean) => void;
 }
 
 export function AuditReviewStep({
   countedItems,
   adjustedItems,
+  freshness,
+  staleAcknowledged,
+  onStaleAcknowledgedChange,
 }: AuditReviewStepProps) {
   const capsClass = useUppercaseDisplayClass();
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-300">
       <div className="text-[17px] font-semibold mb-1.5">Review &amp; submit</div>
       <div className="text-[13px] text-muted-foreground mb-5">Check the adjustments below before submitting to the ledger.</div>
+
+      <CountFreshnessWarning
+        freshness={freshness}
+        acknowledged={staleAcknowledged}
+        onAcknowledgedChange={onStaleAcknowledgedChange}
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-5">
         <div className="bg-card border border-border p-3 rounded-xl">

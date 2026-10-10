@@ -22,6 +22,11 @@ class AdminTillCodeController extends AdminBaseController
         return response()->json(['codes' => $codes]);
     }
 
+    public function all(Request $request)
+    {
+        return response()->json(['codes' => $this->sessions->revealAll($request->user())]);
+    }
+
     public function issue(Request $request)
     {
         $validated = $request->validate(['label' => 'nullable|string|max:64']);
@@ -30,18 +35,18 @@ class AdminTillCodeController extends AdminBaseController
 
         if (AdminTillCode::active()->where('admin_id', $adminId)->count()
             >= AdminTillSessionService::EQUALIZED_CHECKS) {
-            return response()->json([
-                'error' => 'Revoke an existing code first; three active codes is the maximum.',
-            ], 422);
+            $refusal = 'Revoke an existing code first; three active codes is the maximum.';
+
+            // `message` is what the web client's axios interceptor promotes
+            // onto the thrown error; `error` is kept for any older bundle.
+            return response()->json(['message' => $refusal, 'error' => $refusal], 422);
         }
 
         $code = $this->sessions->generateCode();
 
-        $row = AdminTillCode::create([
-            'admin_id' => $adminId,
-            'code_hash' => $this->sessions->hashCode($code),
-            'label' => $validated['label'] ?? null,
-        ]);
+        $row = AdminTillCode::create(
+            $this->sessions->newCodeAttributes($code, $adminId, $validated['label'] ?? null),
+        );
 
         return response()->json(['id' => $row->id, 'code' => $code]);
     }

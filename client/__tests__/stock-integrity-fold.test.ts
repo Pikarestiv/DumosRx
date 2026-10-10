@@ -85,15 +85,27 @@ describe("foldStockQuantities", () => {
   const quantityOf = (id: string) =>
     db.exec(`SELECT quantity FROM stock_batches WHERE id = '${id}'`)[0].values[0][0];
 
-  it("rebuilds the real production case: quantity 10 against a single +5", async () => {
+  it("rebuilds an over-count its own log accounts for: 10 held against +20 then -15", async () => {
     batch("b1", 10);
-    movement("m1", "b1", 5);
+    movement("m1", "b1", 20);
+    movement("m2", "b1", -15);
 
     const result = await foldStockQuantities();
 
     expect(result.folded).toBe(1);
     expect(result.unitsCorrected).toBe(5);
     expect(quantityOf("b1")).toBe(5);
+  });
+
+  it("refuses an over-count larger than everything ever logged inbound, rather than guessing", async () => {
+    batch("b1", 10);
+    movement("m1", "b1", 5);
+
+    const result = await foldStockQuantities();
+
+    expect(result.folded).toBe(0);
+    expect(result.refusedBatchIds).toEqual(["b1"]);
+    expect(quantityOf("b1")).toBe(10);
   });
 
   it("refuses a batch holding stock with no movement behind it, and leaves it untouched", async () => {
@@ -201,7 +213,8 @@ describe("foldStockQuantities", () => {
 
   it("is idempotent", async () => {
     batch("b1", 10);
-    movement("m1", "b1", 5);
+    movement("m1", "b1", 20);
+    movement("m2", "b1", -15);
 
     await foldStockQuantities();
     const second = await foldStockQuantities();
@@ -226,7 +239,7 @@ describe("foldStockQuantities", () => {
   });
 
   it("rebuilds a genuinely diverged batch to its replayed value, not its raw sum", async () => {
-    batch("b1", 99);
+    batch("b1", 13);
     movement("m1", "b1", 10);
     movement("m2", "b1", -12);
     movement("m3", "b1", 3);

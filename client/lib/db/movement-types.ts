@@ -7,3 +7,19 @@
  * client/AGENTS.md, "Stock quantity reconciliation".
  */
 export const RECONCILIATION_MOVEMENT_TYPE = "sync_reconciliation";
+
+/**
+ * Written by `sync:repair-health-sync-reconciliation` to cancel one of the
+ * A-214 movements. Same kind of row for the same reason, so it is hidden
+ * wherever the type above is.
+ */
+export const RECONCILIATION_REVERSAL_MOVEMENT_TYPE = "sync_reconciliation_reversal";
+
+/** Sync bookkeeping, never a stock event: excluded from every owner-facing
+ * movement list. `HIDDEN_MOVEMENT_TYPES_SQL` matches its arity. */
+export const HIDDEN_MOVEMENT_TYPES = [
+  RECONCILIATION_MOVEMENT_TYPE,
+  RECONCILIATION_REVERSAL_MOVEMENT_TYPE,
+] as const;
+
+export const HIDDEN_MOVEMENT_TYPES_SQL = `(${HIDDEN_MOVEMENT_TYPES.map(() => "?").join(", ")})`;

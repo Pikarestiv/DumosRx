@@ -6,7 +6,10 @@ use App\Models\ActivityLog;
 use App\Models\AdminTillCode;
 use App\Models\AdminTillSession;
 use App\Models\User;
+use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 class AdminTillSessionService
 {
@@ -18,7 +21,11 @@ class AdminTillSessionService
 
     public const MAX_SESSION_HOURS = 4;
 
+    public const REVEAL_LIMIT = 50;
+
     private static ?string $equalizerHash = null;
+
+    private ?bool $hasEncryptedColumn = null;
 
     public function generateCode(): string
     {
@@ -33,6 +40,78 @@ class AdminTillSessionService
     public function hashCode(string $code): string
     {
         return Hash::make($code);
+    }
+
+    public function encryptCode(string $code): string
+    {
+        return Crypt::encryptString($code);
+    }
+
+    /**
+     * Attributes for a new code row, omitting the recoverable copy on a host
+     * whose schema is behind the code (see AGENTS.md "columns a release adds").
+     */
+    public function newCodeAttributes(string $code, string $adminId, ?string $label): array
+    {
+        $attributes = [
+            'admin_id' => $adminId,
+            'code_hash' => $this->hashCode($code),
+            'label' => $label,
+        ];
+
+        $this->hasEncryptedColumn ??= Schema::hasColumn('admin_till_codes', 'code_encrypted');
+
+        if ($this->hasEncryptedColumn) {
+            $attributes['code_encrypted'] = $this->encryptCode($code);
+        }
+
+        return $attributes;
+    }
+
+    /**
+     * Every active code on the platform, in clear, for a super_admin. Rows
+     * issued before the encrypted copy existed report a null code.
+     */
+    public function revealAll(User $viewer): array
+    {
+        $rows = AdminTillCode::active()
+            ->with('admin')
+            ->orderByDesc('created_at')
+            ->limit(self::REVEAL_LIMIT)
+            ->get();
+
+        ActivityLog::create([
+            'user_id' => $viewer->id,
+            'action' => 'admin_till_codes_viewed',
+            'description' => "Revealed {$rows->count()} till access code(s)",
+            'properties' => [
+                'code_ids' => $rows->pluck('id')->all(),
+                'admin_ids' => $rows->pluck('admin_id')->unique()->values()->all(),
+            ],
+        ]);
+
+        return $rows->map(fn (AdminTillCode $row) => [
+            'id' => $row->id,
+            'label' => $row->label,
+            'admin_email' => $row->admin?->email,
+            'admin_name' => trim(($row->admin?->first_name ?? '').' '.($row->admin?->last_name ?? '')),
+            'created_at' => $row->created_at?->toIso8601String(),
+            'last_used_at' => $row->last_used_at?->toIso8601String(),
+            'code' => $this->decryptCode($row),
+        ])->all();
+    }
+
+    private function decryptCode(AdminTillCode $row): ?string
+    {
+        if (!$row->code_encrypted) {
+            return null;
+        }
+
+        try {
+            return Crypt::decryptString($row->code_encrypted);
+        } catch (DecryptException) {
+            return null;
+        }
     }
 
     public function verify(string $email, string $code): ?User

@@ -53,6 +53,9 @@ interface StoreRowActionsProps extends StoreRowActionHandlers {
   /** "icon" is the fleet row's bare kebab; "labelled" is the store detail
    * page's visible Actions button. */
   trigger?: "icon" | "labelled";
+  /** Set where the menu already sits on the store's own detail page, so the
+   * entry that navigates there is not offered. */
+  onStoreDetailPage?: boolean;
 }
 
 const ITEM_CLASS = "rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold";
@@ -66,6 +69,7 @@ export function StoreRowActions({
   pendingStoreId,
   router,
   trigger = "icon",
+  onStoreDetailPage = false,
   handleImpersonate,
   handleViewBilling,
   setSelectedStore,
@@ -110,13 +114,15 @@ export function StoreRowActions({
         <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">
           Actions
         </DropdownMenuLabel>
-        <DropdownMenuItem
-          className={ITEM_CLASS}
-          onClick={() => router.push(adminStoreDetailPath(store.id))}
-        >
-          <StoreIcon className="h-4 w-4 text-slate-500" />
-          View Store Details
-        </DropdownMenuItem>
+        {!onStoreDetailPage && (
+          <DropdownMenuItem
+            className={ITEM_CLASS}
+            onClick={() => router.push(adminStoreDetailPath(store.id))}
+          >
+            <StoreIcon className="h-4 w-4 text-slate-500" />
+            View Store Details
+          </DropdownMenuItem>
+        )}
         {canImpersonate && (
           <DropdownMenuItem className={ITEM_CLASS} onClick={() => handleImpersonate(store)}>
             <ExternalLink className="h-4 w-4 text-indigo-500" />

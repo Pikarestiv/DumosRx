@@ -274,7 +274,9 @@ CREATE TABLE IF NOT EXISTS _sync_queue (
 CREATE TABLE IF NOT EXISTS _sync_state (
   table_name TEXT PRIMARY KEY,
   last_synced_at TEXT,
-  server_cursor TEXT
+  server_cursor TEXT,
+  rewind_count INTEGER NOT NULL DEFAULT 0,
+  rewound_from TEXT
 );
 
 CREATE TABLE IF NOT EXISTS _pending_stock_deltas (

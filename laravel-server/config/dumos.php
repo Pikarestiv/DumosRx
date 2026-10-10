@@ -65,6 +65,22 @@ return [
     | build+FTP deploy takes.
     |
     */
+    /*
+    |--------------------------------------------------------------------------
+    | Health Sync (stock quantity reconciliation)
+    |--------------------------------------------------------------------------
+    |
+    | Hard off, with no env override on purpose: POST /app/sync/reconcile-
+    | quantities adopts a DEVICE's stock figure as truth, and on 2026-10-10 one
+    | run from a half-rebuilt till removed 13,104 real units from a live store
+    | (docs/KNOWN_BUGS.md A-214, A-213). The endpoint and its tests are kept so
+    | the behaviour stays specified; only the test suite flips this on.
+    | Restore condition: the derived-quantity spec's `opening_quantity` work
+    | dissolving the A-148 class this endpoint exists for.
+    |
+    */
+    'health_sync_enabled' => false,
+
     'storefront' => [
         'rebuild_token' => env('STOREFRONT_REBUILD_TOKEN'),
         'rebuild_confirmation_timeout' => (int) env('STOREFRONT_REBUILD_TIMEOUT_MINUTES', 45),

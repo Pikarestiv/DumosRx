@@ -58,7 +58,12 @@ describe("reconcileStockQuantities with pending deltas", () => {
   });
 
   beforeEach(() => {
-    db.run(`DELETE FROM _pending_stock_deltas; DELETE FROM stock_batches;`);
+    db.run(`DELETE FROM _pending_stock_deltas; DELETE FROM stock_batches; DELETE FROM _sync_state;`);
+    // A-214: the pre-flight also requires a complete movement-log window.
+    db.run(
+      `INSERT INTO _sync_state (table_name, last_synced_at, server_cursor)
+       VALUES ('stock_movements', '2026-10-10T00:00:00.000Z', NULL)`,
+    );
     db.run(
       `INSERT INTO stock_batches (id, product_id, quantity, batch_number, _deleted)
        VALUES ('b1', 'p1', 40, 'B1', 0)`,
@@ -89,6 +94,15 @@ describe("reconcileStockQuantities with pending deltas", () => {
     expect(okSync).toHaveBeenCalled();
     expect(reconcileMock).toHaveBeenCalled();
     expect(result.checked).toBe(0);
+  });
+
+  it("refuses while the movement-log pull window is still mid-stream (A-214)", async () => {
+    db.run(
+      `UPDATE _sync_state SET server_cursor = 'page-3' WHERE table_name = 'stock_movements'`,
+    );
+
+    await expect(reconcile(okSync)).rejects.toThrow(/still rebuilding/i);
+    expect(reconcileMock).not.toHaveBeenCalled();
   });
 
   /** The forced push+pull remains the real safeguard and must still run first. */

@@ -10,6 +10,14 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
+#### A-205. `client/` — a terminal push conflict drops the queue row and leaves the device on the losing value, with no mechanism that ever brings the server's version down
+- **Found:** 2026-10-10. A store's catalogue showed "Uncategorized" on a till for four days after the A-189 repair had already corrected all 2,495 products server-side, and ordinary syncing could not clear it.
+- **Location:** `lib/db/sync-engine/push.ts:486` (the queue row is deleted on a terminal conflict) and the comment at `:569`, which asserts "queue row dropped, the next pull brings the server's version down".
+- **What's wrong:** that assertion holds only while the server's `updated_at` for the row is still ahead of this device's pull watermark. Dropping a conflicted queue row changes nothing server-side, so nothing bumps that row's `updated_at`. Once the watermark passes it — which ordinary syncing does within minutes — the incremental pull never offers the row again and the device keeps the value that *lost* the conflict, permanently. The user has already been told "the server's current version was kept", which is true on the server and false on their screen.
+- **Consequence:** silent, permanent divergence on any row that ever lost a push conflict. Confirmed here against `products.category_id`: server `newest updated_at` 2026-10-08 13:33, device synced repeatedly on the 9th and 10th, local rows still carrying the pre-repair value. The same shape applies to any field on any table. It is also why a successful server-side repair can be invisible on a device indefinitely (see A-203, which hid this one for days by skipping those rows on pull first).
+- **Workaround:** `forceFullResync()` (Settings → Data → Force Full Resync) resets the watermark so every row is re-offered. It is the only thing that converges a device in this state, and nothing points the operator at it.
+- **Fix:** on dropping a conflicted queue row, mark that record for re-pull rather than trusting the watermark — e.g. record it in a `_needs_repull` set the next pull requests by id, which is the same targeted-by-id re-send A-176 needs and the sync API still has no endpoint for. Correcting the comment at `:569` is the minimum; it currently tells the next reader this case is handled.
+
 #### A-204. `laravel-server/` — a sync command is marked `sent` the moment it is handed out, is never re-offered, and has no timeout, so a device that does not answer loses it permanently
 - **Found:** 2026-10-10. A `send_device_report` issued against `DRX-ZKI5K81UG` sat at `status = 'sent'`, `acted_at = NULL`, `result = NULL` while that device went on syncing normally. No report, no refusal, no error — and no way to ask again.
 - **Location:** `app/Services/Admin/SyncCommandService.php:92-126` (`pendingFor()` claims by `UPDATE ... SET status = 'sent'`), `recordOutcome()` at `:129`.

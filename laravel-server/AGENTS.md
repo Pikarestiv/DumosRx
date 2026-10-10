@@ -1238,7 +1238,7 @@ code would silently never work. The refusal is returned as **`message`** (with
 `error` kept beside it for any older bundle), because that is the key
 `web/lib/api/base-client.ts`'s interceptor promotes onto the thrown error —
 returning it only under `error` is how the cap became an unexplained
-do-nothing button in the panel (A-203).
+do-nothing button in the panel (A-207).
 
 ### Till codes are recoverable by a super_admin, on purpose
 

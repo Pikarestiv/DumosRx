@@ -4,7 +4,7 @@ A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since bee
 
 ## 2026-10-10
 
-### A-203 — generating a till access code "stopped working" in production, because every failure of that button was invisible
+### A-207 — generating a till access code "stopped working" in production, because every failure of that button was invisible
 - **Reported as:** "generating a 12-digit till code didn't work any longer", with no error captured — because there was no error to capture.
 - **Root cause, two halves, each enough on its own.** `TillCodesCard.handleIssue()` did `await issue.mutateAsync(...)` from an `onClick={() => void handleIssue()}` with **no catch and no error UI**: any rejection — the three-active-codes cap (422), a 403, an expired session, a network drop — became an unhandled promise rejection. The spinner stopped and nothing else changed, which is exactly "it didn't work". And the cap refusal was returned as `{"error": "..."}`, while `web/lib/api/base-client.ts`'s interceptor only promotes `data.message` onto the thrown error — so even a caller that *did* surface the server's wording would have shown axios's "Request failed with status code 422".
 - **The cap itself is working as designed** (`EQUALIZED_CHECKS` bounds how many codes `verify()` will ever test, so a fourth could never authenticate). The bug was the silence, not the refusal.

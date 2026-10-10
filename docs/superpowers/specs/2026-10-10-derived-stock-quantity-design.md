@@ -103,9 +103,9 @@ anywhere; it is an emergent property of two different loops.
 ## The definition
 
 > **`onHand(batch) = MAX(0, Σ quantity of that batch's non-deleted
-> `stock_movements`)`**, for any batch with at least one inbound (positive)
-> movement. A batch with no inbound movement is outside the invariant and is
-> never recomputed.
+> `stock_movements`)`**, for any batch whose stored quantity its inbound
+> (positive) movements can account for. A batch holding more than the sum of
+> its inbound movements is outside the invariant and is never recomputed.
 
 Three properties earn their keep:
 
@@ -121,8 +121,13 @@ The carve-out is not a wart; it is the A-148 class, already classified and
 already refused by `foldStockQuantities()`. Batches created by a pre-`a36b00e7`
 import hold a quantity with no movement behind it. Recomputing one yields 0 and
 destroys the only record of that stock. `stock-integrity.ts`'s
-`unreconstructable` verdict (`batchQuantity > 0 && inboundCount === 0`) is the
-existing, field-tested test for it and is reused verbatim. Imports have written
+`unreconstructable` verdict is the existing test for it and is reused verbatim
+— but note its **corrected** form (A-215, 2026-10-10):
+`batchQuantity > sum of inbound deltas`, not `inboundCount === 0`. The
+count-based version was destructive: one `+2` adjustment against a legacy batch
+holding 100 unlogged units took it out of the carve-out and a recompute wrote
+off the 100. Outbound only subtracts, so "stored above total inbound" is the
+provable test for unlogged stock. Imports have written
 a matching movement for every batch since `a36b00e7`
 (`product-import.ts:269`), so the class is closed and shrinking.
 
@@ -246,7 +251,8 @@ changes from "a running total maintained by deltas" to "a cache of
 ```
 recomputeBatchQuantity(batchId): quantity = MAX(0, COALESCE(SUM(sm.quantity), 0))
   over stock_movements WHERE stock_batch_id = ? AND _deleted = 0,
-  skipped when the batch has no inbound movement (A-148 carve-out)
+  skipped when the batch holds more than its inbound movements account for
+  (A-148 carve-out, A-215 form)
 ```
 
 It replaces, rather than joins, the incremental writes:
@@ -303,7 +309,8 @@ than what it replaces.
 The A-148 carve-out applies server-side too, and matters more there: the server
 is the one place a batch's quantity may have come from somewhere other than the
 log, and `SyncController.php`'s own comment history (`83ffb95`) is a record of
-what happens when that is got wrong. Skip any batch with no inbound movement.
+what happens when that is got wrong. Skip any batch holding more than the sum
+of its inbound movements (A-215).
 
 No clock exposure (`AGENTS.md` §7): the statement sets no timestamp and uses no
 `NOW()`. `updated_at` is left to Eloquent exactly as today.
@@ -560,8 +567,10 @@ make:
   client's figure equals the server's `applyStockBatchDeltas()` figure for the
   same log, including an oversell-then-restock history — the case where today's
   two implementations provably disagree.
-- **The A-148 refusal.** A batch with quantity and no inbound movement is never
-  recomputed, on either side, and is reported.
+- **The A-148 refusal.** A batch holding more than the sum of its inbound
+  movements is never recomputed, on either side, and is reported — including
+  the legacy batch that has since had one adjustment logged against it, which
+  is the case A-215 was lost on.
 - **Unsynced work survives.** A sale sitting in `_sync_queue` is still counted,
   because its movement row is local and the recompute reads local rows. This is
   the property that makes recompute safe where a factory reset is not.

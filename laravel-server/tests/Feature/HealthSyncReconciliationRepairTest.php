@@ -231,6 +231,49 @@ class HealthSyncReconciliationRepairTest extends TestCase
     }
 
     #[Test]
+    public function the_legitimate_a148_reconciliation_run_before_the_incident_is_not_reversed(): void
+    {
+        $batchId = $this->batch($this->storeA, 'A-148 RESTORED', 500);
+        $this->movement($batchId, 'sync_reconciliation', 500, '2026-10-02 11:00:00');
+
+        $result = $this->service()->apply(null);
+
+        $this->assertSame(0, $result['batches']);
+        $this->assertSame(500, $this->quantity($batchId));
+        $this->assertSame(0, DB::table('stock_movements')
+            ->where('movement_type', HealthSyncReconciliationRepairService::REVERSAL_MOVEMENT_TYPE)
+            ->count());
+    }
+
+    #[Test]
+    public function an_incident_movement_written_a_second_late_is_still_in_scope(): void
+    {
+        $batchId = $this->batch($this->storeA, 'LATE SECOND', 0);
+        $this->movement($batchId, 'purchase', 60, '2026-09-01 10:00:00');
+        $this->movement($batchId, 'sync_reconciliation', -60, '2026-10-10 08:53:31');
+
+        $result = $this->service()->apply(null);
+
+        $this->assertSame(1, $result['batches']);
+        $this->assertSame(60, $this->quantity($batchId));
+    }
+
+    #[Test]
+    public function the_report_names_the_window_and_the_reconciliations_it_leaves_alone(): void
+    {
+        $legitimate = $this->batch($this->storeA, 'A-148 RESTORED', 500);
+        $this->movement($legitimate, 'sync_reconciliation', 500, '2026-10-02 11:00:00');
+
+        $this->artisan('sync:repair-health-sync-reconciliation')
+            ->expectsOutputToContain(HealthSyncReconciliationRepairService::INCIDENT_FROM)
+            ->expectsOutputToContain(HealthSyncReconciliationRepairService::INCIDENT_THROUGH)
+            ->expectsOutputToContain('1 other un-reversed sync_reconciliation movement(s) exist outside')
+            ->assertSuccessful();
+
+        $this->assertSame(500, $this->quantity($legitimate));
+    }
+
+    #[Test]
     public function a_log_sum_below_zero_is_stored_clamped_and_reported(): void
     {
         $batchId = $this->batch($this->storeA, 'OVERSOLD', 0);

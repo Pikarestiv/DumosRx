@@ -73,14 +73,27 @@ describe("verifyStockIntegrity", () => {
     expect(report.netUnitDelta).toBe(0);
   });
 
-  it("flags the real production case: quantity 10 against a single +5 movement", async () => {
+  it("refuses the 2026-10-08 doubled-opening-stock shape: quantity 10 against a single +5", async () => {
     batch("b1", 10);
     movement("m1", "b1", 5);
 
     const report = await verifyStockIntegrity();
 
+    expect(report.diverged).toBe(0);
+    expect(report.unreconstructable).toBe(1);
+    expect(report.unreconstructableBatches[0].batchQuantity).toBe(10);
+    expect(report.unreconstructableBatches[0].movementQuantity).toBe(5);
+    expect(report.unreconstructableBatches[0].delta).toBe(5);
+  });
+
+  it("flags an over-count the log can account for: quantity 10 against +20 then -15", async () => {
+    batch("b1", 10);
+    movement("m1", "b1", 20);
+    movement("m2", "b1", -15);
+
+    const report = await verifyStockIntegrity();
+
     expect(report.diverged).toBe(1);
-    expect(report.divergedBatches[0].batchQuantity).toBe(10);
     expect(report.divergedBatches[0].movementQuantity).toBe(5);
     expect(report.divergedBatches[0].delta).toBe(5);
   });
@@ -172,9 +185,10 @@ describe("verifyStockIntegrity", () => {
 
   it("nets deltas across batches in both directions", async () => {
     batch("b1", 10);
-    movement("m1", "b1", 5);
+    movement("m1", "b1", 20);
+    movement("m2", "b1", -15);
     batch("b2", 3);
-    movement("m2", "b2", 11);
+    movement("m3", "b2", 11);
 
     const report = await verifyStockIntegrity();
 

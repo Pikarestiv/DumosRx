@@ -2530,12 +2530,33 @@ php artisan sync:repair-health-sync-reconciliation --store=<id> --apply
   `performed_by`. The log stays append-only, which the derived-quantity design
   (`docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`)
   requires, and the incident stays visible instead of being erased.
-- **Idempotent, and bounded to the incident.** A bad row that already has a
-  reversal pointing at it is skipped, so a second `--apply` reports nothing and
-  writes nothing. The scan is also limited to `movement_date <=
-  '2026-10-10 10:00:00'` (`INCIDENT_THROUGH`), so a legitimate future
-  reconciliation is never swept up — widen that constant deliberately or not at
-  all.
+- **Idempotent, and bounded to the incident at both ends.** A bad row that
+  already has a reversal pointing at it is skipped, so a second `--apply`
+  reports nothing and writes nothing. The scan is bounded by an explicit
+  **window**, `INCIDENT_FROM`/`INCIDENT_THROUGH` =
+  `2026-10-10 08:53:00`–`08:54:00`, matched against
+  `COALESCE(created_at, movement_date)` — the run's own write time. The run
+  wrote all 146 rows inside the single second `08:53:29`; the window is a
+  minute wide only so a run that straddled a second boundary cannot fall out
+  of scope.
+  - **The lower bound is the point** (A-216). The first version had only the
+    upper bound `movement_date <= '2026-10-10 10:00:00'`, so *every*
+    `sync_reconciliation` movement ever written was in scope — including the
+    legitimate A-148 repair run of 2026-10-02 that restored a customer's
+    bulk-imported opening stock (`docs/FIXED_BUGS.md` A-148) and any
+    owner-pressed Health Sync before the incident. `--apply` would have
+    reversed those and set those batches back to a figure excluding the
+    restored stock.
+  - **Nothing falls out of scope silently.** Every run, report or apply,
+    prints the window and warns how many un-reversed `sync_reconciliation`
+    movements exist *outside* it, with their earliest and latest write times,
+    so "nothing to repair" can never hide rows the key missed. Those outside
+    rows are deliberately untouched; widen the window deliberately or not at
+    all.
+  - The per-store `STOCK_QUANTITY_AUTO_RECONCILED` activity-log rows are the
+    other fingerprint of the run and were considered as the key. They narrow
+    no further than a one-minute write window and cost a join, so the window
+    is the key and they stay the cross-check a human runs by hand.
 - **Concurrency: it is meant to be run during trading hours.** Each batch's
   quantity is written inside the repair transaction as a *locked read then
   conditional update* — `lockForUpdate()` on the `stock_batches` row and on that

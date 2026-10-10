@@ -484,8 +484,23 @@ and `synchronous = NORMAL`.
     repair to an admin session that never ran it would misname who changed the
     numbers, which is the question a staff dispute turns on.
   - **Three refusals.** `unreconstructable` batches are never folded (the fold
-    itself enforces this — computing 0 would destroy the only record of real
-    stock, A-148); nor are `pending` ones (their delta has yet to apply).
+    itself enforces this — folding one would write off real stock the log
+    cannot see, A-148); nor are `pending` ones (their delta has yet to apply).
+  - **`unreconstructable` means "holds more than its inbound movements
+    account for", not "has no movements"** (A-215). Outbound only subtracts,
+    so a stored quantity above the log's total inbound contains stock that was
+    never logged. The old no-movements-at-all test let one `+2` adjustment
+    against a legacy A-148 batch holding 100 unlogged units flip it to
+    `diverged`, and the daily heal then wrote it down to 2 — unattended, with
+    no undo. The consequence is deliberate: an over-count the log cannot
+    explain (including the 2026-10-08 "exactly twice the opening stock" shape)
+    is now refused rather than folded, because it cannot be told apart from an
+    A-148 surplus. What still folds is an over-count the log *does* account
+    for — an outbound delta that never reached `quantity`, or a floored
+    replay. Retirement condition: once the spec's Stage 4 `opening_quantity`
+    work puts every batch's opening stock in the log (`docs/KNOWN_BUGS.md`
+    A-213), `stored > inbound` can only mean drift and this refusal can be
+    relaxed back to folding it.
     `healStockIntegrity()` adds two of its own and names them in the report as
     `healSkipped`: it will not write while the `stock_movements` pull window is
     still mid-stream (`last_synced_at` unset or a `server_cursor` left over),

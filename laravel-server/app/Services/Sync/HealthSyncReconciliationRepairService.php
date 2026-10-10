@@ -10,13 +10,22 @@ class HealthSyncReconciliationRepairService
 {
     public const INCIDENT_MOVEMENT_TYPE = 'sync_reconciliation';
 
-    public const INCIDENT_THROUGH = '2026-10-10 10:00:00';
+    /** The A-214 run wrote all 146 of its movements inside one second
+     * (2026-10-10 08:53:29); the window is widened to the minute only so a
+     * run that straddled a second boundary cannot fall out of scope. */
+    public const INCIDENT_FROM = '2026-10-10 08:53:00';
+
+    public const INCIDENT_THROUGH = '2026-10-10 08:54:00';
 
     public const REVERSAL_MOVEMENT_TYPE = 'sync_reconciliation_reversal';
 
     public const REVERSAL_REFERENCE_TYPE = 'stock_movement';
 
     public const LARGEST_SHOWN = 15;
+
+    /** Health Sync set both; `created_at` is the write time and so the run's
+     * own fingerprint, with `movement_date` as the fallback. */
+    private const WRITTEN_AT = 'COALESCE(m.created_at, m.movement_date)';
 
     /** @return array<string, mixed> */
     public function preview(?string $storeId = null): array
@@ -105,6 +114,8 @@ class HealthSyncReconciliationRepairService
 
         return [
             'applied' => $apply,
+            'window' => [self::INCIDENT_FROM, self::INCIDENT_THROUGH],
+            'out_of_window' => $this->outOfWindowReconciliations($storeId),
             'batches' => $batches,
             'movements_reversed' => $movementsReversed,
             'units_restored' => $unitsRestored,
@@ -117,6 +128,35 @@ class HealthSyncReconciliationRepairService
         ];
     }
 
+    /**
+     * Un-reversed reconciliation movements this command deliberately leaves
+     * alone, so a run that reports nothing in scope still says what exists.
+     *
+     * @return array{count:int, earliest:?string, latest:?string}
+     */
+    private function outOfWindowReconciliations(?string $storeId): array
+    {
+        $row = DB::table('stock_movements as m')
+            ->leftJoin('stock_movements as r', function ($join) {
+                $join->on('r.reference_id', '=', 'm.id')
+                    ->where('r.movement_type', '=', self::REVERSAL_MOVEMENT_TYPE);
+            })
+            ->where('m.movement_type', self::INCIDENT_MOVEMENT_TYPE)
+            ->whereNull('r.id')
+            ->where(fn ($query) => $query
+                ->whereRaw(self::WRITTEN_AT.' < ?', [self::INCIDENT_FROM])
+                ->orWhereRaw(self::WRITTEN_AT.' > ?', [self::INCIDENT_THROUGH]))
+            ->when($storeId, fn ($query) => $query->where('m.store_id', $storeId))
+            ->selectRaw('COUNT(*) as total, MIN('.self::WRITTEN_AT.') as earliest, MAX('.self::WRITTEN_AT.') as latest')
+            ->first();
+
+        return [
+            'count' => (int) ($row->total ?? 0),
+            'earliest' => $row->earliest ?? null,
+            'latest' => $row->latest ?? null,
+        ];
+    }
+
     private function unreversedIncidentMovements(?string $storeId): Collection
     {
         return DB::table('stock_movements as m')
@@ -126,7 +166,8 @@ class HealthSyncReconciliationRepairService
             })
             ->leftJoin('products as p', 'p.id', '=', 'm.product_id')
             ->where('m.movement_type', self::INCIDENT_MOVEMENT_TYPE)
-            ->where('m.movement_date', '<=', self::INCIDENT_THROUGH)
+            ->whereRaw(self::WRITTEN_AT.' >= ?', [self::INCIDENT_FROM])
+            ->whereRaw(self::WRITTEN_AT.' <= ?', [self::INCIDENT_THROUGH])
             ->whereNotNull('m.stock_batch_id')
             ->whereNull('r.id')
             ->when($storeId, fn ($query) => $query->where('m.store_id', $storeId))

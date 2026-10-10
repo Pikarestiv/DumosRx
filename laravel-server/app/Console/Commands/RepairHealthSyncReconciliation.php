@@ -22,9 +22,10 @@ class RepairHealthSyncReconciliation extends Command
 
         $result = $apply ? $service->apply($storeId) : $service->preview($storeId);
 
+        $this->showWindow($result);
+
         if ($result['batches'] === 0 && $result['skipped'] === 0) {
-            $this->info('Nothing to repair: no un-reversed sync_reconciliation movements dated on or before '
-                .HealthSyncReconciliationRepairService::INCIDENT_THROUGH.'.');
+            $this->info('Nothing to repair: no un-reversed sync_reconciliation movement was written inside that window.');
 
             return self::SUCCESS;
         }
@@ -65,6 +66,23 @@ class RepairHealthSyncReconciliation extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /** @param array<string, mixed> $result */
+    private function showWindow(array $result): void
+    {
+        [$from, $through] = $result['window'];
+        $this->line('Scope: the A-214 Health Sync run — sync_reconciliation movements written');
+        $this->line("from <info>{$from}</info>");
+        $this->line("to   <info>{$through}</info>");
+
+        $outside = $result['out_of_window'];
+
+        if ($outside['count'] > 0) {
+            $this->warn("{$outside['count']} other un-reversed sync_reconciliation movement(s) exist outside that window");
+            $this->warn("(between {$outside['earliest']} and {$outside['latest']}) and are deliberately NOT touched:");
+            $this->warn('the A-148 repair run and any owner-pressed Health Sync are legitimate.');
+        }
     }
 
     private function explainArithmetic(): void

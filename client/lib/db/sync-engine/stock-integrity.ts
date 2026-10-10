@@ -22,8 +22,9 @@ export type BatchVerdict =
    * disagreement may be the queued work, and folding it would let the drain
    * apply the same delta twice. Reported, never folded. */
   | "pending"
-  /** Holds stock with no movement behind it, so the log cannot rebuild it
-   * (A-148); folding one would compute 0 and destroy the only record. */
+  /** Holds more units than its inbound movements can account for, so part of
+   * its stock was never logged (A-148); folding one would write that part off.
+   * Reported, never folded. */
   | "unreconstructable";
 
 export interface BatchIntegrity {
@@ -68,11 +69,13 @@ function classify(
   awaitingDelta: boolean,
 ): BatchIntegrity {
   const replayed = replayMovements(deltas);
-  const inboundCount = deltas.filter((delta) => delta > 0).length;
+  const inboundTotal = deltas.reduce((sum, delta) => (delta > 0 ? sum + delta : sum), 0);
 
-  // The log can only rebuild a balance it can account for. No inbound
-  // movement at all means the opening stock was never recorded (A-148).
-  const unreconstructable = batchQuantity > 0 && inboundCount === 0;
+  // No run of logged movements can leave a balance above their total inbound,
+  // because outbound only ever subtracts. A stored quantity above it holds
+  // inbound that was never logged (A-148's opening stock), and the replay,
+  // which cannot see it, would fold the batch down past it.
+  const unreconstructable = batchQuantity > inboundTotal;
 
   const matches = batchQuantity === replayed;
   const verdict: BatchVerdict = unreconstructable
@@ -219,9 +222,9 @@ export interface FoldResult {
  * The log is the authority: `stock_movements` is append-only and never
  * pruned, and it already includes anything this device created but has not
  * pushed, so a fold cannot discard unsynced work the way a factory reset
- * can. `unreconstructable` batches are refused, never folded — computing 0
- * for a batch whose opening stock was never recorded would destroy the only
- * record of it (A-148).
+ * can. `unreconstructable` batches are refused, never folded — a batch holding
+ * more units than its inbound movements can account for would be folded down
+ * past stock that was never logged (A-148).
  *
  * Local-only and deliberately not queued: the server derives
  * `stock_batches.quantity` from movement deltas and ignores a pushed value,

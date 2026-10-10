@@ -109,6 +109,16 @@ describe("healStockIntegrity", () => {
     });
   });
 
+  it("preserves an A-148 legacy batch's unlogged opening stock once an adjustment is logged against it", async () => {
+    batch("batch-legacy", 102);
+    movement("mv-1", "batch-legacy", 2);
+
+    await healStockIntegrity();
+
+    expect(quantityOf("batch-legacy")).toBe(102);
+    expect(reportContext()).toMatchObject({ folded: 0, unreconstructable: 1 });
+  });
+
   it("leaves a consistent device alone and reports nothing", async () => {
     batch("batch-ok", 52);
     movement("mv-1", "batch-ok", 80);

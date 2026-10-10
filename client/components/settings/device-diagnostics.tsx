@@ -257,7 +257,7 @@ export function DeviceDiagnosticsPanel() {
                 }
               />
               <Row
-                label="Hold stock with no movement behind them"
+                label="Hold more stock than their history accounts for"
                 value={data.integrity.unreconstructable}
               />
               <Row
@@ -299,7 +299,7 @@ export function DeviceDiagnosticsPanel() {
         title="Rebuild stock from movement history"
         description={
           data
-            ? `Sets ${data.integrity.diverged} batch(es) back to the sum of their own stock movements, on this device only. Nothing is sent to the cloud, and the ${data.integrity.unreconstructable} batch(es) with no movement behind them are left untouched.`
+            ? `Sets ${data.integrity.diverged} batch(es) back to the sum of their own stock movements, on this device only. Nothing is sent to the cloud, and the ${data.integrity.unreconstructable} batch(es) holding more stock than their history accounts for are left untouched.`
             : ""
         }
         confirmLabel="Rebuild"

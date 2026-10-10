@@ -126,6 +126,85 @@ class AdminTillCodeApiTest extends TestCase
         $this->assertSame(3, AdminTillCode::active()->where('admin_id', $admin->id)->count());
     }
 
+    public function test_the_cap_refusal_carries_a_message_the_panel_can_display(): void
+    {
+        $admin = $this->admin();
+
+        for ($i = 0; $i < 3; $i++) {
+            $this->actingAs($admin)->postJson('/api/v1/admin/till-codes')->assertOk();
+        }
+
+        $this->actingAs($admin)->postJson('/api/v1/admin/till-codes')
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Revoke an existing code first; three active codes is the maximum.');
+    }
+
+    public function test_a_super_admin_reads_every_admins_code_in_clear(): void
+    {
+        $owner = $this->admin();
+        $issued = $this->actingAs($owner)
+            ->postJson('/api/v1/admin/till-codes', ['label' => 'agidi'])
+            ->json('code');
+
+        $superAdmin = $this->admin('super_admin');
+
+        $response = $this->actingAs($superAdmin)->getJson('/api/v1/admin/till-codes/all')->assertOk();
+
+        $row = collect($response->json('codes'))->firstWhere('label', 'agidi');
+
+        $this->assertSame($issued, $row['code']);
+        $this->assertSame($owner->email, $row['admin_email']);
+    }
+
+    public function test_a_legacy_hash_only_code_is_listed_as_unavailable(): void
+    {
+        $owner = $this->admin();
+        AdminTillCode::create([
+            'admin_id' => $owner->id,
+            'code_hash' => Hash::make('111111111111'),
+            'label' => 'legacy',
+        ]);
+
+        $response = $this->actingAs($this->admin('super_admin'))
+            ->getJson('/api/v1/admin/till-codes/all')
+            ->assertOk();
+
+        $row = collect($response->json('codes'))->firstWhere('label', 'legacy');
+
+        $this->assertNull($row['code']);
+    }
+
+    public function test_the_stored_copy_is_encrypted_rather_than_plaintext(): void
+    {
+        $admin = $this->admin();
+        $code = $this->actingAs($admin)->postJson('/api/v1/admin/till-codes')->json('code');
+
+        $stored = \DB::table('admin_till_codes')->where('admin_id', $admin->id)->value('code_encrypted');
+
+        $this->assertNotNull($stored);
+        $this->assertStringNotContainsString($code, $stored);
+        $this->assertSame($code, \Illuminate\Support\Facades\Crypt::decryptString($stored));
+    }
+
+    public function test_a_super_admin_read_is_audited(): void
+    {
+        $owner = $this->admin();
+        $this->actingAs($owner)->postJson('/api/v1/admin/till-codes')->assertOk();
+
+        $superAdmin = $this->admin('super_admin');
+        $this->actingAs($superAdmin)->getJson('/api/v1/admin/till-codes/all')->assertOk();
+
+        $log = \App\Models\ActivityLog::where('action', 'admin_till_codes_viewed')->firstOrFail();
+
+        $this->assertSame($superAdmin->id, $log->user_id);
+        $this->assertContains($owner->id, $log->properties['admin_ids']);
+    }
+
+    public function test_a_platform_admin_cannot_read_every_code(): void
+    {
+        $this->actingAs($this->admin())->getJson('/api/v1/admin/till-codes/all')->assertForbidden();
+    }
+
     public function test_a_store_owner_cannot_reach_these_routes(): void
     {
         $owner = $this->admin('store_owner');

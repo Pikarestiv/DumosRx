@@ -6,6 +6,8 @@ use App\Models\ActivityLog;
 use App\Models\AdminTillCode;
 use App\Models\AdminTillSession;
 use App\Models\User;
+use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 
 class AdminTillSessionService
@@ -17,6 +19,8 @@ class AdminTillSessionService
     public const EQUALIZED_CHECKS = 3;
 
     public const MAX_SESSION_HOURS = 4;
+
+    public const REVEAL_LIMIT = 50;
 
     private static ?string $equalizerHash = null;
 
@@ -33,6 +37,57 @@ class AdminTillSessionService
     public function hashCode(string $code): string
     {
         return Hash::make($code);
+    }
+
+    public function encryptCode(string $code): string
+    {
+        return Crypt::encryptString($code);
+    }
+
+    /**
+     * Every active code on the platform, in clear, for a super_admin. Rows
+     * issued before the encrypted copy existed report a null code.
+     */
+    public function revealAll(User $viewer): array
+    {
+        $rows = AdminTillCode::active()
+            ->with('admin')
+            ->orderByDesc('created_at')
+            ->limit(self::REVEAL_LIMIT)
+            ->get();
+
+        ActivityLog::create([
+            'user_id' => $viewer->id,
+            'action' => 'admin_till_codes_viewed',
+            'description' => "Revealed {$rows->count()} till access code(s)",
+            'properties' => [
+                'code_ids' => $rows->pluck('id')->all(),
+                'admin_ids' => $rows->pluck('admin_id')->unique()->values()->all(),
+            ],
+        ]);
+
+        return $rows->map(fn (AdminTillCode $row) => [
+            'id' => $row->id,
+            'label' => $row->label,
+            'admin_email' => $row->admin?->email,
+            'admin_name' => trim(($row->admin?->first_name ?? '').' '.($row->admin?->last_name ?? '')),
+            'created_at' => $row->created_at?->toIso8601String(),
+            'last_used_at' => $row->last_used_at?->toIso8601String(),
+            'code' => $this->decryptCode($row),
+        ])->all();
+    }
+
+    private function decryptCode(AdminTillCode $row): ?string
+    {
+        if (!$row->code_encrypted) {
+            return null;
+        }
+
+        try {
+            return Crypt::decryptString($row->code_encrypted);
+        } catch (DecryptException) {
+            return null;
+        }
     }
 
     public function verify(string $email, string $code): ?User

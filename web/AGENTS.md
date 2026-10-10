@@ -767,6 +767,15 @@ URL). `checkHasPermission` (from `use-admin-auth-store.ts`) already returns
   hosts a super_admin-only tab (gated per the point above, not by hiding the
   whole page from everyone else).
 
+- **A whole card that only a super_admin may see gates itself** and returns
+  `null`, rather than being conditionally rendered by its parent page:
+  `components/admin/views/all-till-codes-card.tsx` (every admin's till access
+  code in clear — see `laravel-server/AGENTS.md` for the trade-off) is dropped
+  into the Till Access tab unconditionally and hides itself for everyone else,
+  which keeps the gate testable in isolation instead of buried in
+  `settings-client.tsx`. It also fetches nothing until the super_admin clicks
+  Reveal, because the server audits every call.
+
 Covered by `__tests__/admin-action-permission-gating.test.tsx` (per-action
 hidden/shown/super_admin-bypass cases across `StoreRowActions`, `StoreTable`'s
 real slug mapping, `UserTable`, and `BroadcastsTab` including its per-row

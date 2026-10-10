@@ -89,7 +89,9 @@ Server side:
 - New table, one row per code: `admin_id`, `code_hash`, `label`,
   `last_used_at`, `revoked_at`, `created_at`. Per-admin, rotatable, revocable
   without touching the admin's real credentials.
-- Hashed at rest like a password. Never recoverable, only reissued.
+- Hashed at rest like a password. ~~Never recoverable, only reissued.~~
+  **Superseded 2026-10-10 — see "Super-admin visibility" below.** The bcrypt
+  hash is still what authenticates; an encrypted copy sits beside it.
 - Issued and revoked by the admin themselves from the admin panel
   (`/admin/settings`), never for another admin; an artisan command remains as
   the bootstrap path for the first code.
@@ -194,6 +196,30 @@ on a till syncs upward and becomes the server's truth with no record of what
 was typed. A named action is reviewable afterwards; a free-text edit is not. A
 stolen till access code also then buys a list of harmless repairs rather than
 write access to a tenant.
+
+## Super-admin visibility (added 2026-10-10)
+
+Ordinary admins still copy a code down at generation and cannot read it again.
+A **super_admin** can read every active code on the platform, including their
+own, from `/admin/settings/till-codes`. Requested explicitly by the founder:
+*"admins have to copy and keep safe as is done now, but superadmin should be
+able to see all generated codes by all users including himself. There's a
+reason to that."*
+
+- Stored as `Crypt::encryptString()` in `admin_till_codes.code_encrypted`
+  (keyed by `APP_KEY`), never plaintext — a database dump on its own still
+  yields nothing usable. `code_hash` remains the only thing `verify()` reads.
+- `GET /api/v1/admin/till-codes/all`, `role:super_admin` as route middleware.
+  The panel hides the card for every other role rather than disabling it.
+- Each call writes one `ActivityLog` row (`admin_till_codes_viewed`) naming the
+  viewer and the codes and owners shown, and the panel only fetches when the
+  super_admin clicks Reveal, so the log records intent.
+- Active codes only, newest first, capped at 50.
+- Pre-existing codes exist as hashes only and display as "Unavailable"; the
+  retirement condition for that branch is in `laravel-server/AGENTS.md`.
+- The safer options considered and not taken (password re-entry for a one-time
+  view; super_admin *rotation* instead of *visibility*) are recorded in
+  `laravel-server/AGENTS.md` under the same heading.
 
 ## Visibility and audit
 

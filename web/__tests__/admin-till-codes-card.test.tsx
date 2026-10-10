@@ -8,6 +8,7 @@ const { state } = vi.hoisted(() => ({
   state: {
     codes: [] as AdminTillCode[],
     issued: "123456789012",
+    failure: null as string | null,
     revoked: [] as string[],
     resets: 0,
   },
@@ -19,7 +20,10 @@ vi.mock("@/lib/api/admin-hooks-till-codes", async (importOriginal) => {
     ...actual,
     useMyTillCodes: () => ({ data: { codes: state.codes }, isLoading: false }),
     useIssueTillCodeMutation: () => ({
-      mutateAsync: async () => ({ id: "c-new", code: state.issued }),
+      mutateAsync: async () => {
+        if (state.failure) throw new Error(state.failure);
+        return { id: "c-new", code: state.issued };
+      },
       isPending: false,
       reset: () => {
         state.resets += 1;
@@ -48,6 +52,18 @@ describe("TillCodesCard", () => {
     state.codes = [];
     state.revoked = [];
     state.resets = 0;
+    state.failure = null;
+  });
+
+  it("surfaces the server's reason when generating fails", async () => {
+    state.failure = "Revoke an existing code first; three active codes is the maximum.";
+    render(<TillCodesCard />);
+
+    await userEvent.click(screen.getByRole("button", { name: /generate code/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/revoke an existing code first/i)).toBeInTheDocument(),
+    );
   });
 
   it("invites the admin to generate one when none exist", () => {

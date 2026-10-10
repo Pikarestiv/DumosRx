@@ -2,6 +2,16 @@
 
 A changelog of bugs that were tracked in `docs/KNOWN_BUGS.md` and have since been fixed. `KNOWN_BUGS.md` only ever holds *open* items — an entry is removed from it outright the moment it's fixed, not marked done in place — so this file is where the record of "what it was and when it got fixed" lives instead. Git history has the exact diffs; this is a scannable index into that history, one entry per fix, newest first.
 
+## 2026-10-10
+
+### A-203 — generating a till access code "stopped working" in production, because every failure of that button was invisible
+- **Reported as:** "generating a 12-digit till code didn't work any longer", with no error captured — because there was no error to capture.
+- **Root cause, two halves, each enough on its own.** `TillCodesCard.handleIssue()` did `await issue.mutateAsync(...)` from an `onClick={() => void handleIssue()}` with **no catch and no error UI**: any rejection — the three-active-codes cap (422), a 403, an expired session, a network drop — became an unhandled promise rejection. The spinner stopped and nothing else changed, which is exactly "it didn't work". And the cap refusal was returned as `{"error": "..."}`, while `web/lib/api/base-client.ts`'s interceptor only promotes `data.message` onto the thrown error — so even a caller that *did* surface the server's wording would have shown axios's "Request failed with status code 422".
+- **The cap itself is working as designed** (`EQUALIZED_CHECKS` bounds how many codes `verify()` will ever test, so a fourth could never authenticate). The bug was the silence, not the refusal.
+- **Fix.** The controller returns the refusal under `message` (keeping `error` beside it for an older cached bundle), and the card catches the rejection and renders it in a `role="alert"` line above the cap note. The button stays disabled at three codes, so the refusal is now reachable only when the list query itself is wrong — and when it is, the operator finally sees why.
+- **Tests.** `tests/Feature/Admin/AdminTillCodeApiTest::test_the_cap_refusal_carries_a_message_the_panel_can_display`, and `web/__tests__/admin-till-codes-card.test.tsx` "surfaces the server's reason when generating fails" (which reproduced the unhandled rejection before the fix).
+- **Shipped with** super_admin code visibility; see `laravel-server/AGENTS.md`, "Till codes are recoverable by a super_admin, on purpose".
+
 ## 2026-10-09
 
 ### A-202 — every staff account read "Never synced" in the admin panel, because a sync was attributed to the account that linked the device rather than the staff member using it

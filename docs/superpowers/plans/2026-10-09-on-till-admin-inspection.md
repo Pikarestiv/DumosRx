@@ -375,7 +375,7 @@ git commit -m "feat: add an admin_till_codes table holding a per-admin credentia
 
 **Interfaces:**
 - Consumes: `AdminTillCode` (Task 1).
-- Produces: `admin:till-code {email} {--revoke} {--label=}`. On issue it prints a 12-digit code **once** and stores only the hash.
+- Produces: `admin:till-code {email} {--revoke} {--label=}`. On issue it prints a 12-digit code **once** and stores its hash — plus, since 2026-10-10, an `APP_KEY`-encrypted copy a super_admin can re-read (see the spec's "Super-admin visibility").
 
 A console command rather than admin-panel UI: a code is issued rarely, by you, and panel UI is scope the spec does not ask for.
 

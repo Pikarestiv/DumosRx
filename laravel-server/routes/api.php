@@ -192,6 +192,10 @@ Route::prefix('v1')->group(function () {
             // caller, never from input, so no admin can mint a credential that
             // acts as another admin.
             Route::get('/till-codes/mine', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'mine']);
+            // Deliberately super_admin-only and audited: see the spec's
+            // "Super-admin visibility" section for why codes are recoverable.
+            Route::get('/till-codes/all', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'all'])
+                ->middleware('role:super_admin');
             Route::post('/till-codes', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'issue']);
             Route::delete('/till-codes/{id}', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'revoke']);
 

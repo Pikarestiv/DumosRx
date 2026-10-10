@@ -197,13 +197,17 @@ describe("pullChanges recovers a deferred stock delta after a failed pull round"
 
     await pullChanges();
 
+    // The row survives with a null window so A-218's budget can restore the
+    // baseline; pullChanges reads a null stamp as "from timestamp zero".
     expect(
-      db.exec(`SELECT last_synced_at FROM _sync_state WHERE table_name = 'stock_batches'`).length,
-    ).toBe(0);
+      db.exec(`SELECT last_synced_at FROM _sync_state WHERE table_name = 'stock_batches'`)[0]
+        .values[0][0],
+    ).toBeNull();
     // Only the table that can settle the delta is re-pulled.
     expect(
-      db.exec(`SELECT last_synced_at FROM _sync_state WHERE table_name = 'products'`).length,
-    ).toBe(1);
+      db.exec(`SELECT last_synced_at FROM _sync_state WHERE table_name = 'products'`)[0]
+        .values[0][0],
+    ).not.toBeNull();
   });
 
   it("does not rewind while a deferral is young enough to settle on its own", async () => {

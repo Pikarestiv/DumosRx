@@ -122,6 +122,23 @@ To maintain the DumosRx "Premium" feel:
 - **Glassmorphism:** Use backdrop-blur (`bg-background/95 backdrop-blur-sm border shadow-sm`) for dialogs, tooltips, and secondary cards.
 - **Tooltips:** Use Radix UI tooltips with a subtle 1000ms delay to prevent flickering.
 - **Localization (Dates):** Always maintain`DD/MM/YYYY date structure` for UI elements instead of the US format (`MM/DD/YYYY`). Use custom DatePicker components (like `DatePickerInput`) rather than native `<input type="date">` to enforce this visual format across all browsers.
+- **A timestamp always carries its time.** Render an instant as
+  `DD/MM/YYYY HH:mm`, never the bare date — a date alone makes two readings
+  taken hours apart on the same day look like a single measurement, which is
+  how the admin panel's per-device stock snapshots read as a data bug. Use
+  `formatDateSafe(value, "dd/MM/yyyy HH:mm", fallback)`; don't add a new util.
+  Values that genuinely *are* calendar dates rather than instants — per-day
+  buckets, coupon expiry, subscription end dates — stay date-only.
+- **A device id always carries its device name.** Never render a bare `DRX-…`
+  id. Join `user_devices.device_label` (the `X-Device-Label` the client sends,
+  built by `client/lib/utils/device-label.ts`) and show both — in panels, in
+  table subtitles, and inside activity-log prose. Server side that is
+  `App\Services\Admin\Concerns\ResolvesDeviceLabels`; client side
+  `DeviceIdValue` in `web/components/admin/stores/details/store-detail-primitives.tsx`.
+  Labels are best-effort UA sniffing and nullable: fall back to
+  "Unnamed device" and never branch on them. `AdminUserService`'s legacy
+  `lastSyncDevice` (label-or-id) is kept for older bundles; new code reads the
+  `lastSyncDeviceId`/`lastSyncDeviceLabel` pair beside it.
 
 ## 7. 🕐 Server Clock / MySQL Timezone Gotcha (laravel-server only)
 

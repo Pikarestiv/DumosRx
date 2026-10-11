@@ -4,6 +4,7 @@ import { StoreQueueStateSection } from "@/components/admin/stores/details/store-
 
 const device = (over = {}) => ({
   device_id: "DESKTOP-ONE",
+  device_label: "Chrome on Windows",
   queue_depth: 3,
   stuck_count: 0,
   stuck_items: [],

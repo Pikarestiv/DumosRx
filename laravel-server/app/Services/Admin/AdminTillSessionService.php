@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\AdminTillCode;
 use App\Models\AdminTillSession;
 use App\Models\User;
+use App\Services\Admin\Concerns\ResolvesDeviceLabels;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
@@ -13,6 +14,8 @@ use Illuminate\Support\Facades\Schema;
 
 class AdminTillSessionService
 {
+    use ResolvesDeviceLabels;
+
     public const ELIGIBLE_ROLES = ['platform_admin', 'super_admin'];
 
     public const CODE_LENGTH = 12;
@@ -232,12 +235,15 @@ class AdminTillSessionService
         string $action,
         array $extra,
     ): void {
+        $label = $this->deviceLabel($storeId, $deviceId);
+
         ActivityLog::create([
             'user_id' => $admin->id,
             'store_id' => $storeId,
             'action' => $action,
-            'description' => "Read-only admin inspection on device {$deviceId}",
-            'properties' => ['device_id' => $deviceId] + $extra,
+            'description' => 'Read-only admin inspection on device '
+                .($label === null ? $deviceId : "{$deviceId} ({$label})"),
+            'properties' => ['device_id' => $deviceId, 'device_label' => $label] + $extra,
         ]);
     }
 }

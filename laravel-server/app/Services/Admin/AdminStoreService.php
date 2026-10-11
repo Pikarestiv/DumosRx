@@ -9,6 +9,7 @@ use App\Models\Role;
 use App\Models\Store;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Services\Admin\Concerns\ResolvesDeviceLabels;
 use App\Services\Admin\Concerns\ResolvesTrialDuration;
 use App\Services\Admin\Filters\StoreListFilters;
 use App\Services\Admin\Support\ListSortResolver;
@@ -27,6 +28,7 @@ use Illuminate\Support\Str;
  */
 class AdminStoreService
 {
+    use ResolvesDeviceLabels;
     use ResolvesTrialDuration;
 
     /**
@@ -175,9 +177,10 @@ class AdminStoreService
         }
 
         $paginator = $query->paginate(10, ['*'], 'page', $filters->page);
+        $deviceLabels = $this->deviceLabelsForStores($paginator->items());
 
         return [
-            'data' => collect($paginator->items())->map(function ($store) use ($filters) {
+            'data' => collect($paginator->items())->map(function ($store) use ($filters, $deviceLabels) {
                 $plan = 'free';
                 if ($store->user && $store->user->subscriptions->isNotEmpty()) {
                     $sub = $store->user->subscriptions->sortByDesc('created_at')->first();
@@ -197,6 +200,7 @@ class AdminStoreService
                     'date' => $store->created_at->format('M d, Y'),
                     'is_demo' => (bool) $store->is_demo,
                     'device_id' => $store->device_id,
+                    'device_label' => $deviceLabels[$store->device_id] ?? null,
                     'is_archived' => $store->deleted_at !== null,
                     'archived_at' => $store->deleted_at?->format('M d, Y'),
                     'account_manager' => $manager ? [
@@ -249,9 +253,10 @@ class AdminStoreService
         }
 
         $paginator = $query->latest()->paginate(10, ['*'], 'page', $page);
+        $deviceLabels = $this->deviceLabelsForStores($paginator->items());
 
         return [
-            'data' => collect($paginator->items())->map(function ($store) {
+            'data' => collect($paginator->items())->map(function ($store) use ($deviceLabels) {
                 $subscription = $store->user?->subscriptions->sortByDesc('created_at')->first();
 
                 return [
@@ -267,6 +272,7 @@ class AdminStoreService
                     'date' => $store->created_at->format('M d, Y'),
                     'is_demo' => (bool) $store->is_demo,
                     'device_id' => $store->device_id,
+                    'device_label' => $deviceLabels[$store->device_id] ?? null,
                 ];
             }),
             'meta' => [

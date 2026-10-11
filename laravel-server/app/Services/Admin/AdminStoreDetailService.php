@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Store;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Services\Admin\Concerns\ResolvesDeviceLabels;
 
 /**
  * The single-store payload behind the admin panel's Store Details page.
@@ -20,6 +21,8 @@ use App\Models\User;
  */
 class AdminStoreDetailService
 {
+    use ResolvesDeviceLabels;
+
     private const RECENT_ACTIVITY_LIMIT = 8;
 
     private const RECENT_TRANSACTION_LIMIT = 5;
@@ -75,6 +78,7 @@ class AdminStoreDetailService
             'account_manager_is_explicit' => (bool) ($owner?->account_manager_id),
             'sync' => [
                 'device_id' => $store->device_id,
+                'device_label' => $this->deviceLabel($store->id, $store->device_id),
                 'auto_sync_enabled' => (bool) $store->auto_sync_enabled,
                 'auto_sync_interval' => $store->auto_sync_interval,
                 'last_sync_at' => $lastSyncAt?->toIso8601String(),

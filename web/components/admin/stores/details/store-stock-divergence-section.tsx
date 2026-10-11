@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useStoreStockDivergence } from "@/lib/api/admin-hooks-sync";
-import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
+import { formatDateSafe } from "@/lib/utils/date-utils";
 import type { StoreStockDivergence } from "@/lib/types/admin-platform";
 import { DeviceReportAction } from "./device-report-action";
 
@@ -76,11 +76,19 @@ export function StoreStockDivergenceSection({
         )}
       </div>
 
+      <p className="text-xs text-muted-foreground">
+        Each row is a snapshot taken when that device last reported, not a live comparison, so
+        two devices that reported on different days are measured against different cloud totals.
+      </p>
+
       <ul className="divide-y divide-slate-100 dark:divide-slate-800 rounded-md border border-slate-200 dark:border-slate-800">
         {data.devices.map((device) => (
           <li key={device.device_id} className="flex items-center justify-between gap-3 px-3 py-2">
             <div className="min-w-0">
-              <p className="font-mono text-xs text-foreground break-all">{device.device_id}</p>
+              <p className="text-xs font-bold text-foreground">
+                {device.device_label ?? "Unnamed device"}
+              </p>
+              <p className="font-mono text-xs text-muted-foreground break-all">{device.device_id}</p>
               <p className="text-xs text-muted-foreground">
                 {`Device ${device.device_quantity_sum} across ${device.device_batch_count} batches · cloud ${device.server_quantity_sum} across ${device.server_batch_count}`}
               </p>
@@ -101,7 +109,7 @@ export function StoreStockDivergenceSection({
               )}
               {device.reported_at && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  {formatDateToDDMMYYYY(device.reported_at)}
+                  {formatDateSafe(device.reported_at, "dd/MM/yyyy HH:mm", "")}
                 </p>
               )}
               </div>

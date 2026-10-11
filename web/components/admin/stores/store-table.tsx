@@ -122,6 +122,9 @@ export function StoreTable({
                   {store.device_id && (
                     <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">
                       Device: {store.device_id}
+                      {store.device_label && (
+                        <span className="font-sans normal-case"> · {store.device_label}</span>
+                      )}
                     </span>
                   )}
                 </div>

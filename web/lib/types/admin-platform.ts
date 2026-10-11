@@ -118,6 +118,7 @@ export interface AdminSubscriptionFigures {
 
 export interface DeviceStockReport {
   device_id: string;
+  device_label: string | null;
   device_batch_count: number;
   device_quantity_sum: number;
   server_batch_count: number;
@@ -143,6 +144,7 @@ export interface DeviceStuckItem {
 
 export interface DeviceQueueReport {
   device_id: string;
+  device_label: string | null;
   queue_depth: number;
   stuck_count: number;
   stuck_items: DeviceStuckItem[];

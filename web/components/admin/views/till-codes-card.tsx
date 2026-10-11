@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { KeyRound, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatDateSafe } from "@/lib/utils/date-utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -24,11 +25,8 @@ import {
 const CARD =
   "bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm";
 
-function formatDate(iso: string | null): string {
-  if (!iso) return "never";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "unknown";
-  return date.toLocaleDateString("en-GB");
+function formatTimestamp(iso: string | null): string {
+  return formatDateSafe(iso, "dd/MM/yyyy HH:mm", "never");
 }
 
 export function TillCodesCard() {
@@ -132,8 +130,8 @@ export function TillCodesCard() {
                 {code.label || "Unlabelled"}
               </p>
               <p className="text-xs text-muted-foreground">
-                Created {formatDate(code.created_at)} · Last used{" "}
-                {formatDate(code.last_used_at)}
+                Created {formatTimestamp(code.created_at)} · Last used{" "}
+                {formatTimestamp(code.last_used_at)}
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={() => setRevoking(code)}>

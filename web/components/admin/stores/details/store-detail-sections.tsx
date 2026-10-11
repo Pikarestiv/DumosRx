@@ -9,7 +9,7 @@ import {
   User as UserIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { DetailCard, Field } from "./store-detail-primitives";
+import { DetailCard, DeviceIdValue, Field } from "./store-detail-primitives";
 import type { AdminStoreDetail } from "@/lib/types/admin";
 
 export function StoreProfileCard({ store }: { store: AdminStoreDetail }) {
@@ -121,7 +121,13 @@ export function StoreSyncCard({ store }: { store: AdminStoreDetail }) {
           label="Sync Interval"
           value={store.sync.auto_sync_interval != null ? `${store.sync.auto_sync_interval} min` : null}
         />
-        <Field label="Device ID" value={store.sync.device_id} mono />
+        <Field
+          label="Device ID"
+          value={
+            <DeviceIdValue deviceId={store.sync.device_id} deviceLabel={store.sync.device_label} />
+          }
+          mono
+        />
       </div>
     </DetailCard>
   );

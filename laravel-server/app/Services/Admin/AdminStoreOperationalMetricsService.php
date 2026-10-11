@@ -5,6 +5,7 @@ namespace App\Services\Admin;
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\User;
+use App\Services\Admin\Concerns\ResolvesDeviceLabels;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -18,6 +19,8 @@ use Illuminate\Support\Facades\Schema;
  */
 class AdminStoreOperationalMetricsService
 {
+    use ResolvesDeviceLabels;
+
     private const RECENT_WINDOW_DAYS = 30;
 
     public function __construct(private AdminStoreMetricsService $businessMetrics)
@@ -36,6 +39,7 @@ class AdminStoreOperationalMetricsService
         return [
             'staff_count' => $staffCount,
             'device_id' => $store->device_id,
+            'device_label' => $this->deviceLabel($store->id, $store->device_id),
             'device_count' => $store->device_id ? 1 : 0,
             'active_sessions' => $this->activeSessionCount($sessionUserIds->all()),
             'inventory' => [

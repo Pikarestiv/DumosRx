@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatDateOnlyToDDMMYYYY, formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
+import { formatDateOnlyToDDMMYYYY, formatDateSafe } from "@/lib/utils/date-utils";
 import { formatMoney } from "@/lib/utils/currency";
 import type { SubscriptionBucket, SubscriptionWorklistRow } from "@/lib/types/admin";
 
@@ -95,7 +95,9 @@ export function WorklistTable({
               {isPayments ? (
                 <div>
                   <p className="font-medium text-foreground">
-                    {row.last_attempt_at ? formatDateToDDMMYYYY(row.last_attempt_at) : "—"}
+                    {row.last_attempt_at
+                      ? formatDateSafe(row.last_attempt_at, "dd/MM/yyyy HH:mm", "—")
+                      : "—"}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {row.attempts} attempt{row.attempts === 1 ? "" : "s"}

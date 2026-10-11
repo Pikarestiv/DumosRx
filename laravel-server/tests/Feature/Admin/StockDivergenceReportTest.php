@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\DeviceStockReport;
 use App\Models\Store;
 use App\Models\User;
+use App\Models\UserDevice;
 use App\Services\Admin\StockDivergenceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -173,6 +174,72 @@ class StockDivergenceReportTest extends TestCase
         ]);
 
         $this->assertTrue($this->service()->forStore($this->store->id)['measured']);
+    }
+
+    public function test_a_devices_human_label_is_resolved_within_the_store(): void
+    {
+        $this->seedServerStock(1, 1);
+
+        UserDevice::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $this->owner->id,
+            'store_id' => $this->store->id,
+            'device_id' => 'DESKTOP-ONE',
+            'device_label' => 'Chrome on Windows',
+        ]);
+
+        $this->service()->record($this->store->id, 'DESKTOP-ONE', $this->owner->id, [
+            'batch_count' => 1, 'quantity_sum' => 1,
+        ]);
+        $this->service()->record($this->store->id, 'DESKTOP-TWO', $this->owner->id, [
+            'batch_count' => 1, 'quantity_sum' => 1,
+        ]);
+
+        $labels = collect($this->service()->forStore($this->store->id)['devices'])
+            ->pluck('device_label', 'device_id');
+
+        $this->assertSame('Chrome on Windows', $labels['DESKTOP-ONE']);
+        $this->assertNull($labels['DESKTOP-TWO']);
+    }
+
+    public function test_the_most_recently_updated_row_supplies_a_shared_devices_label(): void
+    {
+        $this->seedServerStock(1, 1);
+
+        $other = User::create([
+            'first_name' => 'Staff', 'last_name' => 'Test',
+            'email' => 'staff-'.uniqid().'@dumosrx.com',
+            'password' => bcrypt('password'), 'role' => 'sales_staff',
+            'store_id' => $this->store->id,
+        ]);
+
+        $rows = [
+            [$this->owner, 'Firefox on Linux', '2026-01-01 00:00:00'],
+            [$other, 'Chrome on Windows', '2026-06-01 00:00:00'],
+        ];
+
+        foreach ($rows as [$user, $label, $updatedAt]) {
+            $device = UserDevice::create([
+                'id' => (string) Str::uuid(),
+                'user_id' => $user->id,
+                'store_id' => $this->store->id,
+                'device_id' => 'DESKTOP-ONE',
+                'device_label' => $label,
+            ]);
+
+            // Eloquent overwrites updated_at on create, which would leave the
+            // two rows tied and the assertion decided by insertion order.
+            DB::table('user_devices')->where('id', $device->id)
+                ->update(['updated_at' => $updatedAt]);
+        }
+
+        $this->service()->record($this->store->id, 'DESKTOP-ONE', $this->owner->id, [
+            'batch_count' => 1, 'quantity_sum' => 1,
+        ]);
+
+        $devices = $this->service()->forStore($this->store->id)['devices'];
+
+        $this->assertSame('Chrome on Windows', $devices[0]['device_label']);
     }
 
     private function makeAdmin(string $role): User

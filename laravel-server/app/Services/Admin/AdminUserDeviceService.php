@@ -38,7 +38,7 @@ class AdminUserDeviceService
             ->get()
             ->map(fn ($device) => [
                 'deviceId' => $device->device_id,
-                'deviceLabel' => $device->device_label ?: $device->device_id,
+                'deviceLabel' => $device->device_label,
                 'storeId' => $device->store_id,
                 'lastSyncedAt' => $device->last_synced_at?->diffForHumans(),
                 'lastSyncedAtIso' => $device->last_synced_at?->toIso8601String(),

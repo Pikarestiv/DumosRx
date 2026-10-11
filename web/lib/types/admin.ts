@@ -35,6 +35,7 @@ export interface RegisteredStoreSummary {
   date: string;
   is_demo?: boolean;
   device_id?: string | null;
+  device_label?: string | null;
 }
 
 export interface AdminStoreSummary {
@@ -63,6 +64,9 @@ export interface AdminStoreSummary {
   /** The terminal this store syncs from (stores.device_id). Rendered in the
    * fleet row and matched by the fleet search. */
   device_id?: string | null;
+  /** Best-effort human name for `device_id` ("Chrome on Windows"), joined
+   * from user_devices. Nullable; never branched on. */
+  device_label?: string | null;
   is_archived?: boolean;
   archived_at?: string | null;
   account_manager?: { id: string; name: string } | null;
@@ -183,7 +187,10 @@ export interface AdminUser {
   /** That device's human-readable label (e.g. "Chrome on Windows"), falling
    * back to its raw id if unlabeled. See `useStaffDevices` for the full
    * per-device history. */
+  /** Legacy label-or-id string, kept for older bundles; prefer the pair below. */
   lastSyncDevice?: string | null;
+  lastSyncDeviceId?: string | null;
+  lastSyncDeviceLabel?: string | null;
   /** Server-computed hint that this row's deletion would be refused;
    * advisory only — the server still enforces it on delete. */
   can_delete?: boolean;
@@ -193,7 +200,7 @@ export interface AdminUser {
  * /admin/users/{id}/devices`, most recent first. */
 export interface AdminUserDevice {
   deviceId: string;
-  deviceLabel: string;
+  deviceLabel: string | null;
   storeId: string | null;
   lastSyncedAt: string | null;
   lastSyncedAtIso: string | null;

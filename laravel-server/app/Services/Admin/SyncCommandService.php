@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use App\Models\ActivityLog;
 use App\Models\SyncCommand;
+use App\Services\Admin\Concerns\ResolvesDeviceLabels;
 use Illuminate\Support\Str;
 
 /**
@@ -13,6 +14,8 @@ use Illuminate\Support\Str;
  */
 class SyncCommandService
 {
+    use ResolvesDeviceLabels;
+
     /** A closed set. Nothing here may touch a business table's contents. */
     private const ACTIONS = ['retry', 'send_payload', 'abandon', 'send_device_report'];
 
@@ -68,15 +71,19 @@ class SyncCommandService
             'issued_at' => now(),
         ]);
 
+        $label = $this->deviceLabel($storeId, $deviceId);
+
         ActivityLog::create([
             'user_id' => $actorId,
             'action' => 'SYNC_COMMAND_ISSUED',
-            'description' => "Issued '{$action}' for {$tableName}/{$recordId} on device {$deviceId}",
+            'description' => "Issued '{$action}' for {$tableName}/{$recordId} on device "
+                .($label === null ? $deviceId : "{$deviceId} ({$label})"),
             'store_id' => $storeId,
             'properties' => [
                 'command_id' => $command->id,
                 'action' => $action,
                 'device_id' => $deviceId,
+                'device_label' => $label,
             ],
         ]);
 

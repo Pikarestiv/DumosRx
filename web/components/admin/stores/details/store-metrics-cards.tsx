@@ -1,7 +1,7 @@
 "use client";
 
 import { Activity, Boxes, ClipboardList, TrendingDown, TrendingUp } from "lucide-react";
-import { DetailCard, Field } from "@/components/admin/stores/details/store-detail-primitives";
+import { DetailCard, DeviceIdValue, Field } from "@/components/admin/stores/details/store-detail-primitives";
 import type { AdminStoreDetail } from "@/lib/types/admin";
 
 const formatGrowth = (pct: number | null) => {
@@ -87,7 +87,11 @@ export function StoreOperationalMetricsCard({ store }: { store: AdminStoreDetail
       <div className="grid grid-cols-2 gap-4">
         <Field label="Staff Accounts" value={metrics.staff_count.toLocaleString()} />
         <Field label="Device Registered" value={metrics.device_count > 0 ? "Yes" : "No"} />
-        <Field label="Device ID" value={metrics.device_id} mono />
+        <Field
+          label="Device ID"
+          value={<DeviceIdValue deviceId={metrics.device_id} deviceLabel={metrics.device_label} />}
+          mono
+        />
         <Field label="Active Sessions" value={metrics.active_sessions.toLocaleString()} />
         <Field
           label="Last Active"

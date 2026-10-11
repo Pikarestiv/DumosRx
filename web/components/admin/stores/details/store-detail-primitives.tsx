@@ -49,6 +49,27 @@ export function Field({ label, value, mono }: FieldProps) {
   );
 }
 
+export function DeviceIdValue({
+  deviceId,
+  deviceLabel,
+}: {
+  deviceId: string | null;
+  deviceLabel: string | null;
+}) {
+  if (!deviceId) return null;
+
+  return (
+    <>
+      {deviceId}
+      {deviceLabel && (
+        <span className="block font-sans text-xs font-medium text-muted-foreground">
+          {deviceLabel}
+        </span>
+      )}
+    </>
+  );
+}
+
 interface StatTileProps {
   label: string;
   value: ReactNode;

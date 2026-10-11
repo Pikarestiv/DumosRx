@@ -3,17 +3,15 @@
 import { useState } from "react";
 import { Eye, EyeOff, Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatDateSafe } from "@/lib/utils/date-utils";
 import { useAdminAuthStore, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
 import { useAllTillCodes } from "@/lib/api/admin-hooks-till-codes";
 
 const CARD =
   "bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm";
 
-function formatDate(iso: string | null): string {
-  if (!iso) return "never";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "unknown";
-  return date.toLocaleDateString("en-GB");
+function formatTimestamp(iso: string | null): string {
+  return formatDateSafe(iso, "dd/MM/yyyy HH:mm", "never");
 }
 
 export function AllTillCodesCard() {
@@ -74,8 +72,8 @@ export function AllTillCodesCard() {
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
                   {entry.admin_email} · {entry.label || "Unlabelled"} · Created{" "}
-                  {formatDate(entry.created_at)} · Last used{" "}
-                  {formatDate(entry.last_used_at)}
+                  {formatTimestamp(entry.created_at)} · Last used{" "}
+                  {formatTimestamp(entry.last_used_at)}
                 </p>
               </div>
               {entry.code ? (

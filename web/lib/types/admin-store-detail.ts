@@ -55,6 +55,7 @@ export interface AdminStoreBusinessMetrics {
 export interface AdminStoreOperationalMetrics {
   staff_count: number;
   device_id: string | null;
+  device_label: string | null;
   device_count: number;
   active_sessions: number;
   inventory: { products: number; categories: number; suppliers: number; customers: number };
@@ -98,6 +99,7 @@ export interface AdminStoreDetail {
   account_manager_is_explicit: boolean;
   sync: {
     device_id: string | null;
+    device_label: string | null;
     auto_sync_enabled: boolean;
     auto_sync_interval: number | null;
     last_sync_at: string | null;

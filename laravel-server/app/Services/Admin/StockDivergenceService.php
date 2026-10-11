@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use App\Models\DeviceStockReport;
 use App\Models\Product;
+use App\Services\Admin\Concerns\ResolvesDeviceLabels;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -13,6 +14,8 @@ use Illuminate\Support\Facades\DB;
  */
 class StockDivergenceService
 {
+    use ResolvesDeviceLabels;
+
     /** A device and the server agreeing to within this is not a divergence. */
     private const EPSILON = 0.0005;
 
@@ -45,12 +48,15 @@ class StockDivergenceService
             ->limit(50)
             ->get();
 
-        $devices = $reports->map(function (DeviceStockReport $report) {
+        $labels = $this->deviceLabels($storeId, $reports->pluck('device_id')->all());
+
+        $devices = $reports->map(function (DeviceStockReport $report) use ($labels) {
             $quantityDelta = round((float) $report->device_quantity_sum - (float) $report->server_quantity_sum, 3);
             $batchDelta = $report->device_batch_count - $report->server_batch_count;
 
             return [
                 'device_id' => $report->device_id,
+                'device_label' => $labels[$report->device_id] ?? null,
                 'device_batch_count' => $report->device_batch_count,
                 'device_quantity_sum' => (float) $report->device_quantity_sum,
                 'server_batch_count' => $report->server_batch_count,

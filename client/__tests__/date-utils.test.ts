@@ -5,6 +5,7 @@ import {
   formatDateToDDMMYYYY,
   parseDDMMYYYYToDate,
   formatDateSafe,
+  formatDistanceSafe,
 } from '@/lib/utils/date-utils';
 
 describe('Date Utilities', () => {
@@ -133,6 +134,24 @@ describe('Date Utilities', () => {
 
     it('uses a custom fallback string when given one', () => {
       expect(formatDateSafe(null, 'dd/MM/yyyy', 'N/A')).toBe('N/A');
+    });
+  });
+
+  describe('formatDistanceSafe', () => {
+    it('describes a real timestamp relatively', () => {
+      expect(formatDistanceSafe('2024-01-01T09:00:00.000Z')).toBe('about 3 hours');
+    });
+
+    it('falls back instead of throwing on an unparseable value', () => {
+      expect(formatDistanceSafe('not-a-date')).toBe('a while');
+    });
+
+    it('falls back on null rather than rendering an invalid date', () => {
+      expect(formatDistanceSafe(null)).toBe('a while');
+    });
+
+    it('uses a custom fallback string when given one', () => {
+      expect(formatDistanceSafe(undefined, 'never')).toBe('never');
     });
   });
 });

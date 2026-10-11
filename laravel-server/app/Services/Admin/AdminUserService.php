@@ -240,6 +240,8 @@ class AdminUserService
                     'deletionReason' => $user->deletion_reason,
                     'lastSyncedAt' => $device ? $device->last_synced_at?->diffForHumans() : null,
                     'lastSyncDevice' => $device ? ($device->device_label ?: $device->device_id) : null,
+                    'lastSyncDeviceId' => $device?->device_id,
+                    'lastSyncDeviceLabel' => $device?->device_label,
                     'can_delete' => $this->canDeleteUser($user, $actorId, $platformRoleSlugs),
                 ];
             }),

@@ -1445,6 +1445,35 @@ and A-176 raised and nothing could answer.
   rather than implying everything is fine. This is the single place this
   feature would most easily break Phase 1's rule.
 - Gated on `view_platform_health` — operational, not commercial.
+- **Two devices can show different `cloud` totals, and that is correct, not a
+  scoping bug.** Because both sides are snapshotted at the reporting device's
+  own report time, a device that last reported three days ago is compared
+  against the cloud total *as it stood three days ago*. The panel says so in
+  so many words, and each row carries its report date **and time** — without
+  the time, two rows from the same day read as one measurement.
+- **`device_label` is joined on, never stored in the report.** Both
+  `forStore()` payloads resolve `user_devices.device_label` (the
+  `X-Device-Label` the client sends, e.g. "Chrome on Windows") through
+  `Concerns\ResolvesDeviceLabels`, scoped to the store, so a `DRX-…` id is
+  never shown alone. Several `user_devices` rows can exist for one device
+  (the table is `unique(user_id, device_id)`, one row per user), so the
+  lookup orders by `updated_at` ascending and lets the last write win —
+  `tests/Feature/Admin/StockDivergenceReportTest.php`'s
+  `the_most_recently_updated_row_supplies_a_shared_devices_label` fails if
+  that order is flipped. A multi-store owner's device carries whichever
+  `store_id` it last synced under, so the *other* store's panels read
+  "Unnamed device"; that is cosmetic and nothing branches on it. Labels are best-effort UA sniffing and nullable; the UI
+  falls back to "Unnamed device" and nothing downstream may branch on them.
+  The same trait serves every other surface that prints a device id: the
+  scalar `Device ID` fields on the store detail page (`sync.device_label`,
+  `operational_metrics.device_label`), both fleet lists in `AdminStoreService`
+  (one `deviceLabelsForStores()` query per page, not one per row), and the
+  activity-log prose written by `AdminTillSessionService` and
+  `SyncCommandService`, which print `DRX-X (Chrome on Windows)` and also store
+  `device_label` in `properties`, both from a single resolve.
+  Those descriptions are resolved at **write** time, so historical rows keep
+  whatever they were written with — an audit log is immutable and backfilling
+  its prose would be worse than a bare id.
 
 **Client side:** `client/lib/db/sync-engine/stock-fingerprint.ts`. Note that
 `stock_batches.store_id` exists only because `runSchemaMigrations()` adds it

@@ -71,7 +71,9 @@ export function StoreStaffList({
                 <p className="text-[11px] text-slate-400 truncate">{member.email}</p>
                 <p className="text-[11px] text-slate-400 truncate">
                   {member.lastSyncedAt
-                    ? `Synced ${member.lastSyncedAt} · ${member.lastSyncDevice}`
+                    ? `Synced ${member.lastSyncedAt} · ${member.lastSyncDeviceId ?? member.lastSyncDevice}${
+                        member.lastSyncDeviceLabel ? ` (${member.lastSyncDeviceLabel})` : ""
+                      }`
                     : "Never synced"}
                 </p>
               </div>

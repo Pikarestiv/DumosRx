@@ -46,7 +46,10 @@ export function StaffDeviceHistory({ userId }: StaffDeviceHistoryProps) {
             {devices.map((device) => (
               <li key={device.deviceId} className="text-xs">
                 <p className="font-bold text-slate-900 dark:text-slate-100">
-                  {device.deviceLabel}
+                  {device.deviceLabel ?? "Unnamed device"}
+                </p>
+                <p className="font-mono text-[10px] text-slate-400 break-all">
+                  {device.deviceId}
                 </p>
                 <p className="text-slate-400">{device.lastSyncedAt ?? "Unknown time"}</p>
               </li>

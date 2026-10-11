@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RefreshCw } from "lucide-react";
-import { formatDateOnlyToDDMMYYYY, formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
+import { formatDateOnlyToDDMMYYYY, formatDateSafe } from "@/lib/utils/date-utils";
 import { syncReasonLabel, useAdminStoreSyncHealth } from "@/lib/api/admin-hooks-sync";
 import type { AdminStoreSyncHealth } from "@/lib/types/admin";
 
@@ -46,7 +46,9 @@ export function StoreSyncHealthSection({ data, isLoading, isError }: StoreSyncHe
             Last sync
           </p>
           <p className="text-lg font-black text-foreground mt-1">
-            {data?.last_sync_at ? formatDateToDDMMYYYY(data.last_sync_at) : "Never synced"}
+            {data?.last_sync_at
+              ? formatDateSafe(data.last_sync_at, "dd/MM/yyyy HH:mm", "Never synced")
+              : "Never synced"}
           </p>
         </div>
 
@@ -118,7 +120,9 @@ export function StoreSyncHealthSection({ data, isLoading, isError }: StoreSyncHe
                         <span className="font-mono">{failure.record_id}</span>
                       </>
                     )}
-                    {failure.created_at && <> · {formatDateToDDMMYYYY(failure.created_at)}</>}
+                    {failure.created_at && (
+                      <> · {formatDateSafe(failure.created_at, "dd/MM/yyyy HH:mm", "")}</>
+                    )}
                   </p>
                 </div>
               ))}

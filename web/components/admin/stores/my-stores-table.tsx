@@ -50,6 +50,9 @@ export function MyStoresTable({
                 {store.device_id && (
                   <div className="text-xs text-muted-foreground font-mono">
                     {store.device_id}
+                    {store.device_label && (
+                      <span className="font-sans"> · {store.device_label}</span>
+                    )}
                   </div>
                 )}
               </TableCell>

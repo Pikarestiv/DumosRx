@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Activity, CreditCard, RefreshCw, ShieldCheck, Wrench } from "lucide-react";
 import { activityTypeLabel } from "@/lib/api/admin-hooks-activity-feed";
-import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
+import { formatDateSafe } from "@/lib/utils/date-utils";
 import type { ActivityFeedEvent, ActivityFeedType } from "@/lib/types/admin";
 
 const ICON_CLASS = "h-4 w-4 text-muted-foreground shrink-0";
@@ -26,14 +26,6 @@ function EventIcon({ type }: { type: ActivityFeedType }) {
     default:
       return <Activity className={ICON_CLASS} />;
   }
-}
-
-function timeOf(at: string): string {
-  const parsed = new Date(at);
-
-  return Number.isNaN(parsed.getTime())
-    ? ""
-    : parsed.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
 interface ActivityFeedListProps {
@@ -87,8 +79,9 @@ export function ActivityFeedList({ events, isLoading, isError }: ActivityFeedLis
           </div>
 
           <div className="text-right shrink-0">
-            <p className="text-xs font-medium text-foreground">{formatDateToDDMMYYYY(event.at)}</p>
-            <p className="text-xs text-muted-foreground">{timeOf(event.at)}</p>
+            <p className="text-xs font-medium text-foreground">
+              {formatDateSafe(event.at, "dd/MM/yyyy HH:mm", "")}
+            </p>
           </div>
         </li>
       ))}

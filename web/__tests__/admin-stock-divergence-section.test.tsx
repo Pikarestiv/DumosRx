@@ -5,6 +5,7 @@ import type { StoreStockDivergence } from "@/lib/types/admin-platform";
 
 const device = (over: Partial<StoreStockDivergence["devices"][0]> = {}) => ({
   device_id: "DESKTOP-ONE",
+  device_label: "Chrome on Windows",
   device_batch_count: 3,
   device_quantity_sum: 30,
   server_batch_count: 3,

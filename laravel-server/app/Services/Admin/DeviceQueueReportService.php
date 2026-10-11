@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Models\DeviceQueueReport;
+use App\Services\Admin\Concerns\ResolvesDeviceLabels;
 use Illuminate\Support\Str;
 
 /**
@@ -11,6 +12,8 @@ use Illuminate\Support\Str;
  */
 class DeviceQueueReportService
 {
+    use ResolvesDeviceLabels;
+
     /** Stored per device. The true count is kept separately, so the cap
      *  bounds the payload without ever understating the problem. */
     private const MAX_STORED_ITEMS = 50;
@@ -63,8 +66,11 @@ class DeviceQueueReportService
             ->limit(50)
             ->get();
 
+        $labels = $this->deviceLabels($storeId, $reports->pluck('device_id')->all());
+
         $devices = $reports->map(fn (DeviceQueueReport $report) => [
             'device_id' => $report->device_id,
+            'device_label' => $labels[$report->device_id] ?? null,
             'queue_depth' => $report->queue_depth,
             'stuck_count' => $report->stuck_count,
             'stuck_items' => $report->stuck_items ?? [],

@@ -119,7 +119,7 @@ class AdminUserSyncVisibilityTest extends TestCase
     }
 
     #[Test]
-    public function a_device_with_no_label_falls_back_to_its_raw_id(): void
+    public function a_device_with_no_label_reports_a_null_label_beside_its_raw_id(): void
     {
         UserDevice::create([
             'user_id' => $this->staff->id, 'store_id' => $this->store->id,
@@ -131,7 +131,8 @@ class AdminUserSyncVisibilityTest extends TestCase
             ->getJson("/api/v1/admin/users/{$this->staff->id}/devices");
 
         $response->assertStatus(200);
-        $this->assertSame('DRX-UNLABELED', $response->json('devices.0.deviceLabel'));
+        $this->assertNull($response->json('devices.0.deviceLabel'));
+        $this->assertSame('DRX-UNLABELED', $response->json('devices.0.deviceId'));
     }
 
     /**

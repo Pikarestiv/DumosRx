@@ -39,6 +39,13 @@ handful of things actually worth your attention aren't buried in it.
 - **Consequence:** small and self-healing — the first successful round re-stamps a valid value (`index.ts:188`) and the check resumes. Worth knowing because the auto-heal is the thing that silently stops.
 - **Fix:** distinguish "never synced" from "cannot read the timestamp"; the latter should not suppress a health check that does not depend on the value.
 
+#### A-236. `client/` — the stock auto-healer is silent when it finds nothing, so "working" and "never ran" look identical in Sentry
+- **Found:** 2026-10-11, checking on the healer's production record for the first time since it shipped.
+- **Location:** `client/lib/db/sync-engine/stock-auto-heal.ts:71-72` — `healStockIntegrity()` returns before logging when `before.diverged === 0 && before.unreconstructable === 0`.
+- **What's wrong:** there is no heartbeat. The only `area: stock-autoheal` evidence a healthy run produces is nothing at all, which is byte-identical to the healer never having been reached — and the health check that calls it is gated on a 24-hour interval, `isTauri() || isWriterTab()`, `navigator.onLine`, a successful `getSyncCounts()` and a non-null active store, so "never reached" is a live possibility on any given device.
+- **Consequence:** as of 2026-10-11 there are **zero** `stock-autoheal` events in 14 days. The healer shipped in `86c4e812` (2026-10-10, PR #152); the only two stock-integrity events in that window (`DUMOSRX-CLIENT-23`, `DRX-Y8UK10GC3`, 9 batches / net +13 units, and `DRX-HO4QM3TWU`, 4 batches / net +5) are both from pre-healer releases and come from `reportStockIntegrity()`, the observer the healer replaced. So its production record to date is unreadable rather than good — nothing can distinguish "it has run and found every device clean" from "it has not run once".
+- **Fix:** log the clean case too, at a low level and no more than once per interval — `checked`, `diverged: 0`, the device and release — so the absence of a repair becomes evidence instead of silence. The existing `logCrash` path already carries exactly those tags.
+
 #### A-235. `client/` — `isInTransaction()` is not a reliable proxy for "this call holds a queue slot", and A-219 newly depends on it
 - **Found:** 2026-10-10, second adversarial review. Pre-existing shape, newly load-bearing.
 - **Location:** `client/lib/db/core.ts:617-623` and `:639-641`.

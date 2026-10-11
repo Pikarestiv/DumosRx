@@ -26,7 +26,7 @@ import { useAuth } from "@/lib/context/auth-context";
 import { useDatabase } from "@/lib/db/DatabaseProvider";
 import { AuthModal } from "./auth-modal";
 import { cn } from "@/lib/utils";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceSafe } from "@/lib/utils/date-utils";
 import { isExpectedSyncRestriction } from "@/lib/utils/error-logger";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/query-keys";
@@ -304,7 +304,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
         ? "bg-destructive/10 hover:bg-destructive/20"
         : "bg-amber-500/10 hover:bg-amber-500/20",
       mobileBg: isSyncOverdue ? "bg-destructive/10" : "bg-amber-500/10",
-      tooltip: `${pendingCount} local change${pendingCount > 1 ? "s" : ""} pending sync since ${lastSync ? formatDistanceToNow(new Date(lastSync)) + " ago" : "a while"}.`,
+      tooltip: `${pendingCount} local change${pendingCount > 1 ? "s" : ""} pending sync since ${lastSync ? formatDistanceSafe(lastSync) + " ago" : "a while"}.`,
     },
     active: {
       label: "Cloud Active",
@@ -469,7 +469,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
                   )}
                 >
                   <p className="text-[10px] text-sidebar-foreground/70 font-medium whitespace-nowrap">
-                    Last synced {!!(lastSync) && formatDistanceToNow(new Date(lastSync)).replace('about ', '').replace('less than a minute', '1 min') + " ago"}
+                    Last synced {!!(lastSync) && formatDistanceSafe(lastSync).replace('about ', '').replace('less than a minute', '1 min') + " ago"}
                     {!(lastSync) && "never"}
                   </p>
                 </div>
@@ -481,7 +481,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
                 <p className="text-[10px] text-muted-foreground leading-relaxed">{tooltipText}</p>
                 {collapsed && lastSync && (
                   <p className="text-[10px] text-muted-foreground">
-                    Last sync: {formatDistanceToNow(new Date(lastSync))} ago
+                    Last sync: {formatDistanceSafe(lastSync)} ago
                   </p>
                 )}
               </div>

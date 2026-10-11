@@ -1,7 +1,13 @@
 /**
  * Helper for Expiry Date Calculations
  */
-import { addMonths, isBefore, differenceInDays, format } from "date-fns";
+import {
+  addMonths,
+  isBefore,
+  differenceInDays,
+  format,
+  formatDistanceToNow,
+} from "date-fns";
 
 /** `new Date("YYYY-MM-DD")` parses a bare date-only string as UTC midnight,
  * which then compares against a local-time `now` - batches flip to
@@ -118,6 +124,25 @@ export const formatDateSafe = (
     const d = typeof date === "string" ? new Date(date) : date;
     if (isNaN(d.getTime())) return fallback;
     return format(d, pattern);
+  } catch {
+    return fallback;
+  }
+};
+
+/**
+ * Relative ("3 hours ago") counterpart to formatDateSafe: date-fns throws a
+ * RangeError on an invalid date, which takes down the whole render tree
+ * rather than one label.
+ */
+export const formatDistanceSafe = (
+  date: string | Date | null | undefined,
+  fallback: string = "a while",
+): string => {
+  if (!date) return fallback;
+  try {
+    const d = typeof date === "string" ? new Date(date) : date;
+    if (isNaN(d.getTime())) return fallback;
+    return formatDistanceToNow(d);
   } catch {
     return fallback;
   }

@@ -39,6 +39,14 @@ handful of things actually worth your attention aren't buried in it.
 - **Consequence:** small and self-healing — the first successful round re-stamps a valid value (`index.ts:188`) and the check resumes. Worth knowing because the auto-heal is the thing that silently stops.
 - **Fix:** distinguish "never synced" from "cannot read the timestamp"; the latter should not suppress a health check that does not depend on the value.
 
+#### A-238. `client/` — a skipped auto-heal burns the whole 24-hour window, so a device returning from a break may need two days to repair
+- **Found:** 2026-10-11, working out whether a device that had been off over a weekend would heal on its first use.
+- **Location:** `client/lib/db/sync-engine/health-check.ts:117-119` — `localStorage.setItem(LAST_CHECK_KEY, …)` is stamped **before** `await healStockIntegrity()`.
+- **What's wrong:** `healStockIntegrity()` refuses while the movement log is mid-window (`movementLogIsComplete()` requires `last_synced_at` set **and** `server_cursor` null). A device back after days off pulls a large backlog, and a large pull spans several rounds (`pull-resumes-across-rounds.test.ts`) — so a `sync()` that *succeeded* can still leave the window mid-stream, which is exactly the A-214 condition the refusal exists for. The 24-hour clock has already been stamped by then, so the skip costs the entire interval instead of retrying on the next round.
+- **Consequence:** the device most likely to be drifted — one returning from a break, with the biggest backlog — is the one whose repair is deferred a further 24 hours. It takes two days of use to fold, and the owner is told nothing either way.
+- **Fix:** stamp the clock after the heal, or stamp it only when the heal was not skipped. The row-count deficit path below it is separately gated and already tolerates re-running, and the existing comment at `:114-116` ("a failed attempt should retry on the next app open") states the intended rule — the heal simply sits on the wrong side of the stamp.
+- **Note:** the sibling of A-236. A skipped heal *does* log (`healSkipped`), so the two together mean the only unobservable state is "ran and was clean".
+
 #### A-236. `client/` — the stock auto-healer is silent when it finds nothing, so "working" and "never ran" look identical in Sentry
 - **Found:** 2026-10-11, checking on the healer's production record for the first time since it shipped.
 - **Location:** `client/lib/db/sync-engine/stock-auto-heal.ts:71-72` — `healStockIntegrity()` returns before logging when `before.diverged === 0 && before.unreconstructable === 0`.

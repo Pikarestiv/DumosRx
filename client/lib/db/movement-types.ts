@@ -3,8 +3,10 @@
  * stock_batches.quantity (POST /app/sync/reconcile-quantities). It is a
  * real, permanent record of a sync correction — not a stock event — so the
  * owner-facing movement lists and the stock-value summaries deliberately
- * exclude it, and pull.ts never replays it as a local delta. See
- * client/AGENTS.md, "Stock quantity reconciliation".
+ * exclude it. pull.ts replays it like any other movement on every device
+ * except the one that originated it, which seeds its own copy as
+ * already-synced (`storeReconciliationMovementLocally`) so its pull takes the
+ * UPDATE branch. See client/AGENTS.md, "Stock quantity reconciliation".
  */
 export const RECONCILIATION_MOVEMENT_TYPE = "sync_reconciliation";
 

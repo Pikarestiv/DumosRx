@@ -4,10 +4,17 @@ import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useStoreStockDivergence } from "@/lib/api/admin-hooks-sync";
 import { formatDateSafe } from "@/lib/utils/date-utils";
+import { formatMoney } from "@/lib/utils/currency";
 import type { StoreStockDivergence } from "@/lib/types/admin-platform";
 import { DeviceReportAction } from "./device-report-action";
 
-export function StoreStockDivergencePanel({ storeId }: { storeId: string }) {
+export function StoreStockDivergencePanel({
+  storeId,
+  currency,
+}: {
+  storeId: string;
+  currency?: string | null;
+}) {
   const { data, isLoading, isError } = useStoreStockDivergence(storeId);
 
   return (
@@ -16,6 +23,7 @@ export function StoreStockDivergencePanel({ storeId }: { storeId: string }) {
       isLoading={isLoading}
       isError={isError}
       storeId={storeId}
+      currency={currency}
     />
   );
 }
@@ -26,6 +34,7 @@ interface StoreStockDivergenceSectionProps {
   isError?: boolean;
   /** Omitted renders the list read-only, with no per-device controls. */
   storeId?: string;
+  currency?: string | null;
 }
 
 export function StoreStockDivergenceSection({
@@ -33,6 +42,7 @@ export function StoreStockDivergenceSection({
   isLoading,
   isError,
   storeId,
+  currency,
 }: StoreStockDivergenceSectionProps) {
   if (isError) {
     return (
@@ -79,22 +89,36 @@ export function StoreStockDivergenceSection({
       <p className="text-xs text-muted-foreground">
         Each row is a snapshot taken when that device last reported, not a live comparison, so
         two devices that reported on different days are measured against different cloud totals.
+        Stock is valued at cost and includes discontinued products&apos; remaining batches, so these
+        cloud figures can exceed the Total Stock Value above, which excludes them.
       </p>
 
       <ul className="divide-y divide-slate-100 dark:divide-slate-800 rounded-md border border-slate-200 dark:border-slate-800">
         {data.devices.map((device) => (
-          <li key={device.device_id} className="flex items-center justify-between gap-3 px-3 py-2">
+          <li
+            key={device.device_id}
+            className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+          >
             <div className="min-w-0">
               <p className="text-xs font-bold text-foreground">
                 {device.device_label ?? "Unnamed device"}
               </p>
               <p className="font-mono text-xs text-muted-foreground break-all">{device.device_id}</p>
               <p className="text-xs text-muted-foreground">
-                {`Device ${device.device_quantity_sum} across ${device.device_batch_count} batches · cloud ${device.server_quantity_sum} across ${device.server_batch_count}`}
+                {`Device ${device.device_quantity_sum} across ${device.device_batch_count} batches`}
+                {device.device_value_sum == null
+                  ? " · value not reported"
+                  : ` · ${formatMoney(Math.round(device.device_value_sum), currency)}`}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {`Cloud ${device.server_quantity_sum} across ${device.server_batch_count} batches`}
+                {device.server_value_sum == null
+                  ? ""
+                  : ` · ${formatMoney(Math.round(device.server_value_sum), currency)}`}
               </p>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center justify-between gap-3 sm:shrink-0 sm:justify-end">
               {storeId && (
                 <DeviceReportAction storeId={storeId} deviceId={device.device_id} />
               )}
@@ -106,6 +130,9 @@ export function StoreStockDivergenceSection({
                 </Badge>
               ) : (
                 <Badge variant="secondary">Agrees</Badge>
+              )}
+              {!device.diverged && !!device.value_delta && (
+                <p className="text-xs text-amber-500 mt-1">Costs differ</p>
               )}
               {device.reported_at && (
                 <p className="text-xs text-muted-foreground mt-1">

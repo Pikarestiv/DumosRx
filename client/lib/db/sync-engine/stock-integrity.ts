@@ -244,6 +244,16 @@ export async function foldStockQuantities(
     );
   }
 
+  const [movementState] = await query<{ server_cursor: string | null }>(
+    "SELECT server_cursor FROM _sync_state WHERE table_name = 'stock_movements'",
+  );
+  if (movementState?.server_cursor) {
+    throw new Error(
+      "This device is still catching up on stock movements, so its log cannot" +
+        " rebuild quantities yet. Let the sync finish and try again.",
+    );
+  }
+
   const result: FoldResult = {
     folded: 0,
     refused: 0,

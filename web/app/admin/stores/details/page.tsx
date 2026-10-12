@@ -91,10 +91,10 @@ function StoreDetailsContent() {
         </Button>
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white break-words">
               {store.name}
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium">
+            <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400 mt-1 font-medium">
               Owned by {store.owner?.name ?? "—"} · Registered {store.created_at}
             </p>
           </div>
@@ -156,7 +156,7 @@ function StoreDetailsContent() {
         <StoreSyncCard store={store} />
         <StoreSyncHealthPanel storeId={store.id} />
         <DetailCard title="Device Stock Agreement" icon={<Boxes className="h-4 w-4" />}>
-          <StoreStockDivergencePanel storeId={store.id} />
+          <StoreStockDivergencePanel storeId={store.id} currency={store.currency} />
         </DetailCard>
         <DetailCard title="Stuck On Devices" icon={<History className="h-4 w-4" />}>
           <StoreQueueStatePanel storeId={store.id} />

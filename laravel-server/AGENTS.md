@@ -1428,9 +1428,24 @@ stock, and by how much" without anyone counting shelves — the question A-173
 and A-176 raised and nothing could answer.
 
 - **A fingerprint, not an upload.** Each push carries
-  `stock_fingerprint: {batch_count, quantity_sum}` for the active store. The
-  server computes the same two numbers from its own rows and stores **both
-  sides** in `device_stock_reports`, keyed `(store_id, device_id)`. Sending
+  `stock_fingerprint: {batch_count, quantity_sum, value_sum}` for the active
+  store, where `value_sum` is stock valued at cost. The server computes the
+  same numbers from its own rows and stores **both sides** in
+  `device_stock_reports`, keyed `(store_id, device_id)`. `device_value_sum` and
+  `server_value_sum` are **nullable**: a client older than 2026-10-12 sends no
+  `value_sum`, and the panel shows "value not reported" rather than zero.
+  **Retire that shim** once no store's panel has shown a "value not reported"
+  row for 30 days: make the client field required, drop the `isset` in
+  `StockDivergenceService::record()` and the null branch in the web panel. Note
+  the fingerprint's value uses `Product::withTrashed()`, so it counts a
+  discontinued product's remaining batches, while the store-detail page's Total
+  Stock Value tile (`AdminStoreOperationalMetricsService::stockValueRaw()`)
+  does not — the panel says so on screen. Value is reported for information and
+  never decides `diverged`, because `cost_price` can differ between a device
+  and the server without the stock itself disagreeing. **Deploy order matters:**
+  run the migration before the server code, or `updateOrCreate` fails on the
+  unknown column and no fingerprint is recorded at all until it is applied.
+  Sending
   every batch quantity on every sync was the obvious design and is far too
   much data.
 - **Both sides are snapshotted at write time**, never recomputed on read, so a

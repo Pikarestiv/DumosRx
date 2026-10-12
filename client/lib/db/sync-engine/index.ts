@@ -1,6 +1,10 @@
 import { pushChanges } from "./push";
 import { pullChanges } from "./pull";
-import { stampPullWindowUnlessRewinding } from "./pull-window";
+import {
+  stampPullWindowUnlessRewinding,
+  clearPullWindows,
+  restorePullWindows,
+} from "./pull-window";
 import { SyncResult, PullResponse } from "./types";
 import {
   recordSyncOutcome,
@@ -50,15 +54,22 @@ export { SYNC_IN_PROGRESS_ERROR } from "./sync-outcome";
 
 /**
  * Escape hatch for a device whose pull cursor has drifted ahead of rows it
- * never received: clears `_sync_state` only, forcing a full re-fetch. See
- * client/AGENTS.md, "`sync()` and friends (sync-engine/index.ts)".
+ * never received: clears `_sync_state` only, forcing a full re-fetch. The
+ * cleared windows are stashed and put back if the resync commits no page at
+ * all, so a pull that cannot succeed leaves the device no worse off than it
+ * started (A-243). See client/AGENTS.md, "`sync()` and friends".
  */
 export async function forceFullResync(): Promise<SyncResult> {
   if (isSyncInProgress) {
     return { success: false, pushed: 0, pulled: 0, error: SYNC_IN_PROGRESS_ERROR };
   }
-  await execute("DELETE FROM _sync_state");
-  return sync(true);
+
+  const stashed = await clearPullWindows();
+  try {
+    return await sync(true);
+  } finally {
+    await restorePullWindows(stashed);
+  }
 }
 
 /** See reconcile-quantities.ts for the implementation; re-exported here so

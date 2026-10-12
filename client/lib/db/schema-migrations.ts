@@ -636,15 +636,19 @@ async function runSyncColumnMigrations(
   }
 }
 
-// Backfills store_id on every pre-existing row of newly store-scoped tables
-// to this device's one pre-migration store. WHERE store_id IS NULL makes
-// this naturally idempotent on subsequent launches.
+// Backfills store_id on pre-existing rows of newly store-scoped tables to the
+// device's one pre-migration store. WHERE store_id IS NULL makes it naturally
+// idempotent. Skipped entirely once a device holds more than one store: see
+// A-250's neighbour A-248 in docs/FIXED_BUGS.md.
 async function backfillStoreIdOnLegacyRows(adapter: DbAdapter): Promise<void> {
   try {
+    const rows = await adapter.all("SELECT COUNT(*) AS count FROM stores");
+    if (Number(rows?.[0]?.count ?? 0) !== 1) return;
+
     for (const table of STORE_SCOPED_TABLES) {
       await tryRun(
         adapter,
-        `UPDATE ${table} SET store_id = (SELECT id FROM stores LIMIT 1) WHERE store_id IS NULL`,
+        `UPDATE ${table} SET store_id = (SELECT id FROM stores) WHERE store_id IS NULL`,
       );
     }
   } catch (e) {

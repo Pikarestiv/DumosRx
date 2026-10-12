@@ -90,4 +90,69 @@ describe("BaseApiClient non-JSON responses", () => {
 
     await expect(apiClient.getProfile()).resolves.toMatchObject({ value: 42 });
   });
+
+  /**
+   * A-206. The error named the endpoint, status and content-type, and stopped
+   * there — which could not separate the three causes that produce this on
+   * shared hosting. The live events carried `content-type: application/json`,
+   * ruling out an HTML page and leaving two indistinguishable. Reading the
+   * body as text once and parsing that gives the length and the ends, and the
+   * failure's own `name` separates a transport abort (`TypeError`, the body
+   * stream cut after the headers) from a real parse failure (`SyntaxError`).
+   */
+  it("reports the body length, its ends and the failure kind", async () => {
+    const body = `{"success":true,"data":[${"0,".repeat(80)}`;
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: {
+        get: (h: string) =>
+          h.toLowerCase() === "content-type" ? "application/json" : null,
+      },
+      json: async () => {
+        throw new SyntaxError("Unexpected end of JSON input");
+      },
+      text: async () => body,
+    });
+
+    let message = "";
+    try {
+      await apiClient.getProfile();
+    } catch (e) {
+      message = (e as Error).message;
+    }
+
+    expect(message).toMatch(new RegExp(`${body.length} bytes`));
+    expect(message).toMatch(/SyntaxError/);
+    // Excerpts are JSON.stringify'd so whitespace and truncation points are
+    // visible rather than invisible.
+    expect(message).toMatch(/starts .*success/);
+    expect(message).toMatch(/ends /);
+  });
+
+  /** A body that cannot even be read as text must still produce the useful
+   * error rather than throwing out of the error handler itself. */
+  it("still names the endpoint when the body cannot be read", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" },
+      json: async () => {
+        throw new TypeError("Failed to fetch");
+      },
+      text: async () => {
+        throw new TypeError("body stream already read");
+      },
+    });
+
+    let message = "";
+    try {
+      await apiClient.getProfile();
+    } catch (e) {
+      message = (e as Error).message;
+    }
+
+    expect(message).toMatch(/\/user/);
+    expect(message).toMatch(/TypeError/);
+  });
 });

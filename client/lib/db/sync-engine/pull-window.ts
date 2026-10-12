@@ -70,6 +70,58 @@ export async function restoreExhaustedPullWindows(): Promise<string[]> {
   return exhausted.map((row) => row.table_name);
 }
 
+export interface StashedPullWindow {
+  table_name: string;
+  last_synced_at: string | null;
+  server_cursor: string | null;
+  rewind_count: number | null;
+  rewound_from: string | null;
+}
+
+/**
+ * Empties every pull window and hands back what it removed, so a full resync
+ * that never commits a page can be undone. See A-243 in docs/FIXED_BUGS.md.
+ */
+export async function clearPullWindows(): Promise<StashedPullWindow[]> {
+  const stashed = await query<StashedPullWindow>(
+    "SELECT table_name, last_synced_at, server_cursor, rewind_count, rewound_from FROM _sync_state",
+  );
+  await execute("DELETE FROM _sync_state");
+  return stashed;
+}
+
+/**
+ * Restores a stash, but only while `_sync_state` is still empty: any row means
+ * the resync committed a page, so its fresh positions must win. Returns
+ * whether it restored anything.
+ */
+export async function restorePullWindows(
+  stashed: StashedPullWindow[],
+): Promise<boolean> {
+  if (stashed.length === 0) return false;
+
+  const [current] = await query<{ count: number }>(
+    "SELECT COUNT(*) AS count FROM _sync_state",
+  );
+  if (Number(current?.count ?? 0) > 0) return false;
+
+  for (const row of stashed) {
+    await execute(
+      `INSERT INTO _sync_state (table_name, last_synced_at, server_cursor, rewind_count, rewound_from)
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        row.table_name,
+        row.last_synced_at,
+        row.server_cursor,
+        row.rewind_count ?? 0,
+        row.rewound_from,
+      ],
+    );
+  }
+
+  return true;
+}
+
 /**
  * shortcut: rewinds the whole table's window rather than re-requesting the
  * one row, because the sync API has no by-id re-send endpoint. Upgrade to a

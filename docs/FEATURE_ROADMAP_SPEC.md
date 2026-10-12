@@ -463,6 +463,34 @@ The Gemini/LLM approach below remains a **possible future phase**, not a superse
 - **Current state:** Real `Role`/`Permission` system already exists server-side, and enforcement is now consistent (see [Roles & Permissions cleanup](#roles--permissions-cleanup--done-2026-08-15) above).
 - **Open question:** Whether a dedicated Settings-tab "Roles & Permissions" UI is worth building depends on a concrete use case where the current role set doesn't cut it: not yet identified. Not sizeable until a use case surfaces.
 
+### 📋 Stock audit: tell counted apart from uncounted, and filter on it *(requested 2026-10-12, Nest Pharmacy)*
+
+Raised by the owner after a live count. Two parts; the second is clear, the
+first needs a decision before anyone builds it.
+
+- **Filters — clear.** The audit list needs to filter by **counted**, by
+  **uncounted**, and by **quantity difference** (non-zero variance). On a
+  2,700-product catalogue a counter cannot otherwise find where she stopped, or
+  review just the discrepancies at the end.
+- **Prefilling the counted field — contradictory as stated, do not guess.** The
+  request was "prefill counted with 0", and the stated reason was "she needs to
+  know which ones she has counted, which she does by checking which ones have
+  numbers". Those two cannot both hold: if every row is prefilled with 0 then
+  every row has a number and the signal she relies on is gone. The two
+  implementations are opposites, so ask before building:
+  - *Reading A:* the field is currently blank and she wants 0 prefilled so she
+    only types the rows that differ — in which case "counted" needs its own
+    explicit marker (a tick, a touched-state, a "mark as counted" action),
+    because a prefilled 0 cannot distinguish "counted, found none" from "not
+    counted".
+  - *Reading B:* the field currently defaults to 0 and that is exactly the
+    problem — it should be **blank** until touched, so a number genuinely means
+    counted. This matches her stated method and needs no new marker.
+  - Either way a real zero count must be recordable and distinguishable from an
+    untouched row, which is the actual requirement underneath both readings.
+
+---
+
 ---
 
 ## 🛑 FUTURE ROADMAP: v2.0+ (Hold)

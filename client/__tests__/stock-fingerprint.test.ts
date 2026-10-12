@@ -38,10 +38,18 @@ describe("buildStockFingerprint", () => {
     core.setActiveStoreId("store-1");
   });
 
-  const insertBatch = (id: string, storeId: string, quantity: number, deleted = 0) => {
+  const insertBatch = (
+    id: string,
+    storeId: string,
+    quantity: number,
+    deleted = 0,
+    costPrice: number | null = 0,
+  ) => {
     db.run(
-      `INSERT INTO stock_batches (id, product_id, store_id, quantity, batch_number, _deleted)
-       VALUES ('${id}', 'p1', '${storeId}', ${quantity}, 'B', ${deleted})`,
+      `INSERT INTO stock_batches (id, product_id, store_id, quantity, batch_number, cost_price, _deleted)
+       VALUES ('${id}', 'p1', '${storeId}', ${quantity}, 'B', ${
+         costPrice === null ? "NULL" : costPrice
+       }, ${deleted})`,
     );
   };
 
@@ -49,25 +57,67 @@ describe("buildStockFingerprint", () => {
     insertBatch("b1", "store-1", 10);
     insertBatch("b2", "store-1", 5.5);
 
-    expect(await buildStockFingerprint()).toEqual({ batch_count: 2, quantity_sum: 15.5 });
+    expect(await buildStockFingerprint()).toEqual({
+      batch_count: 2,
+      quantity_sum: 15.5,
+      value_sum: 0,
+    });
   });
 
   it("excludes soft-deleted batches", async () => {
     insertBatch("b1", "store-1", 10);
     insertBatch("b2", "store-1", 99, 1);
 
-    expect(await buildStockFingerprint()).toEqual({ batch_count: 1, quantity_sum: 10 });
+    expect(await buildStockFingerprint()).toEqual({
+      batch_count: 1,
+      quantity_sum: 10,
+      value_sum: 0,
+    });
   });
 
   it("excludes another store's batches", async () => {
     insertBatch("b1", "store-1", 10);
     insertBatch("b2", "store-2", 999);
 
-    expect(await buildStockFingerprint()).toEqual({ batch_count: 1, quantity_sum: 10 });
+    expect(await buildStockFingerprint()).toEqual({
+      batch_count: 1,
+      quantity_sum: 10,
+      value_sum: 0,
+    });
   });
 
   it("reports zero rather than null for a store with no stock", async () => {
-    expect(await buildStockFingerprint()).toEqual({ batch_count: 0, quantity_sum: 0 });
+    expect(await buildStockFingerprint()).toEqual({
+      batch_count: 0,
+      quantity_sum: 0,
+      value_sum: 0,
+    });
+  });
+
+  it("values stock at quantity x cost price, over the same rows it counts", async () => {
+    insertBatch("b1", "store-1", 10, 0, 2.5);
+    insertBatch("b2", "store-1", 4, 0, 100);
+    insertBatch("b3", "store-1", 999, 1, 50);
+    insertBatch("b4", "store-2", 999, 0, 50);
+
+    expect(await buildStockFingerprint()).toEqual({
+      batch_count: 2,
+      quantity_sum: 14,
+      value_sum: 425,
+    });
+  });
+
+  /** cost_price is nullable on stock_batches (schema.ts:48), and a batch with
+   * no cost is worth nothing rather than making the whole sum null. */
+  it("treats a batch with no cost price as worth zero", async () => {
+    insertBatch("b1", "store-1", 10, 0, null);
+    insertBatch("b2", "store-1", 2, 0, 3);
+
+    expect(await buildStockFingerprint()).toEqual({
+      batch_count: 2,
+      quantity_sum: 12,
+      value_sum: 6,
+    });
   });
 
   /** Reporting must never be able to fail a sync. */

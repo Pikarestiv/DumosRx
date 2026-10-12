@@ -18,6 +18,7 @@ import {
   Tags,
   KeyRound,
   AlertTriangle,
+  Stethoscope,
   LucideIcon,
 } from "lucide-react";
 
@@ -133,7 +134,19 @@ const NAV_GROUPS: NavGroup[] = [
       },
     ],
   },
+  {
+    label: "Support",
+    items: [
+      { value: "diagnostics", label: "Diagnostics", icon: Stethoscope, adminOnly: true },
+    ],
+  },
 ];
+
+/** Read by __tests__/settings-tabs-have-nav-entries.test.ts: a tab with no
+ * entry here is unreachable by clicking. */
+export const SETTINGS_NAV_TAB_VALUES = NAV_GROUPS.flatMap((group) =>
+  group.items.map((item) => item.value),
+);
 
 /** Tab nav only. Pairs with sibling <TabsContent> panels owned by the parent, which switches page content on selection. */
 function SettingsTabNavInner({ isAdmin, canAccessTab }: SettingsTabNavProps) {

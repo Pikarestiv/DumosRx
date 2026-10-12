@@ -54,10 +54,11 @@ accepts a pulled one. Neither side has ever compared them.
 on every sync is too much. Instead the client includes, for the active store:
 
 ```
-stock_fingerprint: { batch_count, quantity_sum }
+stock_fingerprint: { batch_count, quantity_sum, value_sum }
 ```
 
-Two integers. The server computes the same two from its own rows and stores
+Three numbers (`value_sum` is stock at cost, added 2026-10-12 and optional
+so older clients keep reporting). The server computes the same from its own rows and stores
 both sides in `device_stock_reports`, keyed by `(store_id, device_id)`.
 
 - **Both sides are snapshotted at report time**, not recomputed on read, so a

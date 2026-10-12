@@ -89,6 +89,8 @@ export function StoreStockDivergenceSection({
       <p className="text-xs text-muted-foreground">
         Each row is a snapshot taken when that device last reported, not a live comparison, so
         two devices that reported on different days are measured against different cloud totals.
+        Stock is valued at cost and includes discontinued products&apos; remaining batches, so these
+        cloud figures can exceed the Total Stock Value above, which excludes them.
       </p>
 
       <ul className="divide-y divide-slate-100 dark:divide-slate-800 rounded-md border border-slate-200 dark:border-slate-800">
@@ -104,15 +106,15 @@ export function StoreStockDivergenceSection({
               <p className="font-mono text-xs text-muted-foreground break-all">{device.device_id}</p>
               <p className="text-xs text-muted-foreground">
                 {`Device ${device.device_quantity_sum} across ${device.device_batch_count} batches`}
-                {device.device_value_sum === null
+                {device.device_value_sum == null
                   ? " · value not reported"
-                  : ` · ${formatMoney(device.device_value_sum, currency)}`}
+                  : ` · ${formatMoney(Math.round(device.device_value_sum), currency)}`}
               </p>
               <p className="text-xs text-muted-foreground">
                 {`Cloud ${device.server_quantity_sum} across ${device.server_batch_count} batches`}
-                {device.server_value_sum === null
+                {device.server_value_sum == null
                   ? ""
-                  : ` · ${formatMoney(device.server_value_sum, currency)}`}
+                  : ` · ${formatMoney(Math.round(device.server_value_sum), currency)}`}
               </p>
             </div>
 
@@ -128,6 +130,9 @@ export function StoreStockDivergenceSection({
                 </Badge>
               ) : (
                 <Badge variant="secondary">Agrees</Badge>
+              )}
+              {!device.diverged && !!device.value_delta && (
+                <p className="text-xs text-amber-500 mt-1">Costs differ</p>
               )}
               {device.reported_at && (
                 <p className="text-xs text-muted-foreground mt-1">

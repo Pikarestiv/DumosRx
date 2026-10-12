@@ -4,11 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * Nullable on purpose: a client shipped before the fingerprint carried a value
- * sends none, and rows written before this migration have none. NULL means
- * "not reported", which the panel renders as such rather than as zero stock.
- */
+/** Nullable: see laravel-server/AGENTS.md for why, and when to retire it. */
 return new class extends Migration
 {
     public function up(): void

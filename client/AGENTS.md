@@ -1082,9 +1082,10 @@ run**, not per batch, so a 12-batch drain does not run the same aggregates 12
 times.
 
 - **`stock_fingerprint`** (`sync-engine/stock-fingerprint.ts`): `batch_count`
-  and `quantity_sum` for the active store. Two integers. The server computes
-  the same two from its own rows and stores both sides, snapshotted at report
-  time. A differing fingerprint is *proof* that this device and the server
+  `quantity_sum` and `value_sum` (stock at cost) for the active store. The
+  server computes the same from its own rows and stores both sides, snapshotted
+  at report time. `value_sum` is optional on the wire so a server older than
+  2026-10-12 ignores it and an older client may omit it. A differing fingerprint is *proof* that this device and the server
   disagree about stock; it cannot say which batch, which is deliberate — that
   would be an unbounded payload.
 - **`queue_state`** (`sync-engine/queue-state.ts`): queue depth plus, for each

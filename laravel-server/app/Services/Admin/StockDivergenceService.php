@@ -10,7 +10,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * Compares what each device believes about a store's stock against what the
  * server derives from stock_movements. See the stuck-data spec, Phase 1, for
- * why this is a two-integer fingerprint rather than a per-batch upload.
+ * why this is a small fingerprint rather than a per-batch upload, and
+ * laravel-server/AGENTS.md for the value sum's nullability and scope.
  */
 class StockDivergenceService
 {
@@ -71,8 +72,6 @@ class StockDivergenceService
                 'server_value_sum' => $serverValue,
                 'quantity_delta' => $quantityDelta,
                 'batch_delta' => $batchDelta,
-                // Null when the device reported no value, so the panel can say
-                // "not reported" instead of implying the two agree at zero.
                 'value_delta' => $deviceValue === null || $serverValue === null
                     ? null
                     : round($deviceValue - $serverValue, 2),

@@ -99,4 +99,44 @@ describe("StoreStockDivergenceSection", () => {
 
     expect(screen.getByText(/value not reported/i)).toBeDefined();
   });
+
+  /** The wire is not guaranteed by the TypeScript type: a web bundle ahead of
+   * the server, or a cached response, omits the field entirely rather than
+   * sending null. `formatMoney(undefined)` throws and blanks the whole card. */
+  it("survives a response that omits the value fields altogether", () => {
+    const legacy = device();
+    delete (legacy as Record<string, unknown>).device_value_sum;
+    delete (legacy as Record<string, unknown>).server_value_sum;
+    delete (legacy as Record<string, unknown>).value_delta;
+
+    render(
+      <StoreStockDivergenceSection
+        data={{ measured: true, diverged_devices: 0, devices: [legacy] }}
+        isLoading={false}
+        currency="NGN"
+      />,
+    );
+
+    expect(screen.getByText(/value not reported/i)).toBeDefined();
+    expect(screen.getByText(/Agrees/)).toBeDefined();
+  });
+
+  /** Units can agree while costs do not, and the badge alone would read as
+   * total agreement next to two different money figures. */
+  it("flags a cost-only gap on a device whose stock agrees", () => {
+    render(
+      <StoreStockDivergenceSection
+        data={{
+          measured: true,
+          diverged_devices: 0,
+          devices: [device({ device_value_sum: 1600, value_delta: 100 })],
+        }}
+        isLoading={false}
+        currency="NGN"
+      />,
+    );
+
+    expect(screen.getByText(/costs differ/i)).toBeDefined();
+    expect(screen.getByText(/Agrees/)).toBeDefined();
+  });
 });

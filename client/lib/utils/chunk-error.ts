@@ -3,8 +3,8 @@ import { STORAGE_KEYS } from "@/lib/storage-keys";
  * the debounced storefront rebuild) will 404 the moment it lazy-loads a
  * route it doesn't already have in memory - not a real crash, just the
  * browser needing a fresh copy of the app. Shared between error-boundary.tsx
- * (triggers the one-time auto-reload) and global-error-listener.tsx (clears
- * the guard once the app boots cleanly), so the two never drift apart. */
+ * (the React-throw path) and global-error-listener.tsx (the dynamic-import
+ * rejection path), so the two never drift apart on when to reload. */
 // Each browser engine phrases a stale/missing dynamic-import chunk
 // differently: Chromium says "Loading chunk N failed" (webpack's own
 // wording) or "Failed to fetch dynamically imported module"; Safari says

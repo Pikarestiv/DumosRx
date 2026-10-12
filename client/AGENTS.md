@@ -5285,7 +5285,11 @@ investigations and nothing else distinguishes them.
 
 A body that cannot even be read as text still produces the same error, with
 `body unreadable` in place of the excerpt, so the handler can never throw out
-of itself and lose the endpoint.
+of itself and lose the endpoint. A response object with no `text()` at all
+falls back to `.json()` and forfeits the excerpt: a real `fetch` Response
+always has `text()`, but plenty of tests hand this client a hand-rolled
+`{ ok, status, json }` object, and a diagnostic improvement is not worth
+breaking every one of them over.
 
 `isChunkLoadError()` (`lib/utils/chunk-error.ts`) excludes V8's
 `… is not valid JSON` wording for exactly this reason — a failing API response

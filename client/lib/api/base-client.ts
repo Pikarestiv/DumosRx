@@ -63,6 +63,9 @@ export class BaseApiClient {
     let raw: string | null = null;
 
     try {
+      if (typeof response.text !== "function") {
+        return (await response.json()) as T;
+      }
       raw = await response.text();
       return JSON.parse(raw) as T;
     } catch (error) {

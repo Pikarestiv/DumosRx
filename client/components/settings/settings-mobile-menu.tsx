@@ -17,6 +17,7 @@ import {
   Tags,
   KeyRound,
   AlertTriangle,
+  Stethoscope,
   LucideIcon,
   ChevronRight,
 } from "lucide-react";
@@ -98,7 +99,19 @@ const MENU_GROUPS: MenuGroup[] = [
       { value: "danger-zone", href: "/settings/danger-zone", icon: AlertTriangle, title: "Danger Zone", description: "Irreversible resets & deletions", adminOnly: true },
     ],
   },
+  {
+    label: "Support",
+    items: [
+      { value: "diagnostics", href: "/settings/diagnostics", icon: Stethoscope, title: "Diagnostics", description: "What this device believes about its own sync", adminOnly: true },
+    ],
+  },
 ];
+
+/** Read by __tests__/settings-tabs-have-nav-entries.test.ts: a tab with no
+ * entry here is unreachable by tapping. */
+export const SETTINGS_MOBILE_MENU_TAB_VALUES = MENU_GROUPS.flatMap((group) =>
+  group.items.map((item) => item.value),
+);
 
 export function SettingsMobileMenu({ isAdmin, canAccessTab }: SettingsMobileMenuProps) {
   const isVisible = (item: MenuItem) =>

@@ -132,7 +132,7 @@ tables, per Part 1.
 - **Absent is not zero.** A store that has never reported says "no reports
   yet", never "0 divergence" — Phase 1's rule, which this feature would
   otherwise break in its most consequential place.
-- **Bounded payloads.** Fingerprints are two integers; queue summaries are
+- **Bounded payloads.** Fingerprints are three numbers (batch count, unit sum, and since 2026-10-12 a cost value sum); queue summaries are
   capped and carry no row payloads. Nothing here may make a sync request grow
   with a store's size.
 - §7: all timestamps from PHP, never MySQL's clock.

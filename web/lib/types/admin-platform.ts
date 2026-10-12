@@ -121,10 +121,15 @@ export interface DeviceStockReport {
   device_label: string | null;
   device_batch_count: number;
   device_quantity_sum: number;
+  /** Null when the device's client predates the value fingerprint. */
+  device_value_sum: number | null;
   server_batch_count: number;
   server_quantity_sum: number;
+  server_value_sum: number | null;
   quantity_delta: number;
   batch_delta: number;
+  /** Null whenever either side reported no value. */
+  value_delta: number | null;
   diverged: boolean;
   reported_at: string | null;
 }

@@ -5,7 +5,8 @@
 model described in `client/AGENTS.md` ("Deferred movement deltas", "Pull
 details") and in `SyncController::applyStockBatchDeltas()`'s own comments.
 **Scope:** `client/` and `laravel-server/`. No `web/` change; the admin panel's
-`device_stock_reports` comparison keeps reading the same two integers.
+`device_stock_reports` comparison keeps reading the same counts (plus the
+cost value sum added 2026-10-12).
 **Related:** `docs/KNOWN_BUGS.md` A-197, A-203, A-205, A-176 · `docs/FIXED_BUGS.md`
 A-148, A-173, A-176a, A-191 ·
 `docs/superpowers/specs/2026-10-08-stock-integrity-fold-design.md` (the repair

@@ -20,7 +20,7 @@ class StockDivergenceService
     private const EPSILON = 0.0005;
 
     /**
-     * @param  array{batch_count: int, quantity_sum: float|int}  $fingerprint
+     * @param  array{batch_count: int, quantity_sum: float|int, value_sum?: float|int}  $fingerprint
      */
     public function record(string $storeId, string $deviceId, ?string $userId, array $fingerprint): DeviceStockReport
     {
@@ -32,8 +32,12 @@ class StockDivergenceService
                 'user_id' => $userId,
                 'device_batch_count' => max(0, (int) ($fingerprint['batch_count'] ?? 0)),
                 'device_quantity_sum' => (float) ($fingerprint['quantity_sum'] ?? 0),
+                'device_value_sum' => isset($fingerprint['value_sum'])
+                    ? (float) $fingerprint['value_sum']
+                    : null,
                 'server_batch_count' => $server['batch_count'],
                 'server_quantity_sum' => $server['quantity_sum'],
+                'server_value_sum' => $server['value_sum'],
                 // Snapshotted, not recomputed on read: a historical row must
                 // not change meaning once written.
                 'reported_at' => now(),
@@ -53,6 +57,8 @@ class StockDivergenceService
         $devices = $reports->map(function (DeviceStockReport $report) use ($labels) {
             $quantityDelta = round((float) $report->device_quantity_sum - (float) $report->server_quantity_sum, 3);
             $batchDelta = $report->device_batch_count - $report->server_batch_count;
+            $deviceValue = $report->device_value_sum === null ? null : (float) $report->device_value_sum;
+            $serverValue = $report->server_value_sum === null ? null : (float) $report->server_value_sum;
 
             return [
                 'device_id' => $report->device_id,
@@ -61,8 +67,15 @@ class StockDivergenceService
                 'device_quantity_sum' => (float) $report->device_quantity_sum,
                 'server_batch_count' => $report->server_batch_count,
                 'server_quantity_sum' => (float) $report->server_quantity_sum,
+                'device_value_sum' => $deviceValue,
+                'server_value_sum' => $serverValue,
                 'quantity_delta' => $quantityDelta,
                 'batch_delta' => $batchDelta,
+                // Null when the device reported no value, so the panel can say
+                // "not reported" instead of implying the two agree at zero.
+                'value_delta' => $deviceValue === null || $serverValue === null
+                    ? null
+                    : round($deviceValue - $serverValue, 2),
                 'diverged' => abs($quantityDelta) > self::EPSILON || $batchDelta !== 0,
                 'reported_at' => $report->reported_at?->toIso8601String(),
             ];
@@ -77,18 +90,23 @@ class StockDivergenceService
         ];
     }
 
-    /** @return array{batch_count: int, quantity_sum: float} */
+    /** @return array{batch_count: int, quantity_sum: float, value_sum: float} */
     private function serverFingerprint(string $storeId): array
     {
         $row = DB::table('stock_batches')
             ->whereIn('product_id', Product::withTrashed()->select('id')->where('store_id', $storeId))
             ->whereNull('deleted_at')
-            ->selectRaw('COUNT(*) as batch_count, COALESCE(SUM(quantity), 0) as quantity_sum')
+            ->selectRaw(
+                'COUNT(*) as batch_count,'
+                .' COALESCE(SUM(quantity), 0) as quantity_sum,'
+                .' COALESCE(SUM(quantity * COALESCE(cost_price, 0)), 0) as value_sum'
+            )
             ->first();
 
         return [
             'batch_count' => (int) ($row->batch_count ?? 0),
             'quantity_sum' => (float) ($row->quantity_sum ?? 0),
+            'value_sum' => (float) ($row->value_sum ?? 0),
         ];
     }
 }

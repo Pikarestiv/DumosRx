@@ -15,8 +15,10 @@ class DeviceStockReport extends Model
         'user_id',
         'device_batch_count',
         'device_quantity_sum',
+        'device_value_sum',
         'server_batch_count',
         'server_quantity_sum',
+        'server_value_sum',
         'reported_at',
     ];
 

@@ -152,7 +152,11 @@ class ApiClient extends FleetBillingApiClient {
   async pushChanges(
     payload: {
       changes: SyncChange[];
-      stock_fingerprint?: { batch_count: number; quantity_sum: number } | null;
+      stock_fingerprint?: {
+        batch_count: number;
+        quantity_sum: number;
+        value_sum?: number;
+      } | null;
       queue_state?: unknown;
       sync_command_results?: unknown;
     },

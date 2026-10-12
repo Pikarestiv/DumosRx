@@ -55,6 +55,16 @@ const REASONS_SETTLING_SOURCE_ROW = new Set(["permission_denied"]);
  */
 const REASONS_NEEDING_REPULL = new Set(["version_conflict", "stale_timestamp"]);
 
+/**
+ * Tables whose window must never be rewound, whatever the refusal. A rewind
+ * exists to make this device re-pull a row the server kept — meaningless for
+ * write-only telemetry the client never reads back, and actively self-feeding
+ * for `feedback`: `restoreBaseline()` reports an exhausted budget by calling
+ * `logCrash()`, which writes another `feedback` row. See docs/FIXED_BUGS.md
+ * A-256.
+ */
+const TABLES_NEVER_REPULLED = new Set(["feedback"]);
+
 const SYNC_BATCH_SIZE = 50;
 
 /** Sorts categories to the front of the queue, leaving every other row's
@@ -517,7 +527,9 @@ export async function pushChanges(
               });
 
               if (REASONS_NEEDING_REPULL.has(f.reason)) {
-                await rewindPullWindow(f.table_name, f.reason);
+                if (!TABLES_NEVER_REPULLED.has(f.table_name)) {
+                  await rewindPullWindow(f.table_name, f.reason);
+                }
               }
 
               if (wasRetried) {

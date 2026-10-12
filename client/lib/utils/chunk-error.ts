@@ -34,12 +34,32 @@ export const CHUNK_RELOAD_GUARD_KEY = STORAGE_KEYS.chunkReloadGuard;
 // \"<!DOCTYPE \"... is not valid JSON") whenever an API response body is
 // HTML instead of JSON, e.g. base-client.ts's unguarded response.json()
 // hitting a proxy/gateway error page. That's a real backend problem, not a
-// stale chunk, and must NOT trigger the auto-reload here: the reload guard
-// (CHUNK_RELOAD_GUARD_KEY) is cleared on every successful boot (see
-// global-error-listener.tsx), so misclassifying a persistent backend
-// outage as a stale chunk would reload, boot, guard clears, same JSON
-// error on the next request, reload again - forever, not once.
+// stale chunk, and must NOT trigger the auto-reload here: a persistent
+// backend outage misclassified as a stale chunk would reload on every
+// request. The per-build cap below now bounds that to one reload, but the
+// exclusion stays - a backend problem should never reload at all.
 const JSON_PARSE_ERROR_PATTERN = /is not valid JSON/i;
+
+/**
+ * One reload per deployed build, not per tab session. The old
+ * CHUNK_RELOAD_GUARD_KEY lived in sessionStorage and was cleared on every
+ * successful mount, so a shell that stays stale reloaded forever. See
+ * docs/FIXED_BUGS.md A-257 for the production incident.
+ *
+ * Keyed by build so a genuine new deploy gets its own attempt; a storage
+ * failure permits the reload, because the reload is the remedy and a guard
+ * must never be the thing that blocks it.
+ */
+export function shouldReloadForChunkError(buildSha: string): boolean {
+  try {
+    const key = `${CHUNK_RELOAD_GUARD_KEY}:${buildSha}`;
+    if (localStorage.getItem(key)) return false;
+    localStorage.setItem(key, new Date().toISOString());
+    return true;
+  } catch {
+    return true;
+  }
+}
 
 export function isChunkLoadError(error: Error | null | undefined): boolean {
   if (!error) return false;

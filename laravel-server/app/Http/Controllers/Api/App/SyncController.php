@@ -2723,18 +2723,30 @@ class SyncController extends Controller
      * bypassed on every subsequent (non-setup) sync too, not just this one
      * narrow call, silently defeating the cloud_sync feature gate entirely.
      * So this only fires for a request shaped EXACTLY like the privileged
-     * call always shapes itself: a `last_synced` map naming ONLY `stores`
-     * (a real full/incremental sync always also names the rest of pull()'s
-     * table list, even ones with an empty cursor — see that fixed $tables
-     * list). A genuinely-empty `last_synced` (a real first-ever full sync)
-     * is handled separately by validateSync()'s existing bypass and is not
-     * this method's concern.
+     * call always shapes itself: a `last_synced` map naming ONLY `stores`,
+     * **with an empty cursor** — `{stores: ""}`, which is the literal that
+     * call has sent since it was written (126a7ec3) and which no real sync
+     * ever sends, because a real one carries a timestamp.
+     *
+     * That empty-cursor check is load-bearing, not belt-and-braces. Naming
+     * `stores` alone is NOT unique to the privileged call: onboarding runs
+     * syncSubscriptionStatus() first, which stamps `_sync_state.stores` and
+     * nothing else, so on a fresh device the main setup pull also names only
+     * `stores` — and was therefore narrowed to ['stores'], never sending
+     * `users`. Onboarding then told a real store owner no staff account
+     * existed and offered to create one, which would have duplicated her
+     * identity. See docs/FIXED_BUGS.md, A-253.
+     *
+     * A genuinely-empty `last_synced` (a real first-ever full sync) is
+     * handled separately by validateSync()'s existing bypass and is not this
+     * method's concern.
      */
     private function isStoresOnlySetupOverridePull(Request $request, $lastSyncedMap): bool
     {
         return $request->boolean('setup')
             && is_array($lastSyncedMap)
-            && array_keys($lastSyncedMap) === ['stores'];
+            && array_keys($lastSyncedMap) === ['stores']
+            && ($lastSyncedMap['stores'] ?? null) === '';
     }
 
     /**

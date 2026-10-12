@@ -55,23 +55,27 @@ export class BaseApiClient {
   }
 
   /**
-   * A-171: a 2xx carrying HTML (a shared-host error page, a maintenance
-   * interstitial) made `.json()` throw a bare SyntaxError that named nothing
-   * — 260 fatal reports with no stacktrace and no call site. The body is read
-   * as text first so the failure can identify the endpoint, the status and
-   * what actually came back.
+   * A-171/A-206: a 2xx whose body will not parse made `.json()` throw an error
+   * naming nothing. Rationale for what this reports, and how to read it, is in
+   * client/AGENTS.md under "Non-JSON 2xx responses".
    */
   private async parseJsonResponse<T>(response: Response, url: string): Promise<T> {
+    let raw: string | null = null;
+
     try {
-      return (await response.json()) as T;
-    } catch {
-      // No body excerpt: .json() has already consumed the body, so clone()
-      // throws here. The happy path keeps its single .json() call rather
-      // than pre-reading every response to buy a snippet.
+      raw = await response.text();
+      return JSON.parse(raw) as T;
+    } catch (error) {
       const contentType = response.headers?.get?.("content-type") ?? "unknown";
+      const kind = error instanceof Error ? error.name : typeof error;
+      const detail =
+        raw === null
+          ? "body unreadable"
+          : `${raw.length} bytes, starts ${JSON.stringify(raw.slice(0, 120))}, ends ${JSON.stringify(raw.slice(-120))}`;
 
       throw new Error(
-        `Expected JSON from ${url} but got a non-JSON ${response.status} response (content-type: ${contentType})`,
+        `Expected JSON from ${url} but got a non-JSON ${response.status} response` +
+          ` (content-type: ${contentType}, ${kind}, ${detail})`,
       );
     }
   }

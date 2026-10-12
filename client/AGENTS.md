@@ -5261,6 +5261,36 @@ deliberately neutralises that exact class on hover; the chips use a static
   `/product\(s\) low on stock/`), not on the help topic's title — that title is
   also the action button's label.
 
+## Non-JSON 2xx responses (`lib/api/base-client.ts`)
+
+`parseJsonResponse()` reads the body as **text once** and `JSON.parse`s the
+string, rather than calling `response.json()`. That is deliberate and the
+history is worth knowing, because the obvious implementation was tried twice:
+
+- A-171's first draft promised a body excerpt via `response.clone()`, which
+  always threw `Body has already been consumed` because `.json()` had taken it.
+  Reading text first is what makes an excerpt possible at all.
+- A-206 then showed that naming the endpoint, status and content-type is not
+  enough. Three different faults produce a non-parsing 2xx on this shared host
+  and the report could not tell them apart: a body truncated mid-stream, a
+  valid body with PHP output appended, and an HTML error page served as 200.
+
+So the error now carries the body's **length**, its **first and last 120
+characters** (JSON-stringified, so whitespace and the truncation point are
+visible), and the **failure's own `name`**. That last field is the useful one:
+a `SyntaxError` is a real parse failure of a body that arrived, while a
+`TypeError` means the body stream was cut after the headers — a network drop or
+a proxy idle timeout, not a server bug. Those two call for opposite
+investigations and nothing else distinguishes them.
+
+A body that cannot even be read as text still produces the same error, with
+`body unreadable` in place of the excerpt, so the handler can never throw out
+of itself and lose the endpoint.
+
+`isChunkLoadError()` (`lib/utils/chunk-error.ts`) excludes V8's
+`… is not valid JSON` wording for exactly this reason — a failing API response
+must not be mistaken for a stale chunk and trigger a reload loop.
+
 ## Running things
 
 ```

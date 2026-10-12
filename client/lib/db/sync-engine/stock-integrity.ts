@@ -9,10 +9,6 @@ import {
   logTillRepair,
   TILL_REPAIR_ACTIONS,
 } from "@/lib/utils/till-inspection-audit";
-import {
-  isTillInspectionSession,
-  READ_ONLY_REFUSAL_MESSAGE,
-} from "@/lib/utils/till-inspection";
 
 /**
  * Divergence between a batch's stored `quantity` and the sum of its own
@@ -246,10 +242,6 @@ export async function foldStockQuantities(
     throw new Error(
       "No active store on this device, so there is nothing safe to rebuild.",
     );
-  }
-
-  if (isTillInspectionSession()) {
-    throw new Error(READ_ONLY_REFUSAL_MESSAGE);
   }
 
   const [movementState] = await query<{ server_cursor: string | null }>(

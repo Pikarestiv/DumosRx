@@ -307,4 +307,55 @@ describe("foldStockQuantities", () => {
     expect(result.folded).toBe(0);
     expect(quantityOf("b1")).toBe(6);
   });
+
+  /**
+   * A-250. The automatic healer refuses to fold a device whose movement log is
+   * known-incomplete; the manual button did not, and an operator reaches that
+   * button during exactly the incident where a device IS mid-catch-up. The
+   * guard here is deliberately narrower than the healer's: a leftover
+   * `server_cursor` proves the window is half-drained, whereas a never-stamped
+   * window just means this device has not synced yet and its own log is all
+   * the truth there is.
+   */
+  it("refuses to fold while a stock_movements pull is half-drained", async () => {
+    batch("b1", 50);
+    movement("m1", "b1", 10);
+    db.run(
+      `INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at, server_cursor)
+       VALUES ('stock_movements', NULL, '{"updated_at":"2026-10-01T00:00:00Z","id":"m1"}')`,
+    );
+
+    await expect(foldStockQuantities()).rejects.toThrow(/still catching up|half/i);
+
+    const [row] = db.exec("SELECT quantity FROM stock_batches WHERE id = 'b1'")[0].values;
+    expect(row[0]).toBe(50);
+    db.run("DELETE FROM _sync_state");
+  });
+
+  /** An on-till inspection session is read-only by contract - the page it is
+   * reached from says so - so the write must be refused there even though the
+   * panel is only reachable from a support session at all. */
+  it("refuses to fold during a read-only till inspection session", async () => {
+    batch("b2", 50);
+    movement("m2", "b2", 10);
+    const { startTillInspectionSession, endTillInspectionSession } = await import(
+      "@/lib/utils/till-inspection"
+    );
+    startTillInspectionSession({
+      admin: { id: "a1", first_name: "A", last_name: "B", email: "a@b.c", role: "super_admin" },
+      sessionId: "s1",
+      hardExpiresAt: new Date(Date.now() + 600000).toISOString(),
+      idleExpiresAt: new Date(Date.now() + 600000).toISOString(),
+      storeId: STORE_ID,
+      deviceId: "dev-1",
+    });
+
+    try {
+      await expect(foldStockQuantities()).rejects.toThrow(/read-only|inspection/i);
+      const [row] = db.exec("SELECT quantity FROM stock_batches WHERE id = 'b2'")[0].values;
+      expect(row[0]).toBe(50);
+    } finally {
+      endTillInspectionSession();
+    }
+  });
 });

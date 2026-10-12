@@ -2554,11 +2554,15 @@ class SyncController extends Controller
      * ever sends, because a real one carries a timestamp.
      *
      * That empty-cursor check is load-bearing, not belt-and-braces. Naming
-     * `stores` alone is NOT unique to the privileged call: onboarding runs
-     * syncSubscriptionStatus() first, which stamps `_sync_state.stores` and
-     * nothing else, so on a fresh device the main setup pull also names only
-     * `stores` — and was therefore narrowed to ['stores'], never sending
-     * `users`. Onboarding then told a real store owner no staff account
+     * `stores` alone is NOT unique to the privileged call: something always
+     * runs syncSubscriptionStatus() before onboarding's main pull, and it
+     * stamps `_sync_state.stores` and nothing else — the new-account path
+     * calls it directly (app/setup/use-onboarding.ts), and the existing-
+     * account restore path gets it from StoreProvider's own effect
+     * (lib/context/store-context.tsx), which re-fires when the active store
+     * is set. Either way, on a fresh device the main setup pull also names
+     * only `stores` — and was therefore narrowed to ['stores'], never
+     * sending `users`. Onboarding then told a real store owner no staff account
      * existed and offered to create one, which would have duplicated her
      * identity. See docs/FIXED_BUGS.md, A-253.
      *

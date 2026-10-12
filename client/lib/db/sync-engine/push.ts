@@ -24,7 +24,7 @@ import { execute, query, transaction } from "../core";
 import { isExpectedSyncRestriction } from "@/lib/utils/error-logger";
 import { toast } from "sonner";
 import { isUuid } from "@/lib/utils/uuid";
-import { rewindPullWindow } from "./pull-window";
+import { rewindPullWindow, TABLES_NEVER_PULLED } from "./pull-window";
 
 // Terminal: the queued payload is frozen, so resending can never change the
 // outcome. See client/AGENTS.md, "Push details (sync-engine/push.ts)".
@@ -55,15 +55,7 @@ const REASONS_SETTLING_SOURCE_ROW = new Set(["permission_denied"]);
  */
 const REASONS_NEEDING_REPULL = new Set(["version_conflict", "stale_timestamp"]);
 
-/**
- * Tables whose window must never be rewound, whatever the refusal. A rewind
- * exists to make this device re-pull a row the server kept — meaningless for
- * write-only telemetry the client never reads back, and actively self-feeding
- * for `feedback`: `restoreBaseline()` reports an exhausted budget by calling
- * `logCrash()`, which writes another `feedback` row. See docs/FIXED_BUGS.md
- * A-256.
- */
-const TABLES_NEVER_REPULLED = new Set(["feedback"]);
+
 
 const SYNC_BATCH_SIZE = 50;
 
@@ -527,7 +519,7 @@ export async function pushChanges(
               });
 
               if (REASONS_NEEDING_REPULL.has(f.reason)) {
-                if (!TABLES_NEVER_REPULLED.has(f.table_name)) {
+                if (!TABLES_NEVER_PULLED.has(f.table_name)) {
                   await rewindPullWindow(f.table_name, f.reason);
                 }
               }

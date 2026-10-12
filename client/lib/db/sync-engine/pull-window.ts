@@ -10,6 +10,17 @@ import { logCrash } from "@/lib/utils/error-logger";
  */
 export const MAX_PULL_WINDOW_REWINDS = 3;
 
+/**
+ * Tables the server never sends, so a pull window for them is meaningless.
+ * `feedback` is the crash log: write-only telemetry, absent from pull()'s
+ * table list, so its window can never drain clean and can never have its
+ * rewind budget refreshed by `completeWindow`. Left in place it reports
+ * "budget still exhausted" on every round for ever - and each report is
+ * itself a crash log, which is the row that keeps the condition alive. See
+ * docs/FIXED_BUGS.md A-256.
+ */
+export const TABLES_NEVER_PULLED = new Set(["feedback"]);
+
 const REWIND_SQL = `INSERT INTO _sync_state (table_name, last_synced_at, server_cursor, rewind_count, rewound_from)
    VALUES (?, NULL, NULL, 1, NULL)
    ON CONFLICT(table_name) DO UPDATE SET
@@ -63,11 +74,22 @@ export async function restoreExhaustedPullWindows(): Promise<string[]> {
     MAX_PULL_WINDOW_REWINDS,
   ]);
 
+  const restored: string[] = [];
+
   for (const { table_name } of exhausted) {
+    // Nothing to restore a baseline for, and reporting it would write the
+    // very row that caused the exhaustion. Drop the row instead, which also
+    // heals a device already stuck in that loop.
+    if (TABLES_NEVER_PULLED.has(table_name)) {
+      await execute("DELETE FROM _sync_state WHERE table_name = ?", [table_name]);
+      continue;
+    }
+
     await restoreBaseline(table_name, "budget still exhausted");
+    restored.push(table_name);
   }
 
-  return exhausted.map((row) => row.table_name);
+  return restored;
 }
 
 export interface StashedPullWindow {

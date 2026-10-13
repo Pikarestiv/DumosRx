@@ -256,16 +256,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // store" rather than "still resolving."
   const loading = !isAuthHydrated || isStoreProfileLoading;
 
+  // Assigned during render, not in an effect: every money formatter in
+  // lib/utils.ts falls back to this (see lib/active-currency.ts), and an
+  // effect runs AFTER the commit in which children have already formatted
+  // their totals - so a cart total or receipt painted in that first commit
+  // kept the naira fallback until something unrelated re-rendered it. An
+  // idempotent module-level write, safe to repeat on every render.
+  setActiveCurrency(storeProfile?.currency);
+
   React.useEffect(() => {
     Sentry.setTag("store_id", storeProfile?.id);
     Sentry.setTag("store_type", storeProfile?.store_type);
   }, [storeProfile]);
 
-  // Every money formatter in lib/utils.ts defaults to this when a caller
-  // omits a currency code - see lib/active-currency.ts.
-  React.useEffect(() => {
-    setActiveCurrency(storeProfile?.currency);
-  }, [storeProfile?.currency]);
+
 
   // Set once on mount: distinguishes which physical device/terminal at a
   // multi-device store a remote log came from, since store_id/user_id alone

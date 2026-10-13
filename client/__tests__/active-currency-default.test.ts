@@ -38,3 +38,4 @@ describe("money formatters default to the active store's currency", () => {
     expect(formatCurrency(1000)).not.toContain("F");
   });
 });
+

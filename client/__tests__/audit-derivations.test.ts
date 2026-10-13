@@ -5,6 +5,8 @@ import {
   selectAuditCategoryItems,
   selectCountedAuditItems,
   selectAdjustedAuditItems,
+  selectAuditStatusItems,
+  isAuditItemCounted,
   hasUnsavedAuditEdits,
 } from "@/components/stock-batch/audit-derivations";
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
@@ -78,8 +80,9 @@ describe("stock audit derivations", () => {
       item({ id: "e", countedQty: undefined }),
     ];
 
+    // Every row opens pre-filled, so an untouched one ("a", "e") is NOT
+    // counted - only a ticked row or one that actually differs is.
     expect(selectCountedAuditItems(edited).map((i) => i.id)).toEqual([
-      "a",
       "b",
       "c",
       "d",
@@ -87,6 +90,40 @@ describe("stock audit derivations", () => {
     expect(
       selectAdjustedAuditItems(selectCountedAuditItems(edited)).map((i) => i.id),
     ).toEqual(["b", "c", "d"]);
+  });
+
+  it("counts a ticked row that matched the system, and ignores an untouched one", () => {
+    expect(isAuditItemCounted(item())).toBe(false);
+    expect(isAuditItemCounted(item({ counted: true }))).toBe(true);
+    // A differing row counts even without the flag, so drafts persisted
+    // before the tick existed still submit.
+    expect(isAuditItemCounted(item({ countedQty: 12 }))).toBe(true);
+    // An un-entered quantity is not a difference - it would submit as
+    // `undefined`.
+    expect(isAuditItemCounted(item({ countedQty: undefined }))).toBe(false);
+    expect(
+      selectAdjustedAuditItems([item({ countedQty: undefined })]),
+    ).toEqual([]);
+  });
+
+  it("lenses the ledger by count progress", () => {
+    const rows = [
+      item({ id: "a" }),
+      item({ id: "b", counted: true }),
+      item({ id: "c", countedQty: 12 }),
+    ];
+    expect(selectAuditStatusItems(rows, "all")).toBe(rows);
+    expect(selectAuditStatusItems(rows, "counted").map((i) => i.id)).toEqual([
+      "b",
+      "c",
+    ]);
+    expect(selectAuditStatusItems(rows, "uncounted").map((i) => i.id)).toEqual([
+      "a",
+    ]);
+    // A ticked row whose count matched is not a difference.
+    expect(
+      selectAuditStatusItems(rows, "differences").map((i) => i.id),
+    ).toEqual(["c"]);
   });
 
   it("reports unsaved edits only once a row actually differs", () => {

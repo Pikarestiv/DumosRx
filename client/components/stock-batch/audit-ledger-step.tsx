@@ -2,19 +2,22 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Search, SearchX } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FilterPill } from "@/components/ui/filter-pill";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import type { AuditItem } from "./stock-audits";
+import { isAuditItemCounted, type AuditCountStatus } from "./audit-derivations";
 import { formatCurrency } from "@/lib/utils";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
+import { formatDateSafe } from "@/lib/utils/date-utils";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 
 const ALL_CATEGORIES = "__all__";
 const GRID_COLS =
-  "grid-cols-[220px_100px_100px_90px_100px_110px_100px_110px_120px_110px]";
+  "grid-cols-[220px_100px_100px_90px_100px_110px_100px_110px_120px_110px_140px]";
 const LEDGER_ROW_HEIGHT = 49;
 
 function formatDiffCurrency(amount: number) {
@@ -40,6 +43,10 @@ interface AuditLedgerStepProps {
   categories: { id: string; label: string; count: number }[];
   selectedCategory: string;
   setSelectedCategory: (category: string) => void;
+  countStatus: AuditCountStatus;
+  setCountStatus: (status: AuditCountStatus) => void;
+  /** Rows counted across the whole audit, not just the filtered slice. */
+  countedCount: number;
   search: string;
   setSearch: (val: string) => void;
   /** The one scrollable ancestor these rows live in (the screen's own
@@ -64,6 +71,9 @@ export function AuditLedgerStep({
   categories,
   selectedCategory,
   setSelectedCategory,
+  countStatus,
+  setCountStatus,
+  countedCount,
   search,
   setSearch,
   scrollElementRef,
@@ -114,6 +124,10 @@ export function AuditLedgerStep({
           ? diffQty * item.sellingPrice
           : 0;
       },
+      // Never-counted sorts as the oldest, which is what someone sorting by
+      // this column is looking for.
+      lastAuditedAt: (item) =>
+        item.lastAuditedAt ? new Date(item.lastAuditedAt).getTime() : 0,
     },
   );
 
@@ -144,9 +158,11 @@ export function AuditLedgerStep({
       <div className="text-[13px] text-muted-foreground mb-4">
         Every field starts at the system&apos;s current value. Edit only
         what&apos;s actually different.{" "}
+        Tick a row once you have counted it - editing any field ticks it for
+        you.{" "}
         {isSyncing
           ? "Syncing latest stock levels…"
-          : `(${items.length} of ${totalItems} item${totalItems === 1 ? "" : "s"} shown)`}
+          : `(${items.length} of ${totalItems} item${totalItems === 1 ? "" : "s"} shown, ${countedCount} counted)`}
       </div>
 
       <div className="flex items-center gap-2 flex-wrap mb-4">
@@ -161,6 +177,18 @@ export function AuditLedgerStep({
               value: c.id,
               label: `${c.label} (${c.count})`,
             })),
+          ]}
+        />
+        <FilterPill
+          label="Count"
+          value={countStatus}
+          onValueChange={(value) => setCountStatus(value as AuditCountStatus)}
+          allValue="all"
+          options={[
+            { value: "all", label: "All Items" },
+            { value: "counted", label: "Counted" },
+            { value: "uncounted", label: "Not Counted" },
+            { value: "differences", label: "Qty Differences" },
           ]}
         />
         <div className="relative flex-1 min-w-[160px]">
@@ -284,6 +312,15 @@ export function AuditLedgerStep({
                     className="justify-end"
                   />
                 </div>
+                <div role="columnheader" className="text-right px-3 py-2">
+                  <SortableHeaderCell
+                    label="Last Counted"
+                    active={sortKey === "lastAuditedAt"}
+                    direction={direction}
+                    onClick={() => toggleSort("lastAuditedAt")}
+                    className="justify-end"
+                  />
+                </div>
               </div>
             </div>
 
@@ -334,11 +371,26 @@ export function AuditLedgerStep({
                       role="cell"
                       className="px-3 py-2 sticky left-0 z-10 bg-card"
                     >
-                      <div className={`font-semibold text-foreground truncate max-w-[220px] ${capsClass}`}>
-                        {item.name}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground/70">
-                        {item.sku}
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={isAuditItemCounted(item)}
+                          // A row that no longer matches the system has
+                          // demonstrably been counted; only an untouched
+                          // row's tick is the operator's to set.
+                          disabled={diffQty !== 0 || costChanged || sellingChanged}
+                          onCheckedChange={(checked) =>
+                            onUpdateItem(item.id, { counted: checked === true })
+                          }
+                          aria-label={`Mark ${item.name} as counted`}
+                        />
+                        <div className="min-w-0">
+                          <div className={`font-semibold text-foreground truncate max-w-[180px] ${capsClass}`}>
+                            {item.name}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground/70">
+                            {item.sku}
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <div
@@ -447,23 +499,37 @@ export function AuditLedgerStep({
                         ? formatDiffCurrency(diffSelling)
                         : "-"}
                     </div>
+                    <div
+                      role="cell"
+                      className="px-3 py-2 text-right text-[11.5px] text-muted-foreground flex items-center justify-end"
+                    >
+                      {item.lastAuditedAt
+                        ? formatDateSafe(
+                            item.lastAuditedAt,
+                            "dd/MM/yyyy HH:mm",
+                            "Unknown",
+                          )
+                        : "Never"}
+                    </div>
                   </div>
                 );
               })}
               {items.length === 0 && (
                 <div role="row" className={`grid ${GRID_COLS}`}>
-                  <div role="cell" className="col-span-10">
+                  <div role="cell" className="col-span-11">
                     <EmptyState
                       icon={SearchX}
                       title="No items match"
                       description="Try a different search term or category."
                       action={
                         selectedCategory !== ALL_CATEGORIES ||
+                        countStatus !== "all" ||
                         search.trim().length > 0
                           ? {
                               label: "Clear filters",
                               onClick: () => {
                                 setSelectedCategory(ALL_CATEGORIES);
+                                setCountStatus("all");
                                 setSearch("");
                               },
                             }

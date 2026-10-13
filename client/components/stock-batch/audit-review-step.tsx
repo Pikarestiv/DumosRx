@@ -81,7 +81,9 @@ export function AuditReviewStep({
       )}
       {!(adjustedItems.length > 0) && (
         <div className="p-6 bg-card border border-border rounded-2xl mb-2 text-center text-[13px] text-muted-foreground">
-          No items were adjusted. All counts matched the system.
+          {countedItems.length === 0
+            ? "Nothing has been counted yet. Go back and enter what you counted, or tick the rows whose counts matched."
+            : "No items were adjusted. All counts matched the system."}
         </div>
       )}
     </div>

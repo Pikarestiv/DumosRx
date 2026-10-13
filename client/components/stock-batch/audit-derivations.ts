@@ -67,6 +67,15 @@ export function selectCountedAuditItems(items: AuditItem[]): AuditItem[] {
   return items.filter(isAuditItemCounted);
 }
 
+/** Whether the sheet may be rebuilt from a fresh products query. Anything
+ * typed, ticked or corrected makes it unsafe; an empty sheet is always safe.
+ * Guarding on `items.length === 0` instead loses the refetch that a submit
+ * or the pre-count sync invalidates, because the sheet is rebuilt from the
+ * stale cache first and then refuses the fresh data when it lands. */
+export function shouldRebuildAuditSheet(items: AuditItem[]): boolean {
+  return !items.some(isAuditItemCounted);
+}
+
 export type AuditCountStatus = "all" | "counted" | "uncounted" | "differences";
 
 /** The ledger's count-progress lens: what's left to count, what's been

@@ -1674,10 +1674,49 @@ on screen from having walked to the shelf.
   (`audit-derivations.ts`) rather than inline in the screen precisely because
   this went wrong twice in one day; `__tests__/audit-derivations.test.ts` pins
   it.
-- The rebuild effect in `stock-audits.tsx` is keyed on `[rawProducts,
-  items.length]`. "Start over" empties the draft without touching the cached
-  products query, so keying it on `rawProducts` alone left the sheet
-  permanently empty until the screen was reopened.
+- **The rebuild effect asks `shouldRebuildAuditSheet(items)`, never
+  `items.length === 0`.** It is keyed on `[rawProducts, items.length]`:
+  "Start over" empties the draft without touching the cached products query,
+  so keying it on `rawProducts` alone left the sheet permanently empty until
+  the screen was reopened. But `items.length === 0` as the *guard* loses
+  every refetch. A submit invalidates `products.withDetails()` and clears the
+  draft in the same tick, so the effect rebuilds from the stale cache first,
+  and when the fresh data lands the guard is already false and it is
+  discarded — the sheet shows pre-adjustment figures, and only the row you
+  then touch corrects itself (via `countRow()`'s live re-read), which reads
+  exactly like the save having failed. Reported by the owner on 2026-10-13.
+  The guard is "has anyone touched this sheet", i.e. `!items.some(
+  isAuditItemCounted)`, which is safe on an empty sheet and keeps a
+  half-finished count. Same race on open, where the pre-count `sync(true)`
+  invalidates. Pinned by `__tests__/audit-derivations.test.ts`.
+- **`EditableNumberCell` hides the native spinners and renders an entered
+  value in `font-semibold text-foreground`, leaving the placeholder at the
+  browser's own ~50%-of-`currentColor` default.** Up/down arrows on a cell
+  whose displayed figure is a *placeholder* invite clicking them to increment
+  a number that isn't there, so they are suppressed with
+  `[appearance:textfield]` plus the two `-webkit-*-spin-button` variants;
+  arrow-key stepping still works, so nothing is lost. Weight plus
+  full-strength colour is what separates a real count from the system figure
+  behind it — **do not reach for `placeholder:text-muted-foreground`** the way
+  the house `Input` does: that token was deliberately darkened to clear WCAG
+  AA (`globals.css`), so it renders the placeholder *more* prominent than the
+  default it replaces, which is backwards. The placeholder is not decoration
+  either (it is the system quantity being compared against), so it must not be
+  pushed below AA to win the contrast. Asked for by the owner on 2026-10-13.
+- **In the ledger, a real value is `text-foreground`; `text-muted-foreground`
+  is for labels, not data.** Every data cell in `audit-ledger-step.tsx`
+  (System Qty, cost, price, Last Counted) used to be muted, which is the
+  other half of why a placeholder read as a prefilled number — the genuine
+  figures beside it were no darker than the placeholder. Muted is now
+  reserved for the column headers, the category header rows, the SKU
+  subtitle, the help text, the empty state, and the `—`/`-` a diff column
+  shows when there is nothing to diff yet. `diffClassName(amount, hasValue)`
+  encodes exactly that: no value → muted dash, zero → `text-foreground`, and
+  a real difference keeps its emerald/destructive colour. A **zero diff is a
+  figure, not a placeholder** — it used to be muted, which is why Diff Cost
+  and Diff Selling stayed pale on almost every row. Read-only value cells
+  also carry `font-medium`, and an entered count `font-semibold`, so weight
+  ranks typed > read > placeholder. Keep that split when adding a column.
 - `EditableNumberCell` takes `value?: number` plus `placeholder` and
   `onClear`. Only a caller whose value is genuinely optional passes
   `onClear`; without it, blurring an emptied field reverts to the last
@@ -2130,6 +2169,26 @@ while `core.ts`'s `getActiveStoreId()` resolves the id local queries scope to.
 They are two different things and must not be conflated — them silently
 disagreeing is the bug `auth-context.tsx` already carries a comment about, and
 the reason A-23 was filed.
+
+## PIN login yields a task before verifying (2026-10-13)
+
+`pinMatches()` uses `bcrypt.compareSync` (pure-JS bcryptjs, cost 10), which
+blocks the main thread for a few hundred ms. Called straight out of the
+keypress handler, that block lands before the browser paints, so the 4th PIN
+digit and the "Verifying..." spinner only appear once login has already
+finished — the lock screen looks stuck on three digits. `attemptLogin()` in
+`components/auth/lock-screen.tsx` therefore awaits `VERIFY_FEEDBACK_MS`
+(75ms) before calling `login()`. The yield is what makes them paint at all;
+the 75ms is additive padding on top of the verify, not a floor — the spinner
+stays up until `login()` resolves, so the visible window is ~150ms on a
+desktop CPU, above the threshold where a human registers it appeared. Tuned
+by eye on a real desktop build; don't shrink it further without re-checking,
+because a legacy *plaintext* PIN skips bcrypt entirely (`pinMatches()` still
+accepts one) and leaves only the bare padding. Don't remove either part, and
+note `useIsTouchDevice()` keys off
+`(pointer: coarse)`, so DevTools device mode (touch emulation + CPU throttle)
+is not a faithful reproduction of this screen's timing. Moving bcrypt to a
+worker would remove the need for the yield, not for the hold.
 
 ## A clickable `MetricCard` is a button (2026-10-13)
 

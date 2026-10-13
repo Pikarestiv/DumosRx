@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { checkLoginLockout } from "@/lib/utils/login-lockout";
 
+const VERIFY_FEEDBACK_MS = 75;
+
 import { UserSelection } from "./user-selection";
 import { PinEntry } from "./pin-entry";
 
@@ -100,6 +102,9 @@ export function LockScreen({
     if (!selectedUser || isLoading || lockoutRemainingMs) return;
 
     setIsLoading(true);
+    // Yields so the 4th digit and "Verifying..." paint before login()'s
+    // bcrypt compare blocks the thread, and holds them long enough to read.
+    await new Promise((resolve) => setTimeout(resolve, VERIFY_FEEDBACK_MS));
     try {
       const success = await login(selectedUser.username, pinValue);
       if (success) {

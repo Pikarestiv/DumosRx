@@ -8,6 +8,7 @@ import {
   selectAuditStatusItems,
   matchesAuditStatus,
   isAuditItemCounted,
+  shouldRebuildAuditSheet,
   toStockAuditSubmissions,
   hasUnsavedAuditEdits,
 } from "@/components/stock-batch/audit-derivations";
@@ -185,5 +186,28 @@ describe("stock audit derivations", () => {
     expect(hasUnsavedAuditEdits(items)).toBe(false);
     expect(hasUnsavedAuditEdits([item({ countedQty: 11 })])).toBe(true);
     expect(hasUnsavedAuditEdits([item({ countedCostPrice: 111 })])).toBe(true);
+  });
+});
+
+describe("shouldRebuildAuditSheet", () => {
+  it("rebuilds an empty sheet and a sheet nobody has touched", () => {
+    expect(shouldRebuildAuditSheet([])).toBe(true);
+    expect(shouldRebuildAuditSheet([item({ id: "a" }), item({ id: "b" })])).toBe(
+      true,
+    );
+  });
+
+  it("refuses once a row is entered, ticked or price-corrected", () => {
+    expect(shouldRebuildAuditSheet([item({ countedQty: 10 })])).toBe(false);
+    expect(shouldRebuildAuditSheet([item({ countedQty: 0 })])).toBe(false);
+    expect(shouldRebuildAuditSheet([item({ counted: true })])).toBe(false);
+    expect(shouldRebuildAuditSheet([item({ countedCostPrice: 90 })])).toBe(
+      false,
+    );
+  });
+
+  it("refuses when any row in a long sheet has been counted", () => {
+    const sheet = [item({ id: "a" }), item({ id: "b", countedQty: 3 }), item({ id: "c" })];
+    expect(shouldRebuildAuditSheet(sheet)).toBe(false);
   });
 });

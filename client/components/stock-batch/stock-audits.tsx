@@ -45,6 +45,7 @@ import {
   matchesAuditStatus,
   selectAuditStatusItems,
   selectCountedAuditItems,
+  shouldRebuildAuditSheet,
   toStockAuditSubmissions,
   type AuditCountStatus,
 } from "./audit-derivations";
@@ -140,9 +141,9 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   }, []);
 
   // Counted Qty opens empty; the cost/price columns do not. Rebuild rules
-  // and the items.length dep: client/AGENTS.md.
+  // and the deps: client/AGENTS.md.
   useEffect(() => {
-    if (rawProducts && items.length === 0) {
+    if (rawProducts && shouldRebuildAuditSheet(items)) {
       const formatted: AuditItem[] = rawProducts.map(
         (p: ProductWithDetails) => ({
           id: p.id,

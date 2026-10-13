@@ -10,6 +10,7 @@ import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useStore } from "@/lib/context/store-context";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
+import { ProductName } from "@/components/ui/product-name";
 
 export interface ProductPerformanceRow {
   id: string;
@@ -134,8 +135,8 @@ export function ProductPerformanceTable({ products }: ProductPerformanceTablePro
                   className="absolute top-0 left-0 w-full grid grid-cols-[1.6fr_1fr_90px_90px_90px] gap-2 px-3 py-2.5 items-center text-[13px] border-b border-border/50"
                   style={{ transform: `translateY(${virtualRow.start}px)` }}
                 >
-                  <div role="cell" className="font-medium truncate">
-                    {p.name}
+                  <div role="cell" className="min-w-0">
+                    <ProductName name={p.name} className="font-medium" />
                   </div>
                   <div role="cell" className="text-muted-foreground truncate">
                     {p.category}

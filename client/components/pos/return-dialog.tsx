@@ -259,7 +259,10 @@ export function ReturnDialog({
               {itemsToReturn.map((item) => (
                 <li key={item.id}>
                   <span className="font-medium">{item.returnQuantity}x</span>{" "}
-                  <ProductName name={item.product_name || ""} />
+                  <ProductName
+                    name={item.product_name || ""}
+                    className="inline-block max-w-full align-bottom"
+                  />
                   <span className="text-muted-foreground ml-1">
                     (
                     {formatCurrency(

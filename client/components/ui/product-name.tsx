@@ -15,6 +15,10 @@ import { cn } from "@/lib/utils";
  * even when its column cannot hold it. Reveals the full name on hover, or
  * on tap on a touch device, and only when it is actually clamped.
  *
+ * Block-level by default, for the table cell it usually fills; pass
+ * `className="inline-block max-w-full align-bottom"` to sit it inside a
+ * sentence.
+ *
  * Names are stored lowercase (withNormalizedName in base-helpers.ts), so any
  * render without the store's casing class shows raw storage casing. In a
  * dense ledger the name is also the only thing identifying the row. See

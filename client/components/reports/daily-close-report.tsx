@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDailyCloseData } from "@/lib/hooks/use-daily-close-data";
 import { useStore } from "@/lib/context/store-context";
+import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
 import { useAuth } from "@/lib/context/auth-context";
 import { TransactionDetailsDialog } from "@/components/pos/transaction-details-dialog";
 import type { Sale } from "@/lib/types/sale";
@@ -22,6 +23,7 @@ interface DailyCloseReportProps {
 
 export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
   const router = useRouter();
+  const displayName = useDisplayName();
   const { storeProfile } = useStore();
   const { user } = useAuth();
   // Profit is hidden from cashiers specifically, not everyone who isn't
@@ -92,7 +94,10 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
           aggregatedTotals,
           cashExpenses,
           totalProfit,
-          topSellingMeds,
+          topSellingMeds: topSellingMeds.map((med) => ({
+            ...med,
+            name: displayName(med.name),
+          })),
           showProfit,
         }}
       />

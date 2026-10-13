@@ -131,7 +131,10 @@ export function DashboardPrescriptionDetailsDialog({
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-[13px] font-medium truncate">
-                        <ProductName name={med.product_name} />
+                        <ProductName
+                          name={med.product_name}
+                          className="inline-block max-w-full align-bottom"
+                        />
                         {med.strength && (
                           <span className="text-[11px] text-muted-foreground ml-1.5">
                             {med.strength}

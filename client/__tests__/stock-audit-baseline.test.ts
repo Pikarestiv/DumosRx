@@ -149,6 +149,23 @@ describe("submitStockAudit — a counted row carries its own baseline", () => {
     expect(audits()[0].values[0][2]).toBe(0);
   });
 
+  it("falls back to re-reading when a row carries no baseline of its own, so an upgraded draft is never worse than before", async () => {
+    // A draft started on an older bundle has a countedQty beside a
+    // systemQty frozen at sheet-build. Sending that frozen figure as the
+    // baseline would reverse the day's sales: built at 10, 5 sold, the
+    // counter finds 5 and enters 5 -> 5 - 10 = -5, zeroing the product.
+    // Such a row must carry NO baseline and take the re-read path.
+    seedBatch(5);
+    await submitStockAudit(
+      [{ productId: "p1", systemQty: 10, countedQty: 5, reason: "Resumed draft" }],
+      "u1",
+    );
+
+    expect(stock()).toBe(5);
+    expect(audits().length).toBe(0);
+    expect(movements().length).toBe(0);
+  });
+
   it("falls back to re-reading live stock when no baseline is given (catalog quick edit, CSV import)", async () => {
     seedBatch(15);
     await submitStockAudit(

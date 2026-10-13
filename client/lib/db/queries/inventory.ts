@@ -684,8 +684,7 @@ export async function submitStockAudit(
       // movement's quantity. Same fix shape as the loyalty-redemption
       // balance check. Matches getProducts()' own stock_quantity aggregate
       // (SUM of active, non-deleted batches).
-      const currentSystemQty =
-        (await getProductStockQuantity(item.productId)) ?? item.systemQty;
+      const currentSystemQty = await getProductStockQuantity(item.productId);
 
       const hasCount = Number.isFinite(item.countedQty as number);
       const countedQty = hasCount

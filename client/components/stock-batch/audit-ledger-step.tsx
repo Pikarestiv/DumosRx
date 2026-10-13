@@ -42,6 +42,9 @@ interface AuditLedgerStepProps {
   onUpdateItem: (id: string, patch: Partial<AuditItem>) => void;
   /** Records a count and re-baselines the row against live stock (A-263). */
   onCountRow: (id: string, countedQty?: number) => void;
+  /** Drops any re-read still in flight for a row being un-counted, so it
+   * cannot land afterwards and count the row again. */
+  onClearCount: (id: string) => void;
   categories: { id: string; label: string; count: number }[];
   selectedCategory: string;
   setSelectedCategory: (category: string) => void;
@@ -71,6 +74,7 @@ export function AuditLedgerStep({
   isSyncing,
   onUpdateItem,
   onCountRow,
+  onClearCount,
   categories,
   selectedCategory,
   setSelectedCategory,
@@ -159,7 +163,8 @@ export function AuditLedgerStep({
       <div className="text-[17px] font-semibold mb-1.5">Physical inventory</div>
       <div className="text-[13px] text-muted-foreground mb-4">
         Counted Qty starts empty: type what you actually counted, or tick a
-        row whose count matched the system figure shown in the field.{" "}
+        row whose count matched the system. Each entry is checked against
+        stock as it stands at that moment.{" "}
         {isSyncing
           ? "Syncing latest stock levels…"
           : `(${items.length} of ${totalItems} item${totalItems === 1 ? "" : "s"} shown, ${countedCount} counted)`}
@@ -379,10 +384,11 @@ export function AuditLedgerStep({
                           onCheckedChange={(checked) =>
                             checked === true
                               ? onCountRow(item.id)
-                              : onUpdateItem(item.id, {
+                              : (onClearCount(item.id),
+                                onUpdateItem(item.id, {
                                   countedQty: undefined,
                                   counted: false,
-                                })
+                                }))
                           }
                           aria-label={`Mark ${item.name} as counted`}
                         />
@@ -406,12 +412,13 @@ export function AuditLedgerStep({
                         value={item.countedQty}
                         placeholder={String(item.systemQty)}
                         onCommit={(val) => onCountRow(item.id, val)}
-                        onClear={() =>
+                        onClear={() => {
+                          onClearCount(item.id);
                           onUpdateItem(item.id, {
                             countedQty: undefined,
                             counted: false,
-                          })
-                        }
+                          });
+                        }}
                         parse={(raw) => parseInt(raw, 10)}
                         hasError={isCounted && diffQty !== 0}
                         widthClassName="w-20"

@@ -35,6 +35,9 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   ALL_AUDIT_CATEGORIES,
+  applyCountBaseline,
+  applyOptimisticCount,
+  createCountSequencer,
   buildAuditCategoryOptions,
   hasUnsavedAuditEdits,
   selectAdjustedAuditItems,
@@ -66,6 +69,11 @@ export interface AuditItem {
    * edit, or by ticking the row by hand when the count matched. See
    * isAuditItemCounted. */
   counted?: boolean;
+  /** Live stock as re-read at the moment this row's count was entered, and
+   * the only figure the submit may measure the count against. Absent on a
+   * row whose count predates that read - a draft resumed from an older
+   * build - which must fall back to re-reading at submit. See A-263. */
+  baselineQty?: number;
   /** When this product was last reconciled by a submitted count
    * (products.last_audited_at), so a counter can see what has gone longest
    * without one. Read-only; never submitted. */
@@ -210,30 +218,23 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
    * never waits on the database; the baseline follows when the read
    * resolves. Ticking with no value means "counted, and it matched", which
    * is the live figure. See A-263. */
+  const counts = useRef(createCountSequencer());
   const countRow = useCallback(
     async (id: string, countedQty?: number) => {
+      const token = counts.current.begin(id);
       if (countedQty !== undefined) {
-        setItems((prev) =>
-          prev.map((i) =>
-            i.id === id ? { ...i, countedQty, counted: true } : i,
-          ),
-        );
+        setItems((prev) => applyOptimisticCount(prev, id, countedQty));
       }
       const live = await getProductStockQuantity(id);
-      setItems((prev) =>
-        prev.map((i) =>
-          i.id === id
-            ? {
-                ...i,
-                systemQty: live,
-                countedQty: countedQty ?? live,
-                counted: true,
-              }
-            : i,
-        ),
-      );
+      if (!counts.current.isCurrent(id, token)) return;
+      setItems((prev) => applyCountBaseline(prev, id, countedQty, live));
     },
     [setItems],
+  );
+
+  const cancelPendingCounts = useCallback(
+    (id?: string) => counts.current.cancel(id),
+    [],
   );
 
   const updateLedgerItem = useCallback(
@@ -398,6 +399,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
         variant="destructive"
         onConfirm={() => {
           setShowResetDialog(false);
+          cancelPendingCounts();
           clearDraft();
           setSelectedCategory(ALL_CATEGORIES);
           setCountStatus("all");
@@ -570,6 +572,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
               isSyncing={isSyncing}
               onUpdateItem={updateLedgerItem}
               onCountRow={(id, qty) => void countRow(id, qty)}
+              onClearCount={cancelPendingCounts}
               categories={categories}
               selectedCategory={selectedCategory}
               setSelectedCategory={setSelectedCategory}

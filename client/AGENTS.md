@@ -1624,16 +1624,27 @@ on screen from having walked to the shelf.
   figure differs from the system's, so a zero prefill turns every untouched
   row into an adjustment to zero stock. It was asked for twice on 2026-10-13
   and is the one option that is actually dangerous.
-- **`systemQty` is the row's baseline, not the sheet's opening figure
-  (A-263).** Every entry and every tick goes through `countRow()`, which
-  re-reads live stock for that one product and stores it as the row's
-  `systemQty`, so the discrepancy is measured at the moment of the count and
-  anything that moved afterwards is preserved rather than reversed. It
-  travels to `submitStockAudit` as `baselineQty`; a submission without one
-  keeps the old re-read-at-submit semantics, which is what the catalog quick
-  edit and the CSV import want. Never go back to comparing against the
-  figure the sheet was built with: that both drops real discrepancies and
-  posts a day's sales back as found stock.
+- **`AuditItem.baselineQty` is what a count is measured against, and only a
+  real re-read may set it (A-263).** Every entry and every tick goes through
+  `countRow()`, which re-reads live stock for that one product and writes it
+  to both `systemQty` (display) and `baselineQty` (the contract), so the
+  discrepancy is measured at the moment of the count and anything that moved
+  afterwards is preserved rather than reversed. `toStockAuditSubmissions()`
+  sends `baselineQty`, **never `systemQty`**: a draft resumed from a build
+  before this still carries a sheet-build `systemQty`, and passing that off
+  as a baseline reverses the day's sales (built at 10, 5 sold, counter finds
+  5 → `5 − 10 = −5`, product zeroed). A row without a baseline sends none and
+  `submitStockAudit` re-reads, which is exactly the old arithmetic — so no
+  path is ever worse than what it replaced. That fallback is also what the
+  catalog quick edit and the CSV import rely on.
+- **Counting is last-TYPED-wins, via `createCountSequencer()`.**
+  `EditableNumberCell` commits per keystroke, so "12" is two counts, and
+  their reads can resolve out of order — a read issued while a sync
+  transaction is *reserved* queues behind it, while one issued after that
+  transaction *starts* bypasses the queue (`lib/db/core.ts`). Without the
+  token the row would settle on "1". The same guard is what stops a read
+  landing on a row that has since been cleared, or on a sheet that has been
+  started over — both call `cancelPendingCounts`.
 - `AuditItem.counted` is the hand-tick, and ticking is a **shortcut, not a
   separate signal**: it means "counted, and it matched", so it writes the
   **live** figure to both sides via `countRow()`, never the figure on screen.

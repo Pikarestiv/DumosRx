@@ -36,6 +36,7 @@ vi.mock("@tanstack/react-virtual", () => ({
 describe("cycle count ledger: Counted Qty is blank until entered", () => {
   const onUpdateItem = vi.fn();
   const onCountRow = vi.fn();
+  const onClearCount = vi.fn();
 
   const item: AuditItem = {
     id: "p1",
@@ -59,6 +60,7 @@ describe("cycle count ledger: Counted Qty is blank until entered", () => {
         isSyncing={false}
         onUpdateItem={onUpdateItem}
         onCountRow={onCountRow}
+        onClearCount={onClearCount}
         categories={[{ id: "Analgesics", label: "Analgesics", count: 1 }]}
         selectedCategory="__all__"
         setSelectedCategory={vi.fn()}
@@ -81,6 +83,7 @@ describe("cycle count ledger: Counted Qty is blank until entered", () => {
   beforeEach(() => {
     onUpdateItem.mockClear();
     onCountRow.mockClear();
+    onClearCount.mockClear();
     cleanup();
   });
 

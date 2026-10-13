@@ -149,16 +149,27 @@ describe("stock audit derivations", () => {
     ]);
     expect(submission.countedQty).toBeUndefined();
     expect(submission.systemQty).toBe(20);
-    expect(submission.baselineQty).toBe(20);
     expect(submission.countedCostPrice).toBe(150);
   });
 
-  it("carries each row's own baseline, which is its systemQty as re-read when it was counted", () => {
+  it("carries the baseline stamped when the row was counted", () => {
     const [submission] = toStockAuditSubmissions([
-      item({ systemQty: 0, countedQty: 10 }),
+      item({ systemQty: 0, baselineQty: 0, countedQty: 10 }),
     ]);
     expect(submission.baselineQty).toBe(0);
     expect(submission.countedQty).toBe(10);
+  });
+
+  it("sends NO baseline for a row that was never re-baselined, so the submit re-reads instead", () => {
+    // A draft resumed from a build before A-263 has a typed countedQty
+    // beside a systemQty frozen at sheet-build. Passing that frozen figure
+    // off as a baseline would reverse the day's sales: built at 10, 5 sold,
+    // counter finds 5 -> 5 - 10 = -5 and the product is zeroed. Only a row
+    // countRow() has re-read may claim a baseline.
+    const [submission] = toStockAuditSubmissions([
+      item({ systemQty: 10, countedQty: 5 }),
+    ]);
+    expect(submission.baselineQty).toBeUndefined();
   });
 
   it("passes a counted quantity straight through, zero included", () => {

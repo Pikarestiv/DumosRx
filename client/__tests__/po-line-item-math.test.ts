@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getImmediateUnitCost, getLineTotal, getValidatedAmountPaid, countSellingPriceOverrides } from "@/components/procurement/po-line-item-math";
+import { getImmediateUnitCost, getLineTotal, getValidatedAmountPaid, countSellingPriceOverrides, getTotalBaseUnits } from "@/components/procurement/po-line-item-math";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
 
 function item(overrides: Partial<POLineItemDraft> = {}): POLineItemDraft {
@@ -110,5 +110,32 @@ describe("po-line-item-math", () => {
     it("counts a line whose override is a real, explicit zero, different from the current price", () => {
       expect(countSellingPriceOverrides([item({ selling_price: 0 })], products)).toBe(1);
     });
+  });
+});
+
+/**
+ * A line is one product, not one unit. The Immediate Purchase confirmation
+ * counted lines ("1 item worth 40,000") and a store owner who had just
+ * entered a quantity of 2 read that as the quantity - so the dialog now
+ * reports the units that actually reach stock.
+ */
+describe("getTotalBaseUnits", () => {
+  it("converts every line's bulk quantity into base units", () => {
+    expect(
+      getTotalBaseUnits([
+        item({ bulk_quantity: 2, units_per_bulk: 100 }),
+        item({ bulk_quantity: 3, units_per_bulk: 10 }),
+      ]),
+    ).toBe(230);
+  });
+
+  it("treats a missing or zero units_per_bulk as one unit per bulk", () => {
+    expect(
+      getTotalBaseUnits([item({ bulk_quantity: 2, units_per_bulk: 0 })]),
+    ).toBe(2);
+  });
+
+  it("is zero for an empty order", () => {
+    expect(getTotalBaseUnits([])).toBe(0);
   });
 });

@@ -41,14 +41,24 @@ function CreateOrderContent() {
   );
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<POLineItemDraft[]>([]);
-  const [paymentStatus, setPaymentStatus] = useState("paid");
+  const [paymentStatus, setPaymentStatusState] = useState("paid");
+  const [isPaymentStatusTouched, setIsPaymentStatusTouched] = useState(false);
+
+  const setPaymentStatus = (status: string) => {
+    setIsPaymentStatusTouched(true);
+    setPaymentStatusState(status);
+  };
 
   // An immediate purchase is money already handed over at the counter, so it
   // opens on Fully Paid; a standard PO is raised before paying, so it opens
-  // on Unpaid. Switching type re-applies that default.
+  // on Unpaid. Switching type re-applies that default only while the field
+  // is still untouched - a deliberate "Partial" must not be silently
+  // rewritten by toggling the type above it.
   const setPoType = (type: "standard" | "immediate") => {
     setPoTypeState(type);
-    setPaymentStatus(type === "immediate" ? "paid" : "unpaid");
+    if (!isPaymentStatusTouched) {
+      setPaymentStatusState(type === "immediate" ? "paid" : "unpaid");
+    }
   };
   const [amountPaid, setAmountPaid] = useState("");
   const [dueDate, setDueDate] = useState("");

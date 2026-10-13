@@ -158,6 +158,22 @@ export function getValidatedAmountPaid(rawAmountPaid: string, orderTotal: number
 }
 
 /**
+ * The base units an Immediate Purchase will actually add to stock:
+ * bulk_quantity x units_per_bulk per line, the same conversion
+ * getLineTotal() prices. A line is one product, not one unit, so a
+ * confirmation that counts lines ("1 item worth 40,000") reads as a
+ * quantity to whoever just typed a quantity of 2 - see
+ * po-immediate-confirm-dialog.tsx.
+ */
+export function getTotalBaseUnits(items: POLineItemDraft[]): number {
+  return items.reduce(
+    (sum, item) =>
+      sum + Number(item.bulk_quantity) * (Number(item.units_per_bulk) || 1),
+    0,
+  );
+}
+
+/**
  * How many lines carry a real Sell Price override that actually differs
  * from the product's current price - blank/null/undefined all mean "not
  * overridden" (a PO reloaded via getPurchaseOrderById() hands back SQL

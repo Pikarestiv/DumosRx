@@ -10,7 +10,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { countSellingPriceOverrides } from "./po-line-item-math";
+import {
+  countSellingPriceOverrides,
+  getTotalBaseUnits,
+} from "./po-line-item-math";
 import { formatCurrency } from "@/lib/utils";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import type { POLineItemDraft } from "./po-item-ledger-table";
@@ -39,6 +42,8 @@ export function POImmediateConfirmDialog({
   onConfirm,
 }: POImmediateConfirmDialogProps) {
   const priceChangeCount = countSellingPriceOverrides(items, products);
+  const totalUnits = getTotalBaseUnits(items);
+  const unitLabel = `${totalUnits} ${totalUnits === 1 ? "unit" : "units"}`;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -48,9 +53,11 @@ export function POImmediateConfirmDialog({
           <AlertDialogDescription asChild>
             <div className="space-y-2">
               <p>
-                {items.length} {items.length === 1 ? "item" : "items"} worth{" "}
-                {formatCurrency(totalAmount)} will be added to your stock right
-                away.
+                {items.length === 1
+                  ? `${unitLabel} of ${items[0].product_name}`
+                  : `${unitLabel} across ${items.length} products`}
+                , worth {formatCurrency(totalAmount)}, will be added to your
+                stock right away.
               </p>
               {priceChangeCount > 0 ? (
                 <p>

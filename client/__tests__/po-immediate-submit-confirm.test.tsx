@@ -128,7 +128,11 @@ describe("Immediate Purchase submit confirmation", () => {
 
     expect(handleSubmit).not.toHaveBeenCalled();
     const dialog = screen.getByRole("alertdialog");
-    expect(dialog.textContent).toContain("1 item");
+    // The units that actually reach stock (2 cartons x 100 tablets), named
+    // with the product - "1 item" read as a quantity to a store owner who
+    // had just typed a quantity of 2.
+    expect(dialog.textContent).toContain("200 units of Panadol");
+    expect(dialog.textContent).not.toContain("1 item");
     expect(dialog.textContent).toContain("₦800");
     expect(dialog.textContent).toContain("selling price");
   });

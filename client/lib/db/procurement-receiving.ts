@@ -200,10 +200,8 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
   });
 }
 
-/** Cost per single base unit (e.g. per tablet) for an Immediate Purchase
- * line. Delegates rather than repeating the conversion: this was a second
- * copy of resolveBaseUnitCost()'s formula, which is how it missed that
- * helper's null handling and, latterly, its rounding (A-261). */
+/** Cost per single base unit for an Immediate Purchase line. Delegates
+ * rather than repeating the conversion - see A-261. */
 function immediateBaseUnitCost(item: ImmediateLineItemDraft): number {
   return resolveBaseUnitCost({
     costOverride: item.cost_price_override,

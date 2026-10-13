@@ -73,9 +73,7 @@ export function resolveBaseUnitCost({
     costOverride != null && costOverride !== ""
       ? Number(costOverride)
       : Number(unitCost) / safeUnitsPerBulk;
-  // Rounded because this is a STORED money value: the division is the one
-  // place a sub-kobo cost could reach stock_batches.cost_price, which MySQL
-  // then rounds anyway - see A-261 in docs/FIXED_BUGS.md.
+  // Rounded because the result is stored - A-261.
   return Number.isFinite(resolved) ? roundMoney(Math.max(0, resolved)) : 0;
 }
 

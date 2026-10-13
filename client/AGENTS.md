@@ -2101,6 +2101,39 @@ unfocusable div. Pinned by `__tests__/metric-card-keyboard.test.tsx`. Do the
 same for any other card-shaped shortcut rather than re-adding a bare
 `onClick` div.
 
+## Render a product name with `<ProductName>`, never bare (2026-10-13)
+
+Two defects with one cause. Product names are stored **lowercase**
+(`withNormalizedName` in `base-helpers.ts`), so any render that forgets the
+store's casing class shows raw storage casing — reported from a store that
+had the setting on and still saw lowercase names across procurement,
+prescriptions, returns and the dashboard modals. And in a dense ledger the
+name is the only thing identifying a row, so a clamped one leaves a counter
+unable to tell two products apart (worst in the cycle count, where the
+column also carries the SKU).
+
+- `components/ui/product-name.tsx` is the only correct way to render one in
+  JSX: it applies `useUppercaseDisplayClass()`, clamps with `truncate`, and
+  reveals the full name — plus an optional `tooltipSuffix` such as the SKU —
+  on hover, or on tap on a touch device (the house `Tooltip` handles that).
+- The reveal is **measured at open time into a ref**, not into state: whether
+  a name is clamped depends on the rendered column width, and a state
+  round-trip decides one render too late, i.e. never on the first hover.
+- Clamping is CSS-only, so the full name stays in the DOM and a screen reader
+  is never given the truncated form. That is why the trigger adds no tab
+  stop: 200 rows would mean 200 of them for text assistive tech already
+  reads in full.
+- **Text that CSS cannot reach** — a toast, a PDF, an aria-label, a sentence
+  with the name inside it — uses `useDisplayName()` (or `capitalizeWords()`
+  outside React) instead. `purchase-order-details.tsx` is the worked example
+  for a PDF.
+- A column holding a name is `minmax(<floor>px, 1fr)` so it absorbs spare
+  width on a wide screen rather than clamping at a fixed width (see the
+  per-row-grid rule below).
+- Mounting it brings `useStore()` with it, so a spec that mounts such a
+  component in isolation has to mock `@/lib/context/store-context`; five
+  procurement specs needed that when this landed.
+
 ## Div/ARIA tables: never give a per-row grid a bare `fr` track (2026-10-13)
 
 Every ledger in this app is a header `div` plus one `div` **per row**, each

@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useAuth } from "@/lib/context/auth-context";
 import { FileText } from "lucide-react";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
+import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
 
 interface PrescriptionListProps {
   prescriptions: Prescription[];
@@ -35,6 +36,7 @@ export function PrescriptionList({
 
   isFuzzyFallback,
 }: PrescriptionListProps) {
+  const displayName = useDisplayName();
   const { isAdmin, user } = useAuth();
   const canAddPrescription = isAdmin || user?.role === "specialist";
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -128,7 +130,7 @@ export function PrescriptionList({
                   </div>
                   <div className="text-[11.5px] text-muted-foreground truncate">
                     {firstMed
-                      ? `${firstMed.productName}${firstMed.strength ? ` ${firstMed.strength}` : ""} · `
+                      ? `${displayName(firstMed.productName)}${firstMed.strength ? ` ${firstMed.strength}` : ""} · `
                       : ""}
                     {formatDateToDDMMYYYY(rx.dateIssued)}
                   </div>

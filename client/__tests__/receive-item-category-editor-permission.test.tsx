@@ -38,6 +38,12 @@ if (!window.matchMedia) {
 
 import { ReceiveItemCategoryEditor } from "@/components/procurement/receive-item-category-editor";
 
+// Product names now render through ProductName, which reads the store's
+// casing setting; these specs mount their component without a provider.
+vi.mock("@/lib/context/store-context", () => ({
+  useStore: () => ({ storeProfile: { uppercase_display_enabled: 1 } }),
+}));
+
 function renderEditor() {
   render(
     <QueryClientProvider client={new QueryClient()}>

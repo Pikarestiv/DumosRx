@@ -3,6 +3,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { Search, SearchX } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ProductName } from "@/components/ui/product-name";
 import { FilterPill } from "@/components/ui/filter-pill";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
@@ -11,13 +12,12 @@ import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import type { AuditItem } from "./stock-audits";
 import { isAuditItemCounted, type AuditCountStatus } from "./audit-derivations";
 import { formatCurrency } from "@/lib/utils";
-import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { formatDateSafe } from "@/lib/utils/date-utils";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 
 const ALL_CATEGORIES = "__all__";
 const GRID_COLS =
-  "grid-cols-[220px_100px_100px_90px_100px_110px_100px_110px_120px_110px_140px]";
+  "grid-cols-[minmax(220px,1fr)_100px_100px_90px_100px_110px_100px_110px_120px_110px_140px]";
 const LEDGER_ROW_HEIGHT = 49;
 
 function formatDiffCurrency(amount: number) {
@@ -78,7 +78,6 @@ export function AuditLedgerStep({
   setSearch,
   scrollElementRef,
 }: AuditLedgerStepProps) {
-  const capsClass = useUppercaseDisplayClass();
   const canEditProductCost = useHasPermission("edit_product_cost");
   const canEditProductPrice = useHasPermission("edit_product_price");
   // Totals reflect the rows currently shown (respects the category filter
@@ -385,10 +384,12 @@ export function AuditLedgerStep({
                           aria-label={`Mark ${item.name} as counted`}
                         />
                         <div className="min-w-0">
-                          <div className={`font-semibold text-foreground truncate max-w-[180px] ${capsClass}`}>
-                            {item.name}
-                          </div>
-                          <div className="text-[11px] text-muted-foreground/70">
+                          <ProductName
+                            name={item.name}
+                            tooltipSuffix={item.sku}
+                            className="font-semibold text-foreground"
+                          />
+                          <div className="text-[11px] text-muted-foreground/70 truncate">
                             {item.sku}
                           </div>
                         </div>

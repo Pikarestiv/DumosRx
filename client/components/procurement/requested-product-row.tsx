@@ -4,6 +4,7 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import { Check, Copy, Trash2, Loader2 } from "lucide-react";
 import type { RequestedProduct } from "@/lib/db/requested-products-queries";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
+import { ProductName } from "@/components/ui/product-name";
 
 interface RequestedProductRowProps {
   req: RequestedProduct;
@@ -28,7 +29,7 @@ export function RequestedProductRow({
       <TableCell className="font-medium py-[14px] pl-4">
         <div className="flex items-center gap-2">
           <span className="text-[13.5px] font-semibold text-primary">
-            {req.product_name}
+            <ProductName name={req.product_name} />
           </span>
           <Button
             variant="ghost"

@@ -21,6 +21,7 @@ import {
   resolveBaseUnitCost,
 } from "./po-line-item-math";
 import { ReceiveItemCategoryEditor } from "./receive-item-category-editor";
+import { ProductName } from "@/components/ui/product-name";
 
 /** One-item-at-a-time cards, used on phones, where the ledger table's
  * columns would be too cramped to use even with horizontal scroll. */
@@ -50,7 +51,10 @@ export const ReceiveItemCard = React.memo(
         <div className="flex justify-between items-start">
           <div>
             <div className="flex items-center gap-1.5">
-              <h4 className="font-semibold text-[15px]">{item.product_name}</h4>
+              <ProductName
+                name={item.product_name}
+                className="font-semibold text-[15px]"
+              />
               <ReceiveItemCategoryEditor
                 productId={item.product_id}
                 productName={item.product_name}

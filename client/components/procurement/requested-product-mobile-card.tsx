@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check, Trash2, Loader2 } from "lucide-react";
 import type { RequestedProduct } from "@/lib/db/requested-products-queries";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
+import { ProductName } from "@/components/ui/product-name";
 
 interface RequestedProductMobileCardProps {
   req: RequestedProduct;
@@ -24,7 +25,7 @@ export function RequestedProductMobileCard({
     <div className="flex items-start gap-3 p-3 rounded-xl border border-border bg-card">
       <div className="min-w-0 flex-1">
         <span className="text-[13.5px] font-semibold text-primary truncate block">
-          {req.product_name}
+          <ProductName name={req.product_name} />
         </span>
         {req.notes && (
           <div

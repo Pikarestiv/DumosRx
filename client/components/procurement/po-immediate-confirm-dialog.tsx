@@ -17,6 +17,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import type { POLineItemDraft } from "./po-item-ledger-table";
+import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
 
 interface POImmediateConfirmDialogProps {
   open: boolean;
@@ -41,6 +42,7 @@ export function POImmediateConfirmDialog({
   totalAmount,
   onConfirm,
 }: POImmediateConfirmDialogProps) {
+  const displayName = useDisplayName();
   const priceChangeCount = countSellingPriceOverrides(items, products);
   const totalUnits = getTotalBaseUnits(items);
   const unitLabel = `${totalUnits} ${totalUnits === 1 ? "unit" : "units"}`;
@@ -54,7 +56,7 @@ export function POImmediateConfirmDialog({
             <div className="space-y-2">
               <p>
                 {items.length === 1
-                  ? `${unitLabel} of ${items[0].product_name}`
+                  ? `${unitLabel} of ${displayName(items[0].product_name)}`
                   : `${unitLabel} across ${items.length} products`}
                 , worth {formatCurrency(totalAmount)}, will be added to your
                 stock right away.

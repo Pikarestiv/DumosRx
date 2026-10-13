@@ -11,6 +11,7 @@ import { POReviewPricePopover } from "./po-review-price-popover";
 import { clampMoneyInput, getImmediateUnitCost, getLineTotal } from "./po-line-item-math";
 import { formatCurrency } from "@/lib/utils";
 import type { POProduct } from "@/lib/db/queries/procurement";
+import { ProductName } from "@/components/ui/product-name";
 
 export interface POLineItemDraft {
   product_id: string;
@@ -82,9 +83,11 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
   return (
     <div role="row" className={`grid ${gridCols} items-center`}>
       <div role="cell" className="px-3 py-2 sticky left-0 bg-card">
-        <div className="font-semibold text-foreground truncate max-w-[200px]">
-          {item.product_name}
-        </div>
+        <ProductName
+          name={item.product_name}
+          tooltipSuffix={`${item.bulk_unit}(s)`}
+          className="font-semibold text-foreground"
+        />
         <div className="text-[11px] text-muted-foreground/70">{item.bulk_unit}(s)</div>
       </div>
 

@@ -8,6 +8,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { Truck } from "lucide-react";
 import { DetailRow } from "./detail-row";
 import type { PurchaseOrder } from "@/lib/db/procurement";
+import { ProductName } from "@/components/ui/product-name";
 
 interface ProcurementDetailsDialogProps {
   po: PurchaseOrder | null;
@@ -120,7 +121,7 @@ export function ProcurementDetailsDialog({
                 >
                   <div className="min-w-0">
                     <div className="text-[13px] font-medium truncate">
-                      {item.product_name}
+                      <ProductName name={item.product_name || ""} />
                     </div>
                     <div className="text-[11px] text-muted-foreground">
                       {item.quantity} ×{" "}

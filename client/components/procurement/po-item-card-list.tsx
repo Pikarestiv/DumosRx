@@ -13,6 +13,7 @@ import { clampMoneyInput, getImmediateUnitCost, getLineTotal } from "./po-line-i
 import { formatCurrency } from "@/lib/utils";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import { useProductMap, type POItemRow, type POLineItemDraft } from "./po-item-ledger-table";
+import { ProductName } from "@/components/ui/product-name";
 
 interface POItemCardListProps {
   poType: "standard" | "immediate";
@@ -50,7 +51,10 @@ const POItemCard = React.memo(function POItemCard({
     <div className="p-4 space-y-3">
       <div className="flex justify-between items-start gap-2">
         <div className="min-w-0">
-          <h4 className="font-semibold text-[14px] truncate">{item.product_name}</h4>
+          <ProductName
+            name={item.product_name}
+            className="font-semibold text-[14px]"
+          />
           {poType === "immediate" && (
             <p className="text-[12px] text-muted-foreground">
               Stock: {stock} · Current Cost: {formatCurrency(currentCost)}

@@ -27,6 +27,7 @@ import { useAuth } from "@/lib/context/auth-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ReturnItemRow } from "./return-item-row";
 import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
+import { ProductName } from "@/components/ui/product-name";
 
 interface ReturnDialogProps {
   open: boolean;
@@ -258,7 +259,7 @@ export function ReturnDialog({
               {itemsToReturn.map((item) => (
                 <li key={item.id}>
                   <span className="font-medium">{item.returnQuantity}x</span>{" "}
-                  {item.product_name}
+                  <ProductName name={item.product_name || ""} />
                   <span className="text-muted-foreground ml-1">
                     (
                     {formatCurrency(

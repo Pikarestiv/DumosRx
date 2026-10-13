@@ -11,6 +11,7 @@ import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { CategoryCombobox } from "@/components/ui/category-combobox";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { useQuickEditProductMutation } from "@/lib/hooks/use-product-quick-edit-mutation";
+import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
 
 interface ReceiveItemCategoryEditorProps {
   productId: string;
@@ -31,6 +32,7 @@ export function ReceiveItemCategoryEditor({
   productName,
   categoryName,
 }: ReceiveItemCategoryEditorProps) {
+  const displayName = useDisplayName();
   const canManageProducts = useHasPermission("manage_products");
   const [open, setOpen] = useState(false);
   // The PO detail query keys off purchase_orders/purchase_order_items, so a
@@ -75,7 +77,7 @@ export function ReceiveItemCategoryEditor({
         open={open}
         onOpenChange={setOpen}
         title={<span className="font-serif font-bold text-lg">Edit category</span>}
-        description={`Change the category ${productName} is filed under. This updates the product itself, not just this delivery.`}
+        description={`Change the category ${displayName(productName)} is filed under. This updates the product itself, not just this delivery.`}
         className="sm:max-w-md"
         footer={
           <DialogFooter className="gap-2 pt-4">

@@ -9,6 +9,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { getCurrencySymbol } from "@/lib/utils";
 import { calculatePrescriptionItemCost } from "@/lib/utils/prescription-calculations";
 import { useStore } from "@/lib/context/store-context";
+import { ProductName } from "@/components/ui/product-name";
 import type {
   NewPrescriptionForm,
   PrescriptionMedication,
@@ -273,7 +274,7 @@ export function PrescriptionMedications({
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h5 className="font-medium">{medication.productName}</h5>
+                      <ProductName name={medication.productName} className="font-medium" />
                       <Badge variant="outline" className="text-xs">
                         {medication.strength}
                       </Badge>

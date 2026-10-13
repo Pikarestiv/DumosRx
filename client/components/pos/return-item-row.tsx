@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 import type { SaleItemDetail } from "@/lib/types/sale";
+import { ProductName } from "@/components/ui/product-name";
 
 interface Props {
   item: SaleItemDetail;
@@ -35,7 +36,7 @@ export function ReturnItemRow({ item, quantity, selected, maxQty, currencyCode, 
         />
       </TableCell>
       <TableCell className="font-medium">
-        {item.product_name}
+        <ProductName name={item.product_name || ""} />
         {alreadyReturned > 0 && (
           <div className="text-xs text-muted-foreground">
             {fullyReturned ? "Fully returned" : `${alreadyReturned} already returned`}

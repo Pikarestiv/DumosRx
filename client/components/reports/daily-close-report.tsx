@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useDailyCloseData } from "@/lib/hooks/use-daily-close-data";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
@@ -20,6 +21,7 @@ interface DailyCloseReportProps {
 }
 
 export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
+  const router = useRouter();
   const { storeProfile } = useStore();
   const { user } = useAuth();
   // Profit is hidden from cashiers specifically, not everyone who isn't
@@ -63,6 +65,7 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
           cashExpenses={cashExpenses}
           totalProfit={totalProfit}
           openSalesModal={openSalesModal}
+          onOpenExpenses={() => router.push("/expenses")}
           showProfit={showProfit}
         />
 

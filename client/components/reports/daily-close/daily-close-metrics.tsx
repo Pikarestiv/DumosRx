@@ -21,6 +21,7 @@ interface DailyCloseMetricsProps {
   cashExpenses: number;
   totalProfit: number;
   openSalesModal: (filter: string) => void;
+  onOpenExpenses: () => void;
   showProfit?: boolean;
 }
 
@@ -30,12 +31,13 @@ export function DailyCloseMetrics({
   cashExpenses,
   totalProfit,
   openSalesModal,
+  onOpenExpenses,
   showProfit = true,
 }: DailyCloseMetricsProps) {
   return (
     <div className="flex flex-col gap-5">
       <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
-        <HorizontalScrollFade className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
+        <HorizontalScrollFade className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
           <MetricCard
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
             title="Total Sales"
@@ -67,18 +69,6 @@ export function DailyCloseMetrics({
             onClick={() => openSalesModal("transfer")}
           />
           <MetricCard
-            className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-emerald-200/50"
-            title="Net Cash Expected"
-            value={formatMetricCurrency(
-              aggregatedTotals.cash - cashExpenses,
-              currencyCode,
-            )}
-            description={`After ${formatMetricCurrency(cashExpenses, currencyCode)} cash expenses`}
-            icon={<Wallet className="h-4 w-4" />}
-            iconBgClass="bg-emerald-50 text-emerald-700"
-            valueClassName="font-serif"
-          />
-          <MetricCard
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-red-200/50 hover:border-red-500/50"
             title="Total Refunds"
             onClick={() => openSalesModal("refunds")}
@@ -91,7 +81,24 @@ export function DailyCloseMetrics({
         </HorizontalScrollFade>
       </div>
 
-      {showProfit && (
+      {/* The two bottom-line figures, below the four payment-method totals
+          they are derived from. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+        <MetricCard
+          className="border-emerald-200/50"
+          title="Net Cash Expected"
+          value={formatMetricCurrency(
+            aggregatedTotals.cash - cashExpenses,
+            currencyCode,
+          )}
+          description={`Cash sales less ${formatMetricCurrency(cashExpenses, currencyCode)} paid out today`}
+          icon={<Wallet className="h-4 w-4" />}
+          iconBgClass="bg-emerald-50 text-emerald-700"
+          valueClassName="font-serif"
+          onClick={onOpenExpenses}
+        />
+
+        {showProfit && (
         <MetricCard
           className="border-emerald-200/50"
           title="Total Profit (Est.)"
@@ -104,7 +111,8 @@ export function DailyCloseMetrics({
           }
           valueClassName={`font-serif ${totalProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}
         />
-      )}
+        )}
+      </div>
     </div>
   );
 }

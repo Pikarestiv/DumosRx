@@ -55,9 +55,9 @@ export async function countDeferredStockDeltas(): Promise<number> {
 }
 
 /**
- * Applies every deferred delta whose batch has since arrived, deleting each
- * one in the same transaction that applies it so no delta can be applied
- * twice. Must be called inside a `transaction()`. Returns the deltas whose
+ * Settles every deferred delta whose batch has since arrived by rebuilding
+ * that batch from its own movement log, deleting the rows in the same
+ * transaction. Must be called inside a `transaction()`. Returns the deltas whose
  * batch has been unreachable long enough to be worth reporting; they stay
  * pending, since only a batch arriving can settle them.
  *
@@ -70,12 +70,11 @@ export async function applyDeferredStockDeltas(
   options: { countAttempts?: boolean } = {},
 ): Promise<DeferredStockDelta[]> {
   const countAttempts = options.countAttempts !== false;
-  // rowid, i.e. the order the deltas were deferred in, which is the order the
-  // server applied them in; the floor makes a replay order-dependent.
   const pending = await query<DeferredStockDelta>(
     "SELECT movement_id, stock_batch_id, quantity, attempts FROM _pending_stock_deltas ORDER BY rowid",
   );
   const unresolved: DeferredStockDelta[] = [];
+  const resolved = new Map<string, number>();
 
   for (const delta of pending) {
     const movement = await query<{ _deleted: number | null }>(
@@ -107,9 +106,17 @@ export async function applyDeferredStockDeltas(
       continue;
     }
 
-    await recomputeBatchQuantities(new Map([[delta.stock_batch_id, delta.quantity]]));
+    resolved.set(
+      delta.stock_batch_id,
+      (resolved.get(delta.stock_batch_id) ?? 0) + delta.quantity,
+    );
     await discard(delta.movement_id);
   }
+
+  // Once per batch, not once per delta: the rebuild reads the whole log, so
+  // every delta after the first for the same batch would re-scan it to write
+  // the same number. The accumulated delta is only read for a carve-out batch.
+  await recomputeBatchQuantities(resolved);
 
   return unresolved;
 }

@@ -1388,7 +1388,15 @@ on the function, and the condition for deleting it.
     rebuilds each one once at the end of that page's transaction. Callers must
     **not** pre-write `quantity` themselves; a pre-write is double-counted for
     a carve-out batch (below), which is why `deductFromBatch()` tracks what it
-    has taken in a local `liveQuantity` map instead.
+    has taken in a local `liveQuantity` map instead. The one allowed exception
+    is a batch created *together with* its first inbound movement — procurement
+    receiving and a transfer's destination batch — where the `INSERT` carries
+    the quantity because the row needs it for its own push payload. That is
+    safe only while the figure equals that movement exactly: a batch created
+    holding **more** than its first movement is by definition a carve-out, and
+    would be patched incrementally for the rest of its life. If you ever make
+    those two numbers diverge (a partial receipt, a rounding step), insert `0`
+    and let the movement fill it.
   - **The A-148 carve-out.** A batch holding more than its inbound movements
     account for carries stock that was never logged, so rebuilding it would
     write that stock off. Those batches are patched by the delta exactly as
@@ -1414,7 +1422,6 @@ on the function, and the condition for deleting it.
   is no longer load-bearing. Both are kept until Stage 3 retires the table.
   A-54 is why the row is written inside the page's own transaction, and that
   still holds.
-  The drain reads `ORDER BY rowid` for the same non-commutativity reason.
   A deferral whose
   movement has since been soft-deleted is discarded rather than applied
   (matching the insert path's `!_deleted` gate); a deferral whose batch

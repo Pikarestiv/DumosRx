@@ -253,10 +253,7 @@ async function writeSaleItemStock({
   // per touch would then produce two rows for the same (sale_item, batch)
   // pair with the deduction split across them. Deferring those two inserts
   // until every batch has been fully deducted, keyed by batch id, ensures
-  // exactly one row per unique batch with the correctly summed quantity —
-  // the stock_batches update itself still happens immediately per touch
-  // (unchanged), so FEFO ordering and the fallback's updated_at-based
-  // selection behave exactly as before.
+  // exactly one row per unique batch with the correctly summed quantity.
   const deductionByBatchId = new Map<string, number>();
 
   // Batches touched by a deduction that exceeded what they actually had

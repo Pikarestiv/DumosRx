@@ -250,11 +250,10 @@ export async function pullChanges(
         for (const [table, records] of orderedEntries) {
           if (!Array.isArray(records)) continue;
 
-          // An arriving batch can resolve a delta deferred earlier in this
-          // round, and that delta has to apply BEFORE any later movement for
-          // the same batch: the floor is MAX(0, …) per movement, so the order
-          // is not commutative and a late opening receipt leaves every sale
-          // against it clamped away (A-197).
+          // Settles deltas an arriving batch has resolved while their rows
+          // are still in the table. Ordering no longer matters — the drain
+          // rebuilds from the log — so this is bookkeeping, not the A-197
+          // correctness fix it was.
           if (batchesArrivedSinceDrain && table !== "stock_batches") {
             batchesArrivedSinceDrain = false;
             const voidedMovements = changes.stock_movements;

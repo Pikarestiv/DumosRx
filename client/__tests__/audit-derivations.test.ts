@@ -6,6 +6,7 @@ import {
   selectCountedAuditItems,
   selectAdjustedAuditItems,
   selectAuditStatusItems,
+  matchesAuditStatus,
   isAuditItemCounted,
   hasUnsavedAuditEdits,
 } from "@/components/stock-batch/audit-derivations";
@@ -127,6 +128,15 @@ describe("stock audit derivations", () => {
     expect(
       selectAuditStatusItems(rows, "differences").map((i) => i.id),
     ).toEqual(["c"]);
+  });
+
+  it("exposes a per-row status predicate, so the ledger can keep a row it has just counted on screen", () => {
+    const counted = item({ countedQty: 10 });
+    expect(matchesAuditStatus(counted, "uncounted")).toBe(false);
+    expect(matchesAuditStatus(counted, "counted")).toBe(true);
+    expect(matchesAuditStatus(item(), "uncounted")).toBe(true);
+    // The "all" lens matches everything, counted or not.
+    expect(matchesAuditStatus(item(), "all")).toBe(true);
   });
 
   it("reports unsaved edits only once a row actually differs", () => {

@@ -71,22 +71,28 @@ export type AuditCountStatus = "all" | "counted" | "uncounted" | "differences";
 /** The ledger's count-progress lens: what's left to count, what's been
  * done, and which rows disagreed with the system badly enough to be worth
  * a recount. */
+export function matchesAuditStatus(
+  item: AuditItem,
+  status: AuditCountStatus,
+): boolean {
+  switch (status) {
+    case "counted":
+      return isAuditItemCounted(item);
+    case "uncounted":
+      return !isAuditItemCounted(item);
+    case "differences":
+      return (item.countedQty ?? item.systemQty) !== item.systemQty;
+    default:
+      return true;
+  }
+}
+
 export function selectAuditStatusItems(
   items: AuditItem[],
   status: AuditCountStatus,
 ): AuditItem[] {
-  switch (status) {
-    case "counted":
-      return items.filter(isAuditItemCounted);
-    case "uncounted":
-      return items.filter((item) => !isAuditItemCounted(item));
-    case "differences":
-      return items.filter(
-        (item) => (item.countedQty ?? item.systemQty) !== item.systemQty,
-      );
-    default:
-      return items;
-  }
+  if (status === "all") return items;
+  return items.filter((item) => matchesAuditStatus(item, status));
 }
 
 export function selectAdjustedAuditItems(countedItems: AuditItem[]): AuditItem[] {

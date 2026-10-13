@@ -38,6 +38,7 @@ import {
   hasUnsavedAuditEdits,
   selectAdjustedAuditItems,
   selectAuditCategoryItems,
+  matchesAuditStatus,
   selectAuditStatusItems,
   selectCountedAuditItems,
   type AuditCountStatus,
@@ -164,9 +165,33 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     [items, selectedCategory],
   );
 
+  // Counting a row under the "Not Counted" lens used to make it disappear
+  // from under the finger mid-tap, shifting every virtualized row below it.
+  // The rows that matched when the lens was chosen stay on screen until the
+  // lens itself changes; only then is the set re-taken.
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const [stickyRowIds, setStickyRowIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    setStickyRowIds(
+      new Set(
+        selectAuditStatusItems(itemsRef.current, countStatus).map((i) => i.id),
+      ),
+    );
+    // Deliberately not keyed on `items`: a row changing must not re-take the
+    // snapshot, which is the entire point of it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [countStatus, selectedCategory, search]);
+
   const statusItems = useMemo(
-    () => selectAuditStatusItems(categoryItems, countStatus),
-    [categoryItems, countStatus],
+    () =>
+      countStatus === "all"
+        ? categoryItems
+        : categoryItems.filter(
+            (item) =>
+              stickyRowIds.has(item.id) || matchesAuditStatus(item, countStatus),
+          ),
+    [categoryItems, countStatus, stickyRowIds],
   );
 
   const filteredList = useMemo(

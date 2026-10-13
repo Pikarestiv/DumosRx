@@ -2600,6 +2600,19 @@ is the confirmation that says otherwise, and the receive inputs show the
 product's Last Bought Price (the last real, non-`ADJ-%` batch cost)
 alongside. Keep that distinction in any copy you write here.
 
+**The order's money and the batch's valuation are allowed to differ, and
+after A-261 they do.** A ₦1,000 carton of 3 bills at ₦1,000 — the PO line,
+the order total, the confirm dialog, the PO PDF and `amount_paid` are all
+priced from the per-bulk cost **as typed** (`immediateLineAmount()` in
+`po-line-item-math.ts`, used by both `getLineTotal(item, "immediate")` and
+`computeImmediateLineTotal()` so screen and storage agree) — while the batch
+and its movement value the stock at the rounded ₦333.33/unit, i.e. ₦999.99.
+Do not "fix" that kobo by deriving the invoice from the unit cost: that is
+what made a ₦1,000 purchase read ₦999.99 on every document, and it is also
+how the Immediate flow stopped agreeing with the Standard one, which has
+always billed `bulk_quantity * unit_cost`. An override is typed per base
+unit, so that branch does multiply up from the unit cost.
+
 `purchase_order_items.unit_cost` is deliberately **not** rewritten on
 receipt: it is what was ordered, the PO's own total and `amount_paid`
 reconcile against it, and a partial receipt would revalue the outstanding

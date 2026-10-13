@@ -125,10 +125,36 @@ export function clampReceivedQuantity(raw: string, outstanding: number): number 
   return Math.min(Math.max(0, parsed), Math.max(0, outstanding));
 }
 
+/** The amount a line is invoiced at: the per-bulk cost as typed, times the
+ * quantity. An override is typed per base unit, so that branch multiplies up
+ * from the unit cost instead. Deliberately NOT derived from the rounded
+ * per-base-unit cost in the no-override case - that made a ₦1,000 carton of
+ * 3 bill as 3 x ₦333.33 = ₦999.99. The batch's own valuation still uses the
+ * rounded unit cost; see client/AGENTS.md on what "cost" means where. */
+export function immediateLineAmount(item: {
+  bulk_quantity: number;
+  unit_cost: number;
+  units_per_bulk?: number | null;
+  cost_price_override?: number | string | null;
+}): number {
+  const hasOverride =
+    item.cost_price_override != null && item.cost_price_override !== "";
+  if (!hasOverride) return item.bulk_quantity * Number(item.unit_cost);
+  const unitsPerBulk = Number(item.units_per_bulk) || 1;
+  return (
+    item.bulk_quantity *
+    unitsPerBulk *
+    resolveBaseUnitCost({
+      costOverride: item.cost_price_override,
+      unitCost: item.unit_cost,
+      unitsPerBulk: item.units_per_bulk,
+    })
+  );
+}
+
 export function getLineTotal(item: POLineItemDraft, poType: "standard" | "immediate"): number {
   if (poType !== "immediate") return item.bulk_quantity * item.unit_cost;
-  const unitsPerBulk = item.units_per_bulk || 1;
-  return item.bulk_quantity * unitsPerBulk * getImmediateUnitCost(item);
+  return roundMoney(immediateLineAmount(item));
 }
 
 /**
@@ -143,7 +169,9 @@ export function getOrderTotal(
   items: POLineItemDraft[],
   poType: "standard" | "immediate",
 ): number {
-  return items.reduce((sum, item) => sum + getLineTotal(item, poType), 0);
+  return roundMoney(
+    items.reduce((sum, item) => sum + getLineTotal(item, poType), 0),
+  );
 }
 
 /**

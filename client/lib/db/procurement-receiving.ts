@@ -19,7 +19,10 @@ import {
   type DraftPOLineItem,
 } from "./procurement";
 import { getStoredUser } from "@/lib/storage-keys";
-import { resolveBaseUnitCost } from "@/components/procurement/po-line-item-math";
+import {
+  immediateLineAmount,
+  resolveBaseUnitCost,
+} from "@/components/procurement/po-line-item-math";
 import { roundMoney } from "@/lib/utils/pos-calculations";
 
 /** Per-line-item receiving overrides submitted from the "Receive Order" form:
@@ -210,12 +213,13 @@ function immediateBaseUnitCost(item: ImmediateLineItemDraft): number {
   });
 }
 
-/** Line total in currency, from the same per-base-unit cost used for stock
- * costing — not item.subtotal, which is only ever set once when the row is
- * first added and never kept in sync with later quantity/cost edits. */
+/** What the line costs on the ORDER - the figure the owner is invoiced for -
+ * not item.subtotal, which is only set when the row is first added. Priced
+ * from the per-bulk cost as typed when there is no override, so a ₦1,000
+ * carton of 3 reads ₦1,000 and not 3 x ₦333.33; the batch keeps the rounded
+ * per-unit cost for valuation. See client/AGENTS.md. */
 function computeImmediateLineTotal(item: ImmediateLineItemDraft): number {
-  const totalBaseUnits = item.bulk_quantity * (item.units_per_bulk || 1);
-  return immediateBaseUnitCost(item) * totalBaseUnits;
+  return roundMoney(immediateLineAmount(item));
 }
 
 /** Immediate Purchase: order and receipt happen in one transaction. Unlike
@@ -247,7 +251,7 @@ export async function createAndReceivePurchaseOrder(
       payment_status: paymentStatus,
       amount_paid: amountPaid,
       due_date: dueDate,
-      total_amount: totalAmount,
+      total_amount: roundMoney(totalAmount),
       notes,
       created_at: now,
       received_at: now,

@@ -1532,6 +1532,90 @@ sale lands for another −2, and the shelf holding 8 settles at 6.
   import reconcile stock through the same delta with no check; logged in
   `docs/KNOWN_BUGS.md` A-211 along with the real fix (an absolute count).
 
+### "Counted" is a tick, not a filled-in field (2026-10-13)
+
+The cycle count opens every row pre-filled with the system's own figures, so
+`countedQty !== undefined` said nothing about whether anyone had been to the
+shelf — it was true for every row the moment the screen loaded, which made
+"Total Counted" equal to the catalog size and gave a counter no way to see
+what was left to do.
+
+- `AuditItem.counted` is the explicit tick (`stock-audits.tsx`), set by
+  `updateLedgerItem` on **any** edit and toggleable by hand for a row whose
+  count matched. `isAuditItemCounted()` (`audit-derivations.ts`) is the only
+  thing that should be asked whether a row was counted.
+- **Do not prefill `countedQty` with 0** to get the same signal. Submit posts
+  every row whose counted figure differs from the system's, so a zero prefill
+  turns every untouched row into an adjustment to zero stock — Cynthia asked
+  for exactly this on 2026-10-13 and the tick is what it was traded for.
+- `differsFromSystem()` requires `countedQty !== undefined` before treating a
+  quantity as a difference; without that guard an un-entered row submits
+  `undefined` as a quantity.
+- **Compatibility shim:** `isAuditItemCounted()` also returns true for any row
+  that differs, so a draft persisted in the `stock-audit-draft` zustand store
+  before the tick existed still submits. Retirable one release after
+  2026-10-13, once no device can be carrying one.
+- The ledger's `Count` filter pill (All / Counted / Not Counted / Qty
+  Differences) is `selectAuditStatusItems()`, applied between the category
+  lens and the fuzzy search in `stock-audits.tsx`.
+- **A count is a session.** Ticks never survive a submit: `clearDraft()` runs
+  in `onSuccess` and the next open rebuilds from `getProductsWithDetails()`,
+  so last week's ticks can't make this week's count look done. What persists
+  instead is `products.last_audited_at` (`lib/db/queries/products.ts:16`,
+  already on the query the audit screen runs) rendered as the ledger's
+  sortable **Last Counted** column. It means "last *adjusted*": a submit
+  writes no `stock_audits` row when nothing differed
+  (`lib/db/queries/inventory.ts:681`), so a count that matched leaves no
+  trace. Changing that means writing zero-diff rows into a synced table —
+  a contract change, not a free one.
+- **"Start over" and "leave" are two different controls.** The back-button
+  dialog keeps the draft (that is the point: the count survives a reload);
+  "Start over" in the export dropdown is the only thing that discards it.
+  Don't merge them — a routine back-button click must not be able to destroy
+  a shift's work.
+- Submitting with nothing counted was a successful no-op showing "0 items
+  counted"; the review step's submit button is now disabled while
+  `countedItems.length === 0`.
+
+### Device-local drafts: clear all of them, from one function (2026-10-13)
+
+Three drafts are persisted per device under their own single global
+localStorage keys, with no store or user in them: the POS cart
+(`pos-cart-storage`), the cycle count (`stock-audit-draft`) and the stock
+adjustment (`stock-adjustment-draft`). Every path that tears down one
+store/account's context must drop all three, and `clearLocalDrafts()`
+(`lib/utils/clear-local-drafts.ts`) is the only way it should be done — the
+list grew to three while two of the five transition paths were still
+clearing only the cart.
+
+The five paths: store switch (`store-context.tsx`), a different user logging
+in (`auth-context.tsx`, gated on `previousUserId !== dbUser.id` so a same-user
+unlock keeps the work), logout (`auth-context.tsx`), linking a new cloud store
+(`app/setup/use-onboarding.ts`) and the factory reset
+(`hooks/use-settings-sync.ts`). The last two were missed until 2026-10-13: a
+count started against the outgoing store's product ids survived into the new
+store and could be submitted against foreign ids. Both import the helper
+**dynamically** — `use-settings-sync.ts` is loaded by every settings screen and
+a static import pulls the whole POS-cart module graph into it, which breaks
+`__tests__/factory-reset-disconnects-cloud.test.ts`'s partial `core` mock.
+Pinned by `__tests__/clear-local-drafts.test.ts`.
+
+A draft itself is **not** the problem it looks like: `submitStockAudit`
+re-reads the live quantity inside its transaction
+(`lib/db/queries/inventory.ts:665-671`) and deltas against that, so a resumed
+draft's frozen `systemQty` never mis-posts. What a stale draft does miss is
+catalog churn — logged as A-259.
+
+### Daily Close nets cash expenses off the drawer (2026-10-13)
+
+`getCashExpensesForDate()` (`lib/db/queries/finance.ts`) is deliberately
+**not** `getSmoothedExpensesTotal()`: a prepaid expense paid in cash leaves
+the till in full on the day it was paid, whatever period it covers, so the
+till figure must not amortise it the way the P&L does. It also counts a
+blank/legacy `payment_method` as cash, since the expense form's own default
+is "Cash" and missing one would leave the drawer short against the figure on
+screen. Pinned by `__tests__/daily-close-cash-expenses.test.ts`.
+
 ### Stock quantity reconciliation and the `sync_reconciliation` movement type (2026-10-02)
 
 **Health Sync is OFF as of 2026-10-10 and the section below is history, not

@@ -52,7 +52,9 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Stock Adjustments:** Easily log and track write-offs for lost, stolen, or damaged goods.
 
-**Procurement:** Generate Purchase Orders for your suppliers. When the goods arrive, the system automatically updates your stock levels. Your catalog also shows the price you last actually paid for each product, right alongside its running average cost.
+**Cycle Count (Stock Audit):** Count the shelves against the system a row at a time. Every row opens pre-filled with the system's figures, so each one carries a tick that says whether anyone has actually been to the shelf for it — typing any figure ticks it for you, and you can tick a row by hand when the count matched. Filter the sheet by Counted, Not Counted or Qty Differences to see what's left to do, or to re-verify just the rows that disagreed. A **Last Counted** column shows when each product was last reconciled by a count, so the shelves nobody has touched in months are easy to find and sort to the top. An in-progress count is saved on the device as you go — close the app, reload, or restart the machine and it is still there when you come back — and "Start over" in the export menu is there for when you want to abandon it and begin again. A count only ever posts the rows whose figures you actually changed, so walking into Review and submitting without touching anything changes nothing. The sheet can be printed, or downloaded as CSV/XLSX/PDF; print and the spreadsheets are instant, while the PDF has to lay out every product and is the slow option on a large catalog.
+
+**Procurement:** Generate Purchase Orders for your suppliers. An Immediate Purchase — goods paid for and taken on the spot — opens on "Fully Paid", while a standard Purchase Order raised ahead of payment opens on "Unpaid"; either can be changed before saving. When the goods arrive, the system automatically updates your stock levels. Your catalog also shows the price you last actually paid for each product, right alongside its running average cost.
 
 **Borrow Stock Between Branches:** Running low on something and the owner isn't around? A cashier can pull stock in from another one of your branches right from the checkout screen — it moves immediately, and is flagged for you to review afterward. You decide who's allowed to do this: managers and admins always can, and you can choose whether to extend that to regular staff too (Settings → Multiple Stores, off for staff by default).
 
@@ -69,6 +71,10 @@ The desktop application is built for speed, reliability, and ease of use. It con
 **End of Day (EOD) Closure:** At the end of their shift, cashiers must count the drawer. The system automatically compares their count with the recorded sales and highlights any shortages or overages.
 
 **Expense Tracking:** Log daily operational expenses directly from the cash register.
+
+**Net Cash Expected:** Daily Close deducts the day's cash-paid expenses from the cash the drawer should hold, so the figure you reconcile against is what you actually expect to find — not gross cash sales. A prepaid expense (one spread over months) is deducted in full on the day it was paid, because that is when the money left the till; the Profit & Loss report still amortises it across the months it covers. Expenses paid by transfer or card never touch this figure.
+
+**This Device:** Settings → System names the device you are on and shows its device ID, the same one that appears beside its activity in the owner's dashboard — so a support call can identify the right till without guessing.
 
 **Offline Backups:** You can manually export a backup of your entire store's data to a flash drive for extra peace of mind.
 
@@ -100,7 +106,7 @@ Your Cloud Dashboard is your management hub. Log in from any web browser to get 
 
 ### 👥 Staff & Security Management
 
-**Staff Registry:** Create accounts for your managers, pharmacists, and cashiers.
+**Staff Registry:** Create accounts for your managers, pharmacists, and cashiers. On a multi-branch account the list opens on the branch you are currently working in, with "All Stores" still available in the picker; your staff-account allowance is counted across the whole account, not per branch.
 
 **Role-Based Access:** Decide exactly what each staff member is allowed to see or do.
 

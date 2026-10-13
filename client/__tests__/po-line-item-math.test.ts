@@ -51,6 +51,19 @@ describe("po-line-item-math", () => {
     });
   });
 
+  describe("an amount paid is stored at two decimals", () => {
+    it("rounds a typed over-precise amount", () => {
+      expect(getValidatedAmountPaid("1000.005", 5000)).toBe(1000.01);
+      expect(getValidatedAmountPaid("12.3456", 5000)).toBe(12.35);
+    });
+
+    it("still clamps to the order total and floors junk at zero", () => {
+      expect(getValidatedAmountPaid("9999", 2700)).toBe(2700);
+      expect(getValidatedAmountPaid("abc", 2700)).toBe(0);
+      expect(getValidatedAmountPaid("-5", 2700)).toBe(0);
+    });
+  });
+
   describe("resolveBaseUnitCost rounding (A-261)", () => {
     it("rounds a per-unit cost that does not divide evenly", () => {
       // A ₦1,000 carton of 3. SQLite's REAL would keep

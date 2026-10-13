@@ -300,6 +300,65 @@ describe("procurement.ts", () => {
       expect(rows[0].values[0][0]).toBe("immediate");
     });
 
+    it("bills a drafted Immediate Purchase for its per-base-unit override, which the screen already showed", async () => {
+      // The order page prices an immediate line via immediateLineAmount, so
+      // 3 cartons of 10 at a typed override of ₦90/unit reads ₦2,700 on
+      // screen and sets amount_paid to 2,700 - while this function used to
+      // store an override-blind 3 x ₦1,000 = ₦3,000, overstating the PO on
+      // its own detail screen and PDF and inflating supplier debt on a
+      // partial payment.
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prodOv', 'Zyrtec', 'Tablet', 'Carton', 10)`);
+
+      const poId = await createPurchaseOrder(
+        null,
+        "",
+        [
+          {
+            product_id: "prodOv",
+            product_name: "Zyrtec",
+            bulk_unit: "Carton",
+            bulk_quantity: 3,
+            units_per_bulk: 10,
+            unit_cost: 1000,
+            subtotal: 3000,
+            cost_price_override: 90,
+          },
+        ],
+        "partial",
+        1000,
+        null,
+        "immediate",
+      );
+
+      const po = db.exec(`SELECT total_amount FROM purchase_orders WHERE id = '${poId}'`);
+      expect(po[0].values[0][0]).toBe(2700);
+      const item = db.exec(`SELECT subtotal FROM purchase_order_items WHERE po_id = '${poId}'`);
+      expect(item[0].values[0][0]).toBe(2700);
+    });
+
+    it("leaves a standard line billed at bulk_quantity * unit_cost, exactly as before", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prodStd', 'Flagyl', 'Tablet', 'Carton', 20)`);
+
+      const poId = await createPurchaseOrder(
+        null,
+        "",
+        [
+          {
+            product_id: "prodStd",
+            product_name: "Flagyl",
+            bulk_unit: "Carton",
+            bulk_quantity: 4,
+            units_per_bulk: 20,
+            unit_cost: 250,
+            subtotal: 0,
+          },
+        ],
+      );
+
+      const po = db.exec(`SELECT total_amount FROM purchase_orders WHERE id = '${poId}'`);
+      expect(po[0].values[0][0]).toBe(1000);
+    });
+
     it("derives total_amount and each item's subtotal from bulk_quantity * unit_cost, ignoring a stale subtotal field", async () => {
       // Regression: item.subtotal is only ever set once when a row is first
       // added in the UI and is never kept in sync with later quantity

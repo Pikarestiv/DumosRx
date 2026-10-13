@@ -184,7 +184,8 @@ export function getOrderTotal(
 export function getValidatedAmountPaid(rawAmountPaid: string, orderTotal: number): number {
   const parsed = Number(rawAmountPaid);
   if (!Number.isFinite(parsed) || parsed <= 0) return 0;
-  return Math.min(parsed, orderTotal);
+  // Rounded because it is stored: "1000.005" was written verbatim.
+  return roundMoney(Math.min(parsed, orderTotal));
 }
 
 /**

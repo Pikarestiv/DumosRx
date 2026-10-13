@@ -1689,6 +1689,34 @@ on screen from having walked to the shelf.
   isAuditItemCounted)`, which is safe on an empty sheet and keeps a
   half-finished count. Same race on open, where the pre-count `sync(true)`
   invalidates. Pinned by `__tests__/audit-derivations.test.ts`.
+- **`EditableNumberCell` hides the native spinners and renders an entered
+  value in `font-semibold text-foreground`, leaving the placeholder at the
+  browser's own ~50%-of-`currentColor` default.** Up/down arrows on a cell
+  whose displayed figure is a *placeholder* invite clicking them to increment
+  a number that isn't there, so they are suppressed with
+  `[appearance:textfield]` plus the two `-webkit-*-spin-button` variants;
+  arrow-key stepping still works, so nothing is lost. Weight plus
+  full-strength colour is what separates a real count from the system figure
+  behind it — **do not reach for `placeholder:text-muted-foreground`** the way
+  the house `Input` does: that token was deliberately darkened to clear WCAG
+  AA (`globals.css`), so it renders the placeholder *more* prominent than the
+  default it replaces, which is backwards. The placeholder is not decoration
+  either (it is the system quantity being compared against), so it must not be
+  pushed below AA to win the contrast. Asked for by the owner on 2026-10-13.
+- **In the ledger, a real value is `text-foreground`; `text-muted-foreground`
+  is for labels, not data.** Every data cell in `audit-ledger-step.tsx`
+  (System Qty, cost, price, Last Counted) used to be muted, which is the
+  other half of why a placeholder read as a prefilled number — the genuine
+  figures beside it were no darker than the placeholder. Muted is now
+  reserved for the column headers, the category header rows, the SKU
+  subtitle, the help text, the empty state, and the `—`/`-` a diff column
+  shows when there is nothing to diff yet. `diffClassName(amount, hasValue)`
+  encodes exactly that: no value → muted dash, zero → `text-foreground`, and
+  a real difference keeps its emerald/destructive colour. A **zero diff is a
+  figure, not a placeholder** — it used to be muted, which is why Diff Cost
+  and Diff Selling stayed pale on almost every row. Read-only value cells
+  also carry `font-medium`, and an entered count `font-semibold`, so weight
+  ranks typed > read > placeholder. Keep that split when adding a column.
 - `EditableNumberCell` takes `value?: number` plus `placeholder` and
   `onClear`. Only a caller whose value is genuinely optional passes
   `onClear`; without it, blurring an emptied field reverts to the last

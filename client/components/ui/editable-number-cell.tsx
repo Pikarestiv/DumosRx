@@ -95,10 +95,10 @@ export function EditableNumberCell({
       step={step}
       autoFocus={autoFocus}
       aria-label={ariaLabel}
-      className={`${widthClassName} text-right border rounded-md px-2 py-1 outline-none focus:border-primary bg-background ${
+      className={`${widthClassName} text-right border rounded-md px-2 py-1 outline-none focus:border-primary bg-background font-semibold placeholder:font-normal [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
         hasError
-          ? "border-destructive text-destructive font-semibold"
-          : "border-border"
+          ? "border-destructive text-destructive"
+          : "border-border text-foreground"
       }`}
       placeholder={placeholder}
       value={text}

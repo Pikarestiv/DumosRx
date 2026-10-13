@@ -24,8 +24,9 @@ function formatDiffCurrency(amount: number) {
   return amount > 0 ? `+${formatCurrency(amount)}` : formatCurrency(amount);
 }
 
-function diffClassName(amount: number) {
-  if (amount === 0) return "text-muted-foreground";
+function diffClassName(amount: number, hasValue = true) {
+  if (!hasValue) return "text-muted-foreground";
+  if (amount === 0) return "text-foreground";
   return amount > 0 ? "text-emerald-600" : "text-destructive";
 }
 
@@ -427,13 +428,13 @@ export function AuditLedgerStep({
                     </div>
                     <div
                       role="cell"
-                      className="px-3 py-2 text-right text-muted-foreground flex items-center justify-end"
+                      className="px-3 py-2 text-right text-foreground font-medium flex items-center justify-end"
                     >
                       {item.systemQty}
                     </div>
                     <div
                       role="cell"
-                      className={`px-3 py-2 text-right font-semibold flex items-center justify-end ${diffClassName(diffQty)}`}
+                      className={`px-3 py-2 text-right font-semibold flex items-center justify-end ${diffClassName(diffQty, item.countedQty !== undefined)}`}
                     >
                       {item.countedQty === undefined
                         ? "—"
@@ -443,7 +444,7 @@ export function AuditLedgerStep({
                     </div>
                     <div
                       role="cell"
-                      className="px-3 py-2 text-right text-muted-foreground flex items-center justify-end"
+                      className="px-3 py-2 text-right text-foreground font-medium flex items-center justify-end"
                     >
                       {item.costPrice !== undefined
                         ? formatCurrency(item.costPrice)
@@ -460,12 +461,12 @@ export function AuditLedgerStep({
                             onUpdateItem(item.id, { countedCostPrice: val })
                           }
                           parse={parseFloat}
-                          step="0.01"
+                          step="10"
                           hasError={costChanged}
                           widthClassName="w-24"
                         />
                       ) : (
-                        <span className="w-24 text-right text-muted-foreground">
+                        <span className="w-24 text-right text-foreground font-medium">
                           {formatCurrency(
                             item.countedCostPrice ?? item.costPrice ?? 0,
                           )}
@@ -474,7 +475,7 @@ export function AuditLedgerStep({
                     </div>
                     <div
                       role="cell"
-                      className={`px-3 py-2 text-right font-semibold flex items-center justify-end ${diffClassName(diffCost)}`}
+                      className={`px-3 py-2 text-right font-semibold flex items-center justify-end ${diffClassName(diffCost, item.costPrice !== undefined)}`}
                     >
                       {item.costPrice !== undefined
                         ? formatDiffCurrency(diffCost)
@@ -482,7 +483,7 @@ export function AuditLedgerStep({
                     </div>
                     <div
                       role="cell"
-                      className="px-3 py-2 text-right text-muted-foreground flex items-center justify-end"
+                      className="px-3 py-2 text-right text-foreground font-medium flex items-center justify-end"
                     >
                       {item.sellingPrice !== undefined
                         ? formatCurrency(item.sellingPrice)
@@ -501,12 +502,12 @@ export function AuditLedgerStep({
                             onUpdateItem(item.id, { countedSellingPrice: val })
                           }
                           parse={parseFloat}
-                          step="0.01"
+                          step="10"
                           hasError={sellingChanged}
                           widthClassName="w-24"
                         />
                       ) : (
-                        <span className="w-24 text-right text-muted-foreground">
+                        <span className="w-24 text-right text-foreground font-medium">
                           {formatCurrency(
                             item.countedSellingPrice ?? item.sellingPrice ?? 0,
                           )}
@@ -515,7 +516,7 @@ export function AuditLedgerStep({
                     </div>
                     <div
                       role="cell"
-                      className={`px-3 py-2 text-right font-semibold flex items-center justify-end ${diffClassName(diffSelling)}`}
+                      className={`px-3 py-2 text-right font-semibold flex items-center justify-end ${diffClassName(diffSelling, item.sellingPrice !== undefined)}`}
                     >
                       {item.sellingPrice !== undefined
                         ? formatDiffCurrency(diffSelling)
@@ -523,7 +524,7 @@ export function AuditLedgerStep({
                     </div>
                     <div
                       role="cell"
-                      className="px-3 py-2 text-right text-[11.5px] text-muted-foreground flex items-center justify-end"
+                      className="px-3 py-2 text-right text-[11.5px] text-foreground font-medium flex items-center justify-end"
                     >
                       {item.lastAuditedAt
                         ? formatDateSafe(

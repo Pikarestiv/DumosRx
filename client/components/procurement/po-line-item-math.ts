@@ -1,3 +1,4 @@
+import { roundMoney } from "@/lib/utils/pos-calculations";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import type { POLineItemDraft } from "./po-item-ledger-table";
 
@@ -72,7 +73,10 @@ export function resolveBaseUnitCost({
     costOverride != null && costOverride !== ""
       ? Number(costOverride)
       : Number(unitCost) / safeUnitsPerBulk;
-  return Number.isFinite(resolved) ? Math.max(0, resolved) : 0;
+  // Rounded because this is a STORED money value: the division is the one
+  // place a sub-kobo cost could reach stock_batches.cost_price, which MySQL
+  // then rounds anyway - see A-261 in docs/FIXED_BUGS.md.
+  return Number.isFinite(resolved) ? roundMoney(Math.max(0, resolved)) : 0;
 }
 
 export function getImmediateUnitCost(item: POLineItemDraft): number {

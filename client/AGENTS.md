@@ -723,8 +723,9 @@ integer, the cloud value was always exactly right and the local one was off by
 a few ulps (~1e-13) — latent and invisible, worth fixing for hygiene and for
 equality-safety, but it was never capable of moving a displayed cent. Do not
 repeat the claim that float dust "accumulates in reports"; it does not at that
-scale. The precision gap that is real is a *division* stored unrounded, which
-is A-261 in `docs/KNOWN_BUGS.md` and is still open.
+scale. The precision gap that was real is a *division* stored unrounded — A-261,
+now fixed inside `resolveBaseUnitCost()` and recorded in
+`docs/FIXED_BUGS.md`.
 
 `__tests__/money-write-rounding-convention.test.ts` enforces the convention
 over `lib/db` and `lib/hooks`, both walked recursively. It flags a write to a
@@ -740,7 +741,9 @@ fail. Add new money columns to `MONEY_COLUMNS`.
 
 The test can only see arithmetic it can read as text. A money value computed
 into a local variable, or returned by a helper, and then assigned is invisible
-to it — which is exactly how A-261 survives a green run.
+to it — which is exactly how A-261 passed a green run, and why a helper that
+returns a stored money value (`resolveBaseUnitCost()`) has to round inside
+itself rather than relying on this test to catch its callers.
 
 Quantities are exempt and must stay so: they are `INTEGER` on both sides and
 exact in JS below 2^53. A fractional unit of measure (metres, litres) would
@@ -2573,18 +2576,24 @@ carton/pallet); every cost *override* a user types — the Immediate Purchase
 flow's "New Cost" and the Receive panel's "Cost Price" — is **per base
 unit** (per tablet/bag). `resolveBaseUnitCost()`
 (`components/procurement/po-line-item-math.ts`) is the single place that
-conversion happens; `getImmediateUnitCost()` delegates to it and
-`receivePurchaseOrder()` (`lib/db/procurement-receiving.ts`) calls it
-directly instead of re-deriving the division inline, which is how the two
-flows drifted before. Both receiving surfaces label the input "per
+conversion happens, and it **rounds**, because its result is stored
+(A-261): `getImmediateUnitCost()`, `immediateBaseUnitCost()` and
+`receivePurchaseOrder()` (`lib/db/procurement-receiving.ts`) all delegate to
+it rather than re-deriving the division. `immediateBaseUnitCost()` was for a
+while a second copy of that formula — this doc claimed otherwise — and it
+missed both the helper's null handling and its rounding, which is exactly
+the drift the single-source rule exists to prevent. Both receiving surfaces label the input "per
 {base_unit}" and placeholder it with the per-base-unit figure, because the
 quantity field right above them is in *bulk* units and the old
 `item.unit_cost` placeholder read as per-carton.
 
 **Each `stock_batches` row keeps the singular cost it was received at, and
-that is the figure margin/COGS and FEFO deduction use.** The averaged
-`cost_price` that `getProductsWithDetails()` and friends derive is a
-**display/reporting** figure only — nothing computes on it. A small new
+that is the figure FEFO deduction uses.** Be careful with COGS, though: this
+doc used to claim margin/COGS read that batch cost, and they do not.
+`sale_items.cost_price` is snapshotted from the POS cart, which carries the
+**averaged** `cost_price` from `getProductsWithStock()` — so COGS is computed
+from the average, and that average is an unrounded division on every device.
+The averaged figure is otherwise a **display/reporting** one. A small new
 batch barely moves a large displayed average, which reads as "the cost I
 typed didn't save"; `notifyCostRecorded()` in `lib/hooks/use-purchase-orders.ts`
 is the confirmation that says otherwise, and the receive inputs show the

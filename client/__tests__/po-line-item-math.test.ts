@@ -16,6 +16,30 @@ function item(overrides: Partial<POLineItemDraft> = {}): POLineItemDraft {
 }
 
 describe("po-line-item-math", () => {
+  describe("resolveBaseUnitCost rounding (A-261)", () => {
+    it("rounds a per-unit cost that does not divide evenly", () => {
+      // A ₦1,000 carton of 3. SQLite's REAL would keep
+      // 333.3333333333333; MySQL's decimal(10,2) stores 333.33, so the
+      // receiving device disagreed with the cloud and with every other
+      // device until the next pull overwrote it.
+      expect(
+        getImmediateUnitCost(item({ unit_cost: 1000, units_per_bulk: 3 })),
+      ).toBe(333.33);
+    });
+
+    it("rounds an override too, since that is also stored", () => {
+      expect(
+        getImmediateUnitCost(item({ cost_price_override: 12.3456 })),
+      ).toBe(12.35);
+    });
+
+    it("leaves an evenly dividing cost exact", () => {
+      expect(
+        getImmediateUnitCost(item({ unit_cost: 1200, units_per_bulk: 60 })),
+      ).toBe(20);
+    });
+  });
+
   describe("getImmediateUnitCost", () => {
     it("converts the catalog's per-bulk-unit cost down to per-base-unit when no override is set", () => {
       // Regression: the review-price popover previously showed the raw

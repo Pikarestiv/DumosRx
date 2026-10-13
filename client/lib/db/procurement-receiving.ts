@@ -200,20 +200,16 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
   });
 }
 
-/** Cost per single base unit (e.g. per tablet), for an Immediate Purchase
- * line: the override typed into "New Cost" if present, otherwise the
- * catalog unit_cost (which is per-bulk-unit, e.g. per carton) converted
- * down by units_per_bulk. Both this and computeImmediateLineTotal() must
- * stay the single source of truth for this math — it's what's stored as
- * stock_batches.cost_price, and what the order total is derived from, so
- * a second, differently-scaled copy of this formula is how "New Cost" and
- * "Total" drift out of sync with each other. */
+/** Cost per single base unit (e.g. per tablet) for an Immediate Purchase
+ * line. Delegates rather than repeating the conversion: this was a second
+ * copy of resolveBaseUnitCost()'s formula, which is how it missed that
+ * helper's null handling and, latterly, its rounding (A-261). */
 function immediateBaseUnitCost(item: ImmediateLineItemDraft): number {
-  const safeUnitsPerBulk = item.units_per_bulk || 1;
-  // Floored at 0, same as receivePurchaseOrder's baseUnitCost.
-  return item.cost_price_override !== undefined && item.cost_price_override !== ""
-    ? Math.max(0, Number(item.cost_price_override))
-    : Number(item.unit_cost) / safeUnitsPerBulk;
+  return resolveBaseUnitCost({
+    costOverride: item.cost_price_override,
+    unitCost: item.unit_cost,
+    unitsPerBulk: item.units_per_bulk,
+  });
 }
 
 /** Line total in currency, from the same per-base-unit cost used for stock

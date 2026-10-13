@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/context/auth-context";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getLocalTodayDate } from "@/lib/utils";
 import { useStore } from "@/lib/context/store-context";
 import { useSaveExpenseMutation } from "@/lib/hooks/use-expense-mutations";
 import type { Expense } from "@/lib/db/queries/finance";
@@ -43,7 +43,7 @@ export function AddExpenseDialog({
     category: "Rent",
     amount: "",
     description: "",
-    date: new Date().toISOString().split("T")[0],
+    date: getLocalTodayDate(),
     payment_method: "Cash",
     notes: "",
     covers_months: "",
@@ -56,8 +56,8 @@ export function AddExpenseDialog({
         amount: expenseToEdit.amount?.toString() || "",
         description: expenseToEdit.description || "",
         date: expenseToEdit.date
-          ? new Date(expenseToEdit.date).toISOString().split("T")[0]
-          : new Date().toISOString().split("T")[0],
+          ? expenseToEdit.date.slice(0, 10)
+          : getLocalTodayDate(),
         payment_method: expenseToEdit.payment_method || "Cash",
         notes: expenseToEdit.notes || "",
         covers_months: expenseToEdit.covers_months?.toString() || "",
@@ -68,7 +68,7 @@ export function AddExpenseDialog({
         category: "Rent",
         amount: "",
         description: "",
-        date: new Date().toISOString().split("T")[0],
+        date: getLocalTodayDate(),
         payment_method: "Cash",
         notes: "",
         covers_months: "",

@@ -1642,6 +1642,18 @@ re-reads the live quantity inside its transaction
 draft's frozen `systemQty` never mis-posts. What a stale draft does miss is
 catalog churn — logged as A-259.
 
+### An expense is dated by the store's own day (2026-10-13)
+
+`expenses.date` is a date-only column and must hold the **local** calendar
+date (`getLocalTodayDate()`), not `new Date().toISOString().split("T")[0]`.
+The form wrote the UTC date until 2026-10-13: for a UTC+1 store — which is
+every current customer — a cash expense logged at 23:30 was stored under
+tomorrow, so Daily Close's Net Cash Expected never deducted it and the
+drawer read short against the one figure that feature exists to make
+reconcilable. Rows written before the fix keep their UTC date; there is no
+backfill, because nothing can tell a genuinely next-day expense from a
+late-evening one after the fact.
+
 ### Daily Close nets cash expenses off the drawer (2026-10-13)
 
 `getCashExpensesForDate()` (`lib/db/queries/finance.ts`) is deliberately

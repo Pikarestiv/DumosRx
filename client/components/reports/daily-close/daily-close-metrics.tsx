@@ -4,6 +4,7 @@ import {
   ArrowLeftRight,
   RotateCcw,
   TrendingUp,
+  Wallet,
 } from "lucide-react";
 import { formatMetricCurrency } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/metric-card";
@@ -17,6 +18,7 @@ interface DailyCloseMetricsProps {
     transfer: number;
     refunds: number;
   };
+  cashExpenses: number;
   totalProfit: number;
   openSalesModal: (filter: string) => void;
   showProfit?: boolean;
@@ -25,6 +27,7 @@ interface DailyCloseMetricsProps {
 export function DailyCloseMetrics({
   currencyCode,
   aggregatedTotals,
+  cashExpenses,
   totalProfit,
   openSalesModal,
   showProfit = true,
@@ -32,7 +35,7 @@ export function DailyCloseMetrics({
   return (
     <div className="flex flex-col gap-5">
       <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
-        <HorizontalScrollFade className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
+        <HorizontalScrollFade className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-4 pb-4 sm:pb-0 hide-scrollbar snap-x snap-mandatory">
           <MetricCard
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
             title="Total Sales"
@@ -62,6 +65,18 @@ export function DailyCloseMetrics({
             iconBgClass="bg-sky-50 text-sky-700"
             valueClassName="font-serif"
             onClick={() => openSalesModal("transfer")}
+          />
+          <MetricCard
+            className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-emerald-200/50"
+            title="Net Cash Expected"
+            value={formatMetricCurrency(
+              aggregatedTotals.cash - cashExpenses,
+              currencyCode,
+            )}
+            description={`After ${formatMetricCurrency(cashExpenses, currencyCode)} cash expenses`}
+            icon={<Wallet className="h-4 w-4" />}
+            iconBgClass="bg-emerald-50 text-emerald-700"
+            valueClassName="font-serif"
           />
           <MetricCard
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-red-200/50 hover:border-red-500/50"

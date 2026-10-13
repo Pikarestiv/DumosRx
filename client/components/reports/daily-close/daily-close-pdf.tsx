@@ -48,6 +48,7 @@ interface DailyClosePdfProps {
     cardAccounts: Record<string, { name: string; total: number }>;
     transferAccounts: Record<string, { name: string; total: number }>;
   };
+  cashExpenses: number;
   totalProfit: number;
   topSellingMeds: { name: string; quantity: number; revenue: number }[];
   generatedAt: string;
@@ -59,6 +60,7 @@ export function DailyClosePdf({
   reportDate,
   currencyCode,
   aggregatedTotals,
+  cashExpenses,
   totalProfit,
   topSellingMeds,
   generatedAt,
@@ -124,6 +126,16 @@ export function DailyClosePdf({
         <View style={styles.row}>
           <Text>Credit Sales</Text>
           <Text>{money(currencyCode, aggregatedTotals.credit)}</Text>
+        </View>
+        <View style={styles.row}>
+          <Text>Cash Expenses Paid Out</Text>
+          <Text>-{money(currencyCode, cashExpenses)}</Text>
+        </View>
+        <View style={styles.row}>
+          <Text>Net Cash Expected</Text>
+          <Text>
+            {money(currencyCode, aggregatedTotals.cash - cashExpenses)}
+          </Text>
         </View>
 
         {topSellingMeds.length > 0 && (

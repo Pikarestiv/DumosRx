@@ -31,6 +31,7 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
     salesToday,
     returnsToday,
     aggregatedTotals,
+    cashExpenses,
     totalProfit,
     topSellingMeds,
     exportToCSV,
@@ -59,6 +60,7 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
         <DailyCloseMetrics
           currencyCode={currencyCode}
           aggregatedTotals={aggregatedTotals}
+          cashExpenses={cashExpenses}
           totalProfit={totalProfit}
           openSalesModal={openSalesModal}
           showProfit={showProfit}
@@ -85,6 +87,7 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
           reportDate,
           currencyCode,
           aggregatedTotals,
+          cashExpenses,
           totalProfit,
           topSellingMeds,
           showProfit,

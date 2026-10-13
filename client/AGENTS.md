@@ -4569,6 +4569,22 @@ same tab session still gets its own fresh one-time retry.
   New pages should get E2E coverage alongside the existing core set
   (Dashboard, POS, Inventory, Customers, Procurement, Expenses, Reports) so
   the whole app stays covered, not just the area you're adding.
+  - **Read this before you believe a Playwright failure: 10 specs fail on
+    `main` today.** The suite has drifted behind the UI it drives, nothing in
+    CI runs it, and the owner has confirmed the specs were not maintained
+    through recent UI work — logged as **A-262** in `docs/KNOWN_BUGS.md` with
+    the exact list. So a red run proves nothing on its own: check the same
+    spec out at `origin/main` and run it there before concluding your change
+    broke it. That is how PR #160's one genuine regression was separated from
+    the ten pre-existing ones (an `/Cash Expected/i` locator that went
+    ambiguous once a second card was named "Net Cash Expected" — the fix was
+    `{ exact: true }` in the spec, not in the app).
+  - A run rewrites the tracked fixture `e2e/.auth/test-db.bin`, and
+    `next dev` re-injects a `nextjs-agent-rules` block into this file. Both
+    are artifacts: `git restore` them, don't commit them.
+  - If you add or rename a card, tab or heading, grep `e2e/` for the old
+    text. A loose regex locator elsewhere in the suite may now match two
+    elements, which Playwright fails on in strict mode.
 - `npm run test:schema`: diffs local SQLite schema against the Laravel
   backend's live MySQL schema. Requires the sibling `../laravel-server` repo
   and a working `php artisan tinker` in it. Two things about it are load
@@ -5991,3 +6007,13 @@ Before that, work focused on the **Inventory** area:
 - `sw.js`'s catch-all stale-while-revalidate branch was fixed on
   2026-09-26 — see the PWA section above. `sw.js` still has **no test
   coverage** of any kind, which remains the real open item here.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

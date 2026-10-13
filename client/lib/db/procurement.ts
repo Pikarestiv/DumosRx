@@ -5,6 +5,7 @@
 import { query, generateId, transaction, getActiveStoreId } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 import type { SupplierPayload, SupplierDbRow } from "@/lib/types/supplier";
+import { roundMoney } from "@/lib/utils/pos-calculations";
 
 /** Line-item form fields (selling_price, cost_price_override) come in as
  * `number | string | undefined` from raw form inputs - blank/undefined
@@ -267,7 +268,7 @@ export async function createPurchaseOrder(
         quantity_received: 0,
         units_per_bulk: item.units_per_bulk,
         unit_cost: item.unit_cost,
-        subtotal: item.bulk_quantity * item.unit_cost,
+        subtotal: roundMoney(item.bulk_quantity * item.unit_cost),
         selling_price: coerceOptionalNumber(item.selling_price),
         cost_price_override: coerceOptionalNumber(item.cost_price_override),
         lot_number: item.lot_number || null,
@@ -328,7 +329,7 @@ export async function updatePurchaseOrder(
         quantity_received: 0,
         units_per_bulk: item.units_per_bulk,
         unit_cost: item.unit_cost,
-        subtotal: item.bulk_quantity * item.unit_cost,
+        subtotal: roundMoney(item.bulk_quantity * item.unit_cost),
         selling_price: coerceOptionalNumber(item.selling_price),
         cost_price_override: coerceOptionalNumber(item.cost_price_override),
         lot_number: item.lot_number || null,

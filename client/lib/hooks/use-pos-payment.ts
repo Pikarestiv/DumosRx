@@ -23,6 +23,7 @@ import { calculateTaxPercentage, calculateMixedAmountPaid, calculateMixedChangeD
 import type { Customer } from "@/lib/types/customer";
 import type { ReceiptTransaction } from "@/components/pos/receipt-view";
 import { getStoredUser } from "@/lib/storage-keys";
+import { roundMoney } from "@/lib/utils/pos-calculations";
 
 export type { Customer };
 
@@ -225,12 +226,13 @@ export function usePOSPayment({
                 : paymentMethod === "credit"
                   ? 0
                   : total,
-          change_given:
+          change_given: roundMoney(
             paymentMethod === "cash"
               ? Math.max(0, (Number.parseFloat(amountPaid) || 0) - total)
               : paymentMethod === "mixed"
                 ? calculateMixedChangeDue(paymentSplits, total)
                 : 0,
+          ),
           points_earned: earnedPoints,
           // Only ever set when a customer is selected — the UI gates the
           // redemption picker on that already, but guard here too in case a
@@ -290,7 +292,7 @@ export function usePOSPayment({
           await update(
             "customers",
             selectedCustomer.id,
-            { outstanding_balance: currentBalance + total },
+            { outstanding_balance: roundMoney(currentBalance + total) },
             { correlationId: newSaleId },
           );
         } else if (paymentMethod === "mixed" && selectedCustomer) {
@@ -309,7 +311,7 @@ export function usePOSPayment({
             await update(
               "customers",
               selectedCustomer.id,
-              { outstanding_balance: currentBalance + creditOwed },
+              { outstanding_balance: roundMoney(currentBalance + creditOwed) },
               { correlationId: newSaleId },
             );
           }

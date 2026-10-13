@@ -20,6 +20,7 @@ import {
 } from "./procurement";
 import { getStoredUser } from "@/lib/storage-keys";
 import { resolveBaseUnitCost } from "@/components/procurement/po-line-item-math";
+import { roundMoney } from "@/lib/utils/pos-calculations";
 
 /** Per-line-item receiving overrides submitted from the "Receive Order" form:
  * only po_item_id is required, the rest default to the ordered quantity/PO id. */
@@ -153,7 +154,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
         unit_cost: baseUnitCost,
         // Recalculated from what was actually received, not item.subtotal (the full
         // ordered-line total): those diverge whenever this is a partial receipt.
-        total_cost: baseUnitCost * totalBaseUnits,
+        total_cost: roundMoney(baseUnitCost * totalBaseUnits),
         reference_id: poData.id,
         reference_type: "purchase_order",
         reason: "Purchase order received",
@@ -304,7 +305,7 @@ export async function createAndReceivePurchaseOrder(
         movement_type: "purchase",
         quantity: totalBaseUnits,
         unit_cost: baseUnitCost,
-        total_cost: baseUnitCost * totalBaseUnits,
+        total_cost: roundMoney(baseUnitCost * totalBaseUnits),
         reference_id: poId,
         reference_type: "purchase_order",
         reason: "Immediate purchase received",

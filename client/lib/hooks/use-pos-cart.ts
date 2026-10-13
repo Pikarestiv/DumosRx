@@ -16,6 +16,7 @@ import {
 export type { POSProduct as Product } from "@/lib/types/product";
 import type { POSProduct as Product } from "@/lib/types/product";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { roundMoney } from "@/lib/utils/pos-calculations";
 
 export interface CartItem extends Product {
   quantity: number;
@@ -160,7 +161,7 @@ export function repriceCartFromCatalog(
       original_unit_price: product.unit_price,
       unit_price: unitPrice,
       cost_price: costPrice,
-      subtotal: unitPrice * item.quantity,
+      subtotal: roundMoney(unitPrice * item.quantity),
     };
   });
 
@@ -318,7 +319,7 @@ export function usePOSCart(products: Product[]) {
             ? {
                 ...item,
                 quantity: newQuantity,
-                subtotal: item.unit_price * newQuantity,
+                subtotal: roundMoney(item.unit_price * newQuantity),
               }
             : item,
         ),
@@ -365,7 +366,7 @@ export function usePOSCart(products: Product[]) {
           // too, not just in the input's `min`, so a pasted/typed value below
           // the floor can't get through either.
           const clamped = Math.max(newPrice, item.original_unit_price);
-          return { ...item, unit_price: clamped, subtotal: clamped * item.quantity };
+          return { ...item, unit_price: clamped, subtotal: roundMoney(clamped * item.quantity) };
         }),
       );
     },
@@ -383,7 +384,7 @@ export function usePOSCart(products: Product[]) {
           prev.map((item) => ({
             ...item,
             unit_price: item.original_unit_price,
-            subtotal: item.original_unit_price * item.quantity,
+            subtotal: roundMoney(item.original_unit_price * item.quantity),
           })),
         );
         setMarkupType(null);

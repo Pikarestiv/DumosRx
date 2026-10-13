@@ -27,6 +27,7 @@ import type { CustomerDbRow } from "@/lib/types/customer";
 import { hashPin } from "@/lib/utils/pin-hash";
 import { getStoredUser } from "@/lib/storage-keys";
 import { serializeRequeuePayload } from "./requeue-payload";
+import { roundMoney } from "@/lib/utils/pos-calculations";
 
 const STOCK_MOVEMENT_AUDIT_ACTIONS: Record<string, string> = {
   adjustment: AUDIT_ACTIONS.STOCK_ADJUSTMENT,
@@ -172,7 +173,7 @@ export async function createSale(saleData: Record<string, unknown>, items: Creat
         movement_type: "sale",
         quantity: -Math.abs(item.quantity),
         unit_cost: item.cost_price || 0,
-        total_cost: (item.cost_price || 0) * item.quantity,
+        total_cost: roundMoney((item.cost_price || 0) * item.quantity),
         reference_id: saleId,
         reference_type: "sale",
         reason: "Customer sale",

@@ -1,6 +1,7 @@
 import { insert, update, query } from "@/lib/db/local-database";
 import { getSaleItemBatches } from "@/lib/db/queries/sales";
 import { getStockBatchById, getOrCreateTargetBatchForProduct } from "@/lib/db/queries/inventory";
+import { roundMoney } from "@/lib/utils/pos-calculations";
 
 interface RestoreParams {
   saleItemId: string;
@@ -74,7 +75,7 @@ async function restoreBatchQuantity(
     movement_type: "return",
     quantity: Math.abs(quantity),
     unit_cost: costPrice,
-    total_cost: costPrice * quantity,
+    total_cost: roundMoney(costPrice * quantity),
     reference_id: returnId,
     reference_type: "return",
     reason: "Customer return",

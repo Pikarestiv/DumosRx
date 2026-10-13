@@ -10,6 +10,7 @@ import { updatePrescriptionStatus } from "@/lib/db/queries/prescriptions";
 import { calculateLoyaltyPointsAfterSale, calculateReturnPointsAdjustment } from "@/lib/utils/loyalty-calculator";
 import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
 import { getStoredUser } from "@/lib/storage-keys";
+import { roundMoney } from "@/lib/utils/pos-calculations";
 
 type ReturnableItem = SaleItemDetail & {
   returnQuantity: number;
@@ -68,7 +69,7 @@ export function useProcessReturnMutation() {
             product_id: item.product_id,
             quantity: item.returnQuantity,
             unit_price: item.unit_price,
-            subtotal: item.unit_price * item.returnQuantity,
+            subtotal: roundMoney(item.unit_price * item.returnQuantity),
           });
 
           await restoreReturnedStock({
@@ -153,12 +154,12 @@ export function useProcessReturnMutation() {
             const balanceRows = await getCustomerBalance(sale.customer_id);
             const currentBalance = balanceRows[0]?.balance || 0;
             await update("customers", sale.customer_id, {
-              outstanding_balance: Math.max(0, currentBalance - forgiven),
+              outstanding_balance: roundMoney(Math.max(0, currentBalance - forgiven)),
             });
 
             if (forgiven > 0) {
               await update("sales", sale.id, {
-                amount_paid: Math.round(((sale.amount_paid || 0) + forgiven) * 100) / 100,
+                amount_paid: roundMoney((sale.amount_paid || 0) + forgiven),
               });
             }
           }

@@ -442,15 +442,17 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
     try {
       // Wipe the local database to prepare for a clean initial sync of the new store
       await clearDatabaseForNewStore();
-      // clearDatabaseForNewStore() can only remove the persisted key; the
+      // clearDatabaseForNewStore() can only remove the persisted key; each
       // zustand store rehydrates once at creation, so the outgoing store's
-      // cart survives in memory without this and the next mutation re-persists
-      // it. See use-pos-cart.ts's own note.
+      // drafts survive in memory without this and the next mutation
+      // re-persists them. See use-pos-cart.ts's own note.
       try {
-        const { clearPOSCartStorage } = await import("@/lib/hooks/use-pos-cart");
-        clearPOSCartStorage();
+        const { clearLocalDrafts } = await import(
+          "@/lib/utils/clear-local-drafts"
+        );
+        clearLocalDrafts();
       } catch (err) {
-        console.warn("Failed to clear the outgoing store's cart", err);
+        console.warn("Failed to clear the outgoing store's drafts", err);
       }
       onDeviceDataChanged?.();
 

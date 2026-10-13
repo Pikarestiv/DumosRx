@@ -128,9 +128,9 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Every row is editable from the moment it loads, pre-filled with the
-  // system's current values, so counted/adjusted stats only reflect rows
-  // someone actually changed. Only runs on the first load: a later
+  // Counted Qty opens EMPTY - the field itself is the record of what has
+  // been counted, which is why the cost/price columns (corrections, not
+  // counts) still open pre-filled. Only runs on the first load: a later
   // background refetch (e.g. after the sync above) must not clobber counts
   // already in progress.
   useEffect(() => {
@@ -144,7 +144,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
           systemQty: p.stock_quantity || 0,
           costPrice: p.cost_price ?? undefined,
           sellingPrice: p.selling_price ?? undefined,
-          countedQty: p.stock_quantity || 0,
+          countedQty: undefined,
           countedCostPrice: p.cost_price ?? undefined,
           countedSellingPrice: p.selling_price ?? undefined,
           lastAuditedAt: p.last_audited_at ?? null,

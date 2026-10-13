@@ -1532,29 +1532,45 @@ sale lands for another −2, and the shelf holding 8 settles at 6.
   import reconcile stock through the same delta with no check; logged in
   `docs/KNOWN_BUGS.md` A-211 along with the real fix (an absolute count).
 
-### "Counted" is a tick, not a filled-in field (2026-10-13)
+### Counted Qty opens EMPTY, and that is the whole design (2026-10-13)
 
-The cycle count opens every row pre-filled with the system's own figures, so
-`countedQty !== undefined` said nothing about whether anyone had been to the
-shelf — it was true for every row the moment the screen loaded, which made
-"Total Counted" equal to the catalog size and gave a counter no way to see
-what was left to do.
+The cycle count used to open every row pre-filled with the system's own
+figures, so `countedQty !== undefined` said nothing about whether anyone had
+been to the shelf — it was true for every row the moment the screen loaded,
+which made "Total Counted" equal to the catalog size and gave a counter no
+way to see what was left to do. A pre-filled figure also invites counting by
+confirmation: accepting what the system already claims is indistinguishable
+on screen from having walked to the shelf.
 
-- `AuditItem.counted` is the explicit tick (`stock-audits.tsx`), set by
-  `updateLedgerItem` on **any** edit and toggleable by hand for a row whose
-  count matched. `isAuditItemCounted()` (`audit-derivations.ts`) is the only
-  thing that should be asked whether a row was counted.
-- **Do not prefill `countedQty` with 0** to get the same signal. Submit posts
-  every row whose counted figure differs from the system's, so a zero prefill
-  turns every untouched row into an adjustment to zero stock — Cynthia asked
-  for exactly this on 2026-10-13 and the tick is what it was traded for.
+- **Counted Qty is blank until someone types in it**, with the system
+  quantity as the input's `placeholder` so the row still says what it is
+  being compared against. The field *is* the record of the count. This is the
+  convention the printed count sheet has always used
+  (`buildStockAuditRows()` emits an empty "Counted Qty" column) and the one
+  Odoo/NetSuite/Fishbowl count sheets use.
+- **Never prefill `countedQty` with 0.** Submit posts every row whose counted
+  figure differs from the system's, so a zero prefill turns every untouched
+  row into an adjustment to zero stock. It was asked for twice on 2026-10-13
+  and is the one option that is actually dangerous.
+- `AuditItem.counted` is the hand-tick, and ticking is a **shortcut, not a
+  separate signal**: it writes `countedQty = systemQty` ("counted, and it
+  matched"), and un-ticking clears the quantity again. It also covers a row
+  where only a price was corrected. Nothing disables the tick — it is always
+  the counter's to set, in both directions.
+- `isAuditItemCounted()` (`audit-derivations.ts`) is the only thing that
+  should be asked whether a row was counted.
 - `differsFromSystem()` requires `countedQty !== undefined` before treating a
   quantity as a difference; without that guard an un-entered row submits
   `undefined` as a quantity.
-- **Compatibility shim:** `isAuditItemCounted()` also returns true for any row
-  that differs, so a draft persisted in the `stock-audit-draft` zustand store
-  before the tick existed still submits. Retirable one release after
-  2026-10-13, once no device can be carrying one.
+- `EditableNumberCell` takes `value?: number` plus `placeholder` and
+  `onClear`. Only a caller whose value is genuinely optional passes
+  `onClear`; without it, blurring an emptied field reverts to the last
+  committed number, which is what every other quick-edit in the app wants.
+- **Compatibility shim:** `isAuditItemCounted()` also returns true for
+  `counted === true` and for any row that differs, so a draft persisted in
+  the `stock-audit-draft` zustand store while Counted Qty was still
+  pre-filled stays correct. Retirable one release after 2026-10-13, once no
+  device can be carrying one.
 - The ledger's `Count` filter pill (All / Counted / Not Counted / Qty
   Differences) is `selectAuditStatusItems()`, applied between the category
   lens and the fuzzy search in `stock-audits.tsx`.

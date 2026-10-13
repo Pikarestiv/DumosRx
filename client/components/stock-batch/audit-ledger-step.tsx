@@ -156,10 +156,8 @@ export function AuditLedgerStep({
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 pb-4">
       <div className="text-[17px] font-semibold mb-1.5">Physical inventory</div>
       <div className="text-[13px] text-muted-foreground mb-4">
-        Every field starts at the system&apos;s current value. Edit only
-        what&apos;s actually different.{" "}
-        Tick a row once you have counted it - editing any field ticks it for
-        you.{" "}
+        Counted Qty starts empty: type what you actually counted, or tick a
+        row whose count matched the system figure shown in the field.{" "}
         {isSyncing
           ? "Syncing latest stock levels…"
           : `(${items.length} of ${totalItems} item${totalItems === 1 ? "" : "s"} shown, ${countedCount} counted)`}
@@ -335,6 +333,7 @@ export function AuditLedgerStep({
               {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                 const item = sortedData[virtualRow.index];
                 if (!item) return null;
+                const isCounted = isAuditItemCounted(item);
                 const countedQty = item.countedQty ?? item.systemQty;
                 const diffQty = countedQty - item.systemQty;
                 // Valued at the system price, not the counted one: this is
@@ -373,13 +372,18 @@ export function AuditLedgerStep({
                     >
                       <div className="flex items-center gap-2">
                         <Checkbox
-                          checked={isAuditItemCounted(item)}
-                          // A row that no longer matches the system has
-                          // demonstrably been counted; only an untouched
-                          // row's tick is the operator's to set.
-                          disabled={diffQty !== 0 || costChanged || sellingChanged}
+                          checked={isCounted}
+                          // The shortcut for the common case: ticking says
+                          // "counted, and it matched", which is just the
+                          // system figure entered for you. Unticking takes
+                          // the row back to uncounted.
                           onCheckedChange={(checked) =>
-                            onUpdateItem(item.id, { counted: checked === true })
+                            onUpdateItem(
+                              item.id,
+                              checked === true
+                                ? { countedQty: item.systemQty, counted: true }
+                                : { countedQty: undefined, counted: false },
+                            )
                           }
                           aria-label={`Mark ${item.name} as counted`}
                         />
@@ -398,13 +402,21 @@ export function AuditLedgerStep({
                       className="px-2 py-1.5 text-right flex items-center justify-end"
                     >
                       <EditableNumberCell
-                        value={countedQty}
+                        value={item.countedQty}
+                        placeholder={String(item.systemQty)}
                         onCommit={(val) =>
                           onUpdateItem(item.id, { countedQty: val })
                         }
+                        onClear={() =>
+                          onUpdateItem(item.id, {
+                            countedQty: undefined,
+                            counted: false,
+                          })
+                        }
                         parse={(raw) => parseInt(raw, 10)}
-                        hasError={diffQty !== 0}
+                        hasError={isCounted && diffQty !== 0}
                         widthClassName="w-20"
+                        ariaLabel={`Counted quantity for ${item.name}`}
                       />
                     </div>
                     <div
@@ -417,7 +429,11 @@ export function AuditLedgerStep({
                       role="cell"
                       className={`px-3 py-2 text-right font-semibold flex items-center justify-end ${diffClassName(diffQty)}`}
                     >
-                      {diffQty > 0 ? `+${diffQty}` : diffQty}
+                      {item.countedQty === undefined
+                        ? "—"
+                        : diffQty > 0
+                          ? `+${diffQty}`
+                          : diffQty}
                     </div>
                     <div
                       role="cell"

@@ -10,6 +10,13 @@ import { useEffect, useState } from "react";
  * blurred still empty (which reverts to the last committed value). Shared
  * across every quick-edit numeric input in the app (cycle count ledger,
  * product catalog quick-edit) rather than reimplemented per table. */
+/** `undefined` renders as an empty field (and shows `placeholder`), which is
+ * distinct from 0 - a cycle-count row nobody has reached yet is not a count
+ * of zero. */
+function toText(value: number | undefined): string {
+  return value === undefined ? "" : String(value);
+}
+
 export function EditableNumberCell({
   value,
   onCommit,
@@ -24,8 +31,10 @@ export function EditableNumberCell({
   ariaLabel,
   onSubmit,
   inputMode,
+  placeholder,
+  onClear,
 }: {
-  value: number;
+  value: number | undefined;
   onCommit: (val: number) => void;
   parse: (raw: string) => number;
   min?: number;
@@ -52,8 +61,17 @@ export function EditableNumberCell({
    * associated with each row, leaving the input unnamed for screen readers
    * and for any test that wants to address one row's field. */
   ariaLabel?: string;
+  /** Shown while the field is empty - e.g. the system figure a cycle count
+   * is being compared against, so a blank cell still says what it is
+   * blank against. */
+  placeholder?: string;
+  /** When provided, blurring an empty field reports the value as cleared
+   * instead of reverting to the last committed number. Only a caller whose
+   * `value` is genuinely optional (an uncounted cycle-count row) should pass
+   * this; without it, blur-while-empty keeps its original revert behaviour. */
+  onClear?: () => void;
 }) {
-  const [text, setText] = useState(String(value));
+  const [text, setText] = useState(toText(value));
   const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
@@ -66,7 +84,7 @@ export function EditableNumberCell({
     // trailing digits made the parsed number equal 0 again after the "0."
     // prefix was typed (see docs/KNOWN_BUGS.md).
     if (isFocused) return;
-    setText(String(value));
+    setText(toText(value));
   }, [value, isFocused]);
 
   return (
@@ -82,6 +100,7 @@ export function EditableNumberCell({
           ? "border-destructive text-destructive font-semibold"
           : "border-border"
       }`}
+      placeholder={placeholder}
       value={text}
       onChange={(e) => {
         const raw = e.target.value;
@@ -92,7 +111,8 @@ export function EditableNumberCell({
       }}
       onBlur={() => {
         setIsFocused(false);
-        if (text === "" || isNaN(parse(text))) setText(String(value));
+        if (text === "" && onClear) onClear();
+        else if (text === "" || isNaN(parse(text))) setText(toText(value));
         onBlur?.();
       }}
       onKeyDown={(e) => {

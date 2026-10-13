@@ -85,3 +85,60 @@ describe("EditableNumberCell leading-zero decimal entry", () => {
     expect(input.value).toBe("10");
   });
 });
+
+/**
+ * A cycle-count row nobody has reached yet has no counted quantity at all,
+ * which is not the same as a count of zero - so the cell has to be able to
+ * render and report "empty". Callers that pass no `onClear` keep the
+ * original behaviour: blurring an emptied field reverts to the last
+ * committed number.
+ */
+describe("EditableNumberCell: an absent value", () => {
+  it("renders empty with its placeholder instead of 'undefined'", () => {
+    render(
+      <EditableNumberCell
+        value={undefined}
+        placeholder="10"
+        onCommit={vi.fn()}
+        parse={(raw) => parseInt(raw, 10)}
+        ariaLabel="Counted"
+      />,
+    );
+    const input = screen.getByLabelText("Counted") as HTMLInputElement;
+    expect(input.value).toBe("");
+    expect(input.placeholder).toBe("10");
+  });
+
+  it("reports a cleared field through onClear rather than reverting", () => {
+    const onClear = vi.fn();
+    render(
+      <EditableNumberCell
+        value={7}
+        onCommit={vi.fn()}
+        onClear={onClear}
+        parse={(raw) => parseInt(raw, 10)}
+        ariaLabel="Counted"
+      />,
+    );
+    const input = screen.getByLabelText("Counted") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.blur(input);
+    expect(onClear).toHaveBeenCalledTimes(1);
+    expect(input.value).toBe("");
+  });
+
+  it("still reverts an emptied field when no onClear is given", () => {
+    render(
+      <EditableNumberCell
+        value={7}
+        onCommit={vi.fn()}
+        parse={(raw) => parseInt(raw, 10)}
+        ariaLabel="Counted"
+      />,
+    );
+    const input = screen.getByLabelText("Counted") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.blur(input);
+    expect(input.value).toBe("7");
+  });
+});

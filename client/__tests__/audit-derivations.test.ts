@@ -18,7 +18,9 @@ function item(overrides: Partial<AuditItem> = {}): AuditItem {
     sku: "SKU-1",
     category: "Analgesics",
     systemQty: 10,
-    countedQty: 10,
+    // An untouched row: Counted Qty opens EMPTY, so there is no quantity
+    // here until someone enters one.
+    countedQty: undefined,
     costPrice: 100,
     countedCostPrice: 100,
     sellingPrice: 150,
@@ -77,39 +79,40 @@ describe("stock audit derivations", () => {
       item({ id: "b", countedQty: 12 }),
       item({ id: "c", countedCostPrice: 90 }),
       item({ id: "d", countedSellingPrice: 199 }),
-      item({ id: "e", countedQty: undefined }),
+      item({ id: "e", countedQty: 10 }),
     ];
 
-    // Every row opens pre-filled, so an untouched one ("a", "e") is NOT
-    // counted - only a ticked row or one that actually differs is.
+    // "a" has not been counted at all; "e" was counted and matched.
     expect(selectCountedAuditItems(edited).map((i) => i.id)).toEqual([
       "b",
       "c",
       "d",
+      "e",
     ]);
+    // Only the rows that actually differ are ever posted to stock - a row
+    // counted at exactly the system figure writes nothing.
     expect(
       selectAdjustedAuditItems(selectCountedAuditItems(edited)).map((i) => i.id),
     ).toEqual(["b", "c", "d"]);
   });
 
-  it("counts a ticked row that matched the system, and ignores an untouched one", () => {
+  it("counts an entered quantity, even one that matched the system", () => {
     expect(isAuditItemCounted(item())).toBe(false);
-    expect(isAuditItemCounted(item({ counted: true }))).toBe(true);
-    // A differing row counts even without the flag, so drafts persisted
-    // before the tick existed still submit.
+    expect(isAuditItemCounted(item({ countedQty: 10 }))).toBe(true);
+    expect(isAuditItemCounted(item({ countedQty: 0 }))).toBe(true);
     expect(isAuditItemCounted(item({ countedQty: 12 }))).toBe(true);
-    // An un-entered quantity is not a difference - it would submit as
+    // The hand-ticked row, and a row where only a price was corrected.
+    expect(isAuditItemCounted(item({ counted: true }))).toBe(true);
+    expect(isAuditItemCounted(item({ countedCostPrice: 90 }))).toBe(true);
+    // An un-entered quantity is never an adjustment - it would submit as
     // `undefined`.
-    expect(isAuditItemCounted(item({ countedQty: undefined }))).toBe(false);
-    expect(
-      selectAdjustedAuditItems([item({ countedQty: undefined })]),
-    ).toEqual([]);
+    expect(selectAdjustedAuditItems([item()])).toEqual([]);
   });
 
   it("lenses the ledger by count progress", () => {
     const rows = [
       item({ id: "a" }),
-      item({ id: "b", counted: true }),
+      item({ id: "b", countedQty: 10 }),
       item({ id: "c", countedQty: 12 }),
     ];
     expect(selectAuditStatusItems(rows, "all")).toBe(rows);
@@ -120,7 +123,7 @@ describe("stock audit derivations", () => {
     expect(selectAuditStatusItems(rows, "uncounted").map((i) => i.id)).toEqual([
       "a",
     ]);
-    // A ticked row whose count matched is not a difference.
+    // A row counted at the system figure is not a difference.
     expect(
       selectAuditStatusItems(rows, "differences").map((i) => i.id),
     ).toEqual(["c"]);

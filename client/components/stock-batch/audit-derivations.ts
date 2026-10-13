@@ -43,17 +43,23 @@ function differsFromSystem(item: AuditItem): boolean {
   );
 }
 
-/** Whether someone has actually been to the shelf for this row. Every row
- * opens pre-filled with the system's values, so the field alone can't say;
- * `counted` is the explicit tick, set automatically by any edit and
- * toggleable by hand for a row whose count matched.
+/** Whether someone has actually been to the shelf for this row. Counted Qty
+ * opens empty, so an entered quantity IS the record of a count - including
+ * one that happens to equal the system figure. `counted` additionally covers
+ * a row ticked by hand (which fills the quantity for you) and a row where
+ * only a price was corrected.
  *
- * A row that differs counts regardless of the flag: that keeps drafts
- * persisted before the tick existed (zustand `stock-audit-draft`) correct,
- * and the flag can be retired from this check once no device can still be
- * carrying one - i.e. one release after this ships. */
+ * A row that differs counts regardless of either: that keeps drafts
+ * persisted before this existed (zustand `stock-audit-draft`, which
+ * pre-filled Counted Qty with the system quantity) correct, and both
+ * fallbacks can be retired from this check once no device can still be
+ * carrying such a draft - i.e. one release after 2026-10-13. */
 export function isAuditItemCounted(item: AuditItem): boolean {
-  return item.counted === true || differsFromSystem(item);
+  return (
+    item.countedQty !== undefined ||
+    item.counted === true ||
+    differsFromSystem(item)
+  );
 }
 
 export function selectCountedAuditItems(items: AuditItem[]): AuditItem[] {

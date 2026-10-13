@@ -1,4 +1,5 @@
 import type { AuditItem } from "./stock-audits";
+import type { StockAuditSubmission } from "@/lib/db/queries/inventory";
 
 export const ALL_AUDIT_CATEGORIES = "__all__";
 
@@ -82,7 +83,7 @@ export function matchesAuditStatus(
       return !isAuditItemCounted(item);
     case "differences":
       return (item.countedQty ?? item.systemQty) !== item.systemQty;
-    default:
+    case "all":
       return true;
   }
 }
@@ -103,4 +104,28 @@ export function selectAdjustedAuditItems(countedItems: AuditItem[]): AuditItem[]
  * point from which backing out of the flow would lose real work. */
 export function hasUnsavedAuditEdits(items: AuditItem[]): boolean {
   return selectAdjustedAuditItems(selectCountedAuditItems(items)).length > 0;
+}
+
+/** What submitStockAudit() receives for the rows being posted.
+ *
+ * `countedQty` is passed through as-is, `undefined` included: a row where
+ * only a price was corrected has no counted quantity, and submitStockAudit
+ * then resolves it against the quantity it re-reads INSIDE its transaction.
+ * Coalescing to `item.systemQty` here instead looks equivalent and is not -
+ * that figure was frozen when the sheet was built, so a day's sales since
+ * would be posted back as found stock. See client/AGENTS.md.
+ */
+export function toStockAuditSubmissions(
+  items: AuditItem[],
+): StockAuditSubmission[] {
+  return items.map((item) => ({
+    productId: item.id,
+    systemQty: item.systemQty,
+    countedQty: item.countedQty,
+    systemCostPrice: item.costPrice,
+    countedCostPrice: item.countedCostPrice ?? item.costPrice,
+    systemSellingPrice: item.sellingPrice,
+    countedSellingPrice: item.countedSellingPrice ?? item.sellingPrice,
+    reason: item.reason,
+  }));
 }

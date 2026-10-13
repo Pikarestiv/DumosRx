@@ -41,6 +41,7 @@ import {
   matchesAuditStatus,
   selectAuditStatusItems,
   selectCountedAuditItems,
+  toStockAuditSubmissions,
   type AuditCountStatus,
 } from "./audit-derivations";
 import { useStockAuditDraftStore } from "@/lib/hooks/use-stock-audit-draft";
@@ -129,11 +130,8 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Counted Qty opens EMPTY - the field itself is the record of what has
-  // been counted, which is why the cost/price columns (corrections, not
-  // counts) still open pre-filled. Only runs on the first load: a later
-  // background refetch (e.g. after the sync above) must not clobber counts
-  // already in progress.
+  // Counted Qty opens empty; the cost/price columns do not. Rebuild rules
+  // and the items.length dep: client/AGENTS.md.
   useEffect(() => {
     if (rawProducts && items.length === 0) {
       const formatted: AuditItem[] = rawProducts.map(
@@ -153,11 +151,6 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
       );
       setItems(formatted);
     }
-    // `items.length` as well as `rawProducts`: "Start over" empties the
-    // draft without touching the cached query, so keying this on the
-    // products alone left the ledger permanently empty until the screen was
-    // closed and reopened. The `=== 0` guard above is what keeps a
-    // mid-count refetch from clobbering entered figures.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawProducts, items.length]);
 
@@ -174,12 +167,8 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   // from under the finger mid-tap, shifting every virtualized row below it.
   // The rows that matched when the lens was chosen stay on screen until the
   // lens itself changes; only then is the set re-taken.
-  // Re-taken during render rather than in an effect: an effect leaves the
-  // first paint after a lens change showing the PREVIOUS lens's snapshot,
-  // which on a large catalog flashes every row before narrowing. This is
-  // React's documented "adjust state when the input changes" shape - the
-  // re-render happens before anything is painted. Keyed on the lens alone,
-  // so a row being counted never re-takes it; that is the whole point.
+  // Keyed on the lens alone and re-taken during render, so counting a row
+  // never hides it mid-tap. Why not an effect: client/AGENTS.md.
   const lensKey = `${countStatus}|${selectedCategory}|${search}`;
   const [stickyRows, setStickyRows] = useState<{
     key: string;
@@ -331,18 +320,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     if (isSubmitting) return;
     submitAuditMutation.mutate(
       {
-        items: adjustedItems.map((i) => ({
-          productId: i.id,
-          systemQty: i.systemQty,
-          // A row where only a price was corrected has no counted quantity;
-          // the quantity is unchanged, not zero and not NaN.
-          countedQty: i.countedQty ?? i.systemQty,
-          systemCostPrice: i.costPrice,
-          countedCostPrice: i.countedCostPrice ?? i.costPrice,
-          systemSellingPrice: i.sellingPrice,
-          countedSellingPrice: i.countedSellingPrice ?? i.sellingPrice,
-          reason: i.reason,
-        })),
+        items: toStockAuditSubmissions(adjustedItems),
         performedBy: user?.id || null,
       },
       {

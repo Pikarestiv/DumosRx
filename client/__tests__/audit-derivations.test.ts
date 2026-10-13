@@ -8,6 +8,7 @@ import {
   selectAuditStatusItems,
   matchesAuditStatus,
   isAuditItemCounted,
+  toStockAuditSubmissions,
   hasUnsavedAuditEdits,
 } from "@/components/stock-batch/audit-derivations";
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
@@ -137,6 +138,27 @@ describe("stock audit derivations", () => {
     expect(matchesAuditStatus(item(), "uncounted")).toBe(true);
     // The "all" lens matches everything, counted or not.
     expect(matchesAuditStatus(item(), "all")).toBe(true);
+  });
+
+  it("sends a price-only row with NO counted quantity, so the submit uses the live figure", () => {
+    // The row's own systemQty was frozen when the sheet was built. Coalescing
+    // to it here would post a day's sales back as found stock; submitStockAudit
+    // re-reads the real quantity inside its transaction instead.
+    const [submission] = toStockAuditSubmissions([
+      item({ systemQty: 20, countedQty: undefined, countedCostPrice: 150 }),
+    ]);
+    expect(submission.countedQty).toBeUndefined();
+    expect(submission.systemQty).toBe(20);
+    expect(submission.countedCostPrice).toBe(150);
+  });
+
+  it("passes a counted quantity straight through, zero included", () => {
+    expect(
+      toStockAuditSubmissions([item({ countedQty: 0 })])[0].countedQty,
+    ).toBe(0);
+    expect(
+      toStockAuditSubmissions([item({ countedQty: 12 })])[0].countedQty,
+    ).toBe(12);
   });
 
   it("reports unsaved edits only once a row actually differs", () => {

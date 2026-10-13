@@ -6,6 +6,7 @@ import {
   ADJUSTMENT_REFERENCE_TYPE,
   AUDIT_REFERENCE_TYPE,
 } from "@/lib/constants/stock-adjustments";
+import { roundMoney } from "@/lib/utils/pos-calculations";
 
 export async function getAvailableStockBatches() {
   const storeId = getActiveStoreId();
@@ -338,7 +339,7 @@ async function writeSaleItemStock({
       movement_type: "sale",
       quantity: -Math.abs(deduction),
       unit_cost: costPrice || 0,
-      total_cost: (costPrice || 0) * deduction,
+      total_cost: roundMoney((costPrice || 0) * deduction),
       reference_id: saleId,
       reference_type: "sale",
       reason: oversoldBatchIds.has(batchId)
@@ -618,10 +619,8 @@ export async function getOrCreateTargetBatchForProduct(
 export interface StockAuditSubmission {
   productId: string;
   systemQty: number;
-  /** Omitted for a row whose quantity was never counted - a price-only
-   * correction. Treated as "unchanged", never as zero: a bare subtraction
-   * against `undefined` yields NaN, which slips through every `=== 0` guard
-   * below and reaches applyStockAdjustmentDelta as the delta. */
+  /** Omitted for a price-only correction, and resolved below against the
+   * quantity this function re-reads - never treated as zero. */
   countedQty?: number;
   systemCostPrice?: number;
   countedCostPrice?: number;
@@ -806,7 +805,7 @@ async function applyStockAdjustmentDelta({
       movement_type: "adjustment",
       quantity: remaining,
       unit_cost: unitCost,
-      total_cost: unitCost * remaining,
+      total_cost: roundMoney(unitCost * remaining),
       reason,
       reference_id: referenceId,
       reference_type: referenceType,
@@ -830,7 +829,7 @@ async function applyStockAdjustmentDelta({
       movement_type: "adjustment",
       quantity: -deductQty,
       unit_cost: unitCost,
-      total_cost: unitCost * deductQty,
+      total_cost: roundMoney(unitCost * deductQty),
       reason,
       reference_id: referenceId,
       reference_type: referenceType,
@@ -867,7 +866,7 @@ async function applyStockAdjustmentDelta({
         movement_type: "adjustment",
         quantity: -remaining,
         unit_cost: unitCost,
-        total_cost: unitCost * remaining,
+        total_cost: roundMoney(unitCost * remaining),
         reason: shortfallReason ?? reason,
         reference_id: referenceId,
         reference_type: referenceType,

@@ -1571,6 +1571,14 @@ on screen from having walked to the shelf.
   the `stock-audit-draft` zustand store while Counted Qty was still
   pre-filled stays correct. Retirable one release after 2026-10-13, once no
   device can be carrying one.
+- **The shim alone was not enough, and this is the lesson.** A v0 draft
+  pre-filled *every* row's `countedQty`, so under the new reading the whole
+  sheet rehydrated as counted — reported by the owner within minutes of
+  opening the build ("why did all the rows become ticked all of a sudden?").
+  Changing what a stored field *means* needs a `persist` migration, not just
+  a tolerant reader: `migrateStockAuditDraft()` (version 1) clears a row that
+  carried only the old prefill and keeps one that was ticked or differs.
+  Pinned by `__tests__/stock-audit-draft-migration.test.ts`.
 - The ledger's `Count` filter pill (All / Counted / Not Counted / Qty
   Differences) is `selectAuditStatusItems()`, applied between the category
   lens and the fuzzy search in `stock-audits.tsx`.

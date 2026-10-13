@@ -142,9 +142,11 @@ interface PaymentSplit {
  * mixed sale with an unpaid credit portion look fully paid. Negative split
  * amounts are floored to 0: no tender can subtract from what was collected. */
 export function calculateMixedAmountPaid(splits: PaymentSplit[]): number {
-  return splits.reduce(
-    (acc, s) => acc + (s.method === "credit" ? 0 : Math.max(0, s.amount || 0)),
-    0,
+  return roundMoney(
+    splits.reduce(
+      (acc, s) => acc + (s.method === "credit" ? 0 : Math.max(0, s.amount || 0)),
+      0,
+    ),
   );
 }
 
@@ -155,7 +157,7 @@ export function calculateMixedAmountPaid(splits: PaymentSplit[]): number {
  * make the sale look overpaid, handing real cash back for an "overpayment"
  * that was never actually tendered. */
 export function calculateMixedChangeDue(splits: PaymentSplit[], total: number): number {
-  return Math.max(0, calculateMixedAmountPaid(splits) - total);
+  return roundMoney(Math.max(0, calculateMixedAmountPaid(splits) - total));
 }
 
 /** The largest credit split a mixed sale can carry: whatever the sale still

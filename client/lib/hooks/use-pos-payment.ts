@@ -220,7 +220,7 @@ export function usePOSPayment({
           total_amount: total,
           amount_paid:
             paymentMethod === "cash"
-              ? Number.parseFloat(amountPaid) || total
+              ? roundMoney(Number.parseFloat(amountPaid) || total)
               : paymentMethod === "mixed"
                 ? calculateMixedAmountPaid(paymentSplits)
                 : paymentMethod === "credit"

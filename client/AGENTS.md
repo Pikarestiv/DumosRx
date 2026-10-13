@@ -745,6 +745,22 @@ to it — which is exactly how A-261 passed a green run, and why a helper that
 returns a stored money value (`resolveBaseUnitCost()`) has to round inside
 itself rather than relying on this test to catch its callers.
 
+**Grepping `Math\.` is what actually finds the rest**, and it found four more
+on 2026-10-13 that the green test had been hiding, all of them helper returns
+or variables: `computeResellerCommission()`'s markup and commission
+(`lib/hooks/use-pos-payment-helpers.ts`), `calculateMixedAmountPaid()` and
+`calculateMixedChangeDue()` (`lib/utils/pos-calculations.ts`), the typed cash
+`amount_paid` in `use-pos-payment.ts`, and one surviving inline
+`Math.round(x * 100) / 100` in `queries/customers.ts`. The commission is the
+one that mattered: it is a **rate multiplication**, the A-261 class rather
+than the ulps class, and it is the figure a reseller is actually paid.
+
+Two things deliberately left unrounded, so nobody "fixes" them: `sales.discount_amount`
+holds the raw input, which **is a percentage** when `discount_type` is
+`percentage`, and `discount_percentage` likewise — quantising those changes
+what the store configured (12.345% is not 12.35%), exactly as the rule above
+says about `markup_percentage` and friends.
+
 Quantities are exempt and must stay so: they are `INTEGER` on both sides and
 exact in JS below 2^53. A fractional unit of measure (metres, litres) would
 break that assumption on both sides of the sync and needs its own design

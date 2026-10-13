@@ -98,3 +98,28 @@ describe("useDailyCloseData reseller commission profit adjustment", () => {
     expect(result.current.totalProfit).toBe(170);
   });
 });
+
+/**
+ * The commission is a RATE multiplication - the A-261 class, not float dust
+ * - and it is both stored and paid out to a reseller, so it has to be
+ * rounded where it is computed. The A-260 scan cannot see it: the write is
+ * `reseller_commission_amount: resellerCommissionAmount`, a bare variable.
+ */
+describe("reseller commission is stored at two decimals", () => {
+  it("rounds a commission that does not divide evenly", async () => {
+    const { computeResellerCommission } = await import(
+      "@/lib/hooks/use-pos-payment-helpers"
+    );
+    const { resellerMarkup, resellerCommissionAmount } = computeResellerCommission({
+      cart: [
+        { unit_price: 1234.5, original_unit_price: 1000, quantity: 1 },
+      ] as Parameters<typeof computeResellerCommission>[0]["cart"],
+      isResellerSale: true,
+      markupType: "reseller",
+      resellerCommissionPercentage: 12.5,
+    });
+    expect(resellerMarkup).toBe(234.5);
+    // 234.5 * 0.125 = 29.3125
+    expect(resellerCommissionAmount).toBe(29.31);
+  });
+});

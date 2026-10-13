@@ -2,6 +2,7 @@ import { query, insert, update, transaction } from "@/lib/db/local-database";
 import { softDelete } from "@/lib/db/base-helpers";
 import { getActiveStoreId } from "@/lib/db/core";
 import { Customer, CustomerDbRow, CustomerTransactionRow } from "@/lib/types/customer";
+import { roundMoney } from "@/lib/utils/pos-calculations";
 
 export async function getCustomers() {
   const storeId = getActiveStoreId();
@@ -240,7 +241,7 @@ export async function recordCustomerPayment(
     const balanceRows = await getCustomerBalance(customerId);
     const currentBalance = balanceRows[0]?.balance || 0;
     const rawNewBalance = currentBalance - amount;
-    const newBalance = rawNewBalance <= MONEY_EPSILON ? 0 : Math.round(rawNewBalance * 100) / 100;
+    const newBalance = rawNewBalance <= MONEY_EPSILON ? 0 : roundMoney(rawNewBalance);
     await update("customers", customerId, { outstanding_balance: newBalance });
 
     await applyCreditPaymentFIFO(customerId, amount);

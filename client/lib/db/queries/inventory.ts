@@ -267,6 +267,13 @@ async function writeSaleItemStock({
   // the batch's summed stock_movements row.
   const oversoldBatchIds = new Set<string>();
 
+  // What each touched batch has left as this call proceeds. The fallback loop
+  // below re-reads the batches from the database, where the quantity is not
+  // written until the movement row is (see base-helpers' recompute), so
+  // without this a batch already emptied by the first loop would read as full
+  // and absorb the remainder twice.
+  const liveQuantity = new Map<string, number>();
+
   // batch.quantity can be <= 0 when this batch only turned up via the
   // getAnyActiveBatchForProduct fallback (nothing with positive stock left
   // for this product); clamping to it in that case would silently drop some
@@ -278,22 +285,16 @@ async function writeSaleItemStock({
   // can let a sale legitimately oversell, but the batch's own running
   // balance should never be written negative); the oversell itself is
   // surfaced via the oversoldBatchIds tag below and getOversoldAlerts().
-  const deductFromBatch = async (batch: StockBatch) => {
+  const deductFromBatch = (batch: StockBatch) => {
+    const available = liveQuantity.get(batch.id) ?? batch.quantity;
     const deduction =
-      batch.quantity > 0
-        ? Math.min(batch.quantity, remainingToDeduct)
-        : remainingToDeduct;
+      available > 0 ? Math.min(available, remainingToDeduct) : remainingToDeduct;
 
-    if (deduction > batch.quantity) {
+    if (deduction > available) {
       oversoldBatchIds.add(batch.id);
     }
 
-    await update(
-      "stock_batches",
-      batch.id,
-      { quantity: Math.max(0, batch.quantity - deduction) },
-      { correlationId },
-    );
+    liveQuantity.set(batch.id, Math.max(0, available - deduction));
 
     deductionByBatchId.set(
       batch.id,
@@ -536,21 +537,6 @@ export async function createStockMovement(movement: {
   stock_batch_id?: string;
 }) {
   return insert("stock_movements", movement);
-}
-
-export async function updateStockBatchQuantity(
-  batchId: string,
-  quantityDelta: number,
-) {
-  const batch = await query<{ quantity: number }>(
-    "SELECT quantity FROM stock_batches WHERE id = ?",
-    [batchId],
-  );
-  if (batch.length > 0) {
-    return update("stock_batches", batchId, {
-      quantity: Math.max(0, (batch[0].quantity || 0) + quantityDelta),
-    });
-  }
 }
 
 export async function createStockBatch(batch: {
@@ -821,7 +807,6 @@ async function applyStockAdjustmentDelta({
       unitCost,
       batchNumberPrefix,
     });
-    await updateStockBatchQuantity(targetBatch.id, remaining);
     await insert("stock_movements", {
       product_id: productId,
       stock_batch_id: targetBatch.id,
@@ -845,7 +830,6 @@ async function applyStockAdjustmentDelta({
     const deductQty = Math.min(batch.quantity, remaining);
     if (deductQty <= 0) continue;
 
-    await updateStockBatchQuantity(batch.id, -deductQty);
     await insert("stock_movements", {
       product_id: productId,
       stock_batch_id: batch.id,
@@ -866,8 +850,8 @@ async function applyStockAdjustmentDelta({
   // cover (system quantity was already spread thinner across batches than
   // reality) - same situation recordSaleItemStock guards against for a sale.
   // Attribute the remainder to the most recently touched batch rather than
-  // silently dropping it: updateStockBatchQuantity clamps that batch's own
-  // quantity at 0 (it never goes negative), but this still leaves a
+  // silently dropping it: the batch's own quantity is floored at 0 (it never
+  // goes negative), but this still leaves a
   // stock_movements record explaining the full shortfall - without this, the
   // submitted figure doesn't match any recorded movement, and there's no
   // trace of where the rest of it went.
@@ -882,7 +866,6 @@ async function applyStockAdjustmentDelta({
       includeExpired: true,
     });
     if (fallbackBatch) {
-      await updateStockBatchQuantity(fallbackBatch.id, -remaining);
       await insert("stock_movements", {
         product_id: productId,
         stock_batch_id: fallbackBatch.id,

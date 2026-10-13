@@ -16,10 +16,12 @@ vi.mock("@/lib/api/client", () => ({
  * A-197: a delta deferred because its batch hadn't arrived yet was applied
  * only after the whole page loop, so a later page's movements for the same
  * batch ran first and were clamped away by the per-movement MAX(0, …) floor.
- * The differential oracle is the server's own derivation: replay the
- * movements in server order, flooring after each one.
+ * Stage 1 of the derived-quantity design takes the order dependence out: the
+ * oracle is MAX(0, Σ log), which no page split can change. The server still
+ * floors per movement until stage 2, so the two replicas still part company
+ * on an oversold history.
  */
-describe("pullChanges: deferred deltas apply ahead of a later page's own movements", () => {
+describe("pullChanges: a pulled batch holds MAX(0, Σ its log) whichever page it arrives on", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
   let pullChanges: typeof import("@/lib/db/sync-engine/pull").pullChanges;
@@ -88,9 +90,12 @@ describe("pullChanges: deferred deltas apply ahead of a later page's own movemen
     return Number(rows[0]?.values?.[0]?.[0] ?? -1);
   };
 
-  /** The server's derivation: floor applied after every movement. */
-  const serverQuantity = (deltas: number[]): number =>
-    deltas.reduce((running, delta) => Math.max(0, running + delta), 0);
+  /** The one definition: a single floor over the sum. */
+  const onHand = (deltas: number[]): number =>
+    Math.max(
+      0,
+      deltas.reduce((sum, delta) => sum + delta, 0),
+    );
 
   it("replays the real Pentazocine case to the server's value, not the opening receipt", async () => {
     apiClient.pullChanges
@@ -114,11 +119,11 @@ describe("pullChanges: deferred deltas apply ahead of a later page's own movemen
 
     await pullChanges();
 
-    expect(localQuantity("batch-1")).toBe(serverQuantity([80, -28]));
+    expect(localQuantity("batch-1")).toBe(onHand([80, -28]));
     expect(localQuantity("batch-1")).toBe(52);
   });
 
-  it("agrees with the server's derivation across randomised page splits", async () => {
+  it("lands on the same quantity across randomised page splits", async () => {
     let seed = 20261010;
     const random = () => {
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
@@ -176,11 +181,11 @@ describe("pullChanges: deferred deltas apply ahead of a later page's own movemen
 
       await pullChanges();
 
-      const expected = serverQuantity(deltas);
+      const expected = onHand(deltas);
       const actual = localQuantity(batchId);
       if (actual !== expected) {
         failures.push(
-          `case ${caseIndex}: batch on page ${batchPage}, deltas ${deltas.join(",")} → local ${actual}, server ${expected}`,
+          `case ${caseIndex}: batch on page ${batchPage}, deltas ${deltas.join(",")} → local ${actual}, expected ${expected}`,
         );
       }
     }

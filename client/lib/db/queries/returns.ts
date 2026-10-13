@@ -1,6 +1,6 @@
-import { insert, update, query } from "@/lib/db/local-database";
+import { insert, query } from "@/lib/db/local-database";
 import { getSaleItemBatches } from "@/lib/db/queries/sales";
-import { getStockBatchById, getOrCreateTargetBatchForProduct } from "@/lib/db/queries/inventory";
+import { getOrCreateTargetBatchForProduct } from "@/lib/db/queries/inventory";
 import { roundMoney } from "@/lib/utils/pos-calculations";
 
 interface RestoreParams {
@@ -57,13 +57,6 @@ async function restoreBatchQuantity(
   quantity: number,
   { productId, costPrice, returnId, performedBy }: Omit<RestoreParams, "saleItemId" | "legacyStockBatchId" | "returnQuantity">,
 ) {
-  const currentInv = await getStockBatchById(stockBatchId);
-  if (currentInv) {
-    await update("stock_batches", stockBatchId, {
-      quantity: (currentInv.quantity || 0) + quantity,
-    });
-  }
-
   // unit_cost/total_cost record the stock's cost basis, matching how sale
   // and purchase-order movements populate these fields: using the sale's
   // selling price here (as this used to) mixed cost and revenue figures

@@ -157,14 +157,6 @@ export async function createSale(saleData: Record<string, unknown>, items: Creat
         sale_id: saleId,
       });
 
-      // Update stock batch quantity
-      if (item.stock_batch_id) {
-        await execute(
-          "UPDATE stock_batches SET quantity = quantity - ? WHERE id = ?",
-          [item.quantity, item.stock_batch_id],
-        );
-      }
-
       // Log local stock movement
       await insert("stock_movements", {
         id: crypto.randomUUID(),

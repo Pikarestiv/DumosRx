@@ -1,4 +1,5 @@
 import { query, execute } from "../core";
+import { recomputeBatchQuantities } from "../batch-quantity";
 
 /**
  * Deferred `stock_movements` quantity deltas, persisted rather than held in
@@ -106,10 +107,7 @@ export async function applyDeferredStockDeltas(
       continue;
     }
 
-    await execute("UPDATE stock_batches SET quantity = MAX(0, quantity + ?) WHERE id = ?", [
-      delta.quantity,
-      delta.stock_batch_id,
-    ]);
+    await recomputeBatchQuantities(new Map([[delta.stock_batch_id, delta.quantity]]));
     await discard(delta.movement_id);
   }
 

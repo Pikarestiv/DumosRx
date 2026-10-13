@@ -223,10 +223,11 @@ describe("foldStockQuantities", () => {
     expect(quantityOf("b1")).toBe(5);
   });
 
-  it("does not destroy stock on a batch that was floored and then restocked", async () => {
-    // Both the pull and the server apply MAX(0, …) after EVERY movement, so
-    // quantity is path-dependent: +10, -12, +3 lands on 3, not on the raw
-    // sum of 1. Folding to the sum silently destroyed two real units.
+  it("carries an oversell's deficit forward instead of forgiving it", async () => {
+    // Stage 1 of the derived-quantity design: one floor over the sum, so
+    // +10, -12, +3 is 1, not the 3 a per-movement floor used to leave. The
+    // two units are a counting error the log records; the next delivery does
+    // not inherit them. A batch still holding 3 is therefore diverged.
     batch("b1", 3);
     movement("m1", "b1", 10);
     movement("m2", "b1", -12);
@@ -234,11 +235,11 @@ describe("foldStockQuantities", () => {
 
     const result = await foldStockQuantities();
 
-    expect(result.folded).toBe(0);
-    expect(quantityOf("b1")).toBe(3);
+    expect(result.folded).toBe(1);
+    expect(quantityOf("b1")).toBe(1);
   });
 
-  it("rebuilds a genuinely diverged batch to its replayed value, not its raw sum", async () => {
+  it("rebuilds a genuinely diverged batch to the sum of its log", async () => {
     batch("b1", 13);
     movement("m1", "b1", 10);
     movement("m2", "b1", -12);
@@ -246,7 +247,7 @@ describe("foldStockQuantities", () => {
 
     await foldStockQuantities();
 
-    expect(quantityOf("b1")).toBe(3);
+    expect(quantityOf("b1")).toBe(1);
   });
 
   it("refuses a batch whose delta has not been applied yet, so the drain cannot double it", async () => {
@@ -264,37 +265,28 @@ describe("foldStockQuantities", () => {
     expect(quantityOf("b1")).toBe(10);
   });
 
-  it("replays in the order this device applied the deltas, not by created_at", async () => {
-    // A sale rung up offline on another till on day 2 only reaches this
-    // device on day 4, after a day-3 oversell floored the batch to 0 and a
-    // goods receipt refilled it. The device applied it last, so the stored
-    // quantity is 2. Sorting the replay by created_at puts it back in the
-    // middle, past the floor, and "corrects" a correct batch upward.
+  it("gives the same answer whatever order the movements arrived or are dated in", async () => {
+    // What the ordering rules used to be for: a sale rung up offline on
+    // another till on day 2 reaching this device on day 4, after a day-3
+    // oversell and a goods receipt — and bulk-imported movements colliding on
+    // MySQL's second-resolution created_at. A sum cannot be reordered, so the
+    // arrival order, the dates and the ties all stop mattering.
     batch("b1", 2);
     movementAt("m1", "b1", 10, "2026-10-01T09:00:00Z");
     movementAt("m3", "b1", -12, "2026-10-03T09:00:00Z");
-    movementAt("m4", "b1", 3, "2026-10-03T17:00:00Z");
+    movementAt("m4", "b1", 3, "2026-10-03T09:00:00Z");
     movementAt("m2", "b1", -1, "2026-10-02T11:00:00Z");
 
-    const result = await foldStockQuantities();
+    batch("b2", 2);
+    movementAt("n1", "b2", -1, "2026-10-02T11:00:00Z");
+    movementAt("n2", "b2", 3, "2026-10-03T09:00:00Z");
+    movementAt("n3", "b2", -12, "2026-10-03T09:00:00Z");
+    movementAt("n4", "b2", 10, "2026-10-01T09:00:00Z");
 
-    expect(result.folded).toBe(0);
-    expect(quantityOf("b1")).toBe(2);
-  });
+    await foldStockQuantities();
 
-  it("is not thrown off by movements sharing a created_at", async () => {
-    // MySQL DATETIME is second-resolution, so round-tripped movements from a
-    // bulk import routinely collide. A UUID tiebreak would order them
-    // arbitrarily and could replay the restock before the oversell.
-    batch("b1", 3);
-    movementAt("m1", "b1", 10, "2026-10-01T09:00:00Z");
-    movementAt("m2", "b1", -12, "2026-10-01T09:00:00Z");
-    movementAt("m3", "b1", 3, "2026-10-01T09:00:00Z");
-
-    const result = await foldStockQuantities();
-
-    expect(result.folded).toBe(0);
-    expect(quantityOf("b1")).toBe(3);
+    expect(quantityOf("b1")).toBe(0);
+    expect(quantityOf("b2")).toBe(quantityOf("b1"));
   });
 
   it("is not thrown off by a movement with no created_at", async () => {

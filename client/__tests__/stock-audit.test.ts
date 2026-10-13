@@ -43,7 +43,9 @@ function isExpired(b: FakeBatch): boolean {
   return !!b.expiry_date && new Date(b.expiry_date).getTime() < Date.now();
 }
 
-vi.mock('@/lib/db/local-database', () => ({
+vi.mock('@/lib/db/local-database', async () => {
+  const { applyMovementToFakeBatch } = await import('./helpers/fake-batch-quantity');
+  return {
   query: vi.fn(async (sql: string, params: unknown[] = []) => {
     // Whitespace-normalized so this stays robust to multi-line SQL
     // formatting in the real queries (getBatchesForProduct /
@@ -89,6 +91,7 @@ vi.mock('@/lib/db/local-database', () => ({
     const record = { id, ...data };
     if (table === 'stock_batches') batches[id] = record as unknown as FakeBatch;
     if (table === 'stock_movements') movements.push(record as FakeMovement);
+    if (table === 'stock_movements') applyMovementToFakeBatch(batches, movements, data);
     if (table === 'stock_audits') audits.push(record as FakeAudit);
     return id;
   }),
@@ -97,7 +100,8 @@ vi.mock('@/lib/db/local-database', () => ({
     return id;
   }),
   transaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
-}));
+  };
+});
 
 import { submitStockAudit } from '@/lib/db/queries/inventory';
 

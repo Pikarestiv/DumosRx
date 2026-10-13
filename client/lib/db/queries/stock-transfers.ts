@@ -342,12 +342,9 @@ export async function transferStock(
         earliestExpiry = batch.expiry_date;
       }
 
-      await update(
-        "stock_batches",
-        batch.id,
-        { quantity: batch.quantity - draw },
-        { storeId: sourceStoreId },
-      );
+      // No quantity write here: the transfer_out movement below rebuilds this
+      // batch from its own log (see lib/db/batch-quantity.ts), and a pre-write
+      // would be counted twice for an A-148 carve-out batch.
     }
 
     const averageCost = roundMoney(totalCost / quantity);

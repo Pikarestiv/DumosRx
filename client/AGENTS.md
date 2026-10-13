@@ -467,7 +467,11 @@ and `synchronous = NORMAL`.
     refuses to run at all without an active store.
 
 - **Stock drift now heals itself** (`sync-engine/stock-auto-heal.ts`,
-  `healStockIntegrity()`, called from `checkSyncHealth()`). The device verifies
+  `healStockIntegrity()`, called from `checkSyncHealth()`). Since Stage 1 of
+  the derived-quantity design this is mostly an assertion rather than a repair
+  — every pull rebuilds the batches it touched — but it stays until Stage 3,
+  because it is the only thing that repairs a device already drifted by the old
+  incremental writes. The device verifies
   its batches against their own movement logs once per 24h, folds what the log
   can rebuild, re-verifies, and reports the outcome once to Sentry under
   `area: "stock-autoheal"`. Design decisions worth not relitigating:
@@ -496,8 +500,8 @@ and `synchronous = NORMAL`.
     explain (including the 2026-10-08 "exactly twice the opening stock" shape)
     is now refused rather than folded, because it cannot be told apart from an
     A-148 surplus. What still folds is an over-count the log *does* account
-    for — an outbound delta that never reached `quantity`, or a floored
-    replay. Retirement condition: once the spec's Stage 4 `opening_quantity`
+    for — an outbound delta that never reached `quantity`, or a value left
+    behind by the pre-Stage-1 incremental writes. Retirement condition: once the spec's Stage 4 `opening_quantity`
     work puts every batch's opening stock in the log (`docs/KNOWN_BUGS.md`
     A-213), `stored > inbound` can only mean drift and this refusal can be
     relaxed back to folding it.
@@ -1357,67 +1361,59 @@ on the function, and the condition for deleting it.
   as current as the movements the server had processed at pull time, so
   writing it clobbers real local state — reproduced as a pull racing a push
   leaving ~500 batches permanently forked into duplicates, because a zeroed
-  batch becomes invisible to the "does one already exist" check. Quantity
-  stays whatever local movements derived, and each newly-pulled
-  `stock_movements` row applies its own delta as
-  `MAX(0, quantity + delta)`. The floor is load-bearing: without it, an
-  oversell floored at 0 on the originating device diverged permanently from
-  every other device applying the raw delta. Movements are an immutable log,
-  so the insert branch sees each one exactly once — a missed delta is lost
-  forever, which is why the deferral below exists.
-- **`stock_batches.quantity` is path-dependent, so `SUM(movements)` is NOT a
-  faithful reconstruction.** The floor is applied once per movement — `pull.ts`
-  does `MAX(0, quantity + ?)` and `SyncController` does the same server-side —
-  never once over the sum. A batch oversold to 0 and then restocked by 3 holds
-  a correct `3` while its raw sum reads `1`. Anything deriving a quantity from
-  the log must replay the movements in **local insert order (`ORDER BY
-  rowid`)** applying `MAX(0, running + delta)` (`replayMovements()` in
-  `sync-engine/stock-integrity.ts`). **Never `created_at`**: it is nullable,
-  second-resolution from MySQL so bulk imports collide, and a sale rung up
-  offline on another till arrives days after its own timestamp — any of those
-  reorders the replay past a floor event, so a correct batch reads as diverged
-  and a fold invents units. `rowid` is the order this device actually applied
-  the deltas in, and so the order that produced the stored quantity. Three
-  tests in `__tests__/stock-integrity-fold.test.ts` exist solely to forbid
-  `created_at`.
-  A first cut of `foldStockQuantities()` compared against the raw sum and
-  silently destroyed two real units on exactly that shape; caught in review,
-  never shipped.
-- **Deferred movement deltas** (`sync-engine/deferred-stock-deltas.ts`).
-  Batches and movements paginate independently, so a movement can arrive on
-  an earlier page than the batch it references, where the delta would
-  silently no-op (an `UPDATE … WHERE id = ?` matching zero rows). Such a
-  delta is written to the local-only `_pending_stock_deltas` table
-  (`movement_id` primary key) **inside the same page transaction that
-  inserts the movement row**, which is the whole point: the movement row is
-  an immutable log entry, the insert branch sees it exactly once, and the
-  `UPDATE` branch applies no delta at all — so a delta parked only in memory
-  was lost for good the moment any *later* page of that round threw (a
-  network drop is the ordinary case), permanently understating on-hand
-  stock. That was `A-54`; see `docs/FIXED_BUGS.md`.
-  `applyDeferredStockDeltas()` drains the table at the start of every pull,
-  **again inside each page transaction as soon as a page carrying
-  `stock_batches` rows has applied them, before any other table of that page
-  is touched**, and once more at the end of the round, applying each delta and
-  deleting its row in one transaction so nothing can be applied twice.
-  **The mid-round drain is load-bearing, not an optimisation.** This section
-  used to describe start-and-end draining as safe; it is not. The floor is
-  `MAX(0, quantity + delta)` *per movement*, so the order deltas apply in is
-  not commutative. A batch's opening receipt deferred on page 1, applied after
-  page N's sales for the same batch, leaves every one of those sales clamped
-  against 0 and the device reading its full opening stock — the device ends up
-  **over** the server, permanently, with no error anywhere. That was A-197: 34
-  of 300 randomised histories hit it, and in the field a till read 80 units of
-  an item the server had at 52, with 255 of 1,952 batches diverged and 841
-  units overstated. Pinned by
-  `__tests__/pull-deferred-delta-order-across-pages.test.ts`, which fuzzes
-  page splits against the server's own derivation. Two things the mid-round
-  drain must keep doing: it passes `countAttempts: false`, because it runs
-  several times a round and would otherwise race a long first sync to the
-  chronic-reporting threshold while the batches were still arriving; and it
-  discards deltas for movements the *same page* soft-deletes
-  (`discardDeferredStockDeltas()`), because it runs before those soft-deletes
-  are written and would otherwise apply a delta the server has voided.
+  batch becomes invisible to the "does one already exist" check. Quantity is
+  rebuilt from the movements this device holds instead — see the definition
+  below.
+- **`stock_batches.quantity` is a cache of `MAX(0, Σ its non-deleted
+  movements)`, rebuilt whenever that log changes.** One definition, one place:
+  `resolveBatchQuantity()` in `lib/db/batch-quantity.ts`. Stage 1 of
+  `docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`; it
+  replaced per-replica incremental deltas, which were order-dependent and so
+  drifted permanently whenever two devices applied the same movements in a
+  different order (A-197, A-176, A-148's whole class of incidents). The three
+  properties worth knowing: the sum is **order-independent**, applying it twice
+  is applying it once (**idempotent**), and a movement that arrives late
+  contributes the moment the batch is next rebuilt (**loss-tolerant** — nothing
+  has to be remembered in the meantime, so nothing can be forgotten).
+  - **The one floor is over the sum, not per movement.** `+80, −100, +20` is
+    `0`, not the `20` a per-movement floor used to leave: an oversell's deficit
+    is carried forward, not forgiven. That is a deliberate behaviour change,
+    and the alternative (an explicit compensating `shrinkage` movement at
+    oversell time) is the spec's Stage 4. Oversells themselves are read off the
+    log by `getOversoldAlerts()`, never off `quantity`.
+  - **Who rebuilds.** All ten local writers of a `stock_movements` row go
+    through `base-helpers.ts`'s `insert()`/`softDelete()`, which rebuild the
+    named batch inside the caller's transaction, after the row — so a future
+    caller cannot forget. The pull collects every batch its page touched and
+    rebuilds each one once at the end of that page's transaction. Callers must
+    **not** pre-write `quantity` themselves; a pre-write is double-counted for
+    a carve-out batch (below), which is why `deductFromBatch()` tracks what it
+    has taken in a local `liveQuantity` map instead.
+  - **The A-148 carve-out.** A batch holding more than its inbound movements
+    account for carries stock that was never logged, so rebuilding it would
+    write that stock off. Those batches are patched by the delta exactly as
+    before, and the test is `stored > total inbound` (A-215's form), never "has
+    no inbound movements" — one adjustment logged against a legacy batch must
+    not take it out of the carve-out. Closed and shrinking: imports have
+    written a movement per batch since `a36b00e7`.
+  - **`replayMovements()` in `sync-engine/stock-integrity.ts` is now an alias
+    of `onHandFromLog()`**, so the fold, the auto-heal and the write path cannot
+    drift apart. The ordering rules this section used to impose (`ORDER BY
+    rowid`, never `created_at`) are gone with the path dependence they
+    protected.
+- **Deferred movement deltas** (`sync-engine/deferred-stock-deltas.ts`) —
+  **demoted, and due for deletion in the spec's Stage 3.** Batches and
+  movements paginate independently, so a movement can arrive before the batch
+  it references. The delta it carries no longer matters (the rebuild reads the
+  whole log whenever the batch turns up), but the *absence* still does: a batch
+  that never arrives means an incomplete catalogue, and `_pending_stock_deltas`
+  is what keeps that visible — it counts attempts, reports to Sentry past
+  `REPORT_AFTER_ATTEMPTS`, and reopens the `stock_batches` pull window (A-176).
+  The drain now rebuilds the batch from its log rather than adding the stored
+  delta, so it is idempotent and the mid-round ordering hack it needed (A-197)
+  is no longer load-bearing. Both are kept until Stage 3 retires the table.
+  A-54 is why the row is written inside the page's own transaction, and that
+  still holds.
   The drain reads `ORDER BY rowid` for the same non-commutativity reason.
   A deferral whose
   movement has since been soft-deleted is discarded rather than applied

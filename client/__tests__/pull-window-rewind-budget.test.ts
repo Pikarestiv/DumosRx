@@ -118,4 +118,37 @@ describe("pull window rewind budget", () => {
     expect(windowFor("products")).toBeNull();
     expect(logCrash).not.toHaveBeenCalled();
   });
+
+  /**
+   * A-256. `feedback` is the crash log: never sent by pull(), so its window
+   * can never drain clean and `completeWindow` can never refresh its budget.
+   * Restoring and reporting it every round is therefore permanent - and each
+   * report is itself a crash log, the row that caused the exhaustion. The
+   * row is dropped instead, which also heals a device already stuck.
+   */
+  it("drops an exhausted window for a table the server never sends, instead of reporting it for ever", async () => {
+    await core.execute(
+      `INSERT INTO _sync_state (table_name, last_synced_at, server_cursor, rewind_count, rewound_from)
+       VALUES ('feedback', NULL, NULL, ?, '2026-10-10T00:00:00Z')`,
+      [MAX_PULL_WINDOW_REWINDS],
+    );
+
+    expect(await restoreExhaustedPullWindows()).toEqual([]);
+
+    const rows = db.exec("SELECT table_name FROM _sync_state WHERE table_name = 'feedback'");
+    expect(rows[0]?.values ?? []).toEqual([]);
+    expect(logCrash).not.toHaveBeenCalled();
+  });
+
+  /** The business-table behaviour A-229 pinned must be untouched: a device
+   * that genuinely cannot converge keeps saying so. */
+  it("still reports an exhausted business table every round", async () => {
+    for (let i = 0; i < MAX_PULL_WINDOW_REWINDS; i++) {
+      await rewindPullWindow("products", "version_conflict");
+    }
+
+    expect(await restoreExhaustedPullWindows()).toEqual(["products"]);
+    expect(await restoreExhaustedPullWindows()).toEqual(["products"]);
+    expect(logCrash).toHaveBeenCalledTimes(2);
+  });
 });

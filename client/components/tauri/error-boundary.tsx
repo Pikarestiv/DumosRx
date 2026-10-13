@@ -2,7 +2,8 @@
 
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { logCrash } from "@/lib/utils/error-logger";
-import { CHUNK_RELOAD_GUARD_KEY, isChunkLoadError } from "@/lib/utils/chunk-error";
+import { isChunkLoadError, shouldReloadForChunkError } from "@/lib/utils/chunk-error";
+import { BUILD_SHA } from "@/lib/constants";
 
 interface Props {
   children: ReactNode;
@@ -32,9 +33,7 @@ export class ErrorBoundary extends Component<Props, State> {
     void logCrash(error, true);
 
     if (isChunkLoadError(error) && typeof window !== "undefined") {
-      const alreadyTried = window.sessionStorage.getItem(CHUNK_RELOAD_GUARD_KEY);
-      if (!alreadyTried) {
-        window.sessionStorage.setItem(CHUNK_RELOAD_GUARD_KEY, "1");
+      if (shouldReloadForChunkError(BUILD_SHA)) {
         window.location.reload();
       }
     }

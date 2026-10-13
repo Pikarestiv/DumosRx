@@ -1184,7 +1184,14 @@ So the rewind now:
 **The restore does not depend on the fault firing again (A-229).**
 `restoreExhaustedPullWindows()` runs unconditionally at the top of
 `pullChanges()` and puts back the baseline of every table whose
-`rewind_count` has reached the budget. Inside `rewindPullWindow()` alone it was
+`rewind_count` has reached the budget — **except a table in
+`TABLES_NEVER_PULLED`** (`pull-window.ts`, currently `{feedback}`), whose row
+is **deleted** instead. A table the server never sends can never drain clean,
+so `completeWindow` can never refresh its budget and `RESTORE_SQL` does not
+reset `rewind_count`: restoring it would re-report every round for ever. Worse
+for `feedback` specifically, each report is itself a crash log — the row that
+caused the exhaustion (A-256). Deleting the row is also what heals a device
+already stuck in that loop, on its next pull round. Inside `rewindPullWindow()` alone it was
 unreachable in exactly the case it exists for: both callers fire only on a live
 fault, so a device that rewound two or three times and then stopped hitting the
 fault kept `last_synced_at = NULL` for ever — a full re-pull of that table every

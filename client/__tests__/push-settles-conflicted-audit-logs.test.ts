@@ -104,10 +104,53 @@ describe("pushChanges settles conflicted audit_logs rows instead of resurrecting
     expect(queueCount()).toBe(0);
   });
 
-  it("leaves a conflicted row on another table unsynced for a future pull to reconcile", async () => {
+  /**
+   * The "another table" case deliberately uses `products`, a table a pull CAN
+   * reconcile. It used `feedback` until A-256 showed that crash logs are the
+   * same shape as audit_logs — never pulled, so never settleable — which is
+   * now asserted below.
+   */
+  it("leaves a conflicted row on a pullable table unsynced for a future pull to reconcile", async () => {
+    db.run(
+      `INSERT INTO products (id, name, selling_price, created_at, updated_at, _synced, _version)
+       VALUES ('p-1', 'paracetamol', 100, '2026-09-26T00:00:00Z', '2026-09-26T00:00:00Z', 0, 1)`,
+    );
+    const queueRow = db.exec(
+      `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
+       VALUES ('products', 'p-1', 'UPDATE', '{"id":"p-1","_version":1}', '2026-09-26T00:00:00Z') RETURNING id`,
+    );
+    const queueId = queueRow[0].values[0][0] as number;
+
+    apiClient.pushChanges.mockResolvedValueOnce({
+      success: true,
+      processed: 0,
+      failed: [
+        { id: queueId, table_name: "products", record_id: "p-1", reason: "version_conflict" },
+      ],
+    });
+
+    const consoleInfo = vi.spyOn(console, "info").mockImplementation(() => {});
+    await pushChanges();
+    consoleInfo.mockRestore();
+
+    expect(queueCount()).toBe(0);
+    expect(syncedFlag("products", "p-1")).toBe(0);
+  });
+
+  /**
+   * A-256. A crash log is never pulled, and `logCrash` coalesces a repeat
+   * crash into the newest unsynced row of the same fingerprint
+   * (`error-logger.ts:257-270`) — so once that row's `_version` has diverged
+   * from the server's, every later crash of the same shape inherits the stale
+   * version and conflicts again, for ever. Settling it is the same remedy
+   * `reportStuckCrashLog()` already applies after five attempts, on the same
+   * grounds: the crash has already reached Sentry and /logs/client-error, so
+   * retrying the row buys nothing.
+   */
+  it("settles a conflicted crash log so it cannot be requeued for ever", async () => {
     db.run(
       `INSERT INTO feedback (id, type, content, status, created_at, updated_at, _synced, _version)
-       VALUES ('fb-1', 'bug', 'broken', 'pending', '2026-09-26T00:00:00Z', '2026-09-26T00:00:00Z', 0, 1)`,
+       VALUES ('fb-1', 'bug', 'boom', 'pending', '2026-09-26T00:00:00Z', '2026-09-26T00:00:00Z', 0, 1)`,
     );
     const queueRow = db.exec(
       `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
@@ -128,6 +171,10 @@ describe("pushChanges settles conflicted audit_logs rows instead of resurrecting
     consoleInfo.mockRestore();
 
     expect(queueCount()).toBe(0);
-    expect(syncedFlag("feedback", "fb-1")).toBe(0);
+    expect(syncedFlag("feedback", "fb-1")).toBe(1);
+
+    const { requeueOrphanedRows } = await import("@/lib/db/reconcile-identity");
+    expect((await requeueOrphanedRows(["feedback"])).feedback).toBeUndefined();
+    expect(queueCount()).toBe(0);
   });
 });

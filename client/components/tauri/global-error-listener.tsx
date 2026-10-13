@@ -3,7 +3,8 @@
 import { useEffect, ReactNode } from "react";
 import { logCrash } from "@/lib/utils/error-logger";
 import { devLog } from "@/lib/utils/dev-log";
-import { CHUNK_RELOAD_GUARD_KEY, isChunkLoadError } from "@/lib/utils/chunk-error";
+import { isChunkLoadError, shouldReloadForChunkError } from "@/lib/utils/chunk-error";
+import { BUILD_SHA } from "@/lib/constants";
 
 // Benign browser-internal notices that show up as window "error" events but
 // don't indicate anything actually broke, e.g. ResizeObserver's loop-limit
@@ -20,24 +21,16 @@ export function GlobalErrorListener({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Reaching here means the app booted cleanly, so any earlier
-    // chunk-load-triggered auto-reload (see error-boundary.tsx) worked -
-    // clear its guard so a later, unrelated chunk error in this same tab
-    // session still gets its own one-time auto-reload instead of going
-    // straight to the crash screen.
-    window.sessionStorage.removeItem(CHUNK_RELOAD_GUARD_KEY);
-
     // Most real stale-chunk failures never reach ErrorBoundary's
     // componentDidCatch at all: a route-level dynamic import() rejecting
     // (client-side navigation to code that isn't loaded yet) surfaces here,
     // as an unhandled promise rejection, not a React render-time throw. See
-    // error-boundary.tsx for the matching React-throw case and why the
-    // reload is guarded to once per tab session.
+    // error-boundary.tsx for the matching React-throw case, and
+    // shouldReloadForChunkError() for why the reload is capped per build.
     const reloadOnChunkError = (error: unknown) => {
       if (!isChunkLoadError(error instanceof Error ? error : undefined)) return false;
       if (typeof window === "undefined") return false;
-      if (window.sessionStorage.getItem(CHUNK_RELOAD_GUARD_KEY)) return false;
-      window.sessionStorage.setItem(CHUNK_RELOAD_GUARD_KEY, "1");
+      if (!shouldReloadForChunkError(BUILD_SHA)) return false;
       window.location.reload();
       return true;
     };
@@ -45,7 +38,7 @@ export function GlobalErrorListener({ children }: { children: ReactNode }) {
     // Reload first, report only if that didn't handle it. A stale chunk is
     // recoverable and the reload fixes it, so reporting before reloading
     // filed a fatal crash for every self-healing navigation (A-171). A chunk
-    // error that survives the one-time reload is a real failure and the
+    // error that survives this build's one reload is a real failure and the
     // guard makes reloadOnChunkError return false, so it still reports.
     const handleError = (event: ErrorEvent) => {
       if (isIgnorableError(event.error || event.message)) return;

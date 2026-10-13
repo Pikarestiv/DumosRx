@@ -24,7 +24,7 @@ import { execute, query, transaction } from "../core";
 import { isExpectedSyncRestriction } from "@/lib/utils/error-logger";
 import { toast } from "sonner";
 import { isUuid } from "@/lib/utils/uuid";
-import { rewindPullWindow } from "./pull-window";
+import { rewindPullWindow, TABLES_NEVER_PULLED } from "./pull-window";
 
 // Terminal: the queued payload is frozen, so resending can never change the
 // outcome. See client/AGENTS.md, "Push details (sync-engine/push.ts)".
@@ -38,9 +38,13 @@ const NON_RETRYABLE_CONFLICT_REASONS = new Set([
 // Dropped without a toast: queued by automatic machinery, not a user action.
 const SILENT_TERMINAL_REASONS = new Set(["permission_denied"]);
 
-// Server row doesn't carry the pushed id, so no pull can ever settle it.
-// See docs/FIXED_BUGS.md "audit_logs conflict resurrection loop".
-const TERMINAL_CONFLICT_SETTLES_SOURCE_ROW = new Set(["audit_logs"]);
+// No pull can ever settle these, so left unsynced they are requeued and
+// re-refused for ever. `audit_logs` because the server row doesn't carry the
+// pushed id (see docs/FIXED_BUGS.md "audit_logs conflict resurrection loop");
+// `feedback` because it is never pulled at all and a repeat crash coalesces
+// into the same stale-version row — the same reasoning, and the same remedy,
+// that reportStuckCrashLog() already applies after five attempts. A-256.
+const TERMINAL_CONFLICT_SETTLES_SOURCE_ROW = new Set(["audit_logs", "feedback"]);
 
 // Unreachable by any future pull, whatever table it's on - see A-161.
 // Deliberately excludes `forbidden`; see docs/KNOWN_BUGS.md A-165.
@@ -517,7 +521,9 @@ export async function pushChanges(
               });
 
               if (REASONS_NEEDING_REPULL.has(f.reason)) {
-                await rewindPullWindow(f.table_name, f.reason);
+                if (!TABLES_NEVER_PULLED.has(f.table_name)) {
+                  await rewindPullWindow(f.table_name, f.reason);
+                }
               }
 
               if (wasRetried) {

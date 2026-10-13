@@ -29,7 +29,11 @@ export function StaffManagement() {
   const { activeStoreId, availableStores } = useStore();
   const { maxStaffAccounts, getUpgradeMessage, withRestriction } =
     useFeatureGate();
-  const [selectedStore, setSelectedStore] = useState<string>("all");
+  // Opens on the store the header's switcher is pointing at, not "all" -
+  // "All Stores" stays available, it is just no longer the default.
+  const [selectedStore, setSelectedStore] = useState<string>(
+    activeStoreId || "all",
+  );
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");

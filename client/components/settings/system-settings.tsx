@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import {
   Card,
@@ -18,12 +19,19 @@ import { IosInstallCard } from "./ios-install-card";
 import { AndroidInstallCard } from "./android-install-card";
 import { DownloadAppsCard } from "./download-apps-card";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
+import { getDeviceId } from "@/lib/utils/device-id";
+import { getDeviceLabel } from "@/lib/utils/device-label";
 
 export function SystemSettings() {
   // The System tab itself is manage_device_settings; this card is only a
   // shortcut into the Billing tab, so it carries that tab's own key rather
   // than offering a link into a screen the group cannot open.
   const canManageBilling = useHasPermission("manage_billing");
+  // localStorage-backed, so read after mount rather than during render.
+  const [device, setDevice] = useState<{ id: string; label: string } | null>(null);
+  useEffect(() => {
+    setDevice({ id: getDeviceId(), label: getDeviceLabel() });
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -71,6 +79,20 @@ export function SystemSettings() {
           <div className="flex items-center justify-between">
             <Label className="text-muted-foreground font-normal">Build</Label>
             <p className="text-sm font-mono font-medium select-all">{BUILD_SHA}</p>
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between gap-4">
+            <Label className="text-muted-foreground font-normal">Device</Label>
+            <div className="text-right">
+              <p className="text-sm font-medium">
+                {device?.label ?? "Unnamed device"}
+              </p>
+              <p className="text-xs font-mono text-muted-foreground select-all">
+                {device?.id ?? "-"}
+              </p>
+            </div>
           </div>
 
           <Separator />

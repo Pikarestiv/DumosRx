@@ -54,10 +54,22 @@ export function MetricCard({
 }: MetricCardProps) {
   return (
     <Card
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
       className={cn(
         "relative overflow-hidden rounded-[14px] shadow-[0_1px_2px_rgba(28,25,23,0.04),0_1px_3px_rgba(28,25,23,0.03)] !p-0 !gap-0 m-0.5",
         onClick &&
-          "group cursor-pointer transition-colors hover:border-primary/50",
+          "group cursor-pointer transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         className,
       )}
       onClick={onClick}

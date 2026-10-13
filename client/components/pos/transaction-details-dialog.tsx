@@ -84,6 +84,7 @@ export function TransactionDetailsDialog({
   if (!sale) return null;
 
   const effectiveSale = redeemOverride ? { ...sale, ...redeemOverride } : sale;
+  const isSaleCashier = !!user?.id && user.id === sale.user_id;
 
   const handleRedeemCommission = async (
     claimType: "commission" | "store_claim",
@@ -282,7 +283,7 @@ export function TransactionDetailsDialog({
           )}
         </div>
 
-        {!!effectiveSale.is_reseller_sale && isAdmin && (
+        {!!effectiveSale.is_reseller_sale && (isAdmin || isSaleCashier) && (
           <div
             className={
               effectiveSale.markup_type === "store"

@@ -52,8 +52,14 @@ function daysAgoIso(days: number): string {
   return d.toISOString();
 }
 
+/** Local calendar date, not the UTC one: `expenses.date` is matched against
+ * the store's own day (see client/AGENTS.md). */
 function daysAgoDateOnly(days: number): string {
-  return daysAgoIso(days).slice(0, 10);
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${month}-${day}`;
 }
 
 export interface DemoSeedResult {

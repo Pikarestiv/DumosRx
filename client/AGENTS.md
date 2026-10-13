@@ -1674,10 +1674,21 @@ on screen from having walked to the shelf.
   (`audit-derivations.ts`) rather than inline in the screen precisely because
   this went wrong twice in one day; `__tests__/audit-derivations.test.ts` pins
   it.
-- The rebuild effect in `stock-audits.tsx` is keyed on `[rawProducts,
-  items.length]`. "Start over" empties the draft without touching the cached
-  products query, so keying it on `rawProducts` alone left the sheet
-  permanently empty until the screen was reopened.
+- **The rebuild effect asks `shouldRebuildAuditSheet(items)`, never
+  `items.length === 0`.** It is keyed on `[rawProducts, items.length]`:
+  "Start over" empties the draft without touching the cached products query,
+  so keying it on `rawProducts` alone left the sheet permanently empty until
+  the screen was reopened. But `items.length === 0` as the *guard* loses
+  every refetch. A submit invalidates `products.withDetails()` and clears the
+  draft in the same tick, so the effect rebuilds from the stale cache first,
+  and when the fresh data lands the guard is already false and it is
+  discarded — the sheet shows pre-adjustment figures, and only the row you
+  then touch corrects itself (via `countRow()`'s live re-read), which reads
+  exactly like the save having failed. Reported by the owner on 2026-10-13.
+  The guard is "has anyone touched this sheet", i.e. `!items.some(
+  isAuditItemCounted)`, which is safe on an empty sheet and keeps a
+  half-finished count. Same race on open, where the pre-count `sync(true)`
+  invalidates. Pinned by `__tests__/audit-derivations.test.ts`.
 - `EditableNumberCell` takes `value?: number` plus `placeholder` and
   `onClear`. Only a caller whose value is genuinely optional passes
   `onClear`; without it, blurring an emptied field reverts to the last

@@ -44,8 +44,8 @@ interface POItemLedgerTableProps {
   isFiltered?: boolean;
 }
 
-const STANDARD_GRID_COLS = "grid-cols-[1fr_110px_130px_130px_36px]";
-const IMMEDIATE_GRID_COLS = "grid-cols-[1fr_90px_100px_110px_120px_120px_130px_120px_130px_36px]";
+const STANDARD_GRID_COLS = "grid-cols-[minmax(220px,1fr)_110px_130px_130px_36px]";
+const IMMEDIATE_GRID_COLS = "grid-cols-[minmax(220px,1fr)_90px_100px_110px_120px_120px_130px_120px_130px_36px]";
 
 /** Keyed by product id once per render instead of a products.find() per row:
  * that scan was O(rows x catalog) on every keystroke in any row's input. */

@@ -61,7 +61,7 @@ export function ExpenseDesktopRow({
       // buttons), and nesting those inside a button is invalid HTML.
       role="button"
       tabIndex={isEditing ? -1 : 0}
-      className="group absolute top-0 left-0 w-full grid grid-cols-[110px_150px_1fr_130px_120px_28px] gap-2 items-center px-5 py-3.5 border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      className="group absolute top-0 left-0 w-full grid grid-cols-[110px_150px_minmax(0,1fr)_130px_120px_28px] gap-2 items-center px-5 py-3.5 border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       style={style}
       onClick={() => {
         if (!isEditing) onSelect();

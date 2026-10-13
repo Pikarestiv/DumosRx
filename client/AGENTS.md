@@ -1979,6 +1979,27 @@ They are two different things and must not be conflated — them silently
 disagreeing is the bug `auth-context.tsx` already carries a comment about, and
 the reason A-23 was filed.
 
+## Div/ARIA tables: never give a per-row grid a bare `fr` track (2026-10-13)
+
+Every ledger in this app is a header `div` plus one `div` **per row**, each
+its own CSS grid sharing the same `grid-cols-[...]` literal. A bare `1fr`
+track's minimum is `auto`, i.e. the min-content of *that grid's* cells — so a
+row holding a long product name computes a wider first column than its
+neighbours and the header, and every column after it slides out from under
+its heading. It only shows once the fixed tracks have eaten the available
+width, which is why it reads as an intermittent rendering glitch; reported
+from a store's own screen on 2026-10-13 against the procurement ledger.
+
+- A flexible column is written `minmax(0, 1fr)`, or `minmax(220px, 1fr)` when
+  it must stay readable **and** the table already sits in `overflow-x-auto`.
+  Both make the track width independent of row content, so every row and the
+  header agree.
+- A px floor on a table with no horizontal scroll container pushes the page
+  sideways instead, so those use a `0` floor and let `truncate` ellipsize.
+- The header literal and the row literal must change together. They are the
+  same string for a reason — if you are editing one, edit both, and prefer
+  hoisting it to a `GRID_COLS` constant (see `receive-ledger-table.tsx`).
+
 ## React Query conventions: read this before adding a new `useQuery`
 
 **`lib/query-keys.ts` is a query-key *and* cache-dependency factory.**

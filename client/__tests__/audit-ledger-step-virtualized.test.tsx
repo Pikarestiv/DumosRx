@@ -60,6 +60,7 @@ describe("AuditLedgerStep virtualized rows", () => {
     isLoading: false,
     isSyncing: false,
     onUpdateItem: vi.fn(),
+    onCountRow: vi.fn(),
     categories: [{ id: "Analgesics", label: "Analgesics", count: 3 }],
     selectedCategory: "__all__",
     setSelectedCategory: vi.fn(),

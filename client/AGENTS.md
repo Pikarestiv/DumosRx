@@ -1624,11 +1624,22 @@ on screen from having walked to the shelf.
   figure differs from the system's, so a zero prefill turns every untouched
   row into an adjustment to zero stock. It was asked for twice on 2026-10-13
   and is the one option that is actually dangerous.
+- **`systemQty` is the row's baseline, not the sheet's opening figure
+  (A-263).** Every entry and every tick goes through `countRow()`, which
+  re-reads live stock for that one product and stores it as the row's
+  `systemQty`, so the discrepancy is measured at the moment of the count and
+  anything that moved afterwards is preserved rather than reversed. It
+  travels to `submitStockAudit` as `baselineQty`; a submission without one
+  keeps the old re-read-at-submit semantics, which is what the catalog quick
+  edit and the CSV import want. Never go back to comparing against the
+  figure the sheet was built with: that both drops real discrepancies and
+  posts a day's sales back as found stock.
 - `AuditItem.counted` is the hand-tick, and ticking is a **shortcut, not a
-  separate signal**: it writes `countedQty = systemQty` ("counted, and it
-  matched"), and un-ticking clears the quantity again. It also covers a row
-  where only a price was corrected. Nothing disables the tick — it is always
-  the counter's to set, in both directions.
+  separate signal**: it means "counted, and it matched", so it writes the
+  **live** figure to both sides via `countRow()`, never the figure on screen.
+  Un-ticking clears the quantity again. It also covers a row where only a
+  price was corrected. Nothing disables the tick — it is always the
+  counter's to set, in both directions.
 - `isAuditItemCounted()` (`audit-derivations.ts`) is the only thing that
   should be asked whether a row was counted.
 - `differsFromSystem()` requires `countedQty !== undefined` before treating a

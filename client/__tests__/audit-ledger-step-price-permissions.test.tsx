@@ -66,6 +66,7 @@ function renderLedger() {
       isLoading={false}
       isSyncing={false}
       onUpdateItem={vi.fn()}
+      onCountRow={vi.fn()}
       categories={[{ id: "Analgesics", label: "Analgesics", count: 1 }]}
       selectedCategory="__all__"
       setSelectedCategory={vi.fn()}

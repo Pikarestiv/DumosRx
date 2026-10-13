@@ -6,6 +6,7 @@ import { AuditReviewStep } from "./audit-review-step";
 import { ChevronLeft, CheckCircle2, Loader2, Printer, ChevronDown } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getProductsWithDetails } from "@/lib/db/queries/products";
+import { getProductStockQuantity } from "@/lib/db/queries/inventory";
 import { sync } from "@/lib/db/sync-engine";
 import { useSubmitStockAuditMutation } from "@/lib/hooks/use-stock-audit-mutation";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -202,6 +203,37 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const adjustedItems = useMemo(
     () => selectAdjustedAuditItems(countedItems),
     [countedItems],
+  );
+
+  /** Records a count against the system figure as it is RIGHT NOW, not the
+   * one the sheet opened with. The typed value lands immediately so typing
+   * never waits on the database; the baseline follows when the read
+   * resolves. Ticking with no value means "counted, and it matched", which
+   * is the live figure. See A-263. */
+  const countRow = useCallback(
+    async (id: string, countedQty?: number) => {
+      if (countedQty !== undefined) {
+        setItems((prev) =>
+          prev.map((i) =>
+            i.id === id ? { ...i, countedQty, counted: true } : i,
+          ),
+        );
+      }
+      const live = await getProductStockQuantity(id);
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === id
+            ? {
+                ...i,
+                systemQty: live,
+                countedQty: countedQty ?? live,
+                counted: true,
+              }
+            : i,
+        ),
+      );
+    },
+    [setItems],
   );
 
   const updateLedgerItem = useCallback(
@@ -537,6 +569,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
               isLoading={isLoading}
               isSyncing={isSyncing}
               onUpdateItem={updateLedgerItem}
+              onCountRow={(id, qty) => void countRow(id, qty)}
               categories={categories}
               selectedCategory={selectedCategory}
               setSelectedCategory={setSelectedCategory}

@@ -111,9 +111,12 @@ export function hasUnsavedAuditEdits(items: AuditItem[]): boolean {
  * `countedQty` is passed through as-is, `undefined` included: a row where
  * only a price was corrected has no counted quantity, and submitStockAudit
  * then resolves it against the quantity it re-reads INSIDE its transaction.
- * Coalescing to `item.systemQty` here instead looks equivalent and is not -
- * that figure was frozen when the sheet was built, so a day's sales since
- * would be posted back as found stock. See client/AGENTS.md.
+ * Coalescing it to `systemQty` here would post a phantom adjustment.
+ *
+ * `systemQty` travels as `baselineQty`: since A-263 it is the live figure
+ * read when THIS row was counted, not the one the sheet was built with, so
+ * the discrepancy is measured at the moment of the count and anything that
+ * moved afterwards is preserved. See client/AGENTS.md.
  */
 export function toStockAuditSubmissions(
   items: AuditItem[],
@@ -122,6 +125,7 @@ export function toStockAuditSubmissions(
     productId: item.id,
     systemQty: item.systemQty,
     countedQty: item.countedQty,
+    baselineQty: item.systemQty,
     systemCostPrice: item.costPrice,
     countedCostPrice: item.countedCostPrice ?? item.costPrice,
     systemSellingPrice: item.sellingPrice,

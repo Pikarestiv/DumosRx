@@ -54,11 +54,15 @@ vi.mock('@/lib/db/local-database', () => ({
       return b ? [{ quantity: b.quantity }] : [];
     }
     if (normSql.startsWith('SELECT COALESCE(SUM(quantity)')) {
-      // submitStockAudit's re-read of the product's current system qty -
-      // not exercised by these fixtures (item.systemQty is passed straight
-      // through as the expected value), so an empty result here just falls
-      // back to it via `?? item.systemQty`.
-      return [];
+      // getProductStockQuantity: the product's live quantity, summed over
+      // active, non-deleted batches. Modelled properly rather than returned
+      // empty - submitStockAudit measures against it whenever a submission
+      // carries no baseline of its own (A-263), so a fake that skips it
+      // silently turns every count into "found everything".
+      const qty = Object.values(batches)
+        .filter((b) => b.product_id === params[0] && b.is_active !== 0)
+        .reduce((sum, b) => sum + b.quantity, 0);
+      return [{ qty }];
     }
     if (normSql.includes('is_active = 1 AND quantity > 0')) {
       // getBatchesForProduct: only active, non-expired batches with real
@@ -106,8 +110,10 @@ describe('submitStockAudit (Cycle Count persistence)', () => {
   });
 
   it('skips items where the count matches the system quantity', async () => {
+    batches['b1'] = { id: 'b1', product_id: 'p1', quantity: 10, expiry_date: FAR_EXPIRY };
+
     await submitStockAudit(
-      [{ productId: 'p1', systemQty: 10, countedQty: 10 }],
+      [{ productId: 'p1', systemQty: 10, baselineQty: 10, countedQty: 10 }],
       'user-1',
     );
     expect(movements).toHaveLength(0);
@@ -136,7 +142,7 @@ describe('submitStockAudit (Cycle Count persistence)', () => {
     batches['inactive'] = { id: 'inactive', product_id: 'p1', quantity: 5, expiry_date: FAR_EXPIRY, is_active: 0 };
 
     await submitStockAudit(
-      [{ productId: 'p1', systemQty: 10, countedQty: 25, reason: 'Found', systemCostPrice: 40 }],
+      [{ productId: 'p1', systemQty: 10, baselineQty: 10, countedQty: 25, reason: 'Found', systemCostPrice: 40 }],
       'user-1',
     );
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, act, cleanup } from "@testing-library/react";
+import { render, screen, act, cleanup, fireEvent } from "@testing-library/react";
 import { createRef } from "react";
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
 import { AuditLedgerStep } from "@/components/stock-batch/audit-ledger-step";
@@ -35,6 +35,7 @@ vi.mock("@tanstack/react-virtual", () => ({
  */
 describe("cycle count ledger: Counted Qty is blank until entered", () => {
   const onUpdateItem = vi.fn();
+  const onCountRow = vi.fn();
 
   const item: AuditItem = {
     id: "p1",
@@ -57,6 +58,7 @@ describe("cycle count ledger: Counted Qty is blank until entered", () => {
         isLoading={false}
         isSyncing={false}
         onUpdateItem={onUpdateItem}
+        onCountRow={onCountRow}
         categories={[{ id: "Analgesics", label: "Analgesics", count: 1 }]}
         selectedCategory="__all__"
         setSelectedCategory={vi.fn()}
@@ -78,6 +80,7 @@ describe("cycle count ledger: Counted Qty is blank until entered", () => {
 
   beforeEach(() => {
     onUpdateItem.mockClear();
+    onCountRow.mockClear();
     cleanup();
   });
 
@@ -101,15 +104,23 @@ describe("cycle count ledger: Counted Qty is blank until entered", () => {
     expect(tick.disabled).toBe(false);
   });
 
-  it("ticking records the system figure as the count", () => {
+  it("ticking asks for a count against live stock, not the figure on screen", () => {
+    // "Counted, and it matched" has to mean it matched what the system says
+    // right now - the row's own systemQty may be hours stale (A-263), so the
+    // ledger hands the decision to countRow, which re-reads.
     renderLedger();
     act(() => {
       screen.getByLabelText("Mark Panadol as counted").click();
     });
-    expect(onUpdateItem).toHaveBeenCalledWith("p1", {
-      countedQty: 10,
-      counted: true,
-    });
+    expect(onCountRow).toHaveBeenCalledWith("p1");
+    expect(onUpdateItem).not.toHaveBeenCalled();
+  });
+
+  it("entering a quantity routes through countRow so the row is re-baselined", () => {
+    renderLedger();
+    const input = countedInput();
+    fireEvent.change(input, { target: { value: "8" } });
+    expect(onCountRow).toHaveBeenCalledWith("p1", 8);
   });
 
   it("un-ticking a counted row clears the count rather than zeroing it", () => {

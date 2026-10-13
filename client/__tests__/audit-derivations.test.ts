@@ -149,7 +149,16 @@ describe("stock audit derivations", () => {
     ]);
     expect(submission.countedQty).toBeUndefined();
     expect(submission.systemQty).toBe(20);
+    expect(submission.baselineQty).toBe(20);
     expect(submission.countedCostPrice).toBe(150);
+  });
+
+  it("carries each row's own baseline, which is its systemQty as re-read when it was counted", () => {
+    const [submission] = toStockAuditSubmissions([
+      item({ systemQty: 0, countedQty: 10 }),
+    ]);
+    expect(submission.baselineQty).toBe(0);
+    expect(submission.countedQty).toBe(10);
   });
 
   it("passes a counted quantity straight through, zero included", () => {

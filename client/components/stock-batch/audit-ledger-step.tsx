@@ -40,6 +40,8 @@ interface AuditLedgerStepProps {
   isLoading: boolean;
   isSyncing: boolean;
   onUpdateItem: (id: string, patch: Partial<AuditItem>) => void;
+  /** Records a count and re-baselines the row against live stock (A-263). */
+  onCountRow: (id: string, countedQty?: number) => void;
   categories: { id: string; label: string; count: number }[];
   selectedCategory: string;
   setSelectedCategory: (category: string) => void;
@@ -68,6 +70,7 @@ export function AuditLedgerStep({
   isLoading,
   isSyncing,
   onUpdateItem,
+  onCountRow,
   categories,
   selectedCategory,
   setSelectedCategory,
@@ -374,12 +377,12 @@ export function AuditLedgerStep({
                           checked={isCounted}
                           // Ticking means "counted, and it matched".
                           onCheckedChange={(checked) =>
-                            onUpdateItem(
-                              item.id,
-                              checked === true
-                                ? { countedQty: item.systemQty, counted: true }
-                                : { countedQty: undefined, counted: false },
-                            )
+                            checked === true
+                              ? onCountRow(item.id)
+                              : onUpdateItem(item.id, {
+                                  countedQty: undefined,
+                                  counted: false,
+                                })
                           }
                           aria-label={`Mark ${item.name} as counted`}
                         />
@@ -402,9 +405,7 @@ export function AuditLedgerStep({
                       <EditableNumberCell
                         value={item.countedQty}
                         placeholder={String(item.systemQty)}
-                        onCommit={(val) =>
-                          onUpdateItem(item.id, { countedQty: val })
-                        }
+                        onCommit={(val) => onCountRow(item.id, val)}
                         onClear={() =>
                           onUpdateItem(item.id, {
                             countedQty: undefined,

@@ -616,12 +616,31 @@ export async function getOrCreateTargetBatchForProduct(
   return batch;
 }
 
+/** The product's live quantity: the SUM of its active, non-deleted batches,
+ * i.e. the same aggregate getProducts() derives stock_quantity from. Used
+ * both inside submitStockAudit's transaction and by the cycle-count ledger
+ * to stamp a row's baseline when a figure is entered (A-263). */
+export async function getProductStockQuantity(productId: string): Promise<number> {
+  const rows = await query<{ qty: number }>(
+    `SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND is_active = 1`,
+    [productId],
+  );
+  return rows[0]?.qty ?? 0;
+}
+
 export interface StockAuditSubmission {
   productId: string;
   systemQty: number;
   /** Omitted for a price-only correction, and resolved below against the
    * quantity this function re-reads - never treated as zero. */
   countedQty?: number;
+  /** What the system believed this product held at the moment `countedQty`
+   * was observed. The discrepancy is measured against this, not against
+   * stock at submit time, so movements between the count and the submit are
+   * preserved rather than reversed. Omitted by callers whose semantics are
+   * "the stock is X right now" (catalog quick edit, CSV import), which keep
+   * the re-read behaviour. See A-263. */
+  baselineQty?: number;
   systemCostPrice?: number;
   countedCostPrice?: number;
   systemSellingPrice?: number;
@@ -665,16 +684,21 @@ export async function submitStockAudit(
       // movement's quantity. Same fix shape as the loyalty-redemption
       // balance check. Matches getProducts()' own stock_quantity aggregate
       // (SUM of active, non-deleted batches).
-      const currentQtyRows = await query<{ qty: number }>(
-        `SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND is_active = 1`,
-        [item.productId],
-      );
-      const currentSystemQty = currentQtyRows[0]?.qty ?? item.systemQty;
+      const currentSystemQty =
+        (await getProductStockQuantity(item.productId)) ?? item.systemQty;
 
-      const countedQty = Number.isFinite(item.countedQty as number)
+      const hasCount = Number.isFinite(item.countedQty as number);
+      const countedQty = hasCount
         ? (item.countedQty as number)
         : currentSystemQty;
-      const diff = countedQty - currentSystemQty;
+      // The baseline only applies to a row that was actually counted: a
+      // price-only row has no observation, so measuring its (absent) count
+      // against a stale baseline would post a phantom adjustment.
+      const baselineQty =
+        hasCount && item.baselineQty !== undefined
+          ? item.baselineQty
+          : currentSystemQty;
+      const diff = countedQty - baselineQty;
       const costDiff =
         item.countedCostPrice !== undefined && item.systemCostPrice !== undefined
           ? item.countedCostPrice - item.systemCostPrice
@@ -690,7 +714,7 @@ export async function submitStockAudit(
       await insert("stock_audits", {
         id: auditId,
         product_id: item.productId,
-        expected_quantity: currentSystemQty,
+        expected_quantity: baselineQty,
         actual_quantity: countedQty,
         difference: diff,
         expected_cost_price: item.systemCostPrice ?? null,

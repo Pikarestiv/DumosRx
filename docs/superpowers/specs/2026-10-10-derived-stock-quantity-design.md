@@ -440,7 +440,14 @@ not anticipate, settled in the implementation:
   The table stays for its A-176 reporting until Stage 3.
 - **The pull rebuilds every `stock_batches` row it touches, not only new ones**,
   which is what will clear the drift already in the field — the carve-out is
-  what makes it safe on a device whose log is incomplete.
+  what makes it safe on a device whose log is incomplete. Note the limit the
+  vet established: drift *above* a batch's inbound total is classified as
+  carve-out and is never cleared by Stage 1, so "the pull will clear the field
+  drift" holds only for drift the log accounts for.
+- **The carve-out must be judged against the log as it was before the change,
+  and equality must short-circuit ahead of it.** Both were wrong in the first
+  cut and both destroy or double real stock; see `docs/FIXED_BUGS.md` and
+  `docs/KNOWN_BUGS.md` A-264, which is the residue Stage 4 exists to remove.
 *Field signal:* `healStockIntegrity()`'s existing Sentry report under
 `area: stock-autoheal` — `diverged` should go to 0 and stay there on a device
 that has folded once, across large pulls. The store-level signal is

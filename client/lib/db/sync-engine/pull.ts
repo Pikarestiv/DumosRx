@@ -7,6 +7,7 @@ import { logCrash } from "@/lib/utils/error-logger";
 import { restoreExhaustedPullWindows, rewindPullWindow } from "./pull-window";
 import { STORAGE_KEYS, getStoredUser } from "@/lib/storage-keys";
 import { recomputeBatchQuantities } from "../batch-quantity";
+import type { BatchLogChange } from "../batch-quantity";
 import {
   applyDeferredStockDeltas,
   countDeferredStockDeltas,
@@ -242,9 +243,14 @@ export async function pullChanges(
       // movements that changed it. Rebuilt once at the end of the page rather
       // than patched per movement, which is what makes the result independent
       // of the order the pages arrive in (A-197).
-      const touchedBatches = new Map<string, number>();
-      const touchBatch = (batchId: string, delta: number) =>
-        touchedBatches.set(batchId, (touchedBatches.get(batchId) ?? 0) + delta);
+      const touchedBatches = new Map<string, BatchLogChange>();
+      const touchBatch = (batchId: string, delta: number) => {
+        const seen = touchedBatches.get(batchId) ?? { delta: 0, inbound: 0 };
+        touchedBatches.set(batchId, {
+          delta: seen.delta + delta,
+          inbound: seen.inbound + Math.max(0, delta),
+        });
+      };
 
       await transaction(async () => {
         for (const [table, records] of orderedEntries) {

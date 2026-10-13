@@ -1388,15 +1388,18 @@ on the function, and the condition for deleting it.
     rebuilds each one once at the end of that page's transaction. Callers must
     **not** pre-write `quantity` themselves; a pre-write is double-counted for
     a carve-out batch (below), which is why `deductFromBatch()` tracks what it
-    has taken in a local `liveQuantity` map instead. The one allowed exception
-    is a batch created *together with* its first inbound movement — procurement
-    receiving and a transfer's destination batch — where the `INSERT` carries
-    the quantity because the row needs it for its own push payload. That is
-    safe only while the figure equals that movement exactly: a batch created
-    holding **more** than its first movement is by definition a carve-out, and
-    would be patched incrementally for the rest of its life. If you ever make
-    those two numbers diverge (a partial receipt, a rounding step), insert `0`
-    and let the movement fill it.
+    has taken in a local `liveQuantity` map instead. A batch created *together
+    with* its first inbound movement — procurement receiving, an import row, a
+    transfer's destination — does carry the quantity in its own `INSERT`,
+    because the row needs it for its push payload; the equality short-circuit
+    above is what makes that safe, and it holds only while the two figures are
+    identical. If you ever make them diverge (a partial receipt, a rounding
+    step), insert `0` and let the movement fill it.
+  - **Two writes would still slip past both hooks:** an
+    `update("stock_movements", …)` that changes `quantity` or `_deleted`, and
+    `remove("stock_movements")`. Nothing does either today —
+    `stock-transfers.ts` only updates a movement's `status` — and a movement is
+    an append-only log entry, which is why. If you add one, rebuild the batch.
   - **The A-148 carve-out.** A batch holding more than its inbound movements
     account for carries stock that was never logged, so rebuilding it would
     write that stock off. Those batches are patched by the delta exactly as
@@ -1404,6 +1407,26 @@ on the function, and the condition for deleting it.
     no inbound movements" — one adjustment logged against a legacy batch must
     not take it out of the carve-out. Closed and shrinking: imports have
     written a movement per batch since `a36b00e7`.
+  - **Two things about that test are load-bearing, and both were got wrong
+    first.** (a) It is taken against the log as it stood **before** the change
+    being applied (`BatchLogChange.inbound` is subtracted back off). Judging it
+    afterwards lets `inbound` grow by the very movement in hand and overtake a
+    `stored` that sales have worn down, so a legacy batch sold from 100 to 5
+    and then found to hold 10 more rebuilt to **0** instead of 15 — a silent
+    write-off of real stock, caught in review before it shipped. (b) `stored`
+    already equal to `MAX(0, Σ log)` short-circuits to "nothing to write"
+    *before* the carve-out is judged at all. That is what makes a batch created
+    together with its first inbound movement safe: it holds exactly that
+    movement, the log agrees, and classifying it would patch the delta on top
+    and double the receipt.
+  - **The hole that is left, and it is Stage 4's to close.** Once a legacy
+    batch's `stored` reaches 0, nothing on the device distinguishes "sold the
+    unlogged opening stock" from "an ordinary empty batch": both read `stored
+    0`, and the log's negative sum is the same shape as an oversell. A return
+    or a restock against such a batch therefore rebuilds from the log and the
+    unlogged units do not come back. Recorded as `docs/KNOWN_BUGS.md` A-264;
+    `opening_quantity` is the only fix, because the residue has to be written
+    down somewhere.
   - **`replayMovements()` in `sync-engine/stock-integrity.ts` is now an alias
     of `onHandFromLog()`**, so the fold, the auto-heal and the write path cannot
     drift apart. The ordering rules this section used to impose (`ORDER BY

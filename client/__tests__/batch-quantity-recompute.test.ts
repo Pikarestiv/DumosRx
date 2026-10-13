@@ -102,8 +102,8 @@ describe("stock_batches.quantity derived from the movement log", () => {
     await logMovement("b1", 80);
     await logMovement("b1", -28);
 
-    await recomputeBatchQuantities(new Map([["b1", 0]]));
-    await recomputeBatchQuantities(new Map([["b1", 0]]));
+    await recomputeBatchQuantities(new Map([["b1", { delta: 0, inbound: 0 }]]));
+    await recomputeBatchQuantities(new Map([["b1", { delta: 0, inbound: 0 }]]));
 
     expect(quantityOf("b1")).toBe(52);
   });
@@ -191,6 +191,40 @@ describe("stock_batches.quantity derived from the movement log", () => {
       expect(quantityOf("legacy")).toBe(99);
     });
 
+    it("stays a carve-out after its stock has been sold below a later inbound movement", async () => {
+      // The classification must read the log as it was BEFORE this movement.
+      // Reading it afterwards let `inbound` grow past a `stored` that sales had
+      // worn down, which flipped a legacy batch into "rebuild" and wrote the
+      // unlogged opening stock off: 100 sold down to 5, then 10 found, gave 0
+      // where the shelf holds 15.
+      seedBatch("legacy", 100);
+      await logMovement("legacy", -95);
+      expect(quantityOf("legacy")).toBe(5);
+
+      await logMovement("legacy", 10);
+
+      expect(quantityOf("legacy")).toBe(15);
+    });
+
+    it("keeps a legacy batch's units when a sale against it is returned", async () => {
+      seedBatch("legacy", 100);
+      await logMovement("legacy", -60);
+
+      await logMovement("legacy", 50);
+
+      expect(quantityOf("legacy")).toBe(90);
+    });
+
+    it("keeps the carve-out when a logged inbound movement is voided", async () => {
+      seedBatch("legacy", 100);
+      const found = await logMovement("legacy", 10);
+      expect(quantityOf("legacy")).toBe(110);
+
+      await softDelete("stock_movements", found);
+
+      expect(quantityOf("legacy")).toBe(100);
+    });
+
     it("never writes a negative quantity for a carve-out batch", async () => {
       seedBatch("legacy", 5);
 
@@ -198,6 +232,78 @@ describe("stock_batches.quantity derived from the movement log", () => {
 
       expect(quantityOf("legacy")).toBe(0);
     });
+  });
+
+  it("does not queue a second push row for a batch created with its first movement", async () => {
+    // A receipt, an import row and a transfer-in all insert the batch holding
+    // its first inbound movement's quantity, so the rebuild lands on the value
+    // already there. Writing it again cost one _sync_queue row and one
+    // audit_logs row per row imported.
+    await insert("stock_batches", {
+      id: "fresh",
+      product_id: "prod-1",
+      batch_number: "PO-1",
+      quantity: 40,
+      is_active: 1,
+    });
+    await logMovement("fresh", 40);
+
+    expect(quantityOf("fresh")).toBe(40);
+    expect(queuedBatchPushes("fresh")).toBe(1);
+    const audits = db.exec(
+      `SELECT COUNT(*) FROM audit_logs WHERE table_name = 'stock_batches' AND record_id = 'fresh'`,
+    );
+    expect(Number(audits[0].values[0][0])).toBe(1);
+  });
+
+  it("agrees with the in-memory fake the other suites rely on, over randomised histories", async () => {
+    // Four suites stub @/lib/db/local-database and model this rule by hand in
+    // __tests__/helpers/fake-batch-quantity.ts. Nothing else notices when the
+    // two part company, and a fake that is wrong in the same direction as a
+    // bug is how the carve-out regression passed its own tests.
+    const { applyMovementToFakeBatch } = await import("./helpers/fake-batch-quantity");
+
+    let seed = 20261014;
+    const random = () => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    };
+    const pick = <T>(items: T[]): T => items[Math.floor(random() * items.length)];
+
+    const mismatches: string[] = [];
+
+    for (let caseIndex = 0; caseIndex < 80; caseIndex++) {
+      db.run(`DELETE FROM stock_movements; DELETE FROM stock_batches;`);
+
+      const batchId = `b-${caseIndex}`;
+      const opening = pick([0, 0, 5, 40, 100]);
+      const priorLog = Array.from({ length: Math.floor(random() * 4) }, () =>
+        pick([-95, -60, -9, -3, 2, 10, 40]),
+      );
+      const delta = pick([-95, -60, -9, -3, 2, 10, 40, 50]);
+
+      seedBatch(batchId, opening);
+      priorLog.forEach((q, i) => seedMovement(`prior-${caseIndex}-${i}`, batchId, q));
+
+      const fakeBatches = { [batchId]: { quantity: opening } };
+      const fakeMovements = priorLog.map((q) => ({ stock_batch_id: batchId, quantity: q }));
+
+      await logMovement(batchId, delta);
+
+      fakeMovements.push({ stock_batch_id: batchId, quantity: delta });
+      applyMovementToFakeBatch(fakeBatches, fakeMovements, {
+        stock_batch_id: batchId,
+        quantity: delta,
+      });
+
+      if (fakeBatches[batchId].quantity !== quantityOf(batchId)) {
+        mismatches.push(
+          `case ${caseIndex}: opening ${opening}, prior [${priorLog.join(",")}], delta ${delta} → real ${quantityOf(batchId)}, fake ${fakeBatches[batchId].quantity}`,
+        );
+      }
+    }
+
+    expect(mismatches).toEqual([]);
   });
 
   it("leaves a batch alone when the movement names one this device does not have", async () => {

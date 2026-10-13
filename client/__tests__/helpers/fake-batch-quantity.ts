@@ -27,9 +27,13 @@ export function applyMovementToFakeBatch(
   const log = movements.filter((m) => m.stock_batch_id === batchId && !m._deleted);
   const total = log.reduce((sum, m) => sum + Number(m.quantity ?? 0), 0);
   const inbound = log.reduce((sum, m) => sum + Math.max(0, Number(m.quantity ?? 0)), 0);
+  const rebuilt = Math.max(0, total);
+
+  if (batch.quantity === rebuilt) return;
+
+  const delta = Number(data.quantity ?? 0);
+  const inboundBefore = inbound - Math.max(0, delta);
 
   batch.quantity =
-    batch.quantity > inbound
-      ? Math.max(0, batch.quantity + Number(data.quantity ?? 0))
-      : Math.max(0, total);
+    batch.quantity > inboundBefore ? Math.max(0, batch.quantity + delta) : rebuilt;
 }

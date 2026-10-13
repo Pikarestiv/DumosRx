@@ -1,5 +1,6 @@
 import { query, execute } from "../core";
 import { recomputeBatchQuantities } from "../batch-quantity";
+import type { BatchLogChange } from "../batch-quantity";
 
 /**
  * Deferred `stock_movements` quantity deltas, persisted rather than held in
@@ -74,7 +75,7 @@ export async function applyDeferredStockDeltas(
     "SELECT movement_id, stock_batch_id, quantity, attempts FROM _pending_stock_deltas ORDER BY rowid",
   );
   const unresolved: DeferredStockDelta[] = [];
-  const resolved = new Map<string, number>();
+  const resolved = new Map<string, BatchLogChange>();
 
   for (const delta of pending) {
     const movement = await query<{ _deleted: number | null }>(
@@ -106,10 +107,11 @@ export async function applyDeferredStockDeltas(
       continue;
     }
 
-    resolved.set(
-      delta.stock_batch_id,
-      (resolved.get(delta.stock_batch_id) ?? 0) + delta.quantity,
-    );
+    const seen = resolved.get(delta.stock_batch_id) ?? { delta: 0, inbound: 0 };
+    resolved.set(delta.stock_batch_id, {
+      delta: seen.delta + delta.quantity,
+      inbound: seen.inbound + Math.max(0, delta.quantity),
+    });
     await discard(delta.movement_id);
   }
 

@@ -19,7 +19,8 @@ import {
   isTillInspectionSession,
   READ_ONLY_REFUSAL_MESSAGE,
 } from "@/lib/utils/till-inspection";
-import { resolveBatchQuantity } from "./batch-quantity";
+import { movementChange, resolveBatchQuantity } from "./batch-quantity";
+import type { BatchLogChange } from "./batch-quantity";
 import { queryClient } from "../query-client";
 import { truncateForLog } from "../utils/error-truncation";
 import type { SyncQueueItem } from "@/lib/types/sync";
@@ -174,14 +175,17 @@ function assertWritable(): void {
  */
 async function syncBatchQuantityForMovement(
   record: Record<string, unknown>,
-  signedDelta: number,
+  change: BatchLogChange,
   options?: { storeId?: string; correlationId?: string },
 ): Promise<void> {
   const batchId = record.stock_batch_id;
   if (typeof batchId !== "string" || !batchId) return;
 
-  const resolved = await resolveBatchQuantity(batchId, signedDelta);
-  if (!resolved) return;
+  const resolved = await resolveBatchQuantity(batchId, change);
+  // A batch created holding its first movement's quantity (a receipt, an
+  // import row, a transfer-in) is already right, and writing it again costs a
+  // push row and an audit row per batch.
+  if (!resolved || resolved.quantity === resolved.stored) return;
 
   // The movement's own options are forwarded: a cross-store transfer writes
   // each leg under its own store_id, and the batch must be claimed under the
@@ -254,7 +258,11 @@ export async function insert(
     }
 
     if (table === "stock_movements" && !record._deleted) {
-      await syncBatchQuantityForMovement(record, Number(record.quantity ?? 0), options);
+      await syncBatchQuantityForMovement(
+        record,
+        movementChange(Number(record.quantity ?? 0)),
+        options,
+      );
     }
   };
 
@@ -408,7 +416,7 @@ export async function softDelete(table: string, id: string, options?: { storeId?
     if (voidedMovement) {
       await syncBatchQuantityForMovement(
         { stock_batch_id: voidedMovement.stock_batch_id },
-        -Number(voidedMovement.quantity ?? 0),
+        movementChange(Number(voidedMovement.quantity ?? 0), false),
         options,
       );
     }

@@ -6,6 +6,25 @@ import { query, execute } from "./core";
  * docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md.
  */
 
+/**
+ * What a change did to a batch's log, so the carve-out can be judged against
+ * the log as it stood *before* it: `inbound` grows with the very movement
+ * being applied, and reading it afterwards writes off a legacy batch whose
+ * stored quantity sales have worn down below it.
+ */
+export interface BatchLogChange {
+  /** Net quantity added to the log (negative for a sale or a voided receipt). */
+  delta: number;
+  /** How much of `delta` moved the log's inbound total. */
+  inbound: number;
+}
+
+/** An insert of one movement; a soft-delete reverses both figures. */
+export function movementChange(quantity: number, applied = true): BatchLogChange {
+  const sign = applied ? 1 : -1;
+  return { delta: sign * quantity, inbound: sign * Math.max(0, quantity) };
+}
+
 export interface ResolvedBatchQuantity {
   stored: number;
   quantity: number;
@@ -35,7 +54,7 @@ export function onHandFromLog(deltas: number[]): number {
  */
 export async function resolveBatchQuantity(
   batchId: string,
-  incrementalDelta: number,
+  change: BatchLogChange,
 ): Promise<ResolvedBatchQuantity | null> {
   const [batch] = await query<{ quantity: number | null }>(
     "SELECT quantity FROM stock_batches WHERE id = ?",
@@ -53,13 +72,26 @@ export async function resolveBatchQuantity(
 
   const stored = Number(batch.quantity ?? 0);
   const total = Number(log?.total ?? 0);
-  const inbound = Number(log?.inbound ?? 0);
-  const carveOut = stored > inbound;
+  const rebuilt = Math.max(0, total);
+
+  // Equality first, before the carve-out is even judged: a batch created
+  // together with its first inbound movement (a receipt, an import row, a
+  // transfer's destination) holds exactly that movement's quantity, and the
+  // log it was created from agrees. Classifying it would see a stored figure
+  // above the log's *previous* inbound of nothing and patch the delta on top,
+  // doubling the receipt. Nothing to write is the honest answer, and it is
+  // also what keeps one push row per created batch instead of two.
+  if (stored === rebuilt) {
+    return { stored, carveOut: false, quantity: stored };
+  }
+
+  const inboundBefore = Number(log?.inbound ?? 0) - change.inbound;
+  const carveOut = stored > inboundBefore;
 
   return {
     stored,
     carveOut,
-    quantity: carveOut ? Math.max(0, stored + incrementalDelta) : Math.max(0, total),
+    quantity: carveOut ? Math.max(0, stored + change.delta) : rebuilt,
   };
 }
 
@@ -71,10 +103,10 @@ export async function resolveBatchQuantity(
  * `insert()`/`softDelete()`, which keep the batch's `update()`.
  */
 export async function recomputeBatchQuantities(
-  touched: Map<string, number>,
+  touched: Map<string, BatchLogChange>,
 ): Promise<void> {
-  for (const [batchId, delta] of touched) {
-    const resolved = await resolveBatchQuantity(batchId, delta);
+  for (const [batchId, change] of touched) {
+    const resolved = await resolveBatchQuantity(batchId, change);
     if (!resolved || resolved.quantity === resolved.stored) continue;
     await execute("UPDATE stock_batches SET quantity = ? WHERE id = ?", [
       resolved.quantity,

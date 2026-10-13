@@ -5559,7 +5559,8 @@ what's already covered above:
   2026-09-16/17 entry) is **gone** — reseller sales now show inline in
   `pos-transaction-history.tsx` with a badge + a "Sale Type" filter, and
   the redeem/store-claim actions live directly in
-  `TransactionDetailsDialog` (admin-gated). If you find a stale reference
+  `TransactionDetailsDialog` (visible to admins and the cashier who made
+  the sale). If you find a stale reference
   to `reseller-commission-panel.tsx`, it's dead documentation.
 - **Cross-store stock transfer**: a cashier can now request stock from
   another store directly from POS (`pos-layout-header.tsx`, gated on

@@ -373,10 +373,7 @@ export function AuditLedgerStep({
                       <div className="flex items-center gap-2">
                         <Checkbox
                           checked={isCounted}
-                          // The shortcut for the common case: ticking says
-                          // "counted, and it matched", which is just the
-                          // system figure entered for you. Unticking takes
-                          // the row back to uncounted.
+                          // Ticking means "counted, and it matched".
                           onCheckedChange={(checked) =>
                             onUpdateItem(
                               item.id,

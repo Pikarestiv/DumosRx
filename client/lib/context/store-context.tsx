@@ -256,12 +256,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // store" rather than "still resolving."
   const loading = !isAuthHydrated || isStoreProfileLoading;
 
-  // Assigned during render, not in an effect: every money formatter in
-  // lib/utils.ts falls back to this (see lib/active-currency.ts), and an
-  // effect runs AFTER the commit in which children have already formatted
-  // their totals - so a cart total or receipt painted in that first commit
-  // kept the naira fallback until something unrelated re-rendered it. An
-  // idempotent module-level write, safe to repeat on every render.
+  // During render, not in an effect: children format money in this same
+  // commit. See lib/active-currency.ts.
   setActiveCurrency(storeProfile?.currency);
 
   React.useEffect(() => {

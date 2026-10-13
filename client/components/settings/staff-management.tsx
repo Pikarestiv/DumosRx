@@ -29,13 +29,8 @@ export function StaffManagement() {
   const { activeStoreId, availableStores } = useStore();
   const { maxStaffAccounts, getUpgradeMessage, withRestriction } =
     useFeatureGate();
-  // Follows the store the header's switcher is pointing at - "All Stores"
-  // stays available, it is just no longer the default. Synced rather than
-  // only initialised: `activeStoreId` is read from localStorage
-  // synchronously so it is usually there on the first render, but a device
-  // that has not persisted one yet (first boot, post-restore) resolves it
-  // later, and switching branches afterwards must not leave this list
-  // pinned to the previous one.
+  // Follows the header's switcher, including a switch after mount;
+  // "All Stores" stays available as a choice.
   const [selectedStore, setSelectedStore] = useState<string>(
     activeStoreId || "all",
   );

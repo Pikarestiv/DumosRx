@@ -702,6 +702,59 @@ server keeps the full trail and a synced delete would destroy it for every
 device. If you add another append-only local table with the same growth
 shape, prune it here rather than inventing a second mechanism.
 
+### Money is a rounded float, and every computed write says so (2026-10-13)
+
+SQLite has no `DECIMAL` storage class, so every price/cost/amount column in
+`lib/db/schema.ts` is `REAL` (an IEEE double) while its MySQL counterpart is
+`decimal(n,2)`. There are no scaled integer minor units and no
+arbitrary-precision library on either side, and adding either now would break
+the sync payload for every bundle still in the field.
+
+What keeps the two stores in agreement is that **nothing unrounded is ever
+persisted**. `roundMoney()` in `lib/utils/pos-calculations.ts` is the only
+rounding helper; wrap any money value you compute before it is stored. Use it
+rather than an inline `Math.round(x * 100) / 100`.
+
+**Be accurate about why.** MySQL *rounds* an over-precise incoming value to the
+column's scale (half away from zero); it does not truncate, and the Laravel
+sync controller does not cast or validate money fields on the way in. So for a
+`price * quantity` write, where the price is already 2dp and the quantity an
+integer, the cloud value was always exactly right and the local one was off by
+a few ulps (~1e-13) — latent and invisible, worth fixing for hygiene and for
+equality-safety, but it was never capable of moving a displayed cent. Do not
+repeat the claim that float dust "accumulates in reports"; it does not at that
+scale. The precision gap that is real is a *division* stored unrounded, which
+is A-261 in `docs/KNOWN_BUGS.md` and is still open.
+
+`__tests__/money-write-rounding-convention.test.ts` enforces the convention
+over `lib/db` and `lib/hooks`, both walked recursively. It flags a write to a
+known money column whose value expression still contains arithmetic once every
+`roundMoney(...)` call has been removed from it, and names the file and line.
+Three details are load-bearing and were each a bug in the first version:
+comments are blanked in place rather than deleted, or reported line numbers
+drift; the value expression is read with bracket balancing and stops at an
+unmatched closer, or `Math.max(0, a - b)` is cut at its first comma and a
+function's `amount: number)` parameter swallows the rest of the file; and
+stripping `roundMoney(...)` whole is what makes `roundMoney(a) * b` still
+fail. Add new money columns to `MONEY_COLUMNS`.
+
+The test can only see arithmetic it can read as text. A money value computed
+into a local variable, or returned by a helper, and then assigned is invisible
+to it — which is exactly how A-261 survives a green run.
+
+Quantities are exempt and must stay so: they are `INTEGER` on both sides and
+exact in JS below 2^53. A fractional unit of measure (metres, litres) would
+break that assumption on both sides of the sync and needs its own design
+rather than being squeezed into the money helper.
+
+Percentages are also **not** money. `markup_percentage`, `tax_percentage`,
+`discount_percentage`, `points_multiplier`, `rating` and
+`loyalty_points_per_currency` are `REAL` too, and rounding them to two
+decimals would silently change stored values, which is why rounding lives at
+each call site rather than inside the shared `insert()`/`update()` helpers. A
+per-column allowlist in those helpers would also work and is a fair thing to
+reach for if the call sites keep drifting.
+
 ### Sync engine (`lib/db/sync-engine/`)
 
 `sync(isManual, isSetup)` in `index.ts` does one push-then-pull cycle:
@@ -1570,6 +1623,16 @@ on screen from having walked to the shelf.
   `applyStockAdjustmentDelta` as the delta — a corrupt `stock_audits` row and
   a `NaN` batch quantity, pushed to the server. Pinned by
   `__tests__/stock-audit.test.ts`.
+- **Never coalesce that quantity on the way in.** The obvious-looking
+  `countedQty: item.countedQty ?? item.systemQty` at the call site defeats the
+  whole arrangement: `AuditItem.systemQty` was frozen when the sheet was
+  built, so a row whose stock sold through the day would post those sales back
+  as *found stock*. The submit must receive `undefined` and let
+  `submitStockAudit` resolve it against the figure it re-reads inside its own
+  transaction. The mapping lives in `toStockAuditSubmissions()`
+  (`audit-derivations.ts`) rather than inline in the screen precisely because
+  this went wrong twice in one day; `__tests__/audit-derivations.test.ts` pins
+  it.
 - The rebuild effect in `stock-audits.tsx` is keyed on `[rawProducts,
   items.length]`. "Start over" empties the draft without touching the cached
   products query, so keying it on `rawProducts` alone left the sheet
@@ -2026,6 +2089,17 @@ while `core.ts`'s `getActiveStoreId()` resolves the id local queries scope to.
 They are two different things and must not be conflated — them silently
 disagreeing is the bug `auth-context.tsx` already carries a comment about, and
 the reason A-23 was filed.
+
+## A clickable `MetricCard` is a button (2026-10-13)
+
+`MetricCard` renders a `Card` (a div), so an `onClick` alone left every
+figure-as-shortcut in the app — Daily Close's payment totals, Net Cash
+Expected, the dashboard tiles — unreachable by keyboard. It now takes
+`role="button"`, `tabIndex={0}`, Enter/Space and a focus ring **only when
+`onClick` is passed**; a card that is just a figure stays a plain,
+unfocusable div. Pinned by `__tests__/metric-card-keyboard.test.tsx`. Do the
+same for any other card-shaped shortcut rather than re-adding a bare
+`onClick` div.
 
 ## Div/ARIA tables: never give a per-row grid a bare `fr` track (2026-10-13)
 

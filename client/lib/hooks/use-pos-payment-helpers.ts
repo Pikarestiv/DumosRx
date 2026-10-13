@@ -19,6 +19,7 @@ import {
 import { CartItem, RedeemedOption } from "./use-pos-cart";
 import type { Customer } from "@/lib/types/customer";
 import type { ReceiptTransaction } from "@/components/pos/receipt-view";
+import { roundMoney } from "@/lib/utils/pos-calculations";
 
 export type PaymentMethod = "cash" | "card" | "transfer" | "credit" | "mixed";
 
@@ -163,15 +164,20 @@ export function computeResellerCommission(params: {
   const { cart, isResellerSale, markupType, resellerCommissionPercentage } = params;
 
   const resellerMarkup = isResellerSale
-    ? cart.reduce(
-        (sum, item) =>
-          sum + Math.max(0, item.unit_price - item.original_unit_price) * item.quantity,
-        0,
+    ? roundMoney(
+        cart.reduce(
+          (sum, item) =>
+            sum + Math.max(0, item.unit_price - item.original_unit_price) * item.quantity,
+          0,
+        ),
       )
     : 0;
+  // Rounded because both are stored and this one is a RATE multiplication,
+  // the same class as A-261 rather than float dust: it is also what a
+  // reseller is actually paid out.
   const resellerCommissionAmount =
     isResellerSale && markupType !== "store"
-      ? resellerMarkup * (resellerCommissionPercentage / 100)
+      ? roundMoney(resellerMarkup * (resellerCommissionPercentage / 100))
       : 0;
 
   return { resellerMarkup, resellerCommissionAmount };

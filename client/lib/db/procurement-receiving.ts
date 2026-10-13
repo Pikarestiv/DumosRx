@@ -19,7 +19,11 @@ import {
   type DraftPOLineItem,
 } from "./procurement";
 import { getStoredUser } from "@/lib/storage-keys";
-import { resolveBaseUnitCost } from "@/components/procurement/po-line-item-math";
+import {
+  immediateLineAmount,
+  resolveBaseUnitCost,
+} from "@/components/procurement/po-line-item-math";
+import { roundMoney } from "@/lib/utils/pos-calculations";
 
 /** Per-line-item receiving overrides submitted from the "Receive Order" form:
  * only po_item_id is required, the rest default to the ordered quantity/PO id. */
@@ -153,7 +157,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
         unit_cost: baseUnitCost,
         // Recalculated from what was actually received, not item.subtotal (the full
         // ordered-line total): those diverge whenever this is a partial receipt.
-        total_cost: baseUnitCost * totalBaseUnits,
+        total_cost: roundMoney(baseUnitCost * totalBaseUnits),
         reference_id: poData.id,
         reference_type: "purchase_order",
         reason: "Purchase order received",
@@ -199,28 +203,23 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
   });
 }
 
-/** Cost per single base unit (e.g. per tablet), for an Immediate Purchase
- * line: the override typed into "New Cost" if present, otherwise the
- * catalog unit_cost (which is per-bulk-unit, e.g. per carton) converted
- * down by units_per_bulk. Both this and computeImmediateLineTotal() must
- * stay the single source of truth for this math — it's what's stored as
- * stock_batches.cost_price, and what the order total is derived from, so
- * a second, differently-scaled copy of this formula is how "New Cost" and
- * "Total" drift out of sync with each other. */
+/** Cost per single base unit for an Immediate Purchase line. Delegates
+ * rather than repeating the conversion - see A-261. */
 function immediateBaseUnitCost(item: ImmediateLineItemDraft): number {
-  const safeUnitsPerBulk = item.units_per_bulk || 1;
-  // Floored at 0, same as receivePurchaseOrder's baseUnitCost.
-  return item.cost_price_override !== undefined && item.cost_price_override !== ""
-    ? Math.max(0, Number(item.cost_price_override))
-    : Number(item.unit_cost) / safeUnitsPerBulk;
+  return resolveBaseUnitCost({
+    costOverride: item.cost_price_override,
+    unitCost: item.unit_cost,
+    unitsPerBulk: item.units_per_bulk,
+  });
 }
 
-/** Line total in currency, from the same per-base-unit cost used for stock
- * costing — not item.subtotal, which is only ever set once when the row is
- * first added and never kept in sync with later quantity/cost edits. */
+/** What the line costs on the ORDER - the figure the owner is invoiced for -
+ * not item.subtotal, which is only set when the row is first added. Priced
+ * from the per-bulk cost as typed when there is no override, so a ₦1,000
+ * carton of 3 reads ₦1,000 and not 3 x ₦333.33; the batch keeps the rounded
+ * per-unit cost for valuation. See client/AGENTS.md. */
 function computeImmediateLineTotal(item: ImmediateLineItemDraft): number {
-  const totalBaseUnits = item.bulk_quantity * (item.units_per_bulk || 1);
-  return immediateBaseUnitCost(item) * totalBaseUnits;
+  return roundMoney(immediateLineAmount(item));
 }
 
 /** Immediate Purchase: order and receipt happen in one transaction. Unlike
@@ -252,7 +251,7 @@ export async function createAndReceivePurchaseOrder(
       payment_status: paymentStatus,
       amount_paid: amountPaid,
       due_date: dueDate,
-      total_amount: totalAmount,
+      total_amount: roundMoney(totalAmount),
       notes,
       created_at: now,
       received_at: now,
@@ -304,7 +303,7 @@ export async function createAndReceivePurchaseOrder(
         movement_type: "purchase",
         quantity: totalBaseUnits,
         unit_cost: baseUnitCost,
-        total_cost: baseUnitCost * totalBaseUnits,
+        total_cost: roundMoney(baseUnitCost * totalBaseUnits),
         reference_id: poId,
         reference_type: "purchase_order",
         reason: "Immediate purchase received",

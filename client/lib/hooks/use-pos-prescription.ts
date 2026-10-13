@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import type { POSProduct as Product } from "@/lib/types/product";
 import type { CartItem } from "./use-pos-cart";
+import { roundMoney } from "@/lib/utils/pos-calculations";
 
 interface UsePOSPrescriptionProps {
   searchParams: URLSearchParams;
@@ -54,7 +55,7 @@ export function usePOSPrescription({
                 return {
                   ...product,
                   quantity: item.quantity || 1,
-                  subtotal: product.unit_price * (item.quantity || 1),
+                  subtotal: roundMoney(product.unit_price * (item.quantity || 1)),
                   original_unit_price: product.unit_price,
                 };
               }

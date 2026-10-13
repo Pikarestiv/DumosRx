@@ -702,6 +702,78 @@ server keeps the full trail and a synced delete would destroy it for every
 device. If you add another append-only local table with the same growth
 shape, prune it here rather than inventing a second mechanism.
 
+### Money is a rounded float, and every computed write says so (2026-10-13)
+
+SQLite has no `DECIMAL` storage class, so every price/cost/amount column in
+`lib/db/schema.ts` is `REAL` (an IEEE double) while its MySQL counterpart is
+`decimal(n,2)`. There are no scaled integer minor units and no
+arbitrary-precision library on either side, and adding either now would break
+the sync payload for every bundle still in the field.
+
+What keeps the two stores in agreement is that **nothing unrounded is ever
+persisted**. `roundMoney()` in `lib/utils/pos-calculations.ts` is the only
+rounding helper; wrap any money value you compute before it is stored. Use it
+rather than an inline `Math.round(x * 100) / 100`.
+
+**Be accurate about why.** MySQL *rounds* an over-precise incoming value to the
+column's scale (half away from zero); it does not truncate, and the Laravel
+sync controller does not cast or validate money fields on the way in. So for a
+`price * quantity` write, where the price is already 2dp and the quantity an
+integer, the cloud value was always exactly right and the local one was off by
+a few ulps (~1e-13) — latent and invisible, worth fixing for hygiene and for
+equality-safety, but it was never capable of moving a displayed cent. Do not
+repeat the claim that float dust "accumulates in reports"; it does not at that
+scale. The precision gap that was real is a *division* stored unrounded — A-261,
+now fixed inside `resolveBaseUnitCost()` and recorded in
+`docs/FIXED_BUGS.md`.
+
+`__tests__/money-write-rounding-convention.test.ts` enforces the convention
+over `lib/db` and `lib/hooks`, both walked recursively. It flags a write to a
+known money column whose value expression still contains arithmetic once every
+`roundMoney(...)` call has been removed from it, and names the file and line.
+Three details are load-bearing and were each a bug in the first version:
+comments are blanked in place rather than deleted, or reported line numbers
+drift; the value expression is read with bracket balancing and stops at an
+unmatched closer, or `Math.max(0, a - b)` is cut at its first comma and a
+function's `amount: number)` parameter swallows the rest of the file; and
+stripping `roundMoney(...)` whole is what makes `roundMoney(a) * b` still
+fail. Add new money columns to `MONEY_COLUMNS`.
+
+The test can only see arithmetic it can read as text. A money value computed
+into a local variable, or returned by a helper, and then assigned is invisible
+to it — which is exactly how A-261 passed a green run, and why a helper that
+returns a stored money value (`resolveBaseUnitCost()`) has to round inside
+itself rather than relying on this test to catch its callers.
+
+**Grepping `Math\.` is what actually finds the rest**, and it found four more
+on 2026-10-13 that the green test had been hiding, all of them helper returns
+or variables: `computeResellerCommission()`'s markup and commission
+(`lib/hooks/use-pos-payment-helpers.ts`), `calculateMixedAmountPaid()` and
+`calculateMixedChangeDue()` (`lib/utils/pos-calculations.ts`), the typed cash
+`amount_paid` in `use-pos-payment.ts`, and one surviving inline
+`Math.round(x * 100) / 100` in `queries/customers.ts`. The commission is the
+one that mattered: it is a **rate multiplication**, the A-261 class rather
+than the ulps class, and it is the figure a reseller is actually paid.
+
+Two things deliberately left unrounded, so nobody "fixes" them: `sales.discount_amount`
+holds the raw input, which **is a percentage** when `discount_type` is
+`percentage`, and `discount_percentage` likewise — quantising those changes
+what the store configured (12.345% is not 12.35%), exactly as the rule above
+says about `markup_percentage` and friends.
+
+Quantities are exempt and must stay so: they are `INTEGER` on both sides and
+exact in JS below 2^53. A fractional unit of measure (metres, litres) would
+break that assumption on both sides of the sync and needs its own design
+rather than being squeezed into the money helper.
+
+Percentages are also **not** money. `markup_percentage`, `tax_percentage`,
+`discount_percentage`, `points_multiplier`, `rating` and
+`loyalty_points_per_currency` are `REAL` too, and rounding them to two
+decimals would silently change stored values, which is why rounding lives at
+each call site rather than inside the shared `insert()`/`update()` helpers. A
+per-column allowlist in those helpers would also work and is a fair thing to
+reach for if the call sites keep drifting.
+
 ### Sync engine (`lib/db/sync-engine/`)
 
 `sync(isManual, isSetup)` in `index.ts` does one push-then-pull cycle:
@@ -1532,6 +1604,170 @@ sale lands for another −2, and the shelf holding 8 settles at 6.
   import reconcile stock through the same delta with no check; logged in
   `docs/KNOWN_BUGS.md` A-211 along with the real fix (an absolute count).
 
+### Counted Qty opens EMPTY, and that is the whole design (2026-10-13)
+
+The cycle count used to open every row pre-filled with the system's own
+figures, so `countedQty !== undefined` said nothing about whether anyone had
+been to the shelf — it was true for every row the moment the screen loaded,
+which made "Total Counted" equal to the catalog size and gave a counter no
+way to see what was left to do. A pre-filled figure also invites counting by
+confirmation: accepting what the system already claims is indistinguishable
+on screen from having walked to the shelf.
+
+- **Counted Qty is blank until someone types in it**, with the system
+  quantity as the input's `placeholder` so the row still says what it is
+  being compared against. The field *is* the record of the count. This is the
+  convention the printed count sheet has always used
+  (`buildStockAuditRows()` emits an empty "Counted Qty" column) and the one
+  Odoo/NetSuite/Fishbowl count sheets use.
+- **Never prefill `countedQty` with 0.** Submit posts every row whose counted
+  figure differs from the system's, so a zero prefill turns every untouched
+  row into an adjustment to zero stock. It was asked for twice on 2026-10-13
+  and is the one option that is actually dangerous.
+- **`AuditItem.baselineQty` is what a count is measured against, and only a
+  real re-read may set it (A-263).** Every entry and every tick goes through
+  `countRow()`, which re-reads live stock for that one product and writes it
+  to both `systemQty` (display) and `baselineQty` (the contract), so the
+  discrepancy is measured at the moment of the count and anything that moved
+  afterwards is preserved rather than reversed. `toStockAuditSubmissions()`
+  sends `baselineQty`, **never `systemQty`**: a draft resumed from a build
+  before this still carries a sheet-build `systemQty`, and passing that off
+  as a baseline reverses the day's sales (built at 10, 5 sold, counter finds
+  5 → `5 − 10 = −5`, product zeroed). A row without a baseline sends none and
+  `submitStockAudit` re-reads, which is exactly the old arithmetic — so no
+  path is ever worse than what it replaced. That fallback is also what the
+  catalog quick edit and the CSV import rely on.
+- **Counting is last-TYPED-wins, via `createCountSequencer()`.**
+  `EditableNumberCell` commits per keystroke, so "12" is two counts, and
+  their reads can resolve out of order — a read issued while a sync
+  transaction is *reserved* queues behind it, while one issued after that
+  transaction *starts* bypasses the queue (`lib/db/core.ts`). Without the
+  token the row would settle on "1". The same guard is what stops a read
+  landing on a row that has since been cleared, or on a sheet that has been
+  started over — both call `cancelPendingCounts`.
+- `AuditItem.counted` is the hand-tick, and ticking is a **shortcut, not a
+  separate signal**: it means "counted, and it matched", so it writes the
+  **live** figure to both sides via `countRow()`, never the figure on screen.
+  Un-ticking clears the quantity again. It also covers a row where only a
+  price was corrected. Nothing disables the tick — it is always the
+  counter's to set, in both directions.
+- `isAuditItemCounted()` (`audit-derivations.ts`) is the only thing that
+  should be asked whether a row was counted.
+- `differsFromSystem()` requires `countedQty !== undefined` before treating a
+  quantity as a difference; without that guard an un-entered row submits
+  `undefined` as a quantity.
+- **A price-only correction has no counted quantity, and that reaches the
+  database.** `StockAuditSubmission.countedQty` is optional, and
+  `submitStockAudit` resolves a missing or non-finite value to the live
+  system quantity (`inventory.ts`). Without it, `countedQty - currentSystemQty`
+  is `NaN`, which passes every `=== 0` guard in that function and arrives at
+  `applyStockAdjustmentDelta` as the delta — a corrupt `stock_audits` row and
+  a `NaN` batch quantity, pushed to the server. Pinned by
+  `__tests__/stock-audit.test.ts`.
+- **Never coalesce that quantity on the way in.** The obvious-looking
+  `countedQty: item.countedQty ?? item.systemQty` at the call site defeats the
+  whole arrangement: `AuditItem.systemQty` was frozen when the sheet was
+  built, so a row whose stock sold through the day would post those sales back
+  as *found stock*. The submit must receive `undefined` and let
+  `submitStockAudit` resolve it against the figure it re-reads inside its own
+  transaction. The mapping lives in `toStockAuditSubmissions()`
+  (`audit-derivations.ts`) rather than inline in the screen precisely because
+  this went wrong twice in one day; `__tests__/audit-derivations.test.ts` pins
+  it.
+- The rebuild effect in `stock-audits.tsx` is keyed on `[rawProducts,
+  items.length]`. "Start over" empties the draft without touching the cached
+  products query, so keying it on `rawProducts` alone left the sheet
+  permanently empty until the screen was reopened.
+- `EditableNumberCell` takes `value?: number` plus `placeholder` and
+  `onClear`. Only a caller whose value is genuinely optional passes
+  `onClear`; without it, blurring an emptied field reverts to the last
+  committed number, which is what every other quick-edit in the app wants.
+- **Compatibility shim:** `isAuditItemCounted()` also returns true for
+  `counted === true` and for any row that differs, so a draft persisted in
+  the `stock-audit-draft` zustand store while Counted Qty was still
+  pre-filled stays correct. Retirable one release after 2026-10-13, once no
+  device can be carrying one.
+- **The shim alone was not enough, and this is the lesson.** A v0 draft
+  pre-filled *every* row's `countedQty`, so under the new reading the whole
+  sheet rehydrated as counted — reported by the owner within minutes of
+  opening the build ("why did all the rows become ticked all of a sudden?").
+  Changing what a stored field *means* needs a `persist` migration, not just
+  a tolerant reader: `migrateStockAuditDraft()` (version 1) clears a row that
+  carried only the old prefill and keeps one that was ticked or differs.
+  Pinned by `__tests__/stock-audit-draft-migration.test.ts`.
+- The ledger's `Count` filter pill (All / Counted / Not Counted / Qty
+  Differences) is `selectAuditStatusItems()`, applied between the category
+  lens and the fuzzy search in `stock-audits.tsx`.
+- **A count is a session.** Ticks never survive a submit: `clearDraft()` runs
+  in `onSuccess` and the next open rebuilds from `getProductsWithDetails()`,
+  so last week's ticks can't make this week's count look done. What persists
+  instead is `products.last_audited_at` (`lib/db/queries/products.ts:16`,
+  already on the query the audit screen runs) rendered as the ledger's
+  sortable **Last Counted** column. It means "last *adjusted*": a submit
+  writes no `stock_audits` row when nothing differed
+  (`lib/db/queries/inventory.ts:681`), so a count that matched leaves no
+  trace. Changing that means writing zero-diff rows into a synced table —
+  a contract change, not a free one.
+- **"Start over" and "leave" are two different controls.** The back-button
+  dialog keeps the draft (that is the point: the count survives a reload);
+  "Start over" in the export dropdown is the only thing that discards it.
+  Don't merge them — a routine back-button click must not be able to destroy
+  a shift's work.
+- Submitting with nothing counted was a successful no-op showing "0 items
+  counted"; the review step's submit button is now disabled while
+  `countedItems.length === 0`.
+
+### Device-local drafts: clear all of them, from one function (2026-10-13)
+
+Three drafts are persisted per device under their own single global
+localStorage keys, with no store or user in them: the POS cart
+(`pos-cart-storage`), the cycle count (`stock-audit-draft`) and the stock
+adjustment (`stock-adjustment-draft`). Every path that tears down one
+store/account's context must drop all three, and `clearLocalDrafts()`
+(`lib/utils/clear-local-drafts.ts`) is the only way it should be done — the
+list grew to three while two of the five transition paths were still
+clearing only the cart.
+
+The five paths: store switch (`store-context.tsx`), a different user logging
+in (`auth-context.tsx`, gated on `previousUserId !== dbUser.id` so a same-user
+unlock keeps the work), logout (`auth-context.tsx`), linking a new cloud store
+(`app/setup/use-onboarding.ts`) and the factory reset
+(`hooks/use-settings-sync.ts`). The last two were missed until 2026-10-13: a
+count started against the outgoing store's product ids survived into the new
+store and could be submitted against foreign ids. Both import the helper
+**dynamically** — `use-settings-sync.ts` is loaded by every settings screen and
+a static import pulls the whole POS-cart module graph into it, which breaks
+`__tests__/factory-reset-disconnects-cloud.test.ts`'s partial `core` mock.
+Pinned by `__tests__/clear-local-drafts.test.ts`.
+
+A draft itself is **not** the problem it looks like: `submitStockAudit`
+re-reads the live quantity inside its transaction
+(`lib/db/queries/inventory.ts:665-671`) and deltas against that, so a resumed
+draft's frozen `systemQty` never mis-posts. What a stale draft does miss is
+catalog churn — logged as A-259.
+
+### An expense is dated by the store's own day (2026-10-13)
+
+`expenses.date` is a date-only column and must hold the **local** calendar
+date (`getLocalTodayDate()`), not `new Date().toISOString().split("T")[0]`.
+The form wrote the UTC date until 2026-10-13: for a UTC+1 store — which is
+every current customer — a cash expense logged at 23:30 was stored under
+tomorrow, so Daily Close's Net Cash Expected never deducted it and the
+drawer read short against the one figure that feature exists to make
+reconcilable. Rows written before the fix keep their UTC date; there is no
+backfill, because nothing can tell a genuinely next-day expense from a
+late-evening one after the fact.
+
+### Daily Close nets cash expenses off the drawer (2026-10-13)
+
+`getCashExpensesForDate()` (`lib/db/queries/finance.ts`) is deliberately
+**not** `getSmoothedExpensesTotal()`: a prepaid expense paid in cash leaves
+the till in full on the day it was paid, whatever period it covers, so the
+till figure must not amortise it the way the P&L does. It also counts a
+blank/legacy `payment_method` as cash, since the expense form's own default
+is "Cash" and missing one would leave the drawer short against the figure on
+screen. Pinned by `__tests__/daily-close-cash-expenses.test.ts`.
+
 ### Stock quantity reconciliation and the `sync_reconciliation` movement type (2026-10-02)
 
 **Health Sync is OFF as of 2026-10-10 and the section below is history, not
@@ -1894,6 +2130,71 @@ while `core.ts`'s `getActiveStoreId()` resolves the id local queries scope to.
 They are two different things and must not be conflated — them silently
 disagreeing is the bug `auth-context.tsx` already carries a comment about, and
 the reason A-23 was filed.
+
+## A clickable `MetricCard` is a button (2026-10-13)
+
+`MetricCard` renders a `Card` (a div), so an `onClick` alone left every
+figure-as-shortcut in the app — Daily Close's payment totals, Net Cash
+Expected, the dashboard tiles — unreachable by keyboard. It now takes
+`role="button"`, `tabIndex={0}`, Enter/Space and a focus ring **only when
+`onClick` is passed**; a card that is just a figure stays a plain,
+unfocusable div. Pinned by `__tests__/metric-card-keyboard.test.tsx`. Do the
+same for any other card-shaped shortcut rather than re-adding a bare
+`onClick` div.
+
+## Render a product name with `<ProductName>`, never bare (2026-10-13)
+
+Two defects with one cause. Product names are stored **lowercase**
+(`withNormalizedName` in `base-helpers.ts`), so any render that forgets the
+store's casing class shows raw storage casing — reported from a store that
+had the setting on and still saw lowercase names across procurement,
+prescriptions, returns and the dashboard modals. And in a dense ledger the
+name is the only thing identifying a row, so a clamped one leaves a counter
+unable to tell two products apart (worst in the cycle count, where the
+column also carries the SKU).
+
+- `components/ui/product-name.tsx` is the only correct way to render one in
+  JSX: it applies `useUppercaseDisplayClass()`, clamps with `truncate`, and
+  reveals the full name — plus an optional `tooltipSuffix` such as the SKU —
+  on hover, or on tap on a touch device (the house `Tooltip` handles that).
+- The reveal is **measured at open time into a ref**, not into state: whether
+  a name is clamped depends on the rendered column width, and a state
+  round-trip decides one render too late, i.e. never on the first hover.
+- Clamping is CSS-only, so the full name stays in the DOM and a screen reader
+  is never given the truncated form. That is why the trigger adds no tab
+  stop: 200 rows would mean 200 of them for text assistive tech already
+  reads in full.
+- **Text that CSS cannot reach** — a toast, a PDF, an aria-label, a sentence
+  with the name inside it — uses `useDisplayName()` (or `capitalizeWords()`
+  outside React) instead. `purchase-order-details.tsx` is the worked example
+  for a PDF.
+- A column holding a name is `minmax(<floor>px, 1fr)` so it absorbs spare
+  width on a wide screen rather than clamping at a fixed width (see the
+  per-row-grid rule below).
+- Mounting it brings `useStore()` with it, so a spec that mounts such a
+  component in isolation has to mock `@/lib/context/store-context`; five
+  procurement specs needed that when this landed.
+
+## Div/ARIA tables: never give a per-row grid a bare `fr` track (2026-10-13)
+
+Every ledger in this app is a header `div` plus one `div` **per row**, each
+its own CSS grid sharing the same `grid-cols-[...]` literal. A bare `1fr`
+track's minimum is `auto`, i.e. the min-content of *that grid's* cells — so a
+row holding a long product name computes a wider first column than its
+neighbours and the header, and every column after it slides out from under
+its heading. It only shows once the fixed tracks have eaten the available
+width, which is why it reads as an intermittent rendering glitch; reported
+from a store's own screen on 2026-10-13 against the procurement ledger.
+
+- A flexible column is written `minmax(0, 1fr)`, or `minmax(220px, 1fr)` when
+  it must stay readable **and** the table already sits in `overflow-x-auto`.
+  Both make the track width independent of row content, so every row and the
+  header agree.
+- A px floor on a table with no horizontal scroll container pushes the page
+  sideways instead, so those use a `0` floor and let `truncate` ellipsize.
+- The header literal and the row literal must change together. They are the
+  same string for a reason — if you are editing one, edit both, and prefer
+  hoisting it to a `GRID_COLS` constant (see `receive-ledger-table.tsx`).
 
 ## React Query conventions: read this before adding a new `useQuery`
 
@@ -2313,23 +2614,42 @@ carton/pallet); every cost *override* a user types — the Immediate Purchase
 flow's "New Cost" and the Receive panel's "Cost Price" — is **per base
 unit** (per tablet/bag). `resolveBaseUnitCost()`
 (`components/procurement/po-line-item-math.ts`) is the single place that
-conversion happens; `getImmediateUnitCost()` delegates to it and
-`receivePurchaseOrder()` (`lib/db/procurement-receiving.ts`) calls it
-directly instead of re-deriving the division inline, which is how the two
-flows drifted before. Both receiving surfaces label the input "per
+conversion happens, and it **rounds**, because its result is stored
+(A-261): `getImmediateUnitCost()`, `immediateBaseUnitCost()` and
+`receivePurchaseOrder()` (`lib/db/procurement-receiving.ts`) all delegate to
+it rather than re-deriving the division. `immediateBaseUnitCost()` was for a
+while a second copy of that formula — this doc claimed otherwise — and it
+missed both the helper's null handling and its rounding, which is exactly
+the drift the single-source rule exists to prevent. Both receiving surfaces label the input "per
 {base_unit}" and placeholder it with the per-base-unit figure, because the
 quantity field right above them is in *bulk* units and the old
 `item.unit_cost` placeholder read as per-carton.
 
 **Each `stock_batches` row keeps the singular cost it was received at, and
-that is the figure margin/COGS and FEFO deduction use.** The averaged
-`cost_price` that `getProductsWithDetails()` and friends derive is a
-**display/reporting** figure only — nothing computes on it. A small new
+that is the figure FEFO deduction uses.** Be careful with COGS, though: this
+doc used to claim margin/COGS read that batch cost, and they do not.
+`sale_items.cost_price` is snapshotted from the POS cart, which carries the
+**averaged** `cost_price` from `getProductsWithStock()` — so COGS is computed
+from the average, and that average is an unrounded division on every device.
+The averaged figure is otherwise a **display/reporting** one. A small new
 batch barely moves a large displayed average, which reads as "the cost I
 typed didn't save"; `notifyCostRecorded()` in `lib/hooks/use-purchase-orders.ts`
 is the confirmation that says otherwise, and the receive inputs show the
 product's Last Bought Price (the last real, non-`ADJ-%` batch cost)
 alongside. Keep that distinction in any copy you write here.
+
+**The order's money and the batch's valuation are allowed to differ, and
+after A-261 they do.** A ₦1,000 carton of 3 bills at ₦1,000 — the PO line,
+the order total, the confirm dialog, the PO PDF and `amount_paid` are all
+priced from the per-bulk cost **as typed** (`immediateLineAmount()` in
+`po-line-item-math.ts`, used by both `getLineTotal(item, "immediate")` and
+`computeImmediateLineTotal()` so screen and storage agree) — while the batch
+and its movement value the stock at the rounded ₦333.33/unit, i.e. ₦999.99.
+Do not "fix" that kobo by deriving the invoice from the unit cost: that is
+what made a ₦1,000 purchase read ₦999.99 on every document, and it is also
+how the Immediate flow stopped agreeing with the Standard one, which has
+always billed `bulk_quantity * unit_cost`. An override is typed per base
+unit, so that branch does multiply up from the unit cost.
 
 `purchase_order_items.unit_cost` is deliberately **not** rewritten on
 receipt: it is what was ordered, the PO's own total and `amount_paid`
@@ -4287,6 +4607,22 @@ same tab session still gets its own fresh one-time retry.
   New pages should get E2E coverage alongside the existing core set
   (Dashboard, POS, Inventory, Customers, Procurement, Expenses, Reports) so
   the whole app stays covered, not just the area you're adding.
+  - **Read this before you believe a Playwright failure: 10 specs fail on
+    `main` today.** The suite has drifted behind the UI it drives, nothing in
+    CI runs it, and the owner has confirmed the specs were not maintained
+    through recent UI work — logged as **A-262** in `docs/KNOWN_BUGS.md` with
+    the exact list. So a red run proves nothing on its own: check the same
+    spec out at `origin/main` and run it there before concluding your change
+    broke it. That is how PR #160's one genuine regression was separated from
+    the ten pre-existing ones (an `/Cash Expected/i` locator that went
+    ambiguous once a second card was named "Net Cash Expected" — the fix was
+    `{ exact: true }` in the spec, not in the app).
+  - A run rewrites the tracked fixture `e2e/.auth/test-db.bin`, and
+    `next dev` re-injects a `nextjs-agent-rules` block into this file. Both
+    are artifacts: `git restore` them, don't commit them.
+  - If you add or rename a card, tab or heading, grep `e2e/` for the old
+    text. A loose regex locator elsewhere in the suite may now match two
+    elements, which Playwright fails on in strict mode.
 - `npm run test:schema`: diffs local SQLite schema against the Laravel
   backend's live MySQL schema. Requires the sibling `../laravel-server` repo
   and a working `php artisan tinker` in it. Two things about it are load

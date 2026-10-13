@@ -4,6 +4,7 @@ import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { useStore } from "@/lib/context/store-context";
 import { getDailyCloseData } from "@/lib/db/queries/sales";
 import { getPaymentAccounts } from "@/lib/db/queries/setup";
+import { getCashExpensesForDate } from "@/lib/db/queries/finance";
 import { queryKeys } from "@/lib/query-keys";
 import type { PaymentAccount } from "@/lib/types/payment-account";
 
@@ -41,6 +42,11 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
       item_names: (namesBySale[sale.id] || []).join("||"),
     }));
   }, [rawSalesToday, itemsToday]);
+
+  const { data: cashExpenses = 0 } = useQuery({
+    ...queryKeys.dailyClose.cashExpenses(reportDate),
+    queryFn: () => getCashExpensesForDate(reportDate),
+  });
 
   const { data: paymentAccountsData } = useQuery({
     ...queryKeys.paymentAccounts.all(),
@@ -295,7 +301,9 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
       ["Daily Close Report", `Generated: ${formatDateToDDMMYYYY(new Date())}`],
       ["Total Net Sales", aggregatedTotals.total.toString()],
       ["Total Refunds", aggregatedTotals.refunds.toString()],
-      ["Cash Expected", aggregatedTotals.cash.toString()],
+      ["Cash Expected (gross)", aggregatedTotals.cash.toString()],
+      ["Cash Expenses Paid Out", cashExpenses.toString()],
+      ["Net Cash Expected", (aggregatedTotals.cash - cashExpenses).toString()],
       ["Transfer / Mobile", aggregatedTotals.transfer.toString()],
       ...(showProfit
         ? [["Total Net Profit (Est.)", totalProfit.toString()]]
@@ -349,6 +357,7 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
     salesToday,
     returnsToday,
     aggregatedTotals,
+    cashExpenses,
     totalProfit,
     topSellingMeds,
     exportToCSV,

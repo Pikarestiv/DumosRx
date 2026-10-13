@@ -89,7 +89,7 @@ describe("submitStockAudit - shrinkage exceeding every active batch's quantity",
     };
 
     await submitStockAudit(
-      [{ productId: "p1", systemQty: 10, countedQty: 0 }],
+      [{ productId: "p1", systemQty: 10, baselineQty: 10, countedQty: 0 }],
       "user-1",
     );
 
@@ -121,7 +121,7 @@ describe("submitStockAudit - shrinkage exceeding every active batch's quantity",
     };
 
     await submitStockAudit(
-      [{ productId: "p1", systemQty: 10, countedQty: 4 }],
+      [{ productId: "p1", systemQty: 10, baselineQty: 10, countedQty: 4 }],
       "user-1",
     );
 

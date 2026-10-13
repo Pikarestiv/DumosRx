@@ -6,6 +6,7 @@ import { AuditReviewStep } from "./audit-review-step";
 import { ChevronLeft, CheckCircle2, Loader2, Printer, ChevronDown } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getProductsWithDetails } from "@/lib/db/queries/products";
+import { getProductStockQuantity } from "@/lib/db/queries/inventory";
 import { sync } from "@/lib/db/sync-engine";
 import { useSubmitStockAuditMutation } from "@/lib/hooks/use-stock-audit-mutation";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -34,11 +35,18 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   ALL_AUDIT_CATEGORIES,
+  applyCountBaseline,
+  applyOptimisticCount,
+  createCountSequencer,
   buildAuditCategoryOptions,
   hasUnsavedAuditEdits,
   selectAdjustedAuditItems,
   selectAuditCategoryItems,
+  matchesAuditStatus,
+  selectAuditStatusItems,
   selectCountedAuditItems,
+  toStockAuditSubmissions,
+  type AuditCountStatus,
 } from "./audit-derivations";
 import { useStockAuditDraftStore } from "@/lib/hooks/use-stock-audit-draft";
 import { useCountFreshness } from "@/lib/hooks/use-count-freshness";
@@ -57,6 +65,19 @@ export interface AuditItem {
   countedCostPrice?: number;
   sellingPrice?: number;
   countedSellingPrice?: number;
+  /** Set once someone has actually been to the shelf for this row - by any
+   * edit, or by ticking the row by hand when the count matched. See
+   * isAuditItemCounted. */
+  counted?: boolean;
+  /** Live stock as re-read at the moment this row's count was entered, and
+   * the only figure the submit may measure the count against. Absent on a
+   * row whose count predates that read - a draft resumed from an older
+   * build - which must fall back to re-reading at submit. See A-263. */
+  baselineQty?: number;
+  /** When this product was last reconciled by a submitted count
+   * (products.last_audited_at), so a counter can see what has gone longest
+   * without one. Read-only; never submitted. */
+  lastAuditedAt?: string | null;
   reason?: string;
 }
 
@@ -70,6 +91,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const [selectedCategory, setSelectedCategory] =
     useState<string>(ALL_CATEGORIES);
   const [search, setSearch] = useState("");
+  const [countStatus, setCountStatus] = useState<AuditCountStatus>("all");
   const [isSyncing, setIsSyncing] = useState(false);
   const [isPreparingOutput, setIsPreparingOutput] = useState(false);
   const [printStage, setPrintStage] = useState<
@@ -90,6 +112,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const setItems = useStockAuditDraftStore((state) => state.setItems);
   const clearDraft = useStockAuditDraftStore((state) => state.clearDraft);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+  const [showResetDialog, setShowResetDialog] = useState(false);
 
   // Reconcile against the latest server state as soon as the count screen
   // opens, otherwise a stale local snapshot could make an already-corrected
@@ -116,11 +139,8 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Every row is editable from the moment it loads, pre-filled with the
-  // system's current values, so counted/adjusted stats only reflect rows
-  // someone actually changed. Only runs on the first load: a later
-  // background refetch (e.g. after the sync above) must not clobber counts
-  // already in progress.
+  // Counted Qty opens empty; the cost/price columns do not. Rebuild rules
+  // and the items.length dep: client/AGENTS.md.
   useEffect(() => {
     if (rawProducts && items.length === 0) {
       const formatted: AuditItem[] = rawProducts.map(
@@ -132,15 +152,16 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
           systemQty: p.stock_quantity || 0,
           costPrice: p.cost_price ?? undefined,
           sellingPrice: p.selling_price ?? undefined,
-          countedQty: p.stock_quantity || 0,
+          countedQty: undefined,
           countedCostPrice: p.cost_price ?? undefined,
           countedSellingPrice: p.selling_price ?? undefined,
+          lastAuditedAt: p.last_audited_at ?? null,
         }),
       );
       setItems(formatted);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawProducts]);
+  }, [rawProducts, items.length]);
 
   // Every derivation below is memoized on its real inputs: each of them used
   // to re-run on every keystroke in any of the ledger's hundreds of inputs.
@@ -151,9 +172,39 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     [items, selectedCategory],
   );
 
+  // Counting a row under the "Not Counted" lens used to make it disappear
+  // from under the finger mid-tap, shifting every virtualized row below it.
+  // The rows that matched when the lens was chosen stay on screen until the
+  // lens itself changes; only then is the set re-taken.
+  // Keyed on the lens alone and re-taken during render, so counting a row
+  // never hides it mid-tap. Why not an effect: client/AGENTS.md.
+  const lensKey = `${countStatus}|${selectedCategory}|${search}`;
+  const [stickyRows, setStickyRows] = useState<{
+    key: string;
+    ids: Set<string>;
+  }>({ key: lensKey, ids: new Set() });
+  if (stickyRows.key !== lensKey) {
+    setStickyRows({
+      key: lensKey,
+      ids: new Set(selectAuditStatusItems(items, countStatus).map((i) => i.id)),
+    });
+  }
+  const stickyRowIds = stickyRows.ids;
+
+  const statusItems = useMemo(
+    () =>
+      countStatus === "all"
+        ? categoryItems
+        : categoryItems.filter(
+            (item) =>
+              stickyRowIds.has(item.id) || matchesAuditStatus(item, countStatus),
+          ),
+    [categoryItems, countStatus, stickyRowIds],
+  );
+
   const filteredList = useMemo(
-    () => genericFuzzySearch(search, categoryItems, ["name", "sku"]).results,
-    [search, categoryItems],
+    () => genericFuzzySearch(search, statusItems, ["name", "sku"]).results,
+    [search, statusItems],
   );
 
   const countedItems = useMemo(() => selectCountedAuditItems(items), [items]);
@@ -162,9 +213,39 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     [countedItems],
   );
 
+  /** Records a count against the system figure as it is RIGHT NOW, not the
+   * one the sheet opened with. The typed value lands immediately so typing
+   * never waits on the database; the baseline follows when the read
+   * resolves. Ticking with no value means "counted, and it matched", which
+   * is the live figure. See A-263. */
+  const counts = useRef(createCountSequencer());
+  const countRow = useCallback(
+    async (id: string, countedQty?: number) => {
+      const token = counts.current.begin(id);
+      if (countedQty !== undefined) {
+        setItems((prev) => applyOptimisticCount(prev, id, countedQty));
+      }
+      const live = await getProductStockQuantity(id);
+      if (!counts.current.isCurrent(id, token)) return;
+      setItems((prev) => applyCountBaseline(prev, id, countedQty, live));
+    },
+    [setItems],
+  );
+
+  const cancelPendingCounts = useCallback(
+    (id?: string) => counts.current.cancel(id),
+    [],
+  );
+
   const updateLedgerItem = useCallback(
     (id: string, patch: Partial<AuditItem>) => {
-      setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === id
+            ? { ...i, ...patch, counted: patch.counted ?? true }
+            : i,
+        ),
+      );
     },
     [setItems],
   );
@@ -272,16 +353,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     if (isSubmitting) return;
     submitAuditMutation.mutate(
       {
-        items: adjustedItems.map((i) => ({
-          productId: i.id,
-          systemQty: i.systemQty,
-          countedQty: i.countedQty as number,
-          systemCostPrice: i.costPrice,
-          countedCostPrice: i.countedCostPrice ?? i.costPrice,
-          systemSellingPrice: i.sellingPrice,
-          countedSellingPrice: i.countedSellingPrice ?? i.sellingPrice,
-          reason: i.reason,
-        })),
+        items: toStockAuditSubmissions(adjustedItems),
         performedBy: user?.id || null,
       },
       {
@@ -307,13 +379,31 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
         open={showDiscardDialog}
         onOpenChange={setShowDiscardDialog}
         title="Leave this cycle count?"
-        description={`${adjustedItems.length} row(s) have been edited but not submitted yet. They stay saved on this device, so reopening Cycle Count picks up exactly where you left off — nothing has been posted to stock.`}
+        description={`${adjustedItems.length} row(s) have been edited but not submitted yet. They stay saved on this device, so reopening Cycle Count picks up exactly where you left off. Nothing has been posted to stock.`}
         confirmLabel="Leave count"
         cancelLabel="Keep counting"
         variant="default"
         onConfirm={() => {
           setShowDiscardDialog(false);
           onClose();
+        }}
+      />
+
+      <ConfirmDialog
+        open={showResetDialog}
+        onOpenChange={setShowResetDialog}
+        title="Start this count over?"
+        description={`Every tick and figure entered so far is cleared and the sheet reloads at the system's current stock levels${adjustedItems.length > 0 ? ` — including ${adjustedItems.length} edited row(s)` : ""}. Nothing that has already been submitted is affected.`}
+        confirmLabel="Start over"
+        cancelLabel="Keep counting"
+        variant="destructive"
+        onConfirm={() => {
+          setShowResetDialog(false);
+          cancelPendingCounts();
+          clearDraft();
+          setSelectedCategory(ALL_CATEGORIES);
+          setCountStatus("all");
+          setSearch("");
         }}
       />
 
@@ -442,6 +532,12 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                 <DropdownMenuItem onClick={() => void handleExport("xlsx")}>
                   Export Excel
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setShowResetDialog(true)}
+                >
+                  Start over
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -475,9 +571,14 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
               isLoading={isLoading}
               isSyncing={isSyncing}
               onUpdateItem={updateLedgerItem}
+              onCountRow={(id, qty) => void countRow(id, qty)}
+              onClearCount={cancelPendingCounts}
               categories={categories}
               selectedCategory={selectedCategory}
               setSelectedCategory={setSelectedCategory}
+              countStatus={countStatus}
+              setCountStatus={setCountStatus}
+              countedCount={countedItems.length}
               search={search}
               setSearch={setSearch}
               scrollElementRef={scrollAreaRef}
@@ -532,7 +633,11 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
           {step === "review" && (
             <button
               className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
-              disabled={isSubmitting || (freshness.shouldWarn && !staleAcknowledged)}
+              disabled={
+                isSubmitting ||
+                countedItems.length === 0 ||
+                (freshness.shouldWarn && !staleAcknowledged)
+              }
               onClick={submitAudit}
             >
               {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}

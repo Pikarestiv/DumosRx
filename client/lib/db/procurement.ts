@@ -5,6 +5,8 @@
 import { query, generateId, transaction, getActiveStoreId } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 import type { SupplierPayload, SupplierDbRow } from "@/lib/types/supplier";
+import { roundMoney } from "@/lib/utils/pos-calculations";
+import { immediateLineAmount } from "@/components/procurement/po-line-item-math";
 
 /** Line-item form fields (selling_price, cost_price_override) come in as
  * `number | string | undefined` from raw form inputs - blank/undefined
@@ -237,11 +239,12 @@ export async function createPurchaseOrder(
   const now = new Date().toISOString();
   let totalAmount = 0;
 
-  // Derived from bulk_quantity * unit_cost, not item.subtotal: that field is
-  // only ever set once when a row is first added and goes stale the moment
-  // quantity or cost is edited afterward.
+  // Via immediateLineAmount, not a bare bulk_quantity * unit_cost: an
+  // Immediate Purchase parked as a draft carries per-base-unit overrides that
+  // the screen already bills for, and ignoring them stored a total the owner
+  // never saw. Identical for a standard line, which has no override.
   for (const item of items) {
-    totalAmount += item.bulk_quantity * item.unit_cost;
+    totalAmount += roundMoney(immediateLineAmount(item));
   }
 
   return transaction(async () => {
@@ -253,7 +256,7 @@ export async function createPurchaseOrder(
       payment_status: paymentStatus,
       amount_paid: amountPaid,
       due_date: dueDate,
-      total_amount: totalAmount,
+      total_amount: roundMoney(totalAmount),
       notes,
       created_at: now
     });
@@ -267,7 +270,7 @@ export async function createPurchaseOrder(
         quantity_received: 0,
         units_per_bulk: item.units_per_bulk,
         unit_cost: item.unit_cost,
-        subtotal: item.bulk_quantity * item.unit_cost,
+        subtotal: roundMoney(immediateLineAmount(item)),
         selling_price: coerceOptionalNumber(item.selling_price),
         cost_price_override: coerceOptionalNumber(item.cost_price_override),
         lot_number: item.lot_number || null,
@@ -293,7 +296,7 @@ export async function updatePurchaseOrder(
   let totalAmount = 0;
 
   for (const item of items) {
-    totalAmount += item.bulk_quantity * item.unit_cost;
+    totalAmount += roundMoney(immediateLineAmount(item));
   }
 
   return transaction(async () => {
@@ -313,7 +316,7 @@ export async function updatePurchaseOrder(
       payment_status: paymentStatus,
       amount_paid: amountPaid,
       due_date: dueDate,
-      total_amount: totalAmount,
+      total_amount: roundMoney(totalAmount),
       notes,
       updated_at: now
     });
@@ -328,7 +331,7 @@ export async function updatePurchaseOrder(
         quantity_received: 0,
         units_per_bulk: item.units_per_bulk,
         unit_cost: item.unit_cost,
-        subtotal: item.bulk_quantity * item.unit_cost,
+        subtotal: roundMoney(immediateLineAmount(item)),
         selling_price: coerceOptionalNumber(item.selling_price),
         cost_price_override: coerceOptionalNumber(item.cost_price_override),
         lot_number: item.lot_number || null,

@@ -42,9 +42,7 @@ import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { sync, isSyncing } from "@/lib/db/sync-engine";
 import { queryClient } from "@/lib/query-client";
-import { clearPOSCartStorage } from "@/lib/hooks/use-pos-cart";
-import { clearStockAuditDraft } from "@/lib/hooks/use-stock-audit-draft";
-import { clearStockAdjustmentDraft } from "@/lib/hooks/use-stock-adjustment-draft";
+import { clearLocalDrafts } from "@/lib/utils/clear-local-drafts";
 import { isTauri } from "@/lib/db";
 import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
 import { getToken } from "@/lib/api/token-manager";
@@ -509,9 +507,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // clear when we can tell this is genuinely a different person than
       // whoever was previously logged in.
       if (previousUserId && previousUserId !== dbUser.id) {
-        clearPOSCartStorage();
-        clearStockAuditDraft();
-        clearStockAdjustmentDraft();
+        clearLocalDrafts();
       }
 
       setUser(userProfile);
@@ -726,9 +722,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // reward, reseller flag — all persisted under this one global key by
     // use-pos-cart.ts's zustand store) survives logout and is inherited by
     // whichever cashier signs in next.
-    clearPOSCartStorage();
-    clearStockAuditDraft();
-    clearStockAdjustmentDraft();
+    clearLocalDrafts();
     // See the matching comment in login(): an impersonated session that
     // ends via the ordinary "Sign Out" button instead of the banner's "End
     // Session" button would otherwise leave these flags behind forever.

@@ -5,6 +5,10 @@ import {
   selectAuditCategoryItems,
   selectCountedAuditItems,
   selectAdjustedAuditItems,
+  selectAuditStatusItems,
+  matchesAuditStatus,
+  isAuditItemCounted,
+  toStockAuditSubmissions,
   hasUnsavedAuditEdits,
 } from "@/components/stock-batch/audit-derivations";
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
@@ -16,7 +20,9 @@ function item(overrides: Partial<AuditItem> = {}): AuditItem {
     sku: "SKU-1",
     category: "Analgesics",
     systemQty: 10,
-    countedQty: 10,
+    // An untouched row: Counted Qty opens EMPTY, so there is no quantity
+    // here until someone enters one.
+    countedQty: undefined,
     costPrice: 100,
     countedCostPrice: 100,
     sellingPrice: 150,
@@ -75,18 +81,104 @@ describe("stock audit derivations", () => {
       item({ id: "b", countedQty: 12 }),
       item({ id: "c", countedCostPrice: 90 }),
       item({ id: "d", countedSellingPrice: 199 }),
-      item({ id: "e", countedQty: undefined }),
+      item({ id: "e", countedQty: 10 }),
     ];
 
+    // "a" has not been counted at all; "e" was counted and matched.
     expect(selectCountedAuditItems(edited).map((i) => i.id)).toEqual([
-      "a",
       "b",
       "c",
       "d",
+      "e",
     ]);
+    // Only the rows that actually differ are ever posted to stock - a row
+    // counted at exactly the system figure writes nothing.
     expect(
       selectAdjustedAuditItems(selectCountedAuditItems(edited)).map((i) => i.id),
     ).toEqual(["b", "c", "d"]);
+  });
+
+  it("counts an entered quantity, even one that matched the system", () => {
+    expect(isAuditItemCounted(item())).toBe(false);
+    expect(isAuditItemCounted(item({ countedQty: 10 }))).toBe(true);
+    expect(isAuditItemCounted(item({ countedQty: 0 }))).toBe(true);
+    expect(isAuditItemCounted(item({ countedQty: 12 }))).toBe(true);
+    // The hand-ticked row, and a row where only a price was corrected.
+    expect(isAuditItemCounted(item({ counted: true }))).toBe(true);
+    expect(isAuditItemCounted(item({ countedCostPrice: 90 }))).toBe(true);
+    // An un-entered quantity is never an adjustment - it would submit as
+    // `undefined`.
+    expect(selectAdjustedAuditItems([item()])).toEqual([]);
+  });
+
+  it("lenses the ledger by count progress", () => {
+    const rows = [
+      item({ id: "a" }),
+      item({ id: "b", countedQty: 10 }),
+      item({ id: "c", countedQty: 12 }),
+    ];
+    expect(selectAuditStatusItems(rows, "all")).toBe(rows);
+    expect(selectAuditStatusItems(rows, "counted").map((i) => i.id)).toEqual([
+      "b",
+      "c",
+    ]);
+    expect(selectAuditStatusItems(rows, "uncounted").map((i) => i.id)).toEqual([
+      "a",
+    ]);
+    // A row counted at the system figure is not a difference.
+    expect(
+      selectAuditStatusItems(rows, "differences").map((i) => i.id),
+    ).toEqual(["c"]);
+  });
+
+  it("exposes a per-row status predicate, so the ledger can keep a row it has just counted on screen", () => {
+    const counted = item({ countedQty: 10 });
+    expect(matchesAuditStatus(counted, "uncounted")).toBe(false);
+    expect(matchesAuditStatus(counted, "counted")).toBe(true);
+    expect(matchesAuditStatus(item(), "uncounted")).toBe(true);
+    // The "all" lens matches everything, counted or not.
+    expect(matchesAuditStatus(item(), "all")).toBe(true);
+  });
+
+  it("sends a price-only row with NO counted quantity, so the submit uses the live figure", () => {
+    // The row's own systemQty was frozen when the sheet was built. Coalescing
+    // to it here would post a day's sales back as found stock; submitStockAudit
+    // re-reads the real quantity inside its transaction instead.
+    const [submission] = toStockAuditSubmissions([
+      item({ systemQty: 20, countedQty: undefined, countedCostPrice: 150 }),
+    ]);
+    expect(submission.countedQty).toBeUndefined();
+    expect(submission.systemQty).toBe(20);
+    expect(submission.countedCostPrice).toBe(150);
+  });
+
+  it("carries the baseline stamped when the row was counted", () => {
+    const [submission] = toStockAuditSubmissions([
+      item({ systemQty: 0, baselineQty: 0, countedQty: 10 }),
+    ]);
+    expect(submission.baselineQty).toBe(0);
+    expect(submission.countedQty).toBe(10);
+  });
+
+  it("sends NO baseline for a row that was never re-baselined, so the submit re-reads instead", () => {
+    // A draft resumed from a build before A-263 has a typed countedQty
+    // beside a systemQty frozen at sheet-build. Passing that frozen figure
+    // off as a baseline would reverse the day's sales: built at 10, 5 sold,
+    // counter finds 5 -> 5 - 10 = -5 and the product is zeroed. Only a row
+    // countRow() has re-read may claim a baseline.
+    const [submission] = toStockAuditSubmissions([
+      item({ systemQty: 10, countedQty: 5 }),
+    ]);
+    expect(submission.baselineQty).toBeUndefined();
+  });
+
+  it("passes a counted quantity straight through, zero included", () => {
+    expect(
+      toStockAuditSubmissions([item({ countedQty: 0 })])[0].countedQty,
+    ).toBe(0);
+    expect(
+      toStockAuditSubmissions([item({ countedQty: 12 })])[0].countedQty,
+    ).toBe(12);
   });
 
   it("reports unsaved edits only once a row actually differs", () => {

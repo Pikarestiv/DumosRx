@@ -13,6 +13,7 @@ import {
 } from "./po-line-item-math";
 import { ReceiveItemCategoryEditor } from "./receive-item-category-editor";
 import { formatCurrency } from "@/lib/utils";
+import { ProductName } from "@/components/ui/product-name";
 
 interface ReceiveLedgerTableProps {
   items: PurchaseOrderItem[];
@@ -89,9 +90,10 @@ export function ReceiveLedgerTable({
               <div key={item.id} role="row" className={`grid ${GRID_COLS}`}>
                 <div role="cell" className="px-3 py-2 sticky left-0 bg-card">
                   <div className="flex items-center gap-1.5">
-                    <div className="font-semibold text-foreground truncate max-w-[180px]">
-                      {item.product_name}
-                    </div>
+                    <ProductName
+                      name={item.product_name}
+                      className="font-semibold text-foreground"
+                    />
                     <ReceiveItemCategoryEditor
                       productId={item.product_id}
                       productName={item.product_name}

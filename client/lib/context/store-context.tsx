@@ -7,9 +7,8 @@ import { update } from "@/lib/db/local-database";
 import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query-client";
-import { clearPOSCartStorage } from "@/lib/hooks/use-pos-cart";
-import { clearStockAuditDraft } from "@/lib/hooks/use-stock-audit-draft";
-import { clearStockAdjustmentDraft } from "@/lib/hooks/use-stock-adjustment-draft";
+import { clearLocalDrafts } from "@/lib/utils/clear-local-drafts";
+import { setActiveCurrency } from "@/lib/active-currency";
 import { getStoreById, getFirstStore, getAllStores } from "@/lib/db/queries/setup";
 import { useAuth } from "@/lib/context/auth-context";
 import { queryKeys } from "@/lib/query-keys";
@@ -257,10 +256,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // store" rather than "still resolving."
   const loading = !isAuthHydrated || isStoreProfileLoading;
 
+  // During render, not in an effect: children format money in this same
+  // commit. See lib/active-currency.ts.
+  setActiveCurrency(storeProfile?.currency);
+
   React.useEffect(() => {
     Sentry.setTag("store_id", storeProfile?.id);
     Sentry.setTag("store_type", storeProfile?.store_type);
   }, [storeProfile]);
+
+
 
   // Set once on mount: distinguishes which physical device/terminal at a
   // multi-device store a remote log came from, since store_id/user_id alone
@@ -376,9 +381,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         // not survive into the newly-active store — it isn't scoped by
         // store, and checking it out against the new store would sell
         // product ids/prices that belong to a different store entirely.
-        clearPOSCartStorage();
-        clearStockAuditDraft();
-        clearStockAdjustmentDraft();
+        clearLocalDrafts();
       } finally {
         setIsSwitchingStore(false);
       }

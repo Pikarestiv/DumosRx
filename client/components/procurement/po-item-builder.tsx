@@ -11,6 +11,7 @@ import { POItemCardList } from "./po-item-card-list";
 import { addOrMergeLineItem } from "./po-line-item-math";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import type { ProductViewModel } from "@/lib/types/product";
+import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
 
 interface POItemBuilderProps {
   poType: "standard" | "immediate";
@@ -38,6 +39,7 @@ export function POItemBuilder({
   newlyCreatedProductId,
   onNewlyCreatedProductConsumed,
 }: POItemBuilderProps) {
+  const displayName = useDisplayName();
   const [searchValue, setSearchValue] = useState("");
   const [itemFilter, setItemFilter] = useState("");
   const isTabletUp = useMediaQuery("(min-width: 640px)");
@@ -83,10 +85,10 @@ export function POItemBuilder({
       onItemsChangeRef.current(next);
       setSearchValue("");
       if (merged) {
-        toast.success(`Quantity increased for ${product.name}`);
+        toast.success(`Quantity increased for ${displayName(product.name)}`);
       }
     },
-    [],
+    [displayName],
   );
 
   const handleProductChange = (option: SelectedProduct) => {
@@ -127,7 +129,7 @@ export function POItemBuilder({
       const removed = itemsRef.current[index];
       if (!removed) return;
       updateItems((current) => current.filter((_, i) => i !== index));
-      toast.success(`${removed.product_name} removed`, {
+      toast.success(`${displayName(removed.product_name)} removed`, {
         action: {
           label: "Undo",
           onClick: () =>
@@ -139,7 +141,7 @@ export function POItemBuilder({
         },
       });
     },
-    [updateItems],
+    [updateItems, displayName],
   );
 
   // Display-only: never narrows the order itself, only which of its rows are

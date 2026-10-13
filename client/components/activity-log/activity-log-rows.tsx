@@ -9,7 +9,7 @@ import { describeActivity } from "./describe-activity";
 import type { AuditLogRow } from "@/lib/types/audit-log";
 import type { ActivityLogSortKey } from "@/lib/db/queries/activity-log";
 
-const GRID_COLS = "grid-cols-[1fr_180px_190px]";
+const GRID_COLS = "grid-cols-[minmax(240px,1fr)_180px_190px]";
 
 /** Collapses consecutive rows sharing a correlation_id (e.g. everything one
  * sale writes - sales, sale_items, stock_movements, loyalty_transactions...)

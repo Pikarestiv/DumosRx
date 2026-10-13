@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { AlertTriangle, Calendar, ClipboardCheck } from "lucide-react";
 import type { Product } from "./use-product-details";
+import { formatDateSafe } from "@/lib/utils/date-utils";
 
 // Cycle counts older than this are treated as stale, flagged so staff know
 // to prioritize this product next time they run a count.
@@ -110,7 +111,11 @@ export function ProductStockInfo({
               <p
                 className={`font-medium ${daysSinceAudit !== null && daysSinceAudit > STALE_AUDIT_DAYS ? "text-orange-600" : "text-primary"}`}
               >
-                {formatDate(product.lastAuditedAt)}
+                {formatDateSafe(
+                  product.lastAuditedAt,
+                  "dd/MM/yyyy HH:mm",
+                  "Unknown date",
+                )}
               </p>
               <p className="text-xs text-muted-foreground">
                 {daysSinceAudit} day{daysSinceAudit === 1 ? "" : "s"} ago

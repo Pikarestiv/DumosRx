@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/drawer";
 import { ChevronUp, ShoppingCart } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { ProductName } from "@/components/ui/product-name";
 
 export interface POSummaryLineItem {
   productName: string;
@@ -77,7 +78,7 @@ export function POMobileSummaryDrawer({
                   >
                     <div className="min-w-0">
                       <div className="text-[13px] font-medium truncate">
-                        {item.productName}
+                        <ProductName name={item.productName} />
                       </div>
                       <div className="text-[11.5px] text-muted-foreground">
                         {item.quantity} {item.bulkUnit}

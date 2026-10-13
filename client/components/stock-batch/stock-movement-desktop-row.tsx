@@ -20,7 +20,7 @@ export function StockMovementDesktopRow({ movement, onSelect }: Props) {
           onSelect();
         }
       }}
-      className="grid grid-cols-[100px_1fr_130px_100px_1fr_120px] gap-2 px-4 py-3 items-center border-b border-border cursor-pointer hover:bg-accent/50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      className="grid grid-cols-[100px_minmax(0,1fr)_130px_100px_minmax(0,1fr)_120px] gap-2 px-4 py-3 items-center border-b border-border cursor-pointer hover:bg-accent/50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
     >
       <div className="text-[12px] text-muted-foreground">
         {formatMovementTime(movement.date)}

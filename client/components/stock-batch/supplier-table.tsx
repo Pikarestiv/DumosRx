@@ -175,7 +175,7 @@ export function SupplierTable({
           <div role="rowgroup">
             <div
               role="row"
-              className="grid grid-cols-[1.3fr_1fr_90px_90px_100px_28px] gap-2 px-4 border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wide"
+              className="grid grid-cols-[minmax(160px,1.3fr)_minmax(120px,1fr)_90px_90px_100px_28px] gap-2 px-4 border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wide"
             >
               <SortableHeaderCell
                 label="Supplier"
@@ -244,7 +244,7 @@ export function SupplierTable({
                       onRowClick?.(supplier);
                     }
                   }}
-                  className={`group grid grid-cols-[1.3fr_1fr_90px_90px_100px_28px] gap-2 items-center px-4 py-[14px] border-b border-border/50 cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
+                  className={`group grid grid-cols-[minmax(160px,1.3fr)_minmax(120px,1fr)_90px_90px_100px_28px] gap-2 items-center px-4 py-[14px] border-b border-border/50 cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset ${
                     isSelected
                       ? "bg-primary/10 hover:bg-primary/10"
                       : "hover:bg-primary/5"

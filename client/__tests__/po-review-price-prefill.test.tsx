@@ -4,6 +4,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { POItemLedgerTable, type POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
 import type { POProduct } from "@/lib/db/queries/procurement";
 
+// Product names now render through ProductName, which reads the store's
+// casing setting; these specs mount their component without a provider.
+vi.mock("@/lib/context/store-context", () => ({
+  useStore: () => ({ storeProfile: { uppercase_display_enabled: 1 } }),
+}));
+
 /**
  * The "Review price" popover previously always showed a blank Sell Price
  * input (placeholder "0.00") regardless of the product's actual current

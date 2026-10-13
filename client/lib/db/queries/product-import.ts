@@ -3,6 +3,7 @@ import { getCategoryByName, getSupplierByName } from "@/lib/db/queries/products"
 import { submitStockAudit, getAllActiveBatchesForProduct } from "@/lib/db/queries/inventory";
 import { PRODUCT_IMPORT_REFERENCE_TYPE } from "@/lib/constants/stock-adjustments";
 import type { ProductImportRow } from "@/lib/utils/product-import-export";
+import { roundMoney } from "@/lib/utils/pos-calculations";
 
 /**
  * Groups row indexes that would collide on import. findExistingProductId()
@@ -272,7 +273,7 @@ export async function importProductRows(
             movement_type: "purchase",
             quantity: row.quantity,
             unit_cost: row.costPrice ?? null,
-            total_cost: row.costPrice ? row.costPrice * row.quantity : null,
+            total_cost: row.costPrice ? roundMoney(row.costPrice * row.quantity) : null,
             reference_type: PRODUCT_IMPORT_REFERENCE_TYPE,
             reason: "Bulk import - opening stock",
             performed_by: options?.performedBy ?? null,

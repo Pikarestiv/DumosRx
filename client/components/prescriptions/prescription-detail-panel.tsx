@@ -17,6 +17,7 @@ import { Prescription } from "@/lib/hooks/use-prescription-queue";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
+import { ProductName } from "@/components/ui/product-name";
 import {
   PRESCRIPTION_STATUS_META,
   getInitials,
@@ -309,7 +310,7 @@ export function PrescriptionDetailPanel({
                       <div className="flex-1 pr-2">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-medium text-sm text-foreground">
-                            {medication.productName}
+                            <ProductName name={medication.productName} />
                           </h4>
                           <Badge
                             variant={

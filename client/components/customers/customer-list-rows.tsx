@@ -6,8 +6,8 @@ import { formatCurrency } from "@/lib/utils";
  * header must stay in lockstep when the Balance column drops out for a role
  * without view_customer_balances. */
 export const CUSTOMER_GRID_COLS = {
-  withBalance: "grid-cols-[1.6fr_1.1fr_80px_70px_100px_110px]",
-  withoutBalance: "grid-cols-[1.6fr_1.1fr_80px_70px_110px]",
+  withBalance: "grid-cols-[minmax(0,1.6fr)_minmax(0,1.1fr)_80px_70px_100px_110px]",
+  withoutBalance: "grid-cols-[minmax(0,1.6fr)_minmax(0,1.1fr)_80px_70px_110px]",
 } as const;
 
 interface RowCommonProps {

@@ -7,6 +7,7 @@ import type { CartItem, MarkupType } from "./use-pos-cart";
 import type { HeldTransaction } from "@/lib/db/queries/sales";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
+import { roundMoney } from "@/lib/utils/pos-calculations";
 
 interface UsePOSHeldTransactionsProps {
   cart: CartItem[];
@@ -116,7 +117,7 @@ export function usePOSHeldTransactions({
             ...product,
             quantity: item.quantity,
             unit_price: unitPrice,
-            subtotal: unitPrice * item.quantity,
+            subtotal: roundMoney(unitPrice * item.quantity),
             original_unit_price: product.unit_price,
           };
         })

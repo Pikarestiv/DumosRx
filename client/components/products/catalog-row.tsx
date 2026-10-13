@@ -27,8 +27,8 @@ const NO_DELETE_PERMISSION_HINT = "Needs the “Delete Products” permission";
  * classes that appear whole in the source. Indexed by whether the Avg Cost
  * column is rendered, which now varies with "view_cost_fields". */
 export const CATALOG_GRID_COLS = {
-  withCost: "grid-cols-[1fr_150px_90px_90px_100px_90px]",
-  withoutCost: "grid-cols-[1fr_150px_90px_100px_90px]",
+  withCost: "grid-cols-[minmax(0,1fr)_150px_90px_90px_100px_90px]",
+  withoutCost: "grid-cols-[minmax(0,1fr)_150px_90px_100px_90px]",
 } as const;
 
 export interface CatalogRowProps {

@@ -5,6 +5,12 @@ import type { ReactNode } from "react";
 import { ReceivePOPanel } from "@/components/procurement/receive-po-panel";
 import type { PurchaseOrder } from "@/lib/db/local-database";
 
+// Product names now render through ProductName, which reads the store's
+// casing setting; these specs mount their component without a provider.
+vi.mock("@/lib/context/store-context", () => ({
+  useStore: () => ({ storeProfile: { uppercase_display_enabled: 1 } }),
+}));
+
 const dismiss = vi.fn();
 let signal: { conflictIds: number[]; lineCount: number; detectedAt: string } | null = null;
 

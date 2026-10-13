@@ -29,7 +29,13 @@ test.describe('Reports Module', () => {
     await page.getByRole('tab', { name: /Daily Close/i }).click();
     await expect(page).toHaveURL(/tab=daily_close/);
     await expect(page.getByText(/Total Sales/i).first()).toBeVisible();
-    await expect(page.getByText(/Cash Expected/i)).toBeVisible();
+    // Exact, because "Net Cash Expected" (cash sales less the day's cash
+    // expenses) now sits below the payment-method row and a loose /Cash
+    // Expected/i matches both.
+    await expect(page.getByText('Cash Expected', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('Net Cash Expected', { exact: true }),
+    ).toBeVisible();
 
     // Analytics & Insights (admin-only tab) - the BI key metric cards.
     await page.getByRole('tab', { name: /Analytics/i }).click();

@@ -29,7 +29,16 @@ export function StaffManagement() {
   const { activeStoreId, availableStores } = useStore();
   const { maxStaffAccounts, getUpgradeMessage, withRestriction } =
     useFeatureGate();
-  const [selectedStore, setSelectedStore] = useState<string>("all");
+  // Follows the header's switcher, including a switch after mount;
+  // "All Stores" stays available as a choice.
+  const [selectedStore, setSelectedStore] = useState<string>(
+    activeStoreId || "all",
+  );
+  const [lastActiveStoreId, setLastActiveStoreId] = useState(activeStoreId);
+  if (activeStoreId && activeStoreId !== lastActiveStoreId) {
+    setLastActiveStoreId(activeStoreId);
+    setSelectedStore(activeStoreId);
+  }
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");

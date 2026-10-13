@@ -20,7 +20,7 @@ export interface AdjustmentItemListProps {
   onRemove: (productId: string) => void;
 }
 
-const GRID_COLS = "grid-cols-[1fr_100px_110px_110px_44px]";
+const GRID_COLS = "grid-cols-[minmax(200px,1fr)_100px_110px_110px_44px]";
 
 /** Memoised for the same reason as POItemLedgerRow: a keystroke in one row's
  * quantity must not re-render every other row's input. */

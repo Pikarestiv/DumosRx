@@ -296,6 +296,8 @@ export const queryKeys = {
         "returns",
         "return_items",
       ]),
+    cashExpenses: (reportDate: string) =>
+      resource(["dailyCloseCashExpenses", reportDate] as const, ["expenses"]),
   },
   activityLog: {
     list: (filtersKey: string) =>

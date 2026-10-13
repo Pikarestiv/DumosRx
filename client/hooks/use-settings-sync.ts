@@ -206,6 +206,17 @@ export function useSettingsSync(
     // The user can re-link (Settings > Data > "Link & Sync") whenever they want
     // this device syncing again - their cloud account itself is untouched.
     clearToken();
+    // Imported here rather than at the top: this hook is loaded by every
+    // settings screen, and the draft stores pull in the whole POS cart
+    // module graph with them.
+    try {
+      const { clearLocalDrafts } = await import(
+        "@/lib/utils/clear-local-drafts"
+      );
+      clearLocalDrafts();
+    } catch (err) {
+      console.warn("Failed to clear local drafts before reset", err);
+    }
     await resetDatabase();
     toast.success("Database reset successfully.");
   };

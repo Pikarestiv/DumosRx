@@ -4,6 +4,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { formatDateLong } from "@/lib/utils/date-utils"
+import { getActiveCurrency } from "@/lib/active-currency"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -19,14 +20,15 @@ const CFA_SUFFIX_CODES = new Set(["XAF", "XOF"]);
  * saved) isn't stripped down to "" by the letters-only filter and silently
  * replaced with the NGN fallback — the filter only exists to drop stray
  * whitespace/punctuation, not to reject case. */
-function sanitizeCurrencyCode(currencyCode: string = "NGN") {
-  return currencyCode.toUpperCase().replace(/[^A-Z]/g, "") || "NGN";
+function sanitizeCurrencyCode(currencyCode?: string) {
+  const code = currencyCode || getActiveCurrency() || "NGN";
+  return code.toUpperCase().replace(/[^A-Z]/g, "") || "NGN";
 }
 
 /** True for currencies whose symbol is placed after the amount (see
  * CFA_SUFFIX_CODES) — for callers building their own "symbol + value"
  * strings (e.g. compact chart-axis labels) that need to flip the order. */
-export function isCfaSuffixCurrency(currencyCode: string = "NGN") {
+export function isCfaSuffixCurrency(currencyCode?: string) {
   return CFA_SUFFIX_CODES.has(sanitizeCurrencyCode(currencyCode));
 }
 
@@ -38,7 +40,7 @@ function formatCfaSuffix(amount: number, maximumFractionDigits?: number) {
   return `${number} F`;
 }
 
-export function formatCurrency(amount: number, currencyCode: string = "NGN") {
+export function formatCurrency(amount: number, currencyCode?: string) {
   const code = sanitizeCurrencyCode(currencyCode);
   if (CFA_SUFFIX_CODES.has(code)) {
     // XAF/XOF are zero-minor-unit currencies - maximumFractionDigits left
@@ -73,7 +75,7 @@ export function formatCurrency(amount: number, currencyCode: string = "NGN") {
  * a rounded headline figure reads cleaner than an exact-to-the-kobo total.
  * Line-item prices, cart totals, and receipts should keep using
  * formatCurrency() so accounting precision isn't lost there. */
-export function formatMetricCurrency(amount: number, currencyCode: string = "NGN") {
+export function formatMetricCurrency(amount: number, currencyCode?: string) {
   const code = sanitizeCurrencyCode(currencyCode);
   if (CFA_SUFFIX_CODES.has(code)) {
     return formatCfaSuffix(amount, 0);
@@ -100,7 +102,7 @@ export function formatMetricCurrency(amount: number, currencyCode: string = "NGN
  * labels ("₦12k") where the full formatCurrency() output would be too wide.
  * Derived from the same Intl formatter as formatCurrency() so the two never
  * disagree on which currency a store is actually using. */
-export function getCurrencySymbol(currencyCode: string = "NGN") {
+export function getCurrencySymbol(currencyCode?: string) {
   const code = sanitizeCurrencyCode(currencyCode);
   if (CFA_SUFFIX_CODES.has(code)) {
     return "F";

@@ -66,9 +66,14 @@ function renderLedger() {
       isLoading={false}
       isSyncing={false}
       onUpdateItem={vi.fn()}
+      onCountRow={vi.fn()}
+      onClearCount={vi.fn()}
       categories={[{ id: "Analgesics", label: "Analgesics", count: 1 }]}
       selectedCategory="__all__"
       setSelectedCategory={vi.fn()}
+      countStatus="all"
+      setCountStatus={vi.fn()}
+      countedCount={0}
       search=""
       setSearch={vi.fn()}
       scrollElementRef={createRef<HTMLDivElement>()}

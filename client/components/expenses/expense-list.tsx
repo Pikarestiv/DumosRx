@@ -228,7 +228,7 @@ export function ExpenseList() {
       <Card className="flex flex-col gap-0 py-0 border border-border rounded-2xl flex-1 overflow-hidden">
         <div className="p-4 pb-3 border-b border-border">{SearchInput}</div>
 
-        <div className="grid grid-cols-[110px_150px_1fr_130px_120px_28px] gap-2 px-5 py-3 text-[11px] font-bold text-muted-foreground/80 uppercase tracking-wide border-b border-border bg-muted/20">
+        <div className="grid grid-cols-[110px_150px_minmax(0,1fr)_130px_120px_28px] gap-2 px-5 py-3 text-[11px] font-bold text-muted-foreground/80 uppercase tracking-wide border-b border-border bg-muted/20">
           <SortableHeaderCell
             label="Date"
             active={sortKey === "date"}

@@ -4,6 +4,7 @@ import {
   ArrowLeftRight,
   RotateCcw,
   TrendingUp,
+  Wallet,
 } from "lucide-react";
 import { formatMetricCurrency } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/metric-card";
@@ -17,16 +18,20 @@ interface DailyCloseMetricsProps {
     transfer: number;
     refunds: number;
   };
+  cashExpenses: number;
   totalProfit: number;
   openSalesModal: (filter: string) => void;
+  onOpenExpenses: () => void;
   showProfit?: boolean;
 }
 
 export function DailyCloseMetrics({
   currencyCode,
   aggregatedTotals,
+  cashExpenses,
   totalProfit,
   openSalesModal,
+  onOpenExpenses,
   showProfit = true,
 }: DailyCloseMetricsProps) {
   return (
@@ -76,7 +81,24 @@ export function DailyCloseMetrics({
         </HorizontalScrollFade>
       </div>
 
-      {showProfit && (
+      {/* The two bottom-line figures, below the four payment-method totals
+          they are derived from. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+        <MetricCard
+          className="border-emerald-200/50"
+          title="Net Cash Expected"
+          value={formatMetricCurrency(
+            aggregatedTotals.cash - cashExpenses,
+            currencyCode,
+          )}
+          description={`Cash sales less ${formatMetricCurrency(cashExpenses, currencyCode)} paid out today`}
+          icon={<Wallet className="h-4 w-4" />}
+          iconBgClass="bg-emerald-50 text-emerald-700"
+          valueClassName="font-serif"
+          onClick={onOpenExpenses}
+        />
+
+        {showProfit && (
         <MetricCard
           className="border-emerald-200/50"
           title="Total Profit (Est.)"
@@ -89,7 +111,8 @@ export function DailyCloseMetrics({
           }
           valueClassName={`font-serif ${totalProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}
         />
-      )}
+        )}
+      </div>
     </div>
   );
 }

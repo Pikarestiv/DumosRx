@@ -128,7 +128,13 @@ describe("Immediate Purchase submit confirmation", () => {
 
     expect(handleSubmit).not.toHaveBeenCalled();
     const dialog = screen.getByRole("alertdialog");
-    expect(dialog.textContent).toContain("1 item");
+    // The units that actually reach stock (2 cartons x 100 tablets), named
+    // with the product - "1 item" read as a quantity to a store owner who
+    // had just typed a quantity of 2.
+    // Cased by the store's uppercase setting: the sentence is plain text, so
+    // it goes through useDisplayName() rather than a CSS class.
+    expect(dialog.textContent).toContain("200 units of PANADOL");
+    expect(dialog.textContent).not.toContain("1 item");
     expect(dialog.textContent).toContain("₦800");
     expect(dialog.textContent).toContain("selling price");
   });

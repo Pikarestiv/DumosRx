@@ -308,3 +308,43 @@ describe('POS Calculations', () => {
     });
   });
 });
+
+/**
+ * A-260's convention test is a static scan: it only sees arithmetic written
+ * literally inside a `column: expr` write, so a money value produced by a
+ * helper or held in a variable is invisible to it. These are the cases that
+ * blind spot was hiding - found by grepping for `Math.` rather than by the
+ * test going red.
+ */
+describe("money that reaches the database through a helper, not inline arithmetic", () => {
+  it("rounds mixed tender, which is a sum of typed split amounts", () => {
+    expect(
+      calculateMixedAmountPaid([
+        { method: "cash", amount: 1000.005 },
+        { method: "transfer", amount: 0.004 },
+      ] as Parameters<typeof calculateMixedAmountPaid>[0]),
+    ).toBe(1000.01);
+  });
+
+  it("rounds the change due on a mixed sale", () => {
+    expect(
+      calculateMixedChangeDue(
+        [{ method: "cash", amount: 1000.005 }] as Parameters<
+          typeof calculateMixedChangeDue
+        >[0],
+        333.333,
+      ),
+    ).toBe(666.68);
+  });
+
+  it("never returns a negative change", () => {
+    expect(
+      calculateMixedChangeDue(
+        [{ method: "cash", amount: 10 }] as Parameters<
+          typeof calculateMixedChangeDue
+        >[0],
+        50,
+      ),
+    ).toBe(0);
+  });
+});

@@ -120,7 +120,7 @@ export function ConfirmDialog({
 
         <DialogFooter>
           {!hideCancel && (
-            <Button variant="outline" onClick={handleClose} disabled={isConfirming}>
+            <Button variant="outline" onClick={handleClose} disabled={isConfirming} className="hover:bg-primary/50">
               {cancelLabel}
             </Button>
           )}

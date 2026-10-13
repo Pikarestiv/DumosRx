@@ -1,14 +1,14 @@
 import { Separator } from "@/components/ui/separator";
 import type { Product } from "./use-product-details";
 import type { ProductCreator } from "@/lib/db/queries/products";
+import { formatDateSafe } from "@/lib/utils/date-utils";
 
 interface ProductBasicInfoProps {
   product: Product;
   creator?: ProductCreator | null;
-  formatDate: (dateString: string) => string;
 }
 
-export function ProductBasicInfo({ product, creator, formatDate }: ProductBasicInfoProps) {
+export function ProductBasicInfo({ product, creator }: ProductBasicInfoProps) {
   return (
     <div className="space-y-4">
       <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-2">
@@ -41,7 +41,11 @@ export function ProductBasicInfo({ product, creator, formatDate }: ProductBasicI
             {creator?.user_name?.trim() || "-"}
             {creator?.created_at && (
               <span className="block text-xs text-muted-foreground font-normal mt-0.5">
-                {formatDate(creator.created_at)}
+                {formatDateSafe(
+                  creator.created_at,
+                  "dd/MM/yyyy HH:mm",
+                  "Unknown date",
+                )}
               </span>
             )}
           </p>

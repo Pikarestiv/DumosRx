@@ -33,13 +33,33 @@ function CreateOrderContent() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
 
-  const [poType, setPoType] = useState<"standard" | "immediate">("immediate");
+  const [poType, setPoTypeState] = useState<"standard" | "immediate">(
+    "immediate",
+  );
   const [selectedSupplierId, setSelectedSupplierId] = useState(
     SELF_PURCHASE_VENDOR_ID,
   );
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<POLineItemDraft[]>([]);
-  const [paymentStatus, setPaymentStatus] = useState("unpaid");
+  const [paymentStatus, setPaymentStatusState] = useState("paid");
+  const [isPaymentStatusTouched, setIsPaymentStatusTouched] = useState(false);
+
+  const setPaymentStatus = (status: string) => {
+    setIsPaymentStatusTouched(true);
+    setPaymentStatusState(status);
+  };
+
+  // An immediate purchase is money already handed over at the counter, so it
+  // opens on Fully Paid; a standard PO is raised before paying, so it opens
+  // on Unpaid. Switching type re-applies that default only while the field
+  // is still untouched - a deliberate "Partial" must not be silently
+  // rewritten by toggling the type above it.
+  const setPoType = (type: "standard" | "immediate") => {
+    setPoTypeState(type);
+    if (!isPaymentStatusTouched) {
+      setPaymentStatusState(type === "immediate" ? "paid" : "unpaid");
+    }
+  };
   const [amountPaid, setAmountPaid] = useState("");
   const [dueDate, setDueDate] = useState("");
 

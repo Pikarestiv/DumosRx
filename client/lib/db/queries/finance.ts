@@ -378,3 +378,24 @@ export async function getExpensesLifetimeTotal(
   );
   return rows[0]?.total || 0;
 }
+
+/**
+ * Cash that physically left the drawer on `reportDate` ("YYYY-MM-DD"), for
+ * till reconciliation. Deliberately NOT smoothed the way
+ * getSmoothedExpensesTotal is: a prepaid expense paid in cash today takes
+ * its whole amount out of today's till, whatever period it covers.
+ * A blank/legacy payment_method counts as cash - the expense form's own
+ * default is "Cash", and missing one that was cash would leave the drawer
+ * short against this figure.
+ */
+export async function getCashExpensesForDate(reportDate: string): Promise<number> {
+  const storeId = getActiveStoreId();
+  const result = await query<{ total: number }>(
+    `SELECT SUM(amount) as total FROM expenses
+     WHERE _deleted = 0 AND date(date) = date(?)
+       AND (lower(payment_method) = 'cash' OR payment_method IS NULL OR payment_method = '')
+     ${storeId ? " AND store_id = ?" : ""}`,
+    storeId ? [reportDate, storeId] : [reportDate],
+  );
+  return result[0]?.total || 0;
+}

@@ -54,11 +54,15 @@ vi.mock('@/lib/db/local-database', () => ({
       return b ? [{ quantity: b.quantity }] : [];
     }
     if (normSql.startsWith('SELECT COALESCE(SUM(quantity)')) {
-      // submitStockAudit's re-read of the product's current system qty -
-      // not exercised by these fixtures (item.systemQty is passed straight
-      // through as the expected value), so an empty result here just falls
-      // back to it via `?? item.systemQty`.
-      return [];
+      // getProductStockQuantity: the product's live quantity, summed over
+      // active, non-deleted batches. Modelled properly rather than returned
+      // empty - submitStockAudit measures against it whenever a submission
+      // carries no baseline of its own (A-263), so a fake that skips it
+      // silently turns every count into "found everything".
+      const qty = Object.values(batches)
+        .filter((b) => b.product_id === params[0] && b.is_active !== 0)
+        .reduce((sum, b) => sum + b.quantity, 0);
+      return [{ qty }];
     }
     if (normSql.includes('is_active = 1 AND quantity > 0')) {
       // getBatchesForProduct: only active, non-expired batches with real
@@ -106,8 +110,10 @@ describe('submitStockAudit (Cycle Count persistence)', () => {
   });
 
   it('skips items where the count matches the system quantity', async () => {
+    batches['b1'] = { id: 'b1', product_id: 'p1', quantity: 10, expiry_date: FAR_EXPIRY };
+
     await submitStockAudit(
-      [{ productId: 'p1', systemQty: 10, countedQty: 10 }],
+      [{ productId: 'p1', systemQty: 10, baselineQty: 10, countedQty: 10 }],
       'user-1',
     );
     expect(movements).toHaveLength(0);
@@ -136,7 +142,7 @@ describe('submitStockAudit (Cycle Count persistence)', () => {
     batches['inactive'] = { id: 'inactive', product_id: 'p1', quantity: 5, expiry_date: FAR_EXPIRY, is_active: 0 };
 
     await submitStockAudit(
-      [{ productId: 'p1', systemQty: 10, countedQty: 25, reason: 'Found', systemCostPrice: 40 }],
+      [{ productId: 'p1', systemQty: 10, baselineQty: 10, countedQty: 25, reason: 'Found', systemCostPrice: 40 }],
       'user-1',
     );
 
@@ -210,6 +216,40 @@ describe('submitStockAudit (Cycle Count persistence)', () => {
     );
 
     expect(movements[0]).toMatchObject({ quantity: 15, unit_cost: 150, total_cost: 2250 });
+  });
+
+  it('treats an uncounted quantity as unchanged, so a price-only correction cannot post NaN stock', async () => {
+    // Counted Qty opens empty, so a row where the counter only fixed the
+    // cost price reaches here with no countedQty at all. A bare
+    // `countedQty - currentSystemQty` makes that NaN, which passes every
+    // `=== 0` guard and arrives at applyStockAdjustmentDelta as the delta.
+    batches['b1'] = { id: 'b1', product_id: 'p1', quantity: 20, expiry_date: FAR_EXPIRY };
+
+    await submitStockAudit(
+      [
+        {
+          productId: 'p1',
+          systemQty: 20,
+          systemCostPrice: 100,
+          countedCostPrice: 150,
+          reason: 'Cost correction',
+        },
+      ],
+      'user-1',
+    );
+
+    // The price correction landed...
+    expect(batches['b1'].quantity).toBe(20);
+    expect((batches['b1'] as FakeBatch & { cost_price?: number }).cost_price).toBe(150);
+    // ...and no stock moved, with the audit row recording a real quantity.
+    expect(movements).toHaveLength(0);
+    expect(audits).toHaveLength(1);
+    expect(audits[0]).toMatchObject({
+      expected_quantity: 20,
+      actual_quantity: 20,
+      difference: 0,
+    });
+    expect(Number.isNaN(audits[0].difference as number)).toBe(false);
   });
 
   it('deducts shrinkage FEFO across multiple batches when one is not enough', async () => {

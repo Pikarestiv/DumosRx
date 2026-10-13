@@ -8,6 +8,7 @@ import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query-client";
 import { clearLocalDrafts } from "@/lib/utils/clear-local-drafts";
+import { setActiveCurrency } from "@/lib/active-currency";
 import { getStoreById, getFirstStore, getAllStores } from "@/lib/db/queries/setup";
 import { useAuth } from "@/lib/context/auth-context";
 import { queryKeys } from "@/lib/query-keys";
@@ -259,6 +260,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     Sentry.setTag("store_id", storeProfile?.id);
     Sentry.setTag("store_type", storeProfile?.store_type);
   }, [storeProfile]);
+
+  // Every money formatter in lib/utils.ts defaults to this when a caller
+  // omits a currency code - see lib/active-currency.ts.
+  React.useEffect(() => {
+    setActiveCurrency(storeProfile?.currency);
+  }, [storeProfile?.currency]);
 
   // Set once on mount: distinguishes which physical device/terminal at a
   // multi-device store a remote log came from, since store_id/user_id alone

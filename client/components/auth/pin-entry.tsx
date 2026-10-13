@@ -1,6 +1,6 @@
 import * as React from "react";
 import { RecentUser } from "@/lib/context/auth-context";
-import { getUserInitials } from "@/lib/utils";
+import { cn, getUserInitials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -107,7 +107,12 @@ export function PinEntry({
               autoComplete="off"
               containerClassName="gap-2"
             >
-              <InputOTPGroup className="gap-2 sm:gap-3 w-full max-w-[280px] justify-center mx-auto">
+              <InputOTPGroup
+                className={cn(
+                  "gap-2 sm:gap-3 w-full max-w-[280px] justify-center mx-auto transition-opacity",
+                  isLoading && "opacity-60 animate-pulse",
+                )}
+              >
                 {[0, 1, 2, 3].map((idx) => (
                   <InputOTPSlot
                     key={idx}

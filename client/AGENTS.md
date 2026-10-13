@@ -2131,6 +2131,26 @@ They are two different things and must not be conflated — them silently
 disagreeing is the bug `auth-context.tsx` already carries a comment about, and
 the reason A-23 was filed.
 
+## PIN login yields a task before verifying (2026-10-13)
+
+`pinMatches()` uses `bcrypt.compareSync` (pure-JS bcryptjs, cost 10), which
+blocks the main thread for a few hundred ms. Called straight out of the
+keypress handler, that block lands before the browser paints, so the 4th PIN
+digit and the "Verifying..." spinner only appear once login has already
+finished — the lock screen looks stuck on three digits. `attemptLogin()` in
+`components/auth/lock-screen.tsx` therefore awaits `VERIFY_FEEDBACK_MS`
+(75ms) before calling `login()`. The yield is what makes them paint at all;
+the 75ms is additive padding on top of the verify, not a floor — the spinner
+stays up until `login()` resolves, so the visible window is ~150ms on a
+desktop CPU, above the threshold where a human registers it appeared. Tuned
+by eye on a real desktop build; don't shrink it further without re-checking,
+because a legacy *plaintext* PIN skips bcrypt entirely (`pinMatches()` still
+accepts one) and leaves only the bare padding. Don't remove either part, and
+note `useIsTouchDevice()` keys off
+`(pointer: coarse)`, so DevTools device mode (touch emulation + CPU throttle)
+is not a faithful reproduction of this screen's timing. Moving bcrypt to a
+worker would remove the need for the yield, not for the hold.
+
 ## A clickable `MetricCard` is a button (2026-10-13)
 
 `MetricCard` renders a `Card` (a div), so an `onClick` alone left every

@@ -212,7 +212,7 @@ export function CatalogDetailPanel({
         <div className="flex-1 overflow-y-auto stable-scrollbar p-4">
           <TabsContent value="details" className="mt-0">
             <div className="flex flex-col gap-4 pb-4">
-              <ProductBasicInfo product={product} creator={creator} formatDate={formatDate} />
+              <ProductBasicInfo product={product} creator={creator} />
               <ProductSupplierInfo product={product} />
               <ProductPricingInfo
                 product={product}

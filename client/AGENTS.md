@@ -1562,6 +1562,18 @@ on screen from having walked to the shelf.
 - `differsFromSystem()` requires `countedQty !== undefined` before treating a
   quantity as a difference; without that guard an un-entered row submits
   `undefined` as a quantity.
+- **A price-only correction has no counted quantity, and that reaches the
+  database.** `StockAuditSubmission.countedQty` is optional, and
+  `submitStockAudit` resolves a missing or non-finite value to the live
+  system quantity (`inventory.ts`). Without it, `countedQty - currentSystemQty`
+  is `NaN`, which passes every `=== 0` guard in that function and arrives at
+  `applyStockAdjustmentDelta` as the delta — a corrupt `stock_audits` row and
+  a `NaN` batch quantity, pushed to the server. Pinned by
+  `__tests__/stock-audit.test.ts`.
+- The rebuild effect in `stock-audits.tsx` is keyed on `[rawProducts,
+  items.length]`. "Start over" empties the draft without touching the cached
+  products query, so keying it on `rawProducts` alone left the sheet
+  permanently empty until the screen was reopened.
 - `EditableNumberCell` takes `value?: number` plus `placeholder` and
   `onClear`. Only a caller whose value is genuinely optional passes
   `onClear`; without it, blurring an emptied field reverts to the last

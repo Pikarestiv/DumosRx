@@ -46,7 +46,9 @@ export function AuditReviewStep({
       {adjustedItems.length > 0 && (
         <div className="bg-card border border-border rounded-2xl divide-y divide-border mb-2">
           {adjustedItems.map(item => {
-            const qtyChanged = item.countedQty !== item.systemQty;
+            const qtyChanged =
+              item.countedQty !== undefined &&
+              item.countedQty !== item.systemQty;
             const costChanged =
               item.countedCostPrice !== undefined && item.countedCostPrice !== item.costPrice;
             const sellingChanged =

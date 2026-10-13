@@ -212,6 +212,40 @@ describe('submitStockAudit (Cycle Count persistence)', () => {
     expect(movements[0]).toMatchObject({ quantity: 15, unit_cost: 150, total_cost: 2250 });
   });
 
+  it('treats an uncounted quantity as unchanged, so a price-only correction cannot post NaN stock', async () => {
+    // Counted Qty opens empty, so a row where the counter only fixed the
+    // cost price reaches here with no countedQty at all. A bare
+    // `countedQty - currentSystemQty` makes that NaN, which passes every
+    // `=== 0` guard and arrives at applyStockAdjustmentDelta as the delta.
+    batches['b1'] = { id: 'b1', product_id: 'p1', quantity: 20, expiry_date: FAR_EXPIRY };
+
+    await submitStockAudit(
+      [
+        {
+          productId: 'p1',
+          systemQty: 20,
+          systemCostPrice: 100,
+          countedCostPrice: 150,
+          reason: 'Cost correction',
+        },
+      ],
+      'user-1',
+    );
+
+    // The price correction landed...
+    expect(batches['b1'].quantity).toBe(20);
+    expect((batches['b1'] as FakeBatch & { cost_price?: number }).cost_price).toBe(150);
+    // ...and no stock moved, with the audit row recording a real quantity.
+    expect(movements).toHaveLength(0);
+    expect(audits).toHaveLength(1);
+    expect(audits[0]).toMatchObject({
+      expected_quantity: 20,
+      actual_quantity: 20,
+      difference: 0,
+    });
+    expect(Number.isNaN(audits[0].difference as number)).toBe(false);
+  });
+
   it('deducts shrinkage FEFO across multiple batches when one is not enough', async () => {
     batches['b1'] = { id: 'b1', product_id: 'p1', quantity: 5, expiry_date: NEAR_EXPIRY };
     batches['b2'] = { id: 'b2', product_id: 'p1', quantity: 20, expiry_date: FAR_EXPIRY };

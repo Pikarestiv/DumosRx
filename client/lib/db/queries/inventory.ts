@@ -618,7 +618,11 @@ export async function getOrCreateTargetBatchForProduct(
 export interface StockAuditSubmission {
   productId: string;
   systemQty: number;
-  countedQty: number;
+  /** Omitted for a row whose quantity was never counted - a price-only
+   * correction. Treated as "unchanged", never as zero: a bare subtraction
+   * against `undefined` yields NaN, which slips through every `=== 0` guard
+   * below and reaches applyStockAdjustmentDelta as the delta. */
+  countedQty?: number;
   systemCostPrice?: number;
   countedCostPrice?: number;
   systemSellingPrice?: number;
@@ -668,7 +672,10 @@ export async function submitStockAudit(
       );
       const currentSystemQty = currentQtyRows[0]?.qty ?? item.systemQty;
 
-      const diff = item.countedQty - currentSystemQty;
+      const countedQty = Number.isFinite(item.countedQty as number)
+        ? (item.countedQty as number)
+        : currentSystemQty;
+      const diff = countedQty - currentSystemQty;
       const costDiff =
         item.countedCostPrice !== undefined && item.systemCostPrice !== undefined
           ? item.countedCostPrice - item.systemCostPrice
@@ -685,7 +692,7 @@ export async function submitStockAudit(
         id: auditId,
         product_id: item.productId,
         expected_quantity: currentSystemQty,
-        actual_quantity: item.countedQty,
+        actual_quantity: countedQty,
         difference: diff,
         expected_cost_price: item.systemCostPrice ?? null,
         actual_cost_price: item.countedCostPrice ?? null,

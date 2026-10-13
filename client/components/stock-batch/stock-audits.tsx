@@ -153,8 +153,13 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
       );
       setItems(formatted);
     }
+    // `items.length` as well as `rawProducts`: "Start over" empties the
+    // draft without touching the cached query, so keying this on the
+    // products alone left the ledger permanently empty until the screen was
+    // closed and reopened. The `=== 0` guard above is what keeps a
+    // mid-count refetch from clobbering entered figures.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawProducts]);
+  }, [rawProducts, items.length]);
 
   // Every derivation below is memoized on its real inputs: each of them used
   // to re-run on every keystroke in any of the ledger's hundreds of inputs.
@@ -169,19 +174,24 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   // from under the finger mid-tap, shifting every virtualized row below it.
   // The rows that matched when the lens was chosen stay on screen until the
   // lens itself changes; only then is the set re-taken.
-  const itemsRef = useRef(items);
-  itemsRef.current = items;
-  const [stickyRowIds, setStickyRowIds] = useState<Set<string>>(new Set());
-  useEffect(() => {
-    setStickyRowIds(
-      new Set(
-        selectAuditStatusItems(itemsRef.current, countStatus).map((i) => i.id),
-      ),
-    );
-    // Deliberately not keyed on `items`: a row changing must not re-take the
-    // snapshot, which is the entire point of it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [countStatus, selectedCategory, search]);
+  // Re-taken during render rather than in an effect: an effect leaves the
+  // first paint after a lens change showing the PREVIOUS lens's snapshot,
+  // which on a large catalog flashes every row before narrowing. This is
+  // React's documented "adjust state when the input changes" shape - the
+  // re-render happens before anything is painted. Keyed on the lens alone,
+  // so a row being counted never re-takes it; that is the whole point.
+  const lensKey = `${countStatus}|${selectedCategory}|${search}`;
+  const [stickyRows, setStickyRows] = useState<{
+    key: string;
+    ids: Set<string>;
+  }>({ key: lensKey, ids: new Set() });
+  if (stickyRows.key !== lensKey) {
+    setStickyRows({
+      key: lensKey,
+      ids: new Set(selectAuditStatusItems(items, countStatus).map((i) => i.id)),
+    });
+  }
+  const stickyRowIds = stickyRows.ids;
 
   const statusItems = useMemo(
     () =>
@@ -324,7 +334,9 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
         items: adjustedItems.map((i) => ({
           productId: i.id,
           systemQty: i.systemQty,
-          countedQty: i.countedQty as number,
+          // A row where only a price was corrected has no counted quantity;
+          // the quantity is unchanged, not zero and not NaN.
+          countedQty: i.countedQty ?? i.systemQty,
           systemCostPrice: i.costPrice,
           countedCostPrice: i.countedCostPrice ?? i.costPrice,
           systemSellingPrice: i.sellingPrice,

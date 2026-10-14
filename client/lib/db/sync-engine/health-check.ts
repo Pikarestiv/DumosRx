@@ -4,9 +4,11 @@ import { logCrash } from "@/lib/utils/error-logger";
 import { isImpersonatedSession } from "@/lib/utils/impersonation";
 import { forceFullResync } from "./index";
 import { healStockIntegrity } from "./stock-auto-heal";
+import { isIntervalElapsed } from "@/lib/utils/elapsed";
 import {
   STORAGE_KEYS,
   getLastSyncTime,
+  hasStoredLastSyncTime,
   getAuthToken,
 } from "@/lib/storage-keys";
 
@@ -98,11 +100,11 @@ export async function checkSyncHealth(): Promise<void> {
   // up yet - normal for a brand-new device or one still mid-first-sync on
   // a slow connection, not a deficit to alarm on or resync over. Its own
   // ordinary sync() calls already handle catching it up.
-  if (!getLastSyncTime()) return;
+  if (!getLastSyncTime() && !hasStoredLastSyncTime()) return;
 
-  const lastCheckedStr = localStorage.getItem(LAST_CHECK_KEY);
-  const lastChecked = lastCheckedStr ? parseInt(lastCheckedStr, 10) : 0;
-  if (Date.now() - lastChecked < CHECK_INTERVAL_MS) return;
+  if (!isIntervalElapsed(localStorage.getItem(LAST_CHECK_KEY), CHECK_INTERVAL_MS)) {
+    return;
+  }
 
   const storeId = getActiveStoreId();
   if (!storeId) return;

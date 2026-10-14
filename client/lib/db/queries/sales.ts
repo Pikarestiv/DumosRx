@@ -191,6 +191,7 @@ export async function getSaleById(saleId: string) {
 }
 
 export async function getSaleByTransactionNumber(transactionNumber: string) {
+  const storeId = getActiveStoreId();
   const rows = await query<SaleWithDetails>(
     `SELECT
       s.*,
@@ -198,8 +199,8 @@ export async function getSaleByTransactionNumber(transactionNumber: string) {
       (SELECT SUM(quantity) FROM sale_items si WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_count
      FROM sales s
      LEFT JOIN customers c ON s.customer_id = c.id
-     WHERE s.transaction_number = ? AND s._deleted = 0`,
-    [transactionNumber]
+     WHERE s.transaction_number = ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}`,
+    storeId ? [transactionNumber, storeId] : [transactionNumber]
   );
   return rows[0] || null;
 }

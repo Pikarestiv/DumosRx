@@ -111,6 +111,37 @@ describe("pruneSyncedAuditLogs()", () => {
     expect(auditIds()).toEqual(["last-calendar-year", "year-to-date"]);
   });
 
+  it("keeps the cutoff behind real time when this device's clock reads years ahead", async () => {
+    // A-247's fast clock, exaggerated: the cutoff is derived from the newest
+    // server-issued sync stamp rather than from `Date.now()`, so a wrong clock
+    // cannot push it past the retention window and take the whole local trail.
+    // The rows here are 1 and 800 days behind REAL time; only the second is
+    // outside the 730-day window.
+    addAuditRow("recent", daysAgo(1), 1);
+    addAuditRow("old", daysAgo(800), 1);
+    db.run(
+      `INSERT INTO _sync_state (table_name, last_synced_at) VALUES ('sales', ?)`,
+      [NOW.toISOString()],
+    );
+    const twoYearsFast = new Date(NOW.getTime() + 2 * 365 * 24 * 60 * 60 * 1000);
+
+    expect(await retention.pruneSyncedAuditLogs({ now: twoYearsFast })).toBe(1);
+    expect(auditIds()).toEqual(["recent"]);
+  });
+
+  it("falls back to its own clock when there is no server stamp to bound with", async () => {
+    // `_sync_state` empty, so boundedNow() has nothing to take the lower of and
+    // must use the device clock rather than refusing or landing on epoch 0 —
+    // either of which would silently stop pruning for ever. A synced row is
+    // seeded deliberately: an unsynced one is never touched, so it would make
+    // this pass whatever the fallback did.
+    addAuditRow("synced-old", daysAgo(800), 1);
+    addAuditRow("synced-recent", daysAgo(1), 1);
+
+    expect(await retention.pruneSyncedAuditLogs({ now: NOW })).toBe(1);
+    expect(auditIds()).toEqual(["synced-recent"]);
+  });
+
   it("runs at most once a day, so it is not a per-sync full-table scan", async () => {
     addAuditRow("old-1", daysAgo(800), 1);
     expect(await retention.pruneSyncedAuditLogs({ now: NOW })).toBe(1);

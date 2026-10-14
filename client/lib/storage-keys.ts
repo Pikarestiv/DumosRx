@@ -161,6 +161,16 @@ export function getLastSyncTime(): string | null {
   return stored;
 }
 
+/**
+ * Whether anything is stored under the last-sync key, readable or not. The
+ * difference matters: `getLastSyncTime()` returns null both for a device that
+ * has never synced and for one whose stored value cannot be parsed, and a
+ * guard that treats the second as the first stops running (A-234).
+ */
+export function hasStoredLastSyncTime(): boolean {
+  return read(STORAGE_KEYS.lastSyncTime) !== null;
+}
+
 export function setLastSyncTime(isoTimestamp: string): void {
   write(STORAGE_KEYS.lastSyncTime, isoTimestamp);
 }

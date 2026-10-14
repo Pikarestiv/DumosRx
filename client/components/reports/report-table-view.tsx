@@ -6,6 +6,7 @@ import { FileText } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
+import { cn } from "@/lib/utils";
 
 export type ReportRow = Record<string, unknown>;
 
@@ -14,6 +15,9 @@ interface ReportTableViewProps {
   /** Column order, from the report's own config, so the view matches the
    * CSV/PDF. Falls back to the first row's key order. */
   headers?: string[];
+  /** Given only for a report whose rows open a record of their own; without
+   * it rows stay plain text and are neither focusable nor hoverable. */
+  onRowClick?: (row: ReportRow) => void;
 }
 
 function cellText(value: unknown): string {
@@ -40,7 +44,7 @@ function comparableValue(value: unknown): string | number {
  * six rather than six bespoke views. Div/grid/ARIA, per the no-raw-<table>
  * convention in client/AGENTS.md.
  */
-export function ReportTableView({ rows, headers }: ReportTableViewProps) {
+export function ReportTableView({ rows, headers, onRowClick }: ReportTableViewProps) {
   const columns = useMemo(
     () => headers ?? (rows.length > 0 ? Object.keys(rows[0]) : []),
     [headers, rows],
@@ -97,7 +101,24 @@ export function ReportTableView({ rows, headers }: ReportTableViewProps) {
             <div
               key={index}
               role="row"
-              className="grid hover:bg-muted/30 transition-colors"
+              tabIndex={onRowClick ? 0 : undefined}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
+              onKeyDown={
+                onRowClick
+                  ? (event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        onRowClick(row);
+                      }
+                    }
+                  : undefined
+              }
+              className={cn(
+                "grid transition-colors",
+                onRowClick
+                  ? "cursor-pointer hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                  : "hover:bg-muted/30",
+              )}
               style={{ gridTemplateColumns: gridTemplate }}
             >
               {columns.map((column) => (

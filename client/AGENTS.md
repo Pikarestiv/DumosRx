@@ -466,6 +466,20 @@ and `synchronous = NORMAL`.
     server's number. It refuses any batch the log cannot account for, and
     refuses to run at all without an active store.
 
+- **Any guard that skips work because a stored timestamp looks recent must go
+  through `isIntervalElapsed()`** (`lib/utils/elapsed.ts`). A device whose clock
+  is ahead writes that future time into `localStorage`, and the obvious
+  `Date.now() - stored < interval` then reads it as "just ran" — which is how a
+  fast till silently switched off its own daily health check, and with it the
+  stock-drift repair below (A-234, A-247, A-266). Absent, unreadable,
+  non-finite and future stamps are all due: not knowing when something last ran
+  is a reason to run it. It reads epoch-millis strings and ISO alike, because
+  both are stored. In-memory throttles reset every run and do not need it.
+  **Only for work that is safe to repeat.** A guard that deletes on an interval
+  must keep its own, because its cutoff usually comes from the same suspect
+  clock: `retention.ts`'s prune treats a future stamp as "wait", since running
+  it when the clock reads two years ahead would drop the whole local audit
+  trail rather than a 730-day tail.
 - **Stock drift now heals itself** (`sync-engine/stock-auto-heal.ts`,
   `healStockIntegrity()`, called from `checkSyncHealth()`). Since Stage 1 of
   the derived-quantity design this is mostly an assertion rather than a repair
@@ -4304,6 +4318,71 @@ rewriting the card from a modal would change what the other five reports'
 Export buttons do. The amber Profit & Loss note is computed from the
 **modal's** filters while it is open, so the banner always describes the rows
 actually on screen.
+
+### Report row drill-down: a row opens its own record (2026-10-14)
+
+A row in the Detailed Sales Report opens that sale's line items, the same
+way Daily Close's Total-sales list does, and for the same reason: a report
+listing transactions is where you ask "what was in that one?".
+
+- **Which reports drill down is config, like every other per-report
+  capability.** `getReportDrilldownColumn(reportId)`
+  (`lib/hooks/use-report-export.ts`) returns the column holding the
+  reference a row resolves on — `"Transaction #"` for `sales`, `undefined`
+  for everything else. The other five are aggregates or point-in-time
+  snapshots: a Profit & Loss month or a stock-valuation line stands for no
+  single record, so their rows must not look clickable, and don't. The one
+  column name is shared with the `sales` headers array so the two cannot
+  drift.
+- **A dashboard metric card leads to where its figure is itemised.**
+  `StatCard.href` (`components/dashboard/dashboard-stats.tsx`) is optional:
+  with it the card becomes a `role="button"` that answers Enter and Space and
+  carries a focus ring, because `MetricCard` already does that work; without
+  it the card renders exactly as before, so a figure that is itemised nowhere
+  does not look clickable. Today's Sales, Orders Today and the two cashier
+  equivalents go to `/pos?tab=history`; Total Products to
+  `/inventory/catalog`; Inventory Value to `/inventory/overview`. No
+  permission gate: Inventory and Point of Sale are both ungated in the
+  sidebar, so a card cannot reach a screen its viewer could not already open —
+  **check that again before adding an href to a gated destination**, since a
+  reachable page whose data call 403s is the trap root `AGENTS.md` §9
+  describes.
+- **`TransactionDetailsDialog` is mounted only while a sale is selected**, not
+  unconditionally with `open={!!selected}` the way Daily Close mounts it. It
+  calls `useAuth()`, which throws outside `AuthProvider`, and two
+  `report-center-*-permission` tests render `ReportCenter` bare; the
+  conditional mount keeps them honest without adding a mock, and avoids
+  running the dialog's queries when nothing is open. The cost is that Radix's
+  close animation is cut, since the component unmounts the instant the
+  selection clears.
+- **`ReportTableView` stays generic.** It takes an optional `onRowClick`;
+  without it a row has no `tabIndex`, no handler and keeps its plain hover.
+  With it the row is focusable and answers Enter/Space as well as a click
+  (same contract as a clickable `MetricCard`, above) — a div/ARIA row, so
+  nothing gives it that for free.
+- **The row carries no sale id, and doesn't need one.** The report's SQL is
+  untouched: `useSaleDrilldown` (`lib/hooks/use-sale-drilldown.ts`) resolves
+  the transaction number already on screen through the existing
+  `getSaleByTransactionNumber()`, and toasts if nothing matches (possible on
+  a device whose sale rows are present but whose report row came from a
+  stale view) rather than opening an empty dialog. **That lookup is scoped to
+  the active store** as of 2026-10-14: `sales.transaction_number` is globally
+  `UNIQUE` on both sides, so an unscoped read could not return another store's
+  row — but the function is now reachable from a UI that lists one store's
+  rows, every neighbour in `queries/sales.ts` scopes, and a lookup that is
+  only safe because of a uniqueness constraint elsewhere is the kind of thing
+  A-248/A-249 were both about. Adding a hidden id column
+  to the query would have leaked into the CSV/PDF column order, which is
+  derived from the same config.
+- **The sale dialog is a sibling, not a child.** `TransactionDetailsDialog`
+  is rendered by `report-center.tsx` alongside `ReportViewDialog`, exactly
+  as `daily-close-report.tsx` renders it alongside `SalesListModal`. Both
+  are `ResponsiveModal`s, so on desktop that is a Radix dialog over a Radix
+  dialog and on mobile a vaul drawer over a drawer — a pairing already
+  proven by Daily Close, which is why it was copied instead of flattening
+  the view dialog into a detail pane with a back action. The report view
+  stays open behind the sale, so closing the sale returns you to your place
+  in the list.
 
 ## Cashier (`sales_staff`) visibility gating — a recurring pattern, not a one-off
 

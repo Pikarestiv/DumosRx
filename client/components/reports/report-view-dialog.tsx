@@ -45,6 +45,8 @@ interface ReportViewDialogProps {
    * in-dialog Export/Print buttons can't be the way round it. */
   canExport?: boolean;
   onExport: (action: "csv" | "pdf" | "print") => void;
+  /** Only passed for a report whose rows drill down to a record. */
+  onRowClick?: (row: ReportRow) => void;
 }
 
 /** On-screen counterpart to the Report Center's export/print actions: the
@@ -66,6 +68,7 @@ export function ReportViewDialog({
   isExporting,
   canExport = true,
   onExport,
+  onRowClick,
 }: ReportViewDialogProps) {
   const [filters, setFilters] = useState<ReportFiltersValue>(initialFilters);
   const [search, setSearch] = useState("");
@@ -104,7 +107,7 @@ export function ReportViewDialog({
       title={<span className="font-serif font-bold text-xl">{title}</span>}
       description={
         subtitle ??
-        `${visibleRows.length} row${visibleRows.length === 1 ? "" : "s"} for the selected filters. Click a column header to sort.`
+        `${visibleRows.length} row${visibleRows.length === 1 ? "" : "s"} for the selected filters. Click a column header to sort.${onRowClick ? " Click a row to see its items." : ""}`
       }
       className="sm:max-w-5xl h-[95vh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden"
       footer={!canExport ? undefined : (
@@ -190,7 +193,11 @@ export function ReportViewDialog({
             Loading report...
           </div>
         ) : (
-          <ReportTableView rows={visibleRows} headers={headers} />
+          <ReportTableView
+            rows={visibleRows}
+            headers={headers}
+            onRowClick={onRowClick}
+          />
         )}
       </div>
     </ResponsiveModal>

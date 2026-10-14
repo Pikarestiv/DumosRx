@@ -95,6 +95,26 @@ export function LicenseBlockedCard({
           <CardDescription>{license?.message}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {license?.isClockTampered && (
+            <div className="p-4 rounded-lg text-sm bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-900 space-y-2">
+              <p className="font-semibold text-amber-900 dark:text-amber-200">
+                This is usually your device&apos;s battery, not your account
+              </p>
+              <p className="text-amber-900/80 dark:text-amber-200/80">
+                The date and time on this device have gone backwards. On a
+                desktop that is nearly always a flat motherboard battery: a
+                CR2032 coin cell (CMOS Battery), sold at any phone or computer shop. It keeps
+                the clock running while the machine is off, so once it dies the
+                date resets every time the power goes.
+              </p>
+              <p className="text-amber-900/80 dark:text-amber-200/80">
+                To get back in: set the correct date and time on this
+                computer, connect to the internet, then press{" "}
+                <span className="font-medium">Check Again</span>. Replacing the
+                battery stops it happening again.
+              </p>
+            </div>
+          )}
           <div className="p-4 bg-muted rounded-lg text-sm">
             <p className="flex items-center gap-2 font-bold text-muted-foreground mb-1 uppercase tracking-widest text-[10px]">
               <AlertOctagon className="h-3 w-3" />

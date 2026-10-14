@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { MetricCard } from "@/components/ui/metric-card";
 import { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -11,12 +12,17 @@ export interface StatCard {
   comparison?: ReactNode;
   icon: LucideIcon;
   colorScheme?: "blue" | "green" | "red" | "amber" | "default";
+  /** Where the figure is itemised. Omitted for a card that stands for no
+   * single screen, which then renders exactly as it did before. */
+  href?: string;
 }
 
 interface DashboardStatsProps {
   statsCards: StatCard[];
 }
 export function DashboardStats({ statsCards }: DashboardStatsProps) {
+  const router = useRouter();
+
   const getColorStyles = (color?: string) => {
     switch (color) {
       case "blue":
@@ -78,6 +84,7 @@ export function DashboardStats({ statsCards }: DashboardStatsProps) {
               icon={<stat.icon className={`h-4 w-4 ${colors.icon}`} />}
               iconBgClass={colors.wrapper}
               description={stat.comparison}
+              onClick={stat.href ? () => router.push(stat.href as string) : undefined}
             />
           );
         })}

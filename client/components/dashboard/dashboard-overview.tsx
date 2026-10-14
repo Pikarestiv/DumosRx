@@ -57,6 +57,8 @@ function renderSalesComparison(comparison: SalesComparison) {
   );
 }
 
+const POS_RECENT_SALES_ROUTE = "/pos?tab=history";
+
 export function DashboardOverview() {
   const {
     t,
@@ -98,6 +100,7 @@ export function DashboardOverview() {
           comparison: "Sales you've rung up today",
           icon: ShoppingCart,
           colorScheme: "green" as const,
+          href: POS_RECENT_SALES_ROUTE,
         }
       : {
           title: "Today's Sales",
@@ -108,6 +111,7 @@ export function DashboardOverview() {
           comparison: renderSalesComparison(salesComparison),
           icon: ShoppingCart,
           colorScheme: "green" as const,
+          href: POS_RECENT_SALES_ROUTE,
         },
     {
       title: `Total ${t("products")}`,
@@ -115,6 +119,7 @@ export function DashboardOverview() {
       comparison: `Across ${activeCategories} categories`,
       icon: Package,
       colorScheme: "blue" as const,
+      href: "/inventory/catalog",
     },
     isCashier
       ? {
@@ -123,6 +128,7 @@ export function DashboardOverview() {
           comparison: "Your net sales so far today",
           icon: TrendingUp,
           colorScheme: "amber" as const,
+          href: POS_RECENT_SALES_ROUTE,
         }
       : {
           title: "Inventory Value",
@@ -133,6 +139,7 @@ export function DashboardOverview() {
           comparison: "Calculated stock value",
           icon: TrendingUp,
           colorScheme: "amber" as const,
+          href: "/inventory/overview",
         },
     {
       title: "Orders Today",
@@ -140,6 +147,7 @@ export function DashboardOverview() {
       comparison: "Completed transactions",
       icon: ClipboardCheck,
       colorScheme: "default" as const,
+      href: POS_RECENT_SALES_ROUTE,
     },
   ];
 

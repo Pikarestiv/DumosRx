@@ -1,5 +1,6 @@
 import { execute, query } from "./core";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { isIntervalElapsed } from "@/lib/utils/elapsed";
 
 export const AUDIT_LOG_LOCAL_RETENTION_DAYS = 730;
 
@@ -16,21 +17,35 @@ function cutoffIso(retentionDays: number, now: Date): string {
   return new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
 }
 
-/**
- * Deliberately NOT `isIntervalElapsed()`, which treats a future stamp as due.
- * That is right for work that only reads, and wrong here: the cutoff below is
- * derived from the same clock, so a device reading years ahead would prune far
- * past its retention window and drop its whole local trail. Running when the
- * clock is in doubt deletes, so this waits instead.
- */
 function isPruneDue(now: Date): boolean {
   if (typeof localStorage === "undefined") return true;
-  const last = localStorage.getItem(LAST_PRUNE_KEY);
-  if (!last) return true;
-  const lastAt = Date.parse(last);
-  if (Number.isNaN(lastAt)) return true;
-  if (lastAt > now.getTime()) return false;
-  return now.getTime() - lastAt >= PRUNE_INTERVAL_MS;
+  return isIntervalElapsed(
+    localStorage.getItem(LAST_PRUNE_KEY),
+    PRUNE_INTERVAL_MS,
+    now.getTime(),
+  );
+}
+
+/**
+ * An upper bound on real time, for deriving the cutoff. `_sync_state`'s
+ * `last_synced_at` is the server's own `server_timestamp`, so it can never run
+ * ahead of real time however wrong this device's clock is; taking the lower of
+ * the two means a clock reading years ahead cannot push the cutoff past the
+ * retention window and delete the whole local trail. A device that has never
+ * synced has nothing to bound with and also nothing to prune — the prune only
+ * touches rows already `_synced = 1`.
+ *
+ * Lagging by the time since the last sync is the whole cost, against a 730-day
+ * window.
+ */
+async function boundedNow(wallNow: Date): Promise<Date> {
+  const rows = await query<{ newest: string | null }>(
+    "SELECT MAX(last_synced_at) AS newest FROM _sync_state",
+  );
+  const serverAt = rows[0]?.newest ? Date.parse(rows[0].newest) : Number.NaN;
+  if (!Number.isFinite(serverAt)) return wallNow;
+
+  return new Date(Math.min(wallNow.getTime(), serverAt));
 }
 
 function markPruned(now: Date): void {
@@ -56,7 +71,7 @@ export async function pruneSyncedAuditLogs(
 
   if (!options.force && !isPruneDue(now)) return 0;
 
-  const cutoff = cutoffIso(retentionDays, now);
+  const cutoff = cutoffIso(retentionDays, await boundedNow(now));
 
   const doomed = await query<{ id: string }>(
     `SELECT al.id FROM audit_logs al

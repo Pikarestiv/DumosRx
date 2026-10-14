@@ -108,8 +108,8 @@ export function LicenseBlockedCard({
                 date resets every time the power goes.
               </p>
               <p className="text-amber-900/80 dark:text-amber-200/80">
-                To get back in: set the correct date and time in Windows,
-                connect to the internet, then press{" "}
+                To get back in: set the correct date and time on this
+                computer, connect to the internet, then press{" "}
                 <span className="font-medium">Check Again</span>. Replacing the
                 battery stops it happening again.
               </p>

@@ -1,6 +1,5 @@
 import { query, execute } from "../core";
 import { recomputeBatchQuantities } from "../batch-quantity";
-import type { BatchLogChange } from "../batch-quantity";
 
 /**
  * Deferred `stock_movements` quantity deltas, persisted rather than held in
@@ -75,7 +74,7 @@ export async function applyDeferredStockDeltas(
     "SELECT movement_id, stock_batch_id, quantity, attempts FROM _pending_stock_deltas ORDER BY rowid",
   );
   const unresolved: DeferredStockDelta[] = [];
-  const resolved = new Map<string, BatchLogChange>();
+  const resolved = new Set<string>();
 
   for (const delta of pending) {
     const movement = await query<{ _deleted: number | null }>(
@@ -107,18 +106,19 @@ export async function applyDeferredStockDeltas(
       continue;
     }
 
-    const seen = resolved.get(delta.stock_batch_id) ?? { delta: 0, inbound: 0 };
-    resolved.set(delta.stock_batch_id, {
-      delta: seen.delta + delta.quantity,
-      inbound: seen.inbound + Math.max(0, delta.quantity),
-    });
+    resolved.add(delta.stock_batch_id);
     await discard(delta.movement_id);
   }
 
-  // Once per batch, not once per delta: the rebuild reads the whole log, so
-  // every delta after the first for the same batch would re-scan it to write
-  // the same number. The accumulated delta is only read for a carve-out batch.
-  await recomputeBatchQuantities(resolved);
+  // Once per batch, not once per delta, and carrying NO change: the movements
+  // these rows stand for were written to the log pages ago, so claiming their
+  // inbound here would subtract it back off a log that already holds it, read
+  // the batch as a carve-out and add the delta a second time. A batch with a
+  // pending delta arrived with its quantity stripped, so it is never a
+  // carve-out and the rebuild is all it needs.
+  await recomputeBatchQuantities(
+    new Map([...resolved].map((batchId) => [batchId, { delta: 0, inbound: 0 }])),
+  );
 
   return unresolved;
 }

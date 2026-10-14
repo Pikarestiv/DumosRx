@@ -251,7 +251,7 @@ export async function importProductRows(
             product_id: productId,
             batch_number: "Opening Stock",
             expiry_date: null,
-            quantity: row.quantity,
+            quantity: 0,
             cost_price: row.costPrice ?? null,
             supplier_id: supplierId ?? null,
             is_active: 1,

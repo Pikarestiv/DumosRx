@@ -135,7 +135,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
       const invId = await insert("stock_batches", {
         id: receiptBatchId(item.id, alreadyReceived),
         product_id: item.product_id,
-        quantity: totalBaseUnits,
+        quantity: 0,
         cost_price: baseUnitCost,
         batch_number: batchNumber,
         expiry_date: expiryDate,
@@ -285,7 +285,7 @@ export async function createAndReceivePurchaseOrder(
 
       const invId = await insert("stock_batches", {
         product_id: item.product_id,
-        quantity: totalBaseUnits,
+        quantity: 0,
         cost_price: baseUnitCost,
         batch_number: batchNumber,
         expiry_date: expiryDate,

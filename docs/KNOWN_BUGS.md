@@ -12,11 +12,33 @@ handful of things actually worth your attention aren't buried in it.
 
 #### A-264. `client/` — a legacy batch whose stock has reached zero cannot get its unlogged units back, because nothing distinguishes it from an ordinary empty batch
 - **Found:** 2026-10-14, in the adversarial vet of the derived-quantity Stage 1 change (`docs/FIXED_BUGS.md`, "Derived stock quantity, Stage 1"). Not a regression from it — the pre-Stage-1 incremental write had the same blind spot from the other direction — but Stage 1 is what makes the boundary exact, so it is worth stating.
-- **What's wrong:** the A-148 carve-out is judged as `stored > the log's inbound total before this change`. That is the best test available from data the device holds, and it is sound while the batch still holds some of its unlogged opening stock. Once sales take `stored` to 0, the batch reads exactly like an ordinary depleted one: `stored 0`, and a log whose sum is negative — which is also the shape of an ordinary oversell. A later return or restock is therefore rebuilt from the log, and the unlogged units do not come back.
+- **What's wrong:** the A-148 carve-out is judged as `stored > the log's inbound total before this change`. That is the best test available from data the device holds, and it is sound for as long as any of the unlogged opening stock is still on the shelf. Once outbound movements have consumed all of it — in practice once `stored` reaches 0 — the batch reads exactly like an ordinary depleted one: `stored 0`, and a log whose sum is negative, which is also the shape of an ordinary oversell. A later return or restock is therefore rebuilt from the log, and the unlogged units do not come back.
+- **Measured against production, read-only, 2026-10-14, and the exposure is zero.** Across all five store groupings (2,657 + 2,101 + 2,253 + 1,416 live batches plus 10 unscoped): `unlogged_opening_stock` 0, `carve_out_now` 0, `unaccounted_units` 0. Not one batch on any live store holds stock its inbound movements cannot account for, so there is no residue anywhere for this to lose. One batch on `571582a9` matches the `quantity = 0 AND log < 0` shape, which is the upper bound's known false positive — an ordinary oversell, since that store has no unlogged stock to decay. The oldest batches on the two trading stores post-date `a36b00e7` (2026-09-19), which is consistent: imports have logged a movement per batch since then. **Consequence: Stage 4 is not urgent, and A-213's endpoint can be deleted rather than kept for a class that is empty.** Re-measure before concluding that permanently — a restored backup or an older import could reintroduce the class.
 - **Worked example:** a pre-`a36b00e7` import batch holds 100 units with no movement row. 100 are sold (log `−100`, stored 0, correct). A customer returns 100: the log sums to 0, so the batch rebuilds to **0**, where the shelf holds 100. The same arithmetic reaches every other device as the movements arrive.
 - **Why it is not fixed here:** the residue — `stored − MAX(0, Σ log)` at the moment the batch was still inside the carve-out — is not written down anywhere, and by the time it matters the number is gone. "Once a carve-out, always a carve-out" needs state the row does not have. Guessing from the log is not available either: a batch drifted *above* its log by the A-197 class and a decayed legacy batch are indistinguishable by `stored`, `Σ log` and inbound alike, which is exactly the ambiguity the spec's Stage 4 exists to remove.
 - **Fix:** the spec's Stage 4 `opening_quantity` — a nullable column holding the unexplained residue, backfilled server-side as `MAX(0, quantity − SUM(log))` for batches with no inbound movement, pulled down as immutable server-authoritative truth, with `onHand = opening_quantity + Σ log`. Cross-repo schema change (root `AGENTS.md` §5). It also dissolves A-213's retirement condition, so the two should ship together.
-- **Exposure:** bounded to batches whose opening stock has no movement row — imports before `a36b00e7` (2026-09-19) and the rest of the A-148 class. Cynthia's store went live 2026-09-25, so its imports should be logged; this needs checking against production read-only before Stage 4 is scheduled, because if the class is empty on both live stores then Stage 4 is cheap to defer and A-213's endpoint can simply be deleted. No telemetry shows this: `unreconstructable` counts only batches still *above* their inbound, so one that has already decayed is invisible.
+- **Exposure:** bounded to batches whose opening stock has no movement row — imports before `a36b00e7` (2026-09-19) and the rest of the A-148 class. Measured at zero (above). No telemetry would show it if it returned: `unreconstructable` counts only batches still *above* their inbound, so one that has already decayed is invisible, which is why the query is recorded here rather than left to be re-derived.
+- **The query**, read-only, to re-run in phpMyAdmin with the `SET` in the same block (root `AGENTS.md` §7 — `created_at` is a `TIMESTAMP` and converts on read):
+  ```sql
+  SET time_zone = '+00:00';
+
+  SELECT p.store_id, COUNT(*) AS live_batches,
+         SUM(CASE WHEN COALESCE(m.inbound,0) = 0 AND sb.quantity > 0 THEN 1 ELSE 0 END) AS unlogged_opening_stock,
+         SUM(CASE WHEN sb.quantity > COALESCE(m.inbound,0) THEN 1 ELSE 0 END) AS carve_out_now,
+         SUM(CASE WHEN sb.quantity > COALESCE(m.inbound,0) THEN sb.quantity - COALESCE(m.inbound,0) ELSE 0 END) AS unaccounted_units,
+         SUM(CASE WHEN sb.quantity = 0 AND COALESCE(m.total,0) < 0 THEN 1 ELSE 0 END) AS decayed_upper_bound,
+         MIN(sb.created_at) AS oldest_batch, MAX(sb.created_at) AS newest_batch
+    FROM stock_batches sb
+    JOIN products p ON p.id = sb.product_id
+    LEFT JOIN (SELECT stock_batch_id,
+                      SUM(CASE WHEN quantity > 0 THEN quantity ELSE 0 END) AS inbound,
+                      SUM(quantity) AS total
+                 FROM stock_movements WHERE deleted_at IS NULL
+                GROUP BY stock_batch_id) m ON m.stock_batch_id = sb.id
+   WHERE sb.deleted_at IS NULL
+   GROUP BY p.store_id;
+  ```
+  Scoping mirrors `StockDivergenceService::serverFingerprint()` (batches through `products.store_id`, `deleted_at IS NULL`, no `is_active` filter) so the figures are comparable with the admin panel's own.
 
 #### A-262. `client/` — the Playwright suite has drifted behind the UI and 10 specs fail on `main`
 - **Found:** 2026-10-13, running `npx playwright test` while vetting PR #160 — the first full run in a while. Confirmed **pre-existing** by checking the same specs out at `origin/main` and running them there: identical failures.

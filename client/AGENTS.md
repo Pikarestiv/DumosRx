@@ -1388,13 +1388,9 @@ on the function, and the condition for deleting it.
     rebuilds each one once at the end of that page's transaction. Callers must
     **not** pre-write `quantity` themselves; a pre-write is double-counted for
     a carve-out batch (below), which is why `deductFromBatch()` tracks what it
-    has taken in a local `liveQuantity` map instead. A batch created *together
-    with* its first inbound movement — procurement receiving, an import row, a
-    transfer's destination — does carry the quantity in its own `INSERT`,
-    because the row needs it for its push payload; the equality short-circuit
-    above is what makes that safe, and it holds only while the two figures are
-    identical. If you ever make them diverge (a partial receipt, a rounding
-    step), insert `0` and let the movement fill it.
+    has taken in a local `liveQuantity` map instead. That includes a batch
+    created together with its first inbound movement: it is inserted at `0`,
+    for the provenance reason above.
   - **Two writes would still slip past both hooks:** an
     `update("stock_movements", …)` that changes `quantity` or `_deleted`, and
     `remove("stock_movements")`. Nothing does either today —
@@ -1407,26 +1403,48 @@ on the function, and the condition for deleting it.
     no inbound movements" — one adjustment logged against a legacy batch must
     not take it out of the carve-out. Closed and shrinking: imports have
     written a movement per batch since `a36b00e7`.
-  - **Two things about that test are load-bearing, and both were got wrong
-    first.** (a) It is taken against the log as it stood **before** the change
-    being applied (`BatchLogChange.inbound` is subtracted back off). Judging it
-    afterwards lets `inbound` grow by the very movement in hand and overtake a
-    `stored` that sales have worn down, so a legacy batch sold from 100 to 5
-    and then found to hold 10 more rebuilt to **0** instead of 15 — a silent
-    write-off of real stock, caught in review before it shipped. (b) `stored`
-    already equal to `MAX(0, Σ log)` short-circuits to "nothing to write"
-    *before* the carve-out is judged at all. That is what makes a batch created
-    together with its first inbound movement safe: it holds exactly that
-    movement, the log agrees, and classifying it would patch the delta on top
-    and double the receipt.
-  - **The hole that is left, and it is Stage 4's to close.** Once a legacy
-    batch's `stored` reaches 0, nothing on the device distinguishes "sold the
-    unlogged opening stock" from "an ordinary empty batch": both read `stored
-    0`, and the log's negative sum is the same shape as an oversell. A return
-    or a restock against such a batch therefore rebuilds from the log and the
-    unlogged units do not come back. Recorded as `docs/KNOWN_BUGS.md` A-264;
-    `opening_quantity` is the only fix, because the residue has to be written
-    down somewhere.
+  - **The test is taken against the log as it stood *before* the change**
+    (`BatchLogChange` carries the change's own `delta` and `inbound`, and the
+    inbound is subtracted back off). Judging it afterwards lets `inbound` grow
+    by the very movement in hand and overtake a `stored` that sales have worn
+    down, so a legacy batch sold from 100 to 5 and then found to hold 10 more
+    rebuilt to **0** instead of 15 — a silent write-off of real stock, caught
+    in review before it shipped.
+  - **Every caller must describe its change honestly, and one of them cannot.**
+    The deferred-delta drain settles rows whose movements were written to the
+    log pages earlier, so it passes `{delta: 0, inbound: 0}`: claiming their
+    inbound would subtract it off a log that already holds it, read the batch
+    as a carve-out and add the delta a second time (7 became 14, caught by
+    `pull-deferred-stock-delta-survives-failed-round.test.ts`). The rule is
+    that `BatchLogChange` describes what *this* write did to the log, never
+    what a row happens to say.
+  - **Provenance cannot be inferred from the numbers, so a batch is created
+    empty.** A legacy batch holding 100 unlogged units that is then found to
+    hold 100 more is byte-identical to a receipt batch created at 100 with its
+    own `+100` movement: same `stored`, same log, different right answer. A
+    value-based "already correct, nothing to write" short-circuit was tried and
+    silently dropped the adjustment — 100 stayed 100 where the shelf held 200.
+    So procurement receiving, product import and a transfer's destination all
+    `insert` the batch with `quantity: 0` and let its first movement fill it;
+    the server forces `quantity = 0` on accept anyway, and the pull strips it,
+    so nothing downstream notices. The cost is one extra `_sync_queue` and
+    `audit_logs` row per created batch — a bulk import pays ~2,500 of each.
+    Folding that `update()` into the batch's still-pending `INSERT` queue row
+    would recover it, but `collapsibleUpdate()` deliberately refuses to merge
+    into a pending `INSERT` and widening it is push-engine surgery, not part of
+    this.
+  - **The hole that is left, and it is Stage 4's to close.** Once outbound
+    movements have consumed a legacy batch's whole unlogged residue — in
+    practice, once `stored` reaches 0 — nothing on the device distinguishes
+    "sold the unlogged opening stock" from "an ordinary empty batch": both read
+    `stored 0`, and the log's negative sum is the same shape as an oversell. A
+    return or a restock against such a batch therefore rebuilds from the log
+    and the unlogged units do not come back. Recorded as `docs/KNOWN_BUGS.md`
+    A-264; `opening_quantity` is the only fix, because the residue has to be
+    written down somewhere. **Measured against production on 2026-10-14 and the
+    exposure is zero** — no batch on any live store holds stock its inbound
+    movements cannot account for — so this is a boundary to know about, not a
+    live defect.
   - **`replayMovements()` in `sync-engine/stock-integrity.ts` is now an alias
     of `onHandFromLog()`**, so the fold, the auto-heal and the write path cannot
     drift apart. The ordering rules this section used to impose (`ORDER BY

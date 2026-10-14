@@ -367,7 +367,7 @@ export async function transferStock(
         product_id: destProductId,
         batch_number: `TRANSFER-${transferId.slice(0, 8).toUpperCase()}`,
         expiry_date: earliestExpiry,
-        quantity,
+        quantity: 0,
         cost_price: averageCost,
         is_active: 1,
         store_id: destStoreId,

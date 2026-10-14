@@ -72,26 +72,13 @@ export async function resolveBatchQuantity(
 
   const stored = Number(batch.quantity ?? 0);
   const total = Number(log?.total ?? 0);
-  const rebuilt = Math.max(0, total);
-
-  // Equality first, before the carve-out is even judged: a batch created
-  // together with its first inbound movement (a receipt, an import row, a
-  // transfer's destination) holds exactly that movement's quantity, and the
-  // log it was created from agrees. Classifying it would see a stored figure
-  // above the log's *previous* inbound of nothing and patch the delta on top,
-  // doubling the receipt. Nothing to write is the honest answer, and it is
-  // also what keeps one push row per created batch instead of two.
-  if (stored === rebuilt) {
-    return { stored, carveOut: false, quantity: stored };
-  }
-
   const inboundBefore = Number(log?.inbound ?? 0) - change.inbound;
   const carveOut = stored > inboundBefore;
 
   return {
     stored,
     carveOut,
-    quantity: carveOut ? Math.max(0, stored + change.delta) : rebuilt,
+    quantity: carveOut ? Math.max(0, stored + change.delta) : Math.max(0, total),
   };
 }
 

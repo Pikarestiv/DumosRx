@@ -225,6 +225,38 @@ describe("stock_batches.quantity derived from the movement log", () => {
       expect(quantityOf("legacy")).toBe(100);
     });
 
+    it("adds found stock that happens to equal the unlogged remainder", async () => {
+      // The residue and the movement being equal is the one case a value-based
+      // "already correct, nothing to write" guess gets wrong: it reads exactly
+      // like a batch created holding its own first movement. Provenance, not
+      // arithmetic, is what tells them apart — hence batches are created at 0.
+      seedBatch("legacy", 100);
+
+      await logMovement("legacy", 100);
+
+      expect(quantityOf("legacy")).toBe(200);
+    });
+
+    it("adds found stock equal to what is left of a part-sold legacy batch", async () => {
+      seedBatch("legacy", 100);
+      await logMovement("legacy", -50);
+      expect(quantityOf("legacy")).toBe(50);
+
+      await logMovement("legacy", 100);
+
+      expect(quantityOf("legacy")).toBe(150);
+    });
+
+    it("keeps counting correctly after a found-stock adjustment of the same size", async () => {
+      seedBatch("legacy", 10);
+      await logMovement("legacy", 10);
+      expect(quantityOf("legacy")).toBe(20);
+
+      await logMovement("legacy", -5);
+
+      expect(quantityOf("legacy")).toBe(15);
+    });
+
     it("never writes a negative quantity for a carve-out batch", async () => {
       seedBatch("legacy", 5);
 
@@ -234,26 +266,33 @@ describe("stock_batches.quantity derived from the movement log", () => {
     });
   });
 
-  it("does not queue a second push row for a batch created with its first movement", async () => {
-    // A receipt, an import row and a transfer-in all insert the batch holding
-    // its first inbound movement's quantity, so the rebuild lands on the value
-    // already there. Writing it again cost one _sync_queue row and one
-    // audit_logs row per row imported.
+  it("fills a newly created batch from its own first movement", async () => {
+    // A receipt, an import row and a transfer destination all create the batch
+    // at 0 and let the movement supply the figure. Creating it with the
+    // quantity already in place is indistinguishable from a legacy batch
+    // receiving an equal-sized adjustment, and one of the two has to be wrong.
     await insert("stock_batches", {
       id: "fresh",
       product_id: "prod-1",
       batch_number: "PO-1",
-      quantity: 40,
+      quantity: 0,
       is_active: 1,
     });
+
     await logMovement("fresh", 40);
 
     expect(quantityOf("fresh")).toBe(40);
-    expect(queuedBatchPushes("fresh")).toBe(1);
-    const audits = db.exec(
-      `SELECT COUNT(*) FROM audit_logs WHERE table_name = 'stock_batches' AND record_id = 'fresh'`,
-    );
-    expect(Number(audits[0].values[0][0])).toBe(1);
+  });
+
+  it("writes nothing when a rebuild lands on the figure already stored", async () => {
+    seedBatch("b1", 0);
+    await logMovement("b1", 80);
+    const before = queuedBatchPushes("b1");
+
+    await recomputeBatchQuantities(new Map([["b1", { delta: 0, inbound: 0 }]]));
+
+    expect(quantityOf("b1")).toBe(80);
+    expect(queuedBatchPushes("b1")).toBe(before);
   });
 
   it("agrees with the in-memory fake the other suites rely on, over randomised histories", async () => {
@@ -286,19 +325,34 @@ describe("stock_batches.quantity derived from the movement log", () => {
       priorLog.forEach((q, i) => seedMovement(`prior-${caseIndex}-${i}`, batchId, q));
 
       const fakeBatches = { [batchId]: { quantity: opening } };
-      const fakeMovements = priorLog.map((q) => ({ stock_batch_id: batchId, quantity: q }));
+      const fakeMovements: {
+        stock_batch_id: string;
+        quantity: number;
+        _deleted?: number;
+      }[] = priorLog.map((q) => ({ stock_batch_id: batchId, quantity: q }));
 
-      await logMovement(batchId, delta);
+      const movementId = await logMovement(batchId, delta);
+      const voidIt = random() < 0.25;
+      if (voidIt) await softDelete("stock_movements", movementId);
 
       fakeMovements.push({ stock_batch_id: batchId, quantity: delta });
       applyMovementToFakeBatch(fakeBatches, fakeMovements, {
         stock_batch_id: batchId,
         quantity: delta,
       });
+      if (voidIt) {
+        fakeMovements[fakeMovements.length - 1]._deleted = 1;
+        applyMovementToFakeBatch(
+          fakeBatches,
+          fakeMovements,
+          { stock_batch_id: batchId, quantity: delta },
+          false,
+        );
+      }
 
       if (fakeBatches[batchId].quantity !== quantityOf(batchId)) {
         mismatches.push(
-          `case ${caseIndex}: opening ${opening}, prior [${priorLog.join(",")}], delta ${delta} → real ${quantityOf(batchId)}, fake ${fakeBatches[batchId].quantity}`,
+          `case ${caseIndex}: opening ${opening}, prior [${priorLog.join(",")}], delta ${delta}${voidIt ? " (voided)" : ""} → real ${quantityOf(batchId)}, fake ${fakeBatches[batchId].quantity}`,
         );
       }
     }

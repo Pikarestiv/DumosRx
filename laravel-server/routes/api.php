@@ -244,6 +244,8 @@ Route::prefix('v1')->group(function () {
             Route::get('/sync/health', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'summary'])->middleware('permission:view_platform_health');
             Route::get('/sync/stores/{id}', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'store'])->middleware('permission:view_platform_health');
             Route::get('/stores/{id}/stock-divergence', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'stockDivergence'])->middleware('permission:view_platform_health');
+            Route::delete('/stores/{id}/stock-divergence/{deviceId}', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'deleteStockReport'])->middleware('role:super_admin');
+            Route::put('/stores/{id}/devices/{deviceId}/nickname', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'renameDevice'])->middleware('role:super_admin');
             Route::get('/stores/{id}/queue-state', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'queueState'])->middleware('permission:view_platform_health');
             // Acting ON a customer device is super_admin-only and never
             // delegatable — see laravel-server/AGENTS.md.

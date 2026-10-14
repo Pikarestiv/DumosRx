@@ -460,6 +460,23 @@ and it was needed on the first real incident after it shipped. If you add a
 sync command action server-side, add its trigger in the same change or it
 does not exist.
 
+The divergence row wraps on its **own** width (`flex-wrap`, a `13rem`-basis
+text block, the action cluster right-aligned), not on a viewport `sm:` prefix.
+It used to be `sm:flex-row`, which is wrong here: the panel sits in a narrow
+column of a wide page, so a wide viewport turned the row horizontal and then
+crushed the figures into a four-line ribbon beside the buttons (seen
+2026-10-14). Any control added to this row must keep that property — key it to
+the container, never to the viewport.
+
+`device-row-actions.tsx` sits beside it in the same row: a pencil that names
+the device (`PUT .../devices/{deviceId}/nickname`, blank clears it back to the
+client's own sniffed label) and a trash that deletes that device's stock
+snapshot (`DELETE .../stock-divergence/{deviceId}`) so retired tills stop
+filling the panel. Both are `checkIsSuperAdmin`-gated for the same reason as
+the report control, the delete confirms through `ConfirmDialog` (never
+`window.confirm`), and the nickname is server-side the only label any admin
+screen shows for that device once set — see laravel-server/AGENTS.md.
+
 `device-report-action.tsx` sits in each row of the stock-divergence list,
 which is the right place: that list is where you have just read a device's
 drift and decided you want its diagnostics. It follows `StuckItemActions`

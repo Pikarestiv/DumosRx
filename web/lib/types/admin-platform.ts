@@ -119,6 +119,8 @@ export interface AdminSubscriptionFigures {
 export interface DeviceStockReport {
   device_id: string;
   device_label: string | null;
+  /** The operator-set name alone; `device_label` falls back to UA sniffing. */
+  device_nickname?: string | null;
   device_batch_count: number;
   device_quantity_sum: number;
   /** Null when the device's client predates the value fingerprint. */

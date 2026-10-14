@@ -7,6 +7,7 @@ import { formatDateSafe } from "@/lib/utils/date-utils";
 import { formatMoney } from "@/lib/utils/currency";
 import type { StoreStockDivergence } from "@/lib/types/admin-platform";
 import { DeviceReportAction } from "./device-report-action";
+import { DeviceRowActions } from "./device-row-actions";
 
 export function StoreStockDivergencePanel({
   storeId,
@@ -97,9 +98,9 @@ export function StoreStockDivergenceSection({
         {data.devices.map((device) => (
           <li
             key={device.device_id}
-            className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5"
           >
-            <div className="min-w-0">
+            <div className="min-w-[13rem] flex-1 basis-[13rem]">
               <p className="text-xs font-bold text-foreground">
                 {device.device_label ?? "Unnamed device"}
               </p>
@@ -118,9 +119,17 @@ export function StoreStockDivergenceSection({
               </p>
             </div>
 
-            <div className="flex items-center justify-between gap-3 sm:shrink-0 sm:justify-end">
+            <div className="flex flex-1 shrink-0 items-center justify-end gap-2">
               {storeId && (
-                <DeviceReportAction storeId={storeId} deviceId={device.device_id} />
+                <>
+                  <DeviceReportAction storeId={storeId} deviceId={device.device_id} />
+                  <DeviceRowActions
+                    storeId={storeId}
+                    deviceId={device.device_id}
+                    deviceLabel={device.device_label}
+                    deviceNickname={device.device_nickname}
+                  />
+                </>
               )}
               <div className="text-right">
               {device.diverged ? (

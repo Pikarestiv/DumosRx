@@ -200,7 +200,7 @@ class AdminStoreService
                     'date' => $store->created_at->format('M d, Y'),
                     'is_demo' => (bool) $store->is_demo,
                     'device_id' => $store->device_id,
-                    'device_label' => $deviceLabels[$store->device_id] ?? null,
+                    'device_label' => $this->storeRowLabel($deviceLabels, $store),
                     'is_archived' => $store->deleted_at !== null,
                     'archived_at' => $store->deleted_at?->format('M d, Y'),
                     'account_manager' => $manager ? [
@@ -272,7 +272,7 @@ class AdminStoreService
                     'date' => $store->created_at->format('M d, Y'),
                     'is_demo' => (bool) $store->is_demo,
                     'device_id' => $store->device_id,
-                    'device_label' => $deviceLabels[$store->device_id] ?? null,
+                    'device_label' => $this->storeRowLabel($deviceLabels, $store),
                 ];
             }),
             'meta' => [

@@ -1378,13 +1378,27 @@ on the function, and the condition for deleting it.
   - **The one floor is over the sum, not per movement.** `+80, −100, +20` is
     `0`, not the `20` a per-movement floor used to leave: an oversell's deficit
     is carried forward, not forgiven. That is a deliberate behaviour change,
-    and the alternative (an explicit compensating `shrinkage` movement at
-    oversell time) is the spec's Stage 4. Oversells themselves are read off the
-    log by `getOversoldAlerts()`, never off `quantity`. **What that costs at the
-    counting screen is `docs/KNOWN_BUGS.md` A-265:** the next inbound movement
-    pays the deficit off before it adds anything, so the first cycle count on an
-    oversold batch reads as having done nothing. One live batch has this shape
-    today (`gluformin` on store `571582a9`).
+    and the alternative (an explicit compensating **inbound** movement at
+    oversell time — not the `shrinkage` the 2026-10-10 spec called it, which
+    would double the deficit) is designed in
+    `docs/superpowers/specs/2026-10-14-oversell-compensating-movement-design.md`.
+    Oversells themselves are read off the log, never off `quantity`. **What the
+    carry-forward costs at the counting screen is `docs/KNOWN_BUGS.md` A-265:**
+    the next inbound movement pays the deficit off before it adds anything, so
+    the first cycle count on an oversold batch reads as having done nothing. One
+    live batch has this shape today (`gluformin` on store `571582a9`).
+  - **`getBatchDeficits()` (`lib/db/batch-quantity.ts`) is the one place a
+    shortfall is measured**, and it reports exactly the set
+    `resolveBatchQuantity()` would rebuild to 0: a non-deleted, active batch in
+    the active store whose log sums below zero, **excluding a carve-out batch** —
+    its sales also sum below zero, but those units were on the shelf and merely
+    unlogged, so nothing is owed there. `getOversoldAlerts()` is a per-product
+    projection of it and keeps the shape the dashboard and the stock-batch
+    alerts read; it no longer matches `reason LIKE '%oversold%'` inside a 30-day
+    window (A-212). Asserted on a till only when `movementLogIsComplete()`
+    holds: a device that is behind can read a deficit that a movement it has not
+    pulled yet would explain, which is the same freshness condition the count
+    warning itself exists for (A-211).
   - **Who rebuilds.** All ten local writers of a `stock_movements` row go
     through `base-helpers.ts`'s `insert()`/`softDelete()`, which rebuild the
     named batch inside the caller's transaction, after the row — so a future

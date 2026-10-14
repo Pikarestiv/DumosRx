@@ -1,4 +1,4 @@
-import { query, execute } from "./core";
+import { query, execute, getActiveStoreId } from "./core";
 
 /**
  * `stock_batches.quantity` is a cache of its own movement log, not a running
@@ -100,4 +100,64 @@ export async function recomputeBatchQuantities(
       batchId,
     ]);
   }
+}
+
+export interface BatchDeficit {
+  batchId: string;
+  productId: string;
+  productName: string;
+  /** Units the log is short by, as a positive number. */
+  deficit: number;
+  lastMovementDate: string | null;
+}
+
+/**
+ * Batches whose movement log sums below zero — more went out than the log can
+ * account for going in. The deficit is what the next inbound movement pays off
+ * before it adds anything, which is why a cycle count on one of these reads as
+ * having done nothing (A-265).
+ *
+ * Read from the log rather than from a movement's reason text: the alert this
+ * replaced matched the word "oversold" in free text inside a 30-day window, so
+ * it reported the event and never the outstanding shortfall (A-212).
+ *
+ * A carve-out batch is excluded even when its log sums below zero: the units it
+ * sold were on the shelf, they were just never written down (A-148), so nothing
+ * is owed and an inbound movement is not absorbed. The set reported here is
+ * exactly the set `resolveBatchQuantity()` would rebuild to 0.
+ */
+export async function getBatchDeficits(): Promise<BatchDeficit[]> {
+  const storeId = getActiveStoreId();
+
+  const rows = await query<{
+    batch_id: string;
+    product_id: string;
+    product_name: string;
+    total: number | null;
+    last_movement_date: string | null;
+  }>(
+    `SELECT sb.id AS batch_id,
+            sb.product_id AS product_id,
+            p.name AS product_name,
+            COALESCE(SUM(sm.quantity), 0) AS total,
+            MAX(sm.movement_date) AS last_movement_date
+       FROM stock_movements sm
+       JOIN stock_batches sb ON sb.id = sm.stock_batch_id
+       JOIN products p ON p.id = sb.product_id
+      WHERE sm._deleted = 0 AND sb._deleted = 0 AND sb.is_active = 1
+        AND p._deleted = 0${storeId ? " AND p.store_id = ?" : ""}
+      GROUP BY sb.id
+     HAVING COALESCE(SUM(sm.quantity), 0) < 0
+        AND sb.quantity <= COALESCE(SUM(CASE WHEN sm.quantity > 0 THEN sm.quantity ELSE 0 END), 0)
+      ORDER BY total ASC`,
+    storeId ? [storeId] : [],
+  );
+
+  return rows.map((row) => ({
+    batchId: row.batch_id,
+    productId: row.product_id,
+    productName: row.product_name,
+    deficit: -Number(row.total ?? 0),
+    lastMovementDate: row.last_movement_date,
+  }));
 }

@@ -349,7 +349,12 @@ measurement trustworthy.
 Each stage is one commit, individually revertable, with a signal that must
 read clean before the next.
 
-**Stage 1 — the deficit query, and the counting screen told the truth.**
+**Stage 1 — the deficit query, and the counting screen told the truth. Shipped
+2026-10-14; see `docs/FIXED_BUGS.md`, "A-212 / A-265 stage 1". Two deviations
+from this plan, both forced by the existing suite: the query excludes a
+carve-out batch (its log also sums below zero, but nothing is owed), and it
+lives beside `resolveBatchQuantity()` reporting per batch, with the per-product
+aggregation done in `getOversoldAlerts()` rather than in the query.**
 `getBatchDeficits()` beside `resolveBatchQuantity()` in
 `client/lib/db/batch-quantity.ts` (it is the same grouped sum): per batch and
 per product, `Σ quantity` where below zero, filtered to the active store and

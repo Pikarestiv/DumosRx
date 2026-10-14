@@ -1,5 +1,6 @@
 import { query, insert, update, transaction, isInTransaction } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
+import { getBatchDeficits } from "@/lib/db/batch-quantity";
 import type { FastMoverRow } from "@/lib/types/fast-mover";
 import type { StockBatch, AvailableStockBatch } from "@/lib/types/stock-batch";
 import {
@@ -425,37 +426,35 @@ export async function getExpiryAlerts() {
 }
 
 /**
- * Alerts for products with at least one recorded oversell — a
- * stock_movements row recordSaleItemStock tagged with the "oversold"
- * marker in `reason` because a batch's stored quantity couldn't fully
- * cover what was deducted from it (see deductFromBatch). Modeled on
- * getLowStockAlerts()/getExpiryAlerts(): store-scoped via products, and
- * windowed to the last 30 days (mirroring getExpiryAlerts()'s date-window
- * pattern) so a stale, long-since-reconciled oversell doesn't linger in
- * the alerts list indefinitely.
+ * Products carrying an oversell shortfall, biggest first, for the dashboard
+ * action centre and the stock-batch alerts. Derived from the movement log via
+ * getBatchDeficits(): a product appears while its ledger is actually short,
+ * and stops appearing once the shortfall is cleared. Previously matched the
+ * word "oversold" in a movement's reason inside a 30-day window, which
+ * reported the event rather than the outstanding deficit and went quiet after
+ * a month whether or not anything had been reconciled (A-212).
  */
 export async function getOversoldAlerts() {
-  const storeId = getActiveStoreId();
-  return query<{
-    product: string;
-    quantity: number;
-    movementDate: string;
-  }>(
-    `SELECT
-      m.name as product,
-      MAX(ABS(sm.quantity)) as quantity,
-      MAX(sm.movement_date) as movementDate
-     FROM stock_movements sm
-     JOIN products m ON sm.product_id = m.id
-     WHERE (sm._deleted = 0 OR sm._deleted IS NULL) AND (m._deleted = 0 OR m._deleted IS NULL)
-       AND sm.reason LIKE '%oversold%'
-       AND sm.movement_date IS NOT NULL
-       AND julianday(sm.movement_date) >= julianday('now', '-30 days')${storeId ? " AND m.store_id = ?" : ""}
-     GROUP BY m.id
-     ORDER BY movementDate DESC
-     LIMIT 5`,
-    storeId ? [storeId] : [],
-  );
+  const deficits = await getBatchDeficits();
+
+  const byProduct = new Map<string, { product: string; quantity: number; movementDate: string }>();
+  for (const entry of deficits) {
+    const seen = byProduct.get(entry.productId);
+    if (seen) {
+      seen.quantity += entry.deficit;
+      if (entry.lastMovementDate && entry.lastMovementDate > seen.movementDate) {
+        seen.movementDate = entry.lastMovementDate;
+      }
+      continue;
+    }
+    byProduct.set(entry.productId, {
+      product: entry.productName,
+      quantity: entry.deficit,
+      movementDate: entry.lastMovementDate ?? "",
+    });
+  }
+
+  return [...byProduct.values()].sort((a, b) => b.quantity - a.quantity).slice(0, 5);
 }
 
 export interface StockBatchStatsRow {

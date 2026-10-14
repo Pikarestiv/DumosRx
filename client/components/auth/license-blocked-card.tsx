@@ -98,10 +98,10 @@ export function LicenseBlockedCard({
           {license?.isClockTampered && (
             <div className="p-4 rounded-lg text-sm bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-900 space-y-2">
               <p className="font-semibold text-amber-900 dark:text-amber-200">
-                This is usually your computer&apos;s battery, not your account
+                This is usually your device&apos;s battery, not your account
               </p>
               <p className="text-amber-900/80 dark:text-amber-200/80">
-                The date and time on this computer have gone backwards. On a
+                The date and time on this device have gone backwards. On a
                 desktop that is nearly always a flat motherboard battery: a
                 CR2032 coin cell (CMOS Battery), sold at any phone or computer shop. It keeps
                 the clock running while the machine is off, so once it dies the

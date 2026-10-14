@@ -1380,7 +1380,11 @@ on the function, and the condition for deleting it.
     is carried forward, not forgiven. That is a deliberate behaviour change,
     and the alternative (an explicit compensating `shrinkage` movement at
     oversell time) is the spec's Stage 4. Oversells themselves are read off the
-    log by `getOversoldAlerts()`, never off `quantity`.
+    log by `getOversoldAlerts()`, never off `quantity`. **What that costs at the
+    counting screen is `docs/KNOWN_BUGS.md` A-265:** the next inbound movement
+    pays the deficit off before it adds anything, so the first cycle count on an
+    oversold batch reads as having done nothing. One live batch has this shape
+    today (`gluformin` on store `571582a9`).
   - **Who rebuilds.** All ten local writers of a `stock_movements` row go
     through `base-helpers.ts`'s `insert()`/`softDelete()`, which rebuild the
     named batch inside the caller's transaction, after the row — so a future

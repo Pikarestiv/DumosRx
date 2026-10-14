@@ -52,6 +52,13 @@ describe("getOversoldAlerts", () => {
     db.run(
       `INSERT INTO sales (id, transaction_number, subtotal, total_amount, payment_method, payment_status) VALUES ('sale1', 'TXN-1', 100, 100, 'cash', 'completed')`,
     );
+    // The alert is withheld until this device's movement window is drained, so
+    // the fixture has to say it is: mid-catch-up, a sale can arrive pages
+    // before the receipt that covers it.
+    db.run(`DELETE FROM _sync_state`);
+    db.run(
+      `INSERT INTO _sync_state (table_name, last_synced_at) VALUES ('stock_movements', '2026-10-14T10:00:00Z')`,
+    );
   });
 
   it("returns a product that was oversold via recordSaleItemStock", async () => {

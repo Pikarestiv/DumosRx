@@ -1395,10 +1395,12 @@ on the function, and the condition for deleting it.
     unlogged, so nothing is owed there. `getOversoldAlerts()` is a per-product
     projection of it and keeps the shape the dashboard and the stock-batch
     alerts read; it no longer matches `reason LIKE '%oversold%'` inside a 30-day
-    window (A-212). Asserted on a till only when `movementLogIsComplete()`
-    holds: a device that is behind can read a deficit that a movement it has not
-    pulled yet would explain, which is the same freshness condition the count
-    warning itself exists for (A-211).
+    window (A-212). **Both readers — the dashboard alert and the count screen —
+    are gated on `movementLogIsComplete()`; the query itself is not.** A device
+    that is behind can read a deficit that a movement it has not pulled yet
+    would explain, so asserting one is the same mistake the count-freshness
+    warning exists to prevent (A-211). Measuring is not asserting: keep the gate
+    at the reader, so a support session can still see the real figure.
   - **Who rebuilds.** All ten local writers of a `stock_movements` row go
     through `base-helpers.ts`'s `insert()`/`softDelete()`, which rebuild the
     named batch inside the caller's transaction, after the row — so a future

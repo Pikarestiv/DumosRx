@@ -1,6 +1,7 @@
 import { query, insert, update, transaction, isInTransaction } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
 import { getBatchDeficits } from "@/lib/db/batch-quantity";
+import { movementLogIsComplete } from "@/lib/db/sync-engine/stock-auto-heal";
 import type { FastMoverRow } from "@/lib/types/fast-mover";
 import type { StockBatch, AvailableStockBatch } from "@/lib/types/stock-batch";
 import {
@@ -433,8 +434,15 @@ export async function getExpiryAlerts() {
  * word "oversold" in a movement's reason inside a 30-day window, which
  * reported the event rather than the outstanding deficit and went quiet after
  * a month whether or not anything had been reconciled (A-212).
+ *
+ * Silent until this device's movement log is complete, the same condition the
+ * counting screen uses: mid-catch-up, a batch's sales can arrive pages before
+ * the receipt that covers them, and "Reconcile Now" against a deficit the next
+ * page explains sends staff to count a shelf that is fine.
  */
 export async function getOversoldAlerts() {
+  if (!(await movementLogIsComplete())) return [];
+
   const deficits = await getBatchDeficits();
 
   const byProduct = new Map<string, { product: string; quantity: number; movementDate: string }>();

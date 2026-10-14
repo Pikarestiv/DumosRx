@@ -42,7 +42,14 @@ describe("getBatchDeficits", () => {
   });
 
   beforeEach(() => {
-    db.run(`DELETE FROM stock_movements; DELETE FROM stock_batches; DELETE FROM products;`);
+    db.run(
+      `DELETE FROM stock_movements; DELETE FROM stock_batches; DELETE FROM products;
+       DELETE FROM _sync_state;`,
+    );
+    // A device whose movement window is fully drained; the alert is gated on it.
+    db.run(
+      `INSERT INTO _sync_state (table_name, last_synced_at) VALUES ('stock_movements', '2026-09-26T10:00:00Z')`,
+    );
   });
 
   function product(id: string, name: string, storeId = STORE_ID) {
@@ -194,6 +201,23 @@ describe("getBatchDeficits", () => {
       expect(alerts).toEqual([
         { product: "gluformin", quantity: 5, movementDate: "2026-09-25T10:00:00Z" },
       ]);
+    });
+
+    it("stays silent while this device is still catching up on movements", async () => {
+      seedGluformin();
+      db.run(
+        `UPDATE _sync_state SET server_cursor = '{"id":"m2"}' WHERE table_name = 'stock_movements'`,
+      );
+
+      expect(await getOversoldAlerts()).toEqual([]);
+      // The deficit itself is still measurable; only the alert is withheld.
+      expect(await getBatchDeficits()).toHaveLength(1);
+
+      db.run(
+        `UPDATE _sync_state SET server_cursor = NULL WHERE table_name = 'stock_movements'`,
+      );
+
+      expect(await getOversoldAlerts()).toHaveLength(1);
     });
 
     it("reports nothing when no batch is short", async () => {

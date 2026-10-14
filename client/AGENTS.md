@@ -4334,6 +4334,19 @@ listing transactions is where you ask "what was in that one?".
   single record, so their rows must not look clickable, and don't. The one
   column name is shared with the `sales` headers array so the two cannot
   drift.
+- **A dashboard metric card leads to where its figure is itemised.**
+  `StatCard.href` (`components/dashboard/dashboard-stats.tsx`) is optional:
+  with it the card becomes a `role="button"` that answers Enter and Space and
+  carries a focus ring, because `MetricCard` already does that work; without
+  it the card renders exactly as before, so a figure that is itemised nowhere
+  does not look clickable. Today's Sales, Orders Today and the two cashier
+  equivalents go to `/pos?tab=history`; Total Products to
+  `/inventory/catalog`; Inventory Value to `/inventory/overview`. No
+  permission gate: Inventory and Point of Sale are both ungated in the
+  sidebar, so a card cannot reach a screen its viewer could not already open —
+  **check that again before adding an href to a gated destination**, since a
+  reachable page whose data call 403s is the trap root `AGENTS.md` §9
+  describes.
 - **`TransactionDetailsDialog` is mounted only while a sale is selected**, not
   unconditionally with `open={!!selected}` the way Daily Close mounts it. It
   calls `useAuth()`, which throws outside `AuthProvider`, and two

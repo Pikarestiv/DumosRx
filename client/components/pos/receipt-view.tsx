@@ -61,6 +61,10 @@ export function ReceiptView({
   const { canCustomizeTheme, canRemoveBranding } = useFeatureGate();
   const hidePoweredBy = canRemoveBranding && storeProfile?.hide_powered_by === 1;
   const isThermal = paperSize === "thermal";
+  const rowTextClass = isThermal ? "text-xs" : "text-sm";
+  const qtyColClass = isThermal ? "w-8" : "w-14";
+  const priceColClass = isThermal ? "w-16" : "w-28";
+  const totalColClass = isThermal ? "w-20" : "w-28";
   const capsClass = useUppercaseDisplayClass();
 
   const formatCurrency = (amount: number) => {
@@ -90,7 +94,7 @@ export function ReceiptView({
       className={
         isThermal
           ? "bg-white p-3 w-[80mm] text-black font-mono text-[11px] leading-tight"
-          : "bg-white p-8 max-w-[400px] mx-auto text-black font-mono text-sm leading-tight"
+          : "bg-white p-6 w-full text-black font-mono text-sm leading-tight"
       }
     >
       {/* Header */}
@@ -182,25 +186,27 @@ export function ReceiptView({
 
       {/* Items Table */}
       <div className="border-b border-black pb-2 mb-2">
-        <div className="flex justify-between font-bold mb-2 border-b border-dashed border-black pb-1 text-xs">
+        <div
+          className={`flex justify-between font-bold mb-2 border-b border-dashed border-black pb-1 ${rowTextClass}`}
+        >
           <span className="flex-1 w-1/2">Product</span>
-          <span className="w-8 text-center">Qty</span>
-          <span className="w-16 text-right">Price</span>
-          <span className="w-20 text-right">Total</span>
+          <span className={`${qtyColClass} text-center`}>Qty</span>
+          <span className={`${priceColClass} text-right`}>Price</span>
+          <span className={`${totalColClass} text-right`}>Total</span>
         </div>
         {transaction.items.map((item) => (
           <div
             key={item.id}
-            className="flex justify-between mb-1 text-xs items-start"
+            className={`flex justify-between mb-1 items-start ${rowTextClass}`}
           >
             <span className={`flex-1 w-1/2 break-words pr-2 leading-tight ${capsClass}`}>
               {item.name}
             </span>
-            <span className="w-8 text-center">{item.quantity}</span>
-            <span className="w-16 text-right">
+            <span className={`${qtyColClass} text-center`}>{item.quantity}</span>
+            <span className={`${priceColClass} text-right`}>
               {formatCurrency(item.unit_price)}
             </span>
-            <span className="w-20 text-right">
+            <span className={`${totalColClass} text-right`}>
               {formatCurrency(item.subtotal)}
             </span>
           </div>

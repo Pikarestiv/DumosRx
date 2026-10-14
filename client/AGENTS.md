@@ -4592,6 +4592,16 @@ same tab session still gets its own fresh one-time retry.
 
 ## UI conventions worth knowing before changing shared components
 
+- **The A4 receipt fills the page; only the thermal one is a narrow column**
+  (2026-10-14). `ReceiptView`'s A4 branch used `max-w-[400px] mx-auto`, so a
+  receipt printed on A4 was a 400px strip centred in a sea of white — a real
+  customer compared it against their previous system's full-width printout and
+  ours looked unfinished. A4 is now `w-full` (the print iframe clones the node
+  into a bare `<body>`, so `w-full` is the page width inside the `@page`
+  margin), with wider qty/money columns and `text-sm` rows; thermal keeps its
+  `w-[80mm]` and `text-xs`. Any new column widths in that file must stay
+  conditional on `isThermal`, never fixed.
+
 - **A table/card layout switch belongs at `1024px`, the nav-chrome
   breakpoint.** `MobileBottomNav` (`components/dashboard/mobile-bottom-nav.tsx`)
   is `lg:hidden`, so mobile chrome is anything below `1024px`. Any list that

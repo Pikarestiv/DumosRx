@@ -4319,6 +4319,44 @@ Export buttons do. The amber Profit & Loss note is computed from the
 **modal's** filters while it is open, so the banner always describes the rows
 actually on screen.
 
+### Report row drill-down: a row opens its own record (2026-10-14)
+
+A row in the Detailed Sales Report opens that sale's line items, the same
+way Daily Close's Total-sales list does, and for the same reason: a report
+listing transactions is where you ask "what was in that one?".
+
+- **Which reports drill down is config, like every other per-report
+  capability.** `getReportDrilldownColumn(reportId)`
+  (`lib/hooks/use-report-export.ts`) returns the column holding the
+  reference a row resolves on — `"Transaction #"` for `sales`, `undefined`
+  for everything else. The other five are aggregates or point-in-time
+  snapshots: a Profit & Loss month or a stock-valuation line stands for no
+  single record, so their rows must not look clickable, and don't. The one
+  column name is shared with the `sales` headers array so the two cannot
+  drift.
+- **`ReportTableView` stays generic.** It takes an optional `onRowClick`;
+  without it a row has no `tabIndex`, no handler and keeps its plain hover.
+  With it the row is focusable and answers Enter/Space as well as a click
+  (same contract as a clickable `MetricCard`, above) — a div/ARIA row, so
+  nothing gives it that for free.
+- **The row carries no sale id, and doesn't need one.** The report's SQL is
+  untouched: `useSaleDrilldown` (`lib/hooks/use-sale-drilldown.ts`) resolves
+  the transaction number already on screen through the existing
+  `getSaleByTransactionNumber()`, and toasts if nothing matches (possible on
+  a device whose sale rows are present but whose report row came from a
+  stale view) rather than opening an empty dialog. Adding a hidden id column
+  to the query would have leaked into the CSV/PDF column order, which is
+  derived from the same config.
+- **The sale dialog is a sibling, not a child.** `TransactionDetailsDialog`
+  is rendered by `report-center.tsx` alongside `ReportViewDialog`, exactly
+  as `daily-close-report.tsx` renders it alongside `SalesListModal`. Both
+  are `ResponsiveModal`s, so on desktop that is a Radix dialog over a Radix
+  dialog and on mobile a vaul drawer over a drawer — a pairing already
+  proven by Daily Close, which is why it was copied instead of flattening
+  the view dialog into a detail pane with a back action. The report view
+  stays open behind the sale, so closing the sale returns you to your place
+  in the list.
+
 ## Cashier (`sales_staff`) visibility gating — a recurring pattern, not a one-off
 
 A cashier account should never see store-wide profit/margin figures or

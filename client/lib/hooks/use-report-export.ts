@@ -27,12 +27,14 @@ export interface RecentDownload {
 
 const STORAGE_KEY = STORAGE_KEYS.recentDownloads;
 
+const SALES_TRANSACTION_COLUMN = "Transaction #";
+
 const REPORT_CONFIG = {
   sales: {
     label: "Sales Report",
     filenamePrefix: "Sales_Report",
     fetch: fetchSalesReportData,
-    headers: ["Transaction #", "Date", "Customer", "Cashier", "Payment Method", "Subtotal", "Tax", "Discount", "Total", "Refunded", "Net Total", "Status"],
+    headers: [SALES_TRANSACTION_COLUMN, "Date", "Customer", "Cashier", "Payment Method", "Subtotal", "Tax", "Discount", "Total", "Refunded", "Net Total", "Status"],
     columnFlex: [1.8, 1.3, 1.3, 1.2, 1, 1, 0.8, 1, 1, 1, 1, 1],
     dateColumns: ["Date"],
     takesDateRange: true,
@@ -105,6 +107,17 @@ export function reportSupportsDateRange(reportId: ReportId): boolean {
  * config both the exports and the on-screen view already run on. */
 export function reportSupportsSalesFilters(reportId: ReportId): boolean {
   return REPORT_CONFIG[reportId].takesSalesFilters;
+}
+
+const DRILLDOWN_COLUMN_BY_REPORT: Partial<Record<ReportId, string>> = {
+  sales: SALES_TRANSACTION_COLUMN,
+};
+
+/** The column holding the reference a row drills down on, or undefined for
+ * a report whose rows stand for no single openable record (see
+ * client/AGENTS.md, "Report row drill-down"). */
+export function getReportDrilldownColumn(reportId: ReportId): string | undefined {
+  return DRILLDOWN_COLUMN_BY_REPORT[reportId];
 }
 
 // Only these two report types carry a product or category name column, and

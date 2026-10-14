@@ -17,9 +17,12 @@ import {
   useReportExport,
   getReportNote,
   getReportHeaders,
+  getReportDrilldownColumn,
   RecentDownload,
   ReportId,
 } from "@/lib/hooks/use-report-export";
+import { TransactionDetailsDialog } from "@/components/pos/transaction-details-dialog";
+import { useSaleDrilldown } from "@/lib/hooks/use-sale-drilldown";
 import { ReportViewDialog } from "@/components/reports/report-view-dialog";
 import type { ReportRow } from "@/components/reports/report-table-view";
 import { ScrollFade } from "@/components/ui/scroll-fade";
@@ -48,6 +51,8 @@ export function ReportCenter() {
   } | null>(null);
   const [viewRows, setViewRows] = useState<ReportRow[]>([]);
   const [isViewLoading, setIsViewLoading] = useState(false);
+
+  const saleDrilldown = useSaleDrilldown();
 
   const { getRows, exportReportCsv, downloadReportPdf, printReport, getRecentDownloads } =
     useReportExport();
@@ -167,6 +172,10 @@ export function ReportCenter() {
     },
   ];
 
+  const rowDrilldownColumn = viewing
+    ? getReportDrilldownColumn(viewing.id)
+    : undefined;
+
   const visibleReports = canViewFinancialReports
     ? reports
     : reports.filter((report) => report.id !== "profit-loss");
@@ -254,6 +263,17 @@ export function ReportCenter() {
           isExporting={loadingReport === viewing.id}
           canExport={canExportReports}
           onExport={(action) => void runAction(viewing.id, action)}
+          onRowClick={rowDrilldownColumn
+            ? (row) => void saleDrilldown.openByReference(row[rowDrilldownColumn])
+            : undefined}
+        />
+      )}
+
+      {saleDrilldown.sale && (
+        <TransactionDetailsDialog
+          sale={saleDrilldown.sale}
+          open
+          onOpenChange={(open) => !open && saleDrilldown.close()}
         />
       )}
     </div>

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 
 import { ReportTableView } from "@/components/reports/report-table-view";
@@ -52,6 +52,52 @@ describe("ReportTableView", () => {
       "Cashier",
       "Total",
     ]);
+  });
+
+  it("opens a row by click and by keyboard when the report drills down", () => {
+    const onRowClick = vi.fn();
+    render(
+      <ReportTableView
+        rows={rows}
+        headers={["Cashier", "Total"]}
+        onRowClick={onRowClick}
+      />,
+    );
+    const bodyRows = screen.getAllByRole("row").slice(1);
+    expect(bodyRows.every((row) => row.getAttribute("tabindex") === "0")).toBe(true);
+
+    fireEvent.click(bodyRows[0]);
+    expect(onRowClick).toHaveBeenLastCalledWith(rows[0]);
+
+    fireEvent.keyDown(bodyRows[1], { key: "Enter" });
+    expect(onRowClick).toHaveBeenLastCalledWith(rows[1]);
+
+    fireEvent.keyDown(bodyRows[2], { key: " " });
+    expect(onRowClick).toHaveBeenLastCalledWith(rows[2]);
+    expect(onRowClick).toHaveBeenCalledTimes(3);
+  });
+
+  it("passes the row the user actually clicked after a re-sort", () => {
+    const onRowClick = vi.fn();
+    render(
+      <ReportTableView
+        rows={rows}
+        headers={["Cashier", "Total"]}
+        onRowClick={onRowClick}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Total/ }));
+    fireEvent.click(screen.getAllByRole("row")[1]);
+    expect(onRowClick).toHaveBeenCalledWith(rows[2]);
+  });
+
+  it("leaves rows unfocusable and unclickable for a report without a drill-down", () => {
+    render(<ReportTableView rows={rows} headers={["Cashier", "Total"]} />);
+    const bodyRows = screen.getAllByRole("row").slice(1);
+    expect(bodyRows.some((row) => row.hasAttribute("tabindex"))).toBe(false);
+    expect(bodyRows.some((row) => row.className.includes("cursor-pointer"))).toBe(
+      false,
+    );
   });
 
   it("shows an empty state rather than a headerless table", () => {

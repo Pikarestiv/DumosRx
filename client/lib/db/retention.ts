@@ -1,5 +1,6 @@
 import { execute, query } from "./core";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { isIntervalElapsed } from "@/lib/utils/elapsed";
 
 export const AUDIT_LOG_LOCAL_RETENTION_DAYS = 730;
 
@@ -18,11 +19,11 @@ function cutoffIso(retentionDays: number, now: Date): string {
 
 function isPruneDue(now: Date): boolean {
   if (typeof localStorage === "undefined") return true;
-  const last = localStorage.getItem(LAST_PRUNE_KEY);
-  if (!last) return true;
-  const lastAt = Date.parse(last);
-  if (Number.isNaN(lastAt)) return true;
-  return now.getTime() - lastAt >= PRUNE_INTERVAL_MS;
+  return isIntervalElapsed(
+    localStorage.getItem(LAST_PRUNE_KEY),
+    PRUNE_INTERVAL_MS,
+    now.getTime(),
+  );
 }
 
 function markPruned(now: Date): void {

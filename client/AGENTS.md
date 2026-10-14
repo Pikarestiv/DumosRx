@@ -466,6 +466,15 @@ and `synchronous = NORMAL`.
     server's number. It refuses any batch the log cannot account for, and
     refuses to run at all without an active store.
 
+- **Any guard that skips work because a stored timestamp looks recent must go
+  through `isIntervalElapsed()`** (`lib/utils/elapsed.ts`). A device whose clock
+  is ahead writes that future time into `localStorage`, and the obvious
+  `Date.now() - stored < interval` then reads it as "just ran" — which is how a
+  fast till silently switched off its own daily health check, and with it the
+  stock-drift repair below (A-234, A-247, A-266). Absent, unreadable,
+  non-finite and future stamps are all due: not knowing when something last ran
+  is a reason to run it. It reads epoch-millis strings and ISO alike, because
+  both are stored. In-memory throttles reset every run and do not need it.
 - **Stock drift now heals itself** (`sync-engine/stock-auto-heal.ts`,
   `healStockIntegrity()`, called from `checkSyncHealth()`). Since Stage 1 of
   the derived-quantity design this is mostly an assertion rather than a repair

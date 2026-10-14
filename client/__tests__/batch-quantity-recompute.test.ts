@@ -247,6 +247,44 @@ describe("stock_batches.quantity derived from the movement log", () => {
       expect(quantityOf("legacy")).toBe(150);
     });
 
+    it("leaves the carve-out once outbound overtakes the unlogged residue, which can happen with stock still on the shelf", async () => {
+      // The boundary is `unlogged residue > cumulative outbound`, not "stored
+      // has reached 0": stored is U + Σlog and the test is stored > inbound, so
+      // the inbound cancels and only U against outbound is left. A legacy batch
+      // that has since had a logged delivery therefore crosses while the shelf
+      // is still full, and the rebuild writes off the units nobody logged.
+      // Nothing on the device can tell those from drift — that is A-264, and
+      // `opening_quantity` is the only fix. Pinned so the day it changes is
+      // visible.
+      seedBatch("legacy", 100);
+      await logMovement("legacy", 200);
+      expect(quantityOf("legacy")).toBe(300);
+
+      await logMovement("legacy", -150);
+      expect(quantityOf("legacy")).toBe(150);
+
+      // Outbound (160) has now passed the residue (100). The shelf holds 140.
+      await logMovement("legacy", -10);
+      expect(quantityOf("legacy")).toBe(40);
+    });
+
+    it("holds the carve-out for a few more sales after a found-stock adjustment, then crosses", async () => {
+      seedBatch("legacy", 100);
+      await logMovement("legacy", -95);
+      await logMovement("legacy", 10);
+      expect(quantityOf("legacy")).toBe(15);
+
+      await logMovement("legacy", -1);
+      expect(quantityOf("legacy")).toBe(14);
+
+      await logMovement("legacy", -5);
+      expect(quantityOf("legacy")).toBe(9);
+
+      // Outbound (101) passes the residue (100); the shelf holds 8.
+      await logMovement("legacy", -1);
+      expect(quantityOf("legacy")).toBe(0);
+    });
+
     it("keeps counting correctly after a found-stock adjustment of the same size", async () => {
       seedBatch("legacy", 10);
       await logMovement("legacy", 10);

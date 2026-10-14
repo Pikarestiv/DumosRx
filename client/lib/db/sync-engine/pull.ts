@@ -377,9 +377,9 @@ export async function pullChanges(
               try {
                 await execute(sql, params);
 
-                // Delta 0: an updated movement's own change is already in the
-                // log the recompute reads, and a soft-delete arriving this way
-                // is how a voided sale's units come back.
+                // Delta 0 because a pulled UPDATE changes no movement quantity
+                // today; see client/AGENTS.md, "Pull details", before making
+                // one that does.
                 if (table === "stock_batches") {
                   touchBatch(recordId, 0);
                 } else if (table === "stock_movements" && data.stock_batch_id) {

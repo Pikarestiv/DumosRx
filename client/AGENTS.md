@@ -1401,6 +1401,11 @@ on the function, and the condition for deleting it.
     would explain, so asserting one is the same mistake the count-freshness
     warning exists to prevent (A-211). Measuring is not asserting: keep the gate
     at the reader, so a support session can still see the real figure.
+    **Condition to revisit if an offline-only tier ever ships:** the gate is
+    `last_synced_at` set and no `server_cursor`, so a store that never pulls
+    never satisfies it and both the alert and the count-screen notice stay dark
+    for ever. Every plan in `config/plans.php` has `cloud_sync => true` today,
+    which is the only reason this is a note rather than a defect.
   - **Who rebuilds.** All ten local writers of a `stock_movements` row go
     through `base-helpers.ts`'s `insert()`/`softDelete()`, which rebuild the
     named batch inside the caller's transaction, after the row — so a future
@@ -1430,6 +1435,17 @@ on the function, and the condition for deleting it.
     down, so a legacy batch sold from 100 to 5 and then found to hold 10 more
     rebuilt to **0** instead of 15 — a silent write-off of real stock, caught
     in review before it shipped.
+  - **The pull's UPDATE branch is a fourth change shape, and it is honest only
+    because nothing uses it.** It touches with `{0, 0}`, which is right for the
+    columns a pulled UPDATE actually changes today — none of them is a
+    movement's `quantity` or `_deleted`. `StockMovement` has no `SoftDeletes`
+    server-side, so the server never emits `_deleted: 1` for a movement and
+    ignores a pushed one, and no client code updates or removes a movement row
+    beyond its `status`. **If movements ever become soft-deletable, that touch
+    must carry `{-q, -max(0,q)}`**, or a voided *receipt* leaves its units on
+    the shelf for ever: `inboundBefore` reads 0, the batch classifies as a
+    carve-out and keeps its stored figure. A voided sale happens to come out
+    right either way, which is what makes this easy to miss.
   - **Every caller must describe its change honestly, and one of them cannot.**
     The deferred-delta drain settles rows whose movements were written to the
     log pages earlier, so it passes `{delta: 0, inbound: 0}`: claiming their
@@ -1453,9 +1469,14 @@ on the function, and the condition for deleting it.
     would recover it, but `collapsibleUpdate()` deliberately refuses to merge
     into a pending `INSERT` and widening it is push-engine surgery, not part of
     this.
-  - **The hole that is left, and it is Stage 4's to close.** Once outbound
-    movements have consumed a legacy batch's whole unlogged residue — in
-    practice, once `stored` reaches 0 — nothing on the device distinguishes
+  - **The hole that is left, and it is Stage 4's to close.** The carve-out test
+    reduces to **`unlogged residue > cumulative outbound`** (the inbound
+    cancels: `stored = U + Σlog`, and `stored > inbound` is `U > outbound`), so
+    a legacy batch leaves it the moment its outbound total overtakes the
+    residue — **with stock still on the shelf**, if the batch has had a logged
+    delivery since. Do not restate this as "once `stored` reaches 0"; that is
+    true only for a batch with no logged inbound at all, and it has been written
+    down wrongly twice. Past that crossing nothing on the device distinguishes
     "sold the unlogged opening stock" from "an ordinary empty batch": both read
     `stored 0`, and the log's negative sum is the same shape as an oversell. A
     return or a restock against such a batch therefore rebuilds from the log

@@ -11,6 +11,11 @@
  *
  * An absent, unparseable or non-finite stamp is also due: not knowing when
  * something last ran is a reason to run it, never a reason to skip it.
+ *
+ * Only for work that is safe to repeat. Work that **deletes** on an interval
+ * must not use this — if its cutoff comes from the same suspect clock, running
+ * when unsure destroys more than it means to. `retention.ts` keeps its own
+ * guard for that reason and says so.
  */
 export function isIntervalElapsed(
   storedAt: number | string | null | undefined,

@@ -111,6 +111,22 @@ describe("pruneSyncedAuditLogs()", () => {
     expect(auditIds()).toEqual(["last-calendar-year", "year-to-date"]);
   });
 
+  it("does not prune when the last-prune stamp is in the future, because the cutoff shares that clock", async () => {
+    // A-266: a device whose clock reads years ahead derives its retention
+    // cutoff from the same clock, so pruning would drop the whole local trail
+    // rather than a 730-day tail. Unlike the daily health check, running this
+    // when the clock is in doubt deletes, so it waits.
+    addAuditRow("recent", daysAgo(1), 1);
+    addAuditRow("old", daysAgo(800), 1);
+    localStorage.setItem(
+      "dumos_last_audit_log_prune",
+      new Date(NOW.getTime() + 2 * 365 * 24 * 60 * 60 * 1000).toISOString(),
+    );
+
+    expect(await retention.pruneSyncedAuditLogs({ now: NOW })).toBe(0);
+    expect(auditIds().sort()).toEqual(["old", "recent"]);
+  });
+
   it("runs at most once a day, so it is not a per-sync full-table scan", async () => {
     addAuditRow("old-1", daysAgo(800), 1);
     expect(await retention.pruneSyncedAuditLogs({ now: NOW })).toBe(1);

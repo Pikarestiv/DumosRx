@@ -475,6 +475,11 @@ and `synchronous = NORMAL`.
   non-finite and future stamps are all due: not knowing when something last ran
   is a reason to run it. It reads epoch-millis strings and ISO alike, because
   both are stored. In-memory throttles reset every run and do not need it.
+  **Only for work that is safe to repeat.** A guard that deletes on an interval
+  must keep its own, because its cutoff usually comes from the same suspect
+  clock: `retention.ts`'s prune treats a future stamp as "wait", since running
+  it when the clock reads two years ahead would drop the whole local audit
+  trail rather than a 730-day tail.
 - **Stock drift now heals itself** (`sync-engine/stock-auto-heal.ts`,
   `healStockIntegrity()`, called from `checkSyncHealth()`). Since Stage 1 of
   the derived-quantity design this is mostly an assertion rather than a repair

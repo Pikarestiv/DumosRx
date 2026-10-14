@@ -1,6 +1,5 @@
 import { execute, query } from "./core";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
-import { isIntervalElapsed } from "@/lib/utils/elapsed";
 
 export const AUDIT_LOG_LOCAL_RETENTION_DAYS = 730;
 
@@ -17,13 +16,21 @@ function cutoffIso(retentionDays: number, now: Date): string {
   return new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
 }
 
+/**
+ * Deliberately NOT `isIntervalElapsed()`, which treats a future stamp as due.
+ * That is right for work that only reads, and wrong here: the cutoff below is
+ * derived from the same clock, so a device reading years ahead would prune far
+ * past its retention window and drop its whole local trail. Running when the
+ * clock is in doubt deletes, so this waits instead.
+ */
 function isPruneDue(now: Date): boolean {
   if (typeof localStorage === "undefined") return true;
-  return isIntervalElapsed(
-    localStorage.getItem(LAST_PRUNE_KEY),
-    PRUNE_INTERVAL_MS,
-    now.getTime(),
-  );
+  const last = localStorage.getItem(LAST_PRUNE_KEY);
+  if (!last) return true;
+  const lastAt = Date.parse(last);
+  if (Number.isNaN(lastAt)) return true;
+  if (lastAt > now.getTime()) return false;
+  return now.getTime() - lastAt >= PRUNE_INTERVAL_MS;
 }
 
 function markPruned(now: Date): void {

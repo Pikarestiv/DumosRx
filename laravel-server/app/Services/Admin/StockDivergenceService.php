@@ -46,6 +46,14 @@ class StockDivergenceService
         );
     }
 
+    /** Drops one device's snapshot; it returns when that device next reports. */
+    public function forget(string $storeId, string $deviceId): int
+    {
+        return DeviceStockReport::where('store_id', $storeId)
+            ->where('device_id', $deviceId)
+            ->delete();
+    }
+
     public function forStore(string $storeId): array
     {
         $reports = DeviceStockReport::where('store_id', $storeId)
@@ -53,9 +61,11 @@ class StockDivergenceService
             ->limit(50)
             ->get();
 
-        $labels = $this->deviceLabels($storeId, $reports->pluck('device_id')->all());
+        $deviceIds = $reports->pluck('device_id')->all();
+        $labels = $this->deviceLabels($storeId, $deviceIds);
+        $nicknames = $this->deviceNicknames($storeId, $deviceIds);
 
-        $devices = $reports->map(function (DeviceStockReport $report) use ($labels) {
+        $devices = $reports->map(function (DeviceStockReport $report) use ($labels, $nicknames) {
             $quantityDelta = round((float) $report->device_quantity_sum - (float) $report->server_quantity_sum, 3);
             $batchDelta = $report->device_batch_count - $report->server_batch_count;
             $deviceValue = $report->device_value_sum === null ? null : (float) $report->device_value_sum;
@@ -64,6 +74,7 @@ class StockDivergenceService
             return [
                 'device_id' => $report->device_id,
                 'device_label' => $labels[$report->device_id] ?? null,
+                'device_nickname' => $nicknames[$report->device_id] ?? null,
                 'device_batch_count' => $report->device_batch_count,
                 'device_quantity_sum' => (float) $report->device_quantity_sum,
                 'server_batch_count' => $report->server_batch_count,

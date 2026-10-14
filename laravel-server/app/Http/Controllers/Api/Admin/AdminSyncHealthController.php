@@ -22,6 +22,28 @@ class AdminSyncHealthController extends AdminBaseController
         );
     }
 
+    public function deleteStockReport(string $id, string $deviceId)
+    {
+        $deleted = app(\App\Services\Admin\StockDivergenceService::class)->forget($id, $deviceId);
+
+        return response()->json(['deleted' => $deleted]);
+    }
+
+    public function renameDevice(Request $request, string $id, string $deviceId)
+    {
+        $validated = $request->validate([
+            'nickname' => ['nullable', 'string', 'max:60'],
+        ]);
+
+        abort_if(strlen($deviceId) > 255, 404);
+        abort_unless(\App\Models\Store::withTrashed()->whereKey($id)->exists(), 404);
+
+        app(\App\Services\Admin\DeviceNicknameService::class)
+            ->set($id, $deviceId, $validated['nickname'] ?? null);
+
+        return response()->json(['ok' => true]);
+    }
+
     protected $syncHealthService;
 
     public function __construct(AdminSyncHealthService $syncHealthService)

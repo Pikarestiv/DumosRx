@@ -136,7 +136,10 @@ To maintain the DumosRx "Premium" feel:
   `App\Services\Admin\Concerns\ResolvesDeviceLabels`; client side
   `DeviceIdValue` in `web/components/admin/stores/details/store-detail-primitives.tsx`.
   Labels are best-effort UA sniffing and nullable: fall back to
-  "Unnamed device" and never branch on them. `AdminUserService`'s legacy
+  "Unnamed device" and never branch on them. A super admin can also name a
+  till from the stock-divergence panel; that nickname (`device_nicknames`)
+  is merged over the sniffed label by the same resolver, so there is still
+  exactly one place a label comes from. `AdminUserService`'s legacy
   `lastSyncDevice` (label-or-id) is kept for older bundles; new code reads the
   `lastSyncDeviceId`/`lastSyncDeviceLabel` pair beside it.
 

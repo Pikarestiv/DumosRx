@@ -286,4 +286,147 @@ class StockDivergenceReportTest extends TestCase
             ->getJson("/api/v1/admin/stores/{$this->store->id}/stock-divergence")
             ->assertStatus(403);
     }
+
+    public function test_a_devices_report_can_be_deleted_and_the_store_stops_listing_it(): void
+    {
+        $this->seedServerStock(1, 1);
+
+        $this->service()->record($this->store->id, 'DESKTOP-ONE', $this->owner->id, [
+            'batch_count' => 1, 'quantity_sum' => 1,
+        ]);
+        $this->service()->record($this->store->id, 'OLD-TILL', $this->owner->id, [
+            'batch_count' => 9, 'quantity_sum' => 9,
+        ]);
+
+        $this->assertSame(1, $this->service()->forget($this->store->id, 'OLD-TILL'));
+
+        $remaining = collect($this->service()->forStore($this->store->id)['devices'])
+            ->pluck('device_id')->all();
+
+        $this->assertSame(['DESKTOP-ONE'], $remaining);
+    }
+
+    public function test_an_operator_nickname_replaces_the_sniffed_label(): void
+    {
+        $this->seedServerStock(1, 1);
+
+        UserDevice::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $this->owner->id,
+            'store_id' => $this->store->id,
+            'device_id' => 'DESKTOP-ONE',
+            'device_label' => 'Chrome on Windows',
+        ]);
+
+        $this->service()->record($this->store->id, 'DESKTOP-ONE', $this->owner->id, [
+            'batch_count' => 1, 'quantity_sum' => 1,
+        ]);
+
+        app(\App\Services\Admin\DeviceNicknameService::class)
+            ->set($this->store->id, 'DESKTOP-ONE', 'Front counter');
+
+        $this->assertSame(
+            'Front counter',
+            $this->service()->forStore($this->store->id)['devices'][0]['device_label']
+        );
+    }
+
+    /** A device nobody's user_devices row covers can still be named. */
+    public function test_a_nickname_works_without_a_user_devices_row_and_clears_when_blanked(): void
+    {
+        $this->seedServerStock(1, 1);
+        $this->service()->record($this->store->id, 'UNKNOWN-TILL', $this->owner->id, [
+            'batch_count' => 1, 'quantity_sum' => 1,
+        ]);
+
+        $nicknames = app(\App\Services\Admin\DeviceNicknameService::class);
+        $nicknames->set($this->store->id, 'UNKNOWN-TILL', 'Back office');
+
+        $this->assertSame(
+            'Back office',
+            $this->service()->forStore($this->store->id)['devices'][0]['device_label']
+        );
+
+        $nicknames->set($this->store->id, 'UNKNOWN-TILL', '  ');
+
+        $this->assertNull($this->service()->forStore($this->store->id)['devices'][0]['device_label']);
+    }
+
+    /**
+     * A deploy runs code before it runs migrations, and the panel that runs
+     * them is in the same admin app. A missing nickname table must degrade to
+     * the sniffed label, never 500 every screen that names a device.
+     */
+    public function test_labels_survive_a_deploy_that_has_not_created_the_nickname_table_yet(): void
+    {
+        $this->seedServerStock(1, 1);
+
+        UserDevice::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $this->owner->id,
+            'store_id' => $this->store->id,
+            'device_id' => 'DESKTOP-ONE',
+            'device_label' => 'Chrome on Windows',
+        ]);
+
+        $this->service()->record($this->store->id, 'DESKTOP-ONE', $this->owner->id, [
+            'batch_count' => 1, 'quantity_sum' => 1,
+        ]);
+
+        \Illuminate\Support\Facades\Schema::drop('device_nicknames');
+
+        $this->assertSame(
+            'Chrome on Windows',
+            $this->service()->forStore($this->store->id)['devices'][0]['device_label']
+        );
+    }
+
+    /**
+     * `deviceLabelsForStores()` is keyed by store *and* device, so a nickname
+     * is only ever read back for the store it was set on. `stores.device_id`
+     * is unique today, which would also prevent a mix-up, but the label map
+     * no longer depends on that constraint holding.
+     */
+    public function test_a_nickname_is_only_applied_to_the_store_it_was_set_on(): void
+    {
+        $other = Store::create([
+            'user_id' => $this->owner->id,
+            'name' => 'Second Store',
+            'device_id' => 'DESKTOP-TWO',
+            'currency' => 'NGN',
+        ]);
+
+        foreach ([[$this->store->id, 'DESKTOP-ONE'], [$other->id, 'DESKTOP-TWO']] as [$storeId, $deviceId]) {
+            UserDevice::create([
+                'id' => (string) Str::uuid(),
+                'user_id' => $this->owner->id,
+                'store_id' => $storeId,
+                'device_id' => $deviceId,
+                'device_label' => 'Chrome on Windows',
+            ]);
+        }
+
+        app(\App\Services\Admin\DeviceNicknameService::class)
+            ->set($this->store->id, 'DESKTOP-ONE', 'Front counter');
+
+        $resolver = new class
+        {
+            use \App\Services\Admin\Concerns\ResolvesDeviceLabels;
+
+            public function labels(iterable $stores): array
+            {
+                return $this->deviceLabelsForStores($stores);
+            }
+
+            public function rowLabel(array $labels, object $store): ?string
+            {
+                return $this->storeRowLabel($labels, $store);
+            }
+        };
+
+        $labels = $resolver->labels([$this->store, $other]);
+
+        $this->assertSame('Front counter', $resolver->rowLabel($labels, $this->store));
+        $this->assertSame('Chrome on Windows', $resolver->rowLabel($labels, $other));
+    }
 }

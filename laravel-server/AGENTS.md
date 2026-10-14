@@ -768,6 +768,29 @@ migration here **and** the corresponding update on the `client/` side
   trust it for anything security- or correctness-relevant, unlike
   `device_id`. `tests/Feature/UserDeviceTrackingTest.php` and
   `tests/Feature/Admin/AdminUserSyncVisibilityTest.php` guard it.
+- **Operator nicknames beat the sniffed label (2026-10-14).** `device_nicknames`
+  (`store_id`, `device_id`, unique together) holds the name a super admin typed
+  for a till; `ResolvesDeviceLabels` merges it over `user_devices.device_label`,
+  so everywhere that already renders a label shows the nickname instead. Its own
+  table rather than a column on `user_devices` because a device that has never
+  written a `user_devices` row still has to be nameable, and because one name
+  must cover every user of that till. `PUT
+  /admin/stores/{id}/devices/{deviceId}/nickname` sets it (blank clears it) and
+  `DELETE /admin/stores/{id}/stock-divergence/{deviceId}` drops one device's
+  stock snapshot so retired tills can be cleared from the divergence panel —
+  both `role:super_admin`, like every route that acts on a customer device.
+  `StockDivergenceReportTest` guards both. `deviceLabelsForStores()` is keyed
+  `storeId|deviceId` and read with `storeRowLabel()` so a nickname is never
+  read back for a store it was not set on; `deviceNicknames()` returns the
+  operator-set names alone, which is what the rename dialog pre-fills with
+  (pre-filling the merged label would let a no-op Save freeze a sniffed string
+  as the nickname for ever). **The lookup is wrapped in a try/catch that falls
+  back to the sniffed label**, because code deploys
+  before migrations run and the panel that runs them is inside the same admin
+  app — without it, a missing `device_nicknames` 500s every admin screen that
+  names a device (seen locally on 2026-10-14, `Admin Stores Error: Base table
+  or view not found`). Retirable once every environment has run the
+  2026-10-14 migration.
 - **Attributed to the staff member at the till, not the bearer (A-202,
   2026-10-09).** `touch()` resolves `X-Acting-User-Id` first and only falls
   back to `$request->user()`. This is not a nicety: the API token is minted

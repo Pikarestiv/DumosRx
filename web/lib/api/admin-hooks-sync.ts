@@ -89,3 +89,38 @@ export const useIssueSyncCommandMutation = (storeId: string) => {
     onSettled: () => queryClient.invalidateQueries({ queryKey }),
   });
 };
+
+export const useDeleteStockReportMutation = (storeId: string) => {
+  const queryClient = useQueryClient();
+  const queryKey = useScopedKey(["admin-store-stock-divergence", storeId]);
+
+  return useMutation({
+    mutationFn: (deviceId: string) =>
+      webApiClient.request(
+        `admin/stores/${storeId}/stock-divergence/${encodeURIComponent(deviceId)}`,
+        { method: "DELETE" },
+      ),
+    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+  });
+};
+
+/** A nickname is rendered by every admin screen that names a device, not just
+ * the divergence panel, so this invalidates all of them. */
+export const useSetDeviceNicknameMutation = (storeId: string) => {
+  const queryClient = useQueryClient();
+  const queryKey = useScopedKey(["admin-store-stock-divergence", storeId]);
+
+  return useMutation({
+    mutationFn: ({ deviceId, nickname }: { deviceId: string; nickname: string }) =>
+      webApiClient.request(
+        `admin/stores/${storeId}/devices/${encodeURIComponent(deviceId)}/nickname`,
+        { method: "PUT", body: JSON.stringify({ nickname }) },
+      ),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey: ["admin-store-detail"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-stores"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-store-queue-state"] });
+    },
+  });
+};

@@ -467,7 +467,11 @@ and `synchronous = NORMAL`.
     refuses to run at all without an active store.
 
 - **Stock drift now heals itself** (`sync-engine/stock-auto-heal.ts`,
-  `healStockIntegrity()`, called from `checkSyncHealth()`). The device verifies
+  `healStockIntegrity()`, called from `checkSyncHealth()`). Since Stage 1 of
+  the derived-quantity design this is mostly an assertion rather than a repair
+  — every pull rebuilds the batches it touched — but it stays until Stage 3,
+  because it is the only thing that repairs a device already drifted by the old
+  incremental writes. The device verifies
   its batches against their own movement logs once per 24h, folds what the log
   can rebuild, re-verifies, and reports the outcome once to Sentry under
   `area: "stock-autoheal"`. Design decisions worth not relitigating:
@@ -496,8 +500,8 @@ and `synchronous = NORMAL`.
     explain (including the 2026-10-08 "exactly twice the opening stock" shape)
     is now refused rather than folded, because it cannot be told apart from an
     A-148 surplus. What still folds is an over-count the log *does* account
-    for — an outbound delta that never reached `quantity`, or a floored
-    replay. Retirement condition: once the spec's Stage 4 `opening_quantity`
+    for — an outbound delta that never reached `quantity`, or a value left
+    behind by the pre-Stage-1 incremental writes. Retirement condition: once the spec's Stage 4 `opening_quantity`
     work puts every batch's opening stock in the log (`docs/KNOWN_BUGS.md`
     A-213), `stored > inbound` can only mean drift and this refusal can be
     relaxed back to folding it.
@@ -1357,68 +1361,149 @@ on the function, and the condition for deleting it.
   as current as the movements the server had processed at pull time, so
   writing it clobbers real local state — reproduced as a pull racing a push
   leaving ~500 batches permanently forked into duplicates, because a zeroed
-  batch becomes invisible to the "does one already exist" check. Quantity
-  stays whatever local movements derived, and each newly-pulled
-  `stock_movements` row applies its own delta as
-  `MAX(0, quantity + delta)`. The floor is load-bearing: without it, an
-  oversell floored at 0 on the originating device diverged permanently from
-  every other device applying the raw delta. Movements are an immutable log,
-  so the insert branch sees each one exactly once — a missed delta is lost
-  forever, which is why the deferral below exists.
-- **`stock_batches.quantity` is path-dependent, so `SUM(movements)` is NOT a
-  faithful reconstruction.** The floor is applied once per movement — `pull.ts`
-  does `MAX(0, quantity + ?)` and `SyncController` does the same server-side —
-  never once over the sum. A batch oversold to 0 and then restocked by 3 holds
-  a correct `3` while its raw sum reads `1`. Anything deriving a quantity from
-  the log must replay the movements in **local insert order (`ORDER BY
-  rowid`)** applying `MAX(0, running + delta)` (`replayMovements()` in
-  `sync-engine/stock-integrity.ts`). **Never `created_at`**: it is nullable,
-  second-resolution from MySQL so bulk imports collide, and a sale rung up
-  offline on another till arrives days after its own timestamp — any of those
-  reorders the replay past a floor event, so a correct batch reads as diverged
-  and a fold invents units. `rowid` is the order this device actually applied
-  the deltas in, and so the order that produced the stored quantity. Three
-  tests in `__tests__/stock-integrity-fold.test.ts` exist solely to forbid
-  `created_at`.
-  A first cut of `foldStockQuantities()` compared against the raw sum and
-  silently destroyed two real units on exactly that shape; caught in review,
-  never shipped.
-- **Deferred movement deltas** (`sync-engine/deferred-stock-deltas.ts`).
-  Batches and movements paginate independently, so a movement can arrive on
-  an earlier page than the batch it references, where the delta would
-  silently no-op (an `UPDATE … WHERE id = ?` matching zero rows). Such a
-  delta is written to the local-only `_pending_stock_deltas` table
-  (`movement_id` primary key) **inside the same page transaction that
-  inserts the movement row**, which is the whole point: the movement row is
-  an immutable log entry, the insert branch sees it exactly once, and the
-  `UPDATE` branch applies no delta at all — so a delta parked only in memory
-  was lost for good the moment any *later* page of that round threw (a
-  network drop is the ordinary case), permanently understating on-hand
-  stock. That was `A-54`; see `docs/FIXED_BUGS.md`.
-  `applyDeferredStockDeltas()` drains the table at the start of every pull,
-  **again inside each page transaction as soon as a page carrying
-  `stock_batches` rows has applied them, before any other table of that page
-  is touched**, and once more at the end of the round, applying each delta and
-  deleting its row in one transaction so nothing can be applied twice.
-  **The mid-round drain is load-bearing, not an optimisation.** This section
-  used to describe start-and-end draining as safe; it is not. The floor is
-  `MAX(0, quantity + delta)` *per movement*, so the order deltas apply in is
-  not commutative. A batch's opening receipt deferred on page 1, applied after
-  page N's sales for the same batch, leaves every one of those sales clamped
-  against 0 and the device reading its full opening stock — the device ends up
-  **over** the server, permanently, with no error anywhere. That was A-197: 34
-  of 300 randomised histories hit it, and in the field a till read 80 units of
-  an item the server had at 52, with 255 of 1,952 batches diverged and 841
-  units overstated. Pinned by
-  `__tests__/pull-deferred-delta-order-across-pages.test.ts`, which fuzzes
-  page splits against the server's own derivation. Two things the mid-round
-  drain must keep doing: it passes `countAttempts: false`, because it runs
-  several times a round and would otherwise race a long first sync to the
-  chronic-reporting threshold while the batches were still arriving; and it
-  discards deltas for movements the *same page* soft-deletes
-  (`discardDeferredStockDeltas()`), because it runs before those soft-deletes
-  are written and would otherwise apply a delta the server has voided.
-  The drain reads `ORDER BY rowid` for the same non-commutativity reason.
+  batch becomes invisible to the "does one already exist" check. Quantity is
+  rebuilt from the movements this device holds instead — see the definition
+  below.
+- **`stock_batches.quantity` is a cache of `MAX(0, Σ its non-deleted
+  movements)`, rebuilt whenever that log changes.** One definition, one place:
+  `resolveBatchQuantity()` in `lib/db/batch-quantity.ts`. Stage 1 of
+  `docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`; it
+  replaced per-replica incremental deltas, which were order-dependent and so
+  drifted permanently whenever two devices applied the same movements in a
+  different order (A-197, A-176, A-148's whole class of incidents). The three
+  properties worth knowing: the sum is **order-independent**, applying it twice
+  is applying it once (**idempotent**), and a movement that arrives late
+  contributes the moment the batch is next rebuilt (**loss-tolerant** — nothing
+  has to be remembered in the meantime, so nothing can be forgotten).
+  - **The one floor is over the sum, not per movement.** `+80, −100, +20` is
+    `0`, not the `20` a per-movement floor used to leave: an oversell's deficit
+    is carried forward, not forgiven. That is a deliberate behaviour change,
+    and the alternative (an explicit compensating **inbound** movement at
+    oversell time — not the `shrinkage` the 2026-10-10 spec called it, which
+    would double the deficit) is designed in
+    `docs/superpowers/specs/2026-10-14-oversell-compensating-movement-design.md`.
+    Oversells themselves are read off the log, never off `quantity`. **What the
+    carry-forward costs at the counting screen is `docs/KNOWN_BUGS.md` A-265:**
+    the next inbound movement pays the deficit off before it adds anything, so
+    the first cycle count on an oversold batch reads as having done nothing. One
+    live batch has this shape today (`gluformin` on store `571582a9`).
+  - **`getBatchDeficits()` (`lib/db/batch-quantity.ts`) is the one place a
+    shortfall is measured**, and it reports exactly the set
+    `resolveBatchQuantity()` would rebuild to 0: a non-deleted, active batch in
+    the active store whose log sums below zero, **excluding a carve-out batch** —
+    its sales also sum below zero, but those units were on the shelf and merely
+    unlogged, so nothing is owed there. `getOversoldAlerts()` is a per-product
+    projection of it and keeps the shape the dashboard and the stock-batch
+    alerts read; it no longer matches `reason LIKE '%oversold%'` inside a 30-day
+    window (A-212). **Both readers — the dashboard alert and the count screen —
+    are gated on `movementLogIsComplete()`; the query itself is not.** A device
+    that is behind can read a deficit that a movement it has not pulled yet
+    would explain, so asserting one is the same mistake the count-freshness
+    warning exists to prevent (A-211). Measuring is not asserting: keep the gate
+    at the reader, so a support session can still see the real figure.
+    **Condition to revisit if an offline-only tier ever ships:** the gate is
+    `last_synced_at` set and no `server_cursor`, so a store that never pulls
+    never satisfies it and both the alert and the count-screen notice stay dark
+    for ever. Every plan in `config/plans.php` has `cloud_sync => true` today,
+    which is the only reason this is a note rather than a defect.
+  - **Who rebuilds.** All ten local writers of a `stock_movements` row go
+    through `base-helpers.ts`'s `insert()`/`softDelete()`, which rebuild the
+    named batch inside the caller's transaction, after the row — so a future
+    caller cannot forget. The pull collects every batch its page touched and
+    rebuilds each one once at the end of that page's transaction. Callers must
+    **not** pre-write `quantity` themselves; a pre-write is double-counted for
+    a carve-out batch (below), which is why `deductFromBatch()` tracks what it
+    has taken in a local `liveQuantity` map instead. That includes a batch
+    created together with its first inbound movement: it is inserted at `0`,
+    for the provenance reason above.
+  - **Two writes would still slip past both hooks:** an
+    `update("stock_movements", …)` that changes `quantity` or `_deleted`, and
+    `remove("stock_movements")`. Nothing does either today —
+    `stock-transfers.ts` only updates a movement's `status` — and a movement is
+    an append-only log entry, which is why. If you add one, rebuild the batch.
+  - **The A-148 carve-out.** A batch holding more than its inbound movements
+    account for carries stock that was never logged, so rebuilding it would
+    write that stock off. Those batches are patched by the delta exactly as
+    before, and the test is `stored > total inbound` (A-215's form), never "has
+    no inbound movements" — one adjustment logged against a legacy batch must
+    not take it out of the carve-out. Closed and shrinking: imports have
+    written a movement per batch since `a36b00e7`.
+  - **The test is taken against the log as it stood *before* the change**
+    (`BatchLogChange` carries the change's own `delta` and `inbound`, and the
+    inbound is subtracted back off). Judging it afterwards lets `inbound` grow
+    by the very movement in hand and overtake a `stored` that sales have worn
+    down, so a legacy batch sold from 100 to 5 and then found to hold 10 more
+    rebuilt to **0** instead of 15 — a silent write-off of real stock, caught
+    in review before it shipped.
+  - **The pull's UPDATE branch is a fourth change shape, and it is honest only
+    because nothing uses it.** It touches with `{0, 0}`, which is right for the
+    columns a pulled UPDATE actually changes today — none of them is a
+    movement's `quantity` or `_deleted`. `StockMovement` has no `SoftDeletes`
+    server-side, so the server never emits `_deleted: 1` for a movement and
+    ignores a pushed one, and no client code updates or removes a movement row
+    beyond its `status`. **If movements ever become soft-deletable, that touch
+    must carry `{-q, -max(0,q)}`**, or a voided *receipt* leaves its units on
+    the shelf for ever: `inboundBefore` reads 0, the batch classifies as a
+    carve-out and keeps its stored figure. A voided sale happens to come out
+    right either way, which is what makes this easy to miss.
+  - **Every caller must describe its change honestly, and one of them cannot.**
+    The deferred-delta drain settles rows whose movements were written to the
+    log pages earlier, so it passes `{delta: 0, inbound: 0}`: claiming their
+    inbound would subtract it off a log that already holds it, read the batch
+    as a carve-out and add the delta a second time (7 became 14, caught by
+    `pull-deferred-stock-delta-survives-failed-round.test.ts`). The rule is
+    that `BatchLogChange` describes what *this* write did to the log, never
+    what a row happens to say.
+  - **Provenance cannot be inferred from the numbers, so a batch is created
+    empty.** A legacy batch holding 100 unlogged units that is then found to
+    hold 100 more is byte-identical to a receipt batch created at 100 with its
+    own `+100` movement: same `stored`, same log, different right answer. A
+    value-based "already correct, nothing to write" short-circuit was tried and
+    silently dropped the adjustment — 100 stayed 100 where the shelf held 200.
+    So procurement receiving, product import and a transfer's destination all
+    `insert` the batch with `quantity: 0` and let its first movement fill it;
+    the server forces `quantity = 0` on accept anyway, and the pull strips it,
+    so nothing downstream notices. The cost is one extra `_sync_queue` and
+    `audit_logs` row per created batch — a bulk import pays ~2,500 of each.
+    Folding that `update()` into the batch's still-pending `INSERT` queue row
+    would recover it, but `collapsibleUpdate()` deliberately refuses to merge
+    into a pending `INSERT` and widening it is push-engine surgery, not part of
+    this.
+  - **The hole that is left, and it is Stage 4's to close.** The carve-out test
+    reduces to **`unlogged residue > cumulative outbound`** (the inbound
+    cancels: `stored = U + Σlog`, and `stored > inbound` is `U > outbound`), so
+    a legacy batch leaves it the moment its outbound total overtakes the
+    residue — **with stock still on the shelf**, if the batch has had a logged
+    delivery since. Do not restate this as "once `stored` reaches 0"; that is
+    true only for a batch with no logged inbound at all, and it has been written
+    down wrongly twice. Past that crossing nothing on the device distinguishes
+    "sold the unlogged opening stock" from "an ordinary empty batch": both read
+    `stored 0`, and the log's negative sum is the same shape as an oversell. A
+    return or a restock against such a batch therefore rebuilds from the log
+    and the unlogged units do not come back. Recorded as `docs/KNOWN_BUGS.md`
+    A-264; `opening_quantity` is the only fix, because the residue has to be
+    written down somewhere. **Measured against production on 2026-10-14 and the
+    exposure is zero** — no batch on any live store holds stock its inbound
+    movements cannot account for — so this is a boundary to know about, not a
+    live defect.
+  - **`replayMovements()` in `sync-engine/stock-integrity.ts` is now an alias
+    of `onHandFromLog()`**, so the fold, the auto-heal and the write path cannot
+    drift apart. The ordering rules this section used to impose (`ORDER BY
+    rowid`, never `created_at`) are gone with the path dependence they
+    protected.
+- **Deferred movement deltas** (`sync-engine/deferred-stock-deltas.ts`) —
+  **demoted, and due for deletion in the spec's Stage 3.** Batches and
+  movements paginate independently, so a movement can arrive before the batch
+  it references. The delta it carries no longer matters (the rebuild reads the
+  whole log whenever the batch turns up), but the *absence* still does: a batch
+  that never arrives means an incomplete catalogue, and `_pending_stock_deltas`
+  is what keeps that visible — it counts attempts, reports to Sentry past
+  `REPORT_AFTER_ATTEMPTS`, and reopens the `stock_batches` pull window (A-176).
+  The drain now rebuilds the batch from its log rather than adding the stored
+  delta, so it is idempotent and the mid-round ordering hack it needed (A-197)
+  is no longer load-bearing. Both are kept until Stage 3 retires the table.
+  A-54 is why the row is written inside the page's own transaction, and that
+  still holds.
   A deferral whose
   movement has since been soft-deleted is discarded rather than applied
   (matching the insert path's `!_deleted` gate); a deferral whose batch

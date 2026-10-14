@@ -33,7 +33,9 @@ interface FakeMovement {
 let batches: Record<string, FakeBatch>;
 let movements: FakeMovement[];
 
-vi.mock("@/lib/db/local-database", () => ({
+vi.mock("@/lib/db/local-database", async () => {
+  const { applyMovementToFakeBatch } = await import("./helpers/fake-batch-quantity");
+  return {
   query: vi.fn(async (sql: string, params: unknown[] = []) => {
     if (sql.includes("SELECT quantity FROM stock_batches WHERE id = ?")) {
       const b = batches[params[0] as string];
@@ -59,6 +61,7 @@ vi.mock("@/lib/db/local-database", () => ({
     const record = { id, ...data };
     if (table === "stock_batches") batches[id] = record as unknown as FakeBatch;
     if (table === "stock_movements") movements.push(record as FakeMovement);
+    if (table === "stock_movements") applyMovementToFakeBatch(batches, movements, data);
     return id;
   }),
   update: vi.fn(async (table: string, id: string, data: Record<string, unknown>) => {
@@ -66,7 +69,8 @@ vi.mock("@/lib/db/local-database", () => ({
     return id;
   }),
   transaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
-}));
+  };
+});
 
 import { submitStockAudit } from "@/lib/db/queries/inventory";
 

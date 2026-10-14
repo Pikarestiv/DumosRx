@@ -22,20 +22,26 @@ export function CountFreshnessWarning({
 }: CountFreshnessWarningProps) {
   if (!freshness.shouldWarn) return null;
 
+  const isStale = freshness.isLocalStale || freshness.stalePeers.length > 0;
+
   return (
     <div className="mb-5 rounded-2xl border border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 p-4">
       <div className="flex items-start gap-2.5">
         <AlertTriangle className="w-4 h-4 mt-0.5 text-amber-600 shrink-0" />
         <div className="space-y-2">
           <div className="text-[14px] font-semibold text-amber-900 dark:text-amber-200">
-            This count may be recorded against out-of-date stock
+            {isStale
+              ? "This count may be recorded against out-of-date stock"
+              : "Some of these products are carrying a stock shortfall"}
           </div>
-          <div className="text-[13px] text-amber-900/80 dark:text-amber-200/80">
-            A count is saved as the difference between what you counted and
-            what this device currently shows, so anything that has not reached
-            this device yet — a sale on another till, a delivery — makes the
-            correction wrong by that amount.
-          </div>
+          {isStale && (
+            <div className="text-[13px] text-amber-900/80 dark:text-amber-200/80">
+              A count is saved as the difference between what you counted and
+              what this device currently shows, so anything that has not reached
+              this device yet — a sale on another till, a delivery — makes the
+              correction wrong by that amount.
+            </div>
+          )}
           {freshness.isLocalStale && (
             <div className="text-[13px] text-amber-900/80 dark:text-amber-200/80">
               This device is {describeAge(freshness.localMinutes)}. Sync it
@@ -52,6 +58,27 @@ export function CountFreshnessWarning({
                 </li>
               ))}
             </ul>
+          )}
+          {freshness.deficits.length > 0 && (
+            <>
+              <div className="text-[13px] text-amber-900/80 dark:text-amber-200/80">
+                More has been sold from these products than was ever recorded
+                as coming in, so the ledger owes the difference. Counting them
+                pays that off first: the shortfall is cleared before the count
+                adds anything, and the figure on screen will not move until it
+                is.
+              </div>
+              <ul className="text-[13px] text-amber-900/80 dark:text-amber-200/80 list-disc pl-4">
+                {freshness.deficits.map((entry) => (
+                  <li key={entry.productName}>
+                    <span className="font-medium">{entry.productName}</span> is{" "}
+                    {entry.deficit} {entry.deficit === 1 ? "unit" : "units"}{" "}
+                    short, so a count records the difference and leaves the
+                    shortfall standing.
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
           <label className="flex items-center gap-2 pt-1 text-[13px] font-medium text-amber-900 dark:text-amber-200 cursor-pointer">
             <Checkbox

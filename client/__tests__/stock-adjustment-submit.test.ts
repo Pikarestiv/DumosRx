@@ -33,7 +33,9 @@ function isExpired(b: FakeBatch): boolean {
   return !!b.expiry_date && new Date(b.expiry_date).getTime() < Date.now();
 }
 
-vi.mock('@/lib/db/local-database', () => ({
+vi.mock('@/lib/db/local-database', async () => {
+  const { applyMovementToFakeBatch } = await import('./helpers/fake-batch-quantity');
+  return {
   query: vi.fn(async (sql: string, params: unknown[] = []) => {
     const normSql = sql.replace(/\s+/g, ' ').trim();
     if (normSql.includes('SELECT quantity FROM stock_batches WHERE id = ?')) {
@@ -68,6 +70,7 @@ vi.mock('@/lib/db/local-database', () => ({
     const record = { id, ...data };
     if (table === 'stock_batches') batches[id] = record as unknown as FakeBatch;
     if (table === 'stock_movements') movements.push(record as FakeMovement);
+    if (table === 'stock_movements') applyMovementToFakeBatch(batches, movements, data);
     if (table === 'stock_audits') audits.push(record);
     return id;
   }),
@@ -76,7 +79,8 @@ vi.mock('@/lib/db/local-database', () => ({
     return id;
   }),
   transaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
-}));
+  };
+});
 
 import { submitStockAdjustment } from '@/lib/db/queries/inventory';
 import { resolveAdjustmentDelta } from '@/components/stock-batch/adjustment-derivations';

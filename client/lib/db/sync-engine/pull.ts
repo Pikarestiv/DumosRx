@@ -6,6 +6,8 @@ import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconci
 import { logCrash } from "@/lib/utils/error-logger";
 import { restoreExhaustedPullWindows, rewindPullWindow } from "./pull-window";
 import { STORAGE_KEYS, getStoredUser } from "@/lib/storage-keys";
+import { recomputeBatchQuantities } from "../batch-quantity";
+import type { BatchLogChange } from "../batch-quantity";
 import {
   applyDeferredStockDeltas,
   countDeferredStockDeltas,
@@ -237,15 +239,27 @@ export async function pullChanges(
         return 0;
       });
 
+      // Every batch whose log this page changed, against the net delta of the
+      // movements that changed it. Rebuilt once at the end of the page rather
+      // than patched per movement, which is what makes the result independent
+      // of the order the pages arrive in (A-197).
+      const touchedBatches = new Map<string, BatchLogChange>();
+      const touchBatch = (batchId: string, delta: number) => {
+        const seen = touchedBatches.get(batchId) ?? { delta: 0, inbound: 0 };
+        touchedBatches.set(batchId, {
+          delta: seen.delta + delta,
+          inbound: seen.inbound + Math.max(0, delta),
+        });
+      };
+
       await transaction(async () => {
         for (const [table, records] of orderedEntries) {
           if (!Array.isArray(records)) continue;
 
-          // An arriving batch can resolve a delta deferred earlier in this
-          // round, and that delta has to apply BEFORE any later movement for
-          // the same batch: the floor is MAX(0, …) per movement, so the order
-          // is not commutative and a late opening receipt leaves every sale
-          // against it clamped away (A-197).
+          // Settles deltas an arriving batch has resolved while their rows
+          // are still in the table. Ordering no longer matters — the drain
+          // rebuilds from the log — so this is bookkeeping, not the A-197
+          // correctness fix it was.
           if (batchesArrivedSinceDrain && table !== "stock_batches") {
             batchesArrivedSinceDrain = false;
             const voidedMovements = changes.stock_movements;
@@ -362,6 +376,15 @@ export async function pullChanges(
 
               try {
                 await execute(sql, params);
+
+                // Delta 0 because a pulled UPDATE changes no movement quantity
+                // today; see client/AGENTS.md, "Pull details", before making
+                // one that does.
+                if (table === "stock_batches") {
+                  touchBatch(recordId, 0);
+                } else if (table === "stock_movements" && data.stock_batch_id) {
+                  touchBatch(data.stock_batch_id as string, 0);
+                }
               } catch (err) {
                 const errMsg =
                   typeof err === "string" ? err : err instanceof Error ? err.message : String(err);
@@ -402,25 +425,30 @@ export async function pullChanges(
               try {
                 await execute(sql, params);
 
-                // Each pulled movement applies its own delta, floor included
-                // - no movement_type special-case here; see client/AGENTS.md.
+                // An arriving batch is rebuilt from the movements this device
+                // already holds, which is what makes a batch landing after its
+                // own movements a non-event (A-197).
+                if (table === "stock_batches") {
+                  touchBatch(recordId, 0);
+                }
+
+                // No movement_type special-case here; see client/AGENTS.md.
                 if (
                   table === "stock_movements" &&
                   !_deleted &&
                   data.stock_batch_id &&
                   typeof data.quantity === "number"
                 ) {
-                  // The batch may arrive on a later page; defer rather than
-                  // let the UPDATE silently match zero rows.
+                  // A batch that has not arrived is still recorded as pending,
+                  // not because the delta is owed to it — the recompute reads
+                  // the whole log whenever the batch turns up — but because a
+                  // batch that never arrives has to stay visible (A-176).
                   const batchExists = await query<{ 1: number }>(
                     "SELECT 1 FROM stock_batches WHERE id = ?",
                     [data.stock_batch_id as string],
                   );
                   if (batchExists.length > 0) {
-                    await execute(
-                      "UPDATE stock_batches SET quantity = MAX(0, quantity + ?) WHERE id = ?",
-                      [data.quantity, data.stock_batch_id as string],
-                    );
+                    touchBatch(data.stock_batch_id as string, data.quantity);
                   } else {
                     await recordDeferredStockDelta(
                       recordId,
@@ -547,6 +575,7 @@ export async function pullChanges(
             }
           }
         }
+        await recomputeBatchQuantities(touchedBatches);
       }).catch((err) => {
         // Rethrown so the outer catch reports it once, not twice.
         console.error("Failed to apply pull changes:", err);

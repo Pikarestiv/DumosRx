@@ -60,7 +60,9 @@ function nextId(prefix: string) {
 // distinguishing substrings the same way stock-audit.test.ts's fake does —
 // stateful enough that the real FEFO deduction/weighted-average/auto-create
 // logic runs against it, not just mock-call assertions.
-vi.mock('@/lib/db/local-database', () => ({
+vi.mock('@/lib/db/local-database', async () => {
+  const { applyMovementToFakeBatch } = await import('./helpers/fake-batch-quantity');
+  return {
   query: vi.fn(async (sql: string, params: unknown[] = []) => {
     if (sql.includes('FROM stores WHERE id = ?')) {
       const s = stores[params[0] as string];
@@ -134,7 +136,10 @@ vi.mock('@/lib/db/local-database', () => ({
     if (table === 'products') products[id] = record as unknown as FakeProduct;
     if (table === 'categories') categories[id] = record as unknown as { id: string; name: string; store_id?: string };
     if (table === 'stock_batches') batches[id] = record as unknown as FakeBatch;
-    if (table === 'stock_movements') movements.push(record as FakeMovement);
+    if (table === 'stock_movements') {
+      movements.push(record as FakeMovement);
+      applyMovementToFakeBatch(batches, movements, data);
+    }
     return id;
   }),
   update: vi.fn(
@@ -151,10 +156,11 @@ vi.mock('@/lib/db/local-database', () => ({
   ),
   transaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
   generateId: vi.fn(() => nextId('transfer')),
-}));
+  };
+});
 
 import { transferStock } from '@/lib/db/queries/stock-transfers';
-import { update as mockedUpdate, insert as mockedInsert } from '@/lib/db/local-database';
+import { insert as mockedInsert } from '@/lib/db/local-database';
 
 describe('transferStock', () => {
   beforeEach(() => {
@@ -198,20 +204,15 @@ describe('transferStock', () => {
     expect(inn).toMatchObject({ quantity: 20, store_id: 's2', reference_type: 'stock_transfer', unit_cost: 100 });
     expect(out?.reference_id).toBe(inn?.reference_id);
 
-    // Regression coverage for bug #8's fix: the source batch's quantity
-    // deduction must pass an explicit storeId override (sourceStoreId)
-    // rather than relying on - or mutating - the global active-store
-    // resolver, which is what let a concurrent write elsewhere in the same
-    // process land unscoped during a transfer. transferStock() no longer
-    // imports lib/db/core at all, so there's nothing for it to touch even if
-    // it wanted to; this asserts the *positive* replacement, not just the
-    // absence of the old mechanism.
-    expect(mockedUpdate).toHaveBeenCalledWith(
-      'stock_batches',
-      'b1',
-      { quantity: 30 },
-      { storeId: 's1' },
-    );
+    // Regression coverage for bug #8's fix: the source batch's quantity write
+    // must carry an explicit storeId override (sourceStoreId) rather than
+    // relying on - or mutating - the global active-store resolver, which is
+    // what let a concurrent write elsewhere in the same process land unscoped
+    // during a transfer. Since the derived-quantity change that write is made
+    // by insert("stock_movements")'s own rebuild, which forwards the
+    // movement's options, so the override is asserted on the transfer_out
+    // insert below; this keeps the arithmetic covered.
+    expect(batches['b1'].quantity).toBe(30);
 
     // Low-severity fix (docs/KNOWN_BUGS.md): every insert() this function
     // makes on behalf of a specific store must also pass that store as an
@@ -321,10 +322,19 @@ describe('transferStock', () => {
     expect(outRows.find((m) => m.stock_batch_id === 'b1')).toMatchObject({ quantity: -5, unit_cost: 100 });
     expect(outRows.find((m) => m.stock_batch_id === 'b2')).toMatchObject({ quantity: -10, unit_cost: 130 });
 
-    // Every batch drawn from in the FEFO loop gets the same sourceStoreId
-    // override, not just the first one.
-    expect(mockedUpdate).toHaveBeenCalledWith('stock_batches', 'b1', { quantity: 0 }, { storeId: 's1' });
-    expect(mockedUpdate).toHaveBeenCalledWith('stock_batches', 'b2', { quantity: 10 }, { storeId: 's1' });
+    // Every batch drawn from in the FEFO loop is deducted, not just the first
+    // one, and each one's movement carries the same sourceStoreId override.
+    expect(batches['b1'].quantity).toBe(0);
+    expect(batches['b2'].quantity).toBe(10);
+    for (const row of outRows) {
+      const call = vi
+        .mocked(mockedInsert)
+        .mock.calls.find(
+          ([table, data]: [string, Record<string, unknown>, ...unknown[]]) =>
+            table === 'stock_movements' && data.stock_batch_id === row.stock_batch_id,
+        );
+      expect(call?.[2]).toEqual({ storeId: 's1' });
+    }
   });
 
   it('never draws expired or already-sold-out other-store batches, and skips expired stock even when it sorts first', async () => {

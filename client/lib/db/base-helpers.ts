@@ -19,6 +19,8 @@ import {
   isTillInspectionSession,
   READ_ONLY_REFUSAL_MESSAGE,
 } from "@/lib/utils/till-inspection";
+import { movementChange, resolveBatchQuantity } from "./batch-quantity";
+import type { BatchLogChange } from "./batch-quantity";
 import { queryClient } from "../query-client";
 import { truncateForLog } from "../utils/error-truncation";
 import type { SyncQueueItem } from "@/lib/types/sync";
@@ -165,6 +167,32 @@ function assertWritable(): void {
   }
 }
 
+/**
+ * Every local writer of a `stock_movements` row passes through insert() or
+ * softDelete(), so rebuilding the batch here covers all ten of them — and any
+ * future one, which is the property the per-caller delta writes lacked. Must
+ * run inside the caller's transaction, after the movement row.
+ */
+async function syncBatchQuantityForMovement(
+  record: Record<string, unknown>,
+  change: BatchLogChange,
+  options?: { storeId?: string; correlationId?: string },
+): Promise<void> {
+  const batchId = record.stock_batch_id;
+  if (typeof batchId !== "string" || !batchId) return;
+
+  const resolved = await resolveBatchQuantity(batchId, change);
+  // A batch created holding its first movement's quantity (a receipt, an
+  // import row, a transfer-in) is already right, and writing it again costs a
+  // push row and an audit row per batch.
+  if (!resolved || resolved.quantity === resolved.stored) return;
+
+  // The movement's own options are forwarded: a cross-store transfer writes
+  // each leg under its own store_id, and the batch must be claimed under the
+  // same one or assertStoreOwnership rejects it.
+  await update("stock_batches", batchId, { quantity: resolved.quantity }, options);
+}
+
 export async function insert(
   table: string,
   data: Record<string, unknown>,
@@ -227,6 +255,14 @@ export async function insert(
     // report as a "Created feedback" entry in the Activity Log.
     if (table !== "feedback") {
       await logAction(options?.action || "INSERT", table, id, record, options?.storeId, options?.correlationId);
+    }
+
+    if (table === "stock_movements" && !record._deleted) {
+      await syncBatchQuantityForMovement(
+        record,
+        movementChange(Number(record.quantity ?? 0)),
+        options,
+      );
     }
   };
 
@@ -338,6 +374,16 @@ export async function softDelete(table: string, id: string, options?: { storeId?
 
   const ownership = await assertStoreOwnership(table, id, options?.storeId);
 
+  const voidedMovement =
+    table === "stock_movements"
+      ? (
+          await query<{ stock_batch_id: string | null; quantity: number | null }>(
+            "SELECT stock_batch_id, quantity FROM stock_movements WHERE id = ? AND _deleted = 0",
+            [id],
+          )
+        )[0]
+      : undefined;
+
   const now = new Date().toISOString();
 
   // Claim column/value folded into the same statement (rather than a
@@ -366,6 +412,14 @@ export async function softDelete(table: string, id: string, options?: { storeId?
 
     await addToSyncQueue(table, id, "DELETE", deletePayload);
     await logAction("DELETE", table, id, { id }, options?.storeId, options?.correlationId);
+
+    if (voidedMovement) {
+      await syncBatchQuantityForMovement(
+        { stock_batch_id: voidedMovement.stock_batch_id },
+        movementChange(Number(voidedMovement.quantity ?? 0), false),
+        options,
+      );
+    }
   };
 
   if (isInTransaction()) {

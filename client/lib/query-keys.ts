@@ -86,6 +86,8 @@ export const queryKeys = {
     expiryAlerts: () => resource(["expiryAlerts"] as const, ["stock_batches", "products"]),
     oversoldAlerts: () =>
       resource(["oversoldAlerts"] as const, ["stock_movements", "products"]),
+    batchDeficits: () =>
+      resource(["batchDeficits"] as const, ["stock_movements", "stock_batches", "products"]),
   },
   stockAudits: {
     all: () => resource(["stock_audits"] as const, ["stock_audits"]),

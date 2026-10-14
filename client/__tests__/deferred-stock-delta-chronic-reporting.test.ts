@@ -110,15 +110,18 @@ describe("deferred stock delta chronic reporting", () => {
       await deltas.applyDeferredStockDeltas();
     }
 
+    // Quantity 0, the way the pull writes an arriving batch: `pull.ts` strips
+    // the server's figure, and the drain rebuilds from the log rather than
+    // adding the stored delta back on top of it.
     db.run(
       `INSERT INTO stock_batches (id, product_id, quantity, batch_number)
-       VALUES ('missing-batch', 'p1', 100, 'B1')`,
+       VALUES ('missing-batch', 'p1', 0, 'B1')`,
     );
 
     await deltas.applyDeferredStockDeltas();
 
     const res = db.exec(`SELECT quantity FROM stock_batches WHERE id = 'missing-batch'`);
-    expect(res[0].values[0][0]).toBe(105);
+    expect(res[0].values[0][0]).toBe(5);
     expect(attemptsOf("m4")).toBe(-1);
   });
 });

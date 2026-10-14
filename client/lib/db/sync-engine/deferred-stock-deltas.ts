@@ -1,4 +1,5 @@
 import { query, execute } from "../core";
+import { recomputeBatchQuantities } from "../batch-quantity";
 
 /**
  * Deferred `stock_movements` quantity deltas, persisted rather than held in
@@ -54,9 +55,9 @@ export async function countDeferredStockDeltas(): Promise<number> {
 }
 
 /**
- * Applies every deferred delta whose batch has since arrived, deleting each
- * one in the same transaction that applies it so no delta can be applied
- * twice. Must be called inside a `transaction()`. Returns the deltas whose
+ * Settles every deferred delta whose batch has since arrived by rebuilding
+ * that batch from its own movement log, deleting the rows in the same
+ * transaction. Must be called inside a `transaction()`. Returns the deltas whose
  * batch has been unreachable long enough to be worth reporting; they stay
  * pending, since only a batch arriving can settle them.
  *
@@ -69,12 +70,11 @@ export async function applyDeferredStockDeltas(
   options: { countAttempts?: boolean } = {},
 ): Promise<DeferredStockDelta[]> {
   const countAttempts = options.countAttempts !== false;
-  // rowid, i.e. the order the deltas were deferred in, which is the order the
-  // server applied them in; the floor makes a replay order-dependent.
   const pending = await query<DeferredStockDelta>(
     "SELECT movement_id, stock_batch_id, quantity, attempts FROM _pending_stock_deltas ORDER BY rowid",
   );
   const unresolved: DeferredStockDelta[] = [];
+  const resolved = new Set<string>();
 
   for (const delta of pending) {
     const movement = await query<{ _deleted: number | null }>(
@@ -106,12 +106,19 @@ export async function applyDeferredStockDeltas(
       continue;
     }
 
-    await execute("UPDATE stock_batches SET quantity = MAX(0, quantity + ?) WHERE id = ?", [
-      delta.quantity,
-      delta.stock_batch_id,
-    ]);
+    resolved.add(delta.stock_batch_id);
     await discard(delta.movement_id);
   }
+
+  // Once per batch, not once per delta, and carrying NO change: the movements
+  // these rows stand for were written to the log pages ago, so claiming their
+  // inbound here would subtract it back off a log that already holds it, read
+  // the batch as a carve-out and add the delta a second time. A batch with a
+  // pending delta arrived with its quantity stripped, so it is never a
+  // carve-out and the rebuild is all it needs.
+  await recomputeBatchQuantities(
+    new Map([...resolved].map((batchId) => [batchId, { delta: 0, inbound: 0 }])),
+  );
 
   return unresolved;
 }

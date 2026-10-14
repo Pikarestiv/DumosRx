@@ -5,6 +5,7 @@ import {
   getActiveStoreId,
   queueTableInvalidation,
 } from "../core";
+import { onHandFromLog } from "../batch-quantity";
 import {
   logTillRepair,
   TILL_REPAIR_ACTIONS,
@@ -52,14 +53,9 @@ export interface StockIntegrityReport {
 }
 
 
-/** Replays the log the way both the pull and the server do: the floor is
- * applied after every movement, never once over the sum. */
-// Depends on no movement ever being soft-deleted: the replay filters
-// `_deleted = 0` while its delta stays in `quantity`, so the first void-sale
-// soft-delete would make a fold destroy stock. Nothing soft-deletes one today.
-export function replayMovements(deltas: number[]): number {
-  return deltas.reduce((running, delta) => Math.max(0, running + delta), 0);
-}
+/** The one definition the write path uses: MAX(0, Σ log). Re-exported under
+ * the old name so the fold, the auto-heal and the pull cannot drift apart. */
+export const replayMovements = onHandFromLog;
 
 function classify(
   batchId: string,
@@ -68,7 +64,7 @@ function classify(
   deltas: number[],
   awaitingDelta: boolean,
 ): BatchIntegrity {
-  const replayed = replayMovements(deltas);
+  const replayed = onHandFromLog(deltas);
   const inboundTotal = deltas.reduce((sum, delta) => (delta > 0 ? sum + delta : sum), 0);
 
   // No run of logged movements can leave a balance above their total inbound,

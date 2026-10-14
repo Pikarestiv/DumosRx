@@ -1,5 +1,7 @@
 import { query, insert, update, transaction, isInTransaction } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
+import { getBatchDeficits } from "@/lib/db/batch-quantity";
+import { movementLogIsComplete } from "@/lib/db/sync-engine/stock-auto-heal";
 import type { FastMoverRow } from "@/lib/types/fast-mover";
 import type { StockBatch, AvailableStockBatch } from "@/lib/types/stock-batch";
 import {
@@ -253,10 +255,7 @@ async function writeSaleItemStock({
   // per touch would then produce two rows for the same (sale_item, batch)
   // pair with the deduction split across them. Deferring those two inserts
   // until every batch has been fully deducted, keyed by batch id, ensures
-  // exactly one row per unique batch with the correctly summed quantity —
-  // the stock_batches update itself still happens immediately per touch
-  // (unchanged), so FEFO ordering and the fallback's updated_at-based
-  // selection behave exactly as before.
+  // exactly one row per unique batch with the correctly summed quantity.
   const deductionByBatchId = new Map<string, number>();
 
   // Batches touched by a deduction that exceeded what they actually had
@@ -266,6 +265,13 @@ async function writeSaleItemStock({
   // comment below), so this is a set: one oversold touch is enough to tag
   // the batch's summed stock_movements row.
   const oversoldBatchIds = new Set<string>();
+
+  // What each touched batch has left as this call proceeds. The fallback loop
+  // below re-reads the batches from the database, where the quantity is not
+  // written until the movement row is (see base-helpers' recompute), so
+  // without this a batch already emptied by the first loop would read as full
+  // and absorb the remainder twice.
+  const liveQuantity = new Map<string, number>();
 
   // batch.quantity can be <= 0 when this batch only turned up via the
   // getAnyActiveBatchForProduct fallback (nothing with positive stock left
@@ -278,22 +284,16 @@ async function writeSaleItemStock({
   // can let a sale legitimately oversell, but the batch's own running
   // balance should never be written negative); the oversell itself is
   // surfaced via the oversoldBatchIds tag below and getOversoldAlerts().
-  const deductFromBatch = async (batch: StockBatch) => {
+  const deductFromBatch = (batch: StockBatch) => {
+    const available = liveQuantity.get(batch.id) ?? batch.quantity;
     const deduction =
-      batch.quantity > 0
-        ? Math.min(batch.quantity, remainingToDeduct)
-        : remainingToDeduct;
+      available > 0 ? Math.min(available, remainingToDeduct) : remainingToDeduct;
 
-    if (deduction > batch.quantity) {
+    if (deduction > available) {
       oversoldBatchIds.add(batch.id);
     }
 
-    await update(
-      "stock_batches",
-      batch.id,
-      { quantity: Math.max(0, batch.quantity - deduction) },
-      { correlationId },
-    );
+    liveQuantity.set(batch.id, Math.max(0, available - deduction));
 
     deductionByBatchId.set(
       batch.id,
@@ -427,37 +427,42 @@ export async function getExpiryAlerts() {
 }
 
 /**
- * Alerts for products with at least one recorded oversell — a
- * stock_movements row recordSaleItemStock tagged with the "oversold"
- * marker in `reason` because a batch's stored quantity couldn't fully
- * cover what was deducted from it (see deductFromBatch). Modeled on
- * getLowStockAlerts()/getExpiryAlerts(): store-scoped via products, and
- * windowed to the last 30 days (mirroring getExpiryAlerts()'s date-window
- * pattern) so a stale, long-since-reconciled oversell doesn't linger in
- * the alerts list indefinitely.
+ * Products carrying an oversell shortfall, biggest first, for the dashboard
+ * action centre and the stock-batch alerts. Derived from the movement log via
+ * getBatchDeficits(): a product appears while its ledger is actually short,
+ * and stops appearing once the shortfall is cleared. Previously matched the
+ * word "oversold" in a movement's reason inside a 30-day window, which
+ * reported the event rather than the outstanding deficit and went quiet after
+ * a month whether or not anything had been reconciled (A-212).
+ *
+ * Silent until this device's movement log is complete, the same condition the
+ * counting screen uses: mid-catch-up, a batch's sales can arrive pages before
+ * the receipt that covers them, and "Reconcile Now" against a deficit the next
+ * page explains sends staff to count a shelf that is fine.
  */
 export async function getOversoldAlerts() {
-  const storeId = getActiveStoreId();
-  return query<{
-    product: string;
-    quantity: number;
-    movementDate: string;
-  }>(
-    `SELECT
-      m.name as product,
-      MAX(ABS(sm.quantity)) as quantity,
-      MAX(sm.movement_date) as movementDate
-     FROM stock_movements sm
-     JOIN products m ON sm.product_id = m.id
-     WHERE (sm._deleted = 0 OR sm._deleted IS NULL) AND (m._deleted = 0 OR m._deleted IS NULL)
-       AND sm.reason LIKE '%oversold%'
-       AND sm.movement_date IS NOT NULL
-       AND julianday(sm.movement_date) >= julianday('now', '-30 days')${storeId ? " AND m.store_id = ?" : ""}
-     GROUP BY m.id
-     ORDER BY movementDate DESC
-     LIMIT 5`,
-    storeId ? [storeId] : [],
-  );
+  if (!(await movementLogIsComplete())) return [];
+
+  const deficits = await getBatchDeficits();
+
+  const byProduct = new Map<string, { product: string; quantity: number; movementDate: string }>();
+  for (const entry of deficits) {
+    const seen = byProduct.get(entry.productId);
+    if (seen) {
+      seen.quantity += entry.deficit;
+      if (entry.lastMovementDate && entry.lastMovementDate > seen.movementDate) {
+        seen.movementDate = entry.lastMovementDate;
+      }
+      continue;
+    }
+    byProduct.set(entry.productId, {
+      product: entry.productName,
+      quantity: entry.deficit,
+      movementDate: entry.lastMovementDate ?? "",
+    });
+  }
+
+  return [...byProduct.values()].sort((a, b) => b.quantity - a.quantity).slice(0, 5);
 }
 
 export interface StockBatchStatsRow {
@@ -536,21 +541,6 @@ export async function createStockMovement(movement: {
   stock_batch_id?: string;
 }) {
   return insert("stock_movements", movement);
-}
-
-export async function updateStockBatchQuantity(
-  batchId: string,
-  quantityDelta: number,
-) {
-  const batch = await query<{ quantity: number }>(
-    "SELECT quantity FROM stock_batches WHERE id = ?",
-    [batchId],
-  );
-  if (batch.length > 0) {
-    return update("stock_batches", batchId, {
-      quantity: Math.max(0, (batch[0].quantity || 0) + quantityDelta),
-    });
-  }
 }
 
 export async function createStockBatch(batch: {
@@ -821,7 +811,6 @@ async function applyStockAdjustmentDelta({
       unitCost,
       batchNumberPrefix,
     });
-    await updateStockBatchQuantity(targetBatch.id, remaining);
     await insert("stock_movements", {
       product_id: productId,
       stock_batch_id: targetBatch.id,
@@ -845,7 +834,6 @@ async function applyStockAdjustmentDelta({
     const deductQty = Math.min(batch.quantity, remaining);
     if (deductQty <= 0) continue;
 
-    await updateStockBatchQuantity(batch.id, -deductQty);
     await insert("stock_movements", {
       product_id: productId,
       stock_batch_id: batch.id,
@@ -866,8 +854,8 @@ async function applyStockAdjustmentDelta({
   // cover (system quantity was already spread thinner across batches than
   // reality) - same situation recordSaleItemStock guards against for a sale.
   // Attribute the remainder to the most recently touched batch rather than
-  // silently dropping it: updateStockBatchQuantity clamps that batch's own
-  // quantity at 0 (it never goes negative), but this still leaves a
+  // silently dropping it: the batch's own quantity is floored at 0 (it never
+  // goes negative), but this still leaves a
   // stock_movements record explaining the full shortfall - without this, the
   // submitted figure doesn't match any recorded movement, and there's no
   // trace of where the rest of it went.
@@ -882,7 +870,6 @@ async function applyStockAdjustmentDelta({
       includeExpired: true,
     });
     if (fallbackBatch) {
-      await updateStockBatchQuantity(fallbackBatch.id, -remaining);
       await insert("stock_movements", {
         product_id: productId,
         stock_batch_id: fallbackBatch.id,

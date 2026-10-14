@@ -1,7 +1,13 @@
 # Derived stock quantity: making drift structurally impossible — design
 
 **Date:** 2026-10-10
-**Status:** design only. Nothing implemented. Supersedes the incremental-delta
+**Status:** Stage 0 shipped 2026-10-10 (PR #153). **Stage 1 shipped
+2026-10-13** — client recompute, `lib/db/batch-quantity.ts`, the two
+`base-helpers` hooks, the pull's per-page rebuild, and the five call sites;
+`replayMovements()` is now an alias of `onHandFromLog()`, so the fold and the
+auto-heal share the write path's definition. Stages 2–4 outstanding; the field
+signal to watch before Stage 2 is in "What ships, in what order" below.
+Supersedes the incremental-delta
 model described in `client/AGENTS.md` ("Deferred movement deltas", "Pull
 details") and in `SyncController::applyStockBatchDeltas()`'s own comments.
 **Scope:** `client/` and `laravel-server/`. No `web/` change; the admin panel's
@@ -168,7 +174,7 @@ Which side is right is a business question, not a technical one: an oversell
 means the shelf held fewer units than the system thought, so arguably the
 deficit is a counting error that the next delivery should not inherit. If the
 founder wants forgiveness, the right way to get it is an explicit compensating
-`shrinkage` movement written at oversell time instead of a silent clamp — the
+inbound movement written at oversell time instead of a silent clamp — the
 log then sums to ≥ 0 on its own, no floor is needed anywhere, and the oversell
 becomes a visible, syncing, auditable fact. That is strictly better and strictly
 more work; it is listed as stage 4 rather than required.
@@ -417,9 +423,31 @@ are already drifted, which no later stage does. Nothing in stages 1–4 conflict
 with it: stage 1 deletes code it modified, which is a clean sequence in that
 direction and a merge conflict in the other. **Do not hold it for this design.**
 
-**Stage 1 — client recompute.** `recomputeBatchQuantity()`, the two hooks in
-`insert()`/`softDelete()`, the per-page recompute in `pull.ts`, the five call
-sites. Client-only; the server keeps incrementing.
+**Stage 1 — client recompute. Shipped 2026-10-13.** `resolveBatchQuantity()`
+and `recomputeBatchQuantities()` in `lib/db/batch-quantity.ts`, the two hooks in
+`insert()`/`softDelete()`, the per-page rebuild in `pull.ts`, the five call
+sites. Client-only; the server keeps incrementing. Three things the design did
+not anticipate, settled in the implementation:
+- **A pre-written `quantity` is double-counted for a carve-out batch**, because
+  the carve-out branch adds the delta to whatever is stored. So the pre-writes
+  had to go rather than merely be reordered: `updateStockBatchQuantity()` is
+  deleted outright (its three audit call sites now rely on the hook),
+  `restoreBatchQuantity()`'s and the demo seeder's writes are gone, and
+  `deductFromBatch()` keeps its FEFO fallback honest with an in-memory
+  `liveQuantity` map instead of a database round-trip.
+- **The drain had to move with it.** Applying a stored delta *after* a rebuild
+  double-counts, so `applyDeferredStockDeltas()` rebuilds the batch instead.
+  The table stays for its A-176 reporting until Stage 3.
+- **The pull rebuilds every `stock_batches` row it touches, not only new ones**,
+  which is what will clear the drift already in the field — the carve-out is
+  what makes it safe on a device whose log is incomplete. Note the limit the
+  vet established: drift *above* a batch's inbound total is classified as
+  carve-out and is never cleared by Stage 1, so "the pull will clear the field
+  drift" holds only for drift the log accounts for.
+- **The carve-out must be judged against the log as it was before the change,
+  and equality must short-circuit ahead of it.** Both were wrong in the first
+  cut and both destroy or double real stock; see `docs/FIXED_BUGS.md` and
+  `docs/KNOWN_BUGS.md` A-264, which is the residue Stage 4 exists to remove.
 *Field signal:* `healStockIntegrity()`'s existing Sentry report under
 `area: stock-autoheal` — `diverged` should go to 0 and stay there on a device
 that has folded once, across large pulls. The store-level signal is
@@ -449,7 +477,13 @@ shipped is gone" — a device runs exactly one bundle.
 items, neither required:
 - *Compensating oversell movement* instead of a floor, if the founder wants
   oversells forgiven rather than carried (§"One behaviour change"). Removes the
-  clamp from storage entirely.
+  clamp from storage entirely. **Designed out, with a correction, in
+  `docs/superpowers/specs/2026-10-14-oversell-compensating-movement-design.md`:
+  the compensating row is inbound `+N`, not the `shrinkage` this spec called it
+  in two places.** An oversell means the ledger was short of inbound — six units
+  left a batch that logged four — so a negative row doubles the deficit instead
+  of clearing it, and `shrinkage` would read as a loss in `getStockLosses()`.
+  Promoted from optional by `docs/KNOWN_BUGS.md` A-265.
 - *`opening_quantity`*, a nullable column holding the unexplained residue of an
   A-148 batch, backfilled server-side as `MAX(0, quantity − SUM(log))` for
   batches with no inbound movement, pulled down as immutable server-authoritative

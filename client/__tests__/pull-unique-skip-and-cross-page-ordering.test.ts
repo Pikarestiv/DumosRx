@@ -218,11 +218,12 @@ describe("pullChanges: UNIQUE-constraint skip and cross-page batch/movement orde
       );
       expect(cursor.length).toBe(0);
 
-      // The delta itself is of course not applied either.
+      // The rebuild now runs in the page's own transaction, so the arriving
+      // batch rolls back with it and is re-offered on the next round.
       const batchRows = db.exec(
         `SELECT quantity FROM stock_batches WHERE id = 'batch-atomic'`,
       );
-      expect(batchRows[0].values[0][0]).toBe(0);
+      expect(batchRows.length).toBe(0);
     } finally {
       db.run(`DROP TRIGGER fail_deferred_delta`);
     }

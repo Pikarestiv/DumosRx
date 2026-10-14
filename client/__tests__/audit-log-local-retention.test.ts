@@ -129,13 +129,17 @@ describe("pruneSyncedAuditLogs()", () => {
     expect(auditIds()).toEqual(["recent"]);
   });
 
-  it("falls back to its own clock when the device has never synced", async () => {
-    // Nothing to bound with, and nothing to lose: the prune only ever touches
-    // rows already marked _synced = 1, which a never-synced device has none of.
-    addAuditRow("unsynced-old", daysAgo(800), 0);
+  it("falls back to its own clock when there is no server stamp to bound with", async () => {
+    // `_sync_state` empty, so boundedNow() has nothing to take the lower of and
+    // must use the device clock rather than refusing or landing on epoch 0 —
+    // either of which would silently stop pruning for ever. A synced row is
+    // seeded deliberately: an unsynced one is never touched, so it would make
+    // this pass whatever the fallback did.
+    addAuditRow("synced-old", daysAgo(800), 1);
+    addAuditRow("synced-recent", daysAgo(1), 1);
 
-    expect(await retention.pruneSyncedAuditLogs({ now: NOW })).toBe(0);
-    expect(auditIds()).toEqual(["unsynced-old"]);
+    expect(await retention.pruneSyncedAuditLogs({ now: NOW })).toBe(1);
+    expect(auditIds()).toEqual(["synced-recent"]);
   });
 
   it("runs at most once a day, so it is not a per-sync full-table scan", async () => {

@@ -69,9 +69,15 @@ export async function pruneSyncedAuditLogs(
   const now = options.now ?? new Date();
   const retentionDays = options.retentionDays ?? AUDIT_LOG_LOCAL_RETENTION_DAYS;
 
-  if (!options.force && !isPruneDue(now)) return 0;
+  // Both the interval and the cutoff are measured in the bounded clock, and
+  // markPruned() below stamps it too, so a device whose own clock runs ahead
+  // neither prunes past the window nor re-reads its own future stamp as due on
+  // every round.
+  const bounded = await boundedNow(now);
 
-  const cutoff = cutoffIso(retentionDays, await boundedNow(now));
+  if (!options.force && !isPruneDue(bounded)) return 0;
+
+  const cutoff = cutoffIso(retentionDays, bounded);
 
   const doomed = await query<{ id: string }>(
     `SELECT al.id FROM audit_logs al
@@ -85,7 +91,7 @@ export async function pruneSyncedAuditLogs(
     [cutoff],
   );
 
-  markPruned(now);
+  markPruned(bounded);
 
   if (doomed.length === 0) return 0;
 

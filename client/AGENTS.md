@@ -4334,6 +4334,14 @@ listing transactions is where you ask "what was in that one?".
   single record, so their rows must not look clickable, and don't. The one
   column name is shared with the `sales` headers array so the two cannot
   drift.
+- **`TransactionDetailsDialog` is mounted only while a sale is selected**, not
+  unconditionally with `open={!!selected}` the way Daily Close mounts it. It
+  calls `useAuth()`, which throws outside `AuthProvider`, and two
+  `report-center-*-permission` tests render `ReportCenter` bare; the
+  conditional mount keeps them honest without adding a mock, and avoids
+  running the dialog's queries when nothing is open. The cost is that Radix's
+  close animation is cut, since the component unmounts the instant the
+  selection clears.
 - **`ReportTableView` stays generic.** It takes an optional `onRowClick`;
   without it a row has no `tabIndex`, no handler and keeps its plain hover.
   With it the row is focusable and answers Enter/Space as well as a click
@@ -4344,7 +4352,13 @@ listing transactions is where you ask "what was in that one?".
   the transaction number already on screen through the existing
   `getSaleByTransactionNumber()`, and toasts if nothing matches (possible on
   a device whose sale rows are present but whose report row came from a
-  stale view) rather than opening an empty dialog. Adding a hidden id column
+  stale view) rather than opening an empty dialog. **That lookup is scoped to
+  the active store** as of 2026-10-14: `sales.transaction_number` is globally
+  `UNIQUE` on both sides, so an unscoped read could not return another store's
+  row — but the function is now reachable from a UI that lists one store's
+  rows, every neighbour in `queries/sales.ts` scopes, and a lookup that is
+  only safe because of a uniqueness constraint elsewhere is the kind of thing
+  A-248/A-249 were both about. Adding a hidden id column
   to the query would have leaked into the CSV/PDF column order, which is
   derived from the same config.
 - **The sale dialog is a sibling, not a child.** `TransactionDetailsDialog`

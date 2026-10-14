@@ -174,7 +174,7 @@ Which side is right is a business question, not a technical one: an oversell
 means the shelf held fewer units than the system thought, so arguably the
 deficit is a counting error that the next delivery should not inherit. If the
 founder wants forgiveness, the right way to get it is an explicit compensating
-`shrinkage` movement written at oversell time instead of a silent clamp — the
+inbound movement written at oversell time instead of a silent clamp — the
 log then sums to ≥ 0 on its own, no floor is needed anywhere, and the oversell
 becomes a visible, syncing, auditable fact. That is strictly better and strictly
 more work; it is listed as stage 4 rather than required.
@@ -477,7 +477,13 @@ shipped is gone" — a device runs exactly one bundle.
 items, neither required:
 - *Compensating oversell movement* instead of a floor, if the founder wants
   oversells forgiven rather than carried (§"One behaviour change"). Removes the
-  clamp from storage entirely.
+  clamp from storage entirely. **Designed out, with a correction, in
+  `docs/superpowers/specs/2026-10-14-oversell-compensating-movement-design.md`:
+  the compensating row is inbound `+N`, not the `shrinkage` this spec called it
+  in two places.** An oversell means the ledger was short of inbound — six units
+  left a batch that logged four — so a negative row doubles the deficit instead
+  of clearing it, and `shrinkage` would read as a loss in `getStockLosses()`.
+  Promoted from optional by `docs/KNOWN_BUGS.md` A-265.
 - *`opening_quantity`*, a nullable column holding the unexplained residue of an
   A-148 batch, backfilled server-side as `MAX(0, quantity − SUM(log))` for
   batches with no inbound movement, pulled down as immutable server-authoritative

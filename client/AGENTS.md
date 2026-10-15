@@ -4657,9 +4657,20 @@ same tab session still gets its own fresh one-time retry.
     the empty string to mean "blank" would have silently stopped a footer those
     stores have always printed. `2026_10_15_000001_backfill_receipt_footer_default`
     writes the text they are already getting, so no receipt changes and an
-    empty string is unambiguous from then on. It sets `updated_at` from PHP so
-    the rows actually reach each device's incremental pull (root `AGENTS.md`
-    §7 — never MySQL's `NOW()`).
+    empty string is unambiguous from then on. It covers soft-deleted stores
+    too, because `restoreStore()` brings one back months later and a trashed
+    row left holding `""` would return printing nothing. It sets `updated_at`
+    from PHP, never MySQL's `NOW()` (root `AGENTS.md` §7) — but that is
+    bookkeeping, not the propagation mechanism: `stores` is **exempt from the
+    pull cursor** (`SyncController::applyPullCursor`), so every pull returns
+    every owned store row regardless of its timestamp.
+  - **One window the backfill cannot close**: a device holding an *unpushed*
+    `stores` edit across the deploy pushes its old `""` afterwards and, since
+    the backfill deliberately leaves `_version` alone, it is accepted and
+    overwrites the default. Bumping `_version` would be worse — it would
+    reject that device's whole pending store edit, whatever else it carried,
+    and drop it. If a store reports a vanished footer just after a release,
+    this is why; re-typing it fixes it permanently.
   - **Old bundles still print the fallback** for a store that deliberately
     clears the footer, because `||` is what they ship. Retirable once every
     active device reports a build at or past this release; until then the worst
@@ -4683,7 +4694,9 @@ same tab session still gets its own fresh one-time retry.
   preview's whole job is to show what has not been. Feature gates are not
   re-applied there: `ReceiptView` already consults `useFeatureGate`, so a plan
   that cannot remove branding sees the branding in its preview too, which is
-  the truth. The box uses CSS `zoom` rather than `transform: scale` so the
+  the truth, and the card no longer pre-applies `canRemoveBranding` on its way
+  in (the save path in `use-settings.ts` still enforces it, which is the copy
+  that matters). The box uses CSS `zoom` rather than `transform: scale` so the
   panel reserves the shrunken height instead of a full page's. Pinned by
   `__tests__/receipt-preview-follows-paper-size.test.tsx`. **Don't hand-draw a
   receipt for any new surface** — render `ReceiptView`.
@@ -4693,8 +4706,10 @@ same tab session still gets its own fresh one-time retry.
   pattern exactly: a column on `stores`, the ALTER in `schema-migrations.ts`,
   a Laravel migration, `Store::$fillable`, the `StoreProfile` type, the
   `use-settings-form`/`use-settings` pair, a `ReceiptToggleRow`, and a prop on
-  the hand-drawn `receipt-preview.tsx` miniature — miss that last one and the
-  preview advertises a layout the printer never produces. Read it as
+  `receipt-preview.tsx`, which forwards it to the real `ReceiptView` (see the
+  Live Preview bullet above — the preview used to be a hand-drawn copy, and a
+  toggle that missed it advertised a layout the printer never produced).
+  Read it as
   `!== 0`, never `=== 1`: a store whose profile predates the column has no
   value and must keep printing the barcode. Ship the Laravel migration
   **before** the client bundle — `stores` pushes apply via `forceFill()`, so an

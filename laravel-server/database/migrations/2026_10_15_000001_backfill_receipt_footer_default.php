@@ -15,9 +15,14 @@ use Illuminate\Support\Facades\DB;
  * writes the text they are already getting, so their receipts do not change,
  * and an empty string from here on means the owner cleared it on purpose.
  *
- * `updated_at` is set from PHP (UTC), never MySQL's NOW() - see
- * laravel-server/AGENTS.md "Server Clock / MySQL Timezone Gotcha" - so the
- * rows actually propagate to each device's next incremental pull.
+ * Soft-deleted stores are included on purpose: restoreStore() brings one back
+ * months later, and a trashed row left holding '' would come back printing no
+ * footer - the exact regression this exists to prevent.
+ *
+ * `updated_at` is set from PHP (UTC), never MySQL's NOW() (root AGENTS.md §7).
+ * It is bookkeeping, not the propagation mechanism: `stores` is exempt from
+ * the pull cursor (SyncController::applyPullCursor), so every pull returns
+ * every owned store row anyway.
  */
 return new class extends Migration
 {
@@ -26,7 +31,6 @@ return new class extends Migration
     public function up(): void
     {
         DB::table('stores')
-            ->whereNull('deleted_at')
             ->where(function ($query) {
                 $query->whereNull('receipt_footer')->orWhere('receipt_footer', '');
             })

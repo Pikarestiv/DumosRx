@@ -429,7 +429,7 @@ export function ReceiptCustomizationCard({
             showPhone={showPhone}
             showAddress={showAddress}
             showBarcode={showBarcode}
-            hidePoweredBy={hidePoweredBy && canRemoveBranding}
+            hidePoweredBy={hidePoweredBy}
             paperSize={paperSize}
           />
         </div>

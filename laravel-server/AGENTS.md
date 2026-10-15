@@ -1222,8 +1222,9 @@ still pins.
 
 Nothing depended on the bump: the row is still saved and `_synced_at` stamped,
 so the pull cursor re-offers it as before; the returned `versions` map still
-carries the true server version, so a stale client is *corrected* by its own
-sale push rather than only by a later pull. Old clients in the field send
+carries the true server version, so a stale client is version-*stamped* by its
+own sale push rather than only by a later pull — the number, not the row: it
+may still hold a stale `cost_price` until it pulls. Old clients in the field send
 `_version` and apply whatever comes back, so they see the same number and
 behave identically (§11) — no shim, nothing to retire.
 

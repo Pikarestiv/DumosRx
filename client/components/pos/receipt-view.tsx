@@ -76,7 +76,9 @@ export function ReceiptView({
 
   const showSubtotal = transaction.tax > 0 || transaction.discount > 0;
   const showAmountPaid =
-    transaction.amountPaid !== transaction.total || transaction.change > 0;
+    transaction.amountPaid !== transaction.total ||
+    transaction.change > 0 ||
+    transaction.paymentMethod === "credit";
   const showBarcode = storeProfile?.show_barcode_on_receipt !== 0;
 
   const shortId = transaction.id.split("-")[0].toUpperCase();

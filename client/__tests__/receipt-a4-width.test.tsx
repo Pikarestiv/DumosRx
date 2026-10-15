@@ -95,6 +95,13 @@ describe("receipt length", () => {
     expect(labels(container)).toContain("Change:");
   });
 
+  it("keeps total paid on a settled credit sale, the only record that it was paid", () => {
+    const settledCredit = { ...transaction, paymentMethod: "credit" };
+    const { container } = render(<ReceiptView transaction={settledCredit} paperSize="a4" />);
+
+    expect(labels(container)).toContain("Total paid:");
+  });
+
   it("keeps total paid when the sale was only part-paid", () => {
     const partial = { ...transaction, amountPaid: 500, change: 0 };
     const { container } = render(<ReceiptView transaction={partial} paperSize="a4" />);

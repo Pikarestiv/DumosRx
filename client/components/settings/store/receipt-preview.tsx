@@ -81,8 +81,8 @@ export function ReceiptPreview({
 
         <div className="space-y-0.5 text-[8px] mb-2">
           <div className="flex justify-between">
-            <span className="font-bold">Invoice no:</span>
-            <span>INV-SAMPLE</span>
+            <span className="font-bold">Receipt no:</span>
+            <span>RCT-SAMPLE</span>
           </div>
           <div className="flex justify-between">
             <span className="font-bold">Customer:</span>

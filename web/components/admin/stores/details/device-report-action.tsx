@@ -32,8 +32,12 @@ export function DeviceReportAction({ storeId, deviceId }: DeviceReportActionProp
 
   if (queued) {
     return (
-      <span className="text-xs text-muted-foreground shrink-0">
-        Report queued — sends on next sync
+      <span
+        className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-dashed border-slate-300 px-2.5 text-xs text-muted-foreground dark:border-slate-700"
+        title="Sends on this device's next sync"
+      >
+        <FileText className="h-3.5 w-3.5" />
+        Report queued
       </span>
     );
   }
@@ -42,7 +46,7 @@ export function DeviceReportAction({ storeId, deviceId }: DeviceReportActionProp
     <Button
       size="sm"
       variant="outline"
-      className="shrink-0"
+      className="h-8 shrink-0"
       disabled={issue.isPending}
       onClick={() =>
         issue.mutate(

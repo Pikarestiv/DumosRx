@@ -1,6 +1,8 @@
 import { query, getActiveStoreId } from "@/lib/db/core";
 import {
   stuckQueueRows,
+  stockBatchConflicts,
+  batchCostSnapshot,
   orphanedUnsyncedRows,
   recentCrashes,
   clockState,
@@ -9,6 +11,8 @@ import {
   crashTelemetryQueued,
   unresolvedConflicts,
   type ConflictGroup,
+  type BatchConflictRow,
+  type BatchCostRow,
   type StuckRow,
   type OrphanCount,
   type CrashRow,
@@ -40,6 +44,8 @@ export interface SyncStateRow {
   table_name: string;
   last_synced_at: string | null;
   server_cursor: string | null;
+  rewind_count: number | null;
+  rewound_from: string | null;
 }
 
 export interface PendingDeltaRow {
@@ -71,6 +77,8 @@ export interface DeviceDiagnostics {
   resolution: ResolutionCounts;
   stuckRows: StuckRow[];
   conflictGroups: ConflictGroup[];
+  batchConflicts: BatchConflictRow[];
+  batchCosts: BatchCostRow[];
   lastSyncOutcome: SyncOutcome | null;
   orphans: OrphanCount[];
   crashes: CrashRow[];
@@ -148,7 +156,8 @@ export async function collectDeviceDiagnostics(): Promise<DeviceDiagnostics> {
     await Promise.all([
       queueSummary(),
       query<SyncStateRow>(
-        "SELECT table_name, last_synced_at, server_cursor FROM _sync_state ORDER BY table_name",
+        `SELECT table_name, last_synced_at, server_cursor, rewind_count, rewound_from
+           FROM _sync_state ORDER BY table_name`,
       ),
       query<PendingDeltaRow>(
         `SELECT movement_id, stock_batch_id, quantity, attempts
@@ -170,6 +179,8 @@ export async function collectDeviceDiagnostics(): Promise<DeviceDiagnostics> {
     missing,
     deltas,
     conflictGroups,
+    batchConflicts,
+    batchCosts,
   ] =
     await Promise.all([
       crashTelemetryQueued(),
@@ -180,6 +191,8 @@ export async function collectDeviceDiagnostics(): Promise<DeviceDiagnostics> {
       missingTables(),
       deltaHealth(),
       unresolvedConflicts(),
+      stockBatchConflicts(),
+      batchCostSnapshot(),
     ]);
 
   return {
@@ -194,6 +207,8 @@ export async function collectDeviceDiagnostics(): Promise<DeviceDiagnostics> {
     resolution,
     stuckRows,
     conflictGroups,
+    batchConflicts,
+    batchCosts,
     lastSyncOutcome: readSyncOutcome(),
     orphans,
     crashes,

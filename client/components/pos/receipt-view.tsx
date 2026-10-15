@@ -1,8 +1,8 @@
 "use client";
 
-import { useStore } from "@/lib/context/store-context";
-import { APP_NAME } from "@/lib/constants";
+import { useStore, type StoreProfile } from "@/lib/context/store-context";
 import Barcode from "react-barcode";
+import { RECEIPT_FOOTER_DEFAULT } from "@/lib/constants";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { ReceiptPaperSize } from "@/lib/hooks/use-receipt-paper-size";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
@@ -50,14 +50,21 @@ interface ReceiptProps {
   // exists yet, so the payment/change/barcode sections don't apply and a
   // disclaimer replaces them instead.
   documentType?: ReceiptDocumentType;
+  // Settings renders this live against values the owner has typed but not yet
+  // saved, which are not in the store context until they are.
+  profileOverride?: Partial<StoreProfile>;
 }
 
 export function ReceiptView({
   transaction,
   paperSize = "a4",
   documentType = "receipt",
+  profileOverride,
 }: ReceiptProps) {
-  const { storeProfile, vatPercentage } = useStore();
+  const { storeProfile: savedProfile, vatPercentage } = useStore();
+  const storeProfile = profileOverride
+    ? { ...savedProfile, ...profileOverride }
+    : savedProfile;
   const { canCustomizeTheme, canRemoveBranding } = useFeatureGate();
   const hidePoweredBy = canRemoveBranding && storeProfile?.hide_powered_by === 1;
   const isThermal = paperSize === "thermal";
@@ -75,6 +82,14 @@ export function ReceiptView({
     }).format(amount);
   };
 
+  const showSubtotal = transaction.tax > 0 || transaction.discount > 0;
+  const showAmountPaid =
+    transaction.amountPaid !== transaction.total ||
+    transaction.change > 0 ||
+    transaction.paymentMethod === "credit";
+  const showBarcode = storeProfile?.show_barcode_on_receipt !== 0;
+  const footerMessage = storeProfile?.receipt_footer ?? RECEIPT_FOOTER_DEFAULT;
+
   const shortId = transaction.id.split("-")[0].toUpperCase();
   const invoiceNo =
     documentType === "tax"
@@ -84,7 +99,7 @@ export function ReceiptView({
         : `RCT-${shortId}`;
   const invoiceNoLabel =
     documentType === "tax"
-      ? "Invoice no:"
+      ? "Tax invoice no:"
       : documentType === "quote"
         ? "Quote no:"
         : "Receipt no:";
@@ -94,7 +109,7 @@ export function ReceiptView({
       className={
         isThermal
           ? "bg-white p-3 w-[80mm] text-black font-mono text-[11px] leading-tight"
-          : "bg-white p-6 w-full text-black font-mono text-sm leading-tight"
+          : "bg-white p-6 print:p-0 w-full text-black font-mono text-sm leading-tight"
       }
     >
       {/* Header */}
@@ -149,15 +164,19 @@ export function ReceiptView({
         )}
       </div>
 
-      {documentType !== "tax" && (
+      {documentType === "quote" && (
         <div className="text-center mb-4">
           <h3 className="text-lg font-bold uppercase tracking-widest border border-black inline-block px-4 py-1">
-            {documentType === "quote" ? "Proforma Invoice" : "Receipt"}
+            Proforma Invoice
           </h3>
         </div>
       )}
 
-      <div className="mb-6 space-y-1">
+      <div
+        className={
+          isThermal ? "mb-3 space-y-1" : "mb-3 grid grid-cols-2 gap-x-8 gap-y-1"
+        }
+      >
         <div className="flex justify-between">
           <span className="font-bold">{invoiceNoLabel}</span>
           <span>{invoiceNo}</span>
@@ -215,10 +234,12 @@ export function ReceiptView({
 
       {/* Footer / Totals */}
       <div className="space-y-1 pb-4 mb-4 border-b border-black">
-        <div className="flex justify-between">
-          <span>Sub total:</span>
-          <span>{formatCurrency(transaction.subtotal)}</span>
-        </div>
+        {showSubtotal && (
+          <div className="flex justify-between">
+            <span>Sub total:</span>
+            <span>{formatCurrency(transaction.subtotal)}</span>
+          </div>
+        )}
         {transaction.tax > 0 && (
           <div className="flex justify-between">
             <span>Tax ({vatPercentage}%):</span>
@@ -231,7 +252,9 @@ export function ReceiptView({
             <span>-{formatCurrency(transaction.discount)}</span>
           </div>
         )}
-        <div className="flex justify-between font-bold text-lg pt-2 mt-1 border-t border-dashed border-black">
+        <div
+          className={`flex justify-between font-bold text-lg ${showSubtotal ? "pt-2 mt-1 border-t border-dashed border-black" : ""}`}
+        >
           <span>Total:</span>
           <span>{formatCurrency(transaction.total)}</span>
         </div>
@@ -270,10 +293,12 @@ export function ReceiptView({
               </div>
             )}
 
-            <div className="flex justify-between font-bold mt-2 pt-2 border-t border-dashed border-black">
-              <span>Total paid:</span>
-              <span>{formatCurrency(transaction.amountPaid)}</span>
-            </div>
+            {showAmountPaid && (
+              <div className="flex justify-between font-bold mt-2 pt-2 border-t border-dashed border-black">
+                <span>Total paid:</span>
+                <span>{formatCurrency(transaction.amountPaid)}</span>
+              </div>
+            )}
             {transaction.change > 0 && (
               <div className="flex justify-between font-bold text-lg">
                 <span>Change:</span>
@@ -282,26 +307,24 @@ export function ReceiptView({
             )}
           </div>
 
-          {/* Barcode */}
-          <div className="flex flex-col items-center justify-center pt-4 mb-4 overflow-hidden">
-            <Barcode
-              value={transaction.id}
-              width={isThermal ? 1 : 1.2}
-              height={isThermal ? 30 : 40}
-              fontSize={isThermal ? 8 : 10}
-              background="transparent"
-            />
-          </div>
+          {showBarcode && (
+            <div className="flex flex-col items-center justify-center my-2 overflow-hidden">
+              <Barcode
+                value={transaction.id}
+                width={isThermal ? 1 : 1.2}
+                height={isThermal ? 30 : 30}
+                fontSize={isThermal ? 8 : 10}
+                displayValue={false}
+                background="transparent"
+              />
+            </div>
+          )}
         </>
       )}
 
       <div className="text-center italic text-xs">
         {storeProfile?.receipt_header && <p>"{storeProfile.receipt_header}"</p>}
-        <p>{storeProfile?.receipt_footer || "Thank you for your patronage!"}</p>
-        <p>
-          {APP_NAME} - NextGen{" "}
-          {storeProfile?.store_type === "pharmacy" ? "Pharmacy" : "Retail"} POS
-        </p>
+        {footerMessage !== "" && <p>{footerMessage}</p>}
       </div>
 
       {!hidePoweredBy && (

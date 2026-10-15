@@ -170,4 +170,43 @@ describe("diagnostics detail queries", () => {
   it("reports no missing tables on a correctly built database", async () => {
     expect(await detail.missingTables()).toEqual([]);
   });
+
+  it("lists refused batch edits including the ones a later sale marked resolved", async () => {
+    db.run(
+      `INSERT INTO _sync_conflicts (table_name, record_id, reason, fields, detected_at, resolved_at)
+       VALUES ('stock_batches', 'b-cost', 'version_conflict', 'cost_price,id', '2026-10-14T09:00:00Z',
+               '2026-10-14T09:00:30Z'),
+              ('stock_batches', 'b-open', 'version_conflict', 'cost_price,id', '2026-10-14T10:00:00Z', NULL),
+              ('products', 'p-1', 'version_conflict', 'name', '2026-10-14T11:00:00Z', NULL)`,
+    );
+
+    const rows = await detail.stockBatchConflicts();
+
+    expect(rows.map((row) => row.record_id)).toEqual(["b-open", "b-cost"]);
+    expect(rows.find((row) => row.record_id === "b-cost")?.resolved_at).not.toBeNull();
+  });
+
+  it("snapshots the costs of batches the pull cannot reach, plus the most valuable ones", async () => {
+    db.run(
+      `INSERT INTO stock_batches (id, product_id, quantity, cost_price, _synced, _deleted, _version, store_id)
+       VALUES ('b-queued', 'p1', 4, 11.5, 1, 0, 7, '${STORE_ID}'),
+              ('b-unsynced', 'p1', 2, 9.25, 0, 0, 3, '${STORE_ID}'),
+              ('b-valuable', 'p1', 100, 50, 1, 0, 1, '${STORE_ID}'),
+              ('b-other-store', 'p1', 80, 80, 1, 0, 1, 'store-2')`,
+    );
+    db.run(
+      `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
+       VALUES ('stock_batches', 'b-queued', 'UPDATE', '{}', '2026-10-14T09:00:00Z')`,
+    );
+
+    const rows = await detail.batchCostSnapshot();
+    const ids = rows.map((row) => row.id);
+
+    expect(ids).toContain("b-queued");
+    expect(ids).toContain("b-unsynced");
+    expect(ids).toContain("b-valuable");
+    expect(ids).not.toContain("b-other-store");
+    expect(rows.find((row) => row.id === "b-queued")?.shielded).toBe(true);
+    expect(rows.find((row) => row.id === "b-valuable")?.shielded).toBe(false);
+  });
 });

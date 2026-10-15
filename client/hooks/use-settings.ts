@@ -84,6 +84,7 @@ export function useSettings() {
     logoPosition,
     showPhone,
     showAddress,
+    showBarcode,
     hidePoweredBy,
     lowStockAlert,
     expiryAlert,
@@ -204,6 +205,7 @@ export function useSettings() {
       receipt_logo_position: logoPosition,
       show_phone_on_receipt: showPhone ? 1 : 0,
       show_address_on_receipt: showAddress ? 1 : 0,
+      show_barcode_on_receipt: showBarcode ? 1 : 0,
       // Only plans with canRemoveBranding may actually persist this as hidden.
       // Enforced here (not just in the UI) so a stale/tampered local value can't sneak past the gate.
       hide_powered_by: hidePoweredBy && canRemoveBranding ? 1 : 0,

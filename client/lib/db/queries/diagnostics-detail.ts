@@ -53,6 +53,25 @@ export interface ConflictGroup {
   latest: string | null;
 }
 
+export interface BatchConflictRow {
+  record_id: string;
+  reason: string;
+  fields: string | null;
+  detected_at: string;
+  resolved_at: string | null;
+}
+
+export interface BatchCostRow {
+  id: string;
+  cost_price: number | null;
+  quantity: number;
+  _version: number | null;
+  updated_at: string | null;
+  /** Pending local edit or unsynced row: the pull leaves these alone, so a
+   * cost that differs from the server's can persist here indefinitely. */
+  shielded: boolean;
+}
+
 export interface DeltaHealth {
   total: number;
   maxAttempts: number;
@@ -72,6 +91,46 @@ export async function unresolvedConflicts(): Promise<ConflictGroup[]> {
       ORDER BY latest DESC
       LIMIT 20`,
   );
+}
+
+/** Unlike unresolvedConflicts(), this keeps the resolved rows: a sale on the
+ * same batch marks a dropped cost edit resolved seconds later without the cost
+ * ever reaching the server (A-268), so the resolved ones are the evidence. */
+export async function stockBatchConflicts(): Promise<BatchConflictRow[]> {
+  return query<BatchConflictRow>(
+    `SELECT record_id, reason, fields, detected_at, resolved_at
+       FROM _sync_conflicts
+      WHERE table_name = 'stock_batches'
+      ORDER BY detected_at DESC
+      LIMIT 50`,
+  );
+}
+
+/** Costs for the batches a device can disagree with the server about: the ones
+ * the pull skips (pending queue row or unsynced), plus the highest-value rows,
+ * since a valuation gap the owner notices is dominated by a few of those.
+ * Capped so the report stays well inside the support endpoint's size limit. */
+export async function batchCostSnapshot(): Promise<BatchCostRow[]> {
+  const storeId = getActiveStoreId();
+  const scope = storeId ? "AND sb.store_id = ?" : "";
+
+  const rows = await query<Omit<BatchCostRow, "shielded"> & { shielded: number }>(
+    `SELECT sb.id, sb.cost_price, sb.quantity, sb._version, sb.updated_at,
+            MAX(
+              CASE WHEN sb._synced = 0 THEN 1 ELSE 0 END,
+              CASE WHEN EXISTS (
+                SELECT 1 FROM _sync_queue q
+                 WHERE q.table_name = 'stock_batches' AND q.record_id = sb.id
+              ) THEN 1 ELSE 0 END
+            ) AS shielded
+       FROM stock_batches sb
+      WHERE (sb._deleted = 0 OR sb._deleted IS NULL) ${scope}
+      ORDER BY shielded DESC, sb.quantity * COALESCE(sb.cost_price, 0) DESC
+      LIMIT 100`,
+    (storeId ? [storeId] : []) as never[],
+  );
+
+  return rows.map((row) => ({ ...row, shielded: row.shielded === 1 }));
 }
 
 /** A-162/A-165/A-167: the one datum nobody had was the `store_id` INSIDE the

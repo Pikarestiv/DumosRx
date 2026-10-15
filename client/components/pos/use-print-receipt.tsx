@@ -12,7 +12,7 @@ const THERMAL_PAGE_STYLE = `
 `;
 
 const A4_PAGE_STYLE = `
-  @page { size: A4; margin: 12mm; }
+  @page { size: A4; margin: 10mm; }
   body { margin: 0; background: #fff; }
 `;
 

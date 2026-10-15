@@ -51,6 +51,7 @@ export interface StoreProfile {
   show_contact_on_receipt?: number;
   show_phone_on_receipt?: number;
   show_address_on_receipt?: number;
+  show_barcode_on_receipt?: number;
   hide_powered_by?: number;
   low_stock_warning?: number;
   expiry_warning?: number;

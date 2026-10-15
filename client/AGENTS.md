@@ -364,6 +364,24 @@ and `synchronous = NORMAL`.
     `stores.license_token`; and never includes an `audit_logs.details` blob
     (A-130 once put a plaintext temporary password there). The screen may show
     more than the clipboard. Pinned by `__tests__/diagnostics-detail.test.ts`.
+  - **Batch costs and rewind counts** (2026-10-15, for A-271: two tills that
+    agree on quantity and disagree on stock value). `syncState` now carries
+    `rewind_count`/`rewound_from`, so a pinned rewind budget is visible rather
+    than inferred. `stockBatchConflicts()` returns the last 50
+    `stock_batches` conflicts **including resolved ones** — unlike
+    `unresolvedConflicts()`, because a sale on the same batch marks a dropped
+    cost edit resolved seconds later without the cost ever reaching the server
+    (A-268), so the resolved rows are the evidence rather than noise. And
+    `batchCostSnapshot()` lists up to 100 batches: every one the pull cannot
+    reach (`_synced = 0` or a pending `_sync_queue` row, flagged `shielded`)
+    plus the highest-value rows, since a valuation gap big enough to notice is
+    dominated by a few of those. Batch ids, costs, quantities and versions
+    only — no product names. `buildReport` truncates the whole report at
+    60,000 chars: `feedback.content` is a MySQL `TEXT` column, which rejects
+    anything longer outright rather than storing it short, and the report
+    matters most on the device with the most to say. The three fields are in
+    the collector and the ticket; the on-screen console does not render them
+    yet, because the remote ticket is what support reads.
   - **What it captures, and why each field exists.** A 2026-10-09 audit scored
     the first version against real incidents: 7 caught, 6 half, 7 missed. The
     fields added to close those gaps, each tied to the bug that needed it:
@@ -4601,6 +4619,101 @@ same tab session still gets its own fresh one-time retry.
   margin), with wider qty/money columns and `text-sm` rows; thermal keeps its
   `w-[80mm]` and `text-xs`. Any new column widths in that file must stay
   conditional on `isThermal`, never fixed.
+
+- **The receipt earns every line it prints** (2026-10-15). After the width fix
+  a customer reported the A4 copy was still far too long: measured on a
+  five-item sale, the items were 17% of the printed height and chrome was the
+  other 83%. `ReceiptView` now drops anything that repeats a figure the reader
+  already has — `Sub total` renders only when tax or a discount makes it differ
+  from `Total`, `Total paid` only when it differs from `Total`, there is
+  change, or the sale was on credit (a settled credit sale's only record that
+  it was paid is that line — caught in review, after the first cut hid it) — and the boxed heading is a quote-only thing, because "Proforma
+  Invoice" is a legal distinction a buyer must see while "Receipt" above an
+  `RCT-` number is not. A tax invoice says so in its meta label
+  (`Tax invoice no:`) rather than in a 14mm box. Meta rows pair into two
+  columns on A4 (`grid-cols-2`, still `isThermal`-conditional per the rule
+  above); the barcode is compact and caption-free; vendor branding is one line,
+  now entirely under the `remove_branding` gate — the old
+  `DumosRx - NextGen … POS` line sat outside it, so a store that had paid to
+  remove branding still printed ours. A4's own `p-6` is `print:p-0`, since the
+  `@page` margin (now 10mm) already supplies the page edge; the on-screen
+  dialog keeps its padding because `ReceiptView` is its own preview. Together
+  that is ~188mm → ~125mm on that sale. Don't go below a 10mm `@page` margin:
+  office lasers cannot print the outer 4-5mm and many inkjets have a 12-15mm
+  bottom dead zone, and Chrome clips rather than scales, so the footer would
+  silently vanish.
+
+- **The receipt footer's default lives in the field, not the renderer**
+  (2026-10-15). `ReceiptView` printed `receipt_footer || "Thank you for your
+  patronage!"`, so clearing the field just brought the text back and a store
+  that did not want a thank-you had no way to say so. The renderer now reads
+  `receipt_footer ?? RECEIPT_FOOTER_DEFAULT` (`lib/constants.ts`) and prints
+  nothing for an empty string, while the settings form prefills the constant —
+  so the stored value is the words themselves and clearing the field is a
+  deliberate "print no footer".
+  - **This needed a backfill, and the reason is worth remembering.** The form
+    previously initialised to `""`, so *every* store that had ever saved its
+    receipt settings held an empty string meaning "show the default". Flipping
+    the empty string to mean "blank" would have silently stopped a footer those
+    stores have always printed. `2026_10_15_000001_backfill_receipt_footer_default`
+    writes the text they are already getting, so no receipt changes and an
+    empty string is unambiguous from then on. It covers soft-deleted stores
+    too, because `restoreStore()` brings one back months later and a trashed
+    row left holding `""` would return printing nothing. It sets `updated_at`
+    from PHP, never MySQL's `NOW()` (root `AGENTS.md` §7) — but that is
+    bookkeeping, not the propagation mechanism: `stores` is **exempt from the
+    pull cursor** (`SyncController::applyPullCursor`), so every pull returns
+    every owned store row regardless of its timestamp.
+  - **One window the backfill cannot close**: a device holding an *unpushed*
+    `stores` edit across the deploy pushes its old `""` afterwards and, since
+    the backfill deliberately leaves `_version` alone, it is accepted and
+    overwrites the default. Bumping `_version` would be worse — it would
+    reject that device's whole pending store edit, whatever else it carried,
+    and drop it. If a store reports a vanished footer just after a release,
+    this is why; re-typing it fixes it permanently.
+  - **Old bundles still print the fallback** for a store that deliberately
+    clears the footer, because `||` is what they ship. Retirable once every
+    active device reports a build at or past this release; until then the worst
+    case is an unwanted thank-you on an old till, not a wrong figure.
+  - There is deliberately **no `show_footer_on_receipt` toggle**: an empty text
+    field already expresses "none", and a second control for the same decision
+    is what the barcode toggle exists to avoid duplicating.
+
+- **The settings Live Preview *is* `ReceiptView`** (2026-10-15). It used to be a
+  hand-drawn miniature in `receipt-preview.tsx` with its own header, item rows
+  and totals, and it drifted from the real thing every time the receipt
+  changed: it printed a boxed `Invoice` badge no receipt renders, labelled the
+  number `Invoice no:` when no variant has said that since the tax/quote split,
+  and — the complaint that started this — it ignored the paper-size selector
+  sitting directly beside it, because it had no `paperSize` prop at all. Each
+  drift had to be noticed and patched by hand. The miniature is gone;
+  `ReceiptPreview` renders the real component with a sample sale, so the
+  preview cannot promise anything the printer will not produce. Unsaved form
+  values reach it through `ReceiptView`'s `profileOverride` prop, merged over
+  the store context — the context holds only what has been *saved*, and the
+  preview's whole job is to show what has not been. Feature gates are not
+  re-applied there: `ReceiptView` already consults `useFeatureGate`, so a plan
+  that cannot remove branding sees the branding in its preview too, which is
+  the truth, and the card no longer pre-applies `canRemoveBranding` on its way
+  in (the save path in `use-settings.ts` still enforces it, which is the copy
+  that matters). The box uses CSS `zoom` rather than `transform: scale` so the
+  panel reserves the shrunken height instead of a full page's. Pinned by
+  `__tests__/receipt-preview-follows-paper-size.test.tsx`. **Don't hand-draw a
+  receipt for any new surface** — render `ReceiptView`.
+
+- **Receipt sections are flat `stores` columns, not a settings blob.**
+  `show_barcode_on_receipt` (2026-10-15) follows `show_phone_on_receipt`'s
+  pattern exactly: a column on `stores`, the ALTER in `schema-migrations.ts`,
+  a Laravel migration, `Store::$fillable`, the `StoreProfile` type, the
+  `use-settings-form`/`use-settings` pair, a `ReceiptToggleRow`, and a prop on
+  `receipt-preview.tsx`, which forwards it to the real `ReceiptView` (see the
+  Live Preview bullet above — the preview used to be a hand-drawn copy, and a
+  toggle that missed it advertised a layout the printer never produced).
+  Read it as
+  `!== 0`, never `=== 1`: a store whose profile predates the column has no
+  value and must keep printing the barcode. Ship the Laravel migration
+  **before** the client bundle — `stores` pushes apply via `forceFill()`, so an
+  unknown column fails every subsequent store push with "Unknown column".
 
 - **A table/card layout switch belongs at `1024px`, the nav-chrome
   breakpoint.** `MobileBottomNav` (`components/dashboard/mobile-bottom-nav.tsx`)

@@ -68,6 +68,24 @@ describe("StoreStockDivergenceSection", () => {
     expect(screen.queryByText(/agreement is unknown/i)).toBeNull();
   });
 
+  /** A real store reports five-figure counts; raw digits are unreadable and
+   * were how "49680 across 2692 batches" reached the owner. */
+  it("groups the unit and batch counts into thousands", () => {
+    render(
+      <StoreStockDivergenceSection
+        data={{
+          measured: true,
+          diverged_devices: 0,
+          devices: [device({ device_quantity_sum: 49680, device_batch_count: 2692 })],
+        }}
+        isLoading={false}
+        currency="NGN"
+      />,
+    );
+
+    expect(screen.getByText(/49,680 across 2,692 batches/)).toBeDefined();
+  });
+
   it("values each device's stock in the store's currency", () => {
     render(
       <StoreStockDivergenceSection

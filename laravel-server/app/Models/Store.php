@@ -42,6 +42,7 @@ class Store extends Model
         'show_contact_on_receipt',
         'show_phone_on_receipt',
         'show_address_on_receipt',
+        'show_barcode_on_receipt',
         'hide_powered_by',
         'low_stock_warning',
         'expiry_warning',

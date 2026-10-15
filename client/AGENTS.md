@@ -4602,6 +4602,40 @@ same tab session still gets its own fresh one-time retry.
   `w-[80mm]` and `text-xs`. Any new column widths in that file must stay
   conditional on `isThermal`, never fixed.
 
+- **The receipt earns every line it prints** (2026-10-15). After the width fix
+  a customer reported the A4 copy was still far too long: measured on a
+  five-item sale, the items were 17% of the printed height and chrome was the
+  other 83%. `ReceiptView` now drops anything that repeats a figure the reader
+  already has — `Sub total` renders only when tax or a discount makes it differ
+  from `Total`, `Total paid` only when it differs from `Total` or there is
+  change — and the boxed heading is a quote-only thing, because "Proforma
+  Invoice" is a legal distinction a buyer must see while "Receipt" above an
+  `RCT-` number is not. A tax invoice says so in its meta label
+  (`Tax invoice no:`) rather than in a 14mm box. Meta rows pair into two
+  columns on A4 (`grid-cols-2`, still `isThermal`-conditional per the rule
+  above); the barcode is compact and caption-free; vendor branding is one line,
+  now entirely under the `remove_branding` gate — the old
+  `DumosRx - NextGen … POS` line sat outside it, so a store that had paid to
+  remove branding still printed ours. A4's own `p-6` is `print:p-0`, since the
+  `@page` margin (now 10mm) already supplies the page edge; the on-screen
+  dialog keeps its padding because `ReceiptView` is its own preview. Together
+  that is ~188mm → ~125mm on that sale. Don't go below a 10mm `@page` margin:
+  office lasers cannot print the outer 4-5mm and many inkjets have a 12-15mm
+  bottom dead zone, and Chrome clips rather than scales, so the footer would
+  silently vanish.
+
+- **Receipt sections are flat `stores` columns, not a settings blob.**
+  `show_barcode_on_receipt` (2026-10-15) follows `show_phone_on_receipt`'s
+  pattern exactly: a column on `stores`, the ALTER in `schema-migrations.ts`,
+  a Laravel migration, `Store::$fillable`, the `StoreProfile` type, the
+  `use-settings-form`/`use-settings` pair, a `ReceiptToggleRow`, and a prop on
+  the hand-drawn `receipt-preview.tsx` miniature — miss that last one and the
+  preview advertises a layout the printer never produces. Read it as
+  `!== 0`, never `=== 1`: a store whose profile predates the column has no
+  value and must keep printing the barcode. Ship the Laravel migration
+  **before** the client bundle — `stores` pushes apply via `forceFill()`, so an
+  unknown column fails every subsequent store push with "Unknown column".
+
 - **A table/card layout switch belongs at `1024px`, the nav-chrome
   breakpoint.** `MobileBottomNav` (`components/dashboard/mobile-bottom-nav.tsx`)
   is `lg:hidden`, so mobile chrome is anything below `1024px`. Any list that

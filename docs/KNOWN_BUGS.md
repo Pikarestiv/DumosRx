@@ -10,6 +10,24 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
+#### A-270. `client/` — the receipt number a customer reads out cannot be searched for
+- **Found:** 2026-10-15, while auditing the A4 receipt's length (see `client/AGENTS.md`, "The receipt earns every line it prints").
+- **What's wrong:** the receipt prints `RCT-<first 8 of sale.id>` (`receipt-view.tsx`'s `shortId`) and the foot barcode encodes the full `sale.id` UUID. Sales history searches `customer_name`, `transaction_number` and `item_names` (`pos-transaction-history.tsx:163-167`) — `transaction_number` is the `TXN-…` value set in `use-pos-payment.ts:169`, and it is **never printed anywhere**. So the one identifier a customer holds is the one identifier staff cannot look up, and the barcode is unscannable by design: nothing in the app has a scan path for it.
+- **Fix:** add `transaction_number` to `ReceiptTransaction`, print it as the receipt number, and barcode that instead of the UUID. That also makes the barcode worth the paper — until then `show_barcode_on_receipt` (2026-10-15) exists partly so a store can stop printing a decoration.
+- **Not urgent:** staff can find the sale by customer or item today. It is cheap and it removes a daily annoyance at the counter.
+
+#### A-269. `client/` — a part-paid sale prints "Total paid" with no balance owing
+- **Found:** 2026-10-15, in the same receipt audit.
+- **What's wrong:** `ReceiptView` prints `Total paid` and, when it is larger than the total, `Change`. A credit or partial payment prints a smaller `Total paid` and **nothing stating what is still owed**, so the customer's copy records neither the debt nor its amount. The reader has to subtract two numbers to learn they owe money.
+- **Fix:** a `Balance due` line whenever `amountPaid < total`, mirroring `Change`. One conditional block; it must not be toggleable (a customer needs it to dispute the debt).
+- **Noted while shortening the receipt**, which made the gap obvious: the shortening rules deliberately keep `Total paid` in exactly this case, so the line it needs beside it is the one that is missing.
+
+#### A-268. `client/` — the sync conflict log marks a lost edit resolved when any later change touches the same row
+- **Found:** 2026-10-15, vetting the cost-price divergence between Cynthia's two tills.
+- **What's wrong:** `resolveConflictsForRecords` (`push.ts:483` → `conflict-log.ts:96-110`) resolves a record's logged conflicts when *any* subsequent change to that record is accepted. On `stock_batches` that is routine: a sale pushes a quantity-only update seconds later and marks the dropped `cost_price` conflict resolved, although the cost never reached the server. The ledger that exists to outlive the toast therefore under-reports exactly the case it was built for — a silently discarded edit — and the device-diagnostics report, which lists unresolved conflicts only (`diagnostics-detail.ts:66-75`), inherits the blind spot.
+- **Fix:** resolve a conflict only when a later accepted change carries the **same fields** as the dropped one, rather than merely the same `record_id`. The conflict row already stores a `fields` list (`conflict-log.ts:32`).
+- **Why it matters now:** it is the reason "her cost edit vanished" leaves no durable trace to find afterwards, and so the reason the divergence had to be diagnosed from the code rather than from the device's own ledger.
+
 #### A-267. `client/` — two persisted time guards outside the health check still trust this device's clock
 - **Found:** 2026-10-14, in the vet of A-234's fix. Neither is urgent; recorded so the next clock pass has the list rather than re-deriving it.
 - **(a) `login-lockout.ts`** persists `lockedUntil` as epoch milliseconds in `localStorage`. A clock moved **forward** clears a PIN lockout early; moved back, it extends one. It is a brute-force guard, so the direction that matters is "cleared early" — but the party with access to the OS clock is the store owner, who already has the PIN, so the exposure is close to nil. Deliberately not fixed: tightening it would lock out an honest user whose clock reset mid-lockout, which is the A-266 shape again.

@@ -13,6 +13,7 @@ interface ReceiptPreviewProps {
   logoPosition?: "above" | "beside";
   showPhone: boolean;
   showAddress: boolean;
+  showBarcode: boolean;
   hidePoweredBy?: boolean;
 }
 
@@ -28,6 +29,7 @@ export function ReceiptPreview({
   logoPosition = "above",
   showPhone,
   showAddress,
+  showBarcode,
   hidePoweredBy = false,
 }: ReceiptPreviewProps) {
   const logoImg = showLogo && localLogo && (
@@ -75,12 +77,6 @@ export function ReceiptPreview({
               {showPhone && (localPhone || "0800-DUMOSRX")}
             </div>
           )}
-        </div>
-
-        <div className="text-center mb-2">
-          <span className="font-bold uppercase tracking-widest border border-black inline-block px-2 py-0.5 text-[8px]">
-            Invoice
-          </span>
         </div>
 
         <div className="space-y-0.5 text-[8px] mb-2">
@@ -158,9 +154,11 @@ export function ReceiptPreview({
         </div>
 
         <div className="text-center pt-2 space-y-1 text-[8px]">
-          <div className="text-[10px] tracking-widest font-black opacity-30">
-            ||||||||| ||| |||||
-          </div>
+          {showBarcode && (
+            <div className="text-[10px] tracking-widest font-black opacity-30">
+              ||||||||| ||| |||||
+            </div>
+          )}
           {localReceiptHeader && (
             <div className="italic">"{localReceiptHeader}"</div>
           )}

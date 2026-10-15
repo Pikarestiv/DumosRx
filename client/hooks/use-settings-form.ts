@@ -26,6 +26,7 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
   );
   const [showPhone, setShowPhone] = useState(storeProfile?.show_phone_on_receipt === 1);
   const [showAddress, setShowAddress] = useState(storeProfile?.show_address_on_receipt === 1);
+  const [showBarcode, setShowBarcode] = useState(storeProfile?.show_barcode_on_receipt !== 0);
   const [hidePoweredBy, setHidePoweredBy] = useState(storeProfile?.hide_powered_by === 1);
   const [lowStockAlert, setLowStockAlert] = useState(storeProfile?.low_stock_warning === 1);
   const [expiryAlert, setExpiryAlert] = useState(storeProfile?.expiry_warning === 1);
@@ -69,6 +70,7 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
       );
       setShowPhone(storeProfile.show_phone_on_receipt === 1);
       setShowAddress(storeProfile.show_address_on_receipt === 1);
+      setShowBarcode(storeProfile.show_barcode_on_receipt !== 0);
       setHidePoweredBy(storeProfile.hide_powered_by === 1);
       setLowStockAlert(storeProfile.low_stock_warning === 1);
       setExpiryAlert(storeProfile.expiry_warning === 1);
@@ -111,6 +113,7 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
     logoPosition, setLogoPosition,
     showPhone, setShowPhone,
     showAddress, setShowAddress,
+    showBarcode, setShowBarcode,
     hidePoweredBy, setHidePoweredBy,
     lowStockAlert, setLowStockAlert,
     expiryAlert, setExpiryAlert,

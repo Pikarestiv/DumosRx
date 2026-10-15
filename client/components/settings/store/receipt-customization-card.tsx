@@ -83,6 +83,8 @@ interface ReceiptCustomizationCardProps {
   showPhone: boolean;
   setShowPhone: (val: boolean) => void;
   showAddress: boolean;
+  showBarcode: boolean;
+  setShowBarcode: (value: boolean) => void;
   setShowAddress: (val: boolean) => void;
   hidePoweredBy: boolean;
   setHidePoweredBy: (val: boolean) => void;
@@ -107,6 +109,8 @@ export function ReceiptCustomizationCard({
   showPhone,
   setShowPhone,
   showAddress,
+  showBarcode,
+  setShowBarcode,
   setShowAddress,
   hidePoweredBy,
   setHidePoweredBy,
@@ -363,6 +367,13 @@ export function ReceiptCustomizationCard({
               checked={showAddress}
               onCheckedChange={setShowAddress}
             />
+            <ReceiptToggleRow
+              label="Show Barcode"
+              description="Print the scannable code at the foot of the receipt"
+              isEditing={isEditing}
+              checked={showBarcode}
+              onCheckedChange={setShowBarcode}
+            />
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
                 <Label className="text-base">
@@ -417,6 +428,7 @@ export function ReceiptCustomizationCard({
             logoPosition={logoPosition}
             showPhone={showPhone}
             showAddress={showAddress}
+            showBarcode={showBarcode}
             hidePoweredBy={hidePoweredBy && canRemoveBranding}
           />
         </div>

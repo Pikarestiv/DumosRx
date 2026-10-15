@@ -108,7 +108,13 @@ describe("useActionCenterAlerts", () => {
   }
 
   async function alerts(
-    counts: { expiring?: number; lowStock?: number; missingExpiry?: number; oversold?: number } = {},
+    counts: {
+      expiring?: number;
+      lowStock?: number;
+      missingExpiry?: number;
+      oversold?: number;
+      oversoldProduct?: string;
+    } = {},
   ) {
     const { result } = renderHook(
       () =>
@@ -117,6 +123,7 @@ describe("useActionCenterAlerts", () => {
           counts.lowStock ?? 0,
           counts.missingExpiry ?? 0,
           counts.oversold ?? 0,
+          counts.oversoldProduct,
         ),
       { wrapper },
     );
@@ -277,6 +284,23 @@ describe("useActionCenterAlerts", () => {
     expect(byId["oversold"].title).toBe("3 Items Oversold");
     expect(byId["oversold"].priority).toBe("critical");
     expect(byId["low-stock"].priority).toBe("warning");
+  });
+
+  it("names the product on the oversold card when exactly one is oversold", async () => {
+    const result = await alerts({ oversold: 1, oversoldProduct: "ampoul vellmax 20w" });
+    const card = result.current.find((a) => a.id === "oversold");
+    expect(card?.description).toBe("ampoul vellmax 20w — stock floored at zero.");
+  });
+
+  it("keeps the generic oversold description for several products, or no name", async () => {
+    let result = await alerts({ oversold: 2, oversoldProduct: "ampoul vellmax 20w" });
+    expect(result.current.find((a) => a.id === "oversold")?.description).toBe(
+      "Stock floored at zero — reconcile now.",
+    );
+    result = await alerts({ oversold: 1 });
+    expect(result.current.find((a) => a.id === "oversold")?.description).toBe(
+      "Stock floored at zero — reconcile now.",
+    );
   });
 
   it("raises no inventory alerts when every count is zero", async () => {

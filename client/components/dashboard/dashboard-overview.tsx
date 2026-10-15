@@ -190,6 +190,7 @@ export function DashboardOverview() {
         lowStockCount={stats.lowStockCount}
         missingExpiryCount={stats.missingExpiryCount}
         oversoldCount={stats.oversoldCount}
+        oversoldProduct={stats.oversoldProduct}
       />
 
       <div className="flex flex-col lg:grid lg:grid-cols-[1.4fr_1fr] gap-y-6 gap-x-5 pb-1 mb-4">

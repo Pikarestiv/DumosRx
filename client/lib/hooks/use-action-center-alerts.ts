@@ -43,6 +43,7 @@ export function useActionCenterAlerts(
   lowStockCount: number,
   missingExpiryCount: number,
   oversoldCount: number,
+  oversoldProduct?: string,
 ) {
   const { isAuthenticated, isAdmin, user } = useAuth();
   const { storeProfile } = useStore();
@@ -208,7 +209,10 @@ export function useActionCenterAlerts(
         items.push({
           id: "oversold",
           title: `${oversoldCount} ${pluralize(oversoldCount, "Item")} Oversold`,
-          description: "Stock floored at zero — reconcile now.",
+          description:
+            oversoldCount === 1 && oversoldProduct
+              ? `${oversoldProduct} — stock floored at zero.`
+              : "Stock floored at zero — reconcile now.",
           icon: AlertOctagon,
           priority: "critical",
           actionLabel: "Reconcile Now",
@@ -280,6 +284,7 @@ export function useActionCenterAlerts(
     lowStockCount,
     missingExpiryCount,
     oversoldCount,
+    oversoldProduct,
     licenseStatus,
     showWidgetPrompt,
     promptPinWidget,

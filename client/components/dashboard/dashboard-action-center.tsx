@@ -49,6 +49,7 @@ export interface ActionCenterProps {
   lowStockCount: number;
   missingExpiryCount: number;
   oversoldCount: number;
+  oversoldProduct?: string;
 }
 
 // --- Card Item Component ---
@@ -125,12 +126,14 @@ export function DashboardActionCenter({
   lowStockCount,
   missingExpiryCount,
   oversoldCount,
+  oversoldProduct,
 }: ActionCenterProps) {
   const alerts = useActionCenterAlerts(
     expiringCount,
     lowStockCount,
     missingExpiryCount,
     oversoldCount,
+    oversoldProduct,
   );
   const [isPaused, setIsPaused] = useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);

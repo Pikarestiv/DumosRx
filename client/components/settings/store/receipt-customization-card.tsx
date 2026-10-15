@@ -274,8 +274,8 @@ export function ReceiptCustomizationCard({
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>
-                        Add a footer message to print at the bottom of all
-                        receipts.
+                        Printed at the bottom of every receipt. Clear it to
+                        print no footer at all.
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -291,7 +291,7 @@ export function ReceiptCustomizationCard({
               )}
               {!isEditing && (
                 <p className="text-sm font-medium py-2">
-                  {localReceiptFooter || "Not set"}
+                  {localReceiptFooter || "Not printed"}
                 </p>
               )}
             </div>

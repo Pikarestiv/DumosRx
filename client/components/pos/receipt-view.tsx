@@ -2,6 +2,7 @@
 
 import { useStore, type StoreProfile } from "@/lib/context/store-context";
 import Barcode from "react-barcode";
+import { RECEIPT_FOOTER_DEFAULT } from "@/lib/constants";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { ReceiptPaperSize } from "@/lib/hooks/use-receipt-paper-size";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
@@ -87,6 +88,7 @@ export function ReceiptView({
     transaction.change > 0 ||
     transaction.paymentMethod === "credit";
   const showBarcode = storeProfile?.show_barcode_on_receipt !== 0;
+  const footerMessage = storeProfile?.receipt_footer ?? RECEIPT_FOOTER_DEFAULT;
 
   const shortId = transaction.id.split("-")[0].toUpperCase();
   const invoiceNo =
@@ -322,7 +324,7 @@ export function ReceiptView({
 
       <div className="text-center italic text-xs">
         {storeProfile?.receipt_header && <p>"{storeProfile.receipt_header}"</p>}
-        <p>{storeProfile?.receipt_footer || "Thank you for your patronage!"}</p>
+        {footerMessage !== "" && <p>{footerMessage}</p>}
       </div>
 
       {!hidePoweredBy && (

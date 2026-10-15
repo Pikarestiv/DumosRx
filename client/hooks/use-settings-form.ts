@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { StoreProfile } from "@/lib/context/store-context";
 import { parseEnabledPaymentMethods } from "@/lib/payment-methods";
+import { RECEIPT_FOOTER_DEFAULT } from "@/lib/constants";
 
 export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIntervalMinutes: number) {
   // Form States
@@ -18,7 +19,9 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
   const [localRegistrationNumber, setLocalRegistrationNumber] = useState(storeProfile?.registration_number || "");
   const [localTaxNumber, setLocalTaxNumber] = useState(storeProfile?.tax_number || "");
   const [localReceiptHeader, setLocalReceiptHeader] = useState(storeProfile?.receipt_header || "");
-  const [localReceiptFooter, setLocalReceiptFooter] = useState(storeProfile?.receipt_footer || "");
+  const [localReceiptFooter, setLocalReceiptFooter] = useState(
+    storeProfile?.receipt_footer ?? RECEIPT_FOOTER_DEFAULT,
+  );
   const [localReceiptTagline, setLocalReceiptTagline] = useState(storeProfile?.receipt_tagline || "");
   const [showLogo, setShowLogo] = useState(storeProfile?.show_logo_on_receipt === 1);
   const [logoPosition, setLogoPosition] = useState<"above" | "beside">(
@@ -62,7 +65,7 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
       setLocalRegistrationNumber(storeProfile.registration_number || "");
       setLocalTaxNumber(storeProfile.tax_number || "");
       setLocalReceiptHeader(storeProfile.receipt_header || "");
-      setLocalReceiptFooter(storeProfile.receipt_footer || "");
+      setLocalReceiptFooter(storeProfile.receipt_footer ?? RECEIPT_FOOTER_DEFAULT);
       setLocalReceiptTagline(storeProfile.receipt_tagline || "");
       setShowLogo(storeProfile.show_logo_on_receipt === 1);
       setLogoPosition(

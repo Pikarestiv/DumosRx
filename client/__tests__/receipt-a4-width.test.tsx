@@ -136,6 +136,32 @@ describe("receipt length", () => {
   });
 });
 
+describe("receipt footer", () => {
+  it("prints the default thank-you for a store that has never set one", () => {
+    storeProfile = { name: "Divamax" };
+    const { container } = render(<ReceiptView transaction={transaction} paperSize="a4" />);
+
+    expect(container.textContent).toContain("Thank you for your patronage!");
+  });
+
+  it("prints no footer at all once the owner clears the field", () => {
+    storeProfile = { name: "Divamax", receipt_footer: "" };
+    const { container } = render(<ReceiptView transaction={transaction} paperSize="a4" />);
+
+    expect(container.textContent).not.toContain("Thank you for your patronage!");
+    storeProfile = { name: "Divamax" };
+  });
+
+  it("prints the owner's own wording when they set one", () => {
+    storeProfile = { name: "Divamax", receipt_footer: "No refund after 24 hours" };
+    const { container } = render(<ReceiptView transaction={transaction} paperSize="a4" />);
+
+    expect(container.textContent).toContain("No refund after 24 hours");
+    expect(container.textContent).not.toContain("Thank you for your patronage!");
+    storeProfile = { name: "Divamax" };
+  });
+});
+
 describe("receipt barcode toggle", () => {
   it("prints the barcode for a store that has never set the preference", () => {
     storeProfile = { name: "Divamax" };

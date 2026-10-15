@@ -4643,6 +4643,31 @@ same tab session still gets its own fresh one-time retry.
   bottom dead zone, and Chrome clips rather than scales, so the footer would
   silently vanish.
 
+- **The receipt footer's default lives in the field, not the renderer**
+  (2026-10-15). `ReceiptView` printed `receipt_footer || "Thank you for your
+  patronage!"`, so clearing the field just brought the text back and a store
+  that did not want a thank-you had no way to say so. The renderer now reads
+  `receipt_footer ?? RECEIPT_FOOTER_DEFAULT` (`lib/constants.ts`) and prints
+  nothing for an empty string, while the settings form prefills the constant —
+  so the stored value is the words themselves and clearing the field is a
+  deliberate "print no footer".
+  - **This needed a backfill, and the reason is worth remembering.** The form
+    previously initialised to `""`, so *every* store that had ever saved its
+    receipt settings held an empty string meaning "show the default". Flipping
+    the empty string to mean "blank" would have silently stopped a footer those
+    stores have always printed. `2026_10_15_000001_backfill_receipt_footer_default`
+    writes the text they are already getting, so no receipt changes and an
+    empty string is unambiguous from then on. It sets `updated_at` from PHP so
+    the rows actually reach each device's incremental pull (root `AGENTS.md`
+    §7 — never MySQL's `NOW()`).
+  - **Old bundles still print the fallback** for a store that deliberately
+    clears the footer, because `||` is what they ship. Retirable once every
+    active device reports a build at or past this release; until then the worst
+    case is an unwanted thank-you on an old till, not a wrong figure.
+  - There is deliberately **no `show_footer_on_receipt` toggle**: an empty text
+    field already expresses "none", and a second control for the same decision
+    is what the barcode toggle exists to avoid duplicating.
+
 - **The settings Live Preview *is* `ReceiptView`** (2026-10-15). It used to be a
   hand-drawn miniature in `receipt-preview.tsx` with its own header, item rows
   and totals, and it drifted from the real thing every time the receipt

@@ -1,4 +1,8 @@
 export const APP_NAME = "DumosRx";
+
+/** Prefilled into the receipt footer field rather than hardcoded in the
+ * renderer, so clearing the field prints no footer at all. */
+export const RECEIPT_FOOTER_DEFAULT = "Thank you for your patronage!";
 export const isDevelopment = process.env.NODE_ENV === "development";
 export const APP_VERSION = "0.0.40"; // DumosRx current version (update when bumping version)
 

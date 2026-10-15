@@ -9,6 +9,11 @@ import type { StoreStockDivergence } from "@/lib/types/admin-platform";
 import { DeviceReportAction } from "./device-report-action";
 import { DeviceRowActions } from "./device-row-actions";
 
+/** Figures run to five digits on a real store, so they are unreadable raw. */
+function formatCount(value: number | null | undefined): string {
+  return Number(value ?? 0).toLocaleString();
+}
+
 export function StoreStockDivergencePanel({
   storeId,
   currency,
@@ -94,34 +99,63 @@ export function StoreStockDivergenceSection({
         cloud figures can exceed the Total Stock Value above, which excludes them.
       </p>
 
-      <ul className="divide-y divide-slate-100 dark:divide-slate-800 rounded-md border border-slate-200 dark:border-slate-800">
+      <ul className="divide-y divide-slate-100 dark:divide-slate-800 rounded-xl border border-slate-200 dark:border-slate-800">
         {data.devices.map((device) => (
           <li
             key={device.device_id}
-            className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5"
+            className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6"
           >
-            <div className="min-w-[13rem] flex-1 basis-[13rem]">
-              <p className="text-xs font-bold text-foreground">
-                {device.device_label ?? "Unnamed device"}
-              </p>
-              <p className="font-mono text-xs text-muted-foreground break-all">{device.device_id}</p>
-              <p className="text-xs text-muted-foreground">
-                {`Device ${device.device_quantity_sum} across ${device.device_batch_count} batches`}
-                {device.device_value_sum == null
-                  ? " · value not reported"
-                  : ` · ${formatMoney(Math.round(device.device_value_sum), currency)}`}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {`Cloud ${device.server_quantity_sum} across ${device.server_batch_count} batches`}
-                {device.server_value_sum == null
-                  ? ""
-                  : ` · ${formatMoney(Math.round(device.server_value_sum), currency)}`}
-              </p>
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-foreground">
+                  {device.device_label ?? "Unnamed device"}
+                </p>
+                <p className="truncate font-mono text-xs text-muted-foreground">
+                  {device.device_id}
+                </p>
+              </div>
+
+              <dl className="grid grid-cols-[3.5rem_1fr] gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                <dt className="font-semibold text-foreground/70">Device</dt>
+                <dd>
+                  {`${formatCount(device.device_quantity_sum)} across ${formatCount(device.device_batch_count)} batches`}
+                  {device.device_value_sum == null
+                    ? " · value not reported"
+                    : ` · ${formatMoney(Math.round(device.device_value_sum), currency)}`}
+                </dd>
+                <dt className="font-semibold text-foreground/70">Cloud</dt>
+                <dd>
+                  {`${formatCount(device.server_quantity_sum)} across ${formatCount(device.server_batch_count)} batches`}
+                  {device.server_value_sum == null
+                    ? ""
+                    : ` · ${formatMoney(Math.round(device.server_value_sum), currency)}`}
+                </dd>
+              </dl>
             </div>
 
-            <div className="flex flex-1 shrink-0 items-center justify-end gap-2">
+            <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+              <div className="flex items-center gap-2">
+                {!device.diverged && !!device.value_delta && (
+                  <span className="text-xs font-medium text-amber-500">Costs differ</span>
+                )}
+                {device.diverged ? (
+                  <Badge variant="destructive">
+                    {device.quantity_delta > 0 ? "+" : ""}
+                    {formatCount(device.quantity_delta)}
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary">Agrees</Badge>
+                )}
+              </div>
+
+              {device.reported_at && (
+                <p className="text-xs text-muted-foreground">
+                  {formatDateSafe(device.reported_at, "dd/MM/yyyy HH:mm", "")}
+                </p>
+              )}
+
               {storeId && (
-                <>
+                <div className="flex items-center gap-1">
                   <DeviceReportAction storeId={storeId} deviceId={device.device_id} />
                   <DeviceRowActions
                     storeId={storeId}
@@ -129,26 +163,8 @@ export function StoreStockDivergenceSection({
                     deviceLabel={device.device_label}
                     deviceNickname={device.device_nickname}
                   />
-                </>
+                </div>
               )}
-              <div className="text-right">
-              {device.diverged ? (
-                <Badge variant="destructive">
-                  {device.quantity_delta > 0 ? "+" : ""}
-                  {device.quantity_delta}
-                </Badge>
-              ) : (
-                <Badge variant="secondary">Agrees</Badge>
-              )}
-              {!device.diverged && !!device.value_delta && (
-                <p className="text-xs text-amber-500 mt-1">Costs differ</p>
-              )}
-              {device.reported_at && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {formatDateSafe(device.reported_at, "dd/MM/yyyy HH:mm", "")}
-                </p>
-              )}
-              </div>
             </div>
           </li>
         ))}

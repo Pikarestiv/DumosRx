@@ -8,6 +8,11 @@ import type { DeviceDiagnostics } from "@/lib/db/queries/diagnostics";
  */
 const LOOKS_LIKE_SQL = /SQLSTATE|INSERT |UPDATE |SELECT |constraint/i;
 
+/** `feedback.content` is a MySQL TEXT column, so a longer report is rejected
+ * outright rather than stored short — and the report matters most on the
+ * device with the most to say. */
+const MAX_REPORT_CHARS = 60_000;
+
 function duration(ms: number): string {
   const minutes = Math.round(Math.abs(ms) / 60_000);
   if (minutes < 60) return `${minutes}m`;
@@ -96,11 +101,42 @@ export function buildReport(
     }
   }
 
+  if (data.batchConflicts.length > 0) {
+    lines.push(
+      "",
+      "Batch edits the server refused (resolved ones included on purpose — A-268)",
+    );
+    for (const row of data.batchConflicts) {
+      lines.push(
+        `  ${row.record_id} · ${row.reason} · fields ${row.fields ?? "unknown"} · ${row.detected_at}` +
+          (row.resolved_at ? ` · marked resolved ${row.resolved_at}` : " · still unresolved"),
+      );
+    }
+  }
+
+  if (data.batchCosts.length > 0) {
+    const shielded = data.batchCosts.filter((row) => row.shielded);
+    lines.push(
+      "",
+      `Batch costs on this device (${shielded.length} the pull cannot reach, of ${data.batchCosts.length} listed)`,
+      "  Compare against: SELECT id, cost_price, _version, updated_at FROM stock_batches WHERE id IN (...)",
+    );
+    for (const row of data.batchCosts) {
+      lines.push(
+        `  ${row.shielded ? "SHIELDED " : ""}${row.id} · cost ${row.cost_price ?? "null"} · qty ${row.quantity}` +
+          ` · v${row._version ?? "?"} · ${row.updated_at ?? "unknown"}`,
+      );
+    }
+  }
+
   lines.push("", "Sync state");
   for (const row of data.syncState) {
     lines.push(
       `  ${row.table_name}: last synced ${row.last_synced_at ?? "never"}` +
-        (row.server_cursor ? " (mid-window)" : ""),
+        (row.server_cursor ? " (mid-window)" : "") +
+        ((row.rewind_count ?? 0) > 0
+          ? ` · ${row.rewind_count} rewind(s), baseline ${row.rewound_from ?? "unknown"}`
+          : ""),
     );
   }
 
@@ -149,5 +185,9 @@ export function buildReport(
     `  without any active batch: ${data.resolution.productsWithoutBatches}`,
   );
 
-  return lines.join("\n");
+  const report = lines.join("\n");
+
+  return report.length > MAX_REPORT_CHARS
+    ? `${report.slice(0, MAX_REPORT_CHARS)}\n… truncated to fit the support ticket`
+    : report;
 }

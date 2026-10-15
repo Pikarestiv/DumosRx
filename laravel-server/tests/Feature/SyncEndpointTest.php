@@ -1502,6 +1502,89 @@ class SyncEndpointTest extends TestCase
     }
 
     /**
+     * A sale must not invalidate someone else's cost correction. Quantity-only
+     * updates are accepted unconditionally, so bumping the row's _version for
+     * them only served to make every other device's base version stale — and
+     * quantity is never pulled, so that staleness said nothing about the cost
+     * the other device was editing. The owner enters cost prices on her
+     * laptop while the counter till keeps selling, so her correction arrived
+     * carrying a pre-sale version and was rejected as a conflict; the client
+     * then dropped the queued edit and re-pulled the old cost over it. See
+     * docs/KNOWN_BUGS.md A-271 and laravel-server/AGENTS.md.
+     */
+    public function test_push_sync_keeps_a_cost_correction_valid_after_another_device_sells()
+    {
+        DB::table('products')->insert([
+            'id' => 'prod_cost_after_sale',
+            'user_id' => $this->user->id,
+            'name' => 'Paracetamol',
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $batchId = 'batch_cost_after_sale';
+        DB::table('stock_batches')->insert([
+            'id' => $batchId,
+            'user_id' => $this->user->id,
+            'product_id' => 'prod_cost_after_sale',
+            'quantity' => 40,
+            'cost_price' => 10.00,
+            'expiry_date' => now()->addYear()->toDateString(),
+            'batch_number' => 'B-AFTER-SALE',
+            '_version' => 2, // What both devices last pulled.
+            'created_at' => now()->subDay(),
+            'updated_at' => now()->subDay(),
+        ]);
+
+        // The counter till sells 4 units: a quantity-only update, accepted
+        // unconditionally, which must leave the row's version alone.
+        $till = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [[
+                'table_name' => 'stock_batches',
+                'operation' => 'UPDATE',
+                'record_id' => $batchId,
+                'payload' => [
+                    'id' => $batchId,
+                    'quantity' => 36,
+                    '_version' => 2,
+                    '_synced' => 0,
+                    'updated_at' => now()->toDateTimeString(),
+                ],
+            ]],
+        ]);
+        $till->assertStatus(200);
+        $till->assertJsonCount(0, 'failed');
+        $this->assertEquals(2, DB::table('stock_batches')->where('id', $batchId)->value('_version'));
+
+        // The owner's laptop corrects the cost from the version it last
+        // pulled, which the sale above has not changed.
+        $laptop = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [[
+                'table_name' => 'stock_batches',
+                'operation' => 'UPDATE',
+                'record_id' => $batchId,
+                'payload' => [
+                    'id' => $batchId,
+                    'cost_price' => 12.50,
+                    '_version' => 2,
+                    '_synced' => 0,
+                    'updated_at' => now()->addMinute()->toDateTimeString(),
+                ],
+            ]],
+        ]);
+        $laptop->assertStatus(200);
+        $laptop->assertJsonCount(0, 'failed');
+
+        // The correction landed, and only a cost edit bumps the version.
+        $final = DB::table('stock_batches')->where('id', $batchId)->first();
+        $this->assertEquals('12.50', $final->cost_price);
+        $this->assertEquals(3, $final->_version);
+    }
+
+    /**
      * The `stores` response is scoped to the AUTHENTICATED IDENTITY, not to
      * the account: a user carrying a store_id (every staff account) gets a
      * one-store list by design. The client's prune in

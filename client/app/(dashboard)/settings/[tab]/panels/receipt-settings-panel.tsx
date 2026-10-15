@@ -22,6 +22,8 @@ export function ReceiptSettingsPanel(s: SettingsState) {
       setShowPhone={s.setShowPhone}
       showAddress={s.showAddress}
       setShowAddress={s.setShowAddress}
+      showBarcode={s.showBarcode}
+      setShowBarcode={s.setShowBarcode}
       hidePoweredBy={s.hidePoweredBy}
       setHidePoweredBy={s.setHidePoweredBy}
       handleSaveReceiptSettings={s.handleSaveReceiptSettings}

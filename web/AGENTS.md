@@ -422,6 +422,21 @@ is that two devices of one store disagree.
   against what the server computed, snapshotted at report time. Both sides are
   stored, never recomputed on read, so a historical row cannot change meaning
   later.
+  - **Each row is two columns, and the right one never grows** (2026-10-15).
+    It previously gave the actions column `flex-1` while its children were
+    `shrink-0`, so on a real store — five-figure counts, a long device label, a
+    queued-report notice — the column's content outgrew its box and, being
+    `justify-end`, overflowed **leftwards across the device's own figures**.
+    The owner saw sentences printed on top of each other. The identity/figures
+    column is `min-w-0 flex-1`, the status/actions column is `shrink-0`, and
+    the row stacks below `sm`. Any control added here goes in the right column
+    and must not be given `flex-1`.
+  - **Counts are `toLocaleString()`'d**: "49680 across 2692 batches" is what
+    reached the owner, and five digits are unreadable raw. The figures sit in a
+    two-row `<dl>` so Device and Cloud line up and a gap is visible without
+    reading both numbers. The queued-report state is a fixed-height dashed
+    pill, not loose text, so a row's height does not change when a report is
+    requested.
 - **`store-queue-state-section.tsx`** lists what is stuck on each device, with
   attempts and a canonical reason. The reason is a slug the device already
   canonicalised — it is never raw error text, and nothing here should start

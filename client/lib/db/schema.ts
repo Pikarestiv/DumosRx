@@ -360,6 +360,7 @@ CREATE TABLE IF NOT EXISTS stores (
   show_contact_on_receipt INTEGER DEFAULT 1,
   show_phone_on_receipt INTEGER DEFAULT 1,
   show_address_on_receipt INTEGER DEFAULT 1,
+  show_barcode_on_receipt INTEGER DEFAULT 1,
   hide_powered_by INTEGER DEFAULT 0,
   low_stock_warning INTEGER DEFAULT 1,
   expiry_warning INTEGER DEFAULT 1,

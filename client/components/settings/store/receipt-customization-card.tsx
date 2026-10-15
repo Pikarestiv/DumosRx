@@ -430,6 +430,7 @@ export function ReceiptCustomizationCard({
             showAddress={showAddress}
             showBarcode={showBarcode}
             hidePoweredBy={hidePoweredBy && canRemoveBranding}
+            paperSize={paperSize}
           />
         </div>
       </CardContent>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useStore } from "@/lib/context/store-context";
+import { useStore, type StoreProfile } from "@/lib/context/store-context";
 import Barcode from "react-barcode";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { ReceiptPaperSize } from "@/lib/hooks/use-receipt-paper-size";
@@ -49,14 +49,21 @@ interface ReceiptProps {
   // exists yet, so the payment/change/barcode sections don't apply and a
   // disclaimer replaces them instead.
   documentType?: ReceiptDocumentType;
+  // Settings renders this live against values the owner has typed but not yet
+  // saved, which are not in the store context until they are.
+  profileOverride?: Partial<StoreProfile>;
 }
 
 export function ReceiptView({
   transaction,
   paperSize = "a4",
   documentType = "receipt",
+  profileOverride,
 }: ReceiptProps) {
-  const { storeProfile, vatPercentage } = useStore();
+  const { storeProfile: savedProfile, vatPercentage } = useStore();
+  const storeProfile = profileOverride
+    ? { ...savedProfile, ...profileOverride }
+    : savedProfile;
   const { canCustomizeTheme, canRemoveBranding } = useFeatureGate();
   const hidePoweredBy = canRemoveBranding && storeProfile?.hide_powered_by === 1;
   const isThermal = paperSize === "thermal";

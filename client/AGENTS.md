@@ -4643,6 +4643,26 @@ same tab session still gets its own fresh one-time retry.
   bottom dead zone, and Chrome clips rather than scales, so the footer would
   silently vanish.
 
+- **The settings Live Preview *is* `ReceiptView`** (2026-10-15). It used to be a
+  hand-drawn miniature in `receipt-preview.tsx` with its own header, item rows
+  and totals, and it drifted from the real thing every time the receipt
+  changed: it printed a boxed `Invoice` badge no receipt renders, labelled the
+  number `Invoice no:` when no variant has said that since the tax/quote split,
+  and — the complaint that started this — it ignored the paper-size selector
+  sitting directly beside it, because it had no `paperSize` prop at all. Each
+  drift had to be noticed and patched by hand. The miniature is gone;
+  `ReceiptPreview` renders the real component with a sample sale, so the
+  preview cannot promise anything the printer will not produce. Unsaved form
+  values reach it through `ReceiptView`'s `profileOverride` prop, merged over
+  the store context — the context holds only what has been *saved*, and the
+  preview's whole job is to show what has not been. Feature gates are not
+  re-applied there: `ReceiptView` already consults `useFeatureGate`, so a plan
+  that cannot remove branding sees the branding in its preview too, which is
+  the truth. The box uses CSS `zoom` rather than `transform: scale` so the
+  panel reserves the shrunken height instead of a full page's. Pinned by
+  `__tests__/receipt-preview-follows-paper-size.test.tsx`. **Don't hand-draw a
+  receipt for any new surface** — render `ReceiptView`.
+
 - **Receipt sections are flat `stores` columns, not a settings blob.**
   `show_barcode_on_receipt` (2026-10-15) follows `show_phone_on_receipt`'s
   pattern exactly: a column on `stores`, the ALTER in `schema-migrations.ts`,

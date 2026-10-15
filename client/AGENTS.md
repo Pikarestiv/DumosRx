@@ -364,6 +364,24 @@ and `synchronous = NORMAL`.
     `stores.license_token`; and never includes an `audit_logs.details` blob
     (A-130 once put a plaintext temporary password there). The screen may show
     more than the clipboard. Pinned by `__tests__/diagnostics-detail.test.ts`.
+  - **Batch costs and rewind counts** (2026-10-15, for A-271: two tills that
+    agree on quantity and disagree on stock value). `syncState` now carries
+    `rewind_count`/`rewound_from`, so a pinned rewind budget is visible rather
+    than inferred. `stockBatchConflicts()` returns the last 50
+    `stock_batches` conflicts **including resolved ones** — unlike
+    `unresolvedConflicts()`, because a sale on the same batch marks a dropped
+    cost edit resolved seconds later without the cost ever reaching the server
+    (A-268), so the resolved rows are the evidence rather than noise. And
+    `batchCostSnapshot()` lists up to 100 batches: every one the pull cannot
+    reach (`_synced = 0` or a pending `_sync_queue` row, flagged `shielded`)
+    plus the highest-value rows, since a valuation gap big enough to notice is
+    dominated by a few of those. Batch ids, costs, quantities and versions
+    only — no product names. `buildReport` truncates the whole report at
+    60,000 chars: `feedback.content` is a MySQL `TEXT` column, which rejects
+    anything longer outright rather than storing it short, and the report
+    matters most on the device with the most to say. The three fields are in
+    the collector and the ticket; the on-screen console does not render them
+    yet, because the remote ticket is what support reads.
   - **What it captures, and why each field exists.** A 2026-10-09 audit scored
     the first version against real incidents: 7 caught, 6 half, 7 missed. The
     fields added to close those gaps, each tied to the bug that needed it:

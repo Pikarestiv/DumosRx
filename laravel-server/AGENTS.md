@@ -1198,6 +1198,40 @@ have reintroduced exactly this.
 The outer catch is `\Throwable`, not `\Exception`, on purpose: an `\Error`
 was previously uncaught, so the request died with no rollback and no record.
 
+## A sale does not version a batch (2026-10-15)
+
+`resolveUpdateConflict()` accepts a quantity-only `stock_batches` UPDATE
+unconditionally — two tills selling the same batch is everyday operation, not a
+conflict — and it used to **also bump the row's `_version`** on the way
+through. That bump was the defect: quantity is stripped from the pull
+(`client/lib/db/sync-engine/pull.ts`, quantity is rebuilt from
+`stock_movements`), so a device's `_version` staleness carries no information
+about any field a sale touched, yet it invalidated every other device's base
+version for that row.
+
+The field case: the owner enters cost prices on her laptop while the counter
+till keeps selling. Each sale bumped the version, so her `cost_price` push
+arrived carrying a pre-sale version and was refused as `version_conflict`; the
+client dropped the queued edit, logged it, rewound the pull window and pulled
+the **old** cost back over her correction. She saw the price revert, with only
+a toast to say why. A quantity-only accepted update now returns
+`$modelVersion` unchanged, so a cost edit conflicts only with another
+cost/metadata edit — which is the case the check was written for and which
+`SyncEndpointTest::test_push_sync_does_not_exempt_stock_batches_non_quantity_field_from_conflict_check`
+still pins.
+
+Nothing depended on the bump: the row is still saved and `_synced_at` stamped,
+so the pull cursor re-offers it as before; the returned `versions` map still
+carries the true server version, so a stale client is *corrected* by its own
+sale push rather than only by a later pull. Old clients in the field send
+`_version` and apply whatever comes back, so they see the same number and
+behave identically (§11) — no shim, nothing to retire.
+
+What this does **not** fix, and what the device report was extended to find:
+a cost edit can also sit in `_sync_queue` indefinitely (the pull skips any row
+with a pending queue entry), which keeps a device's own cost alive while its
+quantities keep reconciling through movements. See `docs/KNOWN_BUGS.md` A-271.
+
 ## Remote device report (`send_device_report`)
 
 `SyncCommandService::ACTIONS` gains `send_device_report`, and
@@ -1217,6 +1251,22 @@ The limitation: commands ride the **push response**
 (`exchangeSyncCommands`), so a device whose rows fail individually still
 receives them, but one whose push request fails outright does not. See
 `client/AGENTS.md` for the device half.
+
+**What the report carries about batch costs** (added 2026-10-15, to diagnose
+two tills that agree on quantity and disagree on stock value): the sync-state
+section now prints each table's `rewind_count` and the baseline it was rewound
+to; "Batch edits the server refused" lists this device's last 50
+`stock_batches` conflicts **including the resolved ones**, because a sale on
+the same batch marks a dropped cost edit resolved within seconds without the
+cost ever landing (A-268); and "Batch costs on this device" lists up to 100
+batches — every one the pull cannot reach (`_synced = 0` or a pending
+`_sync_queue` row, flagged `SHIELDED`) plus the highest-value rows — with the
+`SELECT` to compare them against the server. A device `_version` *behind* the
+server's on a `SHIELDED` row with a different cost is the known shape; equal
+versions with different costs would be new. It is read-only, batch ids and
+costs only — no product names, no customer data — and `buildReport` truncates
+at 60,000 chars because `feedback.content` is a MySQL `TEXT` column that
+rejects anything longer outright.
 
 ## On-till admin inspection: why the credential is not a Sanctum token
 

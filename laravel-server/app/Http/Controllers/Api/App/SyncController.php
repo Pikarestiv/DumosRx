@@ -1457,9 +1457,12 @@ class SyncController extends Controller
      * Decides whether a pushed UPDATE is accepted, as
      * [$versionConflict, $conflictReason, $newVersion]:
      *
-     * - both sides version-tracked: strict-equality optimistic concurrency
-     *   (or an unconditional accept for a commutative/quantity-only change),
+     * - both sides version-tracked: strict-equality optimistic concurrency,
      *   with the server — never the payload — assigning the next version.
+     * - a commutative/quantity-only change: accepted unconditionally and the
+     *   version left where it was, so a sale never invalidates another
+     *   device's pending edit to a field this push does not touch. See
+     *   laravel-server/AGENTS.md, "A sale does not version a batch".
      * - either side missing a version: the legacy updated_at comparison,
      *   which only rejects a strictly-older payload. $newVersion stays null
      *   there because a legacy row has no version to overwrite.
@@ -1512,7 +1515,11 @@ class SyncController extends Controller
         $modelVersion = isset($model->_version) ? (int)$model->_version : null;
 
         if ($payloadVersion !== null && $modelVersion !== null) {
-            if ($isCommutativeTable || $payloadVersion === $modelVersion) {
+            if ($isCommutativeTable) {
+                return [false, null, $modelVersion];
+            }
+
+            if ($payloadVersion === $modelVersion) {
                 return [false, null, $modelVersion + 1];
             }
 

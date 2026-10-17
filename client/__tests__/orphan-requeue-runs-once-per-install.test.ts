@@ -15,8 +15,10 @@ vi.mock("idb-keyval", () => ({
  * repair a state that is created only by a write interrupted between its row
  * INSERT and its queue INSERT.
  *
- * It must run once per install, and again only when a crash was recorded
- * since the last run.
+ * It runs once per install, full stop. A-274 removed the second trigger — a
+ * `force` passed when `localStorage` held crashes queued by a previous
+ * session — because its premise does not hold and its cost is a full re-push
+ * of the device's history. See client/AGENTS.md, "The boot-time orphan scan".
  */
 describe("requeueOrphanedRowsOnce", () => {
   let db: Database;
@@ -74,15 +76,45 @@ describe("requeueOrphanedRowsOnce", () => {
     expect(queuedIds()).toEqual([]);
   });
 
-  it("scans again when a crash was recorded since the last run", async () => {
+  /**
+   * A-274. This case previously asserted the opposite — that a recorded crash
+   * re-triggers the scan — and that is the mechanism behind the 20,000-row
+   * requeue storms. A crash reaching `localStorage` means the SQLite write
+   * FAILED, so no row was committed and no orphan can exist; an orphan needs a
+   * *partial* write, which `insert()` already makes impossible by wrapping the
+   * row, its queue entry and its audit entry in one transaction. The real
+   * orphan producer was a wipe that cleared `_sync_queue` while leaving three
+   * store-scoped tables behind, and that is now closed at the source
+   * (`local-wipe-leaves-no-orphans.test.ts`).
+   */
+  it("does not scan again just because a crash was recorded", async () => {
     await mod.requeueOrphanedRowsOnce(["customers"]);
+    db.run(`DELETE FROM _sync_queue`);
 
+    localStorage.setItem(
+      "dumosrx_pending_crashes",
+      JSON.stringify([{ message: "boom", platform: "web" }]),
+    );
     insertOrphan("c2");
-    const result = await mod.requeueOrphanedRowsOnce(["customers"], {
-      force: true,
-    });
 
-    expect(result).not.toBeNull();
-    expect(queuedIds()).toEqual(["c2"]);
+    expect(await mod.requeueOrphanedRowsOnce(["customers"])).toBeNull();
+    expect(queuedIds()).toEqual([]);
+  });
+
+  /**
+   * The boot path is what actually re-armed the scan, and no unit test of the
+   * function can see that, so the decision is pinned where it was made.
+   */
+  it("is not re-armed by the boot path", async () => {
+    const fs = await import("fs");
+    const path = await import("path");
+    const provider = fs.readFileSync(
+      path.resolve(__dirname, "../lib/db/DatabaseProvider.tsx"),
+      "utf-8",
+    );
+
+    expect(provider).toContain("requeueOrphanedRowsOnce");
+    expect(provider).not.toContain("pendingCrashes");
+    expect(provider).not.toMatch(/force\s*:/);
   });
 });

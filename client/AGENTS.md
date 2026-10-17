@@ -1355,6 +1355,41 @@ anything better to do with it than carry on — the point is the report. A by-id
 re-send endpoint would remove this mechanism entirely; that is the `shortcut:`
 on the function, and the condition for deleting it.
 
+#### The boot-time orphan scan (`reconcile-identity.ts`, `DatabaseProvider.tsx`)
+
+`requeueOrphanedRowsOnce(STORE_SCOPED_TABLES)` repairs rows left at
+`_synced = 0` with no `_sync_queue` entry, which `pushChanges()` can never see
+because it only ever reads the queue. It runs **once per install**, gated on
+`STORAGE_KEYS.orphanRequeueMarker`, and it takes no options.
+
+**It is deliberately not re-armed by a crash (A-274).** It used to be:
+`DatabaseProvider` passed `force: hadPendingCrashes`, meaning "`localStorage`
+holds crashes queued by a previous session", and that is the mechanism behind
+the 20,000-row requeue storms — one crash, and the next boot re-pushed the
+device's entire already-synced history through the 50-row batcher. Three
+reasons it went:
+
+1. It was never a fix for an observed orphan. `git log -S` puts it in
+   `931f7acb`, a *performance* commit that was tightening this scan from
+   every-boot to once-per-install and hedged.
+2. Its premise is backwards. A crash reaching `localStorage` means the SQLite
+   write **threw**, so no row was committed and no orphan exists. An orphan
+   needs a *partial* write, which `insert()` has made impossible since A-8 by
+   wrapping the row, its queue entry and its audit entry in one `transaction()`.
+3. `docs/FIXED_BUGS.md` A-160 and A-161 both cite it only as the amplifier that
+   turned a few bad rows into permanent re-pushing on a crashy device.
+
+**The producer it was accidentally covering is closed at the source instead.**
+`resetDatabase()` clears `_sync_queue` but only `LOCAL_WIPE_TABLES`, whereas
+`clearDatabaseForNewStore()` unions in `STORE_SCOPED_TABLES`. Three tables sat
+in that gap — `loyalty_tiers`, `loyalty_redemption_options`,
+`permission_groups` — so a reset orphaned their rows. They are now in
+`LOCAL_WIPE_TABLES`. **The invariant to keep: any wipe that clears
+`_sync_queue` must clear every store-scoped table**, or it mints orphans by
+construction. `__tests__/local-wipe-leaves-no-orphans.test.ts` enforces it, so
+adding a table to `STORE_SCOPED_TABLES` without adding it to the wipe list
+fails the suite.
+
 #### Expected sync noise (`lib/utils/error-logger.ts`)
 
 One source of truth, **two exported checks**, because two kinds of consumer

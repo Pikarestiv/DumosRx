@@ -21,6 +21,13 @@ class StockDivergenceService
     private const EPSILON = 0.0005;
 
     /**
+     * Past this age a snapshot describes a device that has stopped reporting,
+     * not a device that disagrees. See laravel-server/AGENTS.md, "Absence of a
+     * measurement is not a disagreement".
+     */
+    private const STALE_AFTER_HOURS = 48;
+
+    /**
      * @param  array{batch_count: int, quantity_sum: float|int, value_sum?: float|int}  $fingerprint
      */
     public function record(string $storeId, string $deviceId, ?string $userId, array $fingerprint): DeviceStockReport
@@ -71,6 +78,11 @@ class StockDivergenceService
             $deviceValue = $report->device_value_sum === null ? null : (float) $report->device_value_sum;
             $serverValue = $report->server_value_sum === null ? null : (float) $report->server_value_sum;
 
+            $hasLocalCopy = $report->device_batch_count > 0 || $report->server_batch_count === 0;
+            $isStale = $report->reported_at === null
+                || $report->reported_at->lt(now()->subHours(self::STALE_AFTER_HOURS));
+            $disagrees = abs($quantityDelta) > self::EPSILON || $batchDelta !== 0;
+
             return [
                 'device_id' => $report->device_id,
                 'device_label' => $labels[$report->device_id] ?? null,
@@ -86,7 +98,9 @@ class StockDivergenceService
                 'value_delta' => $deviceValue === null || $serverValue === null
                     ? null
                     : round($deviceValue - $serverValue, 2),
-                'diverged' => abs($quantityDelta) > self::EPSILON || $batchDelta !== 0,
+                'has_local_copy' => $hasLocalCopy,
+                'stale' => $isStale,
+                'diverged' => $disagrees && $hasLocalCopy && ! $isStale,
                 'reported_at' => $report->reported_at?->toIso8601String(),
             ];
         })->values()->all();

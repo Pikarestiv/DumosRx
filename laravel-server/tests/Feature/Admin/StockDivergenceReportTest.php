@@ -119,6 +119,97 @@ class StockDivergenceReportTest extends TestCase
         $this->assertSame(-1, $device['batch_delta']);
     }
 
+    /**
+     * A-249/A-252. A device that holds no copy of this store reports an honest
+     * zero - per A-249 a switched-in store's rows never arrive, because
+     * `_sync_state` has no store dimension - and the panel rendered that as
+     * `-45,727`, which reads as catastrophic loss. Absence of a measurement is
+     * not evidence of disagreement.
+     */
+    public function test_a_device_with_no_local_copy_is_not_counted_as_diverged(): void
+    {
+        $this->seedServerStock(3, 10);
+
+        $this->service()->record($this->store->id, 'DESKTOP-OTHER-STORE', $this->owner->id, [
+            'batch_count' => 0,
+            'quantity_sum' => 0,
+        ]);
+
+        $report = $this->service()->forStore($this->store->id);
+        $device = $report['devices'][0];
+
+        $this->assertFalse($device['has_local_copy']);
+        $this->assertFalse($device['diverged']);
+        $this->assertSame(0, $report['diverged_devices']);
+    }
+
+    /** The delta is still reported; it is the *verdict* that changes. */
+    public function test_a_device_with_no_local_copy_still_reports_its_numbers(): void
+    {
+        $this->seedServerStock(3, 10);
+
+        $this->service()->record($this->store->id, 'DESKTOP-OTHER-STORE', $this->owner->id, [
+            'batch_count' => 0,
+            'quantity_sum' => 0,
+        ]);
+
+        $device = $this->service()->forStore($this->store->id)['devices'][0];
+
+        $this->assertSame(-30.0, $device['quantity_delta']);
+        $this->assertSame(3, $device['server_batch_count']);
+    }
+
+    public function test_a_device_that_genuinely_holds_stock_still_counts_as_diverged(): void
+    {
+        $this->seedServerStock(3, 10);
+
+        $this->service()->record($this->store->id, 'DESKTOP-ONE', $this->owner->id, [
+            'batch_count' => 1,
+            'quantity_sum' => 10,
+        ]);
+
+        $report = $this->service()->forStore($this->store->id);
+
+        $this->assertTrue($report['devices'][0]['has_local_copy']);
+        $this->assertTrue($report['devices'][0]['diverged']);
+        $this->assertSame(1, $report['diverged_devices']);
+    }
+
+    /**
+     * A-252. Clearing site data mints a new device id, so the retired one stops
+     * reporting for ever while its last snapshot stays on screen and red.
+     */
+    public function test_a_report_that_has_gone_stale_is_not_counted_as_diverged(): void
+    {
+        $this->seedServerStock(3, 10);
+
+        $this->service()->record($this->store->id, 'DESKTOP-RETIRED', $this->owner->id, [
+            'batch_count' => 9,
+            'quantity_sum' => 2689,
+        ]);
+
+        DeviceStockReport::query()->update(['reported_at' => now()->subHours(49)]);
+
+        $report = $this->service()->forStore($this->store->id);
+        $device = $report['devices'][0];
+
+        $this->assertTrue($device['stale']);
+        $this->assertFalse($device['diverged']);
+        $this->assertSame(0, $report['diverged_devices']);
+    }
+
+    public function test_a_fresh_report_is_not_stale(): void
+    {
+        $this->seedServerStock(3, 10);
+
+        $this->service()->record($this->store->id, 'DESKTOP-ONE', $this->owner->id, [
+            'batch_count' => 3,
+            'quantity_sum' => 30,
+        ]);
+
+        $this->assertFalse($this->service()->forStore($this->store->id)['devices'][0]['stale']);
+    }
+
     /** Two devices of one store disagreeing is the whole point. */
     public function test_each_device_is_tracked_separately(): void
     {

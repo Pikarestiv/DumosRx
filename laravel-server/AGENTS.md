@@ -1311,6 +1311,50 @@ record could not be saved" — the opposite of what happened.
   in the store they are looking at, and the nickname is merged *over* the
   sniffed label by the same resolver.
 
+## Deferred is not refused (A-178)
+
+`sync_health_daily.changes_refused` means "the server judged these rows and
+rejected them". A push the plan gate turned away before the per-change loop
+judged nothing, so `SyncFailureRecorder::DEFERRED_REASONS` tallies
+`refused = 0` for it. Currently that is `sync_throttled` alone: a throttle
+means "come back shortly", and a device paging a backlog through one booked
+every row of every refused batch as a refusal — one store read
+`271 accepted · 1450 refused` with nothing actually rejected.
+
+`sync_disabled` and `store_limit_exceeded` deliberately keep counting. They do
+not mean "come back shortly"; they mean this store is not syncing and somebody
+should look, which is what PG-18 added them for.
+
+Two things stay true for a deferred push, and both matter: `pushes` still
+increments (PG-18 — a store must not look silent), and the `sync_failures` row
+is still written with its reason and timestamp, so the operator still sees the
+throttle in the refusal list. Only the rate stops being poisoned. Note
+`successRate()` returns `null` at `accepted + refused === 0`, so a day of
+nothing but throttling renders as unavailable rather than 100% — which is
+A-178's own stated requirement, met without a new column.
+
+## Absence of a measurement is not a disagreement
+
+`StockDivergenceService::forStore()` reports three separate things and they must
+not be conflated:
+
+- `has_local_copy` — false when the device reported zero batches against a
+  cloud that has some. Per `docs/KNOWN_BUGS.md` A-249 a switched-in store's rows
+  never arrive, so the device's zero is honest. Shown as `-45,727`, it read as
+  the store having lost its stock.
+- `stale` — the snapshot is older than `STALE_AFTER_HOURS` (48). Clearing site
+  data mints a new device id, so a retired id never reports again and its last
+  snapshot would otherwise stay on screen and red for ever (A-252).
+- `diverged` — `disagrees && has_local_copy && !stale`. Only this feeds
+  `diverged_devices`.
+
+The deltas are still returned in full for all three; it is the *verdict* that
+changes, never the measurement. **If you add another "not comparable" reason,
+add a field and exclude it from `diverged` — do not fold it into the delta**,
+and check the client renders it, because a row that merely stops being
+`diverged` falls through to "Agrees", which is a worse claim than the one being
+removed.
+
 ## Remote device report (`send_device_report`)
 
 `SyncCommandService::ACTIONS` gains `send_device_report`, and

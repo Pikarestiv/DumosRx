@@ -72,10 +72,21 @@ export function StoreStockDivergenceSection({
     );
   }
 
+  const comparable = data.devices.filter(
+    (d) => d.has_local_copy !== false && !d.stale,
+  );
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        {data.diverged_devices === 0 ? (
+        {comparable.length === 0 ? (
+          <>
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            <p className="text-sm font-bold text-muted-foreground">
+              No device currently holds a comparable copy of this store.
+            </p>
+          </>
+        ) : data.diverged_devices === 0 ? (
           <>
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
             <p className="text-sm font-bold text-foreground">
@@ -86,7 +97,7 @@ export function StoreStockDivergenceSection({
           <>
             <AlertTriangle className="h-4 w-4 text-amber-500" />
             <p className="text-sm font-bold text-amber-500">
-              {data.diverged_devices} of {data.devices.length} devices disagree with the cloud.
+              {data.diverged_devices} of {comparable.length} devices disagree with the cloud.
             </p>
           </>
         )}
@@ -135,16 +146,24 @@ export function StoreStockDivergenceSection({
 
             <div className="flex shrink-0 flex-col gap-2 sm:items-end">
               <div className="flex items-center gap-2">
-                {!device.diverged && !!device.value_delta && (
-                  <span className="text-xs font-medium text-amber-500">Costs differ</span>
-                )}
-                {device.diverged ? (
-                  <Badge variant="destructive">
-                    {device.quantity_delta > 0 ? "+" : ""}
-                    {formatCount(device.quantity_delta)}
-                  </Badge>
+                {device.has_local_copy === false ? (
+                  <Badge variant="outline">No local copy of this store</Badge>
+                ) : device.stale ? (
+                  <Badge variant="outline">Stopped reporting</Badge>
                 ) : (
-                  <Badge variant="secondary">Agrees</Badge>
+                  <>
+                    {!device.diverged && !!device.value_delta && (
+                      <span className="text-xs font-medium text-amber-500">Costs differ</span>
+                    )}
+                    {device.diverged ? (
+                      <Badge variant="destructive">
+                        {device.quantity_delta > 0 ? "+" : ""}
+                        {formatCount(device.quantity_delta)}
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">Agrees</Badge>
+                    )}
+                  </>
                 )}
               </div>
 

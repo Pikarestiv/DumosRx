@@ -16,6 +16,8 @@ const device = (over: Partial<StoreStockDivergence["devices"][0]> = {}) => ({
   batch_delta: 0,
   value_delta: 0,
   diverged: false,
+  has_local_copy: true,
+  stale: false,
   reported_at: "2026-10-07T09:00:00Z",
   ...over,
 });
@@ -59,6 +61,71 @@ describe("StoreStockDivergenceSection", () => {
 
     expect(screen.getByText(/1 of 1 devices disagree/i)).toBeDefined();
     expect(screen.getByText("-56")).toBeDefined();
+  });
+
+  /**
+   * A-249/A-252. These rows rendered as `-45,727`, which reads as the store
+   * having lost its stock. The device is one of the owner's multi-store tills
+   * and honestly holds no copy of this store. It must not read as a
+   * divergence, and it must not read as agreement either.
+   */
+  it("says a device holds no local copy instead of showing a huge divergence", () => {
+    render(
+      <StoreStockDivergenceSection
+        data={{
+          measured: true,
+          diverged_devices: 0,
+          devices: [
+            device({
+              has_local_copy: false,
+              device_batch_count: 0,
+              device_quantity_sum: 0,
+              device_value_sum: 0,
+              server_quantity_sum: 45727,
+              server_batch_count: 900,
+              quantity_delta: -45727,
+            }),
+          ],
+        }}
+        isLoading={false}
+      />,
+    );
+
+    expect(screen.getByText(/no local copy/i)).toBeDefined();
+    expect(screen.queryByText("-45,727")).toBeNull();
+    expect(screen.queryByText(/^Agrees$/)).toBeNull();
+  });
+
+  it("does not claim every device agrees when one simply has no copy", () => {
+    render(
+      <StoreStockDivergenceSection
+        data={{
+          measured: true,
+          diverged_devices: 0,
+          devices: [device({ has_local_copy: false, device_batch_count: 0, quantity_delta: -45727 })],
+        }}
+        isLoading={false}
+      />,
+    );
+
+    expect(screen.queryByText(/every reporting device agrees/i)).toBeNull();
+  });
+
+  /** A-252. A retired device id keeps its last snapshot on screen for ever. */
+  it("marks a stale report as not reporting rather than disagreeing", () => {
+    render(
+      <StoreStockDivergenceSection
+        data={{
+          measured: true,
+          diverged_devices: 0,
+          devices: [device({ stale: true, quantity_delta: 2689, device_quantity_sum: 2689 })],
+        }}
+        isLoading={false}
+      />,
+    );
+
+    expect(screen.getByText(/stopped reporting/i)).toBeDefined();
+    expect(screen.queryByText("2,689")).toBeNull();
   });
 
   it("renders unavailable on a failed request rather than claiming agreement", () => {

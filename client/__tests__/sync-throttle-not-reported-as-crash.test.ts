@@ -50,13 +50,46 @@ describe("logCrash skips reporting for expected sync plan restrictions", () => {
   });
 
   it("recognizes the restriction by message when no code is attached", async () => {
-    const { isExpectedSyncRestriction } = await import("@/lib/utils/error-logger");
+    const { isExpectedSyncNoise } = await import("@/lib/utils/error-logger");
 
     expect(
-      isExpectedSyncRestriction(new Error("Sync limit reached. Try again later.")),
+      isExpectedSyncNoise(new Error("Sync limit reached. Try again later.")),
     ).toBe(true);
-    expect(isExpectedSyncRestriction(new Error("Network request failed"))).toBe(
+    expect(isExpectedSyncNoise(new Error("Unexpected token in JSON"))).toBe(
       false,
     );
+  });
+
+  /**
+   * A-273. Two more outcomes that are not bugs and were filling Sentry and the
+   * `feedback` table: a tab that lost the single-writer election (core.ts's
+   * assertWritable), and a device that is simply offline or on a flaky link.
+   */
+  it("treats a read-only tab and a genuine network failure as expected", async () => {
+    const { isExpectedSyncNoise } = await import("@/lib/utils/error-logger");
+
+    expect(
+      isExpectedSyncNoise(
+        new Error(
+          "This tab is read-only because DumosRx is already open in another tab or window. Switch to that tab, or close it, to make changes here.",
+        ),
+      ),
+    ).toBe(true);
+    expect(isExpectedSyncNoise(new Error("Failed to fetch"))).toBe(true);
+    expect(isExpectedSyncNoise(new Error("Load failed"))).toBe(true);
+  });
+
+  it("does not report a read-only-tab write to Sentry", async () => {
+    const { logCrash } = await import("@/lib/utils/error-logger");
+
+    await logCrash(
+      new Error(
+        "This tab is read-only because DumosRx is already open in another tab or window. Switch to that tab, or close it, to make changes here.",
+      ),
+      false,
+      { area: "sync-push" },
+    );
+
+    expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 });

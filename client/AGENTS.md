@@ -1284,10 +1284,33 @@ So the rewind now:
   case drops the conflicting queue row before rewinding, so the table drains,
   the counter resets, and nothing changes for it;
 - after `MAX_PULL_WINDOW_REWINDS` (3) such rewinds, restores `rewound_from`,
-  stops rewinding, and `logCrash`es under `area: "sync-pull-window"`. A device
-  that cannot converge goes back to incremental pulls instead of grinding. 3
-  rather than `MAX_NON_IMPROVING_RESYNCS`' 2 only because these are spent per
-  sync round, not per day.
+  stops rewinding, and `await`s a `logCrash` under `area: "sync-pull-window"`.
+  The table goes back to incremental pulls instead of grinding. 3 rather than
+  `MAX_NON_IMPROVING_RESYNCS`' 2 only because these are spent per sync round,
+  not per day.
+
+**The budget is spent once per table per batch, not once per refused row
+(A-273).** `push.ts` keeps a `Set<string>` inside its `response.failed` loop.
+This replaces the original per-row intent, which was wrong for a reason worth
+writing down: a rewind re-opens the **whole table's** window, so the 2nd
+through 50th refusal in a batch asked for nothing the 1st had not already
+asked for, while each spent another unit of a budget of three. A 50-row batch
+where every row refused therefore exhausted the budget inside that one batch
+and `restoreBaseline()` put `last_synced_at` back — **cancelling the full
+re-pull the first three had correctly requested**, so the row that genuinely
+lost its conflict was never re-offered and the whole A-205 mechanism failed
+silently. The budget exists to bound a table that cannot re-stamp its window
+across rounds; spending it inside a single round measures batch size instead.
+`push-rewinds-once-per-table-per-batch.test.ts` pins it.
+
+**The report is awaited, and says what is true.** It used to be fired
+unawaited, so one round's concurrent calls raced past `logCrash`'s own
+SELECT-then-INSERT dedup and each wrote its own byte-identical `feedback` row
+(~30 observed from one iPhone). It also claimed "this device cannot converge
+on its own", which is false — the budget is per round, `completeWindow`
+refreshes it on a skip-free drain, and the incremental pull keeps running
+throughout. Per-round reporting itself is unchanged and still deliberate
+(A-229).
 
 **The restore does not depend on the fault firing again (A-229).**
 `restoreExhaustedPullWindows()` runs unconditionally at the top of
@@ -1331,6 +1354,41 @@ The caller gets `false` when the rewind was refused, and neither call site has
 anything better to do with it than carry on — the point is the report. A by-id
 re-send endpoint would remove this mechanism entirely; that is the `shortcut:`
 on the function, and the condition for deleting it.
+
+#### Expected sync noise (`lib/utils/error-logger.ts`)
+
+One list (`EXPECTED_SYNC_NOISE_CODES` plus
+`EXPECTED_SYNC_NOISE_MESSAGE_PATTERNS`) and one check
+(`isExpectedSyncNoise`) for every sync outcome that is expected rather than a
+bug. It holds the server-enforced plan restrictions (`SYNC_THROTTLED`,
+`SYNC_DISABLED`, `STORE_LIMIT_EXCEEDED`, with message substrings for call
+sites that only have the string by the time they see it), the read-only-tab
+message thrown by `core.ts`'s `assertWritable()`, and genuine network
+failures (`Failed to fetch`, `Load failed`). It was named
+`isExpectedSyncRestriction` while it held only the first group; the name went
+when the content did (A-273).
+
+Four consumers, and two of them are control flow rather than reporting, so
+adding a pattern here changes behaviour in more places than the name suggests:
+
+- `logCrash()` early-returns before Sentry, the server report and the
+  `feedback` row.
+- `recordSyncFailure()` (`base-helpers.ts`) skips both its report paths,
+  including `reportStuckCrashLog()`, which calls
+  `Sentry.captureException` directly and so bypasses `logCrash`'s own filter.
+- `push.ts` **aborts the whole run and rethrows** rather than recording
+  per-item backoff. For a network failure that is the wanted outcome: nothing
+  in the batch could have succeeded, so inflating every item's `retry_count`
+  and `next_retry_at` would report a healthy queue as stuck.
+- `sync-indicator.tsx` suppresses the error state on an automatic sync. It
+  resolves the status through `navigator.onLine` rather than asserting
+  `"online"`, so an offline device still reads offline. A server unreachable
+  while `navigator.onLine` is true still reads online; `navigator.onLine` is
+  the only signal available there and it already misreports after mobile wake.
+
+`error-logger.ts`'s `_synced = 0` feedback dedup is deliberately **not** gated
+on this predicate: widening it there would introduce an UPDATE path for a
+table the client never pulls.
 
 #### Pull details (`sync-engine/pull.ts`)
 

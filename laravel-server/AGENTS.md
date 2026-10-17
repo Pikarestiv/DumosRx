@@ -1233,6 +1233,61 @@ a cost edit can also sit in `_sync_queue` indefinitely (the pull skips any row
 with a pending queue entry), which keeps a device's own cost alive while its
 quantities keep reconciling through movements. See `docs/KNOWN_BUGS.md` A-271.
 
+## Re-sent INSERTs: accepted, never a conflict (A-273, 2026-10-17)
+
+`push()`'s existence probe converts an INSERT whose id the server already holds
+into an UPDATE. That is load-bearing and stays — `remapForeignKey()`
+(`client/lib/db/reconcile-identity.ts`) relies on it to deliver a corrected
+foreign key, and it is how a soft-deleted row is restored instead of crashing
+on a duplicate key. But it must not be judged as a concurrent edit.
+
+A re-sent INSERT is **by definition a snapshot the server already holds**, so
+it can neither win nor be a genuine conflict. `requeueOrphanedRows()` and
+`forceSyncAllData()` both re-queue existing rows as INSERTs by design, so the
+probe firing is expected traffic, not a fault. `$isResentInsert` is set where
+the probe fires and gives the change two outcomes:
+
+- **a conflict is accepted without writing anything** — the server's row
+  stands, nothing joins `$failed`, `$processed` counts it;
+- **versions equal still applies the payload, but `resolveUpdateConflict()`
+  returns `$modelVersion`, not `$modelVersion + 1`.**
+
+That bump was the data loss, and it is the same shape as "a sale does not
+version a batch" above. The re-sender is accepted, the server's `_version`
+moves, and a *different* device holding a genuine pending edit to that row then
+pushes one version behind and is refused `version_conflict` — which the client
+treats as terminal and drops outright. A store owner's stock audits reached
+some of her devices and not others for exactly this reason.
+
+**No client change was needed**, and that was checked rather than assumed: an
+old bundle reads "accepted" as `markSynced()`
+(`client/lib/db/base-helpers.ts:571-592`), which deletes the queue row and sets
+`_synced = 1` on the source row — which is what finally drains the orphan pool
+producing the re-sends, since `requeueOrphanedRows()` selects on
+`_synced = 0`. No new response field, so nothing to retire (§11).
+
+The applied operation is also what gets recorded now (A-242): the change loop
+is `foreach ($changes as $changeIndex => $change)` and writes the flip back to
+`$changes[$changeIndex]['operation']`, because `SyncFailureRecorder` keys
+`operation` off the request's own `$changes` entry and `push()` was flipping a
+by-value copy. A refusal reached through the probe used to be recorded as
+`INSERT` although the server judged an `UPDATE`, which read as "a brand-new
+record could not be saved" — the opposite of what happened.
+
+## Device labels: sniffed is device-wide, nicknames are store-scoped
+
+`ResolvesDeviceLabels` is the one place a device's display name comes from
+(root `AGENTS.md` §6). The two halves have different scopes on purpose:
+
+- `sniffedLabels()` queries `user_devices.device_label` by `device_id` **only**.
+  The label is best-effort UA sniffing — a property of the device, not of any
+  store — so a `store_id` filter here made a device render as "Unnamed device"
+  in every store but the one its row happened to sit under (A-273).
+- `nicknames()` stays keyed on `(store_id, device_id)`, matching
+  `device_nicknames`' `UNIQUE (store_id, device_id)`. An operator names a till
+  in the store they are looking at, and the nickname is merged *over* the
+  sniffed label by the same resolver.
+
 ## Remote device report (`send_device_report`)
 
 `SyncCommandService::ACTIONS` gains `send_device_report`, and

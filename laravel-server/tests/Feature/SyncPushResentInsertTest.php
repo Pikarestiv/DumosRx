@@ -178,6 +178,39 @@ class SyncPushResentInsertTest extends TestCase
     }
 
     /**
+     * Accepting without writing removes the refusal that used to drive a full
+     * re-pull, and the row's `updated_at` deliberately does not move — so the
+     * incremental pull can never re-offer it and `versions` is now the only
+     * thing that can tell the re-sender what version it is actually on. Left
+     * out, that device's next genuine edit to the row pushes stale and is
+     * dropped: the same data loss, moved onto the re-sender.
+     */
+    public function test_a_resent_insert_hands_back_the_servers_version_so_the_resender_is_not_stranded()
+    {
+        $auditId = 'audit-stranded';
+        $this->seedAudit($auditId, 9, 4);
+
+        $response = $this->push($this->resentInsert($auditId, 3, 99));
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+        $response->assertJson([
+            'versions' => ['stock_audits' => [$auditId => 9]],
+        ]);
+
+        $this->assertSame(9, (int) DB::table('stock_audits')->where('id', $auditId)->value('_version'));
+    }
+
+    public function test_a_resent_insert_at_the_servers_version_also_hands_that_version_back()
+    {
+        $auditId = 'audit-equal-version';
+        $this->seedAudit($auditId, 2, 4);
+
+        $this->push($this->resentInsert($auditId, 2, 6))
+            ->assertStatus(200)
+            ->assertJson(['versions' => ['stock_audits' => [$auditId => 2]]]);
+    }
+
+    /**
      * The override is not a blanket no-op: `remapForeignKey()` relies on a
      * re-sent INSERT to deliver a corrected foreign key, and the soft-delete
      * restore relies on it too. Both arrive at the version the server holds.

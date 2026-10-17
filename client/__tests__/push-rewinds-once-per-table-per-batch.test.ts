@@ -99,6 +99,31 @@ describe("a batch of refusals rewinds each table's pull window once", () => {
     expect(logCrash).not.toHaveBeenCalled();
   });
 
+  /**
+   * A-273, the client half. The server accepts a re-sent INSERT without
+   * writing, so the row's `updated_at` never moves and no pull can re-offer
+   * it — `versions` is the only channel that can tell this device what version
+   * it is on. This pins that an accepted row ends up both marked synced AND
+   * stamped with the server's version, which is what lets its next genuine
+   * edit push at a version the server will accept.
+   */
+  it("applies the server's version to a row it just marked synced", async () => {
+    queueProducts(1);
+    apiClient.pushChanges.mockResolvedValueOnce({
+      success: true,
+      processed: 1,
+      failed: [],
+      versions: { products: { p1: 9 } },
+    });
+
+    await pushChanges();
+
+    const [row] = db.exec(`SELECT _version, _synced FROM products WHERE id = 'p1'`)[0].values;
+    expect(Number(row[0])).toBe(9);
+    expect(Number(row[1])).toBe(1);
+    expect(db.exec(`SELECT id FROM _sync_queue`).length).toBe(0);
+  });
+
   it("still rewinds every distinct table a batch lost a conflict on", async () => {
     const failed = queueProducts(2);
     db.run(

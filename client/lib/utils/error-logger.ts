@@ -90,38 +90,47 @@ function buildCrashFingerprint(message: string, stack: string, area?: string): s
 const REPORT_THROTTLE_MS = 5 * 60 * 1000;
 const lastReportedAt = new Map<string, number>();
 
-// The one list of sync outcomes that are expected rather than bugs, and the
-// one check over it. base-client.ts attaches `code` to the thrown Error; the
-// message-substring fallback covers call sites (e.g. recordSyncFailure) that
-// only have the message string by the time they see the error. See
-// client/AGENTS.md, "Expected sync noise".
-const EXPECTED_SYNC_NOISE_CODES = [
+// base-client.ts attaches `code` to the thrown Error; the message-substring
+// fallback covers call sites (e.g. recordSyncFailure) that only have the
+// message string by the time they see the error. Which consumer reads which
+// check, and why they differ: client/AGENTS.md, "Expected sync noise".
+const PLAN_RESTRICTION_CODES = [
   "SYNC_THROTTLED",
   "SYNC_DISABLED",
   "STORE_LIMIT_EXCEEDED",
 ];
-const EXPECTED_SYNC_NOISE_MESSAGE_PATTERNS = [
+const PLAN_RESTRICTION_MESSAGE_PATTERNS = [
   "Sync limit reached",
   "Cloud sync is disabled on your current plan",
   "Sync rejected. Your ",
+];
+const TRANSIENT_SYNC_MESSAGE_PATTERNS = [
   "This tab is read-only because",
   "Failed to fetch",
   "Load failed",
 ];
 
-export function isExpectedSyncNoise(error: unknown): boolean {
-  const code = (error as { code?: string } | undefined)?.code;
-  if (code && EXPECTED_SYNC_NOISE_CODES.includes(code)) return true;
+function messageOf(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : typeof error === "string"
+      ? error
+      : "";
+}
 
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof error === "string"
-        ? error
-        : "";
-  return EXPECTED_SYNC_NOISE_MESSAGE_PATTERNS.some((p) =>
-    message.includes(p),
-  );
+export function isExpectedPlanRestriction(error: unknown): boolean {
+  const code = (error as { code?: string } | undefined)?.code;
+  if (code && PLAN_RESTRICTION_CODES.includes(code)) return true;
+
+  const message = messageOf(error);
+  return PLAN_RESTRICTION_MESSAGE_PATTERNS.some((p) => message.includes(p));
+}
+
+export function isExpectedSyncNoise(error: unknown): boolean {
+  if (isExpectedPlanRestriction(error)) return true;
+
+  const message = messageOf(error);
+  return TRANSIENT_SYNC_MESSAGE_PATTERNS.some((p) => message.includes(p));
 }
 
 // Queue error to localStorage as a fallback

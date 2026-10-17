@@ -240,6 +240,9 @@ class SyncController extends Controller
             // docs/features/_known-bugs.md #11).
             $versions = [];
 
+            $resentInsertsAccepted = 0;
+            $insertOverrides = 0;
+
             foreach ($changes as $changeIndex => $change) {
                 $modelClass = $this->getModelForTable($change['table_name']);
 
@@ -330,12 +333,12 @@ class SyncController extends Controller
                         $change['operation'] = 'UPDATE';
                         $changes[$changeIndex]['operation'] = 'UPDATE';
                         $isResentInsert = true;
+                        $insertOverrides++;
                         // normalizePushPayload() already ran, so it gated its
                         // store_id backfill on the pre-override operation.
                         if (!$clientNamedStoreId && in_array($change['table_name'], self::STORE_ID_BACKFILL_TABLES, true)) {
                             unset($payload['store_id']);
                         }
-                        Log::info("Sync push: Overriding INSERT to UPDATE for existing record {$recordId} in {$change['table_name']}");
                     }
                 }
 
@@ -603,7 +606,10 @@ class SyncController extends Controller
                             DB::commit();
 
                             if ($isResentInsert) {
-                                Log::info("Sync push: accepted re-sent INSERT for {$change['table_name']} {$recordId} without writing; server keeps version " . ($model->_version ?? '?'));
+                                if ($model->_version !== null) {
+                                    $versions[$change['table_name']][$recordId] = (int) $model->_version;
+                                }
+                                $resentInsertsAccepted++;
                                 $processed++;
                                 continue;
                             }
@@ -755,6 +761,10 @@ class SyncController extends Controller
                             : $e->getMessage(),
                     ];
                 }
+            }
+
+            if ($insertOverrides > 0) {
+                Log::info("Sync push: existence probe converted {$insertOverrides} INSERT(s) to UPDATE, {$resentInsertsAccepted} accepted without writing");
             }
 
             $this->applyStockBatchDeltas($stockBatchDeltas, $failed);
@@ -1528,7 +1538,9 @@ class SyncController extends Controller
                 return [false, null, $isResentInsert ? $modelVersion : $modelVersion + 1];
             }
 
-            Log::info("Sync push: version conflict for {$tableName} {$recordId} (payload version {$payloadVersion}, server version {$modelVersion})");
+            if (!$isResentInsert) {
+                Log::info("Sync push: version conflict for {$tableName} {$recordId} (payload version {$payloadVersion}, server version {$modelVersion})");
+            }
 
             return [true, 'version_conflict', null];
         }

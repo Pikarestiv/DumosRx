@@ -1248,9 +1248,25 @@ probe firing is expected traffic, not a fault. `$isResentInsert` is set where
 the probe fires and gives the change two outcomes:
 
 - **a conflict is accepted without writing anything** — the server's row
-  stands, nothing joins `$failed`, `$processed` counts it;
+  stands, nothing joins `$failed`, `$processed` counts it, **and the server's
+  current `_version` is returned in the `versions` map**;
 - **versions equal still applies the payload, but `resolveUpdateConflict()`
   returns `$modelVersion`, not `$modelVersion + 1`.**
+
+**The `versions` entry on the skipped path is load-bearing, not a nicety.**
+Accepting without writing removes the refusal that used to drive
+`rewindPullWindow()` → a full re-pull → the device receiving the server's
+current version, and that was the only thing healing a stale re-sender. The
+incremental pull cannot substitute for it: the whole point of this branch is
+that the model is **not** written, so its `updated_at` still predates the
+device's watermark and the row is never re-offered. Left out, the re-sender
+keeps a permanently stale `_version` (the client deletes the queue row and sets
+`_synced = 1` regardless), and its next genuine edit to that row pushes stale
+and is terminally dropped — the same data loss this section exists to kill,
+moved from "another device" to "the re-sending device". `versions` is an
+existing contract: the client's loop (`push.ts`, `UPDATE … SET _version`) is
+table-agnostic, predates all of this and has always tolerated an entry for any
+row, so old bundles apply it unchanged.
 
 That bump was the data loss, and it is the same shape as "a sale does not
 version a batch" above. The re-sender is accepted, the server's `_version`
@@ -1265,6 +1281,13 @@ old bundle reads "accepted" as `markSynced()`
 `_synced = 1` on the source row — which is what finally drains the orphan pool
 producing the re-sends, since `requeueOrphanedRows()` selects on
 `_synced = 0`. No new response field, so nothing to retire (§11).
+
+**Logging is per request, not per row.** A requeue storm is tens of thousands
+of rows and this box is shared hosting, so the probe counts its hits
+(`$insertOverrides`, `$resentInsertsAccepted`) and logs one summary line after
+the loop. `resolveUpdateConflict()`'s own per-row `version conflict` line is
+suppressed for a re-send for the same reason — the caller already counts it —
+and still fires for a genuine conflict, which is rare and worth a line each.
 
 The applied operation is also what gets recorded now (A-242): the change loop
 is `foreach ($changes as $changeIndex => $change)` and writes the flip back to

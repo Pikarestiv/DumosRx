@@ -79,6 +79,46 @@ describe("logCrash skips reporting for expected sync plan restrictions", () => {
     expect(isExpectedSyncNoise(new Error("Load failed"))).toBe(true);
   });
 
+  /**
+   * A-273. The two lists are read by two different kinds of consumer. A
+   * cashier shown "online" while nothing reaches the server is the silent
+   * divergence this whole batch exists to prevent, so the UI's check must stay
+   * narrow: only the server telling this device to slow down or upgrade may
+   * suppress the error state.
+   */
+  it("keeps a network failure out of the plan-restriction check the UI reads", async () => {
+    const { isExpectedPlanRestriction, isExpectedSyncNoise } = await import(
+      "@/lib/utils/error-logger"
+    );
+
+    for (const transient of [
+      "Failed to fetch",
+      "Load failed",
+      "This tab is read-only because DumosRx is already open in another tab or window.",
+    ]) {
+      expect(isExpectedSyncNoise(new Error(transient))).toBe(true);
+      expect(isExpectedPlanRestriction(new Error(transient))).toBe(false);
+    }
+  });
+
+  it("keeps every plan restriction in both checks", async () => {
+    const { isExpectedPlanRestriction, isExpectedSyncNoise } = await import(
+      "@/lib/utils/error-logger"
+    );
+
+    const throttled = new Error("Sync limit reached. Try again later.") as Error & {
+      code?: string;
+    };
+    throttled.code = "SYNC_THROTTLED";
+
+    expect(isExpectedPlanRestriction(throttled)).toBe(true);
+    expect(isExpectedSyncNoise(throttled)).toBe(true);
+    expect(
+      isExpectedPlanRestriction(new Error("Cloud sync is disabled on your current plan")),
+    ).toBe(true);
+    expect(isExpectedPlanRestriction(new Error("Unexpected token in JSON"))).toBe(false);
+  });
+
   it("does not report a read-only-tab write to Sentry", async () => {
     const { logCrash } = await import("@/lib/utils/error-logger");
 

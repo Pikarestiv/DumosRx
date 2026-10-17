@@ -1357,37 +1357,39 @@ on the function, and the condition for deleting it.
 
 #### Expected sync noise (`lib/utils/error-logger.ts`)
 
-One list (`EXPECTED_SYNC_NOISE_CODES` plus
-`EXPECTED_SYNC_NOISE_MESSAGE_PATTERNS`) and one check
-(`isExpectedSyncNoise`) for every sync outcome that is expected rather than a
-bug. It holds the server-enforced plan restrictions (`SYNC_THROTTLED`,
-`SYNC_DISABLED`, `STORE_LIMIT_EXCEEDED`, with message substrings for call
-sites that only have the string by the time they see it), the read-only-tab
-message thrown by `core.ts`'s `assertWritable()`, and genuine network
-failures (`Failed to fetch`, `Load failed`). It was named
-`isExpectedSyncRestriction` while it held only the first group; the name went
-when the content did (A-273).
+One source of truth, **two exported checks**, because two kinds of consumer
+read it and they must not agree (A-273):
 
-Four consumers, and two of them are control flow rather than reporting, so
-adding a pattern here changes behaviour in more places than the name suggests:
+- `isExpectedPlanRestriction` — the plan restrictions only
+  (`SYNC_THROTTLED`, `SYNC_DISABLED`, `STORE_LIMIT_EXCEEDED`, plus message
+  substrings for call sites that only have the string by the time they see
+  it). These are the server telling this device to slow down or upgrade.
+- `isExpectedSyncNoise` — that set **plus** the transient conditions: the
+  read-only-tab message thrown by `core.ts`'s `assertWritable()` and genuine
+  network failures (`Failed to fetch`, `Load failed`). It is defined as
+  `isExpectedPlanRestriction(error) || transient`, so the plan list cannot
+  drift between the two.
 
-- `logCrash()` early-returns before Sentry, the server report and the
-  `feedback` row.
-- `recordSyncFailure()` (`base-helpers.ts`) skips both its report paths,
-  including `reportStuckCrashLog()`, which calls
-  `Sentry.captureException` directly and so bypasses `logCrash`'s own filter.
-- `push.ts` **aborts the whole run and rethrows** rather than recording
-  per-item backoff. For a network failure that is the wanted outcome: nothing
-  in the batch could have succeeded, so inflating every item's `retry_count`
-  and `next_retry_at` would report a healthy queue as stuck.
-- `sync-indicator.tsx` suppresses the error state on an automatic sync. It
-  resolves the status through `navigator.onLine` rather than asserting
-  `"online"`, so an offline device still reads offline. A server unreachable
-  while `navigator.onLine` is true still reads online; `navigator.onLine` is
-  the only signal available there and it already misreports after mobile wake.
+It was a single `isExpectedSyncRestriction` while it held only the first
+group. The name went when the content did; the **split** exists because the
+first cut of the widening had every consumer on one list, and that made an
+unreachable server read as "online".
+
+Which consumer reads which, and why:
+
+| Consumer | Check | Why |
+|---|---|---|
+| `logCrash()` | noise | Early-returns before Sentry, the server report and the `feedback` row. A device that is merely offline, or a tab that lost the writer election, is not a bug. |
+| `recordSyncFailure()` (`base-helpers.ts`) | noise | Skips both report paths, including `reportStuckCrashLog()`, which calls `Sentry.captureException` directly and so bypasses `logCrash`'s own filter. |
+| `push.ts` batch catch | noise | **Aborts the run and rethrows** instead of recording per-item backoff. This is a whole-run condition, not a per-item fault: nothing in the batch could have succeeded, so inflating every item's `retry_count`/`next_retry_at` would report a healthy queue as stuck and delay it once connectivity returns. The rethrow still reaches `sync()`, so the user-visible signal is preserved — this suppresses *retry bookkeeping*, not the report. |
+| `sync-indicator.tsx` | **plan restriction** | The only consumer that suppresses a user-visible error state, so it stays narrow. A cashier shown "online" while nothing reaches the server is the silent divergence this batch exists to prevent, and a POS till is the one place that costs real money. A network failure surfaces as "Sync Error" again, pinned by `sync-indicator-surfaces-unreachable-server.test.ts`. |
+
+The rule for anything added later: a pattern goes on the transient list if it
+means "do not report this", and on the plan list only if it also means "do not
+tell the user anything is wrong".
 
 `error-logger.ts`'s `_synced = 0` feedback dedup is deliberately **not** gated
-on this predicate: widening it there would introduce an UPDATE path for a
+on either predicate: widening it there would introduce an UPDATE path for a
 table the client never pulls.
 
 #### Pull details (`sync-engine/pull.ts`)

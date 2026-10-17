@@ -1284,10 +1284,33 @@ So the rewind now:
   case drops the conflicting queue row before rewinding, so the table drains,
   the counter resets, and nothing changes for it;
 - after `MAX_PULL_WINDOW_REWINDS` (3) such rewinds, restores `rewound_from`,
-  stops rewinding, and `logCrash`es under `area: "sync-pull-window"`. A device
-  that cannot converge goes back to incremental pulls instead of grinding. 3
-  rather than `MAX_NON_IMPROVING_RESYNCS`' 2 only because these are spent per
-  sync round, not per day.
+  stops rewinding, and `await`s a `logCrash` under `area: "sync-pull-window"`.
+  The table goes back to incremental pulls instead of grinding. 3 rather than
+  `MAX_NON_IMPROVING_RESYNCS`' 2 only because these are spent per sync round,
+  not per day.
+
+**The budget is spent once per table per batch, not once per refused row
+(A-273).** `push.ts` keeps a `Set<string>` inside its `response.failed` loop.
+This replaces the original per-row intent, which was wrong for a reason worth
+writing down: a rewind re-opens the **whole table's** window, so the 2nd
+through 50th refusal in a batch asked for nothing the 1st had not already
+asked for, while each spent another unit of a budget of three. A 50-row batch
+where every row refused therefore exhausted the budget inside that one batch
+and `restoreBaseline()` put `last_synced_at` back — **cancelling the full
+re-pull the first three had correctly requested**, so the row that genuinely
+lost its conflict was never re-offered and the whole A-205 mechanism failed
+silently. The budget exists to bound a table that cannot re-stamp its window
+across rounds; spending it inside a single round measures batch size instead.
+`push-rewinds-once-per-table-per-batch.test.ts` pins it.
+
+**The report is awaited, and says what is true.** It used to be fired
+unawaited, so one round's concurrent calls raced past `logCrash`'s own
+SELECT-then-INSERT dedup and each wrote its own byte-identical `feedback` row
+(~30 observed from one iPhone). It also claimed "this device cannot converge
+on its own", which is false — the budget is per round, `completeWindow`
+refreshes it on a skip-free drain, and the incremental pull keeps running
+throughout. Per-round reporting itself is unchanged and still deliberate
+(A-229).
 
 **The restore does not depend on the fault firing again (A-229).**
 `restoreExhaustedPullWindows()` runs unconditionally at the top of
@@ -1331,6 +1354,78 @@ The caller gets `false` when the rewind was refused, and neither call site has
 anything better to do with it than carry on — the point is the report. A by-id
 re-send endpoint would remove this mechanism entirely; that is the `shortcut:`
 on the function, and the condition for deleting it.
+
+#### The boot-time orphan scan (`reconcile-identity.ts`, `DatabaseProvider.tsx`)
+
+`requeueOrphanedRowsOnce(STORE_SCOPED_TABLES)` repairs rows left at
+`_synced = 0` with no `_sync_queue` entry, which `pushChanges()` can never see
+because it only ever reads the queue. It runs **once per install**, gated on
+`STORAGE_KEYS.orphanRequeueMarker`, and it takes no options.
+
+**It is deliberately not re-armed by a crash (A-274).** It used to be:
+`DatabaseProvider` passed `force: hadPendingCrashes`, meaning "`localStorage`
+holds crashes queued by a previous session", and that is the mechanism behind
+the 20,000-row requeue storms — one crash, and the next boot re-pushed the
+device's entire already-synced history through the 50-row batcher. Three
+reasons it went:
+
+1. It was never a fix for an observed orphan. `git log -S` puts it in
+   `931f7acb`, a *performance* commit that was tightening this scan from
+   every-boot to once-per-install and hedged.
+2. Its premise is backwards. A crash reaching `localStorage` means the SQLite
+   write **threw**, so no row was committed and no orphan exists. An orphan
+   needs a *partial* write, which `insert()` has made impossible since A-8 by
+   wrapping the row, its queue entry and its audit entry in one `transaction()`.
+3. `docs/FIXED_BUGS.md` A-160 and A-161 both cite it only as the amplifier that
+   turned a few bad rows into permanent re-pushing on a crashy device.
+
+**The producer it was accidentally covering is closed at the source instead.**
+`resetDatabase()` clears `_sync_queue` but only `LOCAL_WIPE_TABLES`, whereas
+`clearDatabaseForNewStore()` unions in `STORE_SCOPED_TABLES`. Three tables sat
+in that gap — `loyalty_tiers`, `loyalty_redemption_options`,
+`permission_groups` — so a reset orphaned their rows. They are now in
+`LOCAL_WIPE_TABLES`. **The invariant to keep: any wipe that clears
+`_sync_queue` must clear every store-scoped table**, or it mints orphans by
+construction. `__tests__/local-wipe-leaves-no-orphans.test.ts` enforces it, so
+adding a table to `STORE_SCOPED_TABLES` without adding it to the wipe list
+fails the suite.
+
+#### Expected sync noise (`lib/utils/error-logger.ts`)
+
+One source of truth, **two exported checks**, because two kinds of consumer
+read it and they must not agree (A-273):
+
+- `isExpectedPlanRestriction` — the plan restrictions only
+  (`SYNC_THROTTLED`, `SYNC_DISABLED`, `STORE_LIMIT_EXCEEDED`, plus message
+  substrings for call sites that only have the string by the time they see
+  it). These are the server telling this device to slow down or upgrade.
+- `isExpectedSyncNoise` — that set **plus** the transient conditions: the
+  read-only-tab message thrown by `core.ts`'s `assertWritable()` and genuine
+  network failures (`Failed to fetch`, `Load failed`). It is defined as
+  `isExpectedPlanRestriction(error) || transient`, so the plan list cannot
+  drift between the two.
+
+It was a single `isExpectedSyncRestriction` while it held only the first
+group. The name went when the content did; the **split** exists because the
+first cut of the widening had every consumer on one list, and that made an
+unreachable server read as "online".
+
+Which consumer reads which, and why:
+
+| Consumer | Check | Why |
+|---|---|---|
+| `logCrash()` | noise | Early-returns before Sentry, the server report and the `feedback` row. A device that is merely offline, or a tab that lost the writer election, is not a bug. |
+| `recordSyncFailure()` (`base-helpers.ts`) | noise | Skips both report paths, including `reportStuckCrashLog()`, which calls `Sentry.captureException` directly and so bypasses `logCrash`'s own filter. |
+| `push.ts` batch catch | noise | **Aborts the run and rethrows** instead of recording per-item backoff. This is a whole-run condition, not a per-item fault: nothing in the batch could have succeeded, so inflating every item's `retry_count`/`next_retry_at` would report a healthy queue as stuck and delay it once connectivity returns. The rethrow still reaches `sync()`, so the user-visible signal is preserved — this suppresses *retry bookkeeping*, not the report. |
+| `sync-indicator.tsx` | **plan restriction** | The only consumer that suppresses a user-visible error state, so it stays narrow. A cashier shown "online" while nothing reaches the server is the silent divergence this batch exists to prevent, and a POS till is the one place that costs real money. A network failure surfaces as "Sync Error" again, pinned by `sync-indicator-surfaces-unreachable-server.test.ts`. |
+
+The rule for anything added later: a pattern goes on the transient list if it
+means "do not report this", and on the plan list only if it also means "do not
+tell the user anything is wrong".
+
+`error-logger.ts`'s `_synced = 0` feedback dedup is deliberately **not** gated
+on either predicate: widening it there would introduce an UPDATE path for a
+table the client never pulls.
 
 #### Pull details (`sync-engine/pull.ts`)
 

@@ -142,13 +142,12 @@ export async function requeueOrphanedRows(
 const ORPHAN_REQUEUE_MARKER = STORAGE_KEYS.orphanRequeueMarker;
 
 /**
- * Runs requeueOrphanedRows() once per install, or when `force` says this
- * launch followed a crash. Returns null when skipped. See A-8 in
- * docs/FIXED_BUGS.md.
+ * Runs requeueOrphanedRows() once per install. Returns null when skipped.
+ * Why it takes no re-arming trigger: client/AGENTS.md, "The boot-time orphan
+ * scan".
  */
 export async function requeueOrphanedRowsOnce(
   tables: string[],
-  options: { force?: boolean } = {},
 ): Promise<Record<string, number> | null> {
   let alreadyRun = false;
   try {
@@ -157,7 +156,7 @@ export async function requeueOrphanedRowsOnce(
     alreadyRun = false;
   }
 
-  if (alreadyRun && !options.force) return null;
+  if (alreadyRun) return null;
 
   const requeued = await requeueOrphanedRows(tables);
 

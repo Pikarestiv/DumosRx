@@ -20,7 +20,7 @@ trait ResolvesDeviceLabels
             return [];
         }
 
-        return $this->deviceNicknames($storeId, $ids) + $this->sniffedLabels($ids, [$storeId]);
+        return $this->deviceNicknames($storeId, $ids) + $this->sniffedLabels($ids);
     }
 
     /**
@@ -60,7 +60,7 @@ trait ResolvesDeviceLabels
             return [];
         }
 
-        $labels = $this->sniffedLabels($ids, $storeIds);
+        $labels = $this->sniffedLabels($ids);
         $nicknames = $this->nicknames($ids, $storeIds);
         $resolved = [];
 
@@ -95,13 +95,11 @@ trait ResolvesDeviceLabels
 
     /**
      * @param  string[]  $deviceIds
-     * @param  string[]  $storeIds
      * @return array<string, string>
      */
-    private function sniffedLabels(array $deviceIds, array $storeIds): array
+    private function sniffedLabels(array $deviceIds): array
     {
         return UserDevice::whereIn('device_id', $deviceIds)
-            ->whereIn('store_id', $storeIds)
             ->whereNotNull('device_label')
             ->orderBy('updated_at')
             ->pluck('device_label', 'device_id')

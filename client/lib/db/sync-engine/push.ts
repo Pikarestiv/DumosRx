@@ -21,7 +21,7 @@ import {
   resolveConflictsForRecords,
 } from "./conflict-log";
 import { execute, query, transaction } from "../core";
-import { isExpectedSyncRestriction } from "@/lib/utils/error-logger";
+import { isExpectedSyncNoise } from "@/lib/utils/error-logger";
 import { toast } from "sonner";
 import { isUuid } from "@/lib/utils/uuid";
 import { rewindPullWindow, TABLES_NEVER_PULLED } from "./pull-window";
@@ -483,6 +483,8 @@ export async function pushChanges(
           await resolveConflictsForRecords(succeededRecords);
           pushedCount += succeededIds.length;
 
+          const rewoundTables = new Set<string>();
+
           for (const f of response.failed ?? []) {
             if (f.id == null) continue;
             const underlyingIds = idsFor(f.id);
@@ -520,10 +522,13 @@ export async function pushChanges(
                 ),
               });
 
-              if (REASONS_NEEDING_REPULL.has(f.reason)) {
-                if (!TABLES_NEVER_PULLED.has(f.table_name)) {
-                  await rewindPullWindow(f.table_name, f.reason);
-                }
+              if (
+                REASONS_NEEDING_REPULL.has(f.reason) &&
+                !TABLES_NEVER_PULLED.has(f.table_name) &&
+                !rewoundTables.has(f.table_name)
+              ) {
+                rewoundTables.add(f.table_name);
+                await rewindPullWindow(f.table_name, f.reason);
               }
 
               if (wasRetried) {
@@ -635,10 +640,8 @@ export async function pushChanges(
         });
       }
     } catch (error) {
-      // A plan restriction stops the run with the queue untouched; backing
-      // off per item would report a healthy queue as stuck.
-      if (isExpectedSyncRestriction(error)) {
-        console.warn("[Sync] Push stopped by a plan restriction:", error);
+      if (isExpectedSyncNoise(error)) {
+        console.warn("[Sync] Push stopped by an expected condition:", error);
         throw error;
       }
       // Don't abort the whole push run over one bad batch; record backoff

@@ -240,7 +240,10 @@ class SyncController extends Controller
             // docs/features/_known-bugs.md #11).
             $versions = [];
 
-            foreach ($changes as $change) {
+            $resentInsertsAccepted = 0;
+            $insertOverrides = 0;
+
+            foreach ($changes as $changeIndex => $change) {
                 $modelClass = $this->getModelForTable($change['table_name']);
 
                 if (!$modelClass) {
@@ -302,6 +305,8 @@ class SyncController extends Controller
 
                 $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
 
+                $isResentInsert = false;
+
                 if ($change['operation'] === 'INSERT' && $recordId) {
                     if ($change['table_name'] === 'audit_logs') {
                         // Scoped to this push's store, not just client_id: a
@@ -325,15 +330,15 @@ class SyncController extends Controller
                     }
 
                     if ($exists) {
-                        // If it exists (even if soft-deleted), we should treat it as an UPDATE
-                        // to restore it and apply the new payload instead of crashing on INSERT
                         $change['operation'] = 'UPDATE';
+                        $changes[$changeIndex]['operation'] = 'UPDATE';
+                        $isResentInsert = true;
+                        $insertOverrides++;
                         // normalizePushPayload() already ran, so it gated its
                         // store_id backfill on the pre-override operation.
                         if (!$clientNamedStoreId && in_array($change['table_name'], self::STORE_ID_BACKFILL_TABLES, true)) {
                             unset($payload['store_id']);
                         }
-                        Log::info("Sync push: Overriding INSERT to UPDATE for existing record {$recordId} in {$change['table_name']}");
                     }
                 }
 
@@ -588,7 +593,7 @@ class SyncController extends Controller
                         $isCommutativeTable = $this->isQuantityOnlyStockBatchUpdate($change['table_name'], $payload);
 
                         [$versionConflict, $conflictReason, $newVersion] =
-                            $this->resolveUpdateConflict($change['table_name'], $model, $payload, $isCommutativeTable, $recordId);
+                            $this->resolveUpdateConflict($change['table_name'], $model, $payload, $isCommutativeTable, $recordId, $isResentInsert);
 
                         if ($versionConflict) {
                             // Must close the per-change savepoint opened above
@@ -599,10 +604,16 @@ class SyncController extends Controller
                             // case), stacking unclosed savepoints for the
                             // rest of the request.
                             DB::commit();
-                            // Every rejection is now reported into $failed, including
-                            // the timestamp-fallback path — before this fix, EITHER
-                            // rejection reason left the client with zero signal at all,
-                            // not just the version-equality gap this bug was filed for.
+
+                            if ($isResentInsert) {
+                                if ($model->_version !== null) {
+                                    $versions[$change['table_name']][$recordId] = (int) $model->_version;
+                                }
+                                $resentInsertsAccepted++;
+                                $processed++;
+                                continue;
+                            }
+
                             $failed[] = [
                                 'id' => $change['id'] ?? null,
                                 'table_name' => $change['table_name'],
@@ -750,6 +761,10 @@ class SyncController extends Controller
                             : $e->getMessage(),
                     ];
                 }
+            }
+
+            if ($insertOverrides > 0) {
+                Log::info("Sync push: existence probe converted {$insertOverrides} INSERT(s) to UPDATE, {$resentInsertsAccepted} accepted without writing");
             }
 
             $this->applyStockBatchDeltas($stockBatchDeltas, $failed);
@@ -1509,7 +1524,7 @@ class SyncController extends Controller
         return $query->orderBy('id')->first();
     }
 
-    private function resolveUpdateConflict(string $tableName, $model, array $payload, bool $isCommutativeTable, $recordId): array
+    private function resolveUpdateConflict(string $tableName, $model, array $payload, bool $isCommutativeTable, $recordId, bool $isResentInsert = false): array
     {
         $payloadVersion = isset($payload['_version']) ? (int)$payload['_version'] : null;
         $modelVersion = isset($model->_version) ? (int)$model->_version : null;
@@ -1520,10 +1535,12 @@ class SyncController extends Controller
             }
 
             if ($payloadVersion === $modelVersion) {
-                return [false, null, $modelVersion + 1];
+                return [false, null, $isResentInsert ? $modelVersion : $modelVersion + 1];
             }
 
-            Log::info("Sync push: version conflict for {$tableName} {$recordId} (payload version {$payloadVersion}, server version {$modelVersion})");
+            if (!$isResentInsert) {
+                Log::info("Sync push: version conflict for {$tableName} {$recordId} (payload version {$payloadVersion}, server version {$modelVersion})");
+            }
 
             return [true, 'version_conflict', null];
         }

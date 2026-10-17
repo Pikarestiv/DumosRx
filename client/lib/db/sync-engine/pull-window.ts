@@ -54,9 +54,9 @@ const EXHAUSTED_SQL = `SELECT table_name FROM _sync_state WHERE rewind_count >= 
 
 async function restoreBaseline(table: string, cause: string): Promise<void> {
   await execute(RESTORE_SQL, [table]);
-  logCrash(
+  await logCrash(
     new Error(
-      `Pull window rewind budget exhausted for ${table} (${cause}); baseline restored, this device cannot converge on its own`,
+      `Pull window rewind budget (${MAX_PULL_WINDOW_REWINDS}) spent on ${table} by refused re-pushes (${cause}); baseline restored and the incremental pull continues, so this table stops asking for a full re-pull until it drains skip-free`,
     ),
     false,
     { area: "sync-pull-window", table },

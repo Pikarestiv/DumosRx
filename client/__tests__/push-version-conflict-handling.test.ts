@@ -53,7 +53,11 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
   });
 
   beforeEach(() => {
-    db.run(`DELETE FROM products; DELETE FROM _sync_queue;`);
+    // Cases below do not all set up a pull window; a budget left exhausted by
+    // an earlier one makes restoreBaseline() log a crash, which queues its own
+    // `feedback` row (A-273 made that report awaited, so it lands in time to
+    // be counted).
+    db.run(`DELETE FROM products; DELETE FROM _sync_queue; DELETE FROM _sync_state; DELETE FROM feedback;`);
     vi.clearAllMocks();
     toastWarning.mockClear();
   });

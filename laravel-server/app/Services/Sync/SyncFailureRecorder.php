@@ -55,10 +55,16 @@ class SyncFailureRecorder
     }
 
     /**
+     * A push the server declined before judging any of its rows, so no row was
+     * rejected and the interval will let the same batch through shortly. See
+     * laravel-server/AGENTS.md, "Deferred is not refused".
+     */
+    private const DEFERRED_REASONS = ['sync_throttled'];
+
+    /**
      * A push rejected before the per-change loop — the plan gate refusing, or
-     * the request dying outright. The whole attempt is one refusal: there are
-     * no per-change outcomes to record, but the attempt itself must still
-     * count or the store looks silent rather than broken (PG-18).
+     * the request dying outright. The attempt itself must still count or the
+     * store looks silent rather than broken (PG-18).
      */
     public function recordRejectedPush(
         ?string $storeId,
@@ -81,7 +87,11 @@ class SyncFailureRecorder
             Log::warning('Rejected-push failure row not recorded: '.$e->getMessage());
         }
 
-        $this->tally($storeId, 0, max(1, $changeCount), 0);
+        $refused = in_array($reason, self::DEFERRED_REASONS, true)
+            ? 0
+            : max(1, $changeCount);
+
+        $this->tally($storeId, 0, $refused, 0);
     }
 
     /** Only known slugs are stored: a raw message is unbounded, embeds the

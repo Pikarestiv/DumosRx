@@ -76,6 +76,7 @@ export function useDashboardOverview() {
     lowStockCount: stock_batchStats.lowStockCount,
     missingExpiryCount: stock_batchStats.missingExpiryCount,
     oversoldCount: oversoldAlerts?.length || 0,
+    oversoldProduct: oversoldAlerts?.[0]?.product,
   };
 
   // Memoized, like getActivityColor below, because both are handed to the

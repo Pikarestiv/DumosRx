@@ -46,7 +46,7 @@ describe("pull window rewind budget", () => {
     db.run(
       `INSERT INTO _sync_state (table_name, last_synced_at) VALUES ('products', '2026-10-10T00:00:00Z')`,
     );
-    logCrash.mockClear();
+    logCrash.mockReset();
   });
 
   const windowFor = (table: string) =>
@@ -83,7 +83,7 @@ describe("pull window rewind budget", () => {
     expect(logCrash).toHaveBeenCalledTimes(1);
   });
 
-  it("reports again every round while the device still cannot converge", async () => {
+  it("reports again every round while the table is still held at its budget", async () => {
     for (let i = 0; i < MAX_PULL_WINDOW_REWINDS; i++) {
       await rewindPullWindow("products", "version_conflict");
     }
@@ -140,8 +140,53 @@ describe("pull window rewind budget", () => {
     expect(logCrash).not.toHaveBeenCalled();
   });
 
-  /** The business-table behaviour A-229 pinned must be untouched: a device
-   * that genuinely cannot converge keeps saying so. */
+  /**
+   * A-273. The report was fired unawaited, so one push round's worth of
+   * concurrent calls raced past logCrash's own SELECT-then-INSERT dedup and
+   * each wrote its own byte-identical `feedback` row (~30 observed from one
+   * iPhone). Awaiting it is what lets that dedup see the previous row.
+   */
+  it("waits for the report to be written before returning", async () => {
+    for (let i = 0; i < MAX_PULL_WINDOW_REWINDS; i++) {
+      await rewindPullWindow("products", "version_conflict");
+    }
+
+    let releaseReport!: () => void;
+    logCrash.mockImplementation(
+      () => new Promise<void>((resolve) => { releaseReport = resolve; }),
+    );
+
+    let returned = false;
+    const restoring = restoreExhaustedPullWindows().then(() => { returned = true; });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(returned).toBe(false);
+
+    releaseReport();
+    await restoring;
+    expect(returned).toBe(true);
+  });
+
+  /**
+   * A-273. The old wording ("this device cannot converge on its own") was
+   * false: the budget is per round, `completeWindow` refreshes it, and the
+   * incremental pull keeps running throughout.
+   */
+  it("reports what is actually true of the device", async () => {
+    for (let i = 0; i < MAX_PULL_WINDOW_REWINDS; i++) {
+      await rewindPullWindow("products", "version_conflict");
+    }
+
+    await restoreExhaustedPullWindows();
+
+    const message = (logCrash.mock.calls[0][0] as Error).message;
+    expect(message).not.toContain("cannot converge");
+    expect(message).toContain("products");
+    expect(message).toContain("incremental pull continues");
+  });
+
+  /** The per-round reporting A-229 pinned must be untouched: a table still
+   * held at its budget keeps saying so. */
   it("still reports an exhausted business table every round", async () => {
     for (let i = 0; i < MAX_PULL_WINDOW_REWINDS; i++) {
       await rewindPullWindow("products", "version_conflict");

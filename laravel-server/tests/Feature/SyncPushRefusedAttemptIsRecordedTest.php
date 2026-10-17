@@ -49,6 +49,81 @@ class SyncPushRefusedAttemptIsRecordedTest extends TestCase
         $this->withoutMiddleware();
     }
 
+    private function planWithThrottle(int $intervalMinutes): void
+    {
+        SystemConfig::setVal('subscription_plans', [
+            'tiers' => [
+                'free' => [
+                    'features' => ['cloud_sync' => true],
+                    'limits' => ['stores' => -1, 'sync_interval' => $intervalMinutes],
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * A-178. Throttling is the server working as designed — "come back
+     * shortly", not "these rows were rejected". A device paging a backlog
+     * through a plan throttle booked every row of every refused batch as a
+     * refusal, which is how a healthy store read `271 accepted · 1450
+     * refused`. The attempt still counts (PG-18) and the reason is still
+     * recorded for the operator; it just no longer poisons the success rate.
+     */
+    public function test_a_throttled_push_does_not_count_its_rows_as_refusals(): void
+    {
+        $this->planWithThrottle(30);
+        $this->store->forceFill([
+            'last_sync_at' => now()->subMinutes(2),
+            'last_sync_run_id' => null,
+            'last_sync_run_started_at' => null,
+        ])->save();
+
+        $this->pushRows(40)->assertStatus(429);
+
+        $tally = SyncHealthDaily::where('store_id', $this->store->id)->first();
+
+        $this->assertNotNull($tally, 'the attempt itself must still count (PG-18)');
+        $this->assertSame(1, (int) $tally->pushes);
+        $this->assertSame(0, (int) $tally->changes_accepted);
+        $this->assertSame(
+            0,
+            (int) $tally->changes_refused,
+            'a deferred push rejected nothing, so it must not inflate changes_refused',
+        );
+
+        $failure = SyncFailure::where('store_id', $this->store->id)->first();
+        $this->assertNotNull($failure, 'the operator must still see that it was throttled');
+        $this->assertSame('sync_throttled', $failure->reason);
+    }
+
+    /** A server error really is a failure and must keep counting as one. */
+    public function test_a_server_error_still_counts_as_a_refusal(): void
+    {
+        $recorder = app(\App\Services\Sync\SyncFailureRecorder::class);
+        $recorder->recordRejectedPush($this->store->id, $this->owner->id, 'server_error', 7);
+
+        $tally = SyncHealthDaily::where('store_id', $this->store->id)->first();
+        $this->assertSame(7, (int) $tally->changes_refused);
+    }
+
+    private function pushRows(int $count): \Illuminate\Testing\TestResponse
+    {
+        $changes = [];
+        for ($i = 0; $i < $count; $i++) {
+            $changes[] = [
+                'table_name' => 'customers',
+                'record_id' => (string) \Illuminate\Support\Str::uuid(),
+                'operation' => 'INSERT',
+                'payload' => ['name' => 'Someone', 'store_id' => $this->store->id],
+            ];
+        }
+
+        return $this->actingAs($this->owner)
+            ->withHeader('X-Store-Id', $this->store->id)
+            ->withHeader('X-Device-Id', 'DESKTOP-REFUSED')
+            ->postJson('/api/v1/app/sync/push', ['changes' => $changes]);
+    }
+
     private function planWithCloudSync(bool $enabled): void
     {
         SystemConfig::setVal('subscription_plans', [

@@ -27,7 +27,7 @@ import { useDatabase } from "@/lib/db/DatabaseProvider";
 import { AuthModal } from "./auth-modal";
 import { cn } from "@/lib/utils";
 import { formatDistanceSafe } from "@/lib/utils/date-utils";
-import { isExpectedSyncRestriction } from "@/lib/utils/error-logger";
+import { isExpectedPlanRestriction } from "@/lib/utils/error-logger";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/query-keys";
 import { APP_EVENTS, onAppEvent } from "@/lib/events";
@@ -147,7 +147,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
         const errorMsg = typeof result.error === 'string' ? result.error : "Sync failed";
         // Another caller holds the mutex and reports its own outcome.
         if (errorMsg === SYNC_IN_PROGRESS_ERROR) return;
-        if (!isUserInitiated && isExpectedSyncRestriction(errorMsg)) {
+        if (!isUserInitiated && isExpectedPlanRestriction(errorMsg)) {
           setStatus("online");
           return;
         }
@@ -159,7 +159,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       }
     } catch (err) {
       console.error("Sync failed:", err);
-      if (!isUserInitiated && isExpectedSyncRestriction(err)) {
+      if (!isUserInitiated && isExpectedPlanRestriction(err)) {
         setStatus("online");
         return;
       }

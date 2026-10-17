@@ -1310,3 +1310,20 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## A queued command must show its outcome, not just its queueing
+
+`sync_commands` rows move `pending` → `sent` (the device claimed it) →
+`applied` / `refused` / `failed` (what the device did). A surface that renders
+only `pending` goes blank the moment the device picks the command up, which
+looks exactly like never having asked — that was
+`device-report-action.tsx` before A-274, and it meant the till's own rate-limit
+refusal ("Too many reports sent just now…") had never been seen by anyone.
+
+So: take the **most recent** command for that `(device_id, action)` pair from
+`useStoreSyncCommands` — `SyncCommandService::forStore()` already orders by
+`issued_at` desc and already returns `status`, `result` and `acted_at`, so this
+needs no API change — and render every state. `applied` carries `result` in the
+`title`; `refused`/`failed` put the reason on screen and keep the action
+available so the operator can retry. Timestamps are `dd/MM/yyyy HH:mm` via
+`formatDateSafe` (root `AGENTS.md` §6), never a bare date.

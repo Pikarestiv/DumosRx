@@ -34,7 +34,6 @@ import {
 import { devLog } from "@/lib/utils/dev-log";
 import { toast } from "sonner";
 import { APP_EVENTS, onAppEvent } from "@/lib/events";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 interface DatabaseContextType {
   isReady: boolean;
@@ -121,13 +120,6 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
 
   // Initialize database
   useEffect(() => {
-    let hadPendingCrashes = false;
-    try {
-      hadPendingCrashes = !!localStorage.getItem(STORAGE_KEYS.pendingCrashes);
-    } catch {
-      hadPendingCrashes = false;
-    }
-
     initDatabase()
       .then(() => {
         setIsReady(true);
@@ -146,15 +138,13 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         import("@/lib/db/queries/procurement").then(({ promoteDraftPurchaseOrdersToPending }) => {
           promoteDraftPurchaseOrdersToPending().catch(console.error);
         }).catch(console.error);
-        // Repairs rows left with no _sync_queue entry by an interrupted
-        // write; once per install, not per boot (see A-8 in docs/FIXED_BUGS.md).
+        // Once per install, never re-armed: client/AGENTS.md, "The boot-time
+        // orphan scan".
         Promise.all([
           import("@/lib/db/reconcile-identity"),
           import("@/lib/db/schema-migrations"),
         ]).then(([{ requeueOrphanedRowsOnce }, { STORE_SCOPED_TABLES }]) => {
-          requeueOrphanedRowsOnce(STORE_SCOPED_TABLES, {
-            force: hadPendingCrashes,
-          }).catch(console.error);
+          requeueOrphanedRowsOnce(STORE_SCOPED_TABLES).catch(console.error);
         }).catch(console.error);
       })
       .catch((err) => {

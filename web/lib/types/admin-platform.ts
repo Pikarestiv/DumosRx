@@ -132,6 +132,14 @@ export interface DeviceStockReport {
   batch_delta: number;
   /** Null whenever either side reported no value. */
   value_delta: number | null;
+  /**
+   * False when the device reported zero batches against a cloud that has
+   * some — it holds no copy of this store (A-249), which is not a
+   * disagreement. Absent on responses from before this shipped.
+   */
+  has_local_copy?: boolean;
+  /** True once the snapshot is too old to describe a live device (A-252). */
+  stale?: boolean;
   diverged: boolean;
   reported_at: string | null;
 }

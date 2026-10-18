@@ -1384,3 +1384,139 @@ the oldest unsynced edit's age and the delivered-age histogram. Both fields are
 **optional** in `DeviceQueueReport`, so a bundle served against a server
 without the migration still renders, and absent reads as nothing rather than as
 "delivered instantly".
+
+## Store details is three tabs, and the Sync tab carries a verdict badge (2026-10-19)
+
+`app/admin/stores/details/page.tsx` keeps the header, the status badges and the
+stat tiles — fixed chrome — and renders `StoreDetailTabs`. The body is three
+tabs, one grid each, in `components/admin/stores/details/`:
+
+- **`overview`** (`store-overview-tab.tsx`) — business and operational metrics,
+  profile, the owner/subscription stack, staff, account manager, storefront,
+  payments.
+- **`sync`** (`store-sync-tab.tsx`) — Device Table Agreement **first**, because
+  it is why the tab exists and where the badge lands you, then Device Stock
+  Agreement, Stuck On Devices, Sync Activity (`StoreSyncHealthPanel`, the
+  heaviest call on the page and the least urgent, so it is near the end) and
+  Sync Settings (`StoreSyncCard`).
+- **`activity`** (`store-activity-tab.tsx`) — recent transactions, recent
+  activity, and an **Open Activity Log button in the tab's header row**. The
+  old "Full Activity Log" `DetailCard` is gone: a card whose only content is a
+  link should be a button.
+
+`StoreSyncCard` is titled **"Sync Settings"**, not "Sync Health" — it shows
+device, interval and last sync, while `StoreSyncHealthPanel` is "Sync
+Activity". The two titles used to read swapped. `DetailCard` now carries §6's
+`border-slate-200 dark:border-slate-800` instead of `border-none`, so it
+matches `StoreSyncHealthPanel` sitting beside it; every `DetailCard` caller is
+on this page, which is why that was a safe one-line change.
+
+**The tab lives in `?tab=`, read with `useSearchParams()` and resolved with a
+`switch`** over `"sync" | "activity"` — anything else is `overview`. §8 forbids
+a bracket lookup on a URL value, and the `switch` also makes a hand-edited
+`?tab=whatever` render the default rather than an empty page. `overview` is
+canonical **with no param**, matching the settings page's `DEFAULT_TAB`
+convention, and the path is built from `adminStoreDetailPath()` so the
+`trailingSlash: true` export stays consistent. Changing tab calls
+`router.replace(…, { scroll: false })` — **`replace`, not `push`**, because a
+tab is a view preference and Back must return to the fleet list rather than
+walk three tabs; `scroll: false` so switching on a phone does not jump. `Tabs`
+is **controlled** (`value={activeTab}`), so a deep link and the strip can never
+disagree.
+
+### The badge
+
+`syncVerdict(table, stock)` in `lib/admin/sync-verdict.ts` is a pure function
+returning `{ label, tone, announcement }` or `null`, covered row by row in
+`__tests__/admin-store-sync-verdict.test.ts`. It reads
+`useStoreTableAgreement` and `useStoreStockDivergence`, both hoisted to
+`StoreDetailTabs` — TanStack dedupes by key, so the panels' own hooks are cache
+hits and there is **no new endpoint**. Stock is included because a Sync tab
+reading "Agrees" while stock diverges is the exact lie the panel already
+learned not to tell. Stuck items are deliberately **excluded**: that is a
+push-refusal instrument, not agreement.
+
+Definitions must match the panel exactly: `comparable` is
+`has_local_copy !== false && !stale` (`!== false`, because stock's field is
+optional and absent must not read as "no copy"); `disagreeing` is a **set of
+`device_id`** over comparable devices with `diverged === true` from **both**
+instruments, so the count is devices, not tables — one number, one unit;
+`measured` is `table.measured || stock.measured`; `catchingUp` counts
+comparable table devices with no diverged tables but some row whose `verdict`
+is not `agrees` (`syncing` and `behind` both count).
+
+Worst wins, evaluated top-down:
+
+| # | Condition | Pill | Tone |
+|---|---|---|---|
+| 0 | either query loading with no data | *no pill* | — |
+| 1 | either query errored | `Unavailable` | neutral |
+| 2 | `!measured` | `Not measured` | neutral |
+| 3 | `disagreeing.size > 0` | `1 device disagrees` / `N devices disagree` | rose |
+| 4 | no comparable device, any stale | `Stopped reporting` | amber |
+| 5 | no comparable device, all `has_local_copy === false` | `No local copy` | neutral |
+| 6 | `catchingUp > 0` | `Catching up` | neutral |
+| 7 | otherwise | `Agrees` | emerald subtle |
+
+Only rose and amber get strong colour, because only they need a human. Amber
+for "stopped reporting" is deliberate — a silent till is the one worth looking
+at. "No local copy" and "Catching up" stay neutral, because scoring either as
+a disagreement is the lie the panel already fixed. "Agrees" is *subtle*
+emerald rather than nothing, because no-pill means "loading" and a positive
+confirmation has to look different from nothing-yet. Tones use existing classes
+only (§6): rose `bg-rose-500 text-white`, amber `bg-amber-500 text-white`,
+emerald `bg-emerald-500/15 text-emerald-700 dark:text-emerald-400`, neutral
+`bg-background/80 text-muted-foreground`.
+
+**Do not special-case a known bug by table name.** The verdict is computed
+server-side; the badge holds no verdict logic beyond worst-of, or "diverged"
+acquires two definitions. Suppressing `sale_items` and friends would have
+blinded the panel in exactly the tables October's bugs lived in — A-284 was
+fixed at source instead (`docs/FIXED_BUGS.md`), which is why that part shipped
+first.
+
+### Why the live region is a sibling of `TabsList`, not inside a trigger
+
+`role="tab"` has **presentational children**, so a `role="status"` span placed
+inside a `TabsTrigger` is flattened by the browser and announces nothing. The
+pill's visible text instead becomes part of the tab's accessible name — "Sync,
+1 device disagrees" — which is what you want. The live region is a **single
+sibling of `TabsList`**:
+
+```tsx
+<p role="status" aria-atomic="true" className="sr-only">{verdict?.announcement ?? ""}</p>
+```
+
+One region on the page, atomic, a whole sentence. Never a bare number, never
+one per badge.
+
+**The trigger needs a literal space before the pill:** `{"Sync "}`, not `Sync`
+on its own line. JSX strips the newline, the accessible-name computation
+concatenates text nodes with no separator, and the tab announces as
+"Sync1 device disagrees". `admin-store-detail-tabs.test.tsx` pins the name with
+the space in it.
+
+### Deferral is Radix unmounting, not `enabled` flags
+
+Radix `TabsContent` unmounts inactive content, so `useAdminStoreSyncHealth`,
+`useStoreQueueState` and `useStoreSyncCommands` simply do not run until the
+Sync tab is opened. **Do not add `enabled` flags and do not add `forceMount` to
+any tab** — `forceMount` appears nowhere in `web/`, which is what makes this
+free. Switching back remounts into the existing 60s cache. The two badge hooks
+are the deliberate exception: they are hoisted and always run, because the
+badge has to be right on the Overview tab too.
+
+The strip follows `app/admin/activity/page.tsx`'s shape
+(`mb-4 bg-muted w-full flex overflow-x-auto whitespace-nowrap justify-start p-1 h-12 gap-1`;
+`app/admin/communications/page.tsx` uses a different one — follow activity).
+Do **not** copy `no-scrollbar` from anywhere: it is defined nowhere in this
+package and is a dead class. Triggers are `px-4 shrink-0 gap-2 min-h-11`, and
+because "Sync · 2 devices disagree" overflows 360px the strip scrolls; a mount
+effect calls `scrollIntoView({ inline: "nearest", block: "nearest" })` on the
+active trigger so a deep link to `?tab=activity` on a phone does not open with
+the strip scrolled away. Radix's default keyboard behaviour
+(Left/Right/Home/End, automatic activation) is kept as-is.
+
+**The tab has no permission gate**, although all five Sync panels are
+server-gated on `view_platform_health`. Pre-existing, logged as
+`docs/KNOWN_BUGS.md` A-290 rather than fixed here.

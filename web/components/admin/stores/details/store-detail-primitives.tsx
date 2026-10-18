@@ -12,7 +12,7 @@ interface DetailCardProps {
 
 export function DetailCard({ title, icon, children, className }: DetailCardProps) {
   return (
-    <Card className={`border-none shadow-sm bg-white dark:bg-slate-900 ${className ?? ""}`}>
+    <Card className={`border border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900 ${className ?? ""}`}>
       <CardContent className="p-6 space-y-4">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary">

@@ -113,7 +113,7 @@ export function StoreSubscriptionCard({ store }: { store: AdminStoreDetail }) {
 
 export function StoreSyncCard({ store }: { store: AdminStoreDetail }) {
   return (
-    <DetailCard title="Sync Health" icon={<RefreshCw className="h-4 w-4" />}>
+    <DetailCard title="Sync Settings" icon={<RefreshCw className="h-4 w-4" />}>
       <div className="grid grid-cols-2 gap-4">
         <Field label="Last Sync" value={store.sync.last_sync_human} />
         <Field label="Auto Sync" value={store.sync.auto_sync_enabled ? "Enabled" : "Disabled"} />

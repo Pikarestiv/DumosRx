@@ -10,6 +10,13 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
+#### A-290. `web/` — the store-details Sync tab has no client permission gate, so a delegated operator sees five cards that cannot load
+- **Found:** 2026-10-19, while splitting the store-details page into tabs (`web/AGENTS.md`, "Store details is three tabs"). Pre-existing: the same five panels sat unguarded on the single-column page, where they were merely three cards among sixteen rather than a whole tab.
+- **Location:** `web/components/admin/stores/details/store-sync-tab.tsx` and the badge in `store-detail-tabs.tsx`, against `laravel-server/routes/api.php:244-252` — every one of `admin/sync/stores/{id}`, `stock-divergence`, `table-agreement` and `queue-state` carries `middleware('permission:view_platform_health')`.
+- **What's wrong:** the page gates nothing client-side. A `platform_admin` or `agent` without `view_platform_health` can open the store, see a **Sync** tab, and land on five panels that each render their own "unavailable" state from a 403. The badge degrades correctly — `syncVerdict()` returns `Unavailable`, neutral, which is honest — but the tab itself should not be offered. The panel-level *actions* were already gated (`device-row-actions.tsx`, `stuck-item-actions.tsx`, `device-report-action.tsx` each hide rather than disable on this exact permission), so the convention and the helper both exist; only the container was never gated.
+- **Fix:** `checkHasPermission(user, "view_platform_health")` from `use-admin-auth-store` around the `TabsTrigger` and the `TabsContent` for `sync`, the way `app/admin/operations/page.tsx:45` already gates a whole page, plus a `resolveTab()` fallback to `overview` so a deep link to `?tab=sync` from a shared URL does not open an empty tab. Hide, do not disable, matching the three action components beside it.
+- **Deliberately not fixed with the tabs change**, which was scoped to layout and the badge; gating is a permission decision and belongs with a logged-in browser smoke test per `.agents/AGENTS.md` §9.
+
 #### A-288. `laravel-server/` — the `store_id` backfill now exists, but `requested_products` and a multi-store owner's rows still cannot be attributed
 - **Found:** 2026-10-18, while building the per-table agreement fingerprint (`docs/DEVICE_TABLE_AGREEMENT.md`). Pre-existing data asymmetry, surfaced rather than caused by the new instrument.
 - **Mostly fixed 2026-10-18** by `sync:backfill-store-ids` — see `laravel-server/AGENTS.md`, "`store_id` backfill", for the mechanism, the per-table derivation and its confidence. This entry stays open only for the residue below.

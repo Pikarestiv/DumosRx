@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   Banknote,
   Box,
-  History,
   PackageSearch,
   ShieldAlert,
   ShoppingCart,
@@ -15,32 +14,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AdminSkeleton } from "@/components/admin/admin-skeleton";
-import { StoreStaffList } from "@/components/admin/stores/store-staff-list";
 import { StoreDetailActions } from "@/components/admin/stores/details/store-detail-actions";
-import { AccountManagerCard } from "@/components/admin/stores/details/account-manager-card";
-import {
-  DetailCard,
-  StatTile,
-} from "@/components/admin/stores/details/store-detail-primitives";
-import {
-  StoreOwnerCard,
-  StorePaymentsCard,
-  StoreProfileCard,
-  StoreRecentActivityCard,
-  StoreRecentTransactionsCard,
-  StoreSubscriptionCard,
-  StoreSyncCard,
-} from "@/components/admin/stores/details/store-detail-sections";
-import { StoreStorefrontCard } from "@/components/admin/stores/details/store-storefront-card";
-import { StoreSyncHealthPanel } from "@/components/admin/stores/details/store-sync-health-section";
-import { StoreStockDivergencePanel } from "@/components/admin/stores/details/store-stock-divergence-section";
-import { StoreQueueStatePanel } from "@/components/admin/stores/details/store-queue-state-section";
-import { StoreTableAgreementPanel } from "@/components/admin/stores/details/store-table-agreement-section";
-import { Boxes, Table2 } from "lucide-react";
-import {
-  StoreBusinessMetricsCard,
-  StoreOperationalMetricsCard,
-} from "@/components/admin/stores/details/store-metrics-cards";
+import { StatTile } from "@/components/admin/stores/details/store-detail-primitives";
+import { StoreDetailTabs } from "@/components/admin/stores/details/store-detail-tabs";
 import { useAdminStoreDetail } from "@/lib/api/admin-hooks";
 
 function StoreDetailsContent() {
@@ -142,52 +118,7 @@ function StoreDetailsContent() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <StoreBusinessMetricsCard store={store} />
-        <StoreOperationalMetricsCard store={store} />
-        <StoreProfileCard store={store} />
-        <div className="space-y-6">
-          <StoreOwnerCard store={store} />
-          <StoreSubscriptionCard store={store} />
-        </div>
-        <DetailCard title="Store Staff" icon={<Users className="h-4 w-4" />}>
-          <StoreStaffList storeId={store.id} />
-        </DetailCard>
-        <AccountManagerCard store={store} />
-        <StoreSyncCard store={store} />
-        <StoreSyncHealthPanel storeId={store.id} />
-        <DetailCard title="Device Stock Agreement" icon={<Boxes className="h-4 w-4" />}>
-          <StoreStockDivergencePanel storeId={store.id} currency={store.currency} />
-        </DetailCard>
-        <DetailCard title="Device Table Agreement" icon={<Table2 className="h-4 w-4" />}>
-          <StoreTableAgreementPanel storeId={store.id} />
-        </DetailCard>
-        <DetailCard title="Stuck On Devices" icon={<History className="h-4 w-4" />}>
-          <StoreQueueStatePanel storeId={store.id} />
-        </DetailCard>
-        <StoreStorefrontCard store={store} />
-        <StorePaymentsCard store={store} />
-        <StoreRecentTransactionsCard store={store} />
-        <StoreRecentActivityCard store={store} />
-        <DetailCard title="Full Activity Log" icon={<History className="h-4 w-4" />}>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-            Recent entries are listed above. The complete, filterable log lives on the Activity
-            page.
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-xl font-bold"
-            onClick={() =>
-              router.push(
-                `/admin/activity?store_id=${encodeURIComponent(store.id)}&store_name=${encodeURIComponent(store.name)}`,
-              )
-            }
-          >
-            Open Activity Log
-          </Button>
-        </DetailCard>
-      </div>
+      <StoreDetailTabs store={store} />
     </div>
   );
 }

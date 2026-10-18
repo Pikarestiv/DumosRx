@@ -1343,3 +1343,29 @@ needs no API change — and render every state. `applied` carries `result` in th
 `title`; `refused`/`failed` put the reason on screen and keep the action
 available so the operator can retry. Timestamps are `dd/MM/yyyy HH:mm` via
 `formatDateSafe` (root `AGENTS.md` §6), never a bare date.
+
+## Device Table Agreement panel
+
+`store-table-agreement-section.tsx`, mounted on the store-details page below
+Device Stock Agreement. It lists only the tables that do **not** agree: a
+26-row table per device is unreadable and the useful signal is the exception.
+It inherits the stock panel's hard-won rules rather than re-earning them — "No
+local copy of this store" instead of a huge delta (A-274), "Stopped reporting"
+for a snapshot past 48h (A-252), and never "every table agrees" for a store
+nobody has reported for.
+
+Two verdicts are distinct on purpose: **"Still syncing"** (the delta is within
+that table's queued-edit count) is not a problem, while a table with the same
+row count but a different version sum renders as "same rows, other edits" with
+the signed version delta beneath. Collapsing the second into "agrees" was the
+whole bug class this panel exists to catch.
+
+The panel's own copy states the digest's limit — row count and version sum,
+blind to two offsetting edits inside one table. Keep it there; a panel that
+implies proof it does not have is worse than no panel.
+
+The Stuck On Devices panel gained a delivery-timing block from the same work:
+the oldest unsynced edit's age and the delivered-age histogram. Both fields are
+**optional** in `DeviceQueueReport`, so a bundle served against a server
+without the migration still renders, and absent reads as nothing rather than as
+"delivered instantly".

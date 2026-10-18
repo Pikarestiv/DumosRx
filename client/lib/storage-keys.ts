@@ -23,6 +23,7 @@ export const STORAGE_KEYS = {
   lastSyncHealthCheck: "dumos_last_sync_health_check",
   syncHealthDeficitState: "dumos_sync_health_deficit_state",
   syncUniqueSkipCounts: "dumos_sync_unique_skip_counts",
+  syncDeliveredAges: "dumos_sync_delivered_ages",
   loginLockout: "dumos_login_lockout",
   tourCompleted: "dumos_client_tour_completed",
   tourSnoozedUntil: "dumos_client_tour_snoozed_until",

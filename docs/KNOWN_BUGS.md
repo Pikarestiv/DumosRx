@@ -10,6 +10,13 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
+#### A-288. `laravel-server/` — a legacy row the device backfilled a `store_id` onto is counted on the device and excluded on the server, so a table reads as permanently one row ahead
+- **Found:** 2026-10-18, while building the per-table agreement fingerprint (`docs/DEVICE_TABLE_AGREEMENT.md`). Pre-existing data asymmetry, surfaced rather than caused by the new instrument.
+- **Location:** `client/lib/db/schema-migrations.ts`'s `store_id` backfill loop (`UPDATE <table> SET store_id = (SELECT id FROM stores) WHERE store_id IS NULL`) against `App\Services\Admin\Concerns\CountsSyncedTableRows::scopeToStore()` and `SyncController::applyPullTenantScope()`, both of which filter on `store_id` for the 20 directly-scoped tables.
+- **What's wrong:** the device fills `store_id` on every legacy row it holds; the server never backfilled the column for rows that predate `add_store_id_to_child_domain_tables` / `fix_sync_schema_drift`. `NULL` never matches `where('store_id', ...)`, so for a single-store device any such row is counted locally and excluded in the cloud. The agreement panel therefore shows a small positive `row_delta` on an affected table that never clears, and more importantly the *pull* has the same filter, so the device can never be told anything about those rows either — they are invisible to the sync engine in both directions, which is the `.agents/AGENTS.md` §11 "scoping filters are a contract too" failure verbatim. The six child tables are immune: the server scopes them through their parent, not their own column.
+- **Blast radius unknown and deliberately not measured:** finding out needs a `SELECT COUNT(*) WHERE store_id IS NULL` per table against production, which §12 forbids without clearance. It may be zero rows on every live store; it may be the entire pre-August history of one.
+- **Fix:** a server-side backfill migration setting `store_id` from each row's owning store (directly for the 20, through the parent for the six), with the parent-derived value as the source of truth, then re-run the agreement panel and confirm the residual deltas go to zero. It writes to business tables, so it is out of scope for pure instrumentation and wants its own change with its own rollback note.
+
 #### A-287. `laravel-server/` — a mis-stamped product's batch never moves in the cloud again, because the movement is accepted and only its delta is refused
 - **Found:** 2026-10-18, raised by the review of A-280 and recorded rather than folded into it.
 - **Location:** `SyncController::applyStockBatchDeltas()` (where A-280's refusal sits) vs `authorizeInsertTarget('stock_movements')` (where it arguably belongs).

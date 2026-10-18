@@ -161,6 +161,9 @@ export interface DeviceQueueReport {
   device_id: string;
   device_label: string | null;
   queue_depth: number;
+  /** Optional: absent from a response served before this shipped. */
+  oldest_queued_seconds?: number | null;
+  delivered_ages?: DeliveredAges | null;
   stuck_count: number;
   stuck_items: DeviceStuckItem[];
   truncated: boolean;
@@ -171,6 +174,44 @@ export interface StoreQueueState {
   measured: boolean;
   devices_with_stuck_items: number;
   devices: DeviceQueueReport[];
+}
+
+export interface DeliveredAges {
+  under_1m: number;
+  under_5m: number;
+  under_1h: number;
+  under_1d: number;
+  over_1d: number;
+}
+
+export interface DeviceTableAgreementRow {
+  table: string;
+  device_rows: number;
+  device_version_sum: number;
+  device_pending: number;
+  server_rows: number;
+  server_version_sum: number;
+  row_delta: number;
+  version_delta: number;
+  verdict: "agrees" | "syncing" | "diverged";
+}
+
+export interface DeviceTableReport {
+  device_id: string;
+  device_label: string | null;
+  device_nickname: string | null;
+  tables: DeviceTableAgreementRow[];
+  diverged_tables: string[];
+  has_local_copy: boolean;
+  stale: boolean;
+  diverged: boolean;
+  reported_at: string | null;
+}
+
+export interface StoreTableAgreement {
+  measured: boolean;
+  diverged_devices: number;
+  devices: DeviceTableReport[];
 }
 
 export interface SyncCommandRow {

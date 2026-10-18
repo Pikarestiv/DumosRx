@@ -6,7 +6,48 @@ import { useStoreQueueState } from "@/lib/api/admin-hooks-sync";
 import { syncReasonLabel } from "@/lib/api/admin-hooks-sync";
 import { formatDateSafe } from "@/lib/utils/date-utils";
 import { StuckItemActions } from "./stuck-item-actions";
-import type { StoreQueueState } from "@/lib/types/admin-platform";
+import type { DeviceQueueReport, StoreQueueState } from "@/lib/types/admin-platform";
+
+function waitedFor(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+  if (seconds < 86400) return `${Math.round(seconds / 3600)}h`;
+
+  return `${Math.round(seconds / 86400)}d`;
+}
+
+/**
+ * Eventual delivery per edit. A per-attempt success rate reads the same
+ * whether a device delivers in seconds or has been sitting on an edit for a
+ * day. Null means a bundle that reports neither, never "delivered instantly".
+ */
+function DeliveryTiming({ device }: { device: DeviceQueueReport }) {
+  const ages = device.delivered_ages;
+
+  const oldest = device.oldest_queued_seconds ?? null;
+
+  if (oldest === null && !ages) {
+    return null;
+  }
+
+  return (
+    <div className="px-3 py-2 text-xs text-muted-foreground border-b border-slate-100 dark:border-slate-800">
+      {oldest !== null && (
+        <p>
+          <span className="font-semibold text-foreground/70">Oldest unsynced edit</span>{" "}
+          {`waited ${waitedFor(oldest)} so far`}
+        </p>
+      )}
+      {ages && (
+        <p>
+          <span className="font-semibold text-foreground/70">Delivered since last report</span>{" "}
+          {`under 1m ${ages.under_1m}, under 5m ${ages.under_5m}, under 1h ${ages.under_1h},`}
+          {` under 1d ${ages.under_1d}, over 1d ${ages.over_1d}`}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function StoreQueueStatePanel({ storeId }: { storeId: string }) {
   const { data, isLoading, isError } = useStoreQueueState(storeId);
@@ -97,6 +138,8 @@ export function StoreQueueStateSection({
               )}
             </div>
           </div>
+
+          <DeliveryTiming device={device} />
 
           {device.stuck_items.length > 0 && (
             <ul className="divide-y divide-slate-100 dark:divide-slate-800">

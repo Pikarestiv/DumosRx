@@ -1200,9 +1200,26 @@ times.
   2026-10-12 ignores it and an older client may omit it. A differing fingerprint is *proof* that this device and the server
   disagree about stock; it cannot say which batch, which is deliberate — that
   would be an unbounded payload.
+- **`table_fingerprint`** (`sync-engine/table-fingerprint.ts`): per synced
+  table, the row count, the sum of `_version`, and that table's unpushed queue
+  depth. Soft-deleted rows are counted on purpose; `_deleted` is deliberately
+  NOT in the digest. Unlike the other three this one is **throttled to once
+  per 15 minutes** and returns `null` outside that window, so the field is
+  simply absent and the server keeps the previous snapshot — a report is only
+  ever sent in the push that computed it, never a stale reading against a live
+  cloud. Short keys (`t`/`r`/`v`/`p`) keep 26 tables at 1,226 bytes. **Read
+  `docs/DEVICE_TABLE_AGREEMENT.md` before trusting an "agrees": the digest
+  cannot see offsetting edits inside one table, an identity swap at equal
+  count and version, or any field value at all.**
 - **`queue_state`** (`sync-engine/queue-state.ts`): queue depth plus, for each
   stuck row, the table, record id, attempt count and a canonicalised reason.
-  The cap is `LIMIT ?` **in the SQL**, not a `.slice()` after the fact.
+  The cap is `LIMIT ?` **in the SQL**, not a `.slice()` after the fact. It also
+  carries `oldest_queued_seconds` (from the `MIN(created_at)` the depth query
+  was already free to compute) and `delivered_ages`, the histogram
+  `markSynced()` fills from each accepted row's age. `drainDeliveredAges()`
+  **clears on read**, so this report owns the drain; the pasteable support
+  ticket calls `peekDeliveredAges()` instead. Add a second drain anywhere and
+  the admin panel silently sees half the deliveries.
 - **The reason is canonicalised on the device, not on the server.** A raw
   driver error embeds the failing SQL and its bindings — customer names, phone
   numbers, amounts. The server canonicalises again on storage, but a raw string

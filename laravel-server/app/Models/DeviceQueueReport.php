@@ -15,6 +15,8 @@ class DeviceQueueReport extends Model
         'user_id',
         'queue_depth',
         'stuck_count',
+        'oldest_queued_seconds',
+        'delivered_ages',
         'stuck_items',
         'reported_at',
     ];
@@ -22,6 +24,8 @@ class DeviceQueueReport extends Model
     protected $casts = [
         'queue_depth' => 'integer',
         'stuck_count' => 'integer',
+        'oldest_queued_seconds' => 'integer',
+        'delivered_ages' => 'array',
         'stuck_items' => 'array',
         'reported_at' => 'datetime',
     ];

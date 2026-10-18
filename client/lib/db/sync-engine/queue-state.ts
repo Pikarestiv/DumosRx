@@ -1,4 +1,5 @@
 import { query, getActiveStoreId } from "../core";
+import { drainDeliveredAges, type DeliveredAges } from "./delivery-age";
 
 /** Matches base-helpers.ts's SYNC_FAILURE_REPORT_THRESHOLD: an item at or
  *  past this has exhausted its retries and is not moving on its own. */
@@ -37,6 +38,11 @@ export function canonicaliseReason(raw: string | null): string {
 
 export interface QueueStateReport {
   queue_depth: number;
+  /** The age of the oldest edit still waiting, in seconds; null when the
+   *  queue is empty, which is not the same as everything arriving at once. */
+  oldest_queued_seconds: number | null;
+  /** Ages of the edits delivered since the last report, or null if none. */
+  delivered_ages: DeliveredAges | null;
   stuck: Array<{
     table_name: string;
     record_id: string;
@@ -55,13 +61,21 @@ export interface QueueStateReport {
  * failing SQL and its bindings — customer names, amounts — and would still
  * be in transit and in any future request log.
  */
+function queuedSeconds(oldest: string | null): number | null {
+  const queuedAt = oldest === null ? NaN : Date.parse(oldest);
+
+  return Number.isFinite(queuedAt) ? Math.max(0, Math.round((Date.now() - queuedAt) / 1000)) : null;
+}
+
 export async function buildQueueStateReport(): Promise<QueueStateReport | null> {
   if (!getActiveStoreId()) {
     return null;
   }
 
   try {
-    const depth = await query<{ count: number }>("SELECT COUNT(*) AS count FROM _sync_queue");
+    const depth = await query<{ count: number; oldest: string | null }>(
+      "SELECT COUNT(*) AS count, MIN(created_at) AS oldest FROM _sync_queue",
+    );
 
     const stuck = await query<{
       table_name: string;
@@ -79,6 +93,8 @@ export async function buildQueueStateReport(): Promise<QueueStateReport | null> 
 
     return {
       queue_depth: Number(depth[0]?.count ?? 0),
+      oldest_queued_seconds: queuedSeconds(depth[0]?.oldest ?? null),
+      delivered_ages: drainDeliveredAges(),
       stuck: stuck.map((item) => ({
         table_name: item.table_name,
         record_id: item.record_id,

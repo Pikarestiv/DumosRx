@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use App\Models\DeviceQueueReport;
 use App\Services\Admin\Concerns\ResolvesDeviceLabels;
+use App\Services\Sync\SyncFailureRecorder;
 use Illuminate\Support\Str;
 
 /**
@@ -34,6 +35,9 @@ class DeviceQueueReportService
 
     private const FALLBACK_REASON = 'server_error';
 
+    /** Mirrors client/lib/db/sync-engine/delivery-age.ts. */
+    private const DELIVERY_BUCKETS = ['under_1m', 'under_5m', 'under_1h', 'under_1d', 'over_1d'];
+
     public function record(string $storeId, string $deviceId, ?string $userId, array $report): DeviceQueueReport
     {
         $stuck = array_values(array_filter((array) ($report['stuck'] ?? []), 'is_array'));
@@ -47,11 +51,16 @@ class DeviceQueueReportService
             'reason' => $this->canonicalReason($item['reason'] ?? null),
         ], array_slice($stuck, 0, self::MAX_STORED_ITEMS));
 
+        $depth = max(0, (int) ($report['queue_depth'] ?? 0));
+        app(SyncFailureRecorder::class)->recordQueuePeak($storeId, $depth);
+
         return DeviceQueueReport::updateOrCreate(
             ['store_id' => $storeId, 'device_id' => $deviceId],
             [
                 'user_id' => $userId,
-                'queue_depth' => max(0, (int) ($report['queue_depth'] ?? 0)),
+                'queue_depth' => $depth,
+                'oldest_queued_seconds' => $this->nonNegativeIntOrNull($report['oldest_queued_seconds'] ?? null),
+                'delivered_ages' => $this->deliveredAges($report['delivered_ages'] ?? null),
                 'stuck_count' => count($stuck),
                 'stuck_items' => $items,
                 'reported_at' => now(),
@@ -72,6 +81,8 @@ class DeviceQueueReportService
             'device_id' => $report->device_id,
             'device_label' => $labels[$report->device_id] ?? null,
             'queue_depth' => $report->queue_depth,
+            'oldest_queued_seconds' => $report->oldest_queued_seconds,
+            'delivered_ages' => $report->delivered_ages,
             'stuck_count' => $report->stuck_count,
             'stuck_items' => $report->stuck_items ?? [],
             'truncated' => $report->stuck_count > count($report->stuck_items ?? []),
@@ -84,6 +95,32 @@ class DeviceQueueReportService
             'devices_with_stuck_items' => count(array_filter($devices, fn ($d) => $d['stuck_count'] > 0)),
             'devices' => $devices,
         ];
+    }
+
+    private function nonNegativeIntOrNull(mixed $value): ?int
+    {
+        return is_numeric($value) ? max(0, (int) $value) : null;
+    }
+
+    /**
+     * Null when a bundle reports no ages at all, which must read as "not
+     * reported" and never as "every edit arrived instantly".
+     *
+     * @return array<string, int>|null
+     */
+    private function deliveredAges(mixed $ages): ?array
+    {
+        if (! is_array($ages)) {
+            return null;
+        }
+
+        $buckets = [];
+
+        foreach (self::DELIVERY_BUCKETS as $bucket) {
+            $buckets[$bucket] = max(0, (int) ($ages[$bucket] ?? 0));
+        }
+
+        return $buckets;
     }
 
     private function canonicalReason(?string $reason): string

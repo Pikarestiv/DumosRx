@@ -94,6 +94,33 @@ class SyncFailureRecorder
         $this->tally($storeId, 0, $refused, 0);
     }
 
+    /**
+     * The deepest backlog any device of this store has reported today, so
+     * accepted-versus-queued reads as a ratio instead of two unrelated
+     * numbers. A gauge, not a counter: summing one device's queue depth
+     * across every push of a day would count the same waiting edit once per
+     * push. See docs/DEVICE_TABLE_AGREEMENT.md.
+     */
+    public function recordQueuePeak(?string $storeId, int $depth): void
+    {
+        if (! $storeId || $depth <= 0) {
+            return;
+        }
+
+        try {
+            $row = SyncHealthDaily::firstOrCreate(
+                ['store_id' => $storeId, 'date' => now()->startOfDay()],
+                ['pushes' => 0, 'changes_accepted' => 0, 'changes_refused' => 0, 'changes_conflicted' => 0]
+            );
+
+            SyncHealthDaily::whereKey($row->getKey())
+                ->where('changes_queued_peak', '<', $depth)
+                ->update(['changes_queued_peak' => $depth]);
+        } catch (\Throwable $e) {
+            Log::warning('Sync queue peak not recorded: '.$e->getMessage());
+        }
+    }
+
     /** Only known slugs are stored: a raw message is unbounded, embeds the
      *  failing SQL and its bindings, and would be a cardinality bomb. */
     private function canonicalReason(?string $reason): string

@@ -24,6 +24,7 @@ import type { BatchLogChange } from "./batch-quantity";
 import { queryClient } from "../query-client";
 import { truncateForLog } from "../utils/error-truncation";
 import type { SyncQueueItem } from "@/lib/types/sync";
+import { recordAcceptedQueueAges } from "./sync-engine/delivery-age";
 
 // Invalidates exactly the queries that could be affected by a mutation on
 // `table`, matched via each query's `meta.tables` (see lib/query-keys.ts),
@@ -574,6 +575,8 @@ export async function markSynced(
 ): Promise<void> {
   if (queueIds.length === 0) return;
   const placeholders = queueIds.map(() => "?").join(", ");
+
+  await recordAcceptedQueueAges(queueIds);
   await execute(`DELETE FROM _sync_queue WHERE id IN (${placeholders})`, queueIds);
 
   // insert()/update() always set _synced = 0 at write time; nothing else

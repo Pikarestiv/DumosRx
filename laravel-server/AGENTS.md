@@ -3437,6 +3437,77 @@ php artisan sync:repair-health-sync-reconciliation --store=<id> --apply
   underneath the repair being skipped rather than clobbered (simulated with
   `DB::listen`, since SQLite compiles `lockForUpdate()` away).
 
+## `store_id` backfill: `sync:backfill-store-ids` (A-288, 2026-10-18)
+
+`client/lib/db/schema-migrations.ts`'s `backfillStoreIdOnLegacyRows()` fills
+`store_id` on every legacy row a single-store device holds; the four server
+migrations that added the column
+(`add_store_id_to_domain_tables`, `add_store_id_to_child_domain_tables`,
+`fix_sync_schema_drift`, `add_store_id_to_activity_logs`) left it NULL for the
+11 tables of the first migration and every table of the second. `NULL` matches
+neither `where('store_id', …)` nor `whereIn('store_id', …)`, so such a row is
+invisible to `applyPullTenantScope()` **and** to `CountsSyncedTableRows`: the
+device holds it, the cloud will never send it, and the agreement panel reads a
+permanent positive row delta. §11 "scoping filters are a contract too".
+
+```bash
+php artisan sync:backfill-store-ids                     # report, writes nothing
+php artisan sync:backfill-store-ids --apply
+php artisan sync:backfill-store-ids --store=<id> --apply # only rows resolving to that store
+```
+
+- **The server cannot use the client's answer.** The device's
+  `(SELECT id FROM stores)` works only because its local `stores` table holds
+  the one store it is scoped to; the server holds every store, so the owner has
+  to be *derived* per table. `BackfillStoreIds::DERIVATIONS` is that derivation,
+  as an ordered chain of `[source table, foreign key]` per table, and its key
+  order is the processing order so a parent is always filled before anything
+  deriving from it.
+- **`users` is resolved by ownership, not by reading a column.** A user means
+  exactly one store when the union of {stores they own, `users.store_id`} has
+  one member. Owners have `users.store_id` cleared
+  (`clear_store_id_on_store_owners`, A-127), so for an owner that is their one
+  owned store; for staff it is their employer. A **multi-store owner is
+  ambiguous and is never guessed** — the row keeps its NULL and is counted as
+  unattributable. A row handed to the wrong pharmacy is far worse than a row
+  left stranded.
+- **Confidence, highest first:** a parent row's own `store_id`
+  (`stock_movements`→`products`, `returns`→`sales`, `supplier_payments`→
+  `purchase_orders`/`suppliers`, `purchase_orders`→`suppliers`,
+  `held_transactions`/`loyalty_transactions`/`customer_payments`→`customers`)
+  is as authoritative as the pull's own scoping, because it is the same column
+  the pull reads. A user chain (`products`, `customers`, `categories`,
+  `suppliers`, `expenses`, `prescriptions`, `sales` via `cashier_id`,
+  `loyalty_tiers`, `loyalty_redemption_options`, `stock_audits`,
+  `activity_logs`, `audit_logs`) is high confidence for a single-store owner
+  and refused outright otherwise. `requested_products` has **no** owner column
+  of any kind and is report-only: its rows can never be attributed.
+- **It does not touch `updated_at` or `_version`**, on purpose, and uses
+  `DB::table()` rather than Eloquent so neither moves. The A-288 case is a row
+  the device *already holds* (it backfilled its own copy), so no pull is needed
+  to deliver it; a device that lacks the row pulls from `last_synced = []` and
+  gets it on `store_id` alone. Bumping `updated_at` would re-deliver every
+  backfilled row to every device for no gain, and bumping `_version` would
+  break the very agreement digest this fixes.
+- **Idempotent and chunked** (`whereNull('store_id')` + keyset paging on `id`,
+  500 at a time). A second `--apply` reports "Nothing to attribute".
+- **Forward protection:** a new nullable `store_id` on a store-scoped table
+  needs a backfill in the same change as the column, or it ships A-288 again
+  (A-245 was the `_version` version of the same omission).
+  `BackfillStoreIdTest::test_every_directly_scoped_agreement_table_has_a_derivation`
+  fails if a table is added to `CountsSyncedTableRows::AGREEMENT_TABLES`
+  without one.
+- **Retirement:** the command can be deleted once every live store reports a
+  zero `row_delta` on the agreement panel for every directly-scoped table and
+  no `… IS NULL` rows remain. It is a one-shot repair, not a shim in a request
+  path, so leaving it costs nothing but a file.
+- **Tests:** `tests/Feature/BackfillStoreIdTest.php` — attribution from a
+  single-store owner, the attributed row becoming pullable, a multi-store
+  owner's and an owner-less row left NULL and counted, dry run writing nothing,
+  a chained row filled through a parent filled in the same run, the dry run
+  forecasting that chain identically, idempotence, `--store=` scoping, and the
+  database being named before anything else.
+
 ## Running artisan on the production box (Namecheap shared hosting)
 
 The default `php` on that server is **7.4.33**; this app requires >= 8.2, so a

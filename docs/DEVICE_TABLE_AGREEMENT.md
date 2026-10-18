@@ -279,7 +279,7 @@ between "no backlog" and "predates this release"; that ambiguity expires once
 `sync_health_daily` holds no rows older than 2026-10-18, i.e. after 30 days of
 retention.
 
-## Known limitation: `store_id` backfill asymmetry
+## Known limitation: `store_id` backfill asymmetry (A-288, mostly repaired)
 
 The device's own schema migration backfills `store_id` on legacy rows
 (`UPDATE <table> SET store_id = (SELECT id FROM stores) WHERE store_id IS NULL`).
@@ -297,10 +297,25 @@ own column.
 
 For an affected table a single-store device counts a legacy row the server's
 `where('store_id', …)` excludes, which reads as a small positive row delta that
-never clears. Not fixed here: the fix is a server-side backfill, which writes
-to business tables and is out of scope for instrumentation. Logged in
-`docs/KNOWN_BUGS.md` as A-288; see that entry for the authoritative affected
-set, since the backfill work owns it.
+never clears.
+
+**Repaired 2026-10-18 by `php artisan sync:backfill-store-ids`** (dry-run by
+default; see `laravel-server/AGENTS.md`, "`store_id` backfill", for the
+per-table owner derivation). It deliberately moves neither `updated_at` nor
+`_version`, so a backfilled row does **not** re-deliver to devices that already
+hold it and the version-sum half of the digest is unaffected — only the
+row-count half moves, which is the half that was wrong.
+
+Two residues keep `docs/KNOWN_BUGS.md` A-288 open rather than closing it:
+`requested_products` carries no owner column of any kind, so its NULL rows can
+never be attributed; and a row whose owning store cannot be derived with
+certainty — a multi-store owner's — is left NULL and reported rather than
+guessed. The actual row counts on production are still unmeasured (§12); the
+dry run is that measurement and writes nothing.
+
+The `audit_logs` row is no longer part of this panel at all — it was removed
+from both sides of the comparison (see "The `audit_logs` false delta" above);
+A-289 now tracks only the general physical-versus-sync table-name confusion.
 
 ## Schema parity
 

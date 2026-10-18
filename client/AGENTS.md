@@ -377,9 +377,13 @@ and `synchronous = NORMAL`.
     plus the highest-value rows, since a valuation gap big enough to notice is
     dominated by a few of those. Batch ids, costs, quantities and versions
     only — no product names. `buildReport` truncates the whole report at
-    60,000 chars: `feedback.content` is a MySQL `TEXT` column, which rejects
-    anything longer outright rather than storing it short, and the report
-    matters most on the device with the most to say. The three fields are in
+    `MAX_REPORT_CHARS` (60,000), keeping the head and marking the cut
+    `[truncated: N characters omitted]`: `feedback.content` is a MySQL `TEXT`
+    column, and before 2026-10-18 an oversized body was a **500** that lost the
+    report whole — on the device with the most to say. `/support` now caps
+    `message` at the same number, so the failure is a 422 instead. Keep the two
+    in step; the reasoning, and why the section order was left alone, is in
+    laravel-server/AGENTS.md, "Remote device report". The three fields are in
     the collector and the ticket; the on-screen console does not render them
     yet, because the remote ticket is what support reads.
   - **What it captures, and why each field exists.** A 2026-10-09 audit scored

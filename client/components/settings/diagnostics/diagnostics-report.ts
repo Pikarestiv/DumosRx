@@ -8,10 +8,20 @@ import type { DeviceDiagnostics } from "@/lib/db/queries/diagnostics";
  */
 const LOOKS_LIKE_SQL = /SQLSTATE|INSERT |UPDATE |SELECT |constraint/i;
 
-/** `feedback.content` is a MySQL TEXT column, so a longer report is rejected
- * outright rather than stored short — and the report matters most on the
- * device with the most to say. */
-const MAX_REPORT_CHARS = 60_000;
+/** Matches `/support`'s own `max` on `message` — see laravel-server/AGENTS.md,
+ * "Remote device report". */
+export const MAX_REPORT_CHARS = 60_000;
+
+function fitToTicket(report: string): string {
+  if (report.length <= MAX_REPORT_CHARS) {
+    return report;
+  }
+
+  const marker = (omitted: number) => `\n[truncated: ${omitted} characters omitted]`;
+  const kept = MAX_REPORT_CHARS - marker(report.length).length;
+
+  return `${report.slice(0, kept)}${marker(report.length - kept)}`;
+}
 
 function duration(ms: number): string {
   const minutes = Math.round(Math.abs(ms) / 60_000);
@@ -185,9 +195,5 @@ export function buildReport(
     `  without any active batch: ${data.resolution.productsWithoutBatches}`,
   );
 
-  const report = lines.join("\n");
-
-  return report.length > MAX_REPORT_CHARS
-    ? `${report.slice(0, MAX_REPORT_CHARS)}\n… truncated to fit the support ticket`
-    : report;
+  return fitToTicket(lines.join("\n"));
 }

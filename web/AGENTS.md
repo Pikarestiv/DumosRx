@@ -499,6 +499,22 @@ exactly — `checkIsSuperAdmin` itself (the panel is `view_platform_health`, the
 route is `role:super_admin`), and a `pending` command for this device and this
 action replaces the button rather than offering a second one.
 
+**An outcome and an action must coexist on every terminal state (2026-10-18,
+`docs/FIXED_BUGS.md` A-276).** A-274 gave this control the command's real
+status, and `applied` was written to return the "Report received" badge
+**alone**. That made one successful report permanent: the control became a
+label and the device could never be re-checked after a change, which is the
+only reason to want a report. Only `pending` and `sent` may replace the button
+— a request is genuinely in flight then. Every terminal state (`applied`,
+`refused`, `failed`) renders its outcome **and** an enabled control, stacked,
+and the button reads **"Request again"** whenever a prior command exists so it
+does not look like a no-op beside a stale badge. The badge keeps
+`formatDateSafe(…, "dd/MM/yyyy HH:mm")` and deliberately does not age: unlike
+A-274's stock snapshots, a report is a one-off artefact and its timestamp is
+the point. The toast names the device's label as well as its id (root
+`AGENTS.md` §6) — the label is passed down from the divergence row, which
+already had it.
+
 **A command needs an exact `device_id`.** `SyncCommandService::pendingFor()`
 claims with `where('device_id', $deviceId)`, so a command carrying a null or
 empty one is never claimed by any device and sits `pending` for ever. The API

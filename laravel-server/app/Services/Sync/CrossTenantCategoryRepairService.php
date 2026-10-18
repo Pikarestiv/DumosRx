@@ -70,7 +70,10 @@ class CrossTenantCategoryRepairService
             }
 
             foreach (array_chunk($productIds, self::UPDATE_CHUNK) as $chunk) {
-                Product::whereIn('id', $chunk)->update(['category_id' => $targetId]);
+                Product::whereIn('id', $chunk)->update([
+                    'category_id' => $targetId,
+                    '_version' => DB::raw('COALESCE(_version, 0) + 1'),
+                ]);
             }
         }
 

@@ -22,6 +22,20 @@ class AdminSyncHealthController extends AdminBaseController
         );
     }
 
+    public function tableAgreement(string $id)
+    {
+        return response()->json(
+            app(\App\Services\Admin\TableAgreementService::class)->forStore($id)
+        );
+    }
+
+    public function deleteTableReport(string $id, string $deviceId)
+    {
+        $deleted = app(\App\Services\Admin\TableAgreementService::class)->forget($id, $deviceId);
+
+        return response()->json(['deleted' => $deleted]);
+    }
+
     public function deleteStockReport(string $id, string $deviceId)
     {
         $deleted = app(\App\Services\Admin\StockDivergenceService::class)->forget($id, $deviceId);

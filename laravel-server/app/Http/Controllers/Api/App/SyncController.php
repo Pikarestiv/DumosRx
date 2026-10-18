@@ -95,6 +95,31 @@ class SyncController extends Controller
     }
 
     /**
+     * Two integers per synced table — row count and the sum of `_version` —
+     * compared against the rows a pull would send this device. The sibling
+     * of recordStockFingerprint(), which only ever measured stock. Absent
+     * from an older bundle's payload, in which case nothing is recorded and
+     * the panel reads "not reported". Fully try/caught: a reporting failure
+     * must never fail a sync. See docs/DEVICE_TABLE_AGREEMENT.md.
+     */
+    private function recordTableFingerprint(Request $request, $user, ?string $storeId): void
+    {
+        $fingerprint = $request->input('table_fingerprint');
+        $deviceId = $request->header('X-Device-Id');
+
+        if (! $storeId || ! $deviceId || ! is_array($fingerprint)) {
+            return;
+        }
+
+        try {
+            app(\App\Services\Admin\TableAgreementService::class)
+                ->record($storeId, $deviceId, $user?->id, $fingerprint);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to record table fingerprint', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
      * What this device says is in its own `_sync_queue`. Fully try/caught:
      * reporting must never fail a sync.
      */
@@ -799,6 +824,7 @@ class SyncController extends Controller
             // number already included them, reporting a divergence that was
             // only ever the batch in flight.
             $this->recordStockFingerprint($request, $currentUser, $currentStoreId);
+            $this->recordTableFingerprint($request, $currentUser, $currentStoreId);
 
             return response()->json([
                 'success' => true,

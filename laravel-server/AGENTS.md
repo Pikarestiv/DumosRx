@@ -1233,6 +1233,44 @@ a cost edit can also sit in `_sync_queue` indefinitely (the pull skips any row
 with a pending queue entry), which keeps a device's own cost alive while its
 quantities keep reconciling through movements. See `docs/KNOWN_BUGS.md` A-271.
 
+## Stock batch deltas are store-scoped (A-280, 2026-10-18)
+
+`applyStockBatchDeltas()` runs `UPDATE stock_batches SET quantity = … WHERE
+id = ?` for every delta a push accumulated. It had **no join to the owning
+store and no check against `$allowedStoreIds`**, and the movement that produced
+the delta cannot supply one: `authorizeInsertTarget('stock_movements')` resolves
+ownership from the movement's *own* `store_id`, which `normalizePushPayload()`
+backfills from the session, so it always passes. Any authenticated till — a
+`sales_staff` token is enough — could move another store's stock, and because
+the movement filed under the **pusher's** store, the victim's pull never showed
+it. Reproduced before fixing: a push from one store took another's batch from
+40 to 15.
+
+`isBatchOutsideScope()` now resolves the batch's owning store the way
+`resolveChangeStoreId()` does for `stock_batches` — up through
+`products.store_id`, with `Product::withTrashed()` per A-176a, since a batch of
+a soft-deleted product is still a real batch — and the delta is refused
+`permission_denied` when that store is outside the caller's scope. `super_admin`
+is exempt, as everywhere else (the scope is passed as `null`).
+
+**Today's fail-open for a batch that does not exist is preserved deliberately**:
+it resolves to no store, which is not the same as belonging to someone else, and
+a batch may legitimately arrive later in the same backlog. Only an existing
+batch in a foreign store is refused.
+
+**The refusal is reported but the current client ignores it.** Every entry
+`applyStockBatchDeltas()` adds to `$failed` carries `'id' => null` (there is no
+queue row behind an accumulated delta — the movement's own row was already
+accepted), and `push.ts`'s failure loop opens with `if (f.id == null) continue;`.
+So it reaches the response, the `Log::warning` and `SyncFailureRecorder`, and
+nothing else: it is not parked the way A-165 parks a `forbidden` row, and
+nothing is settled. That is worse than a parked row and much better than a
+silent cross-tenant write. Making it visible on the device needs the null-id
+case handled in `push.ts` first; filed as part of A-280's entry.
+
+**§11:** server-only, no shim. A legitimate client never names another tenant's
+batch, and the response shape is unchanged.
+
 ## A raw `update()` on a synced table must move `_version` (A-245, 2026-10-18)
 
 `resolveUpdateConflict()` accepts a push when `payloadVersion === modelVersion`,

@@ -771,7 +771,7 @@ class SyncController extends Controller
                 Log::info("Sync push: existence probe converted {$insertOverrides} INSERT(s) to UPDATE, {$resentInsertsAccepted} accepted without writing");
             }
 
-            $this->applyStockBatchDeltas($stockBatchDeltas, $failed);
+            $this->applyStockBatchDeltas($stockBatchDeltas, $failed, $isSuperAdmin ? null : $allowedStoreIds);
 
             $firstSyncedStore = $this->touchStoreLastSyncAt($request);
 
@@ -1325,7 +1325,7 @@ class SyncController extends Controller
      * comments (preserved verbatim below) for why this runs after the main
      * loop, per-delta-savepointed, as a single atomic floored UPDATE.
      */
-    private function applyStockBatchDeltas(array $stockBatchDeltas, array &$failed): void
+    private function applyStockBatchDeltas(array $stockBatchDeltas, array &$failed, ?array $allowedStoreIds = null): void
     {
         // Apply every accumulated stock_movements delta, now that every
         // change in this push has been processed and any batch created
@@ -1359,6 +1359,17 @@ class SyncController extends Controller
         // both engines (production is MySQL, tests run on sqlite — see
         // phpunit.xml).
         foreach ($stockBatchDeltas as $stockBatchId => $delta) {
+            if ($this->isBatchOutsideScope($stockBatchId, $allowedStoreIds)) {
+                Log::warning("Sync push: refused a stock_movements delta of {$delta} against stock_batch_id {$stockBatchId}, which belongs to a store the caller may not write to.");
+                $failed[] = [
+                    'id' => null,
+                    'table_name' => 'stock_batches',
+                    'record_id' => $stockBatchId,
+                    'reason' => 'permission_denied',
+                ];
+                continue;
+            }
+
             DB::beginTransaction();
             try {
                 $affected = DB::update(
@@ -1578,6 +1589,28 @@ class SyncController extends Controller
         if ($hasSyncedAtCache[$table]) {
             $model->_synced_at = $now;
         }
+    }
+
+    /**
+     * Whether an accumulated delta's batch exists and belongs to a store the
+     * pusher may not write to. A batch that does not exist resolves to no
+     * store and is deliberately NOT out of scope — see
+     * laravel-server/AGENTS.md, "Stock batch deltas are store-scoped".
+     */
+    private function isBatchOutsideScope($stockBatchId, ?array $allowedStoreIds): bool
+    {
+        if ($allowedStoreIds === null) {
+            return false;
+        }
+
+        $productId = StockBatch::where('id', $stockBatchId)->value('product_id');
+        if (!$productId) {
+            return false;
+        }
+
+        $storeId = Product::withTrashed()->where('id', $productId)->value('store_id');
+
+        return $storeId !== null && !in_array($storeId, $allowedStoreIds, true);
     }
 
     /**

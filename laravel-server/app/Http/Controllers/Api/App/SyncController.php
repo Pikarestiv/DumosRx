@@ -880,6 +880,12 @@ class SyncController extends Controller
             new OA\Response(response: 429, description: 'Sync-interval throttle not yet elapsed for this plan'),
         ],
     )]
+    /**
+     * How far behind `now()` a pull's returned watermark is stamped. Reasoning
+     * and the cost in laravel-server/AGENTS.md, "The pull watermark lags".
+     */
+    public const PULL_WATERMARK_LAG_SECONDS = 60;
+
     public function pull(Request $request)
     {
         $validation = $this->validateSync($request, false);
@@ -907,7 +913,7 @@ class SyncController extends Controller
         $this->hasSyncedAtColumnCache = [];
         $changes = [];
         $hasMore = [];
-        $serverTimestamp = now()->toIso8601String();
+        $serverTimestamp = now()->subSeconds(self::PULL_WATERMARK_LAG_SECONDS)->toIso8601String();
         // stock_audits, held_transactions, loyalty_transactions,
         // customer_payments, and audit_logs were all missing from this list
         // — their changes could push (once the corresponding

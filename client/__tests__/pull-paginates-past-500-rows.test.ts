@@ -105,7 +105,9 @@ describe("pullChanges pages past the server's 500-row cap", () => {
     const cursor = db.exec(
       `SELECT last_synced_at FROM _sync_state WHERE table_name = 'products'`,
     );
-    expect(cursor[0].values[0][0]).toBe("2026-09-01T00:00:02Z");
+    // A-282: the round's FIRST page, not the page that drained the table —
+    // the later pages cover time the earlier queries never looked at.
+    expect(cursor[0].values[0][0]).toBe("2026-09-01T00:00:01Z");
   });
 
   it("does not advance the cursor at all if the round never finishes (has_more stays true up to the page cap)", async () => {

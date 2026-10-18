@@ -1233,6 +1233,69 @@ a cost edit can also sit in `_sync_queue` indefinitely (the pull skips any row
 with a pending queue entry), which keeps a device's own cost alive while its
 quantities keep reconciling through movements. See `docs/KNOWN_BUGS.md` A-271.
 
+## The pull watermark lags (A-282, 2026-10-18)
+
+`pull()` computed `$serverTimestamp = now()` **before** running its SELECTs and
+returned it as `server_timestamp`, which the client stamps as that table's
+`last_synced_at`. A push stamps `_synced_at = now()` **per change inside its
+loop** and commits the whole batch at the end. So a pull that starts inside
+another device's open push transaction sees none of those rows — they are
+uncommitted — and then stamps its watermark **past** them. The cursor is
+`_synced_at > W OR updated_at > W`, so they never match again: permanently
+lost, on that device, with nothing to notice it by. `checkSyncHealth()` compares
+counts for five tables only, so a lost `stock_movements` row or any lost
+price/cost **update** changes no count at all.
+
+There is a second, independent hole of the same shape: `_synced_at` and
+`updated_at` are `timestamp` columns, second precision, and the comparison is a
+strict `>`. A row committed in the very second the pull chose leaves a
+one-second hole even with no transaction involved. Both are pinned separately
+in `SyncPullWatermarkLagTest`.
+
+**`server_timestamp` is now `now()` minus `PULL_WATERMARK_LAG_SECONDS` (60).**
+The number is bounded by the longest push that could still be open when a pull
+starts, so the watermark must be older than any `_synced_at` such a push might
+commit. A push carries at most `SYNC_BATCH_SIZE = 50` changes
+(`client/lib/db/sync-engine/push.ts`) in one outer transaction, and the request
+is capped by the host's PHP `max_execution_time` — 30s on this shared box —
+after which it cannot commit anything at all. 60s is that bound doubled, which
+also swallows the second-precision hole whole. Shorter than the slowest push is
+the only way to get this wrong, so the headroom is the point; longer than the
+sync interval would be the only way to overshoot, and the shortest plan
+interval is minutes.
+
+**The re-pull is idempotent, verified rather than assumed.** A row already held
+takes `pull.ts`'s UPDATE branch, which rewrites identical values; `_version` and
+`_deleted` are rewritten to the same numbers; `pendingLocalEdit` still steps
+aside for a row with a live `_sync_queue` entry, so a local edit cannot be
+clobbered by the extra round; `stock_batches.quantity` is deleted from the
+applied columns; and a re-pulled `stock_movements` row touches its batch with
+`{0, 0}`, so no delta is applied twice. **Cost:** a trailing 60s of changes is
+re-offered each round. For a typical till that is its own recent sales and
+nothing else — single-digit rows, a few KB — on a connection that just made a
+round trip anyway. It is not a full re-pull and it does not grow with catalogue
+size.
+
+**Server-only, so it covers every bundle in the field (§11).** An old client
+reads `server_timestamp` and stamps it, exactly as before; it simply stamps a
+slightly older instant. No new field, no shim.
+
+### The multi-page variant, which is the client half
+
+A table's window is stamped on the page that drains it, so a round spanning
+several pages stamped the **last** page's `server_timestamp` — covering time the
+earlier pages never queried. Keyset paging orders by `(updated_at, id)` while
+the *filter* also admits `_synced_at`, so a row that enters the window mid-round
+with an older `updated_at` than the cursor already passed sorts behind it, is
+never seen in that round, and the watermark moves past it anyway. `pull.ts` now
+captures `roundTimestamp` from the first page of a round and stamps that.
+
+It does not interfere with the rewind machinery: `PULL_PROGRESS.completeWindow`
+resets `rewind_count`/`rewound_from` regardless of the value it writes, and
+`pull-window.ts` stores and restores a baseline rather than reasoning about the
+stamp's instant. `pull-paginates-past-500-rows.test.ts` pinned the old
+behaviour and was corrected in the same change.
+
 ## Every pulled table soft-deletes (A-281, 2026-10-18)
 
 The client's `softDelete()` queues a `DELETE`; `push()`'s DELETE branch runs

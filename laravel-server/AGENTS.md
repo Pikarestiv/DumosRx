@@ -1268,7 +1268,68 @@ Expect a version bump to cost a re-pull of every row it touches, and say so
 wherever the write is a bulk repair. That traffic is the point: those rows were
 wrong on the device.
 
-Known outstanding instances are filed as `docs/KNOWN_BUGS.md` A-277.
+**A model-instance `$model->update([...])` is not a way out of this.** `_version`
+is moved by exactly one thing in this codebase — `SyncController`'s accepted-push
+path — and no model event, observer or `save()` touches it. An instance update is
+therefore just as exposed as a query-builder one, *and* it cannot be fixed in
+place on most models, because `_version` is not in their `$fillable` and `fill()`
+drops it without a word. Use `Model::whereKey($id)->update([...])` (or
+`increment('_version', 1, $extra)`) when you have the instance in hand.
+
+Known outstanding instances are filed as `docs/KNOWN_BUGS.md` A-278.
+
+### Why `users.is_active` stays pushable (A-277, 2026-10-18)
+
+The tempting stronger fix for A-277 was to put `is_active` and
+`permission_group_id` in `USER_SYNC_FORBIDDEN_FIELDS`, so the replication channel
+could not carry an activation decision at all. **Do not.** Both are pushed by
+shipped client code today:
+
+- `is_active` — `client/components/settings/staff/staff-delete-dialog.tsx` pushes
+  `{is_active: 0}` and `client/components/settings/staff-management.tsx` pushes
+  `{is_active: 1}`, both through `useUpdateUser` → `updateUser()` →
+  `update("users", …)` → `_sync_queue`. That is the staff deactivate/reactivate
+  feature on the till, and it is **the offline path** — there is no cloud call
+  behind it. Forbidding the field would not merely stop the change reaching the
+  cloud; the server would keep re-offering the still-active row on pull and
+  **revert the device's own deactivation**, which is a worse version of the bug
+  being fixed.
+- `permission_group_id` — `client/lib/db/queries/permission-groups.ts` (the
+  client-side mirror of `PermissionGroupSeeder`) and the staff form's
+  `StaffCreatePayload`. This was already settled once: see the comment on
+  `PermissionGroupPrivilegeEscalationTest::test_a_user_cannot_self_assign_permission_group_id_via_their_own_sync_push`,
+  which says in so many words that the field is kept off the forbidden list
+  because that list strips unconditionally and would break the staff form's
+  Group assignment for a legitimate `manage_staff` caller.
+
+So the version bump is the whole fix, not half of one. What makes it sufficient:
+the forbidden-field lists defend against a **malicious or over-privileged**
+push, and neither column was ever reachable by the caller's own row (the
+self-edit allow-list excludes both). The only hole was a **stale honest** push,
+and a version bump is precisely the defence against staleness.
+
+**No backfill command, unlike A-276's `sync:backfill-product-versions`.** Users
+deactivated before this fix do still carry un-bumped versions, but the two cases
+are not comparable: A-276 could not *identify* its rows (the repair left no
+trace, hence a `--since` window over 5,088 products), whereas here the exposed
+population is exactly `users WHERE is_active = 0 AND deleted_at IS NULL` — a
+`SELECT`, not a search, and a handful of rows across five stores. A command with
+a dry-run, a scope flag and a test would be more code than the thing it
+automates. If the owner wants it closed, it is one statement, and per §7 it must
+set `updated_at` to an explicit UTC literal (never `NOW()`) so devices actually
+re-pull:
+
+```sql
+SET time_zone = '+00:00';
+SELECT id, username, store_id, is_active, _version FROM users
+  WHERE is_active = 0 AND deleted_at IS NULL;
+UPDATE users SET _version = COALESCE(_version, 0) + 1,
+                 updated_at = '<the UTC instant you are running this>'
+  WHERE is_active = 0 AND deleted_at IS NULL;
+```
+
+**This note can go** once no device in the field predates 2026-10-18, or once
+the owner says the statement above has been run or declined.
 
 ## Re-sent INSERTs: accepted, never a conflict (A-273, 2026-10-17)
 

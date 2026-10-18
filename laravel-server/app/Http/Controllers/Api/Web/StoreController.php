@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use OpenApi\Attributes as OA;
 
@@ -244,7 +245,10 @@ class StoreController extends Controller
             ], 409);
         }
 
-        User::where('store_id', $store->id)->update(['is_active' => false]);
+        User::where('store_id', $store->id)->update([
+            'is_active' => false,
+            '_version' => DB::raw('COALESCE(_version, 0) + 1'),
+        ]);
 
         $store->forceFill([
             'deleted_by_id' => $request->user()->id,

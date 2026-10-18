@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\EnforcesStaffOwnership;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use OpenApi\Attributes as OA;
@@ -437,7 +438,11 @@ class StaffController extends Controller
             return $blocked;
         }
 
-        $staff->update(['is_active' => false]);
+        User::whereKey($staff->id)->update([
+            'is_active' => false,
+            '_version' => DB::raw('COALESCE(_version, 0) + 1'),
+        ]);
+
         return response()->json(['message' => 'Staff deactivated']);
     }
 }

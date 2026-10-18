@@ -596,6 +596,10 @@ class SyncController extends Controller
                             $this->resolveUpdateConflict($change['table_name'], $model, $payload, $isCommutativeTable, $recordId, $isResentInsert);
 
                         if ($versionConflict) {
+                            if ($isResentInsert) {
+                                $this->reopenPullWindow($model, $hasSyncedAtCache, $now);
+                            }
+
                             // Must close the per-change savepoint opened above
                             // before skipping to the next change. A bare
                             // `continue` here left it dangling every time an
@@ -1573,6 +1577,25 @@ class SyncController extends Controller
         }
         if ($hasSyncedAtCache[$table]) {
             $model->_synced_at = $now;
+        }
+    }
+
+    /**
+     * Puts a row back inside every device's incremental pull window without
+     * touching its content, its `updated_at` or its `_version` — the query
+     * builder, never Eloquent, so no timestamp or model event can move them.
+     * Rationale in laravel-server/AGENTS.md, "Re-sent INSERTs".
+     */
+    private function reopenPullWindow($model, array &$hasSyncedAtCache, $now): void
+    {
+        $table = $model->getTable();
+        if (!isset($hasSyncedAtCache[$table])) {
+            $hasSyncedAtCache[$table] = \Illuminate\Support\Facades\Schema::hasColumn($table, '_synced_at');
+        }
+        if ($hasSyncedAtCache[$table]) {
+            DB::table($table)
+                ->where($model->getKeyName(), $model->getKey())
+                ->update(['_synced_at' => $now]);
         }
     }
 

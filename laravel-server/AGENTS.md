@@ -1346,25 +1346,48 @@ probe firing is expected traffic, not a fault. `$isResentInsert` is set where
 the probe fires and gives the change two outcomes:
 
 - **a conflict is accepted without writing anything** — the server's row
-  stands, nothing joins `$failed`, `$processed` counts it, **and the server's
-  current `_version` is returned in the `versions` map**;
+  stands, nothing joins `$failed`, `$processed` counts it, **the server's
+  current `_version` is returned in the `versions` map**, and
+  `reopenPullWindow()` advances `_synced_at` alone so the next incremental
+  pull re-offers the row (A-279, below);
 - **versions equal still applies the payload, but `resolveUpdateConflict()`
   returns `$modelVersion`, not `$modelVersion + 1`.**
 
 **The `versions` entry on the skipped path is load-bearing, not a nicety.**
 Accepting without writing removes the refusal that used to drive
 `rewindPullWindow()` → a full re-pull → the device receiving the server's
-current version, and that was the only thing healing a stale re-sender. The
-incremental pull cannot substitute for it: the whole point of this branch is
-that the model is **not** written, so its `updated_at` still predates the
-device's watermark and the row is never re-offered. Left out, the re-sender
-keeps a permanently stale `_version` (the client deletes the queue row and sets
-`_synced = 1` regardless), and its next genuine edit to that row pushes stale
-and is terminally dropped — the same data loss this section exists to kill,
-moved from "another device" to "the re-sending device". `versions` is an
-existing contract: the client's loop (`push.ts`, `UPDATE … SET _version`) is
-table-agnostic, predates all of this and has always tolerated an entry for any
-row, so old bundles apply it unchanged.
+current version, and that was the only thing healing a stale re-sender. Left
+out, the re-sender keeps a permanently stale `_version` (the client deletes the
+queue row and sets `_synced = 1` regardless), and its next genuine edit to that
+row pushes stale and is terminally dropped — the same data loss this section
+exists to kill, moved from "another device" to "the re-sending device".
+`versions` is an existing contract: the client's loop (`push.ts`,
+`UPDATE … SET _version`) is table-agnostic, predates all of this and has always
+tolerated an entry for any row, so old bundles apply it unchanged.
+
+### `_synced_at` is what heals the *content* (A-279, 2026-10-18)
+
+The `versions` entry fixes the version and nothing else. **A behind re-send is
+by construction a row whose content lost**, so the device is left holding its
+losing snapshot — at a correct version, with no queue entry, and therefore with
+nothing left that can ever correct it. A till that lost a
+`products.selling_price` conflict kept selling at the old price until someone
+ran a Force Full Resync.
+
+`reopenPullWindow()` closes that: a **query-builder** `update(['_synced_at' =>
+$now])`, never Eloquent, so `updated_at` and `_version` stay exactly where they
+were while the row re-enters every device's `_synced_at > W OR updated_at > W`
+pull window. The re-sender then pulls the server's fields over its stale ones —
+`pendingLocalEdit` (`client/lib/db/sync-engine/pull.ts`) only steps aside for a
+row with a live `_sync_queue` entry, and the acceptance already deleted it.
+Pinned both ends: `SyncPushResentInsertTest`'s window case and
+`client/__tests__/pull-overwrites-a-stale-accepted-resend.test.ts`.
+
+Every table `getModelForTable()` serves has a `_synced_at` column (verified
+2026-10-18), but the probe is kept and shares `stampSyncedAt()`'s per-push
+cache, so a future table without one is a no-op rather than a SQL error.
+**§11:** server-only, no client change, no shim — an old bundle simply receives
+the row on its next pull, which is the path it has always had.
 
 That bump was the data loss, and it is the same shape as "a sale does not
 version a batch" above. The re-sender is accepted, the server's `_version`

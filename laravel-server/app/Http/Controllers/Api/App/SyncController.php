@@ -366,7 +366,7 @@ class SyncController extends Controller
                     if ($conflict) {
                         $exists = true; // Pretend it exists to skip insertion
                         if (\method_exists($conflict, 'trashed') && $conflict->trashed()) {
-                            $conflict->restore();
+                            $this->reviveConflictTarget($conflict, $change['table_name'], $payload, $hasSyncedAtCache, $now);
                         }
                         $idMap[$recordId] = $conflict->id;
                         // Only categories/suppliers are reported back to the
@@ -1601,6 +1601,27 @@ class SyncController extends Controller
     }
 
     /**
+     * Brings back the trashed row a pushed INSERT was remapped onto, carrying
+     * the payload's user-authored columns across: the remap tombstones the
+     * row the client just created, so anything not applied here is lost.
+     * Reasoning in laravel-server/AGENTS.md, "Every pulled table soft-deletes".
+     */
+    private function reviveConflictTarget($conflict, string $tableName, array $payload, array &$hasSyncedAtCache, $now): void
+    {
+        $conflict->restore();
+
+        $authoredColumns = match ($tableName) {
+            'categories' => ['name', 'description', 'parent_id', 'is_active'],
+            default => [],
+        };
+
+        $conflict->forceFill(array_intersect_key($payload, array_flip($authoredColumns)));
+        $conflict->_version = (int) ($conflict->_version ?? 1) + 1;
+        $this->stampSyncedAt($conflict, $hasSyncedAtCache, $now);
+        $conflict->save();
+    }
+
+    /**
      * Whether an accumulated delta's batch exists and belongs to a store the
      * pusher may not write to. A batch that does not exist resolves to no
      * store and is deliberately NOT out of scope — see
@@ -1726,7 +1747,11 @@ class SyncController extends Controller
 
         if (($tableName === 'categories' || $tableName === 'suppliers') && !empty($payload['name'])) {
             $payloadStoreId = $payload['store_id'] ?? null;
-            $conflict = $modelClass::withTrashed()->where('name', $payload['name'])
+            $conflict = $modelClass::where('name', $payload['name'])
+                ->when(
+                    $tableName === 'categories',
+                    fn ($q) => $q->withTrashed(),
+                )
                 ->when(
                     $payloadStoreId === null,
                     fn ($q) => $q->whereNull('store_id'),

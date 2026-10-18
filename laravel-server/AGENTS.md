@@ -1253,16 +1253,36 @@ one-second hole even with no transaction involved. Both are pinned separately
 in `SyncPullWatermarkLagTest`.
 
 **`server_timestamp` is now `now()` minus `PULL_WATERMARK_LAG_SECONDS` (60).**
-The number is bounded by the longest push that could still be open when a pull
-starts, so the watermark must be older than any `_synced_at` such a push might
-commit. A push carries at most `SYNC_BATCH_SIZE = 50` changes
-(`client/lib/db/sync-engine/push.ts`) in one outer transaction, and the request
-is capped by the host's PHP `max_execution_time` — 30s on this shared box —
-after which it cannot commit anything at all. 60s is that bound doubled, which
-also swallows the second-precision hole whole. Shorter than the slowest push is
-the only way to get this wrong, so the headroom is the point; longer than the
-sync interval would be the only way to overshoot, and the shortest plan
-interval is minutes.
+
+**60 is a judgement, not a bound, and the distinction matters.** An earlier
+version of this paragraph justified it as "a push cannot outlive PHP's
+`max_execution_time` (30s), so 60 is that doubled". **That is wrong.** On Linux
+`max_execution_time` counts **CPU** time (`ITIMER_PROF`), so time blocked
+waiting on MySQL does not count toward it at all, and this host is LiteSpeed
+(`public/.htaccess` hands `.php` to `lsphp`) with no execution-time override
+anyway. The real caps are LiteSpeed's own request timeout and
+`innodb_lock_wait_timeout` (50s by default) — and because the UPDATE branch
+takes `lockForUpdate()` **per change**, one contended push can accumulate
+several 50s lock waits in sequence and still commit rows whose `_synced_at` was
+stamped **minutes** earlier. A 60s lag does not cover that case. It covers the
+ordinary one, which is the overwhelming majority of pushes and the whole of the
+second-precision hole, and it is cheap; it is not a proof.
+
+The things that do constrain the number: a push carries at most
+`SYNC_BATCH_SIZE = 50` changes (`client/lib/db/sync-engine/push.ts`) in one
+outer transaction, and overshooting would mean exceeding the sync interval,
+whose shortest plan value is minutes. So 60 is safely inside the upper
+constraint and usefully but not completely inside the lower one.
+
+**The structural fix, which would make the lag a formality:** re-stamp
+`_synced_at = now()` for every `(table, id)` the push wrote, immediately before
+the outer commit, instead of per change inside the loop. The exposed window
+then shrinks to the commit itself rather than the whole transaction, and the lag
+only has to cover clock skew. Deliberately **not** implemented with A-282 —
+it needs the written-row set tracked through the loop and the `_version`/
+`updated_at` immutability of `reopenPullWindow()` applied to it. Filed as
+`docs/KNOWN_BUGS.md` A-286; until it lands, the lag is mitigation and a very
+slow contended push can still lose rows, silently.
 
 **The re-pull is idempotent, verified rather than assumed.** A row already held
 takes `pull.ts`'s UPDATE branch, which rewrites identical values; `_version` and
@@ -1329,12 +1349,32 @@ existed.
   fell through to the fail-open branch, weakening the scoping this check exists
   to provide.
 - **`findDuplicateInsertConflict()`** — `categories` is `UNIQUE (store_id,
-  name)` and **that index counts soft-deleted rows**. A probe that cannot see a
-  trashed row finds no conflict, attempts the INSERT and the push fails on the
-  constraint. It is `withTrashed()` now, and the caller `restore()`s a trashed
-  row it remaps onto — otherwise the owner's re-created category would arrive
-  as `_deleted: 1` on the next pull and vanish again. `suppliers` had this hole
-  already, having carried the trait all along; the same change covers it.
+  name)` (`2026_09_12_000000_scope_category_uniqueness_to_store`) and **that
+  index counts soft-deleted rows**. A probe that cannot see a trashed row finds
+  no conflict, attempts the INSERT and the push fails on the constraint. So the
+  probe is `withTrashed()` — **for `categories` only, gated on the table name**.
+  `suppliers.name` carries **no unique index at all** (verified against every
+  migration: the only `unique('name')` in the schema is the categories one
+  above), so a supplier named after a deleted one never collided and must stay
+  a genuinely new row. Widening the probe for it would remap the owner's new
+  supplier onto the trashed namesake and revive that supplier's old phone,
+  address and contact over it — a behaviour change nothing asked for. Pinned by
+  `test_a_supplier_named_after_a_deleted_one_is_not_remapped_onto_it`.
+- **Reviving is not just `restore()` — the payload has to come with it
+  (A-285).** The remap tells the client to tombstone the row it just created
+  (`push.ts`'s `id_map` loop), so any column not carried onto the survivor is
+  **lost content the owner typed**. `reviveConflictTarget()` restores the row,
+  applies the payload's user-authored columns (`name`, `description`,
+  `parent_id`, `is_active` for `categories`, by a strict `match` per §8, never
+  identity or bookkeeping) and bumps `_version` — the row's content changed, so
+  a device still holding the old version must not win against it, per "A raw
+  `update()` on a synced table must move `_version`" below. The case that
+  bites without this: a category deleted while `is_active = 0` and re-created
+  as active comes back inactive, and the client's `getCategoryList()` filters
+  on `(is_active IS NULL OR is_active = 1)`, so the category the owner just
+  made is simply **missing from the list**. `is_active` is a real client column
+  — `SYNC_COLUMN_MIGRATIONS` in `client/lib/db/schema-migrations.ts` adds it —
+  so the pull really does carry the stale value down.
 - **`sanitizePermissionGroupSyncPayload()`** — every guard in it reads
   `$existing`, including "default groups cannot be deleted" and the cross-tenant
   bail-out, so it must see a trashed row. Its first-time-seed existence probe

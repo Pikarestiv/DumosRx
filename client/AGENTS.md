@@ -1449,6 +1449,17 @@ table the client never pulls.
   offsets mid-round, which was an accepted trade-off because a row missed
   that way still has `updated_at >= ` this round's start and is caught by
   the next delta pull.
+- **A drained table is stamped with the round's FIRST page timestamp, never
+  the page that happened to drain it (A-282).** `roundTimestamp` is captured
+  from page 1 and used for every `completeWindow` in that round, including the
+  deferred-movement one. A later page's `server_timestamp` covers time the
+  earlier pages never queried: the keyset orders by `(updated_at, id)` while
+  the server's filter also admits `_synced_at`, so a row that enters the window
+  mid-round with an older `updated_at` than the cursor already passed sorts
+  behind it and is never seen that round. Stamping the last page's instant
+  moved the watermark past it anyway. The server also lags `server_timestamp`
+  by 60s for the same class of gap — see `laravel-server/AGENTS.md`, "The pull
+  watermark lags", before changing either half.
 - **`categories`/`suppliers` (`DUPLICATE_NAME_TABLES`) are never given a
   cursor.** The server treats a table missing from `last_synced` as "return
   everything", and duplicate-name reconciliation can only fix a collision if
@@ -1570,9 +1581,14 @@ table the client never pulls.
     because nothing uses it.** It touches with `{0, 0}`, which is right for the
     columns a pulled UPDATE actually changes today — none of them is a
     movement's `quantity` or `_deleted`. `StockMovement` has no `SoftDeletes`
-    server-side, so the server never emits `_deleted: 1` for a movement and
-    ignores a pushed one, and no client code updates or removes a movement row
-    beyond its `status`. **If movements ever become soft-deletable, that touch
+    server-side, so the server never emits `_deleted: 1` for a movement — but
+    it does **not** ignore a pushed movement delete, as this line used to
+    claim: `push()`'s DELETE branch would **hard-delete** the row, destroying
+    the log entry a batch's quantity is derived from. Nothing queues one today,
+    and `StockMovement` was deliberately left out of A-281 for the reason in
+    the next bullet; the hard delete is filed as `docs/KNOWN_BUGS.md` A-283.
+    No client code updates or removes a movement row beyond its `status`.
+    **If movements ever become soft-deletable, that touch
     must carry `{-q, -max(0,q)}`**, or a voided *receipt* leaves its units on
     the shelf for ever: `inboundBefore` reads 0, the batch classifies as a
     carve-out and keeps its stored figure. A voided sale happens to come out

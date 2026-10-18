@@ -200,6 +200,39 @@ class SyncPushResentInsertTest extends TestCase
         $this->assertSame(9, (int) DB::table('stock_audits')->where('id', $auditId)->value('_version'));
     }
 
+    /**
+     * A-279. A behind re-send is a row whose content lost, and the device now
+     * holds that losing snapshot with a correct version and no queue entry —
+     * so only the pull can correct it, and only if the row re-enters the
+     * window. `_synced_at` is what puts it there; `updated_at` and `_version`
+     * must not move, or the re-sender's own next edit is judged against a
+     * version it never saw.
+     */
+    public function test_a_behind_resent_insert_reopens_the_pull_window_without_moving_the_row()
+    {
+        $auditId = 'audit-stale-content';
+        $this->seedAudit($auditId, 9, 4);
+        DB::table('stock_audits')->where('id', $auditId)->update([
+            '_synced_at' => now()->subDay()->toDateTimeString(),
+        ]);
+
+        $before = DB::table('stock_audits')->where('id', $auditId)->first();
+
+        $this->push($this->resentInsert($auditId, 3, 99))
+            ->assertStatus(200)
+            ->assertJsonCount(0, 'failed');
+
+        $after = DB::table('stock_audits')->where('id', $auditId)->first();
+
+        $this->assertTrue(
+            \Carbon\Carbon::parse($after->_synced_at)->greaterThan(\Carbon\Carbon::parse($before->_synced_at)),
+            'A behind re-send must advance _synced_at so the incremental pull re-offers the row.',
+        );
+        $this->assertSame($before->updated_at, $after->updated_at);
+        $this->assertSame(9, (int) $after->_version);
+        $this->assertSame(4, (int) $after->actual_quantity);
+    }
+
     public function test_a_resent_insert_at_the_servers_version_also_hands_that_version_back()
     {
         $auditId = 'audit-equal-version';

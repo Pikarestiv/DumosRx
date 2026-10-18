@@ -155,7 +155,7 @@ class CrossTenantCategoryRepairService
 
     private function ownedCategoryQuery(string $storeId, string $name): \Illuminate\Database\Eloquent\Builder
     {
-        return Category::query()
+        return Category::withTrashed()
             ->where('store_id', $storeId)
             ->whereRaw('LOWER(name) = ?', [$this->normalizeName($name)]);
     }

@@ -1233,6 +1233,232 @@ a cost edit can also sit in `_sync_queue` indefinitely (the pull skips any row
 with a pending queue entry), which keeps a device's own cost alive while its
 quantities keep reconciling through movements. See `docs/KNOWN_BUGS.md` A-271.
 
+## The pull watermark lags (A-282, 2026-10-18)
+
+`pull()` computed `$serverTimestamp = now()` **before** running its SELECTs and
+returned it as `server_timestamp`, which the client stamps as that table's
+`last_synced_at`. A push stamps `_synced_at = now()` **per change inside its
+loop** and commits the whole batch at the end. So a pull that starts inside
+another device's open push transaction sees none of those rows — they are
+uncommitted — and then stamps its watermark **past** them. The cursor is
+`_synced_at > W OR updated_at > W`, so they never match again: permanently
+lost, on that device, with nothing to notice it by. `checkSyncHealth()` compares
+counts for five tables only, so a lost `stock_movements` row or any lost
+price/cost **update** changes no count at all.
+
+There is a second, independent hole of the same shape: `_synced_at` and
+`updated_at` are `timestamp` columns, second precision, and the comparison is a
+strict `>`. A row committed in the very second the pull chose leaves a
+one-second hole even with no transaction involved. Both are pinned separately
+in `SyncPullWatermarkLagTest`.
+
+**`server_timestamp` is now `now()` minus `PULL_WATERMARK_LAG_SECONDS` (60).**
+
+**60 is a judgement, not a bound, and the distinction matters.** An earlier
+version of this paragraph justified it as "a push cannot outlive PHP's
+`max_execution_time` (30s), so 60 is that doubled". **That is wrong.** On Linux
+`max_execution_time` counts **CPU** time (`ITIMER_PROF`), so time blocked
+waiting on MySQL does not count toward it at all, and this host is LiteSpeed
+(`public/.htaccess` hands `.php` to `lsphp`) with no execution-time override
+anyway. The real caps are LiteSpeed's own request timeout and
+`innodb_lock_wait_timeout` (50s by default) — and because the UPDATE branch
+takes `lockForUpdate()` **per change**, one contended push can accumulate
+several 50s lock waits in sequence and still commit rows whose `_synced_at` was
+stamped **minutes** earlier. A 60s lag does not cover that case. It covers the
+ordinary one, which is the overwhelming majority of pushes and the whole of the
+second-precision hole, and it is cheap; it is not a proof.
+
+The things that do constrain the number: a push carries at most
+`SYNC_BATCH_SIZE = 50` changes (`client/lib/db/sync-engine/push.ts`) in one
+outer transaction, and overshooting would mean exceeding the sync interval,
+whose shortest plan value is minutes. So 60 is safely inside the upper
+constraint and usefully but not completely inside the lower one.
+
+**The structural fix, which would make the lag a formality:** re-stamp
+`_synced_at = now()` for every `(table, id)` the push wrote, immediately before
+the outer commit, instead of per change inside the loop. The exposed window
+then shrinks to the commit itself rather than the whole transaction, and the lag
+only has to cover clock skew. Deliberately **not** implemented with A-282 —
+it needs the written-row set tracked through the loop and the `_version`/
+`updated_at` immutability of `reopenPullWindow()` applied to it. Filed as
+`docs/KNOWN_BUGS.md` A-286; until it lands, the lag is mitigation and a very
+slow contended push can still lose rows, silently.
+
+**The re-pull is idempotent, verified rather than assumed.** A row already held
+takes `pull.ts`'s UPDATE branch, which rewrites identical values; `_version` and
+`_deleted` are rewritten to the same numbers; `pendingLocalEdit` still steps
+aside for a row with a live `_sync_queue` entry, so a local edit cannot be
+clobbered by the extra round; `stock_batches.quantity` is deleted from the
+applied columns; and a re-pulled `stock_movements` row touches its batch with
+`{0, 0}`, so no delta is applied twice. **Cost:** a trailing 60s of changes is
+re-offered each round. For a typical till that is its own recent sales and
+nothing else — single-digit rows, a few KB — on a connection that just made a
+round trip anyway. It is not a full re-pull and it does not grow with catalogue
+size.
+
+**Server-only, so it covers every bundle in the field (§11).** An old client
+reads `server_timestamp` and stamps it, exactly as before; it simply stamps a
+slightly older instant. No new field, no shim.
+
+### The multi-page variant, which is the client half
+
+A table's window is stamped on the page that drains it, so a round spanning
+several pages stamped the **last** page's `server_timestamp` — covering time the
+earlier pages never queried. Keyset paging orders by `(updated_at, id)` while
+the *filter* also admits `_synced_at`, so a row that enters the window mid-round
+with an older `updated_at` than the cursor already passed sorts behind it, is
+never seen in that round, and the watermark moves past it anyway. `pull.ts` now
+captures `roundTimestamp` from the first page of a round and stamps that.
+
+It does not interfere with the rewind machinery: `PULL_PROGRESS.completeWindow`
+resets `rewind_count`/`rewound_from` regardless of the value it writes, and
+`pull-window.ts` stores and restores a baseline rather than reasoning about the
+stamp's instant. `pull-paginates-past-500-rows.test.ts` pinned the old
+behaviour and was corrected in the same change.
+
+## Every pulled table soft-deletes (A-281, 2026-10-18)
+
+The client's `softDelete()` queues a `DELETE`; `push()`'s DELETE branch runs
+`$target->delete()`, which is a soft delete **only** where the model uses
+`SoftDeletes`. Nine models in `pull()`'s table list did not: `Category`,
+`Expense`, `PurchaseOrder`, `PurchaseOrderItem`, `Prescription`,
+`PrescriptionItem`, `RequestedProduct`, `SupplierPayment`, `PermissionGroup`.
+`mapPullRowForClient()` emits `_deleted` only from `trashed()`, so a
+hard-deleted row simply **vanished** from every pull: the delete reached no
+other device, an edit to a destroyed row fell through `if ($model)` and was
+counted processed, and a whole-row resend recreated the row, which then pulled
+back and undid the delete on the device that made it. Two tills could disagree
+permanently about expenses, which are money in the P&L.
+
+All nine now use the trait. **`permission_groups` needed a migration** — it was
+the one table of the nine with no `deleted_at` column, which the finding that
+raised this got wrong, and the client deletes permission groups for real
+(`client/lib/hooks/use-permission-groups.ts`). The other eight columns already
+existed.
+
+### Adding the trait silently rewrites every existing query, so these readers were changed with it
+
+- **`applyPullTenantScope()`** — `prescription_items` and
+  `purchase_order_items` scope through a parent subquery, and the global scope
+  applies to a subquery exactly as to the parent query. A soft-deleted parent
+  would have stopped its children being pulled **at all**, so no device could
+  ever learn they were deleted. Now `withTrashed()`, the same rule and reason
+  as A-176a's `stock_batches`.
+- **`resolveChangeStoreId()`** — a trashed `Prescription`/`PurchaseOrder` still
+  determines its children's ownership. Left plain, it resolved to `null` and
+  fell through to the fail-open branch, weakening the scoping this check exists
+  to provide.
+- **`findDuplicateInsertConflict()`** — `categories` is `UNIQUE (store_id,
+  name)` (`2026_09_12_000000_scope_category_uniqueness_to_store`) and **that
+  index counts soft-deleted rows**. A probe that cannot see a trashed row finds
+  no conflict, attempts the INSERT and the push fails on the constraint. So the
+  probe is `withTrashed()` — **for `categories` only, gated on the table name**.
+  `suppliers.name` carries **no unique index at all** (verified against every
+  migration: the only `unique('name')` in the schema is the categories one
+  above), so a supplier named after a deleted one never collided and must stay
+  a genuinely new row. Widening the probe for it would remap the owner's new
+  supplier onto the trashed namesake and revive that supplier's old phone,
+  address and contact over it — a behaviour change nothing asked for. Pinned by
+  `test_a_supplier_named_after_a_deleted_one_is_not_remapped_onto_it`.
+- **Reviving is not just `restore()` — the payload has to come with it
+  (A-285).** The remap tells the client to tombstone the row it just created
+  (`push.ts`'s `id_map` loop), so any column not carried onto the survivor is
+  **lost content the owner typed**. `reviveConflictTarget()` restores the row,
+  applies the payload's user-authored columns (`name`, `description`,
+  `parent_id`, `is_active` for `categories`, by a strict `match` per §8, never
+  identity or bookkeeping) and bumps `_version` — the row's content changed, so
+  a device still holding the old version must not win against it, per "A raw
+  `update()` on a synced table must move `_version`" below. The case that
+  bites without this: a category deleted while `is_active = 0` and re-created
+  as active comes back inactive, and the client's `getCategoryList()` filters
+  on `(is_active IS NULL OR is_active = 1)`, so the category the owner just
+  made is simply **missing from the list**. `is_active` is a real client column
+  — `SYNC_COLUMN_MIGRATIONS` in `client/lib/db/schema-migrations.ts` adds it —
+  so the pull really does carry the stale value down.
+- **`sanitizePermissionGroupSyncPayload()`** — every guard in it reads
+  `$existing`, including "default groups cannot be deleted" and the cross-tenant
+  bail-out, so it must see a trashed row. Its first-time-seed existence probe
+  likewise, or a store whose seeded group was deleted re-seeds it.
+- **`PermissionGroupSeeder::ensureSeeded()`** — default group ids are
+  deterministic (`deterministicDefaultGroupId`), so a trashed group invisible to
+  the `$existingRoles` probe means `save()` collides on the primary key and the
+  seed throws.
+- **`CrossTenantCategoryRepairService::ownedCategoryQuery()`** — it already had
+  a `whereNotNull('deleted_at')` branch written for exactly this unique-index
+  problem, and the global scope would have made that branch unreachable while
+  leaving the collision in place. `Category::withTrashed()` is what keeps the
+  existing code doing what it says.
+
+### Reviewed and deliberately left alone
+
+`PurchaseOrderController::index` and `EndOfDaySummaryMail` (a deleted order or
+expense should not be listed or counted — the trait makes them *more* correct);
+`ensureCatalogBackfilled()` (a trashed default group is owed no backfill, and
+defaults cannot be deleted); `sanitizePermissionGroupSyncPayload()`'s
+`$ownGroup` (a caller whose own group was deleted loses its permissions, which
+is both correct and identical to the pre-trait `null`); `->with('category')` on
+the public storefront, already null-guarded in `StorefrontProductResource`;
+and every admin service plus `counts()`, which read through `DB::table()` with
+an explicit `whereNull('deleted_at')` — the global scope does not touch the
+query builder and those filters were already right.
+
+### What this cannot fix
+
+**Rows already hard-deleted are gone, so there is no backfill.** New deletes
+propagate from here; **old ones never will**, and a device still holding its
+copy keeps it indefinitely. A Force Full Resync does not help either — it
+re-pulls what the server has, and the server has no record the row ever
+existed, so the stale local copy survives the resync. The only remedy is
+deleting those rows again on each device by hand. There is no way to enumerate
+them, because the evidence was destroyed.
+
+**`StockMovement` and `StockBatch` are excluded on purpose** — same shape, but
+quantity is derived from the movement log. See `docs/KNOWN_BUGS.md` A-283.
+
+**§11:** server-only. Old bundles already handle `_deleted` on every table (the
+pull's `_deleted` field and `TABLES_NEVER_PULLED` are unchanged), and the
+client drops the extra `deleted_at` key the response now carries for these
+tables because `pull.ts` filters every pulled column through its own
+`validColumns`. No shim, nothing to retire.
+
+## Stock batch deltas are store-scoped (A-280, 2026-10-18)
+
+`applyStockBatchDeltas()` runs `UPDATE stock_batches SET quantity = … WHERE
+id = ?` for every delta a push accumulated. It had **no join to the owning
+store and no check against `$allowedStoreIds`**, and the movement that produced
+the delta cannot supply one: `authorizeInsertTarget('stock_movements')` resolves
+ownership from the movement's *own* `store_id`, which `normalizePushPayload()`
+backfills from the session, so it always passes. Any authenticated till — a
+`sales_staff` token is enough — could move another store's stock, and because
+the movement filed under the **pusher's** store, the victim's pull never showed
+it. Reproduced before fixing: a push from one store took another's batch from
+40 to 15.
+
+`isBatchOutsideScope()` now resolves the batch's owning store the way
+`resolveChangeStoreId()` does for `stock_batches` — up through
+`products.store_id`, with `Product::withTrashed()` per A-176a, since a batch of
+a soft-deleted product is still a real batch — and the delta is refused
+`permission_denied` when that store is outside the caller's scope. `super_admin`
+is exempt, as everywhere else (the scope is passed as `null`).
+
+**Today's fail-open for a batch that does not exist is preserved deliberately**:
+it resolves to no store, which is not the same as belonging to someone else, and
+a batch may legitimately arrive later in the same backlog. Only an existing
+batch in a foreign store is refused.
+
+**The refusal is reported but the current client ignores it.** Every entry
+`applyStockBatchDeltas()` adds to `$failed` carries `'id' => null` (there is no
+queue row behind an accumulated delta — the movement's own row was already
+accepted), and `push.ts`'s failure loop opens with `if (f.id == null) continue;`.
+So it reaches the response, the `Log::warning` and `SyncFailureRecorder`, and
+nothing else: it is not parked the way A-165 parks a `forbidden` row, and
+nothing is settled. That is worse than a parked row and much better than a
+silent cross-tenant write. Making it visible on the device needs the null-id
+case handled in `push.ts` first; filed as part of A-280's entry.
+
+**§11:** server-only, no shim. A legitimate client never names another tenant's
+batch, and the response shape is unchanged.
+
 ## A raw `update()` on a synced table must move `_version` (A-245, 2026-10-18)
 
 `resolveUpdateConflict()` accepts a push when `payloadVersion === modelVersion`,
@@ -1346,25 +1572,48 @@ probe firing is expected traffic, not a fault. `$isResentInsert` is set where
 the probe fires and gives the change two outcomes:
 
 - **a conflict is accepted without writing anything** — the server's row
-  stands, nothing joins `$failed`, `$processed` counts it, **and the server's
-  current `_version` is returned in the `versions` map**;
+  stands, nothing joins `$failed`, `$processed` counts it, **the server's
+  current `_version` is returned in the `versions` map**, and
+  `reopenPullWindow()` advances `_synced_at` alone so the next incremental
+  pull re-offers the row (A-279, below);
 - **versions equal still applies the payload, but `resolveUpdateConflict()`
   returns `$modelVersion`, not `$modelVersion + 1`.**
 
 **The `versions` entry on the skipped path is load-bearing, not a nicety.**
 Accepting without writing removes the refusal that used to drive
 `rewindPullWindow()` → a full re-pull → the device receiving the server's
-current version, and that was the only thing healing a stale re-sender. The
-incremental pull cannot substitute for it: the whole point of this branch is
-that the model is **not** written, so its `updated_at` still predates the
-device's watermark and the row is never re-offered. Left out, the re-sender
-keeps a permanently stale `_version` (the client deletes the queue row and sets
-`_synced = 1` regardless), and its next genuine edit to that row pushes stale
-and is terminally dropped — the same data loss this section exists to kill,
-moved from "another device" to "the re-sending device". `versions` is an
-existing contract: the client's loop (`push.ts`, `UPDATE … SET _version`) is
-table-agnostic, predates all of this and has always tolerated an entry for any
-row, so old bundles apply it unchanged.
+current version, and that was the only thing healing a stale re-sender. Left
+out, the re-sender keeps a permanently stale `_version` (the client deletes the
+queue row and sets `_synced = 1` regardless), and its next genuine edit to that
+row pushes stale and is terminally dropped — the same data loss this section
+exists to kill, moved from "another device" to "the re-sending device".
+`versions` is an existing contract: the client's loop (`push.ts`,
+`UPDATE … SET _version`) is table-agnostic, predates all of this and has always
+tolerated an entry for any row, so old bundles apply it unchanged.
+
+### `_synced_at` is what heals the *content* (A-279, 2026-10-18)
+
+The `versions` entry fixes the version and nothing else. **A behind re-send is
+by construction a row whose content lost**, so the device is left holding its
+losing snapshot — at a correct version, with no queue entry, and therefore with
+nothing left that can ever correct it. A till that lost a
+`products.selling_price` conflict kept selling at the old price until someone
+ran a Force Full Resync.
+
+`reopenPullWindow()` closes that: a **query-builder** `update(['_synced_at' =>
+$now])`, never Eloquent, so `updated_at` and `_version` stay exactly where they
+were while the row re-enters every device's `_synced_at > W OR updated_at > W`
+pull window. The re-sender then pulls the server's fields over its stale ones —
+`pendingLocalEdit` (`client/lib/db/sync-engine/pull.ts`) only steps aside for a
+row with a live `_sync_queue` entry, and the acceptance already deleted it.
+Pinned both ends: `SyncPushResentInsertTest`'s window case and
+`client/__tests__/pull-overwrites-a-stale-accepted-resend.test.ts`.
+
+Every table `getModelForTable()` serves has a `_synced_at` column (verified
+2026-10-18), but the probe is kept and shares `stampSyncedAt()`'s per-push
+cache, so a future table without one is a no-op rather than a SQL error.
+**§11:** server-only, no client change, no shim — an old bundle simply receives
+the row on its next pull, which is the path it has always had.
 
 That bump was the data loss, and it is the same shape as "a sale does not
 version a batch" above. The re-sender is accepted, the server's `_version`

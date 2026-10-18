@@ -204,7 +204,7 @@ class PermissionGroupSeeder
             return;
         }
 
-        $existingRoles = PermissionGroup::where('store_id', $store->id)->pluck('based_on_role')->all();
+        $existingRoles = PermissionGroup::withTrashed()->where('store_id', $store->id)->pluck('based_on_role')->all();
 
         $groupIdByRole = [];
         foreach (self::DEFAULT_GROUP_PERMISSIONS as $role => $permissions) {

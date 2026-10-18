@@ -106,10 +106,9 @@ class TableAgreementServiceTest extends TestCase
         $this->product();
         $this->category();
 
-        $this->report([
-            'products' => [2, 2, 0],
-            'categories' => [0, 0, 0],
-        ]);
+        // Twice: one reading cannot tell "behind" from a push in flight.
+        $this->report(['products' => [2, 2, 0], 'categories' => [0, 0, 0]]);
+        $this->report(['products' => [2, 2, 0], 'categories' => [0, 0, 0]]);
 
         $result = $this->service->forStore($this->store->id);
 
@@ -136,10 +135,15 @@ class TableAgreementServiceTest extends TestCase
         $this->assertSame(0, $result['diverged_devices']);
     }
 
+    /**
+     * One reading cannot tell this apart from a push whose own UPDATEs the
+     * server has already accepted, so detection takes two.
+     */
     public function test_a_version_mismatch_at_an_equal_row_count_is_detected(): void
     {
         $this->product(3);
 
+        $this->report(['products' => [1, 1, 0]]);
         $this->report(['products' => [1, 1, 0]]);
 
         $tables = $this->tablesFor();
@@ -165,15 +169,30 @@ class TableAgreementServiceTest extends TestCase
         $this->assertSame(0, $result['diverged_devices']);
     }
 
+    /**
+     * One queued INSERT is one extra row at `_version` 1, so it accounts for
+     * exactly one of row delta and one of version delta — the server assigns
+     * precisely one version per accepted change.
+     */
     public function test_a_queued_edit_excuses_a_row_count_difference(): void
     {
         $this->product();
 
-        $this->report(['products' => [2, 3, 1]]);
+        $this->report(['products' => [2, 2, 1]]);
 
         $tables = $this->tablesFor();
         $this->assertSame('syncing', $tables['products']['verdict']);
         $this->assertSame(0, $this->service->forStore($this->store->id)['diverged_devices']);
+    }
+
+    /** The queue depth is a budget, not a blanket excuse. */
+    public function test_drift_larger_than_the_queue_depth_is_not_excused(): void
+    {
+        $this->product();
+
+        $this->report(['products' => [4, 4, 1]]);
+
+        $this->assertSame('diverged', $this->tablesFor()['products']['verdict']);
     }
 
     public function test_a_snapshot_older_than_the_stale_window_stops_counting(): void
@@ -204,6 +223,87 @@ class TableAgreementServiceTest extends TestCase
         $tables = $this->tablesFor();
         $this->assertSame(['products'], array_keys($tables));
         $this->assertSame(1, DB::table('products')->count());
+    }
+
+    public function test_a_device_behind_on_one_report_and_caught_up_on_the_next_is_not_diverged(): void
+    {
+        $this->product(3);
+        $this->product(3);
+
+        $this->report(['products' => [2, 4, 0]]);
+
+        $tables = $this->tablesFor();
+        $this->assertSame('behind', $tables['products']['verdict']);
+        $this->assertSame(0, $this->service->forStore($this->store->id)['diverged_devices']);
+
+        $this->report(['products' => [2, 6, 0]]);
+
+        $this->assertSame('agrees', $this->tablesFor()['products']['verdict']);
+        $this->assertSame(0, $this->service->forStore($this->store->id)['diverged_devices']);
+    }
+
+    public function test_a_table_behind_on_two_consecutive_reports_is_promoted_to_diverged(): void
+    {
+        $this->product(3);
+
+        $this->report(['products' => [1, 1, 0]]);
+        $this->assertSame('behind', $this->tablesFor()['products']['verdict']);
+
+        $this->report(['products' => [1, 1, 0]]);
+
+        $tables = $this->tablesFor();
+        $this->assertSame('diverged', $tables['products']['verdict']);
+
+        $result = $this->service->forStore($this->store->id);
+        $this->assertSame(1, $result['diverged_devices']);
+        $this->assertSame(
+            ['products'],
+            collect($result['devices'])->firstWhere('device_id', 'DRX-TILL-1')['diverged_tables'],
+        );
+    }
+
+    /** The promotion must read THIS device's own previous snapshot. */
+    public function test_another_devices_behind_reading_does_not_promote_this_one(): void
+    {
+        $this->product(3);
+
+        $this->report(['products' => [1, 1, 0]], 'DRX-TILL-2');
+        $this->report(['products' => [1, 1, 0]], 'DRX-TILL-2');
+        $this->report(['products' => [1, 1, 0]], 'DRX-TILL-1');
+
+        $this->assertSame('behind', $this->tablesFor('DRX-TILL-1')['products']['verdict']);
+    }
+
+    public function test_the_version_bump_of_this_pushs_own_updates_reads_as_syncing(): void
+    {
+        $this->product(4);
+        $this->product(4);
+
+        $this->report(['products' => [2, 6, 2]]);
+
+        $tables = $this->tablesFor();
+        $this->assertSame('syncing', $tables['products']['verdict']);
+        $this->assertSame(-2, $tables['products']['version_delta']);
+    }
+
+    /**
+     * It compared two different physical tables: the pull delivers from
+     * `activity_logs`, while the digest counted the unused legacy
+     * `audit_logs`. A large false delta, and a real activity-log divergence
+     * was undetectable at the same time.
+     */
+    public function test_audit_logs_is_not_compared_at_all(): void
+    {
+        $this->product();
+
+        $this->service->record($this->store->id, 'DRX-TILL-1', null, [
+            'tables' => [
+                ['t' => 'products', 'r' => 1, 'v' => 1, 'p' => 0],
+                ['t' => 'audit_logs', 'r' => 4200, 'v' => 4200, 'p' => 0],
+            ],
+        ]);
+
+        $this->assertSame(['products'], array_keys($this->tablesFor()));
     }
 
     public function test_forget_drops_one_devices_snapshot(): void

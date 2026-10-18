@@ -73,18 +73,21 @@ agreement, and the panel's copy says so.
 
 ## Cost
 
-- **Payload:** 1,226 bytes for all 26 tables, measured by serialising a full
+**25 tables are compared, not 26.** `audit_logs` is excluded on both sides —
+see "The `audit_logs` false delta" below.
+
+- **Payload:** 1,183 bytes for all 25 tables, measured by serialising a full
   report (`{"t","r","v","p"}` per table, short keys for exactly this reason).
   Delivery timing adds 114 bytes. Neither scales with catalogue size — the
-  report is 26 rows whether the store has 50 products or 50,000.
-- **Device:** 26 `COUNT(*) + SUM(_version)` scans plus one `GROUP BY` over
+  report is 25 rows whether the store has 50 products or 50,000.
+- **Device:** 25 `COUNT(*) + SUM(_version)` scans plus one `GROUP BY` over
   `_sync_queue`. Throttled to **once per 15 minutes**
   (`THROTTLE_MS` in `table-fingerprint.ts`): an auto-sync runs every few
   minutes and scanning every synced table that often is not free on a phone.
   Outside the window `buildTableFingerprint()` returns `null` and the field is
   simply absent, so a report is only ever sent in the push that computed it —
   the server never compares a stale device reading against a live cloud.
-- **Server:** 26 aggregates per *recorded* report, not per push, all on
+- **Server:** 25 aggregates per *recorded* report, not per push, all on
   indexed `store_id` (the six child tables scope through their parent exactly
   as `SyncController::pull()` does). At a 15-minute throttle that is at most
   four reports per device per hour.
@@ -99,10 +102,68 @@ as a disagreement (A-252), and a device reporting zero rows against a
 non-empty cloud reads "No local copy of this store" rather than as a total
 divergence.
 
-A device with unpushed edits for a table is ahead of the cloud by design.
-`TableAgreementService::verdict()` reads a table as `syncing`, not `diverged`,
-when the row delta is within that table's queue depth. Without it the panel
-is noisy on every till that is mid-sync, and a noisy instrument gets ignored.
+## The four verdicts, and why a naive version delta was wrong
+
+`TableAgreementService::verdict()` returns one of four values. The first
+version of this feature had only three, and that was a false-positive
+generator serious enough to make a healthy pharmacy read "diverged" all day.
+
+**The bug.** `buildTableFingerprint()` runs at the top of `pushChanges()`,
+*before* this push's UPDATEs are sent and before the response's `versions` map
+reaches local rows. The server records its side *after* the outer commit —
+correct for row counts, and `recordStockFingerprint()`'s own comment explains
+why. So for every non-commutative UPDATE the push carries,
+`server_version_sum = device_version_sum + N` and `version_delta = -N`. The
+original `syncing` branch required `versionDelta >= 0`, so every such push fell
+through to `diverged`. A price edit, a sale status change or a loyalty-points
+update made `products`, `sales` and `customers` read "disagree" for most of the
+day. `stock_batches` escaped only because a commutative quantity-only update
+leaves `_version` alone.
+
+The fix is **not** to move the server snapshot before the push loop: that puts
+25 aggregate queries inside the push transaction on shared MySQL, which is the
+transaction-length problem the 60s watermark lag exists to mitigate, and it
+would do nothing for the cross-till case.
+
+The four verdicts:
+
+- **`agrees`** — both deltas zero.
+- **`syncing`** — the drift fits inside that table's queued-edit count, in
+  *either* direction: `abs(rowDelta) <= pending && abs(versionDelta) <= pending`.
+  This is an **exact** bound, not a heuristic: `resolveUpdateConflict()` assigns
+  `$modelVersion + 1` for an accepted non-commutative UPDATE — precisely one
+  version per accepted change — and a queued INSERT contributes one row at
+  `_version` 1. So N queued rows can account for at most N of drift either way.
+  Reported immediately, with no delay, and it covers the device's own in-flight
+  push, which is the common case above.
+- **`behind`** — the device holds no more than the cloud
+  (`rowDelta <= 0 && versionDelta <= 0`) by more than its queue explains.
+  Usually another till's write this device has not pulled yet. **Not counted as
+  a divergence on its own.**
+- **`diverged`** — anything else, plus a `behind` that was already `behind` or
+  `diverged` on this device's previous report.
+
+**The two-consecutive-readings rule.** `record()` reads this device's own
+previous snapshot and promotes `behind` → `diverged` only if that table was
+already unsettled. Two readings at least 15 minutes apart means the device's
+own pull did not clear it, which is the real signal — the A-282 lost-row class
+and A-284's hidden children. A single reading cannot distinguish those from
+ordinary pull lag.
+
+Because the verdict depends on the previous reading, it is **stored in the
+snapshot** rather than recomputed on read; recomputing in `forStore()` would
+quietly undo the promotion. `storedVerdicts()` falls back to computing on the
+fly for a row written before the verdict was persisted.
+
+**The delay this costs.** A genuine divergence is reported one reading late —
+at least 15 minutes, and longer on an idle till, since a report only rides on a
+push. That is the deliberate trade: the condition this detects is a row that is
+already lost and will stay lost, so it is not time-critical, whereas a panel
+that cries wolf on every price edit gets ignored within a day and then detects
+nothing at all. The `syncing` bound above is what keeps the delay from applying
+to the common case — a busy till's own pushes are explained immediately and
+never enter the promotion path, so they cannot be promoted by two consecutive
+readings either.
 
 ## Delivery timing
 
@@ -128,6 +189,76 @@ day.
   same waiting edit once per push. It sits beside `changes_accepted` so
   accepted-versus-queued reads as a ratio.
 
+Two accepted limits of the histogram, both worth knowing before reading one:
+
+- **A push that fails on the network loses that interval's histogram.**
+  `drainDeliveredAges()` clears when the report is *built*, not when the server
+  acknowledges it, so the counts under-report on exactly the bad days when
+  delivery data matters most. Accepted rather than fixed: holding the drain
+  until acknowledgement means carrying the drained copy through the retry path,
+  and the oldest-unsynced-edit age — the number that actually matters on a bad
+  day — is recomputed from `_sync_queue` every time and is never lost.
+- **`localStorage` is per device, not per store.** A device signed into two
+  stores mixes both stores' deliveries into one histogram, and the report is
+  attributed to whichever store was active at report time. Accepted: the
+  two-store till is rare, and the per-store signal people act on is the queue
+  depth and the oldest-edit age, both of which are read from the store-scoped
+  `_sync_queue`.
+
+## Expect these on day one — they are not new bugs
+
+**A-284 will light up immediately.** `sale_items`, `return_items` and
+`sale_item_batches` scope through a `withTrashed()` parent on the server but
+are **not** delivered by the pull for a soft-deleted parent, so every store
+with a single voided sale legitimately reads device-behind on those three
+tables. A voided sale is the common case. This is A-284 showing up in an
+instrument that can finally see it, not a fault in the instrument and not a new
+defect. It clears when A-284's one-line `withTrashed()` fix ships.
+
+**A-288 shows as a small positive row delta.** Legacy rows that have no cloud
+`store_id` are counted on the device and excluded by the server's
+`where('store_id', …)`, so an affected table reads `+N` until the backfill
+lands. Another agent is building that backfill; it deliberately moves neither
+`updated_at` nor `_version`, so there is **no pull burst** — a backfilled row
+is not re-delivered to a device that already holds it, and only the row-count
+half of the digest moves, which is the half that was wrong.
+
+## The `audit_logs` false delta
+
+`audit_logs` was in the first version's allowlist and produced a large
+permanent false delta, because the comparison ran against **two different
+physical tables**:
+
+- A physical `audit_logs` table does exist
+  (`2026_07_21_194736_align_schema_with_client_db.php`) but is unused legacy
+  cruft that nothing writes to. The digest counted that.
+- `getModelForTable()` maps the client's `audit_logs` onto `ActivityLog`, which
+  has no `$table` override, so the pull actually delivers from
+  **`activity_logs`**. That is the table holding the device's rows.
+
+So the panel compared the device's whole activity log against a near-empty
+different table. Worse than noise: a genuine activity-log divergence was
+simultaneously undetectable, because the number reported had nothing to do with
+the data it claimed to measure.
+
+It is removed from `CountsSyncedTableRows::AGREEMENT_TABLES` **and** from the
+device's own computation (`TABLES_NOT_COMPARED` in `table-fingerprint.ts`).
+Dropping it client-side too was a deliberate call, not a leftover: the
+fingerprint's only consumer is the push payload, so once the server stops
+comparing it the digest has no reader at all, and `audit_logs` is the device's
+longest-retained table (730 days) — the largest wasted scan of the 25. The
+server-side allowlist remains the authority; the client constant names it.
+
+Comparing against `activity_logs` instead was not attempted: server ids are the
+server's own auto-increment bigints with the client id in
+`properties->client_id`, so a row-count comparison would need that join and a
+version sum has no meaning across the two id spaces.
+
+The general hazard — code keyed by the client's sync table-name string rather
+than by what `getModelForTable()` resolves to — is filed as **A-289**, which
+also covers `applyPullCursor()`'s `Schema::hasColumn($table, '_synced_at')`.
+Not fixed here; see that entry rather than this one for the one-place fix.
+
 ## Backward compatibility (§11), piece by piece
 
 Every piece is additive and nothing is required.
@@ -151,15 +282,25 @@ retention.
 ## Known limitation: `store_id` backfill asymmetry
 
 The device's own schema migration backfills `store_id` on legacy rows
-(`UPDATE <table> SET store_id = (SELECT id FROM stores) WHERE store_id IS NULL`);
-the server leaves `store_id` NULL on rows that predate
-`add_store_id_to_child_domain_tables`. For the 20 directly-scoped tables, a
-single-store device therefore counts a legacy row the server's
-`where('store_id', ...)` excludes, which reads as a small positive row delta
-that never clears. The six child tables are immune because the server scopes
-them through their parent. Not fixed here: the fix is a server-side backfill of
-`store_id`, which writes to business tables and is out of scope for
-instrumentation. Logged in `docs/KNOWN_BUGS.md` as A-288.
+(`UPDATE <table> SET store_id = (SELECT id FROM stores) WHERE store_id IS NULL`).
+The server's coverage is **partial, not absent**: `fix_sync_schema_drift` and
+`add_store_id_to_activity_logs` both contain backfills, guarded by
+`if (DB::getDriverName() !== 'sqlite')` — which is why they are invisible to
+the test suite and easy to grep past. The genuinely un-backfilled set is the
+**11 tables of `add_store_id_to_domain_tables`** (`products`, `sales`,
+`customers`, `categories`, `suppliers`, `expenses`, `purchase_orders`,
+`prescriptions`, `returns`, `stock_movements`, `supplier_payments`), which adds
+the column with no backfill at all. `permission_groups` is immune — its
+`store_id` is `NOT NULL` with an FK to `stores` — and the six child tables are
+immune because the server scopes them through their parent rather than their
+own column.
+
+For an affected table a single-store device counts a legacy row the server's
+`where('store_id', …)` excludes, which reads as a small positive row delta that
+never clears. Not fixed here: the fix is a server-side backfill, which writes
+to business tables and is out of scope for instrumentation. Logged in
+`docs/KNOWN_BUGS.md` as A-288; see that entry for the authoritative affected
+set, since the backfill work owns it.
 
 ## Schema parity
 

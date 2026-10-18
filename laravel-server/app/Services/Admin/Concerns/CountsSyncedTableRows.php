@@ -23,7 +23,17 @@ use Illuminate\Support\Facades\DB;
  */
 trait CountsSyncedTableRows
 {
-    /** Mirrors client/lib/db/schema-migrations.ts STORE_SCOPED_TABLES. */
+    /**
+     * Mirrors client/lib/db/schema-migrations.ts STORE_SCOPED_TABLES, less
+     * `audit_logs`, which compared two different physical tables: a physical
+     * `audit_logs` exists but is unused legacy cruft, while the pull actually
+     * delivers from `activity_logs` (getModelForTable maps the client's
+     * `audit_logs` onto ActivityLog, which has no `$table` override). The
+     * comparison therefore produced a large permanent false delta and could
+     * never have detected a real activity-log divergence. See
+     * docs/DEVICE_TABLE_AGREEMENT.md; the general physical-vs-model name
+     * hazard is A-289.
+     */
     protected const AGREEMENT_TABLES = [
         'products',
         'stock_batches',
@@ -47,7 +57,6 @@ trait CountsSyncedTableRows
         'stock_movements',
         'requested_products',
         'supplier_payments',
-        'audit_logs',
         'loyalty_tiers',
         'loyalty_redemption_options',
         'permission_groups',

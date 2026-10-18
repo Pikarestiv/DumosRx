@@ -1713,11 +1713,34 @@ the stock one: taken earlier, the server's side excludes the very batch in
 flight) and read by `/stores/{id}/table-agreement`.
 
 It reuses this file's three verdict rules verbatim — `has_local_copy`,
-`stale` (48h), and `diverged` gated on both — plus one of its own:
+`stale` (48h), and `diverged` gated on both — plus two of its own:
 
-- `syncing` — the row delta is within that table's reported queue depth. A
-  device with unpushed edits is ahead of the cloud by design. Without this the
-  panel is noisy on every till mid-sync, and a noisy instrument gets ignored.
+- `syncing` — the drift fits inside that table's reported queue depth, in
+  **either** direction (`abs(rowDelta) <= pending && abs(versionDelta) <= pending`).
+  An exact bound, because `resolveUpdateConflict()` assigns exactly one version
+  per accepted non-commutative UPDATE.
+- `behind` — the device holds no more than the cloud by more than its queue
+  explains, and is **not** counted as a divergence until a second consecutive
+  reading says the same. `record()` reads this device's own previous snapshot
+  to decide; see `promote()`.
+
+**Do not make `verdict()` treat a negative version delta as divergence on one
+reading.** The first version did, and it reported a healthy store as diverged
+on every push that carried an UPDATE: the device's fingerprint is built before
+its own edits are accepted, while the server snapshots after the commit, so
+`version_delta` is structurally negative by the number of UPDATEs in flight.
+The full arithmetic is in `docs/DEVICE_TABLE_AGREEMENT.md`.
+
+**The verdict is stored in the snapshot, not recomputed on read**, because it
+depends on the previous reading. Recomputing it in `forStore()` silently undoes
+the promotion rule.
+
+`audit_logs` is deliberately absent from `AGREEMENT_TABLES`: `getModelForTable()`
+maps it onto `ActivityLog` → `activity_logs`, while a separate, unused physical
+`audit_logs` table also exists, so the comparison ran against two different
+tables and produced a large false delta. The general physical-vs-model
+table-name hazard is **A-289** — read that before adding anything else keyed by
+the client's sync table-name string.
 
 The server side lives in `Concerns\CountsSyncedTableRows`, which mirrors
 `SyncController::pull()`'s scoping exactly — including the six child tables

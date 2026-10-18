@@ -1201,8 +1201,13 @@ times.
   disagree about stock; it cannot say which batch, which is deliberate — that
   would be an unbounded payload.
 - **`table_fingerprint`** (`sync-engine/table-fingerprint.ts`): per synced
-  table, the row count, the sum of `_version`, and that table's unpushed queue
-  depth. Soft-deleted rows are counted on purpose; `_deleted` is deliberately
+  table (25 of the 26 — `audit_logs` is in `TABLES_NOT_COMPARED` because the
+  server compares a different physical table and discards the digest), the row
+  count, the sum of `_version`, and that table's unpushed queue depth. **The
+  queue depth is load-bearing, not decorative:** this report is built before
+  the push it rides on is accepted, so the server sees a structurally negative
+  version delta and uses `p` as the exact budget that explains it. Dropping or
+  zeroing `p` would make every push report a divergence. Soft-deleted rows are counted on purpose; `_deleted` is deliberately
   NOT in the digest. Unlike the other three this one is **throttled to once
   per 15 minutes** and returns `null` outside that window, so the field is
   simply absent and the server keeps the previous snapshot — a report is only

@@ -19,7 +19,18 @@ export interface TableFingerprint {
 }
 
 /**
- * Scanning 26 tables is not free on a mid-range phone, and an auto-sync runs
+ * Tables the server does not compare, so computing a digest for them is a
+ * scan with no reader. `audit_logs` is the only one: the server's allowlist
+ * omits it because the sync engine maps it onto `activity_logs`, a different
+ * physical table, and comparing the two produced a large false delta. It is
+ * also the device's longest-retained table (730 days), so the saved scan is
+ * the biggest of the 26. Keep this in step with
+ * `CountsSyncedTableRows::AGREEMENT_TABLES`, which is the authority.
+ */
+export const TABLES_NOT_COMPARED = new Set(["audit_logs"]);
+
+/**
+ * Scanning 25 tables is not free on a mid-range phone, and an auto-sync runs
  * every few minutes. Rationale and the measured cost: docs/DEVICE_TABLE_AGREEMENT.md.
  */
 const THROTTLE_MS = 15 * 60_000;
@@ -85,6 +96,10 @@ export async function buildTableFingerprint(): Promise<TableFingerprint | null> 
     const tables: TableDigest[] = [];
 
     for (const table of STORE_SCOPED_TABLES) {
+      if (TABLES_NOT_COMPARED.has(table)) {
+        continue;
+      }
+
       const digest = await digestFor(table, storeId, pending.get(table) ?? 0);
 
       if (digest) {

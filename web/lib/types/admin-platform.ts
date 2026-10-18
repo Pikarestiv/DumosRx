@@ -193,7 +193,7 @@ export interface DeviceTableAgreementRow {
   server_version_sum: number;
   row_delta: number;
   version_delta: number;
-  verdict: "agrees" | "syncing" | "diverged";
+  verdict: "agrees" | "syncing" | "behind" | "diverged";
 }
 
 export interface DeviceTableReport {

@@ -82,7 +82,24 @@ describe("buildTableFingerprint", () => {
     const { STORE_SCOPED_TABLES } = await import("@/lib/db/schema-migrations");
     const report = await mod.buildTableFingerprint();
 
-    expect(report?.tables.map((t) => t.t).sort()).toEqual([...STORE_SCOPED_TABLES].sort());
+    const expected = STORE_SCOPED_TABLES.filter(
+      (table) => !mod.TABLES_NOT_COMPARED.has(table),
+    ).sort();
+
+    expect(report?.tables.map((t) => t.t).sort()).toEqual(expected);
+  });
+
+  /**
+   * The server compares the client's `audit_logs` against a different
+   * physical table, so it is not in its allowlist and the digest is
+   * discarded. Computing it is a full scan of the device's largest table
+   * (730-day retention) for a number with no reader.
+   */
+  it("does not scan audit_logs, whose digest the server discards", async () => {
+    const report = await mod.buildTableFingerprint();
+
+    expect(mod.TABLES_NOT_COMPARED.has("audit_logs")).toBe(true);
+    expect(report?.tables.map((t) => t.t)).not.toContain("audit_logs");
   });
 
   it("carries each table's unpushed queue depth so a mid-sync device is not called diverged", async () => {

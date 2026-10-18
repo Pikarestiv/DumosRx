@@ -1354,11 +1354,24 @@ local copy of this store" instead of a huge delta (A-274), "Stopped reporting"
 for a snapshot past 48h (A-252), and never "every table agrees" for a store
 nobody has reported for.
 
-Two verdicts are distinct on purpose: **"Still syncing"** (the delta is within
-that table's queued-edit count) is not a problem, while a table with the same
-row count but a different version sum renders as "same rows, other edits" with
-the signed version delta beneath. Collapsing the second into "agrees" was the
-whole bug class this panel exists to catch.
+Three non-diverged verdicts are distinct on purpose, and none of them is an
+alarm: **"Still syncing"** (the drift fits this table's queued-edit count) and
+**"Catching up"** (`behind` — the device has not pulled another till's write
+yet, and only a second consecutive reading promotes it). A genuinely diverged
+table with the same row count but a different version sum renders as "same rows,
+other edits" with the signed version delta beneath. Collapsing that into
+"agrees" was the whole bug class this panel exists to catch.
+
+**Never print "Every table agrees" above a row that is catching up.** The
+device badge reads `Catching up on N` and the headline reads "No device
+disagrees with the cloud; N is still catching up" whenever a comparable device
+has unsettled tables. An operator who spots that contradiction stops trusting
+the panel, which costs more than the reassurance is worth.
+
+Expect `sale_items`, `return_items` and `sale_item_batches` to read
+device-behind on any store with a voided sale — that is A-284 surfacing, not a
+panel bug — and a small positive row delta on some tables until A-288's backfill
+lands. `docs/DEVICE_TABLE_AGREEMENT.md` has both.
 
 The panel's own copy states the digest's limit — row count and version sum,
 blind to two offsetting edits inside one table. Keep it there; a panel that

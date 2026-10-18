@@ -175,7 +175,11 @@ export function StoreStockDivergenceSection({
 
               {storeId && (
                 <div className="flex items-center gap-1">
-                  <DeviceReportAction storeId={storeId} deviceId={device.device_id} />
+                  <DeviceReportAction
+                    storeId={storeId}
+                    deviceId={device.device_id}
+                    deviceLabel={device.device_nickname ?? device.device_label}
+                  />
                   <DeviceRowActions
                     storeId={storeId}
                     deviceId={device.device_id}

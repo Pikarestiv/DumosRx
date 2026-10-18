@@ -14,9 +14,14 @@ const BADGE = "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border p
 interface DeviceReportActionProps {
   storeId: string;
   deviceId: string;
+  deviceLabel?: string | null;
 }
 
-export function DeviceReportAction({ storeId, deviceId }: DeviceReportActionProps) {
+export function DeviceReportAction({
+  storeId,
+  deviceId,
+  deviceLabel,
+}: DeviceReportActionProps) {
   const issue = useIssueSyncCommandMutation(storeId);
   const { data: commandData } = useStoreSyncCommands(storeId);
   const { user } = useAdminAuthStore();
@@ -49,19 +54,6 @@ export function DeviceReportAction({ storeId, deviceId }: DeviceReportActionProp
     );
   }
 
-  if (latest?.status === "applied") {
-    const at = formatDateSafe(latest.acted_at, "dd/MM/yyyy HH:mm", "");
-    return (
-      <span
-        className={`${BADGE} border-emerald-200 font-medium text-emerald-600 dark:border-emerald-900 dark:text-emerald-400`}
-        title={latest.result ?? undefined}
-      >
-        <CheckCircle2 className="h-3.5 w-3.5" />
-        {at ? `Report received ${at}` : "Report received"}
-      </span>
-    );
-  }
-
   const requestButton = (
     <Button
       size="sm"
@@ -74,7 +66,7 @@ export function DeviceReportAction({ storeId, deviceId }: DeviceReportActionProp
           {
             onSuccess: () =>
               toast.success(
-                `Report requested from ${deviceId} — it sends on that device's next sync.`,
+                `Report requested from ${deviceLabel ?? "Unnamed device"} (${deviceId}) — it sends on that device's next sync.`,
               ),
             onError: () => toast.error("Could not request that report"),
           },
@@ -82,9 +74,25 @@ export function DeviceReportAction({ storeId, deviceId }: DeviceReportActionProp
       }
     >
       <FileText className="h-4 w-4 mr-2" />
-      {issue.isPending ? "Requesting…" : "Request report"}
+      {issue.isPending ? "Requesting…" : latest ? "Request again" : "Request report"}
     </Button>
   );
+
+  if (latest?.status === "applied") {
+    const at = formatDateSafe(latest.acted_at, "dd/MM/yyyy HH:mm", "");
+    return (
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <span
+          className={`${BADGE} border-emerald-200 font-medium text-emerald-600 dark:border-emerald-900 dark:text-emerald-400`}
+          title={latest.result ?? undefined}
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          {at ? `Report received ${at}` : "Report received"}
+        </span>
+        {requestButton}
+      </div>
+    );
+  }
 
   if (latest?.status !== "refused" && latest?.status !== "failed") {
     return requestButton;

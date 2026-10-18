@@ -854,6 +854,12 @@ class SyncController extends Controller
         }
     }
 
+    /**
+     * How far behind `now()` a pull's returned watermark is stamped. Reasoning
+     * and the cost in laravel-server/AGENTS.md, "The pull watermark lags".
+     */
+    public const PULL_WATERMARK_LAG_SECONDS = 60;
+
     #[OA\Post(
         path: '/app/sync/pull',
         summary: 'Pull server-side changes down to the client',
@@ -880,12 +886,6 @@ class SyncController extends Controller
             new OA\Response(response: 429, description: 'Sync-interval throttle not yet elapsed for this plan'),
         ],
     )]
-    /**
-     * How far behind `now()` a pull's returned watermark is stamped. Reasoning
-     * and the cost in laravel-server/AGENTS.md, "The pull watermark lags".
-     */
-    public const PULL_WATERMARK_LAG_SECONDS = 60;
-
     public function pull(Request $request)
     {
         $validation = $this->validateSync($request, false);

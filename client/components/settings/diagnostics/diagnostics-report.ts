@@ -1,4 +1,5 @@
 import type { DeviceDiagnostics } from "@/lib/db/queries/diagnostics";
+import { peekDeliveredAges } from "@/lib/db/sync-engine/delivery-age";
 
 /**
  * The pasteable support ticket. Privacy is the governing constraint, not
@@ -8,16 +9,53 @@ import type { DeviceDiagnostics } from "@/lib/db/queries/diagnostics";
  */
 const LOOKS_LIKE_SQL = /SQLSTATE|INSERT |UPDATE |SELECT |constraint/i;
 
-/** `feedback.content` is a MySQL TEXT column, so a longer report is rejected
- * outright rather than stored short — and the report matters most on the
- * device with the most to say. */
-const MAX_REPORT_CHARS = 60_000;
+/** Matches `/support`'s own `max` on `message` — see laravel-server/AGENTS.md,
+ * "Remote device report". */
+export const MAX_REPORT_CHARS = 60_000;
+
+function fitToTicket(report: string): string {
+  if (report.length <= MAX_REPORT_CHARS) {
+    return report;
+  }
+
+  const marker = (omitted: number) => `\n[truncated: ${omitted} characters omitted]`;
+  const kept = MAX_REPORT_CHARS - marker(report.length).length;
+
+  return `${report.slice(0, kept)}${marker(report.length - kept)}`;
+}
 
 function duration(ms: number): string {
   const minutes = Math.round(Math.abs(ms) / 60_000);
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
   return `${hours}h ${minutes % 60}m`;
+}
+
+/**
+ * Eventual delivery per edit, which a per-attempt success rate cannot show:
+ * a device whose pushes all "succeed" can still be sitting on a day-old
+ * edit. Two lines, because the ticket has a 60,000-character cap.
+ */
+function deliveryLines(data: DeviceDiagnostics): string[] {
+  const lines: string[] = [];
+  const oldest = data.queue
+    .map((row) => (row.oldest === null ? NaN : Date.parse(row.oldest)))
+    .filter((stamp) => Number.isFinite(stamp));
+
+  if (oldest.length > 0) {
+    lines.push(`  Oldest unsynced edit: ${duration(Date.now() - Math.min(...oldest))} old`);
+  }
+
+  const ages = peekDeliveredAges();
+
+  if (ages) {
+    lines.push(
+      `  Delivered since last report: <1m ${ages.under_1m}, <5m ${ages.under_5m},` +
+        ` <1h ${ages.under_1h}, <1d ${ages.under_1d}, 1d+ ${ages.over_1d}`,
+    );
+  }
+
+  return lines;
 }
 
 export function buildReport(
@@ -53,6 +91,7 @@ export function buildReport(
   for (const row of data.queue) {
     lines.push(`  ${row.table_name}: ${row.pending} pending, ${row.retrying} retrying`);
   }
+  lines.push(...deliveryLines(data));
 
   if (data.stuckRows.length > 0) {
     const mismatched = data.stuckRows.filter(
@@ -185,9 +224,5 @@ export function buildReport(
     `  without any active batch: ${data.resolution.productsWithoutBatches}`,
   );
 
-  const report = lines.join("\n");
-
-  return report.length > MAX_REPORT_CHARS
-    ? `${report.slice(0, MAX_REPORT_CHARS)}\n… truncated to fit the support ticket`
-    : report;
+  return fitToTicket(lines.join("\n"));
 }

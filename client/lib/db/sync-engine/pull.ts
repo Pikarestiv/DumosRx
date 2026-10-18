@@ -205,6 +205,10 @@ export async function pullChanges(
 
     let hasMoreAny = true;
     let page = 0;
+    // The window a drained table is stamped with covers only what the round
+    // actually queried, so it is the FIRST page's instant, never the last
+    // page's (client/AGENTS.md, "Pull details").
+    let roundTimestamp: string | null = null;
     // Survives the page boundary: a page can carry batches and no movements,
     // and the drain still owes those batches' deferred deltas priority over
     // the next page's movements (A-197).
@@ -225,6 +229,7 @@ export async function pullChanges(
         runId,
       )) as PullResponse;
       const { changes, server_timestamp, has_more } = response;
+      roundTimestamp ??= server_timestamp;
 
       if (!changes || Object.keys(changes).length === 0) {
         break;
@@ -569,9 +574,9 @@ export async function pullChanges(
             // Carried to the final transaction so the stamp commits with
             // the deltas it depends on, never before them.
             if (table === "stock_movements" && deferredThisRound > 0) {
-              deferredMovementCursor = server_timestamp;
+              deferredMovementCursor = roundTimestamp;
             } else {
-              await execute(PULL_PROGRESS.completeWindow, [table, server_timestamp]);
+              await execute(PULL_PROGRESS.completeWindow, [table, roundTimestamp]);
             }
           }
         }

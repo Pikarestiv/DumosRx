@@ -70,7 +70,10 @@ class CrossTenantCategoryRepairService
             }
 
             foreach (array_chunk($productIds, self::UPDATE_CHUNK) as $chunk) {
-                Product::whereIn('id', $chunk)->update(['category_id' => $targetId]);
+                Product::whereIn('id', $chunk)->update([
+                    'category_id' => $targetId,
+                    '_version' => DB::raw('COALESCE(_version, 0) + 1'),
+                ]);
             }
         }
 
@@ -152,7 +155,7 @@ class CrossTenantCategoryRepairService
 
     private function ownedCategoryQuery(string $storeId, string $name): \Illuminate\Database\Eloquent\Builder
     {
-        return Category::query()
+        return Category::withTrashed()
             ->where('store_id', $storeId)
             ->whereRaw('LOWER(name) = ?', [$this->normalizeName($name)]);
     }

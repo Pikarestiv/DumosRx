@@ -6,6 +6,7 @@ import {
 } from "../local-database";
 import { apiClient } from "@/lib/api/client";
 import { buildStockFingerprint } from "./stock-fingerprint";
+import { buildTableFingerprint } from "./table-fingerprint";
 import { buildQueueStateReport } from "./queue-state";
 import {
   applySyncCommands,
@@ -225,6 +226,7 @@ async function withheldRecordsWithBackedOffSiblingsRemoved(
  */
 async function exchangeReportsOnly(
   stockFingerprint: Awaited<ReturnType<typeof buildStockFingerprint>>,
+  tableFingerprint: Awaited<ReturnType<typeof buildTableFingerprint>>,
   queueState: Awaited<ReturnType<typeof buildQueueStateReport>>,
   isManual: boolean,
   isSetup: boolean,
@@ -247,6 +249,7 @@ async function exchangeReportsOnly(
       {
         changes: [],
         stock_fingerprint: stockFingerprint,
+        table_fingerprint: tableFingerprint,
         queue_state: queueState,
         sync_command_results: deliverableResults,
       },
@@ -274,11 +277,19 @@ export async function pushChanges(
   // Computed once per run, not per batch: neither value needs batch
   // granularity and both scan the whole queue / batch table.
   const stockFingerprint = await buildStockFingerprint();
+  const tableFingerprint = await buildTableFingerprint();
   const queueState = await buildQueueStateReport();
   let pending = await getPendingSyncItems(isManual);
 
   if (pending.length === 0) {
-    await exchangeReportsOnly(stockFingerprint, queueState, isManual, isSetup, runId);
+    await exchangeReportsOnly(
+      stockFingerprint,
+      tableFingerprint,
+      queueState,
+      isManual,
+      isSetup,
+      runId,
+    );
 
     return { pushed: 0, failedBatches: 0 };
   }
@@ -292,7 +303,14 @@ export async function pushChanges(
   if (!isManual) {
     pending = await withheldRecordsWithBackedOffSiblingsRemoved(pending);
     if (pending.length === 0) {
-      await exchangeReportsOnly(stockFingerprint, queueState, isManual, isSetup, runId);
+      await exchangeReportsOnly(
+        stockFingerprint,
+        tableFingerprint,
+        queueState,
+        isManual,
+        isSetup,
+        runId,
+      );
 
       return { pushed: 0, failedBatches: 0 };
     }
@@ -441,6 +459,7 @@ export async function pushChanges(
         {
           changes,
           stock_fingerprint: stockFingerprint,
+          table_fingerprint: tableFingerprint,
           queue_state: queueState,
           sync_command_results: deliverableResults,
         },

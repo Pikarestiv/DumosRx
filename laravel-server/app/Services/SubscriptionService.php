@@ -8,6 +8,7 @@ use App\Models\SystemConfig;
 use App\Models\Store;
 use App\Models\Coupon;
 use App\Models\CouponUsage;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class SubscriptionService
@@ -216,7 +217,10 @@ class SubscriptionService
             
             // Deactivate excess staff
             $deactivateIds = $activeStaff->slice($limit)->pluck('id');
-            User::whereIn('id', $deactivateIds)->update(['is_active' => false]);
+            User::whereIn('id', $deactivateIds)->update([
+                'is_active' => false,
+                '_version' => DB::raw('COALESCE(_version, 0) + 1'),
+            ]);
             
             // Create a warning notification for the owner
             \App\Models\Notification::create([

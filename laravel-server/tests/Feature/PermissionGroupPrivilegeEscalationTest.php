@@ -480,10 +480,10 @@ class PermissionGroupPrivilegeEscalationTest extends TestCase
             ]],
         ])->assertStatus(200);
 
-        // PermissionGroup has no SoftDeletes trait (matches Feedback/other
-        // non-trashed models in this app) - push()'s generic DELETE branch
-        // hard-deletes it, same as every other model shaped this way.
-        $this->assertDatabaseMissing('permission_groups', ['id' => $customGroup->id]);
+        // A-281: PermissionGroup now uses SoftDeletes, so the delete is
+        // recorded rather than destroyed and the pull can carry it to the
+        // owner's other devices.
+        $this->assertSoftDeleted('permission_groups', ['id' => $customGroup->id]);
     }
 
     /**

@@ -1233,6 +1233,330 @@ a cost edit can also sit in `_sync_queue` indefinitely (the pull skips any row
 with a pending queue entry), which keeps a device's own cost alive while its
 quantities keep reconciling through movements. See `docs/KNOWN_BUGS.md` A-271.
 
+## The pull watermark lags (A-282, 2026-10-18)
+
+`pull()` computed `$serverTimestamp = now()` **before** running its SELECTs and
+returned it as `server_timestamp`, which the client stamps as that table's
+`last_synced_at`. A push stamps `_synced_at = now()` **per change inside its
+loop** and commits the whole batch at the end. So a pull that starts inside
+another device's open push transaction sees none of those rows — they are
+uncommitted — and then stamps its watermark **past** them. The cursor is
+`_synced_at > W OR updated_at > W`, so they never match again: permanently
+lost, on that device, with nothing to notice it by. `checkSyncHealth()` compares
+counts for five tables only, so a lost `stock_movements` row or any lost
+price/cost **update** changes no count at all.
+
+There is a second, independent hole of the same shape: `_synced_at` and
+`updated_at` are `timestamp` columns, second precision, and the comparison is a
+strict `>`. A row committed in the very second the pull chose leaves a
+one-second hole even with no transaction involved. Both are pinned separately
+in `SyncPullWatermarkLagTest`.
+
+**`server_timestamp` is now `now()` minus `PULL_WATERMARK_LAG_SECONDS` (60).**
+
+**60 is a judgement, not a bound, and the distinction matters.** An earlier
+version of this paragraph justified it as "a push cannot outlive PHP's
+`max_execution_time` (30s), so 60 is that doubled". **That is wrong.** On Linux
+`max_execution_time` counts **CPU** time (`ITIMER_PROF`), so time blocked
+waiting on MySQL does not count toward it at all, and this host is LiteSpeed
+(`public/.htaccess` hands `.php` to `lsphp`) with no execution-time override
+anyway. The real caps are LiteSpeed's own request timeout and
+`innodb_lock_wait_timeout` (50s by default) — and because the UPDATE branch
+takes `lockForUpdate()` **per change**, one contended push can accumulate
+several 50s lock waits in sequence and still commit rows whose `_synced_at` was
+stamped **minutes** earlier. A 60s lag does not cover that case. It covers the
+ordinary one, which is the overwhelming majority of pushes and the whole of the
+second-precision hole, and it is cheap; it is not a proof.
+
+The things that do constrain the number: a push carries at most
+`SYNC_BATCH_SIZE = 50` changes (`client/lib/db/sync-engine/push.ts`) in one
+outer transaction, and overshooting would mean exceeding the sync interval,
+whose shortest plan value is minutes. So 60 is safely inside the upper
+constraint and usefully but not completely inside the lower one.
+
+**The structural fix, which would make the lag a formality:** re-stamp
+`_synced_at = now()` for every `(table, id)` the push wrote, immediately before
+the outer commit, instead of per change inside the loop. The exposed window
+then shrinks to the commit itself rather than the whole transaction, and the lag
+only has to cover clock skew. Deliberately **not** implemented with A-282 —
+it needs the written-row set tracked through the loop and the `_version`/
+`updated_at` immutability of `reopenPullWindow()` applied to it. Filed as
+`docs/KNOWN_BUGS.md` A-286; until it lands, the lag is mitigation and a very
+slow contended push can still lose rows, silently.
+
+**The re-pull is idempotent, verified rather than assumed.** A row already held
+takes `pull.ts`'s UPDATE branch, which rewrites identical values; `_version` and
+`_deleted` are rewritten to the same numbers; `pendingLocalEdit` still steps
+aside for a row with a live `_sync_queue` entry, so a local edit cannot be
+clobbered by the extra round; `stock_batches.quantity` is deleted from the
+applied columns; and a re-pulled `stock_movements` row touches its batch with
+`{0, 0}`, so no delta is applied twice. **Cost:** a trailing 60s of changes is
+re-offered each round. For a typical till that is its own recent sales and
+nothing else — single-digit rows, a few KB — on a connection that just made a
+round trip anyway. It is not a full re-pull and it does not grow with catalogue
+size.
+
+**Server-only, so it covers every bundle in the field (§11).** An old client
+reads `server_timestamp` and stamps it, exactly as before; it simply stamps a
+slightly older instant. No new field, no shim.
+
+### The multi-page variant, which is the client half
+
+A table's window is stamped on the page that drains it, so a round spanning
+several pages stamped the **last** page's `server_timestamp` — covering time the
+earlier pages never queried. Keyset paging orders by `(updated_at, id)` while
+the *filter* also admits `_synced_at`, so a row that enters the window mid-round
+with an older `updated_at` than the cursor already passed sorts behind it, is
+never seen in that round, and the watermark moves past it anyway. `pull.ts` now
+captures `roundTimestamp` from the first page of a round and stamps that.
+
+It does not interfere with the rewind machinery: `PULL_PROGRESS.completeWindow`
+resets `rewind_count`/`rewound_from` regardless of the value it writes, and
+`pull-window.ts` stores and restores a baseline rather than reasoning about the
+stamp's instant. `pull-paginates-past-500-rows.test.ts` pinned the old
+behaviour and was corrected in the same change.
+
+## Every pulled table soft-deletes (A-281, 2026-10-18)
+
+The client's `softDelete()` queues a `DELETE`; `push()`'s DELETE branch runs
+`$target->delete()`, which is a soft delete **only** where the model uses
+`SoftDeletes`. Nine models in `pull()`'s table list did not: `Category`,
+`Expense`, `PurchaseOrder`, `PurchaseOrderItem`, `Prescription`,
+`PrescriptionItem`, `RequestedProduct`, `SupplierPayment`, `PermissionGroup`.
+`mapPullRowForClient()` emits `_deleted` only from `trashed()`, so a
+hard-deleted row simply **vanished** from every pull: the delete reached no
+other device, an edit to a destroyed row fell through `if ($model)` and was
+counted processed, and a whole-row resend recreated the row, which then pulled
+back and undid the delete on the device that made it. Two tills could disagree
+permanently about expenses, which are money in the P&L.
+
+All nine now use the trait. **`permission_groups` needed a migration** — it was
+the one table of the nine with no `deleted_at` column, which the finding that
+raised this got wrong, and the client deletes permission groups for real
+(`client/lib/hooks/use-permission-groups.ts`). The other eight columns already
+existed.
+
+### Adding the trait silently rewrites every existing query, so these readers were changed with it
+
+- **`applyPullTenantScope()`** — `prescription_items` and
+  `purchase_order_items` scope through a parent subquery, and the global scope
+  applies to a subquery exactly as to the parent query. A soft-deleted parent
+  would have stopped its children being pulled **at all**, so no device could
+  ever learn they were deleted. Now `withTrashed()`, the same rule and reason
+  as A-176a's `stock_batches`.
+- **`resolveChangeStoreId()`** — a trashed `Prescription`/`PurchaseOrder` still
+  determines its children's ownership. Left plain, it resolved to `null` and
+  fell through to the fail-open branch, weakening the scoping this check exists
+  to provide.
+- **`findDuplicateInsertConflict()`** — `categories` is `UNIQUE (store_id,
+  name)` (`2026_09_12_000000_scope_category_uniqueness_to_store`) and **that
+  index counts soft-deleted rows**. A probe that cannot see a trashed row finds
+  no conflict, attempts the INSERT and the push fails on the constraint. So the
+  probe is `withTrashed()` — **for `categories` only, gated on the table name**.
+  `suppliers.name` carries **no unique index at all** (verified against every
+  migration: the only `unique('name')` in the schema is the categories one
+  above), so a supplier named after a deleted one never collided and must stay
+  a genuinely new row. Widening the probe for it would remap the owner's new
+  supplier onto the trashed namesake and revive that supplier's old phone,
+  address and contact over it — a behaviour change nothing asked for. Pinned by
+  `test_a_supplier_named_after_a_deleted_one_is_not_remapped_onto_it`.
+- **Reviving is not just `restore()` — the payload has to come with it
+  (A-285).** The remap tells the client to tombstone the row it just created
+  (`push.ts`'s `id_map` loop), so any column not carried onto the survivor is
+  **lost content the owner typed**. `reviveConflictTarget()` restores the row,
+  applies the payload's user-authored columns (`name`, `description`,
+  `parent_id`, `is_active` for `categories`, by a strict `match` per §8, never
+  identity or bookkeeping) and bumps `_version` — the row's content changed, so
+  a device still holding the old version must not win against it, per "A raw
+  `update()` on a synced table must move `_version`" below. The case that
+  bites without this: a category deleted while `is_active = 0` and re-created
+  as active comes back inactive, and the client's `getCategoryList()` filters
+  on `(is_active IS NULL OR is_active = 1)`, so the category the owner just
+  made is simply **missing from the list**. `is_active` is a real client column
+  — `SYNC_COLUMN_MIGRATIONS` in `client/lib/db/schema-migrations.ts` adds it —
+  so the pull really does carry the stale value down.
+- **`sanitizePermissionGroupSyncPayload()`** — every guard in it reads
+  `$existing`, including "default groups cannot be deleted" and the cross-tenant
+  bail-out, so it must see a trashed row. Its first-time-seed existence probe
+  likewise, or a store whose seeded group was deleted re-seeds it.
+- **`PermissionGroupSeeder::ensureSeeded()`** — default group ids are
+  deterministic (`deterministicDefaultGroupId`), so a trashed group invisible to
+  the `$existingRoles` probe means `save()` collides on the primary key and the
+  seed throws.
+- **`CrossTenantCategoryRepairService::ownedCategoryQuery()`** — it already had
+  a `whereNotNull('deleted_at')` branch written for exactly this unique-index
+  problem, and the global scope would have made that branch unreachable while
+  leaving the collision in place. `Category::withTrashed()` is what keeps the
+  existing code doing what it says.
+
+### Reviewed and deliberately left alone
+
+`PurchaseOrderController::index` and `EndOfDaySummaryMail` (a deleted order or
+expense should not be listed or counted — the trait makes them *more* correct);
+`ensureCatalogBackfilled()` (a trashed default group is owed no backfill, and
+defaults cannot be deleted); `sanitizePermissionGroupSyncPayload()`'s
+`$ownGroup` (a caller whose own group was deleted loses its permissions, which
+is both correct and identical to the pre-trait `null`); `->with('category')` on
+the public storefront, already null-guarded in `StorefrontProductResource`;
+and every admin service plus `counts()`, which read through `DB::table()` with
+an explicit `whereNull('deleted_at')` — the global scope does not touch the
+query builder and those filters were already right.
+
+### What this cannot fix
+
+**Rows already hard-deleted are gone, so there is no backfill.** New deletes
+propagate from here; **old ones never will**, and a device still holding its
+copy keeps it indefinitely. A Force Full Resync does not help either — it
+re-pulls what the server has, and the server has no record the row ever
+existed, so the stale local copy survives the resync. The only remedy is
+deleting those rows again on each device by hand. There is no way to enumerate
+them, because the evidence was destroyed.
+
+**`StockMovement` and `StockBatch` are excluded on purpose** — same shape, but
+quantity is derived from the movement log. See `docs/KNOWN_BUGS.md` A-283.
+
+**§11:** server-only. Old bundles already handle `_deleted` on every table (the
+pull's `_deleted` field and `TABLES_NEVER_PULLED` are unchanged), and the
+client drops the extra `deleted_at` key the response now carries for these
+tables because `pull.ts` filters every pulled column through its own
+`validColumns`. No shim, nothing to retire.
+
+## Stock batch deltas are store-scoped (A-280, 2026-10-18)
+
+`applyStockBatchDeltas()` runs `UPDATE stock_batches SET quantity = … WHERE
+id = ?` for every delta a push accumulated. It had **no join to the owning
+store and no check against `$allowedStoreIds`**, and the movement that produced
+the delta cannot supply one: `authorizeInsertTarget('stock_movements')` resolves
+ownership from the movement's *own* `store_id`, which `normalizePushPayload()`
+backfills from the session, so it always passes. Any authenticated till — a
+`sales_staff` token is enough — could move another store's stock, and because
+the movement filed under the **pusher's** store, the victim's pull never showed
+it. Reproduced before fixing: a push from one store took another's batch from
+40 to 15.
+
+`isBatchOutsideScope()` now resolves the batch's owning store the way
+`resolveChangeStoreId()` does for `stock_batches` — up through
+`products.store_id`, with `Product::withTrashed()` per A-176a, since a batch of
+a soft-deleted product is still a real batch — and the delta is refused
+`permission_denied` when that store is outside the caller's scope. `super_admin`
+is exempt, as everywhere else (the scope is passed as `null`).
+
+**Today's fail-open for a batch that does not exist is preserved deliberately**:
+it resolves to no store, which is not the same as belonging to someone else, and
+a batch may legitimately arrive later in the same backlog. Only an existing
+batch in a foreign store is refused.
+
+**The refusal is reported but the current client ignores it.** Every entry
+`applyStockBatchDeltas()` adds to `$failed` carries `'id' => null` (there is no
+queue row behind an accumulated delta — the movement's own row was already
+accepted), and `push.ts`'s failure loop opens with `if (f.id == null) continue;`.
+So it reaches the response, the `Log::warning` and `SyncFailureRecorder`, and
+nothing else: it is not parked the way A-165 parks a `forbidden` row, and
+nothing is settled. That is worse than a parked row and much better than a
+silent cross-tenant write. Making it visible on the device needs the null-id
+case handled in `push.ts` first; filed as part of A-280's entry.
+
+**§11:** server-only, no shim. A legitimate client never names another tenant's
+batch, and the response shape is unchanged.
+
+## A raw `update()` on a synced table must move `_version` (A-245, 2026-10-18)
+
+`resolveUpdateConflict()` accepts a push when `payloadVersion === modelVersion`,
+on the reasoning that an equal version means the server has not moved since the
+device pulled. The client's `update()` deliberately never bumps `_version`
+locally — the version only ever comes from the server — so **equal version does
+not mean equal content**, it means "the server has not moved". Anything that
+changes server content *without* moving the version breaks that premise.
+
+A query-builder `update()` (`Model::where(...)->update([...])`) bypasses model
+events and leaves `_version` untouched. When it writes a column a client can
+push, a device still holding the pre-change row is accepted, `forceFill`s its
+stale value back, and `save()` bumps `updated_at` — re-offering the reverted row
+to every other device in the store. The push succeeds and nothing is reported.
+
+**So: any raw `update()` on a table the sync engine versions carries
+`'_version' => DB::raw('COALESCE(_version, 0) + 1')`.** The `COALESCE` is there
+so a nullable or legacy-NULL `_version` cannot become `NULL + 1 = NULL`;
+`products._version` is `NOT NULL default 1`, but not every versioned table's
+history is as clean, and it costs nothing.
+
+**The one exemption**, and state it explicitly where you use it: a column the
+apply path never trusts from a client. `stock_batches.quantity` is the only
+current example — it is stripped from every payload and always derived from
+`stock_movements` deltas — which is why `HealthSyncReconciliationRepairService`
+and `SyncController`'s reconcile path are safe writing it bare. A column merely
+*absent* from the usual payload is not exempt: `forceFill` only sets keys the
+payload carries, so that is safe for now but turns into this bug the day a
+client starts sending it. A column in a `*_SYNC_FORBIDDEN_FIELDS` list is
+genuinely exempt, because it is stripped before `forceFill`.
+
+Expect a version bump to cost a re-pull of every row it touches, and say so
+wherever the write is a bulk repair. That traffic is the point: those rows were
+wrong on the device.
+
+**A model-instance `$model->update([...])` is not a way out of this.** `_version`
+is moved by exactly one thing in this codebase — `SyncController`'s accepted-push
+path — and no model event, observer or `save()` touches it. An instance update is
+therefore just as exposed as a query-builder one, *and* it cannot be fixed in
+place on most models, because `_version` is not in their `$fillable` and `fill()`
+drops it without a word. Use `Model::whereKey($id)->update([...])` (or
+`increment('_version', 1, $extra)`) when you have the instance in hand.
+
+Known outstanding instances are filed as `docs/KNOWN_BUGS.md` A-278.
+
+### Why `users.is_active` stays pushable (A-277, 2026-10-18)
+
+The tempting stronger fix for A-277 was to put `is_active` and
+`permission_group_id` in `USER_SYNC_FORBIDDEN_FIELDS`, so the replication channel
+could not carry an activation decision at all. **Do not.** Both are pushed by
+shipped client code today:
+
+- `is_active` — `client/components/settings/staff/staff-delete-dialog.tsx` pushes
+  `{is_active: 0}` and `client/components/settings/staff-management.tsx` pushes
+  `{is_active: 1}`, both through `useUpdateUser` → `updateUser()` →
+  `update("users", …)` → `_sync_queue`. That is the staff deactivate/reactivate
+  feature on the till, and it is **the offline path** — there is no cloud call
+  behind it. Forbidding the field would not merely stop the change reaching the
+  cloud; the server would keep re-offering the still-active row on pull and
+  **revert the device's own deactivation**, which is a worse version of the bug
+  being fixed.
+- `permission_group_id` — `client/lib/db/queries/permission-groups.ts` (the
+  client-side mirror of `PermissionGroupSeeder`) and the staff form's
+  `StaffCreatePayload`. This was already settled once: see the comment on
+  `PermissionGroupPrivilegeEscalationTest::test_a_user_cannot_self_assign_permission_group_id_via_their_own_sync_push`,
+  which says in so many words that the field is kept off the forbidden list
+  because that list strips unconditionally and would break the staff form's
+  Group assignment for a legitimate `manage_staff` caller.
+
+So the version bump is the whole fix, not half of one. What makes it sufficient:
+the forbidden-field lists defend against a **malicious or over-privileged**
+push, and neither column was ever reachable by the caller's own row (the
+self-edit allow-list excludes both). The only hole was a **stale honest** push,
+and a version bump is precisely the defence against staleness.
+
+**No backfill command, unlike A-276's `sync:backfill-product-versions`.** Users
+deactivated before this fix do still carry un-bumped versions, but the two cases
+are not comparable: A-276 could not *identify* its rows (the repair left no
+trace, hence a `--since` window over 5,088 products), whereas here the exposed
+population is exactly `users WHERE is_active = 0 AND deleted_at IS NULL` — a
+`SELECT`, not a search, and a handful of rows across five stores. A command with
+a dry-run, a scope flag and a test would be more code than the thing it
+automates. If the owner wants it closed, it is one statement, and per §7 it must
+set `updated_at` to an explicit UTC literal (never `NOW()`) so devices actually
+re-pull:
+
+```sql
+SET time_zone = '+00:00';
+SELECT id, username, store_id, is_active, _version FROM users
+  WHERE is_active = 0 AND deleted_at IS NULL;
+UPDATE users SET _version = COALESCE(_version, 0) + 1,
+                 updated_at = '<the UTC instant you are running this>'
+  WHERE is_active = 0 AND deleted_at IS NULL;
+```
+
+**This note can go** once no device in the field predates 2026-10-18, or once
+the owner says the statement above has been run or declined.
+
 ## Re-sent INSERTs: accepted, never a conflict (A-273, 2026-10-17)
 
 `push()`'s existence probe converts an INSERT whose id the server already holds
@@ -1248,25 +1572,48 @@ probe firing is expected traffic, not a fault. `$isResentInsert` is set where
 the probe fires and gives the change two outcomes:
 
 - **a conflict is accepted without writing anything** — the server's row
-  stands, nothing joins `$failed`, `$processed` counts it, **and the server's
-  current `_version` is returned in the `versions` map**;
+  stands, nothing joins `$failed`, `$processed` counts it, **the server's
+  current `_version` is returned in the `versions` map**, and
+  `reopenPullWindow()` advances `_synced_at` alone so the next incremental
+  pull re-offers the row (A-279, below);
 - **versions equal still applies the payload, but `resolveUpdateConflict()`
   returns `$modelVersion`, not `$modelVersion + 1`.**
 
 **The `versions` entry on the skipped path is load-bearing, not a nicety.**
 Accepting without writing removes the refusal that used to drive
 `rewindPullWindow()` → a full re-pull → the device receiving the server's
-current version, and that was the only thing healing a stale re-sender. The
-incremental pull cannot substitute for it: the whole point of this branch is
-that the model is **not** written, so its `updated_at` still predates the
-device's watermark and the row is never re-offered. Left out, the re-sender
-keeps a permanently stale `_version` (the client deletes the queue row and sets
-`_synced = 1` regardless), and its next genuine edit to that row pushes stale
-and is terminally dropped — the same data loss this section exists to kill,
-moved from "another device" to "the re-sending device". `versions` is an
-existing contract: the client's loop (`push.ts`, `UPDATE … SET _version`) is
-table-agnostic, predates all of this and has always tolerated an entry for any
-row, so old bundles apply it unchanged.
+current version, and that was the only thing healing a stale re-sender. Left
+out, the re-sender keeps a permanently stale `_version` (the client deletes the
+queue row and sets `_synced = 1` regardless), and its next genuine edit to that
+row pushes stale and is terminally dropped — the same data loss this section
+exists to kill, moved from "another device" to "the re-sending device".
+`versions` is an existing contract: the client's loop (`push.ts`,
+`UPDATE … SET _version`) is table-agnostic, predates all of this and has always
+tolerated an entry for any row, so old bundles apply it unchanged.
+
+### `_synced_at` is what heals the *content* (A-279, 2026-10-18)
+
+The `versions` entry fixes the version and nothing else. **A behind re-send is
+by construction a row whose content lost**, so the device is left holding its
+losing snapshot — at a correct version, with no queue entry, and therefore with
+nothing left that can ever correct it. A till that lost a
+`products.selling_price` conflict kept selling at the old price until someone
+ran a Force Full Resync.
+
+`reopenPullWindow()` closes that: a **query-builder** `update(['_synced_at' =>
+$now])`, never Eloquent, so `updated_at` and `_version` stay exactly where they
+were while the row re-enters every device's `_synced_at > W OR updated_at > W`
+pull window. The re-sender then pulls the server's fields over its stale ones —
+`pendingLocalEdit` (`client/lib/db/sync-engine/pull.ts`) only steps aside for a
+row with a live `_sync_queue` entry, and the acceptance already deleted it.
+Pinned both ends: `SyncPushResentInsertTest`'s window case and
+`client/__tests__/pull-overwrites-a-stale-accepted-resend.test.ts`.
+
+Every table `getModelForTable()` serves has a `_synced_at` column (verified
+2026-10-18), but the probe is kept and shares `stampSyncedAt()`'s per-push
+cache, so a future table without one is a no-op rather than a SQL error.
+**§11:** server-only, no client change, no shim — an old bundle simply receives
+the row on its next pull, which is the path it has always had.
 
 That bump was the data loss, and it is the same shape as "a sale does not
 version a batch" above. The re-sender is accepted, the server's `_version`
@@ -1355,6 +1702,77 @@ and check the client renders it, because a row that merely stops being
 `diverged` falls through to "Agrees", which is a worse claim than the one being
 removed.
 
+## Per-table agreement (`TableAgreementService`)
+
+`StockDivergenceService` was for a year the **only** comparator between a
+device and the cloud, and it only ever compared stock — so every other synced
+table could diverge on every till while the panel read "Agrees".
+`TableAgreementService` is its sibling for the other 26 tables, recorded from
+`SyncController::recordTableFingerprint()` after the commit (same reason as
+the stock one: taken earlier, the server's side excludes the very batch in
+flight) and read by `/stores/{id}/table-agreement`.
+
+It reuses this file's three verdict rules verbatim — `has_local_copy`,
+`stale` (48h), and `diverged` gated on both — plus two of its own:
+
+- `syncing` — the drift fits inside that table's reported queue depth, in
+  **either** direction (`abs(rowDelta) <= pending && abs(versionDelta) <= pending`).
+  An exact bound, because `resolveUpdateConflict()` assigns exactly one version
+  per accepted non-commutative UPDATE.
+- `behind` — the device holds no more than the cloud by more than its queue
+  explains, and is **not** counted as a divergence until a second consecutive
+  reading says the same. `record()` reads this device's own previous snapshot
+  to decide; see `promote()`.
+
+**Do not make `verdict()` treat a negative version delta as divergence on one
+reading.** The first version did, and it reported a healthy store as diverged
+on every push that carried an UPDATE: the device's fingerprint is built before
+its own edits are accepted, while the server snapshots after the commit, so
+`version_delta` is structurally negative by the number of UPDATEs in flight.
+The full arithmetic is in `docs/DEVICE_TABLE_AGREEMENT.md`.
+
+**The verdict is stored in the snapshot, not recomputed on read**, because it
+depends on the previous reading. Recomputing it in `forStore()` silently undoes
+the promotion rule.
+
+`audit_logs` is deliberately absent from `AGREEMENT_TABLES`: `getModelForTable()`
+maps it onto `ActivityLog` → `activity_logs`, while a separate, unused physical
+`audit_logs` table also exists, so the comparison ran against two different
+tables and produced a large false delta. The general physical-vs-model
+table-name hazard is **A-289** — read that before adding anything else keyed by
+the client's sync table-name string.
+
+The server side lives in `Concerns\CountsSyncedTableRows`, which mirrors
+`SyncController::pull()`'s scoping exactly — including the six child tables
+derived through a `withTrashed()` parent subquery — because the question is
+"does the device hold what a pull would send it", not "does it hold what a
+`store_id` filter matches". `DB::table()` is used deliberately so the
+soft-delete global scope does **not** apply: the device keeps a soft-deleted
+row and so must the comparison.
+
+**The digest is two integers and that is a knowing trade.** Read
+`docs/DEVICE_TABLE_AGREEMENT.md` before relying on an "agrees" — it lists what
+the digest cannot detect (offsetting edits within one table, identity swaps at
+equal count and version, any field value), why a portable hash was not an
+option on SQLite + MySQL, and why the bucketed Merkle shape was costed and
+deferred rather than rejected.
+
+## Delivery timing (`changes_queued_peak`)
+
+`sync_health_daily.changes_queued_peak` is a **gauge, not a counter**: the
+deepest backlog any device of the store reported that day, raised by
+`SyncFailureRecorder::recordQueuePeak()` from the queue-state report. Summing a
+device's queue depth across every push of a day would count the same waiting
+edit once per push, which is why it is not folded into `tally()`'s increments.
+It sits beside `changes_accepted` so accepted-versus-queued reads as a ratio
+rather than two unrelated numbers. A historical row reads 0, which means "not
+measured", not "no backlog".
+
+`device_queue_reports.oldest_queued_seconds` and `delivered_ages` are both
+nullable with no backfill, and `DeviceQueueReportService::deliveredAges()`
+returns `null` rather than a zeroed histogram for a bundle that reports none —
+"not reported" must never render as "every edit arrived instantly".
+
 ## Remote device report (`send_device_report`)
 
 `SyncCommandService::ACTIONS` gains `send_device_report`, and
@@ -1387,9 +1805,35 @@ batches — every one the pull cannot reach (`_synced = 0` or a pending
 `SELECT` to compare them against the server. A device `_version` *behind* the
 server's on a `SHIELDED` row with a different cost is the known shape; equal
 versions with different costs would be new. It is read-only, batch ids and
-costs only — no product names, no customer data — and `buildReport` truncates
-at 60,000 chars because `feedback.content` is a MySQL `TEXT` column that
-rejects anything longer outright.
+costs only — no product names, no customer data.
+
+**The 60,000-character cap, at both ends (2026-10-18, `docs/FIXED_BUGS.md`
+A-276).** `feedback.content` is a MySQL `TEXT` column — 65,535 **bytes**. An
+oversized body does not get stored short; MySQL strict mode raises and the
+whole report is lost with a **500**, on exactly the till that had the most to
+say. So:
+
+- `FeedbackController::MAX_MESSAGE_CHARS = 60_000` is a `max` on the validator,
+  making an oversized submission a clean 422. Keep it in step with the client.
+- `MAX_REPORT_CHARS` in `client/components/settings/diagnostics/diagnostics-report.ts`
+  is the same number, and `fitToTicket()` reserves room for its own
+  `[truncated: N characters omitted]` marker so the result never exceeds the
+  cap it enforces. Truncation keeps the head (identity, clock, queue summary)
+  and sacrifices the tail.
+- **The cap counts characters; the column counts bytes.** 60,000 characters
+  plus the ~530-character `Name:`/`Subject:` prefix fits only while the content
+  is predominantly ASCII, which it is. The complete fix is `MEDIUMTEXT` on that
+  column, deliberately not taken — a production schema change on shared hosting
+  for a margin nothing has approached.
+- **The report is already structurally bounded** — every list behind it is
+  `LIMIT`ed in SQL and several are sliced again in `buildReport()`. Real reports
+  run 15–25 KB, so the cap is insurance, not a routine event. Do not reorder
+  the report's sections for the truncation's sake without first checking that
+  it can actually fire.
+- `/support` is on the `public-write` throttle (5/min per IP,
+  `AppServiceProvider`). The client turns a 429 into "Too many reports sent
+  just now. Download it instead, or wait a minute." — the download route is the
+  intended fallback and works offline.
 
 ## On-till admin inspection: why the credential is not a Sanctum token
 
@@ -2847,6 +3291,17 @@ mis-pointed rows were not repaired. See `docs/KNOWN_BUGS.md` A-189.
   so clients re-pull, and a raw `UPDATE ... NOW()` against this box writes
   ~4 hours behind UTC, so the corrected rows could never pass the pull's
   `updated_at` filter (root `AGENTS.md` §7).
+- **It bumps `_version` too, and must (A-245, fixed 2026-10-18).** `updated_at`
+  alone gets the row re-pulled but does not stop a device *pushing* its stale
+  copy back: an equal version is accepted, so the repair silently reverted.
+  See "A raw `update()` on a synced table must move `_version`" above.
+- **Rows repaired before that fix still carry un-bumped versions**, so they stay
+  exposed until `php artisan sync:backfill-product-versions --since=<when the
+  repair ran>` is run (dry-run by default, `--apply` to write, `--store` to
+  scope, prints the database it will touch first). It keys off
+  `products.updated_at` because the repair leaves no other durable trace, so it
+  is a superset of the repaired rows — narrow the window. **Delete that command
+  once the owner has run it or decided not to;** it has no standing purpose.
 - **Run it per store.** Every repointed product re-downloads to every device on
   that store's next sync, which is the blast radius `docs/KNOWN_BUGS.md` A-185
   describes.
@@ -2981,6 +3436,77 @@ php artisan sync:repair-health-sync-reconciliation --store=<id> --apply
   post-window reconciliation left alone, the clamp, and a quantity moved
   underneath the repair being skipped rather than clobbered (simulated with
   `DB::listen`, since SQLite compiles `lockForUpdate()` away).
+
+## `store_id` backfill: `sync:backfill-store-ids` (A-288, 2026-10-18)
+
+`client/lib/db/schema-migrations.ts`'s `backfillStoreIdOnLegacyRows()` fills
+`store_id` on every legacy row a single-store device holds; the four server
+migrations that added the column
+(`add_store_id_to_domain_tables`, `add_store_id_to_child_domain_tables`,
+`fix_sync_schema_drift`, `add_store_id_to_activity_logs`) left it NULL for the
+11 tables of the first migration and every table of the second. `NULL` matches
+neither `where('store_id', …)` nor `whereIn('store_id', …)`, so such a row is
+invisible to `applyPullTenantScope()` **and** to `CountsSyncedTableRows`: the
+device holds it, the cloud will never send it, and the agreement panel reads a
+permanent positive row delta. §11 "scoping filters are a contract too".
+
+```bash
+php artisan sync:backfill-store-ids                     # report, writes nothing
+php artisan sync:backfill-store-ids --apply
+php artisan sync:backfill-store-ids --store=<id> --apply # only rows resolving to that store
+```
+
+- **The server cannot use the client's answer.** The device's
+  `(SELECT id FROM stores)` works only because its local `stores` table holds
+  the one store it is scoped to; the server holds every store, so the owner has
+  to be *derived* per table. `BackfillStoreIds::DERIVATIONS` is that derivation,
+  as an ordered chain of `[source table, foreign key]` per table, and its key
+  order is the processing order so a parent is always filled before anything
+  deriving from it.
+- **`users` is resolved by ownership, not by reading a column.** A user means
+  exactly one store when the union of {stores they own, `users.store_id`} has
+  one member. Owners have `users.store_id` cleared
+  (`clear_store_id_on_store_owners`, A-127), so for an owner that is their one
+  owned store; for staff it is their employer. A **multi-store owner is
+  ambiguous and is never guessed** — the row keeps its NULL and is counted as
+  unattributable. A row handed to the wrong pharmacy is far worse than a row
+  left stranded.
+- **Confidence, highest first:** a parent row's own `store_id`
+  (`stock_movements`→`products`, `returns`→`sales`, `supplier_payments`→
+  `purchase_orders`/`suppliers`, `purchase_orders`→`suppliers`,
+  `held_transactions`/`loyalty_transactions`/`customer_payments`→`customers`)
+  is as authoritative as the pull's own scoping, because it is the same column
+  the pull reads. A user chain (`products`, `customers`, `categories`,
+  `suppliers`, `expenses`, `prescriptions`, `sales` via `cashier_id`,
+  `loyalty_tiers`, `loyalty_redemption_options`, `stock_audits`,
+  `activity_logs`, `audit_logs`) is high confidence for a single-store owner
+  and refused outright otherwise. `requested_products` has **no** owner column
+  of any kind and is report-only: its rows can never be attributed.
+- **It does not touch `updated_at` or `_version`**, on purpose, and uses
+  `DB::table()` rather than Eloquent so neither moves. The A-288 case is a row
+  the device *already holds* (it backfilled its own copy), so no pull is needed
+  to deliver it; a device that lacks the row pulls from `last_synced = []` and
+  gets it on `store_id` alone. Bumping `updated_at` would re-deliver every
+  backfilled row to every device for no gain, and bumping `_version` would
+  break the very agreement digest this fixes.
+- **Idempotent and chunked** (`whereNull('store_id')` + keyset paging on `id`,
+  500 at a time). A second `--apply` reports "Nothing to attribute".
+- **Forward protection:** a new nullable `store_id` on a store-scoped table
+  needs a backfill in the same change as the column, or it ships A-288 again
+  (A-245 was the `_version` version of the same omission).
+  `BackfillStoreIdTest::test_every_directly_scoped_agreement_table_has_a_derivation`
+  fails if a table is added to `CountsSyncedTableRows::AGREEMENT_TABLES`
+  without one.
+- **Retirement:** the command can be deleted once every live store reports a
+  zero `row_delta` on the agreement panel for every directly-scoped table and
+  no `… IS NULL` rows remain. It is a one-shot repair, not a shim in a request
+  path, so leaving it costs nothing but a file.
+- **Tests:** `tests/Feature/BackfillStoreIdTest.php` — attribution from a
+  single-store owner, the attributed row becoming pullable, a multi-store
+  owner's and an owner-less row left NULL and counted, dry run writing nothing,
+  a chained row filled through a parent filled in the same run, the dry run
+  forecasting that chain identically, idempotence, `--store=` scoping, and the
+  database being named before anything else.
 
 ## Running artisan on the production box (Namecheap shared hosting)
 

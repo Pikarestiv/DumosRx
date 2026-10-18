@@ -100,6 +100,52 @@ describe("DeviceReportAction", () => {
   });
 
   /**
+   * Shipped in 0470a731: `applied` returned only the badge, so one successful
+   * report turned the control into a permanent label and the device could
+   * never be re-checked after a change — which is the entire point of it.
+   */
+  it("still lets a super admin ask again once a report has arrived", () => {
+    commands.rows = [
+      {
+        id: "c1",
+        status: "applied",
+        device_id: "DRX-TILL-1",
+        action: "send_device_report",
+        result: "report sent",
+        acted_at: "2026-10-17T10:31:00Z",
+      },
+    ];
+    render(<DeviceReportAction storeId="s1" deviceId="DRX-TILL-1" />);
+
+    expect(screen.getByText(/report received/i)).toBeDefined();
+
+    const again = screen.getByRole("button", { name: /request again/i });
+    again.click();
+
+    expect(issueMutate.mock.calls[0][0]).toMatchObject({
+      device_id: "DRX-TILL-1",
+      action: "send_device_report",
+    });
+  });
+
+  it("hides the re-request from a non-super_admin on an applied row too", () => {
+    authState.user = { role: "support" };
+    commands.rows = [
+      {
+        id: "c1",
+        status: "applied",
+        device_id: "DRX-TILL-1",
+        action: "send_device_report",
+        acted_at: "2026-10-17T10:31:00Z",
+      },
+    ];
+    render(<DeviceReportAction storeId="s1" deviceId="DRX-TILL-1" />);
+
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.queryByText(/report received/i)).toBeNull();
+  });
+
+  /**
    * The rate limit the till applies to itself. Nobody has ever seen this
    * message, because the badge it would have appeared on had already vanished.
    */
@@ -133,7 +179,7 @@ describe("DeviceReportAction", () => {
     render(<DeviceReportAction storeId="s1" deviceId="DRX-TILL-1" />);
 
     expect(screen.getByText(/could not build the report/i)).toBeDefined();
-    expect(screen.getByRole("button", { name: /request report/i })).toBeDefined();
+    expect(screen.getByRole("button", { name: /request again/i })).toBeDefined();
   });
 
   /** Only the newest command for the device decides what is shown. */

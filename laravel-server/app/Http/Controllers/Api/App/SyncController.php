@@ -95,6 +95,31 @@ class SyncController extends Controller
     }
 
     /**
+     * Two integers per synced table — row count and the sum of `_version` —
+     * compared against the rows a pull would send this device. The sibling
+     * of recordStockFingerprint(), which only ever measured stock. Absent
+     * from an older bundle's payload, in which case nothing is recorded and
+     * the panel reads "not reported". Fully try/caught: a reporting failure
+     * must never fail a sync. See docs/DEVICE_TABLE_AGREEMENT.md.
+     */
+    private function recordTableFingerprint(Request $request, $user, ?string $storeId): void
+    {
+        $fingerprint = $request->input('table_fingerprint');
+        $deviceId = $request->header('X-Device-Id');
+
+        if (! $storeId || ! $deviceId || ! is_array($fingerprint)) {
+            return;
+        }
+
+        try {
+            app(\App\Services\Admin\TableAgreementService::class)
+                ->record($storeId, $deviceId, $user?->id, $fingerprint);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to record table fingerprint', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
      * What this device says is in its own `_sync_queue`. Fully try/caught:
      * reporting must never fail a sync.
      */
@@ -365,6 +390,9 @@ class SyncController extends Controller
                     $conflict = $this->findDuplicateInsertConflict($modelClass, $change['table_name'], $payload, $recordId);
                     if ($conflict) {
                         $exists = true; // Pretend it exists to skip insertion
+                        if (\method_exists($conflict, 'trashed') && $conflict->trashed()) {
+                            $this->reviveConflictTarget($conflict, $change['table_name'], $payload, $hasSyncedAtCache, $now);
+                        }
                         $idMap[$recordId] = $conflict->id;
                         // Only categories/suppliers are reported back to the
                         // client in the response's id_map; the users remap
@@ -596,6 +624,10 @@ class SyncController extends Controller
                             $this->resolveUpdateConflict($change['table_name'], $model, $payload, $isCommutativeTable, $recordId, $isResentInsert);
 
                         if ($versionConflict) {
+                            if ($isResentInsert) {
+                                $this->reopenPullWindow($model, $hasSyncedAtCache, $now);
+                            }
+
                             // Must close the per-change savepoint opened above
                             // before skipping to the next change. A bare
                             // `continue` here left it dangling every time an
@@ -767,7 +799,7 @@ class SyncController extends Controller
                 Log::info("Sync push: existence probe converted {$insertOverrides} INSERT(s) to UPDATE, {$resentInsertsAccepted} accepted without writing");
             }
 
-            $this->applyStockBatchDeltas($stockBatchDeltas, $failed);
+            $this->applyStockBatchDeltas($stockBatchDeltas, $failed, $isSuperAdmin ? null : $allowedStoreIds);
 
             $firstSyncedStore = $this->touchStoreLastSyncAt($request);
 
@@ -792,6 +824,7 @@ class SyncController extends Controller
             // number already included them, reporting a divergence that was
             // only ever the batch in flight.
             $this->recordStockFingerprint($request, $currentUser, $currentStoreId);
+            $this->recordTableFingerprint($request, $currentUser, $currentStoreId);
 
             return response()->json([
                 'success' => true,
@@ -847,6 +880,12 @@ class SyncController extends Controller
         }
     }
 
+    /**
+     * How far behind `now()` a pull's returned watermark is stamped. Reasoning
+     * and the cost in laravel-server/AGENTS.md, "The pull watermark lags".
+     */
+    public const PULL_WATERMARK_LAG_SECONDS = 60;
+
     #[OA\Post(
         path: '/app/sync/pull',
         summary: 'Pull server-side changes down to the client',
@@ -900,7 +939,7 @@ class SyncController extends Controller
         $this->hasSyncedAtColumnCache = [];
         $changes = [];
         $hasMore = [];
-        $serverTimestamp = now()->toIso8601String();
+        $serverTimestamp = now()->subSeconds(self::PULL_WATERMARK_LAG_SECONDS)->toIso8601String();
         // stock_audits, held_transactions, loyalty_transactions,
         // customer_payments, and audit_logs were all missing from this list
         // — their changes could push (once the corresponding
@@ -1144,8 +1183,8 @@ class SyncController extends Controller
             // stock_batches — see A-176a below and counts()'s matching rule.
             'sale_items' => $query->whereIn('sale_id', $this->tenantSaleIds($storeIds)),
             'return_items' => $query->whereIn('return_id', \App\Models\SaleReturn::query()->select('id')->whereIn('store_id', $storeIds)),
-            'prescription_items' => $query->whereIn('prescription_id', \App\Models\Prescription::query()->select('id')->whereIn('store_id', $storeIds)),
-            'purchase_order_items' => $query->whereIn('purchase_order_id', PurchaseOrder::query()->select('id')->whereIn('store_id', $storeIds)),
+            'prescription_items' => $query->whereIn('prescription_id', \App\Models\Prescription::withTrashed()->select('id')->whereIn('store_id', $storeIds)),
+            'purchase_order_items' => $query->whereIn('purchase_order_id', PurchaseOrder::withTrashed()->select('id')->whereIn('store_id', $storeIds)),
             // withTrashed() is load-bearing: see docs/FIXED_BUGS.md A-176a.
             'stock_batches' => $query->whereIn('product_id', Product::withTrashed()->select('id')->whereIn('store_id', $storeIds)),
             'sale_item_batches' => $query->whereIn(
@@ -1321,7 +1360,7 @@ class SyncController extends Controller
      * comments (preserved verbatim below) for why this runs after the main
      * loop, per-delta-savepointed, as a single atomic floored UPDATE.
      */
-    private function applyStockBatchDeltas(array $stockBatchDeltas, array &$failed): void
+    private function applyStockBatchDeltas(array $stockBatchDeltas, array &$failed, ?array $allowedStoreIds = null): void
     {
         // Apply every accumulated stock_movements delta, now that every
         // change in this push has been processed and any batch created
@@ -1355,6 +1394,17 @@ class SyncController extends Controller
         // both engines (production is MySQL, tests run on sqlite — see
         // phpunit.xml).
         foreach ($stockBatchDeltas as $stockBatchId => $delta) {
+            if ($this->isBatchOutsideScope($stockBatchId, $allowedStoreIds)) {
+                Log::warning("Sync push: refused a stock_movements delta of {$delta} against stock_batch_id {$stockBatchId}, which belongs to a store the caller may not write to.");
+                $failed[] = [
+                    'id' => null,
+                    'table_name' => 'stock_batches',
+                    'record_id' => $stockBatchId,
+                    'reason' => 'permission_denied',
+                ];
+                continue;
+            }
+
             DB::beginTransaction();
             try {
                 $affected = DB::update(
@@ -1577,6 +1627,68 @@ class SyncController extends Controller
     }
 
     /**
+     * Brings back the trashed row a pushed INSERT was remapped onto, carrying
+     * the payload's user-authored columns across: the remap tombstones the
+     * row the client just created, so anything not applied here is lost.
+     * Reasoning in laravel-server/AGENTS.md, "Every pulled table soft-deletes".
+     */
+    private function reviveConflictTarget($conflict, string $tableName, array $payload, array &$hasSyncedAtCache, $now): void
+    {
+        $conflict->restore();
+
+        $authoredColumns = match ($tableName) {
+            'categories' => ['name', 'description', 'parent_id', 'is_active'],
+            default => [],
+        };
+
+        $conflict->forceFill(array_intersect_key($payload, array_flip($authoredColumns)));
+        $conflict->_version = (int) ($conflict->_version ?? 1) + 1;
+        $this->stampSyncedAt($conflict, $hasSyncedAtCache, $now);
+        $conflict->save();
+    }
+
+    /**
+     * Whether an accumulated delta's batch exists and belongs to a store the
+     * pusher may not write to. A batch that does not exist resolves to no
+     * store and is deliberately NOT out of scope — see
+     * laravel-server/AGENTS.md, "Stock batch deltas are store-scoped".
+     */
+    private function isBatchOutsideScope($stockBatchId, ?array $allowedStoreIds): bool
+    {
+        if ($allowedStoreIds === null) {
+            return false;
+        }
+
+        $productId = StockBatch::where('id', $stockBatchId)->value('product_id');
+        if (!$productId) {
+            return false;
+        }
+
+        $storeId = Product::withTrashed()->where('id', $productId)->value('store_id');
+
+        return $storeId !== null && !in_array($storeId, $allowedStoreIds, true);
+    }
+
+    /**
+     * Puts a row back inside every device's incremental pull window without
+     * touching its content, its `updated_at` or its `_version` — the query
+     * builder, never Eloquent, so no timestamp or model event can move them.
+     * Rationale in laravel-server/AGENTS.md, "Re-sent INSERTs".
+     */
+    private function reopenPullWindow($model, array &$hasSyncedAtCache, $now): void
+    {
+        $table = $model->getTable();
+        if (!isset($hasSyncedAtCache[$table])) {
+            $hasSyncedAtCache[$table] = \Illuminate\Support\Facades\Schema::hasColumn($table, '_synced_at');
+        }
+        if ($hasSyncedAtCache[$table]) {
+            DB::table($table)
+                ->where($model->getKeyName(), $model->getKey())
+                ->update(['_synced_at' => $now]);
+        }
+    }
+
+    /**
      * Last-chance defaults for NOT NULL columns the client may leave empty,
      * applied to the hydrated model right before save() on both the INSERT
      * and UPDATE paths (which ran byte-identical copies of this inline).
@@ -1662,6 +1774,10 @@ class SyncController extends Controller
         if (($tableName === 'categories' || $tableName === 'suppliers') && !empty($payload['name'])) {
             $payloadStoreId = $payload['store_id'] ?? null;
             $conflict = $modelClass::where('name', $payload['name'])
+                ->when(
+                    $tableName === 'categories',
+                    fn ($q) => $q->withTrashed(),
+                )
                 ->when(
                     $payloadStoreId === null,
                     fn ($q) => $q->whereNull('store_id'),
@@ -2141,7 +2257,7 @@ class SyncController extends Controller
      */
     private function sanitizePermissionGroupSyncPayload(array $payload, ?string $recordId, string $operation, $currentUser, array $allowedStoreIds = []): array
     {
-        $existing = $recordId ? \App\Models\PermissionGroup::find($recordId) : null;
+        $existing = $recordId ? \App\Models\PermissionGroup::withTrashed()->find($recordId) : null;
 
         // Ownership is authorized later (authorizeChangeTarget), but that
         // check runs AFTER this method for the DELETE/UPDATE paths - so a
@@ -2176,7 +2292,7 @@ class SyncController extends Controller
             $isFirstTimeDefaultSeed = !empty($payload['is_default'])
                 && !empty($payload['based_on_role'])
                 && $currentUser->store_id
-                && !\App\Models\PermissionGroup::where('store_id', $currentUser->store_id)
+                && !\App\Models\PermissionGroup::withTrashed()->where('store_id', $currentUser->store_id)
                     ->where('based_on_role', $payload['based_on_role'])
                     ->exists();
             if ($isFirstTimeDefaultSeed) {
@@ -2420,10 +2536,10 @@ class SyncController extends Controller
             return isset($model->return_id) ? \App\Models\SaleReturn::where('id', $model->return_id)->value('store_id') : null;
         }
         if ($tableName === 'prescription_items') {
-            return isset($model->prescription_id) ? \App\Models\Prescription::where('id', $model->prescription_id)->value('store_id') : null;
+            return isset($model->prescription_id) ? \App\Models\Prescription::withTrashed()->where('id', $model->prescription_id)->value('store_id') : null;
         }
         if ($tableName === 'purchase_order_items') {
-            return isset($model->purchase_order_id) ? PurchaseOrder::where('id', $model->purchase_order_id)->value('store_id') : null;
+            return isset($model->purchase_order_id) ? PurchaseOrder::withTrashed()->where('id', $model->purchase_order_id)->value('store_id') : null;
         }
         if ($tableName === 'stock_batches') {
             return isset($model->product_id) ? Product::where('id', $model->product_id)->value('store_id') : null;

@@ -377,9 +377,13 @@ and `synchronous = NORMAL`.
     plus the highest-value rows, since a valuation gap big enough to notice is
     dominated by a few of those. Batch ids, costs, quantities and versions
     only — no product names. `buildReport` truncates the whole report at
-    60,000 chars: `feedback.content` is a MySQL `TEXT` column, which rejects
-    anything longer outright rather than storing it short, and the report
-    matters most on the device with the most to say. The three fields are in
+    `MAX_REPORT_CHARS` (60,000), keeping the head and marking the cut
+    `[truncated: N characters omitted]`: `feedback.content` is a MySQL `TEXT`
+    column, and before 2026-10-18 an oversized body was a **500** that lost the
+    report whole — on the device with the most to say. `/support` now caps
+    `message` at the same number, so the failure is a 422 instead. Keep the two
+    in step; the reasoning, and why the section order was left alone, is in
+    laravel-server/AGENTS.md, "Remote device report". The three fields are in
     the collector and the ticket; the on-screen console does not render them
     yet, because the remote ticket is what support reads.
   - **What it captures, and why each field exists.** A 2026-10-09 audit scored
@@ -1196,9 +1200,31 @@ times.
   2026-10-12 ignores it and an older client may omit it. A differing fingerprint is *proof* that this device and the server
   disagree about stock; it cannot say which batch, which is deliberate — that
   would be an unbounded payload.
+- **`table_fingerprint`** (`sync-engine/table-fingerprint.ts`): per synced
+  table (25 of the 26 — `audit_logs` is in `TABLES_NOT_COMPARED` because the
+  server compares a different physical table and discards the digest), the row
+  count, the sum of `_version`, and that table's unpushed queue depth. **The
+  queue depth is load-bearing, not decorative:** this report is built before
+  the push it rides on is accepted, so the server sees a structurally negative
+  version delta and uses `p` as the exact budget that explains it. Dropping or
+  zeroing `p` would make every push report a divergence. Soft-deleted rows are counted on purpose; `_deleted` is deliberately
+  NOT in the digest. Unlike the other three this one is **throttled to once
+  per 15 minutes** and returns `null` outside that window, so the field is
+  simply absent and the server keeps the previous snapshot — a report is only
+  ever sent in the push that computed it, never a stale reading against a live
+  cloud. Short keys (`t`/`r`/`v`/`p`) keep 26 tables at 1,226 bytes. **Read
+  `docs/DEVICE_TABLE_AGREEMENT.md` before trusting an "agrees": the digest
+  cannot see offsetting edits inside one table, an identity swap at equal
+  count and version, or any field value at all.**
 - **`queue_state`** (`sync-engine/queue-state.ts`): queue depth plus, for each
   stuck row, the table, record id, attempt count and a canonicalised reason.
-  The cap is `LIMIT ?` **in the SQL**, not a `.slice()` after the fact.
+  The cap is `LIMIT ?` **in the SQL**, not a `.slice()` after the fact. It also
+  carries `oldest_queued_seconds` (from the `MIN(created_at)` the depth query
+  was already free to compute) and `delivered_ages`, the histogram
+  `markSynced()` fills from each accepted row's age. `drainDeliveredAges()`
+  **clears on read**, so this report owns the drain; the pasteable support
+  ticket calls `peekDeliveredAges()` instead. Add a second drain anywhere and
+  the admin panel silently sees half the deliveries.
 - **The reason is canonicalised on the device, not on the server.** A raw
   driver error embeds the failing SQL and its bindings — customer names, phone
   numbers, amounts. The server canonicalises again on storage, but a raw string
@@ -1445,6 +1471,17 @@ table the client never pulls.
   offsets mid-round, which was an accepted trade-off because a row missed
   that way still has `updated_at >= ` this round's start and is caught by
   the next delta pull.
+- **A drained table is stamped with the round's FIRST page timestamp, never
+  the page that happened to drain it (A-282).** `roundTimestamp` is captured
+  from page 1 and used for every `completeWindow` in that round, including the
+  deferred-movement one. A later page's `server_timestamp` covers time the
+  earlier pages never queried: the keyset orders by `(updated_at, id)` while
+  the server's filter also admits `_synced_at`, so a row that enters the window
+  mid-round with an older `updated_at` than the cursor already passed sorts
+  behind it and is never seen that round. Stamping the last page's instant
+  moved the watermark past it anyway. The server also lags `server_timestamp`
+  by 60s for the same class of gap — see `laravel-server/AGENTS.md`, "The pull
+  watermark lags", before changing either half.
 - **`categories`/`suppliers` (`DUPLICATE_NAME_TABLES`) are never given a
   cursor.** The server treats a table missing from `last_synced` as "return
   everything", and duplicate-name reconciliation can only fix a collision if
@@ -1566,9 +1603,14 @@ table the client never pulls.
     because nothing uses it.** It touches with `{0, 0}`, which is right for the
     columns a pulled UPDATE actually changes today — none of them is a
     movement's `quantity` or `_deleted`. `StockMovement` has no `SoftDeletes`
-    server-side, so the server never emits `_deleted: 1` for a movement and
-    ignores a pushed one, and no client code updates or removes a movement row
-    beyond its `status`. **If movements ever become soft-deletable, that touch
+    server-side, so the server never emits `_deleted: 1` for a movement — but
+    it does **not** ignore a pushed movement delete, as this line used to
+    claim: `push()`'s DELETE branch would **hard-delete** the row, destroying
+    the log entry a batch's quantity is derived from. Nothing queues one today,
+    and `StockMovement` was deliberately left out of A-281 for the reason in
+    the next bullet; the hard delete is filed as `docs/KNOWN_BUGS.md` A-283.
+    No client code updates or removes a movement row beyond its `status`.
+    **If movements ever become soft-deletable, that touch
     must carry `{-q, -max(0,q)}`**, or a voided *receipt* leaves its units on
     the shelf for ever: `inboundBefore` reads 0, the batch classifies as a
     carve-out and keeps its stored figure. A voided sale happens to come out

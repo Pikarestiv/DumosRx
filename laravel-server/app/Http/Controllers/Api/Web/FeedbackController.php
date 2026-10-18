@@ -10,6 +10,9 @@ use OpenApi\Attributes as OA;
 
 class FeedbackController extends Controller
 {
+    /** Matches the device report's own cap — client/components/settings/diagnostics/diagnostics-report.ts. */
+    public const MAX_MESSAGE_CHARS = 60_000;
+
     #[OA\Post(
         path: '/support',
         summary: 'Submit a public support request',
@@ -21,7 +24,7 @@ class FeedbackController extends Controller
                 new OA\Property(property: 'name', type: 'string', maxLength: 255),
                 new OA\Property(property: 'email', type: 'string', format: 'email'),
                 new OA\Property(property: 'subject', type: 'string', maxLength: 255),
-                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'message', type: 'string', maxLength: 60000),
             ],
         )),
         responses: [
@@ -38,7 +41,7 @@ class FeedbackController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'subject' => 'required|string|max:255',
-            'message' => 'required|string'
+            'message' => 'required|string|max:'.self::MAX_MESSAGE_CHARS,
         ]);
 
         $feedback = new Feedback();

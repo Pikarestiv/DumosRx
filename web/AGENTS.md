@@ -499,6 +499,22 @@ exactly — `checkIsSuperAdmin` itself (the panel is `view_platform_health`, the
 route is `role:super_admin`), and a `pending` command for this device and this
 action replaces the button rather than offering a second one.
 
+**An outcome and an action must coexist on every terminal state (2026-10-18,
+`docs/FIXED_BUGS.md` A-276).** A-274 gave this control the command's real
+status, and `applied` was written to return the "Report received" badge
+**alone**. That made one successful report permanent: the control became a
+label and the device could never be re-checked after a change, which is the
+only reason to want a report. Only `pending` and `sent` may replace the button
+— a request is genuinely in flight then. Every terminal state (`applied`,
+`refused`, `failed`) renders its outcome **and** an enabled control, stacked,
+and the button reads **"Request again"** whenever a prior command exists so it
+does not look like a no-op beside a stale badge. The badge keeps
+`formatDateSafe(…, "dd/MM/yyyy HH:mm")` and deliberately does not age: unlike
+A-274's stock snapshots, a report is a one-off artefact and its timestamp is
+the point. The toast names the device's label as well as its id (root
+`AGENTS.md` §6) — the label is passed down from the divergence row, which
+already had it.
+
 **A command needs an exact `device_id`.** `SyncCommandService::pendingFor()`
 claims with `where('device_id', $deviceId)`, so a command carrying a null or
 empty one is never claimed by any device and sits `pending` for ever. The API
@@ -1327,3 +1343,42 @@ needs no API change — and render every state. `applied` carries `result` in th
 `title`; `refused`/`failed` put the reason on screen and keep the action
 available so the operator can retry. Timestamps are `dd/MM/yyyy HH:mm` via
 `formatDateSafe` (root `AGENTS.md` §6), never a bare date.
+
+## Device Table Agreement panel
+
+`store-table-agreement-section.tsx`, mounted on the store-details page below
+Device Stock Agreement. It lists only the tables that do **not** agree: a
+26-row table per device is unreadable and the useful signal is the exception.
+It inherits the stock panel's hard-won rules rather than re-earning them — "No
+local copy of this store" instead of a huge delta (A-274), "Stopped reporting"
+for a snapshot past 48h (A-252), and never "every table agrees" for a store
+nobody has reported for.
+
+Three non-diverged verdicts are distinct on purpose, and none of them is an
+alarm: **"Still syncing"** (the drift fits this table's queued-edit count) and
+**"Catching up"** (`behind` — the device has not pulled another till's write
+yet, and only a second consecutive reading promotes it). A genuinely diverged
+table with the same row count but a different version sum renders as "same rows,
+other edits" with the signed version delta beneath. Collapsing that into
+"agrees" was the whole bug class this panel exists to catch.
+
+**Never print "Every table agrees" above a row that is catching up.** The
+device badge reads `Catching up on N` and the headline reads "No device
+disagrees with the cloud; N is still catching up" whenever a comparable device
+has unsettled tables. An operator who spots that contradiction stops trusting
+the panel, which costs more than the reassurance is worth.
+
+Expect `sale_items`, `return_items` and `sale_item_batches` to read
+device-behind on any store with a voided sale — that is A-284 surfacing, not a
+panel bug — and a small positive row delta on some tables until A-288's backfill
+lands. `docs/DEVICE_TABLE_AGREEMENT.md` has both.
+
+The panel's own copy states the digest's limit — row count and version sum,
+blind to two offsetting edits inside one table. Keep it there; a panel that
+implies proof it does not have is worse than no panel.
+
+The Stuck On Devices panel gained a delivery-timing block from the same work:
+the oldest unsynced edit's age and the delivered-age histogram. Both fields are
+**optional** in `DeviceQueueReport`, so a bundle served against a server
+without the migration still renders, and absent reads as nothing rather than as
+"delivered instantly".

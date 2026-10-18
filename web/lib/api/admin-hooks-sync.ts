@@ -5,6 +5,7 @@ import type { AdminSyncHealth, AdminStoreSyncHealth } from "@/lib/types/admin";
 import type {
   StoreStockDivergence,
   StoreQueueState,
+  StoreTableAgreement,
   SyncCommandRow,
 } from "@/lib/types/admin-platform";
 
@@ -48,6 +49,15 @@ export const useStoreStockDivergence = (storeId: string, enabled = true) =>
     queryKey: useScopedKey(["admin-store-stock-divergence", storeId]),
     queryFn: () =>
       webApiClient.request<StoreStockDivergence>(`admin/stores/${storeId}/stock-divergence`),
+    enabled: enabled && Boolean(storeId),
+    staleTime: 60 * 1000,
+  });
+
+export const useStoreTableAgreement = (storeId: string, enabled = true) =>
+  useQuery({
+    queryKey: useScopedKey(["admin-store-table-agreement", storeId]),
+    queryFn: () =>
+      webApiClient.request<StoreTableAgreement>(`admin/stores/${storeId}/table-agreement`),
     enabled: enabled && Boolean(storeId),
     staleTime: 60 * 1000,
   });

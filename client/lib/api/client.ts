@@ -157,6 +157,7 @@ class ApiClient extends FleetBillingApiClient {
         quantity_sum: number;
         value_sum?: number;
       } | null;
+      table_fingerprint?: unknown;
       queue_state?: unknown;
       sync_command_results?: unknown;
     },

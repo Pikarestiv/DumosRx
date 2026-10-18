@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\PermissionGroup;
 use App\Models\Store;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -203,7 +204,7 @@ class PermissionGroupSeeder
             return;
         }
 
-        $existingRoles = PermissionGroup::where('store_id', $store->id)->pluck('based_on_role')->all();
+        $existingRoles = PermissionGroup::withTrashed()->where('store_id', $store->id)->pluck('based_on_role')->all();
 
         $groupIdByRole = [];
         foreach (self::DEFAULT_GROUP_PERMISSIONS as $role => $permissions) {
@@ -228,7 +229,10 @@ class PermissionGroupSeeder
             User::where('store_id', $store->id)
                 ->where('role', $role)
                 ->whereNull('permission_group_id')
-                ->update(['permission_group_id' => $groupIdByRole[$role]]);
+                ->update([
+                    'permission_group_id' => $groupIdByRole[$role],
+                    '_version' => DB::raw('COALESCE(_version, 0) + 1'),
+                ]);
         }
 
         $store->permission_groups_seeded_at = now();

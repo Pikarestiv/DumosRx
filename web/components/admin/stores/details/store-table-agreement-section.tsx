@@ -36,10 +36,20 @@ function DeviceVerdict({ device }: { device: DeviceTableReport }) {
     return <Badge variant="outline">Stopped reporting</Badge>;
   }
 
-  return device.diverged_tables.length > 0 ? (
-    <Badge variant="destructive">
-      {`${device.diverged_tables.length} table${device.diverged_tables.length === 1 ? "" : "s"} disagree`}
-    </Badge>
+  if (device.diverged_tables.length > 0) {
+    return (
+      <Badge variant="destructive">
+        {`${device.diverged_tables.length} table${device.diverged_tables.length === 1 ? "" : "s"} disagree`}
+      </Badge>
+    );
+  }
+
+  // "Every table agrees" above a listed catching-up table is a contradiction
+  // the operator notices, and then stops trusting the panel.
+  const unsettled = device.tables.filter((row) => row.verdict !== "agrees").length;
+
+  return unsettled > 0 ? (
+    <Badge variant="outline">{`Catching up on ${unsettled}`}</Badge>
   ) : (
     <Badge variant="secondary">Every table agrees</Badge>
   );
@@ -66,12 +76,14 @@ function DisagreeingTables({ device }: { device: DeviceTableReport }) {
           <div className="shrink-0 text-right">
             {row.verdict === "syncing" ? (
               <Badge variant="outline">Still syncing</Badge>
+            ) : row.verdict === "behind" ? (
+              <Badge variant="outline">Catching up</Badge>
             ) : (
               <Badge variant="destructive">
                 {row.row_delta !== 0 ? `${signed(row.row_delta)} rows` : "same rows, other edits"}
               </Badge>
             )}
-            {row.row_delta === 0 && row.version_delta !== 0 && (
+            {row.verdict === "diverged" && row.row_delta === 0 && row.version_delta !== 0 && (
               <p className="mt-1 text-[11px] text-muted-foreground">
                 {`version sum ${signed(row.version_delta)}`}
               </p>
@@ -118,6 +130,9 @@ export function StoreTableAgreementSection({
   }
 
   const comparable = data.devices.filter((d) => d.has_local_copy !== false && !d.stale);
+  const catchingUp = comparable.filter(
+    (d) => d.diverged_tables.length === 0 && d.tables.some((row) => row.verdict !== "agrees"),
+  ).length;
 
   return (
     <div className="space-y-4">
@@ -133,7 +148,9 @@ export function StoreTableAgreementSection({
           <>
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
             <p className="text-sm font-bold text-foreground">
-              Every reporting device holds the same rows as the cloud.
+              {catchingUp === 0
+                ? "Every reporting device holds the same rows as the cloud."
+                : `No device disagrees with the cloud; ${catchingUp} is still catching up.`}
             </p>
           </>
         ) : (

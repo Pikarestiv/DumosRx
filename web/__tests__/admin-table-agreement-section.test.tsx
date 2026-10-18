@@ -79,6 +79,37 @@ describe("StoreTableAgreementSection", () => {
     expect(screen.getByText(/1 table disagree/i)).toBeDefined();
   });
 
+  /**
+   * A device whose own in-flight push the cloud has already accepted reads
+   * as behind on every push it makes. Rendering that as a disagreement made
+   * a working pharmacy look broken all day.
+   */
+  it("renders a behind table as catching up, not as a disagreement", () => {
+    render(
+      <StoreTableAgreementSection
+        data={{
+          measured: true,
+          diverged_devices: 0,
+          devices: [
+            device({
+              tables: [
+                row({ table: "sales", row_delta: -2, version_delta: -2, verdict: "behind" }),
+              ],
+            }),
+          ],
+        }}
+        isLoading={false}
+      />,
+    );
+
+    expect(screen.getByText("Catching up")).toBeDefined();
+    expect(screen.getByText("sales")).toBeDefined();
+    expect(screen.queryByText("-2 rows")).toBeNull();
+    // Not "every table agrees": that would contradict the row below it.
+    expect(screen.getByText("Catching up on 1")).toBeDefined();
+    expect(screen.queryByText(/every table agrees/i)).toBeNull();
+  });
+
   it("shows a device with no local copy as such rather than as a huge divergence", () => {
     render(
       <StoreTableAgreementSection

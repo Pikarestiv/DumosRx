@@ -85,9 +85,12 @@ class SyncTableFingerprintIngestTest extends TestCase
 
         $this->assertNotNull($row);
         $this->assertSame(0, (int) $row->diverged_count);
+        // The verdict is stored, not recomputed on read: it depends on the
+        // previous reading, so recomputing would undo the promotion rule.
         $this->assertSame(
             [['table' => 'products', 'device_rows' => 1, 'device_version_sum' => 4,
-                'device_pending' => 0, 'server_rows' => 1, 'server_version_sum' => 4]],
+                'device_pending' => 0, 'server_rows' => 1, 'server_version_sum' => 4,
+                'row_delta' => 0, 'version_delta' => 0, 'verdict' => 'agrees']],
             json_decode($row->tables, true),
         );
     }

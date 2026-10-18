@@ -30,6 +30,14 @@ class TableAgreementService
      */
     private const STALE_AFTER_HOURS = 48;
 
+    private const AGREES = 'agrees';
+
+    private const SYNCING = 'syncing';
+
+    private const BEHIND = 'behind';
+
+    private const DIVERGED = 'diverged';
+
     /**
      * Freezes both sides of the comparison at report time. A stored row is
      * never recompared on read: a snapshot that changed meaning later is
@@ -63,7 +71,10 @@ class TableAgreementService
             ];
         }
 
-        $compared = $this->compare($rows);
+        $compared = $this->promote(
+            $this->compare($rows),
+            $this->previousVerdicts($storeId, $deviceId),
+        );
 
         return DeviceTableReport::updateOrCreate(
             ['store_id' => $storeId, 'device_id' => $deviceId],
@@ -71,12 +82,54 @@ class TableAgreementService
                 'user_id' => $userId,
                 'diverged_count' => count(array_filter(
                     $compared,
-                    fn (array $row) => $row['verdict'] === 'diverged',
+                    fn (array $row) => $row['verdict'] === self::DIVERGED,
                 )),
-                'tables' => $rows,
+                'tables' => $compared,
                 'reported_at' => now(),
             ],
         );
+    }
+
+    /**
+     * This device's own last verdict per table. One reading cannot tell a
+     * device that is merely behind from one that has lost a row, because the
+     * snapshot is frozen before this push's own edits are accepted.
+     *
+     * @return array<string, string>
+     */
+    private function previousVerdicts(string $storeId, string $deviceId): array
+    {
+        $previous = DeviceTableReport::where('store_id', $storeId)
+            ->where('device_id', $deviceId)
+            ->first();
+
+        $verdicts = [];
+
+        foreach ((array) ($previous->tables ?? []) as $row) {
+            if (is_array($row) && isset($row['table'], $row['verdict'])) {
+                $verdicts[(string) $row['table']] = (string) $row['verdict'];
+            }
+        }
+
+        return $verdicts;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     * @param  array<string, string>  $previous
+     * @return array<int, array<string, mixed>>
+     */
+    private function promote(array $rows, array $previous): array
+    {
+        return array_map(function (array $row) use ($previous) {
+            $was = $previous[$row['table']] ?? null;
+
+            if ($row['verdict'] === self::BEHIND && in_array($was, [self::BEHIND, self::DIVERGED], true)) {
+                $row['verdict'] = self::DIVERGED;
+            }
+
+            return $row;
+        }, $rows);
     }
 
     /** Drops one device's snapshot; it returns when that device next reports. */
@@ -99,7 +152,7 @@ class TableAgreementService
         $nicknames = $this->deviceNicknames($storeId, $deviceIds);
 
         $devices = $reports->map(function (DeviceTableReport $report) use ($labels, $nicknames) {
-            $tables = $this->compare((array) ($report->tables ?? []));
+            $tables = $this->storedVerdicts((array) ($report->tables ?? []));
             $stale = $report->reported_at === null
                 || $report->reported_at->lt(now()->subHours(self::STALE_AFTER_HOURS));
 
@@ -108,7 +161,7 @@ class TableAgreementService
             $hasLocalCopy = $this->holdsACopy($tables);
             $diverged = array_values(array_map(
                 fn (array $row) => $row['table'],
-                array_filter($tables, fn (array $row) => $row['verdict'] === 'diverged'),
+                array_filter($tables, fn (array $row) => $row['verdict'] === self::DIVERGED),
             ));
 
             return [
@@ -131,6 +184,27 @@ class TableAgreementService
             'diverged_devices' => count(array_filter($devices, fn (array $d) => $d['diverged'])),
             'devices' => $devices,
         ];
+    }
+
+    /**
+     * The verdict is part of the frozen snapshot, not recomputed on read: it
+     * depends on the previous reading, so recomputing it would quietly undo
+     * the promotion rule. A row stored before the verdict was persisted is
+     * compared on the fly so an already-recorded report still renders.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private function storedVerdicts(array $rows): array
+    {
+        $hasVerdicts = array_filter(
+            $rows,
+            fn ($row) => is_array($row) && isset($row['verdict']),
+        );
+
+        return count($hasVerdicts) === count($rows) && $rows !== []
+            ? array_values($hasVerdicts)
+            : $this->compare($rows);
     }
 
     /**
@@ -161,20 +235,30 @@ class TableAgreementService
     }
 
     /**
-     * A device with unpushed edits for a table is ahead of the cloud by
-     * design, not in disagreement with it. Without this the panel is noisy
-     * on every till that is mid-sync, which is most of them, and a noisy
-     * instrument gets ignored.
+     * A device mid-sync is not a device in disagreement, and the two ways it
+     * can be mid-sync are different. Both are explained, with the arithmetic,
+     * in docs/DEVICE_TABLE_AGREEMENT.md.
+     *
+     * `syncing` — the drift fits inside this table's queued-edit count, which
+     * is an exact bound because the server assigns exactly one version per
+     * accepted UPDATE. Covers the device's own in-flight push and is reported
+     * immediately.
+     *
+     * `behind` — the device holds no more than the cloud. Usually another
+     * till's write that this device has not pulled yet. Only a second
+     * consecutive reading promotes it, in promote().
      */
     private function verdict(int $rowDelta, int $versionDelta, int $pending): string
     {
         if ($rowDelta === 0 && $versionDelta === 0) {
-            return 'agrees';
+            return self::AGREES;
         }
 
-        return $pending > 0 && abs($rowDelta) <= $pending && $versionDelta >= 0
-            ? 'syncing'
-            : 'diverged';
+        if ($pending > 0 && abs($rowDelta) <= $pending && abs($versionDelta) <= $pending) {
+            return self::SYNCING;
+        }
+
+        return $rowDelta <= 0 && $versionDelta <= 0 ? self::BEHIND : self::DIVERGED;
     }
 
     /** @param array<int, array<string, mixed>> $tables */

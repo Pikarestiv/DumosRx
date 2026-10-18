@@ -1233,6 +1233,43 @@ a cost edit can also sit in `_sync_queue` indefinitely (the pull skips any row
 with a pending queue entry), which keeps a device's own cost alive while its
 quantities keep reconciling through movements. See `docs/KNOWN_BUGS.md` A-271.
 
+## A raw `update()` on a synced table must move `_version` (A-245, 2026-10-18)
+
+`resolveUpdateConflict()` accepts a push when `payloadVersion === modelVersion`,
+on the reasoning that an equal version means the server has not moved since the
+device pulled. The client's `update()` deliberately never bumps `_version`
+locally — the version only ever comes from the server — so **equal version does
+not mean equal content**, it means "the server has not moved". Anything that
+changes server content *without* moving the version breaks that premise.
+
+A query-builder `update()` (`Model::where(...)->update([...])`) bypasses model
+events and leaves `_version` untouched. When it writes a column a client can
+push, a device still holding the pre-change row is accepted, `forceFill`s its
+stale value back, and `save()` bumps `updated_at` — re-offering the reverted row
+to every other device in the store. The push succeeds and nothing is reported.
+
+**So: any raw `update()` on a table the sync engine versions carries
+`'_version' => DB::raw('COALESCE(_version, 0) + 1')`.** The `COALESCE` is there
+so a nullable or legacy-NULL `_version` cannot become `NULL + 1 = NULL`;
+`products._version` is `NOT NULL default 1`, but not every versioned table's
+history is as clean, and it costs nothing.
+
+**The one exemption**, and state it explicitly where you use it: a column the
+apply path never trusts from a client. `stock_batches.quantity` is the only
+current example — it is stripped from every payload and always derived from
+`stock_movements` deltas — which is why `HealthSyncReconciliationRepairService`
+and `SyncController`'s reconcile path are safe writing it bare. A column merely
+*absent* from the usual payload is not exempt: `forceFill` only sets keys the
+payload carries, so that is safe for now but turns into this bug the day a
+client starts sending it. A column in a `*_SYNC_FORBIDDEN_FIELDS` list is
+genuinely exempt, because it is stripped before `forceFill`.
+
+Expect a version bump to cost a re-pull of every row it touches, and say so
+wherever the write is a bulk repair. That traffic is the point: those rows were
+wrong on the device.
+
+Known outstanding instances are filed as `docs/KNOWN_BUGS.md` A-277.
+
 ## Re-sent INSERTs: accepted, never a conflict (A-273, 2026-10-17)
 
 `push()`'s existence probe converts an INSERT whose id the server already holds
@@ -1387,9 +1424,35 @@ batches — every one the pull cannot reach (`_synced = 0` or a pending
 `SELECT` to compare them against the server. A device `_version` *behind* the
 server's on a `SHIELDED` row with a different cost is the known shape; equal
 versions with different costs would be new. It is read-only, batch ids and
-costs only — no product names, no customer data — and `buildReport` truncates
-at 60,000 chars because `feedback.content` is a MySQL `TEXT` column that
-rejects anything longer outright.
+costs only — no product names, no customer data.
+
+**The 60,000-character cap, at both ends (2026-10-18, `docs/FIXED_BUGS.md`
+A-276).** `feedback.content` is a MySQL `TEXT` column — 65,535 **bytes**. An
+oversized body does not get stored short; MySQL strict mode raises and the
+whole report is lost with a **500**, on exactly the till that had the most to
+say. So:
+
+- `FeedbackController::MAX_MESSAGE_CHARS = 60_000` is a `max` on the validator,
+  making an oversized submission a clean 422. Keep it in step with the client.
+- `MAX_REPORT_CHARS` in `client/components/settings/diagnostics/diagnostics-report.ts`
+  is the same number, and `fitToTicket()` reserves room for its own
+  `[truncated: N characters omitted]` marker so the result never exceeds the
+  cap it enforces. Truncation keeps the head (identity, clock, queue summary)
+  and sacrifices the tail.
+- **The cap counts characters; the column counts bytes.** 60,000 characters
+  plus the ~530-character `Name:`/`Subject:` prefix fits only while the content
+  is predominantly ASCII, which it is. The complete fix is `MEDIUMTEXT` on that
+  column, deliberately not taken — a production schema change on shared hosting
+  for a margin nothing has approached.
+- **The report is already structurally bounded** — every list behind it is
+  `LIMIT`ed in SQL and several are sliced again in `buildReport()`. Real reports
+  run 15–25 KB, so the cap is insurance, not a routine event. Do not reorder
+  the report's sections for the truncation's sake without first checking that
+  it can actually fire.
+- `/support` is on the `public-write` throttle (5/min per IP,
+  `AppServiceProvider`). The client turns a 429 into "Too many reports sent
+  just now. Download it instead, or wait a minute." — the download route is the
+  intended fallback and works offline.
 
 ## On-till admin inspection: why the credential is not a Sanctum token
 
@@ -2847,6 +2910,17 @@ mis-pointed rows were not repaired. See `docs/KNOWN_BUGS.md` A-189.
   so clients re-pull, and a raw `UPDATE ... NOW()` against this box writes
   ~4 hours behind UTC, so the corrected rows could never pass the pull's
   `updated_at` filter (root `AGENTS.md` §7).
+- **It bumps `_version` too, and must (A-245, fixed 2026-10-18).** `updated_at`
+  alone gets the row re-pulled but does not stop a device *pushing* its stale
+  copy back: an equal version is accepted, so the repair silently reverted.
+  See "A raw `update()` on a synced table must move `_version`" above.
+- **Rows repaired before that fix still carry un-bumped versions**, so they stay
+  exposed until `php artisan sync:backfill-product-versions --since=<when the
+  repair ran>` is run (dry-run by default, `--apply` to write, `--store` to
+  scope, prints the database it will touch first). It keys off
+  `products.updated_at` because the repair leaves no other durable trace, so it
+  is a superset of the repaired rows — narrow the window. **Delete that command
+  once the owner has run it or decided not to;** it has no standing purpose.
 - **Run it per store.** Every repointed product re-downloads to every device on
   that store's next sync, which is the blast radius `docs/KNOWN_BUGS.md` A-185
   describes.

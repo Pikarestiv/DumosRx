@@ -1702,6 +1702,54 @@ and check the client renders it, because a row that merely stops being
 `diverged` falls through to "Agrees", which is a worse claim than the one being
 removed.
 
+## Per-table agreement (`TableAgreementService`)
+
+`StockDivergenceService` was for a year the **only** comparator between a
+device and the cloud, and it only ever compared stock — so every other synced
+table could diverge on every till while the panel read "Agrees".
+`TableAgreementService` is its sibling for the other 26 tables, recorded from
+`SyncController::recordTableFingerprint()` after the commit (same reason as
+the stock one: taken earlier, the server's side excludes the very batch in
+flight) and read by `/stores/{id}/table-agreement`.
+
+It reuses this file's three verdict rules verbatim — `has_local_copy`,
+`stale` (48h), and `diverged` gated on both — plus one of its own:
+
+- `syncing` — the row delta is within that table's reported queue depth. A
+  device with unpushed edits is ahead of the cloud by design. Without this the
+  panel is noisy on every till mid-sync, and a noisy instrument gets ignored.
+
+The server side lives in `Concerns\CountsSyncedTableRows`, which mirrors
+`SyncController::pull()`'s scoping exactly — including the six child tables
+derived through a `withTrashed()` parent subquery — because the question is
+"does the device hold what a pull would send it", not "does it hold what a
+`store_id` filter matches". `DB::table()` is used deliberately so the
+soft-delete global scope does **not** apply: the device keeps a soft-deleted
+row and so must the comparison.
+
+**The digest is two integers and that is a knowing trade.** Read
+`docs/DEVICE_TABLE_AGREEMENT.md` before relying on an "agrees" — it lists what
+the digest cannot detect (offsetting edits within one table, identity swaps at
+equal count and version, any field value), why a portable hash was not an
+option on SQLite + MySQL, and why the bucketed Merkle shape was costed and
+deferred rather than rejected.
+
+## Delivery timing (`changes_queued_peak`)
+
+`sync_health_daily.changes_queued_peak` is a **gauge, not a counter**: the
+deepest backlog any device of the store reported that day, raised by
+`SyncFailureRecorder::recordQueuePeak()` from the queue-state report. Summing a
+device's queue depth across every push of a day would count the same waiting
+edit once per push, which is why it is not folded into `tally()`'s increments.
+It sits beside `changes_accepted` so accepted-versus-queued reads as a ratio
+rather than two unrelated numbers. A historical row reads 0, which means "not
+measured", not "no backlog".
+
+`device_queue_reports.oldest_queued_seconds` and `delivered_ages` are both
+nullable with no backfill, and `DeviceQueueReportService::deliveredAges()`
+returns `null` rather than a zeroed histogram for a bundle that reports none —
+"not reported" must never render as "every edit arrived instantly".
+
 ## Remote device report (`send_device_report`)
 
 `SyncCommandService::ACTIONS` gains `send_device_report`, and

@@ -148,18 +148,34 @@ between "no backlog" and "predates this release"; that ambiguity expires once
 `sync_health_daily` holds no rows older than 2026-10-18, i.e. after 30 days of
 retention.
 
-## Known limitation: `store_id` backfill asymmetry
+## Known limitation: `store_id` backfill asymmetry (A-288, mostly repaired)
 
 The device's own schema migration backfills `store_id` on legacy rows
 (`UPDATE <table> SET store_id = (SELECT id FROM stores) WHERE store_id IS NULL`);
-the server leaves `store_id` NULL on rows that predate
-`add_store_id_to_child_domain_tables`. For the 20 directly-scoped tables, a
+the server's migrations left `store_id` NULL on rows that predate
+`add_store_id_to_domain_tables`. For the 20 directly-scoped tables, a
 single-store device therefore counts a legacy row the server's
 `where('store_id', ...)` excludes, which reads as a small positive row delta
 that never clears. The six child tables are immune because the server scopes
-them through their parent. Not fixed here: the fix is a server-side backfill of
-`store_id`, which writes to business tables and is out of scope for
-instrumentation. Logged in `docs/KNOWN_BUGS.md` as A-288.
+them through their parent.
+
+**Repaired 2026-10-18 by `php artisan sync:backfill-store-ids`** (dry-run by
+default; see `laravel-server/AGENTS.md`, "`store_id` backfill", for the
+per-table owner derivation). It deliberately moves neither `updated_at` nor
+`_version`, so a backfilled row does **not** re-deliver to devices that already
+hold it and the version-sum half of the digest is unaffected — only the
+row-count half moves, which is the half that was wrong.
+
+Two residues keep `docs/KNOWN_BUGS.md` A-288 open rather than closing it:
+`requested_products` carries no owner column of any kind, so its NULL rows can
+never be attributed; and a row whose owning store cannot be derived with
+certainty — a multi-store owner's — is left NULL and reported rather than
+guessed. The actual row counts on production are still unmeasured (§12); the
+dry run is that measurement and writes nothing.
+
+Separately, the `audit_logs` row of this panel is **not** a measurement at all:
+the cloud side counts the physical `audit_logs` table while the pull delivers
+from `activity_logs`. Logged as A-289.
 
 ## Schema parity
 

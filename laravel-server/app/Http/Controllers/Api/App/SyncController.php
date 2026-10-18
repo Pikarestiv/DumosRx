@@ -365,6 +365,9 @@ class SyncController extends Controller
                     $conflict = $this->findDuplicateInsertConflict($modelClass, $change['table_name'], $payload, $recordId);
                     if ($conflict) {
                         $exists = true; // Pretend it exists to skip insertion
+                        if (\method_exists($conflict, 'trashed') && $conflict->trashed()) {
+                            $conflict->restore();
+                        }
                         $idMap[$recordId] = $conflict->id;
                         // Only categories/suppliers are reported back to the
                         // client in the response's id_map; the users remap
@@ -1148,8 +1151,8 @@ class SyncController extends Controller
             // stock_batches — see A-176a below and counts()'s matching rule.
             'sale_items' => $query->whereIn('sale_id', $this->tenantSaleIds($storeIds)),
             'return_items' => $query->whereIn('return_id', \App\Models\SaleReturn::query()->select('id')->whereIn('store_id', $storeIds)),
-            'prescription_items' => $query->whereIn('prescription_id', \App\Models\Prescription::query()->select('id')->whereIn('store_id', $storeIds)),
-            'purchase_order_items' => $query->whereIn('purchase_order_id', PurchaseOrder::query()->select('id')->whereIn('store_id', $storeIds)),
+            'prescription_items' => $query->whereIn('prescription_id', \App\Models\Prescription::withTrashed()->select('id')->whereIn('store_id', $storeIds)),
+            'purchase_order_items' => $query->whereIn('purchase_order_id', PurchaseOrder::withTrashed()->select('id')->whereIn('store_id', $storeIds)),
             // withTrashed() is load-bearing: see docs/FIXED_BUGS.md A-176a.
             'stock_batches' => $query->whereIn('product_id', Product::withTrashed()->select('id')->whereIn('store_id', $storeIds)),
             'sale_item_batches' => $query->whereIn(
@@ -1717,7 +1720,7 @@ class SyncController extends Controller
 
         if (($tableName === 'categories' || $tableName === 'suppliers') && !empty($payload['name'])) {
             $payloadStoreId = $payload['store_id'] ?? null;
-            $conflict = $modelClass::where('name', $payload['name'])
+            $conflict = $modelClass::withTrashed()->where('name', $payload['name'])
                 ->when(
                     $payloadStoreId === null,
                     fn ($q) => $q->whereNull('store_id'),
@@ -2197,7 +2200,7 @@ class SyncController extends Controller
      */
     private function sanitizePermissionGroupSyncPayload(array $payload, ?string $recordId, string $operation, $currentUser, array $allowedStoreIds = []): array
     {
-        $existing = $recordId ? \App\Models\PermissionGroup::find($recordId) : null;
+        $existing = $recordId ? \App\Models\PermissionGroup::withTrashed()->find($recordId) : null;
 
         // Ownership is authorized later (authorizeChangeTarget), but that
         // check runs AFTER this method for the DELETE/UPDATE paths - so a
@@ -2232,7 +2235,7 @@ class SyncController extends Controller
             $isFirstTimeDefaultSeed = !empty($payload['is_default'])
                 && !empty($payload['based_on_role'])
                 && $currentUser->store_id
-                && !\App\Models\PermissionGroup::where('store_id', $currentUser->store_id)
+                && !\App\Models\PermissionGroup::withTrashed()->where('store_id', $currentUser->store_id)
                     ->where('based_on_role', $payload['based_on_role'])
                     ->exists();
             if ($isFirstTimeDefaultSeed) {
@@ -2476,10 +2479,10 @@ class SyncController extends Controller
             return isset($model->return_id) ? \App\Models\SaleReturn::where('id', $model->return_id)->value('store_id') : null;
         }
         if ($tableName === 'prescription_items') {
-            return isset($model->prescription_id) ? \App\Models\Prescription::where('id', $model->prescription_id)->value('store_id') : null;
+            return isset($model->prescription_id) ? \App\Models\Prescription::withTrashed()->where('id', $model->prescription_id)->value('store_id') : null;
         }
         if ($tableName === 'purchase_order_items') {
-            return isset($model->purchase_order_id) ? PurchaseOrder::where('id', $model->purchase_order_id)->value('store_id') : null;
+            return isset($model->purchase_order_id) ? PurchaseOrder::withTrashed()->where('id', $model->purchase_order_id)->value('store_id') : null;
         }
         if ($tableName === 'stock_batches') {
             return isset($model->product_id) ? Product::where('id', $model->product_id)->value('store_id') : null;

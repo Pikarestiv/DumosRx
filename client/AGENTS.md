@@ -1570,9 +1570,14 @@ table the client never pulls.
     because nothing uses it.** It touches with `{0, 0}`, which is right for the
     columns a pulled UPDATE actually changes today — none of them is a
     movement's `quantity` or `_deleted`. `StockMovement` has no `SoftDeletes`
-    server-side, so the server never emits `_deleted: 1` for a movement and
-    ignores a pushed one, and no client code updates or removes a movement row
-    beyond its `status`. **If movements ever become soft-deletable, that touch
+    server-side, so the server never emits `_deleted: 1` for a movement — but
+    it does **not** ignore a pushed movement delete, as this line used to
+    claim: `push()`'s DELETE branch would **hard-delete** the row, destroying
+    the log entry a batch's quantity is derived from. Nothing queues one today,
+    and `StockMovement` was deliberately left out of A-281 for the reason in
+    the next bullet; the hard delete is filed as `docs/KNOWN_BUGS.md` A-283.
+    No client code updates or removes a movement row beyond its `status`.
+    **If movements ever become soft-deletable, that touch
     must carry `{-q, -max(0,q)}`**, or a voided *receipt* leaves its units on
     the shelf for ever: `inboundBefore` reads 0, the batch classifies as a
     carve-out and keeps its stored figure. A voided sale happens to come out

@@ -1233,6 +1233,91 @@ a cost edit can also sit in `_sync_queue` indefinitely (the pull skips any row
 with a pending queue entry), which keeps a device's own cost alive while its
 quantities keep reconciling through movements. See `docs/KNOWN_BUGS.md` A-271.
 
+## Every pulled table soft-deletes (A-281, 2026-10-18)
+
+The client's `softDelete()` queues a `DELETE`; `push()`'s DELETE branch runs
+`$target->delete()`, which is a soft delete **only** where the model uses
+`SoftDeletes`. Nine models in `pull()`'s table list did not: `Category`,
+`Expense`, `PurchaseOrder`, `PurchaseOrderItem`, `Prescription`,
+`PrescriptionItem`, `RequestedProduct`, `SupplierPayment`, `PermissionGroup`.
+`mapPullRowForClient()` emits `_deleted` only from `trashed()`, so a
+hard-deleted row simply **vanished** from every pull: the delete reached no
+other device, an edit to a destroyed row fell through `if ($model)` and was
+counted processed, and a whole-row resend recreated the row, which then pulled
+back and undid the delete on the device that made it. Two tills could disagree
+permanently about expenses, which are money in the P&L.
+
+All nine now use the trait. **`permission_groups` needed a migration** — it was
+the one table of the nine with no `deleted_at` column, which the finding that
+raised this got wrong, and the client deletes permission groups for real
+(`client/lib/hooks/use-permission-groups.ts`). The other eight columns already
+existed.
+
+### Adding the trait silently rewrites every existing query, so these readers were changed with it
+
+- **`applyPullTenantScope()`** — `prescription_items` and
+  `purchase_order_items` scope through a parent subquery, and the global scope
+  applies to a subquery exactly as to the parent query. A soft-deleted parent
+  would have stopped its children being pulled **at all**, so no device could
+  ever learn they were deleted. Now `withTrashed()`, the same rule and reason
+  as A-176a's `stock_batches`.
+- **`resolveChangeStoreId()`** — a trashed `Prescription`/`PurchaseOrder` still
+  determines its children's ownership. Left plain, it resolved to `null` and
+  fell through to the fail-open branch, weakening the scoping this check exists
+  to provide.
+- **`findDuplicateInsertConflict()`** — `categories` is `UNIQUE (store_id,
+  name)` and **that index counts soft-deleted rows**. A probe that cannot see a
+  trashed row finds no conflict, attempts the INSERT and the push fails on the
+  constraint. It is `withTrashed()` now, and the caller `restore()`s a trashed
+  row it remaps onto — otherwise the owner's re-created category would arrive
+  as `_deleted: 1` on the next pull and vanish again. `suppliers` had this hole
+  already, having carried the trait all along; the same change covers it.
+- **`sanitizePermissionGroupSyncPayload()`** — every guard in it reads
+  `$existing`, including "default groups cannot be deleted" and the cross-tenant
+  bail-out, so it must see a trashed row. Its first-time-seed existence probe
+  likewise, or a store whose seeded group was deleted re-seeds it.
+- **`PermissionGroupSeeder::ensureSeeded()`** — default group ids are
+  deterministic (`deterministicDefaultGroupId`), so a trashed group invisible to
+  the `$existingRoles` probe means `save()` collides on the primary key and the
+  seed throws.
+- **`CrossTenantCategoryRepairService::ownedCategoryQuery()`** — it already had
+  a `whereNotNull('deleted_at')` branch written for exactly this unique-index
+  problem, and the global scope would have made that branch unreachable while
+  leaving the collision in place. `Category::withTrashed()` is what keeps the
+  existing code doing what it says.
+
+### Reviewed and deliberately left alone
+
+`PurchaseOrderController::index` and `EndOfDaySummaryMail` (a deleted order or
+expense should not be listed or counted — the trait makes them *more* correct);
+`ensureCatalogBackfilled()` (a trashed default group is owed no backfill, and
+defaults cannot be deleted); `sanitizePermissionGroupSyncPayload()`'s
+`$ownGroup` (a caller whose own group was deleted loses its permissions, which
+is both correct and identical to the pre-trait `null`); `->with('category')` on
+the public storefront, already null-guarded in `StorefrontProductResource`;
+and every admin service plus `counts()`, which read through `DB::table()` with
+an explicit `whereNull('deleted_at')` — the global scope does not touch the
+query builder and those filters were already right.
+
+### What this cannot fix
+
+**Rows already hard-deleted are gone, so there is no backfill.** New deletes
+propagate from here; **old ones never will**, and a device still holding its
+copy keeps it indefinitely. A Force Full Resync does not help either — it
+re-pulls what the server has, and the server has no record the row ever
+existed, so the stale local copy survives the resync. The only remedy is
+deleting those rows again on each device by hand. There is no way to enumerate
+them, because the evidence was destroyed.
+
+**`StockMovement` and `StockBatch` are excluded on purpose** — same shape, but
+quantity is derived from the movement log. See `docs/KNOWN_BUGS.md` A-283.
+
+**§11:** server-only. Old bundles already handle `_deleted` on every table (the
+pull's `_deleted` field and `TABLES_NEVER_PULLED` are unchanged), and the
+client drops the extra `deleted_at` key the response now carries for these
+tables because `pull.ts` filters every pulled column through its own
+`validColumns`. No shim, nothing to retire.
+
 ## Stock batch deltas are store-scoped (A-280, 2026-10-18)
 
 `applyStockBatchDeltas()` runs `UPDATE stock_batches SET quantity = … WHERE

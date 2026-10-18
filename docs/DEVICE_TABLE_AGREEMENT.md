@@ -146,9 +146,9 @@ The four verdicts:
 **The two-consecutive-readings rule.** `record()` reads this device's own
 previous snapshot and promotes `behind` → `diverged` only if that table was
 already unsettled. Two readings at least 15 minutes apart means the device's
-own pull did not clear it, which is the real signal — the A-282 lost-row class
-and A-284's hidden children. A single reading cannot distinguish those from
-ordinary pull lag.
+own pull did not clear it, which is the real signal — the A-282 lost-row class,
+or the re-pull burst of a fix like A-284's. A single reading cannot distinguish
+those from ordinary pull lag.
 
 Because the verdict depends on the previous reading, it is **stored in the
 snapshot** rather than recomputed on read; recomputing in `forStore()` would
@@ -207,13 +207,14 @@ Two accepted limits of the histogram, both worth knowing before reading one:
 
 ## Expect these on day one — they are not new bugs
 
-**A-284 will light up immediately.** `sale_items`, `return_items` and
-`sale_item_batches` scope through a `withTrashed()` parent on the server but
-are **not** delivered by the pull for a soft-deleted parent, so every store
-with a single voided sale legitimately reads device-behind on those three
-tables. A voided sale is the common case. This is A-284 showing up in an
-instrument that can finally see it, not a fault in the instrument and not a new
-defect. It clears when A-284's one-line `withTrashed()` fix ships.
+**A-284 is fixed, and the first round after it costs a burst.** The pull now
+delivers the line items of a soft-deleted sale or return, matching how they
+were always counted, so `sale_items`, `return_items` and `sale_item_batches` no
+longer read device-behind on every store holding a voided sale. The one-off
+price is that each device re-pulls those rows once — low hundreds for a store
+with a few hundred sales. A reading taken during that round can still show a
+transient row delta on the three tables; the next one clears it. See
+`docs/FIXED_BUGS.md` A-284.
 
 **A-288 shows as a small positive row delta.** Legacy rows that have no cloud
 `store_id` are counted on the device and excluded by the server's

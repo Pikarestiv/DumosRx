@@ -1178,18 +1178,17 @@ class SyncController extends Controller
             // Builder into a real SQL subquery, while ->pluck('id') executed
             // the parent query and inlined every id the tenant owns as bound
             // literals, once per table per page (see
-            // docs/SYNC_PULL_PAGINATION.md). The soft-delete global scope
-            // still applies to each subquery as it did to the pluck, EXCEPT
-            // stock_batches — see A-176a below and counts()'s matching rule.
+            // docs/SYNC_PULL_PAGINATION.md). Every subquery is withTrashed()
+            // so a child of a soft-deleted parent is still delivered, and
+            // counted the same way — docs/FIXED_BUGS.md A-176a and A-284.
             'sale_items' => $query->whereIn('sale_id', $this->tenantSaleIds($storeIds)),
-            'return_items' => $query->whereIn('return_id', \App\Models\SaleReturn::query()->select('id')->whereIn('store_id', $storeIds)),
+            'return_items' => $query->whereIn('return_id', \App\Models\SaleReturn::withTrashed()->select('id')->whereIn('store_id', $storeIds)),
             'prescription_items' => $query->whereIn('prescription_id', \App\Models\Prescription::withTrashed()->select('id')->whereIn('store_id', $storeIds)),
             'purchase_order_items' => $query->whereIn('purchase_order_id', PurchaseOrder::withTrashed()->select('id')->whereIn('store_id', $storeIds)),
-            // withTrashed() is load-bearing: see docs/FIXED_BUGS.md A-176a.
             'stock_batches' => $query->whereIn('product_id', Product::withTrashed()->select('id')->whereIn('store_id', $storeIds)),
             'sale_item_batches' => $query->whereIn(
                 'sale_item_id',
-                SaleItem::query()->select('id')->whereIn('sale_id', $this->tenantSaleIds($storeIds)),
+                SaleItem::withTrashed()->select('id')->whereIn('sale_id', $this->tenantSaleIds($storeIds)),
             ),
             'requested_products' => $query->whereIn('store_id', $storeIds),
             // Upgraded from the legacy `where('user_id', $ownerId)`
@@ -1230,7 +1229,7 @@ class SyncController extends Controller
      */
     private function tenantSaleIds(array $storeIds)
     {
-        return Sale::query()->select('id')->whereIn('store_id', $storeIds);
+        return Sale::withTrashed()->select('id')->whereIn('store_id', $storeIds);
     }
 
     /**

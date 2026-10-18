@@ -1343,7 +1343,12 @@ existed.
   applies to a subquery exactly as to the parent query. A soft-deleted parent
   would have stopped its children being pulled **at all**, so no device could
   ever learn they were deleted. Now `withTrashed()`, the same rule and reason
-  as A-176a's `stock_batches`.
+  as A-176a's `stock_batches`. A-284 closed the last three holdouts
+  (`sale_items`, `return_items`, `sale_item_batches`), so **every** child
+  subquery in that `match` is `withTrashed()` and there is no per-table
+  exception left to remember — a new child table scopes through a trashed
+  parent too, or its deletes reach nobody and the agreement instrument reads
+  device-behind for ever.
 - **`resolveChangeStoreId()`** — a trashed `Prescription`/`PurchaseOrder` still
   determines its children's ownership. Left plain, it resolved to `null` and
   fell through to the fail-open branch, weakening the scoping this check exists

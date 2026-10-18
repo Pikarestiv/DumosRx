@@ -1368,9 +1368,11 @@ disagrees with the cloud; N is still catching up" whenever a comparable device
 has unsettled tables. An operator who spots that contradiction stops trusting
 the panel, which costs more than the reassurance is worth.
 
-Expect `sale_items`, `return_items` and `sale_item_batches` to read
-device-behind on any store with a voided sale — that is A-284 surfacing, not a
-panel bug — and a small positive row delta on some tables until A-288's backfill
+A-284 — `sale_items`, `return_items` and `sale_item_batches` reading
+device-behind on any store with a voided sale — is **fixed** (2026-10-19,
+`docs/FIXED_BUGS.md`), so those three no longer light up by default; expect a
+transient delta on them during the one round where each device re-pulls those
+rows. A small positive row delta on some tables persists until A-288's backfill
 lands. `docs/DEVICE_TABLE_AGREEMENT.md` has both.
 
 The panel's own copy states the digest's limit — row count and version sum,

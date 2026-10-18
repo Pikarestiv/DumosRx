@@ -51,6 +51,7 @@ class AdminSyncHealthService
                 'accepted' => $row->changes_accepted,
                 'refused' => $row->changes_refused,
                 'conflicted' => $row->changes_conflicted,
+                'queued_peak' => $row->changes_queued_peak,
             ])
             ->values()
             ->all();

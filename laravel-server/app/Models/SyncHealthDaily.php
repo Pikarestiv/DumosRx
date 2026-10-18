@@ -12,7 +12,7 @@ class SyncHealthDaily extends Model
     protected $table = 'sync_health_daily';
 
     protected $fillable = [
-        'store_id', 'date', 'pushes', 'changes_accepted', 'changes_refused', 'changes_conflicted',
+        'store_id', 'date', 'pushes', 'changes_accepted', 'changes_refused', 'changes_conflicted', 'changes_queued_peak',
     ];
 
     protected $casts = [
@@ -21,6 +21,7 @@ class SyncHealthDaily extends Model
         'changes_accepted' => 'integer',
         'changes_refused' => 'integer',
         'changes_conflicted' => 'integer',
+        'changes_queued_peak' => 'integer',
     ];
 
     public function store()

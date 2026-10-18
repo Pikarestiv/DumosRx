@@ -1,4 +1,5 @@
 import type { DeviceDiagnostics } from "@/lib/db/queries/diagnostics";
+import { peekDeliveredAges } from "@/lib/db/sync-engine/delivery-age";
 
 /**
  * The pasteable support ticket. Privacy is the governing constraint, not
@@ -28,6 +29,33 @@ function duration(ms: number): string {
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
   return `${hours}h ${minutes % 60}m`;
+}
+
+/**
+ * Eventual delivery per edit, which a per-attempt success rate cannot show:
+ * a device whose pushes all "succeed" can still be sitting on a day-old
+ * edit. Two lines, because the ticket has a 60,000-character cap.
+ */
+function deliveryLines(data: DeviceDiagnostics): string[] {
+  const lines: string[] = [];
+  const oldest = data.queue
+    .map((row) => (row.oldest === null ? NaN : Date.parse(row.oldest)))
+    .filter((stamp) => Number.isFinite(stamp));
+
+  if (oldest.length > 0) {
+    lines.push(`  Oldest unsynced edit: ${duration(Date.now() - Math.min(...oldest))} old`);
+  }
+
+  const ages = peekDeliveredAges();
+
+  if (ages) {
+    lines.push(
+      `  Delivered since last report: <1m ${ages.under_1m}, <5m ${ages.under_5m},` +
+        ` <1h ${ages.under_1h}, <1d ${ages.under_1d}, 1d+ ${ages.over_1d}`,
+    );
+  }
+
+  return lines;
 }
 
 export function buildReport(
@@ -63,6 +91,7 @@ export function buildReport(
   for (const row of data.queue) {
     lines.push(`  ${row.table_name}: ${row.pending} pending, ${row.retrying} retrying`);
   }
+  lines.push(...deliveryLines(data));
 
   if (data.stuckRows.length > 0) {
     const mismatched = data.stuckRows.filter(

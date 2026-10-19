@@ -284,6 +284,59 @@ than by what `getModelForTable()` resolves to — was **A-289** and is now fixed
 `AGREEMENT_TABLES` entry is its own physical table, so adding a divergent name
 to the list fails the suite rather than silently comparing two tables.
 
+## The local-only row delta (A-293)
+
+A permanent **positive** `row_delta` that no resync clears is usually a row
+the device holds and the cloud never accepted — not a row the cloud lost.
+
+The device soft-deletes (`_deleted = 1`) and the digest counts soft-deleted
+rows on both sides deliberately. So a local row whose INSERT never landed in
+the cloud, and which is later deleted on the till, leaves a tombstone with no
+cloud counterpart: `+1` row and `+1` version sum (`_version DEFAULT 1`),
+for ever. `row_delta > 0` makes the verdict `diverged`, not `behind`, and
+`forceFullResync()` cannot help — it clears `_sync_state` and re-pulls, it
+never deletes a local row.
+
+Two routes reach that state, and the panel cannot distinguish them:
+
+1. **The duplicate-name skip.** `findDuplicateInsertConflict()` resolves a
+   name collision on `categories`/`suppliers` by skipping the INSERT and
+   returning the winner's id in `id_map`; the client remaps its foreign keys
+   and marks its own loser row `_deleted = 1` (`push.ts`, and again in
+   `pull.ts` for a collision no push reported). The cloud never held that id.
+2. **An INSERT that was refused or never pushed.** Same residue, no collision
+   involved.
+
+**Worked example — Nest Amawbia, `categories 15 vs 13 (+2)`, 19/10/2026.**
+Device `DRX-BDTWSI4KM`. The cloud holds 13 rows, version sum 25, none
+soft-deleted, and no duplicate names. One of the two extras is a category
+named `t` (a typo), `bf32d2f4-7890-49da-a1fc-6b109f195cc8`: created on the
+till 05/10 11:14:56, a product repointed at it two seconds later, deleted on
+the till 08/10 14:40:25. It exists nowhere in `categories` in any state, and
+the product's UPDATE naming it **was** accepted (A-294). Route 2, not route 1
+— the till's own category list is the only thing that explains the second
+extra.
+
+**Two traps this investigation walked into; don't repeat them.**
+
+- **`activity_logs` rows are mostly the device's own audit entries**, pushed
+  from the client's `audit_logs`, with the client id in `properties->client_id`
+  and the record id in `properties->record_id`. An `INSERT on categories` row
+  is the *till* saying it created something, **not** evidence the server
+  accepted it. Likewise `updated_at` on a pushed row is client-generated, so
+  it dates the edit, not the push.
+- **`sync_failures` only exists from 2026-10-07**
+  (`2026_10_07_000001_create_sync_failures_table.php`). An empty result for
+  anything earlier means the instrument was not there, not that the push
+  succeeded. Check the table's own age before reading absence as evidence.
+
+Diagnosis in the field: a small positive `row_delta` confined to
+`categories`/`suppliers` is route 1 and should match the count of "Sync push
+skipped category insert due to duplicate name" warnings in the server log for
+that store. A delta with no such warnings is route 2, and settling it needs
+the till's rows — an on-till inspection or device report — because the cloud
+by definition holds no trace of the row.
+
 ## Backward compatibility (§11), piece by piece
 
 Every piece is additive and nothing is required.

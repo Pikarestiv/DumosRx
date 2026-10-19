@@ -218,6 +218,30 @@ reader, `components/admin/views/email-templates-tab.tsx`, routes through the
 same helper (it still prefers a 422's per-field `errors`, which is detail the
 server validated on purpose).
 
+## A Sentry event count is a sample, not an occurrence count (2026-10-19)
+
+`AdminHealthService::getRecentErrors()` reads Sentry's own `count` per
+unresolved issue and `components/admin/operations/sentry-issues-card.tsx`
+renders it. Since 2026-10-19 that number is a **lower bound**, not a total:
+`logCrash` throttles the Sentry send to one event per crash fingerprint per
+hour (`SENTRY_THROTTLE_MS`, see `client/AGENTS.md`, "What reaches Sentry") and
+non-production environments set `SENTRY_SAMPLE_RATE=0.1`. Sentry groups
+repeats, but it only ever counts the events it was actually sent.
+
+So the card renders `≥ N events` with the sampling named in the header, and
+the **true** figure is `feedback.occurrence_count` — maintained per fingerprint
+by `logCrash`, synced up with the crash row, and touched by no throttle. The
+feedback list (`components/admin/views/feedback-tab.tsx`) shows it whenever it
+is above 1; `FeedbackItem.occurrence_count` is optional because older rows and
+older client bundles do not carry it, so a missing value reads as 1 rather
+than as zero.
+
+Do not re-render a bare Sentry count anywhere, and do not try to join a Sentry
+issue to a `feedback` row: Sentry's grouping key and our
+`area|message|first stack line` fingerprint are different schemes and there is
+no reliable mapping between them. The honest presentation is the two numbers
+side by side, each labelled for what it is.
+
 ## Telemetry redaction and session-end cache hygiene (A-100/A-107)
 
 `lib/api/logger.ts`'s `sanitizePayload` masks (never drops) sensitive values,
@@ -1494,6 +1518,36 @@ walk three tabs; `scroll: false` so switching on a phone does not jump. `Tabs`
 is **controlled** (`value={activeTab}`), so a deep link and the strip can never
 disagree.
 
+### The Sync tab is gated on `view_platform_health` (A-290)
+
+Every one of its five panels is server-gated on that permission
+(`routes/api.php`), so `StoreDetailTabs` hides the **trigger**, the
+**content**, and the badge's two queries behind
+`checkHasPermission(user, "view_platform_health")`, and `resolveTab()` takes
+the same flag so a shared `?tab=sync` link lands an unpermitted operator on
+`overview` instead of an empty tab. Hide, never disable — the same rule as
+`device-row-actions.tsx`, `stuck-item-actions.tsx` and
+`device-report-action.tsx` beside it.
+
+**The badge is suppressed, not degraded.** `syncVerdict()` would return
+`Unavailable` from the two 403s, which is honest but useless: a pill on a tab
+you cannot open is an alarm nobody can act on, and the two calls would be
+403s on every store page view. So the hooks are passed `enabled: canViewSync`
+and the verdict is `null`, which the existing "no pill, empty live region"
+path already handles.
+
+`StoreSyncTab` repeats the check and returns `null` for an unpermitted caller.
+That is A-135's lesson — a tab whose only protection is its parent's choice to
+render it gets re-exposed by the next refactor or default-tab change.
+
+Covered by `__tests__/admin-store-sync-tab-gating.test.tsx`. **A reviewer
+confirming this in a browser** needs a `platform_admin` or `agent` *without*
+`view_platform_health`, then: open any store's details and check the tab strip
+reads Overview / Activity only; paste `…/admin/stores/details/?id=<id>&tab=sync`
+and check it opens Overview with no Sync trigger; and confirm the network tab
+shows no request to `table-agreement` or `stock-divergence`. Then grant the
+permission and check all five panels load.
+
 ### The badge
 
 `syncVerdict(table, stock)` in `lib/admin/sync-verdict.ts` is a pure function
@@ -1602,6 +1656,5 @@ active trigger so a deep link to `?tab=activity` on a phone does not open with
 the strip scrolled away. Radix's default keyboard behaviour
 (Left/Right/Home/End, automatic activation) is kept as-is.
 
-**The tab has no permission gate**, although all five Sync panels are
-server-gated on `view_platform_health`. Pre-existing, logged as
-`docs/KNOWN_BUGS.md` A-290 rather than fixed here.
+The tab's permission gate is "The Sync tab is gated on
+`view_platform_health` (A-290)" above.

@@ -6,6 +6,7 @@ import type { AdminStoreDetail } from "@/lib/types/admin";
 import { adminStoreDetailPath } from "@/lib/admin-routes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useStoreStockDivergence, useStoreTableAgreement } from "@/lib/api/admin-hooks-sync";
+import { useAdminAuthStore, checkHasPermission } from "@/lib/store/use-admin-auth-store";
 import { syncVerdict, type SyncVerdict, type SyncVerdictTone } from "@/lib/admin/sync-verdict";
 import { StoreOverviewTab } from "@/components/admin/stores/details/store-overview-tab";
 import { StoreSyncTab } from "@/components/admin/stores/details/store-sync-tab";
@@ -13,10 +14,10 @@ import { StoreActivityTab } from "@/components/admin/stores/details/store-activi
 
 type StoreDetailTab = "overview" | "sync" | "activity";
 
-function resolveTab(value: string | null | undefined): StoreDetailTab {
+function resolveTab(value: string | null | undefined, canViewSync: boolean): StoreDetailTab {
   switch (value ?? "") {
     case "sync":
-      return "sync";
+      return canViewSync ? "sync" : "overview";
     case "activity":
       return "activity";
     default:
@@ -52,19 +53,21 @@ function SyncVerdictPill({ verdict }: { verdict: SyncVerdict | null }) {
 export function StoreDetailTabs({ store }: { store: AdminStoreDetail }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const activeTab = resolveTab(searchParams?.get("tab"));
+  const { user } = useAdminAuthStore();
+  const canViewSync = checkHasPermission(user as never, "view_platform_health");
+  const activeTab = resolveTab(searchParams?.get("tab"), canViewSync);
   const activeTriggerRef = useRef<HTMLButtonElement>(null);
 
-  const table = useStoreTableAgreement(store.id);
-  const stock = useStoreStockDivergence(store.id);
-  const verdict = syncVerdict({ table, stock });
+  const table = useStoreTableAgreement(store.id, canViewSync);
+  const stock = useStoreStockDivergence(store.id, canViewSync);
+  const verdict = canViewSync ? syncVerdict({ table, stock }) : null;
 
   useEffect(() => {
     activeTriggerRef.current?.scrollIntoView({ inline: "nearest", block: "nearest" });
   }, []);
 
   const handleTabChange = (value: string) => {
-    const tab = resolveTab(value);
+    const tab = resolveTab(value, canViewSync);
     const path = adminStoreDetailPath(store.id);
     router.replace(tab === "overview" ? path : `${path}&tab=${tab}`, { scroll: false });
   };
@@ -79,14 +82,16 @@ export function StoreDetailTabs({ store }: { store: AdminStoreDetail }) {
         >
           Overview
         </TabsTrigger>
-        <TabsTrigger
-          value="sync"
-          className="px-4 shrink-0 gap-2 min-h-11"
-          ref={activeTab === "sync" ? activeTriggerRef : undefined}
-        >
-          {"Sync "}
-          <SyncVerdictPill verdict={verdict} />
-        </TabsTrigger>
+        {canViewSync && (
+          <TabsTrigger
+            value="sync"
+            className="px-4 shrink-0 gap-2 min-h-11"
+            ref={activeTab === "sync" ? activeTriggerRef : undefined}
+          >
+            {"Sync "}
+            <SyncVerdictPill verdict={verdict} />
+          </TabsTrigger>
+        )}
         <TabsTrigger
           value="activity"
           className="px-4 shrink-0 gap-2 min-h-11"
@@ -104,9 +109,11 @@ export function StoreDetailTabs({ store }: { store: AdminStoreDetail }) {
         <StoreOverviewTab store={store} />
       </TabsContent>
 
-      <TabsContent value="sync" className="focus-visible:outline-none">
-        <StoreSyncTab store={store} />
-      </TabsContent>
+      {canViewSync && (
+        <TabsContent value="sync" className="focus-visible:outline-none">
+          <StoreSyncTab store={store} />
+        </TabsContent>
+      )}
 
       <TabsContent value="activity" className="focus-visible:outline-none">
         <StoreActivityTab store={store} />

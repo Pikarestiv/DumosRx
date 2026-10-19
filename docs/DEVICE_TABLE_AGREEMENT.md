@@ -277,9 +277,11 @@ server's own auto-increment bigints with the client id in
 version sum has no meaning across the two id spaces.
 
 The general hazard — code keyed by the client's sync table-name string rather
-than by what `getModelForTable()` resolves to — is filed as **A-289**, which
-also covers `applyPullCursor()`'s `Schema::hasColumn($table, '_synced_at')`.
-Not fixed here; see that entry rather than this one for the one-place fix.
+than by what `getModelForTable()` resolves to — was **A-289** and is now fixed:
+`applyPullCursor()` probes `$query->getModel()->getTable()`, and
+`SyncPullCursorPhysicalTableTest` pins both that and the fact that every
+`AGREEMENT_TABLES` entry is its own physical table, so adding a divergent name
+to the list fails the suite rather than silently comparing two tables.
 
 ## Backward compatibility (§11), piece by piece
 
@@ -337,7 +339,8 @@ dry run is that measurement and writes nothing.
 
 The `audit_logs` row is no longer part of this panel at all — it was removed
 from both sides of the comparison (see "The `audit_logs` false delta" above);
-A-289 now tracks only the general physical-versus-sync table-name confusion.
+the general physical-versus-sync table-name confusion that was A-289 is fixed
+and pinned by `SyncPullCursorPhysicalTableTest`.
 
 ## Schema parity
 

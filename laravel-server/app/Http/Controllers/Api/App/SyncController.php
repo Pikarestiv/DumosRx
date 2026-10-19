@@ -1026,16 +1026,20 @@ class SyncController extends Controller
      * Applies the client's per-table last_synced cursor, preferring
      * _synced_at OR updated_at where the table has a _synced_at column.
      * 'stores' is deliberately exempt (see fetchPullPage()).
+     *
+     * The column probe reads the model's physical table, never $table: a
+     * client sync name is not always a physical name (A-289).
      */
     private function applyPullCursor($query, string $table, $lastSynced): void
     {
         if ($lastSynced && $table !== 'stores') {
             $parsedLastSynced = \Carbon\Carbon::parse($lastSynced)->setTimezone('UTC')->format('Y-m-d H:i:s');
-            if (!isset($this->hasSyncedAtColumnCache[$table])) {
-                $this->hasSyncedAtColumnCache[$table] =
-                    \Illuminate\Support\Facades\Schema::hasColumn($table, '_synced_at');
+            $physicalTable = $query->getModel()->getTable();
+            if (!isset($this->hasSyncedAtColumnCache[$physicalTable])) {
+                $this->hasSyncedAtColumnCache[$physicalTable] =
+                    \Illuminate\Support\Facades\Schema::hasColumn($physicalTable, '_synced_at');
             }
-            if ($this->hasSyncedAtColumnCache[$table]) {
+            if ($this->hasSyncedAtColumnCache[$physicalTable]) {
                 $query->where(function ($q) use ($parsedLastSynced) {
                     $q->where('_synced_at', '>', $parsedLastSynced)
                       ->orWhere('updated_at', '>', $parsedLastSynced);

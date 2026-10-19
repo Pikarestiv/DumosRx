@@ -237,10 +237,11 @@ with a few hundred sales. A reading taken during that round can still show a
 transient row delta on the three tables; the next one clears it. See
 `docs/FIXED_BUGS.md` A-284.
 
-**A-288 shows as a small positive row delta.** Legacy rows that have no cloud
-`store_id` are counted on the device and excluded by the server's
-`where('store_id', …)`, so an affected table reads `+N` until the backfill
-lands. Another agent is building that backfill; it deliberately moves neither
+**A-288 no longer shows as a delta on any real store.** Legacy rows with no
+cloud `store_id` are counted on the device and excluded by the server's
+`where('store_id', …)`. The backfill ran on production on 2026-10-19; the 50
+rows it could not attribute belong to a deleted trial account and exist on no
+device, so they move no panel figure. Another agent is building that backfill; it deliberately moves neither
 `updated_at` nor `_version`, so there is **no pull burst** — a backfilled row
 is not re-delivered to a device that already holds it, and only the row-count
 half of the digest moves, which is the half that was wrong.
@@ -282,6 +283,59 @@ than by what `getModelForTable()` resolves to — was **A-289** and is now fixed
 `SyncPullCursorPhysicalTableTest` pins both that and the fact that every
 `AGREEMENT_TABLES` entry is its own physical table, so adding a divergent name
 to the list fails the suite rather than silently comparing two tables.
+
+## The local-only row delta (A-293)
+
+A permanent **positive** `row_delta` that no resync clears is usually a row
+the device holds and the cloud never accepted — not a row the cloud lost.
+
+The device soft-deletes (`_deleted = 1`) and the digest counts soft-deleted
+rows on both sides deliberately. So a local row whose INSERT never landed in
+the cloud, and which is later deleted on the till, leaves a tombstone with no
+cloud counterpart: `+1` row and `+1` version sum (`_version DEFAULT 1`),
+for ever. `row_delta > 0` makes the verdict `diverged`, not `behind`, and
+`forceFullResync()` cannot help — it clears `_sync_state` and re-pulls, it
+never deletes a local row.
+
+Two routes reach that state, and the panel cannot distinguish them:
+
+1. **The duplicate-name skip.** `findDuplicateInsertConflict()` resolves a
+   name collision on `categories`/`suppliers` by skipping the INSERT and
+   returning the winner's id in `id_map`; the client remaps its foreign keys
+   and marks its own loser row `_deleted = 1` (`push.ts`, and again in
+   `pull.ts` for a collision no push reported). The cloud never held that id.
+2. **An INSERT that was refused or never pushed.** Same residue, no collision
+   involved.
+
+**Worked example — Nest Amawbia, `categories 15 vs 13 (+2)`, 19/10/2026.**
+Device `DRX-BDTWSI4KM`. The cloud holds 13 rows, version sum 25, none
+soft-deleted, and no duplicate names. One of the two extras is a category
+named `t` (a typo), `bf32d2f4-7890-49da-a1fc-6b109f195cc8`: created on the
+till 05/10 11:14:56, a product repointed at it two seconds later, deleted on
+the till 08/10 14:40:25. It exists nowhere in `categories` in any state, and
+the product's UPDATE naming it **was** accepted (A-294). Route 2, not route 1
+— the till's own category list is the only thing that explains the second
+extra.
+
+**Two traps this investigation walked into; don't repeat them.**
+
+- **`activity_logs` rows are mostly the device's own audit entries**, pushed
+  from the client's `audit_logs`, with the client id in `properties->client_id`
+  and the record id in `properties->record_id`. An `INSERT on categories` row
+  is the *till* saying it created something, **not** evidence the server
+  accepted it. Likewise `updated_at` on a pushed row is client-generated, so
+  it dates the edit, not the push.
+- **`sync_failures` only exists from 2026-10-07**
+  (`2026_10_07_000001_create_sync_failures_table.php`). An empty result for
+  anything earlier means the instrument was not there, not that the push
+  succeeded. Check the table's own age before reading absence as evidence.
+
+Diagnosis in the field: a small positive `row_delta` confined to
+`categories`/`suppliers` is route 1 and should match the count of "Sync push
+skipped category insert due to duplicate name" warnings in the server log for
+that store. A delta with no such warnings is route 2, and settling it needs
+the till's rows — an on-till inspection or device report — because the cloud
+by definition holds no trace of the row.
 
 ## Backward compatibility (§11), piece by piece
 
@@ -330,12 +384,15 @@ per-table owner derivation). It deliberately moves neither `updated_at` nor
 hold it and the version-sum half of the digest is unaffected — only the
 row-count half moves, which is the half that was wrong.
 
-Two residues keep `docs/KNOWN_BUGS.md` A-288 open rather than closing it:
-`requested_products` carries no owner column of any kind, so its NULL rows can
-never be attributed; and a row whose owning store cannot be derived with
-certainty — a multi-store owner's — is left NULL and reported rather than
-guessed. The actual row counts on production are still unmeasured (§12); the
-dry run is that measurement and writes nothing.
+**Measured on production 2026-10-19, and it is not a data gap.** The backfill
+attributed 594 `activity_logs` rows and nothing else. Of the 4,382 that stayed
+NULL, exactly **50 are business rows**, and all 50 belong to one user who owns
+no stores and has no row in `users` — abandoned demo records (Panadol Extra,
+Coartem, Analgesics…) seeded on 2026-08-01, seven weeks before the first real
+store launched. Attributing them would have injected a fake catalogue into a
+real pharmacy, so leaving them NULL is correct, not a shortfall. Full detail
+and the decision in `docs/KNOWN_BUGS.md` A-288. What stays latent is only
+`requested_products`, which has no owner column — and zero such rows exist.
 
 The `audit_logs` row is no longer part of this panel at all — it was removed
 from both sides of the comparison (see "The `audit_logs` false delta" above);

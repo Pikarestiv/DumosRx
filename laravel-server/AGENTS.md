@@ -3058,6 +3058,33 @@ while every SQLite-backed test passed. Both databases are now InnoDB and
 `tests/Feature/DatabaseEngineIsPinnedTest.php`, since a null engine fails
 invisibly). Full account: `docs/FIXED_BUGS.md` A-179 and A-178b.
 
+**The MyISAM era left a second, still-live legacy: production declares NO
+foreign keys, so every `constrained()` / `cascadeOnDelete()` / `nullOnDelete()`
+in the migrations is fiction there.** MyISAM parses and discards FK
+definitions, and the InnoDB conversion was `ALTER TABLE … ENGINE=InnoDB`,
+which does not create a constraint that was never created. Measured directly
+on production 2026-10-19: `SELECT COUNT(*) FROM
+information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA =
+DATABASE()` returns **0**.
+
+So **never write code whose correctness depends on a declared foreign key.**
+Concretely: anything reading `Schema::getForeignKeys()` returns an empty graph
+on production; DB-level `ON DELETE CASCADE` and `SET NULL` never fire; and a
+dangling FK value is simply never rejected, which is why a dead `user_id` sits
+in production rows today without anything complaining. If a cleanup, cascade
+or integrity guarantee matters, express it in PHP against an explicit,
+introspected table list — the way `AdminStoreDeletionService::storeScopedTables()`
+already does — not by trusting the schema to enforce it.
+
+**And this is the same trap as the engine one, which is why it is filed here
+rather than in one bug entry: the test suite is STRONGER than production.**
+SQLite honours the migrations' `constrained()`, so an FK-dependent code path
+passes every test and does nothing in the field. A-179 was the transaction
+version of this; `docs/KNOWN_BUGS.md` A-292 is the foreign-key version (the
+store purge's user-level cascade). Assume any third instance is also invisible
+to CI, and when a guarantee is load-bearing, write a test that removes the
+capability SQLite provides for free rather than one that relies on it.
+
 **Two engine rules that follow from it.** Never leave `'engine'` unset — a
 new table silently inherits whatever the host prefers. And if you ever
 convert a table, pass `ROW_FORMAT=DYNAMIC` explicitly rather than trusting
@@ -3456,6 +3483,19 @@ php artisan sync:repair-health-sync-reconciliation --store=<id> --apply
   `DB::listen`, since SQLite compiles `lockForUpdate()` away).
 
 ## `store_id` backfill: `sync:backfill-store-ids` (A-288, 2026-10-18)
+
+**Production outcome, 2026-10-19 — read this before planning more work on it.**
+The command ran. It attributed 594 `activity_logs` rows and nothing else; 50
+business rows stayed NULL and **all 50 belong to a user who owns no stores and
+has no row in `users`** — demo data seeded 2026-08-01, seven weeks before the
+first real store. The right owner for those rows is *no store*, which no
+derivation could ever produce, so the refusal-rather-than-guess rule was right
+for a better reason than it was written for: attributing them would have put a
+fake ten-product catalogue into a live pharmacy's inventory. They are left as
+they are, deliberately. The retirement condition below therefore cannot be met
+by running the command again — only `requested_products` (no owner column, zero
+rows today) keeps A-288 technically open.
+
 
 `client/lib/db/schema-migrations.ts`'s `backfillStoreIdOnLegacyRows()` fills
 `store_id` on every legacy row a single-store device holds; the four server

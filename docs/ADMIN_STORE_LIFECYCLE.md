@@ -137,6 +137,17 @@ staff used to leave dangling `notifications`, `permission_user`,
 PHP, reading them from `Schema::getForeignKeys()`, so a foreign key added
 later is covered without editing it.
 
+> **⚠️ On production this paragraph does not hold — see `docs/KNOWN_BUGS.md`
+> A-292.** The emulator derives its entire action map from
+> `Schema::getForeignKeys()`, and production declares **no** foreign keys: per
+> A-179 all 63 tables were created as MyISAM, which parses and discards FK
+> definitions, and the later `ALTER TABLE … ENGINE=InnoDB` conversion does not
+> recreate a constraint that was never created. So every `cascadeChildren()`
+> call is a no-op there, while the test suite passes because SQLite *does*
+> honour the migrations' `constrained()`. The purge's explicit sweeps (the
+> `store_id` list and `OWNER_SCOPED_TABLES`) work everywhere; everything this
+> paragraph credits to the emulator currently happens only in tests.
+
 The purge also deletes **legacy sales with a null `store_id`** whose
 `cashier_id` is the owner or one of the store's staff, plus their cascade
 children. Those are the rows the fleet's own revenue query attributes to

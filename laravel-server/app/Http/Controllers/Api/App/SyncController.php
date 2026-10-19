@@ -2511,13 +2511,27 @@ class SyncController extends Controller
     }
 
     /**
-     * Resolves the store_id a change target belongs to, following a child
-     * table's foreign key up to its store-scoped parent where the table
-     * itself carries no store_id column. Returns null when it can't be
-     * determined (missing/legacy data), which authorizeChangeTarget()
-     * treats as "fall back to user_id ownership," not "denied."
+     * Resolves the store_id a change target belongs to: its parent's store for
+     * a child table, else the row's own `store_id` where it has one, else null.
+     *
+     * The second step exists because the first can legitimately yield nothing —
+     * an absent parent, or one whose own `store_id` is NULL — and a child table
+     * with no `user_id` then reached authorizeChangeTarget()'s fall-open and was
+     * deletable by any tenant (A-297). The child's own `store_id` stays
+     * non-authoritative for *scoping* (A-288); it is consulted here only as a
+     * second ownership opinion when the parent has none.
+     *
+     * Returns null when nothing can be determined, which authorizeChangeTarget()
+     * treats as "fall back to user_id ownership," not "denied" — a child pushed
+     * before its parent must still work (§11).
      */
     private function resolveChangeStoreId(string $tableName, $model): ?string
+    {
+        return $this->resolveParentStoreId($tableName, $model) ?? ($model->store_id ?? null);
+    }
+
+    /** @see resolveChangeStoreId() — the parent-FK half, kept separate so the fallback cannot shadow it. */
+    private function resolveParentStoreId(string $tableName, $model): ?string
     {
         static $directStoreTables = [
             'products', 'sales', 'customers', 'categories', 'suppliers',

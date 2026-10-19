@@ -24,6 +24,7 @@ describe("procurement.ts", () => {
   let getPurchaseOrderItemsForDetail: typeof import("@/lib/db/procurement").getPurchaseOrderItemsForDetail;
   let createPurchaseOrder: typeof import("@/lib/db/procurement").createPurchaseOrder;
   let updatePurchaseOrder: typeof import("@/lib/db/procurement").updatePurchaseOrder;
+  let deletePurchaseOrder: typeof import("@/lib/db/procurement").deletePurchaseOrder;
   let createAndReceivePurchaseOrder: typeof import("@/lib/db/procurement-receiving").createAndReceivePurchaseOrder;
   let receivePurchaseOrder: typeof import("@/lib/db/procurement-receiving").receivePurchaseOrder;
 
@@ -36,6 +37,7 @@ describe("procurement.ts", () => {
     getPurchaseOrderItemsForDetail = procurement.getPurchaseOrderItemsForDetail;
     createPurchaseOrder = procurement.createPurchaseOrder;
     updatePurchaseOrder = procurement.updatePurchaseOrder;
+    deletePurchaseOrder = procurement.deletePurchaseOrder;
     createAndReceivePurchaseOrder = procurementReceiving.createAndReceivePurchaseOrder;
     receivePurchaseOrder = procurementReceiving.receivePurchaseOrder;
 
@@ -419,6 +421,48 @@ describe("procurement.ts", () => {
         `SELECT subtotal FROM purchase_order_items WHERE po_id = '${poId}' AND _deleted = 0`,
       );
       expect(itemRows[0].values[0][0]).toBe(2000);
+    });
+  });
+
+  describe("deletePurchaseOrder", () => {
+    it("soft-deletes the order's lines with it, so neither side is left holding a line under a deleted order (A-296)", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Coartem', 'Tablet', 'Carton', 24)`);
+      const poId = await createPurchaseOrder(null, "", [
+        { product_id: "prod1", product_name: "Coartem", bulk_unit: "Carton", bulk_quantity: 2, units_per_bulk: 24, unit_cost: 9000, subtotal: 18000 },
+        { product_id: "prod1", product_name: "Coartem", bulk_unit: "Carton", bulk_quantity: 1, units_per_bulk: 24, unit_cost: 9000, subtotal: 9000 },
+      ]);
+      db.run(`DELETE FROM _sync_queue`);
+
+      await deletePurchaseOrder(poId);
+
+      const live = db.exec(
+        `SELECT COUNT(*) FROM purchase_order_items WHERE po_id = '${poId}' AND _deleted = 0`,
+      );
+      expect(live[0].values[0][0]).toBe(0);
+
+      // The cloud only learns through the queue: without a DELETE per line the
+      // server keeps them live under a parent it has soft-deleted.
+      const queued = db.exec(
+        `SELECT COUNT(*) FROM _sync_queue WHERE table_name = 'purchase_order_items' AND operation = 'DELETE'`,
+      );
+      expect(queued[0].values[0][0]).toBe(2);
+    });
+
+    it("leaves another order's lines alone", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Coartem', 'Tablet', 'Carton', 24)`);
+      const doomed = await createPurchaseOrder(null, "", [
+        { product_id: "prod1", product_name: "Coartem", bulk_unit: "Carton", bulk_quantity: 1, units_per_bulk: 24, unit_cost: 9000, subtotal: 9000 },
+      ]);
+      const keeper = await createPurchaseOrder(null, "", [
+        { product_id: "prod1", product_name: "Coartem", bulk_unit: "Carton", bulk_quantity: 3, units_per_bulk: 24, unit_cost: 9000, subtotal: 27000 },
+      ]);
+
+      await deletePurchaseOrder(doomed);
+
+      const kept = db.exec(
+        `SELECT COUNT(*) FROM purchase_order_items WHERE po_id = '${keeper}' AND _deleted = 0`,
+      );
+      expect(kept[0].values[0][0]).toBe(1);
     });
   });
 

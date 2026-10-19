@@ -15,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, Bug, Lightbulb, User, Clock, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
+import { MessageSquare, Bug, Lightbulb, User, Clock, CheckCircle2, ChevronLeft, ChevronRight, Repeat } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceSafe } from "@/lib/utils/date-utils";
 import { useAdminAuthStore, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
@@ -140,6 +140,15 @@ export function FeedbackTab() {
                           <Clock className="h-3 w-3" />
                           {formatDistanceSafe(item.created_at)}
                         </span>
+                        {(item.occurrence_count ?? 1) > 1 && (
+                          <span
+                            className="flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400 tabular-nums"
+                            title="Times this exact crash fired on the device. Unthrottled, unlike a Sentry event count."
+                          >
+                            <Repeat className="h-3 w-3" />
+                            {(item.occurrence_count as number).toLocaleString()} occurrences
+                          </span>
+                        )}
                       </CardDescription>
                     </div>
                   </div>

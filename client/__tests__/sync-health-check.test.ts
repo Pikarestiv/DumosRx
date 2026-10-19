@@ -91,6 +91,8 @@ describe("checkSyncHealth", () => {
     const [, , context] = logCrashMock.mock.calls[0];
     expect(context.area).toBe("sync-health-check");
     expect(context.deficits).toContain("products");
+    // A deficit a resync is about to fix is a measurement, not a fault.
+    expect(context.informational).toBe(true);
   });
 
   it("stamps the last-checked timestamp only on a successful fetch, not on failure", async () => {
@@ -170,6 +172,8 @@ describe("checkSyncHealth", () => {
       expect(logCrashMock).toHaveBeenCalledTimes(3);
       const [, , lastContext] = logCrashMock.mock.calls[2];
       expect(lastContext.givingUp).toBe("true");
+      // Giving up IS a fault: this one must still reach Sentry.
+      expect(lastContext.informational).toBe(false);
     });
 
     it("resumes resyncing once the deficit actually improves", async () => {

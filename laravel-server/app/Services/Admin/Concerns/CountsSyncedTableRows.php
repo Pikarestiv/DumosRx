@@ -32,7 +32,8 @@ trait CountsSyncedTableRows
      * comparison therefore produced a large permanent false delta and could
      * never have detected a real activity-log divergence. See
      * docs/DEVICE_TABLE_AGREEMENT.md; the general physical-vs-model name
-     * hazard is A-289.
+     * hazard is covered in laravel-server/AGENTS.md, "A client sync table
+     * name is not always a physical table name".
      */
     protected const AGREEMENT_TABLES = [
         'products',

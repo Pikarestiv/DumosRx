@@ -1343,7 +1343,12 @@ existed.
   applies to a subquery exactly as to the parent query. A soft-deleted parent
   would have stopped its children being pulled **at all**, so no device could
   ever learn they were deleted. Now `withTrashed()`, the same rule and reason
-  as A-176a's `stock_batches`.
+  as A-176a's `stock_batches`. A-284 closed the last three holdouts
+  (`sale_items`, `return_items`, `sale_item_batches`), so **every** child
+  subquery in that `match` is `withTrashed()` and there is no per-table
+  exception left to remember — a new child table scopes through a trashed
+  parent too, or its deletes reach nobody and the agreement instrument reads
+  device-behind for ever.
 - **`resolveChangeStoreId()`** — a trashed `Prescription`/`PurchaseOrder` still
   determines its children's ownership. Left plain, it resolved to `null` and
   fell through to the fail-open branch, weakening the scoping this check exists
@@ -1738,9 +1743,22 @@ the promotion rule.
 `audit_logs` is deliberately absent from `AGREEMENT_TABLES`: `getModelForTable()`
 maps it onto `ActivityLog` → `activity_logs`, while a separate, unused physical
 `audit_logs` table also exists, so the comparison ran against two different
-tables and produced a large false delta. The general physical-vs-model
-table-name hazard is **A-289** — read that before adding anything else keyed by
-the client's sync table-name string.
+tables and produced a large false delta.
+
+**A client sync table name is not always a physical table name** (this was
+A-289). Only `getModelForTable()` knows which physical table a sync name
+resolves to, so never hand a sync name — a `table_name` off a request, an
+entry of a client-side list — to `Schema::`, `DB::table()` or a raw query.
+Read `$model->getTable()`, as `stampSyncedAt()`, `reopenPullWindow()` and
+`applyPullCursor()`'s `_synced_at` probe all do. Comparing a sync name against
+a sync-name literal, which is what `push()` does throughout, is fine and is a
+different thing.
+
+`CountsSyncedTableRows` is the deliberate exception: it counts through
+`DB::table($table)` with the sync name, which is safe only because every
+`AGREEMENT_TABLES` entry is its own physical table.
+`SyncPullCursorPhysicalTableTest` pins that, so adding a divergent name to
+the list fails the suite rather than quietly comparing two tables.
 
 The server side lives in `Concerns\CountsSyncedTableRows`, which mirrors
 `SyncController::pull()`'s scoping exactly — including the six child tables
@@ -3507,6 +3525,117 @@ php artisan sync:backfill-store-ids --store=<id> --apply # only rows resolving t
   a chained row filled through a parent filled in the same run, the dry run
   forecasting that chain identically, idempotence, `--store=` scoping, and the
   database being named before anything else.
+
+## Mis-stamped product repair: `sync:repair-product-store-stamps` (A-248, 2026-10-19)
+
+The A-288 backfill above fills a **NULL** `store_id`. This command fixes the
+other half of the same family: a `products.store_id` holding the **wrong**
+store, which A-248 traced to the client claim path stamping the active store
+onto a legacy row.
+
+The reason it is a sync fault and not just untidy data is the asymmetry between
+two scoping rules in `applyPullTenantScope()`: `stock_movements` is filtered by
+**its own** `store_id`, while `stock_batches` is filtered **through its
+product** (`whereIn('product_id', Product::withTrashed()->select('id')
+->whereIn('store_id', $storeIds))`). A product stamped with store B whose
+batches and movements carry store A therefore means store A's devices receive
+every movement and can never receive the batch those movements point at.
+`pull.ts` parks the movement's quantity delta in `_pending_stock_deltas`,
+`applyDeferredStockDeltas()` finds no `stock_batches` row, and the device
+rewinds its `stock_batches` window and logs
+`Pull deferred stock delta unresolved: movement … still has no stock_batches
+row …` on every round for ever — 198 Sentry events for one unresolvable row
+(`DUMOSRX-CLIENT-1Z`). Store B meanwhile holds the product and its batches with
+no movement log to rebuild their quantity from.
+
+```bash
+php artisan sync:repair-product-store-stamps                      # report, writes nothing
+php artisan sync:repair-product-store-stamps --apply              # asks to confirm first
+php artisan sync:repair-product-store-stamps --store=<id> --apply # only products resolving to that store
+```
+
+On production use the 8.2 binary (next section):
+`/opt/alt/php82/usr/bin/php artisan sync:repair-product-store-stamps`.
+
+- **What "the store it actually belongs to" means, and when it refuses.** The
+  evidence is the union of the distinct non-NULL `store_id` values on the
+  product's `stock_batches` rows and on its `stock_movements` rows. A single
+  member is the answer; **anything else is refused and reported, never
+  guessed** — the same rule as `BackfillStoreIds` leaving a row NULL rather
+  than handing it to the wrong pharmacy. A proposed store whose `user_id`
+  differs from the current store's is refused as `ANOTHER TENANT`: moving a
+  product between two *different* owners is not a mis-stamp, it is an incident.
+- **Batches are the authoritative side, by construction.** `stock_batches` is
+  absent from `SyncController::STORE_ID_BACKFILL_TABLES`, so the server has
+  never stamped a store onto one — the client set it. `products` and
+  `stock_movements` are both on that list. A-248's production check settled the
+  direction independently: both known products were created in the same second
+  as their first batch, on store 1's registration day, ten days before store 2
+  existed.
+- **A NULL on either side is A-288's job, not this one.** `NULL <> 'x'` is
+  NULL, so neither a product with no `store_id` nor a batch with none ever
+  becomes a candidate here. Run `sync:backfill-store-ids` first.
+- **It bumps `_version` and `updated_at`**, with an explicit PHP-generated UTC
+  literal and never MySQL `NOW()` (§7). `products` is versioned and `store_id`
+  is client-pushable, so a row rewritten at an unchanged version is reverted by
+  any device still holding the old copy — see "A raw `update()` on a synced
+  table must move `_version`" above. Expect the moved rows to re-pull to every
+  device of both stores; that is the point.
+- **§11: the losing store's devices keep the product for ever.** Moving a
+  product out of a store is a *scoping* change, so no tombstone is sent and
+  `CountsSyncedTableRows` simply stops counting it. Every device of the losing
+  store keeps that product, its batches and whatever movements it holds, with
+  no way to learn they are gone, and the product stays sellable on that till.
+  Nothing on the server can clear it: `sync_commands`' vocabulary is
+  `retry/send_payload/abandon/send_device_report` with an allowlist that
+  excludes business tables, and `forceFullResync()` clears `_sync_state` only —
+  it re-pulls, it never deletes a local row. The only remedy is wiping that
+  device's local database. **The command prints this warning and the losing
+  stores by name before it writes, and asks to confirm.** A move is still the
+  right repair: those rows are already on those devices today and already
+  unreconcilable, so the repair freezes an existing phantom rather than
+  creating a new one, while the alternative (re-stamping the batches and
+  movements onto the product's store) would falsify two stores' sales history.
+  Filed as `docs/KNOWN_BUGS.md` A-291.
+- **What it does not fix.** While the product was mis-stamped, A-280 refused
+  the quantity delta of every movement pushed against it, so the cloud's
+  `stock_batches.quantity` for that batch stopped moving
+  (`docs/KNOWN_BUGS.md` A-280). Correcting the stamp makes *future* deltas
+  apply again, but the refused ones are gone and this command does not
+  reconstruct them — there is no server-side rebuild of a batch's quantity from
+  its movement log today, so that residue needs a one-off correction or the
+  derived-quantity work. Nor does it fold any device's local `stored vs log`
+  drift: that is
+  `healStockIntegrity()`, which only ever looks at batches the device already
+  holds, so a batch the device has never received cannot be one of them.
+- **Idempotent and chunked** (keyset paging on `products.id`, 200 at a time).
+  A second `--apply` reports "No product disagrees …".
+- **Retirement:** delete the command once the A-248 client claim path is fixed
+  *and* one dry run across production reports zero repairable and zero refused.
+  Until the claim path is closed the mis-stamp recurs, so the command is the
+  standing repair, not a one-shot.
+- **Tests:** `tests/Feature/RepairProductStoreStampTest.php` — detection and
+  attribution, **the batch becoming pullable for the correct store** (the
+  actual goal), contradictory evidence reported and left alone, cross-tenant
+  evidence refused, `_version` and `updated_at` moving, the dry run and a
+  declined confirmation both writing nothing, the losing-store warning,
+  idempotence, `--store=` scoping, and the database named before anything else.
+
+## What reaches Sentry (2026-10-19)
+
+**`config/sentry.php` resolves the DSN to `null` when `APP_ENV` is `local` or
+`testing`.** Nothing else gates it. The gate has to live in config rather than
+in `.env`, because the developer's own gitignored `.env` carries a real
+`SENTRY_LARAVEL_DSN` — before this, a local `php artisan serve` and every test
+run that reported an exception spent the owner's shared event quota.
+`SentryEnvironmentGatingTest` pins it.
+
+`'environment'` is `SENTRY_ENVIRONMENT` falling back to `APP_ENV`, so an event
+is never filed under a guessed environment. The quota is shared with the client
+app's project, so a dev/staging box sets `SENTRY_SAMPLE_RATE=0.1`; production
+leaves it at 1.0. Rationale for sampling dev rather than disabling it, and the
+rules for what belongs in Sentry at all, are in `client/AGENTS.md`, "What
+reaches Sentry" — they apply to both halves.
 
 ## Running artisan on the production box (Namecheap shared hosting)
 

@@ -1426,8 +1426,11 @@ read it and they must not agree (A-273):
   substrings for call sites that only have the string by the time they see
   it). These are the server telling this device to slow down or upgrade.
 - `isExpectedSyncNoise` — that set **plus** the transient conditions: the
-  read-only-tab message thrown by `core.ts`'s `assertWritable()` and genuine
-  network failures (`Failed to fetch`, `Load failed`). It is defined as
+  read-only-tab message thrown by `core.ts`'s `assertWritable()`, genuine
+  network failures (`Failed to fetch`, `Load failed`) and `Unauthenticated`
+  (an unlinked or expired cloud account — an expected outcome, not a fault;
+  `sync-indicator.tsx` still shows the cashier "re-link in settings" because
+  it reads the *plan* list, not this one). It is defined as
   `isExpectedPlanRestriction(error) || transient`, so the plan list cannot
   drift between the two.
 
@@ -2346,6 +2349,101 @@ reported a *second* time as a status-0 network error — so every 4xx/5xx with a
 server message produced two reports, one of them misattributed. It now reads the
 `status` the response path stamps on the thrown error, which is the fact it was
 trying to infer.
+
+## What reaches Sentry (2026-10-19)
+
+The owner pays for Sentry per event and was pushed to the edge of his quota by
+events that were **not faults**: ~3,450 of one week's ~3,700 came from two
+already-fixed bugs firing per row, and the rest included a success report, a
+measurement and a deliberate telemetry ping, each opening its own issue.
+
+**A `captureMessage` at `level: "info"` still creates an issue and still
+bills.** Lowering the level is not a fix. There are exactly three destinations,
+and every new report has to pick one:
+
+| Destination | What goes there | How |
+|---|---|---|
+| A Sentry **issue** | A genuine fault: something is wrong and nobody asked for it to happen. | `logCrash(error, isFatal, context)` with no `informational` flag. |
+| A Sentry **breadcrumb** | Context that is only worth having *if a real error follows in the same session*. Costs nothing on its own. | `logCrash(..., { informational: true })`, or `Sentry.addBreadcrumb` directly. |
+| The **local crash table only** (`feedback`) plus the `/logs/client-error` POST | Successes, measurements and anything the owner reads deliberately rather than being alerted by. | Same `informational: true` — it still writes the row and still POSTs; only the issue is suppressed. |
+
+`CrashContext.informational` is the one switch. It does **not** mean "less
+important": it means "this is not a fault". Current users:
+
+- `stock-auto-heal.ts` — always. "Stock auto-heal corrected N batch(es)" is a
+  **success** report; the audit row the fold writes is the record.
+- `health-check.ts` — `informational: !givingUp`. "This device is behind the
+  server" is a measurement and a resync is already being triggered. Giving up
+  after `MAX_NON_IMPROVING_RESYNCS` is a genuine fault and still files an issue.
+- `device-report-command.ts` — a breadcrumb, no issue. A super admin *asked*
+  for the report; the `sendDiagnosticsReport` POST is the channel that delivers
+  it (it lands as a support ticket) and is the only one that can confirm
+  delivery, so it is also the only one named in `delivered_to`. Dropping the
+  Sentry send loses nothing: the full report string already goes to support.
+
+### One event per fingerprint per throttle window
+
+`logCrash` throttles both report paths per crash fingerprint, with **two
+different windows**:
+
+- `REPORT_THROTTLE_MS` (5 min) — the `/logs/client-error` POST, unchanged.
+- `SENTRY_THROTTLE_MS` (60 min) — the Sentry event. New.
+
+The Sentry send used to be unthrottled, on the reasoning that Sentry groups
+repeats itself. True, but grouping is not billing: 2,896 events on one issue is
+2,896 events charged. The window is an hour rather than five minutes because
+the loudest sender is **deliberate**: an exhausted rewind budget reports once
+per *sync round* for ever and A-229/A-256 chose that on purpose, so a 5-minute
+gate would barely have dented it. An hour still lets a device that cannot
+converge keep saying so.
+
+Consequence worth knowing: **Sentry event counts are now throttled samples,
+not occurrence counts.** The real count is `feedback.occurrence_count` on the
+device and in the admin panel's crash table. Both maps are in-memory and reset
+on reload, so a crash loop that survives a reload gets one fresh event per
+reload.
+
+The fingerprint is `area|message|first stack line`, so **a record id in the
+message defeats the throttle** — N records means N fingerprints means N
+issues. That is why `pull.ts` reports its skipped records through
+`summarizeSkippedRecords()` (`pull-skip-report.ts`): one report per run naming
+the count and the tables, with a bounded sample of ids in the context. A pull
+page can skip up to the server's 500-row cap per table, so the loop it replaced
+could file 500 issues from one round. Anything else that reports per row, per
+batch or per page belongs behind the same shape.
+
+The `unresolvedDeltas` loop in `pull.ts` is deliberately still per movement: a
+stranded batch is a real, individually-actionable bug and the count is small.
+It relies on the shared throttle to collapse the same movement recurring across
+rounds.
+
+### Environment gating (`lib/utils/sentry-config.ts`)
+
+`resolveSentryGating(dsn, environment, nodeEnv)` is the only place that decides,
+and `instrumentation-client.ts` is its only caller:
+
+| Build | `NEXT_PUBLIC_SENTRY_ENVIRONMENT` | Result |
+|---|---|---|
+| `next dev` | anything | off (`NODE_ENV === "development"`) |
+| local `next build` | unset | off, tagged `local` — **never** `production` |
+| `deploy-dev.yml` | `development` | on, `sampleRate` 0.1 |
+| `release.yml` / `deploy-client.yml` | `production` | on, `sampleRate` 1 |
+
+Dev stays **on but sampled** rather than off: a regression caught on dev is one
+that never reaches a till, and both environments share one DSN/project so dev
+noise spends production's quota. Sampling keeps the signal and takes the volume
+out; the `environment` tag makes it filterable either way. A missing DSN is
+still a safe no-op — `device-report-command.ts` relies on that.
+
+Default used to be `environment || "production"`, which meant a local or
+unlabelled build filed its events against production. It is now
+`|| "local"`, which also disables it.
+
+**An already-shipped bundle keeps its baked-in behaviour.** This is all
+build-time config compiled into the static export, so a device running an old
+bundle keeps sending unthrottled, unsampled events at whatever environment it
+was built with until it is updated. The quota relief arrives as devices update,
+not at deploy. Nothing here is a server-side kill switch.
 
 ## Cloud setup/registration network calls: `withNetworkRetry()` (`lib/api/retry-on-network-error.ts`)
 

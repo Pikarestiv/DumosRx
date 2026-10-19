@@ -93,6 +93,7 @@ describe("StoreStockDivergenceSection", () => {
 
     expect(screen.getByText(/no local copy/i)).toBeDefined();
     expect(screen.queryByText("-45,727")).toBeNull();
+    expect(screen.queryByText("Diff")).toBeNull();
     expect(screen.queryByText(/^Agrees$/)).toBeNull();
   });
 
@@ -125,7 +126,9 @@ describe("StoreStockDivergenceSection", () => {
     );
 
     expect(screen.getByText(/stopped reporting/i)).toBeDefined();
-    expect(screen.queryByText("2,689")).toBeNull();
+    // A frozen snapshot is still shown, but nothing subtracts it from the
+    // cloud: a difference needs a device we can currently compare (A-252).
+    expect(screen.queryByText("Diff")).toBeNull();
   });
 
   it("renders unavailable on a failed request rather than claiming agreement", () => {
@@ -150,7 +153,12 @@ describe("StoreStockDivergenceSection", () => {
       />,
     );
 
-    expect(screen.getByText(/49,680 across 2,692 batches/)).toBeDefined();
+    // Device and Cloud are stacked rows under one Units column, so a gap is
+    // visible digit-for-digit rather than parsed out of a sentence.
+    expect(screen.getByText("Units")).toBeDefined();
+    expect(screen.getByText("Batches")).toBeDefined();
+    expect(screen.getByText("49,680")).toBeDefined();
+    expect(screen.getByText("2,692")).toBeDefined();
   });
 
   it("values each device's stock in the store's currency", () => {
@@ -182,7 +190,7 @@ describe("StoreStockDivergenceSection", () => {
       />,
     );
 
-    expect(screen.getByText(/value not reported/i)).toBeDefined();
+    expect(screen.getByText(/not reported/i)).toBeDefined();
   });
 
   /** The wire is not guaranteed by the TypeScript type: a web bundle ahead of
@@ -202,7 +210,8 @@ describe("StoreStockDivergenceSection", () => {
       />,
     );
 
-    expect(screen.getByText(/value not reported/i)).toBeDefined();
+    // Neither side has a value, so both rows say so rather than showing zero.
+    expect(screen.getAllByText(/not reported/i)).toHaveLength(2);
     expect(screen.getByText(/Agrees/)).toBeDefined();
   });
 

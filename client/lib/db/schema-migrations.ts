@@ -659,6 +659,51 @@ async function backfillStoreIdOnLegacyRows(adapter: DbAdapter): Promise<void> {
   }
 }
 
+/**
+ * `_sync_state` was keyed by `table_name` alone, so one watermark served every
+ * store a device held — and nothing reset it on a store switch. A device that
+ * spent a week on one store then switched never pulled what the other store
+ * changed in that week, while every watermark read current. Measured on
+ * production: 518 undelivered `sale_items`, 520 `sale_item_batches`, 17
+ * `sales`. See docs/KNOWN_BUGS.md A-305.
+ *
+ * SQLite cannot alter a primary key, so this rebuilds the table. Existing rows
+ * are stamped with the device's single store where it has exactly one — the
+ * common case, which then re-pulls nothing. A device with none, or with
+ * several, keeps rows under '' which matches no real store, so the first pull
+ * per store starts from scratch: correct, and the only safe reading of a
+ * watermark whose store cannot be known.
+ */
+async function scopeSyncStateToStore(adapter: DbAdapter): Promise<void> {
+  try {
+    const columns = await adapter.all("PRAGMA table_info(_sync_state)");
+    if (columns.some((column) => String(column.name) === "store_id")) return;
+
+    const stores = await adapter.all("SELECT id FROM stores");
+    const soleStore = stores.length === 1 ? String(stores[0].id) : "";
+
+    await adapter.run(`
+      CREATE TABLE IF NOT EXISTS _sync_state_scoped (
+        store_id TEXT NOT NULL DEFAULT '',
+        table_name TEXT NOT NULL,
+        last_synced_at TEXT,
+        server_cursor TEXT,
+        rewind_count INTEGER NOT NULL DEFAULT 0,
+        rewound_from TEXT,
+        PRIMARY KEY (store_id, table_name)
+      )
+    `);
+    await adapter.run(`
+      INSERT INTO _sync_state_scoped (store_id, table_name, last_synced_at, server_cursor, rewind_count, rewound_from)
+      SELECT '${soleStore}', table_name, last_synced_at, server_cursor, rewind_count, rewound_from FROM _sync_state
+    `);
+    await adapter.run("DROP TABLE _sync_state");
+    await adapter.run("ALTER TABLE _sync_state_scoped RENAME TO _sync_state");
+  } catch (e) {
+    console.error("Failed to scope _sync_state to its store", e);
+  }
+}
+
 // show_contact_on_receipt (a combined phone+address toggle) was split into
 // show_phone_on_receipt/show_address_on_receipt. Both new columns default to
 // 1 on ALTER TABLE, so a store that had turned contact info off would
@@ -942,6 +987,7 @@ export async function runSchemaMigrations(
   await clearOrphanedProductCategoryIds(adapter);
   await zeroNullStockBatchCostPrices(adapter);
   await relaxPurchaseOrdersSupplierIdNullable(adapter);
+  await scopeSyncStateToStore(adapter);
   await clearLegacyTransactionsOnce(adapter, persist);
   await ensureReadPathIndexes(adapter, persist);
 }

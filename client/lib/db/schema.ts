@@ -272,11 +272,13 @@ CREATE TABLE IF NOT EXISTS _sync_queue (
 );
 
 CREATE TABLE IF NOT EXISTS _sync_state (
-  table_name TEXT PRIMARY KEY,
+  store_id TEXT NOT NULL DEFAULT '',
+  table_name TEXT NOT NULL,
   last_synced_at TEXT,
   server_cursor TEXT,
   rewind_count INTEGER NOT NULL DEFAULT 0,
-  rewound_from TEXT
+  rewound_from TEXT,
+  PRIMARY KEY (store_id, table_name)
 );
 
 CREATE TABLE IF NOT EXISTS _pending_stock_deltas (

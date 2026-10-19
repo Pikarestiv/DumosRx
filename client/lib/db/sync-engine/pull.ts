@@ -85,11 +85,11 @@ interface PullPageCursor {
 // on different schedules (docs/SYNC_PULL_PAGINATION.md).
 const PULL_PROGRESS = {
   savePosition:
-    `INSERT INTO _sync_state (table_name, last_synced_at, server_cursor) VALUES (?, NULL, ?)
-     ON CONFLICT(table_name) DO UPDATE SET server_cursor = excluded.server_cursor`,
+    `INSERT INTO _sync_state (store_id, table_name, last_synced_at, server_cursor) VALUES (?, ?, NULL, ?)
+     ON CONFLICT(store_id, table_name) DO UPDATE SET server_cursor = excluded.server_cursor`,
   completeWindow:
-    `INSERT INTO _sync_state (table_name, last_synced_at, server_cursor) VALUES (?, ?, NULL)
-     ON CONFLICT(table_name) DO UPDATE SET last_synced_at = excluded.last_synced_at, server_cursor = NULL,
+    `INSERT INTO _sync_state (store_id, table_name, last_synced_at, server_cursor) VALUES (?, ?, ?, NULL)
+     ON CONFLICT(store_id, table_name) DO UPDATE SET last_synced_at = excluded.last_synced_at, server_cursor = NULL,
        rewind_count = 0, rewound_from = NULL`,
 } as const;
 
@@ -135,6 +135,8 @@ export async function pullChanges(
   error?: unknown;
 }> {
   const activeRun = resolveSyncRun(run);
+  // '' is the key a watermark of unknown store carries: see A-305's migration.
+  const windowStoreId = activeRun.storeId ?? "";
   const criticalTablesPending = new Set(SETUP_CRITICAL_TABLES);
   let criticalReadyFired = false;
   let pullFailed = false;
@@ -145,14 +147,16 @@ export async function pullChanges(
   };
 
   try {
-    await restoreExhaustedPullWindows();
+    await restoreExhaustedPullWindows(windowStoreId);
 
     // Get last sync timestamp for each table
     const syncState = await query<{
       table_name: string;
       last_synced_at: string;
       server_cursor: string | null;
-    }>("SELECT table_name, last_synced_at, server_cursor FROM _sync_state");
+    }>("SELECT table_name, last_synced_at, server_cursor FROM _sync_state WHERE store_id = ?", [
+      windowStoreId,
+    ]);
 
     // DUPLICATE_NAME_TABLES and still-NULL windows are deliberately left
     // out of the cursor map — see client/AGENTS.md, "Pull details".
@@ -590,7 +594,11 @@ export async function pullChanges(
             if (table === "stock_movements" && deferredThisRound > 0) {
               deferredMovementPageCursor = JSON.stringify(nextCursor);
             } else {
-              await execute(PULL_PROGRESS.savePosition, [table, JSON.stringify(nextCursor)]);
+              await execute(PULL_PROGRESS.savePosition, [
+                windowStoreId,
+                table,
+                JSON.stringify(nextCursor),
+              ]);
             }
           }
 
@@ -601,7 +609,7 @@ export async function pullChanges(
             if (table === "stock_movements" && deferredThisRound > 0) {
               deferredMovementCursor = roundTimestamp;
             } else {
-              await execute(PULL_PROGRESS.completeWindow, [table, roundTimestamp]);
+              await execute(PULL_PROGRESS.completeWindow, [windowStoreId, table, roundTimestamp]);
             }
           }
         }
@@ -631,11 +639,13 @@ export async function pullChanges(
         unresolvedDeltas.push(...(await applyDeferredStockDeltas()));
         if (deferredMovementCursor !== null) {
           await execute(PULL_PROGRESS.completeWindow, [
+            windowStoreId,
             "stock_movements",
             deferredMovementCursor,
           ]);
         } else if (deferredMovementPageCursor !== null) {
           await execute(PULL_PROGRESS.savePosition, [
+            windowStoreId,
             "stock_movements",
             deferredMovementPageCursor,
           ]);
@@ -646,7 +656,7 @@ export async function pullChanges(
     // A stranded batch is only re-sent if it is updated again, so a chronic
     // deferral needs the window reopened or it never resolves (A-176).
     if (unresolvedDeltas.length > 0) {
-      await rewindPullWindow("stock_batches", "unresolved stock delta");
+      await rewindPullWindow(windowStoreId, "stock_batches", "unresolved stock delta");
     }
 
     for (const d of unresolvedDeltas) {

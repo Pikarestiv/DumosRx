@@ -553,7 +553,7 @@ export async function pushChanges(
                 !rewoundTables.has(f.table_name)
               ) {
                 rewoundTables.add(f.table_name);
-                await rewindPullWindow(f.table_name, f.reason);
+                await rewindPullWindow(activeRun.storeId ?? "", f.table_name, f.reason);
               }
 
               if (wasRetried) {

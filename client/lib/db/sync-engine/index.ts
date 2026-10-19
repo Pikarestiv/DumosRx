@@ -58,11 +58,15 @@ export async function forceFullResync(): Promise<SyncResult> {
     return { success: false, pushed: 0, pulled: 0, error: SYNC_IN_PROGRESS_ERROR };
   }
 
-  const stashed = await clearPullWindows();
+  // Scoped to the store being resynced: the other store's windows must
+  // survive an escape hatch pulled for this one (A-305).
+  const run = resolveSyncRun();
+  const windowStoreId = run.storeId ?? "";
+  const stashed = await clearPullWindows(windowStoreId);
   try {
     return await sync(true);
   } finally {
-    await restorePullWindows(stashed);
+    await restorePullWindows(windowStoreId, stashed);
   }
 }
 
@@ -328,7 +332,13 @@ export async function syncSubscriptionStatus(): Promise<{
       }
     }
 
-    await stampPullWindowUnlessRewinding("stores", response.server_timestamp);
+    // Not inside a sync run, so this resolves its own: `stores` is the one
+    // table whose window is not per-tenant data, but it is keyed like the rest.
+    await stampPullWindowUnlessRewinding(
+      resolveSyncRun().storeId ?? "",
+      "stores",
+      response.server_timestamp,
+    );
 
     // Prefix-only keys, so every store/user-scoped variant is matched.
     if (typeof window !== "undefined") {

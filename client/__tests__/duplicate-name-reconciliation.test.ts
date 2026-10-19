@@ -84,6 +84,60 @@ describe("pull.ts duplicate-name reconciliation", () => {
     expect(payload.category_id).toBe("server-cat");
   });
 
+  /**
+   * A-301, measured on production: 2,138 products of one store and 2,500 of
+   * the other were repointed at each other's same-named categories, in two
+   * four-minute bursts. A device holding both stores pulls the ACTIVE store's
+   * categories, so the other store's local rows are never in `serverIds` and
+   * looked orphaned — then matched by name, remapped, and soft-deleted,
+   * taking that store's whole catalogue with them. Every device of the losing
+   * store then renders "Uncategorized" for ever, because a pull only ever
+   * delivers its own store's categories.
+   */
+  it("leaves another store's products and categories alone while reconciling the active store's", async () => {
+    // store_id arrives by runtime migration, not SCHEMA_SQL, so this harness
+    // has to add it to model a migrated (multi-store-capable) device. Where
+    // the column is absent the reconciliation cannot scope and keeps its old
+    // behaviour — such a device only ever holds one store anyway.
+    for (const table of ["categories", "products"]) {
+      try {
+        db.run(`ALTER TABLE ${table} ADD COLUMN store_id TEXT`);
+      } catch {
+        // Already added by an earlier test in this file.
+      }
+    }
+
+    core.setActiveStoreId("store-a");
+    db.run(`INSERT INTO categories (id, name, store_id, _deleted) VALUES ('cat-a', 'Drugs', 'store-a', 0)`);
+    db.run(`INSERT INTO categories (id, name, store_id, _deleted) VALUES ('cat-b', 'Drugs', 'store-b', 0)`);
+    db.run(`INSERT INTO products (id, name, category_id, store_id, _deleted) VALUES ('p-a', 'Panadol', 'cat-a', 'store-a', 0)`);
+    db.run(`INSERT INTO products (id, name, category_id, store_id, _deleted) VALUES ('p-b', 'Coartem', 'cat-b', 'store-b', 0)`);
+
+    apiClient.pullChanges.mockResolvedValueOnce({
+      success: true,
+      changes: {
+        categories: [{ id: "server-cat-a", name: "Drugs", store_id: "store-a", _version: 1 }],
+      },
+      server_timestamp: "2026-10-19T00:00:00Z",
+    });
+
+    await pullChanges();
+
+    // The active store's own collision still reconciles.
+    const ownProduct = db.exec(`SELECT category_id FROM products WHERE id = 'p-a'`);
+    expect(ownProduct[0].values[0][0]).toBe("server-cat-a");
+
+    // The other store's product keeps its own category...
+    const otherProduct = db.exec(`SELECT category_id FROM products WHERE id = 'p-b'`);
+    expect(otherProduct[0].values[0][0]).toBe("cat-b");
+
+    // ...and that category is still there to resolve it.
+    const otherCategory = db.exec(`SELECT _deleted FROM categories WHERE id = 'cat-b'`);
+    expect(otherCategory[0].values[0][0]).toBe(0);
+
+    core.setActiveStoreId(null);
+  });
+
   it("rewrites a stale _sync_queue payload that still has the old category id", async () => {
     db.run(`INSERT INTO categories (id, name, _deleted) VALUES ('local-cat', 'Analgesics', 0)`);
     db.run(`INSERT INTO products (id, name, category_id, _deleted) VALUES ('p1', 'Panadol', 'local-cat', 0)`);

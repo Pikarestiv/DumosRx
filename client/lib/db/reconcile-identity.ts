@@ -1,4 +1,11 @@
-import { execute, query, transaction, isInTransaction, STORE_SCOPED_TABLES } from "./core";
+import {
+  execute,
+  query,
+  transaction,
+  isInTransaction,
+  getActiveStoreId,
+  STORE_SCOPED_TABLES,
+} from "./core";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
 import { serializeRequeuePayload } from "./requeue-payload";
 
@@ -211,19 +218,27 @@ export async function remapForeignKey(
   refs: { table: string; column: string }[],
 ): Promise<void> {
   const remappedIds: Record<string, string[]> = {};
+  const storeId = getActiveStoreId();
 
   for (const { table, column } of refs) {
     if (!(await tableExists(table)) || !(await columnExists(table, column))) continue;
 
+    // A-301: without this, remapping one store's category rewrote the OTHER
+    // store's rows too, on a device holding both. NULL stays in scope — a
+    // legacy row with no store is the case this remap exists for.
+    const scoped = storeId && (await columnExists(table, "store_id"));
+    const scope = scoped ? " AND (store_id = ? OR store_id IS NULL)" : "";
+    const scopeArgs = scoped ? [storeId] : [];
+
     const affected = await query<{ id: string }>(
-      `SELECT id FROM ${table} WHERE ${column} = ?`,
-      [oldId],
+      `SELECT id FROM ${table} WHERE ${column} = ?${scope}`,
+      [oldId, ...scopeArgs],
     );
     remappedIds[table] = [...(remappedIds[table] ?? []), ...affected.map((row) => row.id)];
 
     await execute(
-      `UPDATE ${table} SET ${column} = ?, _synced = 0 WHERE ${column} = ?`,
-      [newId, oldId],
+      `UPDATE ${table} SET ${column} = ?, _synced = 0 WHERE ${column} = ?${scope}`,
+      [newId, oldId, ...scopeArgs],
     );
   }
 

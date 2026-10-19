@@ -1,4 +1,10 @@
-import { query, execute, transaction, STORE_SCOPED_TABLES } from "../core";
+import {
+  query,
+  execute,
+  transaction,
+  getActiveStoreId,
+  STORE_SCOPED_TABLES,
+} from "../core";
 import { apiClient } from "@/lib/api/client";
 import { PullResponse } from "./types";
 import { getValidColumns } from "./schema";
@@ -531,8 +537,19 @@ export async function pullChanges(
               if (name) serverIdByName.set(name, r.id as string);
             }
 
+            // Store-scoped: the pulled page only ever holds the ACTIVE store's
+            // rows, so another store's local category is never in `serverIds`
+            // and used to look orphaned — then matched by name and remapped,
+            // taking that store's whole catalogue with it (A-301).
+            const activeStoreId = getActiveStoreId();
+            const scopeToStore =
+              !!activeStoreId && (await columnExists(table, "store_id"));
             const localRows = await query<{ id: string; name: string }>(
-              `SELECT id, name FROM ${table} WHERE (_deleted = 0 OR _deleted IS NULL)`,
+              `SELECT id, name FROM ${table}
+                WHERE (_deleted = 0 OR _deleted IS NULL)${
+                  scopeToStore ? " AND (store_id = ? OR store_id IS NULL)" : ""
+                }`,
+              scopeToStore ? [activeStoreId] : [],
             );
 
             for (const row of localRows) {

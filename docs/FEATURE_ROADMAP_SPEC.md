@@ -13,7 +13,46 @@ This document tracks the proposed features for the DumosRx system, sorted by imp
 
 ---
 
+## 🧭 Recommended next, from the 2026-10-18 sync architecture review
+
+The review's conclusion was explicitly **not to rewrite the sync engine**:
+every defect the October audit found (A-271 → A-290 in `docs/FIXED_BUGS.md`)
+was a local one inside a sound design, and all of them were fixable in place.
+The three things it recommended next, in order:
+
+1. **A-286 — restamp `_synced_at` at commit** instead of per change inside the
+   push loop, so A-282's 60-second watermark lag becomes a clock-skew
+   allowance rather than the only thing between a slow push and a silently
+   lost row. Once it lands, `PULL_WATERMARK_LAG_SECONDS` can drop to seconds.
+2. **A two-device simulation harness**, asserting the three properties nothing
+   tests end to end today: eventual agreement between two devices and the
+   cloud, ledger consistency (a batch's quantity equals the sum of its
+   movements on both sides), and no lost edit without a trace. The per-table
+   agreement digest already computes the oracle — what is missing is a test
+   that drives two clients against one server.
+3. **Derived-quantity Stage 2**
+   (`docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`),
+   which is also the prerequisite for A-283.
+
+---
+
 ## ✅ Recently Completed
+
+### Per-device, per-table sync agreement and delivery timing: DONE (2026-10-18/19)
+
+- **Status:** Shipped in #169/#170. Every synced table is now compared between each device and the cloud by row count and version sum, with a per-device, per-table verdict (`agrees` / `syncing` / `behind` / `diverged`) and the non-verdict states that matter — `No local copy of this store`, `Stopped reporting`, and `Not measured`, because silence is not agreement. Push health is now measured as *eventual delivery per edit* (the age of the oldest unsent edit, plus a histogram of what was delivered) rather than per HTTP attempt. Mechanism, cost, the four verdicts and the digest's documented blind spots: **`docs/DEVICE_TABLE_AGREEMENT.md`** — not restated here.
+- **Admin UI:** store details is now Overview / Sync / Activity, deep-linkable via `?tab=`, with a sync-agreement badge on the Sync tab; the whole tab, its content and its badge queries are gated on `view_platform_health`. Both agreement panels were redesigned as dense tabular-numeral tables (`web/AGENTS.md`, "The agreement rows are tables, not sentences"). A requested device report now shows its outcome — `Sent to till`, `Report received <when>`, or a refusal reason — and can be re-requested.
+- **Three opt-in repair commands**, all dry-run by default and all naming the database before they write: `sync:backfill-product-versions`, `sync:backfill-store-ids` (A-288), `sync:repair-product-store-stamps` (A-248). See `laravel-server/AGENTS.md` for each.
+- **Behaviour changes that are not features but matter to an operator:** deletes now propagate for nine previously hard-deleting models (A-281), a voided sale's line items now reach devices (A-284), a cross-tenant stock write is refused (A-280), and a stale device can no longer reactivate a deactivated account (A-277) or revert a repair (A-276).
+- **Sentry policy changed with it** — see the three Sentry entries below, which this release partly superseded, and `docs/SYNC_CRASH_REPORT_POLICY.md` for the single authority.
+- **Still open, deliberately, rather than dropped:** A-291 (a product moved between stores leaves a sellable phantom on the losing store's devices — needs a scoping tombstone, a new field in a shared contract), A-288's `requested_products` residue (no owner column exists to attribute by), A-248's unreconstructed cloud `stock_batches.quantity` deltas, A-283 (soft-deleting `stock_movements`/`stock_batches` needs the quantity accumulator first), A-286, A-287, A-249 (`_sync_state` has no store dimension), A-275 (money is a binary float on the device and an exact decimal on the server). All in `docs/KNOWN_BUGS.md` with the fix where it is known.
+- **Two standing verification gaps, neither closed by this release:** none of the new admin UI has had a real logged-in browser smoke test (§9 — the intended clicks are written down in `web/AGENTS.md` instead), and `npm run test:schema` has still never been run against a migrated local database, so cross-repo schema parity (§5) is asserted only against the committed schema files.
+
+### Stock audit: tell counted apart from uncounted, and filter on it: DONE (2026-10-13)
+
+- **Status:** Shipped. Requested 2026-10-12 by Nest Pharmacy after a live count; the contradiction in the request (prefill 0 *and* use "has a number" as the counted signal) was resolved as **Reading B plus an explicit marker**: the Counted Qty column opens blank with the system's own figure shown faintly inside it, a matching row can be ticked instead of retyped, and un-ticking returns it to uncounted — so a real zero count is recordable and distinguishable from an untouched row.
+- **Also shipped:** Counted / Not Counted / Qty Differences filters, a **Last Counted** column, an in-progress count persisted on the device, and a submit that posts only the rows actually changed.
+- **Docs:** `docs/SYSTEM_FEATURES_DOCUMENTATION.md`, "Cycle Count (Stock Audit)".
 
 ### Retry-with-backoff on the cloud setup/registration flow: DONE (2026-10-01)
 
@@ -37,6 +76,7 @@ This document tracks the proposed features for the DumosRx system, sorted by imp
 - **Source maps:** `withSentryConfig` wraps `next.config.mjs` for build-time source-map upload, gated on `SENTRY_AUTH_TOKEN` (CI secret).
 - **CI wiring:** DSN + environment env vars added to both `.github/workflows/deploy-client.yml` (web build → `app.dumosrx.com`) and `.github/workflows/release.yml` (Tauri desktop/mobile releases): both deploy targets report.
 - **Tooling:** Project-scoped Sentry MCP configured for Claude Code (`.mcp.json`), Cursor (`.cursor/mcp.json`), and VS Code (`.vscode/mcp.json`).
+- **⚠️ Partly superseded (2026-10-19) — the configuration described above no longer exists.** The original integration reported everything, from every build, unthrottled, and that walked the owner into his event quota: ~3,450 of one week's ~3,700 events came from two already-fixed bugs firing per row, and the rest included a success report, a measurement and a deliberate telemetry ping, each opening its own billable issue. What changed: `lib/utils/sentry-config.ts` is now the only thing that decides whether to report (`next dev` and an unlabelled local `next build` are **off** and tagged `local`, never `production`; dev builds are on at `sampleRate` 0.1; production unchanged at 1.0); `logCrash` throttles the Sentry send to one event per crash fingerprint per hour (`SENTRY_THROTTLE_MS`) beside the existing five-minute throttle on the `/logs/client-error` POST; and every new report must now pick one of three destinations (issue / breadcrumb / local crash table only) via `CrashContext.informational`. Full rules: `client/AGENTS.md`, "What reaches Sentry".
 
 ### Sentry on `laravel-server/`: DONE (2026-08-14)
 
@@ -45,6 +85,7 @@ This document tracks the proposed features for the DumosRx system, sorted by imp
 - **Traces:** `SENTRY_TRACES_SAMPLE_RATE=0`: error capture only, no perf tracing, matching the client's config.
 - **`.env.example`** documents `SENTRY_LARAVEL_DSN` / `SENTRY_TRACES_SAMPLE_RATE`.
 - **Deployed:** DSN confirmed added to the persistent `.env` on both `api.dumosrx.com` and `api.dev.dumosrx.com` (backend deploy workflows exclude `.env` from their FTP sync, so this was a manual step, not CI-driven).
+- **⚠️ Partly superseded (2026-10-19).** The "shares the same free-tier quota, not an additional one" note above is still true and is now exactly why the config changed: `config/sentry.php` resolves the DSN to `null` when `APP_ENV` is `local` or `testing` (the gate has to live in config, because the developer's own gitignored `.env` carries a real `SENTRY_LARAVEL_DSN` — before this, a local `php artisan serve` and every test run that reported an exception spent the owner's quota), `'environment'` falls back to `APP_ENV` rather than being guessed, and a dev/staging box sets `SENTRY_SAMPLE_RATE=0.1` while production stays at 1.0. `SentryEnvironmentGatingTest` pins it. Rationale: `laravel-server/AGENTS.md`, "What reaches Sentry".
 
 ### Sentry issues surfaced in the super-admin dashboard: DONE (2026-08-15)
 
@@ -52,6 +93,8 @@ This document tracks the proposed features for the DumosRx system, sorted by imp
 - **Why server-side, not direct from `web/`:** `web/` is also a static export (`output: "export"`) with no server of its own: a Sentry API token embedded in its browser bundle would be extractable by anyone with access to the app. Routing through `laravel-server` (which already holds the crash-reporting DSN server-side) keeps the read-token off the client entirely.
 - **Auth:** A read-only Sentry internal integration token (`Issue & Event: Read`, `Project: Read`; no write/webhook scopes) stored as `SENTRY_API_TOKEN` in `laravel-server/.env`, distinct from `SENTRY_LARAVEL_DSN` (that one reports crashes; this one reads them back out).
 - **Verified:** Real issues from both Sentry projects (including the `ENOENT` dev-cache error hit earlier this session) render correctly in the dashboard with level, project, culprit, event count, and a link out to Sentry.
+- **⚠️ The "event count" in that card is no longer an occurrence count (2026-10-19).** Once the client throttles the Sentry send per fingerprint per hour and dev samples at 0.1, Sentry only counts the events it was actually sent, so the card renders `≥ N events` with the sampling named in its header. The **true** figure is `feedback.occurrence_count`, maintained per fingerprint by `logCrash`, synced up with the crash row and touched by no throttle; the feedback list shows it whenever it is above 1. Do not re-render a bare Sentry count anywhere, and do not try to join a Sentry issue to a `feedback` row — the two grouping schemes have no reliable mapping. See `web/AGENTS.md`, "A Sentry event count is a sample, not an occurrence count".
+- **Note:** `web/` itself still has no Sentry SDK — it is a static export, and the admin panel *reads* Sentry through `laravel-server` rather than reporting to it.
 
 ### Impersonate feature: DONE, verified (2026-08-15)
 
@@ -318,9 +361,10 @@ architectural notes this entry doesn't repeat.
 
 ### Pending-sync warning is noisy and incomplete (Deferred 2026-08-16)
 
-- **Current state:** Confirmed via code trace: the "you have unsynced changes" confirm dialog only exists on the full logout path (`useAccountActions`, `client/lib/hooks/use-account-actions.ts`), gated on `getSyncQueueCount()` (`client/lib/db/queries/setup.ts`), which is `SELECT COUNT(*) FROM _sync_queue` with no filtering by table. "Switch Account" (`lockForSwitch()`) never checks at all: by design, since it doesn't clear anything. Separately, `logAction()` (`client/lib/db/core.ts`) unconditionally queues a `_sync_queue` row for every audit event, including `LOGIN`: so the pending count is virtually guaranteed to be ≥1 immediately after any login, meaning the logout warning fires almost every time even when the only "pending" item is the audit trail of the login that just happened. No auto-sync-on-logout exists anywhere in the codebase today.
+- **Current state:** Confirmed via code trace: the "you have unsynced changes" confirm dialog only exists on the full logout path (`useAccountActions`, `client/lib/hooks/use-account-actions.ts`), gated on `getSyncQueueCount()` (`client/lib/db/queries/setup.ts`). "Switch Account" (`lockForSwitch()`) never checks at all: by design, since it doesn't clear anything. Separately, `logAction()` (`client/lib/db/core.ts`) unconditionally queues a `_sync_queue` row for every audit event, including `LOGIN`: so the pending count is virtually guaranteed to be ≥1 immediately after any login, meaning the logout warning fires almost every time even when the only "pending" item is the audit trail of the login that just happened. No auto-sync-on-logout exists anywhere in the codebase today.
 - **Action:** Root fix is filtering `getSyncQueueCount()` (or the query behind it) to exclude low-value `audit_logs` entries like `LOGIN`/`LOGOUT`, or restrict it to business-critical tables (sales, products, stock movements, etc.), so the warning reflects real data at risk, not just an audit-trail footnote. A best-effort background sync attempt on logout is a reasonable addition on top of that, but doesn't replace the filtering fix (still needs connectivity, and doesn't fix the count being meaningless offline).
-- **Effort:** ~1 day: query filtering change + verification that legitimate pending business-data cases still warn correctly.
+- **Partly done — the filtering mechanism now exists, the `audit_logs` half does not.** `getSyncQueueCount()` is no longer an unfiltered `COUNT(*)`: it subtracts automatic crash-report rows (`WHERE NOT ${CRASH_REPORT_QUEUE_ROW_SQL}`), and the instant-sync listener asks `hasPendingNonCrashFeedback()` when `feedback` is the only changed table, so telemetry no longer drives sync or inflates the count. See `docs/SYNC_CRASH_REPORT_POLICY.md`. **What remains is exactly the originally-reported complaint:** `logAction()` still queues an `audit_logs` INSERT for every audit event including `LOGIN`, and those rows are still counted, so the logout warning still fires on a queue whose only content is the audit trail of the login that just happened. The crash-report filter is the pattern to copy.
+- **Effort (remaining):** ~half a day: extend the same filtering to low-value `audit_logs` actions + verification that legitimate pending business-data cases still warn correctly.
 
 ---
 
@@ -462,34 +506,6 @@ The Gemini/LLM approach below remains a **possible future phase**, not a superse
 
 - **Current state:** Real `Role`/`Permission` system already exists server-side, and enforcement is now consistent (see [Roles & Permissions cleanup](#roles--permissions-cleanup--done-2026-08-15) above).
 - **Open question:** Whether a dedicated Settings-tab "Roles & Permissions" UI is worth building depends on a concrete use case where the current role set doesn't cut it: not yet identified. Not sizeable until a use case surfaces.
-
-### 📋 Stock audit: tell counted apart from uncounted, and filter on it *(requested 2026-10-12, Nest Pharmacy)*
-
-Raised by the owner after a live count. Two parts; the second is clear, the
-first needs a decision before anyone builds it.
-
-- **Filters — clear.** The audit list needs to filter by **counted**, by
-  **uncounted**, and by **quantity difference** (non-zero variance). On a
-  2,700-product catalogue a counter cannot otherwise find where she stopped, or
-  review just the discrepancies at the end.
-- **Prefilling the counted field — contradictory as stated, do not guess.** The
-  request was "prefill counted with 0", and the stated reason was "she needs to
-  know which ones she has counted, which she does by checking which ones have
-  numbers". Those two cannot both hold: if every row is prefilled with 0 then
-  every row has a number and the signal she relies on is gone. The two
-  implementations are opposites, so ask before building:
-  - *Reading A:* the field is currently blank and she wants 0 prefilled so she
-    only types the rows that differ — in which case "counted" needs its own
-    explicit marker (a tick, a touched-state, a "mark as counted" action),
-    because a prefilled 0 cannot distinguish "counted, found none" from "not
-    counted".
-  - *Reading B:* the field currently defaults to 0 and that is exactly the
-    problem — it should be **blank** until touched, so a number genuinely means
-    counted. This matches her stated method and needs no new marker.
-  - Either way a real zero count must be recordable and distinguishable from an
-    untouched row, which is the actual requirement underneath both readings.
-
----
 
 ---
 

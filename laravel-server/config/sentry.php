@@ -8,7 +8,11 @@
 return [
 
     // @see https://docs.sentry.io/concepts/key-terms/dsn-explainer/
-    'dsn' => env('SENTRY_LARAVEL_DSN', env('SENTRY_DSN')),
+    // Gated here rather than in `.env`, because the developer's own `.env`
+    // carries a real DSN. See laravel-server/AGENTS.md, "What reaches Sentry".
+    'dsn' => in_array(env('APP_ENV'), ['local', 'testing'], true)
+        ? null
+        : env('SENTRY_LARAVEL_DSN', env('SENTRY_DSN')),
 
     // @see https://spotlightjs.com/
     // 'spotlight' => env('SENTRY_SPOTLIGHT', false),
@@ -20,8 +24,8 @@ return [
     // Example with dynamic git hash: trim(exec('git --git-dir ' . base_path('.git') . ' log --pretty="%h" -n1 HEAD'))
     'release' => env('SENTRY_RELEASE'),
 
-    // When left empty or `null` the Laravel environment will be used (usually discovered from `APP_ENV` in your `.env`)
-    'environment' => env('SENTRY_ENVIRONMENT'),
+    // Explicit, so an event is never filed under a guessed environment.
+    'environment' => env('SENTRY_ENVIRONMENT', env('APP_ENV')),
 
     // Override the organization ID used for trace continuation checks.
     'org_id' => env('SENTRY_ORG_ID') === null ? null : (int) env('SENTRY_ORG_ID'),

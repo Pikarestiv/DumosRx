@@ -3513,6 +3513,22 @@ php artisan sync:backfill-store-ids --store=<id> --apply # only rows resolving t
   forecasting that chain identically, idempotence, `--store=` scoping, and the
   database being named before anything else.
 
+## What reaches Sentry (2026-10-19)
+
+**`config/sentry.php` resolves the DSN to `null` when `APP_ENV` is `local` or
+`testing`.** Nothing else gates it. The gate has to live in config rather than
+in `.env`, because the developer's own gitignored `.env` carries a real
+`SENTRY_LARAVEL_DSN` — before this, a local `php artisan serve` and every test
+run that reported an exception spent the owner's shared event quota.
+`SentryEnvironmentGatingTest` pins it.
+
+`'environment'` is `SENTRY_ENVIRONMENT` falling back to `APP_ENV`, so an event
+is never filed under a guessed environment. The quota is shared with the client
+app's project, so a dev/staging box sets `SENTRY_SAMPLE_RATE=0.1`; production
+leaves it at 1.0. Rationale for sampling dev rather than disabling it, and the
+rules for what belongs in Sentry at all, are in `client/AGENTS.md`, "What
+reaches Sentry" — they apply to both halves.
+
 ## Running artisan on the production box (Namecheap shared hosting)
 
 The default `php` on that server is **7.4.33**; this app requires >= 8.2, so a

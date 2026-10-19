@@ -14,8 +14,8 @@ import { getStoredActiveStoreId } from "@/lib/storage-keys";
  * This exists because the ordinary telemetry channel fails exactly when it is
  * needed: crash rows live in `feedback`, which rides the sync queue, so a till
  * whose push is jammed stops reporting at the moment it has most to say. The
- * report instead goes out over a plain POST that never touches the queue, and
- * to Sentry, which is also fire-and-forget HTTP.
+ * report instead goes out over a plain POST that never touches the queue,
+ * which lands as a support ticket and is the only channel that delivers it.
  *
  * The command rides the PUSH response (SyncController::exchangeSyncCommands),
  * not the pull. So a device whose rows fail individually — the "50 changes
@@ -42,13 +42,16 @@ export async function sendDeviceReportOnRequest(
   const report = buildReport(data, identity);
   const delivered: string[] = [];
 
-  // Structured context rather than one giant string: Sentry truncates a long
-  // message, and the counts are what a fleet-wide search needs.
+  // A breadcrumb, not an issue: a requested report is not a fault, and the
+  // support POST below is the channel that actually delivers it. See
+  // client/AGENTS.md, "What reaches Sentry".
   try {
-    Sentry.captureMessage(`Device report requested: ${getDeviceLabel()}`, {
+    Sentry.addBreadcrumb({
+      category: "device-report",
       level: "info",
-      tags: { area: "device-report", device_id: getDeviceId() },
-      extra: {
+      message: `Device report requested: ${getDeviceLabel()}`,
+      data: {
+        deviceId: getDeviceId(),
         queueTotal: data.queueTotal,
         conflicts: data.conflicts,
         orphans: data.orphans,
@@ -59,13 +62,8 @@ export async function sendDeviceReportOnRequest(
         unappliedDeltas: data.deltas.total,
         missingTables: data.missingTables,
         lastSyncOutcome: data.lastSyncOutcome,
-        report,
       },
     });
-    // "unconfirmed" is the honest word: captureMessage never throws, a
-    // missing DSN makes it a silent no-op, and transport failures are async.
-    // It can never prove delivery, so it must not be what makes this applied.
-    delivered.push("sentry (unconfirmed)");
   } catch {
     /* a missing DSN must not stop the support POST below */
   }

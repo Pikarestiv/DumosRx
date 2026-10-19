@@ -37,6 +37,9 @@ export interface CrashContext {
   area?: string;
   table?: string;
   recordId?: string;
+  /** A success or measurement, not a fault: no Sentry issue, only a
+   * breadcrumb. See client/AGENTS.md, "What reaches Sentry". */
+  informational?: boolean;
   [key: string]: unknown;
 }
 
@@ -81,14 +84,20 @@ function buildCrashFingerprint(message: string, stack: string, area?: string): s
 }
 
 // In-memory only, not persisted: bounds how often the SAME recurring crash
-// fires the direct-to-server reportClientError call below (a separate,
-// immediate-HTTP path from the local `feedback` row, which has its own
-// dedup against the database). A page reload naturally resets this map,
-// which is fine - a crash loop that survives a reload just gets one fresh
-// report per reload instead of one per throw, still nowhere near "15,000
-// uploads" for a loop that fires within a single session.
-const REPORT_THROTTLE_MS = 5 * 60 * 1000;
+// fires each of the two report paths below. Sentry has its own, far longer
+// window because its events are billed. See client/AGENTS.md, "What reaches
+// Sentry".
+export const REPORT_THROTTLE_MS = 5 * 60 * 1000;
+export const SENTRY_THROTTLE_MS = 60 * 60 * 1000;
 const lastReportedAt = new Map<string, number>();
+const lastSentToSentryAt = new Map<string, number>();
+
+function throttle(seen: Map<string, number>, key: string, windowMs: number): boolean {
+  const now = Date.now();
+  if (now - (seen.get(key) || 0) <= windowMs) return true;
+  seen.set(key, now);
+  return false;
+}
 
 // base-client.ts attaches `code` to the thrown Error; the message-substring
 // fallback covers call sites (e.g. recordSyncFailure) that only have the
@@ -108,6 +117,7 @@ const TRANSIENT_SYNC_MESSAGE_PATTERNS = [
   "This tab is read-only because",
   "Failed to fetch",
   "Load failed",
+  "Unauthenticated",
 ];
 
 function messageOf(error: unknown): string {
@@ -165,12 +175,10 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
     stack = err.stack || "";
   }
 
-  // Last line of defence for every consumer below (fingerprint, the stored
-  // `feedback` row, the direct server report): no caller can make a crash
-  // message unbounded, whatever it embeds.
+  // Last line of defence for every consumer below: no caller can make a
+  // crash message unbounded, whatever it embeds.
   message = truncateForLog(message, MAX_CRASH_MESSAGE_LENGTH);
 
-  // Detect platform
   const isTauri = typeof window !== "undefined" &&
     (window.__TAURI__ !== undefined || window.__TAURI_INTERNALS__ !== undefined);
 
@@ -193,36 +201,38 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
 
   const fingerprint = buildCrashFingerprint(message, stack, context.area);
 
-  // Forward to Sentry; never let it break local crash logging, which must
-  // keep working offline regardless of network/DSN availability. Sentry
-  // already groups/rate-limits repeats of the same exception on its own
-  // side, so it isn't throttled here the way the two paths below are.
-  try {
-    Sentry.captureException(error instanceof Error ? error : new Error(message), {
-      tags: {
-        platform: info.platform,
-        fatal: String(isFatal),
-        device_id: deviceId,
-        device_name: deviceLabel,
-        build_sha: BUILD_SHA,
-        area: context.area,
-      },
-      extra: { url: info.url, userAgent: info.userAgent, ...context },
-    });
-  } catch (_) {}
+  // Never let Sentry break local crash logging, which must keep working
+  // offline regardless of network/DSN availability.
+  if (context.informational) {
+    try {
+      Sentry.addBreadcrumb({
+        category: context.area || "report",
+        level: "info",
+        message,
+        data: { ...context },
+      });
+    } catch (_) {}
+  } else if (!throttle(lastSentToSentryAt, fingerprint, SENTRY_THROTTLE_MS)) {
+    try {
+      Sentry.captureException(error instanceof Error ? error : new Error(message), {
+        tags: {
+          platform: info.platform,
+          fatal: String(isFatal),
+          device_id: deviceId,
+          device_name: deviceLabel,
+          build_sha: BUILD_SHA,
+          area: context.area,
+        },
+        extra: { url: info.url, userAgent: info.userAgent, ...context },
+      });
+    } catch (_) {}
+  }
 
   // Ship directly to our own server too, independent of the local SQLite
   // sync queue below: when the crash IS a sync failure, waiting on that same
   // broken sync path to eventually deliver this report would mean it never
   // arrives. keepalive fetch survives the tab closing right after a crash.
-  //
-  // Throttled per fingerprint (see lastReportedAt above): a bug that keeps
-  // re-throwing in a loop otherwise fires this immediate HTTP call once per
-  // occurrence, completely independent of how often (or whether) the local
-  // sync queue below ever flushes.
-  const lastReported = lastReportedAt.get(fingerprint) || 0;
-  if (Date.now() - lastReported > REPORT_THROTTLE_MS) {
-    lastReportedAt.set(fingerprint, Date.now());
+  if (!throttle(lastReportedAt, fingerprint, REPORT_THROTTLE_MS)) {
     try {
       const { apiClient } = await import("@/lib/api/client");
       const { reportClientError } = await import("@/lib/api/logger");
@@ -247,13 +257,9 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
     }
   } catch (_) {}
 
-  // Attempt to write to feedback table in SQLite. Coalesces a repeat of
-  // the SAME crash (matched by fingerprint) into the most recent
-  // still-unsynced row instead of a fresh row per occurrence - a loop that
-  // re-throws hundreds/thousands of times otherwise queues one "bug"
-  // feedback row (and one sync-queue push) per throw. Once that row has
-  // actually synced (_synced = 1), the next occurrence starts a fresh
-  // row/group, same reasoning as logAction()'s audit_logs dedup (core.ts).
+  // Coalesces a repeat of the SAME crash (matched by fingerprint) into the
+  // most recent still-unsynced row, same reasoning as logAction()'s
+  // audit_logs dedup (core.ts). See client/AGENTS.md, "What reaches Sentry".
   const content = buildCrashContent(info, message, stack, context, deviceId, deviceLabel, isFatal);
   try {
     const { insert: dbInsert, update: dbUpdate, query: dbQuery } = await import("@/lib/db/local-database");

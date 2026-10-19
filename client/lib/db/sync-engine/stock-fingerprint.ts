@@ -1,4 +1,4 @@
-import { query, getActiveStoreId } from "../core";
+import { query } from "../core";
 
 export interface StockFingerprint {
   batch_count: number;
@@ -14,9 +14,7 @@ export interface StockFingerprint {
  * without anyone counting shelves. See docs/superpowers/specs/2026-10-07-stuck-data-and-
  * divergence-visibility-design.md, Phase 1.
  */
-export async function buildStockFingerprint(): Promise<StockFingerprint | null> {
-  const storeId = getActiveStoreId();
-
+export async function buildStockFingerprint(storeId: string | null): Promise<StockFingerprint | null> {
   if (!storeId) {
     return null;
   }

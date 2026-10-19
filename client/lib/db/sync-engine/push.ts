@@ -16,6 +16,7 @@ import {
 import { PushResponse } from "./types";
 import type { SyncChange, SyncQueueItem } from "@/lib/types/sync";
 import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconcile-identity";
+import { resolveSyncRun, type SyncRun } from "./sync-run";
 import {
   conflictFieldList,
   recordTerminalConflict,
@@ -230,7 +231,7 @@ async function exchangeReportsOnly(
   queueState: Awaited<ReturnType<typeof buildQueueStateReport>>,
   isManual: boolean,
   isSetup: boolean,
-  runId?: string,
+  run: SyncRun,
 ): Promise<void> {
   const deliverableResults = await readPendingCommandResults();
 
@@ -255,7 +256,8 @@ async function exchangeReportsOnly(
       },
       isManual,
       isSetup,
-      runId,
+      run.id,
+      run.storeId,
     )) as PushResponse;
 
     await clearCommandResults(deliverableResults.map((r) => r.id));
@@ -271,14 +273,16 @@ async function exchangeReportsOnly(
 export async function pushChanges(
   isManual: boolean = false,
   isSetup: boolean = false,
-  // Marks every batch as one sync run; the server throttles per run.
-  runId?: string,
+  // Marks every batch as one sync run; the server throttles per run, and the
+  // run's store labels every request and report it produces (A-304).
+  run?: SyncRun,
 ): Promise<{ pushed: number; failedBatches: number }> {
+  const activeRun = resolveSyncRun(run);
   // Computed once per run, not per batch: neither value needs batch
   // granularity and both scan the whole queue / batch table.
-  const stockFingerprint = await buildStockFingerprint();
-  const tableFingerprint = await buildTableFingerprint();
-  const queueState = await buildQueueStateReport();
+  const stockFingerprint = await buildStockFingerprint(activeRun.storeId);
+  const tableFingerprint = await buildTableFingerprint(activeRun.storeId);
+  const queueState = await buildQueueStateReport(activeRun.storeId);
   let pending = await getPendingSyncItems(isManual);
 
   if (pending.length === 0) {
@@ -288,7 +292,7 @@ export async function pushChanges(
       queueState,
       isManual,
       isSetup,
-      runId,
+      activeRun,
     );
 
     return { pushed: 0, failedBatches: 0 };
@@ -309,7 +313,7 @@ export async function pushChanges(
         queueState,
         isManual,
         isSetup,
-        runId,
+        activeRun,
       );
 
       return { pushed: 0, failedBatches: 0 };
@@ -466,7 +470,8 @@ export async function pushChanges(
         },
         isManual,
         isSetup,
-        runId,
+        activeRun.id,
+        activeRun.storeId,
       )) as PushResponse;
 
       // The server has them now, so they can stop being re-sent.

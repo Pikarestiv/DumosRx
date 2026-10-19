@@ -1,4 +1,5 @@
 import { query, execute, transaction, STORE_SCOPED_TABLES } from "../core";
+import { resolveSyncRun, type SyncRun } from "./sync-run";
 import { apiClient } from "@/lib/api/client";
 import { PullResponse } from "./types";
 import { getValidColumns } from "./schema";
@@ -127,12 +128,13 @@ export async function pullChanges(
   isSetup: boolean = false,
   onCriticalTablesReady?: (pullSucceeded: boolean) => void,
   // Same sync run as the push that preceded it; the server throttles per run.
-  runId?: string,
+  run?: SyncRun,
 ): Promise<{
   pulled: number;
   updatedTables?: string[];
   error?: unknown;
 }> {
+  const activeRun = resolveSyncRun(run);
   const criticalTablesPending = new Set(SETUP_CRITICAL_TABLES);
   let criticalReadyFired = false;
   let pullFailed = false;
@@ -227,7 +229,8 @@ export async function pullChanges(
         },
         isManual,
         isSetup,
-        runId,
+        activeRun.id,
+        activeRun.storeId,
       )) as PullResponse;
       const { changes, server_timestamp, has_more } = response;
       roundTimestamp ??= server_timestamp;

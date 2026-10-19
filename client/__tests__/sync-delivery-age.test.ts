@@ -90,14 +90,14 @@ describe("delivery age", () => {
     queue(1, 5);
     queue(2, 90);
 
-    const report = await queueState.buildQueueStateReport();
+    const report = await queueState.buildQueueStateReport("store-1");
 
     expect(report?.oldest_queued_seconds).toBeGreaterThanOrEqual(90 * 60 - 5);
     expect(report?.oldest_queued_seconds).toBeLessThanOrEqual(90 * 60 + 5);
   });
 
   it("reports a null oldest age for an empty queue rather than zero", async () => {
-    const report = await queueState.buildQueueStateReport();
+    const report = await queueState.buildQueueStateReport("store-1");
 
     expect(report?.queue_depth).toBe(0);
     expect(report?.oldest_queued_seconds).toBeNull();
@@ -107,7 +107,7 @@ describe("delivery age", () => {
     queue(1, 0.1);
     await helpers.markSynced([1]);
 
-    const report = await queueState.buildQueueStateReport();
+    const report = await queueState.buildQueueStateReport("store-1");
 
     expect(report?.delivered_ages).toEqual({
       under_1m: 1,
@@ -116,7 +116,7 @@ describe("delivery age", () => {
       under_1d: 0,
       over_1d: 0,
     });
-    expect((await queueState.buildQueueStateReport())?.delivered_ages).toBeNull();
+    expect((await queueState.buildQueueStateReport("store-1"))?.delivered_ages).toBeNull();
   });
 });
 

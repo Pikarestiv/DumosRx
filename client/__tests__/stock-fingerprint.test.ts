@@ -57,7 +57,7 @@ describe("buildStockFingerprint", () => {
     insertBatch("b1", "store-1", 10);
     insertBatch("b2", "store-1", 5.5);
 
-    expect(await buildStockFingerprint()).toEqual({
+    expect(await buildStockFingerprint("store-1")).toEqual({
       batch_count: 2,
       quantity_sum: 15.5,
       value_sum: 0,
@@ -68,7 +68,7 @@ describe("buildStockFingerprint", () => {
     insertBatch("b1", "store-1", 10);
     insertBatch("b2", "store-1", 99, 1);
 
-    expect(await buildStockFingerprint()).toEqual({
+    expect(await buildStockFingerprint("store-1")).toEqual({
       batch_count: 1,
       quantity_sum: 10,
       value_sum: 0,
@@ -79,7 +79,7 @@ describe("buildStockFingerprint", () => {
     insertBatch("b1", "store-1", 10);
     insertBatch("b2", "store-2", 999);
 
-    expect(await buildStockFingerprint()).toEqual({
+    expect(await buildStockFingerprint("store-1")).toEqual({
       batch_count: 1,
       quantity_sum: 10,
       value_sum: 0,
@@ -87,7 +87,7 @@ describe("buildStockFingerprint", () => {
   });
 
   it("reports zero rather than null for a store with no stock", async () => {
-    expect(await buildStockFingerprint()).toEqual({
+    expect(await buildStockFingerprint("store-1")).toEqual({
       batch_count: 0,
       quantity_sum: 0,
       value_sum: 0,
@@ -100,7 +100,7 @@ describe("buildStockFingerprint", () => {
     insertBatch("b3", "store-1", 999, 1, 50);
     insertBatch("b4", "store-2", 999, 0, 50);
 
-    expect(await buildStockFingerprint()).toEqual({
+    expect(await buildStockFingerprint("store-1")).toEqual({
       batch_count: 2,
       quantity_sum: 14,
       value_sum: 425,
@@ -113,7 +113,7 @@ describe("buildStockFingerprint", () => {
     insertBatch("b1", "store-1", 10, 0, null);
     insertBatch("b2", "store-1", 2, 0, 3);
 
-    expect(await buildStockFingerprint()).toEqual({
+    expect(await buildStockFingerprint("store-1")).toEqual({
       batch_count: 2,
       quantity_sum: 12,
       value_sum: 6,
@@ -124,6 +124,6 @@ describe("buildStockFingerprint", () => {
   it("returns null instead of throwing when there is no active store", async () => {
     core.setActiveStoreId(null);
 
-    expect(await buildStockFingerprint()).toBeNull();
+    expect(await buildStockFingerprint(null)).toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-import { query, getActiveStoreId } from "../core";
+import { query } from "../core";
 import { STORE_SCOPED_TABLES } from "../schema-migrations";
 
 /**
@@ -84,9 +84,7 @@ async function digestFor(
  * window returns: a report is only ever sent in the push that computed it,
  * so the server never compares a stale device reading against a live cloud.
  */
-export async function buildTableFingerprint(): Promise<TableFingerprint | null> {
-  const storeId = getActiveStoreId();
-
+export async function buildTableFingerprint(storeId: string | null): Promise<TableFingerprint | null> {
   if (!storeId || Date.now() - lastBuiltAt < THROTTLE_MS) {
     return null;
   }

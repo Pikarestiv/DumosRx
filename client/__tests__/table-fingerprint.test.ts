@@ -61,7 +61,7 @@ describe("buildTableFingerprint", () => {
     product("p1", "store-1", 3);
     product("p2", "store-1", 4, 1);
 
-    const report = await mod.buildTableFingerprint();
+    const report = await mod.buildTableFingerprint("store-1");
 
     expect(rowFor(report, "products")).toEqual({ t: "products", r: 2, v: 7, p: 0 });
   });
@@ -70,7 +70,7 @@ describe("buildTableFingerprint", () => {
     product("p1", "store-1", 2);
     product("p9", "store-2", 5);
 
-    expect(rowFor(await mod.buildTableFingerprint(), "products")).toEqual({
+    expect(rowFor(await mod.buildTableFingerprint("store-1"), "products")).toEqual({
       t: "products",
       r: 1,
       v: 2,
@@ -80,7 +80,7 @@ describe("buildTableFingerprint", () => {
 
   it("covers every store-scoped table, so a table with no instrument cannot exist", async () => {
     const { STORE_SCOPED_TABLES } = await import("@/lib/db/schema-migrations");
-    const report = await mod.buildTableFingerprint();
+    const report = await mod.buildTableFingerprint("store-1");
 
     const expected = STORE_SCOPED_TABLES.filter(
       (table) => !mod.TABLES_NOT_COMPARED.has(table),
@@ -96,7 +96,7 @@ describe("buildTableFingerprint", () => {
    * (730-day retention) for a number with no reader.
    */
   it("does not scan audit_logs, whose digest the server discards", async () => {
-    const report = await mod.buildTableFingerprint();
+    const report = await mod.buildTableFingerprint("store-1");
 
     expect(mod.TABLES_NOT_COMPARED.has("audit_logs")).toBe(true);
     expect(report?.tables.map((t) => t.t)).not.toContain("audit_logs");
@@ -111,7 +111,7 @@ describe("buildTableFingerprint", () => {
               ('categories', 'c1', 'INSERT', '2026-10-18T00:00:00.000Z')`,
     );
 
-    const report = await mod.buildTableFingerprint();
+    const report = await mod.buildTableFingerprint("store-1");
 
     expect(rowFor(report, "products")?.p).toBe(2);
     expect(rowFor(report, "categories")?.p).toBe(1);
@@ -121,13 +121,13 @@ describe("buildTableFingerprint", () => {
   it("returns null with no active store", async () => {
     core.setActiveStoreId(null);
 
-    expect(await mod.buildTableFingerprint()).toBeNull();
+    expect(await mod.buildTableFingerprint(null)).toBeNull();
   });
 
   it("scans at most once per throttle window, so an auto-sync every few minutes is free", async () => {
     product("p1", "store-1", 1);
 
-    expect(await mod.buildTableFingerprint()).not.toBeNull();
-    expect(await mod.buildTableFingerprint()).toBeNull();
+    expect(await mod.buildTableFingerprint("store-1")).not.toBeNull();
+    expect(await mod.buildTableFingerprint("store-1")).toBeNull();
   });
 });

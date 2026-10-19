@@ -1,4 +1,4 @@
-import { query, getActiveStoreId } from "../core";
+import { query } from "../core";
 import { drainDeliveredAges, type DeliveredAges } from "./delivery-age";
 
 /** Matches base-helpers.ts's SYNC_FAILURE_REPORT_THRESHOLD: an item at or
@@ -67,8 +67,8 @@ function queuedSeconds(oldest: string | null): number | null {
   return Number.isFinite(queuedAt) ? Math.max(0, Math.round((Date.now() - queuedAt) / 1000)) : null;
 }
 
-export async function buildQueueStateReport(): Promise<QueueStateReport | null> {
-  if (!getActiveStoreId()) {
+export async function buildQueueStateReport(storeId: string | null): Promise<QueueStateReport | null> {
+  if (!storeId) {
     return null;
   }
 

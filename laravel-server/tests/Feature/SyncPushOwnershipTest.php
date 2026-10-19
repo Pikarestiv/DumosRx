@@ -84,6 +84,111 @@ class SyncPushOwnershipTest extends TestCase
         \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
     }
 
+    /**
+     * A-297: ownership for a child table is resolved through its parent. When
+     * that lookup yields no store — an absent parent (A-296's 22 orphaned
+     * production rows) or a parent whose own `store_id` is NULL (A-288
+     * measured three such purchase_orders on production) — the resolver
+     * returns null, which the authorizer treats as "fall back to user_id
+     * ownership". A purchase_order_items row has no user_id, so the next
+     * guard authorized unconditionally and any tenant could delete the line.
+     *
+     * The unresolvable parent is modelled here as a NULL-store parent rather
+     * than a missing one because SQLite enforces the `cascadeOnDelete` foreign
+     * key that production does not declare at all (A-292), so a true orphan
+     * cannot be inserted in a test. Both shapes reach the same branch.
+     */
+    public function test_delete_against_another_stores_line_under_an_unattributable_parent_is_rejected()
+    {
+        $lineId = $this->seedLineUnderUnattributableParent('victim-orphan-line-1', $this->victimStore->id);
+
+        $response = $this->pushDelete($lineId);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'failed');
+        $response->assertJsonPath('failed.0.reason', 'forbidden');
+        $this->assertNull(DB::table('purchase_order_items')->where('id', $lineId)->value('deleted_at'));
+    }
+
+    /**
+     * The other half of the fix: a line with no store of its own under a parent
+     * that resolves to no store is a legacy or out-of-order row, not an attack
+     * (§11 — a child pushed before its parent must still work), so it keeps
+     * falling open.
+     */
+    public function test_delete_against_a_line_with_no_store_of_its_own_still_succeeds()
+    {
+        $lineId = $this->seedLineUnderUnattributableParent('legacy-orphan-line-1', null);
+
+        $response = $this->pushDelete($lineId);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+    }
+
+    private function seedLineUnderUnattributableParent(string $lineId, ?string $lineStoreId): string
+    {
+        $supplierId = 'supplier-'.$lineId;
+        DB::table('suppliers')->insert([
+            'id' => $supplierId,
+            'name' => 'Nobody Distributors',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $parentId = 'parent-'.$lineId;
+        DB::table('purchase_orders')->insert([
+            'id' => $parentId,
+            'order_number' => 'PO-'.$lineId,
+            'supplier_id' => $supplierId,
+            'ordered_by' => $this->victimOwner->id,
+            'store_id' => null,
+            'total_amount' => 500,
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $productId = 'product-'.$lineId;
+        DB::table('products')->insert([
+            'id' => $productId,
+            'store_id' => $this->victimStore->id,
+            'user_id' => $this->victimOwner->id,
+            'name' => 'Victim Syrup',
+            'selling_price' => 500,
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('purchase_order_items')->insert([
+            'id' => $lineId,
+            'purchase_order_id' => $parentId,
+            'store_id' => $lineStoreId,
+            'product_id' => $productId,
+            'quantity_ordered' => 5,
+            'unit_cost' => 100,
+            'total_cost' => 500,
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return $lineId;
+    }
+
+    private function pushDelete(string $lineId)
+    {
+        return $this->actingAs($this->attackerOwner)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'purchase_order_items',
+                    'operation' => 'DELETE',
+                    'record_id' => $lineId,
+                    'payload' => ['id' => $lineId],
+                ],
+            ],
+        ]);
+    }
+
     public function test_update_against_another_stores_product_is_rejected_not_applied()
     {
         $productId = 'victim-product-1';

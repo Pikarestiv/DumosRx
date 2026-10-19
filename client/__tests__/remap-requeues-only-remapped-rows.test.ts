@@ -58,9 +58,12 @@ describe("remapForeignKey only requeues the rows whose foreign key it changed", 
     seedProduct("p-untouched", "cat-other");
     const { remapForeignKey } = await import("@/lib/db/reconcile-identity");
 
-    await remapForeignKey("cat-loser", "cat-winner", [
-      { table: "products", column: "category_id" },
-    ]);
+    await remapForeignKey(
+      "cat-loser",
+      "cat-winner",
+      [{ table: "products", column: "category_id" }],
+      null,
+    );
 
     expect(queuedRecordIds()).toEqual(["p-remapped"]);
     const remapped = db.exec(`SELECT category_id FROM products WHERE id = 'p-remapped'`);
@@ -71,9 +74,12 @@ describe("remapForeignKey only requeues the rows whose foreign key it changed", 
     seedProduct("p-untouched", "cat-other");
     const { remapForeignKey } = await import("@/lib/db/reconcile-identity");
 
-    await remapForeignKey("cat-loser", "cat-winner", [
-      { table: "products", column: "category_id" },
-    ]);
+    await remapForeignKey(
+      "cat-loser",
+      "cat-winner",
+      [{ table: "products", column: "category_id" }],
+      null,
+    );
 
     expect(queuedRecordIds()).toEqual([]);
   });

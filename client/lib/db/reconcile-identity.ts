@@ -209,8 +209,9 @@ export async function remapForeignKey(
   oldId: string,
   newId: string,
   refs: { table: string; column: string }[],
-  // The losing row's own store, never the ambient active one (A-301).
-  storeId: string | null = null,
+  // The losing row's own store, never the ambient active one. Required, not
+  // defaulted: forgetting it is the whole of A-301.
+  storeId: string | null,
 ): Promise<void> {
   const remappedIds: Record<string, string[]> = {};
 

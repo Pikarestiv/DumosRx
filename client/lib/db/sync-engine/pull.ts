@@ -523,12 +523,14 @@ export async function pullChanges(
             }
           }
 
-          if (DUPLICATE_NAME_TABLES[table] && records.length > 0) {
+          if (Object.hasOwn(DUPLICATE_NAME_TABLES, table) && records.length > 0) {
             const serverIds = new Set(records.map((r) => r.id as string));
+            // Keyed by store AND name: a header-less pull returns every store
+            // the owner has, where a bare name matches the wrong one (A-301).
             const serverIdByName = new Map<string, string>();
             for (const r of records) {
               const name = String(r.name ?? "").trim().toLowerCase();
-              if (name) serverIdByName.set(name, r.id as string);
+              if (name) serverIdByName.set(`${r.store_id ?? ""}|${name}`, r.id as string);
             }
 
             // Paired by the PAGE's store, not the active one: see A-301 in
@@ -549,7 +551,9 @@ export async function pullChanges(
               if (hasStoreId && row.store_id !== null && !pageStoreIds.has(row.store_id)) {
                 continue;
               }
-              const matchedServerId = serverIdByName.get(String(row.name ?? "").trim().toLowerCase());
+              const matchedServerId = serverIdByName.get(
+                `${row.store_id ?? ""}|${String(row.name ?? "").trim().toLowerCase()}`,
+              );
               if (!matchedServerId || matchedServerId === row.id) continue;
 
               await remapForeignKey(

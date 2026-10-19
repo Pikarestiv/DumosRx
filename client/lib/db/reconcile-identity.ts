@@ -209,21 +209,28 @@ export async function remapForeignKey(
   oldId: string,
   newId: string,
   refs: { table: string; column: string }[],
+  // The losing row's own store, never the ambient active one. Required, not
+  // defaulted: forgetting it is the whole of A-301.
+  storeId: string | null,
 ): Promise<void> {
   const remappedIds: Record<string, string[]> = {};
 
   for (const { table, column } of refs) {
     if (!(await tableExists(table)) || !(await columnExists(table, column))) continue;
 
+    const scoped = !!storeId && (await columnExists(table, "store_id"));
+    const scope = scoped ? " AND (store_id = ? OR store_id IS NULL)" : "";
+    const scopeArgs = scoped ? [storeId] : [];
+
     const affected = await query<{ id: string }>(
-      `SELECT id FROM ${table} WHERE ${column} = ?`,
-      [oldId],
+      `SELECT id FROM ${table} WHERE ${column} = ?${scope}`,
+      [oldId, ...scopeArgs],
     );
     remappedIds[table] = [...(remappedIds[table] ?? []), ...affected.map((row) => row.id)];
 
     await execute(
-      `UPDATE ${table} SET ${column} = ?, _synced = 0 WHERE ${column} = ?`,
-      [newId, oldId],
+      `UPDATE ${table} SET ${column} = ?, _synced = 0 WHERE ${column} = ?${scope}`,
+      [newId, oldId, ...scopeArgs],
     );
   }
 

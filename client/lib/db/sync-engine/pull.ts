@@ -523,24 +523,45 @@ export async function pullChanges(
             }
           }
 
-          if (DUPLICATE_NAME_TABLES[table] && records.length > 0) {
+          if (Object.hasOwn(DUPLICATE_NAME_TABLES, table) && records.length > 0) {
             const serverIds = new Set(records.map((r) => r.id as string));
+            // Keyed by store AND name: a header-less pull returns every store
+            // the owner has, where a bare name matches the wrong one (A-301).
             const serverIdByName = new Map<string, string>();
             for (const r of records) {
               const name = String(r.name ?? "").trim().toLowerCase();
-              if (name) serverIdByName.set(name, r.id as string);
+              if (name) serverIdByName.set(`${r.store_id ?? ""}|${name}`, r.id as string);
             }
 
-            const localRows = await query<{ id: string; name: string }>(
-              `SELECT id, name FROM ${table} WHERE (_deleted = 0 OR _deleted IS NULL)`,
+            // Paired by the PAGE's store, not the active one: see A-301 in
+            // docs/FIXED_BUGS.md for what an ambient scope did here.
+            const hasStoreId = await columnExists(table, "store_id");
+            const pageStoreIds = new Set(
+              records
+                .map((r) => (r.store_id == null ? null : String(r.store_id)))
+                .filter((id): id is string => id !== null),
+            );
+            const localRows = await query<{ id: string; name: string; store_id: string | null }>(
+              `SELECT id, name${hasStoreId ? ", store_id" : ", NULL as store_id"} FROM ${table}
+                WHERE (_deleted = 0 OR _deleted IS NULL)`,
             );
 
             for (const row of localRows) {
               if (serverIds.has(row.id)) continue;
-              const matchedServerId = serverIdByName.get(String(row.name ?? "").trim().toLowerCase());
+              if (hasStoreId && row.store_id !== null && !pageStoreIds.has(row.store_id)) {
+                continue;
+              }
+              const matchedServerId = serverIdByName.get(
+                `${row.store_id ?? ""}|${String(row.name ?? "").trim().toLowerCase()}`,
+              );
               if (!matchedServerId || matchedServerId === row.id) continue;
 
-              await remapForeignKey(row.id, matchedServerId, DUPLICATE_NAME_TABLES[table]);
+              await remapForeignKey(
+                row.id,
+                matchedServerId,
+                DUPLICATE_NAME_TABLES[table],
+                row.store_id,
+              );
 
               await execute(`UPDATE ${table} SET _deleted = 1 WHERE id = ?`, [row.id]);
             }

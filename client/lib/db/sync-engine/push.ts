@@ -15,7 +15,7 @@ import {
 } from "./sync-commands";
 import { PushResponse } from "./types";
 import type { SyncChange, SyncQueueItem } from "@/lib/types/sync";
-import { remapForeignKey, DUPLICATE_NAME_TABLES } from "../reconcile-identity";
+import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconcile-identity";
 import {
   conflictFieldList,
   recordTerminalConflict,
@@ -566,11 +566,21 @@ export async function pushChanges(
           // The duplicate-name id remap must be applied locally here; no
           // future pull will do it (client/AGENTS.md, "Push details").
           for (const [table, mapping] of Object.entries(response.id_map ?? {})) {
+            if (!Object.hasOwn(DUPLICATE_NAME_TABLES, table)) continue;
             const refs = DUPLICATE_NAME_TABLES[table];
             if (!refs) continue;
+            const tableHasStoreId = await columnExists(table, "store_id");
             for (const [oldId, newId] of Object.entries(mapping)) {
               if (oldId === newId) continue;
-              await remapForeignKey(oldId, newId, refs);
+              // A real read error must roll the batch back like its
+              // neighbours, so the absent column is guarded, never caught.
+              const losing = tableHasStoreId
+                ? await query<{ store_id: string | null }>(
+                    `SELECT store_id FROM ${table} WHERE id = ?`,
+                    [oldId],
+                  )
+                : [];
+              await remapForeignKey(oldId, newId, refs, losing[0]?.store_id ?? null);
               await execute(`UPDATE ${table} SET _deleted = 1 WHERE id = ?`, [oldId]);
               // remapForeignKey() rewrites payload content only, never the
               // queue row's own record_id, which the server looks up by.

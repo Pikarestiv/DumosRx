@@ -58,3 +58,32 @@ id.
 
 `getSyncQueueBreakdown()` is deliberately untouched — it is a diagnostic shown
 in sync failure logs, where seeing the crash rows is useful.
+
+## A different question: what reaches Sentry
+
+This file governs one thing only — whether a crash row is allowed to *drive*
+a sync or be counted as the user's pending work. It says nothing about whether
+a report should exist at all, or where it should go.
+
+That is a separate policy with a single authority, and it is deliberately not
+copied here:
+
+- **`client/AGENTS.md`, "What reaches Sentry"** — the three destinations every
+  new report must choose between (a Sentry issue, a breadcrumb, or the local
+  `feedback` table plus the `/logs/client-error` POST), the
+  `CrashContext.informational` switch, the two throttle windows
+  (`REPORT_THROTTLE_MS` 5 min for the POST, `SENTRY_THROTTLE_MS` 60 min for the
+  Sentry event), and the environment gating in `lib/utils/sentry-config.ts`.
+  This is the authority for both halves of the system.
+- **`laravel-server/AGENTS.md`, "What reaches Sentry"** — the server's own DSN
+  gate (`null` on `local`/`testing`) and sampling, pointing back at the above
+  for the rules.
+- **`web/AGENTS.md`, "A Sentry event count is a sample, not an occurrence
+  count"** — why the admin panel renders `≥ N events` and why
+  `feedback.occurrence_count` is the true figure.
+
+The one consequence worth knowing *here*: because the Sentry send is throttled
+and the local `feedback` row is not, the local crash table is the complete
+record and Sentry is a sample of it. That is the opposite of the intuition, and
+it is why the row still has to be written and still has to ride the next sync —
+which is what the policy above is about.

@@ -132,6 +132,14 @@ We take the safety of your business data seriously.
 
 **Cloud Backups:** Your data is continuously backed up to our secure cloud servers, protecting you against hardware failure or theft at the store.
 
+**Every Till Checked Against the Cloud:** Support can now see, for each of your tills and for every kind of record it holds — products, sales, customers, expenses, prescriptions, purchase orders and the rest — whether that till is holding the same records as the cloud, or is still catching up, or genuinely disagrees. Each line says so in words rather than just a colour, and a till that has gone quiet is reported as *stopped reporting* rather than quietly counted as healthy, because silence is not the same as agreement. Previously only stock was compared, so a problem in any other part of your data had nothing watching it at all. The technical detail — including what this check deliberately cannot see — is in `docs/DEVICE_TABLE_AGREEMENT.md`.
+
+**How Long a Change Has Been Waiting:** Alongside "did the last sync succeed", we now track how long the oldest unsent change on a till has actually been waiting, and how quickly recent changes reached the cloud. The question support can answer is no longer just "is the connection working" but "has anything been sitting on this till longer than it should".
+
+**Ask a Till for a Report, and See Whether It Arrived:** Support can request a diagnostic report from one of your tills, and the request now shows its own outcome — sent to the till, received at a given time, or the reason the till refused — and can simply be asked again. No more wondering whether a silent request ever got there.
+
+**Deletions and Corrections Reach Every Till:** When a record is removed or corrected in one place, it now reliably disappears or updates everywhere instead of lingering on some tills. Voided sales now carry their line items to every till as well, so a cancelled sale reads the same on every machine, and a stock correction made for one store can no longer be overwritten by a till that has been offline since before it.
+
 **Instant Broadcasts:** Receive important alerts, updates, and maintenance notices directly on your store's screens.
 
 **Over-The-Air (OTA) Updates:** The system intelligently manages software updates. Minor patches and bug fixes are downloaded automatically in the background without interrupting your workflow, while major new versions will prompt you for installation. Mobile users are seamlessly directed to their respective app stores.

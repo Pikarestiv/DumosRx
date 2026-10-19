@@ -36,16 +36,6 @@ handful of things actually worth your attention aren't buried in it.
 - **Blast radius still unmeasured:** the counts need `SELECT COUNT(*) WHERE store_id IS NULL` per table against production, which §12 forbids without clearance. `sync:backfill-store-ids` with no flags is exactly that measurement and writes nothing; run it before deciding whether any of this matters.
 - **To close:** run the dry run on production, then `--apply`, then confirm the agreement panel's residual `row_delta` reaches zero on every directly-scoped table. If `requested_products` is the only table left non-zero, close this and open a narrow entry for it.
 
-#### A-289. `laravel-server/` — the sync table-name string is used as a physical table name in more than one place
-- **Found:** 2026-10-18, while establishing A-288's table list. Not introduced by it.
-- **Location:** `CountsSyncedTableRows::AGREEMENT_TABLES` (`'audit_logs'`, counted via `DB::table($table)`) against `SyncController::getModelForTable()`, where `'audit_logs' => ActivityLog::class` and `ActivityLog` has no `$table` override, so it resolves to the physical `activity_logs`.
-- **What's wrong:** the client's local table is `audit_logs` and its rows push to, and pull from, the server's `activity_logs`. The agreement digest counts the *other*, physical `audit_logs` table — the legacy cruft `add_store_id_to_activity_logs` identified as unused. So the cloud side of the `audit_logs` fingerprint is near-zero while the device reports its whole activity log: a large permanent row delta that is an instrument error, not a data divergence. A real divergence on that table is simultaneously undetectable.
-- **The agreement-panel half is already fixed:** `'audit_logs'` was removed from `AGREEMENT_TABLES` and from the client's
-  fingerprint (see `docs/DEVICE_TABLE_AGREEMENT.md`, "The `audit_logs` false delta"), so the panel no longer reports that
-  false delta. **What stays open is the general confusion**, which also appears in `applyPullCursor()`'s
-  `Schema::hasColumn($table, '_synced_at')` — the next table whose client and server names differ will hit it again.
-- **Fix:** resolve the physical table through `getModelForTable()` (the way `SyncSchemaParityTest` already does) rather than using the client's sync table-name string as a physical name, or map `audit_logs → activity_logs` in `scopeToStore()`. One place. Until then, treat the `audit_logs` row of the agreement panel as unmeasured.
-
 #### A-287. `laravel-server/` — a mis-stamped product's batch never moves in the cloud again, because the movement is accepted and only its delta is refused
 - **Found:** 2026-10-18, raised by the review of A-280 and recorded rather than folded into it.
 - **Location:** `SyncController::applyStockBatchDeltas()` (where A-280's refusal sits) vs `authorizeInsertTarget('stock_movements')` (where it arguably belongs).

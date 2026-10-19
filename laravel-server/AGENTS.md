@@ -1743,9 +1743,22 @@ the promotion rule.
 `audit_logs` is deliberately absent from `AGREEMENT_TABLES`: `getModelForTable()`
 maps it onto `ActivityLog` → `activity_logs`, while a separate, unused physical
 `audit_logs` table also exists, so the comparison ran against two different
-tables and produced a large false delta. The general physical-vs-model
-table-name hazard is **A-289** — read that before adding anything else keyed by
-the client's sync table-name string.
+tables and produced a large false delta.
+
+**A client sync table name is not always a physical table name** (this was
+A-289). Only `getModelForTable()` knows which physical table a sync name
+resolves to, so never hand a sync name — a `table_name` off a request, an
+entry of a client-side list — to `Schema::`, `DB::table()` or a raw query.
+Read `$model->getTable()`, as `stampSyncedAt()`, `reopenPullWindow()` and
+`applyPullCursor()`'s `_synced_at` probe all do. Comparing a sync name against
+a sync-name literal, which is what `push()` does throughout, is fine and is a
+different thing.
+
+`CountsSyncedTableRows` is the deliberate exception: it counts through
+`DB::table($table)` with the sync name, which is safe only because every
+`AGREEMENT_TABLES` entry is its own physical table.
+`SyncPullCursorPhysicalTableTest` pins that, so adding a divergent name to
+the list fails the suite rather than quietly comparing two tables.
 
 The server side lives in `Concerns\CountsSyncedTableRows`, which mirrors
 `SyncController::pull()`'s scoping exactly — including the six child tables

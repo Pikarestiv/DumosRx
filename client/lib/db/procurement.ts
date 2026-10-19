@@ -411,5 +411,16 @@ export async function deleteSupplier(id: string): Promise<void> {
 }
 
 export async function deletePurchaseOrder(id: string) {
-  return await softDelete('purchase_orders', id);
+  return transaction(async () => {
+    const items = await query<{ id: string }>(
+      "SELECT id FROM purchase_order_items WHERE po_id = ? AND _deleted = 0",
+      [id],
+    );
+
+    for (const item of items) {
+      await softDelete("purchase_order_items", item.id);
+    }
+
+    await softDelete("purchase_orders", id);
+  });
 }

@@ -422,21 +422,22 @@ is that two devices of one store disagree.
   against what the server computed, snapshotted at report time. Both sides are
   stored, never recomputed on read, so a historical row cannot change meaning
   later.
-  - **Each row is two columns, and the right one never grows** (2026-10-15).
-    It previously gave the actions column `flex-1` while its children were
-    `shrink-0`, so on a real store — five-figure counts, a long device label, a
-    queued-report notice — the column's content outgrew its box and, being
-    `justify-end`, overflowed **leftwards across the device's own figures**.
-    The owner saw sentences printed on top of each other. The identity/figures
-    column is `min-w-0 flex-1`, the status/actions column is `shrink-0`, and
-    the row stacks below `sm`. Any control added here goes in the right column
-    and must not be given `flex-1`.
+  - **The figures no longer share a horizontal axis with the controls**
+    (2026-10-19, see "The agreement rows are tables" below). Each device is a
+    header strip — identity left, status badge / timestamp / actions right,
+    `flex-wrap` on the strip's own width — above a **full-width comparison
+    table**. That retires the 2026-10-15 hazard at the root rather than
+    tuning around it: the actions cluster used to sit *beside* the figures with
+    `flex-1` on the wrong column, so on a real store (five-figure counts, a
+    long label, a queued-report notice) it outgrew its box and, being
+    `justify-end`, overflowed leftwards **across the device's own numbers** —
+    the owner saw sentences printed on top of each other. Nothing can now
+    collide with the figures because nothing else is on their line. Controls
+    still go in the header strip's right cluster.
   - **Counts are `toLocaleString()`'d**: "49680 across 2692 batches" is what
-    reached the owner, and five digits are unreadable raw. The figures sit in a
-    two-row `<dl>` so Device and Cloud line up and a gap is visible without
-    reading both numbers. The queued-report state is a fixed-height dashed
-    pill, not loose text, so a row's height does not change when a report is
-    requested.
+    reached the owner, and five digits are unreadable raw. The queued-report
+    state is a fixed-height dashed pill, not loose text, so a row's height does
+    not change when a report is requested.
 - **`store-queue-state-section.tsx`** lists what is stuck on each device, with
   attempts and a canonical reason. The reason is a slug the device already
   canonicalised — it is never raw error text, and nothing here should start
@@ -475,13 +476,14 @@ and it was needed on the first real incident after it shipped. If you add a
 sync command action server-side, add its trigger in the same change or it
 does not exist.
 
-The divergence row wraps on its **own** width (`flex-wrap`, a `13rem`-basis
-text block, the action cluster right-aligned), not on a viewport `sm:` prefix.
-It used to be `sm:flex-row`, which is wrong here: the panel sits in a narrow
-column of a wide page, so a wide viewport turned the row horizontal and then
-crushed the figures into a four-line ribbon beside the buttons (seen
-2026-10-14). Any control added to this row must keep that property — key it to
-the container, never to the viewport.
+The divergence row's **header strip** wraps on its own width (`flex-wrap`, a
+`10rem`-basis identity block, the action cluster right-aligned), not on a
+viewport `sm:` prefix. The panel sits in a narrow column of a wide page, so a
+viewport-keyed `sm:flex-row` turned the row horizontal and then crushed the
+figures into a four-line ribbon beside the buttons (seen 2026-10-14). Any
+control added here must keep that property — key it to the container, never to
+the viewport. The figures themselves are now a separate full-width table below
+the strip, so they are no longer in that contest at all.
 
 `device-row-actions.tsx` sits beside it in the same row: a pencil that names
 the device (`PUT .../devices/{deviceId}/nickname`, blank clears it back to the
@@ -1386,6 +1388,66 @@ lands. `docs/DEVICE_TABLE_AGREEMENT.md` has both.
 The panel's own copy states the digest's limit — row count and version sum,
 blind to two offsetting edits inside one table. Keep it there; a panel that
 implies proof it does not have is worse than no panel.
+
+## The agreement rows are tables, not sentences (2026-10-19)
+
+Both agreement panels used to render a comparison as prose —
+`device 1,204 rows · cloud 1,207 rows · 2 queued` — which makes the reader
+*parse* a difference instead of *seeing* it. Both are now real `<table>`s.
+
+**Direction taken:** Minimalism / Swiss — grid-based, high contrast, essential
+— on a **dense dashboard spacing scale (8–32px)** rather than the roomy 16–64px
+these cards had. Rows are `py-1.5`, roughly half their old height, so a store
+with three devices and several unsettled tables fits without scrolling. The
+palette and typography are **§6's, unchanged**: the house card, `text-rose-600
+dark:text-rose-400` for alarm, `text-muted-foreground` otherwise, and no new
+font. A design pass proposed a dark slate palette with Fira Code/Fira Sans;
+§6 wins, and only the *structure* was taken. Do not re-litigate this.
+
+- **`store-table-agreement-section.tsx`** — one table per device:
+  `Table | Device | Cloud | Diff | Status`, `table-fixed` with fixed numeric
+  column widths so the figures align across rows. One scanning axis: **down the
+  Diff column**, because a device has N unsettled tables and the question is
+  always "which of them, and by how much", so the table name has to be the row.
+- **`store-stock-divergence-section.tsx`** — one table per device,
+  **transposed**: measures are the columns (`Units | Batches | Value`) and the
+  sides are the rows (`Device`, `Cloud`, `Diff`). Stock has three fixed
+  measures and two sides, so transposing puts Device directly *above* Cloud and
+  the comparison is digit-for-digit vertical. It also fits 360px without
+  degrading, which the 5-column shape does not.
+- **Numbers are `tabular-nums`** (`FIGURE_CELL` in
+  `store-detail-primitives.tsx`) and right-aligned, so `1,204` and `1,207` line
+  up column-for-column. This is the single largest readability win here; a
+  proportional font undoes it silently.
+- **A real `<table>` with `scope="col"`/`scope="row"` and an `sr-only`
+  `<caption>`**, not a CSS grid of `<span>`s. The grid version looked identical
+  and read to a screen reader as an unlabelled run of numbers; the table
+  announces "Device, Units, 49,680" for free, and `table-fixed` does the column
+  alignment that the grid needed two duplicated `grid-cols-[…]` templates for.
+  If you add a column, add its `<th scope="col">`.
+- **Never colour alone.** Every verdict has its word in the Status column —
+  `Still syncing`, `Catching up`, `Disagrees`, `Same rows, other edits` (with
+  the signed version sum beneath), plus `N queued` where a queue explains the
+  drift. Rose is emphasis on top of a label, never the label itself.
+- **A `Diff` row/column only exists for a device we can currently compare.** A
+  stale or copy-less device keeps its frozen Device and Cloud figures — it
+  always showed them — but nothing subtracts them, because A-249/A-252 is
+  precisely the mistake of printing `-45,727` for a till that honestly holds no
+  copy. The tests assert the *absence of the Diff row*, not the absence of a
+  digit string, which is what they were accidentally pinning before.
+- **An unsettled table now shows its own signed delta**, where the old prose
+  showed both counts and left the subtraction to you. Nothing new is disclosed;
+  the verdict word beside it is what distinguishes lag from loss.
+- **The device-level stock badge reads `Disagrees`, not the quantity**, since
+  the Diff row carries the number and a pill repeating it was the same fact
+  twice.
+- `COLUMN_LABEL` moved from `text-slate-400` to
+  `text-slate-500 dark:text-slate-400`: at 10px, slate-400 on white is ~2.9:1
+  and fails 4.5:1. It is shared by `Field` and `StatTile`, which now match
+  `DetailCard`'s own title.
+- The stock panel's device heading reads `device_nickname ?? device_label`,
+  matching the table panel. It previously used the label alone, so naming a
+  till from the pencil in that very row left the heading unchanged.
 
 The Stuck On Devices panel gained a delivery-timing block from the same work:
 the oldest unsynced edit's age and the delivered-age histogram. Both fields are

@@ -5,14 +5,15 @@ import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useStoreStockDivergence } from "@/lib/api/admin-hooks-sync";
 import { formatDateSafe } from "@/lib/utils/date-utils";
 import { formatMoney } from "@/lib/utils/currency";
-import type { StoreStockDivergence } from "@/lib/types/admin-platform";
+import type { DeviceStockReport, StoreStockDivergence } from "@/lib/types/admin-platform";
+import {
+  COLUMN_LABEL,
+  DeviceIdentity,
+  FIGURE_CELL,
+  signedCount,
+} from "./store-detail-primitives";
 import { DeviceReportAction } from "./device-report-action";
 import { DeviceRowActions } from "./device-row-actions";
-
-/** Figures run to five digits on a real store, so they are unreadable raw. */
-function formatCount(value: number | null | undefined): string {
-  return Number(value ?? 0).toLocaleString();
-}
 
 export function StoreStockDivergencePanel({
   storeId,
@@ -31,6 +32,137 @@ export function StoreStockDivergencePanel({
       storeId={storeId}
       currency={currency}
     />
+  );
+}
+
+function money(value: number | null | undefined, currency?: string | null): string | null {
+  return value == null ? null : formatMoney(Math.round(value), currency);
+}
+
+function signedMoney(value: number, currency?: string | null): string {
+  const sign = value > 0 ? "+" : value < 0 ? "-" : "";
+
+  return `${sign}${formatMoney(Math.round(Math.abs(value)), currency)}`;
+}
+
+function FigureRow({
+  label,
+  units,
+  batches,
+  value,
+  missing,
+  emphasis,
+}: {
+  label: string;
+  units: string;
+  batches: string;
+  value: string | null;
+  missing: string;
+  emphasis?: boolean;
+}) {
+  const tone = emphasis
+    ? "font-bold text-rose-600 dark:text-rose-400"
+    : "text-slate-900 dark:text-slate-100";
+
+  return (
+    <tr>
+      <th
+        scope="row"
+        className="w-[3.25rem] py-0.5 text-left text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
+      >
+        {label}
+      </th>
+      <td className={`${FIGURE_CELL} py-0.5 ${tone}`}>{units}</td>
+      <td className={`${FIGURE_CELL} py-0.5 ${tone}`}>{batches}</td>
+      <td className={`${FIGURE_CELL} py-0.5 ${value === null ? "text-muted-foreground" : tone}`}>
+        {value ?? missing}
+      </td>
+    </tr>
+  );
+}
+
+function StockComparison({
+  device,
+  currency,
+}: {
+  device: DeviceStockReport;
+  currency?: string | null;
+}) {
+  const comparable = device.has_local_copy !== false && !device.stale;
+
+  return (
+    <table className="w-full table-fixed text-[11px]">
+      <caption className="sr-only">
+        What this device reported against what the cloud held, frozen at its last report
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">
+            <span className="sr-only">Side</span>
+          </th>
+          <th scope="col" className={`${COLUMN_LABEL} ${FIGURE_CELL} pb-0.5`}>
+            Units
+          </th>
+          <th scope="col" className={`${COLUMN_LABEL} ${FIGURE_CELL} pb-0.5`}>
+            Batches
+          </th>
+          <th scope="col" className={`${COLUMN_LABEL} ${FIGURE_CELL} pb-0.5`}>
+            Value
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <FigureRow
+          label="Device"
+          units={Number(device.device_quantity_sum ?? 0).toLocaleString()}
+          batches={Number(device.device_batch_count ?? 0).toLocaleString()}
+          value={money(device.device_value_sum, currency)}
+          missing="Not reported"
+        />
+        <FigureRow
+          label="Cloud"
+          units={Number(device.server_quantity_sum ?? 0).toLocaleString()}
+          batches={Number(device.server_batch_count ?? 0).toLocaleString()}
+          value={money(device.server_value_sum, currency)}
+          missing="Not reported"
+        />
+        {comparable && (
+          <FigureRow
+            label="Diff"
+            units={signedCount(device.quantity_delta ?? 0)}
+            batches={signedCount(device.batch_delta ?? 0)}
+            value={
+              device.value_delta == null ? null : signedMoney(device.value_delta, currency)
+            }
+            missing="—"
+            emphasis={device.diverged || !!device.value_delta}
+          />
+        )}
+      </tbody>
+    </table>
+  );
+}
+
+function DeviceStatus({ device }: { device: DeviceStockReport }) {
+  if (device.has_local_copy === false) {
+    return <Badge variant="outline">No local copy of this store</Badge>;
+  }
+
+  if (device.stale) {
+    return <Badge variant="outline">Stopped reporting</Badge>;
+  }
+
+  return (
+    <>
+      {!device.diverged && !!device.value_delta && (
+        <span className="text-xs font-medium text-amber-500">Costs differ</span>
+      )}
+      {device.diverged ? (
+        <Badge variant="destructive">Disagrees</Badge>
+      ) : (
+        <Badge variant="secondary">Agrees</Badge>
+      )}
+    </>
   );
 }
 
@@ -62,8 +194,6 @@ export function StoreStockDivergenceSection({
     return <p className="text-sm text-muted-foreground">Checking device stock…</p>;
   }
 
-  // Never "no divergence": a store nobody has reported for has not been
-  // measured, and claiming agreement would be a claim nobody has earned.
   if (!data?.measured) {
     return (
       <p className="text-sm font-medium text-muted-foreground">
@@ -72,9 +202,7 @@ export function StoreStockDivergenceSection({
     );
   }
 
-  const comparable = data.devices.filter(
-    (d) => d.has_local_copy !== false && !d.stale,
-  );
+  const comparable = data.devices.filter((d) => d.has_local_copy !== false && !d.stale);
 
   return (
     <div className="space-y-3">
@@ -104,91 +232,51 @@ export function StoreStockDivergenceSection({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Each row is a snapshot taken when that device last reported, not a live comparison, so
-        two devices that reported on different days are measured against different cloud totals.
-        Stock is valued at cost and includes discontinued products&apos; remaining batches, so these
-        cloud figures can exceed the Total Stock Value above, which excludes them.
+        Every figure below is frozen at the moment that device reported, not a live reading, so two
+        devices that reported on different days are measured against different cloud totals. Stock
+        is valued at cost and includes discontinued products&apos; remaining batches, so these cloud
+        figures can exceed the Total Stock Value above, which excludes them.
       </p>
 
       <ul className="divide-y divide-slate-100 dark:divide-slate-800 rounded-xl border border-slate-200 dark:border-slate-800">
         {data.devices.map((device) => (
-          <li
-            key={device.device_id}
-            className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6"
-          >
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-foreground">
-                  {device.device_label ?? "Unnamed device"}
-                </p>
-                <p className="truncate font-mono text-xs text-muted-foreground">
-                  {device.device_id}
-                </p>
+          <li key={device.device_id} className="space-y-2 px-3 py-2.5">
+            <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+              <div className="min-w-0 flex-1 basis-[10rem]">
+                <DeviceIdentity
+                  label={device.device_nickname ?? device.device_label}
+                  deviceId={device.device_id}
+                />
               </div>
 
-              <dl className="grid grid-cols-[3.5rem_1fr] gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-                <dt className="font-semibold text-foreground/70">Device</dt>
-                <dd>
-                  {`${formatCount(device.device_quantity_sum)} across ${formatCount(device.device_batch_count)} batches`}
-                  {device.device_value_sum == null
-                    ? " · value not reported"
-                    : ` · ${formatMoney(Math.round(device.device_value_sum), currency)}`}
-                </dd>
-                <dt className="font-semibold text-foreground/70">Cloud</dt>
-                <dd>
-                  {`${formatCount(device.server_quantity_sum)} across ${formatCount(device.server_batch_count)} batches`}
-                  {device.server_value_sum == null
-                    ? ""
-                    : ` · ${formatMoney(Math.round(device.server_value_sum), currency)}`}
-                </dd>
-              </dl>
-            </div>
-
-            <div className="flex shrink-0 flex-col gap-2 sm:items-end">
-              <div className="flex items-center gap-2">
-                {device.has_local_copy === false ? (
-                  <Badge variant="outline">No local copy of this store</Badge>
-                ) : device.stale ? (
-                  <Badge variant="outline">Stopped reporting</Badge>
-                ) : (
-                  <>
-                    {!device.diverged && !!device.value_delta && (
-                      <span className="text-xs font-medium text-amber-500">Costs differ</span>
-                    )}
-                    {device.diverged ? (
-                      <Badge variant="destructive">
-                        {device.quantity_delta > 0 ? "+" : ""}
-                        {formatCount(device.quantity_delta)}
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">Agrees</Badge>
-                    )}
-                  </>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <div className="flex items-center gap-2">
+                  <DeviceStatus device={device} />
+                </div>
+                {device.reported_at && (
+                  <p className="text-xs tabular-nums text-muted-foreground">
+                    {formatDateSafe(device.reported_at, "dd/MM/yyyy HH:mm", "")}
+                  </p>
+                )}
+                {storeId && (
+                  <div className="flex items-center gap-1">
+                    <DeviceReportAction
+                      storeId={storeId}
+                      deviceId={device.device_id}
+                      deviceLabel={device.device_nickname ?? device.device_label}
+                    />
+                    <DeviceRowActions
+                      storeId={storeId}
+                      deviceId={device.device_id}
+                      deviceLabel={device.device_label}
+                      deviceNickname={device.device_nickname}
+                    />
+                  </div>
                 )}
               </div>
-
-              {device.reported_at && (
-                <p className="text-xs text-muted-foreground">
-                  {formatDateSafe(device.reported_at, "dd/MM/yyyy HH:mm", "")}
-                </p>
-              )}
-
-              {storeId && (
-                <div className="flex items-center gap-1">
-                  <DeviceReportAction
-                    storeId={storeId}
-                    deviceId={device.device_id}
-                    deviceLabel={device.device_nickname ?? device.device_label}
-                  />
-                  <DeviceRowActions
-                    storeId={storeId}
-                    deviceId={device.device_id}
-                    deviceLabel={device.device_label}
-                    deviceNickname={device.device_nickname}
-                  />
-                </div>
-              )}
             </div>
+
+            <StockComparison device={device} currency={currency} />
           </li>
         ))}
       </ul>

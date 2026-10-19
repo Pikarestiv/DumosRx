@@ -28,6 +28,30 @@ export function DetailCard({ title, icon, children, className }: DetailCardProps
   );
 }
 
+export const COLUMN_LABEL =
+  "text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400";
+
+export const FIGURE_CELL = "text-right tabular-nums";
+
+export function signedCount(value: number): string {
+  return `${value > 0 ? "+" : ""}${value.toLocaleString()}`;
+}
+
+export function DeviceIdentity({
+  label,
+  deviceId,
+}: {
+  label: string | null | undefined;
+  deviceId: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="truncate text-sm font-bold text-foreground">{label ?? "Unnamed device"}</p>
+      <p className="truncate font-mono text-xs text-muted-foreground">{deviceId}</p>
+    </div>
+  );
+}
+
 interface FieldProps {
   label: string;
   value: ReactNode;
@@ -37,7 +61,7 @@ interface FieldProps {
 export function Field({ label, value, mono }: FieldProps) {
   return (
     <div className="min-w-0">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</p>
+      <p className={COLUMN_LABEL}>{label}</p>
       <p
         className={`text-sm font-bold text-slate-900 dark:text-slate-100 break-words ${
           mono ? "font-mono text-xs" : ""
@@ -85,7 +109,7 @@ export function StatTile({ label, value, icon }: StatTileProps) {
           <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0 [&_svg]:h-4 [&_svg]:w-4">
             {icon}
           </div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 truncate">{label}</p>
+          <p className={`${COLUMN_LABEL} truncate`}>{label}</p>
         </div>
         <p
           className="text-lg sm:text-xl font-black text-slate-900 dark:text-white leading-tight break-words"

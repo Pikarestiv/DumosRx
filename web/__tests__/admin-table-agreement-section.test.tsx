@@ -75,8 +75,16 @@ describe("StoreTableAgreementSection", () => {
 
     expect(screen.getByText("categories")).toBeDefined();
     expect(screen.queryByText("products")).toBeNull();
-    expect(screen.getByText("-3 rows")).toBeDefined();
     expect(screen.getByText(/1 table disagree/i)).toBeDefined();
+
+    // The two sides are their own cells under labelled columns, so the gap is
+    // visible without reading a sentence.
+    expect(screen.getByText("Device")).toBeDefined();
+    expect(screen.getByText("Cloud")).toBeDefined();
+    expect(screen.getByText("4")).toBeDefined();
+    expect(screen.getByText("7")).toBeDefined();
+    expect(screen.getByText("-3")).toBeDefined();
+    expect(screen.getByText("Disagrees")).toBeDefined();
   });
 
   /**
@@ -104,7 +112,10 @@ describe("StoreTableAgreementSection", () => {
 
     expect(screen.getByText("Catching up")).toBeDefined();
     expect(screen.getByText("sales")).toBeDefined();
-    expect(screen.queryByText("-2 rows")).toBeNull();
+    // The figures are shown — they always were — but the verdict word beside
+    // them is what says lag, and nothing calls it a disagreement.
+    expect(screen.getByText("-2")).toBeDefined();
+    expect(screen.queryByText("Disagrees")).toBeNull();
     // Not "every table agrees": that would contradict the row below it.
     expect(screen.getByText("Catching up on 1")).toBeDefined();
     expect(screen.queryByText(/every table agrees/i)).toBeNull();
@@ -191,6 +202,26 @@ describe("StoreTableAgreementSection", () => {
     expect(screen.getByText("Chrome on Windows")).toBeDefined();
     // A bare date would make two readings hours apart look like one.
     expect(screen.getByText(/^18\/10\/2026 \d{2}:\d{2}$/)).toBeDefined();
+  });
+
+  it("keeps a queued-edit count visible as the reason a table is unsettled", () => {
+    render(
+      <StoreTableAgreementSection
+        data={{
+          measured: true,
+          diverged_devices: 0,
+          devices: [
+            device({
+              tables: [row({ table: "sales", device_pending: 2, verdict: "syncing" })],
+            }),
+          ],
+        }}
+        isLoading={false}
+      />,
+    );
+
+    expect(screen.getByText(/still syncing/i)).toBeDefined();
+    expect(screen.getByText(/2 queued/i)).toBeDefined();
   });
 
   it("calls a same-row, different-version table out rather than reading it as agreement", () => {

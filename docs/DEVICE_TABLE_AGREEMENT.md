@@ -102,6 +102,27 @@ as a disagreement (A-252), and a device reporting zero rows against a
 non-empty cloud reads "No local copy of this store" rather than as a total
 divergence.
 
+## What the operator sees
+
+Both agreement panels render one `<table>` per device, dense, with
+`tabular-nums` so the two sides line up digit-for-digit. The table panel's
+columns are `Table | Device | Cloud | Diff | Status`; the stock panel is
+transposed — `Units | Batches | Value` across, `Device / Cloud / Diff` down —
+so the device's figure sits directly above the cloud's. Design rationale and
+the layout rules live in `web/AGENTS.md`, "The agreement rows are tables, not
+sentences".
+
+Two properties matter for reading one correctly:
+
+- **The `Diff` row or column is only drawn for a device we can currently
+  compare.** A stale snapshot or a device with no local copy still shows its
+  frozen Device and Cloud figures, with a badge saying which it is, but nothing
+  subtracts them — a difference computed against a till that holds no copy of
+  the store is the A-249/A-252 false alarm.
+- **Every state carries a word, not just a colour**: `Still syncing`,
+  `Catching up`, `Disagrees`, `Same rows, other edits` (with the signed version
+  sum beneath), and `N queued` where the queue is what explains the drift.
+
 ## The four verdicts, and why a naive version delta was wrong
 
 `TableAgreementService::verdict()` returns one of four values. The first

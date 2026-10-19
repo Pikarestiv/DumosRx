@@ -218,6 +218,30 @@ reader, `components/admin/views/email-templates-tab.tsx`, routes through the
 same helper (it still prefers a 422's per-field `errors`, which is detail the
 server validated on purpose).
 
+## A Sentry event count is a sample, not an occurrence count (2026-10-19)
+
+`AdminHealthService::getRecentErrors()` reads Sentry's own `count` per
+unresolved issue and `components/admin/operations/sentry-issues-card.tsx`
+renders it. Since 2026-10-19 that number is a **lower bound**, not a total:
+`logCrash` throttles the Sentry send to one event per crash fingerprint per
+hour (`SENTRY_THROTTLE_MS`, see `client/AGENTS.md`, "What reaches Sentry") and
+non-production environments set `SENTRY_SAMPLE_RATE=0.1`. Sentry groups
+repeats, but it only ever counts the events it was actually sent.
+
+So the card renders `≥ N events` with the sampling named in the header, and
+the **true** figure is `feedback.occurrence_count` — maintained per fingerprint
+by `logCrash`, synced up with the crash row, and touched by no throttle. The
+feedback list (`components/admin/views/feedback-tab.tsx`) shows it whenever it
+is above 1; `FeedbackItem.occurrence_count` is optional because older rows and
+older client bundles do not carry it, so a missing value reads as 1 rather
+than as zero.
+
+Do not re-render a bare Sentry count anywhere, and do not try to join a Sentry
+issue to a `feedback` row: Sentry's grouping key and our
+`area|message|first stack line` fingerprint are different schemes and there is
+no reliable mapping between them. The honest presentation is the two numbers
+side by side, each labelled for what it is.
+
 ## Telemetry redaction and session-end cache hygiene (A-100/A-107)
 
 `lib/api/logger.ts`'s `sanitizePayload` masks (never drops) sensitive values,

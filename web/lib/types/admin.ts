@@ -413,6 +413,9 @@ export interface FeedbackItem {
   content: string;
   created_at: string;
   user_id?: string;
+  /** The real number of times this crash fired, kept per fingerprint by
+   * `logCrash`. A Sentry event count is a throttled sample; this is not. */
+  occurrence_count?: number | null;
 }
 
 export type FeedbackResponse = PaginatedResponse<FeedbackItem>;

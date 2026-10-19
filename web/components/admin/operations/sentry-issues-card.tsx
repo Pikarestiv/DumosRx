@@ -23,11 +23,18 @@ interface SentryIssuesCardProps {
 export function SentryIssuesCard({ data, isLoading }: SentryIssuesCardProps) {
   return (
     <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-xl font-black flex items-center gap-2">
-          <Bug className="h-5 w-5 text-indigo-500" />
-          Recent Errors (Sentry, last 14 days)
-        </CardTitle>
+      <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <div className="space-y-1 min-w-0">
+          <CardTitle className="text-xl font-black flex items-center gap-2">
+            <Bug className="h-5 w-5 text-indigo-500" />
+            Recent Errors (Sentry, last 14 days)
+          </CardTitle>
+          <p className="text-xs text-muted-foreground font-medium">
+            Event counts are sampled — one event per fingerprint per hour, and 10% outside
+            production — so read each as a lower bound. The true figure is the crash
+            row&apos;s occurrence count.
+          </p>
+        </div>
         <a
           href={SENTRY_ISSUES_URL}
           target="_blank"
@@ -76,8 +83,11 @@ export function SentryIssuesCard({ data, isLoading }: SentryIssuesCardProps) {
                     </p>
                   </div>
                 </div>
-                <span className="text-sm font-medium text-muted-foreground shrink-0 ml-4">
-                  {issue.count} event{issue.count === 1 ? "" : "s"}
+                <span
+                  className="text-sm font-medium text-muted-foreground shrink-0 ml-4 tabular-nums"
+                  title="Sampled: one event per fingerprint per hour, and 10% outside production. At least this many occurrences, possibly far more."
+                >
+                  ≥ {issue.count} event{issue.count === 1 ? "" : "s"}
                 </span>
               </a>
             ))}

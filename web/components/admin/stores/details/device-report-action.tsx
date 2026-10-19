@@ -37,23 +37,6 @@ export function DeviceReportAction({
     (command) => command.device_id === deviceId && command.action === ACTION,
   );
 
-  if (latest?.status === "pending" || latest?.status === "sent") {
-    const isPending = latest.status === "pending";
-    return (
-      <span
-        className={`${BADGE} border-dashed border-slate-300 text-muted-foreground dark:border-slate-700`}
-        title={
-          isPending
-            ? "Sends on this device's next sync"
-            : "The till has picked up the request and is building the report"
-        }
-      >
-        <FileText className="h-3.5 w-3.5" />
-        {isPending ? "Report queued" : "Sent to till"}
-      </span>
-    );
-  }
-
   const requestButton = (
     <Button
       size="sm"
@@ -77,6 +60,29 @@ export function DeviceReportAction({
       {issue.isPending ? "Requesting…" : latest ? "Request again" : "Request report"}
     </Button>
   );
+
+  // A command the till picked up but never reported on used to render as a
+  // badge with no control, so an operator was locked out of asking again for
+  // as long as that device stayed silent — observed at seven days.
+  if (latest?.status === "pending" || latest?.status === "sent") {
+    const isPending = latest.status === "pending";
+    return (
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <span
+          className={`${BADGE} border-dashed border-slate-300 text-muted-foreground dark:border-slate-700`}
+          title={
+            isPending
+              ? "Sends on this device's next sync"
+              : "The till has picked up the request and is building the report"
+          }
+        >
+          <FileText className="h-3.5 w-3.5" />
+          {isPending ? "Report queued" : "Sent to till"}
+        </span>
+        {requestButton}
+      </div>
+    );
+  }
 
   if (latest?.status === "applied") {
     const at = formatDateSafe(latest.acted_at, "dd/MM/yyyy HH:mm", "");

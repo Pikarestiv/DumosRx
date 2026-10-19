@@ -11,6 +11,7 @@ import { useApiEnvironmentName } from "@/hooks/use-api-environment";
 import { ModeToggle } from "@/components/mode-toggle";
 import { AdminHeaderSearch } from "./admin-header-search";
 import { AdminHeaderNotifications } from "./admin-header-notifications";
+import { AdminHeaderRefresh } from "./admin-header-refresh";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -103,6 +104,7 @@ export function AdminHeader() {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
+        <AdminHeaderRefresh />
         <ModeToggle />
         <AdminHeaderNotifications />
 

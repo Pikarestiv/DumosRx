@@ -55,29 +55,32 @@ describe("DeviceReportAction", () => {
     expect(screen.queryByRole("button", { name: /request report/i })).toBeNull();
   });
 
-  it("reports a pending command for this device instead of offering another", () => {
+  it("shows a queued command and still lets the operator ask again", () => {
     commands.rows = [
       { id: "c1", status: "pending", device_id: "DRX-TILL-1", action: "send_device_report" },
     ];
     render(<DeviceReportAction storeId="s1" deviceId="DRX-TILL-1" />);
 
     expect(screen.getByText(/report queued/i)).toBeDefined();
-    expect(screen.queryByRole("button", { name: /request report/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /request again/i })).toBeDefined();
   });
 
   /**
-   * The server flips the row to `sent` the moment the device claims it, so the
-   * badge used to vanish on the next sync and the button came back — visually
-   * identical to never having asked. The real outcome is on the row all along.
+   * The server flips the row to `sent` the moment the device claims it, and the
+   * status stays there until that device reports a result. A till that goes
+   * quiet therefore used to leave this control as a badge with no button at
+   * all — observed stuck at "Sent to till" for seven days, with no way to ask
+   * again. The badge still tells the truth about the last request; it must
+   * never be the only thing on screen.
    */
-  it("says the request reached the till once the device has claimed it", () => {
+  it("says the request reached the till, and never strands the operator without a control", () => {
     commands.rows = [
       { id: "c1", status: "sent", device_id: "DRX-TILL-1", action: "send_device_report" },
     ];
     render(<DeviceReportAction storeId="s1" deviceId="DRX-TILL-1" />);
 
     expect(screen.getByText(/sent to till/i)).toBeDefined();
-    expect(screen.queryByRole("button", { name: /request report/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /request again/i })).toBeDefined();
   });
 
   it("confirms an applied report with when it arrived, and keeps the result readable", () => {

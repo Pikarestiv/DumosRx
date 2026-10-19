@@ -69,6 +69,10 @@ vi.mock("@/components/admin/admin-header-notifications", () => ({
   AdminHeaderNotifications: () => null,
 }));
 
+vi.mock("@/components/admin/admin-header-refresh", () => ({
+  AdminHeaderRefresh: () => null,
+}));
+
 vi.mock("@/components/mode-toggle", () => ({
   ModeToggle: () => null,
 }));

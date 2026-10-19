@@ -7,14 +7,17 @@ vi.mock("idb-keyval", () => ({
 }));
 
 const { sentry, delivery } = vi.hoisted(() => ({
-  sentry: { messages: [] as string[], throws: false },
+  sentry: { messages: [] as string[], breadcrumbs: 0, throws: false },
   delivery: { calls: 0, throws: false },
 }));
 
 vi.mock("@sentry/nextjs", () => ({
   captureMessage: vi.fn((message: string) => {
-    if (sentry.throws) throw new Error("no DSN");
     sentry.messages.push(message);
+  }),
+  addBreadcrumb: vi.fn(() => {
+    if (sentry.throws) throw new Error("no DSN");
+    sentry.breadcrumbs += 1;
   }),
 }));
 
@@ -56,6 +59,7 @@ describe("sendDeviceReportOnRequest", () => {
 
   beforeEach(() => {
     sentry.messages = [];
+    sentry.breadcrumbs = 0;
     sentry.throws = false;
     delivery.calls = 0;
     delivery.throws = false;
@@ -65,14 +69,20 @@ describe("sendDeviceReportOnRequest", () => {
   const auditRows = () =>
     db.exec(`SELECT action, details FROM audit_logs`)[0]?.values ?? [];
 
-  it("delivers to both channels and reports applied", async () => {
+  it("delivers over the support POST and reports applied", async () => {
     const outcome = await send("cmd-1");
 
     expect(outcome.status).toBe("applied");
-    expect(outcome.result).toMatch(/sentry/);
     expect(outcome.result).toMatch(/support/);
     expect(delivery.calls).toBe(1);
-    expect(sentry.messages).toHaveLength(1);
+  });
+
+  it("opens no Sentry issue of its own, only a breadcrumb", async () => {
+    const outcome = await send("cmd-1");
+
+    expect(sentry.messages).toHaveLength(0);
+    expect(sentry.breadcrumbs).toBe(1);
+    expect(outcome.result).not.toMatch(/sentry/);
   });
 
   it("records it on the device, so the store can see a report left their till", async () => {
@@ -88,9 +98,6 @@ describe("sendDeviceReportOnRequest", () => {
   });
 
   it("refuses when the support POST fails, because only it can confirm anything", async () => {
-    // Sentry.captureMessage never throws: with no DSN it is a silent no-op and
-    // transport failures are async. Marking this applied on Sentry alone would
-    // record a report nobody received.
     delivery.throws = true;
 
     const outcome = await send("cmd-1");
@@ -99,11 +106,11 @@ describe("sendDeviceReportOnRequest", () => {
     expect(auditRows()).toHaveLength(0);
   });
 
-  it("calls Sentry delivery 'unconfirmed', since it cannot prove anything", async () => {
+  it("records only what was actually delivered", async () => {
     await send("cmd-1");
 
     const details = JSON.parse(String(auditRows()[0][1]));
-    expect(details.delivered_to).toMatch(/unconfirmed/);
+    expect(details.delivered_to).toBe("support");
   });
 
   it("still succeeds over support alone when Sentry has no DSN", async () => {

@@ -96,6 +96,16 @@ describe("healStockIntegrity", () => {
     });
   });
 
+  it("reports a successful heal as informational, so it never opens a Sentry issue", async () => {
+    batch("batch-1", 80);
+    movement("mv-1", "batch-1", 80);
+    movement("mv-2", "batch-1", -28);
+
+    await healStockIntegrity();
+
+    expect(reportContext()).toMatchObject({ informational: true });
+  });
+
   it("never folds an unreconstructable batch, and still reports it", async () => {
     batch("batch-legacy", 40);
 

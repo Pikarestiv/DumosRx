@@ -165,7 +165,12 @@ export async function checkSyncHealth(): Promise<void> {
           : `Sync health check found this device behind the server: ${JSON.stringify(deficits)}`,
       ),
       false,
-      { area: "sync-health-check", deficits: JSON.stringify(deficits), givingUp: String(givingUp) },
+      {
+        area: "sync-health-check",
+        deficits: JSON.stringify(deficits),
+        givingUp: String(givingUp),
+        informational: !givingUp,
+      },
     );
 
     if (!givingUp) {

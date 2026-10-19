@@ -5,6 +5,7 @@ import { getValidColumns } from "./schema";
 import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconcile-identity";
 import { logCrash } from "@/lib/utils/error-logger";
 import { restoreExhaustedPullWindows, rewindPullWindow } from "./pull-window";
+import { summarizeSkippedRecords, type SkippedRecord } from "./pull-skip-report";
 import { STORAGE_KEYS, getStoredUser } from "@/lib/storage-keys";
 import { recomputeBatchQuantities } from "../batch-quantity";
 import type { BatchLogChange } from "../batch-quantity";
@@ -180,7 +181,7 @@ export async function pullChanges(
     const updatedTables: string[] = [];
     // Reported after the transaction commits: logCrash writes to SQLite and
     // would otherwise nest a write transaction inside this one.
-    const skippedRecords: { table: string; recordId: string; reason: string }[] = [];
+    const skippedRecords: SkippedRecord[] = [];
 
     // Legacy offset paging, sent alongside page_cursor so client and server
     // can deploy independently. See docs/SYNC_PULL_PAGINATION.md.
@@ -638,12 +639,9 @@ export async function pullChanges(
       ).catch(() => {});
     }
 
-    for (const s of skippedRecords) {
-      logCrash(
-        new Error(`Pull skipped ${s.table}/${s.recordId}: ${s.reason}`),
-        false,
-        { area: "sync-pull", table: s.table, recordId: s.recordId },
-      ).catch(() => {});
+    const skipSummary = summarizeSkippedRecords(skippedRecords);
+    if (skipSummary) {
+      logCrash(new Error(skipSummary.message), false, skipSummary.context).catch(() => {});
     }
 
     return { pulled: pulledCount, updatedTables };

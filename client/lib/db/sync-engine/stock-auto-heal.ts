@@ -82,6 +82,7 @@ export async function healStockIntegrity(): Promise<void> {
       false,
       {
         area: "stock-autoheal",
+        informational: true,
         ...summarizeIntegrity(before),
         folded: result?.folded ?? 0,
         unitsCorrected: result?.unitsCorrected ?? 0,

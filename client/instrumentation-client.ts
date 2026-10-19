@@ -5,21 +5,24 @@
 // sentry.edge.config.ts / instrumentation.ts.
 
 import * as Sentry from "@sentry/nextjs";
+import { resolveSentryGating } from "@/lib/utils/sentry-config";
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
-// Skip Sentry entirely when running the local dev server (`next dev`):
-// every error hit while building out an incomplete feature was getting
-// reported, burning through the free-tier event quota before any real
-// store even started using the app. `next dev` is the only environment
-// where NODE_ENV is "development"; the deployed dev/staging build and
-// production are both `next build` static-export output (NODE_ENV
-// "production"), so this leaves Sentry active there regardless of
-// NEXT_PUBLIC_SENTRY_ENVIRONMENT.
-if (dsn && process.env.NODE_ENV !== "development") {
+// Off on a developer's machine, sampled on the deployed dev build, full rate
+// in production. The per-environment table and why dev is sampled rather
+// than silenced: client/AGENTS.md, "What reaches Sentry".
+const gating = resolveSentryGating(
+  dsn,
+  process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT,
+  process.env.NODE_ENV,
+);
+
+if (gating.enabled) {
   Sentry.init({
     dsn,
-    environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || "production",
+    environment: gating.environment,
+    sampleRate: gating.sampleRate,
 
     // Performance monitoring and session replay are deliberately deferred:
     // ship error capture only for this pass.

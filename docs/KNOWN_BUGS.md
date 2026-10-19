@@ -10,6 +10,14 @@ handful of things actually worth your attention aren't buried in it.
 
 ## Open bugs awaiting a fix
 
+#### A-299. `laravel-server/` — a resent INSERT is recorded as an UPDATE, so the refusal breakdown will undercount resends from here on
+- **Found:** 2026-10-19, in the review of the sync-throughput decisions. Cosmetic as data, misleading as an instrument, which is the kind of thing this file exists for.
+- **Location:** `SyncController::push()` `:358` rewrites `$changes[$i]['operation'] = 'UPDATE'` for a resent INSERT, before `recordPushOutcome()` reads the change array (`:808-814`).
+- **What's wrong:** the rewrite is correct for *processing* — a resent INSERT genuinely is an UPDATE — but it happens before the failure recorder sees it. So if such a change later fails for some other reason, `sync_failures.operation` says `UPDATE`. The `products · version_conflict · INSERT` shape that identified A-295 (9,181 rows, measured 08/10–16/10) cannot be measured the same way again: an equivalent loop would now be filed as `UPDATE` and be indistinguishable from an ordinary two-device edit conflict.
+- **Consequence:** no data effect. The cost is diagnostic — the owner's INSERT-vs-UPDATE breakdown in the admin panel is the signal that told us "these are rows the cloud already has, not lost edits", and it will quietly stop working.
+- **Fix:** record the operation as the device sent it. Either capture `$changes[$i]['operation']` before the rewrite and pass the original to `recordPushOutcome()`, or keep a `was_resent_insert` flag on the entry and have `SyncFailureRecorder` prefer it. One test: a resent INSERT that fails for a non-conflict reason is recorded with `operation = 'INSERT'`.
+- **While here:** the per-user throttle is worth knowing and was not written down anywhere. `routes/api.php:132` applies `throttle:60,1` to the whole authenticated group, and Laravel keys it by **user id**, not store or device — so every till logged in as the same owner account shares one 60/min bucket, and that bucket also counts pull pages, `/user`, `getSystemConfig` and peer-freshness. Tills with their own staff logins each get their own 60/min. `push.ts`'s pacing comment said "shared" without saying shared by what; corrected in the same change as this entry.
+
 #### A-298. `laravel-server/` — a pushed payload can claim a NULL-`store_id` row as its own *before* ownership is checked, so the claim is what authorizes the change
 - **Found:** 2026-10-19, in the review of A-297's fix. Not exploited. Recorded because A-297's entry in `docs/FIXED_BUGS.md` would otherwise read as fully closed.
 - **Location:** `SyncController::push()`'s DELETE branch — the legacy-claim block (`~:752-754`) runs before `authorizeChangeTarget()` (`~:756`). The UPDATE branch has the same shape and was **not** audited; check it as part of the fix rather than assuming.

@@ -328,7 +328,8 @@ export async function pushChanges(
   let failedBatches = 0;
 
   for (let i = 0; i < coalesced.length; i += SYNC_BATCH_SIZE) {
-    // The route's shared limit is 60 req/min; pace multi-batch backlogs.
+    // 60 req/min per authenticated USER (laravel-server/routes/api.php:132),
+    // so tills on one shared login share it; pace multi-batch backlogs.
     if (i > 0) {
       await new Promise((resolve) => setTimeout(resolve, 1100));
     }

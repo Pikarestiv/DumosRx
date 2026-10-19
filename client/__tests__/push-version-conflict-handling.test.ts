@@ -86,6 +86,14 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
 
     const remaining = db.exec(`SELECT id FROM _sync_queue`);
     expect(remaining.length).toBe(0); // The queue item is gone.
+
+    // The title's other half, previously unasserted. `_synced = 0` with no
+    // queue row is the only local marker that this row's content differs from
+    // the cloud: the device report reads it, and the stock fold shields a
+    // batch because of it. The pull is what settles a version_conflict, so
+    // nothing here may flip it.
+    const synced = db.exec(`SELECT _synced FROM products WHERE id = 'p1'`);
+    expect(synced[0].values[0][0]).toBe(0);
   });
 
   it("does NOT route a version_conflict through recordSyncFailure's backoff path (no retry_count/next_retry_at bump anywhere, because the row was deleted, not updated)", async () => {

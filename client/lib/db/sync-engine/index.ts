@@ -11,6 +11,7 @@ import {
   READ_ONLY_TAB_MESSAGE,
   SYNC_IN_PROGRESS_ERROR,
 } from "./sync-outcome";
+import { resolveSyncRun } from "./sync-run";
 import { apiClient } from "@/lib/api/client";
 import { queryClient } from "@/lib/query-client";
 import { query, execute, isTauri, isWriterTab } from "../core";
@@ -41,13 +42,6 @@ export function isSyncing(): boolean {
 /** Opaque per-sync-run token. crypto.randomUUID is unavailable on insecure
  * origins and older webviews, so it falls back to timestamp+random; only
  * per-device uniqueness within one short run window matters. */
-function newSyncRunId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
-}
-
 /** Returned instead of a real failure when another sync already holds the
  * mutex. Callers must treat it as a no-op, not an error (see SyncIndicator). */
 export { SYNC_IN_PROGRESS_ERROR } from "./sync-outcome";
@@ -64,11 +58,15 @@ export async function forceFullResync(): Promise<SyncResult> {
     return { success: false, pushed: 0, pulled: 0, error: SYNC_IN_PROGRESS_ERROR };
   }
 
-  const stashed = await clearPullWindows();
+  // Scoped to the store being resynced: the other store's windows must
+  // survive an escape hatch pulled for this one (A-305).
+  const run = resolveSyncRun();
+  const windowStoreId = run.storeId ?? "";
+  const stashed = await clearPullWindows(windowStoreId);
   try {
     return await sync(true);
   } finally {
-    await restorePullWindows(stashed);
+    await restorePullWindows(windowStoreId, stashed);
   }
 }
 
@@ -172,9 +170,9 @@ async function runSync(
     isSyncInProgress = true;
     // One token for the whole run; the server throttles per run, not per
     // request, so every batch and page must carry it.
-    const runId = newSyncRunId();
-    const pushResult = await pushChanges(isManual, isSetup, runId);
-    const pullResult = await pullChanges(isManual, isSetup, onCriticalTablesReady, runId);
+    const run = resolveSyncRun();
+    const pushResult = await pushChanges(isManual, isSetup, run);
+    const pullResult = await pullChanges(isManual, isSetup, onCriticalTablesReady, run);
 
     if (pushResult.pushed > 0 || pullResult.pulled > 0) {
       devLog(
@@ -334,7 +332,13 @@ export async function syncSubscriptionStatus(): Promise<{
       }
     }
 
-    await stampPullWindowUnlessRewinding("stores", response.server_timestamp);
+    // Not inside a sync run, so this resolves its own: `stores` is the one
+    // table whose window is not per-tenant data, but it is keyed like the rest.
+    await stampPullWindowUnlessRewinding(
+      resolveSyncRun().storeId ?? "",
+      "stores",
+      response.server_timestamp,
+    );
 
     // Prefix-only keys, so every store/user-scoped variant is matched.
     if (typeof window !== "undefined") {

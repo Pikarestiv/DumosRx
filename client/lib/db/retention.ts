@@ -39,6 +39,8 @@ function isPruneDue(now: Date): boolean {
  * window.
  */
 async function boundedNow(wallNow: Date): Promise<Date> {
+  // Deliberately across every store: any store's server timestamp is a valid
+  // upper bound on real time, and the audit-log prune is device-wide (A-305).
   const rows = await query<{ newest: string | null }>(
     "SELECT MAX(last_synced_at) AS newest FROM _sync_state",
   );

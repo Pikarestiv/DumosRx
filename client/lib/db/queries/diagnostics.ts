@@ -157,7 +157,8 @@ export async function collectDeviceDiagnostics(): Promise<DeviceDiagnostics> {
       queueSummary(),
       query<SyncStateRow>(
         `SELECT table_name, last_synced_at, server_cursor, rewind_count, rewound_from
-           FROM _sync_state ORDER BY table_name`,
+           FROM _sync_state WHERE store_id = ? ORDER BY table_name`,
+        [storeId ?? ""],
       ),
       query<PendingDeltaRow>(
         `SELECT movement_id, stock_batch_id, quantity, attempts

@@ -213,6 +213,10 @@ class SyncController extends Controller
         $entryTransactionLevel = DB::transactionLevel();
         DB::beginTransaction();
 
+        // One instance per request so its referent/owned-name memos are shared
+        // across the batch's changes (A-302).
+        $crossStoreGuard = app(\App\Services\Sync\CrossStoreReferenceGuard::class);
+
         $hasSyncedAtCache = [];
         $currentUser = $request->user();
         $currentStoreId = $currentUser ? $this->resolvePushStoreId($request, $currentUser) : null;
@@ -403,6 +407,12 @@ class SyncController extends Controller
                     }
 
                     if (!$exists) {
+                        $payload = $crossStoreGuard->apply(
+                            $change['table_name'],
+                            $payload,
+                            $payload['store_id'] ?? null,
+                            $recordId,
+                        );
                         $model = new $modelClass();
                         $model->forceFill($payload);
                         
@@ -531,6 +541,15 @@ class SyncController extends Controller
                             'reason' => 'forbidden',
                         ];
                         continue;
+                    }
+
+                    if ($model) {
+                        $payload = $crossStoreGuard->apply(
+                            $change['table_name'],
+                            $payload,
+                            $model->store_id ?? null,
+                            $recordId,
+                        );
                     }
 
                     // A receipt can never book more than was ordered. The client
@@ -813,7 +832,8 @@ class SyncController extends Controller
                     $changes,
                     $request->user() ? $this->resolvePushStoreId($request, $request->user()) : null,
                     $request->user()?->id,
-                    $processed
+                    $processed,
+                    $crossStoreGuard->remapped()
                 );
             } catch (\Throwable $e) {
                 Log::warning('Sync failure recording skipped: '.$e->getMessage());

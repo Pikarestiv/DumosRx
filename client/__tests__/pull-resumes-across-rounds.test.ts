@@ -135,7 +135,8 @@ describe("pullChanges resumes an unfinished table across sync rounds", () => {
       }),
       false,
       false,
-      undefined,
+      expect.any(String),
+      null,
     );
 
     const afterSecondRound = syncStateRow();

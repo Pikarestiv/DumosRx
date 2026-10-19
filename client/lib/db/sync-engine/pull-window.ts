@@ -21,9 +21,9 @@ export const MAX_PULL_WINDOW_REWINDS = 3;
  */
 export const TABLES_NEVER_PULLED = new Set(["feedback"]);
 
-const REWIND_SQL = `INSERT INTO _sync_state (table_name, last_synced_at, server_cursor, rewind_count, rewound_from)
-   VALUES (?, NULL, NULL, 1, NULL)
-   ON CONFLICT(table_name) DO UPDATE SET
+const REWIND_SQL = `INSERT INTO _sync_state (store_id, table_name, last_synced_at, server_cursor, rewind_count, rewound_from)
+   VALUES (?, ?, NULL, NULL, 1, NULL)
+   ON CONFLICT(store_id, table_name) DO UPDATE SET
      rewound_from = COALESCE(rewound_from, last_synced_at),
      last_synced_at = NULL,
      server_cursor = NULL,
@@ -31,10 +31,10 @@ const REWIND_SQL = `INSERT INTO _sync_state (table_name, last_synced_at, server_
 
 const RESTORE_SQL = `UPDATE _sync_state
    SET last_synced_at = COALESCE(rewound_from, last_synced_at), rewound_from = NULL, server_cursor = NULL
-   WHERE table_name = ?`;
+   WHERE store_id = ? AND table_name = ?`;
 
-const STAMP_SQL = `INSERT INTO _sync_state (table_name, last_synced_at) VALUES (?, ?)
-   ON CONFLICT(table_name) DO UPDATE SET last_synced_at = excluded.last_synced_at
+const STAMP_SQL = `INSERT INTO _sync_state (store_id, table_name, last_synced_at) VALUES (?, ?, ?)
+   ON CONFLICT(store_id, table_name) DO UPDATE SET last_synced_at = excluded.last_synced_at
    WHERE rewind_count = 0`;
 
 /**
@@ -44,16 +44,17 @@ const STAMP_SQL = `INSERT INTO _sync_state (table_name, last_synced_at) VALUES (
  * rewind in flight, because a newer stamp cancels the re-pull.
  */
 export async function stampPullWindowUnlessRewinding(
+  storeId: string,
   table: string,
   syncedAt: string,
 ): Promise<void> {
-  await execute(STAMP_SQL, [table, syncedAt]);
+  await execute(STAMP_SQL, [storeId, table, syncedAt]);
 }
 
-const EXHAUSTED_SQL = `SELECT table_name FROM _sync_state WHERE rewind_count >= ?`;
+const EXHAUSTED_SQL = `SELECT table_name FROM _sync_state WHERE store_id = ? AND rewind_count >= ?`;
 
-async function restoreBaseline(table: string, cause: string): Promise<void> {
-  await execute(RESTORE_SQL, [table]);
+async function restoreBaseline(storeId: string, table: string, cause: string): Promise<void> {
+  await execute(RESTORE_SQL, [storeId, table]);
   await logCrash(
     new Error(
       `Pull window rewind budget (${MAX_PULL_WINDOW_REWINDS}) spent on ${table} by refused re-pushes (${cause}); baseline restored and the incremental pull continues, so this table stops asking for a full re-pull until it drains skip-free`,
@@ -69,8 +70,9 @@ async function restoreBaseline(table: string, cause: string): Promise<void> {
  * inside rewindPullWindow() such a table kept a null window for ever. See
  * client/AGENTS.md, "Pull window rewinds".
  */
-export async function restoreExhaustedPullWindows(): Promise<string[]> {
+export async function restoreExhaustedPullWindows(storeId: string): Promise<string[]> {
   const exhausted = await query<{ table_name: string }>(EXHAUSTED_SQL, [
+    storeId,
     MAX_PULL_WINDOW_REWINDS,
   ]);
 
@@ -81,11 +83,14 @@ export async function restoreExhaustedPullWindows(): Promise<string[]> {
     // very row that caused the exhaustion. Drop the row instead, which also
     // heals a device already stuck in that loop.
     if (TABLES_NEVER_PULLED.has(table_name)) {
-      await execute("DELETE FROM _sync_state WHERE table_name = ?", [table_name]);
+      await execute("DELETE FROM _sync_state WHERE store_id = ? AND table_name = ?", [
+        storeId,
+        table_name,
+      ]);
       continue;
     }
 
-    await restoreBaseline(table_name, "budget still exhausted");
+    await restoreBaseline(storeId, table_name, "budget still exhausted");
     restored.push(table_name);
   }
 
@@ -104,11 +109,12 @@ export interface StashedPullWindow {
  * Empties every pull window and hands back what it removed, so a full resync
  * that never commits a page can be undone. See A-243 in docs/FIXED_BUGS.md.
  */
-export async function clearPullWindows(): Promise<StashedPullWindow[]> {
+export async function clearPullWindows(storeId: string): Promise<StashedPullWindow[]> {
   const stashed = await query<StashedPullWindow>(
-    "SELECT table_name, last_synced_at, server_cursor, rewind_count, rewound_from FROM _sync_state",
+    "SELECT table_name, last_synced_at, server_cursor, rewind_count, rewound_from FROM _sync_state WHERE store_id = ?",
+    [storeId],
   );
-  await execute("DELETE FROM _sync_state");
+  await execute("DELETE FROM _sync_state WHERE store_id = ?", [storeId]);
   return stashed;
 }
 
@@ -118,20 +124,23 @@ export async function clearPullWindows(): Promise<StashedPullWindow[]> {
  * whether it restored anything.
  */
 export async function restorePullWindows(
+  storeId: string,
   stashed: StashedPullWindow[],
 ): Promise<boolean> {
   if (stashed.length === 0) return false;
 
   const [current] = await query<{ count: number }>(
-    "SELECT COUNT(*) AS count FROM _sync_state",
+    "SELECT COUNT(*) AS count FROM _sync_state WHERE store_id = ?",
+    [storeId],
   );
   if (Number(current?.count ?? 0) > 0) return false;
 
   for (const row of stashed) {
     await execute(
-      `INSERT INTO _sync_state (table_name, last_synced_at, server_cursor, rewind_count, rewound_from)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO _sync_state (store_id, table_name, last_synced_at, server_cursor, rewind_count, rewound_from)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
+        storeId,
         row.table_name,
         row.last_synced_at,
         row.server_cursor,
@@ -150,17 +159,21 @@ export async function restorePullWindows(
  * targeted request when one exists — A-176 needs the same endpoint, and it
  * would remove the need for this budget entirely.
  */
-export async function rewindPullWindow(table: string, cause: string): Promise<boolean> {
+export async function rewindPullWindow(
+  storeId: string,
+  table: string,
+  cause: string,
+): Promise<boolean> {
   const [state] = await query<{ rewind_count: number | null; rewound_from: string | null }>(
-    "SELECT rewind_count, rewound_from FROM _sync_state WHERE table_name = ?",
-    [table],
+    "SELECT rewind_count, rewound_from FROM _sync_state WHERE store_id = ? AND table_name = ?",
+    [storeId, table],
   );
 
   if ((state?.rewind_count ?? 0) >= MAX_PULL_WINDOW_REWINDS) {
-    await restoreBaseline(table, cause);
+    await restoreBaseline(storeId, table, cause);
     return false;
   }
 
-  await execute(REWIND_SQL, [table]);
+  await execute(REWIND_SQL, [storeId, table]);
   return true;
 }

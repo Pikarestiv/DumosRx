@@ -46,7 +46,7 @@ describe("buildQueueStateReport", () => {
     queue(2, 1);
     queue(3, 6, "forbidden");
 
-    const report = await buildQueueStateReport();
+    const report = await buildQueueStateReport("store-1");
 
     expect(report?.queue_depth).toBe(3);
     expect(report?.stuck).toHaveLength(1);
@@ -56,7 +56,7 @@ describe("buildQueueStateReport", () => {
     queue(1, 4, "forbidden");
     queue(2, 5, "forbidden");
 
-    const report = await buildQueueStateReport();
+    const report = await buildQueueStateReport("store-1");
 
     expect(report?.stuck.map((s) => s.record_id)).toEqual(["rec-2"]);
   });
@@ -64,7 +64,7 @@ describe("buildQueueStateReport", () => {
   it("carries the table, record and attempt count an operator needs", async () => {
     queue(1, 7, "sync_disabled", "stock_movements");
 
-    const [item] = (await buildQueueStateReport())!.stuck;
+    const [item] = (await buildQueueStateReport("store-1"))!.stuck;
 
     expect(item.table_name).toBe("stock_movements");
     expect(item.record_id).toBe("rec-1");
@@ -76,7 +76,7 @@ describe("buildQueueStateReport", () => {
   it("strips the reported marker from the reason", async () => {
     queue(1, 6, "[REPORTED] forbidden");
 
-    expect((await buildQueueStateReport())!.stuck[0].reason).toBe("forbidden");
+    expect((await buildQueueStateReport("store-1"))!.stuck[0].reason).toBe("forbidden");
   });
 
   /**
@@ -91,7 +91,7 @@ describe("buildQueueStateReport", () => {
       "SQLSTATE[23000]: Duplicate entry '08012345678' for key 'customers.phone_unique' (SQL: insert into customers (name, phone) values ('Ada Okonkwo', '08012345678'))",
     );
 
-    const [item] = (await buildQueueStateReport())!.stuck;
+    const [item] = (await buildQueueStateReport("store-1"))!.stuck;
 
     expect(item.reason).toBe("server_error");
     expect(JSON.stringify(item)).not.toContain("Ada Okonkwo");
@@ -101,7 +101,7 @@ describe("buildQueueStateReport", () => {
   it("reports an unrecognised reason as other rather than echoing it", async () => {
     queue(1, 6, "something nobody mapped yet");
 
-    expect((await buildQueueStateReport())!.stuck[0].reason).toBe("other");
+    expect((await buildQueueStateReport("store-1"))!.stuck[0].reason).toBe("other");
   });
 
   it("bounds the reported list", async () => {
@@ -109,7 +109,7 @@ describe("buildQueueStateReport", () => {
       queue(i, 6, "forbidden");
     }
 
-    const report = await buildQueueStateReport();
+    const report = await buildQueueStateReport("store-1");
 
     expect(report!.stuck.length).toBeLessThanOrEqual(50);
     expect(report!.queue_depth).toBe(80);
@@ -118,6 +118,6 @@ describe("buildQueueStateReport", () => {
   it("returns null rather than throwing without an active store", async () => {
     core.setActiveStoreId(null);
 
-    expect(await buildQueueStateReport()).toBeNull();
+    expect(await buildQueueStateReport(null)).toBeNull();
   });
 });

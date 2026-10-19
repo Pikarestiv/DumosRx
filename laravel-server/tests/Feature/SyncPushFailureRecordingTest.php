@@ -199,7 +199,7 @@ class SyncPushFailureRecordingTest extends TestCase
     {
         $this->app->instance(SyncFailureRecorder::class, new class extends SyncFailureRecorder
         {
-            public function recordPushOutcome(array $failed, array $changes, ?string $storeId, ?string $userId, int $accepted): void
+            public function recordPushOutcome(array $failed, array $changes, ?string $storeId, ?string $userId, int $accepted, array $remapped = []): void
             {
                 throw new \RuntimeException('telemetry is down');
             }

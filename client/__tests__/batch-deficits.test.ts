@@ -48,7 +48,7 @@ describe("getBatchDeficits", () => {
     );
     // A device whose movement window is fully drained; the alert is gated on it.
     db.run(
-      `INSERT INTO _sync_state (table_name, last_synced_at) VALUES ('stock_movements', '2026-09-26T10:00:00Z')`,
+      `INSERT INTO _sync_state (store_id, table_name, last_synced_at) VALUES ('store-1', 'stock_movements', '2026-09-26T10:00:00Z')`,
     );
   });
 
@@ -206,7 +206,7 @@ describe("getBatchDeficits", () => {
     it("stays silent while this device is still catching up on movements", async () => {
       seedGluformin();
       db.run(
-        `UPDATE _sync_state SET server_cursor = '{"id":"m2"}' WHERE table_name = 'stock_movements'`,
+        `UPDATE _sync_state SET server_cursor = '{"id":"m2"}' WHERE store_id = 'store-1' AND table_name = 'stock_movements'`,
       );
 
       expect(await getOversoldAlerts()).toEqual([]);
@@ -214,7 +214,7 @@ describe("getBatchDeficits", () => {
       expect(await getBatchDeficits()).toHaveLength(1);
 
       db.run(
-        `UPDATE _sync_state SET server_cursor = NULL WHERE table_name = 'stock_movements'`,
+        `UPDATE _sync_state SET server_cursor = NULL WHERE store_id = 'store-1' AND table_name = 'stock_movements'`,
       );
 
       expect(await getOversoldAlerts()).toHaveLength(1);

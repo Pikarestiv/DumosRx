@@ -22,13 +22,15 @@ import { APP_VERSION, BUILD_SHA } from "@/lib/constants";
  * discarded - see docs/FIXED_BUGS.md A-213. Do not write code that leans on
  * one existing.
  */
-function syncHeaders(): Record<string, string> {
+function syncHeaders(runStoreId?: string | null): Record<string, string> {
   const headers: Record<string, string> = {};
   if (typeof window === "undefined") {
     return headers;
   }
 
-  const activeStoreId = getStoredActiveStoreId();
+  // A sync run resolves its store once and passes it here, so a store switch
+  // mid-run cannot relabel a later batch (A-304).
+  const activeStoreId = runStoreId ?? getStoredActiveStoreId();
   if (activeStoreId) {
     headers["X-Store-Id"] = activeStoreId;
   }
@@ -168,6 +170,7 @@ class ApiClient extends FleetBillingApiClient {
     // per request, so a backlog spanning many batches isn't rejected by its
     // own first batch — see SyncController::validateSync.
     runId?: string,
+    runStoreId?: string | null,
   ) {
     let url = `/app/sync/push`;
     const params = new URLSearchParams();
@@ -175,7 +178,7 @@ class ApiClient extends FleetBillingApiClient {
     if (isSetup) params.append("setup", "1");
     if (params.toString()) url += `?${params.toString()}`;
 
-    const headers: Record<string, string> = syncHeaders();
+    const headers: Record<string, string> = syncHeaders(runStoreId);
     if (runId) headers["X-Sync-Run-Id"] = runId;
 
     return this.request(url, {
@@ -251,6 +254,7 @@ class ApiClient extends FleetBillingApiClient {
     isSetup: boolean = false,
     // See pushChanges' own runId note.
     runId?: string,
+    runStoreId?: string | null,
   ) {
     let url = `/app/sync/pull`;
     const params = new URLSearchParams();
@@ -258,7 +262,7 @@ class ApiClient extends FleetBillingApiClient {
     if (isSetup) params.append("setup", "1");
     if (params.toString()) url += `?${params.toString()}`;
 
-    const headers: Record<string, string> = syncHeaders();
+    const headers: Record<string, string> = syncHeaders(runStoreId);
     if (runId) headers["X-Sync-Run-Id"] = runId;
 
     return this.request(url, {

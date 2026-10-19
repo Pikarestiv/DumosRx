@@ -135,7 +135,8 @@ describe('Sync Engine & Local Database', () => {
         }),
         false,
         false,
-        undefined,
+        expect.any(String),
+        null,
       );
 
       // Verify markSynced was called via execute() which does a DELETE

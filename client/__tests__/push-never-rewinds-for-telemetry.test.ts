@@ -58,7 +58,7 @@ describe("a terminal conflict on telemetry never rewinds a pull window", () => {
 
   const windowOf = (table: string) => {
     const res = db.exec(
-      `SELECT last_synced_at, rewind_count FROM _sync_state WHERE table_name = '${table}'`,
+      `SELECT last_synced_at, rewind_count FROM _sync_state WHERE store_id = 'store-1' AND table_name = '${table}'`,
     );
     return res[0]?.values[0] ?? null;
   };
@@ -69,8 +69,8 @@ describe("a terminal conflict on telemetry never rewinds a pull window", () => {
        VALUES ('fb-1', 'crash', 'boom', 'pending', '2026-10-12T00:00:00Z', '2026-10-12T00:00:00Z', 0, 1)`,
     );
     db.run(
-      `INSERT INTO _sync_state (table_name, last_synced_at, server_cursor, rewind_count)
-       VALUES ('feedback', '2026-10-12T10:00:00Z', NULL, 0)`,
+      `INSERT INTO _sync_state (store_id, table_name, last_synced_at, server_cursor, rewind_count)
+       VALUES ('store-1', 'feedback', '2026-10-12T10:00:00Z', NULL, 0)`,
     );
     queueConflict("feedback", "fb-1");
 
@@ -89,8 +89,8 @@ describe("a terminal conflict on telemetry never rewinds a pull window", () => {
        VALUES ('p-1', 'paracetamol', 100, 'store-1', 0, 1)`,
     );
     db.run(
-      `INSERT INTO _sync_state (table_name, last_synced_at, server_cursor, rewind_count)
-       VALUES ('products', '2026-10-12T10:00:00Z', NULL, 0)`,
+      `INSERT INTO _sync_state (store_id, table_name, last_synced_at, server_cursor, rewind_count)
+       VALUES ('store-1', 'products', '2026-10-12T10:00:00Z', NULL, 0)`,
     );
     queueConflict("products", "p-1");
 

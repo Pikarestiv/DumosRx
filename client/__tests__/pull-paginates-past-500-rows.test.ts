@@ -83,7 +83,8 @@ describe("pullChanges pages past the server's 500-row cap", () => {
       { last_synced: { products: "2026-08-15T00:00:00Z" }, page_offset: {}, page_cursor: {} },
       false,
       false,
-      undefined,
+      expect.any(String),
+      null,
     );
     expect(apiClient.pullChanges).toHaveBeenNthCalledWith(
       2,
@@ -94,7 +95,8 @@ describe("pullChanges pages past the server's 500-row cap", () => {
       },
       false,
       false,
-      undefined,
+      expect.any(String),
+      null,
     );
 
     expect(result.pulled).toBe(3);

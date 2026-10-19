@@ -241,7 +241,8 @@ export async function foldStockQuantities(
   }
 
   const [movementState] = await query<{ server_cursor: string | null }>(
-    "SELECT server_cursor FROM _sync_state WHERE table_name = 'stock_movements'",
+    "SELECT server_cursor FROM _sync_state WHERE store_id = ? AND table_name = 'stock_movements'",
+    [getActiveStoreId() ?? ""],
   );
   if (movementState?.server_cursor) {
     throw new Error(

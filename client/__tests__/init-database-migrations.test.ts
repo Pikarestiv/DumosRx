@@ -159,6 +159,138 @@ describe("initDatabase() web migration path", () => {
     ]);
   });
 
+  /**
+   * A-305: `_sync_state` was keyed by `table_name` alone, so one watermark
+   * served every store. SQLite cannot alter a primary key, so the fix rebuilds
+   * the table — and that rebuild must carry a real device's existing
+   * watermarks over, stamped with its store, or every table re-pulls from
+   * scratch on the next sync.
+   */
+  it("rebuilds a table-keyed _sync_state onto (store_id, table_name), keeping the device's watermarks", async () => {
+    const SQL = await initSqlJs({
+      locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),
+    });
+    const legacyDb = new SQL.Database();
+    legacyDb.run(`
+      CREATE TABLE stores (id TEXT PRIMARY KEY, name TEXT);
+      CREATE TABLE _sync_state (
+        table_name TEXT PRIMARY KEY,
+        last_synced_at TEXT,
+        server_cursor TEXT,
+        rewind_count INTEGER NOT NULL DEFAULT 0,
+        rewound_from TEXT
+      );
+      INSERT INTO stores (id, name) VALUES ('store-1', 'Only Store');
+      INSERT INTO _sync_state (table_name, last_synced_at, rewind_count)
+        VALUES ('sales', '2026-10-19T11:00:00Z', 2);
+    `);
+    storedExport = legacyDb.export();
+    legacyDb.close();
+
+    const core = await import("@/lib/db/core");
+    const db = await core.initDatabase();
+
+    const rows = db.exec(
+      "SELECT store_id, table_name, last_synced_at, rewind_count FROM _sync_state",
+    );
+    expect(rows[0].values).toEqual([["store-1", "sales", "2026-10-19T11:00:00Z", 2]]);
+
+    // Two stores can now hold their own watermark for the same table, which
+    // the old primary key made impossible.
+    db.run(
+      `INSERT INTO _sync_state (store_id, table_name, last_synced_at)
+       VALUES ('store-2', 'sales', '2026-10-18T09:00:00Z')`,
+    );
+    const both = db.exec("SELECT COUNT(*) FROM _sync_state WHERE table_name = 'sales'");
+    expect(both[0].values[0][0]).toBe(2);
+  });
+
+  /**
+   * A watermark on a device holding two stores cannot be attributed to either
+   * of them — attributing it wrongly is the whole of A-305 — so it is parked
+   * under '' and each store's first pull starts fresh.
+   */
+  it("parks a two-store device's watermarks under no store rather than guessing one", async () => {
+    const SQL = await initSqlJs({
+      locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),
+    });
+    const legacyDb = new SQL.Database();
+    legacyDb.run(`
+      CREATE TABLE stores (id TEXT PRIMARY KEY, name TEXT);
+      CREATE TABLE _sync_state (
+        table_name TEXT PRIMARY KEY,
+        last_synced_at TEXT,
+        server_cursor TEXT,
+        rewind_count INTEGER NOT NULL DEFAULT 0,
+        rewound_from TEXT
+      );
+      INSERT INTO stores (id, name) VALUES ('store-1', 'First'), ('store-2', 'Second');
+      INSERT INTO _sync_state (table_name, last_synced_at) VALUES ('sales', '2026-10-19T11:00:00Z');
+    `);
+    storedExport = legacyDb.export();
+    legacyDb.close();
+
+    const core = await import("@/lib/db/core");
+    const db = await core.initDatabase();
+
+    const rows = db.exec("SELECT store_id FROM _sync_state WHERE table_name = 'sales'");
+    expect(rows[0].values).toEqual([[""]]);
+  });
+
+  /**
+   * The rebuild is CREATE / copy / DROP / RENAME with no transaction, so a
+   * process death between the copy and the DROP leaves a populated
+   * `_sync_state_scoped` behind. Without dropping it first, the retry's copy
+   * hits the composite primary key on every later boot, is swallowed by the
+   * catch, and the device's pulls fail on a missing column for ever — silently.
+   */
+  it("completes the rebuild even when an interrupted earlier attempt left its scratch table behind", async () => {
+    const SQL = await initSqlJs({
+      locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),
+    });
+    const legacyDb = new SQL.Database();
+    legacyDb.run(`
+      CREATE TABLE stores (id TEXT PRIMARY KEY, name TEXT);
+      CREATE TABLE _sync_state (
+        table_name TEXT PRIMARY KEY,
+        last_synced_at TEXT,
+        server_cursor TEXT,
+        rewind_count INTEGER NOT NULL DEFAULT 0,
+        rewound_from TEXT
+      );
+      CREATE TABLE _sync_state_scoped (
+        store_id TEXT NOT NULL DEFAULT '',
+        table_name TEXT NOT NULL,
+        last_synced_at TEXT,
+        server_cursor TEXT,
+        rewind_count INTEGER NOT NULL DEFAULT 0,
+        rewound_from TEXT,
+        PRIMARY KEY (store_id, table_name)
+      );
+      INSERT INTO stores (id, name) VALUES ('store-1', 'Only Store');
+      INSERT INTO _sync_state (table_name, last_synced_at) VALUES ('sales', '2026-10-19T11:00:00Z');
+      INSERT INTO _sync_state_scoped (store_id, table_name, last_synced_at)
+        VALUES ('store-1', 'sales', '2026-10-19T11:00:00Z');
+    `);
+    storedExport = legacyDb.export();
+    legacyDb.close();
+
+    const core = await import("@/lib/db/core");
+    const db = await core.initDatabase();
+
+    const rows = db.exec(
+      "SELECT store_id, table_name, last_synced_at FROM _sync_state",
+    );
+    expect(rows[0].values).toEqual([["store-1", "sales", "2026-10-19T11:00:00Z"]]);
+
+    // The scratch table must not survive, or the next migration gate reads a
+    // half-built state as finished.
+    const scratch = db.exec(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '_sync_state_scoped'",
+    );
+    expect(scratch).toEqual([]);
+  });
+
   it("is idempotent: re-running the same migrations against an already-migrated database is a no-op that doesn't throw", async () => {
     const core = await import("@/lib/db/core");
     const first = await core.initDatabase();

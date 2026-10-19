@@ -1,4 +1,4 @@
-import { query } from "../core";
+import { query, getActiveStoreId } from "../core";
 import { logCrash } from "@/lib/utils/error-logger";
 import { isTillInspectionSession } from "@/lib/utils/till-inspection";
 import {
@@ -23,8 +23,11 @@ type HealSkipReason = "movement-log-incomplete" | "inspection-session";
  * the window is about to correct anyway.
  */
 export async function movementLogIsComplete(): Promise<boolean> {
+  // Store-scoped since A-305 keyed _sync_state by (store_id, table_name):
+  // without it this read another store's row and gated the fold on it.
   const rows = await query<{ last_synced_at: string | null; server_cursor: string | null }>(
-    "SELECT last_synced_at, server_cursor FROM _sync_state WHERE table_name = 'stock_movements'",
+    "SELECT last_synced_at, server_cursor FROM _sync_state WHERE store_id = ? AND table_name = 'stock_movements'",
+    [getActiveStoreId() ?? ""],
   );
   return Boolean(rows[0]?.last_synced_at) && !rows[0]?.server_cursor;
 }

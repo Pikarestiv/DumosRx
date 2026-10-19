@@ -107,7 +107,8 @@ class CrossTenantCategoryRepairService
             ->get();
     }
 
-    private function resolveOwnedCategoryId(
+    /** Public for CrossStoreReferenceGuard, which heals the same shape at push time (A-302). */
+    public function resolveOwnedCategoryId(
         string $storeId,
         string $name,
         mixed $sourceIsActive,

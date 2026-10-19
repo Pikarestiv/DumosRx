@@ -313,8 +313,8 @@ describe("foldStockQuantities", () => {
     batch("b1", 50);
     movement("m1", "b1", 10);
     db.run(
-      `INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at, server_cursor)
-       VALUES ('stock_movements', NULL, '{"updated_at":"2026-10-01T00:00:00Z","id":"m1"}')`,
+      `INSERT OR REPLACE INTO _sync_state (store_id, table_name, last_synced_at, server_cursor)
+       VALUES ('store-1', 'stock_movements', NULL, '{"updated_at":"2026-10-01T00:00:00Z","id":"m1"}')`,
     );
 
     await expect(foldStockQuantities()).rejects.toThrow(/still catching up|half/i);

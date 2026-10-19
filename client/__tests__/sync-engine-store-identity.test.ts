@@ -28,6 +28,8 @@ const ENGINE_DIR = join(__dirname, "..", "lib", "db", "sync-engine");
  * - `reconcile-quantities.ts` likewise, and the server scopes that endpoint by
  *   each batch's product's store rather than by the header.
  * - `device-report-command.ts` uses it for a prose label in a support report.
+ * - `stock-auto-heal.ts` asks whether THIS store's movement log is caught up,
+ *   from UI hooks and a health check, never inside a run.
  *
  * The limit, stated so nobody over-trusts this: the allowlist is by FILE, so
  * adding a genuinely run-scoped ambient read to one of these five would not be
@@ -39,6 +41,7 @@ const MAY_READ_AMBIENT_STORE = new Set([
   "health-check.ts",
   "reconcile-quantities.ts",
   "device-report-command.ts",
+  "stock-auto-heal.ts",
 ]);
 
 describe("the sync engine takes its store from the run, not from ambient state", () => {

@@ -56,8 +56,8 @@ describe("healStockIntegrity", () => {
 
   const drainedMovementWindow = () =>
     db.run(
-      `INSERT OR REPLACE INTO _sync_state (table_name, last_synced_at, server_cursor)
-       VALUES ('stock_movements', '2026-10-10T00:00:00Z', NULL)`,
+      `INSERT OR REPLACE INTO _sync_state (store_id, table_name, last_synced_at, server_cursor)
+       VALUES ('store-1', 'stock_movements', '2026-10-10T00:00:00Z', NULL)`,
     );
 
   const batch = (id: string, quantity: number) =>
@@ -143,7 +143,7 @@ describe("healStockIntegrity", () => {
   it("refuses to write while the movement log is still mid-window", async () => {
     db.run(
       `UPDATE _sync_state SET last_synced_at = NULL, server_cursor = '{"updated_at":"x","id":"y"}'
-        WHERE table_name = 'stock_movements'`,
+        WHERE store_id = 'store-1' AND table_name = 'stock_movements'`,
     );
     batch("batch-1", 80);
     movement("mv-1", "batch-1", 80);

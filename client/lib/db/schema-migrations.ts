@@ -680,7 +680,13 @@ async function scopeSyncStateToStore(adapter: DbAdapter): Promise<void> {
     if (columns.some((column) => String(column.name) === "store_id")) return;
 
     const stores = await adapter.all("SELECT id FROM stores");
-    const soleStore = stores.length === 1 ? String(stores[0].id) : "";
+    const hasSoleStore = stores.length === 1;
+
+    // Every partial state must be retryable from the still-intact old table:
+    // without this, an interrupted first boot leaves a populated
+    // _sync_state_scoped whose composite key then rejects the copy on every
+    // later boot, and the device never pulls again. Silent and permanent.
+    await adapter.run("DROP TABLE IF EXISTS _sync_state_scoped");
 
     await adapter.run(`
       CREATE TABLE IF NOT EXISTS _sync_state_scoped (
@@ -693,9 +699,11 @@ async function scopeSyncStateToStore(adapter: DbAdapter): Promise<void> {
         PRIMARY KEY (store_id, table_name)
       )
     `);
+    // A subquery rather than an interpolated id, matching
+    // backfillStoreIdOnLegacyRows: the branch is already decided above.
     await adapter.run(`
       INSERT INTO _sync_state_scoped (store_id, table_name, last_synced_at, server_cursor, rewind_count, rewound_from)
-      SELECT '${soleStore}', table_name, last_synced_at, server_cursor, rewind_count, rewound_from FROM _sync_state
+      SELECT ${hasSoleStore ? "(SELECT id FROM stores)" : "''"}, table_name, last_synced_at, server_cursor, rewind_count, rewound_from FROM _sync_state
     `);
     await adapter.run("DROP TABLE _sync_state");
     await adapter.run("ALTER TABLE _sync_state_scoped RENAME TO _sync_state");

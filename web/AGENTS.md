@@ -1364,9 +1364,17 @@ other edits" with the signed version delta beneath. Collapsing that into
 
 **Never print "Every table agrees" above a row that is catching up.** The
 device badge reads `Catching up on N` and the headline reads "No device
-disagrees with the cloud; N is still catching up" whenever a comparable device
-has unsettled tables. An operator who spots that contradiction stops trusting
-the panel, which costs more than the reassurance is worth.
+disagrees with the cloud; N devices still catching up" whenever a comparable
+device has unsettled tables. An operator who spots that contradiction stops
+trusting the panel, which costs more than the reassurance is worth.
+
+**"N still catching up" named no unit** — at N > 1 it read as three of
+nothing, in the badge announcement *and* in this panel's headline, which had
+copied it. Both now call `catchingUpPhrase(n)` from `lib/admin/sync-verdict.ts`
+("1 device still catching up" / "N devices still catching up"), the one place
+either sentence can be changed. The headline also used to read "3 **is** still
+catching up". Any third reader of that phrase imports the helper rather than
+re-spelling it.
 
 A-284 — `sale_items`, `return_items` and `sale_item_batches` reading
 device-behind on any store with a voided sale — is **fixed** (2026-10-19,
@@ -1453,10 +1461,25 @@ Worst wins, evaluated top-down:
 | 1 | either query errored | `Unavailable` | neutral |
 | 2 | `!measured` | `Not measured` | neutral |
 | 3 | `disagreeing.size > 0` | `1 device disagrees` / `N devices disagree` | rose |
-| 4 | no comparable device, any stale | `Stopped reporting` | amber |
-| 5 | no comparable device, all `has_local_copy === false` | `No local copy` | neutral |
-| 6 | `catchingUp > 0` | `Catching up` | neutral |
-| 7 | otherwise | `Agrees` | emerald subtle |
+| 4 | `silentlyDisagreeing.size > 0` | `Stopped reporting while disagreeing` | amber |
+| 5 | no comparable device, any stale | `Stopped reporting` | amber |
+| 6 | no comparable device, all `has_local_copy === false` | `No local copy` | neutral |
+| 7 | `catchingUp > 0` | `Catching up` | neutral |
+| 8 | otherwise | `Agrees` | emerald subtle |
+
+**State 4 exists because the badge used to get *calmer* as the store got less
+observable.** Rose is reachable only by a *comparable* device, so a store whose
+only diverged till went quiet fell through to amber "Stopped reporting" — the
+pill improved as the evidence disappeared. `silentlyDisagreeing` is the set of
+`device_id` over devices with `stale && diverged === true`, from both
+instruments, read off the stored snapshot's own last verdicts. It sits **below
+3** because a divergence we can still measure outranks one we only remember,
+and **above 5** because 5's condition ("no comparable device at all") is the
+narrower one and would otherwise swallow this case whenever the silent till is
+the store's only device. It stays **amber, not rose**: the announcement names
+both facts — it stopped reporting *and* its last reading disagreed — rather
+than asserting a disagreement nothing is currently measuring, which is the
+distinction this whole panel exists to preserve.
 
 Only rose and amber get strong colour, because only they need a human. Amber
 for "stopped reporting" is deliberate — a silent till is the one worth looking

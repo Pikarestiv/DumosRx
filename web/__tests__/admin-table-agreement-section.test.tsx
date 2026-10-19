@@ -110,6 +110,33 @@ describe("StoreTableAgreementSection", () => {
     expect(screen.queryByText(/every table agrees/i)).toBeNull();
   });
 
+  /** "3 still catching up" reads as three of nothing; the headline and the
+   * badge announcement share one phrase so they cannot drift. */
+  it("names the unit when more than one device is catching up", () => {
+    render(
+      <StoreTableAgreementSection
+        data={{
+          measured: true,
+          diverged_devices: 0,
+          devices: [
+            device({
+              device_id: "DRX-1",
+              tables: [row({ table: "sales", row_delta: -2, verdict: "behind" })],
+            }),
+            device({
+              device_id: "DRX-2",
+              tables: [row({ table: "products", row_delta: -1, verdict: "behind" })],
+            }),
+          ],
+        }}
+        isLoading={false}
+      />,
+    );
+
+    expect(screen.getByText(/2 devices still catching up/i)).toBeDefined();
+    expect(screen.queryByText(/2 is still catching up/i)).toBeNull();
+  });
+
   it("shows a device with no local copy as such rather than as a huge divergence", () => {
     render(
       <StoreTableAgreementSection

@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useStoreTableAgreement } from "@/lib/api/admin-hooks-sync";
+import { catchingUpPhrase } from "@/lib/admin/sync-verdict";
 import { formatDateSafe } from "@/lib/utils/date-utils";
 import type { DeviceTableReport, StoreTableAgreement } from "@/lib/types/admin-platform";
 
@@ -150,7 +151,7 @@ export function StoreTableAgreementSection({
             <p className="text-sm font-bold text-foreground">
               {catchingUp === 0
                 ? "Every reporting device holds the same rows as the cloud."
-                : `No device disagrees with the cloud; ${catchingUp} is still catching up.`}
+                : `No device disagrees with the cloud; ${catchingUpPhrase(catchingUp)}.`}
             </p>
           </>
         ) : (

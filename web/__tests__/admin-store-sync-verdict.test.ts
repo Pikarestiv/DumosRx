@@ -201,13 +201,12 @@ describe("syncVerdict", () => {
     });
   });
 
-  it("state 3 — ignores a disagreement reported by a stale or copy-less device", () => {
+  it("state 3 — ignores a disagreement reported by a copy-less device", () => {
     expect(
       syncVerdict({
         ...settled,
         table: {
           data: tableAgreement([
-            tableDevice({ device_id: "DRX-9", diverged: true, stale: true }),
             tableDevice({ device_id: "DRX-8", diverged: true, has_local_copy: false }),
           ]),
           isLoading: false,
@@ -217,7 +216,106 @@ describe("syncVerdict", () => {
     ).toBe("Agrees");
   });
 
-  it("state 4 — reports Stopped reporting when every device is stale", () => {
+  it("state 4 — a till that went silent while disagreeing does not read calmer than it was", () => {
+    expect(
+      syncVerdict({
+        ...settled,
+        table: {
+          data: tableAgreement([
+            tableDevice({
+              device_id: "DRX-9",
+              diverged: true,
+              diverged_tables: ["products"],
+              stale: true,
+            }),
+          ]),
+          isLoading: false,
+          isError: false,
+        },
+      }),
+    ).toEqual({
+      label: "Stopped reporting while disagreeing",
+      tone: "amber",
+      announcement:
+        "1 device stopped reporting, and its last reading disagreed with the cloud",
+    });
+  });
+
+  it("state 4 — it outranks the plain stale verdict when that device is the only one", () => {
+    expect(
+      syncVerdict({
+        table: {
+          data: tableAgreement([
+            tableDevice({ device_id: "DRX-9", diverged: true, stale: true }),
+          ]),
+          isLoading: false,
+          isError: false,
+        },
+        stock: {
+          data: stockDivergence([stockDevice({ device_id: "DRX-9", stale: true })]),
+          isLoading: false,
+          isError: false,
+        },
+      })?.label,
+    ).toBe("Stopped reporting while disagreeing");
+  });
+
+  it("state 4 — counts devices, unions both instruments, and pluralises", () => {
+    expect(
+      syncVerdict({
+        table: {
+          data: tableAgreement([
+            tableDevice({ device_id: "DRX-1", diverged: true, stale: true }),
+          ]),
+          isLoading: false,
+          isError: false,
+        },
+        stock: {
+          data: stockDivergence([
+            stockDevice({ device_id: "DRX-1", diverged: true, stale: true }),
+            stockDevice({ device_id: "DRX-2", diverged: true, stale: true }),
+          ]),
+          isLoading: false,
+          isError: false,
+        },
+      })?.announcement,
+    ).toBe("2 devices stopped reporting, and their last reading disagreed with the cloud");
+  });
+
+  it("state 4 — a measurable disagreement still outranks a remembered one", () => {
+    expect(
+      syncVerdict({
+        ...settled,
+        table: {
+          data: tableAgreement([
+            tableDevice({ device_id: "DRX-1", diverged: true, diverged_tables: ["sales"] }),
+            tableDevice({ device_id: "DRX-9", diverged: true, stale: true }),
+          ]),
+          isLoading: false,
+          isError: false,
+        },
+      })?.label,
+    ).toBe("1 device disagrees");
+  });
+
+  it("state 4 — a stale device whose last reading agreed stays on the plain verdict", () => {
+    expect(
+      syncVerdict({
+        table: {
+          data: tableAgreement([tableDevice({ stale: true })]),
+          isLoading: false,
+          isError: false,
+        },
+        stock: {
+          data: stockDivergence([stockDevice({ stale: true })]),
+          isLoading: false,
+          isError: false,
+        },
+      })?.label,
+    ).toBe("Stopped reporting");
+  });
+
+  it("state 5 — reports Stopped reporting when every device is stale", () => {
     expect(
       syncVerdict({
         table: {
@@ -238,7 +336,7 @@ describe("syncVerdict", () => {
     });
   });
 
-  it("state 4 — a stale device outranks a copy-less one when both are present", () => {
+  it("state 5 — a stale device outranks a copy-less one when both are present", () => {
     expect(
       syncVerdict({
         table: {
@@ -254,7 +352,7 @@ describe("syncVerdict", () => {
     ).toBe("Stopped reporting");
   });
 
-  it("state 5 — reports No local copy when no device holds this store", () => {
+  it("state 6 — reports No local copy when no device holds this store", () => {
     expect(
       syncVerdict({
         table: {
@@ -276,7 +374,7 @@ describe("syncVerdict", () => {
     });
   });
 
-  it("state 5 — stock's optional has_local_copy being absent does not read as no copy", () => {
+  it("state 6 — stock's optional has_local_copy being absent does not read as no copy", () => {
     const device = stockDevice();
     delete device.has_local_copy;
 
@@ -288,7 +386,7 @@ describe("syncVerdict", () => {
     ).toBe("Agrees");
   });
 
-  it("state 6 — reports Catching up for a behind table on a comparable device", () => {
+  it("state 7 — reports Catching up for a behind table on a comparable device", () => {
     expect(
       syncVerdict({
         ...settled,
@@ -303,11 +401,11 @@ describe("syncVerdict", () => {
     ).toEqual({
       label: "Catching up",
       tone: "neutral",
-      announcement: "No device disagrees with the cloud; 1 still catching up",
+      announcement: "No device disagrees with the cloud; 1 device still catching up",
     });
   });
 
-  it("state 6 — a syncing table counts as catching up too", () => {
+  it("state 7 — a syncing table counts as catching up too", () => {
     expect(
       syncVerdict({
         ...settled,
@@ -319,10 +417,10 @@ describe("syncVerdict", () => {
           isError: false,
         },
       })?.announcement,
-    ).toBe("No device disagrees with the cloud; 1 still catching up");
+    ).toBe("No device disagrees with the cloud; 1 device still catching up");
   });
 
-  it("state 6 — a disagreement outranks a device that is only catching up", () => {
+  it("state 7 — a disagreement outranks a device that is only catching up", () => {
     expect(
       syncVerdict({
         ...settled,
@@ -338,7 +436,7 @@ describe("syncVerdict", () => {
     ).toBe("1 device disagrees");
   });
 
-  it("state 7 — reports Agrees when every reporting device is settled", () => {
+  it("state 8 — reports Agrees when every reporting device is settled", () => {
     expect(syncVerdict(settled)).toEqual({
       label: "Agrees",
       tone: "emerald",

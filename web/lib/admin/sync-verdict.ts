@@ -38,19 +38,20 @@ function countCatchingUp(devices: DeviceTableReport[]): number {
   ).length;
 }
 
-function disagreeingDeviceIds(
-  tableDevices: DeviceTableReport[],
-  stockDevices: DeviceStockReport[],
-): Set<string> {
+function divergedDeviceIds(devices: ReportingDevice[]): Set<string> {
   const ids = new Set<string>();
 
-  for (const device of [...tableDevices, ...stockDevices]) {
+  for (const device of devices) {
     if (device.diverged === true) {
       ids.add(device.device_id);
     }
   }
 
   return ids;
+}
+
+export function catchingUpPhrase(count: number): string {
+  return `${count} device${count === 1 ? "" : "s"} still catching up`;
 }
 
 export function syncVerdict(input: SyncVerdictInput): SyncVerdict | null {
@@ -84,7 +85,7 @@ export function syncVerdict(input: SyncVerdictInput): SyncVerdict | null {
   const comparableTableDevices = table.data.devices.filter(isComparable);
   const comparableStockDevices = stock.data.devices.filter(isComparable);
 
-  const disagreeing = disagreeingDeviceIds(comparableTableDevices, comparableStockDevices);
+  const disagreeing = divergedDeviceIds([...comparableTableDevices, ...comparableStockDevices]);
 
   if (disagreeing.size > 0) {
     const label =
@@ -94,6 +95,20 @@ export function syncVerdict(input: SyncVerdictInput): SyncVerdict | null {
       label,
       tone: "rose",
       announcement: `${label} with the cloud on stock or tables`,
+    };
+  }
+
+  const silentlyDisagreeing = divergedDeviceIds(allDevices.filter((device) => device.stale));
+
+  if (silentlyDisagreeing.size > 0) {
+    const plural = silentlyDisagreeing.size !== 1;
+
+    return {
+      label: "Stopped reporting while disagreeing",
+      tone: "amber",
+      announcement:
+        `${silentlyDisagreeing.size} device${plural ? "s" : ""} stopped reporting, and ` +
+        `${plural ? "their" : "its"} last reading disagreed with the cloud`,
     };
   }
 
@@ -127,7 +142,7 @@ export function syncVerdict(input: SyncVerdictInput): SyncVerdict | null {
     return {
       label: "Catching up",
       tone: "neutral",
-      announcement: `No device disagrees with the cloud; ${catchingUp} still catching up`,
+      announcement: `No device disagrees with the cloud; ${catchingUpPhrase(catchingUp)}`,
     };
   }
 

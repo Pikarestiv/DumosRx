@@ -237,10 +237,11 @@ with a few hundred sales. A reading taken during that round can still show a
 transient row delta on the three tables; the next one clears it. See
 `docs/FIXED_BUGS.md` A-284.
 
-**A-288 shows as a small positive row delta.** Legacy rows that have no cloud
-`store_id` are counted on the device and excluded by the server's
-`where('store_id', …)`, so an affected table reads `+N` until the backfill
-lands. Another agent is building that backfill; it deliberately moves neither
+**A-288 no longer shows as a delta on any real store.** Legacy rows with no
+cloud `store_id` are counted on the device and excluded by the server's
+`where('store_id', …)`. The backfill ran on production on 2026-10-19; the 50
+rows it could not attribute belong to a deleted trial account and exist on no
+device, so they move no panel figure. Another agent is building that backfill; it deliberately moves neither
 `updated_at` nor `_version`, so there is **no pull burst** — a backfilled row
 is not re-delivered to a device that already holds it, and only the row-count
 half of the digest moves, which is the half that was wrong.
@@ -330,12 +331,15 @@ per-table owner derivation). It deliberately moves neither `updated_at` nor
 hold it and the version-sum half of the digest is unaffected — only the
 row-count half moves, which is the half that was wrong.
 
-Two residues keep `docs/KNOWN_BUGS.md` A-288 open rather than closing it:
-`requested_products` carries no owner column of any kind, so its NULL rows can
-never be attributed; and a row whose owning store cannot be derived with
-certainty — a multi-store owner's — is left NULL and reported rather than
-guessed. The actual row counts on production are still unmeasured (§12); the
-dry run is that measurement and writes nothing.
+**Measured on production 2026-10-19, and it is not a data gap.** The backfill
+attributed 594 `activity_logs` rows and nothing else. Of the 4,382 that stayed
+NULL, exactly **50 are business rows**, and all 50 belong to one user who owns
+no stores and has no row in `users` — abandoned demo records (Panadol Extra,
+Coartem, Analgesics…) seeded on 2026-08-01, seven weeks before the first real
+store launched. Attributing them would have injected a fake catalogue into a
+real pharmacy, so leaving them NULL is correct, not a shortfall. Full detail
+and the decision in `docs/KNOWN_BUGS.md` A-288. What stays latent is only
+`requested_products`, which has no owner column — and zero such rows exist.
 
 The `audit_logs` row is no longer part of this panel at all — it was removed
 from both sides of the comparison (see "The `audit_logs` false delta" above);

@@ -3457,6 +3457,19 @@ php artisan sync:repair-health-sync-reconciliation --store=<id> --apply
 
 ## `store_id` backfill: `sync:backfill-store-ids` (A-288, 2026-10-18)
 
+**Production outcome, 2026-10-19 — read this before planning more work on it.**
+The command ran. It attributed 594 `activity_logs` rows and nothing else; 50
+business rows stayed NULL and **all 50 belong to a user who owns no stores and
+has no row in `users`** — demo data seeded 2026-08-01, seven weeks before the
+first real store. The right owner for those rows is *no store*, which no
+derivation could ever produce, so the refusal-rather-than-guess rule was right
+for a better reason than it was written for: attributing them would have put a
+fake ten-product catalogue into a live pharmacy's inventory. They are left as
+they are, deliberately. The retirement condition below therefore cannot be met
+by running the command again — only `requested_products` (no owner column, zero
+rows today) keeps A-288 technically open.
+
+
 `client/lib/db/schema-migrations.ts`'s `backfillStoreIdOnLegacyRows()` fills
 `store_id` on every legacy row a single-store device holds; the four server
 migrations that added the column

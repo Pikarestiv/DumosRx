@@ -20,6 +20,35 @@ class SyncFailureRecorderTest extends TestCase
         return app(SyncFailureRecorder::class);
     }
 
+    /**
+     * A-302: a reference corrected at push time is an ACCEPTED change. It is
+     * recorded so an operator can see old bundles still producing the
+     * cross-store state, but it must not inflate the refusal or conflict
+     * tallies the platform health rate is computed from.
+     */
+    public function test_a_remapped_reference_is_recorded_without_moving_either_tally(): void
+    {
+        $remapped = [[
+            'table_name' => 'products',
+            'record_id' => 'prod-1',
+            'reason' => 'cross_store_reference',
+        ]];
+
+        $this->recorder()->recordPushOutcome([], [], self::STORE, null, 4, $remapped);
+
+        $this->assertDatabaseHas('sync_failures', [
+            'store_id' => self::STORE,
+            'table_name' => 'products',
+            'record_id' => 'prod-1',
+            'reason' => 'cross_store_reference',
+        ]);
+
+        $daily = \App\Models\SyncHealthDaily::where('store_id', self::STORE)->first();
+        $this->assertSame(4, $daily->changes_accepted);
+        $this->assertSame(0, $daily->changes_refused);
+        $this->assertSame(0, $daily->changes_conflicted);
+    }
+
     public function test_it_records_one_row_per_refused_change_with_its_operation(): void
     {
         $changes = [

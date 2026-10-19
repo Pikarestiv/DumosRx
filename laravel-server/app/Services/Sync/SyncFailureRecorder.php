@@ -25,6 +25,9 @@ class SyncFailureRecorder
         'sync_throttled',
         'store_limit_exceeded',
         'server_error',
+        // Not a refusal: the change was ACCEPTED with a corrected reference.
+        // Counted in neither tally; see A-302.
+        'cross_store_reference',
     ];
 
     /** Routine multi-device outcomes, not failures. Kept out of the success
@@ -40,13 +43,17 @@ class SyncFailureRecorder
         array $changes,
         ?string $storeId,
         ?string $userId,
-        int $accepted
+        int $accepted,
+        array $remapped = []
     ): void {
         $reasons = array_map(fn ($entry) => $this->canonicalReason($entry['reason'] ?? null), $failed);
         $conflicted = count(array_intersect($reasons, self::CONFLICT_REASONS));
 
         try {
             $this->recordFailures($failed, $changes, $storeId, $userId);
+            // Accepted changes with a corrected reference: recorded as events,
+            // absent from the response's `failed`, counted in neither tally.
+            $this->recordFailures($remapped, $changes, $storeId, $userId);
         } catch (\Throwable $e) {
             Log::warning('Sync failure rows not recorded: '.$e->getMessage());
         }

@@ -1,10 +1,4 @@
-import {
-  query,
-  execute,
-  transaction,
-  getActiveStoreId,
-  STORE_SCOPED_TABLES,
-} from "../core";
+import { query, execute, transaction, STORE_SCOPED_TABLES } from "../core";
 import { apiClient } from "@/lib/api/client";
 import { PullResponse } from "./types";
 import { getValidColumns } from "./schema";
@@ -537,27 +531,33 @@ export async function pullChanges(
               if (name) serverIdByName.set(name, r.id as string);
             }
 
-            // Store-scoped: the pulled page only ever holds the ACTIVE store's
-            // rows, so another store's local category is never in `serverIds`
-            // and used to look orphaned — then matched by name and remapped,
-            // taking that store's whole catalogue with it (A-301).
-            const activeStoreId = getActiveStoreId();
-            const scopeToStore =
-              !!activeStoreId && (await columnExists(table, "store_id"));
-            const localRows = await query<{ id: string; name: string }>(
-              `SELECT id, name FROM ${table}
-                WHERE (_deleted = 0 OR _deleted IS NULL)${
-                  scopeToStore ? " AND (store_id = ? OR store_id IS NULL)" : ""
-                }`,
-              scopeToStore ? [activeStoreId] : [],
+            // Paired by the PAGE's store, not the active one: see A-301 in
+            // docs/FIXED_BUGS.md for what an ambient scope did here.
+            const hasStoreId = await columnExists(table, "store_id");
+            const pageStoreIds = new Set(
+              records
+                .map((r) => (r.store_id == null ? null : String(r.store_id)))
+                .filter((id): id is string => id !== null),
+            );
+            const localRows = await query<{ id: string; name: string; store_id: string | null }>(
+              `SELECT id, name${hasStoreId ? ", store_id" : ", NULL as store_id"} FROM ${table}
+                WHERE (_deleted = 0 OR _deleted IS NULL)`,
             );
 
             for (const row of localRows) {
               if (serverIds.has(row.id)) continue;
+              if (hasStoreId && row.store_id !== null && !pageStoreIds.has(row.store_id)) {
+                continue;
+              }
               const matchedServerId = serverIdByName.get(String(row.name ?? "").trim().toLowerCase());
               if (!matchedServerId || matchedServerId === row.id) continue;
 
-              await remapForeignKey(row.id, matchedServerId, DUPLICATE_NAME_TABLES[table]);
+              await remapForeignKey(
+                row.id,
+                matchedServerId,
+                DUPLICATE_NAME_TABLES[table],
+                row.store_id,
+              );
 
               await execute(`UPDATE ${table} SET _deleted = 1 WHERE id = ?`, [row.id]);
             }

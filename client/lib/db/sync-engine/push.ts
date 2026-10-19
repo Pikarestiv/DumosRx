@@ -570,7 +570,12 @@ export async function pushChanges(
             if (!refs) continue;
             for (const [oldId, newId] of Object.entries(mapping)) {
               if (oldId === newId) continue;
-              await remapForeignKey(oldId, newId, refs);
+              // The losing row's own store scopes the rewrite (A-301).
+              const losing = await query<{ store_id: string | null }>(
+                `SELECT store_id FROM ${table} WHERE id = ?`,
+                [oldId],
+              ).catch(() => []);
+              await remapForeignKey(oldId, newId, refs, losing[0]?.store_id ?? null);
               await execute(`UPDATE ${table} SET _deleted = 1 WHERE id = ?`, [oldId]);
               // remapForeignKey() rewrites payload content only, never the
               // queue row's own record_id, which the server looks up by.

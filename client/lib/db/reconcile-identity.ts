@@ -91,16 +91,27 @@ export interface ReconcileIdentityResult {
  */
 export async function requeueOrphanedRows(
   tables: string[],
+  onlyIds?: Record<string, string[]>,
 ): Promise<Record<string, number>> {
   const requeued: Record<string, number> = {};
 
   for (const table of tables) {
+    const scopedIds = onlyIds?.[table];
+
+    if (scopedIds !== undefined && scopedIds.length === 0) {
+      requeued[table] = 0;
+      continue;
+    }
+
+    const idFilter = scopedIds
+      ? ` AND id IN (${scopedIds.map(() => "?").join(", ")})`
+      : "";
     const rows = await query<Record<string, unknown>>(
       `SELECT * FROM ${table}
        WHERE (_synced = 0 OR _synced IS NULL)
          AND (_deleted = 0 OR _deleted IS NULL)
-         AND id NOT IN (SELECT record_id FROM _sync_queue WHERE table_name = ?)`,
-      [table],
+         AND id NOT IN (SELECT record_id FROM _sync_queue WHERE table_name = ?)${idFilter}`,
+      [table, ...(scopedIds ?? [])],
     );
 
     if (rows.length > 0) {
@@ -199,8 +210,17 @@ export async function remapForeignKey(
   newId: string,
   refs: { table: string; column: string }[],
 ): Promise<void> {
+  const remappedIds: Record<string, string[]> = {};
+
   for (const { table, column } of refs) {
     if (!(await tableExists(table)) || !(await columnExists(table, column))) continue;
+
+    const affected = await query<{ id: string }>(
+      `SELECT id FROM ${table} WHERE ${column} = ?`,
+      [oldId],
+    );
+    remappedIds[table] = [...(remappedIds[table] ?? []), ...affected.map((row) => row.id)];
+
     await execute(
       `UPDATE ${table} SET ${column} = ?, _synced = 0 WHERE ${column} = ?`,
       [newId, oldId],
@@ -215,15 +235,9 @@ export async function remapForeignKey(
     `%${oldId}%`,
   ]);
 
-  // A row that was already fully synced (no _sync_queue entry at all) just
-  // had its FK flipped to _synced = 0 above, but that flag alone doesn't
-  // requeue it: push only ever reads from _sync_queue, never re-scans
-  // tables for unsynced rows. Without this, the corrected FK would never
-  // reach the server — _synced would stay 0 forever with nothing to push
-  // it. requeueOrphanedRows() backfills exactly that missing queue entry;
-  // the server already handles a requeued "INSERT" for a row it already
-  // has by converting it to an UPDATE (see SyncController::push).
-  await requeueOrphanedRows(refs.map((r) => r.table));
+  // Scoped to the ids just remapped: push reads only from _sync_queue, and
+  // sweeping whole tables here re-queued every unsynced row (A-295).
+  await requeueOrphanedRows(Object.keys(remappedIds), remappedIds);
 }
 
 /**

@@ -1370,6 +1370,37 @@ needs no API change — and render every state. `applied` carries `result` in th
 available so the operator can retry. Timestamps are `dd/MM/yyyy HH:mm` via
 `formatDateSafe` (root `AGENTS.md` §6), never a bare date.
 
+**And every state keeps the action available, `pending` and `sent` included
+(2026-10-19, A-300).** Those two used to render a badge and nothing else, on
+the reasoning that a request already in flight should not be re-sent. But
+`sent` only means *a device claimed it*; nothing ages the row out, so a till
+that then goes quiet — offline, stale bundle, read-only tab — left the operator
+with no control for as long as the silence lasted. Observed stuck at "Sent to
+till" for seven days, which blocked every other diagnosis, because the device
+report is the only surface carrying a till's queue breakdown, its unsynced
+counts, its stock integrity and its build hash. A badge may describe the last
+request; it may never be the only thing on screen.
+
+## The admin header owns the refresh control (2026-10-19)
+
+There is no pull-to-refresh in an installed admin PWA and no address bar, so a
+phone had no way to get fresh figures at all. `AdminHeaderRefresh`
+(`components/admin/admin-header-refresh.tsx`) sits in the header rather than on
+any one page, because the need is panel-wide and a per-page button would have
+to be added to each new view and forgotten on one.
+
+It calls `queryClient.invalidateQueries()` with no filter — refetch everything
+this panel holds — and tracks its own `isRefreshing` rather than reading
+`useIsFetching()`: a background poll would otherwise leave the button spinning
+and disabled with nothing to do with the operator's click. It renders at every
+breakpoint; the figures it refreshes are exactly the ones an operator reads on
+a phone during a support call.
+
+Sibling header components are stubbed in `admin-nav-role-visibility.test.tsx`
+rather than wrapped in a provider — that test is about nav role filtering, and
+the real app always has `QueryClientProvider` above the header from
+`app/layout.tsx`.
+
 ## Device Table Agreement panel
 
 `store-table-agreement-section.tsx`, mounted on the store-details page below

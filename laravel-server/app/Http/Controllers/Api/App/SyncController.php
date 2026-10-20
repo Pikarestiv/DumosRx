@@ -218,6 +218,7 @@ class SyncController extends Controller
         $crossStoreGuard = app(\App\Services\Sync\CrossStoreReferenceGuard::class);
 
         $hasSyncedAtCache = [];
+        $restamper = new \App\Services\Sync\PushedRowRestamper();
         $currentUser = $request->user();
         $currentStoreId = $currentUser ? $this->resolvePushStoreId($request, $currentUser) : null;
         UserDeviceTracker::touch($request, $currentUser, $currentStoreId);
@@ -301,6 +302,7 @@ class SyncController extends Controller
                 // the shared array by then wouldn't be undone with it, even
                 // though the movement it came from never actually committed.
                 $pendingStockBatchDelta = null;
+                $restamper->discardChange();
 
                 // The OA doc marks payload as nullable (DELETE doesn't need one), and the
                 // request validation above allows it through as such. Default a genuinely-
@@ -396,6 +398,7 @@ class SyncController extends Controller
                         $exists = true; // Pretend it exists to skip insertion
                         if (\method_exists($conflict, 'trashed') && $conflict->trashed()) {
                             $this->reviveConflictTarget($conflict, $change['table_name'], $payload, $hasSyncedAtCache, $now);
+                            $restamper->remember($conflict);
                         }
                         $idMap[$recordId] = $conflict->id;
                         // Only categories/suppliers are reported back to the
@@ -468,6 +471,7 @@ class SyncController extends Controller
                         }
 
                         $model->save();
+                        $restamper->remember($model);
 
                         // stock_batches.quantity is derived from stock_movements deltas,
                         // never trusted directly from a client payload (INSERT above, or
@@ -657,6 +661,8 @@ class SyncController extends Controller
                             DB::commit();
 
                             if ($isResentInsert) {
+                                $restamper->remember($model);
+                                $restamper->commitChange();
                                 if ($model->_version !== null) {
                                     $versions[$change['table_name']][$recordId] = (int) $model->_version;
                                 }
@@ -717,6 +723,7 @@ class SyncController extends Controller
                         $this->applyNotNullColumnDefaults($request, $change['table_name'], $model);
 
                         $model->save();
+                        $restamper->remember($model);
 
                         if ($newVersion !== null) {
                             $versions[$change['table_name']][$recordId] = $newVersion;
@@ -786,6 +793,7 @@ class SyncController extends Controller
                             $target->save();
                         }
                         $target->delete();
+                        $restamper->remember($target);
                     }
                 }
 
@@ -798,10 +806,12 @@ class SyncController extends Controller
                     $stockBatchDeltas[$pendingBatchId] = ($stockBatchDeltas[$pendingBatchId] ?? 0) + $pendingQtyDelta;
                 }
 
+                $restamper->commitChange();
                 $processed++;
                 DB::commit();
                 } catch (\Exception $e) {
                     DB::rollBack();
+                    $restamper->discardChange();
                     Log::warning("Sync push: skipped {$change['table_name']} " . ($change['record_id'] ?? '?') . ": " . $e->getMessage());
                     $failed[] = [
                         'id' => $change['id'] ?? null,
@@ -821,6 +831,8 @@ class SyncController extends Controller
             $this->applyStockBatchDeltas($stockBatchDeltas, $failed, $isSuperAdmin ? null : $allowedStoreIds);
 
             $firstSyncedStore = $this->touchStoreLastSyncAt($request);
+
+            $restamper->restamp(now());
 
             DB::commit();
 
@@ -904,7 +916,7 @@ class SyncController extends Controller
      * How far behind `now()` a pull's returned watermark is stamped. Reasoning
      * and the cost in laravel-server/AGENTS.md, "The pull watermark lags".
      */
-    public const PULL_WATERMARK_LAG_SECONDS = 60;
+    public const PULL_WATERMARK_LAG_SECONDS = 10;
 
     #[OA\Post(
         path: '/app/sync/pull',

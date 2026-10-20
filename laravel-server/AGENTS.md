@@ -1252,10 +1252,11 @@ strict `>`. A row committed in the very second the pull chose leaves a
 one-second hole even with no transaction involved. Both are pinned separately
 in `SyncPullWatermarkLagTest`.
 
-**`server_timestamp` is now `now()` minus `PULL_WATERMARK_LAG_SECONDS` (60).**
+**`server_timestamp` is now `now()` minus `PULL_WATERMARK_LAG_SECONDS` (10, down
+from 60 once A-286 landed — see "The structural fix" below).**
 
-**60 is a judgement, not a bound, and the distinction matters.** An earlier
-version of this paragraph justified it as "a push cannot outlive PHP's
+**The original 60 was a judgement, not a bound, and the distinction matters.** An
+earlier version of this paragraph justified it as "a push cannot outlive PHP's
 `max_execution_time` (30s), so 60 is that doubled". **That is wrong.** On Linux
 `max_execution_time` counts **CPU** time (`ITIMER_PROF`), so time blocked
 waiting on MySQL does not count toward it at all, and this host is LiteSpeed
@@ -1274,15 +1275,25 @@ outer transaction, and overshooting would mean exceeding the sync interval,
 whose shortest plan value is minutes. So 60 is safely inside the upper
 constraint and usefully but not completely inside the lower one.
 
-**The structural fix, which would make the lag a formality:** re-stamp
-`_synced_at = now()` for every `(table, id)` the push wrote, immediately before
-the outer commit, instead of per change inside the loop. The exposed window
-then shrinks to the commit itself rather than the whole transaction, and the lag
-only has to cover clock skew. Deliberately **not** implemented with A-282 —
-it needs the written-row set tracked through the loop and the `_version`/
-`updated_at` immutability of `reopenPullWindow()` applied to it. Filed as
-`docs/KNOWN_BUGS.md` A-286; until it lands, the lag is mitigation and a very
-slow contended push can still lose rows, silently.
+**The structural fix (A-286, 2026-10-20) — landed, which is why the lag could
+drop to 10.** `push()` records every row it writes in
+`App\Services\Sync\PushedRowRestamper` (INSERT, UPDATE, soft DELETE, a revived
+duplicate-name conflict target, an accepted re-sent INSERT) and calls
+`restamp(now())` immediately before the outer `DB::commit()`. The exposed window
+is the commit itself rather than the whole transaction, so the lag only has to
+cover the second-precision hole. Rules that must survive a refactor:
+
+- **Query builder, never Eloquent** — `updated_at` and `_version` must not move
+  (same discipline as `reopenPullWindow()`).
+- **Per-change, savepoint-aware:** rows are held as pending and promoted with
+  `commitChange()` only when the change's savepoint is released; a rejected or
+  rolled-back change calls `discardChange()` and is never restamped.
+- **The per-change `stampSyncedAt()` stays** as the initial value, so a write
+  path that is not tracked is still stamped at all.
+- A new write path inside the push loop must call `$restamper->remember($model)`
+  after its write, or its rows keep the processing-time stamp.
+- `stock_batches.quantity` deltas are raw SQL and are not tracked (they never
+  stamped `_synced_at`); a batch row is covered only if the push also wrote it.
 
 **The re-pull is idempotent, verified rather than assumed.** A row already held
 takes `pull.ts`'s UPDATE branch, which rewrites identical values; `_version` and
@@ -1290,7 +1301,7 @@ takes `pull.ts`'s UPDATE branch, which rewrites identical values; `_version` and
 aside for a row with a live `_sync_queue` entry, so a local edit cannot be
 clobbered by the extra round; `stock_batches.quantity` is deleted from the
 applied columns; and a re-pulled `stock_movements` row touches its batch with
-`{0, 0}`, so no delta is applied twice. **Cost:** a trailing 60s of changes is
+`{0, 0}`, so no delta is applied twice. **Cost:** a trailing 10s of changes (60s before A-286) is
 re-offered each round. For a typical till that is its own recent sales and
 nothing else — single-digit rows, a few KB — on a connection that just made a
 round trip anyway. It is not a full re-pull and it does not grow with catalogue

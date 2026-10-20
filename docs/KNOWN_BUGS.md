@@ -557,11 +557,10 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** gate both on `permissions: ["create_accounts"]`. Note that `checkHasPermission` short-circuits for super_admin, so dropping `roles` entirely would *add* these items to the super_admin nav — keep `roles` alongside if excluding super_admin from "Register Store"/"My Stores" is deliberate.
 - **Rule this violates:** `web/AGENTS.md` — "a nav item's gate must match its page's narrowest endpoint gate, not the page's general area." Pre-existing; not introduced by Phase 1, and deliberately not fixed there to keep that phase's diff to its spec.
 
-#### PG-15. `web/` — the admin logo links every role to `/admin`, which only super_admin can load
-- **Found:** code review of admin Phase 1.
-- **Location:** `components/admin/admin-sidebar.tsx` links the logo to `/admin`; the `dashboard` item in `sidebar-items.ts` is super_admin-only (no `roles`/`permissions` ⇒ `SUPER_ADMIN_ONLY`); `GET /admin/summary` is `role:super_admin`.
-- **Scope correction:** the reviewer reported this as "every non-super_admin's landing page is an error screen". That overstates it — `app/admin/login/page.tsx` already redirects a non-super_admin to `visibleSidebarItems(user)[0].href`, and a custom platform role was observed landing on `/admin/users/` during the Phase 1 browser smoke test. The reachable path is narrower: clicking the logo (or opening an `/admin` bookmark) from a delegated session, which renders "Failed to sync platform data / Retry Sync" with no Overview item in the sidebar to explain it.
-- **Fix:** point the logo at `visibleSidebarItems(user)[0]?.href` rather than a hardcoded `/admin`, or redirect non-super_admin away from `/admin` in the layout.
+#### PG-20. `web/` — a delegated session opening a bookmarked `/admin` still sees "Failed to sync platform data"
+- **Found:** 2026-10-20, split out of PG-15 when its logo link was fixed.
+- **Location:** `app/admin/page.tsx` fetches `GET /admin/summary` (`role:super_admin`) with no page guard; the `dashboard` nav item is super_admin-only.
+- **Fix:** add the page guard from `web/AGENTS.md` ("Subscriptions" — `checkIsSuperAdmin` before rendering or fetching), or redirect non-super_admin to `visibleSidebarItems(user)[0].href`.
 
 #### PG-19. `web/` — "My Stores" is a list, not a worklist: a partner cannot sort or filter their own stores by renewal date
 - **Found:** 2026-10-07, when this entry's previous wording was checked against the code and turned out to be wrong on both of its claims. **Corrected, and scope reduced** — most of what it described already exists.

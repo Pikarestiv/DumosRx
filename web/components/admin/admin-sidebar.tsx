@@ -22,6 +22,9 @@ export function AdminSidebar() {
     router.push("/admin/login");
   };
 
+  const items = visibleSidebarItems(user ?? undefined);
+  const homeHref = items[0]?.href ?? "/admin";
+
   const userInitials = user
     ? `${user.first_name[0]}${user.last_name[0]}`
     : "AD";
@@ -33,7 +36,7 @@ export function AdminSidebar() {
   return (
     <aside className="hidden lg:flex w-64 flex-col bg-slate-950 text-slate-200 border-r border-slate-800">
       <Link
-        href="/admin"
+        href={homeHref}
         id="tour-brand"
         className="shrink-0 flex flex-col items-center gap-2 group transition-transform hover:scale-105 pt-8 px-8 self-start"
       >
@@ -48,7 +51,7 @@ export function AdminSidebar() {
       </Link>
 
       <nav className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-1">
-        {visibleSidebarItems(user ?? undefined).map((item) => {
+        {items.map((item) => {
           const normalizedPathname = pathname?.replace(/\/$/, "") || "";
           const normalizedHref = item.href.replace(/\/$/, "");
 

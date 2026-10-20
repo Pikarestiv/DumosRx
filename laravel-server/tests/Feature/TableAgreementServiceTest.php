@@ -317,4 +317,44 @@ class TableAgreementServiceTest extends TestCase
             collect($this->service->forStore($this->store->id)['devices'])->pluck('device_id')->all(),
         );
     }
+
+    /**
+     * A-294: surfaced alongside the per-table verdicts so a "diverges" on
+     * products/categories can be told apart from this known, explained
+     * cause. SQLite enforces the FK the migration declares, production does
+     * not (A-292), so the orphan needs checks off to insert at all — see
+     * UnresolvedReferenceServiceTest for why that means stepping outside
+     * this test's own wrapping transaction.
+     */
+    public function test_unresolvable_category_products_is_counted_alongside_the_devices(): void
+    {
+        $connection = DB::connection();
+        $connection->commit();
+        DB::statement('PRAGMA foreign_keys = OFF');
+        $productId = (string) Str::uuid();
+        $ownerId = $this->store->user_id;
+
+        try {
+            DB::table('products')->insert([
+                'id' => $productId,
+                'name' => 'Orphan Category Product',
+                'store_id' => $this->store->id,
+                'category_id' => (string) Str::uuid(),
+                'selling_price' => 500,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $this->assertSame(1, $this->service->forStore($this->store->id)['unresolvable_category_products']);
+        } finally {
+            // Committed past this test's own setUp() data too, not just the
+            // row above, so it needs cleaning up here rather than relying on
+            // RefreshDatabase's rollback (see UnresolvedReferenceServiceTest).
+            DB::table('products')->where('id', $productId)->delete();
+            DB::table('stores')->where('id', $this->store->id)->delete();
+            DB::table('users')->where('id', $ownerId)->delete();
+            DB::statement('PRAGMA foreign_keys = ON');
+            $connection->beginTransaction();
+        }
+    }
 }

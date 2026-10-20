@@ -22,6 +22,8 @@ class TableAgreementService
     use CountsSyncedTableRows;
     use ResolvesDeviceLabels;
 
+    public function __construct(private UnresolvedReferenceService $unresolvedReferences) {}
+
     /**
      * Past this age a snapshot describes a device that has stopped
      * reporting, not one that disagrees — the same rule and window as
@@ -183,6 +185,9 @@ class TableAgreementService
             'measured' => $devices !== [],
             'diverged_devices' => count(array_filter($devices, fn (array $d) => $d['diverged'])),
             'devices' => $devices,
+            // A-294: products whose category_id this store can never resolve, so some of a
+            // "diverges"/"behind" verdict on products or categories may be this, not a real gap.
+            'unresolvable_category_products' => $this->unresolvedReferences->unresolvableCategoryCount($storeId),
         ];
     }
 

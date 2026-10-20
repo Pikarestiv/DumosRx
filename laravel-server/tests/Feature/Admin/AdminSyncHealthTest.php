@@ -7,6 +7,8 @@ use App\Models\SyncFailure;
 use App\Models\SyncHealthDaily;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class AdminSyncHealthTest extends TestCase
@@ -203,5 +205,51 @@ class AdminSyncHealthTest extends TestCase
         $this->actingAs($clerk)
             ->getJson("/api/v1/admin/sync/stores/{$this->store->id}")
             ->assertStatus(403);
+    }
+
+    /**
+     * A-296: platform-wide, not per-store — the orphan's only parent (the
+     * thing that would have named a store) does not exist. SQLite enforces
+     * the migration's FK, production does not (A-292), so the orphan needs
+     * checks off to insert at all — see UnresolvedReferenceServiceTest for
+     * why that means stepping outside this test's own wrapping transaction.
+     */
+    public function test_the_summary_reports_orphaned_purchase_order_items(): void
+    {
+        $connection = DB::connection();
+        $connection->commit();
+        DB::statement('PRAGMA foreign_keys = OFF');
+        $itemId = (string) Str::uuid();
+        $storeId = $this->store->id;
+        $ownerId = $this->store->user_id;
+        $superAdminId = $this->superAdmin->id;
+
+        try {
+            DB::table('purchase_order_items')->insert([
+                'id' => $itemId,
+                'purchase_order_id' => (string) Str::uuid(),
+                'product_id' => (string) Str::uuid(),
+                'quantity_ordered' => 10,
+                'unit_cost' => 100,
+                'total_cost' => 1000,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $response = $this->actingAs($this->superAdmin)->getJson('/api/v1/admin/sync/health');
+
+            $response->assertOk();
+            $this->assertSame(1, $response->json('orphaned_purchase_order_items'));
+        } finally {
+            // Committed past this test's own setUp() data too (store,
+            // owner, super admin), not just the row above, so it needs
+            // cleaning up here rather than relying on RefreshDatabase's
+            // rollback — see UnresolvedReferenceServiceTest.
+            DB::table('purchase_order_items')->where('id', $itemId)->delete();
+            DB::table('stores')->where('id', $storeId)->delete();
+            DB::table('users')->whereIn('id', [$ownerId, $superAdminId])->delete();
+            DB::statement('PRAGMA foreign_keys = ON');
+            $connection->beginTransaction();
+        }
     }
 }

@@ -106,6 +106,14 @@ export function SyncHealthCard({ data, isLoading, isError }: SyncHealthCardProps
             </div>
           </div>
         )}
+
+        {!!data?.orphaned_purchase_order_items && (
+          <p className="text-xs text-muted-foreground">
+            {data.orphaned_purchase_order_items} purchase-order line
+            {data.orphaned_purchase_order_items === 1 ? "" : "s"} across all stores name an order
+            that no longer exists anywhere — known, explained noise (A-296), not a live problem.
+          </p>
+        )}
       </CardContent>
     </Card>
   );

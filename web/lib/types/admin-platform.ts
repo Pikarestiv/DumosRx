@@ -63,6 +63,7 @@ export interface AdminSyncHealth {
   success_rate_7d: string | null;
   failures_by_reason: Record<string, number>;
   worst_stores: Array<{ store_id: string; store_name: string | null; refused: number }>;
+  orphaned_purchase_order_items?: number;
 }
 
 export interface SyncFailureRow {
@@ -212,6 +213,7 @@ export interface StoreTableAgreement {
   measured: boolean;
   diverged_devices: number;
   devices: DeviceTableReport[];
+  unresolvable_category_products?: number;
 }
 
 export interface SyncCommandRow {

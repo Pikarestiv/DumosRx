@@ -15,6 +15,8 @@ class AdminSyncHealthService
 
     private const REASON_GROUPS = 20;
 
+    public function __construct(private UnresolvedReferenceService $unresolvedReferences) {}
+
     public function platformSummary(int $days = 7): array
     {
         $since = $this->windowStart($days);
@@ -24,6 +26,9 @@ class AdminSyncHealthService
             'success_rate_7d' => $this->successRate($since),
             'failures_by_reason' => $this->failuresByReason($since),
             'worst_stores' => $this->worstStores($since),
+            // A-296: purchase_order_items with no purchase_orders row at all, in any state — can't be
+            // attributed to one store (its only parent is what would have named one), so it's platform-wide.
+            'orphaned_purchase_order_items' => $this->unresolvedReferences->orphanedPurchaseOrderItemsCount(),
         ];
     }
 

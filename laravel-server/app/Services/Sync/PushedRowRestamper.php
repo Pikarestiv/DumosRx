@@ -6,13 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * Re-stamps `_synced_at` on every row a push wrote, immediately before its
- * outer commit, so the stamp records when the row became visible rather than
- * when its change was processed (A-286). Query builder only: Eloquent would
- * move `updated_at` and fire model events. Rationale in
- * laravel-server/AGENTS.md, "The pull watermark lags".
- */
+/** Restamps `_synced_at` on pushed rows just before commit (A-286); see laravel-server/AGENTS.md, "The pull watermark lags". */
 class PushedRowRestamper
 {
     private const CHUNK_SIZE = 500;

@@ -1281,7 +1281,11 @@ drop to 10.** `push()` records every row it writes in
 duplicate-name conflict target, an accepted re-sent INSERT) and calls
 `restamp(now())` immediately before the outer `DB::commit()`. The exposed window
 is the commit itself rather than the whole transaction, so the lag only has to
-cover the second-precision hole. Rules that must survive a refactor:
+cover the second-precision hole, the restamp's own column probes and updates
+(`now()` is taken before they run), and non-push Eloquent writers whose
+transactions commit later than their `updated_at` (admin suspend/purge/reset in
+`AdminStoreService`, `AdminStoreDeletionService`, `DashboardService::resetData`).
+Rules that must survive a refactor:
 
 - **Query builder, never Eloquent** — `updated_at` and `_version` must not move
   (same discipline as `reopenPullWindow()`).

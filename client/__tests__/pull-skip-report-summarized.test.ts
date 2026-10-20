@@ -4,11 +4,8 @@ import {
   summarizeSkippedRecords,
 } from "@/lib/db/sync-engine/pull-skip-report";
 
-/**
- * A pull page can skip up to the server's 500-row cap per table, and each
- * skip used to be its own crash report — so its own Sentry issue, since the
- * record id is part of the fingerprint. One run reports once.
- */
+// A pull page can skip up to the server's 500-row cap per table, and each skip used to be its own crash report — so its ow…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-skip-report-summarized-test-ts-L7
 describe("summarizeSkippedRecords", () => {
   it("says nothing when nothing was skipped", () => {
     expect(summarizeSkippedRecords([])).toBeNull();

@@ -6,14 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Proves core.ts's write path actually enforces the single-writer-tab
- * election from tab-lock.ts (docs/KNOWN_BUGS.md C1): a tab that lost (or
- * never won) the election must never touch the shared sql.js database, since
- * doing so is exactly the silent last-write-wins data loss C1 was about.
- * tab-lock.test.ts already covers the election logic itself in isolation;
- * this covers core.ts's execute()/transaction() actually consulting it.
- */
+// Proves core.ts's write path actually enforces the single-writer-tab election from tab-lock.ts (docs/KNOWN_BUGS.md C1):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-read-only-tab-blocks-writes-test-ts-L9
 describe("read-only tab write blocking", () => {
   beforeEach(() => {
     vi.resetModules();

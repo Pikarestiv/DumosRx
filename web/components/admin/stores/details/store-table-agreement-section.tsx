@@ -214,6 +214,14 @@ export function StoreTableAgreementSection({
         row left at the wrong version, but not two offsetting edits inside one table.
       </p>
 
+      {!!data.unresolvable_category_products && (
+        <p className="text-xs text-amber-600 dark:text-amber-400">
+          {data.unresolvable_category_products} product
+          {data.unresolvable_category_products === 1 ? "" : "s"} name a category that no longer
+          exists anywhere — may explain some of a products/categories disagreement above, not a sync bug.
+        </p>
+      )}
+
       <div className="space-y-2">
         {data.devices.map((device) => (
           <div

@@ -6,14 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Pins the load-bearing ABSENCE of a `_deleted = 0` filter on the `products`
- * joins in sales.ts and customers.ts, documented in client/AGENTS.md ("The
- * deactivate-vs-delete design"). A receipt, a transaction list or a customer's
- * purchase history must still name a product that has since been deleted;
- * filtering the join blanks the name or drops the line entirely, and every
- * test here goes red when that filter is added.
- */
+// Pins the load-bearing ABSENCE of a `_deleted = 0` filter on the `products` joins in sales.ts and customers.ts, documente…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-deleted-product-sales-history-test-ts-L9
 describe("sales history survives a product delete", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

@@ -12,12 +12,8 @@ vi.mock("@/lib/context/store-context", () => ({
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useSystemConfigStore } from "@/lib/store/system-config-store";
 
-/**
- * The in-app assistant is a plan-gated feature (Pro/Enterprise), matching
- * the smart_suggestions tier split. It is client-only — there is no backend
- * endpoint behind it — so useFeatureGate's canUseAiAssistant is the single
- * entitlement check both render sites read.
- */
+// The in-app assistant is a plan-gated feature (Pro/Enterprise), matching the smart_suggestions tier split.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-feature-gate-ai-assistant-test-ts-L15
 describe("useFeatureGate canUseAiAssistant", () => {
   beforeEach(() => {
     storeProfile = null;

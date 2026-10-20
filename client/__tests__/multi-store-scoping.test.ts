@@ -6,15 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression coverage for the multi-store query-scoping mechanism itself:
- * the module-scope getActiveStoreId()/setActiveStoreId() resolver in
- * lib/db/core.ts, and the read/write scoping pattern built on it
- * (products.ts as the reference implementation, insert()'s auto-injection).
- * Real in-memory SQLite (sql.js), not a mocked query(). A wrong ternary or
- * a forgotten `AND store_id = ?` would silently leak one store's data into
- * another's view, which only shows up by asserting on actual returned rows.
- */
+// Regression coverage for the multi-store query-scoping mechanism itself:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-multi-store-scoping-test-ts-L9
 describe("multi-store query scoping", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -41,9 +34,8 @@ describe("multi-store query scoping", () => {
     });
     db = new SQL.Database();
     db.run(SCHEMA_SQL);
-    // store_id is added via core.ts's runtime ALTER TABLE migration, not the
-    // base CREATE TABLE statements in SCHEMA_SQL. Replicate it here since
-    // __setDatabaseForTesting bypasses initDatabase()'s migration loop.
+    // store_id is added via core.ts's runtime ALTER TABLE migration, not the base CREATE TABLE statements in SCHEMA_SQL.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-multi-store-scoping-test-ts-L44
     db.run(`ALTER TABLE products ADD COLUMN store_id TEXT;`);
     db.run(`ALTER TABLE categories ADD COLUMN store_id TEXT;`);
     db.run(`ALTER TABLE categories ADD COLUMN is_active INTEGER DEFAULT 1;`);
@@ -160,11 +152,8 @@ describe("multi-store query scoping", () => {
   });
 
   it("auto-scopes a row whose caller passed an explicit null store_id", async () => {
-    // A store OWNER's own users.store_id is deliberately always null, so
-    // callers forwarding `user.store_id` handed insert() a null rather than
-    // undefined. The guard was a strict `=== undefined`, so the row was written
-    // NULL-scoped and every store-scoped report filtered it out — the online
-    // order fulfilment path did exactly this (SF-P2-6).
+    // A store OWNER's own users.store_id is deliberately always null, so callers forwarding `user.store_id` handed insert() a…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-multi-store-scoping-test-ts-L163
     core.setActiveStoreId("store-a");
     const id = await insert("categories", { name: "Owner Category", store_id: null });
 

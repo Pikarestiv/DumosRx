@@ -5,16 +5,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression: recordCustomerPayment() wrote the customer_payments receipt,
- * reduced customers.outstanding_balance, and settled individual sales via
- * applyCreditPaymentFIFO() as three independent, individually-committed
- * steps - no transaction(). A throw partway through (e.g. inside the FIFO
- * loop's per-sale update) left a real payment receipt and an already-reduced
- * balance behind while the underlying sales stayed pending/partial: the
- * debtor ledger and the per-sale settlement permanently disagree, and the
- * next payment would re-settle sales that were already paid for.
- */
+// Regression: recordCustomerPayment() wrote the customer_payments receipt, reduced customers.outstanding_balance, and sett…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-record-customer-payment-atomicity-test-ts-L8
 describe("recordCustomerPayment transaction atomicity", () => {
   let db: import("sql.js").Database;
   let core: typeof import("@/lib/db/core");

@@ -15,28 +15,22 @@ export interface ExportableProduct {
   showOnline: string;
 }
 
-/**
- * One row per product. Supplier comes from whichever active batch happens to
- * be picked by SQLite's GROUP BY when a product has batches from more than
- * one supplier — acceptable for an export snapshot; batch-level supplier
- * detail is already visible in Batch Management.
- */
+// One row per product. Supplier comes from whichever active batch happens to be picked by SQLite's GROUP BY when a product has batches from mo…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-product-export-ts-L18
 export async function getProductsForExport(
   productIds?: string[],
 ): Promise<ExportableProduct[]> {
   const storeId = getActiveStoreId();
 
-  // Exports whatever the catalog table is currently showing (search/category/
-  // status filters applied) rather than always the whole store — callers pass
-  // the filtered id list when a filter is active, undefined otherwise.
+  // Exports whatever the catalog table is currently showing (search/category/ status filters applied) rather than always the whole store — calle…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-product-export-ts-L25
   const idFilter =
     productIds && productIds.length > 0
       ? ` AND p.id IN (${productIds.map(() => "?").join(",")})`
       : "";
 
-  // CSV/XLS is plain text — there's no CSS layer to uppercase it at render
-  // time the way the in-app UI does, so the store's uppercase-display
-  // preference has to be applied to the string itself here.
+  // CSV/XLS is plain text — there's no CSS layer to uppercase it at render time the way the in-app UI does, so the store's uppercase-display pre…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-product-export-ts-L33
   const storeSettings = storeId
     ? await query<{ uppercase_display_enabled: number | null }>(
         "SELECT uppercase_display_enabled FROM stores WHERE id = ?",

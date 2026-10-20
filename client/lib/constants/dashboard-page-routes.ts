@@ -12,47 +12,29 @@ interface PageRoute {
   action?: PageAction;
   /** Action only shown to roles with stock-management access (admin/manager/specialist/store_owner). */
   actionAdminOnly?: boolean;
-  /** Additionally lets a sales_staff (cashier) account through
-   * actionAdminOnly's baseline - for the one route (Expenses) cashiers are
-   * also meant to reach, without opening the gate to every other
-   * non-admin role (e.g. auditor, a read-only role that shouldn't get a
-   * write action here either). */
+  // Additionally lets a sales_staff (cashier) account through actionAdminOnly's baseline - for the one route (Expenses) cashiers are also meant…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-dashboard-page-routes-ts-L15
   actionAllowSalesStaff?: boolean;
-  /** On top of actionAdminOnly's canManageStockBatch baseline, `action` is
-   * only shown to isAdmin — for a primary action that should be limited the
-   * same way Start Audit's secondaryAction already is (e.g. Transfer Stock:
-   * a direct, unapproved store-to-store move). A canManageStockBatch-but-
-   * not-isAdmin account (specialist) falls through to fallbackAction. */
+  // On top of actionAdminOnly's canManageStockBatch baseline, `action` is only shown to isAdmin — for a primary action that should be limited th…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-dashboard-page-routes-ts-L21
   actionRequiresIsAdmin?: boolean;
-  /** On top of actionAdminOnly, `action` additionally requires a multi-
-   * store-capable account (plan entitlement AND this device actually having
-   * 2+ synced stores — see DashboardHeader's hasMultiStoreAccess). A
-   * single-store or plan-ineligible account falls through to
-   * fallbackAction. */
+  // On top of actionAdminOnly, `action` additionally requires a multi- store-capable account (plan entitlement AND this device actually having 2…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-dashboard-page-routes-ts-L27
   actionRequiresMultiStore?: boolean;
-  /** Shown instead of `action` when the account passes actionAdminOnly's
-   * baseline but not actionRequiresIsAdmin/actionRequiresMultiStore — e.g.
-   * Transfer Stock (ledger) falls back to Add Product for an admin-capable
-   * account that isn't multi-store-qualified, rather than showing nothing. */
+  // Shown instead of `action` when the account passes actionAdminOnly's baseline but not actionRequiresIsAdmin/actionRequiresMultiStore — e.g.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-dashboard-page-routes-ts-L33
   fallbackAction?: PageAction;
-  /** A specific permission key `action` additionally requires, on top of
-   * actionAdminOnly's coarse canManageStockBatch baseline — the per-key
-   * replacement for that baseline as categories are migrated off role
-   * gates (see client/AGENTS.md's "Enforced permissions"). */
+  // A specific permission key `action` additionally requires, on top of actionAdminOnly's coarse canManageStockBatch baseline — the per-key repl…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-dashboard-page-routes-ts-L38
   actionPermission?: string;
-  /** An outline button shown before the primary action, desktop only (see
-   * DashboardHeader) — for a page's other common action that isn't worth a
-   * full second row of its own (e.g. Inventory's "Start Audit" next to "Add
-   * Product"). `path` can point anywhere the target page already knows how
-   * to react to (a query param like `action`, or — as Start Audit does — a
-   * dedicated route the page's own effect already redirects out of). */
+  // An outline button shown before the primary action, desktop only (see DashboardHeader) — for a page's other common action that isn't worth a…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-dashboard-page-routes-ts-L43
   secondaryAction?: PageAction;
   secondaryActionAdminOnly?: boolean;
 }
 
-/** Drives DashboardHeader's title/description/action button per route.
- * Matched by prefix (see getPageRoute), so list more specific paths (e.g.
- * "/inventory/catalog") before their parent ("/inventory"). */
+// Drives DashboardHeader's title/description/action button per route.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-dashboard-page-routes-ts-L53
 export const PAGE_ROUTES: PageRoute[] = [
   {
     path: "/dashboard",
@@ -82,14 +64,11 @@ export const PAGE_ROUTES: PageRoute[] = [
     path: "/inventory/adjustments",
     title: "Stock Adjustments",
     desc: "Every stock correction made outside a sale, purchase, or transfer.",
-    // Doesn't navigate anywhere: stock-adjustments-ledger.tsx reads
-    // ?action=create on this same page (same pattern as Transfer Stock's
-    // ?action=transfer) and opens the Adjust Stock flow.
+    // Doesn't navigate anywhere:
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-constants-dashboard-page-routes-ts-L67
     action: { label: "Adjust Stock", path: "/inventory/adjustments?action=create" },
-    // No actionAdminOnly: adjust_stock_counts is the precise replacement for
-    // that coarse manage_products baseline, and stacking both left a user
-    // holding only adjust_stock_counts with no reachable entry point at all
-    // above `md`, where the ledger's own button is hidden.
+    // No actionAdminOnly: adjust_stock_counts is the precise replacement for that coarse manage_products baseline, and stacking both left a user h…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-constants-dashboard-page-routes-ts-L71
     actionPermission: "adjust_stock_counts",
     secondaryAction: { label: "Start Audit", path: "/inventory/audits" },
     secondaryActionAdminOnly: true,
@@ -98,9 +77,8 @@ export const PAGE_ROUTES: PageRoute[] = [
     path: "/inventory/ledger",
     title: "Stock Movements",
     desc: "Full audit trail of every stock movement: sales, receipts, and adjustments.",
-    // Unlike every other action.path here, this doesn't navigate anywhere —
-    // stock-movements.tsx reads ?action=transfer on this same page (same
-    // pattern as Add Product's ?action=add) and opens the transfer dialog.
+    // Unlike every other action.path here, this doesn't navigate anywhere — stock-movements.tsx reads ?action=transfer on this same page (same pat…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-constants-dashboard-page-routes-ts-L83
     action: { label: "Transfer Stock", path: "/inventory/ledger?action=transfer" },
     actionAdminOnly: true,
     actionRequiresIsAdmin: true,
@@ -159,9 +137,8 @@ export const PAGE_ROUTES: PageRoute[] = [
     path: "/procurement/new",
     title: "Create Purchase Order",
     desc: "Make new purchase orders.",
-    // No header action: the page itself already has a back button, title,
-    // and item count in its own panel header (desktop), and this header is
-    // hidden entirely on mobile for this route (full-screen takeover).
+    // No header action: the page itself already has a back button, title, and item count in its own panel header (desktop), and this header is hid…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-constants-dashboard-page-routes-ts-L144
   },
   {
     path: "/procurement",
@@ -196,9 +173,8 @@ export function getPageRoute(pathname: string) {
   return PAGE_ROUTES.find((route) => pathname.startsWith(route.path));
 }
 
-/** Null on the dashboard home route, which uses the time-of-day greeting
- * instead of a page title. Falls back to a bare app-name/no-desc/no-action
- * shell for any route not listed above. */
+// Null on the dashboard home route, which uses the time-of-day greeting instead of a page title.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-dashboard-page-routes-ts-L199
 export function getPageInfo(pathname: string): PageRoute | null {
   if (pathname === "/" || pathname === "/dashboard") return null;
 
@@ -207,13 +183,8 @@ export function getPageInfo(pathname: string): PageRoute | null {
   );
 }
 
-/** Resolves the header's "+ Add X" action for the current route, honoring
- * actionAdminOnly's canManageStockBatch baseline first, then narrowing via
- * actionRequiresIsAdmin/actionRequiresMultiStore — an account that clears
- * the baseline but not the narrower requirements gets fallbackAction
- * instead of nothing. Greeting pages (dashboard home) don't use pageInfo
- * for title/desc, but can still declare an explicit action via PAGE_ROUTES,
- * so this re-looks-up the route rather than relying solely on pageInfo. */
+// Resolves the header's "+ Add X" action for the current route, honoring actionAdminOnly's canManageStockBatch baseline first, then narrowing…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-dashboard-page-routes-ts-L210
 export function resolveHeaderAction(
   pathname: string,
   pageInfo: PageRoute | null,
@@ -245,11 +216,8 @@ export function resolveHeaderAction(
   return matchedRoute.action;
 }
 
-/** Same resolution as resolveHeaderAction, for the outline button shown
- * before it (desktop only — see DashboardHeader). `hasAccess` is whatever
- * role check the specific secondaryAction actually needs (not necessarily
- * canManageStockBatch — Start Audit, for instance, gates on the
- * "perform_stock_audit" permission). */
+// Same resolution as resolveHeaderAction, for the outline button shown before it (desktop only — see DashboardHeader).
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-dashboard-page-routes-ts-L248
 export function resolveSecondaryHeaderAction(
   pathname: string,
   pageInfo: PageRoute | null,

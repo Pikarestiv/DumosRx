@@ -1,12 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { searchProducts } from "@/lib/utils/search";
 
-/**
- * searchProducts() re-lowercased every product's name, generic name and barcode
- * on every call, so a catalog of ~800 products allocated ~2400 strings per
- * keystroke - and the Levenshtein fallback tier did it a second time. The
- * lowercased index is now cached against the products array reference.
- */
+// searchProducts() re-lowercased every product's name, generic name and barcode on every call, so a catalog of ~800 produc…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-search-lowercase-index-cache-test-ts-L4
 describe("searchProducts lowercase index caching", () => {
   function instrumented(name: string, generic: string, barcode: string) {
     const reads = { name: 0, generic_name: 0, barcode: 0 };

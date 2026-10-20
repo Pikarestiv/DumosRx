@@ -1,12 +1,7 @@
 import { describe, it, expect } from "vitest";
 
-/**
- * A-56: a mixed payment of cash 400 + credit 800 on a 1,000 total passes the
- * coverage check (splits sum to 1,200) while the customer only owes 600 —
- * the extra 200 was written straight onto outstanding_balance with no sale to
- * settle it against. The credit split can never exceed
- * total - sum(non-credit splits).
- */
+// A-56: a mixed payment of cash 400 + credit 800 on a 1,000 total passes the coverage check (splits sum to 1,200) while th…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-mixed-payment-credit-over-allocation-test-ts-L3
 describe("mixed payment — over-allocated credit split", () => {
   it("caps the allowed credit split at the total less every non-credit tender", async () => {
     const { calculateMaxAllowedCreditSplit } = await import("@/lib/utils/pos-calculations");

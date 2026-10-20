@@ -10,11 +10,8 @@ vi.mock("idb-keyval", () => ({
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-/**
- * Coverage for wiring loyalty_tiers.points_multiplier into actual points
- * earning at checkout (previously configured/displayed in Settings but never
- * applied - see getApplicableTierMultiplier in loyalty-calculator.ts).
- */
+// Coverage for wiring loyalty_tiers.points_multiplier into actual points earning at checkout (previously configured/displa…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-pos-payment-loyalty-tier-test-ts-L13
 describe("usePOSPayment loyalty tier multiplier", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

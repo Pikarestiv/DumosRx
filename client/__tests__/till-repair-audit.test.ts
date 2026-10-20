@@ -6,12 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * The spec requires every repair run from an inspection session to be audited
- * with the admin, device, store and outcome. logAction attributes user_id to
- * whoever the local DB still points at — the cashier, or nobody — so without
- * these explicit details a repair reads as the staff user's doing.
- */
+// The spec requires every repair run from an inspection session to be audited with the admin, device, store and outcome.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-till-repair-audit-test-ts-L9
 const STORE_ID = "store-1";
 
 describe("repair auditing", () => {
@@ -127,9 +123,7 @@ describe("repair auditing", () => {
 
   it("sets the admin as the row's actor, not just a detail", async () => {
     // user_id is what the Activity Log and the server's activity_logs show.
-    // SyncController backfills an empty or unknown id from the sync token's
-    // owner, so leaving it unset made the server's record name the STORE
-    // OWNER as having run the clock override.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-till-repair-audit-test-ts-L129
     startSession();
     divergedBatch();
 
@@ -152,9 +146,8 @@ describe("repair auditing", () => {
   });
 
   it("falls back to the signed-in local user with no inspection session", async () => {
-    // Asserting null here proved nothing: null is what any implementation
-    // yields when no current user was ever set. Set one, so the fallback is
-    // what the assertion actually measures.
+    // Asserting null here proved nothing:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-till-repair-audit-test-ts-L155
     core.setCurrentUser({
       id: "cashier-1",
       first_name: "Ada",

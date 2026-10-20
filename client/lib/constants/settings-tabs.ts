@@ -1,11 +1,7 @@
 import { PERMISSION_CATALOG } from "./permissions";
 
-/**
- * Every settings tab that was hidden behind the coarse `isAdmin` check
- * (i.e. `manage_staff`) before the Store & Settings enforcement pass.
- * Tabs listed in SETTINGS_TAB_PERMISSIONS below are resolved by their own
- * key instead; the rest still fall back to this list.
- */
+// Every settings tab that was hidden behind the coarse `isAdmin` check (i.e.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-settings-tabs-ts-L3
 export const ADMIN_ONLY_SETTINGS_TABS = [
   "personal-info",
   "business-info",
@@ -46,18 +42,8 @@ export const ALL_SETTINGS_TABS = [
   DIAGNOSTICS_SETTINGS_TAB,
 ] as const;
 
-/**
- * The Store & Settings permission key each settings tab requires, replacing
- * the one coarse `isAdmin` gate that used to cover all of them. The map is
- * the single source of truth for the desktop tab rail, the mobile menu list
- * and use-settings' URL resolution, so a tab can never be reachable by
- * typing `/settings/<tab>` after its trigger has been hidden.
- *
- * Tabs deliberately absent keep the `isAdmin` fallback: `personal-info` has
- * no key in the catalog, `product-units` / `categories` belong to Inventory
- * & Stock, `staff` / `roles` to Staff & Groups, and `danger-zone` already
- * enforces `factory_reset` inside the panel itself.
- */
+// The Store & Settings permission key each settings tab requires, replacing the one coarse `isAdmin` gate that used to cover all of them.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-settings-tabs-L49
 export const SETTINGS_TAB_PERMISSIONS: Record<string, string> = {
   "business-info": "manage_store_settings",
   branches: "manage_store_settings",
@@ -69,39 +55,29 @@ export const SETTINGS_TAB_PERMISSIONS: Record<string, string> = {
   system: "manage_device_settings",
 };
 
-/**
- * Pure so the whole tab-visibility rule is unit-testable without an auth
- * render harness. `hasKey` is the caller's own permission check
- * (useHasPermission in a component, hasPermission() in a hook).
- */
-/** The two support sessions that can see the diagnostics console. They differ:
- * an on-till inspection is read-only and must be denied every other tab,
- * while an impersonation handoff keeps the tabs it always had. */
+// The two support sessions that can see the diagnostics console.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-settings-tabs-ts-L67
 export interface SupportSessionAccess {
   inspecting?: boolean;
   impersonating?: boolean;
 }
 
+// Pure so the whole tab-visibility rule is unit-testable without an auth render harness.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-settings-tabs-ts-L62
 export function canAccessSettingsTab(
   tab: string,
   isAdmin: boolean,
   hasKey: (key: string) => boolean,
   support: SupportSessionAccess = {},
 ): boolean {
-  // Both support sessions, not just inspection: the impersonation handoff was
-  // the ONLY path that ever reached this console, and gating it on inspection
-  // alone sent an impersonating superadmin to Appearance instead.
+  // Both support sessions, not just inspection:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-constants-settings-tabs-ts-L73
   if (tab === DIAGNOSTICS_SETTINGS_TAB) {
     return !!support.inspecting || !!support.impersonating;
   }
 
-  // An on-till inspection is read-only, so it is denied the tabs whose actions
-  // bypass the write guard. Granting diagnostics was not enough on its own:
-  // the fall-through below grants every admin-only tab on `isAdmin`, which is
-  // the *locked staff user's* role — so on an owner's device an inspecting
-  // admin still reached Data's restore and Danger Zone's factory reset, both
-  // raw `execute`, both able to destroy the evidence. Impersonation is
-  // deliberately NOT denied here; it keeps the access it has always had.
+  // An on-till inspection is read-only, so it is denied the tabs whose actions bypass the write guard.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-constants-settings-tabs-ts-L80
   if (support.inspecting) return false;
 
   const required = SETTINGS_TAB_PERMISSIONS[tab];

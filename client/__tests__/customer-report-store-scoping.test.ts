@@ -6,13 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression test: fetchCustomerReportData's join to sales had no
- * store_id filter (customers.ts's getCustomers has the identical join WITH
- * one, so this was the outlier), so "Total Purchases"/"Total Spent" could
- * absorb another store's sales for any shared customer id on a multi-store
- * device.
- */
+// Regression test: fetchCustomerReportData's join to sales had no store_id filter (customers.ts's getCustomers has the ide…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-customer-report-store-scoping-test-ts-L9
 describe("fetchCustomerReportData store scoping", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

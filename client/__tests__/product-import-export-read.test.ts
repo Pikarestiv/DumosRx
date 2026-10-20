@@ -6,16 +6,8 @@ import {
   buildBlobFromRows,
 } from "@/lib/utils/product-import-export";
 
-/**
- * Regression coverage for the xlsx -> exceljs migration (docs/KNOWN_BUGS.md
- * H1 - xlsx had unpatched prototype-pollution/ReDoS CVEs with no upstream
- * fix). exceljs doesn't support the legacy .xls binary format at all, so
- * that specific case needed a deliberate, user-facing rejection rather than
- * a confusing parse failure - and the custom CSV parser/writer written to
- * replace xlsx's (exceljs's own CSV support is Node-stream-oriented, not a
- * good fit for a browser File) needed its own round-trip coverage, since
- * none existed for the read path before this migration at all.
- */
+// Regression coverage for the xlsx -> exceljs migration (docs/KNOWN_BUGS.md H1 - xlsx had unpatched prototype-pollution/Re…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-product-import-export-read-test-ts-L9
 describe("readWorkbookFile / parseWorkbookSheet", () => {
   it("rejects legacy .xls files with a clear, actionable message rather than a confusing parse failure", async () => {
     const file = new File(["not a real xls file"], "products.xls", {
@@ -96,10 +88,8 @@ describe("readWorkbookFile / parseWorkbookSheet", () => {
   });
 
   it("exposes multiple sheet names from a multi-sheet xlsx workbook", async () => {
-    // Two independent single-sheet exports simulate a multi-sheet file by
-    // reading the second one's worksheet and renaming it onto the first
-    // workbook - simplest way to get a real multi-sheet .xlsx without a
-    // second production code path just for this test.
+    // Two independent single-sheet exports simulate a multi-sheet file by reading the second one's worksheet and renaming it o…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-product-import-export-read-test-ts-L99
     const ExcelJS = (await import("exceljs")).default;
     const workbook = new ExcelJS.Workbook();
     workbook.addWorksheet("Sheet1").addRow(["A"]);

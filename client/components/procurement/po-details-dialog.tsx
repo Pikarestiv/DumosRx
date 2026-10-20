@@ -30,11 +30,8 @@ interface PODetailsDialogProps {
   hideTypeToggle?: boolean;
 }
 
-/** Re-opens PODetailsFields after the order-details step has been
- * confirmed, so vendor/notes/payment/due-date stay editable without
- * pushing item entry back down the page. Fields are bound directly to the
- * same live state as the details step, so there's nothing to "save" here
- * beyond closing the dialog. */
+// Re-opens PODetailsFields after the order-details step has been confirmed, so vendor/notes/payment/due-date stay editable…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-details-dialog-tsx-L33
 export function PODetailsDialog({
   open,
   onOpenChange,

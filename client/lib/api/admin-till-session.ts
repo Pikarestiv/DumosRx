@@ -26,12 +26,8 @@ export const NO_STORE_MESSAGE = "This device has no store set up yet.";
 
 export type TillSessionEndReason = "signed_out" | "idle" | "expired" | "closed";
 
-/**
- * True only for an identifier that looks like an email AND matches no user on
- * this device. The second half is load-bearing: lib/db/queries/auth.ts already
- * accepts an email as an ordinary login identifier, so a store owner signing
- * in with theirs must stay local and offline.
- */
+// True only for an identifier that looks like an email AND matches no user on this device.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#api-admin-till-session-ts-L29
 const COMPLETE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /** A whole email, not a half-typed one — see shouldAttemptAdminTillLogin. */
@@ -46,13 +42,8 @@ export function shouldAttemptAdminTillLogin(
   return localCandidateCount === 0 && COMPLETE_EMAIL.test(identifier.trim());
 }
 
-/**
- * Deliberately a plain fetch rather than apiClient: base-client treats a 401
- * on a non-auth endpoint as an expired token, silently refreshes the till's
- * OWN sync token, retries, and clears it on the second 401 — so a mistyped
- * till code would unlink the device from cloud sync. It also must not send
- * the till's bearer, which this endpoint neither needs nor should see.
- */
+// Deliberately a plain fetch rather than apiClient:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#api-admin-till-session-ts-L49
 export async function requestAdminTillSession(
   email: string,
   code: string,
@@ -82,10 +73,8 @@ export async function requestAdminTillSession(
   const body = await response.json();
   if (!body?.session_id) return null;
 
-  // Both deadlines come off THIS device's clock, from the server's duration
-  // rather than its absolute timestamp: a till whose clock runs hours fast
-  // would otherwise read a brand-new session as already expired — on exactly
-  // the misconfigured-clock device this feature exists to inspect.
+  // Both deadlines come off THIS device's clock, from the server's duration rather than its absolute timestamp:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-api-admin-till-session-ts-L76
   const now = Date.now();
 
   return {
@@ -98,11 +87,8 @@ export async function requestAdminTillSession(
   };
 }
 
-/**
- * Server time, served only while the session row is live. The clock override
- * uses this rather than the public /health endpoint so the server — not a
- * forgeable sessionStorage flag — is what authorises it.
- */
+// Server time, served only while the session row is live.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#api-admin-till-session-ts-L101
 export async function readInspectionServerClock(
   sessionId: string,
 ): Promise<Date | null> {
@@ -141,11 +127,8 @@ export async function endAdminTillSession(
   }).catch(() => {});
 }
 
-/**
- * Exit on tab close or app quit, where an awaited fetch is cancelled with the
- * page. Closing the app is the most common exit on a desktop till, and without
- * this the session row kept no exit row and no duration.
- */
+// Exit on tab close or app quit, where an awaited fetch is cancelled with the page.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#api-admin-till-session-ts-L144
 export function beaconAdminTillSessionEnd(sessionId: string): void {
   const payload = JSON.stringify({ session_id: sessionId, reason: "closed" });
 

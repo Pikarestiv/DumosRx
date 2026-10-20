@@ -12,20 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * A-148: a 'sync_reconciliation' movement is applied like any other
- * movement on pull - there is no movement_type special-case in pull.ts.
- * What actually prevents the reporting device from double-applying its own
- * correction is that reconcile-quantities.ts inserts that device's copy of
- * the row locally, as already-synced, before the server's echo is ever
- * pulled - so that device's pull hits the UPDATE branch (which never
- * replays a delta for any movement type), while every other device of the
- * same store - which never had the row - hits the INSERT branch and
- * correctly applies the delta. See client/AGENTS.md, "Stock quantity
- * reconciliation": the earlier design that skipped the delta by
- * movement_type for every device left every device except the reporter
- * uncorrected, which this test guards against regressing to.
- */
+// A-148: a 'sync_reconciliation' movement is applied like any other movement on pull - there is no movement_type special-c…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-applies-reconciliation-movement-delta-test-ts-L15
 describe("pullChanges applies a sync_reconciliation movement exactly like an ordinary one", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

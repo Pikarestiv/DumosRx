@@ -1,36 +1,5 @@
-/**
- * Query-key factory + table-dependency tagging convention.
- *
- * Every entry returns `{ queryKey, meta: { tables } }`, spread straight
- * into useQuery's options (`useQuery({ ...queryKeys.products.all(), queryFn
- * })`). Bundling the key and its table dependencies into the same function
- * means they can't drift apart the way they would if `tables` were passed
- * separately at each call site.
- *
- * `meta.tables` is what base-helpers.ts's mutation helpers use (via a
- * predicate, not prefix-matching) to invalidate exactly the queries that
- * could be affected by a given table's insert/update/delete, including
- * queries that read from several tables at once (dashboard, BI, and
- * daily-close all do), which a plain "queryKey starts with the table name"
- * convention can't express.
- *
- * A query with no `meta.tables` (i.e. not yet migrated to this factory)
- * falls back to being invalidated on every mutation; see base-helpers.ts's
- * invalidateQueriesForTable. That makes adopting this factory incremental
- * and safe: an unmigrated query is never LESS correct than before, only
- * less precisely invalidated.
- *
- * Every key is also suffixed with the active store id and current user id
- * (lib/db/core.ts); every query function reads its scope from those
- * module-level resolvers at execution time rather than from the query key,
- * so without this suffix a switch of store or user could read/write a
- * cache slot the previous store/user's queries already own. This makes
- * cross-account/cross-store leakage structural rather than dependent on
- * every switch/logout path remembering to clear the cache: even if a
- * clear() call were ever missed, the new store/user simply never resolves
- * to the old cache slot to begin with. Appending it here, once, means the
- * ~40+ call sites across the app never have to think about it.
- */
+// Query-key factory + table-dependency tagging convention.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#query-keys-L1
 
 import { getActiveStoreId, getCurrentUserId } from "./db/core";
 import { getLocalTodayDate } from "./utils";
@@ -69,10 +38,8 @@ export const queryKeys = {
     expiring: (expiryDays: number) =>
       resource(["expiringBatches", expiryDays] as const, ["stock_batches", "products"]),
     overview: () => resource(["stockOverviewData"] as const, ["products", "stock_batches"]),
-    // getStockBatchStats reads `FROM products p LEFT JOIN (...stock_batches)`,
-    // so a product edit/add/deactivate changes these numbers too - without
-    // "products" listed, the stat cards stayed stale until something happened
-    // to touch stock_batches.
+    // getStockBatchStats reads `FROM products p LEFT JOIN (...stock_batches)`, so a product edit/add/deactivate changes these numbers too - withou…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-query-keys-ts-L41
     stats: (expiryDays: number) =>
       resource(["stockBatchStats", expiryDays] as const, ["stock_batches", "products"]),
     // getStockMoM reads stock_movements (30-day added/removed value) and
@@ -158,9 +125,8 @@ export const queryKeys = {
   },
   expenses: {
     all: () => resource(["expenses"] as const, ["expenses"]),
-    /** One page of the ledger. Keyed on the loaded row count as well as the
-     * filters, so "load older" widens the window rather than replacing a
-     * cached page. */
+    // One page of the ledger.
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#query-keys-ts-L130
     page: (
       viewerId: string | undefined,
       limit: number,
@@ -249,11 +215,8 @@ export const queryKeys = {
       resource(["setupData", "totalRecordCount"] as const, ["products", "sales"]),
   },
   dashboard: {
-    // Today's local date is part of the key because getDashboardOverviewData
-    // computes "today" internally (getLocalTodayDate(), same call as here):
-    // without it, a terminal left open overnight kept serving yesterday's
-    // cached figures under a "Today's Sales" label. Sharing the exact same
-    // helper means key and query function can never disagree about the day.
+    // Today's local date is part of the key because getDashboardOverviewData computes "today" internally (getLocalTodayDate(), same call as here):
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-query-keys-ts-L220
     overview: (viewerId?: string) =>
       resource(["dashboardOverviewData", viewerId, getLocalTodayDate()] as const, [
         "sales",
@@ -304,10 +267,8 @@ export const queryKeys = {
   activityLog: {
     list: (filtersKey: string) =>
       resource(["activityLog", filtersKey] as const, ["audit_logs"]),
-    // tableName distinguishes the full Activity Log page's cache slot (no
-    // arg) from a scoped tab's (e.g. Staff Activities passing "users") —
-    // without it both would collide on the same key and shadow each other's
-    // distinct actions/users list.
+    // tableName distinguishes the full Activity Log page's cache slot (no arg) from a scoped tab's (e.g.
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-query-keys-ts-L275
     actions: (tableName?: string) =>
       resource(["activityLogActions", tableName ?? "all"] as const, ["audit_logs"]),
     users: (tableName?: string) =>

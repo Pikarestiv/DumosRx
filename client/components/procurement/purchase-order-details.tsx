@@ -60,10 +60,8 @@ export function PurchaseOrderDetails({
     if (!selectedPO || isGeneratingPdf) return;
     setIsGeneratingPdf(true);
     try {
-      // Both imported here rather than at module scope: @react-pdf/renderer is
-      // a heavy dependency that every visitor to the Orders tab was paying for,
-      // whether or not they ever downloaded anything. purchase-order-pdf has to
-      // be deferred alongside it, since that module statically imports it.
+      // Both imported here rather than at module scope:
+      // Rationale: docs/CLIENT_COMMENTS.md#line-components-procurement-purchase-order-details-tsx-L63
       const [{ pdf }, { PurchaseOrderPdf }] = await Promise.all([
         import("@react-pdf/renderer"),
         import("./purchase-order-pdf"),

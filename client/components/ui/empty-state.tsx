@@ -19,9 +19,8 @@ interface EmptyStateProps {
   className?: string;
 }
 
-/** Generic "nothing here" state for list/table/card views: icon, message, and
- * an optional actionable link or button. Callers decide the action (if any) -
- * this component has no role/permission logic of its own. */
+// Generic "nothing here" state for list/table/card views:
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-empty-state-tsx-L22
 export function EmptyState({
   icon: Icon = Inbox,
   title,

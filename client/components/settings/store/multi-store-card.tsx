@@ -51,18 +51,11 @@ export function MultiStoreCard() {
     }
   };
 
-  // Fleet writes go straight to the cloud API and never touch local SQLite,
-  // so React Query's own store caches never learn a write happened. This
-  // won't surface the change before the next sync pull lands (Fleet stays
-  // cloud-only), but it ensures mounted components re-fetch fresh local
-  // data as soon as that pull does complete, instead of serving a cache
-  // that never refreshes.
+  // Fleet writes go straight to the cloud API and never touch local SQLite, so React Query's own store caches never learn a…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-store-multi-store-card-tsx-L54
   const invalidateStoreCaches = () => {
-    // Prefix-matches every cached variant of these queries regardless of
-    // which store/user args they were fetched with (a plain string
-    // literal would do the same, but derives the prefix from the factory
-    // - via a throwaway call - instead of duplicating it, so a rename in
-    // query-keys.ts can't silently desync from this call site).
+    // Prefix-matches every cached variant of these queries regardless of which store/user args they were fetched with (a plain…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-store-multi-store-card-tsx-L61
     void queryClient.invalidateQueries({ queryKey: queryKeys.stores.all().queryKey.slice(0, 1) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.stores.profile().queryKey.slice(0, 1) });
   };

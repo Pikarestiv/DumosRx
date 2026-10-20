@@ -2,13 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type SqlJsStatic, type Database } from "sql.js";
 import { SCHEMA_SQL } from "@/lib/db/schema";
 
-/**
- * Regression coverage for A-20 (docs/KNOWN_BUGS.md): `audit_logs` had no
- * local retention anywhere — it grew by 10–15 rows per sale forever, was
- * pulled to every device, and on the web build every single write
- * re-serialises the whole database through `db.export()`. `resetDatabase()`
- * was the only path that ever cleared the table.
- */
+// Regression coverage for A-20 (docs/KNOWN_BUGS.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-audit-log-local-retention-test-ts-L5
 
 vi.mock("idb-keyval", () => ({
   get: vi.fn(async () => undefined),
@@ -112,11 +107,8 @@ describe("pruneSyncedAuditLogs()", () => {
   });
 
   it("keeps the cutoff behind real time when this device's clock reads years ahead", async () => {
-    // A-247's fast clock, exaggerated: the cutoff is derived from the newest
-    // server-issued sync stamp rather than from `Date.now()`, so a wrong clock
-    // cannot push it past the retention window and take the whole local trail.
-    // The rows here are 1 and 800 days behind REAL time; only the second is
-    // outside the 730-day window.
+    // A-247's fast clock, exaggerated:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-audit-log-local-retention-test-ts-L115
     addAuditRow("recent", daysAgo(1), 1);
     addAuditRow("old", daysAgo(800), 1);
     db.run(
@@ -130,11 +122,8 @@ describe("pruneSyncedAuditLogs()", () => {
   });
 
   it("falls back to its own clock when there is no server stamp to bound with", async () => {
-    // `_sync_state` empty, so boundedNow() has nothing to take the lower of and
-    // must use the device clock rather than refusing or landing on epoch 0 —
-    // either of which would silently stop pruning for ever. A synced row is
-    // seeded deliberately: an unsynced one is never touched, so it would make
-    // this pass whatever the fallback did.
+    // `_sync_state` empty, so boundedNow() has nothing to take the lower of and must use the device clock rather than refusing…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-audit-log-local-retention-test-ts-L133
     addAuditRow("synced-old", daysAgo(800), 1);
     addAuditRow("synced-recent", daysAgo(1), 1);
 

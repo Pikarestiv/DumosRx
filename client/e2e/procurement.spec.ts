@@ -1,15 +1,7 @@
 import { test, expect, loginAsPaidTier } from './fixtures';
 
-/**
- * Procurement is gated behind a paid tier (`!isFree` fallback in
- * lib/hooks/use-feature-gate.ts) via `<LockedModuleOverlay featureKey="procurement" />`
- * in app/(dashboard)/procurement/page.tsx, same as Expenses. The shared e2e
- * fixture (e2e/.auth/test-db.bin) is deliberately free-tier, so both tests
- * here elevate their own isolated per-test copy of the local DB via the
- * shared `loginAsPaidTier` helper (fixtures.ts) instead of touching the
- * shared fixture — see findings-log finding #9 (Expenses), whose exact
- * overlay-mount race root cause also applied here.
- */
+// Procurement is gated behind a paid tier (`!isFree` fallback in lib/hooks/use-feature-gate.ts) via `<LockedModuleOverlay…
+// Rationale: docs/CLIENT_COMMENTS.md#block-e2e-procurement-spec-ts-L3
 
 test.describe('Procurement Module', () => {
   test('should log in, navigate to procurement, and open create order flow', async ({ page }) => {
@@ -26,23 +18,20 @@ test.describe('Procurement Module', () => {
 
     // 4. Verify Create Purchase Order page loads (components/procurement/po-order-form-fields.tsx)
     await expect(page.getByText('Create Purchase Order', { exact: true }).first()).toBeVisible({ timeout: 15000 });
-    // Only the viewport's own create view is mounted now (the pages render
-    // one or the other rather than hiding one with CSS), but keep the
-    // visible-instance match so this holds either way.
+    // Only the viewport's own create view is mounted now (the pages render one or the other rather than hiding one with CSS),…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-e2e-procurement-spec-ts-L29
     await expect(page.locator('text="Select Vendor" >> visible=true').first()).toBeVisible();
 
-    // 4b. Continue to the item-entry step (components/procurement/po-item-builder.tsx,
-    // introduced in commit 113a368c, replaced the old "Add Items to Order"
-    // section/separate-Add-button flow this test used to assert on).
+    // 4b. Continue to the item-entry step (components/procurement/po-item-builder.tsx, introduced in commit 113a368c, replaced…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-e2e-procurement-spec-ts-L34
     await page.getByRole('button', { name: /Continue to Add Items/i }).locator('visible=true').first().click();
     await expect(
       page.locator('input[placeholder="Search item by name, SKU or barcode"] >> visible=true').first(),
     ).toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(1000); // Wait for animations to settle
 
-    // 5. Test Quick Add Product flow trigger
-    // Type a product name that doesn't exist (components/procurement/po-item-builder.tsx
-    // -> components/ui/product-combobox.tsx)
+    // 5. Test Quick Add Product flow trigger Type a product name that doesn't exist (components/procurement/po-item-builder.ts…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-e2e-procurement-spec-ts-L43
     const comboboxInput = page
       .locator('input[placeholder="Search item by name, SKU or barcode"] >> visible=true')
       .first();
@@ -54,9 +43,8 @@ test.describe('Procurement Module', () => {
     // Wait a short moment for state to update
     await page.waitForTimeout(500);
 
-    // Click the pinned "Create ... as new product" row — selecting a product
-    // combobox option now adds/opens directly, there is no separate "Add"
-    // button anymore (product-combobox.tsx's AddNewProductOption).
+    // Click the pinned "Create ...
+    // Rationale: docs/CLIENT_COMMENTS.md#line-e2e-procurement-spec-ts-L57
     await page
       .getByText('Create "Paracetamol 500mg (Test)" as new product', { exact: true })
       .locator('visible=true')
@@ -74,11 +62,8 @@ test.describe('Procurement Module', () => {
     test.setTimeout(90000);
     await loginAsPaidTier(page);
 
-    // Closes the exact gap flagged in docs/features/procurement.md: the
-    // pre-existing test above only opens the Quick Add Product dialog and
-    // never submits/sends/receives an order, so receivePurchaseOrder()
-    // (lib/db/procurement-receiving.ts) — the Standard PO receiving path —
-    // had zero e2e (or unit) coverage before this test.
+    // Closes the exact gap flagged in docs/features/procurement.md:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-e2e-procurement-spec-ts-L77
     const productName = `E2E PO Product ${Date.now()}`;
     const orderedQty = 5;
 

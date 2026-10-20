@@ -37,12 +37,8 @@ const tiers = [
   },
 ];
 
-/**
- * "manage_loyalty" is about configuring the PROGRAM - tiers, earn rate and
- * redemption options - which is a different act from a cashier spending a
- * customer's earned points at the till (pos-redeem-reward.tsx, deliberately
- * independent of any staff-concession key).
- */
+// "manage_loyalty" is about configuring the PROGRAM - tiers, earn rate and redemption options - which is a different act f…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-loyalty-settings-permission-test-tsx-L40
 describe("loyalty settings permission", () => {
   beforeEach(() => {
     hasPermission.mockReset();

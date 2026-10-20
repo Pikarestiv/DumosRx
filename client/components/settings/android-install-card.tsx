@@ -12,12 +12,8 @@ import { Button } from "@/components/ui/button";
 import { useInstallPrompt } from "@/lib/hooks/use-install-prompt";
 import { isTauri } from "@/lib/db/core";
 
-/** Nudges Android/Chrome users to install the PWA even though a native APK
- * also exists: the PWA install is one tap, doesn't require enabling
- * "install from unknown sources", and stays current automatically. Only
- * renders once Chrome has judged the site installable and fired
- * beforeinstallprompt; hidden entirely in the Tauri-wrapped desktop/native
- * build, which doesn't need it. */
+// Nudges Android/Chrome users to install the PWA even though a native APK also exists:
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-android-install-card-tsx-L15
 export function AndroidInstallCard() {
   const { canInstall, promptInstall } = useInstallPrompt();
 

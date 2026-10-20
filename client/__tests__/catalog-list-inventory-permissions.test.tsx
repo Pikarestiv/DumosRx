@@ -4,16 +4,8 @@ import React from "react";
 import type { Product } from "@/components/products/types";
 import type { CatalogRowProps } from "@/components/products/catalog-row";
 
-/**
- * The product catalog is where three Inventory & Stock keys land:
- * "view_cost_fields" decides whether the Avg Cost column exists at all
- * (it was visible to every role, cashiers included, before this),
- * "edit_product_price" fronts the selling-price quick edit and
- * "adjust_stock_counts" fronts the stock-quantity quick edit - both split
- * out of the coarse manage_products/canManageStockBatch check that still
- * gates category and reorder level. Without a key the figure stays on
- * screen read-only; only the pencil goes.
- */
+// The product catalog is where three Inventory & Stock keys land:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-catalog-list-inventory-permissions-test-tsx-L7
 
 const hasPermission = vi.fn((_key: string) => true);
 

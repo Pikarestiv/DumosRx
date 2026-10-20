@@ -3,23 +3,11 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 // React 19's `act` warns unless the environment explicitly opts in.
-// See __tests__/use-pos-payment-loyalty-gate.test.ts for the same harness
-// pattern (no @testing-library/react is installed in this repo).
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-onboarding-local-restore-reload-test-ts-L5
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-/**
- * Regression test for known bug #10, Part A (docs/features/_known-bugs.md):
- * handleLocalRestore() used to call restoreDatabase() then a client-side
- * router.push("/login"), which resolves before /login's account-detection
- * (useDeviceAuthStatus) re-runs against the newly-restored database - a real
- * walkthrough saw the stale pre-restore "No Local Accounts Found" screen
- * flash right after the "Database restored successfully!" toast.
- *
- * The fix matches the pattern already used by the other restore paths in
- * this codebase (hooks/use-settings-sync.ts's handleRestoreBackup /
- * handleRestoreBackupTauri): force a full browser navigation instead of a
- * client-side one, so no stale React state can be observed after a restore.
- */
+// Regression test for known bug #10, Part A (docs/features/_known-bugs.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-onboarding-local-restore-reload-test-ts-L10
 
 const routerPushMock = vi.fn();
 const restoreDatabaseMock = vi.fn(async (_bytes: Uint8Array) => undefined);
@@ -83,9 +71,8 @@ describe("useOnboarding().handleLocalRestore", () => {
     vi.clearAllMocks();
     vi.useRealTimers();
 
-    // jsdom's real window.location throws "not implemented" on assignment;
-    // replace it with a plain object whose href setter we can assert on,
-    // the same way a full browser navigation would be observed from here.
+    // jsdom's real window.location throws "not implemented" on assignment; replace it with a plain object whose href setter we…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-onboarding-local-restore-reload-test-ts-L86
     hrefSetterMock = vi.fn<(v: string) => void>();
     const fakeLocation: { _href: string; reload: ReturnType<typeof vi.fn> } = {
       _href: "http://localhost/login?tab=setup&step=backup",

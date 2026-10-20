@@ -6,9 +6,8 @@ const copyFileMock = vi.fn();
 const appDataDirMock = vi.fn(async () => "/fake/appdata");
 const joinMock = vi.fn(async (...parts: string[]) => parts.join("/"));
 
-// A real (minimal) SQLite file header - restoreDatabaseFromFile() rejects
-// anything that doesn't start with these exact 16 bytes before it ever
-// touches the live db/file.
+// A real (minimal) SQLite file header - restoreDatabaseFromFile() rejects anything that doesn't start with these exact 16…
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-db-backup-restore-test-ts-L9
 const SQLITE_HEADER_BYTES = new TextEncoder().encode("SQLite format 3\0");
 const readFileMock = vi.fn(async () => SQLITE_HEADER_BYTES);
 const existsMock = vi.fn(async () => true);
@@ -29,15 +28,8 @@ vi.mock("@tauri-apps/api/path", () => ({
   join: joinMock,
 }));
 
-/**
- * These tests exercise the real orchestration logic in
- * backupDatabaseToFile()/restoreDatabaseFromFile() (lib/db/core.ts) against
- * a fake `db` connection and mocked Tauri plugins. They can't prove the
- * native dialogs or VACUUM INTO actually work inside a real Tauri runtime
- * (that needs a live desktop/mobile build), but they do prove the JS-side
- * control flow is correct: the right calls happen in the right order with
- * the right arguments, and cancelling a dialog doesn't touch the database.
- */
+// These tests exercise the real orchestration logic in backupDatabaseToFile()/restoreDatabaseFromFile() (lib/db/core.ts) a…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-db-backup-restore-test-ts-L32
 describe("Tauri backup/restore orchestration", () => {
   let core: typeof import("@/lib/db/core");
   let fakeDb: { execute: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> };
@@ -124,11 +116,8 @@ describe("Tauri backup/restore orchestration", () => {
         "/fake/appdata/dumosrx.db",
       );
 
-      // The close() call must happen before the FINAL (restore) copy, not
-      // after: copying over a file that's still open/locked by the old
-      // connection is exactly the kind of bug that would only surface on a
-      // real desktop run, not in a mock that doesn't enforce ordering by
-      // default.
+      // The close() call must happen before the FINAL (restore) copy, not after:
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-db-backup-restore-test-ts-L127
       const closeOrder = fakeDb.close.mock.invocationCallOrder[0];
       const restoreCopyOrder = copyFileMock.mock.calls.findIndex(
         (call) => call[1] === "/fake/appdata/dumosrx.db",
@@ -143,9 +132,8 @@ describe("Tauri backup/restore orchestration", () => {
 
       await core.restoreDatabaseFromFile();
 
-      // Without this, a raw copy of the live db file can miss committed
-      // transactions still sitting in the -wal sidecar (WAL journaling is
-      // enabled), making the pre-restore safety net silently incomplete.
+      // Without this, a raw copy of the live db file can miss committed transactions still sitting in the -wal sidecar (WAL jour…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-db-backup-restore-test-ts-L146
       expect(fakeDb.execute).toHaveBeenCalledWith("PRAGMA wal_checkpoint(TRUNCATE);");
 
       const checkpointOrder = fakeDb.execute.mock.calls.findIndex(
@@ -183,10 +171,8 @@ describe("Tauri backup/restore orchestration", () => {
         /safely close/,
       );
 
-      // The pre-restore snapshot copy is fine (it ran before close()), but
-      // the actual restore copy (source -> live db) must NOT have happened -
-      // proceeding past a failed close risks stale -wal/-shm sidecars
-      // replaying old data over the freshly-copied file.
+      // The pre-restore snapshot copy is fine (it ran before close()), but the actual restore copy (source -> live db) must NOT…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-db-backup-restore-test-ts-L186
       expect(copyFileMock).not.toHaveBeenCalledWith(
         "/Users/cynthia/Downloads/old_backup.drx",
         "/fake/appdata/dumosrx.db",

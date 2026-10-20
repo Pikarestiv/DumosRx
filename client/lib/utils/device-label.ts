@@ -18,13 +18,8 @@ function detectBrowser(ua: string): string {
   return "a browser";
 }
 
-/**
- * Human-readable device label sent as X-Device-Label alongside the opaque
- * X-Device-Id, purely so the admin panel's staff sync view can show
- * something a non-developer can read (e.g. "Chrome on Windows") instead of
- * a random id like "DRX-9F3A2C1D". Best-effort UA sniffing - never used for
- * any access-control or sync-correctness decision.
- */
+// Human-readable device label sent as X-Device-Label alongside the opaque X-Device-Id, purely so the admin panel's staff sync view can show so…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-device-label-ts-L21
 export function getDeviceLabel(): string {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
     return "Unknown device";

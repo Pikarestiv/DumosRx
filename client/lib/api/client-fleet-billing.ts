@@ -10,13 +10,8 @@ import type {
   BillingTransaction,
 } from "@/lib/types/subscription-plans";
 
-/**
- * Fleet (multi-store management), subscription/billing, notifications,
- * online orders, and account-deletion endpoints — split out from ApiClient
- * (client.ts) purely to keep that file's line count down. ApiClient extends
- * this class, so every method here is still called as e.g.
- * `apiClient.getStores()`; no call site needs to know this split exists.
- */
+// Fleet (multi-store management), subscription/billing, notifications, online orders, and account-deletion endpoints — split out from ApiClien…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#api-client-fleet-billing-ts-L13
 export class FleetBillingApiClient extends BaseApiClient {
   // Stores
   async getStores() {
@@ -149,9 +144,8 @@ export class FleetBillingApiClient extends BaseApiClient {
     return this.request<{ orders?: OnlineOrder[] }>("/app/online-orders");
   }
 
-  // payment_confirmed is explicit because the server no longer infers payment
-  // from fulfilment alone: "Fulfill & Deduct Stock" is pressed at the counter,
-  // as the goods are handed over and the money is taken.
+  // payment_confirmed is explicit because the server no longer infers payment from fulfilment alone:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-api-client-fleet-billing-ts-L147
   async fulfillOnlineOrder(id: string) {
     return this.request<unknown>(`/app/online-orders/${id}/fulfill`, {
       method: "POST",

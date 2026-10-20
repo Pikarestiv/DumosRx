@@ -2,13 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MetricCard } from "@/components/ui/metric-card";
 
-/**
- * Clickable metric cards are shortcuts into the screen behind the figure
- * (Daily Close's payment totals open the sales list, Net Cash Expected
- * opens the expense ledger). A div with an onClick is invisible to the
- * keyboard, so they carry button semantics; a card with no onClick stays a
- * plain card and must not be focusable.
- */
+// Clickable metric cards are shortcuts into the screen behind the figure (Daily Close's payment totals open the sales list…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-metric-card-keyboard-test-tsx-L5
 describe("MetricCard", () => {
   it("is operable by keyboard when it acts as a shortcut", () => {
     const onClick = vi.fn();

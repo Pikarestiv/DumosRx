@@ -5,21 +5,15 @@ import { queryKeys } from "@/lib/query-keys";
 
 interface QuickEditProductParams {
   id: string;
-  /** Each field is independently optional: the catalog table's per-cell
-   * quick edit saves one field at a time (category, selling price, or
-   * reorder level), not the whole row at once. */
+  // Each field is independently optional:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-product-quick-edit-mutation-ts-L8
   sellingPrice?: number;
   reorderLevel?: number;
   category?: string;
 }
 
-/** The product catalog table's inline "quick edit" cells patch selling
- * price, reorder level, or category one at a time — a narrower mutation
- * than the full add/edit product dialog's payload. Stock quantity is
- * deliberately not here: it's a derived SUM(stock_batches.quantity), not a
- * raw column, so changing it goes through the stock-audit mutation instead
- * (see useSubmitStockAuditMutation), which also keeps the stock_movements
- * ledger consistent. */
+// The product catalog table's inline "quick edit" cells patch selling price, reorder level, or category one at a time — a narrower mutation th…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-product-quick-edit-mutation-ts-L16
 export function useQuickEditProductMutation() {
   const queryClient = useQueryClient();
   return useMutation({

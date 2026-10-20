@@ -6,18 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * A-173. The open question was whether an unresolved deferred delta is
- * retried or dropped. It is **retried and never dropped** — the row stays in
- * `_pending_stock_deltas` until its batch arrives, so on-hand stock is
- * incomplete, never silently wrong.
- *
- * The real defect is the reporting. `attempts === REPORT_AFTER_ATTEMPTS` is a
- * strict equality, so a delta reports exactly once, on its tenth attempt, and
- * is then silent forever. A permanently unresolvable delta — a batch older
- * than the pull cursor never arrives again — therefore looks like a
- * transient blip that resolved itself, which is the opposite of the truth.
- */
+// A-173. The open question was whether an unresolved deferred delta is retried or dropped.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-deferred-stock-delta-chronic-reporting-test-ts-L9
 describe("deferred stock delta chronic reporting", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -110,9 +100,8 @@ describe("deferred stock delta chronic reporting", () => {
       await deltas.applyDeferredStockDeltas();
     }
 
-    // Quantity 0, the way the pull writes an arriving batch: `pull.ts` strips
-    // the server's figure, and the drain rebuilds from the log rather than
-    // adding the stored delta back on top of it.
+    // Quantity 0, the way the pull writes an arriving batch:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-deferred-stock-delta-chronic-reporting-test-ts-L113
     db.run(
       `INSERT INTO stock_batches (id, product_id, quantity, batch_number)
        VALUES ('missing-batch', 'p1', 0, 'B1')`,

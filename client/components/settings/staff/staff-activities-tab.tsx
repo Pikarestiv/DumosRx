@@ -33,9 +33,8 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 
 const TABLE_NAME = "users";
 
-// Mirrors ActivityLogPage's approach: when searching, fetch a large
-// unpaginated batch (matching the other filters) so fuzzy search has the
-// full set to search across rather than just the current page.
+// Mirrors ActivityLogPage's approach:
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-staff-staff-activities-tab-tsx-L36
 const SEARCH_FETCH_CAP = 2000;
 
 export function StaffActivitiesTab() {

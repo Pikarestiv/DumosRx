@@ -25,9 +25,8 @@ interface POMobileSummaryDrawerProps {
   lineItems: POSummaryLineItem[];
 }
 
-/** Items are edited inline via POItemBuilder in the page body (card mode
- * on mobile); the header already owns the Save action, so expanding this
- * drawer is purely a read-only review of what's about to be purchased. */
+// Items are edited inline via POItemBuilder in the page body (card mode on mobile); the header already owns the Save actio…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-mobile-summary-drawer-tsx-L28
 export function POMobileSummaryDrawer({
   itemCount,
   totalAmount,

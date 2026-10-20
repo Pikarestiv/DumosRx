@@ -9,15 +9,8 @@ vi.mock("idb-keyval", () => ({
 const apiClient = { pushChanges: vi.fn() };
 vi.mock("@/lib/api/client", () => ({ apiClient }));
 
-/**
- * A crash log that conflicts used to rewind the `feedback` pull window like
- * any other table. Two things make that catastrophic rather than merely
- * useless: the client never needs to re-pull its own crash logs, and
- * `restoreBaseline()` reports the exhausted budget by calling `logCrash()` -
- * which writes ANOTHER `feedback` row, which conflicts, which rewinds, which
- * logs. Observed in production on 2026-10-12: 1,228 events from one device,
- * escalating, with crash reporting generating the crash it reported.
- */
+// A crash log that conflicts used to rewind the `feedback` pull window like any other table.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-never-rewinds-for-telemetry-test-ts-L12
 describe("a terminal conflict on telemetry never rewinds a pull window", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

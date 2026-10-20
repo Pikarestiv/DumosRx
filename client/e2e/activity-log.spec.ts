@@ -1,20 +1,7 @@
 import { test, expect, loginAsPaidTier } from './fixtures';
 
-/**
- * Activity Log itself is NOT plan-gated (no <LockedModuleOverlay> wraps
- * app/(dashboard)/activity-log/page.tsx, unlike Expenses/Procurement/
- * Prescriptions) — confirmed by reading the page and
- * components/dashboard/locked-module-overlay.tsx's featureKey union, which
- * has no "activity_log" entry ("audit" there maps to `canUseAuditMode`,
- * a separate stock cycle-count feature, not this page).
- *
- * The *traceable action* used to generate an entry (adding an Expense) IS
- * gated behind the paid tier, though, so this spec still needs the same
- * `loginAsPaidTier` dev-only escape hatch (fixtures.ts) expenses.spec.ts
- * uses against its own isolated per-test copy of the local DB (the shared
- * free-tier fixture, e2e/.auth/test-db.bin, is intentionally left free-tier
- * for other specs that test LockedModuleOverlay itself).
- */
+// Activity Log itself is NOT plan-gated (no <LockedModuleOverlay> wraps app/(dashboard)/activity-log/page.tsx, unlike Expe…
+// Rationale: docs/CLIENT_COMMENTS.md#block-e2e-activity-log-spec-ts-L3
 
 test.describe('Activity Log', () => {
   test('records a traceable action (adding an expense) with correct actor/table/action', async ({ page }) => {

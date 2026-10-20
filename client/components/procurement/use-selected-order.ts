@@ -3,9 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { getPurchaseOrderById, type PurchaseOrder } from "@/lib/db/procurement";
 
-// Manages which order is selected, keeps its full details in sync with the
-// latest row data, and closes the panel if the selected order disappears
-// from underneath it (e.g. deleted elsewhere).
+// Manages which order is selected, keeps its full details in sync with the latest row data, and closes the panel if the se…
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-procurement-use-selected-order-ts-L6
 export function useSelectedOrder(
   orders: PurchaseOrder[],
   initialSelectedId: string | null | undefined,
@@ -34,9 +33,8 @@ export function useSelectedOrder(
     enabled: !!selectedOrderId,
   });
 
-  // Orders confirmed present in the list at some point, so a later
-  // disappearance can be trusted as a real deletion rather than the list
-  // just not having caught up yet (e.g. right after creating a new PO).
+  // Orders confirmed present in the list at some point, so a later disappearance can be trusted as a real deletion rather th…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-procurement-use-selected-order-ts-L37
   const seenOrderIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     for (const o of orders) seenOrderIdsRef.current.add(o.id);

@@ -3,13 +3,8 @@ import { renderHook } from "@testing-library/react";
 import { useSettingsForm } from "@/hooks/use-settings-form";
 import type { StoreProfile } from "@/lib/context/store-context";
 
-/**
- * Regression coverage for FIXED_BUGS.md A-31: enabled_payment_methods is
- * stored as TEXT holding JSON, not a real array column, so a malformed or
- * double-encoded value (the same shape that crashed the admin panel's Store
- * Details page - see A-29) must fall back to the default list instead of
- * throwing during the initial render or the storeProfile sync effect.
- */
+// Regression coverage for FIXED_BUGS.md A-31:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-settings-form-payment-methods-parse-test-tsx-L6
 function baseProfile(overrides: Partial<StoreProfile> = {}): StoreProfile {
   return {
     id: "s1",

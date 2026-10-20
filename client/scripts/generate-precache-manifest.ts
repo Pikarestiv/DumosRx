@@ -1,25 +1,5 @@
-/**
- * Runs after `next build` (see package.json's "postbuild" script) against
- * the static export in `out/`. Writes `out/precache-manifest.json`: a flat
- * list of every URL the app shell needs to boot fully offline on a device
- * that has never opened it online before.
- *
- * Why this exists instead of a real precache-manifest generator like
- * Workbox: `client/public/sw.js`'s own install handler previously had no
- * precaching at all - "content-hashed filenames from static export aren't
- * known ahead of time... without adding real build tooling" (its own
- * comment). This is that build tooling, kept deliberately small: no new
- * runtime dependency, no interaction with next.config.mjs's existing
- * withSentryConfig webpack wrapping (a second webpack-mutating plugin like
- * next-pwa stacked on top of that was judged riskier to verify than a
- * standalone script for the size of gap being closed here).
- *
- * Every file under out/_next/** (hashed JS/CSS/build-manifest chunks) plus
- * every root-level file that isn't `.htaccess` (per-route HTML/.txt pages,
- * icons, manifest.json, the sql.js wasm binaries) is included - picking a
- * subset would require knowing which chunks a given route depends on ahead
- * of a specific build, which is exactly the problem a manifest avoids.
- */
+// Runs after `next build` (see package.json's "postbuild" script) against the static export in `out/`.
+// Rationale: docs/CLIENT_COMMENTS.md#block-scripts-generate-precache-manifest-ts-L1
 import { createHash } from "crypto";
 import { readdirSync, readFileSync, statSync, writeFileSync } from "fs";
 import { join, relative, sep } from "path";
@@ -58,13 +38,8 @@ function main() {
     return;
   }
 
-  // Also include every page's un-suffixed route form (e.g. "/dashboard" as
-  // well as "/dashboard.html", "/" as well as "/index.html"): out/.htaccess
-  // rewrites the extensionless route to its .html sibling server-side, but a
-  // real navigation's request URL - and therefore the URL the service
-  // worker's cache.match() looks up - is always the extensionless one. Only
-  // caching the .html form left every route but "/" missing its actual
-  // navigable cache key.
+  // Also include every page's un-suffixed route form (e.g.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-scripts-generate-precache-manifest-ts-L61
   const routeUrls = urls
     .filter((url) => url.endsWith(".html"))
     .map((url) => (url === "/index.html" ? "/" : url.slice(0, -".html".length)));
@@ -107,10 +82,7 @@ function stampCacheVersion(urls: string[]): void {
   }
 
   // `urls` includes the extensionless route aliases added above (e.g.
-  // "/dashboard" alongside "/dashboard.html") which have no file of their
-  // own on disk - skipped here rather than crashing the postbuild, since
-  // the .html file backing each one is already in this same list and
-  // carries the same size information for fingerprinting purposes.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-scripts-generate-precache-manifest-ts-L109
   const fingerprint = urls
     .slice()
     .sort()

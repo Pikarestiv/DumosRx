@@ -6,18 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * A-263. A count is an observation: "at instant t, this product physically
- * had C units." The discrepancy is C minus what the system believed AT THAT
- * INSTANT, and it stays true however much stock moves afterwards.
- *
- * Comparing against the figure the sheet was built with drops real
- * discrepancies (count 10 against a stale 10 while live is 0 → nothing
- * recorded), and comparing against live-at-submit posts the day's
- * legitimate sales back as found stock (count a shortage at 09:05, sell 5,
- * submit at 17:00). Only a per-row baseline captured when the figure was
- * entered gets both right.
- */
+// A-263. A count is an observation:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-stock-audit-baseline-test-ts-L9
 describe("submitStockAudit — a counted row carries its own baseline", () => {
   let db: Database;
   let submitStockAudit: typeof import("@/lib/db/queries/inventory").submitStockAudit;
@@ -150,11 +140,8 @@ describe("submitStockAudit — a counted row carries its own baseline", () => {
   });
 
   it("falls back to re-reading when a row carries no baseline of its own, so an upgraded draft is never worse than before", async () => {
-    // A draft started on an older bundle has a countedQty beside a
-    // systemQty frozen at sheet-build. Sending that frozen figure as the
-    // baseline would reverse the day's sales: built at 10, 5 sold, the
-    // counter finds 5 and enters 5 -> 5 - 10 = -5, zeroing the product.
-    // Such a row must carry NO baseline and take the re-read path.
+    // A draft started on an older bundle has a countedQty beside a systemQty frozen at sheet-build.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-stock-audit-baseline-test-ts-L153
     seedBatch(5);
     await submitStockAudit(
       [{ productId: "p1", systemQty: 10, countedQty: 5, reason: "Resumed draft" }],

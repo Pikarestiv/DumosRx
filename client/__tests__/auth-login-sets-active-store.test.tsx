@@ -3,22 +3,8 @@ import { renderHook, act } from "@testing-library/react";
 import initSqlJs, { type Database } from "sql.js";
 import React from "react";
 
-/**
- * Regression coverage for a Critical bug (docs/KNOWN_BUGS.md):
- * getUserByUsernameOrEmail() has no store scoping, so on a multi-store
- * device a login isn't tied to the currently-selected store. The chosen fix
- * is not to filter the lookup (that would lock a cashier out of a device
- * whose switcher points at a sibling store) but to follow the authenticated
- * account: a store-pinned user's own store_id becomes the active store the
- * moment they log in.
- *
- * store-context.tsx already gives `user.store_id` precedence in its DERIVED
- * activeStoreId/targetId, but it never persists it. Two consumers read the
- * persisted value directly and so were left on the previous store:
- * lib/api/client.ts's sync push/pull (X-Store-Id) and store-context.tsx's
- * own lazy initializer on the next mount. These tests pin down both the
- * persisted key and the module-scope query resolver in lib/db/core.ts.
- */
+// Regression coverage for a Critical bug (docs/KNOWN_BUGS.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-auth-login-sets-active-store-test-tsx-L6
 
 vi.mock("@sentry/nextjs", () => ({
   setUser: vi.fn(),
@@ -154,9 +140,8 @@ describe("login() sets the active store for a store-pinned account", () => {
   });
 
   it("is set synchronously by login(), not by a later StoreProvider render", async () => {
-    // Nothing but AuthProvider is mounted here - no StoreProvider at all -
-    // so if the active store is correct it can only have been login() that
-    // set it, closing the window before the provider's targetId effect runs.
+    // Nothing but AuthProvider is mounted here - no StoreProvider at all - so if the active store is correct it can only have…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-auth-login-sets-active-store-test-tsx-L157
     localStorage.setItem(ACTIVE_STORE_KEY, "store-b");
     core.setActiveStoreId("store-b");
 
@@ -198,9 +183,8 @@ describe("login() sets the active store for a store-pinned account", () => {
   });
 
   it("leaves an owner/admin's switcher choice alone (no fixed store_id)", async () => {
-    // An owner has access to every store on the device; their active store
-    // is whatever they last switched to, which store-context.tsx persists
-    // on their behalf. login() must not clobber or clear it.
+    // An owner has access to every store on the device; their active store is whatever they last switched to, which store-cont…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-auth-login-sets-active-store-test-tsx-L201
     localStorage.setItem(ACTIVE_STORE_KEY, "store-b");
     core.setActiveStoreId("store-b");
 

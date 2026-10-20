@@ -22,9 +22,8 @@ interface FilterPillProps {
   className?: string;
 }
 
-/** Bunched-up "Label: value" dropdown filter. Replaces a row of one-per-value
- * quick-filter chips with a single pill that opens a picker, so a long list
- * (categories, inventory conditions, etc.) doesn't have to be laid out flat. */
+// Bunched-up "Label: value" dropdown filter.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-filter-pill-tsx-L25
 export function FilterPill({
   label,
   value,

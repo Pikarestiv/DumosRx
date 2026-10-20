@@ -106,10 +106,8 @@ export function POSSystem() {
     handleAddToCart,
   } = usePOSSystem();
 
-  // The Recent Sales tab is reachable by URL (?tab=history), so the panel and
-  // the resolved tab are gated here as well as the trigger in POSMainTabNav.
-  // Note this is a different question from "view_activity_log", which scopes
-  // WHOSE sales the panel lists once it is open.
+  // The Recent Sales tab is reachable by URL (?tab=history), so the panel and the resolved tab are gated here as well as the…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-system-tsx-L109
   const canViewSalesHistory = useHasPermission("view_sales_history");
   const resolvedTab = canViewSalesHistory ? activeTab : "products";
 

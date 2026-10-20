@@ -17,10 +17,8 @@ interface FakeMovement {
   [key: string]: unknown;
 }
 
-/** Same in-memory fake as stock-audit.test.ts: submitStockAdjustment shares
- * the audit's FEFO deduction / restock-target logic, so the quick-adjust
- * flow has to be exercised against real stateful quantity maths rather than
- * mock call args. */
+// Same in-memory fake as stock-audit.test.ts:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-stock-adjustment-submit-test-ts-L20
 let batches: Record<string, FakeBatch>;
 let movements: FakeMovement[];
 let audits: Record<string, unknown>[];

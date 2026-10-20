@@ -12,12 +12,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * `products.show_online` defaults off and the importer handled the column not
- * at all, so a store that imported hundreds of products and enabled its online
- * store got an empty storefront with no bulk way out (docs/STOREFRONT_REVIEW.md,
- * feature #7).
- */
+// `products.show_online` defaults off and the importer handled the column not at all, so a store that imported hundreds of…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-product-import-show-online-test-ts-L15
 describe("show_online column mapping", () => {
   it("auto-detects the spellings a store owner's own export uses", () => {
     const mapping = detectColumnMapping([

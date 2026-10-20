@@ -12,16 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * Regression test for docs/FIXED_BUGS.md A-54: a pulled stock_movements row
- * whose stock_batches row hadn't arrived yet had its delta parked in an
- * in-memory array, while the movement row itself committed with its own
- * page's transaction. A later page failing in the same round discarded the
- * array, and the next pull took the UPDATE branch (the movement now exists
- * locally), which applies no delta at all — so the batch's on-hand quantity
- * was permanently understated. The deferral is now persisted in the same
- * transaction as the movement row and drained on every later pull.
- */
+// Regression test for docs/FIXED_BUGS.md A-54:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-deferred-stock-delta-survives-failed-round-test-ts-L15
 describe("pullChanges recovers a deferred stock delta after a failed pull round", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -167,13 +159,8 @@ describe("pullChanges recovers a deferred stock delta after a failed pull round"
     expect(pendingDeltaCount()).toBe(0);
   });
 
-  /**
-   * A-176: a batch whose `updated_at` predates the device's pull cursor is
-   * never re-sent, so its deferred delta can never resolve. Rewinding the
-   * `stock_batches` window makes the server re-offer it, which is the same
-   * machinery the operator's manual "Force full resync" relies on, scoped to
-   * the one table that can settle the delta.
-   */
+  // A-176: a batch whose `updated_at` predates the device's pull cursor is never re-sent, so its deferred delta can never re…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-deferred-stock-delta-survives-failed-round-test-ts-L170
   it("rewinds the stock_batches pull window once a deferral has gone chronic", async () => {
     db.run(
       `INSERT INTO _sync_state (table_name, last_synced_at) VALUES

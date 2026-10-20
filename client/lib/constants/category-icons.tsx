@@ -56,10 +56,8 @@ import {
 } from "lucide-react";
 import { calculateLevenshteinDistance } from "@/lib/utils/search";
 
-/** Substring-matched first (longest keyword wins on overlap — see
- * KEYWORD_ICONS_BY_SPECIFICITY below): covers common pharmacy/retail
- * category names with a purpose-built icon. Declaration order here doesn't
- * affect matching, only readability. */
+// Substring-matched first (longest keyword wins on overlap — see KEYWORD_ICONS_BY_SPECIFICITY below):
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-category-icons-tsx-L59
 const KEYWORD_ICONS: [string, LucideIcon][] = [
   ["analges", Pill],
   ["antacid", Pill],
@@ -153,11 +151,8 @@ const KEYWORD_ICONS: [string, LucideIcon][] = [
   ["clean", SprayCan],
   ["hygiene", SprayCan],
 
-  // Construction/hardware-store categories (e.g. a building-materials
-  // retailer) — a domain the pharmacy and grocery/retail sets above don't
-  // cover at all, previously landing on an arbitrary FALLBACK_ICONS
-  // rotation or, worse, a fuzzy-matched icon from an unrelated domain
-  // ("wine" for "site"/"ware"/"pipe" — see the fuzzy-matcher fix below).
+  // Construction/hardware-store categories (e.g.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-constants-category-icons-tsx-L154
   ["construction", Construction],
   ["building material", Building2],
   ["cement", Building2],
@@ -222,26 +217,8 @@ function hashString(value: string): number {
   return Math.abs(hash);
 }
 
-// Catches misspellings/import noise that share no substring with a canonical
-// keyword (e.g. "BUSICUIT" for "biscuit") by allowing a few edits, scaled to
-// keyword length so short keywords like "tea" don't match everything.
-//
-// Keywords under 5 letters are excluded entirely (not just given a tighter
-// threshold): a 4-letter keyword like "wine" is short enough that ordinary,
-// unrelated English words routinely land within 2 edits of it by pure
-// coincidence - "site", "ware" (from "sanitary WARE"), and "pipe" (from
-// "PIPE fittings") all did, each wrongly picking up the Wine icon. Exact
-// substring matches for short keywords still work via KEYWORD_ICONS above;
-// only the fuzzy/misspelling path needs the longer floor.
-//
-// The threshold itself is a flat ~30% of keyword length (floored), not
-// ceil(length / 3): that was loose enough to let "electrical" fuzzy-match
-// "electronics" (distance 4 out of 11 - the ceil formula's threshold was
-// also 4) despite the two naming unrelated things (wiring/lighting
-// hardware vs. consumer electronics). 30% still catches genuine
-// misspellings the flooring was built for ("BUSICUIT" vs "biscuit" is
-// distance 2 of 7, comfortably under floor(7*0.3)=2) while rejecting
-// same-ballpark-length words that just happen to share a stem.
+// Catches misspellings/import noise that share no substring with a canonical keyword (e.g.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-constants-category-icons-tsx-L223
 function fuzzyKeywordMatch(word: string): LucideIcon | null {
   let best: { icon: LucideIcon; distance: number } | null = null;
   for (const [keyword, icon] of KEYWORD_ICONS) {
@@ -256,13 +233,8 @@ function fuzzyKeywordMatch(word: string): LucideIcon | null {
   return best?.icon ?? null;
 }
 
-// Checked longest-keyword-first rather than in KEYWORD_ICONS' declared
-// order: a short keyword that happens to be a substring of a longer,
-// unrelated one (e.g. "pain" inside "paint") would otherwise win just
-// because it was declared earlier, regardless of which one actually
-// describes the category. Sorting once by length means a new keyword added
-// anywhere in the list above automatically gets correct priority without
-// anyone having to reason about array position.
+// Checked longest-keyword-first rather than in KEYWORD_ICONS' declared order:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-constants-category-icons-tsx-L257
 const KEYWORD_ICONS_BY_SPECIFICITY = [...KEYWORD_ICONS].sort(
   (a, b) => b[0].length - a[0].length,
 );

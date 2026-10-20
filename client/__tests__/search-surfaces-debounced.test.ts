@@ -2,17 +2,8 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import { join } from "path";
 
-/**
- * Every search surface in the app drives its expensive downstream work off
- * useDebouncedValue, binding the input itself to raw state so typing stays
- * instant. The product catalog was the last one still running
- * genericFuzzySearch straight off the raw term - the most expensive of the set
- * (the whole catalog, with the Levenshtein Tier-4 fallback firing exactly while
- * a user is mid-word), on the main thread alongside synchronous sql.js.
- *
- * A static guard because the alternative is a fake-timer render test per
- * surface, which buys less and breaks more.
- */
+// Every search surface in the app drives its expensive downstream work off useDebouncedValue, binding the input itself to…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-search-surfaces-debounced-test-ts-L5
 
 const CLIENT_ROOT = join(__dirname, "..");
 

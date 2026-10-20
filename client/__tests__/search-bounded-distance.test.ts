@@ -6,14 +6,8 @@ import {
   searchProducts,
 } from "@/lib/utils/search";
 
-/**
- * The fuzzy fallback ran a full Levenshtein matrix against every catalog
- * entry for every search key - which is exactly the state while someone is
- * mid-word typing a product name. Levenshtein distance can never be smaller
- * than the difference in the two lengths, so any candidate whose length is
- * further from the term than the allowed distance can be rejected before the
- * matrix is built, without changing a single result.
- */
+// The fuzzy fallback ran a full Levenshtein matrix against every catalog entry for every search key - which is exactly the…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-search-bounded-distance-test-ts-L9
 describe("boundedLevenshteinDistance", () => {
   it("agrees with the full distance whenever the candidate is within the bound", () => {
     expect(boundedLevenshteinDistance("panadol", "panadl", 2)).toBe(

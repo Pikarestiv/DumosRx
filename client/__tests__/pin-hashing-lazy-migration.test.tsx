@@ -3,17 +3,8 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import initSqlJs, { type Database } from "sql.js";
 import React from "react";
 
-/**
- * POS PINs used to be stored in plaintext in `users.pin` (and serialized
- * out by the API). They're bcrypt-hashed now. Because PIN login is fully
- * offline - it never contacts the server - the migration of PINs that are
- * ALREADY plaintext on a device has to happen here, on the next successful
- * login, and then propagate outward through the ordinary sync queue.
- *
- * These tests pin down that whole path: a legacy plaintext PIN still logs
- * in, and afterwards the stored value is a bcrypt hash of it (queued for
- * push like any other local write), with no user-visible reset anywhere.
- */
+// POS PINs used to be stored in plaintext in `users.pin` (and serialized out by the API).
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pin-hashing-lazy-migration-test-tsx-L6
 
 vi.mock("@sentry/nextjs", () => ({
   setUser: vi.fn(),
@@ -132,15 +123,8 @@ describe("PIN hashing", () => {
       expect(pinHash.pinMatches("1234", null)).toBe(false);
     });
 
-    // The whole design rests on a server-produced hash verifying correctly
-    // on-device. Every other test in this file hashes and verifies on the
-    // SAME side (bcryptjs both ways), which can't catch a real
-    // implementation mismatch - a wrong prefix expectation, a cost-factor
-    // incompatibility, a subtly different salt encoding. This literal is a
-    // real hash PHP's password_hash(PASSWORD_BCRYPT, ['cost' => 12])
-    // produced for the PIN "4321" (Laravel 11's actual bcrypt default is
-    // cost 12, not the 10 bcryptjs uses on this side - see the comment on
-    // PIN_HASH_ROUNDS in pin-hash.ts for why that doesn't need to match).
+    // The whole design rests on a server-produced hash verifying correctly on-device.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-pin-hashing-lazy-migration-test-tsx-L135
     it("verifies a real PHP/Laravel-produced hash, not just one this device made itself", () => {
       const phpHash =
         "$2y$12$TyzhPGK6vhm2/hxOtjOaKeH.io4YTeZXW3a3KCU5GtXqOPM5A/mFa";
@@ -229,9 +213,8 @@ describe("PIN hashing", () => {
       expect(stored).not.toBe("8642");
       expect(pinHash.pinMatches("8642", stored)).toBe(true);
 
-      // Queued for sync push like any other local write, which is what
-      // carries the hash to the server and on to this account's other
-      // devices - no forced reset anywhere in the fleet.
+      // Queued for sync push like any other local write, which is what carries the hash to the server and on to this account's o…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-pin-hashing-lazy-migration-test-tsx-L232
       const queued = db.exec(
         "SELECT payload FROM _sync_queue WHERE table_name = 'users' AND record_id = 'staff-5'",
       );

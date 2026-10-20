@@ -200,10 +200,8 @@ export function ReportCenter() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {visibleReports.map((report) => {
               const isLoading = loadingReport === report.id;
-              // Only set for a report whose figures the active filters change
-              // the meaning of - today, a staff/payment-method-filtered
-              // Profit & Loss, which reports no expenses on purpose. Same
-              // copy the exported CSV/PDF carries.
+              // Only set for a report whose figures the active filters change the meaning of - today, a staff/payment-method-filtered Pr…
+              // Rationale: docs/CLIENT_COMMENTS.md#line-components-reports-report-center-tsx-L203
               const note = getReportNote(report.id, {
                 staffId: filters.staffId,
                 paymentMethod: filters.paymentMethod,
@@ -225,10 +223,7 @@ export function ReportCenter() {
           </div>
         </Card>
 
-        {/* Recent Downloads: min-h-0 stops this card's own content from
-            growing the shared grid row taller than Report Center's natural
-            height; the list scrolls internally instead once it overflows
-            whatever height that row ends up being. */}
+        {/* Recent Downloads: min-h-0 stops this card's own content from growing the shared grid row taller than Report Center's nat… — docs/CLIENT_COMMENTS.md#block-components-reports-report-center-tsx-L228 */}
         <Card className="border rounded-2xl p-5 shadow-sm flex flex-col min-h-0">
           <div className="shrink-0">
             <div className="text-[14.5px] font-semibold mb-0.5">Recent Downloads</div>

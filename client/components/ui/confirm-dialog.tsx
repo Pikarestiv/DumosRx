@@ -26,10 +26,8 @@ interface ConfirmDialogProps {
   variant?: "destructive" | "default";
   onConfirm: (pin?: string) => void | Promise<void>;
   requirePin?: boolean;
-  /** Focus the confirm button (instead of the default first-focusable
-   * element, usually Cancel) when the dialog opens, so pressing Enter
-   * immediately confirms. Use for non-destructive confirmations where
-   * the fast path should be "continue", not "cancel". */
+  // Focus the confirm button (instead of the default first-focusable element, usually Cancel) when the dialog opens, so pres…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-confirm-dialog-tsx-L29
   autoFocusConfirm?: boolean;
 }
 
@@ -50,12 +48,8 @@ export function ConfirmDialog({
   const [isConfirming, setIsConfirming] = useState(false);
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Previously closed the dialog synchronously right after firing
-  // onConfirm, before an async handler (e.g. a delete) had actually
-  // finished — so there was no in-flight feedback, and if the action
-  // failed the dialog had already vanished as if it had succeeded. Now
-  // waits for onConfirm to settle (it may be sync or async) before
-  // closing, and shows a spinner on the confirm button meanwhile.
+  // Previously closed the dialog synchronously right after firing onConfirm, before an async handler (e.g.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-confirm-dialog-tsx-L53
   const handleConfirm = async () => {
     setIsConfirming(true);
     try {

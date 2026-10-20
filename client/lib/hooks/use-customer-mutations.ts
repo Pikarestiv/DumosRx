@@ -19,9 +19,8 @@ export interface NewCustomerData {
   updated_at: string;
 }
 
-/** Returns the full row it created, since callers (customer management)
- * transform it into their own view model immediately rather than waiting on
- * a refetch. */
+// Returns the full row it created, since callers (customer management) transform it into their own view model immediately rather than waiting…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-customer-mutations-ts-L22
 export function useCreateCustomerMutation() {
   return useMutation({
     mutationFn: async (payload: CustomerFormPayload): Promise<NewCustomerData> => {
@@ -42,9 +41,8 @@ export function useCreateCustomerMutation() {
         updated_at: now,
       };
 
-      // insert()'s global cache invalidation refreshes the `customers`
-      // query in the background, so no need to hand-splice the new row into
-      // local state — the caller gets it back directly for immediate use.
+      // insert()'s global cache invalidation refreshes the `customers` query in the background, so no need to hand-splice the new row into local sta…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-customer-mutations-ts-L44
       await insert("customers", { ...customerData });
       return customerData;
     },
@@ -83,9 +81,8 @@ interface RecordCustomerPaymentParams {
   notes?: string;
 }
 
-/** Shared by every "Record Payment" call site (Customer Management, POS
- * transaction details) so they go through one mutation instead of separate
- * copies of the same call + toast. */
+// Shared by every "Record Payment" call site (Customer Management, POS transaction details) so they go through one mutation instead of separat…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-customer-mutations-ts-L86
 export function useRecordCustomerPaymentMutation() {
   return useMutation({
     mutationFn: ({ customerId, amount, paymentMethod, notes }: RecordCustomerPaymentParams) =>

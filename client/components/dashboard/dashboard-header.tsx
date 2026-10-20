@@ -21,14 +21,8 @@ import { HeaderActionButton } from "./header-action-button";
 import { Button } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
-/** Start Audit's `path` is a signal route (see dashboard-page-routes.ts), not
- * a real page - it exists purely so useStockBatchManagement's effect can
- * catch the navigation and open the audit overlay instead. That round trip
- * requires a working client-side transition. On a static-export deployment
- * (output: "export", see next.config.mjs) navigating to a not-yet-visited
- * route can fall back to a full page reload, which wipes all React state
- * before the overlay ever gets to open - so this button sets the overlay
- * state directly instead of going through router.push at all. */
+// Start Audit's `path` is a signal route (see dashboard-page-routes.ts), not a real page - it exists purely so useStockBat…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-dashboard-dashboard-header-tsx-L24
 const START_AUDIT_PATH = "/inventory/audits";
 
 interface DashboardHeaderProps {
@@ -42,17 +36,14 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
   const { setIsAuditing } = useInventoryAudit();
   const { canManageMultiStore } = useFeatureGate();
   const canPerformStockAudit = useHasPermission("perform_stock_audit");
-  /** Delegates to the same pure hasPermission() useHasPermission wraps, so a
-   * route's actionPermission is enforced whatever key it names. Enumerating
-   * keys here instead (the shape this replaced) silently allowed every key
-   * the list had not been updated for. */
+  // Delegates to the same pure hasPermission() useHasPermission wraps, so a route's actionPermission is enforced whatever ke…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-dashboard-dashboard-header-tsx-L45
   const hasActionPermission = useCallback(
     (key: string) => hasPermission(user, permissionGroup, key),
     [user, permissionGroup],
   );
-  // Plan entitlement AND this device actually having synced 2+ stores —
-  // same combination stock-movements.tsx's canTransferStock uses. Only
-  // actionRequiresMultiStore routes (Transfer Stock) read this.
+  // Plan entitlement AND this device actually having synced 2+ stores — same combination stock-movements.tsx's canTransferSt…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-header-tsx-L53
   const hasMultiStoreAccess = canManageMultiStore && availableStores.length > 1;
 
   const pageInfo = getPageInfo(pathname);
@@ -135,10 +126,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
         </div>
       </div>
 
-      {/* Mobile Bottom Row. Genuinely not rendered above `sm` rather than
-          CSS-hidden: its SyncIndicator installs an auto-sync daemon of its
-          own, and two of those racing made one sync report the other's
-          "already in progress" refusal as a red Sync Error. */}
+      {/* Mobile Bottom Row. Genuinely not rendered above `sm` rather than CSS-hidden: — docs/CLIENT_COMMENTS.md#block-components-dashboard-dashboard-header-tsx-L138 */}
       {!isDesktopWidth && (
       <div className="mt-3 flex items-center justify-between w-full gap-2">
         {isSettingsRoute ? (

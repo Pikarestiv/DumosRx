@@ -29,10 +29,8 @@ export type TransactionListEntry =
   | { type: "header"; label: string }
   | { type: "row"; sale: SaleWithDetails };
 
-/** Flattens the TODAY/YESTERDAY/THIS WEEK/OLDER buckets into one list so a
- * single virtualizer can cover the whole thing (up to 500 rows once a date
- * range is picked) instead of one per group. Empty groups drop out entirely,
- * header included. */
+// Flattens the TODAY/YESTERDAY/THIS WEEK/OLDER buckets into one list so a single virtualizer can cover the whole thing (up…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-pos-transaction-list-tsx-L32
 export function flattenGroupedSales(groupedSales: {
   [key: string]: SaleWithDetails[];
 }): TransactionListEntry[] {
@@ -52,9 +50,8 @@ interface TransactionListProps {
   onSelectSale: (sale: SaleWithDetails) => void;
   onReturnClick: (sale: SaleWithDetails) => void;
   hasFilters: boolean;
-  /** The ancestor that actually scrolls (the History tab's TabsContent). The
-   * list has no scroll container of its own, so the virtualizer measures
-   * against this and offsets by the list's position inside it. */
+  // The ancestor that actually scrolls (the History tab's TabsContent).
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-pos-transaction-list-tsx-L55
   scrollElementRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -81,9 +78,8 @@ export function TransactionList({
         ? ESTIMATED_HEADER_HEIGHT
         : ESTIMATED_ROW_HEIGHT,
     overscan: 8,
-    // Everything above this list inside the same scroll container (the
-    // metrics row, the filter bar) still occupies real space, so the
-    // virtualizer's offsets have to start where the list itself does.
+    // Everything above this list inside the same scroll container (the metrics row, the filter bar) still occupies real space,…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-transaction-list-tsx-L84
     scrollMargin: listRef.current?.offsetTop ?? 0,
   });
 

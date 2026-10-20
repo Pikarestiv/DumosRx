@@ -24,26 +24,20 @@ function hardCapReached(session: { hardExpiresAt: string } | null): boolean {
   return !!session && new Date(session.hardExpiresAt).getTime() <= Date.now();
 }
 
-/**
- * Always on screen for the whole inspection session, so staff can never be
- * unaware that someone else is looking at their till. Also owns the idle
- * lifecycle, being the one component guaranteed to be mounted throughout.
- */
+// Always on screen for the whole inspection session, so staff can never be unaware that someone else is looking at their t…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-dashboard-till-inspection-banner-tsx-L27
 export function TillInspectionBanner() {
   const { storeProfile } = useStore();
   const [session, setSession] = useState<ReturnType<typeof getTillInspectionSession>>(null);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const closing = useRef(false);
 
-  // Uses the id captured at mount, not a fresh read: on the idle path the
-  // session has already expired, so re-reading storage returns null and the
-  // server would never receive the exit — leaving an audit entry with no exit
-  // and no duration.
+  // Uses the id captured at mount, not a fresh read:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-till-inspection-banner-tsx-L38
   const close = useCallback(
     async (reason: TillSessionEndReason) => {
-      // Guarded: the 1s interval keeps firing while the POST is in flight, so
-      // without this the idle path called end repeatedly and wrote duplicate
-      // exit rows to the audit log.
+      // Guarded: the 1s interval keeps firing while the POST is in flight, so without this the idle path called end repeatedly a…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-till-inspection-banner-tsx-L44
       if (closing.current) return;
       closing.current = true;
 
@@ -55,14 +49,8 @@ export function TillInspectionBanner() {
     [session],
   );
 
-  // Read after mount, never during render: a render-time sessionStorage read
-  // disagrees with the prerender pass and React reports a hydration mismatch.
-  //
-  // Also reconciles with the server, because `pagehide` fires on a reload too:
-  // the beacon closes the row while sessionStorage survives, leaving a client
-  // session the server has already ended — writes blocked, the override
-  // refused, and the audit log claiming an exit that had not happened. The row
-  // is the authority, so a session it no longer recognises is cleared here.
+  // Read after mount, never during render:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-till-inspection-banner-tsx-L58
   useEffect(() => {
     const local = getTillInspectionSession();
     setSession(local);
@@ -94,9 +82,8 @@ export function TillInspectionBanner() {
       extendTillInspectionSession();
     };
 
-    // pagehide, not unload: an awaited fetch is cancelled with the page, so
-    // closing the app — the commonest exit on a desktop till — otherwise left
-    // the session row open with no exit and no duration.
+    // pagehide, not unload:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-till-inspection-banner-tsx-L97
     const onPageHide = () => {
       const current = getTillInspectionSession();
       if (current && !closing.current) beaconAdminTillSessionEnd(current.sessionId);

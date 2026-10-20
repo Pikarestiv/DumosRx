@@ -23,11 +23,8 @@ import { roundMoney } from "@/lib/utils/pos-calculations";
 
 export type PaymentMethod = "cash" | "card" | "transfer" | "credit" | "mixed";
 
-/** Thrown by applyLoyaltyPointsForSale when the customer's real current
- * balance can't cover a redemption picked earlier in checkout (e.g. a
- * second terminal already spent the points, or a stale cached balance) -
- * distinguished from a generic Error so the caller can show an actionable
- * message and clear the stale redemption instead of a bare failure toast. */
+// Thrown by applyLoyaltyPointsForSale when the customer's real current balance can't cover a redemption picked earlier in checkout (e.g.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-payment-helpers-ts-L26
 export class InsufficientLoyaltyPointsError extends Error {
   constructor(message = "Customer no longer has enough points for this reward") {
     super(message);
@@ -35,11 +32,8 @@ export class InsufficientLoyaltyPointsError extends Error {
   }
 }
 
-/** Thrown when a redemption is below LOYALTY_RULES.MIN_REDEMPTION_POINTS.
- * Distinct from InsufficientLoyaltyPointsError because the fix is different:
- * the customer's balance is fine, the reward itself is too cheap to redeem,
- * so the cashier should pick a different reward rather than wait for points
- * to accrue. */
+// Thrown when a redemption is below LOYALTY_RULES.MIN_REDEMPTION_POINTS.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-payment-helpers-ts-L38
 export class LoyaltyRedemptionBelowMinimumError extends Error {
   constructor(message: string) {
     super(message);
@@ -53,9 +47,8 @@ export interface PaymentSplit {
   accountId?: string;
 }
 
-/** Returns an error message if checkout isn't ready to proceed, or null when
- * every method-specific requirement (notes, amount covered, destination
- * account) is satisfied. */
+// Returns an error message if checkout isn't ready to proceed, or null when every method-specific requirement (notes, amount covered, destinat…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-payment-helpers-ts-L56
 export function validatePaymentReadiness(params: {
   paymentMethod: PaymentMethod;
   requireSaleNotes: boolean;
@@ -85,10 +78,8 @@ export function validatePaymentReadiness(params: {
   if (requireSaleNotes && !saleNote.trim()) {
     return "Please add a note for this sale";
   }
-  // Forces the cashier to pick a lane rather than silently defaulting to
-  // one - a "Reseller sale" with no chosen type would otherwise be
-  // ambiguous about whether a real commission is owed or the store just
-  // kept the markup.
+  // Forces the cashier to pick a lane rather than silently defaulting to one - a "Reseller sale" with no chosen type would otherwise be ambiguou…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-helpers-ts-L81
   if (isResellerSale && !markupType) {
     return "Please choose whether this is for a reseller agent or a store markup";
   }
@@ -97,9 +88,8 @@ export function validatePaymentReadiness(params: {
     const paid = Number.parseFloat(amountPaid);
     if (!paid || paid < total) return "Insufficient payment amount";
   } else if (paymentMethod === "mixed") {
-    // Checked before coverage: the shortage math floors negatives, so a
-    // negative split would otherwise pass silently as "covered" while
-    // under-recording the cash actually collected.
+    // Checked before coverage:
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-helpers-ts-L93
     if (paymentSplits.some((s) => (s.amount || 0) < 0)) {
       return "Payment splits cannot have a negative amount";
     }
@@ -127,11 +117,8 @@ export function validatePaymentReadiness(params: {
   return null;
 }
 
-/** Defense-in-depth: when the Loyalty Program gate (plan tier AND the
- * store's own on/off toggle) is closed, no points are earned at all. Tier is
- * based on spend *before* this sale - a customer's standing history
- * determines the rate this transaction earns at, not the transaction
- * itself. */
+// Defense-in-depth: when the Loyalty Program gate (plan tier AND the store's own on/off toggle) is closed, no points are earned at all.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-payment-helpers-ts-L130
 export async function computeEarnedPoints(params: {
   selectedCustomer: Customer | null;
   canUseLoyaltyProgram: boolean;
@@ -150,9 +137,8 @@ export async function computeEarnedPoints(params: {
   return calculateEarnedPoints(total, loyaltyPointsPerCurrency, tierMultiplier);
 }
 
-/** Markup is clamped to >= 0 by construction (updateUnitPrice never lets
- * unit_price go below original_unit_price), but Math.max here is a second
- * layer of defense, not the only one. */
+// Markup is clamped to >= 0 by construction (updateUnitPrice never lets unit_price go below original_unit_price), but Math.max here is a secon…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-payment-helpers-ts-L153
 export function computeResellerCommission(params: {
   cart: CartItem[];
   isResellerSale: boolean;
@@ -172,9 +158,8 @@ export function computeResellerCommission(params: {
         ),
       )
     : 0;
-  // Rounded because both are stored and this one is a RATE multiplication,
-  // the same class as A-261 rather than float dust: it is also what a
-  // reseller is actually paid out.
+  // Rounded because both are stored and this one is a RATE multiplication, the same class as A-261 rather than float dust:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-helpers-ts-L164
   const resellerCommissionAmount =
     isResellerSale && markupType !== "store"
       ? roundMoney(resellerMarkup * (resellerCommissionPercentage / 100))
@@ -183,9 +168,8 @@ export function computeResellerCommission(params: {
   return { resellerMarkup, resellerCommissionAmount };
 }
 
-/** Writes the customer's new points balance plus one loyalty_transactions
- * row per earn/redeem event on this sale. No-ops entirely (no writes at all)
- * when the loyalty gate is closed or nothing was earned/redeemed. */
+// Writes the customer's new points balance plus one loyalty_transactions row per earn/redeem event on this sale.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-payment-helpers-ts-L186
 export async function applyLoyaltyPointsForSale(params: {
   selectedCustomer: Customer | null;
   canUseLoyaltyProgram: boolean;
@@ -205,41 +189,21 @@ export async function applyLoyaltyPointsForSale(params: {
     return;
   }
 
-  // Re-read the current points balance rather than trusting selectedCustomer
-  // (captured when the cashier picked the customer, possibly stale by the
-  // time checkout completes) — same staleness risk as the outstanding
-  // balance write in use-pos-payment.ts.
+  // Re-read the current points balance rather than trusting selectedCustomer (captured when the cashier picked the customer, possibly stale by t…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-helpers-ts-L196
   const [pointsRows, ledger] = await Promise.all([
     getCustomerLoyaltyPoints(selectedCustomer.id),
     getCustomerLoyaltyLedger(selectedCustomer.id),
   ]);
   const currentPoints = pointsRows[0]?.loyalty_points || 0;
 
-  // POINTS EXPIRY (LOYALTY_RULES.POINTS_EXPIRY_MONTHS) is materialized here,
-  // at the only place a sale already touches a customer's points balance, so
-  // there's no background job and no schema change.
-  //
-  // Data granularity available: `customers.loyalty_points` is the
-  // authoritative balance, and `loyalty_transactions` is a dated per-event
-  // ledger (earn/redeem rows written by checkout and returns). Semantics
-  // implemented: FIFO per-batch expiry replayed over that ledger — earn
-  // batches older than the expiry window that redemptions haven't already
-  // consumed are voided — with any part of the balance that has no ledger
-  // rows behind it (demo seeding, customer import, a directly-set balance)
-  // treated as non-expiring, since nothing dates it. See
-  // calculateExpiredPoints for the full policy. The deduction is recorded as
-  // a negative 'expired' ledger row so the next replay doesn't expire the
-  // same batches twice.
+  // POINTS EXPIRY (LOYALTY_RULES.POINTS_EXPIRY_MONTHS) is materialized here, at the only place a sale already touches a customer's points balanc…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-helpers-ts-L206
   const expiredPoints = calculateExpiredPoints(ledger, currentPoints);
   const availablePoints = Math.max(0, currentPoints - expiredPoints);
 
-  // Reject rather than clamp: calculateLoyaltyPointsAfterSale floors the
-  // resulting balance at 0, which used to mean a customer who no longer
-  // actually has the points (a second terminal already spent them, or a
-  // stale cached balance) still got the redemption discount applied for
-  // free. Checked against the balance just re-read above, inside the same
-  // transaction the sale itself runs in, so throwing here rolls back the
-  // whole sale rather than leaving a half-applied discount.
+  // Reject rather than clamp:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-helpers-ts-L224
   if (redeemedOption) {
     const problem = validateRedemption(redeemedOption.pointsCost, availablePoints);
     if (problem) {

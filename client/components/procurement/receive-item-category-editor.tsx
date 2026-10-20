@@ -19,14 +19,8 @@ interface ReceiveItemCategoryEditorProps {
   categoryName?: string | null;
 }
 
-/**
- * Receiving a delivery is when a store owner actually handles the goods and
- * notices a product is filed under the wrong category, but the receive
- * ledger is already dense enough that a full category column would not fit.
- * This is the escape hatch: a pencil beside the product name opening a
- * category-only edit, using the same real-categories picker as the Add
- * Product dialog.
- */
+// Receiving a delivery is when a store owner actually handles the goods and notices a product is filed under the wrong cat…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-receive-item-category-editor-tsx-L22
 export function ReceiveItemCategoryEditor({
   productId,
   productName,
@@ -35,9 +29,8 @@ export function ReceiveItemCategoryEditor({
   const displayName = useDisplayName();
   const canManageProducts = useHasPermission("manage_products");
   const [open, setOpen] = useState(false);
-  // The PO detail query keys off purchase_orders/purchase_order_items, so a
-  // products write doesn't refetch this row's joined category_name - the
-  // saved value is remembered here rather than reading back a stale prop.
+  // The PO detail query keys off purchase_orders/purchase_order_items, so a products write doesn't refetch this row's joined…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-procurement-receive-item-category-editor-tsx-L38
   const [savedCategory, setSavedCategory] = useState<string | null>(null);
   const currentCategory = savedCategory ?? categoryName ?? "";
   const [category, setCategory] = useState(currentCategory);

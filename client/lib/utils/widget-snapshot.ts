@@ -17,13 +17,8 @@ export type WidgetSnapshotPayload =
       stores: WidgetSnapshotStorePayload[];
     };
 
-/**
- * Converts the backend's snake_case /dashboard/widget-snapshot response into
- * the camelCase JSON written to native Android storage (see the "Canonical
- * widget snapshot schema" in the implementation plan) - the single shape
- * shared by the app's foreground writer and the WorkManager background
- * writer, so the Glance widget never needs to know which one produced it.
- */
+// Converts the backend's snake_case /dashboard/widget-snapshot response into the camelCase JSON written to native Android storage (see the "Ca…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-widget-snapshot-ts-L20
 export function buildWidgetSnapshotPayload(
   response: WidgetSnapshotResponse | null,
   isCloudLinked: boolean,

@@ -44,11 +44,8 @@ if (!window.matchMedia) {
   })) as unknown as typeof window.matchMedia;
 }
 
-/**
- * A-26: the receiving screen used to show a collapsed second receipt as an
- * ordinary outstanding balance, with nothing saying a receipt had been
- * dropped. This is the surface half of the fix.
- */
+// A-26: the receiving screen used to show a collapsed second receipt as an ordinary outstanding balance, with nothing sayi…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-receive-po-dropped-receipt-banner-test-tsx-L47
 describe("ReceivePOPanel dropped-receipt warning", () => {
   const po = {
     id: "abcdef12-3456",

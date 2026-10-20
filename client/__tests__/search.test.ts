@@ -68,19 +68,16 @@ describe('Search Utilities', () => {
       expect(result.results.length).toBe(products.length);
     });
 
-    // Regression: a 3-character term used to fall into the fuzzy fallback
-    // and could return arbitrary unrelated products as "suggestions" - the
-    // minimum length was raised to 4 specifically because Levenshtein
-    // distance isn't a meaningful similarity signal at 3 characters.
+    // Regression: a 3-character term used to fall into the fuzzy fallback and could return arbitrary unrelated products as "su…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-search-test-ts-L71
     it('does not fuzzy-match a 3-character term with no exact/prefix hit', () => {
       const result = searchProducts('xyz', products);
       expect(result.results.length).toBe(0);
       expect(result.isFuzzyFallback).toBe(false);
     });
 
-    // Regression: searchProducts' fuzzy fallback previously never scored
-    // barcode at all, so a scanned barcode with a misread digit fell
-    // through to matching against unrelated product NAMES instead.
+    // Regression: searchProducts' fuzzy fallback previously never scored barcode at all, so a scanned barcode with a misread d…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-search-test-ts-L81
     it('fuzzy-matches a near-miss barcode scan against the barcode field, not an unrelated name', () => {
       const result = searchProducts('1235', products); // '4' misread as dropped
       expect(result.isFuzzyFallback).toBe(true);

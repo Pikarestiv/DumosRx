@@ -1,21 +1,8 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 
-/**
- * LicenseGuard's performCheck() had no try/catch around
- * `await checkLicenseStatus()` (components/auth/license-guard.tsx) - only
- * the cloud-sync call above it was guarded. If checkLicenseStatus() throws
- * for any reason, the async function rejects before reaching
- * setLoading(false), so `loading` stays true forever and SplashScreen (a
- * `fixed inset-0 z-[100]` overlay) renders permanently, covering the whole
- * app - including DatabaseProvider's read-only-tab banner underneath it at
- * z-50, making its "Use this window instead" handoff button invisible and
- * unclickable.
- *
- * Observed live: on a read-only tab, checkLicenseStatus() itself calls
- * updateStoreMonotonicTime() (a write), which throws because the tab is
- * read-only - exactly this scenario.
- */
+// LicenseGuard's performCheck() had no try/catch around `await checkLicenseStatus()` (components/auth/license-guard.tsx) -…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-license-guard-check-failure-test-tsx-L4
 vi.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
 }));
@@ -62,9 +49,8 @@ describe("LicenseGuard: checkLicenseStatus() failure", () => {
 
     expect(screen.getByText("Initializing workspace...")).not.toBeNull();
 
-    // Must resolve out of the splash screen rather than hang forever -
-    // fails open (renders children) since a failed check is treated as
-    // "unknown", never as grounds to hard-lock the account.
+    // Must resolve out of the splash screen rather than hang forever - fails open (renders children) since a failed check is t…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-license-guard-check-failure-test-tsx-L65
     await waitFor(() => expect(screen.queryByText("app content")).not.toBeNull());
     expect(screen.queryByText("Initializing workspace...")).toBeNull();
   });

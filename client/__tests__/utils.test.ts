@@ -14,10 +14,8 @@ describe('Utility Functions', () => {
       expect(result.replace(/\u00a0/g, ' ')).toMatch(/50.5/);
     });
 
-    // XAF/XOF (CFA-zone currencies) are zero-minor-unit - maximumFractionDigits
-    // left undefined previously fell back to Intl's decimal-style default of
-    // 3, rendering e.g. "1,234.567 F" on cart rows, totals and receipts
-    // (Medium bug fix, directly relevant to the Cameroon client).
+    // XAF/XOF (CFA-zone currencies) are zero-minor-unit - maximumFractionDigits left undefined previously fell back to Intl's…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-utils-test-ts-L17
     it('formats XAF with no decimal places', () => {
       const result = formatCurrency(1234.567, 'XAF');
       expect(result.replace(/\u00a0/g, ' ')).toBe('1,235 F');
@@ -28,20 +26,16 @@ describe('Utility Functions', () => {
       expect(result.replace(/\u00a0/g, ' ')).toBe('1,234 F');
     });
 
-    // A lowercase code (e.g. how a store setting might be stored/typed)
-    // previously got wiped to "" by the letters-only filter (which ran
-    // before case normalization), silently falling back to NGN instead of
-    // formatting as the actually-requested currency.
+    // A lowercase code (e.g.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-utils-test-ts-L31
     it('does not blank a valid lowercase currency code', () => {
       const result = formatCurrency(50.5, 'usd');
       expect(result.replace(/\u00a0/g, ' ')).toMatch(/50.5/);
       expect(result).not.toMatch(/\u20a6/);
     });
 
-    // A malformed residual code (not exactly 3 letters after sanitizing,
-    // e.g. "u$" -> "U" or "usd-x" -> "USDX") makes Intl.NumberFormat throw
-    // "Invalid currency code" uncaught, crashing the render tree of any
-    // money-displaying screen.
+    // A malformed residual code (not exactly 3 letters after sanitizing, e.g.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-utils-test-ts-L41
     it('falls back to NGN instead of throwing on a malformed currency code', () => {
       expect(() => formatCurrency(1500, 'u$')).not.toThrow();
       const result = formatCurrency(1500, 'u$');
@@ -50,9 +44,8 @@ describe('Utility Functions', () => {
   });
 
   describe('formatMetricCurrency', () => {
-    // Used by the dashboard's "Today's Sales" and "Inventory Value" stat
-    // cards (components/dashboard/dashboard-overview.tsx) so headline figures
-    // read as clean whole numbers instead of exact-to-the-kobo totals.
+    // Used by the dashboard's "Today's Sales" and "Inventory Value" stat cards (components/dashboard/dashboard-overview.tsx) s…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-utils-test-ts-L53
     it('rounds NGN to whole units even with kobo-level cents', () => {
       const result = formatMetricCurrency(1929051.37, 'NGN');
       expect(result.replace(/\u00a0/g, ' ')).toMatch(/1,929,051/);
@@ -75,12 +68,8 @@ describe('Utility Functions', () => {
       expect(result).not.toMatch(/\./);
     });
 
-    // Task 8 (Reports) gap-fill: the pre-existing tests above never covered
-    // negative amounts, zero, or large values, even though this function is
-    // used for headline metric cards across Dashboard/Expenses/POS/Reports/
-    // Analytics that can plausibly see all three (a refund-heavy day's net
-    // total going negative, a fresh store's ₦0 stat card, a large inventory
-    // valuation figure).
+    // Task 8 (Reports) gap-fill:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-utils-test-ts-L78
     it('rounds a negative NGN amount to a whole unit and keeps the minus sign', () => {
       const result = formatMetricCurrency(-1929051.37, 'NGN');
       const normalized = result.replace(/ /g, ' ');
@@ -114,10 +103,8 @@ describe('Utility Functions', () => {
   });
 
   describe('getCurrencySymbol', () => {
-    // Regression: several chart/metric components hardcoded "\u20a6" instead of
-    // deriving it from the store's actual configured currency (Settings has
-    // a real Currency selector), so a non-Naira store's analytics dashboard
-    // silently showed the wrong currency symbol on every figure.
+    // Regression: several chart/metric components hardcoded "\u20a6" instead of deriving it from the store's actual configured…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-utils-test-ts-L117
     it('returns the Naira symbol by default', () => {
       expect(getCurrencySymbol()).toBe('\u20a6');
     });

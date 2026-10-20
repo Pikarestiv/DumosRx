@@ -6,16 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Exercises getSuppliers()/getPurchaseOrders() against a genuine in-memory
- * SQLite engine (sql.js) built from the app's real schema, not a mocked
- * query(), so these tests actually prove the SQL's join/aggregation math is
- * correct. This is a regression test for the bug where the Vendors &
- * Suppliers table showed "0" for every supplier's Orders/Total Value: those
- * fields were hardcoded client-side rather than derived from any query, so a
- * test that only asserted "query() was called" would never have caught it;
- * only asserting on the actual returned numbers does.
- */
+// Exercises getSuppliers()/getPurchaseOrders() against a genuine in-memory SQLite engine (sql.js) built from the app's rea…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-procurement-test-ts-L9
 describe("procurement.ts", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -303,12 +295,8 @@ describe("procurement.ts", () => {
     });
 
     it("bills a drafted Immediate Purchase for its per-base-unit override, which the screen already showed", async () => {
-      // The order page prices an immediate line via immediateLineAmount, so
-      // 3 cartons of 10 at a typed override of ₦90/unit reads ₦2,700 on
-      // screen and sets amount_paid to 2,700 - while this function used to
-      // store an override-blind 3 x ₦1,000 = ₦3,000, overstating the PO on
-      // its own detail screen and PDF and inflating supplier debt on a
-      // partial payment.
+      // The order page prices an immediate line via immediateLineAmount, so 3 cartons of 10 at a typed override of ₦90/unit read…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-procurement-test-ts-L306
       db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prodOv', 'Zyrtec', 'Tablet', 'Carton', 10)`);
 
       const poId = await createPurchaseOrder(
@@ -362,10 +350,8 @@ describe("procurement.ts", () => {
     });
 
     it("derives total_amount and each item's subtotal from bulk_quantity * unit_cost, ignoring a stale subtotal field", async () => {
-      // Regression: item.subtotal is only ever set once when a row is first
-      // added in the UI and is never kept in sync with later quantity
-      // edits, so a stale value here (500, from an earlier 1-carton state)
-      // must not leak into what's actually persisted.
+      // Regression: item.subtotal is only ever set once when a row is first added in the UI and is never kept in sync with later…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-procurement-test-ts-L365
       db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
 
       const poId = await createPurchaseOrder(
@@ -404,9 +390,8 @@ describe("procurement.ts", () => {
         [{ product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 1, units_per_bulk: 100, unit_cost: 500, subtotal: 500 }],
       );
 
-      // Simulates editing the quantity in the UI without touching cost: the
-      // stale subtotal (500, from the original 1-carton row) must not carry
-      // through the edit.
+      // Simulates editing the quantity in the UI without touching cost:
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-procurement-test-ts-L407
       await updatePurchaseOrder(
         poId,
         null,
@@ -490,10 +475,8 @@ describe("procurement.ts", () => {
     });
 
     it("scales a per-tablet cost override by units_per_bulk instead of using it as a flat per-carton price", async () => {
-      // Regression: the UI's "New Cost" override is typed per base unit
-      // (per tablet, matching the catalog's current-cost display), but the
-      // total was previously computed as bulk_quantity * override with no
-      // units_per_bulk factor — silently understating the order by 60x here.
+      // Regression: the UI's "New Cost" override is typed per base unit (per tablet, matching the catalog's current-cost display…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-procurement-test-ts-L493
       db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Zyrtec', 'Tablet', 'Carton', 60)`);
 
       const poId = await createAndReceivePurchaseOrder(null, "", [

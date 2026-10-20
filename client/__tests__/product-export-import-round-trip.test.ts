@@ -5,17 +5,8 @@ import {
   type ProductField,
 } from "@/lib/utils/product-import-export";
 
-/**
- * The app's own export must be re-importable. It wasn't: the exporter writes
- * "Stock Quantity" and HEADER_ALIASES knew "quantity", "qty" and "stock" but
- * not that phrase — so re-importing a DumosRx export silently mapped the
- * column to "ignore" and every product landed at 0 stock, taking cost price
- * with it (cost lives on stock_batches, which is only created when a
- * quantity is present). Hit for real on 2026-10-08.
- *
- * This pins the whole round trip rather than the one label, so adding an
- * export column without an alias fails here instead of in a store.
- */
+// The app's own export must be re-importable.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-product-export-import-round-trip-test-ts-L8
 const EXPECTED_FIELD: Record<string, ProductField> = {
   name: "name",
   category: "category",

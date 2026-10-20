@@ -1,14 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-/**
- * "manage_suppliers" is the add/edit third of the supplier three-way split
- * (view_suppliers reads, delete_suppliers deletes - see
- * supplier-detail-pane-delete-permission.test.tsx). The detail pane keeps
- * every supplier figure visible without it and falls back to the actions
- * the viewer CAN take, spanning the row instead of leaving a disabled
- * button.
- */
+// "manage_suppliers" is the add/edit third of the supplier three-way split (view_suppliers reads, delete_suppliers deletes…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-supplier-detail-pane-manage-permission-test-tsx-L4
 
 const hasPermission = vi.fn((_key: string) => true);
 

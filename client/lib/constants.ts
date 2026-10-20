@@ -6,9 +6,8 @@ export const RECEIPT_FOOTER_DEFAULT = "Thank you for your patronage!";
 export const isDevelopment = process.env.NODE_ENV === "development";
 export const APP_VERSION = "0.0.40"; // DumosRx current version (update when bumping version)
 
-/** Short commit SHA of the build this bundle came from, injected by CI.
- * APP_VERSION alone cannot answer "which build is this device running?" —
- * PWA deploys ship without bumping it. See docs/KNOWN_BUGS.md. */
+// Short commit SHA of the build this bundle came from, injected by CI.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-ts-L9
 export const BUILD_SHA = (process.env.NEXT_PUBLIC_BUILD_SHA || "").slice(0, 8) || "local";
 
 export const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || "https://dumosrx.com";

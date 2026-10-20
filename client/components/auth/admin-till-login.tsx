@@ -21,12 +21,8 @@ interface Props {
   onCancel?: () => void;
 }
 
-/**
- * The on-till admin entry, shared by the lock screen and the blocked licence
- * card. It deliberately does not navigate: a router push from the licence card
- * only re-renders the card, because LicenseGuard returns it instead of its
- * children while the device is blocked.
- */
+// The on-till admin entry, shared by the lock screen and the blocked licence card.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-auth-admin-till-login-tsx-L24
 export function AdminTillLogin({ onSuccess, onCancel }: Props) {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");

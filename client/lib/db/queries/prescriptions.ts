@@ -49,17 +49,14 @@ export async function updatePrescriptionRecord(id: string, data: PrescriptionUpd
   });
 }
 
-/** Soft-deletes a single item row (one medication line removed while editing
- * a prescription), leaving the prescription's other items — and their refill
- * history — untouched. */
+// Soft-deletes a single item row (one medication line removed while editing a prescription), leaving the prescription's other items — and thei…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-prescriptions-ts-L52
 export async function deletePrescriptionItem(id: string) {
   return softDelete("prescription_items", id);
 }
 
-/** Updates an existing item row in place. Deliberately never touches id,
- * refills_used or next_refill_date: re-editing a prescription must not reset
- * how many refills a patient has already collected, or when the next one is
- * due. */
+// Updates an existing item row in place.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-prescriptions-ts-L59
 export async function updatePrescriptionItem(id: string, data: PrescriptionItemUpdatePayload) {
   const { product_name, strength, dosage, quantity, instructions, cost, unit_cost, refills_authorized, refill_interval_days, updated_at } = data;
   return update("prescription_items", id, {
@@ -77,9 +74,8 @@ export async function updatePrescriptionItem(id: string, data: PrescriptionItemU
 }
 
 export async function insertPrescriptionItem(data: PrescriptionItemInsertPayload) {
-  // insert() (base-helpers) auto-attaches store_id for STORE_SCOPED_TABLES
-  // (prescription_items is one) and enqueues the row for sync - unlike a raw
-  // query(), which did neither.
+  // insert() (base-helpers) auto-attaches store_id for STORE_SCOPED_TABLES (prescription_items is one) and enqueues the row for sync - unlike a…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-prescriptions-ts-L77
   return insert("prescription_items", {
     id: data.id,
     prescription_id: data.prescription_id,
@@ -146,9 +142,8 @@ export async function getRefillManagementData() {
 }
 
 export async function getActivePrescriptions() {
-  // Includes completed prescriptions too: the queue view filters by status
-  // client-side (including the "History" chip), so excluding completed here
-  // made that chip always render empty.
+  // Includes completed prescriptions too:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-prescriptions-ts-L146
   const storeId = getActiveStoreId();
   return query<PrescriptionRow>(
     `SELECT * FROM prescriptions WHERE _deleted = 0${storeId ? " AND store_id = ?" : ""} ORDER BY created_at DESC`,
@@ -168,13 +163,8 @@ export async function getHistoryPrescriptions() {
  * id list is read in chunks rather than as one giant IN (...). */
 const ID_CHUNK_SIZE = 400;
 
-/**
- * Items for a known set of prescriptions.
- *
- * Replaces a whole-table read: prescription_items grows by a row per dispensed
- * medication line for the life of the store, and the queue only ever needs the
- * lines belonging to the prescriptions it actually loaded.
- */
+// Items for a known set of prescriptions.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-prescriptions-ts-L171
 export async function getPrescriptionItemsFor(
   prescriptionIds: string[],
 ): Promise<PrescriptionItem[]> {
@@ -208,12 +198,8 @@ export async function updatePrescriptionStatus(id: string, status: string) {
   return update("prescriptions", id, data);
 }
 
-/**
- * Records a refill dispense on an already-completed/dispensed prescription:
- * bumps refills_used and pushes next_refill_date forward for every item that
- * still has refills remaining, and stamps the prescription's dispensed_at so
- * it counts toward "filled today" stats.
- */
+// Records a refill dispense on an already-completed/dispensed prescription:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-prescriptions-ts-L211
 export async function dispensePrescriptionRefill(prescriptionId: string) {
   const { update } = await import("@/lib/db/local-database");
   const now = new Date();

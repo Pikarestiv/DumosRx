@@ -36,20 +36,14 @@ export function LockScreen({
   const [pin, setPin] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
-  // Absolute timestamp (ms) the current lockout (if any) ends at, for
-  // `selectedUser`. Null means not locked. Kept as a timestamp (not a
-  // ticking "remaining ms" value directly) so the 1s interval below is the
-  // only place recomputing "how much longer" - this alone doesn't need to
-  // change when the interval fires unless the lockout actually clears.
+  // Absolute timestamp (ms) the current lockout (if any) ends at, for `selectedUser`.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-lock-screen-tsx-L39
   const [lockedUntil, setLockedUntil] = useState<number | null>(null);
   const { login } = useAuth();
   const router = useRouter();
 
-  // Reflects any lockout already in effect the moment a user tile is
-  // selected (not just after they go on to fail 5 more times right here) -
-  // login-lockout.ts's state persists across screens/reloads, so a user
-  // who was locked out earlier and comes back to this same tile should see
-  // the countdown immediately, before typing anything.
+  // Reflects any lockout already in effect the moment a user tile is selected (not just after they go on to fail 5 more time…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-lock-screen-tsx-L48
   useEffect(() => {
     if (!selectedUser) {
       setLockedUntil(null);
@@ -59,10 +53,8 @@ export function LockScreen({
     setLockedUntil(status.locked ? Date.now() + status.remainingMs : null);
   }, [selectedUser]);
 
-  // Live countdown: re-checks once a second so the displayed time (and the
-  // disabled state) updates on its own, and clears itself the instant the
-  // lockout genuinely expires rather than requiring another failed attempt
-  // to notice.
+  // Live countdown: re-checks once a second so the displayed time (and the disabled state) updates on its own, and clears it…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-lock-screen-tsx-L62
   useEffect(() => {
     if (!lockedUntil) return;
     const interval = setInterval(() => {
@@ -76,12 +68,8 @@ export function LockScreen({
   const lockoutRemainingMs =
     lockedUntil !== null ? Math.max(0, lockedUntil - Date.now()) : null;
 
-  // Re-checks login-lockout.ts's actual state for selectedUser and applies
-  // it to `lockedUntil` if locked. Called both after a failed PIN attempt
-  // (which might be the exact failure that just triggered a fresh lockout)
-  // and after a thrown lockout error (an attempt that arrived already
-  // locked) - either way, this is the single place `lockedUntil` gets set
-  // from a real check rather than assumed.
+  // Re-checks login-lockout.ts's actual state for selectedUser and applies it to `lockedUntil` if locked.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-lock-screen-tsx-L79
   const applyLockoutIfActive = useCallback(() => {
     if (!selectedUser) return false;
     const status = checkLoginLockout(selectedUser.username);
@@ -92,12 +80,8 @@ export function LockScreen({
     return false;
   }, [selectedUser]);
 
-  // Separated from the form's submit handler so it can also be triggered
-  // directly once the 4th digit is entered (auto-submit), not just via the
-  // Unlock button. Takes the pin value explicitly rather than reading `pin`
-  // from closure. PinPad's onSubmit fires synchronously right after its
-  // onChange, before React has applied the state update, so closure `pin`
-  // there would be stale by one digit.
+  // Separated from the form's submit handler so it can also be triggered directly once the 4th digit is entered (auto-submit…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-lock-screen-tsx-L95
   const attemptLogin = async (pinValue: string) => {
     if (!selectedUser || isLoading || lockoutRemainingMs) return;
 

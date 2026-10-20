@@ -6,13 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * getAllExpenses() read the whole expenses table - a table that grows every
- * day for the life of the store - and the Expenses page then filtered and
- * reduced all of it client-side. The list is now read a page at a time, and the
- * lifetime total it displays comes from a SQL SUM so it stays correct no matter
- * how much of the list has been loaded.
- */
+// getAllExpenses() read the whole expenses table - a table that grows every day for the life of the store - and the Expens…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-expenses-pagination-test-ts-L9
 describe("expenses paging", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

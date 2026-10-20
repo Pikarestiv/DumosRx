@@ -6,13 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Stage 1 of docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md:
- * `stock_batches.quantity` is a cache of MAX(0, Σ its non-deleted movements),
- * rebuilt whenever that log changes, instead of a running total maintained by
- * per-movement deltas. The properties below are the ones the incremental model
- * could not state.
- */
+// Stage 1 of docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-batch-quantity-recompute-test-ts-L9
 const STORE_ID = "store-1";
 
 describe("stock_batches.quantity derived from the movement log", () => {
@@ -193,10 +188,7 @@ describe("stock_batches.quantity derived from the movement log", () => {
 
     it("stays a carve-out after its stock has been sold below a later inbound movement", async () => {
       // The classification must read the log as it was BEFORE this movement.
-      // Reading it afterwards let `inbound` grow past a `stored` that sales had
-      // worn down, which flipped a legacy batch into "rebuild" and wrote the
-      // unlogged opening stock off: 100 sold down to 5, then 10 found, gave 0
-      // where the shelf holds 15.
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-batch-quantity-recompute-test-ts-L195
       seedBatch("legacy", 100);
       await logMovement("legacy", -95);
       expect(quantityOf("legacy")).toBe(5);
@@ -226,10 +218,8 @@ describe("stock_batches.quantity derived from the movement log", () => {
     });
 
     it("adds found stock that happens to equal the unlogged remainder", async () => {
-      // The residue and the movement being equal is the one case a value-based
-      // "already correct, nothing to write" guess gets wrong: it reads exactly
-      // like a batch created holding its own first movement. Provenance, not
-      // arithmetic, is what tells them apart — hence batches are created at 0.
+      // The residue and the movement being equal is the one case a value-based "already correct, nothing to write" guess gets wr…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-batch-quantity-recompute-test-ts-L229
       seedBatch("legacy", 100);
 
       await logMovement("legacy", 100);
@@ -248,14 +238,8 @@ describe("stock_batches.quantity derived from the movement log", () => {
     });
 
     it("leaves the carve-out once outbound overtakes the unlogged residue, which can happen with stock still on the shelf", async () => {
-      // The boundary is `unlogged residue > cumulative outbound`, not "stored
-      // has reached 0": stored is U + Σlog and the test is stored > inbound, so
-      // the inbound cancels and only U against outbound is left. A legacy batch
-      // that has since had a logged delivery therefore crosses while the shelf
-      // is still full, and the rebuild writes off the units nobody logged.
-      // Nothing on the device can tell those from drift — that is A-264, and
-      // `opening_quantity` is the only fix. Pinned so the day it changes is
-      // visible.
+      // The boundary is `unlogged residue > cumulative outbound`, not "stored has reached 0":
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-batch-quantity-recompute-test-ts-L251
       seedBatch("legacy", 100);
       await logMovement("legacy", 200);
       expect(quantityOf("legacy")).toBe(300);
@@ -305,10 +289,8 @@ describe("stock_batches.quantity derived from the movement log", () => {
   });
 
   it("fills a newly created batch from its own first movement", async () => {
-    // A receipt, an import row and a transfer destination all create the batch
-    // at 0 and let the movement supply the figure. Creating it with the
-    // quantity already in place is indistinguishable from a legacy batch
-    // receiving an equal-sized adjustment, and one of the two has to be wrong.
+    // A receipt, an import row and a transfer destination all create the batch at 0 and let the movement supply the figure.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-batch-quantity-recompute-test-ts-L308
     await insert("stock_batches", {
       id: "fresh",
       product_id: "prod-1",
@@ -334,10 +316,8 @@ describe("stock_batches.quantity derived from the movement log", () => {
   });
 
   it("agrees with the in-memory fake the other suites rely on, over randomised histories", async () => {
-    // Four suites stub @/lib/db/local-database and model this rule by hand in
-    // __tests__/helpers/fake-batch-quantity.ts. Nothing else notices when the
-    // two part company, and a fake that is wrong in the same direction as a
-    // bug is how the carve-out regression passed its own tests.
+    // Four suites stub @/lib/db/local-database and model this rule by hand in __tests__/helpers/fake-batch-quantity.ts.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-batch-quantity-recompute-test-ts-L337
     const { applyMovementToFakeBatch } = await import("./helpers/fake-batch-quantity");
 
     let seed = 20261014;

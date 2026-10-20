@@ -6,19 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression coverage for bug #4's "floor + alert" fix
- * (docs/features/_known-bugs.md #4): recordSaleItemStock floors an oversold
- * batch's stock_batches.quantity at 0 instead of going negative, and
- * getOversoldAlerts() surfaces the product so staff can reconcile it.
- *
- * Rewritten 2026-10-14 (A-212, and stage 1 of
- * docs/superpowers/specs/2026-10-14-oversell-compensating-movement-design.md):
- * the alert is derived from the movement log's own shortfall rather than from
- * the word "oversold" in a reason string inside a 30-day window. It therefore
- * reports what is still owed rather than that something once happened, and it
- * goes quiet when the shortfall is cleared rather than when a month passes.
- */
+// Regression coverage for bug #4's "floor + alert" fix (docs/features/_known-bugs.md #4):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-get-oversold-alerts-test-ts-L9
 describe("getOversoldAlerts", () => {
   let db: Database;
   let recordSaleItemStock: typeof import("@/lib/db/queries/inventory").recordSaleItemStock;
@@ -52,9 +41,8 @@ describe("getOversoldAlerts", () => {
     db.run(
       `INSERT INTO sales (id, transaction_number, subtotal, total_amount, payment_method, payment_status) VALUES ('sale1', 'TXN-1', 100, 100, 'cash', 'completed')`,
     );
-    // The alert is withheld until this device's movement window is drained, so
-    // the fixture has to say it is: mid-catch-up, a sale can arrive pages
-    // before the receipt that covers it.
+    // The alert is withheld until this device's movement window is drained, so the fixture has to say it is:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-get-oversold-alerts-test-ts-L55
     db.run(`DELETE FROM _sync_state`);
     db.run(
       `INSERT INTO _sync_state (table_name, last_synced_at) VALUES ('stock_movements', '2026-10-14T10:00:00Z')`,
@@ -114,10 +102,8 @@ describe("getOversoldAlerts", () => {
       cashierId: "user1",
     });
 
-    // Backdated well outside the window the old alert used. The two units the
-    // ledger owes have not gone anywhere, and the next delivery against this
-    // batch will still pay them off before it adds anything (A-265), so going
-    // quiet after a month was the defect, not the feature.
+    // Backdated well outside the window the old alert used.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-get-oversold-alerts-test-ts-L117
     db.run(
       `UPDATE stock_movements SET movement_date = date('now', '-90 days') WHERE reference_id = 'sale1' AND product_id = 'prod1'`,
     );
@@ -142,10 +128,8 @@ describe("getOversoldAlerts", () => {
     });
     expect((await getOversoldAlerts()).some((a) => a.product === "10ML SYRINGE")).toBe(true);
 
-    // +3, not +2: this batch's own single unit was never logged as inbound
-    // either, so the log is short by the whole three it recorded going out.
-    // That is also exactly what an inbound movement has to cover before the
-    // figure on screen moves, which is what the alert is reporting.
+    // +3, not +2: this batch's own single unit was never logged as inbound either, so the log is short by the whole three it r…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-get-oversold-alerts-test-ts-L145
     db.run(
       `INSERT INTO stock_movements (id, product_id, stock_batch_id, movement_type, quantity, _deleted)
        VALUES ('make-up', 'prod1', 'batch1', 'adjustment', 3, 0)`,
@@ -156,8 +140,7 @@ describe("getOversoldAlerts", () => {
 
   it("does not report a batch whose stock was never logged as coming in (A-148)", async () => {
     // Seeded with stock and no movement at all, the pre-a36b00e7 import shape:
-    // its sales sum below zero but the units were on the shelf, so nothing is
-    // owed and a count against it is not absorbed.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-get-oversold-alerts-test-ts-L158
     db.run(
       `INSERT INTO stock_batches (id, product_id, quantity, cost_price) VALUES ('legacy', 'prod1', 100, 60)`,
     );

@@ -6,16 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression coverage for a High-severity bug (docs/KNOWN_BUGS.md):
- * submitStockAudit used the caller-supplied `systemQty` as-is to compute the
- * shrinkage/surplus diff, instead of re-reading the product's actual current
- * quantity inside the transaction. A sale landing between the audit list
- * being rendered and the audit being submitted made the caller's systemQty
- * stale, so the resulting adjustment was silently off by exactly the
- * concurrent sale's quantity. Exercised against a real in-memory SQLite
- * instance (sql.js), not a reimplementation.
- */
+// Regression coverage for a High-severity bug (docs/KNOWN_BUGS.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-stock-audit-concurrent-sale-race-test-ts-L9
 describe("submitStockAudit — concurrent sale race", () => {
   let db: Database;
   let submitStockAudit: typeof import("@/lib/db/queries/inventory").submitStockAudit;
@@ -58,9 +50,8 @@ describe("submitStockAudit — concurrent sale race", () => {
       "user-1",
     );
 
-    // Correct behavior: countedQty (15) matches the re-read current
-    // quantity (15), so there's NO discrepancy - diff is 0, batch
-    // untouched, no adjustment movement written.
+    // Correct behavior: countedQty (15) matches the re-read current quantity (15), so there's NO discrepancy - diff is 0, batc…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-stock-audit-concurrent-sale-race-test-ts-L61
     const batch = db.exec("SELECT quantity FROM stock_batches WHERE id = 'b1'");
     expect(batch[0]?.values[0]?.[0]).toBe(15);
 
@@ -76,9 +67,8 @@ describe("submitStockAudit — concurrent sale race", () => {
       `INSERT INTO stock_batches (id, product_id, quantity, is_active, _deleted) VALUES ('b1', 'prod1', 15, 1, 0)`,
     );
 
-    // Caller's stale systemQty (20) differs from the real current quantity
-    // (15), and the actual physical count (12) differs from BOTH - the real
-    // shrinkage is 15 - 12 = 3, not 20 - 12 = 8.
+    // Caller's stale systemQty (20) differs from the real current quantity (15), and the actual physical count (12) differs fr…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-stock-audit-concurrent-sale-race-test-ts-L79
     await submitStockAudit(
       [{ productId: "prod1", systemQty: 20, countedQty: 12, reason: "Cycle count" }],
       "user-1",

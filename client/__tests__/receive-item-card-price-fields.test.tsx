@@ -18,9 +18,8 @@ vi.mock("@/lib/hooks/use-permissions", () => ({
 vi.mock("@/lib/db/queries/categories", () => ({
   getCategoryList: vi.fn(async () => []),
 }));
-// The panel's A-26 dropped-receipt banner reads the local database; this file
-// is about the price fields, so the signal is stubbed away rather than
-// initialising sql.js (which has no /sql-wasm.wasm under vitest).
+// The panel's A-26 dropped-receipt banner reads the local database; this file is about the price fields, so the signal is…
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-receive-item-card-price-fields-test-tsx-L21
 vi.mock("@/lib/hooks/use-dropped-receipt-signal", () => ({
   useDroppedReceiptSignal: () => ({ signal: null, dismiss: vi.fn() }),
 }));
@@ -48,13 +47,8 @@ if (!window.matchMedia) {
   })) as unknown as typeof window.matchMedia;
 }
 
-/**
- * The phone-width receiving cards only ever exposed Qty/Lot/Expiry, while
- * the desktop ledger for the same step also takes a Cost Price and a New
- * Selling Price. A vendor price change recorded on a phone was therefore
- * silently dropped, and the receive-path price-change toast could never
- * fire there.
- */
+// The phone-width receiving cards only ever exposed Qty/Lot/Expiry, while the desktop ledger for the same step also takes…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-receive-item-card-price-fields-test-tsx-L51
 describe("ReceiveItemCard price fields", () => {
   const po = {
     id: "abcdef12-3456",

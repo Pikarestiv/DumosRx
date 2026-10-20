@@ -209,9 +209,8 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
           const triggerWorthy = tables.filter((t) => t !== "audit_logs");
           if (triggerWorthy.length === 0) return;
 
-          // A crash-report-only batch also rides the next real sync rather
-          // than triggering its own; user-submitted feedback still triggers
-          // normally. See docs/SYNC_CRASH_REPORT_POLICY.md.
+          // A crash-report-only batch also rides the next real sync rather than triggering its own; user-submitted feedback still tr…
+          // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-sync-indicator-tsx-L212
           if (triggerWorthy.every((t) => t === CRASH_REPORT_TABLE)) {
             void hasPendingNonCrashFeedback().then((userSubmitted) => {
               if (userSubmitted) scheduleInstantSync();

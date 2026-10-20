@@ -1,18 +1,6 @@
 import { STORAGE_KEYS } from "@/lib/storage-keys";
-/**
- * Exponential-backoff lockout for PIN-based login attempts (client-side
- * only, matching this app's entirely-offline PIN check — see
- * docs/KNOWN_BUGS.md's now-removed "PIN login has no attempt limit" entry).
- * CAPTCHA isn't a fit here: this is a local POS terminal with no guaranteed
- * network, not a web form facing bot traffic.
- *
- * Keyed by the typed identifier (username/email, lowercased) rather than a
- * resolved user id or the whole device, so:
- *  - trying many different bogus usernames doesn't help brute-force any one
- *    real account (each gets its own independent counter), and
- *  - locking out one staff member's account doesn't also lock out every
- *    other staff member sharing the same device.
- */
+// Exponential-backoff lockout for PIN-based login attempts (client-side only, matching this app's entirely-offline PIN check — see docs/KNOWN_…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-login-lockout-L2
 
 const STORAGE_KEY = STORAGE_KEYS.loginLockout;
 const LOCKOUT_THRESHOLD = 5; // failed attempts allowed before any lockout
@@ -52,9 +40,8 @@ export interface LockoutStatus {
   remainingMs: number;
 }
 
-/** Call BEFORE checking the PIN. Locked callers must not reach the PIN
- * comparison at all — this both blocks the login and avoids extending the
- * lockout further just from being retried while still locked. */
+// Call BEFORE checking the PIN.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-login-lockout-ts-L43
 export function checkLoginLockout(identifier: string): LockoutStatus {
   const store = readStore();
   const entry = store[normalizeKey(identifier)];
@@ -83,9 +70,8 @@ export function recordLoginFailure(identifier: string): void {
   writeStore(store);
 }
 
-/** Call after a successful login. Clears any accumulated failure history
- * for this identifier so a legitimate user isn't left one mistake away
- * from a lockout indefinitely. */
+// Call after a successful login.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-login-lockout-ts-L74
 export function recordLoginSuccess(identifier: string): void {
   const store = readStore();
   const key = normalizeKey(identifier);

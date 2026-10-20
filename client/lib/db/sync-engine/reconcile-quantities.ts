@@ -17,15 +17,8 @@ interface ReconciliationMovement {
   updated_at: string;
 }
 
-/** Inserts a server-created reconciliation movement as already-synced, so
- * this device's next pull finds the row already present (the UPDATE branch
- * in pull.ts, which never replays a delta) instead of inserting it fresh and
- * re-applying the very delta it was derived from. This is the same
- * idempotency every other locally-originated movement already gets from
- * push() round-tripping through pull() - the only difference here is the
- * row was created by the server, not this device, so it has to be seeded
- * locally by hand. A UNIQUE-constraint failure means it's already present
- * (e.g. a retried request) and is ignored, matching pull.ts's own handling. */
+// Inserts a server-created reconciliation movement as already-synced, so this device's next pull finds the row already present (the UPDATE bra…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-reconcile-quantities-ts-L20
 async function storeReconciliationMovementLocally(
   movement: ReconciliationMovement,
 ): Promise<void> {
@@ -59,28 +52,8 @@ async function storeReconciliationMovementLocally(
   }
 }
 
-/** Hands the server this device's own stock_batches quantities so it can
- * adopt any it never derived from a movement delta. The server decides what
- * needs correcting and records each correction as a real, labelled
- * 'sync_reconciliation' movement, then returns it so this device can store
- * its own copy locally (see storeReconciliationMovementLocally above - this
- * is load-bearing, not a convenience: without it, a second pull of this same
- * row would double-apply its delta on this device). See client/AGENTS.md,
- * "Stock quantity reconciliation".
- *
- * Forces a real push+pull first: this action asserts the device's own
- * quantities as authoritative, so a device that's been sitting unsynced
- * (missing other devices' sales/movements) must catch up before that
- * assertion is trustworthy. Refuses to proceed if that sync fails, rather
- * than reconciling against a snapshot that might already be stale — and,
- * since a succeeded round is not a complete one, also refuses while the
- * movement-log pull window is mid-stream (A-214).
- *
- * Refuses outright when any batch's quantity disagrees with its own movement
- * No divergence interlock here — one was written and withdrawn before
- * shipping; see the spec's §4 for why a quantity floored at 0 and a legacy
- * A-148 batch both read as diverged and would have blocked this repair for
- * the whole store. */
+// Hands the server this device's own stock_batches quantities so it can adopt any it never derived from a movement delta.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-reconcile-quantities-L62
 export async function reconcileStockQuantities(
   syncFn: (isManual?: boolean) => Promise<SyncResult>,
 ): Promise<{

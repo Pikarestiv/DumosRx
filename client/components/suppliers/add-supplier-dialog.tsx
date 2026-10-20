@@ -33,9 +33,8 @@ interface AddSupplierDialogProps {
   onOpenChange: (open: boolean) => void;
   onAddSupplier: (supplier: SupplierPayload) => void;
   initialSupplier?: SupplierViewModel;
-  /** True while the caller's own create/update mutation is in flight —
-   * combined with this dialog's own uniqueness-check state so the buttons
-   * stay disabled for the whole round trip, not just the local pre-check. */
+  // True while the caller's own create/update mutation is in flight — combined with this dialog's own uniqueness-check state…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-suppliers-add-supplier-dialog-tsx-L36
   isSubmitting?: boolean;
 }
 
@@ -59,9 +58,8 @@ export function AddSupplierDialog({
     isActive: initialSupplier ? initialSupplier.status === "active" : true,
   });
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
-  // True only while this dialog's own uniqueness pre-check is running;
-  // combined with the caller's isSubmittingProp (the actual create/update
-  // mutation) below so the buttons stay disabled for the whole round trip.
+  // True only while this dialog's own uniqueness pre-check is running; combined with the caller's isSubmittingProp (the actu…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-suppliers-add-supplier-dialog-tsx-L62
   const [isCheckingName, setIsCheckingName] = useState(false);
   const isBusy = isCheckingName || isSubmittingProp;
 
@@ -90,10 +88,8 @@ export function AddSupplierDialog({
       return;
     }
 
-    // onAddSupplier is fire-and-forget from here (the parent awaits its own
-    // async create call and closes this dialog on success) — without this
-    // guard, double-clicking Add Supplier before that resolves fires two
-    // separate create calls and creates a duplicate supplier record.
+    // onAddSupplier is fire-and-forget from here (the parent awaits its own async create call and closes this dialog on succes…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-suppliers-add-supplier-dialog-tsx-L93
     if (isBusy) return;
     setIsCheckingName(true);
 
@@ -110,9 +106,8 @@ export function AddSupplierDialog({
       console.error("Failed to check supplier uniqueness:", error);
     }
 
-    // The local pre-check is done; from here only the caller's own mutation
-    // (isSubmittingProp) should gate the buttons. Leaving this true would
-    // strand them disabled with the spinner on if that mutation fails.
+    // The local pre-check is done; from here only the caller's own mutation (isSubmittingProp) should gate the buttons.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-suppliers-add-supplier-dialog-tsx-L113
     setIsCheckingName(false);
 
     // Transform to snake_case for Laravel backend

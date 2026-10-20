@@ -1,17 +1,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-/**
- * Listens for a native "widget-deeplink" DOM CustomEvent, dispatched via
- * MainActivity's captured WebView reference (WryActivity.onWebViewCreate ->
- * evaluateJavascript) when the user taps a widget alert row - see
- * DumosRxWidgetContent.kt's PendingIntents and MainActivity.onNewIntent.
- * Routes the already-running app there. There's no Tauri event round-trip:
- * TauriActivity/WryActivity keep their WebView field private, so the
- * simplest reachable path from Kotlin is evaluateJavascript dispatching a
- * plain DOM event, not Tauri's Rust-mediated event system. Mounted once
- * near the app root, alongside useWidgetSnapshotSync.
- */
+// Listens for a native "widget-deeplink" DOM CustomEvent, dispatched via MainActivity's captured WebView reference (WryActivity.onWebViewCreat…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-widget-deeplink-L4
 export function useWidgetDeeplink() {
   const router = useRouter();
 

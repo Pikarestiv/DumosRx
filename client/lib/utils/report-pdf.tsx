@@ -19,17 +19,8 @@ export class PdfGenerationCancelledError extends Error {
   }
 }
 
-/** Runs the (main-thread-blocking) PDF render in a Web Worker so a large
- * report doesn't freeze the UI or trigger the browser's "page unresponsive"
- * prompt - see lib/workers/report-pdf.worker.ts for why that's safe here.
- * Falls back to rendering inline if the worker can't be created at all
- * (e.g. an unusual embedding context that blocks Worker), so the export
- * still works, just without the off-thread benefit.
- *
- * `signal`, when passed, lets a caller abort a slow render (e.g. a stock
- * audit with thousands of rows) - only honored on the worker path, since
- * the main-thread fallback runs synchronously and can't be interrupted
- * mid-render anyway. */
+// Runs the (main-thread-blocking) PDF render in a Web Worker so a large report doesn't freeze the UI or trigger the browser's "page unresponsi…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-report-pdfx-L22
 export async function generateReportPdfBlob(
   input: ReportPdfInput,
   signal?: AbortSignal,
@@ -44,10 +35,8 @@ export async function generateReportPdfBlob(
       "PDF worker unavailable, falling back to main-thread render:",
       error,
     );
-    // Imported here rather than at the top of the file: @react-pdf/renderer
-    // is the heaviest dependency in the app and this fallback almost never
-    // runs (the worker path above handles it), but a static import put the
-    // whole library in every chunk that touches a report.
+    // Imported here rather than at the top of the file:
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-report-pdf-tsx-L38
     const [{ pdf }, { ReportPdfDocument }] = await Promise.all([
       import("@react-pdf/renderer"),
       import("@/components/reports/pdf/report-pdf-document"),

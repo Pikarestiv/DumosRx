@@ -51,16 +51,8 @@ export interface QueueStateReport {
   }>;
 }
 
-/**
- * What this device has sitting in `_sync_queue`. The server has never seen a
- * stuck row — that is what being stuck means — so without this "what is
- * stuck" can only be inferred from refusals the server happened to witness.
- *
- * Metadata only, and the reason is canonicalised HERE rather than sent raw.
- * The server canonicalises on storage too, but a raw driver error embeds the
- * failing SQL and its bindings — customer names, amounts — and would still
- * be in transit and in any future request log.
- */
+// What this device has sitting in `_sync_queue`.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-queue-state-L54
 function queuedSeconds(oldest: string | null): number | null {
   const queuedAt = oldest === null ? NaN : Date.parse(oldest);
 

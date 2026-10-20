@@ -22,12 +22,8 @@ import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 
-/** Each stock batch keeps the singular cost it was received at, and that is
- * the figure margin/COGS and FEFO deduction use - the catalog's Avg. Cost is
- * a display/reporting summary across batches, which a small new batch barely
- * moves, so a correctly-saved cost still reads as "nothing happened". This
- * confirmation states both, mirroring the selling-price-override toast right
- * above its call site. */
+// Each stock batch keeps the singular cost it was received at, and that is the figure margin/COGS and FEFO deduction use - the catalog's Avg.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-purchase-orders-ts-L25
 async function notifyCostRecorded(
   receivedItems: ReceivedItem[],
   currencyCode?: string,
@@ -60,9 +56,8 @@ async function notifyCostRecorded(
 export function usePurchaseOrders() {
   const [searchQuery, setSearchQuery] = useState("");
   const [poTab, setPoTab] = useState("all");
-  // Guards against a double-click/double-tap on "Confirm & Receive" firing
-  // receivePurchaseOrder twice for the same order (which would duplicate the
-  // stock batch and its movement); also drives the button's loading state.
+  // Guards against a double-click/double-tap on "Confirm & Receive" firing receivePurchaseOrder twice for the same order (which would duplicate…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-purchase-orders-ts-L59
   const [isReceivingPO, setIsReceivingPO] = useState(false);
   // Same guard as isReceivingPO, for the status writes that had none: a
   // double-tap on a laggy tablet fired "Mark as Sent"/"Delete" twice.
@@ -77,10 +72,8 @@ export function usePurchaseOrders() {
     isError: hasLoadError,
     refetch,
   } = useQuery({
-    // poTab isn't a query param: getPurchaseOrders() always fetches
-    // everything and filtering happens client-side below, so it doesn't
-    // belong in the key (the old effect refetched on every tab switch for
-    // no reason, since the underlying data never changed).
+    // poTab isn't a query param:
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-purchase-orders-ts-L76
     ...queryKeys.purchaseOrders.all(viewerId),
     queryFn: async () => {
       const { data } = await getPurchaseOrders(viewerId);
@@ -92,10 +85,8 @@ export function usePurchaseOrders() {
     await refetch();
   };
 
-  /** Resolves true only when the write actually landed, so the caller can
-   * keep the receiving panel (and its spinner) on screen until then and
-   * leave it open on failure instead of navigating away from an order that
-   * was never received. */
+  // Resolves true only when the write actually landed, so the caller can keep the receiving panel (and its spinner) on screen until then and lea…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-purchase-orders-ts-L95
   const handleReceivePO = async (
     id: string,
     receivedItems: ReceivedItem[],
@@ -109,10 +100,8 @@ export function usePurchaseOrders() {
           ? "Partial receipt recorded, the outstanding balance is still open."
           : "Order received and stock updated!",
       );
-      // receivePurchaseOrder() writes products.selling_price synchronously
-      // for any line with a real override, same as createAndReceivePurchaseOrder -
-      // this is the other of the two paths that actually change the live
-      // price immediately, so it gets the same confirmation toast.
+      // receivePurchaseOrder() writes products.selling_price synchronously for any line with a real override, same as createAndReceivePurchaseOrder…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-purchase-orders-ts-L106
       const priceOverrideCount = countSellingPriceOverrides(
         receivedItems.map((item) => ({ product_id: item.product_id ?? "", selling_price: item.selling_price })),
         receivedItems.map((item) => ({ id: item.product_id ?? "", selling_price: item.current_selling_price ?? null })),

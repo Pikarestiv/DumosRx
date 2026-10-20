@@ -105,9 +105,8 @@ describe("TillInspectionBanner", () => {
     }));
     render(<TillInspectionBanner />);
 
-    // Several ticks, not one: the interval keeps firing while the POST is in
-    // flight, and a single tick hid a repeated end() that wrote duplicate
-    // exit rows to the audit log.
+    // Several ticks, not one:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-till-inspection-banner-test-tsx-L108
     await act(async () => {
       vi.advanceTimersByTime(5_000);
     });
@@ -177,9 +176,8 @@ describe("TillInspectionBanner", () => {
   });
 
   it("clears a session the server no longer recognises, which a reload can cause", async () => {
-    // pagehide fires on F5 too, so the beacon closes the row while
-    // sessionStorage survives — leaving a client session the server has
-    // already ended, with writes blocked and the override refused.
+    // pagehide fires on F5 too, so the beacon closes the row while sessionStorage survives — leaving a client session the serv…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-till-inspection-banner-test-tsx-L180
     server.clock = null;
     startTillInspectionSession(live());
     render(<TillInspectionBanner />);

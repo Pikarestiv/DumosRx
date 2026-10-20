@@ -30,9 +30,8 @@ import { useIsTouchDevice } from "@/lib/hooks/use-is-touch-device";
 import { cn } from "@/lib/utils";
 import { clearStoredUser, clearRecentUsers } from "@/lib/storage-keys";
 
-// {...props} is spread onto the Button so Radix's `asChild` trigger props
-// (aria-haspopup, aria-expanded, keyboard handlers, ref) land on the real
-// <button> instead of being stranded on a non-focusable wrapper <div>.
+// {...props} is spread onto the Button so Radix's `asChild` trigger props (aria-haspopup, aria-expanded, keyboard handlers…
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-user-nav-tsx-L33
 const NavTrigger = ({
   initials,
   user,
@@ -126,9 +125,8 @@ export function UserNav({
 }: UserNavProps) {
   const { user } = useAuth();
   const router = useRouter();
-  // Touch capability decides Drawer vs Dropdown, not viewport width. See the
-  // comment in notification-bell.tsx for why (Radix DropdownMenu's outside-tap
-  // close vs iOS's delayed synthetic click).
+  // Touch capability decides Drawer vs Dropdown, not viewport width.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-user-nav-tsx-L129
   const isTouchDevice = useIsTouchDevice();
 
   const [open, setOpen] = useState(false);
@@ -148,10 +146,8 @@ export function UserNav({
     onOpenFeedback,
   });
 
-  // A broken/incomplete auth state (e.g. a corrupted localStorage write from
-  // a connection drop mid-save) shouldn't leave this spot blank with no way
-  // out, since that traps the user on a dashboard shell they can't act on. Give
-  // them a direct way to get back to a clean login instead of vanishing.
+  // A broken/incomplete auth state (e.g.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-user-nav-tsx-L151
   if (!user) {
     return (
       <Button
@@ -246,10 +242,7 @@ export function UserNav({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-      {/* Direct settings shortcut disabled on desktop for now, re-enable by
-          uncommenting once we're happy with where it lands next to the trigger.
-      {!!showDetails && <SettingsIconButton onClick={() => router.push("/settings")} />}
-      */}
+      {/* Direct settings shortcut disabled on desktop for now, re-enable by uncommenting once we're happy with where it lands nex… — docs/CLIENT_COMMENTS.md#block-components-dashboard-user-nav-tsx-L249 */}
     </div>
   );
 
@@ -280,9 +273,7 @@ export function UserNav({
           <SettingsIconButton size="lg" onClick={goToSettings} />
         </DrawerHeader>
 
-        {/* Bottom padding clears the fixed mobile bottom navbar (h-16) plus
-            the safe-area/Tauri inset it already pads itself with, so the
-            last action isn't sitting behind/under it. */}
+        {/* Bottom padding clears the fixed mobile bottom navbar (h-16) plus the safe-area/Tauri inset it already pads itself with,… — docs/CLIENT_COMMENTS.md#block-components-dashboard-user-nav-tsx-L283 */}
         <div
           className="px-4 space-y-0.5"
           style={{

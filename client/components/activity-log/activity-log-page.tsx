@@ -27,10 +27,8 @@ import type { AuditLogRow } from "@/lib/types/audit-log";
 import type { ActivityLogSortKey } from "@/lib/db/queries/activity-log";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
-// When searching, fetch a large unpaginated batch matching the other filters
-// so fuzzy search has the full set to search across, not just the current
-// page. Capped rather than truly unbounded so a very old/busy store can't
-// pull its entire history into memory at once.
+// When searching, fetch a large unpaginated batch matching the other filters so fuzzy search has the full set to search ac…
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-activity-log-activity-log-page-tsx-L30
 const SEARCH_FETCH_CAP = 2000;
 
 export function ActivityLogPage() {
@@ -168,9 +166,7 @@ export function ActivityLogPage() {
           users={users}
         />
 
-        {/* Desktop: div-based table (ARIA roles stand in for real <table>
-            semantics), horizontally scrollable if content ever demands more
-            than the column widths naturally settle at. */}
+        {/* Desktop: div-based table (ARIA roles stand in for real <table> semantics), horizontally scrollable if content ever deman… — docs/CLIENT_COMMENTS.md#block-components-activity-log-activity-log-page-tsx-L171 */}
         {isDesktop && (
           <ActivityLogDesktopTable
             rows={rows}
@@ -185,9 +181,7 @@ export function ActivityLogPage() {
           />
         )}
 
-        {/* Mobile: rows become stacked, tappable cards instead of a
-            cramped table, matching the pattern used by the product
-            catalog list. */}
+        {/* Mobile: rows become stacked, tappable cards instead of a cramped table, matching the pattern used by the product catalog… — docs/CLIENT_COMMENTS.md#block-components-activity-log-activity-log-page-tsx-L188 */}
         {!isDesktop && (
           <ActivityLogMobileList
             rows={rows}

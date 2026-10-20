@@ -2,9 +2,8 @@ import { ChevronRight } from "lucide-react";
 import { Customer } from "@/lib/hooks/use-customer-data";
 import { formatCurrency } from "@/lib/utils";
 
-/** Literal Tailwind class strings, not interpolated: the desktop row and its
- * header must stay in lockstep when the Balance column drops out for a role
- * without view_customer_balances. */
+// Literal Tailwind class strings, not interpolated:
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-customers-customer-list-rows-tsx-L5
 export const CUSTOMER_GRID_COLS = {
   withBalance: "grid-cols-[minmax(0,1.6fr)_minmax(0,1.1fr)_80px_70px_100px_110px]",
   withoutBalance: "grid-cols-[minmax(0,1.6fr)_minmax(0,1.1fr)_80px_70px_110px]",

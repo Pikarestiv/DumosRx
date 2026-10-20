@@ -49,11 +49,8 @@ function CreateOrderContent() {
     setPaymentStatusState(status);
   };
 
-  // An immediate purchase is money already handed over at the counter, so it
-  // opens on Fully Paid; a standard PO is raised before paying, so it opens
-  // on Unpaid. Switching type re-applies that default only while the field
-  // is still untouched - a deliberate "Partial" must not be silently
-  // rewritten by toggling the type above it.
+  // An immediate purchase is money already handed over at the counter, so it opens on Fully Paid; a standard PO is raised be…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-app-(dashboard)-procurement-new-page-tsx-L52
   const setPoType = (type: "standard" | "immediate") => {
     setPoTypeState(type);
     if (!isPaymentStatusTouched) {
@@ -63,9 +60,8 @@ function CreateOrderContent() {
   const [amountPaid, setAmountPaid] = useState("");
   const [dueDate, setDueDate] = useState("");
 
-  // Order details (type/vendor/notes/payment/due-date) are confirmed first;
-  // item entry only becomes the dominant content of the screen afterward.
-  // Details stay editable via PODetailsDialog once confirmed.
+  // Order details (type/vendor/notes/payment/due-date) are confirmed first; item entry only becomes the dominant content of…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-app-(dashboard)-procurement-new-page-tsx-L66
   const [detailsConfirmed, setDetailsConfirmed] = useState(false);
   const [isEditDetailsOpen, setIsEditDetailsOpen] = useState(false);
 

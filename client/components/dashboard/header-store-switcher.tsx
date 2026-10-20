@@ -23,19 +23,13 @@ interface HeaderStoreSwitcherProps {
   availableStores: StoreProfile[];
   activeStoreId: string | null;
   onSwitchStore: (storeId: string) => void;
-  /** Only admins/store owners can create a store, so only they get the
-   * dropdown at all — a cashier's plain label is never worth turning into a
-   * menu that has nothing useful in it besides an action they can't take. */
+  // Only admins/store owners can create a store, so only they get the dropdown at all — a cashier's plain label is never wor…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-dashboard-header-store-switcher-tsx-L26
   isAdmin: boolean;
 }
 
-/** The store name in the header's top-left corner: a plain label for
- * non-admin accounts (staff/cashiers - they can never create a store, plan
- * or no plan), or a switcher dropdown for every admin/owner account, even
- * one that only has a single store today. The dropdown always offers
- * "Create new store" so multi-store is discoverable from here rather than
- * only from Settings > Fleet; the action itself (not the dropdown's
- * visibility) is what's plan-gated, via useFeatureGate's canManageMultiStore. */
+// The store name in the header's top-left corner:
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-dashboard-header-store-switcher-tsx-L32
 export function HeaderStoreSwitcher({
   storeProfile,
   availableStores,
@@ -47,12 +41,8 @@ export function HeaderStoreSwitcher({
   const { canManageMultiStore, getUpgradeMessage } = useFeatureGate();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
-  // availableStores is empty for plenty of legitimate single-store admins
-  // (see store-context.tsx's `allStores` query - it only runs at all for a
-  // store_id-less "owner" identity), so it can't be relied on alone to know
-  // what to list. Falling back to the currently-active store keeps a
-  // single-store admin's dropdown non-empty (their own store, checked) which
-  // is what "Create new store" needs a checked list to make sense next to.
+  // availableStores is empty for plenty of legitimate single-store admins (see store-context.tsx's `allStores` query - it on…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-header-store-switcher-tsx-L50
   const storesToList = useMemo(
     () => (availableStores.length > 0 ? availableStores : storeProfile ? [storeProfile] : []),
     [availableStores, storeProfile],
@@ -87,23 +77,15 @@ export function HeaderStoreSwitcher({
     setIsCreateOpen(true);
   };
 
-  // Prefix-matches every cached variant of these queries regardless of
-  // which store/user args they were fetched with (a plain string literal
-  // would do the same, but derives the prefix from the factory - via a
-  // throwaway call - instead of duplicating it, so a rename in
-  // query-keys.ts can't silently desync from this call site).
+  // Prefix-matches every cached variant of these queries regardless of which store/user args they were fetched with (a plain…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-header-store-switcher-tsx-L90
   const invalidateStoreCaches = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.stores.all().queryKey.slice(0, 1) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.stores.profile().queryKey.slice(0, 1) });
   };
 
-  // Fleet writes (FleetFormDialog -> useSaveFleetStoreMutation) go straight
-  // to the cloud API and never touch local SQLite, so this dropdown's own
-  // `availableStores` (backed by a local-DB query) won't show the new store
-  // until a sync pull lands - invalidating alone just re-runs the same
-  // stale local read. Trigger that pull ourselves (same pattern as
-  // switchStore in store-context.tsx) and invalidate once it's actually
-  // landed, so the new store shows up without needing a manual refresh.
+  // Fleet writes (FleetFormDialog -> useSaveFleetStoreMutation) go straight to the cloud API and never touch local SQLite, s…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-header-store-switcher-tsx-L100
   const handleCreateSuccess = () => {
     invalidateStoreCaches();
 
@@ -153,12 +135,7 @@ export function HeaderStoreSwitcher({
             onClick={handleCreateStore}
             className="group flex items-center gap-2 text-primary"
           >
-            {/* DropdownMenuItem's base styles force any icon without its own
-                text-* class to text-muted-foreground permanently (see
-                dropdown-menu.tsx's `[&_svg:not([class*='text-'])]` rule), so
-                without an explicit color here the icon would stay muted while
-                the label text turns accent-foreground on hover/focus. Giving
-                it group-focus:text-accent-foreground keeps both in sync. */}
+            {/* DropdownMenuItem's base styles force any icon without its own text-* class to text-muted-foreground permanently (see dro… — docs/CLIENT_COMMENTS.md#block-components-dashboard-header-store-switcher-tsx-L156 */}
             <Plus className="h-3.5 w-3.5 text-primary group-focus:text-accent-foreground" />
             <span>Create new store</span>
           </DropdownMenuItem>

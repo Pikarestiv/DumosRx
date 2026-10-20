@@ -44,12 +44,8 @@ vi.mock("@/lib/db/queries/loyalty", () => ({
 
 import { useCustomerManagement } from "@/lib/hooks/use-customer-management";
 
-/**
- * "/customers?action=add" is typeable and is also what the dashboard
- * header's "Add Customer" navigates to, so hiding the header action alone
- * would not be a gate - the modal's own opener has to require
- * manage_customers.
- */
+// "/customers?action=add" is typeable and is also what the dashboard header's "Add Customer" navigates to, so hiding the h…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-customer-add-overlay-permission-test-tsx-L47
 describe("add customer overlay permission", () => {
   beforeEach(() => {
     hasPermission.mockReset();

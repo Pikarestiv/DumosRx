@@ -22,9 +22,8 @@ export function TransactionItemsView({
   currencyCode?: string;
 }) {
   const capsClass = useUppercaseDisplayClass();
-  // Conditional, not just CSS-hidden: both branches used to be mounted for
-  // every line item. The sm:/hidden classes stay as the first-frame guard,
-  // since useMediaQuery starts at false and corrects itself after mount.
+  // Conditional, not just CSS-hidden:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-transaction-items-view-tsx-L25
   const isDesktop = useMediaQuery("(min-width: 640px)");
   return (
     <>

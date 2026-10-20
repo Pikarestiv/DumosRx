@@ -1,14 +1,7 @@
 import { useEffect, useState } from "react";
 
-/**
- * Detects whether *any* available input mechanism is touch/coarse, unlike
- * useIsTouchDevice's `(pointer: coarse)` which only reflects the *primary*
- * pointer (deliberately `false` on a 2-in-1 with a trackpad). Hover-reveal
- * affordances (e.g. a row's edit pencil) need this instead: a 2-in-1's
- * trackpad makes it primary-pointer-fine, but a user tapping its touchscreen
- * directly still never fires `:hover`, so the affordance must stay visible
- * whenever touch is available at all, not just when it's the primary input.
- */
+// Detects whether *any* available input mechanism is touch/coarse, unlike useIsTouchDevice's `(pointer:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-has-touch-capability-ts-L3
 export function useHasTouchCapability() {
   const [hasTouch, setHasTouch] = useState(false);
 

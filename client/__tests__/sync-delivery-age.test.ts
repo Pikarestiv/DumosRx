@@ -6,11 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * "Did the push work" was only ever measured per HTTP attempt, which says
- * nothing about whether an edit was ever delivered. See
- * docs/DEVICE_TABLE_AGREEMENT.md, "Delivery timing".
- */
+// "Did the push work" was only ever measured per HTTP attempt, which says nothing about whether an edit was ever delivered.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-delivery-age-test-ts-L9
 describe("delivery age", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

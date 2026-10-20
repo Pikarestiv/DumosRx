@@ -16,16 +16,13 @@ const NO_LABEL_PERMISSION =
   "You don't have permission to print product labels. Ask an admin for the “Print Product Labels” permission.";
 const NO_DELETE_PERMISSION =
   "You don't have permission to delete products. Ask an admin for the “Delete Products” permission.";
-// The `title` above can never surface on a disabled item - the menu applies
-// data-[disabled]:pointer-events-none, so it never receives hover. The short
-// form renders on screen instead; the long one stays as a title for the
-// pointer-events cases (and for assistive tech reading the attribute).
+// The `title` above can never surface on a disabled item - the menu applies data-[disabled]:pointer-events-none, so it nev…
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-products-catalog-row-tsx-L19
 const NO_LABEL_PERMISSION_HINT = "Needs the “Print Product Labels” permission";
 const NO_DELETE_PERMISSION_HINT = "Needs the “Delete Products” permission";
 
-/** Literal class strings, not a template: Tailwind's scanner only sees
- * classes that appear whole in the source. Indexed by whether the Avg Cost
- * column is rendered, which now varies with "view_cost_fields". */
+// Literal class strings, not a template:
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-products-catalog-row-tsx-L26
 export const CATALOG_GRID_COLS = {
   withCost: "grid-cols-[minmax(0,1fr)_150px_90px_90px_100px_90px]",
   withoutCost: "grid-cols-[minmax(0,1fr)_150px_90px_100px_90px]",
@@ -34,10 +31,8 @@ export const CATALOG_GRID_COLS = {
 export interface CatalogRowProps {
   product: Product;
   isSelected: boolean;
-  /** Which of the two layouts to mount. Deliberately a real conditional
-   * rather than `sm:hidden`/`hidden sm:grid`: CSS-hiding the inactive branch
-   * still mounted it, so every visible row carried a second copy of itself
-   * including four stateful editable cells that were never on screen. */
+  // Which of the two layouts to mount.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-products-catalog-row-tsx-L37
   isDesktop: boolean;
   isPharmacy: boolean;
   capsClass: string;

@@ -6,13 +6,8 @@ import {
 import { isTillInspectionSession } from "@/lib/utils/till-inspection";
 import { isImpersonatedSession } from "@/lib/utils/impersonation";
 
-/**
- * Resolves `/settings/<tab>` to an internal tab, honouring the legacy aliases
- * and the one permission rule the tab rail, the mobile list and the URL all
- * share — so a hidden trigger and a typed URL can never disagree.
- *
- * Extracted from use-settings.ts, which was at the 350-line limit.
- */
+// Resolves `/settings/<tab>` to an internal tab, honouring the legacy aliases and the one permission rule the tab rail, th…
+// Rationale: docs/CLIENT_COMMENTS.md#block-hooks-use-settings-tab-resolution-ts-L9
 const TAB_ALIASES: Record<string, string> = {
   account: "personal-info",
   store: "business-info",
@@ -66,10 +61,8 @@ export function useSettingsTabResolution({
     }
 
     if (activeTab !== internalTab) setActiveTab(internalTab);
-    // openCloudLink is a useState setter (referentially stable); depending on
-    // the whole sync-state object reran this on every render and reopened the
-    // Link DumosRx Cloud dialog right after the user closed it. See
-    // __tests__/settings-cloud-link-dialog-loop.test.ts.
+    // openCloudLink is a useState setter (referentially stable); depending on the whole sync-state object reran this on every…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-hooks-use-settings-tab-resolution-ts-L69
   }, [tabParam, isCloudLinked, canAccessTab, activeTab, setActiveTab, openCloudLink]);
 
   return { canAccessTab };

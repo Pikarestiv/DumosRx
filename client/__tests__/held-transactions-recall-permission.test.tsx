@@ -61,13 +61,8 @@ function renderDialog() {
   );
 }
 
-/**
- * Resuming a parked sale is the other half of "hold_sales". The held list
- * itself stays visible without the permission (seeing that a colleague's
- * sale is parked on this till is ordinary awareness, matching the
- * apply_discounts rule that already-applied state still renders); only the
- * Recall trigger is gated.
- */
+// Resuming a parked sale is the other half of "hold_sales".
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-held-transactions-recall-permission-test-tsx-L64
 describe("Held transactions recall permission", () => {
   beforeEach(() => {
     hasPermission.mockReset();

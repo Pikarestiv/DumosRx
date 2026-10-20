@@ -92,24 +92,8 @@ export interface UseArrowKeyScrollOptions {
   step?: number;
 }
 
-/**
- * Lets the arrow keys scroll one region the way a browser scrolls a plain
- * page, for pages and tabs whose content lives in a single `overflow-auto`
- * container rather than in the document scroller — where the arrow keys
- * otherwise do nothing at all until the user clicks into the list first.
- *
- * Opt in per page/tab by calling it with that container's ref; it is
- * deliberately not a global listener, because arrow keys are already spoken
- * for on plenty of screens. It stays out of the way when:
- *
- * - focus (or the keydown's target) is in a text field, select, contenteditable,
- *   or any component that handles arrow keys itself (combobox, menu, tablist,
- *   grid, slider — see `ARROW_CONSUMING_SELECTOR`);
- * - a modifier key is held, or something upstream already handled the event;
- * - the event came from inside a nested scroller, which scrolls itself;
- * - the page has any other visible scrollable region, so an open detail panel,
- *   dropdown or dialog suspends it for as long as it is on screen.
- */
+// Lets the arrow keys scroll one region the way a browser scrolls a plain page, for pages and tabs whose content lives in a single `overflow-a…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-arrow-key-scroll-L95
 export function useArrowKeyScroll(
   ref: RefObject<HTMLElement | null>,
   { enabled = true, step = DEFAULT_STEP_PX }: UseArrowKeyScrollOptions = {},

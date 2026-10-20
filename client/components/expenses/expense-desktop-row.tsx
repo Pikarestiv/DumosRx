@@ -56,9 +56,8 @@ export function ExpenseDesktopRow({
 
   return (
     <div
-      // Not a real <button>: the row itself is clickable but also contains
-      // its own inline-edit controls (select, number cell, save/cancel
-      // buttons), and nesting those inside a button is invalid HTML.
+      // Not a real <button>: the row itself is clickable but also contains its own inline-edit controls (select, number cell, sa…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-components-expenses-expense-desktop-row-tsx-L59
       role="button"
       tabIndex={isEditing ? -1 : 0}
       className="group absolute top-0 left-0 w-full grid grid-cols-[110px_150px_minmax(0,1fr)_130px_120px_28px] gap-2 items-center px-5 py-3.5 border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"

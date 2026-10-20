@@ -1,12 +1,8 @@
 import { STORAGE_KEYS } from "@/lib/storage-keys";
 const DEVICE_ID_KEY = STORAGE_KEYS.deviceId;
 
-/**
- * Stable per-device identifier used to correlate remote logs (Sentry,
- * /logs/client-error) and the X-Device-Id sync header with a specific
- * physical device, since store_id/user_id alone can't distinguish which
- * terminal at a multi-device store is the one failing.
- */
+// Stable per-device identifier used to correlate remote logs (Sentry, /logs/client-error) and the X-Device-Id sync header with a specific phys…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-device-id-ts-L4
 export function getDeviceId(): string {
   if (typeof window === "undefined") return "unknown";
   let id = localStorage.getItem(DEVICE_ID_KEY);

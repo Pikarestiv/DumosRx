@@ -4,9 +4,8 @@ test.describe('Products Module', () => {
   test('should log in and navigate to products page', async ({ page }) => {
     await login(page);
 
-    // Navigate to products via sidebar: /inventory redirects to /inventory/overview,
-    // so go to the Catalog tab directly (a click-through would pass the mouse near
-    // the collapsed sidebar's hover-peek strip and risk intercepting the tab click).
+    // Navigate to products via sidebar:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-e2e-products-spec-ts-L7
     await page.locator('a[href="/inventory"]').first().click();
     await expect(page).toHaveURL(/\/inventory\/overview/);
     await page.goto('/inventory/catalog');

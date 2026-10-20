@@ -1,19 +1,5 @@
-/**
- * Demo data template: declarative description of what a "Seed Demo Data"
- * run creates for a store flagged `is_demo`.
- *
- * Modeled on the real test@dumosrx.com demo account (see
- * refs/dumomvte_dumosrx_db.sql), but kept as data (not a frozen SQL dump) so
- * it's replayed through the app's real create functions in lib/demo/loader.ts.
- * When a schema/field changes, fix it once in the loader/create-functions and
- * this template keeps working, which is the whole point of not just
- * replaying the dump.
- *
- * All dates are expressed as day offsets from "now" (the moment the seed
- * runs), not fixed calendar dates, so the demo always looks current and the
- * expiry-alert states (urgent/close/healthy/long-dated/already-expired)
- * stay correct no matter when it's run.
- */
+// Demo data template: declarative description of what a "Seed Demo Data" run creates for a store flagged `is_demo`.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#demo-template-L1
 
 export const DEMO_CATEGORIES = [
   "Analgesics",
@@ -291,10 +277,8 @@ export const DEMO_PRODUCTS: DemoProduct[] = [
   },
 ];
 
-/** One row per product in the fully-received seed PO: the batch/expiry
- * spread deliberately covers every expiry-alert state, including one
- * already-expired batch (Gaviscon) kept on purpose so expiry alerts/
- * notifications have something to show immediately after seeding. */
+// One row per product in the fully-received seed PO:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#demo-template-ts-L280
 export const DEMO_RECEIVING_PLAN: Record<
   string,
   { expiryOffsetDays: number; batchSuffix: string; bulkQuantity: number }

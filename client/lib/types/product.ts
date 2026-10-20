@@ -20,9 +20,8 @@ export interface Product {
   is_controlled?: number;
 }
 
-/** Row shape returned by getProductsWithDetails(): the `products` table
- * joined with its category name and current stock_batches aggregates
- * (on-hand quantity, latest cost, soonest-expiring batch). */
+// Row shape returned by getProductsWithDetails():
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#types-product-ts-L23
 export interface ProductWithDetails extends Product {
   category_name?: string;
   stock_quantity?: number;
@@ -32,9 +31,8 @@ export interface ProductWithDetails extends Product {
   last_bought_price?: number | null;
 }
 
-/** Row shape returned by getProductsWithStock()'s raw query: `products`
- * joined with the category name and stock_batches aggregates (on-hand
- * quantity, concatenated batch numbers, average cost across active batches). */
+// Row shape returned by getProductsWithStock()'s raw query:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#types-product-ts-L35
 export interface ProductWithStockRow extends Product {
   category_name?: string;
   stock_quantity?: number;

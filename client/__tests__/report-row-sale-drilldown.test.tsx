@@ -19,11 +19,8 @@ vi.mock("@/lib/db/queries/reports", () => ({
 }));
 vi.mock("@/lib/context/store-context", () => ({ useStore: () => ({}) }));
 
-/**
- * The Detailed Sales Report drills a row down to its line items the way
- * Daily Close does: the row carries only the transaction number the report
- * already shows, resolved to the sale TransactionDetailsDialog takes.
- */
+// The Detailed Sales Report drills a row down to its line items the way Daily Close does:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-report-row-sale-drilldown-test-tsx-L22
 describe("report row sale drill-down", () => {
   beforeEach(() => {
     getSaleByTransactionNumber.mockReset();

@@ -1,43 +1,24 @@
-// Type-only: exceljs is ~1MB and every module that touches a product import
-// or export pulls this file in, so the library itself is loaded lazily inside
-// the two functions that actually run it (see below). A value import here put
-// it in the Inventory > Catalog route chunk for everyone.
+// Type-only: exceljs is ~1MB and every module that touches a product import or export pulls this file in, so the library itself is loaded lazi…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-spreadsheet-io-ts-L1
 import type ExcelJS from "exceljs";
 
-/**
- * CSV/XLSX plumbing, split out of product-import-export.ts (which had grown
- * past the 350-line limit in .agents/AGENTS.md §4) and re-exported from there
- * so existing call sites don't change. This half is format mechanics only —
- * nothing here knows what a product is.
- */
+// CSV/XLSX plumbing, split out of product-import-export.ts (which had grown past the 350-line limit in .agents/AGENTS.md §4) and re-exported f…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-spreadsheet-io-ts-L7
 export interface ParsedSpreadsheet {
   headers: string[];
   rows: Record<string, unknown>[];
 }
 
-/**
- * Opaque handle returned by readWorkbookFile() and consumed by
- * parseWorkbookSheet(). Deliberately doesn't leak exceljs's own Workbook
- * type to callers (unlike the old xlsx-based version, which returned
- * XLSX.WorkBook directly) - callers only ever need sheetNames plus the
- * ability to parse one of them, and keeping the underlying library's type
- * out of the public API means it can change again later without touching
- * every call site.
- */
+// Opaque handle returned by readWorkbookFile() and consumed by parseWorkbookSheet().
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-spreadsheet-io-ts-L18
 export interface ParsedWorkbook {
   sheetNames: string[];
   /** @internal */
   _sheet: (name: string) => ParsedSpreadsheet;
 }
 
-/**
- * Minimal RFC 4180 CSV parser (quoted fields, doubled-quote escaping,
- * CRLF/LF line endings). Written directly rather than pulling in a CSV
- * library: exceljs's own CSV support is Node-stream-oriented and awkward to
- * drive from a browser File, and this project's only other spreadsheet
- * dependency (xlsx) was removed entirely for its unpatched CVEs — no reason
- * to reach for a third library for a format this simple.
- */
+// Minimal RFC 4180 CSV parser (quoted fields, doubled-quote escaping, CRLF/LF line endings).
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-spreadsheet-io-ts-L33
 function parseCsvRows(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -132,9 +113,8 @@ function buildCsvText(headers: string[], rows: Record<string, unknown>[]): strin
   return lines.join("\r\n");
 }
 
-/** Plain JS value out of an exceljs cell — mirrors what sheet_to_json used
- * to hand back (raw numbers/strings), not exceljs's own richer cell-value
- * shapes (formula results, rich text runs, hyperlink objects, Dates). */
+// Plain JS value out of an exceljs cell — mirrors what sheet_to_json used to hand back (raw numbers/strings), not exceljs's own richer cell-va…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-spreadsheet-io-ts-L135
 function cellPlainValue(value: ExcelJS.CellValue): unknown {
   if (value === null || value === undefined) return "";
   if (value instanceof Date) return value;
@@ -164,12 +144,8 @@ function worksheetToSpreadsheet(worksheet: ExcelJS.Worksheet): ParsedSpreadsheet
   }
 
   const rows: Record<string, unknown>[] = [];
-  // worksheet.actualRowCount is the count of NON-EMPTY rows, not the last
-  // row's index - a sheet with any blank row (common in real QuickBooks/
-  // Moniebook exports as a section separator) made this loop stop short and
-  // silently drop every row after it. worksheet.rowCount is the real last
-  // row number; the hasValue check below already skips blank rows within
-  // that range, matching sheet_to_json's old blankrows:false behavior.
+  // worksheet.actualRowCount is the count of NON-EMPTY rows, not the last row's index - a sheet with any blank row (common in real QuickBooks/ M…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-spreadsheet-io-ts-L149
   const rowCount = worksheet.rowCount;
   for (let r = 2; r <= rowCount; r++) {
     const excelRow = worksheet.getRow(r);
@@ -189,15 +165,8 @@ function worksheetToSpreadsheet(worksheet: ExcelJS.Worksheet): ParsedSpreadsheet
   return { headers, rows };
 }
 
-/**
- * Reads a CSV/XLSX File (from an <input type="file">) for sheet selection.
- * Legacy .xls (the pre-2007 binary Excel format) is deliberately not
- * supported — exceljs (unlike the xlsx package this replaced, which had
- * unpatched prototype-pollution/ReDoS CVEs with no upstream fix) only reads
- * .xlsx/.csv. Real store owners' QuickBooks POS/Moniebook exports can be
- * .xls, so this throws a clear, actionable error rather than a confusing
- * parse failure - the caller (ImportMappingDialog) surfaces it as a toast.
- */
+// Reads a CSV/XLSX File (from an <input type="file">) for sheet selection.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-spreadsheet-io-ts-L192
 export async function readWorkbookFile(file: File): Promise<ParsedWorkbook> {
   const extension = file.name.split(".").pop()?.toLowerCase();
 
@@ -243,11 +212,8 @@ export async function parseSpreadsheetFile(file: File): Promise<ParsedSpreadshee
   return parseWorkbookSheet(workbook, workbook.sheetNames[0]);
 }
 
-/** Shared by buildExportBlob (product columns) and any other flat
- * headers/rows export (e.g. the Stock Audit sheet) that isn't shaped like
- * ExportableProduct - same CSV/XLSX writer, just not tied to product columns.
- * Async (unlike the old xlsx-based version) since exceljs's own writer is
- * promise-based. */
+// Shared by buildExportBlob (product columns) and any other flat headers/rows export (e.g.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-spreadsheet-io-ts-L246
 export async function buildBlobFromRows(
   headers: string[],
   data: Record<string, unknown>[],

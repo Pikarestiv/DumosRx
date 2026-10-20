@@ -6,13 +6,8 @@ import {
 } from "@/lib/constants/dashboard-page-routes";
 import { generateStaticParams } from "@/app/(dashboard)/inventory/[tab]/page";
 
-/**
- * The Adjustments tab reuses the Inventory tab conventions wholesale: read
- * access is the existing view_stock_adjustment_history key (same key the
- * Movements tab uses), the write action is adjust_stock_counts, and the
- * header's "Adjust Stock" button just navigates to ?action=create for the
- * page's own effect to pick up.
- */
+// The Adjustments tab reuses the Inventory tab conventions wholesale:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-stock-adjustments-tab-test-tsx-L9
 
 const hasPermission = vi.fn((_key: string) => true);
 const replace = vi.fn();

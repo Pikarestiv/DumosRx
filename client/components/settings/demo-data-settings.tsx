@@ -16,9 +16,8 @@ import { useStore } from "@/lib/context/store-context";
 import { runDemoSeed, isStoreSeedable } from "@/lib/demo/loader";
 import { toast } from "sonner";
 
-/** Only rendered for stores flagged `is_demo` by a superadmin (see the
- * "Mark as Demo" action in the web admin panel); never shown for a real
- * customer account. */
+// Only rendered for stores flagged `is_demo` by a superadmin (see the "Mark as Demo" action in the web admin panel); never…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-demo-data-settings-tsx-L19
 export function DemoDataSettings() {
   const { user } = useAuth();
   const { storeProfile } = useStore();

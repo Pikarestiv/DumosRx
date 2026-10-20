@@ -45,12 +45,8 @@ function writeSkipCounts(counts: Record<string, number>): void {
   }
 }
 
-/**
- * Whether this pull's `stores` response can be read as a snapshot of every
- * store the ACCOUNT owns — the premise the prune below rests on. It cannot
- * for a staff identity. See client/AGENTS.md, "The `stores` prune and how a
- * store disappears".
- */
+// Whether this pull's `stores` response can be read as a snapshot of every store the ACCOUNT owns — the premise the prune below rests on.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-pull-ts-L48
 function storesSnapshotIsAccountWide(): boolean {
   return !getStoredUser()?.store_id;
 }
@@ -67,11 +63,8 @@ function recordUniqueSkipAndCheckGiveUp(table: string, recordId: string): boolea
 // Decides only when `onCriticalTablesReady` fires, not what's fetched.
 const SETUP_CRITICAL_TABLES = ["stores", "users"];
 
-/**
- * Columns each device owns privately: written locally, never pushed, so the
- * server's copy is meaningless and must never be written back. See
- * client/AGENTS.md, "Pull details (sync-engine/pull.ts)".
- */
+// Columns each device owns privately:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-pull-ts-L70
 const DEVICE_LOCAL_PULL_COLUMNS: Record<string, readonly string[]> = {
   stores: ["last_monotonic_time"],
 };
@@ -112,17 +105,8 @@ function cursorForLastRecord(records: Record<string, unknown>[]): PullPageCursor
   return { updated_at: last.updated_at, id: String(last.id) };
 }
 
-/**
- * Pull changes from server.
- *
- * `onCriticalTablesReady`, when passed, fires exactly once — the first time
- * every table in SETUP_CRITICAL_TABLES has drained for this round, or at
- * the very end as a fallback. No-op for a normal pull that omits it. Always
- * passed whether the pull actually succeeded: a thrown pull still fires it,
- * but with `false`, since the page transaction carrying stores/users rolls
- * back as a unit and there is no identity to move on with. See
- * client/AGENTS.md, "Pull details (sync-engine/pull.ts)".
- */
+// Pull changes from server.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-pull-L115
 export async function pullChanges(
   isManual: boolean = false,
   isSetup: boolean = false,
@@ -195,10 +179,8 @@ export async function pullChanges(
     const skippedTables = new Set<string>();
     const missingLocalTables = new Set<string>();
 
-    // Deltas whose stock_batches row hadn't arrived yet live in
-    // `_pending_stock_deltas`, written with the movement row itself and
-    // drained below. Both cursor stamps are still held back so they commit
-    // with the drain. See client/AGENTS.md, "Deferred movement deltas".
+    // Deltas whose stock_batches row hadn't arrived yet live in `_pending_stock_deltas`, written with the movement row itself and drained below.
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-pull-ts-L182
     let deferredThisRound = 0;
     let deferredMovementCursor: string | null = null;
     let deferredMovementPageCursor: string | null = null;
@@ -212,13 +194,11 @@ export async function pullChanges(
 
     let hasMoreAny = true;
     let page = 0;
-    // The window a drained table is stamped with covers only what the round
-    // actually queried, so it is the FIRST page's instant, never the last
-    // page's (client/AGENTS.md, "Pull details").
+    // The window a drained table is stamped with covers only what the round actually queried, so it is the FIRST page's instant, never the last pa…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-pull-ts-L199
     let roundTimestamp: string | null = null;
-    // Survives the page boundary: a page can carry batches and no movements,
-    // and the drain still owes those batches' deferred deltas priority over
-    // the next page's movements (A-197).
+    // Survives the page boundary:
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-pull-ts-L203
     let batchesArrivedSinceDrain = false;
 
     while (hasMoreAny && page < MAX_PULL_PAGES) {
@@ -252,10 +232,8 @@ export async function pullChanges(
         return 0;
       });
 
-      // Every batch whose log this page changed, against the net delta of the
-      // movements that changed it. Rebuilt once at the end of the page rather
-      // than patched per movement, which is what makes the result independent
-      // of the order the pages arrive in (A-197).
+      // Every batch whose log this page changed, against the net delta of the movements that changed it.
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-pull-ts-L239
       const touchedBatches = new Map<string, BatchLogChange>();
       const touchBatch = (batchId: string, delta: number) => {
         const seen = touchedBatches.get(batchId) ?? { delta: 0, inbound: 0 };
@@ -269,10 +247,8 @@ export async function pullChanges(
         for (const [table, records] of orderedEntries) {
           if (!Array.isArray(records)) continue;
 
-          // Settles deltas an arriving batch has resolved while their rows
-          // are still in the table. Ordering no longer matters — the drain
-          // rebuilds from the log — so this is bookkeeping, not the A-197
-          // correctness fix it was.
+          // Settles deltas an arriving batch has resolved while their rows are still in the table.
+          // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-pull-ts-L256
           if (batchesArrivedSinceDrain && table !== "stock_batches") {
             batchesArrivedSinceDrain = false;
             const voidedMovements = changes.stock_movements;
@@ -390,9 +366,8 @@ export async function pullChanges(
               try {
                 await execute(sql, params);
 
-                // Delta 0 because a pulled UPDATE changes no movement quantity
-                // today; see client/AGENTS.md, "Pull details", before making
-                // one that does.
+                // Delta 0 because a pulled UPDATE changes no movement quantity today; see client/AGENTS.md, "Pull details", before making one that does.
+                // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-pull-ts-L377
                 if (table === "stock_batches") {
                   touchBatch(recordId, 0);
                 } else if (table === "stock_movements" && data.stock_batch_id) {
@@ -438,9 +413,8 @@ export async function pullChanges(
               try {
                 await execute(sql, params);
 
-                // An arriving batch is rebuilt from the movements this device
-                // already holds, which is what makes a batch landing after its
-                // own movements a non-event (A-197).
+                // An arriving batch is rebuilt from the movements this device already holds, which is what makes a batch landing after its own movements a non…
+                // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-pull-ts-L425
                 if (table === "stock_batches") {
                   touchBatch(recordId, 0);
                 }
@@ -452,10 +426,8 @@ export async function pullChanges(
                   data.stock_batch_id &&
                   typeof data.quantity === "number"
                 ) {
-                  // A batch that has not arrived is still recorded as pending,
-                  // not because the delta is owed to it — the recompute reads
-                  // the whole log whenever the batch turns up — but because a
-                  // batch that never arrives has to stay visible (A-176).
+                  // A batch that has not arrived is still recorded as pending, not because the delta is owed to it — the recompute reads the whole log whenever…
+                  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-pull-ts-L439
                   const batchExists = await query<{ 1: number }>(
                     "SELECT 1 FROM stock_batches WHERE id = ?",
                     [data.stock_batch_id as string],
@@ -685,10 +657,8 @@ export async function pullChanges(
     logCrash(error, false, { area: "sync-pull" }).catch(() => {});
     throw error; // Throw so sync() can catch it properly
   } finally {
-    // In `finally`, so a round with no stores/users changes — or a thrown
-    // pull — can never leave a caller awaiting this callback forever. The
-    // success flag keeps a thrown (nothing-written) pull from being reported
-    // as "identity ready". See client/AGENTS.md, "Pull details".
+    // In `finally`, so a round with no stores/users changes — or a thrown pull — can never leave a caller awaiting this callback forever.
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-pull-ts-L672
     fireCriticalReadyOnce(!pullFailed);
   }
 }

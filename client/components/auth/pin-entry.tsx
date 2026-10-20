@@ -43,10 +43,7 @@ export function PinEntry({
 }: PinEntryProps) {
   const isLockedOut = !!lockoutRemainingMs && lockoutRemainingMs > 0;
   // Touch capability decides this, not viewport width or user-agent sniffing:
-  // iPadOS masks its UA to look like a Mac by default, and a tablet can easily
-  // have a "desktop-width" viewport in landscape. Real touch devices get the
-  // on-screen PinPad (which never depends on the OS actually deciding to show
-  // a keyboard); everything else gets the native keyboard via inputMode.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-pin-entry-tsx-L45
   const isTouchDevice = useIsTouchDevice();
   const [showForgotPin, setShowForgotPin] = React.useState(false);
 

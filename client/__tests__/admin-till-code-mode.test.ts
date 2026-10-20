@@ -14,11 +14,8 @@ vi.mock("@/lib/db/queries/auth", () => ({
 
 import { useAdminTillCodeMode } from "@/lib/hooks/use-admin-till-code-mode";
 
-/**
- * If this never flips, the admin cannot submit at all: the form's submit stays
- * gated on a 4-digit PIN length. If it flips too eagerly, a store owner typing
- * their own email loses their offline PIN login.
- */
+// If this never flips, the admin cannot submit at all:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-admin-till-code-mode-test-ts-L17
 describe("useAdminTillCodeMode", () => {
   beforeEach(() => {
     lookup.rows = [];

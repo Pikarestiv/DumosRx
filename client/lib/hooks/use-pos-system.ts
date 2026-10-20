@@ -20,22 +20,14 @@ import { usePullToRefresh } from "@/lib/hooks/use-pull-to-refresh";
 import { queryKeys } from "@/lib/query-keys";
 import type { SaleWithDetails } from "@/lib/types/sale";
 
-/**
- * Orchestrates every POS business-logic hook (cart, payment, prescriptions,
- * held sales, scanning, keyboard shortcuts, pull-to-refresh) plus the
- * remaining local glue state, so the POSSystem component only has to render
- * what this hook returns.
- */
+// Orchestrates every POS business-logic hook (cart, payment, prescriptions, held sales, scanning, keyboard shortcuts, pull-to-refresh) plus th…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-system-ts-L23
 export function usePOSSystem() {
   const { t, storeProfile, vatPercentage } = useStore();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Focuses the header search on arrival at POS — it's easy to miss at a
-  // glance since it sits in the header rather than the product grid, and
-  // this is the input staff will use for almost every sale. A no-op on
-  // mobile, where this same input is hidden (`hidden sm:flex` in
-  // pos-layout-header.tsx) in favor of pos-mobile-search.tsx — focusing a
-  // display:none input doesn't pop the on-screen keyboard.
+  // Focuses the header search on arrival at POS — it's easy to miss at a glance since it sits in the header rather than the product grid, and th…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-system-ts-L29
   useEffect(() => {
     searchInputRef.current?.focus();
   }, []);
@@ -90,9 +82,8 @@ export function usePOSSystem() {
     paymentAccounts,
   } = usePOSData({ historyActive: activeTab === "history" });
 
-  // POS doesn't use the shared DashboardLayout scroll container (its routes opt out
-  // of that entirely), so each tab wires pull-to-refresh directly onto its own
-  // scrollable region instead of registering through the global context.
+  // POS doesn't use the shared DashboardLayout scroll container (its routes opt out of that entirely), so each tab wires pull-to-refresh directl…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-system-ts-L89
   const productsPullToRefresh = usePullToRefresh<HTMLDivElement>({
     onRefresh: async () => {
       await refetchProducts();
@@ -220,15 +211,8 @@ export function usePOSSystem() {
   const handleEditPrescription = isPrescriptionLocked
     ? () => router.push(`/prescriptions?action=add&edit_rx=${dispensedRxId}`)
     : undefined;
-  // Clears the search after a search-driven add so the next scan/search
-  // starts clean, instead of leaving the previous query (and its now-stale
-  // narrowed results) sitting there until staff notice and clear it
-  // themselves. Only when a search was actually active: adding straight
-  // from Suggestions/Recently Sold/All Products (searchTerm already empty)
-  // has nothing to clear and shouldn't reset scroll position for no reason.
-  // A fresh closure here defeated POSProductCard's React.memo entirely (it
-  // is this component's only per-card prop), re-rendering every visible tile
-  // on every keystroke.
+  // Clears the search after a search-driven add so the next scan/search starts clean, instead of leaving the previous query (and its now-stale n…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-system-ts-L219
   const handleAddToCart = useCallback(
     (product: Parameters<typeof addToCart>[0]) => {
       if (isPrescriptionLocked) {

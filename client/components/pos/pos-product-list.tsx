@@ -43,9 +43,8 @@ interface POSProductListProps {
    * zero rows — the two render different states (see docs/UX-PERF-FIXES.md). */
   productsLoadFailed?: boolean;
   onRetryLoadProducts?: () => void;
-  /** Shared scroll container this list renders inside of — see
-   * VirtualizedProductGrid's own doc comment for why it can't create its
-   * own. */
+  // Shared scroll container this list renders inside of — see VirtualizedProductGrid's own doc comment for why it can't crea…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-pos-pos-product-list-tsx-L46
   scrollElementRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -101,9 +100,8 @@ export const POSProductCard = memo(function POSProductCard({
   return (
     <button
       type="button"
-      // Not `disabled`: clicking an out-of-stock tile still surfaces the
-      // "This item is out of stock" toast, and a disabled button would drop it
-      // out of the tab order entirely.
+      // Not `disabled`: clicking an out-of-stock tile still surfaces the "This item is out of stock" toast, and a disabled butto…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-product-list-tsx-L104
       aria-disabled={isOutOfStock || undefined}
       className={`relative w-full text-left p-2 sm:p-3 border rounded-xl sm:rounded-2xl transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:border-ring ${cardStyle} ${isOutOfStock ? "opacity-60 grayscale-[0.5] cursor-not-allowed" : "cursor-pointer"}`}
       onClick={() => addToCart(product)}

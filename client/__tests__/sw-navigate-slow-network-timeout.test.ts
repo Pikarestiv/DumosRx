@@ -2,17 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-/**
- * A-160: the navigate handler's "network first" fetch was bounded by a flat
- * 4000ms abort, chosen only to stop iOS Safari parking a doomed fetch for
- * tens of seconds. On a congested Nigerian mobile connection that budget
- * also expired before a perfectly live request could deliver the document's
- * first byte, so the device fell back to Cache Storage on every single
- * navigation and never landed a fresh copy - the other half of the stale
- * deploy loop A-159 fixed in the HTTP-cache layer (Sentry DUMOSRX-CLIENT-F /
- * DUMOSRX-CLIENT-J). These cases pin the headroom the slow connection needs
- * and the upper bound that still protects the dead-connection case.
- */
+// A-160: the navigate handler's "network first" fetch was bounded by a flat 4000ms abort, chosen only to stop iOS Safari p…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sw-navigate-slow-network-timeout-test-ts-L5
 describe("sw.js navigate fetch timeout on a slow connection", () => {
   const source = readFileSync(resolve(__dirname, "../public/sw.js"), "utf8");
 

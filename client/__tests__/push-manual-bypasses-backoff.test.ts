@@ -12,17 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * Regression test for a real report: after a large import produced many
- * repeated sync failures, the resulting exponential backoff (capped at 1
- * hour — see recordSyncFailure in base-helpers.ts) left every queued item's
- * next_retry_at in the future. getPendingSyncItems() correctly excludes
- * those from a background auto-sync, but pushChanges() applied that same
- * filter even for an explicit, user-clicked "Sync Now" — so a manual sync
- * silently pushed nothing (no network request at all) and still reported
- * "success", with no way for the user to force a retry before the backoff
- * window passed. A manual sync should always attempt the full queue.
- */
+// Regression test for a real report:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-manual-bypasses-backoff-test-ts-L15
 describe("pushChanges manual bypass of retry backoff", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -60,13 +51,8 @@ describe("pushChanges manual bypass of retry backoff", () => {
     );
   }
 
-  /**
-   * The request that does go out carries no changes: a non-empty queue still
-   * has to be able to attract an operator command, and a stuck row is by
-   * definition one that has backed off out of reach (see
-   * push-delivers-command-results-when-queue-is-empty.test.ts). What must
-   * never happen is the backed-off row itself being sent.
-   */
+  // The request that does go out carries no changes:
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-manual-bypasses-backoff-test-ts-L63
   it("a background (non-manual) sync sends no changes for items still in backoff", async () => {
     queueItemInBackoff();
 

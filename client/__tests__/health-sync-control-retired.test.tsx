@@ -6,11 +6,8 @@ import { setToken, clearToken } from "../lib/api/token-manager";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-/**
- * A-213: the endpoint refuses with 410 and is not coming back until the
- * `opening_quantity` work lands, so the UI must stop advertising it. The code
- * path itself stays — only the invitation goes.
- */
+// A-213: the endpoint refuses with 410 and is not coming back until the `opening_quantity` work lands, so the UI must stop…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-health-sync-control-retired-test-tsx-L9
 describe("Settings > Data no longer offers Health Sync", () => {
   let container: HTMLDivElement;
   let root: Root;

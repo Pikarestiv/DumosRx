@@ -13,9 +13,8 @@ export const PRESCRIPTION_STATUSES = [
 ] as const;
 export type PrescriptionStatus = (typeof PRESCRIPTION_STATUSES)[number];
 
-/** Narrows a raw DB string to a known PrescriptionPriority, falling back to
- * "normal" for anything unrecognized: prescriptions are healthcare data, so
- * an unchecked cast here could silently misrepresent urgency. */
+// Narrows a raw DB string to a known PrescriptionPriority, falling back to "normal" for anything unrecognized:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#types-prescription-ts-L16
 export function toPrescriptionPriority(value: string | null | undefined): PrescriptionPriority {
   return (PRESCRIPTION_PRIORITIES as readonly string[]).includes(value ?? "")
     ? (value as PrescriptionPriority)
@@ -90,10 +89,8 @@ export interface PrescriptionItemInsertPayload extends PrescriptionItem {
   updated_at?: string;
 }
 
-/** Payload accepted by updatePrescriptionItem(): the editable fields from the
- * medication form, plus the caller-supplied updated_at timestamp. Excludes
- * refills_used/next_refill_date on purpose — those are refill history and must
- * survive an edit untouched. */
+// Payload accepted by updatePrescriptionItem():
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#types-prescription-ts-L93
 export interface PrescriptionItemUpdatePayload {
   product_name?: string;
   strength?: string;

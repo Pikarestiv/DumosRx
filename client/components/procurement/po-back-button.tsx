@@ -20,9 +20,8 @@ interface POBackButtonProps {
   itemCount: number;
 }
 
-/** The builder views' back control. Every one of them used to
- * router.push("/procurement") outright, silently discarding however many
- * line items had been typed in. */
+// The builder views' back control.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-back-button-tsx-L23
 export function POBackButton({ itemCount }: POBackButtonProps) {
   const router = useRouter();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);

@@ -56,11 +56,8 @@ export function ReturnDialog({
   const [reason, setReason] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
 
-  // Fetch items for this sale, including how much of each has already been
-  // returned in a prior return on this sale — getSaleItems() (the previous
-  // data source here) only returns the original sold quantity, with no way
-  // to know a customer already returned some of it, which let the same
-  // items be returned twice.
+  // Fetch items for this sale, including how much of each has already been returned in a prior return on this sale — getSale…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-return-dialog-tsx-L59
   const { data: detailsData, isLoading: loadingSaleItems } = useQuery({
     ...queryKeys.sales.transactionDetails(sale?.id),
     queryFn: () => (sale ? getTransactionDetails(sale.id) : Promise.resolve(null)),
@@ -108,12 +105,8 @@ export function ReturnDialog({
     (sum, item) => sum + (item.unit_price || 0) * item.returnQuantity,
     0,
   );
-  // Refund proportionally includes the tax and discount the customer actually
-  // paid on these items, not just their raw unit price, otherwise a full
-  // return of a sale refunds less than the customer paid (the tax/discount
-  // share is left behind as phantom "revenue" everywhere downstream: the
-  // dashboard, POS today's-sales tile, and BI reports all derive their
-  // totals from sales.total_amount minus returns.total_refunded).
+  // Refund proportionally includes the tax and discount the customer actually paid on these items, not just their raw unit p…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-return-dialog-tsx-L111
   const saleSubtotal = sale?.subtotal || 0;
   const totalRefund = calculateProportionalRefund({
     itemsSubtotal,
@@ -130,12 +123,8 @@ export function ReturnDialog({
     setShowConfirm(true);
   };
 
-  // Passed as ConfirmDialog's onConfirm, which awaits it and only closes
-  // once it settles. Swallows the mutation's own rejection (already
-  // toasted via onError in the hook) so ConfirmDialog closes the same way
-  // on both success and failure, matching this dialog's original contract —
-  // it's returnMutation.isError / the outer ResponsiveModal staying open
-  // that signals failure, not an exception surfacing here.
+  // Passed as ConfirmDialog's onConfirm, which awaits it and only closes once it settles.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-return-dialog-tsx-L133
   const handleSubmit = async () => {
     if (returnMutation.isPending) return;
     try {

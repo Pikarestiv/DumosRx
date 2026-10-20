@@ -16,12 +16,8 @@ interface UsePOSPrescriptionProps {
   pathname: string;
 }
 
-/**
- * Loads a prescription's items onto the till from ?dispense_rx=<id>. That
- * URL is the dispense action itself and is typeable, so it requires
- * "dispense_prescriptions" independently of the Dispense button that
- * normally produces it.
- */
+// Loads a prescription's items onto the till from ?dispense_rx=<id>.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-prescription-ts-L19
 export function usePOSPrescription({
   searchParams,
   products,

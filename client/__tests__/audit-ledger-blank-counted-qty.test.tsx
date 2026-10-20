@@ -26,13 +26,8 @@ vi.mock("@tanstack/react-virtual", () => ({
   }),
 }));
 
-/**
- * Counted Qty opens EMPTY, not pre-filled with the system quantity. A
- * pre-filled count sheet cannot say which rows anyone has actually walked
- * to, and prefilling 0 instead would make every untouched row an adjustment
- * to zero stock. The field itself is the record of the count; the tick is a
- * shortcut for "counted, and it matched".
- */
+// Counted Qty opens EMPTY, not pre-filled with the system quantity.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-audit-ledger-blank-counted-qty-test-tsx-L29
 describe("cycle count ledger: Counted Qty is blank until entered", () => {
   const onUpdateItem = vi.fn();
   const onCountRow = vi.fn();
@@ -108,9 +103,8 @@ describe("cycle count ledger: Counted Qty is blank until entered", () => {
   });
 
   it("ticking asks for a count against live stock, not the figure on screen", () => {
-    // "Counted, and it matched" has to mean it matched what the system says
-    // right now - the row's own systemQty may be hours stale (A-263), so the
-    // ledger hands the decision to countRow, which re-reads.
+    // "Counted, and it matched" has to mean it matched what the system says right now - the row's own systemQty may be hours s…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-audit-ledger-blank-counted-qty-test-tsx-L111
     renderLedger();
     act(() => {
       screen.getByLabelText("Mark Panadol as counted").click();

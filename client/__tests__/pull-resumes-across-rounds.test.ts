@@ -17,13 +17,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * Regression test for docs/KNOWN_BUGS.md A-1: a pull round that did not drain
- * a table's whole backlog threw away every page of progress it had made, so
- * the next sync() restarted from the same window forever. Per-table progress
- * is now persisted into `_sync_state.server_cursor` after each committed
- * page, and the next round resumes from it.
- */
+// Regression test for docs/KNOWN_BUGS.md A-1:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-resumes-across-rounds-test-ts-L20
 describe("pullChanges resumes an unfinished table across sync rounds", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

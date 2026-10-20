@@ -6,13 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Exercises the revenue/COGS/expense aggregation queries against a genuine
- * in-memory SQLite engine (sql.js), not a mocked query(). These are the
- * numbers that feed the P&L report and dashboard, so a silent aggregation
- * bug here (wrong join, wrong sign, wrong date filter) is exactly the class
- * of bug that showed 0s in the suppliers table without ever throwing.
- */
+// Exercises the revenue/COGS/expense aggregation queries against a genuine in-memory SQLite engine (sql.js), not a mocked…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-finance-reports-test-ts-L9
 describe("finance.ts / reports.ts financial aggregates", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -65,23 +60,16 @@ describe("finance.ts / reports.ts financial aggregates", () => {
     d.setMonth(d.getMonth() - 2);
     return d.toISOString();
   };
-  // getCurrentMonthRevenue/getCurrentMonthCOGS take an explicit local-timezone
-  // window rather than relying on SQLite's UTC-based strftime('now'), matching
-  // how use-finance-data.ts derives it.
+  // getCurrentMonthRevenue/getCurrentMonthCOGS take an explicit local-timezone window rather than relying on SQLite's UTC-ba…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-finance-reports-test-ts-L68
   const currentMonthWindow = () => {
     const now = new Date();
     const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const to = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
     return { from, to };
   };
-  // The window's `from`/`to` are UTC instants representing LOCAL midnight/
-  // month-start (see currentMonthWindow above) - slicing the ISO string's
-  // first 10 characters gives the UTC calendar date of that instant, which
-  // in a positive-UTC-offset timezone (this suite runs under Africa/Lagos,
-  // UTC+1) is the PREVIOUS day, not the local date the window actually
-  // starts on. expenses.date is compared against these bounds via
-  // date(?, 'localtime') (see finance.ts), so a fixture inserting an
-  // expense must use the real local calendar date, not this UTC slice.
+  // The window's `from`/`to` are UTC instants representing LOCAL midnight/ month-start (see currentMonthWindow above) - slic…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-finance-reports-test-ts-L77
   const firstDayOfMonthLocal = () => {
     const now = new Date();
     const y = now.getFullYear();

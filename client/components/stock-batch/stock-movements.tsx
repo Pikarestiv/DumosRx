@@ -75,22 +75,12 @@ export function StockMovements() {
   const { availableStores } = useStore();
   const { isAdmin } = useAuth();
   const { canManageMultiStore } = useFeatureGate();
-  // Mirrors dashboard-header.tsx's hasMultiStoreAccess/actionRequiresIsAdmin
-  // gate on the Transfer Stock header action: plan entitlement AND this
-  // device actually having 2+ synced stores — a single-store account, or a
-  // cashier fixed to one store via user.store_id, has nothing to transfer
-  // between. This screen already gates the whole Ledger tab on
-  // canManageStockBatch (see useStockBatchManagement), so isAdmin here just
-  // narrows further to the roles this direct, unapproved store-to-store
-  // move should be limited to.
+  // Mirrors dashboard-header.tsx's hasMultiStoreAccess/actionRequiresIsAdmin gate on the Transfer Stock header action:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-stock-batch-stock-movements-tsx-L78
   const canTransferStock = isAdmin && canManageMultiStore && availableStores.length > 1;
 
-  // Triggered from the header's "Transfer Stock" button (see
-  // dashboard-header.tsx), which — like Add Product's ?action=add — just
-  // navigates to this same page with a query param rather than owning any
-  // dialog state itself. Re-checks canTransferStock rather than trusting the
-  // URL: the header already gates the button on it, but this guards against
-  // someone hitting the link directly.
+  // Triggered from the header's "Transfer Stock" button (see dashboard-header.tsx), which — like Add Product's ?action=add —…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-stock-batch-stock-movements-tsx-L88
   useEffect(() => {
     if (searchParams.get("action") !== "transfer") return;
     if (canTransferStock) setShowTransferDialog(true);

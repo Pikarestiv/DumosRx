@@ -6,26 +6,10 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression test for a silent-oversell bug found while smoke-testing POS
- * (docs/features/pos.md): once a product's only stock_batches row hit 0 (or
- * went negative), getBatchesForProduct's `quantity > 0` filter correctly
- * excluded it for FEFO picking, but the payment loop then had *no* batch to
- * attribute the sale to at all. The sale and its sale_items row still
- * completed and were recorded as revenue, while the stock_batches quantity
- * and stock_movements ledger were left completely untouched for that unit —
- * an untracked, unauditable inventory loss with no error or warning
- * anywhere. Confirmed against the real app data (a live sale with no
- * matching stock_movements row) before this fix.
- *
- * recordSaleItemStock (lib/db/queries/inventory.ts) now falls back to the
- * product's most-recently-touched active batch when none has positive
- * stock, so the deduction/movement is still recorded (batch going further
- * negative) instead of vanishing.
- */
-// Relative to "now" (not hardcoded dates) so these stay valid, unexpired
-// expiry dates as real time passes - getBatchesForProduct excludes
-// already-expired batches from FEFO picking.
+// Regression test for a silent-oversell bug found while smoke-testing POS (docs/features/pos.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-record-sale-item-stock-depleted-batch-test-ts-L9
+// Relative to "now" (not hardcoded dates) so these stay valid, unexpired expiry dates as real time passes - getBatchesForP…
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-record-sale-item-stock-depleted-batch-test-ts-L26
 const NEAR_EXPIRY = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 const FAR_EXPIRY = new Date(Date.now() + 400 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
@@ -60,9 +44,8 @@ describe("recordSaleItemStock — depleted batch", () => {
   });
 
   it("still logs a stock_movements row when the product's only batch is already fully depleted", async () => {
-    // The one batch this product has is already at 0 — e.g. it was sold
-    // down to nothing in an earlier transaction — so getBatchesForProduct's
-    // `quantity > 0` filter would find nothing for it.
+    // The one batch this product has is already at 0 — e.g.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-record-sale-item-stock-depleted-batch-test-ts-L63
     db.run(
       `INSERT INTO stock_batches (id, product_id, quantity, cost_price) VALUES ('batch1', 'prod1', 0, 60)`,
     );
@@ -85,9 +68,8 @@ describe("recordSaleItemStock — depleted batch", () => {
     expect(movements[0]?.values[0]?.[1]).toBe("batch1");
 
     const batch = db.exec("SELECT quantity FROM stock_batches WHERE id = 'batch1'");
-    // Floored at 0 (bug #4 fix), not left arbitrarily negative — the sale
-    // (a legitimate oversell, since the batch had 0 to give) still records
-    // the true -1 deduction in stock_movements above.
+    // Floored at 0 (bug #4 fix), not left arbitrarily negative — the sale (a legitimate oversell, since the batch had 0 to giv…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-record-sale-item-stock-depleted-batch-test-ts-L88
     expect(batch[0]?.values[0]?.[0]).toBe(0);
 
     const saleItems = db.exec(
@@ -103,11 +85,8 @@ describe("recordSaleItemStock — depleted batch", () => {
     );
   });
 
-  // A-57: this used to write a sale_item row with a null stock_batch_id and
-  // NO stock_movements row at all — revenue with zero ledger trace and zero
-  // COGS. Unreachable from the POS (the catalog query hides such a product),
-  // but the online-order fulfilment path has no equivalent guard, so every
-  // sale line must now produce exactly one stock_movements row.
+  // A-57: this used to write a sale_item row with a null stock_batch_id and NO stock_movements row at all — revenue with zer…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-record-sale-item-stock-depleted-batch-test-ts-L106
   it("opens a batch and still logs a stock_movements row when the product has no stock_batches row at all", async () => {
     await recordSaleItemStock({
       saleId: "sale1",
@@ -171,12 +150,8 @@ describe("recordSaleItemStock — depleted batch", () => {
   });
 
   it("still logs the full quantity when a single batch only partially covers an oversold cart line", async () => {
-    // Reproduces the narrower variant of the same bug: getBatchesForProduct
-    // returns a non-empty list (one batch with 1 unit left), so the
-    // zero-batches fallback never triggers, but the cart line oversells
-    // beyond what that batch has. The normal deduction loop deducts the 1
-    // unit it can and stops — the leftover 2 units must still be picked up
-    // by the fallback instead of vanishing untracked.
+    // Reproduces the narrower variant of the same bug:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-record-sale-item-stock-depleted-batch-test-ts-L174
     db.run(
       `INSERT INTO stock_batches (id, product_id, quantity, cost_price) VALUES ('batch1', 'prod1', 1, 60)`,
     );
@@ -219,13 +194,8 @@ describe("recordSaleItemStock — depleted batch", () => {
   });
 
   it("writes exactly one sale_item_batches row and one stock_movements row per unique batch, even when the fallback re-selects the batch the main loop just partially deducted (bug #6)", async () => {
-    // Same setup as the partial-shortfall test above (1 unit in stock, sale
-    // of 3): the main loop deducts 1 from batch1 and bumps its updated_at,
-    // leaving remainingToDeduct = 2. getAnyActiveBatchForProduct then finds
-    // batch1 again (it's the only/most-recently-touched active batch), so
-    // deductFromBatch runs on it a second time. Before the fix this produced
-    // a SECOND sale_item_batches row and a SECOND stock_movements row for
-    // the same (sale_item, batch) pair instead of merging into the first.
+    // Same setup as the partial-shortfall test above (1 unit in stock, sale of 3):
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-record-sale-item-stock-depleted-batch-test-ts-L222
     db.run(
       `INSERT INTO stock_batches (id, product_id, quantity, cost_price) VALUES ('batch1', 'prod1', 1, 60)`,
     );
@@ -259,9 +229,8 @@ describe("recordSaleItemStock — depleted batch", () => {
   });
 
   it("still writes two separate sale_item_batches rows when a sale genuinely spans two different positive-stock batches", async () => {
-    // Two distinct batches, both with positive stock, sale quantity exceeds
-    // the first (FEFO-earliest) batch alone. The fix must not collapse
-    // legitimately different batches into a single row.
+    // Two distinct batches, both with positive stock, sale quantity exceeds the first (FEFO-earliest) batch alone.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-record-sale-item-stock-depleted-batch-test-ts-L262
     db.run(
       `INSERT INTO stock_batches (id, product_id, quantity, cost_price, expiry_date) VALUES ('batch_old', 'prod1', 2, 60, '${NEAR_EXPIRY}')`,
     );

@@ -18,23 +18,8 @@ interface CategoryComboboxProps {
   className?: string;
 }
 
-/**
- * Category picker backed by the real `categories` table - and by nothing
- * else. FORM_SUGGESTIONS (lib/constants/suggestions.ts) is for naming a
- * brand-new category (settings/store/category-form-dialog.tsx), never for
- * choosing one, so this list stays empty on a fresh install rather than
- * substituting reference data a store does not actually use. The pinned
- * "Create ..." row is what keeps it open-ended (the save paths create a
- * missing category by name - see use-save-product-mutation.ts /
- * use-product-quick-edit-mutation.ts).
- *
- * Deliberately an in-DOM absolutely positioned dropdown rather than a
- * portal to <body> (the shape SearchableInput uses): every caller here sits
- * inside a Radix dialog, whose scroll-lock blocks wheel/touch scrolling over
- * a portaled sibling of the dialog content, so the list could not be
- * scrolled at all. See components/ui/product-combobox.tsx for the same
- * pattern.
- */
+// Category picker backed by the real `categories` table - and by nothing else.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-category-combobox-tsx-L21
 export function CategoryCombobox({
   value,
   onValueChange,

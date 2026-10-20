@@ -6,20 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression coverage for two Low-severity docs/KNOWN_BUGS.md findings in
- * reports.ts:
- *
- * 1. fetchStockBatchReportData filtered products.store_id but never
- *    stock_batches.store_id on the join, so a legacy store_id-less batch (or
- *    one attributed to another store) could still be summed into the active
- *    store's valuation.
- * 2. getBIMetrics's current-period revenue/COGS/transaction queries used
- *    `transaction_date >= ?` with no upper bound, while the expense side
- *    (getSmoothedExpensesTotal) was already capped at "now" - a future-dated
- *    or clock-skewed sale counted toward revenue in a window the matching
- *    expenses were excluded from, skewing the reported margin.
- */
+// Regression coverage for two Low-severity docs/KNOWN_BUGS.md findings in reports.ts:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-reports-store-scoping-and-window-cap-test-ts-L9
 describe("reports.ts store scoping and current-period window cap", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

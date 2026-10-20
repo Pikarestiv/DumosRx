@@ -2,14 +2,8 @@ import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
 
-/**
- * A-274. `resetDatabase()` clears `_sync_queue` but only `LOCAL_WIPE_TABLES`,
- * so any store-scoped table missing from that list keeps its rows at
- * `_synced = 0` with no queue entry — the exact shape `requeueOrphanedRows()`
- * exists to repair. Three tables were in that gap, and covering it at the
- * source is what lets the boot-time orphan scan stop running on a crash
- * marker. See client/AGENTS.md, "The boot-time orphan scan".
- */
+// A-274. `resetDatabase()` clears `_sync_queue` but only `LOCAL_WIPE_TABLES`, so any store-scoped table missing from that…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-local-wipe-leaves-no-orphans-test-ts-L5
 describe("a local wipe that clears _sync_queue cannot orphan a synced table", () => {
   const read = (p: string) =>
     fs.readFileSync(path.resolve(__dirname, "..", p), "utf-8");

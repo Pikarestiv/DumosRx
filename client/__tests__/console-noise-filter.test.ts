@@ -5,18 +5,8 @@ import {
   type FilterableConsole,
 } from "../test-support/console-noise";
 
-/**
- * Vitest's worker forwards every console call to the reporter over an rpc,
- * and the worker closes as soon as the last test finishes. Fire-and-forget
- * async work — `void logCrash(...)`, a sync-engine catch, a DB retry — can
- * write a line after that point, leaving a flush in flight when the rpc
- * closes: `EnvironmentTeardownError: Closing rpc while "onUserConsoleLog"
- * was pending`. The suite is green and the job still exits non-zero.
- *
- * No vitest setting prevents the send (`silent` and `onConsoleLog` are both
- * reporter-side), so the only fix is for those lines not to be written. This
- * predicate decides which are pure noise.
- */
+// Vitest's worker forwards every console call to the reporter over an rpc, and the worker closes as soon as the last test…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-console-noise-filter-test-ts-L8
 describe("isSuppressibleTestNoise", () => {
   it("suppresses the crash logger's own progress chatter", () => {
     expect(isSuppressibleTestNoise(["[Logger] Crash log written to local database"])).toBe(true);
@@ -29,11 +19,8 @@ describe("isSuppressibleTestNoise", () => {
     );
   });
 
-  /**
-   * The straggler actually caught in CI: a mock missing an export makes the
-   * crash path throw, and the caught error is logged with a full stack - a
-   * big payload, so the slowest thing to flush.
-   */
+  // The straggler actually caught in CI:
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-console-noise-filter-test-ts-L32
   it("suppresses the mock-shaped failure that was seen pending at teardown", () => {
     expect(
       isSuppressibleTestNoise([

@@ -12,17 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * Regression test for a real incident: SyncController::push silently skips
- * inserting a category/supplier whose name collides with one the server
- * already has for the same owner (see its "duplicate name" handling),
- * remapping the id only in that single request's in-memory $idMap. A local
- * row created before this reconciliation runs was otherwise permanently
- * unresolvable: every retry re-attempted the same insert, got skipped
- * again, and anything referencing it by the old local id kept failing its
- * foreign key check forever. This proves pull.ts detects the same
- * collision (by name) and remaps every local reference to the server's id.
- */
+// Regression test for a real incident:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-duplicate-name-reconciliation-test-ts-L15
 describe("pull.ts duplicate-name reconciliation", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -42,9 +33,8 @@ describe("pull.ts duplicate-name reconciliation", () => {
     });
     db = new SQL.Database();
     db.run(SCHEMA_SQL);
-    // store_id arrives by runtime migration, not SCHEMA_SQL. Added here, before
-    // any pull warms getValidColumns()'s per-table cache, so a pulled row
-    // actually lands with its store_id.
+    // store_id arrives by runtime migration, not SCHEMA_SQL.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-duplicate-name-reconciliation-test-ts-L45
     for (const table of ["categories", "products", "suppliers"]) {
       try {
         db.run(`ALTER TABLE ${table} ADD COLUMN store_id TEXT`);

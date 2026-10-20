@@ -26,9 +26,8 @@ import {
 } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 
-/** Paystack's six supported countries (see StorePaymentAccountController's
- * OA enum); which of them get a bank list or account resolution is the
- * server's call, reported per request. See client/AGENTS.md. */
+// Paystack's six supported countries (see StorePaymentAccountController's OA enum); which of them get a bank list or accou…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-store-online-payments-section-tsx-L29
 const SUPPORTED_COUNTRIES = [
   { value: "nigeria", label: "Nigeria" },
   { value: "ghana", label: "Ghana" },

@@ -6,10 +6,8 @@ import { devLog } from "@/lib/utils/dev-log";
 import { isChunkLoadError, shouldReloadForChunkError } from "@/lib/utils/chunk-error";
 import { BUILD_SHA } from "@/lib/constants";
 
-// Benign browser-internal notices that show up as window "error" events but
-// don't indicate anything actually broke, e.g. ResizeObserver's loop-limit
-// warnings, which commonly fire when a dropdown/popover measures itself on
-// open. Not real crashes; don't log them as ones.
+// Benign browser-internal notices that show up as window "error" events but don't indicate anything actually broke, e.g.
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-tauri-global-error-listener-tsx-L9
 const IGNORED_ERROR_PATTERNS = [/^ResizeObserver loop/i];
 
 function isIgnorableError(message: unknown): boolean {
@@ -21,12 +19,8 @@ export function GlobalErrorListener({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Most real stale-chunk failures never reach ErrorBoundary's
-    // componentDidCatch at all: a route-level dynamic import() rejecting
-    // (client-side navigation to code that isn't loaded yet) surfaces here,
-    // as an unhandled promise rejection, not a React render-time throw. See
-    // error-boundary.tsx for the matching React-throw case, and
-    // shouldReloadForChunkError() for why the reload is capped per build.
+    // Most real stale-chunk failures never reach ErrorBoundary's componentDidCatch at all:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-tauri-global-error-listener-tsx-L24
     const reloadOnChunkError = (error: unknown) => {
       if (!isChunkLoadError(error instanceof Error ? error : undefined)) return false;
       if (typeof window === "undefined") return false;
@@ -35,11 +29,8 @@ export function GlobalErrorListener({ children }: { children: ReactNode }) {
       return true;
     };
 
-    // Reload first, report only if that didn't handle it. A stale chunk is
-    // recoverable and the reload fixes it, so reporting before reloading
-    // filed a fatal crash for every self-healing navigation (A-171). A chunk
-    // error that survives this build's one reload is a real failure and the
-    // guard makes reloadOnChunkError return false, so it still reports.
+    // Reload first, report only if that didn't handle it.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-tauri-global-error-listener-tsx-L38
     const handleError = (event: ErrorEvent) => {
       if (isIgnorableError(event.error || event.message)) return;
       if (reloadOnChunkError(event.error)) return;

@@ -47,13 +47,8 @@ function renderPanel(prescription: Prescription) {
   );
 }
 
-/**
- * The detail panel's action row is the app's only prescription-fulfilment
- * surface. "manage_prescriptions" owns the record's own data (Edit);
- * "dispense_prescriptions" owns the whole fulfilment pipeline that ends in
- * medicine leaving the shelf - Process, Mark Ready, Dispense and Dispense
- * Refill. Process Return is neither and stays ungated.
- */
+// The detail panel's action row is the app's only prescription-fulfilment surface.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-prescription-detail-panel-permissions-test-tsx-L50
 describe("prescription detail panel permissions", () => {
   beforeEach(() => {
     hasPermission.mockReset();

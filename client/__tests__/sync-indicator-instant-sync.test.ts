@@ -4,9 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-// jsdom doesn't implement matchMedia; components/ui/tooltip.tsx's touch
-// detection needs it to exist to mount at all. Same stub as
-// sync-indicator-expand-timing.test.ts.
+// jsdom doesn't implement matchMedia; components/ui/tooltip.tsx's touch detection needs it to exist to mount at all.
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sync-indicator-instant-sync-test-ts-L7
 if (!window.matchMedia) {
   window.matchMedia = ((query: string) => ({
     matches: false,
@@ -65,9 +64,8 @@ vi.mock("@/lib/query-keys", () => ({
   queryKeys: { sync: { queueCount: () => ({ queryKey: ["syncQueueCount"] }) } },
 }));
 
-// SyncIndicator reads isImpersonating from the auth context (sync is
-// disabled wholesale during an impersonated session); this is an ordinary
-// non-impersonated session.
+// SyncIndicator reads isImpersonating from the auth context (sync is disabled wholesale during an impersonated session); t…
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sync-indicator-instant-sync-test-ts-L68
 vi.mock("@/lib/context/auth-context", () => ({
   useAuth: () => ({ isImpersonating: false }),
 }));

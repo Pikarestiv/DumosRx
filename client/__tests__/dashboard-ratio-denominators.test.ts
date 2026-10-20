@@ -6,27 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Numerator/denominator population coverage for the dashboard's ratio-style
- * tiles (the docs/KNOWN_BUGS.md "Dashboard ratio metrics haven't had a
- * numerator/denominator definition review" methodology item). Each case pins
- * the population a ratio's *denominator* draws from, so a future query change
- * can't silently put two different populations on the two sides of a
- * percentage again:
- *
- * 1. Dashboard "x% vs yesterday": today's side has always been net of
- *    refunds, but yesterday's was gross, so any refund at all reported a fake
- *    drop. refundsYesterday makes both sides net.
- * 2. BI "Net Sales +x% vs last period" / "Avg. Transaction +x%": the current
- *    period is Net Sales (total_amount - tax - refunds); the previous period
- *    was raw, tax-inclusive total_amount.
- * 3. BI "Total Customers +x% vs last period": the value is the all-time
- *    customer count, but the baseline counted only customers created *during*
- *    the previous window.
- * 4. Stock "Total stock value, +x% from last month": the card's value counts
- *    every non-deleted batch (getStockBatchStats), while the percentage's
- *    baseline counted only is_active = 1 batches.
- */
+// Numerator/denominator population coverage for the dashboard's ratio-style tiles (the docs/KNOWN_BUGS.md "Dashboard ratio…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-dashboard-ratio-denominators-test-ts-L9
 describe("dashboard ratio metrics: denominator populations", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -94,9 +75,8 @@ describe("dashboard ratio metrics: denominator populations", () => {
     // Numerator (today): gross 1000 less today's 100 refund = 900.
     expect(data.salesToday.total).toBe(1000);
     expect(data.refundsToday.total).toBe(100);
-    // Denominator (yesterday): same definition - gross 1000 less the 400
-    // refund *issued yesterday*. Neither today's nor an older day's refund
-    // may leak into it.
+    // Denominator (yesterday):
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-dashboard-ratio-denominators-test-ts-L97
     expect(data.salesYesterday.total).toBe(1000);
     expect(data.refundsYesterday.total).toBe(400);
   });
@@ -136,13 +116,8 @@ describe("dashboard ratio metrics: denominator populations", () => {
 
     const metrics = await getBIMetrics(from, prevFrom);
 
-    // Refunds come back netted to their EX-VAT share (total_refunded is
-    // VAT-inclusive, revenue-minus-tax is not - see totalRefundsData in
-    // reports.ts): r-prev 200 * (1000 - 100)/1000 = 180, r-curr
-    // 500 * (2000 - 200)/2000 = 450.
-    // Previous-period Net Sales = 1000 - 100 tax - 180 refunds = 720; the
-    // current period's own figure is 2000 - 200 - 450 = 1350. Both sides of
-    // revenueChange/avgTransactionChange now come from the same definition.
+    // Refunds come back netted to their EX-VAT share (total_refunded is VAT-inclusive, revenue-minus-tax is not - see totalRef…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-dashboard-ratio-denominators-test-ts-L139
     expect(metrics.prevRevenueData[0].total).toBe(1000);
     expect(metrics.prevTaxData[0].total).toBe(100);
     expect(metrics.prevRefundsData[0].total).toBeCloseTo(180, 6);
@@ -168,10 +143,8 @@ describe("dashboard ratio metrics: denominator populations", () => {
 
     const metrics = await getBIMetrics(from, prevFrom);
 
-    // The card's value is the all-time count (3 live customers), so its
-    // baseline must be the all-time count as of the window start: c-old +
-    // c-prev = 2. Counting only the previous window's signups (1) turned
-    // "+x%" into total-over-one-window's-signups nonsense.
+    // The card's value is the all-time count (3 live customers), so its baseline must be the all-time count as of the window s…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-dashboard-ratio-denominators-test-ts-L171
     expect(metrics.customerData[0].count).toBe(3);
     expect(metrics.prevCustomerData[0].count).toBe(2);
   });
@@ -194,9 +167,8 @@ describe("dashboard ratio metrics: denominator populations", () => {
     const stats = await getStockBatchStats();
     const mom = await getStockMoM();
 
-    // 10*100 + 5*100 + 2*100 = 1700; the soft-deleted batch is excluded from
-    // both. The percentage's baseline is derived from currentValue, so it has
-    // to start from the very number the card displays.
+    // 10*100 + 5*100 + 2*100 = 1700; the soft-deleted batch is excluded from both.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-dashboard-ratio-denominators-test-ts-L197
     expect(stats.total_stock_batch_value).toBe(1700);
     expect(mom.currentValue).toBe(1700);
   });

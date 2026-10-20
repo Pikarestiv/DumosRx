@@ -1,18 +1,9 @@
 import { useEffect, useState } from "react";
 
-/** A number input that tracks its own text while typing instead of mirroring
- * the committed number on every keystroke. Without this, clearing the field
- * to type a fresh value immediately re-renders as "0" (parsing "" forces a
- * 0 commit, which round-trips back into the controlled `value`), so you'd
- * have to type a digit first then delete the stray 0 rather than just
- * clearing and typing. Here, an empty/partial field is allowed to sit as-is
- * until a valid number is typed (which commits immediately) or the field is
- * blurred still empty (which reverts to the last committed value). Shared
- * across every quick-edit numeric input in the app (cycle count ledger,
- * product catalog quick-edit) rather than reimplemented per table. */
-/** `undefined` renders as an empty field (and shows `placeholder`), which is
- * distinct from 0 - a cycle-count row nobody has reached yet is not a count
- * of zero. */
+// A number input that tracks its own text while typing instead of mirroring the committed number on every keystroke.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-editable-number-cell-tsx-L3
+// `undefined` renders as an empty field (and shows `placeholder`), which is distinct from 0 - a cycle-count row nobody has…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-editable-number-cell-tsx-L13
 function toText(value: number | undefined): string {
   return value === undefined ? "" : String(value);
 }
@@ -48,41 +39,28 @@ export function EditableNumberCell({
   /** Which on-screen keyboard mobile/Android WebView should offer. Defaults
    * to "decimal" for a stepped (fractional) field, "numeric" otherwise. */
   inputMode?: "numeric" | "decimal";
-  /** Fired after the built-in revert-if-invalid blur logic, and also on
-   * Enter (which just blurs the input) — lets a caller treat blur as
-   * "finalize this edit" without duplicating the invalid-value handling. */
+  // Fired after the built-in revert-if-invalid blur logic, and also on Enter (which just blurs the input) — lets a caller tr…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-editable-number-cell-tsx-L51
   onBlur?: () => void;
-  /** Fired on Escape, instead of blurring: lets a caller close the edit
-   * without treating it as a commit (blurring would run the normal
-   * onBlur/save path, which Escape should explicitly bypass). */
+  // Fired on Escape, instead of blurring:
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-editable-number-cell-tsx-L55
   onCancel?: () => void;
-  /** Accessible name for the input. These cells live in dense ledger tables
-   * where the only label is a column header that is not programmatically
-   * associated with each row, leaving the input unnamed for screen readers
-   * and for any test that wants to address one row's field. */
+  // Accessible name for the input.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-editable-number-cell-tsx-L59
   ariaLabel?: string;
-  /** Shown while the field is empty - e.g. the system figure a cycle count
-   * is being compared against, so a blank cell still says what it is
-   * blank against. */
+  // Shown while the field is empty - e.g.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-editable-number-cell-tsx-L64
   placeholder?: string;
-  /** When provided, blurring an empty field reports the value as cleared
-   * instead of reverting to the last committed number. Only a caller whose
-   * `value` is genuinely optional (an uncounted cycle-count row) should pass
-   * this; without it, blur-while-empty keeps its original revert behaviour. */
+  // When provided, blurring an empty field reports the value as cleared instead of reverting to the last committed number.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-editable-number-cell-tsx-L68
   onClear?: () => void;
 }) {
   const [text, setText] = useState(toText(value));
   const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
-    // Skipped while focused: this effect exists to pick up an external
-    // (non-user-typed) change to `value` — e.g. another row's edit
-    // recalculating this one — while the field is idle. While the user is
-    // actively typing, `onChange` below already keeps `value` in lockstep
-    // for every valid intermediate value; re-running this resync mid-entry
-    // clobbered a leading-zero decimal ("0.05") back to "0" the instant the
-    // trailing digits made the parsed number equal 0 again after the "0."
-    // prefix was typed (see docs/KNOWN_BUGS.md).
+    // Skipped while focused:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-editable-number-cell-tsx-L78
     if (isFocused) return;
     setText(toText(value));
   }, [value, isFocused]);

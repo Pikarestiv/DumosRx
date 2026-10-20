@@ -24,11 +24,8 @@ interface FakeAudit {
   [key: string]: unknown;
 }
 
-/** In-memory fake for stock_batches / stock_movements / stock_audits so
- * submitStockAudit's real reconciliation logic (FEFO deduction, new-batch
- * creation, quantity math) runs against something stateful, instead of
- * asserting on mock call args alone. This is what would have caught the
- * double-delta bug in the old updateStockBatchQuantity. */
+// In-memory fake for stock_batches / stock_movements / stock_audits so submitStockAudit's real reconciliation logic (FEFO…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-stock-audit-test-ts-L27
 let batches: Record<string, FakeBatch>;
 let movements: FakeMovement[];
 let audits: FakeAudit[];
@@ -47,20 +44,16 @@ vi.mock('@/lib/db/local-database', async () => {
   const { applyMovementToFakeBatch } = await import('./helpers/fake-batch-quantity');
   return {
   query: vi.fn(async (sql: string, params: unknown[] = []) => {
-    // Whitespace-normalized so this stays robust to multi-line SQL
-    // formatting in the real queries (getBatchesForProduct /
-    // getAllActiveBatchesForProduct both wrap across lines).
+    // Whitespace-normalized so this stays robust to multi-line SQL formatting in the real queries (getBatchesForProduct / getA…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-stock-audit-test-ts-L50
     const normSql = sql.replace(/\s+/g, ' ').trim();
     if (normSql.includes('SELECT quantity FROM stock_batches WHERE id = ?')) {
       const b = batches[params[0] as string];
       return b ? [{ quantity: b.quantity }] : [];
     }
     if (normSql.startsWith('SELECT COALESCE(SUM(quantity)')) {
-      // getProductStockQuantity: the product's live quantity, summed over
-      // active, non-deleted batches. Modelled properly rather than returned
-      // empty - submitStockAudit measures against it whenever a submission
-      // carries no baseline of its own (A-263), so a fake that skips it
-      // silently turns every count into "found everything".
+      // getProductStockQuantity:
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-stock-audit-test-ts-L59
       const qty = Object.values(batches)
         .filter((b) => b.product_id === params[0] && b.is_active !== 0)
         .reduce((sum, b) => sum + b.quantity, 0);
@@ -74,12 +67,8 @@ vi.mock('@/lib/db/local-database', async () => {
         .sort((a, b) => (a.expiry_date || '').localeCompare(b.expiry_date || ''));
     }
     if (normSql.includes('FROM stock_batches') && normSql.includes('WHERE product_id = ?')) {
-      // getAllActiveBatchesForProduct: every ACTIVE, non-expired batch
-      // regardless of quantity - the surplus/restock path needs to find a
-      // zero-quantity batch to top back up rather than treating it as
-      // nonexistent, but must never land found stock in an
-      // expired/deactivated batch (KNOWN_BUGS.md - stock audit restock
-      // into expired/deactivated batch).
+      // getAllActiveBatchesForProduct:
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-stock-audit-test-ts-L77
       return Object.values(batches)
         .filter((b) => b.product_id === params[0] && b.is_active !== 0 && !isExpired(b))
         .sort((a, b) => (a.expiry_date || '').localeCompare(b.expiry_date || ''));

@@ -10,24 +10,19 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/** CFA-zone currencies are conventionally written with the symbol after the
- * amount (e.g. "1,123,456 F"), unlike Intl's locale-driven placement which
- * puts "FCFA"/"CFA" as a prefix — also more compact on receipts and cart rows. */
+// CFA-zone currencies are conventionally written with the symbol after the amount (e.g.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-ts-L13
 const CFA_SUFFIX_CODES = new Set(["XAF", "XOF"]);
 
-/** Normalizes a currency code before it's used anywhere below. Uppercases
- * FIRST so a valid lowercase code (e.g. "usd", as a store setting might be
- * saved) isn't stripped down to "" by the letters-only filter and silently
- * replaced with the NGN fallback — the filter only exists to drop stray
- * whitespace/punctuation, not to reject case. */
+// Normalizes a currency code before it's used anywhere below.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-ts-L18
 function sanitizeCurrencyCode(currencyCode?: string) {
   const code = currencyCode || getActiveCurrency() || "NGN";
   return code.toUpperCase().replace(/[^A-Z]/g, "") || "NGN";
 }
 
-/** True for currencies whose symbol is placed after the amount (see
- * CFA_SUFFIX_CODES) — for callers building their own "symbol + value"
- * strings (e.g. compact chart-axis labels) that need to flip the order. */
+// True for currencies whose symbol is placed after the amount (see CFA_SUFFIX_CODES) — for callers building their own "symbol + value" strings…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-ts-L28
 export function isCfaSuffixCurrency(currencyCode?: string) {
   return CFA_SUFFIX_CODES.has(sanitizeCurrencyCode(currencyCode));
 }
@@ -43,17 +38,12 @@ function formatCfaSuffix(amount: number, maximumFractionDigits?: number) {
 export function formatCurrency(amount: number, currencyCode?: string) {
   const code = sanitizeCurrencyCode(currencyCode);
   if (CFA_SUFFIX_CODES.has(code)) {
-    // XAF/XOF are zero-minor-unit currencies - maximumFractionDigits left
-    // undefined here previously fell back to Intl's decimal-style default
-    // of 3, rendering e.g. "1,234.567 F" on cart rows, totals and receipts.
+    // XAF/XOF are zero-minor-unit currencies - maximumFractionDigits left undefined here previously fell back to Intl's decimal-style default of 3…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-ts-L41
     return formatCfaSuffix(amount, 0);
   }
-  // Simple mapping for common symbols if the locale doesn't handle it well
-  // but Intl.NumberFormat is generally robust. A code that survives
-  // sanitizeCurrencyCode (3 letters) but isn't a real ISO 4217 currency
-  // (e.g. a typo'd store setting) still makes Intl.NumberFormat throw
-  // uncaught - caught here so one bad code can't crash every money-
-  // displaying screen in the app.
+  // Simple mapping for common symbols if the locale doesn't handle it well but Intl.NumberFormat is generally robust.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-ts-L46
   try {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
@@ -69,12 +59,8 @@ export function formatCurrency(amount: number, currencyCode?: string) {
   }
 }
 
-/** Same as formatCurrency, but always rounds to whole units for currencies
- * where sub-unit precision is no longer practically used (Naira, since kobo
- * has fallen out of everyday use) — for dashboard/report metric cards where
- * a rounded headline figure reads cleaner than an exact-to-the-kobo total.
- * Line-item prices, cart totals, and receipts should keep using
- * formatCurrency() so accounting precision isn't lost there. */
+// Same as formatCurrency, but always rounds to whole units for currencies where sub-unit precision is no longer practically used (Naira, since…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-ts-L72
 export function formatMetricCurrency(amount: number, currencyCode?: string) {
   const code = sanitizeCurrencyCode(currencyCode);
   if (CFA_SUFFIX_CODES.has(code)) {
@@ -98,10 +84,8 @@ export function formatMetricCurrency(amount: number, currencyCode?: string) {
   }
 }
 
-/** Just the currency symbol/prefix (e.g. "₦", "$"), for compact chart-axis
- * labels ("₦12k") where the full formatCurrency() output would be too wide.
- * Derived from the same Intl formatter as formatCurrency() so the two never
- * disagree on which currency a store is actually using. */
+// Just the currency symbol/prefix (e.g.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-ts-L101
 export function getCurrencySymbol(currencyCode?: string) {
   const code = sanitizeCurrencyCode(currencyCode);
   if (CFA_SUFFIX_CODES.has(code)) {
@@ -161,14 +145,8 @@ export function isMobileDevice(): boolean {
   );
 }
 
-/**
- * True only for a genuine Tauri-built binary running on a mobile OS —
- * i.e. the real native mobile app, not a phone browser tab or an installed
- * PWA (both stay fully functional on every plan tier; only the native app
- * build is what "Mobile App" as a plan feature actually restricts). Pure
- * function so the platform->boolean mapping is unit-testable without
- * mocking Tauri's async plugin-os import.
- */
+// True only for a genuine Tauri-built binary running on a mobile OS — i.e.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-ts-L164
 export function isNativeMobileApp(isTauriEnv: boolean, osType: string): boolean {
   return isTauriEnv && ["android", "ios"].includes(osType.toLowerCase());
 }

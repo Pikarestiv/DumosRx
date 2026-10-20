@@ -26,13 +26,8 @@ vi.mock("@/components/pos/request-item-dialog", () => ({
 
 import { POSProductList } from "@/components/pos/pos-product-list";
 
-/**
- * U1: a failed catalog read used to be indistinguishable from an empty
- * catalog — usePOSData coerced every query result with `|| []` and exposed
- * no isError, so the grid rendered "No products found - try a different
- * search term" for a read that never completed. The list must render a
- * distinct, retryable failure state instead.
- */
+// U1: a failed catalog read used to be indistinguishable from an empty catalog — usePOSData coerced every query result wit…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-product-list-load-error-test-tsx-L29
 describe("POSProductList load failure", () => {
   const baseProps = {
     loadingProducts: false,

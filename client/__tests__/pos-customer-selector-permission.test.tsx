@@ -37,12 +37,8 @@ function renderSelector() {
   fireEvent.click(screen.getByText("Walk-in customer"));
 }
 
-/**
- * The till's own "Add new customer" inline form writes a customers row, so
- * it is the same manage_customers right as the Customers page's Add
- * Customer - not a separate "at the till" concession. sales_staff holds the
- * key by default, so gating it changes nothing for a cashier.
- */
+// The till's own "Add new customer" inline form writes a customers row, so it is the same manage_customers right as the Cu…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-customer-selector-permission-test-tsx-L40
 describe("POS customer selector add permission", () => {
   beforeEach(() => {
     hasPermission.mockReset();

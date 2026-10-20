@@ -5,12 +5,8 @@ import {
   endAdminTillSession,
 } from "@/lib/api/admin-till-session";
 
-/**
- * The discriminator decides, locally and with no secret in the bundle, whether
- * a login attempt is an admin one. Getting it wrong in either direction is
- * severe: too eager and a store owner cannot sign in to their own till
- * offline; too shy and an admin can never get in at all.
- */
+// The discriminator decides, locally and with no secret in the bundle, whether a login attempt is an admin one.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-admin-till-login-discriminator-test-ts-L8
 describe("shouldAttemptAdminTillLogin", () => {
   it("attempts the admin path for an email matching no user on this device", () => {
     expect(shouldAttemptAdminTillLogin("ops@dumosrx.com", 0)).toBe(true);
@@ -37,18 +33,16 @@ describe("shouldAttemptAdminTillLogin", () => {
   });
 
   it("waits for a complete email, so the field cannot flip mid-typing", () => {
-    // An owner typing their own address pauses constantly. Firing on a bare
-    // "@" swapped the 4-slot PIN for the 12-digit code field and back again,
-    // remounting the input under their fingers.
+    // An owner typing their own address pauses constantly.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-admin-till-login-discriminator-test-ts-L40
     for (const partial of ["josh@", "josh@gm", "josh@gmail", "@dumosrx.com", "josh@."]) {
       expect(shouldAttemptAdminTillLogin(partial, 0), partial).toBe(false);
     }
   });
 
   it("sends a deactivated owner's email online rather than failing locally", () => {
-    // getUsersByUsernameOrEmail filters `is_active = 1 AND _deleted = 0`, so a
-    // deactivated owner matches nothing locally and reaches the admin path,
-    // failing with the uniform message. Pinned so it is deliberate.
+    // getUsersByUsernameOrEmail filters `is_active = 1 AND _deleted = 0`, so a deactivated owner matches nothing locally and r…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-admin-till-login-discriminator-test-ts-L49
     expect(shouldAttemptAdminTillLogin("deactivated@shop.com", 0)).toBe(true);
   });
 });

@@ -18,20 +18,8 @@ vi.mock("sonner", () => ({
   },
 }));
 
-/**
- * A terminal conflict (version_conflict/stale_timestamp) deletes the
- * _sync_queue row, but markSynced() only ever runs for changes the server
- * ACCEPTED - so the source row kept `_synced = 0` forever. requeueOrphanedRows()
- * runs on every app boot over STORE_SCOPED_TABLES (audit_logs included) and
- * re-queues any `_synced = 0` row with no queue entry, so the same handful of
- * audit_logs rows were resurrected, re-pushed and re-conflicted on every launch,
- * keeping the user-facing "N unsynced changes" count permanently non-zero.
- *
- * Other tables self-heal because a later pull brings down the server's
- * authoritative row matched by the SAME id. audit_logs can never self-heal that
- * way: the server stores the client's UUID only inside properties->client_id and
- * keeps its own auto-increment bigint as the row id, so no pull will ever match.
- */
+// A terminal conflict (version_conflict/stale_timestamp) deletes the _sync_queue row, but markSynced() only ever runs for…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-settles-conflicted-audit-logs-test-ts-L21
 describe("pushChanges settles conflicted audit_logs rows instead of resurrecting them", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

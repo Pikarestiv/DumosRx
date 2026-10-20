@@ -23,13 +23,8 @@ export interface Expense {
   covers_months?: number | null;
 }
 
-/** Net Sales for a [from, to) window: total_amount already excludes discounts
- * (see pos-calculations.ts), so this only needs to also back out tax
- * collected (pass-through, not real revenue) and refunds - same definition
- * used by the Analytics BI dashboard's netSales, see use-bi-data.ts.
- * Takes an explicit local-timezone window (rather than SQLite's UTC-based
- * strftime('now')) so "this month" agrees with the expense side of the P&L
- * report, which is windowed the same way. */
+// Net Sales for a [from, to) window:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-finance-ts-L26
 export async function getCurrentMonthRevenue({ from, to }: { from: string; to: string }) {
   const storeId = getActiveStoreId();
   const params = storeId ? [from, to, storeId] : [from, to];
@@ -60,19 +55,8 @@ export async function getCurrentMonthCOGS({ from, to }: { from: string; to: stri
   return res[0]?.total || 0;
 }
 
-/**
- * Cost value of the stock written off as damaged or lost in a [from, to]
- * window: SUM(|quantity| * unit_cost) over the `adjustment` movements whose
- * reason is one of STOCK_LOSS_REASON_LABELS.
- *
- * `to` is INCLUSIVE, matching {@link getSmoothedExpensesTotal} and every
- * getBIMetrics query this sits alongside (rather than the [from, to) window
- * getCurrentMonthRevenue/getCurrentMonthCOGS take). Reasons are persisted as
- * the form's labels, optionally followed by a free-text note, so each label is
- * matched either exactly or as that note's prefix. Rationale and the reason
- * this figure is reported beside the P&L rather than inside it:
- * docs/STOCK_LOSS_METRIC.md.
- */
+// Cost value of the stock written off as damaged or lost in a [from, to] window:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-finance-L63
 export async function getStockLossTotal({
   from,
   to,
@@ -102,29 +86,15 @@ export async function getStockLossTotal({
   return rows[0]?.total || 0;
 }
 
-/**
- * How much of a single expense counts toward a [windowStart, windowEnd)
- * period. A plain expense counts in full if its date falls in the window.
- * A "prepaid" expense (`covers_months` set) is never counted as a lump sum
- * in whichever single period it was logged; it's split into
- * `covers_months` equal calendar-month installments starting from its own
- * date, and only the installments whose calendar month overlaps the window
- * are counted. A ₦270,000 rent payment logged in January with
- * covers_months=12 contributes ₦22,500 to January's total, ₦22,500 to
- * February's, and so on through December; never the full ₦270,000 to any
- * single period. Pure/synchronous so it works equally on a DB row or an
- * already-loaded in-memory `Expense`, without a second query.
- */
+// How much of a single expense counts toward a [windowStart, windowEnd) period.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-finance-L105
 export function getSmoothedAmountInWindow(
   expense: Pick<Expense, "amount" | "date" | "covers_months">,
   windowStart: Date,
   windowEnd: Date,
 ): number {
-  // expense.date is a bare "YYYY-MM-DD" column; parsing it with `new Date()`
-  // reads it as UTC midnight while windowStart/windowEnd and the
-  // startOfMonth/endOfMonth buckets below are local-time, shifting the first
-  // installment a month early in negative-UTC timezones (same class of bug
-  // fixed for expiry dates in date-utils.ts).
+  // expense.date is a bare "YYYY-MM-DD" column; parsing it with `new Date()` reads it as UTC midnight while windowStart/windowEnd and the startO…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-finance-ts-L96
   const expenseDate = parseLocalDateOnly(expense.date);
 
   if (!expense.covers_months || expense.covers_months <= 0) {
@@ -142,13 +112,8 @@ export function getSmoothedAmountInWindow(
     // bound so it lines up with windowEnd's [start, end) convention.
     const bucketEndMs = endOfMonth(bucketMonth).getTime() + 1;
 
-    // Prorate by the fraction of this installment's month that actually
-    // falls inside the window, rather than counting the full monthly amount
-    // for any month the window merely touches. A calendar-month window
-    // (from = startOfMonth, to = startOfMonth(next)) still gets the full
-    // installment since it fully contains the bucket, but a rolling window
-    // (e.g. "last 30 days") that straddles two calendar months no longer
-    // double-counts by claiming the full installment from both months.
+    // Prorate by the fraction of this installment's month that actually falls inside the window, rather than counting the full monthly amount for…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-finance-ts-L118
     const overlapMs = Math.min(bucketEndMs, windowEndMs) - Math.max(bucketStartMs, windowStartMs);
     if (overlapMs > 0) {
       const bucketDurationMs = bucketEndMs - bucketStartMs;
@@ -158,14 +123,8 @@ export function getSmoothedAmountInWindow(
   return total;
 }
 
-/**
- * Sums expenses for a [from, to) window using {@link getSmoothedAmountInWindow}
- * for each row.
- *
- * @param viewerId - when provided, restricts results to expenses recorded by
- * this user (pass undefined for viewers allowed to see everyone's activity,
- * i.e. checkCanViewAllActivity(role) === true).
- */
+// Sums expenses for a [from, to) window using {@link getSmoothedAmountInWindow} for each row.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-finance-ts-L139
 export async function getSmoothedExpensesTotal({
   from,
   to,
@@ -178,25 +137,8 @@ export async function getSmoothedExpensesTotal({
   const storeId = getActiveStoreId();
   const scopeParams = [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])];
 
-  // date() on both sides: expenses.date is a date-only "YYYY-MM-DD" column,
-  // but from/to here are full UTC ISO instants representing LOCAL midnight/
-  // end-of-day (see toQueryRange) - a plain string compare silently drops
-  // any expense dated exactly on the window's start day. date() normalizes
-  // either form, but bare `date(?)` truncates the UTC instant in UTC, which
-  // shifts the boundary by the store's own UTC offset relative to the sales
-  // side (every sales/refund query below buckets with 'localtime' - see
-  // reports.ts). For a UTC+1 store, local midnight Sep 1 is
-  // "2026-08-31T23:00:00Z", so bare `date(?)` reads it as 2026-08-31,
-  // pulling an Aug 31 expense into a September-only window one day early
-  // (and, in a negative-offset timezone, doing the same at the range's end
-  // instead). `'localtime'` reproduces the same shift toQueryRange applied
-  // when building the instant, cancelling it back out.
-  //
-  // `to` is INCLUSIVE, matching every other dateTo in these reports (see
-  // reports.ts). A strict "< date(?)" here meant that when a caller passed
-  // `to = now` (the common case - see getBIMetrics), every expense dated
-  // TODAY was silently excluded from the BI dashboard's expense total, no
-  // matter how far into the day it was logged.
+  // date() on both sides:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-finance-ts-L148
   const plainResult = await query<{ total: number }>(
     `SELECT SUM(amount) as total FROM expenses
      WHERE _deleted = 0 AND date(date) >= date(?, 'localtime') AND date(date) <= date(?, 'localtime') AND (covers_months IS NULL OR covers_months <= 0)
@@ -204,9 +146,8 @@ export async function getSmoothedExpensesTotal({
     [from, to, ...scopeParams],
   );
 
-  // Fetched unconditionally by date, not windowed: a prepaid expense
-  // logged well before this window can still have unrecognized months
-  // falling inside it.
+  // Fetched unconditionally by date, not windowed:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-finance-ts-L174
   const amortized = await query<{ amount: number; date: string; covers_months: number }>(
     `SELECT amount, date, covers_months FROM expenses
      WHERE _deleted = 0 AND covers_months > 0
@@ -215,10 +156,8 @@ export async function getSmoothedExpensesTotal({
   );
 
   const windowStart = new Date(from);
-  // getSmoothedAmountInWindow treats windowEnd as EXCLUSIVE; +1ms turns the
-  // inclusive `to` above into that exclusive bound, so an amortized
-  // installment overlapping the instant `to` itself is still counted -
-  // matching the plain-expense query's now-inclusive semantics above.
+  // getSmoothedAmountInWindow treats windowEnd as EXCLUSIVE; +1ms turns the inclusive `to` above into that exclusive bound, so an amortized inst…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-finance-ts-L185
   const windowEnd = new Date(new Date(to).getTime() + 1);
 
   const smoothedTotal = amortized.reduce(
@@ -229,12 +168,8 @@ export async function getSmoothedExpensesTotal({
   return (plainResult[0]?.total || 0) + smoothedTotal;
 }
 
-/**
- * Per-category breakdown for a [from, to) window, smoothed the same way as
- * {@link getSmoothedExpensesTotal} so the two agree — the breakdown summing
- * to something other than the headline P&L expense total would otherwise
- * read as a report bug, not the intentional design it's meant to be.
- */
+// Per-category breakdown for a [from, to) window, smoothed the same way as {@link getSmoothedExpensesTotal} so the two agree — the breakdown s…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-finance-ts-L210
 export async function getCurrentMonthExpensesByCategory({
   from,
   to,
@@ -247,9 +182,8 @@ export async function getCurrentMonthExpensesByCategory({
   const storeId = getActiveStoreId();
   const scopeParams = [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])];
 
-  // See the matching comment in getSmoothedExpensesTotal above - `to` is
-  // inclusive here too, and 'localtime' is needed for the same reason
-  // (from/to are UTC instants representing local calendar boundaries).
+  // See the matching comment in getSmoothedExpensesTotal above - `to` is inclusive here too, and 'localtime' is needed for the same reason (from…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-finance-ts-L213
   const plainRows = await query<{ category: string; total: number }>(
     `SELECT category, SUM(amount) as total FROM expenses
      WHERE _deleted = 0 AND date(date) >= date(?, 'localtime') AND date(date) <= date(?, 'localtime') AND (covers_months IS NULL OR covers_months <= 0)
@@ -291,15 +225,8 @@ export interface ExpensesPage {
 
 export const EXPENSES_PAGE_SIZE = 100;
 
-/**
- * One page of the expense ledger, newest first. Follows the rows/total shape
- * getActivityLog() uses.
- *
- * Reads a table that grows every day for the life of the store, so the Expenses page walks it a page at a time instead. The figures shown
- * alongside the list deliberately do NOT come from the loaded page - see
- * getExpensesLifetimeTotal, getSmoothedExpensesTotal and
- * getCurrentMonthExpensesByCategory, which all aggregate over everything.
- */
+// One page of the expense ledger, newest first.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-finance-ts-L272
 export async function getExpensesPage({
   viewerId,
   search,
@@ -308,9 +235,8 @@ export async function getExpensesPage({
   offset = 0,
 }: {
   viewerId?: string;
-  /** Matched against the description, the same field the Expenses page's search
-   * box has always filtered on - in SQL rather than client-side, so searching
-   * reaches the whole ledger and not just the loaded page. */
+  // Matched against the description, the same field the Expenses page's search box has always filtered on - in SQL rather than client-side, so s…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-finance-ts-L289
   search?: string;
   /** Omitted or "All" means every category. */
   category?: string;
@@ -354,15 +280,8 @@ export async function getExpensesPage({
   return { rows, total: countRows[0]?.total || 0 };
 }
 
-/**
- * The lifetime expense figure, summed in SQL.
- *
- * Deliberately NOT smoothed, matching what the Expenses page has always shown:
- * this is a real ledger figure (how much has actually been recorded as spent,
- * ever), and smoothing only makes sense when attributing an expense to a
- * period. In SQL rather than reduced over the loaded list, so paginating the
- * list can't change the number on screen.
- */
+// The lifetime expense figure, summed in SQL.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-finance-ts-L335
 export async function getExpensesLifetimeTotal(
   viewerId?: string,
 ): Promise<number> {
@@ -379,15 +298,8 @@ export async function getExpensesLifetimeTotal(
   return rows[0]?.total || 0;
 }
 
-/**
- * Cash that physically left the drawer on `reportDate` ("YYYY-MM-DD"), for
- * till reconciliation. Deliberately NOT smoothed the way
- * getSmoothedExpensesTotal is: a prepaid expense paid in cash today takes
- * its whole amount out of today's till, whatever period it covers.
- * A blank/legacy payment_method counts as cash - the expense form's own
- * default is "Cash", and missing one that was cash would leave the drawer
- * short against this figure.
- */
+// Cash that physically left the drawer on `reportDate` ("YYYY-MM-DD"), for till reconciliation.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-finance-ts-L360
 export async function getCashExpensesForDate(reportDate: string): Promise<number> {
   const storeId = getActiveStoreId();
   const result = await query<{ total: number }>(

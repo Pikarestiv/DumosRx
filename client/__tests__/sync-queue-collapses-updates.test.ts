@@ -6,13 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * A-203: every `update()` appended a `_sync_queue` row, so a pass over the
- * whole catalogue queued one row per product. The queue is FIFO, which
- * delays every sale rung behind it, and `pull.ts` skips any row with a
- * queued local edit — so the backlog also blocks incoming server changes to
- * those same rows. An UPDATE now collapses onto the record's pending UPDATE.
- */
+// A-203: every `update()` appended a `_sync_queue` row, so a pass over the whole catalogue queued one row per product.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-queue-collapses-updates-test-ts-L9
 describe("addToSyncQueue collapses a repeat UPDATE onto the pending one", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

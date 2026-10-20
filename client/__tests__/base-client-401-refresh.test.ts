@@ -2,13 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { apiClient } from "../lib/api/client";
 import { setToken, clearToken, getToken } from "../lib/api/token-manager";
 
-/**
- * Regression coverage for base-client.ts's 401 handler clearing the auth
- * token on a network blip during the refresh-and-retry attempt, undoing
- * token-manager.ts's own hardening (which deliberately leaves the token
- * untouched unless the server gives a definitive 401/403). See
- * docs/FIXED_BUGS.md.
- */
+// Regression coverage for base-client.ts's 401 handler clearing the auth token on a network blip during the refresh-and-re…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-base-client-401-refresh-test-ts-L5
 describe("BaseApiClient 401 handling", () => {
   const originalFetch = global.fetch;
 

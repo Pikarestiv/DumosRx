@@ -35,10 +35,7 @@ export function StockBatchManagement({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <StockBatchTabNav canViewAdjustmentHistory={canViewAdjustmentHistory} />
 
-          {/* Desktop: shown as the header's secondary action (see
-           * dashboard-page-routes.ts's inventory routes). Mobile keeps its
-           * own button here since the header's secondary action is
-           * desktop-only. */}
+          {/* Desktop: shown as the header's secondary action (see dashboard-page-routes.ts's inventory routes). — docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-batch-management-tsx-L38 */}
           {canPerformStockAudit && (
             <Button
               className="md:hidden"

@@ -14,15 +14,8 @@ import {
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 
-/**
- * Walks a raw digit string one character at a time and drops the first
- * digit that would make the day or month segment impossible to complete
- * validly (day > 31, month > 12, or a "00" segment), rather than accepting
- * every digit and only checking validity once all 8 are in. This is what
- * makes typing a month/year-only date (e.g. "11/2027", read as day 11 +
- * "month" 20) get stopped immediately instead of silently discarding the
- * whole entry.
- */
+// Walks a raw digit string one character at a time and drops the first digit that would make the day or month segment impo…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-date-picker-input-tsx-L17
 export function sanitizeDateDigits(digits: string): string {
   let result = "";
   for (let i = 0; i < digits.length; i++) {
@@ -54,20 +47,16 @@ interface DatePickerInputProps {
   value?: string; // Expects YYYY-MM-DD
   onChange?: (value: string) => void;
   className?: string;
-  /** Extra classes applied to the text input itself, not the wrapper —
-   * needed to strip its border/shadow/ring when it's nested inside another
-   * bordered container (e.g. the Daily Close date filter). */
+  // Extra classes applied to the text input itself, not the wrapper — needed to strip its border/shadow/ring when it's neste…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-date-picker-input-tsx-L57
   inputClassName?: string;
   placeholder?: string;
-  /** Accessible name for the text input, for the dense ledger tables where
-   * the visible column header is not programmatically associated with each
-   * row's field. */
+  // Accessible name for the text input, for the dense ledger tables where the visible column header is not programmatically…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-date-picker-input-tsx-L62
   ariaLabel?: string;
   disabled?: boolean;
-  // Bounds for the calendar's quick month/year dropdown jump: pick years
-  // that make sense for what's being entered (e.g. a birthdate needs the
-  // past; a batch expiry needs the future). Defaults span 100 years back to
-  // 10 years ahead, wide enough to never block a legitimate date.
+  // Bounds for the calendar's quick month/year dropdown jump:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-date-picker-input-tsx-L67
   fromYear?: number;
   toYear?: number;
   // Blocks dates before/after today, e.g. an expense date can't be in the
@@ -113,17 +102,11 @@ export function DatePickerInput({
   }, [value]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Work from digits only: a slash can only ever come from the mask
-    // itself, never from what the user types, so there's no way to end up
-    // with a stray or doubled "/" no matter where they type or paste.
+    // Work from digits only:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-date-picker-input-tsx-L116
     const rawDigits = e.target.value.replace(/\D/g, "").slice(0, 8);
-    // Reject (don't just clamp) any digit that would make the day or month
-    // segment impossible to complete validly, e.g. typing "9" as the first
-    // day digit, or "2" as the first month digit, is dropped rather than
-    // producing a nonsense date like day 39 or month 20. Anyone trying to
-    // type a month/year-only date (e.g. "11/2027") hits this on the very
-    // first digit of the "month" segment, instead of silently discarding
-    // their whole entry only once they reach 8 digits.
+    // Reject (don't just clamp) any digit that would make the day or month segment impossible to complete validly, e.g.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-date-picker-input-tsx-L120
     const digits = sanitizeDateDigits(rawDigits);
 
     let formatted = digits;

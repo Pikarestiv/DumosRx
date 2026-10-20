@@ -17,20 +17,12 @@ export interface SyncCommandResult {
   result: string;
 }
 
-/**
- * Tables whose queued rows this device will discard on request. An
- * ALLOWLIST, mirroring the server's: a business record exists only here, so
- * discarding one permanently loses revenue data or falsifies stock. The
- * server refuses these too — this is the second of two locks, not the only
- * one, because a client must never rely on a server check it cannot see.
- */
+// Tables whose queued rows this device will discard on request.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-sync-commands-ts-L20
 const ABANDONABLE_TABLES = ["feedback", "audit_logs"];
 
-/**
- * Applies operator commands to `_sync_queue` and nothing else. The vocabulary
- * is a closed switch rather than a lookup: an unrecognised action is refused,
- * never dispatched.
- */
+// Applies operator commands to `_sync_queue` and nothing else.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-sync-commands-ts-L29
 export async function applySyncCommands(commands: SyncCommand[]): Promise<SyncCommandResult[]> {
   const results: SyncCommandResult[] = [];
 
@@ -51,14 +43,8 @@ export async function applySyncCommands(commands: SyncCommand[]): Promise<SyncCo
   return results;
 }
 
-/**
- * Outcomes are persisted rather than held in memory. A push run is usually a
- * single batch, so an in-memory buffer was discarded before it could ever be
- * sent — the operator saw the command stuck at "sent" forever, which is
- * precisely the issued-vs-applied ambiguity this feature exists to remove.
- * They survive a failed request and an app restart, and the server's
- * recordOutcome() is an idempotent update, so re-delivery is harmless.
- */
+// Outcomes are persisted rather than held in memory.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-sync-commands-ts-L54
 async function persistResults(results: SyncCommandResult[]): Promise<void> {
   for (const result of results) {
     try {
@@ -160,10 +146,8 @@ async function abandonQueued(command: SyncCommand): Promise<SyncCommandResult> {
     command.record_id,
   ]);
 
-  // Dropping the queue row alone leaves the source row _synced = 0 with no
-  // queue entry, which requeueOrphanedRows() treats as an orphan and
-  // re-queues on the next boot. Every other drop path in the engine pairs
-  // the delete with this for the same reason.
+  // Dropping the queue row alone leaves the source row _synced = 0 with no queue entry, which requeueOrphanedRows() treats as an orphan and re-q…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-sync-commands-ts-L149
   await markConflictSettled(command.table_name, command.record_id!);
 
   return { id: command.id, status: "applied", result: `discarded ${rows.length} queued row(s)` };

@@ -54,11 +54,8 @@ export class BaseApiClient {
     clearToken();
   }
 
-  /**
-   * A-171/A-206: a 2xx whose body will not parse made `.json()` throw an error
-   * naming nothing. Rationale for what this reports, and how to read it, is in
-   * client/AGENTS.md under "Non-JSON 2xx responses".
-   */
+  // A-171/A-206: a 2xx whose body will not parse made `.json()` throw an error naming nothing.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#api-base-client-ts-L57
   private async parseJsonResponse<T>(response: Response, url: string): Promise<T> {
     let raw: string | null = null;
 
@@ -197,31 +194,11 @@ export class BaseApiClient {
           const isAuthEndpoint =
             endpoint.includes("/login") || endpoint.includes("/refresh");
 
-          // A 401 doesn't necessarily mean the session is truly dead; most
-          // of the time it just means the access token expired sooner than
-          // the proactive 7-day age check above expected. Try one silent
-          // refresh-and-retry before forcing the user to re-link; clearing
-          // unconditionally on every 401 logged store owners out far more
-          // often than the token was actually invalid.
+          // A 401 doesn't necessarily mean the session is truly dead; most of the time it just means the access token expired sooner than the proactive…
+          // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-api-base-client-ts-L197
           if (!isAuthEndpoint && !isRetry && typeof window !== "undefined") {
-            // Trusts refreshTokenSilently()'s own outcome instead of
-            // inferring it from whether the token changed. The previous
-            // "clear whenever we didn't get a *new* token" logic also
-            // fired on a network blip, timeout, captive portal, or
-            // transient 5xx during the refresh call itself - exactly the
-            // cases refreshTokenSilently() is deliberately hardened to NOT
-            // treat as proof of invalidity - undoing that hardening one
-            // call frame up and silently, permanently unlinking the device
-            // from cloud sync over a connectivity hiccup rather than an
-            // actual invalid session. Also no longer gated on
-            // navigator.onLine (unreliable - see the PWA offline-audit
-            // findings elsewhere in this codebase): attempting anyway just
-            // costs a bounded 5s timeout via refreshTokenSilently's own
-            // AbortController if genuinely offline, landing on
-            // "unconfirmed" below, which is the correct outcome either way
-            // - whereas skipping the attempt on a false "offline" reading
-            // previously cleared the token immediately with zero chance to
-            // confirm it first.
+            // Trusts refreshTokenSilently()'s own outcome instead of inferring it from whether the token changed.
+            // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-api-base-client-ts-L204
             const outcome = await refreshTokenSilently(this.baseURL);
             if (outcome === "refreshed") {
               return this.request<T>(endpoint, options, true);
@@ -262,11 +239,8 @@ export class BaseApiClient {
         const serverError = errorData.error
           ? ` - ${typeof errorData.error === "string" ? errorData.error : JSON.stringify(errorData.error)}`
           : "";
-        // status/code let callers (e.g. sync-engine's logCrash calls)
-        // distinguish an expected, server-enforced plan restriction
-        // (SYNC_THROTTLED, SYNC_DISABLED, STORE_LIMIT_EXCEEDED - see
-        // SyncController::validateSync) from an actual bug, without
-        // resorting to matching on the human-readable message text.
+        // status/code let callers (e.g.
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-api-base-client-ts-L262
         const apiError = new Error(errorMessage + serverError) as Error & {
           status?: number;
           code?: string;

@@ -6,13 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Exercises createAndReceivePurchaseOrder() against a genuine in-memory
- * SQLite engine, proving the Immediate Purchase path actually creates a
- * received PO plus real stock_batches/stock_movements rows in one
- * transaction, matching the batch/cost/expiry semantics receivePurchaseOrder
- * already uses for Standard POs.
- */
+// Exercises createAndReceivePurchaseOrder() against a genuine in-memory SQLite engine, proving the Immediate Purchase path…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-procurement-immediate-test-ts-L9
 describe("createAndReceivePurchaseOrder", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

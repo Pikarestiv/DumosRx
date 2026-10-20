@@ -12,14 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * Regression test for a real report: the backoff-bypass fix means a manual
- * sync can now fire dozens of batch requests back-to-back with no spacing,
- * which the API's throttle:60,1 middleware (60 requests/minute, see
- * routes/api.php) rejects with "Too Many Attempts" once a large backlog
- * (e.g. ~2488 items / 50 per batch = ~50 requests) is retried in one run.
- * A short pause between batches keeps a large backlog under that budget.
- */
+// Regression test for a real report:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-paces-large-backlogs-test-ts-L15
 describe("pushChanges paces batches to avoid the API rate limit", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

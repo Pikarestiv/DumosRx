@@ -26,15 +26,8 @@ import { truncateForLog } from "../utils/error-truncation";
 import type { SyncQueueItem } from "@/lib/types/sync";
 import { recordAcceptedQueueAges } from "./sync-engine/delivery-age";
 
-// Invalidates exactly the queries that could be affected by a mutation on
-// `table`, matched via each query's `meta.tables` (see lib/query-keys.ts),
-// not queryKey prefix matching, since several queries (dashboard, BI,
-// daily-close) legitimately depend on more than one table and a prefix
-// match can only ever express one. A query with no `meta.tables` hasn't
-// been migrated to the factory yet, so it falls back to always invalidating.
-// That's the same broad behavior this replaced, just scoped down to the
-// queries that haven't opted into precise tagging yet, so adopting the
-// factory anywhere is strictly an improvement, never a regression.
+// Invalidates exactly the queries that could be affected by a mutation on `table`, matched via each query's `meta.tables` (see lib/query-keys.…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L29
 function invalidateQueriesForTable(table: string) {
   if (typeof window === "undefined") return;
   void queryClient.invalidateQueries({
@@ -49,68 +42,14 @@ registerInvalidateTablesFn((tables) => {
   for (const table of tables) invalidateQueriesForTable(table);
 });
 
-/**
- * Return type of assertStoreOwnership() — see its doc comment. A
- * discriminated union (rather than an optional `activeStoreId`) so
- * TypeScript itself enforces that a claim is never applied without the id
- * to claim it for.
- */
+// Return type of assertStoreOwnership() — see its doc comment.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-base-helpers-ts-L52
 type OwnershipCheck =
   | { needsClaim: true; activeStoreId: string }
   | { needsClaim: false };
 
-/**
- * Enforces per-row store ownership before update()/softDelete()/remove()
- * mutate a STORE_SCOPED_TABLES row, closing the cross-tenant write gap
- * described in docs/features/_known-bugs.md item #8: without this, any
- * store could edit or delete any other store's row (or a shared legacy row
- * forever) simply by knowing its id, since every read-side
- * `WHERE store_id = ?` filter is a pure UI-level convenience with nothing
- * enforcing it on the write path.
- *
- * Three outcomes, matching the controller's ruling exactly:
- *  - row.store_id === activeStoreId → allowed, `{ needsClaim: false }`.
- *  - row.store_id is NULL (pre-migration legacy row, see
- *    backfillStoreIdOnLegacyRows in core.ts) → allowed, with
- *    `{ needsClaim: true, activeStoreId }` telling update()/softDelete()
- *    to claim it for the active store as part of their own write, so a
- *    second store touching it later hits the reject branch instead of
- *    clobbering it forever. remove() ignores `needsClaim`: it's a hard,
- *    unrecoverable DELETE, so claiming the row first only to destroy it in
- *    the very next statement protects nothing — there's no row left
- *    afterward for the claim to matter to. The delete is simply allowed
- *    outright.
- *  - row.store_id is a different, known store → rejected with a thrown
- *    Error, not a silent no-op, so a caller that ignores the failure can't
- *    mistake it for success.
- *
- * This function used to perform the claim UPDATE itself, as its own bare
- * (non-transactional) statement, before the caller's write transaction even
- * started. A crash between the two committed the claim but lost the
- * caller's actual edit — and left the row claimed by this store, so a
- * SECOND store later touching the same row was then rejected as belonging
- * to someone else, even though nothing had visibly changed from that
- * store's perspective. It now only reports whether a claim is needed;
- * update()/softDelete() apply it as the first statement inside their own
- * transaction, so the claim and the edit can only ever commit or roll back
- * together.
- *
- * Deliberately fails OPEN (does nothing, `{ needsClaim: false }`) when
- * getActiveStoreId() is null/undefined — early app boot, or another edge
- * case where the active store genuinely isn't known yet — matching
- * insert()'s existing "only auto-scope when storeId is truthy" behavior, so
- * this never blocks a legitimate write purely because store resolution
- * hasn't happened yet. This is a narrow allowance, not a general bypass: it
- * only fires when the *local* module-scope resolver has nothing set, which
- * is not something a caller can trigger from outside this process.
- *
- * `overrideStoreId`, when passed, is checked against instead of the global
- * resolver — for the one real system-level caller found to need cross-store
- * write access (stock-transfers.ts's transferStock(), which legitimately
- * writes rows in two different stores within one transaction). Everything
- * else keeps relying on the global as before; this is deliberately narrow,
- * not a general bypass callers reach for out of convenience.
- */
+// Enforces per-row store ownership before update()/softDelete()/remove() mutate a STORE_SCOPED_TABLES row, closing the cross-tenant write gap…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-base-helpers-L62
 async function assertStoreOwnership(
   table: string,
   id: string,
@@ -141,13 +80,8 @@ async function assertStoreOwnership(
   return { needsClaim: false };
 }
 
-// Every products.name / categories.name write funnels through insert()/
-// update() below (local-database.ts just re-exports these), so normalizing
-// here once — instead of at each of the half-dozen call sites that create or
-// rename a product/category — is the single choke point that can't be missed
-// by a future caller the way the case-insensitive category lookup was.
-// Canonical storage is lowercase; the UI renders it uppercase via CSS
-// (toggleable per store), so the stored casing never needs to match display.
+// Every products.name / categories.name write funnels through insert()/ update() below (local-database.ts just re-exports these), so normalizi…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L90
 const LOWERCASE_NAME_TABLES = new Set(["products", "categories"]);
 
 function withNormalizedName(
@@ -168,12 +102,8 @@ function assertWritable(): void {
   }
 }
 
-/**
- * Every local writer of a `stock_movements` row passes through insert() or
- * softDelete(), so rebuilding the batch here covers all ten of them — and any
- * future one, which is the property the per-caller delta writes lacked. Must
- * run inside the caller's transaction, after the movement row.
- */
+// Every local writer of a `stock_movements` row passes through insert() or softDelete(), so rebuilding the batch here covers all ten of them —…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-base-helpers-ts-L121
 async function syncBatchQuantityForMovement(
   record: Record<string, unknown>,
   change: BatchLogChange,
@@ -183,14 +113,12 @@ async function syncBatchQuantityForMovement(
   if (typeof batchId !== "string" || !batchId) return;
 
   const resolved = await resolveBatchQuantity(batchId, change);
-  // A batch created holding its first movement's quantity (a receipt, an
-  // import row, a transfer-in) is already right, and writing it again costs a
-  // push row and an audit row per batch.
+  // A batch created holding its first movement's quantity (a receipt, an import row, a transfer-in) is already right, and writing it again costs…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L128
   if (!resolved || resolved.quantity === resolved.stored) return;
 
-  // The movement's own options are forwarded: a cross-store transfer writes
-  // each leg under its own store_id, and the batch must be claimed under the
-  // same one or assertStoreOwnership rejects it.
+  // The movement's own options are forwarded:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L133
   await update("stock_batches", batchId, { quantity: resolved.quantity }, options);
 }
 
@@ -212,13 +140,8 @@ export async function insert(
     updated_at: now,
     _version: 1,
     _synced: 0,
-    // Auto-scope to the active store unless the caller already set one
-    // explicitly (e.g. an owner creating a user/product for a store other
-    // than the one they're currently viewing). `== null` deliberately covers
-    // an explicit null too: a store owner's own users.store_id is always null
-    // by design, so callers forwarding `user.store_id` were writing NULL-scoped
-    // rows that every store-scoped report then filtered out (see
-    // docs/FIXED_BUGS.md, SF-P2-6).
+    // Auto-scope to the active store unless the caller already set one explicitly (e.g.
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L157
     ...(storeId && STORE_SCOPED_TABLES.includes(table) && data.store_id == null
       ? { store_id: storeId }
       : {}),
@@ -233,17 +156,8 @@ export async function insert(
     | Uint8Array
   )[];
 
-  // The row write, its sync-queue entry, and its audit-log entry must land
-  // together: outside a transaction, execute() persists (saveDatabase()) after
-  // EACH statement independently, so the app being killed between any two of
-  // them (iOS backgrounding a PWA tab is aggressive about this) could leave
-  // the row committed with no _sync_queue entry - silently and permanently
-  // unsynced, since pushChanges() only ever reads the queue, never the table
-  // itself. Wrapping in transaction() makes all three one atomic unit with a
-  // single save. Skipped when already inside a caller's transaction() (e.g.
-  // createSale() doing several inserts) since transaction() calls can't
-  // nest - execute() there already participates in the outer transaction and
-  // is just as atomic.
+  // The row write, its sync-queue entry, and its audit-log entry must land together:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L178
   const writeRow = async () => {
     await execute(
       `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`,
@@ -251,9 +165,8 @@ export async function insert(
     );
 
     await addToSyncQueue(table, id, "INSERT", record);
-    // "feedback" holds background crash/error telemetry (see error-logger.ts),
-    // not a user action; logging it here would surface every silent crash
-    // report as a "Created feedback" entry in the Activity Log.
+    // "feedback" holds background crash/error telemetry (see error-logger.ts), not a user action; logging it here would surface every silent crash…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L196
     if (table !== "feedback") {
       await logAction(options?.action || "INSERT", table, id, record, options?.storeId, options?.correlationId);
     }
@@ -290,21 +203,8 @@ export async function update(
 
   const now = new Date().toISOString();
 
-  // _version is deliberately NOT incremented here. This is a local-edit
-  // counter that must stay in lockstep with the value sent to the server for
-  // conflict detection (see SyncController::push's strict-equality check),
-  // not an independent local tally: two devices editing the same row from
-  // the same shared ancestor version would otherwise always compute the
-  // identical "next" version (pure arithmetic on the same starting number),
-  // guaranteeing an undetected collision instead of a rare one — see
-  // docs/features/_known-bugs.md #11. The row's `_version` now only ever
-  // changes when explicitly set by a confirmed server response (push
-  // acceptance — see sync-engine/push.ts's `versions` handling) or a pull
-  // bringing in a newer row (pull.ts). This UPDATE still sends/stores the
-  // unchanged current version as-is, so the server can tell "this edit was
-  // based on the server's actual current state" (accept) from "this edit
-  // was based on something stale" (reject) instead of the two colliding
-  // silently.
+  // _version is deliberately NOT incremented here.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L235
   const current = await query<{ _version: number }>(
     `SELECT _version FROM ${table} WHERE id = ?`,
     [id],
@@ -316,16 +216,8 @@ export async function update(
     updated_at: now,
     _version: version,
     _synced: 0,
-    // Folded into the same record as the rest of the edit (rather than a
-    // separate UPDATE statement) so the claim is included in BOTH the
-    // local write AND the addToSyncQueue() payload below — previously the
-    // claim was a second, separate statement whose column was never part
-    // of `record`, so the server never learned about it: it committed
-    // locally (atomically with the edit, as of the earlier fix for this)
-    // but stayed invisible to every other device pulling this row later.
-    // Overrides any store_id the caller's own `data` might have set,
-    // matching the claim's existing semantics of always using the active
-    // store, not a caller-supplied value.
+    // Folded into the same record as the rest of the edit (rather than a separate UPDATE statement) so the claim is included in BOTH the local wri…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L261
     ...(ownership.needsClaim ? { store_id: ownership.activeStoreId } : {}),
   });
 
@@ -339,23 +231,14 @@ export async function update(
     | Uint8Array
   )[];
 
-  // See insert()'s comment above: the row write, its sync-queue entry, and
-  // its audit-log entry must land together, or a kill between them can leave
-  // an updated row that never reaches the server. The legacy-row claim (if
-  // needed — see assertStoreOwnership()'s doc comment) is folded into
-  // `record` above for the same reason: it must commit atomically with the
-  // actual edit, and it must reach the server the same way the rest of the
-  // edit does.
+  // See insert()'s comment above:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L284
   const writeUpdate = async () => {
     await execute(`UPDATE ${table} SET ${setClause} WHERE id = ?`, values);
 
     await addToSyncQueue(table, id, "UPDATE", record);
-    // See insert()'s matching exclusion above - "feedback" is background
-    // crash/error telemetry, not a user action. Previously unguarded here
-    // (only insert() excluded it), latent until error-logger.ts's dedup
-    // path started calling update() on an existing feedback row to bump
-    // its occurrence_count - without this, every coalesced crash repeat
-    // would surface as an "Updated feedback" Activity Log entry.
+    // See insert()'s matching exclusion above - "feedback" is background crash/error telemetry, not a user action.
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L295
     if (table !== "feedback") {
       await logAction(options?.action || "UPDATE", table, id, record, options?.storeId, options?.correlationId);
     }
@@ -387,10 +270,8 @@ export async function softDelete(table: string, id: string, options?: { storeId?
 
   const now = new Date().toISOString();
 
-  // Claim column/value folded into the same statement (rather than a
-  // separate UPDATE) so it's included in the DELETE sync payload below too
-  // — see update()'s identical fix/comment above for why a separate,
-  // un-synced claim statement left the server never learning about it.
+  // Claim column/value folded into the same statement (rather than a separate UPDATE) so it's included in the DELETE sync payload below too — se…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L332
   const claimClause = ownership.needsClaim ? ", store_id = ?" : "";
   const claimParam = ownership.needsClaim ? [ownership.activeStoreId] : [];
 
@@ -439,15 +320,12 @@ export async function remove(
 ): Promise<void> {
   assertWritable();
 
-  // Ignores the returned needsClaim (if the row is a legacy row) — this is
-  // a hard, unrecoverable DELETE, so claiming it first only to destroy it
-  // in the very next statement protects nothing.
+  // Ignores the returned needsClaim (if the row is a legacy row) — this is a hard, unrecoverable DELETE, so claiming it first only to destroy it…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L384
   await assertStoreOwnership(table, id, options?.storeId);
 
-  // Fetched before the delete so the audit trail still has a record of what
-  // was destroyed. This is a hard, unrecoverable delete (unlike softDelete),
-  // so it's the one place where NOT capturing this would leave a real blind
-  // spot in the audit log.
+  // Fetched before the delete so the audit trail still has a record of what was destroyed.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L389
   const existing = await query<Record<string, unknown>>(
     `SELECT * FROM ${table} WHERE id = ?`,
     [id],
@@ -457,9 +335,8 @@ export async function remove(
   // write is worse than usual, since this is a hard, unrecoverable delete.
   const writeRemove = async () => {
     await execute(`DELETE FROM ${table} WHERE id = ?`, [id]);
-    // Also remove any pending (not-yet-synced) queue entries for this record
-    // before queueing our own DELETE below, so a still-pending INSERT/UPDATE
-    // doesn't race the DELETE to the server.
+    // Also remove any pending (not-yet-synced) queue entries for this record before queueing our own DELETE below, so a still-pending INSERT/UPDAT…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L402
     await execute(`DELETE FROM _sync_queue WHERE table_name = ? AND record_id = ?`, [table, id]);
     await addToSyncQueue(table, id, "DELETE", { id });
 
@@ -475,13 +352,8 @@ export async function remove(
   queueTableInvalidation(table);
 }
 
-/**
- * The record's pending UPDATE, if it has exactly one and nothing else queued.
- * Narrow on purpose: an INSERT must stay an INSERT, a DELETE must not be
- * overwritten, and a pre-existing multi-row backlog is left for
- * `withheldRecordsWithBackedOffSiblingsRemoved()` to order. See
- * client/AGENTS.md, "Queue collapsing", and docs/FIXED_BUGS.md A-203.
- */
+// The record's pending UPDATE, if it has exactly one and nothing else queued.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-base-helpers-ts-L428
 interface CollapsibleQueueRow {
   id: number;
   payload: string;
@@ -542,19 +414,11 @@ async function addToSyncQueue(
   );
 }
 
-/**
- * `ignoreBackoff` lets an explicit, user-clicked "Sync Now" attempt the
- * whole queue immediately: a background auto-sync should respect each
- * item's exponential backoff (see recordSyncFailure), but a manual sync is
- * the user explicitly asking to retry right now, and should not silently
- * skip the entire queue (and still report "success") just because a prior
- * failure's backoff window hasn't elapsed yet.
- */
+// `ignoreBackoff` lets an explicit, user-clicked "Sync Now" attempt the whole queue immediately:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-base-helpers-ts-L495
 export async function getPendingSyncItems(ignoreBackoff = false) {
-  // See awaitSettledTransactions()'s doc comment: without this, a
-  // background auto-sync tick that lands mid-transaction (e.g. a bulk
-  // import) can read and push that transaction's not-yet-committed rows,
-  // orphaning them on the server if the transaction later rolls back.
+  // See awaitSettledTransactions()'s doc comment:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L485
   await awaitSettledTransactions();
 
   if (ignoreBackoff) {
@@ -579,12 +443,8 @@ export async function markSynced(
   await recordAcceptedQueueAges(queueIds);
   await execute(`DELETE FROM _sync_queue WHERE id IN (${placeholders})`, queueIds);
 
-  // insert()/update() always set _synced = 0 at write time; nothing else
-  // ever flipped it back once the queue row above is deleted. Left unfixed,
-  // every successfully-synced row still reads as "unsynced with no queue
-  // entry" forever - exactly what requeueOrphanedRows() (reconcile-
-  // identity.ts, run every app boot) treats as needing a fresh queue entry,
-  // mass-requeuing a device's entire already-synced history on every boot.
+  // insert()/update() always set _synced = 0 at write time; nothing else ever flipped it back once the queue row above is deleted.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L513
   for (const { table_name, record_id } of syncedRecords) {
     try {
       await execute(`UPDATE ${table_name} SET _synced = 1 WHERE id = ?`, [record_id]);
@@ -594,15 +454,8 @@ export async function markSynced(
   }
 }
 
-/**
- * Flags a source row as settled after the server terminally rejected its
- * push (version_conflict/stale_timestamp) and the queue row was dropped.
- *
- * Only for tables where no future pull can reconcile the row by id — see
- * TERMINAL_CONFLICT_SETTLES_SOURCE_ROW in sync-engine/push.ts. Without it the
- * row keeps _synced = 0 with no queue entry, which requeueOrphanedRows()
- * re-queues on every app boot into the same conflict, forever.
- */
+// Flags a source row as settled after the server terminally rejected its push (version_conflict/stale_timestamp) and the queue row was dropped.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-base-helpers-ts-L547
 export async function markConflictSettled(table: string, recordId: string): Promise<void> {
   try {
     await execute(`UPDATE ${table} SET _synced = 1 WHERE id = ?`, [recordId]);
@@ -619,19 +472,8 @@ const SYNC_FAILURE_MAX_DELAY_MS = 60 * 60_000;
  * table must never be reported through logCrash() — see reportStuckCrashLog. */
 const CRASH_LOG_TABLE = "feedback";
 
-/**
- * Handles a stuck `feedback` item without writing another `feedback` row.
- *
- * Reporting it through logCrash() would create a new crash row describing the
- * old one's failure, embedding the failed row's own content, which then fails
- * the same way — an unbounded self-feeding loop (docs/FIXED_BUGS.md,
- * SF-CRASH-1). Crash rows are also already delivered to Sentry and to
- * `/logs/client-error` the moment they are captured, so a crash row that the
- * server has rejected five times is retried forever for no benefit: it is
- * dropped from the queue and settled, the same way a terminal conflict is
- * (see markConflictSettled), so requeueOrphanedRows() cannot resurrect it.
- * Genuine user-submitted feedback keeps its normal retry behaviour.
- */
+// Handles a stuck `feedback` item without writing another `feedback` row.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-base-helpers-L622
 async function reportStuckCrashLog(
   queueId: number,
   recordId: string,
@@ -664,19 +506,8 @@ async function reportStuckCrashLog(
   await markConflictSettled(CRASH_LOG_TABLE, recordId);
 }
 
-/**
- * Records a sync failure with exponential backoff so a permanently-bad item
- * stops being retried every cycle and blocking the rest of the queue. Once
- * retry_count crosses the report threshold, logs to superadmins exactly once
- * (via the feedback table) instead of on every subsequent retry.
- *
- * `reportImmediately` is for failures that are already known to be permanent
- * (e.g. a payload that fails client-side validation before ever reaching the
- * server) rather than possibly-transient (a network blip, a momentary server
- * error). Those would otherwise wait out the same 5-retry threshold as a
- * transient failure even though retrying can never fix them, silently
- * delaying remote visibility by up to ~waiting through 5 backoff cycles.
- */
+// Records a sync failure with exponential backoff so a permanently-bad item stops being retried every cycle and blocking the rest of the queue.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-base-helpers-L667
 export async function recordSyncFailure(
   queueId: number,
   errorMessage: string,
@@ -698,13 +529,8 @@ export async function recordSyncFailure(
   const shouldReport = pastReportThreshold && !alreadyReported;
   const shouldDropStuckCrashLog = pastReportThreshold && item.table_name === CRASH_LOG_TABLE;
 
-  // Preserve the "[REPORTED]" marker once it's set: writing the bare
-  // errorMessage here unconditionally used to clobber it on every later
-  // call, so `alreadyReported` flipped back to false every other retry and
-  // logCrash() fired again and again instead of exactly once.
-  // Bounded before it is stored or embedded anywhere: a DB-level failure
-  // arrives as the full driver error INCLUDING the entire attempted SQL
-  // statement, i.e. a verbatim copy of the row being pushed.
+  // Preserve the "[REPORTED]" marker once it's set:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L603
   const boundedError = truncateForLog(errorMessage);
   const nextLastError =
     alreadyReported || shouldReport ? `[REPORTED] ${boundedError}` : boundedError;
@@ -719,10 +545,8 @@ export async function recordSyncFailure(
     try {
       const { logCrash, isExpectedSyncNoise } = await import("../utils/error-logger");
 
-      // Checked before BOTH paths below. logCrash() already filters these,
-      // but reportStuckCrashLog() calls Sentry.captureException directly and
-      // so bypasses that filter entirely — which is the path a plan-refused
-      // `feedback` row actually takes.
+      // Checked before BOTH paths below.
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L624
       if (isExpectedSyncNoise(errorMessage)) {
         return;
       }

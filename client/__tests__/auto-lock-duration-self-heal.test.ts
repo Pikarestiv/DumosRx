@@ -17,23 +17,8 @@ if (!window.matchMedia) {
   })) as unknown as typeof window.matchMedia;
 }
 
-/**
- * Regression coverage for a real reported bug (see issue.png): the
- * Auto-Lock Screen dropdown rendered completely blank — not even its own
- * "Select duration" placeholder — for a real account. Root cause: the
- * persisted duration in this account's localStorage (dumos_autolock) was
- * 999, which doesn't match any of the five SelectItem options
- * (0/1/5/15/30). Radix's Select has nothing to match and shows nothing at
- * all, with no way for the user to tell why or fix it themselves short of
- * already knowing to pick a new value.
- *
- * However this particular value got there (an older app version, manual
- * localStorage editing, a since-removed option), the underlying gap is
- * real: nothing ever validated the persisted duration against the actual
- * set of supported options. Fixed by self-healing to the store's own
- * documented default (5) on mount whenever the persisted value doesn't
- * match a real option.
- */
+// Regression coverage for a real reported bug (see issue.png):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-auto-lock-duration-self-heal-test-ts-L20
 
 vi.mock("@/lib/hooks/use-feature-gate", () => ({
   useFeatureGate: () => ({
@@ -100,9 +85,8 @@ describe("Auto-Lock Screen duration self-heal", () => {
       );
     });
 
-    // The self-heal effect corrects the store, not just the display —
-    // otherwise the same blank dropdown would come right back on the next
-    // page load.
+    // The self-heal effect corrects the store, not just the display — otherwise the same blank dropdown would come right back…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-auto-lock-duration-self-heal-test-ts-L103
     expect(useAutoLockStore.getState().duration).toBe(5);
 
     const selectValueText = container.querySelector(

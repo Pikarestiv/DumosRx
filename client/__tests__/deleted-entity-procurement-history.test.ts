@@ -6,16 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Pins the load-bearing ABSENCE of a `_deleted = 0` filter on the `products`
- * and `suppliers` joins in procurement.ts, local-database.ts and
- * stock-transfers.ts, documented in client/AGENTS.md ("The
- * deactivate-vs-delete design"). Purchase orders, stock movements and stock
- * transfers must still name the product and the vendor they were placed
- * against after either is deleted; filtering those joins blanks the name
- * (vendor_name falls back to "Self / Walk-in Purchase") or drops the row, and
- * every test here goes red when that filter is added.
- */
+// Pins the load-bearing ABSENCE of a `_deleted = 0` filter on the `products` and `suppliers` joins in procurement.ts, loca…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-deleted-entity-procurement-history-test-ts-L9
 describe("procurement and stock history survives a product or supplier delete", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

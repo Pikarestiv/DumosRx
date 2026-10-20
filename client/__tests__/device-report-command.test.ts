@@ -28,11 +28,8 @@ vi.mock("@/lib/utils/diagnostics-delivery", () => ({
   }),
 }));
 
-/**
- * The ordinary telemetry channel fails exactly when it is needed: crash rows
- * live in `feedback`, which rides the sync queue, so a till whose push is
- * jammed stops reporting at the moment it has most to say.
- */
+// The ordinary telemetry channel fails exactly when it is needed:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-device-report-command-test-ts-L31
 describe("sendDeviceReportOnRequest", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

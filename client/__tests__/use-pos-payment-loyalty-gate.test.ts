@@ -11,21 +11,8 @@ vi.mock("idb-keyval", () => ({
 // React 19's `act` warns unless the environment explicitly opts in.
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-/**
- * Defense-in-depth coverage for the Gap 1 backend fix: usePOSPayment must
- * never write loyalty_transactions (earn OR redeem) when canUseLoyaltyProgram
- * is false, even with a customer selected and a redemption staged. This is
- * the real security/business-logic boundary — the POSRedeemReward UI being
- * hidden is not sufficient on its own, since cart state (redeemedOption) can
- * survive a plan downgrade or a stale tab.
- *
- * usePOSPayment is a React hook (useState/useEffect), so it can't be called
- * directly outside a component. No @testing-library/react is installed in
- * this repo, so this uses a minimal manual harness: mount a host component
- * with react-dom/client + React 19's `act`, capture the hook's return value
- * via a closure, and drive it exactly like customer-payments.test.ts drives
- * a real sql.js-backed query function.
- */
+// Defense-in-depth coverage for the Gap 1 backend fix:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-pos-payment-loyalty-gate-test-ts-L14
 describe("usePOSPayment loyalty gating", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

@@ -1,18 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-/**
- * Two surfaces inside tabs whose own gate is a DIFFERENT key, which is why
- * they can't just ride the tab-level check in settings-tabs.ts:
- *
- * - Regional Settings (currency, VAT, reseller commission) is store-wide
- *   config sitting on the General tab, which every role can open. It was
- *   isAdmin-gated; it is now manage_store_settings, the same population.
- * - The System tab's "Manage Billing" card is only a shortcut into the
- *   Billing tab, so it takes manage_billing rather than the System tab's own
- *   manage_device_settings — otherwise a specialist (who holds the device
- *   key but not the billing one) gets a link into a screen that bounces them.
- */
+// Two surfaces inside tabs whose own gate is a DIFFERENT key, which is why they can't just ride the tab-level check in set…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-settings-store-key-surfaces-test-tsx-L4
 
 const hasPermission = vi.fn((_key: string) => true);
 

@@ -29,11 +29,8 @@ function setClamped(el: HTMLElement, clamped: boolean) {
   Object.defineProperty(el, "clientWidth", { value: 100, configurable: true });
 }
 
-/**
- * Product names are stored lowercase and ledger columns clamp them, so a
- * store with long names could not tell two rows apart - reported from
- * Favour's store, where the cycle count was the worst case.
- */
+// Product names are stored lowercase and ledger columns clamp them, so a store with long names could not tell two rows apa…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-product-name-test-tsx-L32
 describe("ProductName", () => {
   beforeEach(() => {
     uppercaseEnabled.value = 1;

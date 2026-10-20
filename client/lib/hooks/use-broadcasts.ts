@@ -2,12 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { queryKeys } from "@/lib/query-keys";
 
-/**
- * Shared by BroadcastBanner and NotificationBell: both need the same
- * broadcasts list (banner shows danger/warning as a top banner, the
- * notification dropdown shows everything else), so this is one query instead
- * of each component independently fetching + polling on its own interval.
- */
+// Shared by BroadcastBanner and NotificationBell:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-broadcasts-ts-L5
 export function useBroadcasts(storeId?: string) {
   return useQuery({
     ...queryKeys.broadcasts.all(storeId),

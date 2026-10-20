@@ -57,9 +57,8 @@ export function AssistantPanel() {
   const { matches: isDesktop, resolved } = useResolvedMediaQuery("(min-width: 768px)");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Radix/vaul focus the content container itself on open by default, not
-  // the first focusable child - preventDefault and focusing explicitly is
-  // the documented escape hatch for landing focus on the composer instead.
+  // Radix/vaul focus the content container itself on open by default, not the first focusable child - preventDefault and foc…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-assistant-assistant-panel-tsx-L60
   const handleOpenAutoFocus = useCallback((event: Event) => {
     event.preventDefault();
     inputRef.current?.focus();

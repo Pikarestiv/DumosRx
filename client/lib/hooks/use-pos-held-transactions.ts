@@ -51,9 +51,8 @@ export function usePOSHeldTransactions({
     if (cart.length === 0) return;
 
     try {
-      // Date.now() as an explicit primary key collides across two terminals
-      // holding a sale in the same millisecond - the losing cart silently
-      // overwrites the other on sync. generateId() is collision-safe.
+      // Date.now() as an explicit primary key collides across two terminals holding a sale in the same millisecond - the losing cart silently overwr…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-held-transactions-ts-L54
       const id = generateId();
       await insert("held_transactions", {
         id,
@@ -63,9 +62,8 @@ export function usePOSHeldTransactions({
           : "Walk-in Customer",
         items_json: JSON.stringify(cart),
         total_amount: total,
-        // Persist the discount alongside the total: clearCart() (called
-        // right below) resets live discount state to 0, so without this the
-        // total the customer was quoted couldn't be reconstructed on recall.
+        // Persist the discount alongside the total:
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-held-transactions-ts-L66
         discount,
         discount_type: discountType,
         // Without these two a recalled reseller sale came back as an ordinary
@@ -89,12 +87,8 @@ export function usePOSHeldTransactions({
 
   const handleRecallTransaction = async (held: HeldTransaction) => {
     try {
-      // 1. Parse items first. The current cart is deliberately left
-      // untouched until the parse/lookup work below has succeeded — clearing
-      // it up front (the old behavior) meant a malformed items_json left the
-      // cashier with neither the original cart nor the recalled one.
-      // Discarding a non-empty cart is confirmed by the caller
-      // (pos-dialogs.tsx) before we ever get here.
+      // 1. Parse items first.
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-held-transactions-ts-L92
       const items: (CartItem & { product_id?: string })[] = JSON.parse(
         held.items_json,
       );
@@ -106,10 +100,8 @@ export function usePOSHeldTransactions({
         .map((item) => {
           const product = productFor(item);
           if (!product) return null;
-          // Prices are rebuilt from the current catalog, which is the floor a
-          // markup sits on top of; a held reseller sale keeps the agreed
-          // marked-up unit price (clamped to that floor) instead of silently
-          // re-quoting the customer at shelf price.
+          // Prices are rebuilt from the current catalog, which is the floor a markup sits on top of; a held reseller sale keeps the agreed marked-up uni…
+          // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-held-transactions-ts-L109
           const unitPrice = wasResellerSale
             ? Math.max(item.unit_price, product.unit_price)
             : product.unit_price;
@@ -123,25 +115,20 @@ export function usePOSHeldTransactions({
         })
         .filter((item): item is CartItem => item !== null);
 
-      // Items whose product was deleted/deactivated while the sale was held
-      // are dropped by the filter above; say so rather than handing back a
-      // quietly shorter cart than what was quoted.
+      // Items whose product was deleted/deactivated while the sale was held are dropped by the filter above; say so rather than handing back a quiet…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-held-transactions-ts-L126
       const missingCount = items.length - restoredItems.length;
 
-      // A genuine catalog price change, measured against the price the line
-      // was based on (original_unit_price when present) rather than the
-      // possibly marked-up unit_price - comparing the latter reported every
-      // restored reseller markup as a price change.
+      // A genuine catalog price change, measured against the price the line was based on (original_unit_price when present) rather than the possibly…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-held-transactions-ts-L131
       const hasRepricedItem = items.some((item) => {
         const product = productFor(item);
         const heldBasePrice = item.original_unit_price ?? item.unit_price;
         return !!product && product.unit_price !== heldBasePrice;
       });
 
-      // 2. Delete the held row BEFORE touching cart state. remove() can fail
-      // for reasons unrelated to the recall (a read-only second tab, an
-      // active store that has moved), and a cart already mutated behind a
-      // "Failed to recall" toast left the sale listed as recallable again.
+      // 2. Delete the held row BEFORE touching cart state.
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-held-transactions-ts-L141
       await remove("held_transactions", held.id);
 
       // 3. Only now is it safe to drop the current cart.

@@ -20,11 +20,8 @@ vi.mock("@/components/ui/tooltip", () => ({
 
 import { useAssistantPanel } from "@/lib/store/use-assistant-panel";
 
-/**
- * The launcher stays visible on a plan without the assistant and upsells on
- * click (the withRestriction toast pattern) rather than disappearing — it is
- * an existing, visible feature being restricted, not a new one.
- */
+// The launcher stays visible on a plan without the assistant and upsells on click (the withRestriction toast pattern) rath…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-assistant-launcher-plan-gate-test-tsx-L23
 describe("AssistantLauncher plan gate", () => {
   beforeEach(() => {
     toastError.mockClear();
@@ -54,10 +51,8 @@ describe("AssistantLauncher plan gate", () => {
     expect(toastError).toHaveBeenCalledWith("Feature Locked", expect.anything());
   });
 
-  // A-158: the header wraps this button in a `rounded-full` ring
-  // (dashboard-header.tsx) with only 2px of padding, so a button that kept
-  // the Button component's default `rounded-md` corners visibly clashed
-  // with that circular ring ("a circle on top of a square").
+  // A-158: the header wraps this button in a `rounded-full` ring (dashboard-header.tsx) with only 2px of padding, so a butto…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-assistant-launcher-plan-gate-test-tsx-L57
   it("is fully round, matching the circular ring its header wrapper draws around it", async () => {
     storeProfile = { subscription_tier: "pro" };
     const button = await renderLauncher();

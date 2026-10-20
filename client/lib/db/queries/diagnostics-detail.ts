@@ -3,14 +3,8 @@ import { CRASH_REPORT_QUEUE_ROW_SQL } from "@/lib/db/crash-report-sync";
 import { canonicaliseReason } from "@/lib/db/sync-engine/queue-state";
 import { STORE_SCOPED_TABLES } from "@/lib/db/schema-migrations";
 
-/**
- * The half of a device's state the server cannot see: stuck payloads, rows
- * that will be re-queued on the next boot, the crash log, the clock watermark
- * and which tables actually exist. Driven by the 2026-10-09 coverage audit
- * against past incidents — see docs/superpowers/specs and docs/FIXED_BUGS.md.
- *
- * Every query here is a SELECT.
- */
+// The half of a device's state the server cannot see:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-diagnostics-detail-ts-L6
 const STUCK_RETRY_THRESHOLD = 5;
 
 export interface StuckRow {
@@ -79,9 +73,8 @@ export interface DeltaHealth {
   productMissing: number;
 }
 
-/** Terminal drops, grouped. Every table writes to the ledger now, so this is
- * the first view of a change the server refused outright — the "50 changes
- * could not be saved" shape, previously invisible once the push finished. */
+// Terminal drops, grouped.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-diagnostics-detail-ts-L82
 export async function unresolvedConflicts(): Promise<ConflictGroup[]> {
   return query<ConflictGroup>(
     `SELECT table_name, reason, COUNT(*) AS count, MAX(detected_at) AS latest
@@ -93,9 +86,8 @@ export async function unresolvedConflicts(): Promise<ConflictGroup[]> {
   );
 }
 
-/** Unlike unresolvedConflicts(), this keeps the resolved rows: a sale on the
- * same batch marks a dropped cost edit resolved seconds later without the cost
- * ever reaching the server (A-268), so the resolved ones are the evidence. */
+// Unlike unresolvedConflicts(), this keeps the resolved rows:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-diagnostics-detail-ts-L96
 export async function stockBatchConflicts(): Promise<BatchConflictRow[]> {
   return query<BatchConflictRow>(
     `SELECT record_id, reason, fields, detected_at, resolved_at
@@ -106,10 +98,8 @@ export async function stockBatchConflicts(): Promise<BatchConflictRow[]> {
   );
 }
 
-/** Costs for the batches a device can disagree with the server about: the ones
- * the pull skips (pending queue row or unsynced), plus the highest-value rows,
- * since a valuation gap the owner notices is dominated by a few of those.
- * Capped so the report stays well inside the support endpoint's size limit. */
+// Costs for the batches a device can disagree with the server about:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-diagnostics-detail-ts-L109
 export async function batchCostSnapshot(): Promise<BatchCostRow[]> {
   const storeId = getActiveStoreId();
   const scope = storeId ? "AND sb.store_id = ?" : "";
@@ -133,9 +123,8 @@ export async function batchCostSnapshot(): Promise<BatchCostRow[]> {
   return rows.map((row) => ({ ...row, shielded: row.shielded === 1 }));
 }
 
-/** A-162/A-165/A-167: the one datum nobody had was the `store_id` INSIDE the
- * frozen payloads. `last_error` is deliberately reduced to a class — its first
- * 300 chars can be a driver error quoting a whole row. */
+// A-162/A-165/A-167: the one datum nobody had was the `store_id` INSIDE the frozen payloads.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-diagnostics-detail-ts-L136
 export async function stuckQueueRows(): Promise<StuckRow[]> {
   const rows = await query<{
     table_name: string;
@@ -168,9 +157,8 @@ export async function stuckQueueRows(): Promise<StuckRow[]> {
   }));
 }
 
-/** Rows this device will silently re-queue on its next boot: `_synced = 0`
- * with no queue entry. The shape behind the "50 changes could not be saved"
- * loop and the markSynced regressions, invisible between boots. */
+// Rows this device will silently re-queue on its next boot:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-diagnostics-detail-ts-L171
 export async function orphanedUnsyncedRows(): Promise<OrphanCount[]> {
   const counts: OrphanCount[] = [];
 

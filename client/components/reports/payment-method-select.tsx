@@ -8,9 +8,8 @@ interface PaymentMethodSelectProps {
   className?: string;
 }
 
-/** Filters a report/analytics query down to one payment method - maps to
- * sales.payment_method. Options mirror daily-close/sales-list-modal.tsx's
- * payment filter so the same method names/values are used everywhere. */
+// Filters a report/analytics query down to one payment method - maps to sales.payment_method.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-reports-payment-method-select-tsx-L11
 export function PaymentMethodSelect({ value, onChange, className }: PaymentMethodSelectProps) {
   return (
     <Select

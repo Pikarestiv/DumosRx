@@ -1,16 +1,8 @@
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
-/**
- * getRecentSales's undated form caps at LIMIT 100 - fine for a general
- * "recent sales" list, but wrong for use-my-today-sales.ts's "my sales
- * today" total, which used to call it undated and filter for "today"
- * client-side afterward: a cashier who personally rang more than 100
- * sales today would have the earliest ones silently dropped before the
- * "is today" filter even ran. Passing a dateRange raises the cap to 500
- * and does the filtering in SQL instead - this covers that the higher cap
- * actually applies and every same-day row comes back.
- */
+// getRecentSales's undated form caps at LIMIT 100 - fine for a general "recent sales" list, but wrong for use-my-today-sal…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-get-recent-sales-date-range-test-ts-L4
 describe("getRecentSales with a dateRange", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

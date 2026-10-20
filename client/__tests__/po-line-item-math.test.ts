@@ -19,8 +19,7 @@ describe("po-line-item-math", () => {
   describe("an immediate line bills what the owner typed", () => {
     it("prices a carton of 3 at the carton cost, not 3x the rounded unit cost", () => {
       // A-261 rounds the per-unit cost to 333.33 for the batch's valuation.
-      // Billing the order from that figure made a ₦1,000 invoice read
-      // ₦999.99 on screen, in the PO, in its PDF and in supplier debt.
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-po-line-item-math-test-ts-L21
       const line = item({ bulk_quantity: 1, unit_cost: 1000, units_per_bulk: 3 });
       expect(getImmediateUnitCost(line)).toBe(333.33);
       expect(getLineTotal(line, "immediate")).toBe(1000);
@@ -66,10 +65,8 @@ describe("po-line-item-math", () => {
 
   describe("resolveBaseUnitCost rounding (A-261)", () => {
     it("rounds a per-unit cost that does not divide evenly", () => {
-      // A ₦1,000 carton of 3. SQLite's REAL would keep
-      // 333.3333333333333; MySQL's decimal(10,2) stores 333.33, so the
-      // receiving device disagreed with the cloud and with every other
-      // device until the next pull overwrote it.
+      // A ₦1,000 carton of 3.
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-po-line-item-math-test-ts-L69
       expect(
         getImmediateUnitCost(item({ unit_cost: 1000, units_per_bulk: 3 })),
       ).toBe(333.33);
@@ -90,10 +87,8 @@ describe("po-line-item-math", () => {
 
   describe("getImmediateUnitCost", () => {
     it("converts the catalog's per-bulk-unit cost down to per-base-unit when no override is set", () => {
-      // Regression: the review-price popover previously showed the raw
-      // per-carton unit_cost (37,200) as "Cost", right next to a sell price
-      // meant to be entered per tablet — this is the value that must match
-      // the catalog's per-tablet cost (620) instead.
+      // Regression: the review-price popover previously showed the raw per-carton unit_cost (37,200) as "Cost", right next to a…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-po-line-item-math-test-ts-L93
       expect(getImmediateUnitCost(item())).toBe(620);
     });
 
@@ -116,9 +111,8 @@ describe("po-line-item-math", () => {
     });
 
     it("immediate type, with override: scales the per-tablet override by units_per_bulk, not just bulk_quantity", () => {
-      // Regression: entering a new per-tablet cost (650) previously produced
-      // a total of bulk_quantity * 650 = 650, silently dropping the
-      // 60-tablets-per-carton factor and understating the order by 60x.
+      // Regression: entering a new per-tablet cost (650) previously produced a total of bulk_quantity * 650 = 650, silently drop…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-po-line-item-math-test-ts-L119
       expect(getLineTotal(item({ cost_price_override: 650 }), "immediate")).toBe(39000);
     });
 
@@ -129,9 +123,8 @@ describe("po-line-item-math", () => {
     });
   });
 
-  // Medium bug fix: `Number(amountPaid) || 0` alone silently recorded ₦0
-  // paid for a blank/non-numeric amount, and accepted any value above the
-  // order total as-is with no cap or rounding.
+  // Medium bug fix: `Number(amountPaid) || 0` alone silently recorded ₦0 paid for a blank/non-numeric amount, and accepted a…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-po-line-item-math-test-ts-L132
   describe("getValidatedAmountPaid", () => {
     it("returns the parsed amount when it's a valid, positive number under the total", () => {
       expect(getValidatedAmountPaid("5000", 10000)).toBe(5000);
@@ -185,12 +178,8 @@ describe("po-line-item-math", () => {
   });
 });
 
-/**
- * A line is one product, not one unit. The Immediate Purchase confirmation
- * counted lines ("1 item worth 40,000") and a store owner who had just
- * entered a quantity of 2 read that as the quantity - so the dialog now
- * reports the units that actually reach stock.
- */
+// A line is one product, not one unit.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-po-line-item-math-test-ts-L188
 describe("getTotalBaseUnits", () => {
   it("converts every line's bulk quantity into base units", () => {
     expect(

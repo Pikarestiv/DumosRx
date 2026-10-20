@@ -6,13 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Automatic crash reports land in the same `feedback` table as
- * user-submitted feedback, but they are background telemetry: they must not
- * be advertised to the user as "X changes unsynced", and they must not earn
- * an instant sync of their own. They must still ride along with any sync
- * that happens for another reason.
- */
+// Automatic crash reports land in the same `feedback` table as user-submitted feedback, but they are background telemetry:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-queue-count-excludes-crash-reports-test-ts-L9
 describe("crash reports and the unsynced-changes count", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

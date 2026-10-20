@@ -2,31 +2,11 @@ import { execute, query, transaction, isInTransaction, STORE_SCOPED_TABLES } fro
 import { STORAGE_KEYS } from "@/lib/storage-keys";
 import { serializeRequeuePayload } from "./requeue-payload";
 
-/**
- * One-time recovery tool for devices that hit the pre-fix local-first setup
- * bug: `handleRegister()` used to generate local-only user/store ids that
- * were never reconciled to the server once the device later linked to a
- * cloud account (see use-onboarding.ts and the Aug 2026 multi-store
- * investigation). Every row referencing those local-only ids as a foreign
- * key (sales.cashier_id, stock_movements.performed_by, etc.) became
- * permanently unsyncable, since the server never had a matching row to
- * satisfy the FK constraint.
- *
- * Not a permanent code path: new setups can no longer create this state
- * (handleRegister now always creates the account+store in the cloud first),
- * so this only exists to repair devices affected before that fix shipped.
- * Invoke manually (e.g. via a temporary browser debug hook), not from any
- * normal app flow.
- */
+// One-time recovery tool for devices that hit the pre-fix local-first setup bug:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-reconcile-identity-L5
 
-/**
- * Tables whose server-side push handling silently skips an INSERT when the
- * name collides with an existing row for the same owner (see
- * SyncController::push's "duplicate name" handling for categories and
- * suppliers) rather than creating a second row. Shared by pull.ts's ongoing
- * delta-pull reconciliation and push.ts's immediate id_map-based fixup
- * (see PushResponse.id_map in sync-engine/types.ts).
- */
+// Tables whose server-side push handling silently skips an INSERT when the name collides with an existing row for the same owner (see SyncCont…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-reconcile-identity-ts-L8
 export const DUPLICATE_NAME_TABLES: Record<string, { table: string; column: string }[]> = {
   categories: [{ table: "products", column: "category_id" }],
   suppliers: [
@@ -68,27 +48,8 @@ export interface ReconcileIdentityResult {
   userRowsRemapped: Record<string, number>;
 }
 
-/**
- * Separate, narrower repair for a related symptom found on the same device:
- * some rows created during the same pre-cloud-link period are marked
- * `_synced = 0` locally but have no corresponding `_sync_queue` entry at
- * all, so `pushChanges()` (which only ever reads from `_sync_queue`, never
- * scans tables directly) has silently never attempted to push them. Backfill
- * a fresh INSERT queue entry for any such row so it's picked up on the next
- * push, using the row's current column values as the payload (matching the
- * shape `insert()` in base-helpers.ts already produces).
- *
- * Also called directly at plain app-boot now (DatabaseProvider), not just
- * nested inside remapForeignKey()'s callers (pull.ts/push.ts's own open
- * transaction()). transaction() has no reliable way to tell a genuinely
- * nested call (safe to run inline) apart from two merely concurrent,
- * unrelated top-level calls (which must never share one BEGIN/COMMIT — see
- * transaction()'s own comment for the bug that caused) and deadlocks on
- * nesting, so each table's requeue-insert batch below checks
- * isInTransaction() itself: runs inline when already nested, opens its own
- * transaction() when called at the top level (batching a table's N inserts
- * into one lock+saveDatabase() cycle instead of N).
- */
+// Separate, narrower repair for a related symptom found on the same device:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-reconcile-identity-L71
 export async function requeueOrphanedRows(
   tables: string[],
   onlyIds?: Record<string, string[]>,
@@ -131,12 +92,8 @@ export async function requeueOrphanedRows(
         }
       };
 
-      // remapForeignKey() calls this from inside its own already-open
-      // transaction() - must not open another one (transaction() deadlocks
-      // on nesting, see its own doc comment). Called directly at plain
-      // app-boot, though, there's no enclosing transaction, so batching this
-      // table's inserts into one saves N separate lock+saveDatabase() round
-      // trips down to one.
+      // remapForeignKey() calls this from inside its own already-open transaction() - must not open another one (transaction() deadlocks on nesting,…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-reconcile-identity-ts-L95
       if (isInTransaction()) {
         await insertQueueEntries();
       } else {
@@ -152,11 +109,8 @@ export async function requeueOrphanedRows(
 
 const ORPHAN_REQUEUE_MARKER = STORAGE_KEYS.orphanRequeueMarker;
 
-/**
- * Runs requeueOrphanedRows() once per install. Returns null when skipped.
- * Why it takes no re-arming trigger: client/AGENTS.md, "The boot-time orphan
- * scan".
- */
+// Runs requeueOrphanedRows() once per install.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-reconcile-identity-ts-L122
 export async function requeueOrphanedRowsOnce(
   tables: string[],
 ): Promise<Record<string, number> | null> {
@@ -193,18 +147,8 @@ export async function columnExists(table: string, column: string): Promise<boole
   return rows.some((r) => r.name === column);
 }
 
-/**
- * Rewrites every reference to `oldId` (across the given table/column pairs)
- * to `newId`, including any already-queued `_sync_queue` payload that still
- * has the old id baked into its frozen JSON snapshot: marking a live row
- * `_synced = 0` alone doesn't requeue it, since push only ever reads from
- * `_sync_queue`, never re-scans the table. Shared by both the one-time
- * device-identity repair below and the ongoing duplicate-name reconciliation
- * for categories/suppliers in pull.ts and push.ts.
- *
- * Callers must run inside `transaction()` (both current call sites do) so
- * this composes into one export/save at commit instead of one per statement.
- */
+// Rewrites every reference to `oldId` (across the given table/column pairs) to `newId`, including any already-queued `_sync_queue` payload tha…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-reconcile-identity-L196
 export async function remapForeignKey(
   oldId: string,
   newId: string,
@@ -247,11 +191,8 @@ export async function remapForeignKey(
   await requeueOrphanedRows(Object.keys(remappedIds), remappedIds);
 }
 
-/**
- * Remaps every local row referencing `oldStoreId`/`oldUserId` to the real
- * server ids, marks touched rows unsynced so they get re-pushed with valid
- * foreign keys, and soft-deletes the now-orphaned local-only store/user rows.
- */
+// Remaps every local row referencing `oldStoreId`/`oldUserId` to the real server ids, marks touched rows unsynced so they get re-pushed with v…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-reconcile-identity-ts-L207
 export async function reconcileIdentity(
   options: ReconcileIdentityOptions,
 ): Promise<ReconcileIdentityResult> {
@@ -292,11 +233,8 @@ export async function reconcileIdentity(
       }
     }
 
-    // Rename the local user's own id in place (not soft-delete); this row
-    // holds the only local username/PIN credential for this device's login,
-    // so deleting it outright would lock the device out. Also point it at
-    // the real store and re-flag for sync so the identity fix itself reaches
-    // the server, not just the rows that referenced it.
+    // Rename the local user's own id in place (not soft-delete); this row holds the only local username/PIN credential for this device's login, so…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-reconcile-identity-ts-L240
     await execute(
       "UPDATE users SET id = ?, store_id = ?, _deleted = 0, _synced = 0 WHERE id = ?",
       [newUserId, newStoreId, oldUserId],
@@ -304,15 +242,8 @@ export async function reconcileIdentity(
 
     await execute("UPDATE stores SET _deleted = 1 WHERE id = ?", [oldStoreId]);
 
-    // Marking table rows _synced = 0 above does NOT requeue them: push.ts
-    // reads straight from `_sync_queue.payload`, a JSON snapshot frozen at
-    // the moment the row was originally inserted/updated, independent of
-    // the row's current `_synced` flag. Any already-queued entry for these
-    // rows still has the old ids baked into its stored payload and would
-    // keep failing the same FK check server-side. Rewrite those payloads in
-    // place; a plain string substitution is safe here since UUIDs are
-    // unique, unambiguous tokens with no risk of colliding with other JSON
-    // content.
+    // Marking table rows _synced = 0 above does NOT requeue them:
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-reconcile-identity-ts-L252
     await execute("UPDATE _sync_queue SET payload = REPLACE(payload, ?, ?) WHERE payload LIKE ?", [
       oldStoreId,
       newStoreId,

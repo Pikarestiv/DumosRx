@@ -6,12 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * U9: the staff list rendered a green "PIN set" pill unconditionally, because
- * StaffListItem structurally omits `pin` — so a staff member with no PIN at
- * all still showed as having one. The query now derives a boolean has_pin
- * (never the hash itself) so the list can tell the truth.
- */
+// U9: the staff list rendered a green "PIN set" pill unconditionally, because StaffListItem structurally omits `pin` — so…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-staff-list-has-pin-test-ts-L9
 describe("getUsers has_pin", () => {
   let execute: typeof import("@/lib/db/core").execute;
   let getUsers: typeof import("@/lib/db/local-database").getUsers;

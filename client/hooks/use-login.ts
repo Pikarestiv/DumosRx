@@ -4,9 +4,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/context/auth-context";
 
-// Device/account status (userCount, recentUsers, isChecking) now lives in
-// useDeviceAuthStatus, shared with the setup tab on the merged /login page.
-// This hook only owns the login form itself.
+// Device/account status (userCount, recentUsers, isChecking) now lives in useDeviceAuthStatus, shared with the setup tab o…
+// Rationale: docs/CLIENT_COMMENTS.md#line-hooks-use-login-ts-L7
 export function useLogin() {
   const [username, setUsername] = useState("");
   const [pin, setPin] = useState("");
@@ -25,11 +24,8 @@ export function useLogin() {
       const success = await login(cleanUsername, pin);
       if (success) {
         toast.success("Welcome back!");
-        // Left `isLoading` true: router.push() doesn't await the route
-        // transition, so resetting it here would flip the form back to its
-        // idle state for one frame while /dashboard is still loading.
-        // An inspection session renders at /inspect, not the dashboard:
-        // DashboardLayout requires a staff user and would bounce it.
+        // Left `isLoading` true:
+        // Rationale: docs/CLIENT_COMMENTS.md#line-hooks-use-login-ts-L28
         router.push(isTillInspectionSession() ? "/inspect" : "/dashboard");
       } else {
         setPin("");
@@ -39,10 +35,8 @@ export function useLogin() {
         setIsLoading(false);
       }
     } catch (err) {
-      // Surfaces the real failure (e.g. a lockout countdown from
-      // login-lockout.ts) instead of always claiming the database isn't
-      // initialized, which misdiagnosed every other cause - same fix
-      // already applied to lock-screen.tsx's equivalent catch block.
+      // Surfaces the real failure (e.g.
+      // Rationale: docs/CLIENT_COMMENTS.md#line-hooks-use-login-ts-L42
       toast.error(
         err instanceof Error ? err.message : "Login failed. Database might not be initialized.",
       );

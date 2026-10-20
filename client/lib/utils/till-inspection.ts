@@ -1,16 +1,7 @@
 import { STORAGE_KEYS } from "@/lib/storage-keys";
 
-/**
- * Single source of truth for "is this session a read-only on-till admin
- * inspection?". Mirrors lib/utils/impersonation.ts deliberately — the sync
- * engine, the write helpers and the UI must all answer this the same way
- * rather than each reaching for storage with its own key.
- *
- * sessionStorage, not localStorage: the spec requires the session to end on
- * app restart, and sessionStorage gives that for free rather than through an
- * expiry check something could skip. See
- * docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md.
- */
+// Single source of truth for "is this session a read-only on-till admin inspection?".
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-till-inspection-L3
 export interface TillInspectionSession {
   admin: {
     id: string;

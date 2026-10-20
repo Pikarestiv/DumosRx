@@ -66,11 +66,8 @@ const expense = {
   recorded_by_name: "Ada",
 } as never;
 
-/**
- * "/expenses?action=add" is typeable and is also where the dashboard
- * header's "Add Expense" navigates, so hiding the header action alone would
- * not be a gate - the dialog's own opener has to require record_expenses.
- */
+// "/expenses?action=add" is typeable and is also where the dashboard header's "Add Expense" navigates, so hiding the heade…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-expenses-record-permission-test-tsx-L69
 describe("record_expenses gating", () => {
   beforeEach(() => {
     hasPermission.mockReset();

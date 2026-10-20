@@ -38,10 +38,8 @@ export function LoyaltyTab({
     queryFn: getLoyaltyRedemptionOptions,
   });
   const activeOptions = (optionsData || []).filter((o) => o.is_active);
-  // Real DB data always wins once it exists; the fallback is only a preview
-  // for a store that has never opened Loyalty Settings (which is what
-  // actually seeds `loyalty_redemption_options`) — same precedence rule
-  // `buildFallbackTiers()` already follows for tiers.
+  // Real DB data always wins once it exists; the fallback is only a preview for a store that has never opened Loyalty Settin…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-customers-loyalty-tab-tsx-L41
   const redemptionOptions =
     activeOptions.length > 0
       ? activeOptions

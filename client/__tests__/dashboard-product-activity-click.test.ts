@@ -2,23 +2,8 @@ import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
 
-/**
- * Regression coverage for: Dashboard "Product added" activity rows were
- * dead clicks (_findings-log.md). dashboard-overview.tsx had dialogs wired
- * for sale/expense/purchase_order/prescription/stock_movement/return
- * activity types but no case for `type === "product"`, so clicking one set
- * `selectedActivity` and nothing opened.
- *
- * Fix: route a "product" activity click to Inventory > Catalog with that
- * product's id via `?productId=`, mirroring product-database.tsx's existing
- * `?action=add` deep-link/cleanup mechanism, so it opens the real, current
- * product record instead of a stale rawActivity snapshot.
- *
- * dashboard-overview.tsx pulls in useDashboardOverview() (many DB-backed
- * queries) and product-database.tsx pulls in useQuery/react-query, so this
- * follows dashboard-action-center-routes.test.ts's source-inspection
- * convention (no render harness) rather than mounting either component.
- */
+// Regression coverage for:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-dashboard-product-activity-click-test-ts-L5
 describe("Dashboard 'product' activity click navigation", () => {
   const dashboardOverviewSource = fs.readFileSync(
     path.join(__dirname, "../components/dashboard/dashboard-overview.tsx"),

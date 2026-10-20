@@ -23,11 +23,8 @@ export interface MetricCardProps {
 
 const METRIC_CARD_BARS = [35, 60, 45, 85, 65];
 
-/**
- * Tailwind only generates classes it can find as literal substrings in
- * source, so a concatenated class like `bg-${color}-500/30` silently
- * renders nothing — every branch here must spell the full class out.
- */
+// Tailwind only generates classes it can find as literal substrings in source, so a concatenated class like `bg-${color}-5…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-metric-card-tsx-L26
 function resolveBarClass(iconBgClass: string): string {
   if (iconBgClass.includes("destructive")) return "bg-destructive/30";
   if (iconBgClass.includes("blue")) return "bg-blue-500/30";

@@ -7,14 +7,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Covers the two LOYALTY_RULES constants that used to be declared and never
- * used: MIN_REDEMPTION_POINTS and POINTS_EXPIRY_MONTHS. Runs against a real
- * in-memory SQLite engine because the point of the fix is what
- * applyLoyaltyPointsForSale does with the customer row and the dated
- * loyalty_transactions ledger, not the pure math (covered in
- * loyalty-calculator.test.ts).
- */
+// Covers the two LOYALTY_RULES constants that used to be declared and never used:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-loyalty-rules-enforcement-test-ts-L10
 describe("applyLoyaltyPointsForSale enforces LOYALTY_RULES", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

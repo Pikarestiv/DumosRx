@@ -1,6 +1,5 @@
-/** The fixed set of staff system roles: shared between the staff editor
- * (assigning a role) and anywhere roles need to be listed/filtered (e.g.
- * Activity Log), so the two can't drift out of sync. */
+// The fixed set of staff system roles:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-roles-ts-L1
 export const STAFF_ROLES = [
   { value: "admin", label: "Admin (Local Master)" },
   { value: "manager", label: "Manager (Admin)" },

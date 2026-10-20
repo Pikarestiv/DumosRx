@@ -1,12 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-/**
- * getDashboardOverviewData and getBIMetrics each fan out to a dozen-plus
- * independent reads. Awaiting them one at a time serialises the whole
- * dashboard behind the slowest possible ordering, so these pin that the
- * independent reads are actually issued together: every statement must be in
- * flight before the first one is allowed to resolve.
- */
+// getDashboardOverviewData and getBIMetrics each fan out to a dozen-plus independent reads.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-report-fanout-parallelism-test-ts-L3
 
 const pending: { resolve: () => void }[] = [];
 let issued = 0;
@@ -18,18 +13,8 @@ const mockQuery = vi.fn(() => {
   });
 });
 
-// Two of getDashboardOverviewData's/getBIMetrics's reads go through
-// lib/db/queries/finance.ts (getSmoothedExpensesTotal/getSmoothedAmountInWindow),
-// which imports `query` from "@/lib/db/local-database" directly, not from
-// "@/lib/db" - mocking only the latter leaves that path pointed at the real
-// query(), which lazily boots a genuine sql.js instance with core.ts's
-// browser-only locateFile default. Whether that surfaces as a failure
-// depends only on whether some earlier, unrelated test already "warmed" the
-// wasm loader's own module-level cache in this worker - i.e. a real bug in
-// this file's own mock coverage that only *looked* like unrelated ambient
-// flakiness. Both specifiers resolve to the exact same underlying function
-// (local-database.ts re-exports core.ts's query verbatim), so both need
-// mocking here.
+// Two of getDashboardOverviewData's/getBIMetrics's reads go through lib/db/queries/finance.ts (getSmoothedExpensesTotal/ge…
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-report-fanout-parallelism-test-ts-L21
 vi.mock("@/lib/db", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/db")>();
   return { ...actual, query: mockQuery };
@@ -51,13 +36,8 @@ async function settleMicrotasks() {
   for (let i = 0; i < 50; i += 1) await Promise.resolve();
 }
 
-/** Resolves every pending query, including ones a resolved query's own
- * continuation issues afterward (getSmoothedExpensesTotal awaits its
- * per-installment getSmoothedAmountInWindow query and only then issues the
- * next one, rather than firing every installment up front) - a single
- * resolve-everything-once pass would leave that second wave hanging
- * forever. Bounded so a genuine bug here fails fast instead of hanging the
- * suite. */
+// Resolves every pending query, including ones a resolved query's own continuation issues afterward (getSmoothedExpensesTo…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-report-fanout-parallelism-test-ts-L54
 async function drainAllPending() {
   for (let round = 0; round < 50 && pending.length > 0; round += 1) {
     const batch = pending.splice(0, pending.length);

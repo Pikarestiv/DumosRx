@@ -6,21 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * A-295's driver. `remapForeignKey()` flips the FK of the rows it remaps and
- * then has to backfill their queue entries, because `_synced = 0` alone never
- * reaches push(). It did that by calling `requeueOrphanedRows()` on the whole
- * referenced table, so ONE category-name collision re-queued every unsynced
- * product on the device. Measured on production: 9,181 `products`
- * `version_conflict` INSERT refusals in six days on store `571582a9`, with a
- * 2,735-product catalogue and not one of them a row the cloud was missing —
- * roughly 3.4 whole-table sweeps' worth. Each sweep's rows go up as INSERTs
- * carrying the local `_version`, the server treats an INSERT for a row it
- * holds as a version-checked UPDATE, and a device that cannot converge on
- * `products` has stale versions, so they are all refused. A terminal conflict
- * drops the queue row and leaves `_synced = 0`, so the next collision sweeps
- * them again.
- */
+// A-295's driver. `remapForeignKey()` flips the FK of the rows it remaps and then has to backfill their queue entries, bec…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-remap-requeues-only-remapped-rows-test-ts-L9
 describe("remapForeignKey only requeues the rows whose foreign key it changed", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

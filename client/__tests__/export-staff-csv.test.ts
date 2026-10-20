@@ -38,10 +38,8 @@ describe('buildStaffCsv', () => {
     expect(csv).toContain('"Doe, Jr."');
   });
 
-  // Medium bug fix: embedded quotes/newlines weren't escaped at all (only a
-  // comma triggered quoting), and username/email/role bypassed the quoting
-  // function entirely - a name containing either corrupted every following
-  // row when the CSV was opened.
+  // Medium bug fix: embedded quotes/newlines weren't escaped at all (only a comma triggered quoting), and username/email/rol…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-export-staff-csv-test-ts-L41
   it('doubles an embedded quote and wraps the field in quotes', () => {
     const csv = buildStaffCsv([
       {
@@ -71,9 +69,8 @@ describe('buildStaffCsv', () => {
       },
     ]);
 
-    // A correct CSV parser treats a newline inside a quoted field as part of
-    // the field's value, not a row separator - unquoted, it would have
-    // corrupted every following row.
+    // A correct CSV parser treats a newline inside a quoted field as part of the field's value, not a row separator - unquoted…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-export-staff-csv-test-ts-L74
     expect(csv).toContain('"Jane\nDoe"');
   });
 

@@ -1,16 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-/**
- * Covers the only route out of a clock-discrepancy lock (docs/KNOWN_BUGS.md
- * A-191). A device whose wall clock ran fast poisons
- * stores.last_monotonic_time with a future value; correcting the clock then
- * reads as a rollback and locks the till out permanently, because the pull
- * strips that column and a factory reset preserves it.
- *
- * The recovery is deliberately ONLINE-ONLY: the store owner is the party a
- * backdating check exists to stop, so there is no offline override.
- * See docs/superpowers/specs/2026-10-08-license-clock-recovery-design.md.
- */
+// Covers the only route out of a clock-discrepancy lock (docs/KNOWN_BUGS.md A-191).
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-license-clock-reconciliation-test-ts-L3
 const WATERMARK = "2026-10-08T22:56:40.000Z";
 
 const profile = { current: { id: "store-1", last_monotonic_time: WATERMARK } as Record<string, unknown> | null };

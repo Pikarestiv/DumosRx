@@ -16,9 +16,8 @@ import { formatCurrency } from "@/lib/utils";
 interface POReviewPricePopoverProps {
   costPrice: number;
   sellingPrice: number | string;
-  /** The product's live selling price, so the trigger can tell a real
-   * repricing apart from the prefill of the price that is already on file.
-   * Without it a prefilled row is indistinguishable from an edited one. */
+  // The product's live selling price, so the trigger can tell a real repricing apart from the prefill of the price that is a…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-review-price-popover-tsx-L19
   currentSellingPrice?: number | null;
   onSellingPriceChange: (value: string) => void;
   /** Names the row this popover belongs to, for the dense ledger table where
@@ -26,12 +25,8 @@ interface POReviewPricePopoverProps {
   productName?: string;
 }
 
-/** Per-row "review sell price" action for the Immediate Purchase item
- * table/card list: lets cost and sell price be set in the same pass
- * instead of a separate trip to the Product Catalog. Only ever writes to
- * the draft item's local selling_price field — the actual products.selling_price
- * write happens where createAndReceivePurchaseOrder is called, same as
- * receivePurchaseOrder's existing selling_price handling. */
+// Per-row "review sell price" action for the Immediate Purchase item table/card list:
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-review-price-popover-tsx-L29
 export function POReviewPricePopover({
   costPrice,
   sellingPrice,

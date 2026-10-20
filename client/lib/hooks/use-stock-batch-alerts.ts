@@ -7,9 +7,8 @@ import {
 } from "@/lib/db/queries/inventory";
 import { queryKeys } from "@/lib/query-keys";
 
-/** @param enabled - these three reads feed only the Analytics dashboard's
- * Stock Batches tab, so its caller gates them on that tab being the active
- * one. Returns an empty list (render-safe) while gated off. */
+// @param enabled - these three reads feed only the Analytics dashboard's Stock Batches tab, so its caller gates them on that tab being the act…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-stock-batch-alerts-ts-L10
 export function useStockBatchAlerts(enabled = true) {
   const { data: lowStockAlerts } = useQuery({
     ...queryKeys.stockBatches.lowStockAlerts(),
@@ -45,9 +44,8 @@ export function useStockBatchAlerts(enabled = true) {
       daysLeft: a.daysLeft,
       severity: a.daysLeft <= 7 ? "critical" : a.daysLeft <= 14 ? "high" : "medium",
     }));
-    // Always critical: it means the batch's recorded stock and its real
-    // stock have already diverged (a sale went through against more stock
-    // than the batch had), not merely that stock is running low.
+    // Always critical: it means the batch's recorded stock and its real stock have already diverged (a sale went through against more stock than t…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-stock-batch-alerts-ts-L47
     const oversold = (oversoldAlerts || []).map((a) => ({
       product: a.product,
       issue: "Oversold",

@@ -8,15 +8,8 @@ import type { SupplierPayload, SupplierDbRow } from "@/lib/types/supplier";
 import { roundMoney } from "@/lib/utils/pos-calculations";
 import { immediateLineAmount } from "@/components/procurement/po-line-item-math";
 
-/** Line-item form fields (selling_price, cost_price_override) come in as
- * `number | string | undefined` from raw form inputs - blank/undefined
- * means "not overridden," not zero. Also accepts `null` even though the
- * declared type doesn't advertise it: a PO reloaded from the DB via
- * getPurchaseOrderById() genuinely hands back SQL NULL for an unset
- * override (not `undefined`), and re-saving that PO (e.g. via
- * updatePurchaseOrder after editing something else) routes the same value
- * straight back through this function - `Number(null) === 0` would
- * silently turn "no override" into a literal, permanent 0 override. */
+// Line-item form fields (selling_price, cost_price_override) come in as `number | string | undefined` from raw form inputs - blank/undefined m…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-ts-L11
 export function coerceOptionalNumber(
   value: number | string | null | undefined,
 ): number | null {
@@ -27,9 +20,8 @@ export function coerceOptionalNumber(
   return Number.isFinite(num) ? num : null;
 }
 
-/** `partially_received` sits between `sent` and `received`: at least one
- * line has some stock in, but at least one line still has an outstanding
- * balance, so the order stays receivable. */
+// `partially_received` sits between `sent` and `received`:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-ts-L30
 export const PURCHASE_ORDER_STATUSES = [
   "pending",
   "sent",
@@ -71,9 +63,8 @@ export interface PurchaseOrderItem {
   po_id: string;
   product_id: string;
   bulk_quantity: number;
-  /** Cumulative quantity received so far against this line, in the same
-   * unit as bulk_quantity. A line is outstanding while it's below
-   * bulk_quantity, which is what keeps a short-delivered PO receivable. */
+  // Cumulative quantity received so far against this line, in the same unit as bulk_quantity.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-ts-L74
   quantity_received?: number;
   units_per_bulk: number;
   unit_cost: number;
@@ -84,10 +75,8 @@ export interface PurchaseOrderItem {
   /** Live conversion factor from the product record; always used for receiving math, since units_per_bulk above is a point-in-time snapshot that can go stale if the product's packaging is edited later. */
   product_units_per_bulk: number;
   selling_price?: number | string;
-  /** The product's live selling_price at read time (not the value stored on
-   * this line item, which is whatever was submitted with the PO) - lets a
-   * receive-time override be compared against what's actually on file
-   * right now, rather than assuming any override differs from it. */
+  // The product's live selling_price at read time (not the value stored on this line item, which is whatever was submitted with the PO) - lets a…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-ts-L87
   current_selling_price?: number | null;
   cost_price_override?: number | string;
   lot_number?: string;
@@ -95,23 +84,16 @@ export interface PurchaseOrderItem {
   /** The product's current category name, for the receive flow's inline
    * category fix-up. Null when the product has no category yet. */
   category_name?: string | null;
-  /** Weighted-average cost across the product's active batches right now -
-   * the same figure the catalog shows, and the scale ("per base unit") the
-   * receive panel's Cost Price input is read at. */
+  // Weighted-average cost across the product's active batches right now - the same figure the catalog shows, and the scale ("per base unit") the…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-ts-L98
   current_cost_price?: number | null;
-  /** The cost of the most recent real (non-adjustment) batch, so the
-   * receive panel can show what was actually last paid rather than only the
-   * blended average. */
+  // The cost of the most recent real (non-adjustment) batch, so the receive panel can show what was actually last paid rather than only the blen…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-ts-L102
   last_bought_price?: number | null;
 }
 
-/** A line item as it exists in the create/edit PO form before submission:
- * not yet persisted, so it has no `id`/`po_id` (those are assigned by
- * createPurchaseOrder()/updatePurchaseOrder()). Immediate-purchase-only
- * fields are optional here (rather than only on ImmediateLineItemDraft)
- * so a Standard PO's items - which never set them - and an Immediate
- * Purchase's - which do - can share one persistence path and both survive
- * being saved as a draft. */
+// A line item as it exists in the create/edit PO form before submission:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-ts-L108
 export interface DraftPOLineItem {
   product_id: string;
   product_name: string;
@@ -153,16 +135,8 @@ export async function getPurchaseOrderItemsForDetail(poId: string) {
   );
 }
 
-/**
- * Loads every purchase order, not a page of them: the caller runs search/filter
- * over the result, and this data set is small enough (dozens to low hundreds per
- * store) that in-memory filtering stays correct without needing SQL-level WHERE
- * clauses, matching the pattern used by getCustomers()/getDebtors() etc.
- *
- * @param viewerId - when provided, restricts results to orders placed by this
- * user (pass undefined for viewers allowed to see everyone's activity, i.e.
- * checkCanViewAllActivity(role) === true).
- */
+// Loads every purchase order, not a page of them:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-L156
 export async function getPurchaseOrders(viewerId?: string) {
   const storeId = getActiveStoreId();
   const params = [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])];
@@ -239,10 +213,8 @@ export async function createPurchaseOrder(
   const now = new Date().toISOString();
   let totalAmount = 0;
 
-  // Via immediateLineAmount, not a bare bulk_quantity * unit_cost: an
-  // Immediate Purchase parked as a draft carries per-base-unit overrides that
-  // the screen already bills for, and ignoring them stored a total the owner
-  // never saw. Identical for a standard line, which has no override.
+  // Via immediateLineAmount, not a bare bulk_quantity * unit_cost:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-procurement-ts-L216
   for (const item of items) {
     totalAmount += roundMoney(immediateLineAmount(item));
   }
@@ -352,12 +324,8 @@ export async function updatePurchaseOrderStatus(id: string, status: string) {
   await update("purchase_orders", id, updateData);
 }
 
-/**
- * Loads every supplier, not a page of them: the caller runs search/filter over
- * the result, and suppliers stay small by nature (tens, rarely hundreds), so
- * in-memory filtering stays correct without needing SQL-level WHERE clauses,
- * matching the pattern used by getCustomers()/getPurchaseOrders() etc.
- */
+// Loads every supplier, not a page of them:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-ts-L347
 export async function getSuppliers() {
   const storeId = getActiveStoreId();
   const results = await query<SupplierDbRow>(

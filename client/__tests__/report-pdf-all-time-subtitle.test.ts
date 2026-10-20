@@ -26,13 +26,8 @@ vi.mock("@/lib/utils/download-blob", () => ({
   openBlobForPrint: vi.fn(),
 }));
 
-/**
- * Regression test: buildReportPdfBlob stamped a period subtitle onto every
- * PDF whenever dateFrom/dateTo were passed, even for reports configured
- * takesDateRange: false (stock_batches, customers) that are always all-time
- * and never actually filter by that range - mislabeling all-time data as
- * scoped to a period it was never filtered by.
- */
+// Regression test: buildReportPdfBlob stamped a period subtitle onto every PDF whenever dateFrom/dateTo were passed, even…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-report-pdf-all-time-subtitle-test-ts-L29
 describe("useReportExport PDF subtitle", () => {
   beforeEach(() => {
     generateReportPdfBlobMock.mockClear();

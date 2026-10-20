@@ -1,8 +1,5 @@
-/**
- * The one place that decides whether this build reports to Sentry, and at
- * what rate. Rationale and the per-environment table: client/AGENTS.md,
- * "What reaches Sentry".
- */
+// The one place that decides whether this build reports to Sentry, and at what rate.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-sentry-config-ts-L1
 
 export const SENTRY_DEV_SAMPLE_RATE = 0.1;
 

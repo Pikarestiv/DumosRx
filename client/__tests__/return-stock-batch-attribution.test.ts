@@ -6,25 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression: a sale line split across multiple batches at sale time (FEFO)
- * restored ALL of a second partial return to the FIRST batch in the
- * original split, instead of continuing from where the first return left
- * off. restoreReturnedStock() always restarted allocation from
- * consumedBatches[0] with no memory of what an earlier return of the same
- * sale line already restored.
- *
- * Concretely: a 10-unit line split 6 units from batch A (expires March) +
- * 4 units from batch B (expires August). Returning 6 units, then later the
- * remaining 4, previously put all 10 restored units into batch A and left
- * batch B permanently 4 short - correct product-level total stock, but
- * batch A now holds units it never held (wrong expiry date attached to
- * them) and batch B's quantity/cost valuation is silently wrong forever.
- *
- * Fix: restoreReturnedStock() now nets out, per batch, how much a *prior*
- * return (scoped to the same sale + product) already restored before
- * allocating the current return's quantity.
- */
+// Regression: a sale line split across multiple batches at sale time (FEFO) restored ALL of a second partial return to the…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-return-stock-batch-attribution-test-ts-L9
 describe("restoreReturnedStock - batch attribution across multiple partial returns", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -110,9 +93,8 @@ describe("restoreReturnedStock - batch attribution across multiple partial retur
   });
 
   it("does not over-restore when a different sale's return of the same product shares a batch", async () => {
-    // A second sale of the same product, also drawing from batch A, whose
-    // own return must not be counted against sale1's remaining-restorable
-    // amount (and vice versa).
+    // A second sale of the same product, also drawing from batch A, whose own return must not be counted against sale1's remai…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-return-stock-batch-attribution-test-ts-L113
     db.run(
       `INSERT INTO sales (id, transaction_number, subtotal, total_amount, _deleted) VALUES
         ('sale2', 'TXN2', 3000, 3000, 0)`,
@@ -153,9 +135,8 @@ describe("restoreReturnedStock - batch attribution across multiple partial retur
   });
 
   describe("no recorded batch to credit (KNOWN_BUGS.md - return with no batch never restores stock)", () => {
-    // A sale line with no sale_item_batches rows and no legacyStockBatchId -
-    // e.g. a pre-batch-attribution sale, or one where the batch write was
-    // otherwise skipped at sale time.
+    // A sale line with no sale_item_batches rows and no legacyStockBatchId - e.g.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-return-stock-batch-attribution-test-ts-L156
     beforeEach(() => {
       db.run(
         `INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, total_price) VALUES

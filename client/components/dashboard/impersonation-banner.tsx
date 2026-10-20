@@ -21,28 +21,8 @@ export function ImpersonationBanner() {
   if (!isImpersonating) return null;
 
   const handleEndImpersonation = () => {
-    // Previously redeemed the stored return-hop code (a one-time,
-    // 60-SECOND-lived handoff code minted back when impersonation
-    // *started*) via consumeHandoffCode/createHandoffCode. That's the
-    // expected outcome of any normal-length impersonation session, not an
-    // edge case — every admin who spent more than a minute here hit the
-    // catch branch below and got bounced to a fresh /admin/login instead
-    // of back to their own session. No fresh code can be minted at click
-    // time either, since nothing on this side holds a live admin
-    // credential to mint one from.
-    //
-    // The actual fix: the admin's own dumosrx.com session was never
-    // disturbed by impersonating in the first place (impersonateStore()
-    // no longer touches drx_admin_session at all — see
-    // docs/FIXED_BUGS.md) and lives entirely in that independent,
-    // HttpOnly, 24h refresh cookie on the web/ origin. Navigating straight
-    // to /admin lets its own layout (see app/admin/layout.tsx's
-    // initSession() effect) silently re-establish the session from that
-    // cookie — no handoff code, no TTL, no redemption round-trip needed.
-    // This only fails if the admin's own cookie has itself expired (a
-    // realistic 24h-plus session), which is a much rarer case than "spent
-    // more than a minute looking around," and lands on the ordinary
-    // /admin/login flow rather than a confusing dead end.
+    // Previously redeemed the stored return-hop code (a one-time, 60-SECOND-lived handoff code minted back when impersonation…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-impersonation-banner-tsx-L24
     localStorage.removeItem(RETURN_CODE_KEY);
     localStorage.removeItem(IMPERSONATED_USER_KEY);
     apiClient.clearToken();

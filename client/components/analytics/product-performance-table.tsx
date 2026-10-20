@@ -32,9 +32,8 @@ type SortKey = "name" | "category" | "revenue" | "units" | "margin";
  * measures itself in case a wrapped cell ever makes one taller. */
 const ROW_HEIGHT = 41;
 
-/** Full, sortable product performance breakdown for the selected time
- * range - replaces the old top-5-only "Top Selling Products" list so
- * underperformers (not just the winners) are visible too. */
+// Full, sortable product performance breakdown for the selected time range - replaces the old top-5-only "Top Selling Prod…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-analytics-product-performance-table-tsx-L35
 export function ProductPerformanceTable({ products }: ProductPerformanceTableProps) {
   const { storeProfile } = useStore();
   const currencyCode = storeProfile?.currency;
@@ -111,10 +110,7 @@ export function ProductPerformanceTable({ products }: ProductPerformanceTablePro
                 />
               </div>
             </div>
-            {/* Virtualized: this table deliberately lists EVERY product sold in
-                the period (see the doc comment on getBIMetrics's
-                productPerformance) - on a busy month that is thousands of rows,
-                all of which used to be in the DOM at once. */}
+            {/* Virtualized: this table deliberately lists EVERY product sold in the period (see the doc comment on getBIMetrics's produ… — docs/CLIENT_COMMENTS.md#block-components-analytics-product-performance-table-tsx-L114 */}
             <div
               ref={scrollRef}
               role="rowgroup"

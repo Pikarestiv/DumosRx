@@ -6,15 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * A-153. `clearDatabaseForNewStore()` wipes every table but left a set of
- * localStorage caches behind, so the old account's state leaked into the new
- * one — most visibly the old store's product-name autocomplete.
- *
- * The question each key has to answer is whether it describes **this device**
- * (survives) or **this device's relationship with the account/store being
- * replaced** (must go).
- */
+// A-153. `clearDatabaseForNewStore()` wipes every table but left a set of localStorage caches behind, so the old account's…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-clear-database-clears-account-scoped-keys-test-ts-L9
 describe("clearDatabaseForNewStore clears account-scoped caches", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

@@ -15,9 +15,8 @@ import { DailyCloseReport } from "@/components/reports/daily-close-report";
 import { ReportsTabNav } from "./reports-tab-nav";
 import { LockedModuleOverlay } from "@/components/dashboard/locked-module-overlay";
 
-// All of recharts rides along with this dashboard, and only one Radix tab's
-// content renders at a time — so the Analytics tab pays for it when it's
-// actually opened, not on every visit to Reports.
+// All of recharts rides along with this dashboard, and only one Radix tab's content renders at a time — so the Analytics t…
+// Rationale: docs/CLIENT_COMMENTS.md#line-app-(dashboard)-reports-page-tsx-L18
 const BusinessIntelligenceDashboard = dynamic(
   () =>
     import("@/components/analytics").then((m) => m.BusinessIntelligenceDashboard),

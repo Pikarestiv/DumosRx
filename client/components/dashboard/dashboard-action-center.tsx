@@ -23,11 +23,8 @@ import {
   type AlertItem,
 } from "@/lib/hooks/use-action-center-alerts";
 
-// A larger, more evocative icon per alert type for the card's background
-// decoration — deliberately distinct from the small corner badge icon
-// (use-action-center-alerts.ts's `icon`), which stays generic/consistent
-// across priorities. Falls back to the alert's own icon for any id not
-// listed here, so a future alert type never renders without a backdrop.
+// A larger, more evocative icon per alert type for the card's background decoration — deliberately distinct from the small…
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-action-center-tsx-L26
 const BACKDROP_ICONS: Record<string, React.ElementType> = {
   "cloud-sync": CloudOff,
   "subscription-expired": ShieldOff,
@@ -58,14 +55,8 @@ function ActionCenterCard({ alert }: { alert: AlertItem }) {
   const Icon = alert.icon;
   const BackdropIcon = BACKDROP_ICONS[alert.id] ?? alert.icon;
 
-  // Split from a single combined string (A-158): a bg-*/10 tint passed into
-  // Card's own className replaced its opaque bg-card background outright via
-  // Tailwind class-merging, rather than layering on top of it, leaving the
-  // card with no solid surface - just a translucent tint over whatever's
-  // behind it (invisible on a browser without color-mix() support, per the
-  // compat shim in app/globals.css). The tint now lives on its own overlay
-  // div, on top of an explicit bg-card base, instead of inside Card's own
-  // background-color slot.
+  // Split from a single combined string (A-158):
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-action-center-tsx-L61
   const tintStyles = {
     critical: "bg-destructive/10",
     warning: "bg-orange-500/10",

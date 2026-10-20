@@ -22,12 +22,8 @@ vi.mock("@/lib/api/admin-till-session", () => ({
   OFFLINE_MESSAGE: "Admin access needs an internet connection.",
 }));
 
-/**
- * A-266: a customer desktop keeps losing its date, which locks the till on
- * every power cut until the clock is corrected and verified online. The lock
- * is right, but a screen that only says "Clock Discrepancy" gets blamed on the
- * software; one that names the coin cell gets the ₦500 part replaced once.
- */
+// A-266: a customer desktop keeps losing its date, which locks the till on every power cut until the clock is corrected an…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-license-blocked-card-clock-cause-test-tsx-L25
 const clockTampered = {
   isValid: false,
   isClockTampered: true,

@@ -6,14 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * A-248. `backfillStoreIdOnLegacyRows()` stamped every NULL `store_id` with
- * `(SELECT id FROM stores LIMIT 1)` — no ORDER BY. Its comment said "this
- * device's one pre-migration store", which stopped being true the day an owner
- * had two. On a two-store device SQLite's pick is arbitrary, so on every boot a
- * legacy row could be claimed by the wrong store, silently, for every
- * store-scoped table. Two products reached production stamped that way.
- */
+// A-248. `backfillStoreIdOnLegacyRows()` stamped every NULL `store_id` with `(SELECT id FROM stores LIMIT 1)` — no ORDER B…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-store-id-backfill-two-stores-test-ts-L9
 describe("legacy store_id backfill on a device holding two stores", () => {
   let db: Database;
   let runSchemaMigrations: typeof import("@/lib/db/schema-migrations").runSchemaMigrations;

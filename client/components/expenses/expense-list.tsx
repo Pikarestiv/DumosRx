@@ -167,9 +167,7 @@ export function ExpenseList() {
         onChange={setSelectedCategory}
       />
 
-      {/* Mobile: flat card list, no wrapping table card. Conditionally
-          rendered, not CSS-hidden: the desktop branch is virtualized and this
-          one isn't. */}
+      {/* Mobile: flat card list, no wrapping table card. — docs/CLIENT_COMMENTS.md#block-components-expenses-expense-list-tsx-L170 */}
       {!isDesktop && (
       <div className="flex flex-col gap-2">
         {filteredExpenses.length === 0 && EmptyState}

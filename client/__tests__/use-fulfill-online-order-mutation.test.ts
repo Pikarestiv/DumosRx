@@ -17,14 +17,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * Runs against a real in-memory SQLite engine (sql.js), not a mocked
- * insert() - a mocked insert only checks the shape of the object handed to
- * it and would happily "pass" while writing to columns that don't exist, or
- * omitting a NOT NULL one (both of which this hook has actually done; see
- * FIXED_BUGS.md). Only the network call (apiClient.fulfillOnlineOrder) is
- * mocked.
- */
+// Runs against a real in-memory SQLite engine (sql.js), not a mocked insert() - a mocked insert only checks the shape of t…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-fulfill-online-order-mutation-test-ts-L20
 describe("useFulfillOnlineOrderMutation", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

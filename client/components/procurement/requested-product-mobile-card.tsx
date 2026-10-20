@@ -9,9 +9,8 @@ interface RequestedProductMobileCardProps {
   req: RequestedProduct;
   onMarkAsOrdered: (id: string) => void;
   onDelete: (id: string) => void;
-  /** True while this card's mark-as-ordered/delete action is in flight —
-   * disables both action buttons so a double-tap can't fire the same
-   * mutation twice. */
+  // True while this card's mark-as-ordered/delete action is in flight — disables both action buttons so a double-tap can't f…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-requested-product-mobile-card-tsx-L12
   busy?: boolean;
 }
 

@@ -14,13 +14,8 @@ vi.mock("next/link", () => ({
     React.createElement("a", { href, ...rest }, children),
 }));
 
-/**
- * The Settings tabs were all behind one coarse isAdmin check. This pass
- * converts the Store & Settings ones to the keys the catalog already names,
- * in ONE map that the desktop rail, the mobile list and use-settings' URL
- * resolution all read - so hiding a trigger and blocking /settings/<tab>
- * can never drift apart.
- */
+// The Settings tabs were all behind one coarse isAdmin check.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-settings-tab-permissions-test-tsx-L17
 describe("settings tab permission map", () => {
   it("maps each Store & Settings tab to its own key", () => {
     expect(SETTINGS_TAB_PERMISSIONS["business-info"]).toBe("manage_store_settings");

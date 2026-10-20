@@ -9,17 +9,8 @@ vi.mock("../lib/query-client", () => ({
   queryClient: { invalidateQueries: vi.fn() },
 }));
 
-/**
- * createProduct() uses a UUID test to decide whether `category_id` holds an
- * id or a free-text category NAME. Its pattern accepted only UUID v1-v5,
- * while Laravel's HasUuids emits v7 — so a server-created category id fell
- * down the name branch and the function created a brand new category
- * *literally named after the UUID*, filing the product under it.
- *
- * Reachable in production the moment A-189's repair created a category
- * server-side for store 571582a9. Same root cause as A-192's push guard;
- * both now share lib/utils/uuid.ts.
- */
+// createProduct() uses a UUID test to decide whether `category_id` holds an id or a free-text category NAME.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-create-product-accepts-server-uuid-v7-test-ts-L12
 const SERVER_V7_CATEGORY_ID = "01a11c6e-12dc-72a6-bc2c-cd1c32d206b9";
 
 describe("createProduct with a server-generated UUID v7 category", () => {

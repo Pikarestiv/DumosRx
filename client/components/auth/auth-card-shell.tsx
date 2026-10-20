@@ -9,30 +9,14 @@ import { Card } from "@/components/ui/card";
 interface AuthCardShellProps {
   children: ReactNode;
   header?: ReactNode;
-  /**
-   * "page": /login itself. Mobile gets a separate full-bleed hero logo
-   * elsewhere on the page, so the in-card logo only shows on desktop, and
-   * the card uses the bottom-sheet radius/shadow that matches the rest of
-   * that page's mobile chrome.
-   * "overlay": the dashboard's auto-lock overlay. There's no separate hero,
-   * so the logo always shows, sized larger to read as the primary heading.
-   */
+  // "page": /login itself.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-auth-auth-card-shell-tsx-L12
   variant: "page" | "overlay";
-  /** Card-level padding override. The onboarding steps (register/cloud/
-   * backup) manage their own inner CardHeader/CardContent/CardFooter
-   * padding instead, so they pass a tighter value here rather than getting
-   * this default doubled up on top of it. Defaults to the login tab's
-   * spacing. Ignored for variant="overlay", which always uses the default. */
+  // Card-level padding override.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-auth-auth-card-shell-tsx-L21
   padding?: string;
-  /**
-   * The single desktop-only visual shown above the header (page variant
-   * only; overlay always shows its own mobile-only logo regardless of
-   * this). Defaults to the DumosRx logo; a step can pass its own icon
-   * instead (e.g. a UserPlus/CloudDownload glyph in a tinted box) for
-   * visual variety, or pass `null` to show nothing at all. Either way it's
-   * hidden below `sm` and, unlike a CSS-only hide, never reserves layout
-   * space when hidden, since the wrapper simply isn't rendered.
-   */
+  // The single desktop-only visual shown above the header (page variant only; overlay always shows its own mobile-only logo…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-auth-auth-card-shell-tsx-L27
   icon?: ReactNode | null;
 }
 
@@ -48,10 +32,7 @@ const DEFAULT_LOGO = (
 );
 
 // Shared by /login's login/setup tabs and the dashboard's auto-lock overlay.
-// Was previously several hand-copied implementations that drifted (the
-// overlay never got the max-h/overflow-y-auto short-viewport scroll fix
-// applied everywhere else this session, silently reintroducing that
-// clipping bug).
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-auth-card-shell-tsx-L50
 export function AuthCardShell({
   children,
   header,
@@ -74,17 +55,7 @@ export function AuthCardShell({
             : "rounded-t-[2.5rem] shadow-[0_-20px_40px_rgba(0,0,0,0.15)] bg-background",
         )}
       >
-        {/* shrink-0 on these two matters: Card is a column flex container
-            with overflow-y-auto (not visible), which disables flexbox's
-            usual "don't shrink below content size" protection. On a step
-            with enough content to exceed max-h-[85dvh] (register, with its
-            long form), the flex children get shrunk to fit instead of the
-            browser leaving them full-size and scrolling the overflow, and
-            since this wrapper also has overflow-hidden, that shrink
-            silently clips the icon to invisible rather than scrolling past
-            it. shrink-0 forces the header/icon to keep their natural size
-            no matter how tall the rest of the content gets, so only the
-            step's own scrollable content shrinks/scrolls. */}
+        {/* shrink-0 on these two matters: — docs/CLIENT_COMMENTS.md#block-components-auth-auth-card-shell-tsx-L77 */}
         {header && <div className="shrink-0">{header}</div>}
 
         {showIconBlock && (

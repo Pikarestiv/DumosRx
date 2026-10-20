@@ -101,9 +101,8 @@ export function ImportMappingDialog({
         loadSheet(wb, wb.sheetNames[0]);
       }
     } catch (err) {
-      // readWorkbookFile() throws a user-facing message for the one
-      // expected failure mode (a legacy .xls file - see its own comment);
-      // anything else is an unexpected parse failure.
+      // readWorkbookFile() throws a user-facing message for the one expected failure mode (a legacy .xls file - see its own comm…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-components-stock-batch-import-mapping-dialog-tsx-L104
       toast.error(
         err instanceof Error ? err.message : "Couldn't read that file. Please check the format and try again.",
       );

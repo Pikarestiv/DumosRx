@@ -1,8 +1,5 @@
-/** Store shape returned by the server's `/stores` list. The onboarding store
- * picker only reads `id`/`name`, but the endpoint's underlying Eloquent Store
- * model (laravel-server's Api/Web/StoreController::index) always includes the
- * fleet-management fields too, so they're typed here as optional rather than
- * hidden behind a cast. */
+// Store shape returned by the server's `/stores` list.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#types-store-ts-L1
 export interface StoreOption {
   id: string;
   name: string;
@@ -12,10 +9,8 @@ export interface StoreOption {
   store_type?: string | null;
 }
 
-/** Fields returned/accepted by the fleet-management (Settings > Store Profile)
- * store CRUD endpoints — matches the server's Store model validation in
- * laravel-server's Api/Web/StoreController. Extends `StoreOption` with the
- * optional fleet-overview stats-table fields returned by `/dashboard/stats`. */
+// Fields returned/accepted by the fleet-management (Settings > Store Profile) store CRUD endpoints — matches the server's Store model validati…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#types-store-ts-L15
 export interface FleetStore extends StoreOption {
   status?: "online" | "offline";
   lastSync?: string;

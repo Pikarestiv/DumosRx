@@ -24,9 +24,8 @@ import { useHasPermission } from "@/lib/hooks/use-permissions";
 
 import type { HeldTransaction } from "@/lib/db/queries/sales";
 
-/** items_json is read straight from a local DB row, so a corrupted or
- * truncated value must not throw in the render path — one bad row would
- * take the whole dialog down instead of just showing 0 items for itself. */
+// items_json is read straight from a local DB row, so a corrupted or truncated value must not throw in the render path — o…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-pos-held-transactions-dialog-tsx-L27
 function getItemCount(itemsJson: string): number {
   try {
     return JSON.parse(itemsJson).length;
@@ -53,13 +52,11 @@ export function HeldTransactionsDialog({
   } = useHeldTransactions();
   const { storeProfile } = useStore();
   // Unconditional top-level const (see pos-cart.tsx's canApplyDiscounts).
-  // Resuming a parked sale is the other half of what pos-cart.tsx's Hold
-  // Sale button creates; the list itself stays readable without it.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-held-transactions-dialog-tsx-L55
   const canHoldSales = useHasPermission("hold_sales");
   const deleteMutation = useDeleteHeldTransactionMutation();
-  // Only one delete is ever in flight per dialog instance, so the pending
-  // mutation's own variables (the id it was called with) double as the
-  // "which row is busy" flag — no separate local state needed.
+  // Only one delete is ever in flight per dialog instance, so the pending mutation's own variables (the id it was called wit…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-held-transactions-dialog-tsx-L60
   const deletingId = deleteMutation.isPending ? deleteMutation.variables : null;
 
   useEffect(() => {

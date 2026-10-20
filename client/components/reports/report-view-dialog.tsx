@@ -49,11 +49,8 @@ interface ReportViewDialogProps {
   onRowClick?: (row: ReportRow) => void;
 }
 
-/** On-screen counterpart to the Report Center's export/print actions: the
- * same rows getRows() already fetches, rendered sortably, searchable and
- * re-filterable without closing the modal, with Export and Print still
- * reachable from inside the view rather than only from the card that opened
- * it. */
+// On-screen counterpart to the Report Center's export/print actions:
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-reports-report-view-dialog-tsx-L52
 export function ReportViewDialog({
   open,
   onOpenChange,

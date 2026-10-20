@@ -3,10 +3,8 @@ import { CartItem } from "@/lib/hooks/use-pos-cart";
 import type { POSProduct as Product } from "@/lib/types/product";
 import { SMART_SUGGESTIONS_RULES, SMART_SUGGESTIONS_CLUSTERS } from "@/lib/constants/smart-suggestions-rules";
 
-// Category names are free-text and store-defined, so exact equality is too brittle
-// (e.g. a store's "Pain Relief" category should still match a rule authored as
-// "Analgesics" if either name contains the other). Substring matching in both
-// directions is forgiving of that naming drift without being a full fuzzy-match.
+// Category names are free-text and store-defined, so exact equality is too brittle (e.g.
+// Rationale: docs/CLIENT_COMMENTS.md#line-hooks-use-smart-suggestions-ts-L6
 function categoriesMatch(a: string, b: string): boolean {
   if (!a || !b) return false;
   return a.includes(b) || b.includes(a);
@@ -50,9 +48,8 @@ export function useSmartSuggestions(cart: CartItem[], products: Product[]) {
         }
       }
 
-      // Symptom/condition clusters: any category in the cluster suggests every
-      // other category in the same cluster (bidirectional co-purchase, not a
-      // one-way pairing).
+      // Symptom/condition clusters:
+      // Rationale: docs/CLIENT_COMMENTS.md#line-hooks-use-smart-suggestions-ts-L53
       for (const cluster of SMART_SUGGESTIONS_CLUSTERS) {
         const clusterLower = cluster.map(c => c.toLowerCase());
         if (clusterLower.some(cat => categoriesMatch(categoryLower, cat))) {
@@ -86,9 +83,8 @@ export function useSmartSuggestions(cart: CartItem[], products: Product[]) {
 
     if (ruleMatches.length > 0) return ruleMatches.slice(0, 4);
 
-    // Fallback: no curated rule fired (small/uncatalogued store). Suggest other
-    // in-stock products from the same category as what's already in the cart,
-    // so the feature stays useful even without a matching rule.
+    // Fallback: no curated rule fired (small/uncatalogued store).
+    // Rationale: docs/CLIENT_COMMENTS.md#line-hooks-use-smart-suggestions-ts-L89
     if (cartCategories.size > 0) {
       const fallbackMatches = products.filter((product) => {
         if (!inStockAndNotInCart(product)) return false;

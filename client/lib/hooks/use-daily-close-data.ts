@@ -28,10 +28,8 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
   const returnsToday = useMemo(() => dailyCloseData?.returnsToday || [], [dailyCloseData?.returnsToday]);
   const returnItemsToday = useMemo(() => dailyCloseData?.returnItemsToday || [], [dailyCloseData?.returnItemsToday]);
 
-  // itemsToday already has every line item for the day (product_name
-  // included) - reuse it to attach a "||"-joined item_names string per sale,
-  // same shape as getRecentSales()'s item_names, so sales-list-modal.tsx can
-  // search by item without a separate query.
+  // itemsToday already has every line item for the day (product_name included) - reuse it to attach a "||"-joined item_names string per sale, sa…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-daily-close-data-ts-L31
   const salesToday = useMemo(() => {
     const namesBySale: Record<string, string[]> = {};
     itemsToday.forEach((item) => {
@@ -61,13 +59,8 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
       card: 0,
       transfer: 0,
       credit: 0,
-      // Catches any payment_method that isn't one of the four buckets above
-      // and isn't "mobile" (folded into transfer) - a NULL/blank method, a
-      // legacy/synced value like "pos" or "wallet", or a mixed refund whose
-      // original sale has no usable splits to prorate against. Without this,
-      // such a sale/refund still moved `total`, but landed in no bucket at
-      // all, so Cash + Card + Transfer + Credit could never sum back to
-      // Total Sales - see docs/KNOWN_BUGS.md's report-audit entry.
+      // Catches any payment_method that isn't one of the four buckets above and isn't "mobile" (folded into transfer) - a NULL/blank method, a legac…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-daily-close-data-ts-L64
       other: 0,
       total: 0,
       refunds: 0,
@@ -126,9 +119,8 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
       }
     });
 
-    // Sales keyed by id so a refund can find the sale it belongs to - used
-    // below for the VAT netting (see totalTaxToday). Only covers sales made
-    // TODAY; a refund against an earlier day's sale has no row here.
+    // Sales keyed by id so a refund can find the sale it belongs to - used below for the VAT netting (see totalTaxToday).
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-daily-close-data-ts-L129
     const salesById = new Map(salesToday.map((s) => [s.id, s]));
     let refundedTaxToday = 0;
 
@@ -138,12 +130,7 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
       const method = ret.payment_method?.toLowerCase();
 
       // The VAT share already backed out of totals.total by this refund.
-      // calculateProportionalRefund (pos-calculations.ts) builds a refund as
-      //   R = q + (q/subtotal)*tax - (q/subtotal)*discount
-      // for returned-items subtotal q, so with total_amount = subtotal + tax
-      // - discount the refunded tax share collapses to
-      //   taxShare = R * tax_amount / total_amount
-      // without needing the return's line items at all.
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-daily-close-data-ts-L140
       const originalSale = salesById.get(ret.sale_id);
       if (originalSale && originalSale.total_amount) {
         refundedTaxToday +=
@@ -158,16 +145,8 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
       }
 
       if (method === "mixed") {
-        // The return flow has no way to record which specific method(s) a
-        // refund actually came back out of (no payment-method picker on a
-        // return), but the original sale's own payment_details.splits tells
-        // us how it was actually collected - reuse that instead of assuming
-        // it was all cash. Prorated across every original split
-        // (credit included) by its share of the sale, same treatment a
-        // pure-credit sale's refund already gets below: reducing `credit`
-        // here is debt forgiveness, not a cash-drawer event, but it keeps
-        // "credit extended today" consistent with a full refund actually
-        // writing that credit back off, the same as the non-mixed case.
+        // The return flow has no way to record which specific method(s) a refund actually came back out of (no payment-method picker on a return), but…
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-daily-close-data-ts-L161
         const splits = (returnDetails?.splits || []).filter((s) => s.amount > 0);
         const splitsTotal = splits.reduce((sum, s) => sum + s.amount, 0);
         if (splitsTotal > 0) {
@@ -178,21 +157,15 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
               ? (splitMethod as TotalsKey)
               : "other";
             (totals as Record<TotalsKey, number>)[key] -= share;
-            // Decrement the specific sub-account line too, not just the
-            // parent card/transfer total - otherwise a card's itemized
-            // sub-lines ("Moniepoint POS", ...) stopped summing to the
-            // card total as soon as anything was refunded. Mirrors the
-            // sales loop's addAccountTotal call, with a negative amount.
+            // Decrement the specific sub-account line too, not just the parent card/transfer total - otherwise a card's itemized sub-lines ("Moniepoint PO…
+            // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-daily-close-data-ts-L181
             if (key === "card" || key === "transfer") {
               addAccountTotal(key, split.accountId || null, -share);
             }
           });
         } else {
-          // The original sale has no usable splits.accountId/amount data to
-          // prorate against (legacy row, missing/corrupt payment_details) -
-          // `totals.total` above was already decremented by the refund's
-          // full amount, so this MUST land somewhere or Cash+Card+Transfer+
-          // Credit silently stops reconciling to Total Sales.
+          // The original sale has no usable splits.accountId/amount data to prorate against (legacy row, missing/corrupt payment_details) - `totals.tota…
+          // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-daily-close-data-ts-L191
           totals.other -= ret.total_refunded;
         }
       } else if (
@@ -240,11 +213,8 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
       totalCostPrice -= cost * item.quantity;
     });
 
-    // Revenue already includes any reseller markup (it's part of the sale's
-    // selling price), so once that commission/markup has actually been paid
-    // out, it's no longer the store's profit - only redeemed amounts count,
-    // since an unredeemed commission is still a liability the store hasn't
-    // settled yet.
+    // Revenue already includes any reseller markup (it's part of the sale's selling price), so once that commission/markup has actually been paid…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-daily-close-data-ts-L243
     const redeemedResellerPayouts = salesToday.reduce(
       (sum, sale) =>
         sum +
@@ -254,31 +224,8 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
       0,
     );
 
-    // VAT/tax collected on the government's behalf is a liability, not
-    // profit, so it's backed out of the day's revenue. It has to be backed
-    // out EXACTLY ONCE, which is why this is net of refunded VAT:
-    //
-    //   totals.total  = SUM(total_amount) - SUM(total_refunded)
-    //   total_amount  = subtotal + tax - discount
-    //   total_refunded (per calculateProportionalRefund) is VAT-INCLUSIVE:
-    //                 = q + taxShare - discountShare
-    //
-    // so for a sale that was partly refunded, subtracting the full
-    // SUM(tax_amount) removed the refunded portion's VAT a SECOND time - it
-    // had already left via total_refunded inside totals.total. Netting it:
-    //
-    //   profit = (SUM(total) - SUM(refund)) - (SUM(tax) - SUM(taxShare)) - cost
-    //          = (subtotal - discount) - (q - discountShare) - cost
-    //
-    // i.e. ex-VAT revenue minus the ex-VAT value of what came back, minus
-    // cost. Each VAT component is now subtracted exactly once.
-    //
-    // Limitation: refundedTaxToday can only be computed for refunds whose
-    // ORIGINAL SALE is in today's set (getDailyCloseData windows sales by
-    // transaction_date and returns by created_at, so a refund of an earlier
-    // day's sale has no sale row to read tax_amount/total_amount from). That
-    // case isn't double-subtracted anyway - the old sale's VAT was never in
-    // totalTaxToday - it's merely understated by that refund's VAT share.
+    // VAT/tax collected on the government's behalf is a liability, not profit, so it's backed out of the day's revenue.
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-daily-close-data-ts-L257
     const totalTaxToday =
       salesToday.reduce((sum, sale) => sum + (sale.tax_amount || 0), 0) -
       refundedTaxToday;

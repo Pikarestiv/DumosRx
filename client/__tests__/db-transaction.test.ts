@@ -1,21 +1,15 @@
 import { describe, it, expect, beforeAll, vi } from "vitest";
 import initSqlJs from "sql.js";
 
-// transaction() persists via idb-keyval when not running in Tauri; stub it
-// out since jsdom has no real IndexedDB and we only care about the SQL
-// transaction semantics here, not persistence.
+// transaction() persists via idb-keyval when not running in Tauri; stub it out since jsdom has no real IndexedDB and we on…
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-db-transaction-test-ts-L4
 vi.mock("idb-keyval", () => ({
   get: vi.fn(async () => undefined),
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Exercises the real transaction()/query()/execute() implementation in
- * lib/db/core.ts against a genuine in-memory SQLite engine (sql.js), not a
- * mock, so these tests actually prove BEGIN/COMMIT/ROLLBACK behave
- * correctly, which is exactly what mocking query()/execute() elsewhere in
- * the suite can't tell us.
- */
+// Exercises the real transaction()/query()/execute() implementation in lib/db/core.ts against a genuine in-memory SQLite e…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-db-transaction-test-ts-L12
 describe("transaction()", () => {
   let query: typeof import("@/lib/db/core").query;
   let execute: typeof import("@/lib/db/core").execute;
@@ -77,15 +71,8 @@ describe("transaction()", () => {
     expect(rows).toEqual([]);
   });
 
-  // Nesting (calling transaction() from inside another transaction()'s `fn`)
-  // used to run the inner call inline against the outer's already-open
-  // transaction. That capability is retired — see transaction()'s own
-  // comment in core.ts — because the same `inTransaction` flag that made
-  // nesting work couldn't tell it apart from two unrelated top-level calls
-  // that merely overlap in time, which was the actual bug this file's other
-  // tests cover. Composed writes that need to run inside an already-open
-  // transaction (e.g. requeueOrphanedRows() in reconcile-identity.ts) now
-  // call query()/execute() directly instead of transaction() again.
+  // Nesting (calling transaction() from inside another transaction()'s `fn`) used to run the inner call inline against the o…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-db-transaction-test-ts-L80
 
   it("leaves the connection usable for subsequent transactions after a rollback", async () => {
     await expect(
@@ -107,18 +94,8 @@ describe("transaction()", () => {
     expect(rows).toEqual([{ id: "i" }]);
   });
 
-  /**
-   * Regression test for a real bug found via code review: `inTransaction`
-   * used to be the only guard against nested BEGINs, but it's a plain
-   * module-level boolean, not scoped to one call chain. Two *unrelated*
-   * top-level transaction() calls that merely overlap in wall-clock time
-   * (e.g. a background sync mid-flight when the cashier records a sale)
-   * both saw the same flag: the second call would see it already true and
-   * run inline against the first's still-open transaction, so the first's
-   * rollback silently took the second's already-"successful" writes down
-   * with it. transaction() now queues unrelated top-level calls so their
-   * BEGIN/COMMIT pairs can never interleave.
-   */
+  // Regression test for a real bug found via code review:
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-db-transaction-test-ts-L110
   it("does not let one top-level transaction's rollback affect a separate, later-queued transaction's writes", async () => {
     let releaseA: () => void;
     const gate = new Promise<void>((resolve) => {

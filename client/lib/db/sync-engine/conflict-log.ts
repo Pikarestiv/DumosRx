@@ -1,21 +1,10 @@
 import { query, execute } from "../core";
 
-/**
- * Local-only ledger of terminal push conflicts, so a dropped change leaves a
- * durable trace instead of only a transient toast. See client/AGENTS.md,
- * "The terminal-conflict ledger (A-26)", for why it exists and what reads it.
- */
+// Local-only ledger of terminal push conflicts, so a dropped change leaves a durable trace instead of only a transient toast.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-conflict-log-ts-L3
 
-/**
- * Every table is logged now, not just `purchase_order_items`. A terminal drop
- * (`version_conflict`, `stale_timestamp`) left no local trace for any other
- * table, so the "50 changes could not be saved" loop was invisible the moment
- * the push finished: the queue was empty and the conflict count was zero.
- *
- * The ledger is bounded instead of allowlisted — see pruneConflictLedger().
- * The device diagnostics console is the reader for the widened set; the
- * purchase-order panel still filters to its own table and record ids.
- */
+// Every table is logged now, not just `purchase_order_items`.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-conflict-log-L9
 const MAX_LEDGER_ROWS = 500;
 
 export interface RecordedConflict {
@@ -68,11 +57,8 @@ export async function recordTerminalConflict(conflict: {
   await pruneConflictLedger();
 }
 
-/**
- * Keeps the ledger bounded now that every table writes to it. Resolved rows
- * go first and oldest-first within that, so an unresolved drop survives until
- * something settles it — the whole point of the ledger.
- */
+// Keeps the ledger bounded now that every table writes to it.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-conflict-log-ts-L63
 async function pruneConflictLedger(): Promise<void> {
   const rows = await query<{ count: number }>(
     `SELECT COUNT(*) AS count FROM _sync_conflicts`,
@@ -90,9 +76,8 @@ async function pruneConflictLedger(): Promise<void> {
   );
 }
 
-/** A later change to the same record reaching the server means whatever the
- * dropped one carried has been superseded by something the store did since,
- * so the outstanding signal is settled rather than left on screen forever. */
+// A later change to the same record reaching the server means whatever the dropped one carried has been superseded by something the store did…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-conflict-log-ts-L85
 export async function resolveConflictsForRecords(
   records: { table_name: string; record_id: string }[],
 ): Promise<void> {

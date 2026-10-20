@@ -6,11 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Agreement was only ever measured for stock, so every other synced table
- * could diverge on every till and the panel still read "Agrees". See
- * docs/DEVICE_TABLE_AGREEMENT.md for the digest and its blind spots.
- */
+// Agreement was only ever measured for stock, so every other synced table could diverge on every till and the panel still…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-table-fingerprint-test-ts-L9
 describe("buildTableFingerprint", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

@@ -10,23 +10,14 @@ export interface PushResponse {
   }>;
   message?: string;
   processed?: number;
-  /** Changes the server isolated to their own savepoint and skipped
-   * individually rather than failing the whole batch; see
-   * SyncController::push. */
+  // Changes the server isolated to their own savepoint and skipped individually rather than failing the whole batch; see SyncController::push.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-types-ts-L13
   failed?: { id: number; table_name: string; record_id: string; reason: string }[];
-  /** Local id -> server id, grouped by table, for INSERTs the server silently
-   * skipped because the name collided with an existing row (see
-   * SyncController::push's "duplicate name" handling for categories and
-   * suppliers). Lets the client fix up its own local rows immediately
-   * instead of depending on a future pull to ever surface the collision
-   * (see lib/db/reconcile-identity.ts's DUPLICATE_NAME_TABLES). */
+  // Local id -> server id, grouped by table, for INSERTs the server silently skipped because the name collided with an existing row (see SyncCon…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-types-ts-L17
   id_map?: Record<string, Record<string, string>>;
-  /** Record id -> server-assigned new `_version`, grouped by table_name, for
-   * UPDATE changes accepted via SyncController::push's strict version-
-   * equality check. Applied immediately to the local row (see push.ts) so
-   * this device's very next edit is based on the true current server
-   * version instead of a stale local counter — see
-   * docs/features/_known-bugs.md #11. */
+  // Record id -> server-assigned new `_version`, grouped by table_name, for UPDATE changes accepted via SyncController::push's strict version- e…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-types-ts-L24
   versions?: Record<string, Record<string, number>>;
 }
 

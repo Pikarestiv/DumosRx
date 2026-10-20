@@ -6,18 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression coverage for KNOWN_BUGS.md #9: "Sales Today" filtered with
- * date(transaction_date) = <local today>, comparing a UTC calendar date
- * against a locally-computed "today" string — for any store not in UTC+0,
- * a sale near local midnight fell on the wrong side of that comparison and
- * silently vanished from the dashboard. Fixed by adding the 'localtime'
- * modifier so the comparison is apples-to-apples.
- *
- * Runs with TZ=Africa/Lagos (UTC+1) so the two calendar dates genuinely
- * differ near midnight, proving the fix rather than coincidentally passing
- * in a UTC test environment.
- */
+// Regression coverage for KNOWN_BUGS.md #9:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-reports-timezone-test-ts-L9
 describe("getDashboardOverviewData timezone handling", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -85,10 +75,8 @@ describe("getDashboardOverviewData timezone handling", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T10:00:00.000Z"));
 
-    // Sale at 2025-12-31T23:30:00Z: UTC calendar date is Dec 31, but Lagos
-    // local (+1h) is 2026-01-01T00:30 -> local calendar date is Jan 1, i.e.
-    // "today". The old date(transaction_date) = 'today' comparison used the
-    // raw UTC date (Dec 31) and would exclude this sale entirely.
+    // Sale at 2025-12-31T23:30:00Z:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-reports-timezone-test-ts-L88
     db.run(
       `INSERT INTO sales (id, transaction_date, total_amount, payment_method) VALUES ('s1', '2025-12-31T23:30:00.000Z', 1500, 'cash')`,
     );

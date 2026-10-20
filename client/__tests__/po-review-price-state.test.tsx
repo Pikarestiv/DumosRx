@@ -3,12 +3,8 @@ import { render, screen } from "@testing-library/react";
 import { act } from "react";
 import { POReviewPricePopover } from "@/components/procurement/po-review-price-popover";
 
-/**
- * The trigger always read a neutral "Review price", so once the popover
- * closed there was no way to tell which lines had actually been repriced.
- * And a sell price at or below cost rendered its margin in the same muted
- * grey as a healthy one, with nothing saying it was a loss.
- */
+// The trigger always read a neutral "Review price", so once the popover closed there was no way to tell which lines had ac…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-po-review-price-state-test-tsx-L6
 describe("POReviewPricePopover reviewed/at-a-loss state", () => {
   it("shows the neutral prompt while the line still carries the product's current price", () => {
     render(

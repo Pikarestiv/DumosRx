@@ -2,13 +2,8 @@ import { describe, it, expect, afterEach } from "vitest";
 import { formatCurrency, formatMetricCurrency, getCurrencySymbol } from "@/lib/utils";
 import { setActiveCurrency } from "@/lib/active-currency";
 
-/**
- * 77 of the app's formatCurrency() call sites omit a currency code. While
- * the default was hardcoded "NGN", every one of them rendered naira
- * regardless of the store's setting - which is how a Cameroonian (XAF)
- * store was shown "N40,000" in a procurement confirmation. The default now
- * follows the active store.
- */
+// 77 of the app's formatCurrency() call sites omit a currency code.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-active-currency-default-test-ts-L5
 describe("money formatters default to the active store's currency", () => {
   afterEach(() => {
     setActiveCurrency(null);

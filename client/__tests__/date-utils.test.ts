@@ -42,10 +42,8 @@ describe('Date Utilities', () => {
       expect(getExpiryStatus('2024-08-01', 6)).toBe('healthy');
     });
 
-    // Medium bug fix: right at the local-midnight/UTC-midnight boundary
-    // (this suite runs in Africa/Lagos, UTC+1), the old UTC-parsed version
-    // of this exact expiry date hadn't started counting as "expired" yet;
-    // local-midnight parsing correctly flips it.
+    // Medium bug fix: right at the local-midnight/UTC-midnight boundary (this suite runs in Africa/Lagos, UTC+1), the old UTC-…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-date-utils-test-ts-L45
     it('treats a bare date-only expiry as local midnight, not UTC midnight', () => {
       vi.setSystemTime(new Date('2024-01-01T23:30:00.000Z')); // 2024-01-02T00:30 local (Lagos)
       expect(getExpiryStatus('2024-01-02')).toBe('expired');
@@ -63,17 +61,12 @@ describe('Date Utilities', () => {
       expect(getDaysToExpiry('2023-12-22T12:00:00.000Z')).toBe(-10);
     });
 
-    // Medium bug fix: a bare date-only string (stock_batches.expiry_date's
-    // actual shape) used to be parsed as UTC midnight via new Date(), not
-    // local midnight - in a positive-UTC-offset timezone (this suite runs
-    // in Africa/Lagos, UTC+1) that's 1 hour LATER than the store's actual
-    // local midnight for that date, which can push the truncated day count
-    // up by one right at a day-boundary edge.
+    // Medium bug fix: a bare date-only string (stock_batches.expiry_date's actual shape) used to be parsed as UTC midnight via…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-date-utils-test-ts-L66
     it('treats a bare date-only expiry as local midnight, not UTC midnight', () => {
       vi.setSystemTime(new Date('2023-12-31T23:15:00.000Z')); // 2024-01-01T00:15 local (Lagos)
-      // Old (UTC-midnight) parsing of '2024-01-11' landed exactly on a day
-      // boundary relative to this "now" and rounded up to 10; local-midnight
-      // parsing correctly gives 9.
+      // Old (UTC-midnight) parsing of '2024-01-11' landed exactly on a day boundary relative to this "now" and rounded up to 10;…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-date-utils-test-ts-L74
       expect(getDaysToExpiry('2024-01-11')).toBe(9);
     });
   });

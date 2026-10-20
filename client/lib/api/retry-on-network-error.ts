@@ -1,12 +1,5 @@
-/**
- * Retries a request only when no HTTP response was ever received (a thrown
- * network/timeout error, which `base-client.ts`'s `request()` never attaches
- * a `.status` to) - never on an HTTP status, including 5xx. A real response
- * means the server already decided the outcome; retrying it risks acting on
- * a request that can never succeed (e.g. a genuine unique-constraint race
- * surfaces as a 500, not a 422) and burns the shared `throttle:auth` bucket
- * for nothing. Exponential backoff between the (default) 3 attempts.
- */
+// Retries a request only when no HTTP response was ever received (a thrown network/timeout error, which `base-client.ts`'s `request()` never a…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#api-retry-on-network-error-ts-L1
 export async function withNetworkRetry<T>(
   fn: () => Promise<T>,
   { attempts = 3, baseDelayMs = 500 }: { attempts?: number; baseDelayMs?: number } = {},

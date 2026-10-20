@@ -7,17 +7,8 @@ export const TILL_REPAIR_ACTIONS = {
   autoHeal: "AUTO_HEAL_STOCK_QUANTITIES",
 } as const;
 
-/**
- * Records a repair run from an inspection session against the ADMIN who ran
- * it, both as the row's actor and in its details. Two separate traps:
- * `logAction` defaults `user_id` to whoever the local DB points at (the staff
- * user, or nobody), and `SyncController` then backfills an empty or unknown id
- * from the sync token's owner — so the SERVER's record would name the store
- * owner. The admin's real id is known to the server, so passing it survives
- * the push intact. Spec requires admin, device, store and outcome.
- *
- * Never throws: an audit failure must not undo a completed repair.
- */
+// Records a repair run from an inspection session against the ADMIN who ran it, both as the row's actor and in its details.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-till-inspection-audit-L10
 export async function logTillRepair(
   action: (typeof TILL_REPAIR_ACTIONS)[keyof typeof TILL_REPAIR_ACTIONS],
   recordId: string,
@@ -40,10 +31,8 @@ export async function logTillRepair(
       },
       undefined,
       undefined,
-      // The admin, so the pushed row names them rather than the sync token's
-      // owner. Without it the server's log said the STORE OWNER ran the clock
-      // override — backwards for the one repair whose premise is that the
-      // owner is the suspected tamperer.
+      // The admin, so the pushed row names them rather than the sync token's owner.
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-till-inspection-audit-ts-L34
       session?.admin.id,
     );
   } catch {

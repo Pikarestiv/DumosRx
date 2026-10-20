@@ -10,11 +10,8 @@ vi.mock("@/lib/utils/error-logger", () => ({
   logCrash: vi.fn(async () => undefined),
 }));
 
-/**
- * Auto-heal: the 24-hourly health check folds its own drift back onto the
- * movement log. See docs/superpowers/specs/2026-10-08-stock-integrity-fold-design.md
- * §"Phase 3".
- */
+// Auto-heal: the 24-hourly health check folds its own drift back onto the movement log.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-stock-integrity-auto-heal-test-ts-L13
 describe("healStockIntegrity", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

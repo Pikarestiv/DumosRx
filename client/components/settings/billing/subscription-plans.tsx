@@ -39,15 +39,8 @@ export function SubscriptionPlans() {
   const isYearly = billingPeriod === "yearly";
   const plans = getSubscriptionPlans(subscriptionPlans, isYearly, formatPrice);
 
-  // The payment gateway opens in a new tab/window (see handleSubscribe), so
-  // the user returns to this tab after paying without any route change to
-  // trigger a refetch. Re-checking status on visibility/focus is the
-  // cheapest way to eventually reflect a completed payment without a
-  // dedicated payment-return route. The same handler also clears
-  // paymentTabOpen, which is what keeps plan buttons disabled while the
-  // payment tab is open in the background -- otherwise they'd re-enable
-  // the instant window.open() returns, reopening the concurrent-payment
-  // window the disabling was meant to close.
+  // The payment gateway opens in a new tab/window (see handleSubscribe), so the user returns to this tab after paying withou…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-billing-subscription-plans-tsx-L42
   useEffect(() => {
     const refreshStatus = () => {
       if (document.visibilityState === "visible") {

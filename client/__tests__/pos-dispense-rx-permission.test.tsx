@@ -44,11 +44,8 @@ function run(granted: boolean) {
   return { restoreCart, rendered };
 }
 
-/**
- * "/pos?dispense_rx=<id>" is the real dispense action - it is what pulls
- * the prescription's items onto the till - and it is typeable, so hiding
- * the Dispense button alone would not gate it.
- */
+// "/pos?dispense_rx=<id>" is the real dispense action - it is what pulls the prescription's items onto the till - and it i…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-dispense-rx-permission-test-tsx-L47
 describe("POS dispense_rx permission", () => {
   beforeEach(() => {
     hasPermission.mockReset();

@@ -16,32 +16,19 @@ import { isStandalonePwa } from "@/lib/utils/platform";
 
 function isIos() {
   if (typeof window === "undefined") return false;
-  // iPadOS 13+ Safari sends a desktop macOS user agent by default
-  // ("Macintosh; Intel Mac OS X..."), so the UA-string check alone misses
-  // essentially every modern iPad - and since iOS never fires
-  // beforeinstallprompt either, an iPad user fell through both install paths
-  // entirely with no guidance at all. maxTouchPoints > 1 is the standard way
-  // to tell a touchscreen "Mac" (real iPad) apart from an actual Mac
-  // (mouse/trackpad, maxTouchPoints === 0).
+  // iPadOS 13+ Safari sends a desktop macOS user agent by default ("Macintosh; Intel Mac OS X..."), so the UA-string check a…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-ios-install-card-tsx-L19
   const isIpadOs = /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
   return (/iPad|iPhone|iPod/.test(navigator.userAgent) || isIpadOs) && !window.MSStream;
 }
 
-/**
- * iOS forces every browser to use WebKit, but "Add to Home Screen" only
- * produces a real standalone-mode install in Safari itself. Chrome/Firefox/
- * Edge on iOS (CriOS/FxiOS/EdgiOS) expose either no equivalent or a plain
- * bookmark shortcut that reopens inside their own browser chrome. So this
- * needs to detect actual Safari, not just "is this an iOS device".
- */
+// iOS forces every browser to use WebKit, but "Add to Home Screen" only produces a real standalone-mode install in Safari…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-ios-install-card-tsx-L30
 function isIosSafari() {
   if (typeof window === "undefined") return false;
   const ua = navigator.userAgent;
-  // In-app WebViews (Facebook, Instagram, LinkedIn, etc.) render on WebKit
-  // and include "Safari" in their UA string just like real Safari does, but
-  // have no Share -> Add to Home Screen action, so the "safari" branch's
-  // instructions don't work there - the "other-browser" fallback below
-  // (correctly telling the user to open in Safari) needs to catch these too.
+  // In-app WebViews (Facebook, Instagram, LinkedIn, etc.) render on WebKit and include "Safari" in their UA string just like…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-ios-install-card-tsx-L40
   const isOtherIosBrowser =
     /CriOS|FxiOS|EdgiOS|OPiOS|mercury|FBAN|FBAV|Instagram|Line\/|MicroMessenger|LinkedInApp|Twitter|Pinterest|Snapchat|GSA\//i.test(
       ua,
@@ -74,10 +61,8 @@ const steps = [
   },
 ];
 
-/** Shown only on iOS Safari when not already running as an installed
- * PWA/desktop app. iOS has no automatic install prompt (unlike Android
- * Chrome's beforeinstallprompt), so this is the only way to guide users
- * to a full-screen, app-like experience. */
+// Shown only on iOS Safari when not already running as an installed PWA/desktop app.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-ios-install-card-tsx-L77
 export function IosInstallCard() {
   const [open, setOpen] = useState(false);
   const [visibility, setVisibility] = useState<"hidden" | "safari" | "other-browser">("hidden");

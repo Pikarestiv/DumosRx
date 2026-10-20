@@ -15,17 +15,8 @@ setup('create mock store and extract database', async ({ page }) => {
   await page.getByLabel(/First Name/i).fill('Test');
   await page.getByLabel(/Last Name/i).fill('Admin');
 
-  // Registration now always creates a real cloud account first (see
-  // use-onboarding.ts's handleRegister: a local-only id can never be
-  // reconciled with a server id later), and the server enforces BOTH email
-  // and username uniqueness (`unique:users`) globally across every account
-  // on the shared dev backend - not just within this store. A fixed
-  // "admin"/fixed-email pair would collide with the very first successful
-  // run and fail every run after with a 422 ("has already been taken"),
-  // which used to get masked by too-loose a waitForURL match below (it
-  // matched "/login?tab=setup&step=register" - the failure page - just as
-  // happily as "/dashboard"). Both are timestamp-suffixed to stay unique per
-  // run against that persistent backend.
+  // Registration now always creates a real cloud account first (see use-onboarding.ts's handleRegister:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-e2e-global-setup-ts-L18
   const runId = Date.now();
   const uniqueUsername = `e2e_${runId}`;
   const uniqueEmail = `e2e-test-${runId}@dumosrx-e2e.test`;

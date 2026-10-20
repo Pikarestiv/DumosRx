@@ -6,18 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Phase 2 of docs/superpowers/specs/2026-10-08-stock-integrity-fold-design.md.
- *
- * A device held 958 products at exactly twice their opening stock while the
- * server was correct, and nothing in the product could repair it: the pull
- * strips `quantity`, an existing movement replays no delta, and Health Sync
- * points the wrong way. The only fix was a factory reset, which works solely
- * because a fresh database rebuilds quantity from the movement log.
- *
- * foldStockQuantities() does that rebuild in place — and must refuse any
- * batch the log cannot account for.
- */
+// Phase 2 of docs/superpowers/specs/2026-10-08-stock-integrity-fold-design.md.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-stock-integrity-fold-test-ts-L9
 const STORE_ID = "store-1";
 
 describe("foldStockQuantities", () => {
@@ -35,9 +25,8 @@ describe("foldStockQuantities", () => {
     });
     db = new SQL.Database();
     db.run(SCHEMA_SQL);
-    // SCHEMA_SQL predates multi-store; schema-migrations.ts adds store_id at
-    // runtime. Added here so the store-scoped query branch is actually
-    // exercised instead of silently falling through to "every store".
+    // SCHEMA_SQL predates multi-store; schema-migrations.ts adds store_id at runtime.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-stock-integrity-fold-test-ts-L38
     db.run(`ALTER TABLE stock_batches ADD COLUMN store_id TEXT`);
     db.run(`ALTER TABLE products ADD COLUMN store_id TEXT`);
     core.__setDatabaseForTesting(db);

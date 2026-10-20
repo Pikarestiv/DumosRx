@@ -2,20 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { apiClient } from "../lib/api/client";
 import { setToken, clearToken } from "../lib/api/token-manager";
 
-/**
- * A-171. `SyntaxError: Unexpected token '<'` — 260 events across 4 stores,
- * marked fatal, with no stacktrace and no `area` tag, so the call site could
- * not be identified from Sentry at all.
- *
- * The cause is an asymmetry in base-client.ts: the error path parses with
- * `.json().catch(() => ({}))`, but the success path called `.json()`
- * unguarded. A 2xx carrying HTML — a shared-host error page, a maintenance
- * interstitial, a proxy login wall — therefore threw a bare SyntaxError that
- * named nothing about where it came from.
- *
- * The fix is not just "don't throw": it is to throw something that identifies
- * itself, so the next occurrence is diagnosable from the report alone.
- */
+// A-171. `SyntaxError: Unexpected token '<'` — 260 events across 4 stores, marked fatal, with no stacktrace and no `area`…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-base-client-html-response-test-ts-L5
 describe("BaseApiClient non-JSON responses", () => {
   const originalFetch = global.fetch;
 
@@ -91,15 +79,8 @@ describe("BaseApiClient non-JSON responses", () => {
     await expect(apiClient.getProfile()).resolves.toMatchObject({ value: 42 });
   });
 
-  /**
-   * A-206. The error named the endpoint, status and content-type, and stopped
-   * there — which could not separate the three causes that produce this on
-   * shared hosting. The live events carried `content-type: application/json`,
-   * ruling out an HTML page and leaving two indistinguishable. Reading the
-   * body as text once and parsing that gives the length and the ends, and the
-   * failure's own `name` separates a transport abort (`TypeError`, the body
-   * stream cut after the headers) from a real parse failure (`SyntaxError`).
-   */
+  // A-206. The error named the endpoint, status and content-type, and stopped there — which could not separate the three cau…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-base-client-html-response-test-ts-L94
   it("reports the body length, its ends and the failure kind", async () => {
     const body = `{"success":true,"data":[${"0,".repeat(80)}`;
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({

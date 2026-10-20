@@ -30,9 +30,8 @@ interface AddProductDialogProps {
   ) => void;
   editingProduct?: Product | null;
   initialData?: Partial<Product>;
-  /** Hide "Save & Add Another", for flows (e.g. quick-adding a product from
-   * a purchase order) where the user just wants to create one product and
-   * get back to what they were doing. */
+  // Hide "Save & Add Another", for flows (e.g.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-products-add-product-dialog-tsx-L33
   hideAddAnother?: boolean;
   /** True while the caller's own create/update mutation is in flight, so the
    * buttons stay disabled for the whole round trip, not just re-entry. */
@@ -243,11 +242,8 @@ export function AddProductDialog({
       is_controlled: formData.isControlled ? 1 : 0,
     };
 
-    // Only clear the form once the caller reports the save succeeded —
-    // otherwise a failed save would wipe everything the user just typed.
-    // On the normal (non-keepOpen) path the dialog closes anyway and the
-    // reset-on-open effect above handles the next open; this matters for
-    // "Save & Add Another", which keeps the dialog mounted and open.
+    // Only clear the form once the caller reports the save succeeded — otherwise a failed save would wipe everything the user…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-products-add-product-dialog-tsx-L246
     onAddProduct(payload, keepOpen, () =>
       setFormData({
         id: "",

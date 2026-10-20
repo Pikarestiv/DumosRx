@@ -12,17 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * Regression test found via a critical review of sync-engine/: a batch that
- * throws before/during the network call (corrupted queue JSON, a network
- * error, an unexpected response shape) is caught, recorded as a per-item
- * backoff failure, and the loop moves on to the next batch — correct, so one
- * bad batch can't block the rest. But pushChanges() then resolved with
- * {pushed: 0} and no way to tell the caller anything actually went wrong:
- * sync() returned {success: true}, and sync-indicator.tsx showed a green
- * "Sync completed successfully" toast even though nothing was pushed. This
- * proves pushChanges() now reports how many batches hit that exception path.
- */
+// Regression test found via a critical review of sync-engine/:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-reports-batch-exceptions-test-ts-L15
 describe("pushChanges reports batch-level exceptions", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -76,13 +67,8 @@ describe("pushChanges reports batch-level exceptions", () => {
     expect(result).toEqual({ pushed: 0, failedBatches: 1 });
   });
 
-  // Regression: a batch-level `{ success: false }` response (the request
-  // completed - no exception - but the server rejected the whole batch, e.g.
-  // auth/validation/rate-limit) previously had no handling at all: no
-  // markSynced, no recordSyncFailure, no backoff, no retry counter, no crash
-  // report. The item was silently retried forever on every sync tick with
-  // zero visibility, and pushChanges() reported it identically to a clean
-  // success (failedBatches stayed 0).
+  // Regression: a batch-level `{ success:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-push-reports-batch-exceptions-test-ts-L79
   describe("a batch-level success:false response (not a thrown exception)", () => {
     it("counts it in failedBatches and reports 0 pushed", async () => {
       db.run(`INSERT INTO products (id, name, _deleted) VALUES ('p1', 'Panadol', 0)`);

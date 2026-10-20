@@ -1,17 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { isChunkLoadError } from "@/lib/utils/chunk-error";
 
-/**
- * Regression coverage: a stale-chunk failure on this app's static export
- * (`output: export`) doesn't fail to fetch at all - the host falls back to
- * serving index.html (200 OK, HTML) for a missing chunk path, so the
- * browser throws a plain "Unexpected token '<'" SyntaxError trying to
- * execute that HTML as the JS module it requested. That shape wasn't
- * recognized by CHUNK_ERROR_PATTERN, so the auto-reload in
- * global-error-listener.tsx / error-boundary.tsx never fired for it -
- * confirmed live in production as a blank /dashboard or /settings/:tab the
- * person had to manually refresh out of.
- */
+// Regression coverage: a stale-chunk failure on this app's static export (`output:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-chunk-error-detection-test-ts-L4
 describe("isChunkLoadError", () => {
   it("recognizes the static-export HTML-fallback SyntaxError", () => {
     expect(isChunkLoadError(new SyntaxError("Unexpected token '<'"))).toBe(true);
@@ -31,12 +22,8 @@ describe("isChunkLoadError", () => {
   });
 
   it("does not misclassify a JSON.parse() failure on an HTML API response as a stale chunk", () => {
-    // V8's own wording when response.json() (base-client.ts) hits a proxy/
-    // gateway HTML error page instead of JSON - same leading text as the
-    // real chunk-load SyntaxError, but a genuine backend problem, not a
-    // stale build. Must not trigger the auto-reload: the reload guard
-    // clears on every successful boot, so misclassifying this would reload
-    // forever instead of once.
+    // V8's own wording when response.json() (base-client.ts) hits a proxy/ gateway HTML error page instead of JSON - same lead…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-chunk-error-detection-test-ts-L34
     expect(
       isChunkLoadError(
         new SyntaxError(`Unexpected token '<', "<!DOCTYPE "... is not valid JSON`),

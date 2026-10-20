@@ -22,12 +22,8 @@ vi.mock("@/lib/api/logger", () => ({
   reportClientError: (...args: unknown[]) => reportClientErrorMock(...args),
 }));
 
-/**
- * The owner's Sentry quota was being spent on events that are not faults: a
- * loop-shaped crash reported every occurrence as its own billable event, and
- * success/measurement reports opened issues of their own. Every assertion
- * here is about what is NOT sent.
- */
+// The owner's Sentry quota was being spent on events that are not faults:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sentry-non-errors-not-reported-test-ts-L25
 describe("non-errors and repeats do not become Sentry issues", () => {
   beforeEach(() => {
     captureExceptionMock.mockReset();

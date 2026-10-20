@@ -2,17 +2,8 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-/**
- * P3-2: activate()'s prune used to delete every cache entry missing from the
- * current build's manifest, so an already-open tab running the previous
- * build's JS could lazy-load a chunk that both the prune and the deploy had
- * already removed and get a 404 (or, on this static-export host, an HTML
- * fallback document it then tried to execute). The prune now keeps the
- * immediately-previous build's hashed chunks for exactly one more deploy
- * cycle. This exercises that policy function directly - public/sw.js is a
- * standalone script, so it is evaluated here against a stub `self` and the
- * policy read off the internals it exposes for this purpose.
- */
+// P3-2: activate()'s prune used to delete every cache entry missing from the current build's manifest, so an already-open…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sw-cache-retention-test-ts-L5
 describe("service worker cache prune retention policy", () => {
   let computeCachePrunePlan: (
     cachedPathnames: string[],

@@ -2,12 +2,8 @@ import { Package, ClipboardList } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** Shown while the products query is still pending and nothing's rendered
- * yet, instead of falling through to EmptyCatalogList's "No products found"
- * — that empty state was reused for "still loading" too (no isLoading check
- * existed before this), which reads as the whole catalog being blank/broken
- * for a moment on every load, especially the >1000-row stores this table is
- * built for. */
+// Shown while the products query is still pending and nothing's rendered yet, instead of falling through to EmptyCatalogLi…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-products-catalog-list-states-tsx-L5
 export function CatalogListSkeleton() {
   return (
     <div className="px-4 sm:px-0 py-3 sm:py-0 space-y-2 sm:space-y-0">

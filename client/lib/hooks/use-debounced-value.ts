@@ -2,15 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-/**
- * Publishes `value` only once it has stopped changing for `delayMs`.
- *
- * Meant for search boxes and anything else whose downstream work (a fuzzy
- * search over the catalog, a re-group of several hundred rows, a query) is far
- * more expensive than the keystroke that triggered it: bind the input to raw
- * state so typing stays instant, and drive the expensive work off the
- * debounced value instead.
- */
+// Publishes `value` only once it has stopped changing for `delayMs`.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-debounced-value-ts-L5
 export function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
 

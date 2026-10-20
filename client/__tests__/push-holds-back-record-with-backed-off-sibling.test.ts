@@ -16,28 +16,8 @@ vi.mock("sonner", () => ({
   toast: { warning: vi.fn() },
 }));
 
-/**
- * Regression coverage for a second review finding on _known-bugs.md #11's
- * coalescing fix (push-coalesces-same-record-updates.test.ts): coalescing
- * alone isn't enough, because getPendingSyncItems() (via a background,
- * non-manual sync) only returns queue rows that are currently due per
- * `next_retry_at`. Sequence this closes:
- *
- *   1. Edit A on a record fails for a retryable reason and enters backoff
- *      (recordSyncFailure sets next_retry_at in the future).
- *   2. Edit B is queued for the SAME record before A comes due.
- *   3. The next background sync sees only B (A is still backed off) —
- *      without this fix, it would coalesce/push B alone, the server would
- *      accept it and bump the version, and when A later comes due on its
- *      own it would collide against that bump with a stale base version:
- *      a false version_conflict silently dropping A's fields.
- *
- * This is a narrower variant of the original Critical bug (needs a specific
- * retry-timing sequence, not just two ordinary sequential edits), closed by
- * withheldRecordsWithBackedOffSiblingsRemoved() in push.ts: a background
- * sync now holds back EVERY currently-due row for a record that has any
- * sibling row still backed off, rather than letting the due one race ahead.
- */
+// Regression coverage for a second review finding on _known-bugs.md #11's coalescing fix (push-coalesces-same-record-updat…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-holds-back-record-with-backed-off-sibling-test-ts-L19
 describe("pushChanges holds back a due edit when a sibling edit for the same record is still backed off", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -70,17 +50,12 @@ describe("pushChanges holds back a due edit when a sibling edit for the same rec
 
   function clearAuditLogQueueNoise() {
     // See push-coalesces-same-record-updates.test.ts's identical helper:
-    // update()/insert() also queue an unrelated audit_logs INSERT on every
-    // call, orthogonal to what this file tests.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-push-holds-back-record-with-backed-off-sibling-test-ts-L72
     db.run(`DELETE FROM _sync_queue WHERE table_name = 'audit_logs'`);
   }
 
-  /**
-   * A second pending UPDATE for the same record. Seeded directly because
-   * write-time collapsing (A-203) now keeps one pending UPDATE per record, so
-   * a multi-row backlog only exists on a device that queued it before that
-   * shipped — which is exactly the state push-time coalescing is still for.
-   */
+  // A second pending UPDATE for the same record.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-holds-back-record-with-backed-off-sibling-test-ts-L78
   function queueLegacySiblingUpdate(
     recordId: string,
     payload: Record<string, unknown>,

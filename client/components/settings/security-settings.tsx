@@ -61,11 +61,8 @@ export function SecuritySettings({
   const { canAutoLock, withRestriction, getUpgradeMessage } = useFeatureGate();
   const { user } = useAuth();
 
-  // Local zustand state drives the UI/timer immediately; the DB write is
-  // what makes the choice follow this staff member's ACCOUNT to their next
-  // device instead of staying stuck on this one browser (see
-  // useSyncAutoLockDurationWithAccount, which reads this column back on
-  // login elsewhere/next time).
+  // Local zustand state drives the UI/timer immediately; the DB write is what makes the choice follow this staff member's AC…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-security-settings-tsx-L64
   const setAccountDuration = (val: number) => {
     setDuration(val);
     if (user?.id) {
@@ -75,12 +72,8 @@ export function SecuritySettings({
     }
   };
 
-  // Self-heals a persisted duration that doesn't match any current option
-  // (an older app version's value, manual/corrupted localStorage, a future
-  // option removed) — Radix's Select has nothing to match and renders
-  // completely blank in that case, not even its own placeholder, with no
-  // way for the user to tell why or fix it themselves short of picking a
-  // new value. Falls back to the store's own documented default (5).
+  // Self-heals a persisted duration that doesn't match any current option (an older app version's value, manual/corrupted lo…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-security-settings-tsx-L78
   useEffect(() => {
     if (!AUTO_LOCK_OPTIONS.some((opt) => opt.value === duration)) {
       setAccountDuration(5);

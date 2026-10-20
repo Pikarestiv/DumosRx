@@ -1,12 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-/**
- * Regression coverage for A-14 (docs/KNOWN_BUGS.md): the "Reset App Data"
- * button on the database-init error screen cleared `localStorage` and
- * reloaded, but the database itself lives in IndexedDB under `dumosrx_db` —
- * so the corrupt blob survived the "reset", the same error screen came back,
- * and the user had lost their session for nothing.
- */
+// Regression coverage for A-14 (docs/KNOWN_BUGS.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-db-reset-clears-indexeddb-test-ts-L3
 
 const idbStore = new Map<string, unknown>();
 

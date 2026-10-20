@@ -30,9 +30,8 @@ const props = {
   hidePoweredBy: false,
 };
 
-/** The preview used to be a second, hand-drawn receipt that knew nothing about
- * paper size, so the selector beside it appeared to do nothing — and it drifted
- * from what actually prints. It renders the real ReceiptView now. */
+// The preview used to be a second, hand-drawn receipt that knew nothing about paper size, so the selector beside it appear…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-receipt-preview-follows-paper-size-test-tsx-L33
 describe("receipt settings live preview", () => {
   it("renders the 80mm roll when the device is set to thermal", () => {
     const { container } = render(<ReceiptPreview {...props} paperSize="thermal" />);

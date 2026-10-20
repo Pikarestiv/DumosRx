@@ -1,15 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { hasPermission } from "@/lib/hooks/use-permissions";
 
-/**
- * checkCanRequestStockTransfer (auth-context.tsx) was removed in favor of
- * pos-layout-header.tsx composing two useHasPermission() checks directly
- * (base eligibility "process_sales", narrowed to admin-tier "manage_staff"
- * or the store's own staff_can_request_transfers toggle) - this exercises
- * that exact composition via the underlying pure hasPermission(), using
- * `group: null` so each role falls back to its DEFAULT_GROUP_PERMISSIONS
- * set, reproducing the original function's role-string test cases.
- */
+// checkCanRequestStockTransfer (auth-context.tsx) was removed in favor of pos-layout-header.tsx composing two useHasPermis…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-check-can-request-stock-transfer-test-ts-L4
 function canRequestTransfer(role: string | undefined, staffCanRequestTransfers: number | undefined) {
   const user = role ? { role } : null;
   return (

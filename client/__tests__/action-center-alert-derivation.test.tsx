@@ -69,13 +69,8 @@ import { useActionCenterAlerts } from "@/lib/hooks/use-action-center-alerts";
 
 const DAY = 24 * 60 * 60 * 1000;
 
-/**
- * useActionCenterAlerts decides what the dashboard tells an owner to act on
- * and in what order. It had 0% coverage, so nothing checked that a
- * non-admin is shown nothing, that the licence day-count and its <7-day
- * threshold are right, that the profile-completeness percentage counts the
- * pharmacy-only PCN field, or that alerts come back sorted by priority.
- */
+// useActionCenterAlerts decides what the dashboard tells an owner to act on and in what order.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-action-center-alert-derivation-test-tsx-L72
 describe("useActionCenterAlerts", () => {
   beforeEach(() => {
     Object.assign(state, {

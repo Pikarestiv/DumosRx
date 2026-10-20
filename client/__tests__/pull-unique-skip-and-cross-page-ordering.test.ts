@@ -12,17 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * Regression tests for two confirmed-live gaps documented in
- * docs/KNOWN_BUGS.md under "sync-engine/pull.ts stock-quantity correctness
- * gaps":
- *
- * 1. A UNIQUE-constraint-skipped INSERT was still marked "seen" for cursor
- *    purposes, so it was never retried.
- * 2. Cross-page "batches before movements" ordering wasn't guaranteed — a
- *    movement could be pulled on an earlier page than the batch it
- *    references, silently losing the delta.
- */
+// Regression tests for two confirmed-live gaps documented in docs/KNOWN_BUGS.md under "sync-engine/pull.ts stock-quantity…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-unique-skip-and-cross-page-ordering-test-ts-L15
 describe("pullChanges: UNIQUE-constraint skip and cross-page batch/movement ordering", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -143,29 +134,16 @@ describe("pullChanges: UNIQUE-constraint skip and cross-page batch/movement orde
     );
     expect(batchRows[0].values[0][0]).toBe(15);
 
-    // The stock_movements cursor is held back until the deferred delta is
-    // applied, then stamped in that same transaction — so by the end of a
-    // successful pull it must be stamped, not left behind.
+    // The stock_movements cursor is held back until the deferred delta is applied, then stamped in that same transaction — so…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-pull-unique-skip-and-cross-page-ordering-test-ts-L146
     const cursor = db.exec(
       `SELECT last_synced_at FROM _sync_state WHERE table_name = 'stock_movements'`,
     );
     expect(cursor[0].values[0][0]).toBe("2026-09-19T00:00:01Z");
   });
 
-  /**
-   * Residual gap from the same KNOWN_BUGS entry: the deferred delta used to
-   * be applied in a SEPARATE transaction committed AFTER the page loop had
-   * already committed stock_movements' cursor. A crash in that window lost
-   * the delta permanently (a movement's insert branch only ever runs once,
-   * so a re-pull past the advanced cursor never re-derives it).
-   *
-   * Here the deferred delta's UPDATE is forced to fail (via a RAISE(ABORT)
-   * trigger) to stand in for that crash. With the old two-transaction
-   * structure the cursor stamp from page 1 would already be committed and
-   * would survive; now the stamp lives in the same transaction as the
-   * deltas, so the failure must roll BOTH back, leaving the cursor unset and
-   * the movements eligible for a clean re-pull.
-   */
+  // Residual gap from the same KNOWN_BUGS entry:
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-unique-skip-and-cross-page-ordering-test-ts-L155
   it("rolls the stock_movements cursor back together with a failed deferred delta (no crash window between them)", async () => {
     db.run(
       `CREATE TRIGGER fail_deferred_delta BEFORE UPDATE OF quantity ON stock_batches

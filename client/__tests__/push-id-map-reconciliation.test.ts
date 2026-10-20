@@ -15,18 +15,8 @@ vi.mock("@/lib/api/client", () => ({
 const LOCAL_CAT = "11111111-1111-4111-8111-111111111111";
 const SERVER_CAT = "22222222-2222-4222-8222-222222222222";
 
-/**
- * Regression test for the sync bug reported after a bulk import: the server
- * silently skips an INSERT (and remaps the id) when a category/supplier name
- * collides with one it already has, but that remap only lived in the memory
- * of that single push request server-side (see SyncController::push). A
- * future delta pull only ever reconciles a collision if the pre-existing row
- * it collided with happens to also appear in that pull's response — a
- * long-unchanged row like "DRUGS" or "COSMETICS" never will, so any product
- * referencing the old local id failed its foreign key check forever. This
- * proves push.ts now applies the server's id_map immediately instead of
- * waiting on a pull that may never come.
- */
+// Regression test for the sync bug reported after a bulk import:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-id-map-reconciliation-test-ts-L18
 describe("push.ts id_map reconciliation", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -96,12 +86,8 @@ describe("push.ts id_map reconciliation", () => {
       `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at) VALUES (1, 'categories', ?, 'INSERT', ?, '2026-08-01T00:00:00Z')`,
       [LOCAL_CAT, JSON.stringify({ id: LOCAL_CAT, name: "Analgesics" })],
     );
-    // A second, still-pending edit to the SAME (now duplicate) category —
-    // e.g. a rename queued locally before this push ran, currently backed
-    // off (next_retry_at in the future) so it's NOT part of this push's own
-    // batch, the same as a row that simply hadn't come due yet. Without
-    // remapping its own record_id, the server would look this up by the
-    // vanished LOCAL_CAT id and reject it forever.
+    // A second, still-pending edit to the SAME (now duplicate) category — e.g.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-push-id-map-reconciliation-test-ts-L99
     db.run(
       `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at, next_retry_at) VALUES (3, 'categories', ?, 'UPDATE', ?, '2026-08-01T00:00:02Z', '2099-01-01T00:00:00Z')`,
       [LOCAL_CAT, JSON.stringify({ id: LOCAL_CAT, name: "Analgesics (renamed)", _version: 1 })],

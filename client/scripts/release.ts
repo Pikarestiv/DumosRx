@@ -1,18 +1,5 @@
-/**
- * Release script for DumosRx desktop/mobile (Tauri).
- *
- * Bumps the version in every file that needs to agree, commits, pushes,
- * and pushes a `vX.Y.Z` tag, which triggers .github/workflows/release.yml
- * (builds macOS/Windows/Linux/Android and deploys the updater feed).
- *
- * Usage:
- *   npx tsx scripts/release.ts 0.0.28
- *   npm run release -- 0.0.28
- *   npx tsx scripts/release.ts 0.0.28 --dry-run   # preview only, no writes/commits/push
- *   npx tsx scripts/release.ts 0.0.28 --yes        # skip the confirmation prompt
- *
- * See RELEASING.md at the repo root for the full process this automates.
- */
+// Release script for DumosRx desktop/mobile (Tauri).
+// Rationale: docs/CLIENT_COMMENTS.md#block-scripts-release-ts-L1
 import fs from "fs";
 import path from "path";
 import readline from "readline";

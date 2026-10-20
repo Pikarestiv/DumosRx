@@ -22,11 +22,8 @@ type ChartContextProps = {
   config: ChartConfig;
 };
 
-/** A single recharts tooltip/legend payload entry. Recharts' own `Payload`
- * type (component/DefaultTooltipContent.d.ts) leaves `.payload` (the
- * underlying chart datum) as `any` too, since it's genuinely whatever shape
- * the chart's `data` prop was given; only the fields this file actually
- * reads are typed here. */
+// A single recharts tooltip/legend payload entry.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-chart-tsx-L25
 interface ChartPayloadItem {
   name?: string | number;
   dataKey?: string | number;

@@ -2,11 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type SqlJsStatic, type Database } from "sql.js";
 import { SCHEMA_SQL } from "@/lib/db/schema";
 
-/**
- * A-152 (docs/FIXED_BUGS.md): the login picker's tiles come from a
- * localStorage cache `clearDatabaseForNewStore()` never touched, so a
- * disassociated account's tile survived the exact wipe meant to erase it.
- */
+// A-152 (docs/FIXED_BUGS.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-clear-database-for-new-store-clears-recent-users-test-ts-L5
 
 vi.mock("idb-keyval", () => ({
   get: vi.fn(async () => undefined),

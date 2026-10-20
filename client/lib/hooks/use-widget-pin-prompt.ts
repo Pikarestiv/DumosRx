@@ -7,16 +7,8 @@ import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 const DISMISSED_KEY = STORAGE_KEYS.widgetPromptDismissed;
 
-/**
- * Drives the Action Center "Add Widget" card: only relevant on the Android
- * Tauri build (the only platform with a home-screen widget to pin), and
- * only until the user either adds it or dismisses the prompt. There's no
- * reliable way to detect from JS whether the widget is already pinned
- * (Android exposes no such query without a matching AppWidgetManager call
- * on the native side, and the existing bridge is fire-and-forget), so a
- * click is treated as "done" and just dismisses the card the same way
- * explicit dismissal does.
- */
+// Drives the Action Center "Add Widget" card:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-widget-pin-prompt-L10
 export function useWidgetPinPrompt() {
   const [isAndroidApp, setIsAndroidApp] = useState(false);
   const [dismissed, setDismissed] = useState(true);

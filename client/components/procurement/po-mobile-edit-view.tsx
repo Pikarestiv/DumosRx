@@ -28,10 +28,8 @@ interface POMobileEditViewProps {
   amountPaid?: string;
 }
 
-/** Mobile full-screen takeover for editing an existing purchase order.
- * Mirrors POMobileCreateView's layout, minus the two-phase details flow
- * (an existing PO's details are always already set), so the item builder
- * is the dominant content from the start. */
+// Mobile full-screen takeover for editing an existing purchase order.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-mobile-edit-view-tsx-L31
 export function POMobileEditView({
   poId,
   selectedSupplierName,

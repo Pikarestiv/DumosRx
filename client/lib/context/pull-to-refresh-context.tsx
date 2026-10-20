@@ -20,9 +20,8 @@ export function PullToRefreshProvider({
 }) {
   const handlerRef = useRef<RefreshHandler | null>(null);
 
-  // Stable for the provider's lifetime: this only ever closes over a ref, and
-  // the provider sits at the top of the dashboard tree, so a fresh object here
-  // would invalidate every consumer on any re-render of that layout.
+  // Stable for the provider's lifetime:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-pull-to-refresh-context-tsx-L23
   const value = useMemo<PullToRefreshContextValue>(
     () => ({
       setHandler: (fn) => {
@@ -40,13 +39,8 @@ export function PullToRefreshProvider({
   );
 }
 
-/**
- * Lets the currently-mounted page register extra refresh logic (e.g. its own
- * manual refetch function) that runs when the user pulls-to-refresh at the
- * DashboardLayout level. Only one page's handler is active at a time: the
- * most recently mounted one wins, and it's cleared on unmount so a stale
- * page's refresh logic doesn't run after navigating away.
- */
+// Lets the currently-mounted page register extra refresh logic (e.g.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#context-pull-to-refresh-context-tsx-L43
 export function usePullToRefreshHandler(fn: RefreshHandler) {
   const ctx = useContext(PullToRefreshContext);
   const fnRef = useRef(fn);

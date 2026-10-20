@@ -12,13 +12,8 @@ vi.mock("@/lib/utils/error-logger", async (importOriginal) => ({
   logCrash: (...args: unknown[]) => logCrash(...args),
 }));
 
-/**
- * A-218: both rewind call sites used to wipe the table's `_sync_state` row,
- * which pullChanges reads as "pull this table from timestamp zero". A table
- * held in `skippedTables` by a parked `_sync_queue` row can never re-stamp
- * the window, so the baseline was gone and every later round re-requested
- * the whole catalogue, for ever.
- */
+// A-218: both rewind call sites used to wipe the table's `_sync_state` row, which pullChanges reads as "pull this table fr…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-window-rewind-budget-test-ts-L15
 describe("pull window rewind budget", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -119,13 +114,8 @@ describe("pull window rewind budget", () => {
     expect(logCrash).not.toHaveBeenCalled();
   });
 
-  /**
-   * A-256. `feedback` is the crash log: never sent by pull(), so its window
-   * can never drain clean and `completeWindow` can never refresh its budget.
-   * Restoring and reporting it every round is therefore permanent - and each
-   * report is itself a crash log, the row that caused the exhaustion. The
-   * row is dropped instead, which also heals a device already stuck.
-   */
+  // A-256. `feedback` is the crash log:
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-window-rewind-budget-test-ts-L122
   it("drops an exhausted window for a table the server never sends, instead of reporting it for ever", async () => {
     await core.execute(
       `INSERT INTO _sync_state (store_id, table_name, last_synced_at, server_cursor, rewind_count, rewound_from)
@@ -140,12 +130,8 @@ describe("pull window rewind budget", () => {
     expect(logCrash).not.toHaveBeenCalled();
   });
 
-  /**
-   * A-273. The report was fired unawaited, so one push round's worth of
-   * concurrent calls raced past logCrash's own SELECT-then-INSERT dedup and
-   * each wrote its own byte-identical `feedback` row (~30 observed from one
-   * iPhone). Awaiting it is what lets that dedup see the previous row.
-   */
+  // A-273. The report was fired unawaited, so one push round's worth of concurrent calls raced past logCrash's own SELECT-th…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-window-rewind-budget-test-ts-L143
   it("waits for the report to be written before returning", async () => {
     for (let i = 0; i < MAX_PULL_WINDOW_REWINDS; i++) {
       await rewindPullWindow("store-1", "products", "version_conflict");
@@ -167,11 +153,8 @@ describe("pull window rewind budget", () => {
     expect(returned).toBe(true);
   });
 
-  /**
-   * A-273. The old wording ("this device cannot converge on its own") was
-   * false: the budget is per round, `completeWindow` refreshes it, and the
-   * incremental pull keeps running throughout.
-   */
+  // A-273. The old wording ("this device cannot converge on its own") was false:
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-window-rewind-budget-test-ts-L170
   it("reports what is actually true of the device", async () => {
     for (let i = 0; i < MAX_PULL_WINDOW_REWINDS; i++) {
       await rewindPullWindow("store-1", "products", "version_conflict");

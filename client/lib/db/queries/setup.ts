@@ -18,13 +18,8 @@ export async function getExistingCustomers() {
   return existingCustomers;
 }
 
-/** The single source for every "X changes unsynced" surface (sync indicator,
- * Action Center alert, the logout warning dialog). Automatic crash reports
- * are excluded: they are background telemetry the user never asked to send,
- * so counting them tells someone they have unsaved work when they don't —
- * and a crash row the server keeps rejecting would otherwise pin the
- * indicator to "Pending Sync" forever. They still sync, as a passenger on
- * the next sync run; see docs/SYNC_CRASH_REPORT_POLICY.md. */
+// The single source for every "X changes unsynced" surface (sync indicator, Action Center alert, the logout warning dialog).
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-setup-ts-L21
 export async function getSyncQueueCount() {
   const result = await query<{ count: number }>(
     `SELECT COUNT(*) as count FROM _sync_queue q WHERE NOT ${CRASH_REPORT_QUEUE_ROW_SQL}`,
@@ -32,10 +27,8 @@ export async function getSyncQueueCount() {
   return result[0]?.count || 0;
 }
 
-/** Per-table/operation breakdown of what's actually sitting in `_sync_queue`,
- * for the sync indicator's "what's pending" detail view — the plain count
- * alone gives no way to tell "351 tiny stock movements" from "351 products",
- * which matters for judging whether a slow sync is expected or stuck. */
+// Per-table/operation breakdown of what's actually sitting in `_sync_queue`, for the sync indicator's "what's pending" detail view — the plain…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-setup-ts-L35
 export async function getSyncQueueBreakdown() {
   return query<{ table_name: string; operation: string; count: number }>(
     `SELECT table_name, operation, COUNT(*) as count

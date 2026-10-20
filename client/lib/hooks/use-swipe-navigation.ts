@@ -16,9 +16,7 @@ export function useSwipeNavigation(
   const router = useRouter();
   const pathname = usePathname();
   // Ref, not state: this is read only inside handleTouchEnd, never rendered.
-  // A setState here fired a root re-render between touchstart and the
-  // browser's tap-to-click synthesis, which could drop an in-flight tap on
-  // touch devices (iPad).
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-swipe-navigation-ts-L18
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const [direction, setDirection] = useState<SwipeDirection>(null);
 
@@ -29,9 +27,8 @@ export function useSwipeNavigation(
     prevIndexRef.current = currentIndex;
   }, [currentIndex]);
 
-  // Clear the direction once the new route has mounted with it, so a later
-  // navigation triggered another way (e.g. a sidebar click) doesn't replay
-  // a stale swipe animation.
+  // Clear the direction once the new route has mounted with it, so a later navigation triggered another way (e.g.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-swipe-navigation-ts-L32
   useEffect(() => {
     if (direction === null) return;
     const timeout = setTimeout(() => setDirection(null), 300);

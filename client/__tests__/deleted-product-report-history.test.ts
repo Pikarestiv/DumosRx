@@ -6,15 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Pins the load-bearing ABSENCE of a `_deleted = 0` filter on reports.ts's
- * `products` joins, documented in client/AGENTS.md ("The deactivate-vs-delete
- * design"). deleteProduct() is a non-cascading soft delete, so a sold product
- * that is later deleted must still resolve its name and category on every
- * sale it already appears in. Adding a deleted filter to any of the joins
- * below silently blanks or drops those historical rows, and every test here
- * goes red when it is added.
- */
+// Pins the load-bearing ABSENCE of a `_deleted = 0` filter on reports.ts's `products` joins, documented in client/AGENTS.m…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-deleted-product-report-history-test-ts-L9
 describe("report history survives a product delete", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

@@ -56,12 +56,8 @@ const tampered = {
   message: "System clock discrepancy detected.",
 } as never;
 
-/**
- * This card replaces the WHOLE app — LicenseGuard returns it instead of its
- * children — so without an admin entry here a clock-tampered till could never
- * be unlocked by an admin standing in front of it. It is the one path in this
- * feature with no fallback.
- */
+// This card replaces the WHOLE app — LicenseGuard returns it instead of its children — so without an admin entry here a cl…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-license-blocked-card-admin-entry-test-tsx-L59
 describe("LicenseBlockedCard admin entry", () => {
   beforeEach(() => {
     sessionStorage.clear();

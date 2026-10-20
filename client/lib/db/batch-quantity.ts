@@ -1,17 +1,10 @@
 import { query, execute, getActiveStoreId } from "./core";
 
-/**
- * `stock_batches.quantity` is a cache of its own movement log, not a running
- * total maintained by deltas. See
- * docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md.
- */
+// `stock_batches.quantity` is a cache of its own movement log, not a running total maintained by deltas.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-batch-quantity-ts-L3
 
-/**
- * What a change did to a batch's log, so the carve-out can be judged against
- * the log as it stood *before* it: `inbound` grows with the very movement
- * being applied, and reading it afterwards writes off a legacy batch whose
- * stored quantity sales have worn down below it.
- */
+// What a change did to a batch's log, so the carve-out can be judged against the log as it stood *before* it:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-batch-quantity-ts-L9
 export interface BatchLogChange {
   /** Net quantity added to the log (negative for a sale or a voided receipt). */
   delta: number;
@@ -40,18 +33,8 @@ export function onHandFromLog(deltas: number[]): number {
   );
 }
 
-/**
- * What a batch's `quantity` should hold now that its log has changed, read
- * from the log this device already has. `incrementalDelta` is only consulted
- * for a batch holding more than its inbound movements account for — stock that
- * was never logged (A-148), which a rebuild would write off. A-215's form of
- * the test: `stored > total inbound`, never `no inbound movements`, because one
- * adjustment logged against a legacy batch must not take it out of the
- * carve-out.
- *
- * Returns null when this device has no such batch; the recompute that runs
- * when the batch arrives picks the movements up.
- */
+// What a batch's `quantity` should hold now that its log has changed, read from the log this device already has.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-batch-quantity-L43
 export async function resolveBatchQuantity(
   batchId: string,
   change: BatchLogChange,
@@ -82,13 +65,8 @@ export async function resolveBatchQuantity(
   };
 }
 
-/**
- * Rebuilds each touched batch from its log, keyed by batch id with the net
- * delta of the movements that touched it — used only for the deltas the pull
- * applies, so the write stays raw: a pulled batch must not be re-queued for
- * push, and `_synced` must not be reset. Local writers go through
- * `insert()`/`softDelete()`, which keep the batch's `update()`.
- */
+// Rebuilds each touched batch from its log, keyed by batch id with the net delta of the movements that touched it — used only for the deltas t…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-batch-quantity-ts-L75
 export async function recomputeBatchQuantities(
   touched: Map<string, BatchLogChange>,
 ): Promise<void> {
@@ -111,21 +89,8 @@ export interface BatchDeficit {
   lastMovementDate: string | null;
 }
 
-/**
- * Batches whose movement log sums below zero — more went out than the log can
- * account for going in. The deficit is what the next inbound movement pays off
- * before it adds anything, which is why a cycle count on one of these reads as
- * having done nothing (A-265).
- *
- * Read from the log rather than from a movement's reason text: the alert this
- * replaced matched the word "oversold" in free text inside a 30-day window, so
- * it reported the event and never the outstanding shortfall (A-212).
- *
- * A carve-out batch is excluded even when its log sums below zero: the units it
- * sold were on the shelf, they were just never written down (A-148), so nothing
- * is owed and an inbound movement is not absorbed. The set reported here is
- * exactly the set `resolveBatchQuantity()` would rebuild to 0.
- */
+// Batches whose movement log sums below zero — more went out than the log can account for going in.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-batch-quantity-L114
 export async function getBatchDeficits(): Promise<BatchDeficit[]> {
   const storeId = getActiveStoreId();
 

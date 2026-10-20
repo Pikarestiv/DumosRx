@@ -11,21 +11,16 @@ import {
   TILL_REPAIR_ACTIONS,
 } from "@/lib/utils/till-inspection-audit";
 
-/**
- * Divergence between a batch's stored `quantity` and the sum of its own
- * `stock_movements`. See
- * docs/superpowers/specs/2026-10-08-stock-integrity-fold-design.md.
- */
+// Divergence between a batch's stored `quantity` and the sum of its own `stock_movements`.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-stock-integrity-ts-L14
 export type BatchVerdict =
   | "consistent"
   | "diverged"
-  /** Disagrees with the log, but has a delta still queued to apply — so the
-   * disagreement may be the queued work, and folding it would let the drain
-   * apply the same delta twice. Reported, never folded. */
+  // Disagrees with the log, but has a delta still queued to apply — so the disagreement may be the queued work, and folding it would let the dra…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-stock-integrity-ts-L22
   | "pending"
-  /** Holds more units than its inbound movements can account for, so part of
-   * its stock was never logged (A-148); folding one would write that part off.
-   * Reported, never folded. */
+  // Holds more units than its inbound movements can account for, so part of its stock was never logged (A-148); folding one would write that par…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-stock-integrity-ts-L26
   | "unreconstructable";
 
 export interface BatchIntegrity {
@@ -67,10 +62,8 @@ function classify(
   const replayed = onHandFromLog(deltas);
   const inboundTotal = deltas.reduce((sum, delta) => (delta > 0 ? sum + delta : sum), 0);
 
-  // No run of logged movements can leave a balance above their total inbound,
-  // because outbound only ever subtracts. A stored quantity above it holds
-  // inbound that was never logged (A-148's opening stock), and the replay,
-  // which cannot see it, would fold the batch down past it.
+  // No run of logged movements can leave a balance above their total inbound, because outbound only ever subtracts.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-stock-integrity-ts-L65
   const unreconstructable = batchQuantity > inboundTotal;
 
   const matches = batchQuantity === replayed;
@@ -107,12 +100,8 @@ export async function verifyStockIntegrity(): Promise<StockIntegrityReport> {
     storeId ? [storeId] : [],
   );
 
-  // Ordered by rowid — local insert order — because that is the order THIS
-  // device applied the deltas in, and so the order that produced the stored
-  // quantity. Not created_at: it is nullable, second-resolution from MySQL
-  // so bulk imports collide, and a sale rung offline on another till arrives
-  // days after its own timestamp. Any of those reorders the replay past a
-  // floor event and makes a correct batch look diverged.
+  // Ordered by rowid — local insert order — because that is the order THIS device applied the deltas in, and so the order that produced the stor…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-stock-integrity-ts-L105
   const movements = await query<{
     stock_batch_id: string;
     quantity: number | null;
@@ -133,9 +122,8 @@ export async function verifyStockIntegrity(): Promise<StockIntegrityReport> {
     else byBatch.set(movement.stock_batch_id, [value]);
   }
 
-  // A delta that has not been applied yet is not a disagreement, it is work
-  // in progress — and folding it in would let the pending drain apply it a
-  // second time.
+  // A delta that has not been applied yet is not a disagreement, it is work in progress — and folding it in would let the pending drain apply it…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-stock-integrity-ts-L131
   const awaitingDelta = new Set(
     (
       await query<{ stock_batch_id: string }>(
@@ -200,9 +188,8 @@ export function summarizeIntegrity(report: StockIntegrityReport): Record<string,
   };
 }
 
-/** An automatic heal is audited under its own action: an admin-attributed
- * repair row for a run no admin triggered would misname who changed the
- * numbers, which is the question a staff dispute turns on. */
+// An automatic heal is audited under its own action:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-stock-integrity-ts-L203
 export type FoldTrigger = "support" | "auto-heal";
 
 export interface FoldResult {
@@ -212,28 +199,13 @@ export interface FoldResult {
   refusedBatchIds: string[];
 }
 
-/**
- * Rebuilds each diverged batch's `quantity` from its own movement log.
- *
- * The log is the authority: `stock_movements` is append-only and never
- * pruned, and it already includes anything this device created but has not
- * pushed, so a fold cannot discard unsynced work the way a factory reset
- * can. `unreconstructable` batches are refused, never folded — a batch holding
- * more units than its inbound movements can account for would be folded down
- * past stock that was never logged (A-148).
- *
- * Local-only and deliberately not queued: the server derives
- * `stock_batches.quantity` from movement deltas and ignores a pushed value,
- * so there is nothing to send. This brings the device back in line with a
- * log it already holds; it is not a claim about the truth, which is why it
- * writes no `sync_reconciliation` movement.
- */
+// Rebuilds each diverged batch's `quantity` from its own movement log.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-stock-integrity-L215
 export async function foldStockQuantities(
   trigger: FoldTrigger = "support",
 ): Promise<FoldResult> {
   // Without an active store the audit widens to every store on the device.
-  // Harmless for a read; for a write it would rewrite another branch's
-  // quantities (A-189 established at least one owner runs two).
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-stock-integrity-ts-L214
   if (!getActiveStoreId()) {
     throw new Error(
       "No active store on this device, so there is nothing safe to rebuild.",
@@ -259,10 +231,8 @@ export async function foldStockQuantities(
   };
 
   await transaction(async () => {
-    // Inside the transaction, not before it: query() releases its queue slot
-    // before returning, so a report taken outside could be invalidated by a
-    // sale or a pull page landing in between — and the fold writes an
-    // absolute value, which would silently undo it.
+    // Inside the transaction, not before it:
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-stock-integrity-ts-L242
     const report = await verifyStockIntegrity();
 
     result.refused = report.unreconstructable;

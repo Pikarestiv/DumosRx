@@ -12,17 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * Regression test (final review, Critical C1): the server pulls
- * permission_groups.permissions as a real JSON array (Eloquent's `array`
- * cast), but pull.ts's value-normalization only special-cased booleans -
- * an array/object bound straight into sql.js's statement.bind() is
- * silently mis-serialized as an object of numeric keys (e.g.
- * `{"0":0,"1":0}`), not the JSON string every reader downstream
- * (getStorePermissionGroups, getUserPermissionGroup) expects to
- * JSON.parse(). This defeats the feature on every device that RECEIVES a
- * group via sync rather than creating it locally.
- */
+// Regression test (final review, Critical C1):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-stringifies-json-columns-test-ts-L15
 describe("pullChanges stringifies array/object columns before writing them", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -62,9 +53,8 @@ describe("pullChanges stringifies array/object columns before writing them", () 
             name: "Manager",
             based_on_role: "manager",
             is_default: true,
-            // The real shape a Laravel `array`-cast attribute serializes
-            // to in the pull JSON response - a genuine array, not a
-            // pre-stringified value.
+            // The real shape a Laravel `array`-cast attribute serializes to in the pull JSON response - a genuine array, not a pre-str…
+            // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-pull-stringifies-json-columns-test-ts-L65
             permissions: ["process_sales", "manage_staff"],
             _version: 1,
           },

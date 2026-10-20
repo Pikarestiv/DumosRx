@@ -24,21 +24,8 @@ vi.mock("@/lib/api/client", () => ({
   apiClient: { getSystemConfig: vi.fn(async () => null), pullChanges: vi.fn() },
 }));
 
-/**
- * Impersonation (a superadmin handing off into a store's app via
- * app/auth/callback/page.tsx) is read-only support access. Nothing used to
- * gate sync during such a session: the sync indicator's auto-sync daemon
- * looked only at auto_sync_enabled/auto_sync_interval plus "is cloud linked",
- * and the manual sync button was unguarded too — so a background sync could
- * push the impersonator's local writes, or pull-overwrite local state, under
- * ambiguous attribution and bypassing the real store owner's own sync
- * settings and audit trail.
- *
- * The gate lives in sync() itself (not in the UI) so no call site can bypass
- * it: manual button, interval timer, instant on-change listener, store
- * switcher, license guard, the PIN-recovery sync in auth-context, and
- * onboarding's post-restore sync all go through this one function.
- */
+// Impersonation (a superadmin handing off into a store's app via app/auth/callback/page.tsx) is read-only support access.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-blocked-during-impersonation-test-ts-L27
 describe("sync() refuses to run during an impersonated session", () => {
   const originalOnLine = Object.getOwnPropertyDescriptor(navigator, "onLine");
 
@@ -78,9 +65,8 @@ describe("sync() refuses to run during an impersonated session", () => {
   });
 
   it("also refuses when only the impersonator return code survives", async () => {
-    // The admin panel can fail to mint a return code while the impersonation
-    // itself still proceeds, and "End Session" can clear one flag but not the
-    // other — either flag alone still means "impersonated".
+    // The admin panel can fail to mint a return code while the impersonation itself still proceeds, and "End Session" can clea…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sync-blocked-during-impersonation-test-ts-L81
     localStorage.setItem("impersonator_handoff_return_code", "return-code-1");
 
     const { sync } = await import("@/lib/db/sync-engine");

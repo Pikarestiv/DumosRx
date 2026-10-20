@@ -19,15 +19,8 @@ interface POSRedeemRewardProps {
   currencyCode?: string;
 }
 
-/** Only options staff configured with an actual naira discount value are
- * redeemable at checkout — non-monetary perks (e.g. "Free Delivery") stay
- * configurable in Settings but aren't something POS can apply as a discount.
- *
- * Rewards costing less than LOYALTY_RULES.MIN_REDEMPTION_POINTS are shown but
- * disabled with the reason, rather than hidden: staff configured them in
- * Settings and would otherwise have no idea why they never appear. Checkout
- * re-enforces the same floor server-side (applyLoyaltyPointsForSale), so this
- * is affordance, not the only gate. */
+// Only options staff configured with an actual naira discount value are redeemable at checkout — non-monetary perks (e.g.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-pos-pos-redeem-reward-tsx-L22
 export function POSRedeemReward({
   selectedCustomer,
   redeemedOption,
@@ -42,10 +35,8 @@ export function POSRedeemReward({
     enabled: !!selectedCustomer,
   });
 
-  // Dated points ledger, for FIFO expiry (LOYALTY_RULES.POINTS_EXPIRY_MONTHS)
-  // — the balance on the customer row still includes points that have since
-  // expired until a checkout materializes the deduction, so spendable points
-  // have to be computed, not read.
+  // Dated points ledger, for FIFO expiry (LOYALTY_RULES.POINTS_EXPIRY_MONTHS) — the balance on the customer row still includ…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-redeem-reward-tsx-L45
   const { data: ledger = [] } = useQuery({
     ...queryKeys.loyalty.customerLedger(selectedCustomer?.id),
     queryFn: () => getCustomerLoyaltyLedger(selectedCustomer!.id),
@@ -56,11 +47,8 @@ export function POSRedeemReward({
     (o) => o.is_active && o.discount_value > 0,
   );
 
-  // Hidden entirely (not just disabled) when the Loyalty Program is gated
-  // off (plan tier and/or the store's own on/off toggle) — matches how
-  // gated features elsewhere in the app disappear rather than showing a
-  // locked/disabled control, since this is an inline cart-line-item, not a
-  // full-page module that would use LockedModuleOverlay.
+  // Hidden entirely (not just disabled) when the Loyalty Program is gated off (plan tier and/or the store's own on/off toggl…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-redeem-reward-tsx-L59
   if (!canUseLoyaltyProgram || !selectedCustomer || redeemableOptions.length === 0) return null;
 
   const customerPoints = calculateAvailablePoints(

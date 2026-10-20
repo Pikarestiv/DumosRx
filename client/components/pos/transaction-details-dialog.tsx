@@ -46,8 +46,7 @@ export function TransactionDetailsDialog({
   const { isAdmin, user } = useAuth();
   const showProfit = user?.role !== "sales_staff";
   // Unconditional top-level const (see pos-cart.tsx's canApplyDiscounts).
-  // Gates taking another copy of a finished sale's receipt off the device;
-  // the receipt shown straight after checkout belongs to process_sales.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-transaction-details-dialog-tsx-L48
   const canReprintReceipt = useHasPermission("reprint_receipt");
   const { print, portal } = usePrintReceipt();
   const queryClient = useQueryClient();
@@ -69,11 +68,8 @@ export function TransactionDetailsDialog({
   const recordPaymentMutation = useRecordCustomerPaymentMutation();
   const redeemMutation = useRedeemResellerCommissionMutation();
 
-  // `sale` is a snapshot the caller captured in its own state (selectedSale
-  // etc.) - it's never refetched after a redeem, so without this the dialog
-  // would keep showing "Not yet redeemed" (and both action buttons enabled)
-  // even though the redeem already succeeded. Reset whenever a different
-  // sale is opened so a stale override never leaks onto the next one.
+  // `sale` is a snapshot the caller captured in its own state (selectedSale etc.) - it's never refetched after a redeem, so…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-transaction-details-dialog-tsx-L72
   const [redeemOverride, setRedeemOverride] = useState<Partial<
     SaleWithDetails
   > | null>(null);
@@ -125,10 +121,8 @@ export function TransactionDetailsDialog({
       notes,
     });
     toast.success("Payment recorded successfully");
-    // Derives the key from the factory (with a throwaway .slice to drop
-    // the trailing activeStoreId/currentUserId resource() appends) rather
-    // than duplicating the "customerById" literal, so a rename in
-    // query-keys.ts can't silently desync from this call site.
+    // Derives the key from the factory (with a throwaway .slice to drop the trailing activeStoreId/currentUserId resource() ap…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-transaction-details-dialog-tsx-L128
     void queryClient.invalidateQueries({
       queryKey: queryKeys.customers.byId(sale.customer_id).queryKey.slice(0, 2),
     });

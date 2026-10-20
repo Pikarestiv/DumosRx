@@ -15,11 +15,8 @@ if (!window.matchMedia) {
   })) as unknown as typeof window.matchMedia;
 }
 
-/**
- * Amount Paid is a bare number field whose value getValidatedAmountPaid
- * silently caps at the order total on submit. Nothing said what that cap
- * was, or that anything had been changed by it.
- */
+// Amount Paid is a bare number field whose value getValidatedAmountPaid silently caps at the order total on submit.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-po-amount-paid-cap-test-tsx-L18
 describe("Amount Paid cap messaging", () => {
   function renderFields(amountPaid: string, totalAmount: number) {
     render(

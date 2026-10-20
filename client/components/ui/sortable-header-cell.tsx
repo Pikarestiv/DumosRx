@@ -8,9 +8,8 @@ interface SortableHeaderCellProps {
   className?: string;
 }
 
-/** Shared "click to sort, click again to flip direction" header cell -
- * reused across every sortable table (see lib/hooks/use-sortable-data.ts)
- * so the interaction and indicator icon stay consistent app-wide. */
+// Shared "click to sort, click again to flip direction" header cell - reused across every sortable table (see lib/hooks/us…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-sortable-header-cell-tsx-L11
 export function SortableHeaderCell({
   label,
   active,

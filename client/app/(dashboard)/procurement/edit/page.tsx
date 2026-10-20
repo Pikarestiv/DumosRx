@@ -47,15 +47,8 @@ function EditOrderContent() {
     string | null
   >(null);
   const [isAddSupplierOpen, setIsAddSupplierOpen] = useState(false);
-  // Was hardcoded "standard" everywhere below, which hid every
-  // Immediate-Purchase-only field (lot/expiry/New Cost/Review Price) when
-  // resuming an Immediate draft via "Edit Order" (any PO with status
-  // pending/sent gets that button - see purchase-order-details.tsx - not
-  // just Standard ones). The values still round-tripped correctly once
-  // coerceOptionalNumber's null handling was fixed, just weren't visible
-  // or re-editable. The type itself is never changed here (the toggle
-  // stays locked/hidden either way), just read for display; set in the
-  // seeding effect below once poQuery.data loads.
+  // Was hardcoded "standard" everywhere below, which hid every Immediate-Purchase-only field (lot/expiry/New Cost/Review Pri…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-app-(dashboard)-procurement-edit-page-tsx-L50
   const [poType, setPoType] = useState<"standard" | "immediate">("standard");
 
   const { suppliers, products, refetch: fetchData } = useProcurementData();
@@ -86,9 +79,8 @@ function EditOrderContent() {
       router.push("/procurement");
       return;
     }
-    // Only seed the form once per PO id — a background refetch (e.g. a sync
-    // pull invalidating purchase_orders) must not overwrite in-progress
-    // unsaved edits with the freshly refetched data.
+    // Only seed the form once per PO id — a background refetch (e.g.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-app-(dashboard)-procurement-edit-page-tsx-L89
     if (seededPoIdRef.current === id) return;
     seededPoIdRef.current = id;
     if (poQuery.data.type === "immediate") setPoType("immediate");

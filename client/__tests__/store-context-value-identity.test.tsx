@@ -4,12 +4,8 @@ import initSqlJs, { type Database } from "sql.js";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-/**
- * StoreContext has ~77 useStore() consumers, and `t` is handed down as a prop
- * into list rows in several places. A fresh value object, a fresh `t` and a
- * fresh `availableStores` array per render invalidate all of them, so all
- * three must keep a stable identity while nothing behind them has changed.
- */
+// StoreContext has ~77 useStore() consumers, and `t` is handed down as a prop into list rows in several places.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-store-context-value-identity-test-tsx-L7
 
 vi.mock("@sentry/nextjs", () => ({
   setUser: vi.fn(),

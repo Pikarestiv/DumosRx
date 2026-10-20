@@ -4,14 +4,8 @@ import {
   foldStockQuantities,
 } from "./stock-integrity";
 
-/**
- * Support tools for a DevTools session, deliberately not in-app buttons.
- * Extracted from index.ts to keep it under the 350-line limit (AGENTS.md §4).
- *
- * This forms a cycle with index.ts, which imports this file for its side
- * effect. Safe only because the imports below are hoisted function
- * declarations — see __tests__/devtools-hooks-binding.test.ts.
- */
+// Support tools for a DevTools session, deliberately not in-app buttons.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-devtools-hooks-ts-L7
 if (typeof window !== "undefined") {
   window.__forceFullResync = forceFullResync;
   window.__reconcileStockQuantities = reconcileStockQuantities;

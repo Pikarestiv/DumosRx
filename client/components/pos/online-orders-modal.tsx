@@ -69,10 +69,8 @@ export function OnlineOrdersModal() {
 
   const fulfill = (order: OnlineOrder) => {
     fulfillOrderMutation.mutate(
-      // A store OWNER's own users.store_id is always null by design (they
-      // "have" a store via stores.user_id), so passing it straight through
-      // wrote sales.store_id = NULL and hid the revenue from every
-      // store-scoped report. storeProfile.id is the active store either way.
+      // A store OWNER's own users.store_id is always null by design (they "have" a store via stores.user_id), so passing it stra…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-online-orders-modal-tsx-L72
       { order, storeId: user?.store_id ?? storeProfile?.id, cashierId: user?.id },
       {
         onSuccess: () => {

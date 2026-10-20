@@ -26,9 +26,8 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
   const displayName = useDisplayName();
   const { storeProfile } = useStore();
   const { user } = useAuth();
-  // Profit is hidden from cashiers specifically, not everyone who isn't
-  // admin - an auditor has read access to every sale/return/expense this
-  // figure is derived from, so there's no reason to hide the derived number.
+  // Profit is hidden from cashiers specifically, not everyone who isn't admin - an auditor has read access to every sale/ret…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-reports-daily-close-report-tsx-L29
   const showProfit = user?.role !== "sales_staff";
   const {
     currencyCode,

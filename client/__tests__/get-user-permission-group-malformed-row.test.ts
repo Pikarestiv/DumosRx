@@ -6,23 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * getUserPermissionGroup returned null for BOTH "no group assigned" and
- * "malformed JSON in permissions", and hasPermission's fallback
- * (`group?.permissions ?? fallbackPermissions(role)`) then granted the full
- * ROLE-TIER defaults for a corrupt row - a silent privilege reversion to
- * pre-feature behavior where a safe deny was wanted.
- *
- * The two cases are distinguishable, so conflating them was never necessary:
- * fallbackPermissions exists for the offline/pre-sync gap, where NO row exists
- * yet (see its own doc comment). A malformed row is the opposite situation - the
- * row did sync, it is just corrupt - so it now denies instead, matching what
- * getStorePermissionGroups already did for the same corruption.
- *
- * A store_owner/super_admin still can't be locked out: hasPermission
- * short-circuits to "everything granted" for those roles before any group is
- * consulted.
- */
+// getUserPermissionGroup returned null for BOTH "no group assigned" and "malformed JSON in permissions", and hasPermission…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-get-user-permission-group-malformed-row-test-ts-L9
 describe("getUserPermissionGroup with a malformed permissions column", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

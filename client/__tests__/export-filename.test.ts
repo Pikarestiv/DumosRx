@@ -1,11 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { buildExportFilename } from "@/lib/utils/export-filename";
 
-/**
- * A date-only export name silently overwrote the earlier file when two
- * exports happened on the same day, and gave no way to tell two stores'
- * exports apart in a Downloads folder. Hit for real on 2026-10-08.
- */
+// A date-only export name silently overwrote the earlier file when two exports happened on the same day, and gave no way t…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-export-filename-test-ts-L4
 const AT = new Date(2026, 9, 8, 19, 28);
 
 describe("buildExportFilename", () => {

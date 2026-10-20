@@ -1,20 +1,9 @@
-/**
- * The movement type the server writes when it adopts this device's own
- * stock_batches.quantity (POST /app/sync/reconcile-quantities). It is a
- * real, permanent record of a sync correction — not a stock event — so the
- * owner-facing movement lists and the stock-value summaries deliberately
- * exclude it. pull.ts replays it like any other movement on every device
- * except the one that originated it, which seeds its own copy as
- * already-synced (`storeReconciliationMovementLocally`) so its pull takes the
- * UPDATE branch. See client/AGENTS.md, "Stock quantity reconciliation".
- */
+// The movement type the server writes when it adopts this device's own stock_batches.quantity (POST /app/sync/reconcile-quantities).
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-movement-types-L1
 export const RECONCILIATION_MOVEMENT_TYPE = "sync_reconciliation";
 
-/**
- * Written by `sync:repair-health-sync-reconciliation` to cancel one of the
- * A-214 movements. Same kind of row for the same reason, so it is hidden
- * wherever the type above is.
- */
+// Written by `sync:repair-health-sync-reconciliation` to cancel one of the A-214 movements.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-movement-types-ts-L5
 export const RECONCILIATION_REVERSAL_MOVEMENT_TYPE = "sync_reconciliation_reversal";
 
 /** Sync bookkeeping, never a stock event: excluded from every owner-facing

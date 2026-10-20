@@ -4,32 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-/**
- * Regression coverage for two issues in this banner's "End Session" button:
- *
- * 1. (Original bug this file covered) A real user report: "Logged in
- *    normally but I'm seeing impersonation mode at the top." Root cause:
- *    the banner's only signal is a localStorage flag
- *    (impersonator_handoff_return_code) written once by
- *    app/auth/callback/page.tsx when a superadmin's impersonation handoff
- *    lands. A normal logout, a crash, or just closing the impersonated tab
- *    left it behind forever; any later ordinary PIN login on that same
- *    device/browser then showed a permanent "Impersonation Mode" banner.
- *    The corresponding auth-context.tsx fix (clearing the same flag on
- *    every ordinary login/logout path) isn't covered here since those
- *    paths require mocking most of the local-database layer; this covers
- *    the fully self-contained half (dismissing when no flag is present).
- *
- * 2. (docs/KNOWN_BUGS.md M4) The stored return code is a one-time,
- *    60-SECOND-lived handoff code minted back when impersonation *started*
- *    — every admin who spent more than a minute impersonating (the normal
- *    case, not an edge case) previously hit a "session expired" dead end on
- *    click, because "End Session" tried to redeem that stale code. Fixed
- *    to rely on the admin's own independent, long-lived HttpOnly refresh
- *    cookie instead: clicking "End Session" now navigates straight to
- *    /admin with no code redemption at all, regardless of how long
- *    impersonation lasted.
- */
+// Regression coverage for two issues in this banner's "End Session" button:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-impersonation-banner-stale-flag-test-ts-L7
 
 const clearTokenMock = vi.fn();
 
@@ -55,9 +31,8 @@ describe("ImpersonationBanner", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
 
-    // jsdom throws "Not implemented: navigation" on a real
-    // `window.location.href` assignment - replace it with a plain object
-    // so the assignment can be observed instead.
+    // jsdom throws "Not implemented:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-impersonation-banner-stale-flag-test-ts-L58
     originalLocation = window.location;
     // @ts-expect-error - deliberately replacing a read-only global for the test
     delete window.location;

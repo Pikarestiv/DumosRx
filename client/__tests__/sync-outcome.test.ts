@@ -4,12 +4,8 @@ import {
   readSyncOutcome,
 } from "@/lib/db/sync-engine/sync-outcome";
 
-/**
- * `last_sync_time` is stamped only on success, so a device failing every round
- * for two days read identically to one that had simply never synced — and the
- * reason lived in the indicator's React state and died on navigation. "Why do
- * 50 changes keep failing" was unanswerable because of that gap.
- */
+// `last_sync_time` is stamped only on success, so a device failing every round for two days read identically to one that h…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-outcome-test-ts-L7
 describe("sync outcome", () => {
   beforeEach(() => localStorage.clear());
 
@@ -77,9 +73,8 @@ describe("sync outcome", () => {
   });
 
   it("names each sync-level failure instead of collapsing every one to 'other'", () => {
-    // canonicaliseReason knows the SERVER's refusal vocabulary, so every
-    // sync-level failure came out as "other" — including the stuck-push case
-    // this exists to diagnose, which made the card useless.
+    // canonicaliseReason knows the SERVER's refusal vocabulary, so every sync-level failure came out as "other" — including th…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sync-outcome-test-ts-L80
     const cases: [string, string][] = [
       ["Offline. Changes are saved locally and will sync.", "network"],
       ["Failed to fetch", "network"],
@@ -104,9 +99,8 @@ describe("sync outcome", () => {
 
     recordSyncOutcome({ success: true, pushed: 5, pulled: 9 });
 
-    // An inspection session's own mount tick is refused as impersonated, and a
-    // second PWA tab is refused as read-only while sharing this storage key —
-    // so both fire during the very session that reads the outcome.
+    // An inspection session's own mount tick is refused as impersonated, and a second PWA tab is refused as read-only while sh…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sync-outcome-test-ts-L107
     for (const error of [
       SYNC_IN_PROGRESS_ERROR,
       READ_ONLY_TAB_MESSAGE,

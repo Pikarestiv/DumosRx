@@ -1,13 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-/**
- * Regression coverage for checkSyncHealth() - the periodic check that a
- * device's local row counts actually match the server's, independent of
- * whatever its own pull cursor believes. See health-check.ts's own doc
- * comment for why this exists: a pull cursor can get stuck with no error
- * anywhere to notice it by, and this is what catches that automatically
- * instead of relying on someone manually running SQL against production.
- */
+// Regression coverage for checkSyncHealth() - the periodic check that a device's local row counts actually match the serve…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-health-check-test-ts-L3
 
 const queryMock = vi.fn();
 vi.mock("../lib/db/core", () => ({

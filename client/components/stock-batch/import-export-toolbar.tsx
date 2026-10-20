@@ -31,9 +31,8 @@ type ExportFormat = "csv" | "xlsx" | "pdf";
 
 interface ImportExportToolbarProps {
   onImported: () => void;
-  /** The catalog table's currently-filtered product ids (search/category/
-   * status), so Export defaults to "what's on screen" instead of always the
-   * whole store — undefined (no filter active) exports everything. */
+  // The catalog table's currently-filtered product ids (search/category/ status), so Export defaults to "what's on screen" i…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-import-export-toolbar-tsx-L34
   filteredProductIds?: string[];
 }
 
@@ -58,12 +57,8 @@ export function ImportExportToolbar({
   } | null>(null);
   const isFiltered = filteredProductIds !== undefined;
 
-  /** Updates the overlay and yields a frame so it actually paints before the
-   * next step runs. PDF generation itself runs off the main thread (see
-   * generateReportPdfBlob), so the UI - including this overlay's animations
-   * - stays responsive through that step even though there's no way to
-   * report real percentage progress from inside it; the bar just holds at
-   * its pre-render value and jumps once the worker resolves. */
+  // Updates the overlay and yields a frame so it actually paints before the next step runs.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-import-export-toolbar-tsx-L61
   const setProgress = async (message: string, progress: number) => {
     setStage({ message, progress });
     await nextFrame();

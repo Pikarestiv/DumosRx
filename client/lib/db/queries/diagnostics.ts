@@ -26,11 +26,8 @@ import {
 } from "@/lib/db/sync-engine/sync-outcome";
 import type { StockIntegrityReport } from "@/lib/db/sync-engine/stock-integrity";
 
-/**
- * Read-only snapshot of one device's own sync state. Every query here is a
- * SELECT — see docs/superpowers/specs/2026-10-08-device-diagnostics-console-design.md
- * for why this exists and what it is allowed to do.
- */
+// Read-only snapshot of one device's own sync state.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-diagnostics-ts-L29
 
 export interface QueuedItemSummary {
   table_name: string;

@@ -17,10 +17,8 @@ export function useHeldTransactions() {
   return { heldItems, loading, error, refetch };
 }
 
-/** `mutation.variables` (the held transaction id currently being deleted)
- * lets a caller show a per-row spinner/disabled state without needing its
- * own local "which id is busy" state — there's only ever one delete in
- * flight per dialog instance. */
+// `mutation.variables` (the held transaction id currently being deleted) lets a caller show a per-row spinner/disabled state without needing i…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-sales-data-ts-L20
 export function useDeleteHeldTransactionMutation() {
   const queryClient = useQueryClient();
   return useMutation({

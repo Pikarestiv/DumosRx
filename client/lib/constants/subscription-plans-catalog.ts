@@ -1,13 +1,7 @@
 import type { SubscriptionPlansConfig } from "@/lib/types/subscription-plans";
 
-/**
- * Server plan strings are descriptive ("Pro Monthly", "pro_yearly") rather
- * than exact tier ids, so callers must match by substring/token instead of
- * an exact `.toLowerCase()` equality check (which silently falls back to
- * "free" on anything descriptive). Enterprise and pro are checked before
- * starter/free so a string that happens to also contain "pro" tokens still
- * resolves to the more specific tier first.
- */
+// Server plan strings are descriptive ("Pro Monthly", "pro_yearly") rather than exact tier ids, so callers must match by substring/token inste…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-subscription-plans-catalog-ts-L3
 export function normalizePlanId(planString: string | undefined | null): string {
   const value = (planString ?? "").toLowerCase();
   if (value.includes("enterprise")) return "enterprise";

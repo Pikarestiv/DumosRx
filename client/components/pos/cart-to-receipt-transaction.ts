@@ -2,15 +2,8 @@ import type { CartItem } from "@/lib/hooks/use-pos-cart";
 import type { Customer } from "@/lib/types/customer";
 import type { ReceiptTransaction } from "./receipt-view";
 
-/**
- * Builds a ReceiptTransaction straight from live cart state, for the
- * proforma quote preview/print - no sale exists yet (no DB row, no stock
- * deduction), so id/paymentMethod/amountPaid/change are placeholders;
- * ReceiptView's "quote" documentType hides the fields that don't apply.
- * Mirrors the shape usePOSPayment.handlePayment builds at real checkout
- * (lib/hooks/use-pos-payment.ts) and sale-to-receipt-transaction.ts builds
- * from a completed sale.
- */
+// Builds a ReceiptTransaction straight from live cart state, for the proforma quote preview/print - no sale exists yet (no…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-pos-cart-to-receipt-transaction-ts-L5
 export function cartToReceiptTransaction(
   cart: CartItem[],
   subtotal: number,

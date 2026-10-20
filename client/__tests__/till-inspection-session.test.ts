@@ -10,12 +10,8 @@ import {
   type TillInspectionSession,
 } from "@/lib/utils/till-inspection";
 
-/**
- * An inspection session is an overlay on whatever the till was already doing:
- * it never moves the local DB's current user, never touches the active store
- * or the sync token, and dies on restart. See
- * docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md.
- */
+// An inspection session is an overlay on whatever the till was already doing:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-till-inspection-session-test-ts-L13
 const live = (): TillInspectionSession => ({
   admin: {
     id: "a1",

@@ -6,16 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression coverage for bug #8 (docs/features/_known-bugs.md): update() and
- * softDelete() in base-helpers.ts used to perform zero store-ownership check,
- * so any store could rename/delete another store's row (or a still-shared
- * legacy NULL-store_id row forever, instead of just claiming it once) via the
- * completely ordinary edit/delete UI. Exercises the three real cases against
- * a real in-memory SQLite instance (sql.js), on the "categories" table (a
- * STORE_SCOPED_TABLES member with a simple shape) via the actual update()/
- * softDelete() exports, not a reimplementation.
- */
+// Regression coverage for bug #8 (docs/features/_known-bugs.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-store-ownership-test-ts-L9
 describe("update()/softDelete() store-ownership check", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -36,9 +28,8 @@ describe("update()/softDelete() store-ownership check", () => {
     });
     db = new SQL.Database();
     db.run(SCHEMA_SQL);
-    // store_id is added via core.ts's runtime ALTER TABLE migration, not the
-    // base CREATE TABLE statements in SCHEMA_SQL. Replicate it here since
-    // __setDatabaseForTesting bypasses initDatabase()'s migration loop.
+    // store_id is added via core.ts's runtime ALTER TABLE migration, not the base CREATE TABLE statements in SCHEMA_SQL.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-store-ownership-test-ts-L39
     db.run(`ALTER TABLE categories ADD COLUMN store_id TEXT;`);
     db.run(`ALTER TABLE categories ADD COLUMN is_active INTEGER DEFAULT 1;`);
     db.run(`ALTER TABLE held_transactions ADD COLUMN store_id TEXT;`);

@@ -2,13 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { Tabs } from "@/components/ui/tabs";
 
-/**
- * "view_suppliers" is the read third of the supplier split: it decides
- * whether the Vendors tab exists at all. Hiding the trigger alone is not a
- * gate here - /procurement/vendors is directly reachable - so the route
- * itself carries the same key via RequireRole's `permission` prop (see
- * require-role-permission.test.tsx).
- */
+// "view_suppliers" is the read third of the supplier split:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-procurement-tab-nav-view-suppliers-test-tsx-L5
 
 const hasPermission = vi.fn((_key: string) => true);
 

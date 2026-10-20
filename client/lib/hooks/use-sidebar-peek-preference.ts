@@ -3,12 +3,8 @@ import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 const PEEK_KEY = STORAGE_KEYS.sidebarPeekEnabled;
 
-/**
- * Whether the collapsed sidebar expands on hover ("peek"), or stays fully
- * collapsed. Independent from the collapsed/expanded state itself: combined,
- * they produce the three states: expanded, collapsed+peek, collapsed+locked.
- * Device-local (localStorage), matching how sidebar_collapsed is stored.
- */
+// Whether the collapsed sidebar expands on hover ("peek"), or stays fully collapsed.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-sidebar-peek-preference-ts-L6
 export function useSidebarPeekPreference() {
   const [peekEnabled, setPeekEnabledState] = useState(true);
 

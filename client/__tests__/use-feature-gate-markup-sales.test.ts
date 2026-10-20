@@ -1,13 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { isMarkupSalesEnabled } from "@/lib/hooks/use-feature-gate";
 
-/**
- * canUseMarkupSales must require BOTH the plan-tier entitlement (Pro/
- * Enterprise, expressed as `tierAllows`) AND the store's own on/off toggle
- * (`stores.markup_sales_enabled`, DEFAULT 0). Unlike isLoyaltyProgramEnabled,
- * this defaults OFF - an owner has to explicitly opt in before any staff
- * can mark up a sale at all.
- */
+// canUseMarkupSales must require BOTH the plan-tier entitlement (Pro/ Enterprise, expressed as `tierAllows`) AND the store…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-feature-gate-markup-sales-test-ts-L4
 describe("isMarkupSalesEnabled", () => {
   it("is false when the plan tier doesn't include reseller_commission, even with the toggle on", () => {
     expect(isMarkupSalesEnabled(false, 1)).toBe(false);

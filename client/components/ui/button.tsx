@@ -16,10 +16,8 @@ const buttonVariants = cva(
         outline:
           "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
         secondary:
-          // /80 (not /90) composites --secondary's white foreground down to
-          // ~3.95:1 on hover, under the 4.5:1 AA floor for this button's
-          // text-sm label - /90 is the alpha the token's own contrast math
-          // (see --secondary in globals.css) was actually verified against.
+          // /80 (not /90) composites --secondary's white foreground down to ~3.95:1 on hover, under the 4.5:1 AA floor for this butt…
+          // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-button-tsx-L19
           "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/90",
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",

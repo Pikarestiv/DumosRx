@@ -67,15 +67,8 @@ export function usePnLReport() {
   return { reportData, loading, error, refetch: fetchRealData };
 }
 
-/**
- * The expense ledger, newest first, read a page at a time with the search and
- * category filters applied in SQL so they reach the whole ledger rather than
- * only the loaded page.
- *
- * `limit` is how many rows to load; raising it is the "load older" affordance.
- * The query is keyed on it, so a wider window is a new cache entry rather than
- * a mutation of the current one.
- */
+// The expense ledger, newest first, read a page at a time with the search and category filters applied in SQL so they reach the whole ledger r…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-finance-data-ts-L70
 export function useExpenseList({
   limit = EXPENSES_PAGE_SIZE,
   search,
@@ -115,9 +108,8 @@ export function useExpenseTotals() {
 
   const { from, to } = useMemo(() => {
     const now = new Date();
-    // endOfMonth, not the start of next month: getSmoothedExpensesTotal and
-    // getCurrentMonthExpensesByCategory both treat `to` as INCLUSIVE (see their
-    // doc comments), so next month's 1st would otherwise be counted here.
+    // endOfMonth, not the start of next month:
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-finance-data-ts-L111
     return {
       from: startOfMonth(now).toISOString(),
       to: endOfMonth(now).toISOString(),

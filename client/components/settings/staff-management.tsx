@@ -75,9 +75,8 @@ export function StaffManagement() {
     return result;
   }, [users, roleFilter, statusFilter, search]);
 
-  // Seat-limit cap and the "Total Staff" stat must count every active
-  // account, not just the store-filtered `users` list, so they use this
-  // unfiltered, is_active-only count instead of users.length.
+  // Seat-limit cap and the "Total Staff" stat must count every active account, not just the store-filtered `users` list, so…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-staff-management-tsx-L78
   const { data: staffCount = 0 } = useQuery({
     ...queryKeys.staff.count(),
     queryFn: () => getStaffCount(),

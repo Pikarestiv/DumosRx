@@ -53,12 +53,8 @@ function renderList(users: StaffListItem[]) {
   );
 }
 
-/**
- * U8: "delete staff" is really a reversible deactivation (the confirm dialog
- * says so), but the row used a red trash icon and a "Delete X" label, which
- * made admins avoid a safe action.
- * U9: the "PIN set" pill was rendered unconditionally.
- */
+// U8: "delete staff" is really a reversible deactivation (the confirm dialog says so), but the row used a red trash icon a…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-staff-list-ui-test-tsx-L56
 describe("StaffList row affordances", () => {
   it("labels the deactivate action as deactivation, not deletion", () => {
     renderList([staff()]);

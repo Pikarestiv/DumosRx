@@ -5,13 +5,8 @@
 
 import { roundMoney } from "./pos-calculations";
 
-/** A prescription medication line's total cost is always unit cost × quantity
- * — computed, never separately typed, so there's no way for staff to enter a
- * per-unit price where a line total was expected (or vice versa). Rounded to
- * the cent like every other money value written to a REAL column (see
- * pos-calculations.ts's roundMoney), otherwise float drift compounds across
- * a multi-line prescription and a report's SUM() stops tying out to the
- * displayed line totals. */
+// A prescription medication line's total cost is always unit cost × quantity — computed, never separately typed, so there's no way for staff t…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-prescription-calculations-ts-L8
 export function calculatePrescriptionItemCost(
   unitCost: number,
   quantity: number,

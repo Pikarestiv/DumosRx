@@ -6,17 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Coverage gap: recordCustomerPayment (lib/db/queries/customers.ts) is the
- * single source of truth for logging a customer debt payment from both the
- * Customer Directory and a sale's transaction details, but had zero test
- * coverage (grep for "customer_payment" across __tests__/ and e2e/ turned up
- * nothing) despite touching three tables (customer_payments, customers,
- * sales) and doing money-accumulation-style FIFO allocation across a
- * customer's pending sales - the same category of arithmetic that produced
- * a real bug in three other modules (POS checkout, online-order
- * fulfillment) during this smoke-test pass.
- */
+// Coverage gap: recordCustomerPayment (lib/db/queries/customers.ts) is the single source of truth for logging a customer d…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-customer-payments-test-ts-L9
 describe("recordCustomerPayment", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

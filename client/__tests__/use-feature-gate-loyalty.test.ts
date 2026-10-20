@@ -1,18 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { isLoyaltyProgramEnabled } from "@/lib/hooks/use-feature-gate";
 
-/**
- * canUseLoyaltyProgram must require BOTH the plan-tier entitlement (Pro/
- * Enterprise, expressed as `tierAllows`) AND the store's own on/off toggle
- * (`stores.loyalty_program_enabled`, DEFAULT 1). The two are ANDed together;
- * a store on a plan that doesn't include the feature can never flip it on
- * via the toggle, and a Pro/Enterprise store can pause it independent of
- * its plan by flipping the toggle off.
- *
- * Extracted as a pure function (rather than testing the useFeatureGate()
- * hook directly, which is coupled to StoreContext/useSystemConfigStore
- * providers) so the actual AND logic is covered without a render harness.
- */
+// canUseLoyaltyProgram must require BOTH the plan-tier entitlement (Pro/ Enterprise, expressed as `tierAllows`) AND the st…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-feature-gate-loyalty-test-ts-L4
 describe("isLoyaltyProgramEnabled", () => {
   it("is false when the plan tier doesn't include loyalty_program, even with the toggle on", () => {
     expect(isLoyaltyProgramEnabled(false, 1)).toBe(false);

@@ -8,11 +8,8 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
 }));
 
-/**
- * A dashboard figure is a question — "which sales?", "which products?" — and
- * the answer is a screen that already exists. A card with no `href` is a card
- * whose figure is itemised nowhere, and it must keep looking inert.
- */
+// A dashboard figure is a question — "which sales?", "which products?" — and the answer is a screen that already exists.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-dashboard-stat-card-navigation-test-tsx-L11
 const card = (overrides: Partial<StatCard> = {}): StatCard => ({
   title: "Today's Sales",
   value: "₦120,000",

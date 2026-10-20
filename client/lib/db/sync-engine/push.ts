@@ -40,32 +40,22 @@ const NON_RETRYABLE_CONFLICT_REASONS = new Set([
 // Dropped without a toast: queued by automatic machinery, not a user action.
 const SILENT_TERMINAL_REASONS = new Set(["permission_denied"]);
 
-// No pull can ever settle these, so left unsynced they are requeued and
-// re-refused for ever. `audit_logs` because the server row doesn't carry the
-// pushed id (see docs/FIXED_BUGS.md "audit_logs conflict resurrection loop");
-// `feedback` because it is never pulled at all and a repeat crash coalesces
-// into the same stale-version row — the same reasoning, and the same remedy,
-// that reportStuckCrashLog() already applies after five attempts. A-256.
+// No pull can ever settle these, so left unsynced they are requeued and re-refused for ever.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-push-ts-L43
 const TERMINAL_CONFLICT_SETTLES_SOURCE_ROW = new Set(["audit_logs", "feedback"]);
 
 // Unreachable by any future pull, whatever table it's on - see A-161.
 // Deliberately excludes `forbidden`; see docs/KNOWN_BUGS.md A-165.
 const REASONS_SETTLING_SOURCE_ROW = new Set(["permission_denied"]);
 
-/**
- * Reasons where the server kept a row this device now disagrees with, so the
- * device has to be made to re-pull it. `permission_denied` is excluded on
- * purpose: no pull can settle it (REASONS_SETTLING_SOURCE_ROW), and a
- * plan-gated queue would retrigger the rewind every single round. See
- * client/AGENTS.md, "Push details", and docs/FIXED_BUGS.md A-205.
- */
+// Reasons where the server kept a row this device now disagrees with, so the device has to be made to re-pull it.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-push-ts-L55
 const REASONS_NEEDING_REPULL = new Set(["version_conflict", "stale_timestamp"]);
 
 const SYNC_BATCH_SIZE = 50;
 
-/** Sorts categories to the front of the queue, leaving every other row's
- * relative order untouched. Must stay a *consistent* comparator — see
- * client/AGENTS.md, "Push details (sync-engine/push.ts)". */
+// Sorts categories to the front of the queue, leaving every other row's relative order untouched.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-push-ts-L66
 export function compareCategoriesFirst(
   a: { table_name: string },
   b: { table_name: string },
@@ -106,14 +96,8 @@ function describeSyncedRecord(tableName: string): string {
   return RECORD_LABELS[tableName] ?? `a ${tableName.replace(/_/g, " ")} record`;
 }
 
-/**
- * Folds every pending UPDATE for the same (table_name, record_id) into one
- * merged change: later fields win, the merged payload keeps the EARLIEST
- * entry's `_version`, and `mergedIdsByRepId` maps the representative queue
- * row id to every row folded into it so callers settle them all together.
- * INSERT/DELETE are untouched. Why this is required, and why it must run
- * before batch slicing: client/AGENTS.md, "Push details".
- */
+// Folds every pending UPDATE for the same (table_name, record_id) into one merged change:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-push-ts-L109
 function coalescePendingUpdates(pending: SyncQueueItem[]): {
   items: SyncQueueItem[];
   mergedIdsByRepId: Map<number, number[]>;
@@ -165,12 +149,8 @@ function coalescePendingUpdates(pending: SyncQueueItem[]): {
   return { items, mergedIdsByRepId };
 }
 
-/**
- * Removes every currently-due UPDATE from `pending` whose record has ANY
- * sibling UPDATE still backed off in `_sync_queue`; INSERT/DELETE are never
- * held back. One query per distinct record — a correctness-critical path,
- * not a hot loop. Rationale: client/AGENTS.md, "Push details".
- */
+// Removes every currently-due UPDATE from `pending` whose record has ANY sibling UPDATE still backed off in `_sync_queue`; INSERT/DELETE are n…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-push-ts-L168
 async function withheldRecordsWithBackedOffSiblingsRemoved(
   pending: SyncQueueItem[],
 ): Promise<SyncQueueItem[]> {
@@ -212,19 +192,8 @@ async function withheldRecordsWithBackedOffSiblingsRemoved(
 /**
  * Push local changes to server
  */
-/**
- * A push with no changes, sent only to exchange command outcomes and reports.
- *
- * Two cases need it, and both are the ones the command channel exists for:
- * the commonest successful outcome EMPTIES the queue, leaving the outcome
- * nothing to ride along with; and a stuck row is by definition one whose
- * retries have backed off, which getPendingSyncItems() excludes from an
- * auto-sync — so the device would send nothing and the command issued for
- * that very row could never reach it.
- *
- * Returns without a request when there is genuinely nothing to say or ask,
- * so an idle device with an empty queue generates no traffic.
- */
+// A push with no changes, sent only to exchange command outcomes and reports.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-push-L215
 async function exchangeReportsOnly(
   stockFingerprint: Awaited<ReturnType<typeof buildStockFingerprint>>,
   tableFingerprint: Awaited<ReturnType<typeof buildTableFingerprint>>,
@@ -516,8 +485,7 @@ export async function pushChanges(
 
             if (NON_RETRYABLE_CONFLICT_REASONS.has(f.reason)) {
               // Terminal: drop every merged queue row rather than retrying.
-              // The watermark rewind below is what actually brings the
-              // server's winning value down (A-205); the drop alone does not.
+              // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-push-ts-L491
               const placeholders = underlyingIds.map(() => "?").join(", ");
               const priorAttempts = await query<{ retry_count: number | null }>(
                 `SELECT retry_count FROM _sync_queue WHERE id IN (${placeholders})`,
@@ -612,9 +580,8 @@ export async function pushChanges(
           }
         });
 
-        // After this batch's bookkeeping, never before: a `retry` applied
-        // first would have its reset undone by recordSyncFailure() if the
-        // same row is in this batch's failures.
+        // After this batch's bookkeeping, never before:
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-push-ts-L588
         if (response.sync_commands?.length) {
           try {
             await applySyncCommands(response.sync_commands);

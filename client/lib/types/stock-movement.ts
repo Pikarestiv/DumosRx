@@ -1,7 +1,5 @@
-/** Row shape returned by getStockMovements()/getStockAdjustments(): the raw
- * `stock_movements` table joined with the product's name, the performing
- * user's display name, and (via stock_batch_id) the batch number and its
- * originating supplier's name. */
+// Row shape returned by getStockMovements()/getStockAdjustments():
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#types-stock-movement-ts-L1
 export interface StockMovementDbRow {
   id: string;
   product_id: string;

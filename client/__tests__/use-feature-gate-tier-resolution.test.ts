@@ -15,14 +15,8 @@ vi.mock("@/lib/context/store-context", () => ({
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useSystemConfigStore } from "@/lib/store/system-config-store";
 
-/**
- * useFeatureGate() resolves a store's subscription tier into every module
- * gate the app enforces. The pure helpers it delegates to were covered, but
- * the resolution itself — trial-suffix stripping, the "local" -> "starter"
- * config aliasing, -1 meaning unlimited, the alt-key feature fallback, the
- * per-tier fallbacks used when the server config is missing, the upgrade
- * message's plan hierarchy and withRestriction's mobile block — was not.
- */
+// useFeatureGate() resolves a store's subscription tier into every module gate the app enforces.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-feature-gate-tier-resolution-test-ts-L18
 describe("useFeatureGate tier resolution", () => {
   beforeEach(() => {
     storeProfile = null;

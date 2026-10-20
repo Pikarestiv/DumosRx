@@ -66,12 +66,8 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
   const [error, setError] = useState<Error | null>(null);
   const isTauriApp = isTauri();
 
-  // Drives the read-only banner's "Use this window" flow (see
-  // requestWriterHandoff()/forceWriterTakeover() in core.ts): "idle" (not
-  // attempted, or a previous attempt is done), "requesting" (waiting on the
-  // graceful handoff's ack), "offer-force" (it timed out or this browser
-  // has no BroadcastChannel - offer the steal fallback instead), "forcing"
-  // (steal in progress).
+  // Drives the read-only banner's "Use this window" flow (see requestWriterHandoff()/forceWriterTakeover() in core.ts):
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-DatabaseProvider-tsx-L69
   const [handoffState, setHandoffState] = useState<
     "idle" | "requesting" | "offer-force" | "forcing"
   >("idle");
@@ -96,11 +92,8 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
   const handleUseThisWindow = async () => {
     setHandoffState("requesting");
     const result = await requestWriterHandoff();
-    // On "acked" this tab's own queued lock request still has to actually
-    // get granted and rehydrate (asynchronously, via onWriterTabChange
-    // below) before isReadOnlyTab flips - leave handoffState "requesting"
-    // rather than reset to "idle" here, so the button doesn't flash back to
-    // its initial label for the brief gap before that happens.
+    // On "acked" this tab's own queued lock request still has to actually get granted and rehydrate (asynchronously, via onWriterTabChange below)…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-DatabaseProvider-tsx-L99
     if (result !== "acked") setHandoffState("offer-force");
   };
 
@@ -123,11 +116,8 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
     initDatabase()
       .then(() => {
         setIsReady(true);
-        // Reflects tab-lock.ts's single-writer election (see C1 in
-        // docs/KNOWN_BUGS.md) - initDatabase() has already registered this
-        // tab's lock request by the time it resolves, so isWriterTab()'s
-        // current value plus this subscription together cover both the
-        // initial state and any later promotion.
+        // Reflects tab-lock.ts's single-writer election (see C1 in docs/KNOWN_BUGS.md) - initDatabase() has already registered this tab's lock request…
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-DatabaseProvider-tsx-L126
         setIsReadOnlyTab(!isWriterTab());
         devLog("[DB] Local database initialized");
         // Flush any offline crashes queued in localStorage
@@ -178,10 +168,8 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
     };
   }, []);
 
-  // Tracks this tab's writer/read-only role (see tab-lock.ts / C1 in
-  // docs/KNOWN_BUGS.md) for as long as the provider is mounted, so a
-  // promotion (the writer tab elsewhere closing) updates the UI without
-  // needing a reload.
+  // Tracks this tab's writer/read-only role (see tab-lock.ts / C1 in docs/KNOWN_BUGS.md) for as long as the provider is mounted, so a promotion…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-DatabaseProvider-tsx-L181
   useEffect(() => {
     return onWriterTabChange((isWriter) => {
       setIsReadOnlyTab(!isWriter);
@@ -192,14 +180,8 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
     });
   }, []);
 
-  // Fires only when this tab won the writer-lock queue but then refused to
-  // actually take over, because rehydrating its local database from
-  // IndexedDB failed (see tab-lock.ts's initWriterLock() doc comment) -
-  // deliberately fail-closed, so this tab never risks persisting a stale
-  // copy over the real one. Without this, the tab would just look stuck
-  // read-only forever with no explanation; a reload gets it back in line
-  // for promotion (or becomes the writer outright, if it's now the only
-  // tab open).
+  // Fires only when this tab won the writer-lock queue but then refused to actually take over, because rehydrating its local database from Index…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-DatabaseProvider-tsx-L195
   useEffect(() => {
     return onPromotionFailed(() => {
       // Otherwise a handoff acked just before this failure leaves
@@ -212,11 +194,8 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
     });
   }, []);
 
-  // Every write attempt from a read-only tab throws (core.ts's
-  // assertWritable()) so nothing is silently dropped, but a thrown error
-  // alone can look like a generic failure. Rate-limited the same way
-  // dumos_db_save_failed is below, so repeatedly tapping a disabled-looking
-  // action doesn't spam toasts.
+  // Every write attempt from a read-only tab throws (core.ts's assertWritable()) so nothing is silently dropped, but a thrown error alone can lo…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-DatabaseProvider-tsx-L215
   useEffect(() => {
     if (typeof window === "undefined") return;
     let lastShownAt = 0;
@@ -232,13 +211,8 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
     return onAppEvent(APP_EVENTS.dbReadOnlyWriteBlocked, handleBlocked);
   }, []);
 
-  // core.ts's saveDatabase() previously only console.error'd a failed local
-  // persist (most plausibly a full IndexedDB quota, on the same per-origin
-  // storage budget the PWA's precache competes against) - the app kept
-  // looking completely healthy while writes silently stopped persisting.
-  // Surfaced here (rate-limited at the dispatch site in core.ts) so the user
-  // has some signal before everything since the last successful save is
-  // lost on next launch.
+  // core.ts's saveDatabase() previously only console.error'd a failed local persist (most plausibly a full IndexedDB quota, on the same per-orig…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-DatabaseProvider-tsx-L235
   useEffect(() => {
     if (typeof window === "undefined") return;
     const handleSaveFailed = () => {
@@ -310,16 +284,8 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
       value={{ isReady, isOffline, isTauriApp, isReadOnlyTab, error }}
     >
       {isReadOnlyTab && (
-        // z-[9500]: must render above every other full-screen overlay this
-        // app can show while a tab is read-only - SplashScreen's z-[100]
-        // (components/ui/splash-screen.tsx, shown by LicenseGuard while
-        // loading) AND dashboard-layout.tsx's PIN-lock screen at z-[9000].
-        // This banner sat at z-50 before, underneath both, making the "Use
-        // this window instead" handoff button invisible and unclickable on
-        // a read-only tab stuck behind either one. 9500 matches this
-        // codebase's existing "above everything except TauriTitleBar"
-        // convention (see dashboard-layout.tsx's own skip-link, also
-        // z-[9500]) - TauriTitleBar's z-[9999] doesn't need to be beaten.
+        // z-[9500]: must render above every other full-screen overlay this app can show while a tab is read-only - SplashScreen's z-[100] (components/…
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-DatabaseProvider-tsx-L313
         <div className="sticky top-0 z-[9500] w-full bg-amber-500 px-4 py-1.5 text-center text-xs font-medium text-amber-950 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
           <span>
             Read-only tab: DumosRx is already open elsewhere. Switch to that

@@ -6,12 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Read-only is enforced at the mutation layer, not by hiding buttons: gating
- * the UI alone is how a "read-only" mode ends up writing through some path
- * nobody remembered. See
- * docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md.
- */
+// Read-only is enforced at the mutation layer, not by hiding buttons:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-till-inspection-read-only-test-ts-L9
 const STORE_ID = "store-1";
 
 describe("writes during an admin inspection session", () => {

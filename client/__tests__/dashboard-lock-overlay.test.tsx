@@ -6,18 +6,8 @@ import { drainInputOtpSyncTimeouts } from "./helpers/input-otp-timers";
 
 drainInputOtpSyncTimeouts();
 
-/**
- * Two reported bugs, both reachable only through the dashboard's own lock
- * overlay (not /login's copy of the same LockScreen):
- *
- * 1. Lock-screen bypass. Locking the app, backing out of PIN entry to the
- *    account picker and choosing "Set Up as New Device" used to unlock the
- *    session *before* navigating to the setup flow. Backing out of setup
- *    lands back on /dashboard, which then rendered fully unlocked with no
- *    re-authentication at all.
- * 2. The per-account remove ("x") affordance was missing here, because this
- *    caller never passed an onRemoveUser callback, unlike /login's.
- */
+// Two reported bugs, both reachable only through the dashboard's own lock overlay (not /login's copy of the same LockScree…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-dashboard-lock-overlay-test-tsx-L9
 
 class ResizeObserverStub {
   observe() {}

@@ -44,12 +44,8 @@ const baseProps = {
   handleSaveAutoSyncSettings: vi.fn(),
 };
 
-/**
- * Settings > Data is the only place to repoint the API server once signed
- * in: ServerSelector also renders on the pre-login landing page
- * (app/page.tsx), but a device that's logged in before skips straight to
- * /dashboard and never sees that page again.
- */
+// Settings > Data is the only place to repoint the API server once signed in:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-data-settings-dev-server-selector-test-tsx-L47
 describe("DataSettings dev-only API server control", () => {
   const originalEnv = process.env.NODE_ENV;
 

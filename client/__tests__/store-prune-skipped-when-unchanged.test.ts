@@ -12,17 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * A-8 (docs/KNOWN_BUGS.md): `stores` is always pulled as a full snapshot, so
- * the reconciliation prune ran on EVERY pull round — a single UPDATE
- * carrying one `NOT IN (SELECT DISTINCT store_id FROM <table>)` subquery per
- * store-scoped table (26 full scans), plus a `PRAGMA table_info` probe per
- * table, even when the server returned exactly the store list this device
- * already has and the prune could not possibly match a row.
- *
- * The prune must only be reached when there is at least one live local store
- * the server's snapshot no longer lists.
- */
+// A-8 (docs/KNOWN_BUGS.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-store-prune-skipped-when-unchanged-test-ts-L15
 describe("pull.ts store-reconciliation prune is skipped when nothing could be pruned", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -77,9 +68,8 @@ describe("pull.ts store-reconciliation prune is skipped when nothing could be pr
 
   const prunedStatements = () =>
     statements.filter((s) => s.includes("UPDATE stores SET _deleted = 1"));
-  // The prune probes every store-scoped table for a `store_id` column before
-  // building its subquery list; `stores` itself is probed by the row-apply
-  // path regardless, so it isn't evidence of the prune.
+  // The prune probes every store-scoped table for a `store_id` column before building its subquery list; `stores` itself is…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-store-prune-skipped-when-unchanged-test-ts-L80
   const scopedColumnProbes = () =>
     statements.filter(
       (s) => s.startsWith("PRAGMA table_info") && !s.includes("(stores)"),

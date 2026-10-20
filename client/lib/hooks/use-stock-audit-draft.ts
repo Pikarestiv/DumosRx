@@ -10,19 +10,8 @@ interface StockAuditDraftState {
   clearDraft: () => void;
 }
 
-/**
- * Drafts written before 2026-10-13 pre-filled every row's countedQty with
- * the system quantity, and "has a quantity" is now what marks a row counted
- * - so such a draft rehydrates with the entire sheet ticked and "Total
- * Counted" equal to the catalog, which is the exact confusion the blank
- * field was introduced to remove. A row the counter actually touched in
- * that build carries `counted: true` (updateLedgerItem set it on every
- * edit) or differs from the system figure; everything else was untouched
- * prefill and is cleared back to blank.
- *
- * Retirable once no device can still hold a v0 draft - one release after
- * 2026-10-13.
- */
+// Drafts written before 2026-10-13 pre-filled every row's countedQty with the system quantity, and "has a quantity" is now what marks a row co…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-stock-audit-draft-L13
 export function migrateStockAuditDraft(
   persisted: unknown,
   version: number,
@@ -39,9 +28,8 @@ export function migrateStockAuditDraft(
   };
 }
 
-/** An in-progress cycle count, persisted the same way the POS cart is (see
- * use-pos-cart.ts): a count can span a whole shift across hundreds of rows,
- * and a reload, crash or accidental navigation used to lose all of it. */
+// An in-progress cycle count, persisted the same way the POS cart is (see use-pos-cart.ts):
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-stock-audit-draft-ts-L31
 export const useStockAuditDraftStore = create<StockAuditDraftState>()(
   persist(
     (set) => ({

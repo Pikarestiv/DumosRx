@@ -6,17 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Phase 1 of docs/superpowers/specs/2026-10-08-stock-integrity-fold-design.md.
- *
- * A production store showed 958 of 2,495 products carrying exactly twice
- * their opening stock on one device, while the server was correct throughout.
- * Nothing could repair it: pull.ts strips `quantity` from every pulled batch
- * and an existing movement replays no delta, so the drift was permanent. The
- * movement log is the authority — this verifies a batch against it.
- *
- * verifyStockIntegrity() must never write.
- */
+// Phase 1 of docs/superpowers/specs/2026-10-08-stock-integrity-fold-design.md.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-stock-integrity-verify-test-ts-L9
 const STORE_ID = "store-1";
 
 describe("verifyStockIntegrity", () => {
@@ -34,9 +25,8 @@ describe("verifyStockIntegrity", () => {
     });
     db = new SQL.Database();
     db.run(SCHEMA_SQL);
-    // SCHEMA_SQL predates multi-store; schema-migrations.ts adds store_id at
-    // runtime. Added here so the store-scoped query branch is actually
-    // exercised instead of silently falling through to "every store".
+    // SCHEMA_SQL predates multi-store; schema-migrations.ts adds store_id at runtime.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-stock-integrity-verify-test-ts-L37
     db.run(`ALTER TABLE stock_batches ADD COLUMN store_id TEXT`);
     db.run(`ALTER TABLE products ADD COLUMN store_id TEXT`);
     core.__setDatabaseForTesting(db);

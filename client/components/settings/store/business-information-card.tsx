@@ -268,9 +268,8 @@ export function BusinessInformationCard({
                   )}
                 </div>
               ) : isEditingProfile ? (
-                // Dashed border + Upload icon = an actual click target here,
-                // via the "Upload Logo" label right next to it - only shown
-                // in edit mode so it isn't mistaken for one while read-only.
+                // Dashed border + Upload icon = an actual click target here, via the "Upload Logo" label right next to it - only shown in…
+                // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-store-business-information-card-tsx-L271
                 <div className="h-20 w-20 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground bg-muted/30">
                   <Upload className="h-6 w-6" />
                 </div>

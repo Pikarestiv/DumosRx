@@ -3,12 +3,8 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { createRef } from "react";
 import type { POSProduct } from "@/lib/types/product";
 
-// These tests exercise grouping/sorting/cart-quantity logic, not
-// virtualization mechanics (that belongs in e2e/browser tests, where real
-// layout exists) - jsdom reports zero size for every element, so the real
-// useVirtualizer would compute an empty visible range here and every
-// assertion below would find nothing. Stubbed to render every row
-// unconditionally, same shape real react-virtual returns.
+// These tests exercise grouping/sorting/cart-quantity logic, not virtualization mechanics (that belongs in e2e/browser tes…
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-pos-product-list-memoization-test-tsx-L6
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
     getVirtualItems: () =>
@@ -22,16 +18,8 @@ vi.mock("@tanstack/react-virtual", () => ({
   }),
 }));
 
-/**
- * Regression coverage for the KNOWN_BUGS.md "Unmemoized POS product grid"
- * finding: pos-product-list.tsx rebuilt cartQuantityMap/grouped arrays with
- * new references on every render and POSProductCard wasn't memoized, so
- * every visible card re-rendered on any cart mutation regardless of catalog
- * size. Fixed via useMemo (keyed on the real inputs) + React.memo. This
- * test isn't about render counts (brittle) - it proves the memoized path
- * still produces correct output: grouping, sorting, and cart-quantity
- * badges all stay in sync across rerenders with different props.
- */
+// Regression coverage for the KNOWN_BUGS.md "Unmemoized POS product grid" finding:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-product-list-memoization-test-tsx-L25
 vi.mock("@/lib/context/store-context", () => ({
   useStore: () => ({ storeProfile: { uppercase_display_enabled: 1 } }),
 }));

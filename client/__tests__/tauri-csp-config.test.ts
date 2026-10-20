@@ -2,15 +2,8 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-/**
- * A-13. The Tauri webview shipped with `csp: null` and `withGlobalTauri:
- * true`, so any script injection in the webview would have run with every
- * granted capability (`sql:allow-*`, `fs:allow-read-file`,
- * `fs:allow-copy-file`, `dialog:*`, `shell:default`) and `window.__TAURI__`
- * in scope. This pins the policy so it cannot silently regress to null, and
- * pins the specific sources the app genuinely needs — each one is there
- * because something in the client actually loads it.
- */
+// A-13. The Tauri webview shipped with `csp:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-tauri-csp-config-test-ts-L5
 const config = JSON.parse(
   readFileSync(resolve(__dirname, "../src-tauri/tauri.conf.json"), "utf8"),
 ) as {

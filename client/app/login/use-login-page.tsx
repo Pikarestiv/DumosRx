@@ -9,20 +9,13 @@ import { useOnboarding } from "@/app/setup/use-onboarding";
 import { AuthTabHeader } from "@/components/auth/auth-tab-header";
 import { usePostRestoreCloudLinkNotice } from "@/lib/hooks/use-post-restore-cloud-link-notice";
 
-/**
- * All derived state/orchestration for /login: which tab is active, whether
- * setup is a safe entry point, back-button rules, and the shared header.
- * Pulled out of page.tsx so that file is just layout/JSX. Composes the
- * page's sub-hooks (auth status, login form, onboarding) itself, the same
- * way those sub-hooks compose their own lower-level pieces.
- */
+// All derived state/orchestration for /login:
+// Rationale: docs/CLIENT_COMMENTS.md#block-app-login-use-login-page-tsx-L12
 export function useLoginPageState() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // "New credentials" mode (from the dashboard lock overlay's "Login as
-  // someone else"), distinct from a plain /login visit, which otherwise
-  // redirects straight to the dashboard's own lock overlay when recent
-  // accounts already exist, to avoid ever showing two separate lock screens.
+  // "New credentials" mode (from the dashboard lock overlay's "Login as someone else"), distinct from a plain /login visit,…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-app-login-use-login-page-tsx-L22
   const isNewCredentialsMode = searchParams.get("mode") === "new";
 
   const { isChecking, userCount, recentUsers, removeRecentUser, refetch } =
@@ -33,28 +26,14 @@ export function useLoginPageState() {
   // Keeps userCount/recentUsers fresh through onboarding - see A-154, docs/FIXED_BUGS.md.
   const onboarding = useOnboarding(refetch);
 
-  // Known bug #10, Part B: a device that just restored a local backup keeps
-  // 100% of its data but silently loses its cloud link (restoreDatabase()
-  // never touches auth_token). Fires once, only when that just happened -
-  // see lib/hooks/use-post-restore-cloud-link-notice.ts. Reuses the same
-  // pre-login "Link DumosRx Cloud" step the setup wizard already has
-  // (onboarding step "cloud") rather than inventing a new linking flow.
+  // Known bug #10, Part B:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-app-login-use-login-page-tsx-L36
   usePostRestoreCloudLinkNotice({
     onLinkCloud: () => onboarding.setStep("cloud"),
   });
 
-  // Login and Setup are tabs on this one page, not separate routes: no
-  // navigation, no remount, no second loading spinner when switching.
-  // Guard: a device that already has accounts can't land on setup's
-  // welcome/select-store steps (that flow assumes a brand-new device and
-  // risks clobbering real local data); only backup/cloud/syncing/register
-  // are safe entry points there. `register` is included because a
-  // leftover local store on that path now routes through the same
-  // confirm-before-wipe dialog as select-store's cloud-switch flow
-  // (see use-onboarding.ts's pendingNewRegistration) rather than
-  // clobbering data outright - it's safe to land on, not wipe-free.
-  // Computed here instead of redirecting after mount, so an unsafe request
-  // never flashes setup content before bouncing back.
+  // Login and Setup are tabs on this one page, not separate routes:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-app-login-use-login-page-tsx-L46
   const requestedTab = searchParams.get("tab") === "setup" ? "setup" : "login";
   const step = searchParams.get("step");
   const isSafeSetupEntry =
@@ -70,13 +49,8 @@ export function useLoginPageState() {
   const setupHref =
     userCount > 0 ? "/login?tab=setup&step=cloud" : "/login?tab=setup";
 
-  // Only bounce to the dashboard's own lock overlay when there's actually a
-  // live (but idle-locked) session to hand off to, i.e. `isAuthenticated`.
-  // Without this check, a real logout (user cleared, recentUsers/userCount
-  // untouched) looked identical to "idle-locked", so /login redirected to
-  // /dashboard, which immediately redirected back to /login (no `user`),
-  // forever: the flicker loop. When there's no live session, this page
-  // renders its own account-tile picker (LockScreen) instead of redirecting.
+  // Only bounce to the dashboard's own lock overlay when there's actually a live (but idle-locked) session to hand off to, i…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-app-login-use-login-page-tsx-L73
   const canHandOffToDashboardLock =
     activeTab === "login" &&
     userCount > 0 &&
@@ -113,9 +87,7 @@ export function useLoginPageState() {
     activeTab === "login" ? "login" : "setup";
 
   // Header (Back + Login/Setup switcher) is hidden entirely for ?mode=new:
-  // a lone back arrow with no switcher looked unbalanced, especially on
-  // mobile. The way off this screen instead is a secondary "Cancel" button
-  // in the login form itself (see TraditionalLoginForm's onCancel).
+  // Rationale: docs/CLIENT_COMMENTS.md#line-app-login-use-login-page-tsx-L115
   const authHeader = isNewCredentialsMode ? null : (
     <AuthTabHeader
       active={headerActiveTab}
@@ -125,10 +97,8 @@ export function useLoginPageState() {
     />
   );
 
-  // ?mode=new only re-authenticates as a different existing user on an
-  // already-set-up device: registering, cloud setup, and cancelling all
-  // mean something else there (or nothing), so these are only wired up
-  // outside that mode.
+  // ?mode=new only re-authenticates as a different existing user on an already-set-up device:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-app-login-use-login-page-tsx-L128
   const registerHandler = isNewCredentialsMode
     ? undefined
     : onboarding.goToRegister;

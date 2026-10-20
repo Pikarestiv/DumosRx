@@ -9,17 +9,8 @@ import {
   formatDistanceToNow,
 } from "date-fns";
 
-/** `new Date("YYYY-MM-DD")` parses a bare date-only string as UTC midnight,
- * which then compares against a local-time `now` - batches flip to
- * "expired" or show an off-by-one day count relative to the store's local
- * calendar, disagreeing with the string-comparison expiry filters the FEFO
- * SQL uses (`date(expiry_date) > date('now')` in
- * lib/db/queries/inventory.ts). `stock_batches.expiry_date` is stored as a
- * bare `YYYY-MM-DD`; for that shape, splitting the components and
- * constructing the Date from them (rather than parsing the string) treats
- * it as local midnight instead, consistent with `new Date()` for "now". A
- * string carrying an explicit time/offset (a full ISO timestamp) has no
- * such ambiguity and is left to native parsing. */
+// `new Date("YYYY-MM-DD")` parses a bare date-only string as UTC midnight, which then compares against a local-time `now` - batches flip to "e…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-date-utils-L12
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const parseLocalDateOnly = (dateString: string): Date => {
   if (!DATE_ONLY_RE.test(dateString)) return new Date(dateString);
@@ -79,11 +70,8 @@ const ordinalSuffix = (day: number): string => {
   }
 };
 
-/**
- * Format a date string or object as a long, unambiguously day-first string,
- * e.g. "14th August, 2026", for contexts that don't use DD/MM/YYYY or
- * DD-MM-YYYY but still shouldn't read as the US month-first convention.
- */
+// Format a date string or object as a long, unambiguously day-first string, e.g.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-date-utils-ts-L73
 export const formatDateLong = (
   date: string | Date | null | undefined,
   opts?: { withTime?: boolean },
@@ -109,11 +97,8 @@ export const formatDateLong = (
   }
 };
 
-/**
- * Format a date string with an arbitrary date-fns pattern, falling back to
- * `fallback` instead of throwing/rendering "Invalid Date" for a null,
- * unparseable, or invalid value.
- */
+// Format a date string with an arbitrary date-fns pattern, falling back to `fallback` instead of throwing/rendering "Invalid Date" for a null,…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-date-utils-ts-L103
 export const formatDateSafe = (
   date: string | Date | null | undefined,
   pattern: string,
@@ -129,11 +114,8 @@ export const formatDateSafe = (
   }
 };
 
-/**
- * Relative ("3 hours ago") counterpart to formatDateSafe: date-fns throws a
- * RangeError on an invalid date, which takes down the whole render tree
- * rather than one label.
- */
+// Relative ("3 hours ago") counterpart to formatDateSafe:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-date-utils-ts-L123
 export const formatDistanceSafe = (
   date: string | Date | null | undefined,
   fallback: string = "a while",

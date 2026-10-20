@@ -37,9 +37,8 @@ function TabsList({
     <TabsPrimitive.List
       data-slot="tabs-list"
       className={cn(
-        // The container is horizontally scrollable, which makes Chrome put it in
-        // the tab order so keyboard users can scroll a long tab list. Give it a
-        // visible focus ring instead of removing it from the tab order.
+        // The container is horizontally scrollable, which makes Chrome put it in the tab order so keyboard users can scroll a long…
+        // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-tabs-tsx-L40
         "flex overflow-x-auto hide-scrollbar items-center max-w-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         variant === "default"
           ? "gap-1.5 bg-card border-0 md:border border-border rounded-[11px] p-1 shadow-none md:shadow-sm"

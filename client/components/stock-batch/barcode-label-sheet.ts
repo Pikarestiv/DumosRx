@@ -7,14 +7,8 @@ export function clampLabelQuantity(quantity: number): number {
   return Math.min(MAX_LABEL_QUANTITY, Math.max(1, Math.floor(quantity)));
 }
 
-/**
- * Builds the print sheet by repeating ONE rendered label's markup.
- *
- * Every copy is byte-identical (same product, same barcode value), so the
- * dialog renders a single <ReactBarcode> and repeats its output, instead of
- * live-mounting `quantity` React components off-screen and re-rendering all of
- * them on every increment.
- */
+// Builds the print sheet by repeating ONE rendered label's markup.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-barcode-label-sheet-ts-L10
 export function buildLabelSheetHtml(
   labelHtml: string,
   quantity: number,

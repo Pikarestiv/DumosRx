@@ -2,13 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type SqlJsStatic } from "sql.js";
 import { SCHEMA_SQL } from "@/lib/db/schema";
 
-/**
- * Regression coverage for the desktop-DB-restore Critical bug's web-side
- * twin (docs/KNOWN_BUGS.md): restoreDatabase() used to hand a picked file's
- * bytes straight to `new SQL.Database(binaryData)` and immediately persist
- * it, with no validation and no copy of the outgoing database kept - a
- * wrong or corrupt file destroyed the live database irrecoverably.
- */
+// Regression coverage for the desktop-DB-restore Critical bug's web-side twin (docs/KNOWN_BUGS.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-web-db-restore-validation-test-ts-L5
 
 const idbStore = new Map<string, unknown>();
 vi.mock("idb-keyval", () => ({

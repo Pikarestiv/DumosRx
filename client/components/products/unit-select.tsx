@@ -14,12 +14,8 @@ interface UnitSelectProps {
   placeholder?: string;
 }
 
-// Dropdown-only unit picker (suggestions.ts's global list + this store's own
-// custom units) with a one-click "add new" affordance right in the dropdown.
-// Replaces free-text SearchableInput for units specifically so two products
-// can't end up with "Tablet" vs "tablet" vs "Tabs" all meaning the same thing.
-// Typing still filters the list; it just can never commit a value that isn't
-// either an existing option or explicitly created via the "+ Add" row.
+// Dropdown-only unit picker (suggestions.ts's global list + this store's own custom units) with a one-click "add new" affo…
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-products-unit-select-tsx-L17
 export function UnitSelect({ id, value, onValueChange, placeholder }: UnitSelectProps) {
   const { storeProfile, updateStoreProfile } = useStore();
   const [open, setOpen] = React.useState(false);

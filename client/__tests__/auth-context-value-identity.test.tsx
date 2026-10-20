@@ -3,12 +3,8 @@ import { renderHook, act } from "@testing-library/react";
 import initSqlJs, { type Database } from "sql.js";
 import React from "react";
 
-/**
- * AuthContext has ~70 useAuth() consumers app-wide. A fresh value object per
- * provider render invalidates every one of them, so the provider's value (and
- * the callbacks inside it) must keep a stable identity while nothing it
- * exposes has actually changed.
- */
+// AuthContext has ~70 useAuth() consumers app-wide.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-auth-context-value-identity-test-tsx-L6
 
 vi.mock("@sentry/nextjs", () => ({
   setUser: vi.fn(),

@@ -7,16 +7,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression test for the real incident this session: a device used
- * offline before ever linking to a cloud account generated local-only
- * ids for its store and user, which were never reconciled to the
- * server's real ids once the device linked. Every row referencing those
- * local-only ids as a foreign key became permanently unsyncable (see
- * push.ts / SyncController::push FK failures). reconcile-identity.ts is
- * the one-time repair tool built to fix an affected device; this test
- * proves it against a genuine in-memory SQLite engine.
- */
+// Regression test for the real incident this session:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-reconcile-identity-test-ts-L10
 describe("reconcile-identity.ts", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -149,19 +141,8 @@ describe("reconcile-identity.ts", () => {
     expect(queueCount[0].values[0][0]).toBe(1);
   });
 
-  /**
-   * Regression test: called at plain app-boot (DatabaseProvider, not nested
-   * inside any transaction()), this used to INSERT each orphaned row's queue
-   * entry as its own top-level execute() call — each one now reserving the
-   * shared connection lock (core.ts's reserveDbSlot()) and triggering its own
-   * full saveDatabase()/db.export() round trip. On a device with many
-   * orphaned rows across many tables, that serialized N separate lock+export
-   * cycles back-to-back, holding up anything else waiting on the same lock
-   * (e.g. a fast login's own user-lookup query) for far longer than the work
-   * itself needed. Batching a table's requeue INSERTs into one transaction()
-   * (when not already nested in a caller's own transaction) cuts that to one
-   * lock+export cycle per table regardless of row count.
-   */
+  // Regression test: called at plain app-boot (DatabaseProvider, not nested inside any transaction()), this used to INSERT e…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-reconcile-identity-test-ts-L152
   it("batches a table's requeue inserts into a single save instead of one per row", async () => {
     db.run(`INSERT INTO stores (id, name, _deleted) VALUES (?, 'Real Cloud Store', 0)`, [NEW_STORE]);
     for (const id of ["orphan-1", "orphan-2", "orphan-3"]) {

@@ -18,10 +18,8 @@ const PLATFORMS = [
   { os: "Android (APK)", icon: Smartphone, key: "android" as const },
 ];
 
-/** Lets a store owner grab a native build for another device, paired with
- * the PWA install cards above, which cover this device instead. The Android
- * APK here is a fallback for devices/browsers where the PWA install prompt
- * (AndroidInstallCard) isn't available. */
+// Lets a store owner grab a native build for another device, paired with the PWA install cards above, which cover this dev…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-download-apps-card-tsx-L21
 export function DownloadAppsCard() {
   const { data: release, isLoading } = useLatestRelease();
 

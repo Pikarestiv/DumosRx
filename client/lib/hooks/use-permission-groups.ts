@@ -14,16 +14,8 @@ export interface PermissionGroupRow {
   permissions: string[];
 }
 
-/** Never deletes a default group (immutable by design - see Global
- * Constraints), and blocks deleting a custom group with staff still
- * assigned (reassign first). Both refusals throw, so a caller can always
- * tell a refusal from a success, and the default-group check runs first so
- * the reported reason is the fundamental one rather than a reassignment
- * instruction that would never unblock the delete. A staff row with a NULL
- * is_active counts as assigned, matching the NULL-tolerant boolean handling
- * used for _deleted throughout the query layer. Standalone/testable without
- * a React render harness, and reused by the hook's own deleteGroup
- * callback. */
+// Never deletes a default group (immutable by design - see Global Constraints), and blocks deleting a custom group with staff still assigned (…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-permission-groups-L17
 export async function deletePermissionGroup(groupId: string): Promise<void> {
   const groups = await getStorePermissionGroups();
   const group = groups.find((g) => g.id === groupId);
@@ -41,9 +33,8 @@ export async function deletePermissionGroup(groupId: string): Promise<void> {
   await softDelete("permission_groups", groupId);
 }
 
-/** Restores a default group's original seeded permission set - standalone/
- * testable without a React render harness, and reused by the hook's own
- * revertToDefault callback. No-op for a custom (non-default) group. */
+// Restores a default group's original seeded permission set - standalone/ testable without a React render harness, and reused by the hook's ow…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-permission-groups-ts-L36
 export async function revertGroupToDefault(groupId: string): Promise<void> {
   const groups = await getStorePermissionGroups();
   const group = groups.find((g) => g.id === groupId);
@@ -78,10 +69,8 @@ export function usePermissionGroups() {
     [groups, reload],
   );
 
-  /** One write for a whole category's worth of keys. Calling toggle() in a
-   * loop would not work: each call reads the `groups` state captured by
-   * this render, so every write after the first would overwrite the one
-   * before it with a set that predates it. */
+  // One write for a whole category's worth of keys.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-permission-groups-ts-L73
   const toggleMany = useCallback(
     async (groupId: string, keys: string[], granted: boolean) => {
       const group = groups.find((g) => g.id === groupId);

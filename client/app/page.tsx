@@ -19,10 +19,8 @@ import { getRecentUsers } from "@/lib/storage-keys";
 
 export default function HomePage() {
   const router = useRouter();
-  // If this device has logged in before, skip straight past the marketing
-  // page to /dashboard, whose own lock overlay is the one canonical place PIN
-  // entry happens. Going via /login here would just add an extra redirect
-  // hop, since /login itself now bounces straight to /dashboard too.
+  // If this device has logged in before, skip straight past the marketing page to /dashboard, whose own lock overlay is the…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-app-page-tsx-L22
   const [checkingAccount, setCheckingAccount] = useState(true);
 
   useEffect(() => {

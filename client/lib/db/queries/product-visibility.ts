@@ -1,19 +1,7 @@
 import { query, transaction, update, getActiveStoreId } from "@/lib/db/local-database";
 
-/**
- * Bulk publish/unpublish for the online storefront. `products.show_online`
- * defaults off and the only other way to change it is the per-product switch in
- * the add/edit dialog, so a store that imported hundreds of products and then
- * enabled its online store had an empty storefront and no way out but opening
- * every dialog (see docs/STOREFRONT_REVIEW.md, feature #7).
- *
- * `productIds` is the catalog table's currently-filtered set, matching the
- * export toolbar's convention of acting on what's on screen; undefined means
- * the whole store. Rows already in the target state are skipped so this doesn't
- * queue a no-op sync push per product.
- *
- * @returns how many products actually changed
- */
+// Bulk publish/unpublish for the online storefront.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-product-visibility-L3
 export async function setProductsShowOnline(
   showOnline: boolean,
   productIds?: string[],

@@ -35,10 +35,8 @@ import { useSettings } from "@/hooks/use-settings";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 
-// Only one settings tab renders at a time, and these four are the heaviest and
-// least-visited of the eighteen: the billing screen, the full permission
-// matrix, the multi-store fleet overview and the backup/restore panel. Loaded
-// on demand so the other fourteen tabs don't ship them.
+// Only one settings tab renders at a time, and these four are the heaviest and least-visited of the eighteen:
+// Rationale: docs/CLIENT_COMMENTS.md#line-app-(dashboard)-settings-[tab]-settings-client-tsx-L38
 const PanelFallback = () => (
   <div className="py-10 text-center text-sm text-muted-foreground">
     Loading...
@@ -109,17 +107,8 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
     );
   }
 
-  // With the app sidebar/header hidden on every settings route, this
-  // header (and its back button) is the only way out — shown on desktop
-  // too now, not just mobile. Desktop has no separate menu-list route (the
-  // tab rail below is the nav), so its back button exits straight to the
-  // dashboard; mobile's inner-tab back button returns to the menu list.
-  //
-  // The whole page takes a real, explicit height (not page-flow auto) so
-  // the aside and the tab content below the header can each be given their
-  // own bounded box and scroll independently — the aside's nav list no
-  // longer scrolls away with the page, it stays put and scrolls itself
-  // only if its own content overflows.
+  // With the app sidebar/header hidden on every settings route, this header (and its back button) is the only way out — show…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-app-(dashboard)-settings-[tab]-settings-client-tsx-L112
   return (
     <Tabs
       value={s.activeTab}
@@ -237,9 +226,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
             </TabsContent>
           )}
 
-          {/* Support surface, not a store feature: only rendered during a
-              superadmin handoff, and re-checked here rather than trusting
-              that nothing linked to it. */}
+          {/* Support surface, not a store feature: — docs/CLIENT_COMMENTS.md#block-app-(dashboard)-settings-[tab]-settings-client-tsx-L240 */}
           {(isTillInspectionSession() || isImpersonatedSession()) && (
             <TabsContent value="diagnostics">
               <DeviceDiagnosticsPanel />

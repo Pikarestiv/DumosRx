@@ -1,9 +1,5 @@
-/**
- * LocalDatabase - SQLite wrapper for offline-first operation
- *
- * This file serves as the main entry point for database operations,
- * re-exporting core logic and specialized helpers.
- */
+// LocalDatabase - SQLite wrapper for offline-first operation This file serves as the main entry point for database operations, re-exporting co…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-local-database-ts-L1
 
 export * from "./core";
 export * from "./base-helpers";
@@ -101,11 +97,8 @@ export async function getProductById(id: string) {
   return results[0] || null;
 }
 
-/** The category a product names is created on demand when it doesn't exist
- * yet, so this is a two-row write and belongs in one transaction() (same
- * reason as createPrescription below): committing the category and then
- * dying before the product leaves an empty category behind, already queued
- * for sync, that nothing will ever fill. */
+// The category a product names is created on demand when it doesn't exist yet, so this is a two-row write and belongs in one transaction() (sa…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-local-database-ts-L104
 export async function createProduct(data: NewProductPayload) {
   return transaction(async () => {
     if (data.category_id && !isUuid(data.category_id)) {
@@ -138,17 +131,13 @@ interface CreateSaleItem {
   [key: string]: unknown;
 }
 
-// Demo-data-seeding only (reachable only from lib/demo/loader.ts); intentionally
-// NOT routed through the shared recordSaleItemStock() helper (lib/db/queries/inventory.ts)
-// that every production sale-recording path now uses — don't mistake this for a
-// second production sale-recording path that needs fixing to match it.
+// Demo-data-seeding only (reachable only from lib/demo/loader.ts); intentionally NOT routed through the shared recordSaleItemStock() helper (l…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-local-database-ts-L134
 export async function createSale(saleData: Record<string, unknown>, items: CreateSaleItem[]) {
   return transaction(async () => {
     const saleId = await insert("sales", saleData);
-    // stock_movements.performed_by is a required foreign key on the cloud
-    // DB (no default); reading it here the same way receivePurchaseOrder()
-    // does, since it was never set on this insert before and every sale's
-    // movement row was silently failing to sync as a result.
+    // stock_movements.performed_by is a required foreign key on the cloud DB (no default); reading it here the same way receivePurchaseOrder() doe…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-local-database-ts-L141
     const dumosUser = getStoredUser() ?? {};
 
     for (const item of items) {
@@ -198,10 +187,8 @@ export async function createPrescription(
   data: Record<string, unknown>,
   items: Omit<PrescriptionItemInsertPayload, "prescription_id">[],
 ) {
-  // One transaction, like createSale/receivePurchaseOrder: a prescription
-  // header committed without its medications is a clinically empty record
-  // that is nonetheless already in _sync_queue, so the gap propagates to
-  // every other device and can never be reconstructed from what survived.
+  // One transaction, like createSale/receivePurchaseOrder:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-local-database-ts-L194
   const prescriptionId = await transaction(async () => {
     const id = await insert("prescriptions", data);
 
@@ -215,10 +202,8 @@ export async function createPrescription(
     return id;
   });
 
-  // insert("prescriptions", ...) above already invalidated the prescriptions
-  // query and refetched, but that refetch can race the prescription_items
-  // inserts still running in this loop, caching a partial medications list.
-  // Invalidate again now that all items exist.
+  // insert("prescriptions", ...) above already invalidated the prescriptions query and refetched, but that refetch can race the prescription_ite…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-local-database-ts-L211
   if (typeof window !== "undefined") {
     void queryClient.invalidateQueries(queryKeys.prescriptions.all());
   }
@@ -229,27 +214,19 @@ export async function createPrescription(
 /**
  * Staff & Users
  */
-// `has_pin` is derived, never the hash itself: the staff list needs to know
-// whether a PIN exists (a newly created account may have none) and nothing
-// more. See lib/types/user.ts's StaffListItem.
+// `has_pin` is derived, never the hash itself:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-local-database-ts-L225
 const STAFF_LIST_COLUMNS =
   "id, first_name, last_name, username, email, role, store_id, is_active, created_at, permission_group_id, " +
   "CASE WHEN pin IS NOT NULL AND pin != '' THEN 1 ELSE 0 END AS has_pin";
 
 export async function getUsers(storeId?: string | null) {
-  // Only fall back to the module-scope resolver when the caller omits the
-  // argument entirely. An explicit `null` means "no filter, all stores" and
-  // must not be coerced back into the active store id.
+  // Only fall back to the module-scope resolver when the caller omits the argument entirely.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-local-database-ts-L233
   const effectiveStoreId = storeId === undefined ? getActiveStoreId() : storeId;
   if (effectiveStoreId) {
-    // `role = 'store_owner'` is deliberately business-wide: it's the fleet
-    // account owner (assigned at signup, one per account, see
-    // RegistersAccounts::registerStoreOwner server-side), not tied to any
-    // one store, and must appear in every store's staff list regardless of
-    // its own store_id. `role = 'admin'` was previously OR'd in here too,
-    // but that's a per-store "local master" role created at onboarding with
-    // a real store_id — leaking it into every OTHER store's list was a bug,
-    // not intended fleet visibility (see docs/KNOWN_BUGS.md history).
+    // `role = 'store_owner'` is deliberately business-wide:
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-local-database-ts-L238
     return await query<StaffListItem>(
       `SELECT ${STAFF_LIST_COLUMNS} FROM users WHERE _deleted = 0 AND (store_id = ? OR store_id IS NULL OR role = 'store_owner') ORDER BY first_name ASC`,
       [effectiveStoreId],
@@ -263,9 +240,8 @@ export async function getUsers(storeId?: string | null) {
 export async function createUser(data: StaffCreatePayload) {
   return await insert("users", {
     ...data,
-    // Staff created here are created LOCALLY and pushed up by the sync
-    // engine, so this is a real PIN write site: hash it, never store the
-    // raw digits. See lib/utils/pin-hash.ts.
+    // Staff created here are created LOCALLY and pushed up by the sync engine, so this is a real PIN write site:
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-local-database-ts-L259
     ...(data.pin ? { pin: hashPin(data.pin) } : {}),
     id: data.id || crypto.randomUUID(),
     is_active: 1,
@@ -288,14 +264,8 @@ export async function deleteUser(id: string) {
 /**
  * Stock Movements & Adjustments
  */
-/**
- * Stock movements log a row per sale/receive/adjustment, so it's the fastest-growing
- * table in the schema; unlike other lists, we can't just load the full table forever.
- * Pass `sinceDays` for the default recent-activity view (cheap, bounded); omit it to
- * load full history, which the caller should only do when the user is actively
- * searching/filtering, so those still match against every record, not just what's
- * been loaded for browsing.
- */
+// Stock movements log a row per sale/receive/adjustment, so it's the fastest-growing table in the schema; unlike other lists, we can't just lo…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-local-database-ts-L291
 /**
  * `from`/`to` (YYYY-MM-DD) take precedence over `sinceDays` when both are passed:
  * an explicit date-range pick from the UI overrides the relative window.

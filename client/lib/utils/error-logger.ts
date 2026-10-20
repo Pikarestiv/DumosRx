@@ -45,12 +45,8 @@ export interface CrashContext {
 
 const STORAGE_KEY = STORAGE_KEYS.pendingCrashes;
 
-/**
- * Groups repeat occurrences of "the same" crash for both dedup paths below.
- * Deliberately excludes the timestamp/device/URL noise `content` embeds -
- * those differ on every call even when it's genuinely the same recurring
- * bug, which is exactly the case this needs to recognize.
- */
+// Groups repeat occurrences of "the same" crash for both dedup paths below.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-error-logger-ts-L48
 function buildCrashContent(
   info: CrashInfo,
   message: string,
@@ -83,10 +79,8 @@ function buildCrashFingerprint(message: string, stack: string, area?: string): s
   return `${area || ""}|${message}|${firstStackLine.trim()}`.slice(0, MAX_FINGERPRINT_LENGTH);
 }
 
-// In-memory only, not persisted: bounds how often the SAME recurring crash
-// fires each of the two report paths below. Sentry has its own, far longer
-// window because its events are billed. See client/AGENTS.md, "What reaches
-// Sentry".
+// In-memory only, not persisted:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-error-logger-ts-L82
 export const REPORT_THROTTLE_MS = 5 * 60 * 1000;
 export const SENTRY_THROTTLE_MS = 60 * 60 * 1000;
 const lastReportedAt = new Map<string, number>();
@@ -99,10 +93,8 @@ function throttle(seen: Map<string, number>, key: string, windowMs: number): boo
   return false;
 }
 
-// base-client.ts attaches `code` to the thrown Error; the message-substring
-// fallback covers call sites (e.g. recordSyncFailure) that only have the
-// message string by the time they see the error. Which consumer reads which
-// check, and why they differ: client/AGENTS.md, "Expected sync noise".
+// base-client.ts attaches `code` to the thrown Error; the message-substring fallback covers call sites (e.g.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-error-logger-ts-L98
 const PLAN_RESTRICTION_CODES = [
   "SYNC_THROTTLED",
   "SYNC_DISABLED",
@@ -228,10 +220,8 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
     } catch (_) {}
   }
 
-  // Ship directly to our own server too, independent of the local SQLite
-  // sync queue below: when the crash IS a sync failure, waiting on that same
-  // broken sync path to eventually deliver this report would mean it never
-  // arrives. keepalive fetch survives the tab closing right after a crash.
+  // Ship directly to our own server too, independent of the local SQLite sync queue below:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-error-logger-ts-L227
   if (!throttle(lastReportedAt, fingerprint, REPORT_THROTTLE_MS)) {
     try {
       const { apiClient } = await import("@/lib/api/client");
@@ -257,9 +247,8 @@ export async function logCrash(error: unknown, isFatal = false, context: CrashCo
     }
   } catch (_) {}
 
-  // Coalesces a repeat of the SAME crash (matched by fingerprint) into the
-  // most recent still-unsynced row, same reasoning as logAction()'s
-  // audit_logs dedup (core.ts). See client/AGENTS.md, "What reaches Sentry".
+  // Coalesces a repeat of the SAME crash (matched by fingerprint) into the most recent still-unsynced row, same reasoning as logAction()'s audit…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-error-logger-ts-L256
   const content = buildCrashContent(info, message, stack, context, deviceId, deviceLabel, isFatal);
   try {
     const { insert: dbInsert, update: dbUpdate, query: dbQuery } = await import("@/lib/db/local-database");
@@ -330,9 +319,8 @@ export async function flushPendingCrashes() {
         content: `[QUEUED CRASH] [${info.platform?.toUpperCase()}] ${info.isFatal ? 'FATAL: ' : ''}${info.message}\n\nStack:\n${info.stack}\n\nUA: ${info.userAgent}\nURL: ${info.url}`,
         contact_email: SYSTEM_EMAIL,
         status: "pending",
-        // type='bug' + a fingerprint is what marks a row as automatic crash
-        // telemetry rather than feedback a user typed — see
-        // lib/db/crash-report-sync.ts and reportStuckCrashLog().
+        // type='bug' + a fingerprint is what marks a row as automatic crash telemetry rather than feedback a user typed — see lib/db/crash-report-sync…
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-error-logger-ts-L329
         fingerprint: buildCrashFingerprint(info.message, info.stack || ""),
         occurrence_count: 1,
         last_occurred_at: info.timestamp,

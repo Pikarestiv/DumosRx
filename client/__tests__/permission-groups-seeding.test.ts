@@ -58,10 +58,8 @@ describe("ensurePermissionGroupsSeeded", () => {
     expect(active).toHaveLength(0);
   });
 
-  // Final review, Critical C4: the spec promises existing staff get
-  // backfilled to the default group matching their current role in the
-  // SAME seeding pass - without it, toggling a checkbox on an existing
-  // store's Manager group changes nothing for any pre-existing manager.
+  // Final review, Critical C4:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-permission-groups-seeding-test-ts-L61
   it("backfills every existing staff member's permission_group_id to the default group matching their role", async () => {
     db.run(
       `INSERT INTO users (id, role, first_name, last_name, store_id) VALUES
@@ -97,22 +95,16 @@ describe("ensurePermissionGroupsSeeded", () => {
     expect(rows[0].permission_group_id).toBe("custom-pg");
   });
 
-  // Final review, Important I3: two devices seeding the same store's
-  // defaults before either has synced must not create permanently
-  // divergent groups per role - deterministic ids (derived from
-  // store_id + role, not random) mean a later sync push's "INSERT
-  // against an already-existing id becomes an UPDATE" handling collapses
-  // the race into one row per role, instead of leaving duplicates.
+  // Final review, Important I3:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-permission-groups-seeding-test-ts-L100
   it("generates the same default-group ids for the same store across independent seed runs (multi-device idempotency)", async () => {
     await ensurePermissionGroupsSeeded();
     const firstRun = await core.query<{ id: string; based_on_role: string }>(
       `SELECT id, based_on_role FROM permission_groups WHERE store_id = 'store1' ORDER BY based_on_role`,
     );
 
-    // Simulate a second device: fresh local rows for the same store, as if
-    // this were a different device's never-before-seeded local DB that
-    // happens to derive the same ids this store's groups already have
-    // server-side.
+    // Simulate a second device:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-permission-groups-seeding-test-ts-L112
     db.run(`DELETE FROM permission_groups WHERE store_id = 'store1'`);
     db.run(`UPDATE stores SET permission_groups_seeded_at = NULL WHERE id = 'store1'`);
     await ensurePermissionGroupsSeeded();

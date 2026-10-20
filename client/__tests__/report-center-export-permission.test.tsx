@@ -7,9 +7,8 @@ let granted = true;
 vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: (key: string) => (key === "export_reports" ? granted : true),
 }));
-// One frozen object for every render: ReportCenter's refreshRecent
-// useCallback depends on getRecentDownloads, so a fresh identity per render
-// would re-fire its useEffect -> setState -> render loop until the heap dies.
+// One frozen object for every render:
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-report-center-export-permission-test-tsx-L10
 const reportExport = {
   getRows: vi.fn().mockResolvedValue([]),
   exportReportCsv: vi.fn(),

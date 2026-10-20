@@ -1,11 +1,8 @@
 import { API_BASE_URL } from "@/lib/constants";
 import { anchorClock } from "./monotonic-clock";
 
-/**
- * Tolerance for "this device's clock agrees with the server". Wide enough to
- * absorb ordinary RTC drift and request latency, far narrower than any skew
- * capable of poisoning the monotonic watermark.
- */
+// Tolerance for "this device's clock agrees with the server".
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#licensing-server-clock-ts-L4
 export const CLOCK_AGREEMENT_TOLERANCE_MS = 5 * 60 * 1000;
 
 const SERVER_TIME_TIMEOUT_MS = 8000;
@@ -17,11 +14,8 @@ export interface ServerClockReading {
   agrees: boolean;
 }
 
-/**
- * Authoritative time from the public `/health` endpoint, which is
- * unauthenticated and returns `{status, timestamp}` — reachable even when a
- * full sync is failing, which is the state a clock-locked device is in.
- */
+// Authoritative time from the public `/health` endpoint, which is unauthenticated and returns `{status, timestamp}` — reachable even when a fu…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#licensing-server-clock-ts-L20
 export async function readServerClock(): Promise<ServerClockReading | null> {
   if (typeof window === "undefined" || !navigator.onLine) return null;
 

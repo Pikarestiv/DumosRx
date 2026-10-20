@@ -40,12 +40,8 @@ export function TransferStockDialog({
 
   const [sourceStoreId, setSourceStoreId] = useState("");
   const [manualDestStoreId, setManualDestStoreId] = useState("");
-  // A cashier can only PULL stock into their own active store, not push it
-  // out to an arbitrary store - the button that opens this dialog is
-  // labeled "Request stock from another store" (pos-layout-header.tsx),
-  // and letting a non-admin freely move stock out with only a
-  // needs_review flag after the fact would be a real gap. Admins keep the
-  // full from/to picker via manualDestStoreId.
+  // A cashier can only PULL stock into their own active store, not push it out to an arbitrary store - the button that opens…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-stock-batch-transfer-stock-dialog-tsx-L43
   const destStoreId = isAdmin ? manualDestStoreId : activeStoreId || "";
   const setDestStoreId = setManualDestStoreId;
   const [products, setProducts] = useState<TransferableProductRow[]>([]);
@@ -70,9 +66,8 @@ export function TransferStockDialog({
     onOpenChange(next);
   };
 
-  // Reload the transferable-product list (with live available quantities)
-  // whenever the source store changes, and drop any previously selected
-  // product since it may not exist (or have stock) in the new source store.
+  // Reload the transferable-product list (with live available quantities) whenever the source store changes, and drop any pr…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-stock-batch-transfer-stock-dialog-tsx-L73
   useEffect(() => {
     setProductId("");
     if (!sourceStoreId) {

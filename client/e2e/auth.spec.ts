@@ -8,14 +8,8 @@ test.describe('Authentication Flow', () => {
 
   test('login page should have expected fields from seeded DB', async ({ page }) => {
     await page.goto('/login');
-    // Since the database is seeded by global.setup.ts, we should see the
-    // traditional login form (components/auth/traditional-login-form.tsx).
-    // This test's whole point is checking the login page's actual fields, so
-    // it asserts against them directly rather than going through the shared
-    // login() helper. The username field is still a placeholder-based text
-    // input ("admin"), but the PIN field switched to an InputOTP (4 slots,
-    // no '••••' placeholder) - confirmed both by reading the component and
-    // live in Chrome.
+    // Since the database is seeded by global.setup.ts, we should see the traditional login form (components/auth/traditional-l…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-e2e-auth-spec-ts-L11
     await expect(page.getByPlaceholder('admin')).toBeVisible();
     await expect(page.locator('input[data-input-otp="true"]').first()).toBeVisible();
     await expect(page.getByRole('button', { name: /Authorize Entry/i })).toBeVisible();
@@ -34,10 +28,8 @@ test.describe('Authentication Flow', () => {
   });
 
   test('logs in successfully with the seeded admin credentials', async ({ page }) => {
-    // This test only needs to get logged in and check the result - it
-    // doesn't need to inspect the login form's own fields (that's covered
-    // above), so it can use the shared login() helper directly instead of
-    // duplicating the fill-in steps.
+    // This test only needs to get logged in and check the result - it doesn't need to inspect the login form's own fields (tha…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-e2e-auth-spec-ts-L37
     await login(page);
 
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 10000 });

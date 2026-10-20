@@ -2,16 +2,8 @@ import { useMemo, useRef, useState } from "react";
 
 export type SortDirection = "asc" | "desc";
 
-/** Generic column-sort state + comparator, meant to be shared across every
- * sortable table in the app (product catalog, and any "other relevant
- * tables" added later) rather than reimplemented per table. `accessors`
- * maps a column key to a function pulling the comparable value off a row;
- * strings sort via localeCompare, numbers via subtraction.
- *
- * `accessors` is read through a ref, so passing a fresh object literal (what
- * every call site does) doesn't invalidate the sort memo. The trade-off: a
- * changed accessor alone doesn't re-sort — they're expected to be pure
- * projections of a row, not to depend on outside state. */
+// Generic column-sort state + comparator, meant to be shared across every sortable table in the app (product catalog, and any "other relevant…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-sortable-data-L5
 export function useSortableData<T, K extends string>(
   data: T[],
   accessors: Record<K, (item: T) => string | number>,
@@ -28,9 +20,8 @@ export function useSortableData<T, K extends string>(
     }
   };
 
-  // Held in a ref instead of the memo's dependency array: every call site
-  // passes a fresh object literal per render, which defeated the memo
-  // everywhere and re-sorted the whole table on every keystroke.
+  // Held in a ref instead of the memo's dependency array:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-sortable-data-ts-L23
   const accessorsRef = useRef(accessors);
   accessorsRef.current = accessors;
 

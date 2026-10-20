@@ -6,18 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Item 6A (Cynthia's feedback, 2026-09-28). The Receive panel's "Cost Price"
- * input is consumed as a PER BASE UNIT figure by receivePurchaseOrder(), but
- * its placeholder showed the line's per-bulk `unit_cost` and the copy around
- * it ("Ordered: 10 Carton(s) @ 12,000/Carton", "Qty Received (in Cartons)")
- * reinforced that reading, so a per-carton figure typed into it was stored
- * as the per-tablet cost - inflated by units_per_bulk.
- *
- * The scale contract itself is now shared with the Immediate Purchase flow
- * via resolveBaseUnitCost(); this pins it end to end so a future refactor
- * can't quietly reintroduce a division (or drop one).
- */
+// Item 6A (Cynthia's feedback, 2026-09-28).
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-po-receive-cost-price-scale-test-ts-L9
 describe("receivePurchaseOrder cost price scale", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

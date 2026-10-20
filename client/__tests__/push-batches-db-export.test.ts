@@ -12,20 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * Regression test for a real crash: once a manual sync started retrying a
- * large (~2488 item) backlog in one run (see the backoff-bypass fix), each
- * synced/failed item in a batch called recordSyncFailure/markSynced, which
- * each call execute() outside of transaction() — and execute() triggers a
- * full db.export() (the whole database re-serialized into a fresh
- * ArrayBuffer) after every single statement when not inside a transaction
- * (see transaction()'s own doc comment in core.ts). Dozens of exports per
- * batch, times ~50 batches, exhausted memory ("Array buffer allocation
- * failed") and left the WASM heap in a state where subsequent prepare()
- * calls threw "bad parameter or other API misuse". Wrapping each batch's
- * local writes in a single transaction() defers that export to once per
- * batch instead of once per item.
- */
+// Regression test for a real crash:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-batches-db-export-test-ts-L15
 describe("pushChanges batches its local writes into a single db export", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

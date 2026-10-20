@@ -40,9 +40,8 @@ vi.mock("@tanstack/react-query", () => ({
 
 const replace = vi.fn();
 let searchParams = new URLSearchParams();
-// One stable router object, not a fresh one per render: the ledger's
-// ?action=create effect depends on it, and a new identity every render would
-// re-fire that effect and re-open the flow the moment it is dismissed.
+// One stable router object, not a fresh one per render:
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-stock-adjustments-ledger-test-tsx-L43
 const router = { replace, push: vi.fn(), prefetch: vi.fn() };
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
@@ -58,9 +57,8 @@ vi.mock("@/lib/context/pull-to-refresh-context", () => ({
   usePullToRefreshHandler: () => {},
 }));
 
-// The ledger picks a virtualized desktop grid or a date-grouped mobile card
-// list off this hook, exactly as stock-movements.tsx does, so the row
-// assertions below run against both branches.
+// The ledger picks a virtualized desktop grid or a date-grouped mobile card list off this hook, exactly as stock-movements…
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-stock-adjustments-ledger-test-tsx-L61
 let isDesktop = true;
 vi.mock("@/hooks/use-media-query", () => ({
   useMediaQuery: () => isDesktop,

@@ -1,14 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-/**
- * Regression coverage for A-22 (docs/KNOWN_BUGS.md, carried from
- * docs/DATABASE_CONCURRENCY.md §2.4): `execute()` fires `void saveDatabase()`
- * without awaiting it and nothing serialised those calls, so two back-to-back
- * writes each took their own `db.export()` and raced their IndexedDB `set()`s
- * — an older image could land on top of a newer one, silently, with no
- * version stamp to notice it by. There was also no `pagehide` flush, so a
- * closing tab never got a chance to persist its last write.
- */
+// Regression coverage for A-22 (docs/KNOWN_BUGS.md, carried from docs/DATABASE_CONCURRENCY.md §2.4):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-save-database-serialization-test-ts-L3
 
 type SetCall = { key: string; value: Uint8Array };
 

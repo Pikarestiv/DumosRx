@@ -5,12 +5,8 @@ import {
   MAX_LABEL_QUANTITY,
 } from "@/components/stock-batch/barcode-label-sheet";
 
-/**
- * The barcode dialog used to live-mount one <ReactBarcode> per copy off-screen
- * - each doing synchronous SVG generation, all of them re-rendering on every
- * quantity increment, with no upper bound on quantity. Every copy is identical,
- * so only the COUNT varies: one barcode is rendered and its markup repeated.
- */
+// The barcode dialog used to live-mount one <ReactBarcode> per copy off-screen - each doing synchronous SVG generation, al…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-barcode-label-sheet-test-ts-L8
 describe("buildLabelSheetHtml", () => {
   const label = '<div class="label">X</div>';
 

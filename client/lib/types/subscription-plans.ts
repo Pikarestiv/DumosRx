@@ -1,6 +1,5 @@
-/** A single subscription tier's config: feature flags and numeric limits
- * are open-ended (server-defined), so keyed access is left loose on purpose;
- * callers already guard every lookup with a fallback (see useFeatureGate()). */
+// A single subscription tier's config:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#types-subscription-plans-ts-L1
 export interface SubscriptionPlanTier {
   name?: string;
   features?: Record<string, boolean | undefined>;

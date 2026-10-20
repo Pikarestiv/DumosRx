@@ -7,9 +7,8 @@ import { useHasPermission } from "@/lib/hooks/use-permissions";
 import type { SettingsState } from "@/hooks/use-settings";
 
 export function PaymentMethodsPanel(s: SettingsState) {
-  // The tab itself is manage_payment_accounts. This one section is the
-  // storefront's payout onboarding and exists only so the public checkout
-  // works, so it takes manage_online_store on top of the tab's own key.
+  // The tab itself is manage_payment_accounts.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-app-(dashboard)-settings-[tab]-panels-payment-methods-panel-tsx-L10
   const canManageOnlineStore = useHasPermission("manage_online_store");
 
   return (

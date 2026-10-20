@@ -43,12 +43,8 @@ interface ReceiptProps {
   // Thermal (80mm roll) is narrower and tighter than a standard-paper copy;
   // affects on-screen preview width too, not just the print @page size.
   paperSize?: ReceiptPaperSize;
-  // "tax" reuses the exact same sale data as "receipt" - it's a print-time
-  // choice, not a persisted property of the sale - and adds the store's tax
-  // registration number to the header for buyers who need a formal VAT
-  // document. "quote" is built from the live cart before checkout - no sale
-  // exists yet, so the payment/change/barcode sections don't apply and a
-  // disclaimer replaces them instead.
+  // "tax" reuses the exact same sale data as "receipt" - it's a print-time choice, not a persisted property of the sale - an…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-receipt-view-tsx-L46
   documentType?: ReceiptDocumentType;
   // Settings renders this live against values the owner has typed but not yet
   // saved, which are not in the store context until they are.

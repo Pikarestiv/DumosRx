@@ -6,15 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression coverage: loyalty_tiers/loyalty_redemption_options had zero
- * store scoping on read (no store_id column existed at all, rows were only
- * ever keyed by user_id) — in a multi-store account, every store shared the
- * exact same tiers/rewards catalog, and ensureLoyaltyDefaultsSeeded()'s
- * "has this store already been seeded" check (tiers.length === 0) was
- * evaluated globally, so only the very first store ever created got
- * defaults; every other store saw store A's live config with no boundary.
- */
+// Regression coverage: loyalty_tiers/loyalty_redemption_options had zero store scoping on read (no store_id column existed…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-loyalty-store-scoping-test-ts-L9
 describe("loyalty tiers/redemption options store scoping", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

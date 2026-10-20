@@ -1,11 +1,5 @@
-/**
- * Demo data loader: replays lib/demo/template.ts through the app's real
- * local-database create functions (the same ones the UI calls), so seeded
- * data gets the same batches/movements/sync-queue side effects as data a
- * real user would enter by hand. Only ever run against a store flagged
- * `is_demo` — enforced by the UI gate in `demo-data-settings.tsx` and
- * re-checked inside `runDemoSeed` itself as defense-in-depth.
- */
+// Demo data loader: replays lib/demo/template.ts through the app's real local-database create functions (the same ones the UI calls), so seede…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#demo-loader-ts-L1
 
 import {
   createProduct,
@@ -35,10 +29,8 @@ import {
   DEMO_STAFF,
 } from "@/lib/demo/template";
 
-// The `!`-worthy lookups below are all keyed off refs that come from the
-// same demo template that populated the map/array — always present by
-// construction. This throws a clear error instead of silently continuing
-// with `undefined` if that invariant is ever broken by a template edit.
+// The `!`-worthy lookups below are all keyed off refs that come from the same demo template that populated the map/array — always present by c…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-demo-loader-ts-L32
 function mustGet<T>(value: T | undefined, what: string): T {
   if (value === undefined) {
     throw new Error(`Demo seed data inconsistency: ${what} not found`);
@@ -68,12 +60,8 @@ export interface DemoSeedResult {
   error?: string;
 }
 
-/** Re-checks the active store is actually flagged `is_demo` in the database,
- * rather than trusting the caller to have replicated the UI's own
- * `storeProfile?.is_demo` gate — the one existing call site
- * (`demo-data-settings.tsx`) already does that check, but this is the last
- * line of defense against a future second call site (an admin tool, a dev
- * script) seeding fabricated data into a real paying customer's store. */
+// Re-checks the active store is actually flagged `is_demo` in the database, rather than trusting the caller to have replicated the UI's own `s…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#demo-loader-ts-L71
 async function isActiveStoreDemo(storeId: string): Promise<boolean> {
   const rows = await query<{ is_demo: number }>(
     "SELECT is_demo FROM stores WHERE id = ?",
@@ -82,9 +70,8 @@ async function isActiveStoreDemo(storeId: string): Promise<boolean> {
   return !!rows[0]?.is_demo;
 }
 
-/** Cheap guard against accidentally double-seeding a store that already has
- * real/seeded data; the caller should surface this as a confirm dialog and
- * retry with `force: true` if the operator really wants to layer on more. */
+// Cheap guard against accidentally double-seeding a store that already has real/seeded data; the caller should surface this as a confirm dialo…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#demo-loader-ts-L85
 export async function isStoreSeedable(): Promise<boolean> {
   const rows = await query<{ count: number }>(
     "SELECT COUNT(*) as count FROM products WHERE _deleted = 0",
@@ -279,9 +266,8 @@ export async function runDemoSeed(
         });
       }
 
-      // createSale() doesn't record which batch(es) funded each sale_item;
-      // the POS UI does that separately. Fill it in here so returns (below)
-      // can restore stock to the right batch via restoreReturnedStock().
+      // createSale() doesn't record which batch(es) funded each sale_item; the POS UI does that separately.
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-demo-loader-ts-L271
       const insertedItems = await query<{ id: string; product_id: string; quantity: number }>(
         "SELECT id, product_id, quantity FROM sale_items WHERE sale_id = ?",
         [saleId],
@@ -341,9 +327,8 @@ export async function runDemoSeed(
       }
     }
 
-    // 8. Expenses (recurring costs use covers_months so a lump-sum payment
-    // like annual rent is smoothed across the months it actually covers,
-    // instead of reading as a single month's loss).
+    // 8. Expenses (recurring costs use covers_months so a lump-sum payment like annual rent is smoothed across the months it actually covers, inst…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-demo-loader-ts-L333
     for (const expense of DEMO_EXPENSES) {
       await insert("expenses", {
         user_id: currentUserId,

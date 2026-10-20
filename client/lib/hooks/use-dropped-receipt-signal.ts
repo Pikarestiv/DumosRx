@@ -5,9 +5,8 @@ import {
 } from "@/lib/db/queries/procurement";
 import { queryKeys } from "@/lib/query-keys";
 
-/** A-26: reports an outstanding dropped receipt against this purchase order,
- * so the receiving screen can tell the store to re-check the received figure
- * instead of the shortfall staying silent until the next cycle count. */
+// A-26: reports an outstanding dropped receipt against this purchase order, so the receiving screen can tell the store to re-check the receive…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-dropped-receipt-signal-ts-L8
 export function useDroppedReceiptSignal(purchaseOrderId: string | null) {
   const queryClient = useQueryClient();
   const keys = queryKeys.purchaseOrders.droppedReceiptSignal(purchaseOrderId);

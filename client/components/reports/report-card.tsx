@@ -49,12 +49,7 @@ export function ReportCard({
 }: ReportCardProps) {
   return (
     <div className="p-4 rounded-[14px] border hover:bg-primary/5 transition-all group">
-      {/* Icon-title-tag as one row (A-158): previously the icon sat in its
-          own full-height column beside title/description/buttons together,
-          so the button row below only had the card's width minus the
-          icon's column to work with and Print wrapped to a second line on
-          a narrower screen. Description and the button row below now span
-          the card's full width instead. */}
+      {/* Icon-title-tag as one row (A-158): — docs/CLIENT_COMMENTS.md#block-components-reports-report-card-tsx-L52 */}
       <div className="flex items-center gap-2 mb-1">
         <div className="h-8 w-8 rounded-[10px] bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform shrink-0">
           <report.icon className="h-4 w-4" />
@@ -64,9 +59,7 @@ export function ReportCard({
           {report.category}
         </Badge>
       </div>
-      {/* min-h reserves room for a full 2 lines (line-clamp-2's cap) even
-          when the description only wraps to 1, so the button row below
-          never shifts between cards. */}
+      {/* min-h reserves room for a full 2 lines (line-clamp-2's cap) even when the description only wraps to 1, so the button row… — docs/CLIENT_COMMENTS.md#block-components-reports-report-card-tsx-L67 */}
       <p className="text-[11.5px] text-muted-foreground line-clamp-2 leading-snug min-h-[2.75em]">
         {report.description}
       </p>

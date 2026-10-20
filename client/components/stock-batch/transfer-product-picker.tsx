@@ -7,30 +7,8 @@ import { searchProducts } from "@/lib/utils/search";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import type { TransferableProductRow } from "@/lib/db/queries/stock-transfers";
 
-/** The Transfer Stock dialog's product picker. Deliberately NOT a Radix
- * Popover (see components/ui/combobox.tsx) — a Radix Popover's cmdk search
- * input can't be focused/typed into when nested inside that dialog's Radix
- * Dialog (the Dialog's own focus trap wins the fight over the Popover's), a
- * known bad combination.
- *
- * Also deliberately NOT portaled to document.body (unlike
- * components/ui/searchable-input.tsx) — Radix's Dialog wraps itself in
- * react-remove-scroll, which intercepts every `wheel`/`touchmove` event at
- * the document level and only lets it through for elements it can prove are
- * genuine DOM descendants of the dialog's own content (or an explicit
- * `shard`); a portaled-to-body menu is neither, so its scroll gets silently
- * preventDefault()'d — the menu opens and filters but never scrolls. A
- * plain `absolute`-positioned div that stays a real DOM child of this
- * field (matching ProductCombobox's approach exactly, proven to work
- * inside this same ResponsiveModal in AddProductDialog) sidesteps that
- * entirely, since react-remove-scroll recognizes real descendants as
- * scrollable and lets their wheel events pass through.
- *
- * Uses searchProducts — the same function the POS product grid searches
- * with (use-pos-product-filter.ts) — instead of baking availability into a
- * fuzzy-matched label string. The caller keys this component by source
- * store id so its internal search text resets when the source store (and
- * so the product list) changes. */
+// The Transfer Stock dialog's product picker.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-transfer-product-picker-tsx-L10
 export function TransferProductPicker({
   products,
   loading,
@@ -53,16 +31,14 @@ export function TransferProductPicker({
   const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  // Product names are always stored lowercase — same display convention as
-  // everywhere else product names render (stock-movement-desktop-row.tsx,
-  // catalog-list.tsx, pos-product-list.tsx, ...).
+  // Product names are always stored lowercase — same display convention as everywhere else product names render (stock-movem…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-stock-batch-transfer-product-picker-tsx-L56
   const capsClass = useUppercaseDisplayClass();
 
   const selected = products.find((p) => p.id === productId) ?? null;
 
-  // Shows the selected product's name while closed/not being typed into;
-  // reverts to it (or blank) on close without a pick, same as
-  // SearchableInput's value<->inputValue sync.
+  // Shows the selected product's name while closed/not being typed into; reverts to it (or blank) on close without a pick, s…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-stock-batch-transfer-product-picker-tsx-L63
   useEffect(() => {
     if (!open) setTerm(selected ? selected.name : "");
   }, [selected, open]);

@@ -45,11 +45,8 @@ const quickActionsConfig: QuickAction[] = [
     icon: Barcode,
     href: "/pos?action=scan",
   },
-  // {
-  //   label: "View Customers",
-  //   icon: Users,
-  //   href: "/customers",
-  // },
+  // { label: "View Customers", icon:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-quick-actions-tsx-L48
   {
     label: "View Reports",
     icon: BarChart3,

@@ -38,11 +38,8 @@ function ThemeRestrictor() {
   return null;
 }
 
-// Restricted mobile users may browse/navigate freely; only actions that
-// create, update, or delete data are blocked. Detected by accessible-name
-// keyword rather than by element type, since blocking every button/input
-// (the old behavior) also blocked search boxes, filters, sort/pagination
-// controls, and "view details" buttons — anything read-only.
+// Restricted mobile users may browse/navigate freely; only actions that create, update, or delete data are blocked.
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-license-guard-tsx-L41
 export function LicenseGuard({ children }: { children: React.ReactNode }) {
   const { storeProfile, isSwitchingStore } = useStore();
   const pathname = usePathname();
@@ -50,11 +47,8 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [deviceId, setDeviceId] = useState("DUMOS-OFFLINE-772X");
   const [clockNotice, setClockNotice] = useState<string | null>(null);
-  // Bumped at the start of every performCheck() run so an overlapping
-  // earlier run (e.g. a storeProfile change firing again while a prior
-  // run's sync-timeout race is still resolving) can tell it's stale once it
-  // finally settles, instead of clobbering a newer run's `loading`/`license`
-  // state with its own now-outdated result.
+  // Bumped at the start of every performCheck() run so an overlapping earlier run (e.g.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-license-guard-tsx-L53
   const checkGeneration = useRef(0);
 
   // Reads local state only: the launch sync is StoreProvider's and must
@@ -66,9 +60,8 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
 
     if (options.refreshFromCloud && typeof window !== "undefined" && navigator.onLine) {
       setLoading(true);
-      // Only route out of a clock lock, and deliberately online-only: the
-      // watermark is device-local, so neither sync nor a factory reset can
-      // repair it (A-191).
+      // Only route out of a clock lock, and deliberately online-only:
+      // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-license-guard-tsx-L69
       try {
         const { reconcileClockWithServer } = await import("@/lib/licensing/licensing-manager");
         const outcome = await reconcileClockWithServer();
@@ -89,17 +82,8 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Re-read the local DB. Guarded: checkLicenseStatus()
-    // does a local write of its own (updateStoreMonotonicTime), which
-    // throws on a read-only tab (see tab-lock.ts / C1 in docs/KNOWN_BUGS.md)
-    // - previously uncaught here, so the whole async function rejected
-    // before reaching setLoading(false), leaving `loading` true forever and
-    // SplashScreen stuck on screen permanently. On failure, `license` is
-    // left as whatever it already was (null on first mount, unchanged on a
-    // "Check Again" retry) rather than reset - a transient failure must
-    // never regress an already-valid session into the locked-out branch
-    // below, and a null license already fails open into isExpiredSub rather
-    // than hard-locking on an unproven failure.
+    // Re-read the local DB.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-license-guard-tsx-L92
     let status: LicenseInfo | null = null;
     try {
       status = await checkLicenseStatus();
@@ -137,31 +121,20 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
     performCheck,
   ]);
 
-  // isSwitchingStore covers the store-switch transition: switchStore()
-  // clears the query cache so the remount below finds nothing stale to
-  // serve, but that clear takes a moment (cancel in-flight fetches, then
-  // clear()). Showing the splash for that window means a switch can never
-  // flash the outgoing store's dashboard. (See switchStore() in
-  // store-context.tsx.)
+  // isSwitchingStore covers the store-switch transition:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-license-guard-tsx-L140
   if (loading || isSwitchingStore) {
     return <SplashScreen />;
   }
 
-  // Renewing/paying must always be reachable no matter the license state --
-  // otherwise a suspended or clock-tampered lock screen (whose own "Renew
-  // Subscription" button just navigates here) could permanently strand the
-  // user on this exact page. Always let the billing page's own children
-  // through, skipping the lock screen entirely.
+  // Renewing/paying must always be reachable no matter the license state -- otherwise a suspended or clock-tampered lock scr…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-license-guard-tsx-L150
   if (pathname === "/settings/billing") {
     return <>{children}</>;
   }
 
   // Render children for valid licenses OR expired subscriptions (downgraded to free).
-  // Only hard-block on suspension or clock tampering.
-  // Branching is driven by LicenseInfo.isSuspended (derived from the store's
-  // real status), never by the message text — that's display copy only, so
-  // rewording it must not silently flip a suspended account into the
-  // "Subscription Expired"/"Renew" path.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-license-guard-tsx-L159
   const isSuspended = license?.isSuspended || false;
 
   const isExpiredSub =

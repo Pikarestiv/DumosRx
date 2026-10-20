@@ -6,39 +6,13 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-// Set before sql.js is instantiated: the wasm build resolves SQLite's
-// 'localtime' modifier through the host timezone, so it has to be in place
-// before the module/wasm is initialised. Africa/Lagos (UTC+1, no DST) makes
-// the UTC and local calendar dates genuinely differ near midnight, so a
-// UTC-vs-local bucketing mistake shows up as a real mismatch instead of
-// coincidentally passing in a UTC CI environment.
+// Set before sql.js is instantiated:
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-report-reconciliation-test-ts-L9
 const ORIGINAL_TZ = process.env.TZ;
 process.env.TZ = "Africa/Lagos";
 
-/**
- * Integration-level RECONCILIATION coverage for the rolled-up financial
- * figures (docs/KNOWN_BUGS.md, "Process / methodology gaps"): every existing
- * test asserts one query's output against hand-written expected numbers, so
- * nothing cross-checks a report's aggregate against an independently computed
- * sum over the same underlying rows.
- *
- * The bugs in this class (date-range boundary off-by-one, UTC-vs-local
- * bucketing, cross-store leakage, join fan-out double counting) all come from
- * combining rows ACROSS date/store boundaries, which a single-function unit
- * test can't see. So each test here:
- *   (a) calls the real report/dashboard function for a date range + store, and
- *   (b) recomputes the same figure from the raw tables through a deliberately
- *       DIFFERENT aggregation path - rows pulled out with SELECT * and summed
- *       in JS, bucketed with JS Date arithmetic (epoch-ms comparisons and
- *       local getFullYear()/getMonth()) rather than SQLite string comparisons
- *       and strftime(..., 'localtime').
- * and asserts the two agree.
- *
- * The fixture is deliberately adversarial: multi-day, two stores, sales
- * placed on both sides of the local-midnight range boundaries, a sale whose
- * UTC month differs from its local month, multi-line sales (join fan-out),
- * soft-deleted rows, and a stock batch attributed to another store.
- */
+// Integration-level RECONCILIATION coverage for the rolled-up financial figures (docs/KNOWN_BUGS.md, "Process / methodolog…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-report-reconciliation-test-ts-L18
 
 const STORE_A = "store-a";
 const STORE_B = "store-b";

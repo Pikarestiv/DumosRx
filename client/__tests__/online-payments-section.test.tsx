@@ -3,9 +3,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { OnlinePaymentsSection } from "@/components/settings/store/online-payments-section";
 
-// jsdom doesn't implement ResizeObserver or the pointer-capture APIs Radix's
-// Select uses under the hood - same workaround as
-// pin-entry-lockout-ui.test.tsx uses for input-otp's ResizeObserver need.
+// jsdom doesn't implement ResizeObserver or the pointer-capture APIs Radix's Select uses under the hood - same workaround…
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-online-payments-section-test-tsx-L6
 class ResizeObserverStub {
   observe() {}
   unobserve() {}

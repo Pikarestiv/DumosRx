@@ -22,31 +22,8 @@ vi.mock("@/lib/db", () => ({ isTauri: vi.fn(() => false) }));
 vi.mock("@/lib/api/token-manager", () => ({ getToken: vi.fn(() => null) }));
 vi.mock("@/lib/native/widget-bridge", () => ({ mirrorAuthToken: vi.fn() }));
 
-/**
- * Regression coverage for a real rules-of-hooks crash (final review,
- * Critical C2): pos-layout-header.tsx computed canRequestTransfer as
- *
- *   useHasPermission("process_sales") &&
- *   (useHasPermission("manage_staff") || toggle === 1) && ...
- *
- * `&&` short-circuits, so the second useHasPermission() call only
- * happens on renders where the first one returns true. useHasPermission
- * resolves its group ASYNCHRONOUSLY (starts from the role's fallback
- * permissions, then updates once the real group loads) - for a role whose
- * FALLBACK denies "process_sales" but whose assigned GROUP grants it (a
- * custom group more permissive than the role tier, exactly the feature's
- * own reason to exist), the first render skips the second hook call
- * entirely and a later render - once the group resolves - calls it. That
- * is a hook COUNT that differs between renders of the same component
- * instance, which React's dev-mode invariant throws on
- * ("Rendered more hooks than during the previous render").
- *
- * This test reproduces the exact pattern with the REAL hasPermission/
- * useHasPermission implementation and a REAL async group-load race
- * (not mocked), against a component matching pos-layout-header.tsx's
- * conditional-vs-fixed shape, to prove the crash is real and that
- * hoisting both calls to unconditional consts (the applied fix) closes it.
- */
+// Regression coverage for a real rules-of-hooks crash (final review, Critical C2):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-layout-header-rules-of-hooks-test-tsx-L25
 describe("useHasPermission short-circuit composition (pos-layout-header.tsx pattern)", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -78,9 +55,8 @@ describe("useHasPermission short-circuit composition (pos-layout-header.tsx patt
     const { useHasPermission } = await import("@/lib/hooks/use-permissions");
 
     const userId = "u1";
-    // Role fallback for "auditor" denies process_sales (DEFAULT_GROUP_PERMISSIONS.auditor
-    // has no process_sales) - but this user's actual assigned group DOES grant it,
-    // exactly the "custom group more permissive than the role tier" case.
+    // Role fallback for "auditor" denies process_sales (DEFAULT_GROUP_PERMISSIONS.auditor has no process_sales) - but this use…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-pos-layout-header-rules-of-hooks-test-tsx-L81
     db.run(`INSERT INTO users (id, role, first_name, last_name) VALUES (?, 'auditor', 'Test', 'User')`, [userId]);
     db.run(
       `INSERT INTO permission_groups (id, store_id, name, based_on_role, is_default, permissions) VALUES ('pg1', 'store1', 'Custom', 'auditor', 0, '["process_sales","manage_staff"]')`,

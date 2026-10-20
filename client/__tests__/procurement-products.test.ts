@@ -6,14 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Exercises getActiveProductsForPO() against a genuine in-memory SQLite
- * engine. Regression coverage for two fixes: "cost_price" meaning "the
- * most recently created batch's cost" instead of a real average across
- * batches; and that average being a plain AVG(cost_price) instead of a
- * quantity-weighted average, which skews the result toward small/odd-cost
- * batches (see KNOWN_BUGS.md #5/#8 — this exact query was part of that bug).
- */
+// Exercises getActiveProductsForPO() against a genuine in-memory SQLite engine.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-procurement-products-test-ts-L9
 describe("getActiveProductsForPO", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

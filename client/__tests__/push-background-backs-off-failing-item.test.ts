@@ -16,14 +16,8 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
 }));
 
-/**
- * A queue item the server rejects for a permanent, non-conflict reason
- * (unknown column, FK violation) must back off exponentially across
- * repeated BACKGROUND sync cycles rather than being re-sent on every one.
- * It used to be re-sent every cycle because the auto-sync daemon called
- * sync(true) — and `isManual` also means "ignore per-item backoff" (see
- * docs/FIXED_BUGS.md, A-5).
- */
+// A queue item the server rejects for a permanent, non-conflict reason (unknown column, FK violation) must back off expone…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-background-backs-off-failing-item-test-ts-L19
 describe("pushChanges backs a permanently-failing item off across background cycles", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -82,10 +76,8 @@ describe("pushChanges backs a permanently-failing item off across background cyc
     expect(afterFirst[0].values[0][0]).toBe(1);
     expect(afterFirst[0].values[0][1]).not.toBeNull();
 
-    // Second background cycle, immediately after: the item is still inside
-    // its backoff window, so it must not be re-sent. A report-only request
-    // (changes: []) may still go out so the queue can attract an operator
-    // command — see push-delivers-command-results-when-queue-is-empty.
+    // Second background cycle, immediately after:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-push-background-backs-off-failing-item-test-ts-L85
     const second = await pushChanges(false);
     expect(changesSentAfter(1)).toEqual([]);
     expect(second).toEqual({ pushed: 0, failedBatches: 0 });

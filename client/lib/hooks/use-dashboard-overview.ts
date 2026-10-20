@@ -34,9 +34,8 @@ export function useDashboardOverview() {
     queryFn: () => getDashboardOverviewData(viewerId),
   });
 
-  // Oversold products (bug #4's floor-at-zero alert): sourced separately
-  // from `getStockBatchStats()`'s low_stock_count, since a batch floored to
-  // exactly 0 fails that query's `total_qty > 0` guard.
+  // Oversold products (bug #4's floor-at-zero alert):
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-dashboard-overview-ts-L37
   const { data: oversoldAlerts } = useQuery({
     ...queryKeys.stockBatches.oversoldAlerts(),
     queryFn: () => getOversoldAlerts(),
@@ -49,9 +48,8 @@ export function useDashboardOverview() {
     ? [dashboardData.refundsToday]
     : [];
   const recentActivities = dashboardData?.recentActivities ?? NO_ACTIVITIES;
-  // Both sides of the "vs yesterday" comparison are net of refunds: the
-  // numerator (today) always was, and the denominator now is too - comparing
-  // net-today against gross-yesterday made any refund look like a sales drop.
+  // Both sides of the "vs yesterday" comparison are net of refunds:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-dashboard-overview-ts-L52
   const yesterdayRevenue =
     (dashboardData?.salesYesterday?.total || 0) -
     (dashboardData?.refundsYesterday?.total || 0);
@@ -79,9 +77,8 @@ export function useDashboardOverview() {
     oversoldProduct: oversoldAlerts?.[0]?.product,
   };
 
-  // Memoized, like getActivityColor below, because both are handed to the
-  // activity feed's rows. The feed is capped at 5 items so the compute itself is
-  // small; a fresh array/closure per render is what invalidates them.
+  // Memoized, like getActivityColor below, because both are handed to the activity feed's rows.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-dashboard-overview-ts-L82
   const activities = useMemo(() => recentActivities.slice(0, 5).map((activity: DashboardActivity) => {
     let message = "";
     let amount = "";
@@ -135,9 +132,8 @@ export function useDashboardOverview() {
     return {
       id: activity.id,
       type: activity.activity_type,
-      // Distinguishes a prescription-dispensed sale from a walk-in sale for
-      // icon/color purposes only; `type` stays "sale" so the transaction
-      // details dialog click-handler (keyed on type === "sale") still works.
+      // Distinguishes a prescription-dispensed sale from a walk-in sale for icon/color purposes only; `type` stays "sale" so the transaction details…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-dashboard-overview-ts-L138
       displayType:
         activity.activity_type === "sale" && activity.prescription_id
           ? "prescription_sale"

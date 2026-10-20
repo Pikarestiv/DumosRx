@@ -6,15 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression coverage for KNOWN_BUGS.md #5/#8: getProductsWithStock() feeds
- * the live POS cart, and its cost_price is permanently persisted into
- * sale_items.cost_price at checkout — so if this query's average isn't
- * quantity-weighted, the wrong COGS gets baked into real sale records
- * forever, corrupting every downstream P&L/margin report. A plain
- * AVG(cost_price) across batches would report a cost skewed toward small,
- * odd-priced batches instead of reflecting what's actually on the shelf.
- */
+// Regression coverage for KNOWN_BUGS.md #5/#8:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-products-cost-price-test-ts-L9
 describe("getProductsWithStock cost_price", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -51,10 +44,8 @@ describe("getProductsWithStock cost_price", () => {
   });
 
   it("weights cost by batch quantity, not a plain average across batches", async () => {
-    // Batch A: 500 units @ ₦10 (the bulk of stock). Batch B: 5 units @ ₦1000
-    // (one emergency spot-price restock). True weighted cost = (500*10 +
-    // 5*1000) / 505 ≈ ₦19.80/unit; a plain AVG(10, 1000) would report
-    // ₦505 — 25x too high.
+    // Batch A: 500 units @ ₦10 (the bulk of stock).
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-products-cost-price-test-ts-L54
     db.run(
       `INSERT INTO products (id, name, selling_price) VALUES ('prod1', 'Zyrtec', 1000)`,
     );

@@ -8,9 +8,8 @@ interface EmptyReportStateProps {
   className?: string;
 }
 
-/** Shared "nothing for this filter" state for report/analytics cards -
- * consolidates the ad hoc empty messages each tab used to render on its own
- * (e.g. sales-analytics-tab.tsx's old NoPeriodSalesData). */
+// Shared "nothing for this filter" state for report/analytics cards - consolidates the ad hoc empty messages each tab used…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-reports-empty-report-state-tsx-L11
 export function EmptyReportState({
   icon: Icon = Inbox,
   title = "No sales yet",

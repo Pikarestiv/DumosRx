@@ -5,14 +5,8 @@ interface HasQuantity {
   quantity: number;
 }
 
-/**
- * Keeps the cart line a cashier just affected in view, and marks it briefly.
- *
- * The cart is a receipt in progress, so its order stays exactly as rung up —
- * only the viewport moves, and only when the line is actually off-screen.
- * Keyed off the quantity rising rather than a tap handler so a card tap, a
- * barcode scan, a search result and a suggestion chip all behave the same.
- */
+// Keeps the cart line a cashier just affected in view, and marks it briefly.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-reveal-changed-cart-line-ts-L8
 export function useRevealChangedCartLine<T extends HasQuantity>(items: T[]) {
   const listRef = useRef<HTMLDivElement>(null);
   const [revealedId, setRevealedId] = useState<string | null>(null);

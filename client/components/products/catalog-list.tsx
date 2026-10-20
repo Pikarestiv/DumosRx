@@ -48,9 +48,8 @@ interface CatalogListProps {
   sortDirection: SortDirection;
   onToggleSort: (key: ProductSortKey) => void;
   onProductUpdated: () => void;
-  /** Lets the catalog close a detail panel that is still showing the product
-   * the row context menu just deleted - the panel's own Delete action closes
-   * itself, and this path has to match it. */
+  // Lets the catalog close a detail panel that is still showing the product the row context menu just deleted - the panel's…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-products-catalog-list-tsx-L51
   onProductDeleted?: (productId: string) => void;
 }
 
@@ -86,16 +85,12 @@ export function CatalogList({
     id: string;
     name: string;
   } | null>(null);
-  // A 2-in-1 laptop's trackpad still lets it hover, but a user tapping its
-  // touchscreen directly never fires :hover — so the edit pencil must stay
-  // visible whenever touch is available at all, not just on touch-primary
-  // devices (see useHasTouchCapability's doc comment for the distinction).
+  // A 2-in-1 laptop's trackpad still lets it hover, but a user tapping its touchscreen directly never fires :hover — so the…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-products-catalog-list-tsx-L89
   const hasTouchCapability = useHasTouchCapability();
   const capsClass = useUppercaseDisplayClass();
-  // Matches the sm: breakpoint the two row layouts used to be gated on in
-  // CSS. useMediaQuery starts at `false` and corrects itself right after
-  // mount, which is harmless here: the catalog's rows come from the local
-  // database after mount, so there are none to render on that first pass.
+  // Matches the sm: breakpoint the two row layouts used to be gated on in CSS.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-products-catalog-list-tsx-L95
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
   const { data: categoryRows } = useQuery({
@@ -109,10 +104,8 @@ export function CatalogList({
     [categoryRows],
   );
 
-  // Destructured to the stable member on purpose: react-query rebuilds its
-  // useMutation result as a new object literal on every render, so depending on
-  // the whole result below made every row handler fresh and defeated
-  // React.memo(CatalogRow). mutateAsync is bound once per observer.
+  // Destructured to the stable member on purpose:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-products-catalog-list-tsx-L112
   const { mutateAsync: quickEditProduct } = useQuickEditProductMutation();
   const { mutateAsync: submitStockAudit } = useSubmitStockAuditMutation();
 
@@ -183,9 +176,8 @@ export function CatalogList({
   }, []);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  // Row height differs between the stacked mobile layout and the desktop grid
-  // row, so this measures actual rendered height per row instead of assuming
-  // one fixed size.
+  // Row height differs between the stacked mobile layout and the desktop grid row, so this measures actual rendered height p…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-products-catalog-list-tsx-L186
   const rowVirtualizer = useVirtualizer({
     count: filteredProducts.length,
     getScrollElement: () => scrollRef.current,

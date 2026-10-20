@@ -40,11 +40,8 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
-/** Slide-in detail view for a single activity_log row. Surfaces the raw
- * `details` JSON payload (captured by logAction() for every insert/update/
- * delete) as a readable field list instead of leaving it invisible. Covers
- * every table generically (no per-table label map), since Activity Log spans
- * the whole store rather than one product's history. */
+// Slide-in detail view for a single activity_log row.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-activity-log-activity-log-detail-panel-tsx-L43
 export function ActivityLogDetailPanel({
   entry,
   relatedEntries = [],

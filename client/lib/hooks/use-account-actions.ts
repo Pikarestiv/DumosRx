@@ -26,13 +26,8 @@ interface UseAccountActionsOptions {
   onOpenFeedback?: () => void;
 }
 
-// Shared by every surface that offers account-level actions (desktop
-// dropdown + its own mobile avatar drawer in user-nav.tsx, and the bottom
-// nav's "More" sheet in mobile-more-drawer.tsx). These used to be three
-// hand-copied implementations, and they drifted: one surface's plain
-// logout() left the recent-users tile cache intact, so it looked identical
-// to Switch Account instead of actually ending the session. One
-// implementation here means that specific drift can't happen again.
+// Shared by every surface that offers account-level actions (desktop dropdown + its own mobile avatar drawer in user-nav.tsx, and the bottom n…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-account-actions-ts-L29
 export function useAccountActions({
   onClose,
   onOpenFeedback,
@@ -54,10 +49,8 @@ export function useAccountActions({
     router.push("/login");
   };
 
-  // Not destructive: the local session/data stays intact, this just shows
-  // the same lock screen used for idle re-auth, forced to account-selection
-  // mode instead of defaulting to the current user's PIN entry. No
-  // logout/unsynced-changes warning needed since nothing is being cleared.
+  // Not destructive: the local session/data stays intact, this just shows the same lock screen used for idle re-auth, forced to account-selectio…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-account-actions-ts-L57
   const handleSwitchAccount = () => {
     onClose();
     useAutoLockStore.getState().lockForSwitch();

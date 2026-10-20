@@ -1,17 +1,13 @@
-// Auto-loaded by Next.js on every page load in the browser. This app is a
-// static export (Tauri-bundled desktop/mobile, and FTP-deployed as-is to
-// app.dumosrx.com) with no server/edge runtime at all, so only this client
-// file applies; there is deliberately no sentry.server.config.ts /
-// sentry.edge.config.ts / instrumentation.ts.
+// Auto-loaded by Next.js on every page load in the browser.
+// Rationale: docs/CLIENT_COMMENTS.md#line-instrumentation-client-ts-L1
 
 import * as Sentry from "@sentry/nextjs";
 import { resolveSentryGating } from "@/lib/utils/sentry-config";
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
-// Off on a developer's machine, sampled on the deployed dev build, full rate
-// in production. The per-environment table and why dev is sampled rather
-// than silenced: client/AGENTS.md, "What reaches Sentry".
+// Off on a developer's machine, sampled on the deployed dev build, full rate in production.
+// Rationale: docs/CLIENT_COMMENTS.md#line-instrumentation-client-ts-L12
 const gating = resolveSentryGating(
   dsn,
   process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT,
@@ -30,14 +26,8 @@ if (gating.enabled) {
     replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 0,
 
-    // The app already has a single deliberate crash choke point
-    // (logCrash() in lib/utils/error-logger.ts) that logs locally first
-    // (offline-first: the feedback table survives with no network) and
-    // only then forwards to Sentry; everything routes through there
-    // rather than scattering captureException calls or letting Sentry's
-    // own automatic global error/rejection handlers fire independently,
-    // which would otherwise double-report every uncaught error (once from
-    // Sentry's default GlobalHandlers integration, once from logCrash).
+    // The app already has a single deliberate crash choke point (logCrash() in lib/utils/error-logger.ts) that logs locally fi…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-instrumentation-client-ts-L33
     integrations: (defaultIntegrations) =>
       defaultIntegrations.filter((integration) => integration.name !== "GlobalHandlers"),
   });

@@ -1,18 +1,9 @@
-/**
- * Prints a single DOM node in isolation via a hidden iframe, instead of
- * printing the whole page and hiding everything else with CSS. The iframe
- * gets its own document containing only the cloned node plus the app's
- * compiled stylesheets, so Tailwind classes render correctly but nothing
- * else on the page (sidebar, dialogs, other components) is ever at risk of
- * bleeding into the printed output or needing a print:hidden escape hatch.
- */
+// Prints a single DOM node in isolation via a hidden iframe, instead of printing the whole page and hiding everything else with CSS.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-print-node-ts-L1
 const STYLESHEET_READY_TIMEOUT_MS = 3000;
 
-/** Resolves once every external stylesheet in `doc` has either loaded or
- * failed, or after the timeout — whichever comes first. Doesn't depend on
- * the iframe's own `onload`, which may already have fired for the initial
- * `about:blank` document (never firing again for the `doc.write()`d one) or
- * may never fire at all in some browsers for a document written this way. */
+// Resolves once every external stylesheet in `doc` has either loaded or failed, or after the timeout — whichever comes first.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-print-node-ts-L11
 function waitForStylesheets(doc: Document): Promise<void> {
   const links = Array.from(doc.querySelectorAll('link[rel="stylesheet"]'));
   if (links.length === 0) return Promise.resolve();
@@ -38,9 +29,8 @@ function waitForStylesheets(doc: Document): Promise<void> {
   return Promise.race([loaded, timeout]);
 }
 
-/** Returns once the print dialog has been invoked, or rejects if the node
- * couldn't be printed (no iframe document/window access). Always removes the
- * iframe afterward, so a failure never leaks it. */
+// Returns once the print dialog has been invoked, or rejects if the node couldn't be printed (no iframe document/window access).
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-print-node-ts-L41
 export function printNode(node: HTMLElement, pageStyle?: string): Promise<void> {
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");

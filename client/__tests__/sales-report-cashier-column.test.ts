@@ -6,12 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Items 1+2 (Cynthia's feedback): the Detailed Sales report could already be
- * FILTERED by cashier but never showed who rang a sale, so a filtered export
- * was indistinguishable from an unfiltered one and an on-screen view could
- * not be sorted or scanned by staff member.
- */
+// Items 1+2 (Cynthia's feedback):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sales-report-cashier-column-test-ts-L9
 describe("fetchSalesReportData cashier column", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

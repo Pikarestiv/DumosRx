@@ -6,18 +6,12 @@ import { TillInspectionBanner } from "@/components/dashboard/till-inspection-ban
 import { DeviceDiagnosticsPanel } from "@/components/settings/device-diagnostics";
 import { isTillInspectionSession } from "@/lib/utils/till-inspection";
 
-/**
- * Where a read-only admin inspection session renders. Deliberately outside
- * the (dashboard) route group: DashboardLayout hard-requires a staff `user`
- * and redirects to /login without one, so an admin inspecting a till that is
- * logged out for the night could never get in. See
- * docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md.
- */
+// Where a read-only admin inspection session renders.
+// Rationale: docs/CLIENT_COMMENTS.md#block-app-inspect-page-tsx-L9
 export default function InspectPage() {
   const router = useRouter();
-  // Mounted flag: reading sessionStorage during render makes the server/
-  // prerender pass and the first client pass disagree, which React reports as
-  // a hydration mismatch. auth-context avoids the same trap.
+  // Mounted flag: reading sessionStorage during render makes the server/ prerender pass and the first client pass disagree,…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-app-inspect-page-tsx-L18
   const [mounted, setMounted] = useState(false);
   const [hasSession, setHasSession] = useState(false);
 

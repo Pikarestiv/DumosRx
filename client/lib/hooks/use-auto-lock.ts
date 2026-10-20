@@ -9,11 +9,8 @@ interface AutoLockState {
   duration: number; // in minutes. 0 = off
   isLocked: boolean;
   lastActivity: number;
-  // True while the lock overlay should show account selection (ignoring the
-  // current user) rather than defaulting straight to that user's PIN entry;
-  // set by "Switch Account" so it can reuse this same overlay instead of a
-  // separate page. Deliberately not persisted (see partialize below); it only
-  // ever needs to survive within the current live session.
+  // True while the lock overlay should show account selection (ignoring the current user) rather than defaulting straight to that user's PIN ent…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-auto-lock-ts-L12
   forceAccountSelection: boolean;
   setDuration: (duration: number) => void;
   lock: () => void;
@@ -22,13 +19,8 @@ interface AutoLockState {
   updateActivity: () => void;
 }
 
-// zustand's persist middleware writes this tab's entire state to localStorage
-// synchronously on every set(). updateActivity() is wired to mousemove/
-// touchstart/scroll (see useAutoLockTimer below), so without throttling it
-// forces a blocking localStorage write on every single touch and scroll
-// frame - widening the touchstart-to-click timing window that can drop a tap
-// on iPad. A lock timer only needs second-ish resolution, not the write on
-// every event.
+// zustand's persist middleware writes this tab's entire state to localStorage synchronously on every set().
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-auto-lock-ts-L25
 const ACTIVITY_WRITE_THROTTLE_MS = 5000;
 
 export const useAutoLockStore = create<AutoLockState>()(
@@ -66,14 +58,8 @@ export const useAutoLockStore = create<AutoLockState>()(
   ),
 );
 
-// persist's `set()` always writes this tab's *entire* in-memory state back
-// to localStorage, not just the changed field. Without this listener, a
-// second tab/window left open from before a Settings change (still holding
-// the old `duration` in memory) would silently clobber it back on that
-// tab's next `updateActivity()` call (i.e. its next mousemove/keydown/etc) —
-// this is what was causing auto-lock to "reset to 5 minutes" after being
-// turned off. Rehydrating on the storage event keeps every open tab's
-// in-memory state caught up with whichever tab wrote most recently.
+// persist's `set()` always writes this tab's *entire* in-memory state back to localStorage, not just the changed field.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-auto-lock-ts-L69
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (e) => {
     if (e.key === "dumos_autolock") {
@@ -83,14 +69,8 @@ if (typeof window !== "undefined") {
 }
 
 export function useAutoLockTimer() {
-  // Selectors, not a destructured whole-store call: this hook runs inside
-  // DashboardLayout, which wraps the entire app, so subscribing to the whole
-  // store would re-render everything below it on every touchstart/mousemove/
-  // scroll (since those all call updateActivity(), touching lastActivity).
-  // On iPad specifically that re-render can land between a tap's touchstart
-  // and its (delayed) synthetic click, dropping the click and requiring a
-  // second tap to register: this is what was causing the widespread
-  // "buttons need double-tapping" reports.
+  // Selectors, not a destructured whole-store call:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-auto-lock-ts-L86
   const duration = useAutoLockStore((s) => s.duration);
   const lock = useAutoLockStore((s) => s.lock);
   const updateActivity = useAutoLockStore((s) => s.updateActivity);
@@ -132,20 +112,8 @@ export function useAutoLockTimer() {
   }, [duration, canAutoLock, updateActivity, lock]);
 }
 
-/**
- * Makes the auto-lock duration follow the ACCOUNT rather than just this
- * browser/device: whenever the authenticated user changes (fresh device,
- * or a shared terminal switching between staff), pulls that user's stored
- * `users.auto_lock_duration` and overwrites the local zustand/localStorage
- * value with it. Without this, a device that's never seen this account
- * before would silently keep whatever duration the PREVIOUS account (or the
- * store's own default of 5) left behind, rather than what this staff
- * member actually chose in Settings.
- *
- * One-way (DB -> local) on account change; the other direction (local edit
- * -> DB) is handled by security-settings.tsx calling
- * updateUserAutoLockDuration() directly when the user changes the Select.
- */
+// Makes the auto-lock duration follow the ACCOUNT rather than just this browser/device:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-auto-lock-L135
 export function useSyncAutoLockDurationWithAccount(userId: string | undefined) {
   const setDuration = useAutoLockStore((s) => s.setDuration);
   const syncedForUserId = useRef<string | undefined>(undefined);
@@ -173,11 +141,8 @@ export function useSyncAutoLockDurationWithAccount(userId: string | undefined) {
   }, [userId, setDuration]);
 }
 
-/**
- * Ctrl+L (Cmd+L on Mac) manually locks the app on demand: deliberately not
- * Win+L, which is the OS's own lock-the-whole-machine shortcut on Windows and
- * can't be (and shouldn't be) intercepted by a single app.
- */
+// Ctrl+L (Cmd+L on Mac) manually locks the app on demand:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-auto-lock-ts-L164
 export function useLockShortcut() {
   const lock = useAutoLockStore((s) => s.lock);
 
@@ -194,28 +159,8 @@ export function useLockShortcut() {
   }, [lock]);
 }
 
-/**
- * Forces the lock screen whenever the app is freshly landed on with an
- * existing saved account: otherwise a device that was left unlocked (isLocked
- * persisted as false) would open straight into the dashboard for anyone who
- * picks it up, with no PIN check at all. "Login as someone else" on the lock
- * screen remains the escape hatch if it's not the account they want.
- *
- * Gated on sessionStorage's "dumos_session_authenticated" marker (set by
- * auth-context's login(), cleared on logout) rather than a plain in-memory
- * flag: a plain flag would re-fire this on every page reload, including a
- * harmless refresh by someone already actively using the app, and critically
- * it would also fire the instant DashboardLayout first mounts right after a
- * fresh /login success, forcing an immediate, redundant second PIN entry.
- * sessionStorage persists across reloads within the same tab but clears when
- * the tab actually closes, so a genuinely new tab/session still locks.
- *
- * When more than one recent account exists on this device (shared terminal),
- * a fresh landing shows account SELECTION rather than defaulting straight to
- * the last-used user's PIN entry: otherwise a different staff member picking
- * up the device would have no way to reach their own account without first
- * unlocking as whoever used it last.
- */
+// Forces the lock screen whenever the app is freshly landed on with an existing saved account:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-auto-lock-L197
 export function useLockOnFreshLoad() {
   const lock = useAutoLockStore((s) => s.lock);
   const lockForSwitch = useAutoLockStore((s) => s.lockForSwitch);

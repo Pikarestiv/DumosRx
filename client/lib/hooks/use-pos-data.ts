@@ -11,10 +11,8 @@ export type { Customer } from "@/lib/types/customer";
 export type { PaymentAccount } from "@/lib/types/payment-account";
 
 export interface POSDataOptions {
-  /** Whether the History tab is the active one. getRecentSales() reads 100
-   * sales with three correlated subqueries per row and nothing outside that
-   * tab consumes it, so leave this false while it isn't showing. Defaults to
-   * true, so a caller with no tab context keeps the old behaviour. */
+  // Whether the History tab is the active one.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-data-ts-L14
   historyActive?: boolean;
 }
 

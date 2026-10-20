@@ -8,15 +8,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Guards the local read-path indexes added for audit finding A-6. Two
- * populations have to end up with the same set: a fresh install (SCHEMA_SQL)
- * and a device whose database predates the indexes (runSchemaMigrations).
- * The store_id-scoped ones can only live in the migration step, because
- * store_id is itself migration-added and absent from SCHEMA_SQL's CREATE
- * TABLE bodies — so a fresh install picks those up from the migration pass
- * that runs immediately after the schema, not from the schema itself.
- */
+// Guards the local read-path indexes added for audit finding A-6.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-schema-indexes-test-ts-L11
 const EXPECTED_INDEXES = [
   "idx_stock_batches_product_id",
   "idx_sale_items_sale_id",
@@ -52,10 +45,8 @@ function listIndexes(db: { exec: (sql: string) => { values: unknown[][] }[] }): 
 }
 
 describe("local schema indexes (A-6)", () => {
-  // core.ts asks sql.js for `/sql-wasm.wasm` (the browser's public path),
-  // which doesn't resolve under vitest; loading it once from node_modules
-  // first primes the emscripten module so initDatabase() can reuse it, the
-  // same way init-database-migrations.test.ts does.
+  // core.ts asks sql.js for `/sql-wasm.wasm` (the browser's public path), which doesn't resolve under vitest; loading it onc…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-schema-indexes-test-ts-L55
   beforeEach(async () => {
     vi.resetModules();
     storedExport = undefined;

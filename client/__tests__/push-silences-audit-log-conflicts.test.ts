@@ -19,18 +19,8 @@ vi.mock("sonner", () => ({
   },
 }));
 
-/**
- * audit_logs is push-only telemetry the user never edits locally, same as
- * feedback (which push.ts already silences the same way, just below). It
- * has no `_version` field in its queued payload at all (logAction() never
- * sets one), so a resubmitted INSERT the server already has falls to the
- * legacy stale_timestamp fallback and is rejected as a "conflict" - a sync
- * plumbing detail, not a real edit collision the user made anything happen
- * to. Surfacing it as "A change to Activity Log could not be saved..." is
- * misleading (the user never edited anything) and, combined with the
- * mass-requeue-on-boot bug markSynced() now fixes, was producing a toast
- * loop on every app launch.
- */
+// audit_logs is push-only telemetry the user never edits locally, same as feedback (which push.ts already silences the sam…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-silences-audit-log-conflicts-test-ts-L22
 describe("pushChanges silences audit_logs version conflicts, same as feedback", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

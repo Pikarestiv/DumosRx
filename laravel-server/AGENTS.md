@@ -1775,6 +1775,46 @@ equal count and version, any field value), why a portable hash was not an
 option on SQLite + MySQL, and why the bucketed Merkle shape was costed and
 deferred rather than rejected.
 
+## Unresolved references (`UnresolvedReferenceService`)
+
+Production declares zero foreign keys (A-292), so a child row naming a parent
+that does not exist is accepted and stranded there forever — a product's
+`category_id` matching no `categories` row (A-294), or a `purchase_order_items`
+row whose `purchase_order_id` matches no `purchase_orders` row at all, not
+even a soft-deleted one (A-296). `UnresolvedReferenceService` counts both:
+`unresolvableCategoryCount($storeId)` is store-scoped (a trashed category
+still resolves — only a genuinely absent one counts), wired into
+`TableAgreementService::forStore()`'s `unresolvable_category_products` and
+rendered on the Device Table Agreement panel. `orphanedPurchaseOrderItemsCount()`
+is deliberately **not** store-scoped: an orphan this complete carries no
+resolvable store of its own, since its only parent is the thing that would
+have named one. It is wired into `AdminSyncHealthService::platformSummary()`'s
+`orphaned_purchase_order_items`, rendered on the platform-wide Sync Health
+card instead.
+
+**Detection only, on purpose.** Soft- or hard-deleting an orphan does not
+change what either count's own panel shows elsewhere: `CountsSyncedTableRows::
+scopeToStore()`'s join through the (possibly trashed) parent already excludes
+a parentless row from every store's cloud-side count, so a device holding its
+own local copy of such a row stays exactly as "ahead" as before. A repair
+command implementing the correct delete shape was built, tested and then
+deleted rather than shipped, once this was traced through fully — see
+`docs/KNOWN_BUGS.md` A-296 for the reasoning and the exact query it would need
+if one is ever genuinely wanted for table hygiene alone.
+
+**Testing an orphan needs foreign key checks off**, because SQLite enforces
+the migrations' own `constrained()` declarations that production does not
+have. `PRAGMA foreign_keys` is a documented SQLite no-op inside an open
+transaction, and `RefreshDatabase` wraps every test in one, so
+`UnresolvedReferenceServiceTest`'s `withForeignKeysOff()` steps outside that
+transaction (`$connection->commit()`, toggle, insert, clean up, `$connection->
+beginTransaction()`) rather than fighting it — and cleans up this test's own
+`setUp()` rows too, since the commit flushes past those as well, not just
+what the closure inserts. `Schema::disableForeignKeyConstraints()`, used
+elsewhere in this suite, does not solve this: it compiles to the same pragma,
+so it is a silent no-op under the same wrap, and every existing test using it
+happens not to need it (nothing it inserts actually violates an FK).
+
 ## Delivery timing (`changes_queued_peak`)
 
 `sync_health_daily.changes_queued_peak` is a **gauge, not a counter**: the

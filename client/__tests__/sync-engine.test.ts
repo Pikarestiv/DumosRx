@@ -11,14 +11,8 @@ vi.mock('../lib/db/core', async () => {
     execute: vi.fn().mockResolvedValue(undefined),
     query: vi.fn(),
     logAction: vi.fn().mockResolvedValue(undefined),
-    // push.ts wraps its per-batch local writes in transaction() to defer
-    // sql.js's saveDatabase() export to once per batch instead of once per
-    // statement (see push.ts). The real transaction() checks for an
-    // initialized `db` and lazily calls initDatabase() if there isn't one —
-    // this suite never sets up a real db (execute/query are mocked directly
-    // instead), so that lazy init would try to load the real wasm binary and
-    // fail. A passthrough is enough here: execute()/query() are already
-    // fully mocked and don't need real BEGIN/COMMIT semantics.
+    // push.ts wraps its per-batch local writes in transaction() to defer sql.js's saveDatabase() export to once per batch inst…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sync-engine-test-ts-L14
     transaction: vi.fn((fn: () => unknown) => fn()),
   };
 });
@@ -237,9 +231,8 @@ describe('Sync Engine & Local Database', () => {
       );
       expect(touchedProducts).toBe(false);
 
-      // The per-table sync cursor must not advance either, or the server's
-      // copy of this record would never be re-offered once the local edit
-      // is pushed and resolved.
+      // The per-table sync cursor must not advance either, or the server's copy of this record would never be re-offered once th…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sync-engine-test-ts-L240
       const cursorAdvanced = executeMock.mock.calls.some(
         (call) => typeof call[0] === 'string' && call[0].includes('_sync_state'),
       );
@@ -261,9 +254,8 @@ describe('Sync Engine & Local Database', () => {
       vi.mocked(query).mockImplementation(async (sql: string) => {
         if (sql.includes('_sync_state')) return [];
         if (sql.includes('PRAGMA table_info')) return [{ name: 'id' }, { name: 'name' }, { name: '_version' }];
-        // The prune's candidate lookup: the live local stores the server's
-        // snapshot didn't list. The expensive per-table prune only runs when
-        // this is non-empty (A-8).
+        // The prune's candidate lookup:
+        // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sync-engine-test-ts-L264
         if (sql.includes('SELECT id FROM stores WHERE _deleted = 0')) return [{ id: 'stale-store' }];
         if (sql.includes('SELECT 1 FROM')) return []; // both records are new inserts
         return [];
@@ -377,10 +369,8 @@ describe('Sync Engine & Local Database', () => {
       });
       await pullChanges(false, true, onCriticalTablesReady);
 
-      // Falls back to firing once at the very end regardless (see pull.ts's
-      // doc comment on the fallback) — but only via that fallback, after
-      // BOTH pages were already fetched, never mid-round while stores was
-      // still outstanding.
+      // Falls back to firing once at the very end regardless (see pull.ts's doc comment on the fallback) — but only via that fal…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sync-engine-test-ts-L380
       expect(onCriticalTablesReady).toHaveBeenCalledTimes(1);
       expect(pullCallCountWhenFired).toBe(2);
     });
@@ -403,9 +393,8 @@ describe('Sync Engine & Local Database', () => {
       const onCriticalTablesReady = vi.fn();
       await expect(pullChanges(false, true, onCriticalTablesReady)).rejects.toThrow('Network error');
 
-      // Nothing was written (the page transaction carrying stores AND users
-      // rolls back as a unit), so a caller must not read the callback as
-      // "identity is in place" - see onboarding-cloud-setup-failed-pull.
+      // Nothing was written (the page transaction carrying stores AND users rolls back as a unit), so a caller must not read the…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sync-engine-test-ts-L406
       expect(onCriticalTablesReady).toHaveBeenCalledTimes(1);
       expect(onCriticalTablesReady).toHaveBeenCalledWith(false);
     });
@@ -460,9 +449,8 @@ describe('Sync Engine & Local Database', () => {
         has_more: { stores: false, users: false, permission_groups: false },
       });
 
-      // A device whose local SQLite predates the migration that added
-      // permission_groups: PRAGMA table_info returns nothing for it, and
-      // any statement naming it throws "no such table".
+      // A device whose local SQLite predates the migration that added permission_groups:
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sync-engine-test-ts-L463
       vi.mocked(query).mockImplementation(async (sql: string) => {
         if (sql.includes('permission_groups')) {
           if (sql.includes('PRAGMA table_info')) return [];

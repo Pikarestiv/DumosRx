@@ -23,11 +23,8 @@ function localStamp(at: Date): string {
   );
 }
 
-/**
- * `DumosRx_<Store>_<Kind>_<YYYY-MM-DD_HHmm>.<ext>`. Two exports on the same
- * day, or from two stores, must not collide — a date-only name silently
- * overwrote the earlier file. See docs/KNOWN_BUGS.md.
- */
+// `DumosRx_<Store>_<Kind>_<YYYY-MM-DD_HHmm>.<ext>`.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-export-filename-ts-L26
 export function buildExportFilename(options: {
   kind: string;
   extension: string;

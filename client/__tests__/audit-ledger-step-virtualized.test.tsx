@@ -3,9 +3,8 @@ import { render, screen } from "@testing-library/react";
 import { createRef } from "react";
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
 
-// jsdom reports zero size for everything, so the real useVirtualizer would
-// compute an empty visible range. Stubbed to hand back every row, same shape
-// react-virtual returns — matching pos-product-list-memoization.test.tsx.
+// jsdom reports zero size for everything, so the real useVirtualizer would compute an empty visible range.
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-audit-ledger-step-virtualized-test-tsx-L6
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
     getVirtualItems: () =>
@@ -48,12 +47,8 @@ function item(overrides: Partial<AuditItem> = {}): AuditItem {
   };
 }
 
-/**
- * P1: the ledger's rows are now virtualized and absolutely positioned inside
- * their rowgroup. This guards the restructure — every row still renders with
- * its editable cells, the totals footer still sums the visible rows, and the
- * empty state still appears when nothing matches.
- */
+// P1: the ledger's rows are now virtualized and absolutely positioned inside their rowgroup.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-audit-ledger-step-virtualized-test-tsx-L51
 describe("AuditLedgerStep virtualized rows", () => {
   const baseProps = {
     totalItems: 3,

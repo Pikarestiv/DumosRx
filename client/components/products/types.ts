@@ -7,11 +7,8 @@ export const transformProduct = (apiData: ProductWithDetails): Product => ({
   id: apiData.id,
   name: apiData.name,
   genericName: apiData.generic_name || "",
-  // A raw category_id with no matching category_name means the referenced
-  // category row was deleted out from under this product (deleteCategory
-  // never nulls out the products.category_id pointing at it) — falling back
-  // to that id would show a bare UUID as the "category" instead of a
-  // readable label.
+  // A raw category_id with no matching category_name means the referenced category row was deleted out from under this produ…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-products-types-ts-L10
   category: apiData.category_name || "Uncategorized",
   nafdacNumber: apiData.nafdac_number || "",
   strength: apiData.strength || "",

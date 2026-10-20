@@ -4,22 +4,8 @@ import initSqlJs, { type Database } from "sql.js";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-/**
- * Regression coverage for a Medium-severity bug (docs/KNOWN_BUGS.md):
- * storeProfile's queryFn used to clear the stale active-store id
- * (localStorage.removeItem + setActiveStoreId(null)) as a side effect
- * INSIDE itself, on the fallback branch taken when the active store no
- * longer exists locally. A React Query retry re-fires that side effect,
- * and the resulting activeStoreId state change flips `targetId` mid-fetch
- * (a new queryKey), triggering a second fetch on every miss.
- *
- * Fixed by moving the clearing logic out into its own effect, gated on a
- * settled query result (storeProfile.id !== targetId), so it fires at most
- * once per genuine staleness rather than on every internal retry/re-render.
- * This test spies on getStoreById (the underlying DB call inside queryFn)
- * to assert it's invoked a bounded number of times for the stale id, not
- * repeatedly.
- */
+// Regression coverage for a Medium-severity bug (docs/KNOWN_BUGS.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-store-context-stale-store-clear-test-tsx-L7
 
 vi.mock("@sentry/nextjs", () => ({
   setUser: vi.fn(),
@@ -109,9 +95,8 @@ describe("store-context stale active-store clearing", () => {
   }
 
   it("falls back to another known store and syncs the resolver to it directly, without ever clearing to null first", async () => {
-    // The device's last-active store id points at a store that no longer
-    // exists locally (e.g. pruned by sync reconciliation) - only "store-b"
-    // is real.
+    // The device's last-active store id points at a store that no longer exists locally (e.g.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-store-context-stale-store-clear-test-tsx-L112
     db.run(`INSERT INTO stores (id, name) VALUES ('store-b', 'Store B')`);
     localStorage.setItem("dumos_active_store_id", "store-stale");
     // No logged-in user with a fixed store_id (owner/admin case) - the
@@ -126,14 +111,8 @@ describe("store-context stale active-store clearing", () => {
     expect(core.getActiveStoreId()).toBe("store-b");
     expect(localStorage.getItem("dumos_active_store_id")).toBe("store-b");
 
-    // The old version cleared the stale id to null (localStorage.removeItem
-    // + setActiveStoreId(null)) as a side effect inside queryFn itself, then
-    // relied on a second effect pass to notice `!targetId` and sync forward
-    // to the real store - a two-step cascade through an intermediate null
-    // state. The fix resolves storeProfile.id !== targetId directly, in one
-    // effect, without ever routing through null - so dumos_active_store_id
-    // is never removed at any point, only ever set straight to the correct
-    // value.
+    // The old version cleared the stale id to null (localStorage.removeItem + setActiveStoreId(null)) as a side effect inside…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-store-context-stale-store-clear-test-tsx-L129
     expect(removeItemSpy).not.toHaveBeenCalledWith("dumos_active_store_id");
   });
 });

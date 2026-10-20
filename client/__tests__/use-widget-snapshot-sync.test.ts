@@ -15,9 +15,8 @@ vi.mock("@/lib/native/widget-bridge", () => ({
 vi.mock("@/lib/context/auth-context", () => ({
   useAuth: () => ({ isCloudLinked: true }),
 }));
-// This hook is only meaningful under Tauri (see enabled: isCloudLinked &&
-// isTauri() in use-widget-snapshot-sync.ts); simulate that environment so
-// the query actually runs in this jsdom-based test.
+// This hook is only meaningful under Tauri (see enabled:
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-use-widget-snapshot-sync-test-ts-L18
 vi.mock("@/lib/db", () => ({
   isTauri: () => true,
 }));

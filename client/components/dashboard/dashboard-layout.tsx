@@ -63,38 +63,20 @@ type MainLayoutKind = "pos" | "settings" | "createPO" | "default";
 // steps through tabs in the order they're actually shown on screen.
 const TABS = ["/dashboard", "/inventory", "/pos", "/customers"];
 
-// One entry per distinct <main> treatment, keyed by the same route
-// partition used everywhere else in this file (isPosRoute/isSettingsRoute/
-// isCreatePORoute). Keeping className+style paired per kind (instead of two
-// separate ternary chains that happen to agree) makes it structurally
-// impossible for one to get a route's case updated without the other.
+// One entry per distinct <main> treatment, keyed by the same route partition used everywhere else in this file (isPosRoute…
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L66
 const MAIN_LAYOUT_STYLES: Record<
   MainLayoutKind,
   { className: string; style?: React.CSSProperties }
 > = {
-  // POS and the mobile full-screen takeovers (create PO, settings inner
-  // tabs) manage their own padding/back-header, so <main> stays unpadded for
-  // them below their own "desktop" breakpoint; everywhere else gets the
-  // standard page gutter. Each takeover's restore breakpoint must match the
-  // breakpoint that page itself uses to switch to its desktop layout:
-  // create-PO uses lg: (see procurement/new/page.tsx), settings inner tabs
-  // use md: (see hooks/use-settings.ts's isDesktop, which flips at 768px).
-  // Using the wrong one here left settings content unpadded between 768-1023px.
+  // POS and the mobile full-screen takeovers (create PO, settings inner tabs) manage their own padding/back-header, so <main…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L75
   pos: { className: "" },
   settings: { className: "" },
   createPO: { className: "p-0 lg:p-6 lg:pt-3" },
   default: {
-    // Below lg: clears MobileBottomNav (h-16 = 4rem tall, plus its own
-    // safe-area inset, plus breathing room) on every route that renders it —
-    // i.e. every kind but the three above, which don't show the bottom nav
-    // at all. Must stay >= 4rem or the last slice of page content ends up
-    // hidden behind the bar. At lg: and up MobileBottomNav is lg:hidden, so
-    // this drops back to the plain page gutter instead of carrying that
-    // extra space with nothing to clear.
-    // px/pt instead of the p-4/sm:p-6 shorthand: the shorthand also sets
-    // padding-bottom, and at sm: it lands in a later cascade layer than our
-    // unprefixed pb-[...] below, so it would silently win and clobber the
-    // bottom-bar clearance from 640px up to lg:.
+    // Below lg: clears MobileBottomNav (h-16 = 4rem tall, plus its own safe-area inset, plus breathing room) on every route th…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L87
     className:
       "px-4 pt-4 sm:px-6 sm:pt-3 pb-[calc(5.5rem+var(--tauri-bottom,env(safe-area-inset-bottom,0px)))] lg:pb-[calc(1rem+var(--tauri-bottom,env(safe-area-inset-bottom,0px)))]",
   },
@@ -123,12 +105,8 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   useLockShortcut();
   useSyncAutoLockDurationWithAccount(user?.id);
 
-  // Known bug #10, Part B: the in-app Settings > Data > "Restore Backup"
-  // path reloads straight back into this layout. Fires once, only if that
-  // restore just happened and the device isn't cloud-linked - see
-  // lib/hooks/use-post-restore-cloud-link-notice.ts. Points at the same
-  // Data tab "cloud" alias that already auto-opens CloudLinkDialog (see
-  // hooks/use-settings.ts) rather than a new linking flow.
+  // Known bug #10, Part B:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L126
   usePostRestoreCloudLinkNotice({
     onLinkCloud: () => router.push("/settings/cloud"),
   });
@@ -147,22 +125,17 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const isPosRoute = pathname.startsWith("/pos");
   const posFullscreen = usePosFullscreenStore((s) => s.isFullscreen);
   const isPosFullscreen = isPosRoute && posFullscreen;
-  // Create Purchase Order gets a POS-style full-screen takeover, but only on
-  // mobile (<lg). Desktop keeps the normal dashboard chrome since the page
-  // already renders as a self-contained bordered panel there.
+  // Create Purchase Order gets a POS-style full-screen takeover, but only on mobile (<lg).
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L150
   const isCreatePORoute = pathname.startsWith("/procurement/new");
   // Settings is a full-screen takeover on every breakpoint (like POS/create-PO):
-  // no app sidebar, no bottom nav, no dashboard header — settings-client.tsx
-  // renders its own back-button header instead.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L154
   const isSettingsRoute = pathname.startsWith("/settings");
   const [hoverExpanded, setHoverExpanded] = useState(false);
   const [userNavOpen, setUserNavOpen] = useState(false);
   const { peekEnabled } = useSidebarPeekPreference();
-  // Touch devices (tablets/iPads at the lg: breakpoint where the desktop
-  // sidebar shows) don't get real hover intent. A tap can synthesize a
-  // hover-like event, which makes peek stick or flicker. Hard-disabled here
-  // regardless of the peekEnabled preference, since it doesn't make sense on
-  // touch at all: those devices only ever see plain collapsed or expanded.
+  // Touch devices (tablets/iPads at the lg:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L161
   const isTouchDevice = useIsTouchDevice();
   const isLogicallyCollapsed = isPosRoute ? true : sidebarCollapsed;
   const effectiveCollapsed =
@@ -199,11 +172,8 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   };
 
   useEffect(() => {
-    // An inspection session belongs at /inspect, which carries the banner, the
-    // End Session button and the idle timer. Reaching the dashboard with one
-    // live showed a full staff UI with no indication anybody else was signed
-    // in, and left every staff write failing with the read-only message for
-    // up to 20 minutes with no way out.
+    // An inspection session belongs at /inspect, which carries the banner, the End Session button and the idle timer.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L202
     if (isTillInspectionSession()) {
       router.replace("/inspect");
       return;
@@ -234,21 +204,15 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
       },
     });
 
-  // Single lookup: avoids indexing DIRECTION_ANIMATION twice (once to check,
-  // once to interpolate) and keeps the `direction === null` case contained
-  // to this one spot instead of repeating `?? ""` at each usage site.
+  // Single lookup: avoids indexing DIRECTION_ANIMATION twice (once to check, once to interpolate) and keeps the `direction =…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L237
   const animationClass = shouldAnimate
     ? DIRECTION_ANIMATION[direction ?? ""]
     : undefined;
 
   return (
-    // h-dvh, not min-h-screen: the actual scroll-containment fix is the
-    // `flex flex-col` added to the scrollRef div below, but min-h-screen is
-    // still the wrong tool for a shell root that should never need to grow
-    // past the viewport in the first place (a min-height is a floor, not a
-    // cap) — h-dvh matches the "Main content" column's own explicit
-    // height: 100dvh a few levels down, and tracks mobile browser chrome
-    // collapsing/expanding, unlike the static h-screen/100vh.
+    // h-dvh, not min-h-screen:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L245
     <div className="h-dvh bg-background relative">
       {/* First focusable element in the shell: lets keyboard/screen-reader
           users jump the persistent sidebar and header nav (WCAG 2.4.1). */}
@@ -301,11 +265,8 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
         )}
         style={{
           height: "100dvh",
-          // On POS/settings routes there's no header to carry the inset, so
-          // keep it here. Elsewhere it moves onto the banner/header block
-          // below so its own background (not this wrapper's, which can be a
-          // different shade) paints all the way up under the status bar,
-          // avoiding a seam.
+          // On POS/settings routes there's no header to carry the inset, so keep it here.
+          // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L304
           paddingTop:
             isPosRoute || isSettingsRoute ? "var(--tauri-top, 0px)" : undefined,
         }}
@@ -331,16 +292,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           )}
         </div>
 
-        {/* Page content: scrolls internally. Needs `flex flex-col` itself —
-            not just on <main> below — because flex properties (flex-1,
-            min-h-0) only do anything on an element sitting inside a flex
-            *parent*; without this, <main>'s flex-1/min-h-0 has no container
-            to size against, so it (and everything under it, e.g. a page's
-            own internal-scroll table) grows to its natural content height
-            instead of being capped to the space actually available here,
-            and this div's own overflow-y-auto ends up scrolling that whole
-            oversized block instead of just being the outer fallback it's
-            meant to be. */}
+        {/* Page content: scrolls internally. — docs/CLIENT_COMMENTS.md#block-components-dashboard-dashboard-layout-tsx-L334 */}
         <div
           ref={scrollRef}
           className={cn(

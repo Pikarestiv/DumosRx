@@ -56,12 +56,8 @@ function renderEditor() {
   );
 }
 
-/**
- * Item 5: a delivery is when a wrongly-filed product gets noticed, but the
- * receive ledger has no room for a category column - so it gets a pencil
- * beside the product name instead, gated on manage_products the same way
- * stock-batch/transfer-stock-dialog.tsx gates its own product writes.
- */
+// Item 5: a delivery is when a wrongly-filed product gets noticed, but the receive ledger has no room for a category colum…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-receive-item-category-editor-permission-test-tsx-L59
 describe("ReceiveItemCategoryEditor", () => {
   beforeEach(() => {
     hasPermission.mockReset();

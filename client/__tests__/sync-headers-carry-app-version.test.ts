@@ -2,11 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { apiClient } from "@/lib/api/client";
 import { APP_VERSION } from "@/lib/constants";
 
-/**
- * A-213: the server refuses Health Sync from a client that cannot prove its
- * version, so every sync call must carry one. Dropping this header would
- * silently disable the endpoint for every device.
- */
+// A-213: the server refuses Health Sync from a client that cannot prove its version, so every sync call must carry one.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-headers-carry-app-version-test-ts-L5
 describe("syncHeaders", () => {
   beforeEach(() => {
     vi.stubGlobal(

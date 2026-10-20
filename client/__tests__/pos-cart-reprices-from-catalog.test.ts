@@ -35,15 +35,8 @@ function product(overrides: Partial<Product> = {}): Product {
   } as Product;
 }
 
-/**
- * A-17. The POS cart is a zustand `persist` store: a line snapshots the
- * product's selling price and average cost when it is added and keeps them
- * forever. A cart held overnight, or one held across a price change synced
- * from the owner's device, was charged at the old price and booked COGS at
- * the old average cost. Cart lines are now re-priced from the catalog the
- * cart hook is already given, and the cashier is warned when a line's price
- * moved under them.
- */
+// A-17. The POS cart is a zustand `persist` store:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-cart-reprices-from-catalog-test-ts-L38
 describe("POS cart re-prices persisted lines from the current catalog", () => {
   beforeEach(() => {
     warnings.length = 0;

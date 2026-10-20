@@ -4,9 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-// jsdom doesn't implement matchMedia; components/ui/tooltip.tsx's touch
-// detection needs it to exist to mount at all. Same stub as
-// sync-indicator-instant-sync.test.ts.
+// jsdom doesn't implement matchMedia; components/ui/tooltip.tsx's touch detection needs it to exist to mount at all.
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sync-indicator-impersonation-disabled-test-tsx-L7
 if (!window.matchMedia) {
   window.matchMedia = ((query: string) => ({
     matches: false,
@@ -71,12 +70,8 @@ vi.mock("@/lib/db/DatabaseProvider", () => ({
   useDatabase: () => ({ isReadOnlyTab: false }),
 }));
 
-/**
- * Companion to sync-blocked-during-impersonation.test.ts: sync() itself is
- * the real gate, but the indicator must SAY so rather than silently doing
- * nothing — otherwise a superadmin just sees a frozen "Cloud Active" badge
- * and an inert refresh button.
- */
+// Companion to sync-blocked-during-impersonation.test.ts:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-indicator-impersonation-disabled-test-tsx-L74
 describe("SyncIndicator during an impersonated session", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -126,10 +121,8 @@ describe("SyncIndicator during an impersonated session", () => {
   it("never installs the auto-sync daemon, so no background sync can fire", async () => {
     await render(true);
 
-    // The indicator does subscribe to sync-queue changes to keep its pending
-    // COUNT fresh (that replaced a 5s poll against main-thread sql.js), so a
-    // registered listener isn't itself proof of a daemon — firing it, and
-    // every timer the daemon would have used, must still sync nothing.
+    // The indicator does subscribe to sync-queue changes to keep its pending COUNT fresh (that replaced a 5s poll against main…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sync-indicator-impersonation-disabled-test-tsx-L129
     await act(async () => {
       registeredListener?.(["sales"]);
       vi.advanceTimersByTime(60 * 60 * 1000);

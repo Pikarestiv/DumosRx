@@ -22,11 +22,8 @@ export function useSaveExpenseMutation() {
   return useMutation({
     mutationFn: async ({ formData, expenseId, userId }: SaveExpenseParams) => {
       const parsedAmount = parseFloat(formData.amount);
-      // Defense in depth: the add/edit dialog already rejects a non-numeric
-      // or non-positive amount before calling this mutation, but a REAL
-      // money column shouldn't rely solely on the caller having validated -
-      // and nothing upstream rounds to the cent, so float drift (e.g.
-      // "12.1" + floating-point rounding) could otherwise land un-rounded.
+      // Defense in depth: the add/edit dialog already rejects a non-numeric or non-positive amount before calling this mutation, but a REAL money co…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-expense-mutations-ts-L25
       if (!(parsedAmount > 0)) {
         throw new Error("Expense amount must be a positive number");
       }

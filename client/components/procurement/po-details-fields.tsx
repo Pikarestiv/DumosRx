@@ -27,9 +27,8 @@ interface Supplier {
   name: string;
 }
 
-/** Selecting this represents "no real vendor on file" — maps to a null
- * supplier_id at submit time (see new/page.tsx, edit/page.tsx), the same
- * convention sales.customer_id uses for "Walk-in Customer". */
+// Selecting this represents "no real vendor on file" — maps to a null supplier_id at submit time (see new/page.tsx, edit/p…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-details-fields-tsx-L30
 export const SELF_PURCHASE_VENDOR_ID = "__self__";
 
 interface PODetailsFieldsProps {
@@ -47,15 +46,12 @@ interface PODetailsFieldsProps {
   setDueDate: (date: string) => void;
   amountPaid: string;
   setAmountPaid: (amount: string) => void;
-  /** The order's running total, so the Amount Paid field can name the cap
-   * getValidatedAmountPaid applies to it at save time. Zero/absent in the
-   * create flow, where these details are confirmed before any item exists. */
+  // The order's running total, so the Amount Paid field can name the cap getValidatedAmountPaid applies to it at save time.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-details-fields-tsx-L50
   totalAmount?: number;
   onOpenAddSupplier: () => void;
-  /** Editing an existing PO is only ever done for Standard POs (Immediate
-   * ones are created already "received" and never enter an editable
-   * state), so the edit page hides the toggle entirely rather than showing
-   * a control whose "Immediate" option would silently do nothing. */
+  // Editing an existing PO is only ever done for Standard POs (Immediate ones are created already "received" and never enter…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-details-fields-tsx-L55
   hideTypeToggle?: boolean;
 }
 

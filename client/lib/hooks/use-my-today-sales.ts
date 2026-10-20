@@ -8,19 +8,8 @@ import { calculateNetSaleAmount } from "@/lib/utils/pos-calculations";
 import { getLocalTodayDate } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
 
-/**
- * "My sales today": the cashier-relevant equivalent of inventory-value
- * metrics, which a sales_staff account has no reason to see (they don't
- * manage stock). Mirrors the todayMetrics calculation in
- * pos-transaction-history.tsx, scoped to the signed-in user's own sales.
- *
- * Filters by date in SQL (via getRecentSales's dateRange param) rather
- * than fetching an undated, LIMIT-100 "recent sales" page and filtering
- * for "today" client-side afterward - a cashier who personally rings more
- * than 100 sales today would otherwise have the earliest ones silently
- * dropped before the "is today" filter even runs. A dated query also gets
- * getRecentSales's higher LIMIT 500 cap instead of 100.
- */
+// "My sales today": the cashier-relevant equivalent of inventory-value metrics, which a sales_staff account has no reason to see (they don't m…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-my-today-sales-L11
 export function useMyTodaySales() {
   const { user } = useAuth();
   const isCashier = user?.role === "sales_staff";

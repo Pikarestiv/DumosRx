@@ -8,22 +8,8 @@ import { getDeviceLabel } from "@/lib/utils/device-label";
 import { APP_VERSION, BUILD_SHA } from "@/lib/constants";
 import { getStoredActiveStoreId } from "@/lib/storage-keys";
 
-/**
- * A super_admin asks one device, once, to send its own diagnostics report.
- *
- * This exists because the ordinary telemetry channel fails exactly when it is
- * needed: crash rows live in `feedback`, which rides the sync queue, so a till
- * whose push is jammed stops reporting at the moment it has most to say. The
- * report instead goes out over a plain POST that never touches the queue,
- * which lands as a support ticket and is the only channel that delivers it.
- *
- * The command rides the PUSH response (SyncController::exchangeSyncCommands),
- * not the pull. So a device whose rows fail individually — the "50 changes
- * could not be saved" shape, where the request succeeds and `failed[]` is
- * populated — does receive it. A device whose push REQUEST fails outright
- * (413, 500, timeout) never does, and nor does one with no connection at all.
- * Those are what the on-till inspection session is for.
- */
+// A super_admin asks one device, once, to send its own diagnostics report.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-device-report-command-L11
 export const DEVICE_REPORT_AUDIT_ACTION = "DEVICE_REPORT_SENT_ON_REQUEST";
 
 export async function sendDeviceReportOnRequest(
@@ -42,9 +28,8 @@ export async function sendDeviceReportOnRequest(
   const report = buildReport(data, identity);
   const delivered: string[] = [];
 
-  // A breadcrumb, not an issue: a requested report is not a fault, and the
-  // support POST below is the channel that actually delivers it. See
-  // client/AGENTS.md, "What reaches Sentry".
+  // A breadcrumb, not an issue:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-device-report-command-ts-L31
   try {
     Sentry.addBreadcrumb({
       category: "device-report",

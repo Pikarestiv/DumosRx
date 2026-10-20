@@ -4,15 +4,8 @@ import {
   ALL_SETTINGS_TABS,
 } from "@/lib/constants/settings-tabs";
 
-/**
- * A-198: the diagnostics tab was absent from ALL_SETTINGS_TABS (so a
- * client-side navigation rendered Appearance instead) and gated by nothing.
- *
- * Two support sessions can see it and they differ: an on-till inspection is
- * read-only and must be denied every other tab, while the impersonation
- * handoff — the only path that ever reached this console — keeps the access
- * it always had.
- */
+// A-198: the diagnostics tab was absent from ALL_SETTINGS_TABS (so a client-side navigation rendered Appearance instead) a…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-settings-diagnostics-tab-gate-test-ts-L7
 const noKeys = () => false;
 const allKeys = () => true;
 

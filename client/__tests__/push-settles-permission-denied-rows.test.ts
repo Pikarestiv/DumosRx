@@ -18,17 +18,8 @@ vi.mock("sonner", () => ({
   },
 }));
 
-/**
- * A `permission_denied` rejection means the caller has no access to the row's
- * store at all, so - unlike a version_conflict - no future pull can ever bring
- * the server's version down to settle it. Dropping only the _sync_queue row
- * leaves the source row at `_synced = 0` with no queue entry, which
- * requeueOrphanedRows() (DatabaseProvider, forced on any crash-flagged launch)
- * re-queues into the same refusal forever. See docs/FIXED_BUGS.md A-161.
- *
- * `forbidden` is the deliberate counter-case and is covered here so the two
- * classifications stay pinned side by side - see docs/KNOWN_BUGS.md A-165.
- */
+// A `permission_denied` rejection means the caller has no access to the row's store at all, so - unlike a version_conflict…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-settles-permission-denied-rows-test-ts-L21
 describe("pushChanges settles permission_denied rows but keeps forbidden ones retryable", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

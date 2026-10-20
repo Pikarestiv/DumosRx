@@ -3,16 +3,8 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import initSqlJs, { type Database } from "sql.js";
 import React from "react";
 
-/**
- * Regression coverage for the "no users exist" login fallback (SECURITY,
- * docs/KNOWN_BUGS.md): it used to fire for ANY typed PIN whenever the typed
- * identifier was "admin" and simply didn't match a local row - not "zero
- * users exist locally". A device mid-sync (hasn't pulled its real "admin"
- * user down yet) or one whose real admin account was later
- * renamed/deleted could hit it with real users already present, granting a
- * full admin session for an arbitrary PIN. Exercises the real login()
- * against a real in-memory sql.js instance (not a reimplementation).
- */
+// Regression coverage for the "no users exist" login fallback (SECURITY, docs/KNOWN_BUGS.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-auth-default-admin-bootstrap-test-tsx-L6
 
 vi.mock("@sentry/nextjs", () => ({
   setUser: vi.fn(),

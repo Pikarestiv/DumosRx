@@ -23,13 +23,8 @@ interface POItemBuilderProps {
   onNewlyCreatedProductConsumed?: () => void;
 }
 
-/** Search-to-add-a-row bulk item entry, replacing the old one-at-a-time
- * POAddItemForm + separate cart summary. A row is added the moment a
- * catalog product is picked (or a newly created product comes back); no
- * separate "Add" click is needed to commit it to the list, since it's
- * already in the list. showGlobalSuggestions={false} on the combobox keeps
- * catalog matches and non-catalog name suggestions from ever appearing in
- * the same dropdown. */
+// Search-to-add-a-row bulk item entry, replacing the old one-at-a-time POAddItemForm + separate cart summary.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-item-builder-tsx-L26
 export function POItemBuilder({
   poType,
   products,
@@ -45,12 +40,8 @@ export function POItemBuilder({
   const isTabletUp = useMediaQuery("(min-width: 640px)");
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Staff's first instinct on a brand-new order is to start typing an item
-  // name right away, not to click into the search bar first - but this same
-  // component also mounts on the edit page resuming an existing draft,
-  // where the order already has items and grabbing focus (popping the
-  // mobile keyboard) would cover the very rows the user came to edit.
-  // Only mount-focus when there's nothing in the order yet.
+  // Staff's first instinct on a brand-new order is to start typing an item name right away, not to click into the search bar…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-procurement-po-item-builder-tsx-L48
   useEffect(() => {
     if (items.length === 0) {
       searchInputRef.current?.focus();
@@ -65,10 +56,8 @@ export function POItemBuilder({
   const onItemsChangeRef = useRef(onItemsChange);
   onItemsChangeRef.current = onItemsChange;
 
-  // Reading the current items through a ref keeps them out of every
-  // handler's dependency list, so the callbacks handed to the memoised rows
-  // stay identical across renders and editing one line does not re-render
-  // every other line's inputs, date pickers and popovers.
+  // Reading the current items through a ref keeps them out of every handler's dependency list, so the callbacks handed to th…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-procurement-po-item-builder-tsx-L68
   const updateItems = useCallback(
     (mutate: (current: POLineItemDraft[]) => POLineItemDraft[]) => {
       onItemsChangeRef.current(mutate(itemsRef.current));

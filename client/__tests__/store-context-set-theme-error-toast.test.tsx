@@ -4,13 +4,8 @@ import initSqlJs, { type Database } from "sql.js";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-/**
- * Regression coverage (Low-severity, docs/KNOWN_BUGS.md): setTheme() fired
- * updateStoreProfile() fire-and-forget with no error handling at all — a
- * failed persist left the UI's optimistically-applied theme silently
- * diverged from what's actually stored/synced, with zero signal to the
- * user. Fixed by catching the rejection and surfacing a toast.
- */
+// Regression coverage (Low-severity, docs/KNOWN_BUGS.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-store-context-set-theme-error-toast-test-tsx-L7
 
 const toastError = vi.fn();
 vi.mock("sonner", () => ({

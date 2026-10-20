@@ -3,11 +3,8 @@ import { render, screen } from "@testing-library/react";
 import { ProductBatchHistory } from "@/components/products/product-details/product-batch-history";
 import type { StockBatch } from "@/lib/types/stock-batch";
 
-/**
- * Regression coverage: a batch with no expiry_date fell back to
- * `new Date(0)` (the Unix epoch), which is always in the past, so every
- * non-perishable batch showed "Expired" instead of a neutral "No expiry".
- */
+// Regression coverage: a batch with no expiry_date fell back to `new Date(0)` (the Unix epoch), which is always in the pas…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-product-batch-history-no-expiry-status-test-tsx-L6
 function batch(overrides: Partial<StockBatch> = {}): StockBatch {
   return {
     id: "b1",

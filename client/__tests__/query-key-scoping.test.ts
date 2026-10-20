@@ -5,15 +5,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression coverage for the query-key scoping fix in lib/query-keys.ts's
- * `resource()`. Every key is suffixed with the active store id and current
- * user id (lib/db/core.ts) precisely so a switch of store/user can never
- * resolve to a cache slot the previous store/user's queries already own.
- * This is the structural guarantee behind the "cross-account data spill"
- * fix: even a caller that forgets to clear the query cache on switch can't
- * leak, because the switch itself changes which key is read/written.
- */
+// Regression coverage for the query-key scoping fix in lib/query-keys.ts's `resource()`.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-query-key-scoping-test-ts-L8
 describe("query key scoping (store + user)", () => {
   let core: typeof import("@/lib/db/core");
   let queryKeys: typeof import("@/lib/query-keys").queryKeys;
@@ -49,9 +42,8 @@ describe("query key scoping (store + user)", () => {
   });
 
   it("simulates the race: a key captured before a switch can never collide with the post-switch key", () => {
-    // A dashboard fetch is issued under store A / user 1. This is the key
-    // React Query would use to cache whatever that in-flight request
-    // eventually resolves with, even if it resolves after the switch below.
+    // A dashboard fetch is issued under store A / user 1.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-query-key-scoping-test-ts-L52
     core.setActiveStoreId("store-a");
     core.setCurrentUser({ id: "user-1", first_name: "A", last_name: "B", role: "store_owner" });
     const inFlightRequestKey = queryKeys.dashboard.overview().queryKey;

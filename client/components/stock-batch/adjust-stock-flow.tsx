@@ -18,11 +18,8 @@ interface AdjustStockFlowProps {
   onSubmitted?: () => void;
 }
 
-/** Full-page creation flow, the same shell the cycle count uses
- * (`stock-audits.tsx`): a fixed header with a back button, a centered
- * scrolling body and a pinned footer action. It replaces the tab's content
- * outright rather than overlaying it, so the two-step entry has the whole
- * viewport on a phone instead of a dialog's scroll box. */
+// Full-page creation flow, the same shell the cycle count uses (`stock-audits.tsx`):
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-adjust-stock-flow-tsx-L21
 export function AdjustStockFlow({ onClose, onSubmitted }: AdjustStockFlowProps) {
   const { user } = useAuth();
   const [step, setStep] = useState<"preferences" | "items">("preferences");

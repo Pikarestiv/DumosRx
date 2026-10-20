@@ -53,12 +53,8 @@ interface PODesktopCreateViewProps {
   setIsEditDetailsOpen: (open: boolean) => void;
 }
 
-/** Desktop full-screen takeover for creating a purchase order, same as the
- * Cycle Count session in stock-batch/stock-audits.tsx, so the ledger table
- * gets the whole viewport instead of being cramped inside the dashboard
- * shell. Mirrors POMobileCreateView's two-phase flow: order details are
- * confirmed first, then item entry becomes the dominant content, with
- * details editable via PODetailsDialog afterward. */
+// Desktop full-screen takeover for creating a purchase order, same as the Cycle Count session in stock-batch/stock-audits.…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-desktop-create-view-tsx-L56
 export function PODesktopCreateView(props: PODesktopCreateViewProps) {
   const {
     poType,

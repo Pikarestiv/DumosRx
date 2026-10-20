@@ -17,10 +17,8 @@ interface CreatePurchaseOrderParams {
   type?: "standard" | "immediate";
 }
 
-/** Shared by every "save as draft" call site (Standard PO, and an Immediate
- * Purchase parked as a draft instead of received right away) — both go
- * through the same underlying createPurchaseOrder() call. Each caller
- * supplies its own onSuccess for its own toast wording / navigation. */
+// Shared by every "save as draft" call site (Standard PO, and an Immediate Purchase parked as a draft instead of received right away) — both g…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-purchase-order-mutations-ts-L20
 export function useCreatePurchaseOrderMutation() {
   return useMutation({
     mutationFn: ({

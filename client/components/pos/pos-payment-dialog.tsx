@@ -72,18 +72,13 @@ export function POSPaymentDialog({
   const { defaults, setDefaultAccount, clearDefaultAccount } =
     useDefaultPaymentAccounts();
 
-  // Re-syncs to `total` whenever it changes (e.g. a reseller markup raises
-  // it after the dialog was first opened) as long as the field still holds
-  // the value we auto-filled last time - i.e. the cashier hasn't typed a
-  // different amount themselves. Tracking the *previous* auto-filled value
-  // in a ref (rather than only checking "is it blank") is what makes this
-  // re-run on a stale-but-non-blank amount instead of leaving it stuck.
+  // Re-syncs to `total` whenever it changes (e.g.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-payment-dialog-tsx-L75
   const lastAutoFilledRef = useRef<string | null>(null);
   useEffect(() => {
     if (!showPaymentDialog) {
-      // Reset on close so a value a cashier manually typed in a previous
-      // sale can't be silently overwritten just because a later sale's
-      // total happens to match it.
+      // Reset on close so a value a cashier manually typed in a previous sale can't be silently overwritten just because a later…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-payment-dialog-tsx-L84
       lastAutoFilledRef.current = null;
       return;
     }

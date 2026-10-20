@@ -27,13 +27,11 @@ interface RecordPaymentModalProps {
     paymentMethod: string,
     notes: string,
   ) => Promise<void>;
-  /** Prefill amount when it should differ from the customer's full
-   * outstanding_balance, e.g. opened from one specific sale's remaining
-   * balance rather than their total debt across every sale. */
+  // Prefill amount when it should differ from the customer's full outstanding_balance, e.g.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-customers-record-payment-modal-tsx-L30
   defaultAmount?: number;
-  /** Extra note shown under the description, e.g. warning that payments
-   * settle the customer's oldest outstanding sale first (FIFO), which may
-   * not be the sale this modal was opened from. */
+  // Extra note shown under the description, e.g.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-customers-record-payment-modal-tsx-L34
   helperNote?: string;
 }
 
@@ -64,10 +62,8 @@ export function RecordPaymentModal({
     const numericAmount = parseFloat(amount);
     if (!numericAmount || numericAmount <= 0) return;
 
-    // The `max` on the amount input is only an HTML hint — enforce it here
-    // too. recordCustomerPayment floors the new balance at 0 but still logs
-    // the full amount, so an overpayment would silently vanish from the books
-    // with no reconciling credit/refund record.
+    // The `max` on the amount input is only an HTML hint — enforce it here too.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-customers-record-payment-modal-tsx-L67
     if (numericAmount > customer.outstanding_balance) {
       toast.error(
         `Payment cannot exceed the outstanding balance of ${formatCurrency(customer.outstanding_balance, currencyCode)}.`,

@@ -12,14 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * Command outcomes rode along with queued changes, so a push happened only
- * when there was something queued. But the commonest successful outcome
- * EMPTIES the queue — abandoning or retrying the last stuck row — which left
- * the outcome with nothing to travel on and the operator looking at a command
- * that is forever "queued". An idle device could not pick a command up at
- * all, for the same reason.
- */
+// Command outcomes rode along with queued changes, so a push happened only when there was something queued.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-delivers-command-results-when-queue-is-empty-test-ts-L15
 describe("pushChanges with an empty queue but a pending command outcome", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -107,13 +101,8 @@ describe("pushChanges with an empty queue but a pending command outcome", () => 
     expect(apiClient.pushChanges).not.toHaveBeenCalled();
   });
 
-  /**
-   * The case the whole command channel exists for. A stuck row is by
-   * definition one whose retries have backed off, and getPendingSyncItems()
-   * excludes a backed-off row from an auto-sync - so the device would never
-   * send anything, and the `retry` command issued FOR that row could never
-   * reach it. The queue is not empty; it is just not due.
-   */
+  // The case the whole command channel exists for.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-delivers-command-results-when-queue-is-empty-test-ts-L110
   it("asks for commands when the only queued row is backed off out of reach", async () => {
     const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     db.run(

@@ -1,12 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-/**
- * "export_product_list" fronts the catalog's Export dropdown - taking a
- * copy of the whole product list (cost columns included) off the device.
- * Import is a different right and stays under manage_products, so the
- * toolbar keeps a working control rather than emptying out.
- */
+// "export_product_list" fronts the catalog's Export dropdown - taking a copy of the whole product list (cost columns inclu…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-import-export-toolbar-export-permission-test-tsx-L4
 
 const hasPermission = vi.fn((_key: string) => true);
 

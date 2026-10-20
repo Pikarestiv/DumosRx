@@ -39,12 +39,8 @@ vi.mock("@tanstack/react-query", () => ({
 
 import { useExpenseList, useExpenseTotals } from "@/lib/hooks/use-finance-data";
 
-/**
- * The Expenses page has always had an own-vs-all scope; until this pass it
- * hung off view_activity_log (the sales-side key), so the only role that
- * saw the whole ledger was the one holding it. view_all_expenses is the
- * catalog's own key for exactly this distinction.
- */
+// The Expenses page has always had an own-vs-all scope; until this pass it hung off view_activity_log (the sales-side key)…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-expenses-view-all-scope-test-tsx-L42
 describe("view_all_expenses ledger scoping", () => {
   beforeEach(() => {
     hasPermission.mockReset();

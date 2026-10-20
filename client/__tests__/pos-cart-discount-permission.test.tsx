@@ -61,13 +61,8 @@ function renderCart(discount: number) {
   );
 }
 
-/**
- * Item 3 (Cynthia's feedback): "apply_discounts" already existed in the
- * permission catalog with the right role defaults, but nothing in the app
- * ever checked it, so every cashier could discount freely. Seeing a
- * discount that is already on the cart (a resumed held sale, a loyalty
- * redemption) is deliberately NOT gated - only creating or editing one is.
- */
+// Item 3 (Cynthia's feedback):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-cart-discount-permission-test-tsx-L64
 describe("POS cart discount permission", () => {
   beforeEach(() => {
     hasPermission.mockReset();

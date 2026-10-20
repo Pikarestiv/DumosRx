@@ -6,17 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * A-243. `forceFullResync()` deleted `_sync_state` and then pulled. The pull
- * only persists progress inside a committed page transaction, so a resync
- * whose first page never lands (A-206 throws on the fetch) left the device
- * with no window and no cursor at all — every later sync then a full pull
- * failing the same way. One till was stranded exactly that way in production
- * on 2026-10-12, and this function is the health check's only recovery action.
- *
- * The stash lives in pull-window.ts because that module already owns every
- * write to `_sync_state` outside pull.ts's own progress upserts.
- */
+// A-243. `forceFullResync()` deleted `_sync_state` and then pulled.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-force-full-resync-restores-baseline-test-ts-L9
 describe("clearPullWindows / restorePullWindows", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

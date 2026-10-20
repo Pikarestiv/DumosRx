@@ -14,13 +14,8 @@ function row(overrides: Partial<AuditItem> = {}): AuditItem {
   };
 }
 
-/**
- * Reported live by the store owner the moment the blank-field build was
- * opened on a device with an older draft: "why did all the rows become
- * ticked all of a sudden?" A v0 draft pre-filled every countedQty with the
- * system quantity, and an entered quantity is now what marks a row counted,
- * so the whole sheet rehydrated as counted.
- */
+// Reported live by the store owner the moment the blank-field build was opened on a device with an older draft:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-stock-audit-draft-migration-test-ts-L17
 describe("stock audit draft migration to the blank Counted Qty field", () => {
   it("clears a v0 row that only carried the old prefill", () => {
     const { items } = migrateStockAuditDraft({ items: [row({ id: "a" })] }, 0);

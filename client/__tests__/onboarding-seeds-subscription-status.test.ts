@@ -4,15 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-/**
- * Regression test (A-156, docs/FIXED_BUGS.md): a brand-new signup's trial
- * subscription is created server-side in the same request as the account,
- * but the local `stores` row's `subscription_tier` column has no value in
- * finishNewAccountSetup()'s INSERT, so it sat at the schema default 'free'
- * until the fire-and-forget `sync(false, true)` call eventually pulled the
- * real value - landing the user on the dashboard with "Free" shown even
- * though the server already granted a Pro trial in the same request.
- */
+// Regression test (A-156, docs/FIXED_BUGS.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-onboarding-seeds-subscription-status-test-ts-L7
 
 const routerPushMock = vi.fn();
 const loginMock = vi.fn(async () => true);

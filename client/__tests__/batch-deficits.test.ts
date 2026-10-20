@@ -6,14 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Stage 1 of docs/superpowers/specs/2026-10-14-oversell-compensating-movement-design.md:
- * a batch whose movement log sums below zero is carrying an oversell deficit,
- * and the next inbound movement pays it off before it adds anything (A-265).
- * The deficit is read from the log itself, which is also A-212's fix — the
- * alert it replaces matched the word "oversold" in a free-text reason inside a
- * 30-day window, so it announced past events and never a current shortfall.
- */
+// Stage 1 of docs/superpowers/specs/2026-10-14-oversell-compensating-movement-design.md:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-batch-deficits-test-ts-L9
 const STORE_ID = "store-1";
 const OTHER_STORE = "store-2";
 

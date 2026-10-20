@@ -1,15 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-/**
- * Regression coverage for FIXED_BUGS.md A-45: DashboardHeader passes
- * resolveHeaderAction a permission-check closure, and that closure used to
- * recognise only three hardcoded keys and return true for anything else.
- * Every other route's `actionPermission` - adjust_stock_counts on Adjust
- * Stock, manage_customers, record_expenses - was therefore declared but
- * never enforced. The closure now delegates to the same hasPermission()
- * every other call site uses, so it enforces whatever key a route declares.
- */
+// Regression coverage for FIXED_BUGS.md A-45:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-dashboard-header-action-permission-test-tsx-L4
 
 if (!window.matchMedia) {
   window.matchMedia = ((query: string) => ({
@@ -33,10 +26,8 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
 }));
 
-// canManageStockBatch is auth-context's own hasPermission("manage_products")
-// call, so the mock derives it the same way rather than hardcoding true -
-// the "has adjust_stock_counts but not manage_products" case below depends
-// on the two coming apart.
+// canManageStockBatch is auth-context's own hasPermission("manage_products") call, so the mock derives it the same way rat…
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-dashboard-header-action-permission-test-tsx-L36
 vi.mock("@/lib/context/auth-context", () => ({
   useAuth: () => ({
     user: { id: "u1", first_name: "Ada", role },

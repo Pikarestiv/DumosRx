@@ -18,9 +18,8 @@ export function useUsers(storeId?: string | null) {
 export function useMutateUser() {
   const queryClient = useQueryClient();
 
-  // The users key now varies by storeId (see queryKeys.staff.users), so a
-  // single mutation must invalidate every store-filtered variant at once;
-  // matching on the shared "users" prefix does that.
+  // The users key now varies by storeId (see queryKeys.staff.users), so a single mutation must invalidate every store-filtered variant at once;…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-queries-use-users-ts-L21
   const invalidateAllUsers = () =>
     queryClient.invalidateQueries({ queryKey: ["users"] });
 

@@ -18,9 +18,8 @@ interface ProductDatabaseFiltersProps {
   statuses: string[];
   onManageCategories: () => void;
   onProductsChanged: () => void;
-  /** Currently-filtered product ids, so Export and the bulk online-visibility
-   * action both default to what's on screen — undefined when no filter is
-   * active (search/category/status all at their defaults). */
+  // Currently-filtered product ids, so Export and the bulk online-visibility action both default to what's on screen — undef…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-products-product-database-filters-tsx-L21
   filteredProductIds?: string[];
 }
 

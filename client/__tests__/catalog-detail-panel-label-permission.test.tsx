@@ -84,12 +84,8 @@ function renderPanel() {
   );
 }
 
-/**
- * barcode-print-dialog.tsx has always been real and tested, but its only
- * mount was keyed off a stock-overview.tsx state whose setter was never
- * called — the feature existed with no way to open it. The catalog detail
- * panel's overflow menu is the trigger, and print_product_labels gates it.
- */
+// barcode-print-dialog.tsx has always been real and tested, but its only mount was keyed off a stock-overview.tsx state wh…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-catalog-detail-panel-label-permission-test-tsx-L87
 describe("Catalog detail panel label-print permission", () => {
   beforeEach(() => {
     hasPermission.mockReset();

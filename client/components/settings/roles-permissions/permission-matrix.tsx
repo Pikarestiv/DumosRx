@@ -12,21 +12,12 @@ import { GroupToolbar } from "./group-toolbar";
 import { GroupColumnActions } from "./group-column-actions";
 import { getCategoryCheckState, getCategoryToggleKeys, getCategoryToggleTarget } from "./category-selection";
 
-/** A user who isn't store_owner/super_admin has no unconditional bypass in
- * hasPermission(), so unticking manage_roles_permissions on their own
- * group would lock them out of this very panel with no way back in from
- * their own device. The cell stays visible (and ticked) but is not
- * editable, mirroring the self-edit protection the sync layer already
- * applies to a user's own role/permission_group_id. */
+// A user who isn't store_owner/super_admin has no unconditional bypass in hasPermission(), so unticking manage_roles_permi…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-roles-permissions-permission-matrix-tsx-L15
 const SELF_LOCKOUT_KEY = "manage_roles_permissions";
 
-/** The server rejects a permission_groups push that would grant a key the
- * caller doesn't hold, and it checks the WHOLE resulting permissions array -
- * so a group that already holds such a key can't be edited by that caller at
- * all. Both refusals are shown here as a disabled cell with the reason,
- * because the alternative (letting the edit through) is a local write that
- * looks saved, pushes as `permission_denied`, is dropped silently and is
- * reverted by the next pull with nothing said. */
+// The server rejects a permission_groups push that would grant a key the caller doesn't hold, and it checks the WHOLE resu…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-roles-permissions-permission-matrix-tsx-L23
 const UNGRANTABLE_KEY_TITLE =
   "You can't grant a permission you don't hold yourself - ask the store owner to change this.";
 const UNGRANTABLE_GROUP_TITLE =
@@ -38,9 +29,8 @@ export function PermissionMatrix() {
   const grantScope = useOwnGrantScope();
   const { groups, toggle, toggleMany, createGroup, copyGroup, revertToDefault, renameGroup, deleteGroup } =
     usePermissionGroups();
-  // Categories start expanded: the matrix's whole job is being scannable at
-  // a glance, so nothing is hidden behind a click until the admin chooses to
-  // fold a section away.
+  // Categories start expanded:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-roles-permissions-permission-matrix-tsx-L41
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const categories = useMemo(() => {

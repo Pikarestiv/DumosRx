@@ -12,13 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * A-279, the client half of the contract. A behind re-sent INSERT is accepted
- * without the server writing anything, so the device keeps the losing snapshot
- * at the server's version with its queue row gone. The server re-opens that
- * row's pull window; these two cases pin that the pull then actually applies
- * it, and that it still steps aside for a genuine pending local edit.
- */
+// A-279, the client half of the contract.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-overwrites-a-stale-accepted-resend-test-ts-L15
 describe("pullChanges overwrites a stale row left by an accepted re-send", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

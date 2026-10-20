@@ -16,12 +16,8 @@ function bodyCells(column: number) {
     .map((row) => within(row).getAllByRole("cell")[column].textContent);
 }
 
-/**
- * Items 1+2: every Report Center report returns the same generic
- * Record<string, unknown> row shape, so one column-driven table renders all
- * six on screen. The only real logic here is the comparator - a numeric
- * column must not sort as text ("1200" before "80").
- */
+// Items 1+2: every Report Center report returns the same generic Record<string, unknown> row shape, so one column-driven t…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-report-table-view-sorting-test-tsx-L19
 describe("ReportTableView", () => {
   it("renders a column per configured header", () => {
     render(<ReportTableView rows={rows} headers={["Cashier", "Total"]} />);

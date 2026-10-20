@@ -11,11 +11,8 @@ export function getMaxReturnable(item: ReturnableSaleItem): number {
   return Math.max(0, item.quantity - (item.returned_quantity || 0));
 }
 
-/** Whether every line item on the sale has had its full remaining balance
- * returned once this return (the given selections) is applied — across
- * both this return and any prior ones, not just what's touched right now.
- * An item with nothing left to return (already fully returned before this
- * action) doesn't need to be selected to count as "done". */
+// Whether every line item on the sale has had its full remaining balance returned once this return (the given selections) is applied — across…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-returns-calculations-ts-L14
 export function isFullyReturned(
   items: ReturnableSaleItem[],
   selections: { id: string; returnQuantity: number }[],

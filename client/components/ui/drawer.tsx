@@ -36,12 +36,8 @@ DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName
 
 interface DrawerContentProps
   extends React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content> {
-  /**
-   * Skips the default bg-muted grab handle so a caller with its own
-   * full-bleed colored header (which the default handle's white backdrop
-   * would otherwise stack a visible seam above) can render its own handle
-   * inside that header instead.
-   */
+  // Skips the default bg-muted grab handle so a caller with its own full-bleed colored header (which the default handle's wh…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-drawer-tsx-L39
   hideHandle?: boolean;
 }
 

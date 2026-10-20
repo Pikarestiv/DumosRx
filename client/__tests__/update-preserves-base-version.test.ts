@@ -6,22 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression coverage for _known-bugs.md #11: update()'s `_version` used to
- * be a purely local edit counter (`current._version + 1` written to both the
- * local row AND the queued sync payload), blind to the server's actual
- * current version. Two devices editing the same row from the same shared,
- * already-synced ancestor would always compute the identical "next" version
- * — guaranteed collision arithmetic, not a rare race — which is exactly how
- * a confirmed, server-committed edit got silently overwritten by a second
- * device's later push with zero error or signal (see the MACA GUMMIES
- * reproduction in docs/features/backup-restore.md).
- *
- * The fix: update() now sends/stores the UNCHANGED current `_version`, never
- * incrementing it locally. The server (SyncController::push) is the sole
- * authority for assigning the new version, on acceptance, and returns it to
- * the client via the push response's `versions` field (see push.ts).
- */
+// Regression coverage for _known-bugs.md #11:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-update-preserves-base-version-test-ts-L9
 describe("update() preserves the base _version instead of incrementing it locally", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -83,9 +69,8 @@ describe("update() preserves the base _version instead of incrementing it locall
     );
     const firstPayload = JSON.parse(firstQueued[0].values[0][0] as string);
 
-    // Reset the local row back to its pre-edit state to simulate "device B"
-    // never having pulled device A's change (its local copy is still the
-    // original ancestor).
+    // Reset the local row back to its pre-edit state to simulate "device B" never having pulled device A's change (its local c…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-update-preserves-base-version-test-ts-L86
     db.run(`UPDATE products SET _version = 1, selling_price = 999 WHERE id = '${id}'`);
     db.run(`DELETE FROM _sync_queue`);
 
@@ -95,10 +80,8 @@ describe("update() preserves the base _version instead of incrementing it locall
     );
     const secondPayload = JSON.parse(secondQueued[0].values[0][0] as string);
 
-    // Both edits carry the SAME base version — this is exactly the shape the
-    // server's strict version-equality check (SyncController::push) now
-    // needs to detect as a real conflict on the second push, instead of the
-    // old `<` check silently falling through to an updated_at comparison.
+    // Both edits carry the SAME base version — this is exactly the shape the server's strict version-equality check (SyncContr…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-update-preserves-base-version-test-ts-L98
     expect(firstPayload._version).toBe(1);
     expect(secondPayload._version).toBe(1);
   });

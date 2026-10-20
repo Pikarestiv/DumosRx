@@ -34,14 +34,8 @@ vi.mock("sonner", () => ({ toast: toastMock }));
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-/**
- * A-59: holding a reseller sale dropped `is_reseller_sale`/`markup_type` and
- * re-quoted every line at the current catalog price, so the markup and the
- * agent's commission vanished — blamed on a generic "prices have changed"
- * toast. A-60: the cart was mutated to the recalled state before the held row
- * was deleted, so a failing delete left a recalled cart, a failure toast, and
- * the held sale still listed as recallable.
- */
+// A-59: holding a reseller sale dropped `is_reseller_sale`/`markup_type` and re-quoted every line at the current catalog p…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-pos-held-transactions-reseller-recall-test-ts-L37
 describe("usePOSHeldTransactions — reseller recall and delete ordering", () => {
   let usePOSCart: typeof import("@/lib/hooks/use-pos-cart").usePOSCart;
   let usePOSHeldTransactions: typeof import("@/lib/hooks/use-pos-held-transactions").usePOSHeldTransactions;

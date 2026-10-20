@@ -2,19 +2,8 @@ import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
 
-/**
- * Regression coverage for: "Points Redemption Options section is empty
- * until Loyalty Settings is opened once" (docs/features/_findings-log.md).
- *
- * Root cause: ensureLoyaltyDefaultsSeeded() (lib/db/queries/loyalty.ts) only
- * runs as a side effect of the Loyalty Settings dialog's `open` useEffect,
- * so a store that never opened that dialog saw "No redemption options
- * configured yet." on the main Loyalty tab even though tiers never had this
- * problem — use-customer-management.ts's buildFallbackTiers() already
- * covers that gap for tiers. This adds the equivalent
- * buildFallbackRedemptionOptions() and asserts the same real-data-wins
- * precedence rule tiers already follow.
- */
+// Regression coverage for:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-loyalty-redemption-fallback-test-ts-L5
 describe("buildFallbackRedemptionOptions", () => {
   it("returns a non-empty preview list mirroring buildDefaultRedemptionOptions() content", async () => {
     const { buildFallbackRedemptionOptions } = await import(

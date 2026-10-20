@@ -28,9 +28,8 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
   // Custom modal confirmation states
   const [showConfirmSwitch, setShowConfirmSwitch] = useState(false);
   const [pendingStoreName, setPendingStoreName] = useState("");
-  // Set only when showConfirmSwitch was triggered by a brand-new signup
-  // (not the existing-account store-switch flow) finding leftover local
-  // data - see handleRegister() and confirmCloudRestoreSwitch() below.
+  // Set only when showConfirmSwitch was triggered by a brand-new signup (not the existing-account store-switch flow) finding…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-app-setup-use-onboarding-ts-L31
   const [pendingNewRegistration, setPendingNewRegistration] = useState<{
     store: { id: string; name: string };
     userId: string;
@@ -51,14 +50,8 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // `isCloudLinked` from auth-context is a device-wide flag (true whenever a
-  // cloud auth token is cached in localStorage); it can be stale from an
-  // earlier session on this device. "Set Up New Business" and "Create an
-  // account" always mean "create a brand-new cloud account," regardless of
-  // any leftover token, so they must never be treated as already-linked.
-  // Only the automatic zero-local-users fallback inside startSyncProcess
-  // (reached right after this session's own successful cloud link) is a
-  // genuine already-linked case: it sets this flag itself.
+  // `isCloudLinked` from auth-context is a device-wide flag (true whenever a cloud auth token is cached in localStorage); it…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-app-setup-use-onboarding-ts-L54
   const [justCloudLinkedForRegister, setJustCloudLinkedForRegister] = useState(false);
   const registerIsCloudLinked = isCloudLinked && justCloudLinkedForRegister;
 
@@ -73,10 +66,8 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
 
   const setStep = (step: OnboardingStep) => {
     const params = new URLSearchParams(searchParams.toString());
-    // Always land on the setup tab. setStep can now be called from the
-    // login tab (e.g. TraditionalLoginForm's "Create account" / "Restore
-    // Backup" links), which has no `tab=setup` in its URL yet, unlike every
-    // other setStep caller that's already inside the setup tab.
+    // Always land on the setup tab.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-app-setup-use-onboarding-ts-L76
     params.set("tab", "setup");
     if (step === "welcome") {
       params.delete("step");

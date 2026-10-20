@@ -60,13 +60,8 @@ function renderDirectory(selected: Customer | null = null) {
   );
 }
 
-/**
- * The Customers & Loyalty read/write split: manage_customers fronts the
- * add/edit triggers, delete_customers the trash control, and
- * view_customer_balances every place a customer's outstanding debt is
- * shown - the directory's Balance column and debt summary, and the detail
- * panel's outstanding-balance block (which is where Record Payment lives).
- */
+// The Customers & Loyalty read/write split:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-customer-directory-permissions-test-tsx-L63
 describe("customer directory permissions", () => {
   beforeEach(() => {
     hasPermission.mockReset();

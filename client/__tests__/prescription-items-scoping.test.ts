@@ -6,13 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * getAllPrescriptionItems() used to select the ENTIRE prescription_items table
- * - a table that grows by a row per dispensed medication line for the life of
- * the store - on every mount of the Prescriptions page, then threw away
- * everything that didn't belong to a loaded prescription. It now reads only
- * the ids actually loaded.
- */
+// getAllPrescriptionItems() used to select the ENTIRE prescription_items table - a table that grows by a row per dispensed…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-prescription-items-scoping-test-ts-L9
 describe("getPrescriptionItemsFor", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

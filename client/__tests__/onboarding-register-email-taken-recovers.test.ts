@@ -4,18 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-/**
- * Regression test: if `apiClient.register()` 422s "email already taken"
- * during brand-new account creation, that almost always means an earlier
- * attempt from this same flow already succeeded server-side and only the
- * response was lost (a dropped connection, a retry that gave up) - not
- * that the user is trying to steal someone else's account. Dead-ending on
- * the raw server error here would strand the account (every further
- * attempt re-422s, and the existing cloud-restore path also dead-ends with
- * "no stores found" until a store exists locally). handleRegister() now
- * falls back to logging in with the same credentials and continuing the
- * normal flow against whatever store the cloud account actually has.
- */
+// Regression test: if `apiClient.register()` 422s "email already taken" during brand-new account creation, that almost alw…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-onboarding-register-email-taken-recovers-test-ts-L7
 
 const routerPushMock = vi.fn();
 const loginMock = vi.fn(async () => true);

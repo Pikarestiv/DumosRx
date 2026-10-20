@@ -7,13 +7,8 @@ import { writeWidgetSnapshot } from "@/lib/native/widget-bridge";
 import { buildWidgetSnapshotPayload } from "@/lib/utils/widget-snapshot";
 import { isTauri } from "@/lib/db";
 
-/**
- * Keeps the Android widget's local data snapshot fresh whenever the app is
- * open: fetches /dashboard/widget-snapshot and writes the result to native
- * storage. Mounted once near the app root (see use-widget-deeplink.ts for
- * the sibling hook it's wired alongside). The WorkManager background job
- * (RefreshWorker, native) covers refreshes while the app isn't open.
- */
+// Keeps the Android widget's local data snapshot fresh whenever the app is open:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-widget-snapshot-sync-ts-L10
 export function useWidgetSnapshotSync() {
   const { isCloudLinked } = useAuth();
 
@@ -24,9 +19,8 @@ export function useWidgetSnapshotSync() {
   });
 
   useEffect(() => {
-    // While cloud-linked, wait for the first successful fetch before writing
-    // so we don't clobber native storage with a transient "unlinked" state
-    // during the initial load.
+    // While cloud-linked, wait for the first successful fetch before writing so we don't clobber native storage with a transient "unlinked" state…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-widget-snapshot-sync-ts-L22
     if (isCloudLinked && data === undefined) return;
 
     const payload = buildWidgetSnapshotPayload(data ?? null, isCloudLinked, Date.now());

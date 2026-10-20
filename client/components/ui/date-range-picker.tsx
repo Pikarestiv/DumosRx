@@ -96,9 +96,8 @@ const PRESETS: { label: string; getRange: () => DateRangeValue }[] = [
   },
 ];
 
-/** Dual-month range calendar + preset sidebar + editable start/end text
- * inputs in one popover. Uses DD/MM/YYYY to stay consistent with every
- * other date input already in this app. */
+// Dual-month range calendar + preset sidebar + editable start/end text inputs in one popover.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-date-range-picker-tsx-L99
 export function DateRangePicker({
   value,
   onChange,

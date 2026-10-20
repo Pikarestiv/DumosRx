@@ -1,6 +1,5 @@
-/** audit_logs.action is usually a raw DB op ("INSERT"/"UPDATE"/"DELETE") from
- * the generic insert()/update()/softDelete() helpers, not a friendly verb.
- * This just title-cases it either way. */
+// audit_logs.action is usually a raw DB op ("INSERT"/"UPDATE"/"DELETE") from the generic insert()/update()/softDelete() he…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-activity-log-format-action-label-ts-L1
 export function formatActionLabel(action: string) {
   return action
     .toLowerCase()

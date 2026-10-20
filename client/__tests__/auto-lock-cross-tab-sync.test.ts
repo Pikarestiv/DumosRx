@@ -1,18 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-/**
- * Regression coverage for a real reported bug: disabling Auto-Lock in
- * Settings would sometimes silently revert to 5 minutes and resume locking.
- * Root cause: zustand's persist middleware writes this tab's *entire*
- * in-memory state back to localStorage on every set() call. A second
- * tab/window left open from before the change (still holding the old
- * `duration` in memory) would clobber the new value back on its very next
- * updateActivity() call (any mousemove/keydown/etc in that stale tab).
- *
- * Fixed by listening for the storage event and rehydrating from whatever
- * was last written, so a stale tab picks up the change before it can write
- * its own outdated state back over it.
- */
+// Regression coverage for a real reported bug:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-auto-lock-cross-tab-sync-test-ts-L3
 
 vi.mock("@/lib/hooks/use-feature-gate", () => ({
   useFeatureGate: () => ({

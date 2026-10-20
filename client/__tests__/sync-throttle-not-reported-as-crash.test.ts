@@ -12,17 +12,8 @@ vi.mock("@/lib/api/client", () => ({
 }));
 vi.mock("@/lib/api/logger", () => ({ reportClientError: vi.fn() }));
 
-/**
- * Regression coverage for a real Sentry report: a plan's sync-interval
- * throttle (SyncController::validateSync's SYNC_THROTTLED response, "Sync
- * limit reached... Please upgrade your plan for faster sync") reached the
- * user during a completely normal navigation to /inventory, not a bug -
- * base-client.ts throws it the same way as any other failed request, and
- * pull.ts/sync-engine's logCrash() shipped it to Sentry as an "error" issue
- * regardless. base-client.ts now tags the thrown Error with the server's
- * `code`, and logCrash() skips Sentry (and the own-server/feedback
- * pipelines) for the known set of expected plan-restriction codes.
- */
+// Regression coverage for a real Sentry report:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-throttle-not-reported-as-crash-test-ts-L15
 describe("logCrash skips reporting for expected sync plan restrictions", () => {
   beforeEach(() => {
     captureExceptionMock.mockReset();
@@ -60,11 +51,8 @@ describe("logCrash skips reporting for expected sync plan restrictions", () => {
     );
   });
 
-  /**
-   * A-273. Two more outcomes that are not bugs and were filling Sentry and the
-   * `feedback` table: a tab that lost the single-writer election (core.ts's
-   * assertWritable), and a device that is simply offline or on a flaky link.
-   */
+  // A-273. Two more outcomes that are not bugs and were filling Sentry and the `feedback` table:
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-throttle-not-reported-as-crash-test-ts-L63
   it("treats a read-only tab and a genuine network failure as expected", async () => {
     const { isExpectedSyncNoise } = await import("@/lib/utils/error-logger");
 
@@ -79,13 +67,8 @@ describe("logCrash skips reporting for expected sync plan restrictions", () => {
     expect(isExpectedSyncNoise(new Error("Load failed"))).toBe(true);
   });
 
-  /**
-   * A-273. The two lists are read by two different kinds of consumer. A
-   * cashier shown "online" while nothing reaches the server is the silent
-   * divergence this whole batch exists to prevent, so the UI's check must stay
-   * narrow: only the server telling this device to slow down or upgrade may
-   * suppress the error state.
-   */
+  // A-273. The two lists are read by two different kinds of consumer.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-throttle-not-reported-as-crash-test-ts-L82
   it("keeps a network failure out of the plan-restriction check the UI reads", async () => {
     const { isExpectedPlanRestriction, isExpectedSyncNoise } = await import(
       "@/lib/utils/error-logger"

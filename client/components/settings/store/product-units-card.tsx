@@ -17,10 +17,8 @@ import { useAuth } from "@/lib/context/auth-context";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 
-/** Store-specific selling/pack units, layered on top of the built-in
- * suggestion list. Kept as a flat string list (custom_units) rather than a
- * structured {name, abbreviation} model — this store doesn't need per-unit
- * abbreviations/precision, just a name pickers can select from. */
+// Store-specific selling/pack units, layered on top of the built-in suggestion list.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-store-product-units-card-tsx-L20
 export function ProductUnitsCard() {
   const { storeProfile, updateStoreProfile } = useStore();
   const { isAdmin } = useAuth();

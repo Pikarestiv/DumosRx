@@ -13,18 +13,8 @@ vi.mock("@/lib/context/store-context", () => ({
   useStore: () => ({ storeProfile: { currency: "NGN" } }),
 }));
 
-/**
- * Regression: a refund of a mixed-payment sale unconditionally deducted the
- * full refunded amount from daily close's cash total, regardless of what
- * the original sale was actually paid with. A sale split card 7000 / cash
- * 3000, refunded in full, previously understated expected cash by 7000
- * that was never in the drawer to begin with (it came off a card), and
- * didn't touch the card total at all. The original sale's own
- * payment_details.splits (already joined onto each return row by
- * getDailyCloseData) now prorates the refund across the non-credit splits
- * it actually reflects - a credit split is excluded entirely, since
- * refunding it writes off a receivable rather than moving drawer cash.
- */
+// Regression: a refund of a mixed-payment sale unconditionally deducted the full refunded amount from daily close's cash t…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-daily-close-mixed-refund-attribution-test-ts-L16
 describe("useDailyCloseData mixed-payment refund attribution", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -116,10 +106,8 @@ describe("useDailyCloseData mixed-payment refund attribution", () => {
     await waitFor(() => expect(result.current.salesToday.length).toBe(1));
     await waitFor(() => expect(result.current.returnsToday.length).toBe(1));
 
-    // The full 10000 refund reverses the original 3000 cash / 7000 credit
-    // split exactly, the same as a pure-credit sale's refund already
-    // reduces `credit` - forgiving the 7000 credit debt shows up there,
-    // not as a phantom cash movement.
+    // The full 10000 refund reverses the original 3000 cash / 7000 credit split exactly, the same as a pure-credit sale's refu…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-daily-close-mixed-refund-attribution-test-ts-L119
     expect(result.current.aggregatedTotals.cash).toBe(0);
     expect(result.current.aggregatedTotals.credit).toBe(0);
   });

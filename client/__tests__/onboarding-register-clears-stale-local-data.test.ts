@@ -4,24 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-/**
- * Regression test (A-150): a device that previously linked a different
- * account/store leaves its local data behind - `_sync_queue`, `feedback`,
- * `audit_logs`, etc. A brand-new signup used to insert the new store/user
- * rows straight on top of that leftover data without clearing it first, so
- * the new account's very first sync pushed the old store's stale queued
- * writes under the new account's token, rejected server-side as belonging
- * to a store it doesn't own.
- *
- * The fix must NOT wipe unconditionally: `?tab=setup&step=register` is a
- * documented safe entry point for an already-set-up device (`userCount >
- * 0`, see `app/login/use-login-page.tsx`), reachable from the traditional
- * login screen's "Create account" link - a logged-out owner with real
- * unsynced local work could land here. So a leftover local store routes
- * through the SAME confirm dialog the existing-account store-switch flow
- * already uses (`showConfirmSwitch`/`confirmCloudRestoreSwitch`), rather
- * than wiping silently.
- */
+// Regression test (A-150):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-onboarding-register-clears-stale-local-data-test-ts-L7
 
 const routerPushMock = vi.fn();
 const loginMock = vi.fn(async () => true);

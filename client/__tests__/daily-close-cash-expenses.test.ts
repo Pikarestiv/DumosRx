@@ -6,12 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Daily Close's "Net Cash Expected" is the figure an owner reconciles the
- * drawer against, so it must count exactly the cash that left it that day:
- * no transfer/card expenses, no amortised slice of a prepaid one, and
- * nothing from another store.
- */
+// Daily Close's "Net Cash Expected" is the figure an owner reconciles the drawer against, so it must count exactly the cas…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-daily-close-cash-expenses-test-ts-L9
 describe("getCashExpensesForDate", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

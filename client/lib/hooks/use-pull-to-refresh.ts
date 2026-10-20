@@ -5,11 +5,8 @@ import { useEffect, useRef, useState } from "react";
 const PULL_THRESHOLD = 64;
 const MAX_PULL = 96;
 const RESISTANCE = 0.5;
-// Vertical travel required before a touch is treated as a pull rather than a
-// tap. Without this, a normal tap's 1-3px of finger jitter got claimed as a
-// pull and preventDefault()'d on the first pointermove - which cancels
-// WebKit's tap-to-click synthesis and silently drops the tap (iPad: buttons
-// and tabs at the top of a scroll area intermittently doing nothing).
+// Vertical travel required before a touch is treated as a pull rather than a tap.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pull-to-refresh-ts-L8
 const PULL_SLOP = 12;
 
 interface UsePullToRefreshOptions {
@@ -17,11 +14,8 @@ interface UsePullToRefreshOptions {
   disabled?: boolean;
 }
 
-/**
- * Gated to pointerType === "touch": this is the mobile-only signal we want
- * (unlike viewport-width checks, it also correctly fires under Chrome's
- * mobile device emulation and ignores mouse/trackpad drags on desktop).
- */
+// Gated to pointerType === "touch":
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pull-to-refresh-ts-L20
 export function usePullToRefresh<T extends HTMLElement>({
   onRefresh,
   disabled,
@@ -66,22 +60,12 @@ export function usePullToRefresh<T extends HTMLElement>({
         engaged.current = false;
         return;
       }
-      // Below PULL_SLOP, diff and diffX are both still jitter-scale, so a
-      // horizontal-intent comparison here is unreliable: a real straight-down
-      // pull's very first frame can easily read e.g. diff=1, diffX=2 purely
-      // from finger noise, which would wrongly and PERMANENTLY cancel the
-      // whole gesture (pulling.current stays false for every later frame,
-      // even once the pull becomes unambiguous). Wait for enough vertical
-      // travel to make the comparison meaningful, and until then don't
-      // preventDefault (cancels tap-to-click synthesis) or setState (a root
-      // re-render between touchstart and click drops the tap too) - this may
-      // still turn out to be a tap.
+      // Below PULL_SLOP, diff and diffX are both still jitter-scale, so a horizontal-intent comparison here is unreliable:
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pull-to-refresh-ts-L66
       if (diff < PULL_SLOP) return;
       if (Math.abs(diffX) > diff) {
-        // Now that there's real vertical travel to compare against, a
-        // horizontal component that still dominates it means this is a
-        // sideways gesture, not a pull - stop watching it for the rest of
-        // this touch (no snapping back and forth between the two).
+        // Now that there's real vertical travel to compare against, a horizontal component that still dominates it means this is a sideways gesture, n…
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pull-to-refresh-ts-L78
         pulling.current = false;
         return;
       }

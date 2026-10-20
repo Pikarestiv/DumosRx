@@ -2,23 +2,8 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import { join } from "path";
 
-/**
- * exceljs and @react-pdf/renderer are the two heaviest dependencies in the
- * client, and both used to be pulled into ordinary route chunks by modules
- * that are imported for other reasons:
- *
- * - exceljs reached Inventory > Catalog through
- *   product-database-filters -> import-export-toolbar ->
- *   product-import-export -> spreadsheet-io.
- * - @react-pdf/renderer reached the catalog, daily-close and
- *   purchase-order-details chunks because report-pdf.tsx also happened to
- *   hold downloadBlob, a ten-line dependency-free helper.
- *
- * Both are now behind `await import(...)` inside the functions that actually
- * need them, so they only ship when a user exports or prints something. These
- * guards fail if a static value import is reintroduced - an easy accident,
- * since the static version type-checks and works fine.
- */
+// exceljs and @react-pdf/renderer are the two heaviest dependencies in the client, and both used to be pulled into ordinar…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-heavy-dependency-laziness-test-ts-L5
 
 const CLIENT_ROOT = join(__dirname, "..");
 
@@ -58,10 +43,8 @@ describe("heavy dependencies stay out of route chunks", () => {
     const code = source("components/procurement/purchase-order-details.tsx");
     expect(hasStaticValueImport(code, "@react-pdf/renderer")).toBe(false);
     expect(code).toContain('import("@react-pdf/renderer")');
-    // The transitive route matters as much as the direct one: purchase-order-pdf
-    // statically imports @react-pdf/renderer, so a static value import of the
-    // wrapper puts the heavy dependency back in the Orders chunk and makes the
-    // `await import("@react-pdf/renderer")` above buy nothing.
+    // The transitive route matters as much as the direct one:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-heavy-dependency-laziness-test-ts-L61
     expect(hasStaticValueImport(code, "\\./purchase-order-pdf")).toBe(false);
     expect(code).toContain('import("./purchase-order-pdf")');
   });

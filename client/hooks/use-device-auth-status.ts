@@ -6,11 +6,8 @@ import {
   setRecentUsers as persistRecentUsers,
 } from "@/lib/storage-keys";
 
-// Shared by the merged /login page's login and setup tabs so switching
-// between them never re-runs this check or shows a second loading spinner.
-// Each used to run this independently (useLogin + useOnboarding both had
-// their own copy), which caused a "loading" flash on every tab switch even
-// though the underlying answer never changes mid-session.
+// Shared by the merged /login page's login and setup tabs so switching between them never re-runs this check or shows a se…
+// Rationale: docs/CLIENT_COMMENTS.md#line-hooks-use-device-auth-status-ts-L9
 async function readUserCount(): Promise<number> {
   const exists = await checkIfTableExists("users");
   return exists ? await getActiveUserCount() : 0;

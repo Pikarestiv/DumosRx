@@ -15,9 +15,8 @@ export interface LoyaltyRedemptionOptionRow {
   id: string;
   label: string;
   points_cost: number;
-  /** Value, in the store's currency, this option discounts off a sale at
-   * checkout. 0 for non-monetary perks (e.g. "Free Delivery"), which are
-   * configurable here but not selectable as a POS checkout redemption. */
+  // Value, in the store's currency, this option discounts off a sale at checkout.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-loyalty-ts-L18
   discount_value: number;
   description: string;
   icon_key: string;
@@ -60,10 +59,8 @@ export const DEFAULT_LOYALTY_TIERS: Omit<LoyaltyTierRow, "id">[] = [
   },
 ];
 
-/** currencySymbol defaults to Naira for callers that predate per-store
- * currency (e.g. tests seeding without a store currency in scope) — pass the
- * store's actual symbol (getCurrencySymbol(storeProfile.currency)) wherever
- * one is available. */
+// currencySymbol defaults to Naira for callers that predate per-store currency (e.g.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-loyalty-ts-L63
 export function buildDefaultRedemptionOptions(
   currencySymbol = "₦",
 ): Omit<LoyaltyRedemptionOptionRow, "id">[] {
@@ -98,9 +95,8 @@ export function buildDefaultRedemptionOptions(
   ];
 }
 
-/** The customer's dated points ledger, oldest first — the input to FIFO
- * points-expiry math (see calculateExpiredPoints). Not store-scoped: the
- * table has no store_id column, and customer_id is already store-unique. */
+// The customer's dated points ledger, oldest first — the input to FIFO points-expiry math (see calculateExpiredPoints).
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-loyalty-ts-L101
 export async function getCustomerLoyaltyLedger(customerId: string) {
   return query<{ points: number; type: string; created_at: string | null }>(
     `SELECT points, type, created_at FROM loyalty_transactions
@@ -126,21 +122,8 @@ export async function getLoyaltyRedemptionOptions() {
   );
 }
 
-/**
- * Seeds the app's default tiers/redemption options as real, editable rows the
- * first time settings are opened on a store that has never customized them;
- * keeps existing stores' behavior unchanged until they actually edit something.
- *
- * Gated on `stores.loyalty_defaults_seeded_at` rather than "are there zero
- * tiers/options right now" — that count-based check couldn't tell "never
- * seeded" apart from "a store deliberately deleted every tier," so it
- * silently reseeded a store that had cleared its tiers on purpose every time
- * the settings dialog was reopened. Once this flag is set, seeding never
- * runs again for that store, even if it later has zero tiers. A store
- * upgrading from before this flag existed still gets exactly one more
- * grandfather seed-or-skip decision (zero tiers seeds once more, any tiers
- * present just sets the flag) — an accepted, one-time transition edge case.
- */
+// Seeds the app's default tiers/redemption options as real, editable rows the first time settings are opened on a store that has never customi…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-loyalty-L129
 export async function ensureLoyaltyDefaultsSeeded(userId?: string, currencySymbol?: string) {
   const storeId = getActiveStoreId();
   if (!storeId) return;

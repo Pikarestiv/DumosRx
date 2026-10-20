@@ -39,9 +39,8 @@ interface POSCartState {
   discountType: "fixed" | "percentage";
   redeemedOption: RedeemedOption | null;
   isResellerSale: boolean;
-  /** Which kind of markup this is: a real reseller/agent (commission owed)
-   * or a store-kept markup. Only meaningful while isResellerSale is true;
-   * null until the cashier picks one (see pos-cart.tsx). */
+  // Which kind of markup this is:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-cart-ts-L42
   markupType: MarkupType | null;
   setCart: (cart: CartItem[] | ((prev: CartItem[]) => CartItem[])) => void;
   setDiscount: (discount: number) => void;
@@ -76,16 +75,8 @@ const usePOSCartStore = create<POSCartState>()(
   )
 );
 
-// Clears the persisted POS cart (cart items, discount, redeemed reward,
-// reseller flag) both in memory and in localStorage. A plain
-// `localStorage.removeItem("pos-cart-storage")` alone is NOT enough: this
-// store's zustand module only rehydrates from storage once, on creation, so
-// the in-memory cart state would survive untouched (and the very next cart
-// mutation would just re-persist it, undoing the removal). Call this at
-// every point the app tears down one session's context for another's —
-// logout, the lock-screen "switch user" flow, and a store switch — so a
-// shared terminal's next cashier (or the newly-active store) never inherits
-// a cart staged against the outgoing session.
+// Clears the persisted POS cart (cart items, discount, redeemed reward, reseller flag) both in memory and in localStorage.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L78
 export function clearPOSCartStorage() {
   usePOSCartStore.setState({
     cart: [],
@@ -113,25 +104,8 @@ export interface CartRepricing {
   repricedNames: string[];
 }
 
-/**
- * Re-points every cart line at the catalog's current selling price and
- * average cost. The cart is a `persist`ed store, so a line otherwise keeps
- * whatever the product cost and sold for at the moment it was added — a cart
- * held overnight, or held across a price change synced from the owner's
- * device, charged yesterday's price and booked COGS at yesterday's average
- * cost.
- *
- * A line whose product isn't in `products` is left exactly as it is: that is
- * the catalog still loading (`usePOSData` returns `[]` until its query
- * resolves) far more often than it is a deleted product, and silently
- * re-pricing against a catalog that hasn't arrived is worse than the staleness
- * this fixes.
- *
- * A reseller markup is carried across as a markup, not as an absolute price:
- * the cashier agreed a margin over the shelf price with the reseller, and
- * `unit_price` may never fall below `original_unit_price` (updateUnitPrice's
- * own floor), which the new catalog price has just moved.
- */
+// Re-points every cart line at the catalog's current selling price and average cost.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-cart-L116
 export function repriceCartFromCatalog(
   cart: CartItem[],
   products: Product[],
@@ -185,10 +159,8 @@ export function usePOSCart(products: Product[]) {
   const setMarkupType = usePOSCartStore((state) => state.setMarkupType);
   const [isHydrated, setIsHydrated] = useState(false);
 
-  // A manual discount edit and a loyalty redemption share the same discount
-  // slot (by design, to keep a single source of truth for "the" discount) —
-  // editing the discount by hand while a reward is redeemed detaches it from
-  // that reward, since the point cost no longer corresponds to what's typed.
+  // A manual discount edit and a loyalty redemption share the same discount slot (by design, to keep a single source of truth for "the" discount…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L170
   const setDiscount = useCallback(
     (value: number) => {
       setStoreDiscount(value);
@@ -227,14 +199,8 @@ export function usePOSCart(products: Product[]) {
     setIsHydrated(true);
   }, []);
 
-  // Re-price against the catalog rather than at checkout: every figure the
-  // cashier and the customer see (line subtotal, cart subtotal, VAT, total,
-  // the amount tendered and the change due) is derived from these lines, so
-  // correcting a price at checkout would charge an amount that was never on
-  // screen. Correcting it the moment the new catalog arrives keeps all of
-  // them consistent and gives the cashier a chance to tell the customer.
-  // Idempotent by design — it returns the same array when nothing moved —
-  // so re-running it on every cart change costs one pass and settles.
+  // Re-price against the catalog rather than at checkout:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L212
   useEffect(() => {
     if (products.length === 0) return;
     const { cart: repriced, repricedNames } = repriceCartFromCatalog(cart, products);
@@ -247,12 +213,8 @@ export function usePOSCart(products: Product[]) {
     }
   }, [products, cart, setCart]);
 
-  // A redemption already staged in cart state can outlive the gate that
-  // allowed it — a plan downgrade, or an admin flipping the store's on/off
-  // toggle in another tab, mid-session. If that happens while a reward is
-  // staged, clear it immediately rather than letting checkout complete with
-  // a redemption the store is no longer entitled/willing to honor; the
-  // discount it applied is cleared along with it via clearRedemption().
+  // A redemption already staged in cart state can outlive the gate that allowed it — a plan downgrade, or an admin flipping the store's on/off t…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L232
   useEffect(() => {
     if (!canUseLoyaltyProgram && redeemedOption) {
       clearRedemption();
@@ -265,10 +227,8 @@ export function usePOSCart(products: Product[]) {
     () => calculateDiscountAmount(subtotal, discount, discountType),
     [subtotal, discount, discountType]
   );
-  // VAT must be charged on the net-of-discount amount (this covers loyalty
-  // redemptions too, since they share this same discount slot — see
-  // redeemReward() above) — otherwise a discounted/redeemed sale is
-  // overcharged VAT on money the customer was never actually charged.
+  // VAT must be charged on the net-of-discount amount (this covers loyalty redemptions too, since they share this same discount slot — see redee…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L250
   const tax = useMemo(
     () => calculateTax(Math.max(0, subtotal - calculatedDiscount), vatPercentage),
     [subtotal, calculatedDiscount, vatPercentage]
@@ -362,9 +322,8 @@ export function usePOSCart(products: Product[]) {
       setCart((prev) =>
         prev.map((item) => {
           if (item.id !== id) return item;
-          // A reseller sale can only mark price up, never down - clamped here
-          // too, not just in the input's `min`, so a pasted/typed value below
-          // the floor can't get through either.
+          // A reseller sale can only mark price up, never down - clamped here too, not just in the input's `min`, so a pasted/typed value below the floo…
+          // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L347
           const clamped = Math.max(newPrice, item.original_unit_price);
           return { ...item, unit_price: clamped, subtotal: roundMoney(clamped * item.quantity) };
         }),
@@ -377,9 +336,8 @@ export function usePOSCart(products: Product[]) {
     (value: boolean) => {
       setStoreIsResellerSale(value);
       if (!value) {
-        // Turning reseller mode off with marked-up prices still in the cart
-        // would silently keep charging the marked-up amount with no
-        // commission tracked for it - revert every line back to normal.
+        // Turning reseller mode off with marked-up prices still in the cart would silently keep charging the marked-up amount with no commission track…
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L362
         setCart((prev) =>
           prev.map((item) => ({
             ...item,
@@ -408,15 +366,13 @@ export function usePOSCart(products: Product[]) {
       restoredMarkup?: { isResellerSale: boolean; markupType: MarkupType | null },
     ) => {
       setCart(items);
-      // A held transaction never persisted a redemption (only its resulting
-      // discount amount), so any redemption tag from before this restore is
-      // now stale and must not carry over.
+      // A held transaction never persisted a redemption (only its resulting discount amount), so any redemption tag from before this restore is now…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L393
       setRedeemedOption(null);
       if (restoredDiscount !== undefined) setStoreDiscount(restoredDiscount);
       if (restoredDiscountType !== undefined) setStoreDiscountType(restoredDiscountType);
-      // The raw store setter, not setIsResellerSale: that wrapper reverts every
-      // line to original_unit_price when switching the flag off, which would
-      // undo the markup this restore is carrying.
+      // The raw store setter, not setIsResellerSale:
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L399
       if (restoredMarkup) {
         setStoreIsResellerSale(restoredMarkup.isResellerSale);
         setMarkupType(restoredMarkup.markupType);

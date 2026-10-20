@@ -1,22 +1,7 @@
 import { test, expect, loginAsPaidTier } from './fixtures';
 
-/**
- * Expenses is gated behind a paid tier (`!isFree` fallback in
- * lib/hooks/use-feature-gate.ts, and explicitly `"expenses": false` for the
- * free tier in both the local and remote subscription_plans config), same as
- * Procurement. The shared e2e fixture (e2e/.auth/test-db.bin) is a free-tier
- * store on purpose — other specs (prescriptions.spec.ts,
- * pos-held-transaction.spec.ts) rely on that to test LockedModuleOverlay
- * itself — so this spec elevates its own isolated per-test copy of the local
- * DB instead of touching the shared fixture (via the shared `loginAsPaidTier`
- * helper in fixtures.ts). Without this, these tests were unknowingly racing
- * LockedModuleOverlay's mount: the overlay took ~1s to actually paint after
- * navigation, so a fast single "Add Expense" (the original test) usually
- * beat it, but the slower edit-then-delete flow (create, edit, re-open,
- * delete) reliably lost the race and got its row click intercepted by the
- * overlay's "Upgrade Plan" backdrop once it finally mounted, still correctly
- * locked.
- */
+// Expenses is gated behind a paid tier (`!isFree` fallback in lib/hooks/use-feature-gate.ts, and explicitly `"expenses":
+// Rationale: docs/CLIENT_COMMENTS.md#block-e2e-expenses-spec-ts-L3
 
 test.describe('Expenses Module', () => {
   test('should log in, render expenses page, and add an expense', async ({ page }) => {

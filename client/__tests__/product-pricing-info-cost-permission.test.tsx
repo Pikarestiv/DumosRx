@@ -1,14 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-/**
- * Product Detail's Pricing card was the other half of the cost leak: the
- * profit block was gated by a direct `user?.role !== "sales_staff"` check
- * but the Avg Cost Price and Last Bought Price above it were shown to
- * everyone. "view_cost_fields" now fronts all three, and its default
- * grants (admin/manager/specialist/auditor, never sales_staff) reproduce
- * the old role check exactly for the profit block.
- */
+// Product Detail's Pricing card was the other half of the cost leak:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-product-pricing-info-cost-permission-test-tsx-L4
 
 const hasPermission = vi.fn((_key: string) => true);
 

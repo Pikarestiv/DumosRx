@@ -10,14 +10,8 @@ const DAY = 24 * 60 * 60 * 1000;
 const iso = (offsetDays: number) =>
   new Date(Date.now() + offsetDays * DAY).toISOString().slice(0, 10);
 
-/**
- * getLowStockAlerts, getExpiryAlerts and getExpiringBatches were uncovered
- * despite carrying the subtlest rule in the stock layer: what counts as
- * on-hand. Low stock deliberately ignores expired and deactivated batches
- * (stock the sale path can't dispense), the expiry alert covers only the
- * next 30 days and deliberately drops already-expired batches, while the
- * expiring-batches list deliberately keeps them.
- */
+// getLowStockAlerts, getExpiryAlerts and getExpiringBatches were uncovered despite carrying the subtlest rule in the stock…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-inventory-stock-alerts-test-ts-L13
 describe("inventory stock alerts", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

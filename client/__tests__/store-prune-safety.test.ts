@@ -12,15 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * Regression test for a real incident: pull.ts's store-reconciliation step
- * (which soft-deletes local stores the server no longer recognizes) once
- * pruned a store that still had every one of a device's real products/sales
- * attributed to it, silently making all of it invisible. This test proves,
- * against a genuine in-memory SQLite engine (not a mocked execute() call),
- * that a store with real business data attached can never be pruned by this
- * step, regardless of what the server's stores response says.
- */
+// Regression test for a real incident:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-store-prune-safety-test-ts-L15
 describe("pull.ts store-reconciliation safety guard", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -40,15 +33,12 @@ describe("pull.ts store-reconciliation safety guard", () => {
     });
     db = new SQL.Database();
     db.run(SCHEMA_SQL);
-    // store_id is added via core.ts's runtime ALTER TABLE migration, not the
-    // base CREATE TABLE statements in SCHEMA_SQL. Replicate it here since
-    // __setDatabaseForTesting bypasses initDatabase()'s migration loop.
+    // store_id is added via core.ts's runtime ALTER TABLE migration, not the base CREATE TABLE statements in SCHEMA_SQL.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-store-prune-safety-test-ts-L43
     db.run(`ALTER TABLE products ADD COLUMN store_id TEXT;`);
     db.run(`ALTER TABLE sales ADD COLUMN store_id TEXT;`);
-    // expenses already has store_id in the base SCHEMA_SQL (unlike
-    // products/sales, which only get it via core.ts's runtime ALTER TABLE
-    // migration) — used below to prove the prune guard checks every
-    // STORE_SCOPED_TABLES entry that has the column, not just products/sales.
+    // expenses already has store_id in the base SCHEMA_SQL (unlike products/sales, which only get it via core.ts's runtime ALT…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-store-prune-safety-test-ts-L48
     core.__setDatabaseForTesting(db);
   });
 

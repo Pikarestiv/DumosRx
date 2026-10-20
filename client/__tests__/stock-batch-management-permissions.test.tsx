@@ -1,16 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-/**
- * Two Inventory keys convert a coarse role check into a specific one on
- * the Inventory Dashboard: "perform_stock_audit" replaces the isAdmin gate
- * on Start Audit (so a specialist - the stock-owning role, which already
- * holds the key by default - can run a cycle count), and
- * "view_stock_adjustment_history" replaces the canManageStockBatch gate on
- * the Movements tab (so a read-only auditor can read the ledger without
- * gaining any write right). The ledger route redirect moves with it, since
- * /inventory/ledger is directly reachable.
- */
+// Two Inventory keys convert a coarse role check into a specific one on the Inventory Dashboard:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-stock-batch-management-permissions-test-tsx-L4
 
 const hasPermission = vi.fn((_key: string) => true);
 const replace = vi.fn();

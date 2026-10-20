@@ -98,9 +98,8 @@ export function POSDialogs({
   clearCart,
   cartLength,
 }: POSDialogsProps) {
-  // Recalling a held sale replaces whatever is in the cart. An empty cart
-  // has nothing to lose, so it recalls straight away; a non-empty one is
-  // parked here until the cashier confirms the discard.
+  // Recalling a held sale replaces whatever is in the cart.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-dialogs-tsx-L101
   const [pendingRecall, setPendingRecall] =
     React.useState<HeldTransaction | null>(null);
 

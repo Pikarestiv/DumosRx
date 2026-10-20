@@ -6,21 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * A-16. createPrescription() inserted the prescription header and then
- * looped its items through separate insert() calls, and createProduct()
- * created a missing category as its own committed write before inserting
- * the product. Each insert() opens and commits its own transaction, so an
- * interruption between two of them (iOS backgrounding a PWA is called out
- * elsewhere in this codebase as aggressive about killing mid-write) left a
- * prescription with no medications — already queued for sync, so the gap
- * propagated to every other device — or an orphan category with no product.
- *
- * Both are now one transaction(), like createSale/receivePurchaseOrder.
- * A failing insert stands in for the interruption here: the observable
- * requirement is the same either way — nothing of a half-finished
- * multi-row write may survive.
- */
+// A-16. createPrescription() inserted the prescription header and then looped its items through separate insert() calls, a…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-create-prescription-product-atomicity-test-ts-L9
 describe("createPrescription/createProduct are atomic", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

@@ -32,9 +32,8 @@ export interface ReceivedItemPayload {
   expiry_date?: string;
   cost_price?: string | number;
   selling_price?: string | number;
-  /** The product's live selling_price when this panel was opened - carried
-   * through unedited so the caller can tell whether a selling_price above
-   * is a real change or a no-op re-submission of the current price. */
+  // The product's live selling_price when this panel was opened - carried through unedited so the caller can tell whether a…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-receive-po-panel-tsx-L35
   current_selling_price?: number | null;
 }
 
@@ -47,10 +46,8 @@ interface ReceivePOPanelProps {
   isReceiving?: boolean;
 }
 
-/** Embedded, full-height replacement for the old Receive Goods modal. It
- * takes over the same side panel used for PO details so the ledger table
- * gets the panel's full width/height instead of being cramped inside a
- * centered dialog. */
+// Embedded, full-height replacement for the old Receive Goods modal.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-receive-po-panel-tsx-L50
 export function ReceivePOPanel({
   po,
   onBack,
@@ -75,9 +72,8 @@ export function ReceivePOPanel({
       initial[item.id] = {
         po_item_id: item.id,
         product_id: item.product_id,
-        // Prefill with the outstanding balance, not the full ordered
-        // quantity: on a follow-up receipt against a partially-received PO
-        // the ordered figure is no longer what's still expected.
+        // Prefill with the outstanding balance, not the full ordered quantity:
+        // Rationale: docs/CLIENT_COMMENTS.md#line-components-procurement-receive-po-panel-tsx-L78
         quantity: outstandingBulkQuantity(item),
         lot_number: "",
         // Null by default since we don't know it

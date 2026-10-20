@@ -13,13 +13,8 @@ vi.mock('../lib/db/core', async () => {
     execute: vi.fn(),
     query: vi.fn(),
     logAction: vi.fn(),
-    // insert()/update()/etc. in base-helpers.ts now wrap their writes in
-    // transaction() for atomicity (see docs/FIXED_BUGS.md's 2026-09-24
-    // entry). The real transaction() calls initDatabase() when `db` is unset
-    // - true in this test environment - which tries to load the real sql.js
-    // wasm binary and fails. Mocked to just invoke its callback directly,
-    // matching this suite's intent of exercising the predicate-building
-    // logic, not real transaction/DB semantics.
+    // insert()/update()/etc.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-query-keys-test-ts-L16
     transaction: vi.fn((fn: () => unknown) => fn()),
   };
 });
@@ -64,12 +59,8 @@ describe('queryKeys factory', () => {
     expect(broadcasts.meta.tables).toEqual([]);
   });
 
-  // Medium bug fix: reseller-commission-panel.tsx and
-  // transaction-details-dialog.tsx wrote their queryKey by hand
-  // (["resellerCommission", ...] / ["customerById", ...]) instead of going
-  // through this factory, so they carried no store/user suffix even though
-  // their query functions resolve the active store at call time - served
-  // from the wrong store's (or wrong user's) cached data after a switch.
+  // Medium bug fix: reseller-commission-panel.tsx and transaction-details-dialog.tsx wrote their queryKey by hand (["reselle…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-query-keys-test-ts-L67
   it('store/user-suffixes the reseller commission list and pending-total keys', () => {
     const list = queryKeys.reseller.commissionList();
     expect(list.queryKey).toEqual(['resellerCommission', 'list', null, null]);
@@ -87,14 +78,8 @@ describe('queryKeys factory', () => {
   });
 });
 
-// --- Predicate-based invalidation ---
-//
-// Both base-helpers.ts (invalidateQueriesForTable) and the sync-engine pull
-// handler build a `predicate` function and hand it to
-// queryClient.invalidateQueries({ predicate }). We can't easily observe a
-// real QueryClient's cache here, so instead we capture the predicate that
-// was passed and exercise it directly against fake `Query`-shaped objects,
-// the same way the real QueryClient would when walking its cache.
+// --- Predicate-based invalidation --- Both base-helpers.ts (invalidateQueriesForTable) and the sync-engine pull handler b…
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-query-keys-test-ts-L90
 function fakeQuery(tables?: string[]): Query {
   return { meta: tables ? { tables } : undefined } as Query;
 }

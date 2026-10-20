@@ -1,8 +1,5 @@
-/**
- * useLocalMutation - React hook for writing to local SQLite
- *
- * Provides optimistic writes that are queued for sync.
- */
+// useLocalMutation - React hook for writing to local SQLite Provides optimistic writes that are queued for sync.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-hooks-useLocalMutation-ts-L1
 
 "use client";
 

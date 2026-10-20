@@ -6,14 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression coverage: audit_logs had no store_id column and was never
- * filtered by store, unlike every other data table (see
- * lib/db/core.ts's STORE_SCOPED_TABLES) — an owner/admin with access to
- * multiple stores could see every other store's activity log entries
- * (product edits, stock adjustments, user names) when viewing "their"
- * store's Activity Log page.
- */
+// Regression coverage: audit_logs had no store_id column and was never filtered by store, unlike every other data table (s…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-activity-log-store-scoping-test-ts-L9
 describe("activity log store scoping", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

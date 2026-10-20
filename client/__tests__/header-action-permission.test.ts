@@ -4,14 +4,8 @@ import {
   resolveHeaderAction,
 } from "@/lib/constants/dashboard-page-routes";
 
-/**
- * PAGE_ROUTES' `actionPermission` is how a route's header action moves off
- * the coarse actionAdminOnly/canManageStockBatch baseline onto a specific
- * key. Procurement's "Create Order" is manage_purchase_orders and Vendors'
- * "Add Supplier" is manage_suppliers; the callback defaults to granting
- * everything so untouched routes and existing callers behave exactly as
- * they did.
- */
+// PAGE_ROUTES' `actionPermission` is how a route's header action moves off the coarse actionAdminOnly/canManageStockBatch…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-header-action-permission-test-ts-L7
 
 function resolve(pathname: string, granted: string[] | null) {
   return resolveHeaderAction(

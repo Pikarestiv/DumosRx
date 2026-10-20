@@ -23,11 +23,8 @@ interface SupplierComboboxProps {
   className?: string;
 }
 
-/** Search-to-filter vendor picker, built on the same interaction pattern as
- * ProductCombobox: type to fuzzy-filter, click/scroll to pick, with
- * "Create Supplier" pinned at the top so it's never buried by a long
- * supplier list. Kept to the same column width as the fields around it —
- * a search input needs typing room, not extra column width. */
+// Search-to-filter vendor picker, built on the same interaction pattern as ProductCombobox:
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-supplier-combobox-tsx-L26
 export function SupplierCombobox({
   value,
   suppliers,

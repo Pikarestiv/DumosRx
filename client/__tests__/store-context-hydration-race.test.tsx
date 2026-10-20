@@ -4,21 +4,8 @@ import initSqlJs, { type Database } from "sql.js";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-/**
- * Regression coverage for a High-severity bug (docs/KNOWN_BUGS.md):
- * store-context.tsx's `targetId = user?.store_id || activeStoreId` ran (and
- * mirrored into the module-scope resolver) before AuthProvider's own
- * localStorage read had completed - on the very first render `user` is
- * still null, so a staff member pinned to store B on a device whose
- * `dumos_active_store_id` says store A would have every query in that
- * window resolve/scope against store A instead of their real store B.
- *
- * Fixed by gating both the resolver-mirroring effect and the storeProfile
- * query on AuthProvider's new `isHydrated` flag. This test spies on the
- * resolver setter (core.setActiveStoreId) and asserts it is NEVER called
- * with the wrong (localStorage) store id at any point - not just checking
- * the final settled state, which wouldn't catch a transient wrong value.
- */
+// Regression coverage for a High-severity bug (docs/KNOWN_BUGS.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-store-context-hydration-race-test-tsx-L7
 
 vi.mock("@sentry/nextjs", () => ({
   setUser: vi.fn(),
@@ -99,12 +86,8 @@ describe("store-context hydration race", () => {
   });
 
   function wrapper({ children }: { children: React.ReactNode }) {
-    // Fresh QueryClient per render (i.e. per test, since each `it` calls
-    // renderHook exactly once) so query cache state can't leak between
-    // tests. Real QueryClient/QueryClientProvider, distinct from the
-    // module-singleton `@/lib/query-client` mocked above (that mock only
-    // stands in for the imperative cancelQueries()/clear() calls
-    // switchStore() makes - useQuery() itself needs a real provider).
+    // Fresh QueryClient per render (i.e.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-store-context-hydration-race-test-tsx-L102
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -121,9 +104,8 @@ describe("store-context hydration race", () => {
       `INSERT INTO users (id, first_name, last_name, username, pin, role, store_id, is_active, _deleted) VALUES ('staff-1', 'Staff', 'Member', 'staffmember', '1111', 'sales_staff', 'store-b', 1, 0)`,
     );
 
-    // The device's last-active store (e.g. from an owner's prior session)
-    // is store A, but the logged-in user (about to hydrate from
-    // localStorage["dumos_user"]) is fixed to store B.
+    // The device's last-active store (e.g.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-store-context-hydration-race-test-tsx-L124
     localStorage.setItem("dumos_active_store_id", "store-a");
     localStorage.setItem(
       "dumos_user",
@@ -154,10 +136,8 @@ describe("store-context hydration race", () => {
 
     const { result } = renderHook(() => useStore(), { wrapper });
 
-    // Whatever the very first synchronous render observes, it must not be
-    // "confirmed not loading with no store" - that's the state a premature
-    // isLoading:false (see the loading-flag comment in store-context.tsx)
-    // could produce.
+    // Whatever the very first synchronous render observes, it must not be "confirmed not loading with no store" - that's the s…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-store-context-hydration-race-test-tsx-L157
     if (!result.current.loading) {
       expect(result.current.storeProfile).not.toBeNull();
     }

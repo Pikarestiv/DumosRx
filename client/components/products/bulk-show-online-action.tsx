@@ -25,9 +25,8 @@ import { useBulkShowOnlineMutation } from "@/lib/hooks/use-bulk-show-online-muta
 
 interface BulkShowOnlineActionProps {
   onUpdated: () => void;
-  /** The catalog table's currently-filtered product ids, so this acts on
-   * "what's on screen" exactly like Export does — undefined (no filter
-   * active) means every product in the store. */
+  // The catalog table's currently-filtered product ids, so this acts on "what's on screen" exactly like Export does — undefi…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-products-bulk-show-online-action-tsx-L28
   filteredProductIds?: string[];
 }
 

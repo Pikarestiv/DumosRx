@@ -1,16 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-/**
- * "view_reports" answers "does the Report Center / Analytics half of the
- * Reports page exist for this role at all". It replaces the isAdmin gate
- * those two tabs carried, which widens them to a read-only auditor - the
- * reports-focused role that has held view_reports by default since the
- * catalog was written and could not reach a single report.
- *
- * Daily Close is deliberately NOT under this key: every role, cashiers
- * included, reaches it by design.
- */
+// "view_reports" answers "does the Report Center / Analytics half of the Reports page exist for this role at all".
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-reports-tab-permission-test-tsx-L4
 
 const hasPermission = vi.fn((_key: string) => true);
 const push = vi.fn();

@@ -1,14 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-/**
- * "view_financial_reports" is the margin-revealing slice of the Report
- * Center: the Profit & Loss Summary card, which is the only report here
- * that puts revenue against cost. It is the reports-side extension of
- * view_cost_fields - a cashier who may not see a product's cost may not
- * pull the store's P&L either - and it composes with view_reports, which
- * decides whether the Report Center exists at all.
- */
+// "view_financial_reports" is the margin-revealing slice of the Report Center:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-report-center-financial-permission-test-tsx-L4
 
 const hasPermission = vi.fn((_key: string) => true);
 

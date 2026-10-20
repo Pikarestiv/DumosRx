@@ -37,11 +37,8 @@ function product(overrides: Partial<Product> = {}): Product {
   } as Product;
 }
 
-/**
- * U12: an accidental swipe on a cart line silently dropped it — no toast, no
- * undo. Removal now toasts with an Undo action that puts the line back at
- * the quantity it had.
- */
+// U12: an accidental swipe on a cart line silently dropped it — no toast, no undo.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-cart-remove-undo-test-ts-L40
 describe("POS cart removal undo", () => {
   beforeEach(() => {
     toastCalls.length = 0;

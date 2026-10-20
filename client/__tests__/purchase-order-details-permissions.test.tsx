@@ -1,16 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-/**
- * Procurement used to be one coarse RequireRole gate (isAdmin ||
- * canManageStockBatch) covering creating, editing, sending, deleting AND
- * receiving a purchase order. "manage_purchase_orders" now fronts the
- * write-the-order actions and "receive_purchase_orders" fronts booking the
- * goods in, which is a genuinely different job: a stockroom account can be
- * allowed to receive a delivery without being allowed to raise or amend
- * the order it arrived against. The order itself, and Download PDF, stay
- * visible to anyone who can reach the panel.
- */
+// Procurement used to be one coarse RequireRole gate (isAdmin || canManageStockBatch) covering creating, editing, sending,…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-purchase-order-details-permissions-test-tsx-L4
 
 const hasPermission = vi.fn((_key: string) => true);
 

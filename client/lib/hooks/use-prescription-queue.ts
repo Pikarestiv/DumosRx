@@ -114,18 +114,16 @@ export function usePrescriptionQueue() {
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
 
-  // Tagged with meta.tables: ["prescriptions"] (see lib/query-keys.ts) so it
-  // auto-refetches whenever insert/update/softDelete touches that table
-  // anywhere in the app; no manual refetch wiring needed.
+  // Tagged with meta.tables:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-prescription-queue-ts-L117
   const { data, isLoading: loading, refetch } = useQuery({
     ...queryKeys.prescriptions.all(),
     queryFn: fetchPrescriptions,
   });
   const prescriptions = useMemo(() => data || [], [data]);
 
-  // Derived (not a separate snapshot) so an edit/refetch that changes the
-  // selected prescription's medications, status, etc. is reflected immediately
-  // instead of the detail panel showing whatever was selected at click-time.
+  // Derived (not a separate snapshot) so an edit/refetch that changes the selected prescription's medications, status, etc.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-prescription-queue-ts-L126
   const selectedPrescription = useMemo(
     () => prescriptions.find((p) => p.id === selectedPrescriptionId) || null,
     [prescriptions, selectedPrescriptionId]
@@ -163,9 +161,8 @@ export function usePrescriptionQueue() {
     return { filteredPrescriptions: results, isFuzzyFallback };
   }, [searchTerm, preFilteredPrescriptions]);
 
-  // update() already invalidates queryKey: ["prescriptions"], triggering a
-  // refetch. selectedPrescription is derived from that data, so it picks up
-  // the new status automatically once the refetch lands.
+  // update() already invalidates queryKey:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-prescription-queue-ts-L166
   const updateStatusMutation = useUpdatePrescriptionStatusMutation();
   const updatePrescriptionStatus = (id: string, newStatus: Prescription["status"]) => {
     updateStatusMutation.mutate({ id, status: newStatus });

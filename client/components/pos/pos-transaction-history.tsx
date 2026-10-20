@@ -19,17 +19,15 @@ import { formatCurrency, getLocalTodayDate } from "@/lib/utils";
 import type { DateRangeValue } from "@/components/ui/date-range-picker";
 import type { SaleWithDetails } from "@/lib/types/sale";
 
-// ============================================================================
-// Types
-// ============================================================================
+// ============================================================================ Types =====================================…
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-transaction-history-tsx-L22
 
 interface POSTransactionHistoryProps {
   recentSales: SaleWithDetails[];
   onReturnClick: (sale: SaleWithDetails) => void;
   currencyCode?: string;
-  /** The History tab's own scrolling container, threaded down so the
-   * transaction list can virtualize against it - the list has no scroll
-   * container of its own. */
+  // The History tab's own scrolling container, threaded down so the transaction list can virtualize against it - the list ha…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-pos-pos-transaction-history-tsx-L30
   scrollElementRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -37,9 +35,8 @@ interface POSTransactionHistoryProps {
 // that the list still feels like it's reacting to the keystroke.
 const SEARCH_DEBOUNCE_MS = 200;
 
-// ============================================================================
-// Main Component
-// ============================================================================
+// ============================================================================ Main Component ============================…
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-transaction-history-tsx-L40
 
 export function POSTransactionHistory({
   recentSales,
@@ -51,9 +48,8 @@ export function POSTransactionHistory({
     null,
   );
   const [searchQuery, setSearchQuery] = useState("");
-  // The input stays bound to searchQuery so typing is instant; the expensive
-  // work downstream (a fuzzy search over up to 500 sales, then a re-group of
-  // the matches into date buckets) runs off the settled value instead.
+  // The input stays bound to searchQuery so typing is instant; the expensive work downstream (a fuzzy search over up to 500…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-transaction-history-tsx-L54
   const debouncedSearchQuery = useDebouncedValue(
     searchQuery,
     SEARCH_DEBOUNCE_MS,
@@ -74,10 +70,8 @@ export function POSTransactionHistory({
     enabled: canReturn && saleTypeFilter === "Reseller",
   });
 
-  // The `recentSales` prop is a fixed 100-row snapshot (see usePOSData) -
-  // fine as the default view, but a picked date range can reach further back
-  // than those 100 rows cover. Once a range is picked, fetch it directly
-  // (unbounded by that snapshot) instead of filtering the prop in memory.
+  // The `recentSales` prop is a fixed 100-row snapshot (see usePOSData) - fine as the default view, but a picked date range…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-transaction-history-tsx-L77
   const rangeUserId = canViewAllActivity ? undefined : user?.id;
   const { data: rangeSales } = useQuery({
     ...queryKeys.sales.recent(rangeUserId, dateRange),
@@ -86,15 +80,8 @@ export function POSTransactionHistory({
   });
   const salesSource = dateRange.from ? rangeSales : recentSales;
 
-  // Today's metric cards are fetched date-scoped in SQL rather than derived
-  // from the `recentSales` prop: that prop is an undated, LIMIT-100 snapshot
-  // (see usePOSData), so on a busy day - or any day following one with 100+
-  // sales - today's earliest (or all of today's) rows were pushed out of the
-  // snapshot before the client-side "is it today" filter ever ran, and the
-  // cards understated revenue/transactions. Same pattern as
-  // use-my-today-sales.ts, scoped to everyone when the viewer may see all
-  // activity (matching how usePOSData scopes `recentSales`). Today's local
-  // date is part of the query key, so the cards also roll over at midnight.
+  // Today's metric cards are fetched date-scoped in SQL rather than derived from the `recentSales` prop:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-transaction-history-tsx-L89
   const today = getLocalTodayDate();
   const { data: todaySalesData } = useQuery({
     ...queryKeys.sales.recent(rangeUserId, { from: today, to: today }),
@@ -132,18 +119,8 @@ export function POSTransactionHistory({
     return { totalSales, transactions, refunded, avgBasket };
   }, [todaySalesData]);
 
-  // Filtered sales. Date range filtering happens at the query level (see
-  // salesSource above) - not here - since a picked range can reach past the
-  // `recentSales` prop's fixed 100-row snapshot.
-  // genericFuzzySearch needs plain object keys, not a computed value, so
-  // build small search-only records rather than passing salesSource itself -
-  // the "||" join separator (see getRecentSales) is replaced with a space
-  // first: it isn't whitespace, so leaving it in would glue the item on one
-  // side of it onto the next token during tokenization (Tier 3/4 both split
-  // on /\s+/), corrupting matches right at that boundary.
-  //
-  // Keyed on the base data alone, deliberately separate from the search term,
-  // so a keystroke doesn't rebuild all 500 records.
+  // Filtered sales. Date range filtering happens at the query level (see salesSource above) - not here - since a picked rang…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-transaction-history-tsx-L135
   const searchable = useMemo(
     () =>
       (salesSource || []).map((sale) => ({
@@ -165,10 +142,8 @@ export function POSTransactionHistory({
         "transaction_number",
         "item_names",
       ]);
-      // Filter the original array by matched id rather than returning
-      // `results` directly, so relevance scoring doesn't reorder sales out
-      // of their existing chronological order (filteredSales feeds
-      // groupedSales' TODAY/YESTERDAY/THIS WEEK/OLDER buckets next).
+      // Filter the original array by matched id rather than returning `results` directly, so relevance scoring doesn't reorder s…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-transaction-history-tsx-L168
       const matchedIds = new Set(results.map((r) => r.id));
       searched = base.filter((sale) => matchedIds.has(sale.id));
     }

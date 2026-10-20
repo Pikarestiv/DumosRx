@@ -4,32 +4,8 @@ import initSqlJs, { type Database } from "sql.js";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-/**
- * Regression coverage for the Critical bug in docs/KNOWN_BUGS.md /
- * FIXED_BUGS.md: "Account/store switch shows the previous store's stale
- * dashboard data". switchStore() used to await queryClient.invalidateQueries()
- * to make screens re-fetch under the new store, but it set
- * isSwitchingStore(true) synchronously first - which unmounts `children`
- * (and every query observer inside it) in the same tick, before the
- * awaited invalidate call even runs. With zero active observers, React
- * Query v5's default refetchType: 'active' only marks queries stale and
- * does nothing else, so the "round trip" resolved almost instantly without
- * refetching anything, and the remount after the splash cleared read the
- * previous store's data straight out of cache.
- *
- * The fix swaps invalidateQueries() for queryClient.clear() - the same
- * mechanism the working multi-staff PIN "Switch Account" path already uses
- * via auth-context.tsx's login()/logout() - so there is no cached entry
- * left for the remount to serve, regardless of whether anything was
- * mounted to observe the invalidation.
- *
- * This test spies directly on the mocked query-client module (the same
- * mocking approach used by the other store-context tests in this file's
- * neighborhood) to assert switchStore() actually calls clear() - not
- * invalidateQueries() - and that it does so even when cancelQueries() never
- * settles (the SWITCH_STORE_MAX_WAIT_MS safety net path), so the cache is
- * never left un-cleared.
- */
+// Regression coverage for the Critical bug in docs/KNOWN_BUGS.md / FIXED_BUGS.md:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-store-context-switch-clears-cache-test-tsx-L7
 
 vi.mock("@sentry/nextjs", () => ({
   setUser: vi.fn(),
@@ -148,16 +124,13 @@ describe("store-context switchStore clears the query cache", () => {
 
     await waitFor(() => expect(result.current.isSwitchingStore).toBe(false));
 
-    // The cache must be cleared outright - not merely invalidated, which
-    // (with zero mounted observers at the moment it runs) would silently
-    // no-op and leave the previous store's data cached for the remount to
-    // serve.
+    // The cache must be cleared outright - not merely invalidated, which (with zero mounted observers at the moment it runs) w…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-store-context-switch-clears-cache-test-tsx-L151
     expect(clear).toHaveBeenCalled();
     expect(invalidateQueries).not.toHaveBeenCalled();
 
-    // cancelQueries() must run before clear(), so an in-flight request from
-    // the outgoing store can't resolve after the cache has been emptied
-    // and repopulate it with stale data.
+    // cancelQueries() must run before clear(), so an in-flight request from the outgoing store can't resolve after the cache h…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-store-context-switch-clears-cache-test-tsx-L158
     const cancelOrder = cancelQueries.mock.invocationCallOrder[0];
     const clearOrder = clear.mock.invocationCallOrder[0];
     expect(cancelOrder).toBeLessThan(clearOrder);
@@ -172,9 +145,8 @@ describe("store-context switchStore clears the query cache", () => {
       db.run(`INSERT INTO stores (id, name) VALUES ('store-a', 'Store A'), ('store-b', 'Store B')`);
       localStorage.setItem("dumos_active_store_id", "store-a");
 
-      // Simulates a cancelQueries() that hangs (e.g. a stuck in-flight
-      // fetch) - the SWITCH_STORE_MAX_WAIT_MS safety net should still let
-      // clear() run and isSwitchingStore resolve to false.
+      // Simulates a cancelQueries() that hangs (e.g.
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-store-context-switch-clears-cache-test-tsx-L175
       cancelQueries.mockImplementation(() => new Promise(() => {}));
 
       const { result } = renderHook(() => useStore(), { wrapper });

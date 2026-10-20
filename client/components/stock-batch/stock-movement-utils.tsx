@@ -83,13 +83,8 @@ export const getTypeColor = (type: string) => {
   }
 };
 
-/**
- * Human label for a movement type. CSS `capitalize` (used everywhere
- * movement.type is rendered) handles every existing single-word type fine
- * on its own, but underscored types like "transfer_in" need an explicit
- * mapping ("transfer_in" -> "Transfer In") since `capitalize` only
- * uppercases the first letter and leaves the underscore in place.
- */
+// Human label for a movement type.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-movement-utils-tsx-L86
 export const getTypeLabel = (type: string) => {
   switch (type.toLowerCase()) {
     case "transfer_in":

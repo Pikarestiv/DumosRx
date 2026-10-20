@@ -1,13 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { isIntervalElapsed } from "@/lib/utils/elapsed";
 
-/**
- * A-247/A-234: a device whose clock is ahead writes that future time into
- * localStorage, and a `now - stored < interval` guard then reads it as "just
- * ran" and skips. The daily health check is one of those guards, and since
- * 2026-10-14 it carries the stock-drift repair, so a fast clock on one till
- * silently switches off the cure for that till.
- */
+// A-247/A-234: a device whose clock is ahead writes that future time into localStorage, and a `now - stored < interval` gu…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-elapsed-interval-guard-test-ts-L4
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.parse("2026-10-14T12:00:00.000Z");
 

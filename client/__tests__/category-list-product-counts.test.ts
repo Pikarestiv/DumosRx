@@ -6,14 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Cynthia asked to see how many products are in each category right on the
- * Manage Categories tiles, so she can tell at a glance which ones are safe
- * to edit or delete. getCategoryList() previously returned just {id, name};
- * the dialog only ever found out a category's product count lazily, one
- * query per click, the moment you tried to delete it. This covers the new
- * `productCount` field added to the list query itself.
- */
+// Cynthia asked to see how many products are in each category right on the Manage Categories tiles, so she can tell at a g…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-category-list-product-counts-test-ts-L9
 describe("getCategoryList() product counts", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

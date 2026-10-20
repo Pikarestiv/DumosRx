@@ -32,12 +32,8 @@ function item(overrides: Partial<AuditItem> = {}): AuditItem {
   };
 }
 
-/**
- * P1/U4: the cycle-count screen derived its category groupings with an
- * O(categories x items) filter-per-category pass, unmemoized, on every
- * render; and it had no way to tell whether a count had unsaved work in it.
- * Both now live in pure helpers the screen memoizes.
- */
+// P1/U4: the cycle-count screen derived its category groupings with an O(categories x items) filter-per-category pass, unm…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-audit-derivations-test-ts-L35
 describe("stock audit derivations", () => {
   const items: AuditItem[] = [
     item({ id: "a", category: "Analgesics" }),
@@ -142,9 +138,8 @@ describe("stock audit derivations", () => {
   });
 
   it("sends a price-only row with NO counted quantity, so the submit uses the live figure", () => {
-    // The row's own systemQty was frozen when the sheet was built. Coalescing
-    // to it here would post a day's sales back as found stock; submitStockAudit
-    // re-reads the real quantity inside its transaction instead.
+    // The row's own systemQty was frozen when the sheet was built.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-audit-derivations-test-ts-L145
     const [submission] = toStockAuditSubmissions([
       item({ systemQty: 20, countedQty: undefined, countedCostPrice: 150 }),
     ]);
@@ -162,11 +157,8 @@ describe("stock audit derivations", () => {
   });
 
   it("sends NO baseline for a row that was never re-baselined, so the submit re-reads instead", () => {
-    // A draft resumed from a build before A-263 has a typed countedQty
-    // beside a systemQty frozen at sheet-build. Passing that frozen figure
-    // off as a baseline would reverse the day's sales: built at 10, 5 sold,
-    // counter finds 5 -> 5 - 10 = -5 and the product is zeroed. Only a row
-    // countRow() has re-read may claim a baseline.
+    // A draft resumed from a build before A-263 has a typed countedQty beside a systemQty frozen at sheet-build.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-audit-derivations-test-ts-L165
     const [submission] = toStockAuditSubmissions([
       item({ systemQty: 10, countedQty: 5 }),
     ]);

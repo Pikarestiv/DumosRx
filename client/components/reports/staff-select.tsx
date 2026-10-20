@@ -9,10 +9,8 @@ interface StaffSelectProps {
   className?: string;
 }
 
-/** Filters a report/analytics query down to one cashier's sales - maps to
- * sales.user_id. Reuses the same staff list as Settings > Staff (useUsers),
- * not a bespoke query, so it always matches who's actually assigned to the
- * active store. */
+// Filters a report/analytics query down to one cashier's sales - maps to sales.user_id.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-reports-staff-select-tsx-L12
 export function StaffSelect({ value, onChange, className }: StaffSelectProps) {
   const { data: users = [] } = useUsers();
   const activeUsers = users.filter((u) => u.is_active);

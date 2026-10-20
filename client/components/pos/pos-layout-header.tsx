@@ -46,20 +46,8 @@ export function POSLayoutHeader({
   const router = useRouter();
   const { storeProfile, availableStores } = useStore();
   const { canManageMultiStore } = useFeatureGate();
-  // See AGENTS.md's "Enforced permissions" section for why this is three
-  // checks and not one: the per-group right, the till baseline, and the
-  // store-wide opt-in toggle are all still load-bearing.
-  //
-  // All three useHasPermission() calls are hoisted to unconditional consts,
-  // never inlined into the `&&` chain below: useHasPermission's result can
-  // change between renders as its permission-group lookup resolves
-  // asynchronously (starts from a role fallback, then updates once the
-  // real group loads), and short-circuiting the second call inside `&&`
-  // made its hook count differ between renders for exactly the case this
-  // feature exists for - a custom group more permissive than its base
-  // role tier - triggering React's real "Rendered more/fewer hooks than
-  // during the previous render" crash (see
-  // __tests__/pos-layout-header-rules-of-hooks.test.tsx).
+  // See AGENTS.md's "Enforced permissions" section for why this is three checks and not one:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-layout-header-tsx-L49
   const canProcessSalesPermission = useHasPermission("process_sales");
   const isAdminTierPermission = useHasPermission("manage_staff");
   const canRequestStockTransfers = useHasPermission("request_stock_transfers");
@@ -74,11 +62,8 @@ export function POSLayoutHeader({
   const searchParams = useSearchParams();
   const isFullscreen = usePosFullscreenStore((s) => s.isFullscreen);
   const setFullscreen = usePosFullscreenStore((s) => s.setFullscreen);
-  // Pulses until the user types something for the first time this visit —
-  // the point's made the moment they engage with it. Tracked separately
-  // from searchTerm itself so clearing a search later in the session
-  // (typed something, cleared it, about to search again) doesn't bring the
-  // pulse back.
+  // Pulses until the user types something for the first time this visit — the point's made the moment they engage with it.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-layout-header-tsx-L77
   const [hasTypedInSearch, setHasTypedInSearch] = useState(false);
   useEffect(() => {
     if (searchTerm !== "") setHasTypedInSearch(true);
@@ -91,9 +76,8 @@ export function POSLayoutHeader({
     }
   }, [searchParams]);
 
-  // Keeps the store (and therefore the sidebar) in sync when fullscreen is
-  // exited some way other than this button - Esc, the browser's own exit
-  // control, or leaving the POS route entirely.
+  // Keeps the store (and therefore the sidebar) in sync when fullscreen is exited some way other than this button - Esc, the…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-layout-header-tsx-L94
   useEffect(() => {
     const handleChange = () => setFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", handleChange);
@@ -177,9 +161,7 @@ export function POSLayoutHeader({
 
       {/* Right side: Actions */}
       <div className="flex items-center gap-2 sm:gap-3 ml-auto">
-        {/* Fullscreen toggle (Desktop only): also hides the app sidebar so
-            the checkout screen actually gets the full viewport, not just
-            browser chrome-free. */}
+        {/* Fullscreen toggle (Desktop only): — docs/CLIENT_COMMENTS.md#block-components-pos-pos-layout-header-tsx-L180 */}
         <Button
           variant="outline"
           size="icon"
@@ -207,11 +189,7 @@ export function POSLayoutHeader({
           )}
         </Button>
 
-        {/* Request Stock from Another Store: cashiers have no other way to
-            reach the multi-store transfer flow (the Ledger tab's own entry
-            point requires stock-management access) - a cashier's request
-            still moves stock immediately, just flagged "needs_review" for
-            the owner to check afterward (see stock-transfers.ts). */}
+        {/* Request Stock from Another Store: — docs/CLIENT_COMMENTS.md#block-components-pos-pos-layout-header-tsx-L210 */}
         {canRequestTransfer && (
           <Button
             variant="outline"

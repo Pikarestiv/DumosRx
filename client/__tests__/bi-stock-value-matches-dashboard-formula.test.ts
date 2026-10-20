@@ -56,9 +56,8 @@ describe("getBIMetrics's stock value matches the dashboard/report formula", () =
   });
 
   it("excludes the batch value once its product is deleted, matching the dashboard's own figure", async () => {
-    // Raw soft-delete rather than products.deleteProduct(), which refuses
-    // to delete a product that still has stock on hand - irrelevant to
-    // what's under test here (the query's own _deleted handling).
+    // Raw soft-delete rather than products.deleteProduct(), which refuses to delete a product that still has stock on hand - i…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-bi-stock-value-matches-dashboard-formula-test-ts-L59
     db.run(`UPDATE products SET _deleted = 1 WHERE id = 'p1'`);
 
     const metrics = await getBIMetrics(FROM, PREV);

@@ -19,17 +19,8 @@ vi.mock("sonner", () => ({
   },
 }));
 
-/**
- * Regression test for a real crash: one toast.warning() call per conflicted
- * record was fine when conflicts were rare (the assumption baked into the
- * comment above this loop), but a single push batch can report up to
- * SYNC_BATCH_SIZE (50) failures at once - exactly what happens draining a
- * large backlog (e.g. the mass-requeue-on-boot bug fixed alongside this).
- * Sonner's Toaster does a flushSync-driven state update per toast call, and
- * ~25-30 of those fired synchronously in the same tick trips React's
- * "Maximum update depth exceeded" guard, crashing the whole page - reported
- * live via the crash logger, with `pushChanges` at the bottom of the stack.
- */
+// Regression test for a real crash:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-limits-conflict-toasts-test-ts-L22
 describe("pushChanges never fires one toast per conflict in an unbounded loop", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

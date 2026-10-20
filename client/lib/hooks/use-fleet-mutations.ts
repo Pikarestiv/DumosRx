@@ -14,9 +14,8 @@ interface SaveFleetStoreParams {
   isEditing: boolean;
   storeId?: string;
   formData: FleetStoreFormData;
-  /** The store this device is actually running as, if any — used to keep the
-   * local `stores` row in sync with a cloud edit to the same store (see
-   * comment in the mutation body). */
+  // The store this device is actually running as, if any — used to keep the local `stores` row in sync with a cloud edit to the same store (see…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-fleet-mutations-ts-L17
   activeStoreId: string | null;
 }
 
@@ -26,13 +25,8 @@ export function useSaveFleetStoreMutation() {
       if (isEditing && storeId) {
         await apiClient.updateStore(storeId, formData);
 
-        // The Business Information card writes name/address/phone to the
-        // local `stores` row and queues a sync push independently of Fleet.
-        // If Fleet edits the active store's fields but the local row still
-        // holds pre-edit values, that queued push would silently revert
-        // this edit on the next sync. Writing the same fields locally too
-        // (only for the store this device is actually running) keeps local
-        // state in step with what we just wrote to the cloud.
+        // The Business Information card writes name/address/phone to the local `stores` row and queues a sync push independently of Fleet.
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-fleet-mutations-ts-L28
         if (activeStoreId && storeId === activeStoreId) {
           await update("stores", activeStoreId, {
             name: formData.name,

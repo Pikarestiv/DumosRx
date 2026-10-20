@@ -1,17 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { compareCategoriesFirst } from "@/lib/db/sync-engine/push";
 
-/**
- * Regression: the previous comparator
- * `(a, b) => (a.table_name === "categories" ? -1 : b.table_name === "categories" ? 1 : 0)`
- * returned -1 for BOTH `compare(a, b)` and `compare(b, a)` whenever a and b
- * were both categories - an inconsistent comparator, which V8's sort doesn't
- * guarantee any particular result for beyond "some order", and in practice
- * reversed the created_at order of every category-vs-category pair. A
- * create-then-rename pair queued as [INSERT, UPDATE] was pushed to the
- * server as [UPDATE, INSERT], so the server applied the stale INSERT last
- * and the rename was silently lost on the next pull.
- */
+// Regression: the previous comparator `(a, b) => (a.table_name === "categories" ? -1 :
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-categories-sort-order-test-ts-L4
 describe("compareCategoriesFirst", () => {
   it("moves every category ahead of every non-category row", () => {
     const rows = [

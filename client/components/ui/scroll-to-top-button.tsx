@@ -5,26 +5,16 @@ import { createPortal } from "react-dom";
 import { ArrowUp } from "lucide-react";
 
 interface ScrollToTopButtonProps {
-  /** The virtualized list's own scroll container - the same ref its
-   * virtualizer already holds, so the button can never track a different
-   * element than the one that actually scrolls. */
+  // The virtualized list's own scroll container - the same ref its virtualizer already holds, so the button can never track…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-scroll-to-top-button-tsx-L8
   scrollRef: RefObject<HTMLDivElement | null>;
   /** How many viewport heights the user must scroll before it appears. */
   viewportsBeforeShowing?: number;
   label?: string;
 }
 
-/**
- * Long virtualized lists have no way back to the top short of flicking for
- * several seconds; there is no "scroll to bottom" counterpart because the
- * end of a list is not a destination anyone asks for here.
- *
- * Positioned as a portaled fixed element measured off the scroll container's
- * own bounding rect, rather than an absolutely positioned child: the lists
- * this drops into sit inside cards and panels with their own overflow and
- * transform contexts, either of which would clip or re-anchor a plain
- * absolute/fixed child.
- */
+// Long virtualized lists have no way back to the top short of flicking for several seconds; there is no "scroll to bottom"…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-scroll-to-top-button-tsx-L17
 export function ScrollToTopButton({
   scrollRef,
   viewportsBeforeShowing = 2,

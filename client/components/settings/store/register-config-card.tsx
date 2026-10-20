@@ -42,9 +42,8 @@ export function RegisterConfigCard({
   const { storeProfile, updateStoreProfile } = useStore();
   const { canUseResellerCommission } = useFeatureGate();
 
-  // Each row saves immediately on toggle — same as Payment Methods — rather
-  // than sitting behind a Save button, so there's nothing to persist directly
-  // via updateStoreProfile (not the (possibly stale) handleSave* closure).
+  // Each row saves immediately on toggle — same as Payment Methods — rather than sitting behind a Save button, so there's no…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-store-register-config-card-tsx-L45
   const rows: ConfigRow[] = [
     {
       id: "require-sale-notes",
@@ -84,10 +83,8 @@ export function RegisterConfigCard({
       onCheckedChange: (checked) => {
         void updateStoreProfile({ markup_sales_enabled: checked ? 1 : 0 });
       },
-      // Plan-tier entitlement, same gate the POS cart's reseller row itself
-      // enforces (canUseMarkupSales) - without this a Free/Starter owner
-      // could flip the toggle on and have it silently persist as a dead
-      // setting, since the POS row would still never appear.
+      // Plan-tier entitlement, same gate the POS cart's reseller row itself enforces (canUseMarkupSales) - without this a Free/S…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-store-register-config-card-tsx-L87
       locked: !canUseResellerCommission,
     },
   ];

@@ -3,13 +3,8 @@ import { renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
-/**
- * useStockBatchAlerts (3 reads) and usePurchasePatterns feed only the
- * Analytics dashboard's stock_batches and customers tabs, but both used to run
- * on mount of the whole dashboard - i.e. on the default Sales tab, which never
- * displays either of them. They now take an `enabled` flag driven by the
- * active tab.
- */
+// useStockBatchAlerts (3 reads) and usePurchasePatterns feed only the Analytics dashboard's stock_batches and customers ta…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-bi-tab-query-gating-test-tsx-L6
 
 const getLowStockAlerts = vi.fn(async () => []);
 const getExpiryAlerts = vi.fn(async () => []);

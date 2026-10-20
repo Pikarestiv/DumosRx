@@ -6,19 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression coverage for the orphaned-remote-row bug found while smoke-
- * testing bulk import: a background auto-sync tick called
- * getPendingSyncItems() with a bare query(), which — on sql.js's single
- * ambient connection — sees a still-open transaction()'s uncommitted writes
- * (same-connection reads-your-own-writes). A sync landing mid-import could
- * therefore push rows to the server that the import's transaction later
- * rolled back (or that never persisted locally because the app closed before
- * COMMIT), leaving the server with products no local device ever kept.
- * getPendingSyncItems() now awaits awaitSettledTransactions() first so it
- * only ever reads state from a settled (committed or rolled-back)
- * transaction.
- */
+// Regression coverage for the orphaned-remote-row bug found while smoke- testing bulk import:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-queue-transaction-race-test-ts-L9
 describe("getPendingSyncItems() vs. an in-flight transaction()", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

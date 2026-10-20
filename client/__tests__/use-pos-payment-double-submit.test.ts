@@ -11,20 +11,8 @@ vi.mock("idb-keyval", () => ({
 // React 19's `act` warns unless the environment explicitly opts in.
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-/**
- * Regression coverage for usePOSPayment.handlePayment() having no
- * re-entrancy guard: the only protection against a second invocation was
- * the submit button's `disabled={processingPayment}` prop, which only
- * takes effect a render tick after the click that caused it. On the
- * touchscreen POS tablets this app targets, a close-enough double-tap can
- * dispatch two handlePayment() calls before that render lands - each
- * generating its own unique transactionNumber, so the UNIQUE constraint
- * doesn't catch it as a duplicate - producing two sales rows for one
- * physical transaction. See docs/FIXED_BUGS.md.
- *
- * Harness mirrors use-pos-payment-loyalty-gate.test.ts's pattern (no
- * @testing-library/react installed in this repo).
- */
+// Regression coverage for usePOSPayment.handlePayment() having no re-entrancy guard:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-pos-payment-double-submit-test-ts-L14
 describe("usePOSPayment double-submit guard", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

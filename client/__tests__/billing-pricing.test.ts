@@ -76,9 +76,8 @@ describe('isDiscounted', () => {
 
 describe('getChargeAmount (amount actually sent to pay())', () => {
   it('applies only the coupon discount, never referral credits', () => {
-    // This is the double-counting regression: use_credits already tells the
-    // server to apply credits, so the sent amount must reflect only the
-    // coupon portion regardless of how much credit the user has.
+    // This is the double-counting regression:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-billing-pricing-test-ts-L79
     const withCoupon = coupon({ type: 'discount_percent', value: 20 });
     expect(getChargeAmount(10000, withCoupon)).toBe(8000);
   });

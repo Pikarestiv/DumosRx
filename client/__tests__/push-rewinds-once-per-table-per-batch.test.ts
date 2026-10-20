@@ -22,15 +22,8 @@ vi.mock("@/lib/utils/error-logger", async (importOriginal) => ({
   logCrash: (...args: unknown[]) => logCrash(...args),
 }));
 
-/**
- * A-273. A rewind re-opens the whole table's window, so a second one in the
- * same batch asks for something the first already asked for while spending
- * another unit of a budget of three. Fifty refusals therefore exhausted the
- * budget inside one batch and `restoreBaseline()` put the watermark back —
- * cancelling the re-pull the first rewind had correctly requested, so the row
- * that genuinely lost its conflict was never re-offered (the A-205 case
- * failing silently). Rationale: client/AGENTS.md, "Pull window rewinds".
- */
+// A-273. A rewind re-opens the whole table's window, so a second one in the same batch asks for something the first alread…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-rewinds-once-per-table-per-batch-test-ts-L25
 describe("a batch of refusals rewinds each table's pull window once", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

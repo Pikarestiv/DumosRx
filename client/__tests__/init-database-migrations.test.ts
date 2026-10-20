@@ -8,28 +8,14 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Exercises the real initDatabase() web/sql.js migration path end-to-end.
- * The bulk of initDatabase()'s legacy-repair migrations (medicines/vendors/
- * store_profile/stock_batch renames, owner->store_owner, stock_quantity
- * data migration, purchase_orders.vendor_id drop, sale_items.inventory_id
- * rename, users username-uniqueness rebuild) have all been removed: every
- * real account was confirmed (via diagnoseLegacySchema(), run against the
- * account that predated each one) to already be clear of the artifact each
- * step existed to repair. What remains — relaxPurchaseOrdersSupplierIdNullable
- * and backfillStoreIdOnLegacyRows — shipped 2026-08-14/08-29, comfortably
- * after any real account, and is still active. Existing suites all bypass
- * initDatabase() via __setDatabaseForTesting, so this is the only test that
- * would catch a regression in this path.
- */
+// Exercises the real initDatabase() web/sql.js migration path end-to-end.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-init-database-migrations-test-ts-L11
 describe("initDatabase() web migration path", () => {
   beforeEach(() => {
     vi.resetModules();
     storedExport = undefined;
-    // clearLegacyTransactionsOnce wipes sales/purchase_orders/etc the first
-    // time it ever runs on a device (see core.ts); a real production device
-    // crossed that one-off flag long ago, so simulate that here too — this
-    // test cares about the schema migrations, not that unrelated cleanup.
+    // clearLegacyTransactionsOnce wipes sales/purchase_orders/etc the first time it ever runs on a device (see core.ts); a rea…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-init-database-migrations-test-ts-L29
     window.localStorage.setItem("dumosrx_cleared_legacy_v2", "true");
   });
 
@@ -73,9 +59,8 @@ describe("initDatabase() web migration path", () => {
     const core = await import("@/lib/db/core");
     const db = await core.initDatabase();
 
-    // Table was rebuilt to relax NOT NULL; verify a null supplier_id insert
-    // (an Immediate Purchase / walk-in) is now actually accepted, and the
-    // pre-existing row's supplier_id was carried over.
+    // Table was rebuilt to relax NOT NULL; verify a null supplier_id insert (an Immediate Purchase / walk-in) is now actually…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-init-database-migrations-test-ts-L76
     const po = db.exec("SELECT supplier_id FROM purchase_orders WHERE id = 'po-1'");
     expect(po[0].values).toEqual([["supplier-1"]]);
     expect(() =>
@@ -115,10 +100,8 @@ describe("initDatabase() web migration path", () => {
     const core = await import("@/lib/db/core");
     const db = await core.initDatabase();
 
-    // A Pro/Enterprise store already using the loyalty program before this
-    // migration must see zero behavior change: the new column must default
-    // existing rows to 1 (ON), never 0 — 0 would silently pause the feature
-    // for every store currently using it.
+    // A Pro/Enterprise store already using the loyalty program before this migration must see zero behavior change:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-init-database-migrations-test-ts-L118
     const result = db.exec(
       "SELECT loyalty_program_enabled FROM stores WHERE id = 'store-1'",
     );
@@ -159,13 +142,8 @@ describe("initDatabase() web migration path", () => {
     ]);
   });
 
-  /**
-   * A-305: `_sync_state` was keyed by `table_name` alone, so one watermark
-   * served every store. SQLite cannot alter a primary key, so the fix rebuilds
-   * the table — and that rebuild must carry a real device's existing
-   * watermarks over, stamped with its store, or every table re-pulls from
-   * scratch on the next sync.
-   */
+  // A-305: `_sync_state` was keyed by `table_name` alone, so one watermark served every store.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-init-database-migrations-test-ts-L162
   it("rebuilds a table-keyed _sync_state onto (store_id, table_name), keeping the device's watermarks", async () => {
     const SQL = await initSqlJs({
       locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),
@@ -205,11 +183,8 @@ describe("initDatabase() web migration path", () => {
     expect(both[0].values[0][0]).toBe(2);
   });
 
-  /**
-   * A watermark on a device holding two stores cannot be attributed to either
-   * of them — attributing it wrongly is the whole of A-305 — so it is parked
-   * under '' and each store's first pull starts fresh.
-   */
+  // A watermark on a device holding two stores cannot be attributed to either of them — attributing it wrongly is the whole…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-init-database-migrations-test-ts-L208
   it("parks a two-store device's watermarks under no store rather than guessing one", async () => {
     const SQL = await initSqlJs({
       locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),
@@ -237,13 +212,8 @@ describe("initDatabase() web migration path", () => {
     expect(rows[0].values).toEqual([[""]]);
   });
 
-  /**
-   * The rebuild is CREATE / copy / DROP / RENAME with no transaction, so a
-   * process death between the copy and the DROP leaves a populated
-   * `_sync_state_scoped` behind. Without dropping it first, the retry's copy
-   * hits the composite primary key on every later boot, is swallowed by the
-   * catch, and the device's pulls fail on a missing column for ever — silently.
-   */
+  // The rebuild is CREATE / copy / DROP / RENAME with no transaction, so a process death between the copy and the DROP leave…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-init-database-migrations-test-ts-L240
   it("completes the rebuild even when an interrupted earlier attempt left its scratch table behind", async () => {
     const SQL = await initSqlJs({
       locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),

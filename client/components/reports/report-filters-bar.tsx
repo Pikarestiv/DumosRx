@@ -17,9 +17,8 @@ interface ReportFiltersBarProps {
   value: ReportFiltersValue;
   onChange: (value: ReportFiltersValue) => void;
   className?: string;
-  /** A report whose query ignores a dimension renders no control for it,
-   * rather than an inert one - see reportSupportsDateRange /
-   * reportSupportsSalesFilters in lib/hooks/use-report-export.ts. */
+  // A report whose query ignores a dimension renders no control for it, rather than an inert one - see reportSupportsDateRan…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-reports-report-filters-bar-tsx-L20
   showDateRange?: boolean;
   showStaff?: boolean;
   showPaymentMethod?: boolean;

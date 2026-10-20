@@ -9,26 +9,15 @@ vi.mock("idb-keyval", () => ({
   set: (key: string, value: unknown) => setSpy(key, value),
 }));
 
-/**
- * Regression coverage for a gap an independent review caught in the C1
- * (single-writer-tab) fix: initDatabase() used to run schema migrations
- * BEFORE electing this tab's writer/read-only role, and one of those
- * migrations (clearLegacyTransactionsOnce, still live for any device that
- * hasn't crossed its one-off flag yet) persists a destructive cleanup
- * straight to the shared IndexedDB snapshot via the callback passed into
- * runSchemaMigrations - a tab that turns out to be read-only could still
- * have won that race and overwritten the real writer's snapshot before
- * ever learning it lost the election. Fixed by electing first, then only
- * wiring that persistence callback in for the writer tab.
- */
+// Regression coverage for a gap an independent review caught in the C1 (single-writer-tab) fix:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-read-only-tab-skips-migration-persistence-test-ts-L12
 describe("initDatabase() gates migration persistence on writer-tab status", () => {
   beforeEach(() => {
     vi.resetModules();
     setSpy.mockClear();
     storedExport = undefined;
-    // Deliberately NOT set - this test wants clearLegacyTransactionsOnce to
-    // actually run (see init-database-migrations.test.ts, which sets this
-    // to bypass it for tests that don't care about this specific path).
+    // Deliberately NOT set - this test wants clearLegacyTransactionsOnce to actually run (see init-database-migrations.test.ts…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-read-only-tab-skips-migration-persistence-test-ts-L29
     window.localStorage.removeItem("dumosrx_cleared_legacy_v2");
   });
 

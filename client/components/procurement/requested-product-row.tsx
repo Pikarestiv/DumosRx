@@ -11,9 +11,8 @@ interface RequestedProductRowProps {
   onMarkAsOrdered: (id: string) => void;
   onDelete: (id: string) => void;
   onCopy: (text: string) => void;
-  /** True while this row's mark-as-ordered/delete action is in flight —
-   * disables both action buttons so a double-click can't fire the same
-   * mutation twice. */
+  // True while this row's mark-as-ordered/delete action is in flight — disables both action buttons so a double-click can't…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-requested-product-row-tsx-L14
   busy?: boolean;
 }
 

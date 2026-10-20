@@ -1,23 +1,15 @@
-/**
- * Schema Migration Machinery
- *
- * Extracted from lib/db/core.ts: the dual-backend adapter shim and the
- * idempotent, run-on-every-launch schema/data migration steps that
- * initDatabase() applies to an existing local database.
- */
+// Schema Migration Machinery Extracted from lib/db/core.ts:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-schema-migrations-ts-L1
 
 /* eslint-disable max-lines */
 import type { Database } from "sql.js";
-// Cyclic by necessity (core.ts imports runSchemaMigrations from here), but
-// safe: this is only ever read inside a migration step at call time, long
-// after both modules have finished evaluating.
+// Cyclic by necessity (core.ts imports runSchemaMigrations from here), but safe:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L6
 import { getActiveStoreId } from "./core";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
 
-// Tables that just gained a `store_id` column (see SYNC_COLUMN_MIGRATIONS
-// below) and need every pre-existing local row backfilled to the device's one
-// pre-migration store: today's local DB is single-store-per-device by
-// construction, so there's exactly one store to backfill to.
+// Tables that just gained a `store_id` column (see SYNC_COLUMN_MIGRATIONS below) and need every pre-existing local row backfilled to the devic…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L12
 export const STORE_SCOPED_TABLES = [
   "products",
   "stock_batches",
@@ -47,12 +39,8 @@ export const STORE_SCOPED_TABLES = [
   "permission_groups",
 ];
 
-// Thin adapter over the two incompatible database handles so the migration
-// steps below (identical logic on both platforms, just different execute
-// mechanics) can be written once instead of duplicated per-branch. `all()`
-// always resolves to an array of plain row objects, matching what the Tauri
-// SQL plugin already returns natively and what sql.js's columns/values pairs
-// get normalized into.
+// Thin adapter over the two incompatible database handles so the migration steps below (identical logic on both platforms, just different exec…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L45
 export interface DbAdapter {
   run(sql: string): Promise<void>;
   all(sql: string): Promise<Record<string, unknown>[]>;
@@ -89,9 +77,8 @@ export function makeSqlJsAdapter(handle: Database): DbAdapter {
   };
 }
 
-// Runs one statement, silently ignoring failure (e.g. "column already
-// exists" on a re-run) — the same tolerant, idempotent-by-retry pattern
-// every migration step here has always used.
+// Runs one statement, silently ignoring failure (e.g.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L87
 async function tryRun(adapter: DbAdapter, sql: string): Promise<void> {
   try {
     await adapter.run(sql);
@@ -100,26 +87,11 @@ async function tryRun(adapter: DbAdapter, sql: string): Promise<void> {
   }
 }
 
-// renameLegacyTablesAndColumns (medicines/vendors/store_profile/stock_batch
-// renames, owner->store_owner, shipped 2026-06-27/06-28) and
-// dropLegacyVendorIdColumn (the purchase_orders.vendor_id NOT NULL drop,
-// shipped 2026-08-04) were both removed once diagnoseLegacySchema(), run
-// against the account that predates them (DumosRx Pharmacies,
-// 2026-08-01), confirmed neither legacy table names nor a vendor_id column
-// remained on that device.
-//
-// migrateStockQuantityToBatches (the flat products.stock_quantity ->
-// stock_batches data migration, shipped 2026-06-28) was removed once every
-// real device was confirmed to postdate it by 5+ weeks; stock_quantity
-// isn't even in the current base schema anymore, so its guard condition
-// (the column existing at all) could never be true on any account created
-// after 2026-06-28.
+// renameLegacyTablesAndColumns (medicines/vendors/store_profile/stock_batch renames, owner->store_owner, shipped 2026-06-27/06-28) and dropLeg…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L98
 
-// Declarative table -> columns-to-ensure-exist list, consumed by
-// runSyncColumnMigrations() below. Hoisted out of initDatabase() itself
-// since it's pure data with no dependency on either backend (Tauri/sql.js) -
-// keeping it inline there just made the function look far larger/more
-// complex than the actual branching logic it contains.
+// Declarative table -> columns-to-ensure-exist list, consumed by runSyncColumnMigrations() below.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L113
 const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
   {
     table: "products",
@@ -212,9 +184,7 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "prescription_id TEXT",
       "store_id TEXT",
       // Reseller-commission fields (see ResellerCommissionPanel / use-pos-payment.ts):
-      // every checkout writes all three below (0-valued when the reseller
-      // toggle is off), plus the redeemed/redeemed-at/redeemed-by trio set
-      // once ResellerCommissionPanel marks a sale's commission paid out.
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L209
       "is_reseller_sale INTEGER DEFAULT 0",
       "reseller_commission_percentage REAL DEFAULT 0",
       "reseller_commission_amount REAL DEFAULT 0",
@@ -224,12 +194,8 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "reseller_commission_claim_type TEXT",
       "reseller_commission_redeemed_at TEXT",
       "reseller_commission_redeemed_by TEXT",
-      // Distinguishes a real reseller/agent sale (commission owed, subject
-      // to the redeem/store-claim decision above) from a store staff
-      // member simply pricing above normal for their own reasons (markup
-      // goes straight to the store, pre-settled - see use-pos-payment.ts).
-      // DEFAULT 'reseller' so every existing is_reseller_sale row keeps its
-      // current pending-redemption behavior unchanged.
+      // Distinguishes a real reseller/agent sale (commission owed, subject to the redeem/store-claim decision above) from a store staff member simpl…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L222
       "markup_type TEXT DEFAULT 'reseller'",
     ],
   },
@@ -331,16 +297,11 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "_synced_at TEXT",
       "_deleted INTEGER DEFAULT 0",
       "store_id TEXT",
-      // Ties every audit_logs row written inside one multi-step operation
-      // (e.g. all ~10-15 rows a single sale writes across sales,
-      // sale_items, stock_batches, stock_movements, customers,
-      // loyalty_transactions) together, so the Activity Log can collapse
-      // them into one entry instead of showing each as a separate action.
+      // Ties every audit_logs row written inside one multi-step operation (e.g.
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L329
       "correlation_id TEXT",
-      // Coalesces a repeated dedupable action (see audit-actions.ts's
-      // DEDUPABLE_AUDIT_ACTIONS) into one row instead of a fresh row per
-      // occurrence - logAction() bumps this in place on a repeat rather
-      // than inserting again.
+      // Coalesces a repeated dedupable action (see audit-actions.ts's DEDUPABLE_AUDIT_ACTIONS) into one row instead of a fresh row per occurrence -…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L335
       "occurrence_count INTEGER DEFAULT 1",
       "last_occurred_at TEXT",
     ],
@@ -393,18 +354,14 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "_synced_at TEXT",
       "_deleted INTEGER DEFAULT 0",
       "store_id TEXT",
-      // Immediate-purchase per-line-item overrides (selling price, cost
-      // override, lot/expiry) - previously only ever consumed transiently
-      // at receiving time and never persisted, so saving an in-progress
-      // Immediate Purchase as a draft silently discarded them.
+      // Immediate-purchase per-line-item overrides (selling price, cost override, lot/expiry) - previously only ever consumed transiently at receivi…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L391
       "selling_price REAL",
       "cost_price_override REAL",
       "lot_number TEXT",
       "expiry_date TEXT",
-      // Cumulative quantity actually received against this line, in the same
-      // unit as bulk_quantity. Receiving used to be all-or-nothing: any
-      // submitted quantity flipped the whole PO to "received", permanently
-      // forfeiting the undelivered balance.
+      // Cumulative quantity actually received against this line, in the same unit as bulk_quantity.
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L399
       "quantity_received INTEGER DEFAULT 0",
     ],
   },
@@ -501,62 +458,45 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "is_demo INTEGER DEFAULT 0",
       "require_sale_notes INTEGER DEFAULT 0",
       "display_stock_levels INTEGER DEFAULT 1",
-      // DEFAULT 1 (ON) so existing Pro/Enterprise stores already using the
-      // loyalty program see zero behavior change - only a store that
-      // explicitly flips this off in Settings gets paused.
+      // DEFAULT 1 (ON) so existing Pro/Enterprise stores already using the loyalty program see zero behavior change - only a store that explicitly f…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L499
       "loyalty_program_enabled INTEGER DEFAULT 1",
-      // The rate calculateEarnedPoints() multiplies a sale's total by - 0.01
-      // preserves the previously-hardcoded 1-point-per-100-currency rate for
-      // every existing store until they change it in Loyalty Settings.
+      // The rate calculateEarnedPoints() multiplies a sale's total by - 0.01 preserves the previously-hardcoded 1-point-per-100-currency rate for ev…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L503
       "loyalty_points_per_currency REAL DEFAULT 0.01",
-      // DEFAULT 1 (ON): product/category names are always stored lowercase
-      // now, so without this every store would see an abrupt all-lowercase
-      // catalog the moment this shipped, instead of the uppercase-via-CSS
-      // display they're used to.
+      // DEFAULT 1 (ON): product/category names are always stored lowercase now, so without this every store would see an abrupt all-lowercase catalo…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L507
       "uppercase_display_enabled INTEGER DEFAULT 1",
-      // For the Tax Invoice receipt print variant's header (see ReceiptView) -
-      // a store's formal tax/VAT registration ID, distinct from
-      // pcn_license/registration_number.
+      // For the Tax Invoice receipt print variant's header (see ReceiptView) - a store's formal tax/VAT registration ID, distinct from pcn_license/r…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L512
       "tax_number TEXT",
       // Store-wide % of a reseller sale's markup remitted back to the
       // reseller. See use-pos-payment.ts / use-redeem-reseller-commission-mutation.ts.
       "reseller_commission_percentage REAL DEFAULT 0",
-      // One-time gate for ensureLoyaltyDefaultsSeeded() (loyalty.ts) - set
-      // the first time default tiers/redemption options are ever seeded for
-      // this store, so a store that later deliberately deletes every tier
-      // doesn't get them silently reseeded next time Loyalty Settings opens.
-      // NULL on every existing row until this migration's store's first
-      // post-upgrade seed decision.
+      // One-time gate for ensureLoyaltyDefaultsSeeded() (loyalty.ts) - set the first time default tiers/redemption options are ever seeded for this…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L519
       "loyalty_defaults_seeded_at TEXT",
       // Same one-time-seed-gate pattern as loyalty_defaults_seeded_at above,
       // for ensurePermissionGroupsSeeded() (permission-groups.ts).
       "permission_groups_seeded_at TEXT",
-      // Which revision of DEFAULT_GROUP_PERMISSIONS this store's default
-      // groups have been brought up to. NULL on every store seeded before
-      // this column existed, which backfillDefaultGroupPermissions()
-      // (permission-groups.ts) reads as catalog version 1.
+      // Which revision of DEFAULT_GROUP_PERMISSIONS this store's default groups have been brought up to.
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L529
       "permission_catalog_version INTEGER",
-      // Whether the receipt header shows the store logo above the store
-      // name (default, matches every existing store's current receipt) or
-      // beside it. See ReceiptView / receipt-customization-card.tsx.
+      // Whether the receipt header shows the store logo above the store name (default, matches every existing store's current receipt) or beside it.
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L534
       "receipt_logo_position TEXT DEFAULT 'above'",
       // On by default, so an existing store's receipt is unchanged by the
       // upgrade. See ReceiptView / receipt-customization-card.tsx.
       "show_barcode_on_receipt INTEGER DEFAULT 1",
-      // Server-managed bookkeeping for the storefront rebuild pipeline -
-      // mirrored here only so pull sync's dynamic column list doesn't fail
-      // with "no such column"; nothing in this app writes to them.
+      // Server-managed bookkeeping for the storefront rebuild pipeline - mirrored here only so pull sync's dynamic column list doesn't fail with "no…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L541
       "store_slug_changed_at TEXT",
       "storefront_dirty_at TEXT",
-      // Off by default: a cashier-initiated transfer request still moves
-      // stock immediately (just flagged needs_review - see
-      // stock-transfers.ts), so this stays opt-in rather than silently
-      // granting every existing store's staff that ability on upgrade.
+      // Off by default: a cashier-initiated transfer request still moves stock immediately (just flagged needs_review - see stock-transfers.ts), so…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L546
       "staff_can_request_transfers INTEGER DEFAULT 0",
-      // Off by default: gates the POS cart's entire "Reseller sale" row
-      // (both the reseller-commission and store-markup sub-types) behind
-      // an explicit owner opt-in, on top of the existing plan-tier check -
-      // see isMarkupSalesEnabled in use-feature-gate.ts.
+      // Off by default: gates the POS cart's entire "Reseller sale" row (both the reseller-commission and store-markup sub-types) behind an explicit…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L551
       "markup_sales_enabled INTEGER DEFAULT 0",
       // Paystack subaccount integration columns (see Task 1 of the
       // 2026-09-26-storefront-paystack-subaccounts spec).
@@ -591,10 +531,8 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "_deleted INTEGER DEFAULT 0",
       "stock_batch_id TEXT",
       "store_id TEXT",
-      // Set to "needs_review" on a cross-store transfer's two rows
-      // (transfer_out/transfer_in) when the initiating user isn't
-      // admin-tier - a cashier-requested transfer still takes effect
-      // immediately, just flagged for the owner to check afterward.
+      // Set to "needs_review" on a cross-store transfer's two rows (transfer_out/transfer_in) when the initiating user isn't admin-tier - a cashier-…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L589
       "status TEXT",
     ],
   },
@@ -639,10 +577,8 @@ async function runSyncColumnMigrations(
   }
 }
 
-// Backfills store_id on pre-existing rows of newly store-scoped tables to the
-// device's one pre-migration store. WHERE store_id IS NULL makes it naturally
-// idempotent. Skipped entirely once a device holds more than one store: see
-// A-250's neighbour A-248 in docs/FIXED_BUGS.md.
+// Backfills store_id on pre-existing rows of newly store-scoped tables to the device's one pre-migration store.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L637
 async function backfillStoreIdOnLegacyRows(adapter: DbAdapter): Promise<void> {
   try {
     const rows = await adapter.all("SELECT COUNT(*) AS count FROM stores");
@@ -659,21 +595,8 @@ async function backfillStoreIdOnLegacyRows(adapter: DbAdapter): Promise<void> {
   }
 }
 
-/**
- * `_sync_state` was keyed by `table_name` alone, so one watermark served every
- * store a device held — and nothing reset it on a store switch. A device that
- * spent a week on one store then switched never pulled what the other store
- * changed in that week, while every watermark read current. Measured on
- * production: 518 undelivered `sale_items`, 520 `sale_item_batches`, 17
- * `sales`. See docs/KNOWN_BUGS.md A-305.
- *
- * SQLite cannot alter a primary key, so this rebuilds the table. Existing rows
- * are stamped with the device's single store where it has exactly one — the
- * common case, which then re-pulls nothing. A device with none, or with
- * several, keeps rows under '' which matches no real store, so the first pull
- * per store starts from scratch: correct, and the only safe reading of a
- * watermark whose store cannot be known.
- */
+// `_sync_state` was keyed by `table_name` alone, so one watermark served every store a device held — and nothing reset it on a store switch.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-schema-migrations-L662
 async function scopeSyncStateToStore(adapter: DbAdapter): Promise<void> {
   try {
     const columns = await adapter.all("PRAGMA table_info(_sync_state)");
@@ -683,9 +606,7 @@ async function scopeSyncStateToStore(adapter: DbAdapter): Promise<void> {
     const hasSoleStore = stores.length === 1;
 
     // Every partial state must be retryable from the still-intact old table:
-    // without this, an interrupted first boot leaves a populated
-    // _sync_state_scoped whose composite key then rejects the copy on every
-    // later boot, and the device never pulls again. Silent and permanent.
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L667
     await adapter.run("DROP TABLE IF EXISTS _sync_state_scoped");
 
     await adapter.run(`
@@ -712,13 +633,8 @@ async function scopeSyncStateToStore(adapter: DbAdapter): Promise<void> {
   }
 }
 
-// show_contact_on_receipt (a combined phone+address toggle) was split into
-// show_phone_on_receipt/show_address_on_receipt. Both new columns default to
-// 1 on ALTER TABLE, so a store that had turned contact info off would
-// otherwise find both back on after this migration - this carries that
-// store's existing off-state onto both new columns once. WHERE
-// show_contact_on_receipt = 0 makes it naturally idempotent (nothing left to
-// backfill once the new columns already reflect it).
+// show_contact_on_receipt (a combined phone+address toggle) was split into show_phone_on_receipt/show_address_on_receipt.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L697
 async function backfillReceiptContactVisibility(adapter: DbAdapter): Promise<void> {
   try {
     await tryRun(
@@ -730,13 +646,8 @@ async function backfillReceiptContactVisibility(adapter: DbAdapter): Promise<voi
   }
 }
 
-// products.name/categories.name are now written lowercase (see
-// withNormalizedName in base-helpers.ts) so the UI can render them uppercase
-// via CSS regardless of how they were typed/imported. Rows written before
-// that change (e.g. an ALL-CAPS QuickBooks import, or a manually-typed mixed
-// case name) predate the rule, so this re-lowercases them on every init. It's
-// idempotent (a no-op once already lowercase) like backfillStoreIdOnLegacyRows
-// above, so it doesn't need a one-time-run flag.
+// products.name/categories.name are now written lowercase (see withNormalizedName in base-helpers.ts) so the UI can render them uppercase via…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L715
 async function lowercaseExistingProductAndCategoryNames(
   adapter: DbAdapter,
 ): Promise<void> {
@@ -750,20 +661,8 @@ async function lowercaseExistingProductAndCategoryNames(
   );
 }
 
-// deleteCategory only ever soft-deletes the categories row; it never touches
-// products.category_id pointing at it, and (until the sync push fix landed
-// server-side) a generic category name could also get silently merged into
-// an unrelated store's row that later got renamed/deleted out from under
-// this store. Either way, the product is left holding a category_id that no
-// longer resolves to a name — this clears it so the catalog shows
-// "Uncategorized" (and, crucially, the category can be re-picked from the
-// dropdown again) instead of the dead id staying stuck forever. Idempotent:
-// a product with a valid category_id is untouched.
-// stock_batches.cost_price is nullable here and NOT NULL DEFAULT 0 on the
-// server. Adjustment batches written by the bulk-import stock-audit flow
-// before commit e15105b1 never set it at all, so they hold a real local
-// NULL that a whole-row requeue would send up explicitly and the server
-// would reject. Idempotent, so no one-time-run flag — see FIXED_BUGS A-128.
+// deleteCategory only ever soft-deletes the categories row; it never touches products.category_id pointing at it, and (until the sync push fix…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L735
 async function zeroNullStockBatchCostPrices(adapter: DbAdapter): Promise<void> {
   await tryRun(
     adapter,
@@ -772,15 +671,8 @@ async function zeroNullStockBatchCostPrices(adapter: DbAdapter): Promise<void> {
 }
 
 async function clearOrphanedProductCategoryIds(adapter: DbAdapter): Promise<void> {
-  // Matches getCategoryList()'s own visibility rule (store_id = mine, or
-  // NULL for pre-multi-tenancy rows) — a category_id pointing at a row that
-  // exists but belongs to a *different* store (the cross-store merge bug;
-  // see 2026_09_12_000000_scope_category_uniqueness_to_store) is just as
-  // dead to this store as one that was hard-deleted, since it'll never show
-  // up in this store's dropdown either.
-  // tryRun/adapter.run take a raw SQL string with no bind-param support, so
-  // this inlines storeId directly — safe here since it's an internally
-  // generated UUID (see getActiveStoreId), never raw user input.
+  // Matches getCategoryList()'s own visibility rule (store_id = mine, or NULL for pre-multi-tenancy rows) — a category_id pointing at a row that…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L757
   const storeId = getActiveStoreId();
   await tryRun(
     adapter,
@@ -793,18 +685,11 @@ async function clearOrphanedProductCategoryIds(adapter: DbAdapter): Promise<void
   );
 }
 
-// rebuildUsersTableForStoreScopedUsername (the users table rebuild that
-// scoped username uniqueness to store_id, shipped 2026-08-01 — the same day
-// as the earliest real account) was removed once diagnoseLegacySchema(),
-// run against that account, confirmed its users table already had
-// UNIQUE(store_id, username).
+// rebuildUsersTableForStoreScopedUsername (the users table rebuild that scoped username uniqueness to store_id, shipped 2026-08-01 — the same…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L778
 
-// Relaxes purchase_orders.supplier_id to nullable, so an Immediate Purchase
-// can be recorded without a real vendor (self/walk-in purchase) the same way
-// sales.customer_id already supports a null "Walk-in Customer". SQLite can't
-// ALTER a column's NOT NULL constraint, so recreate the table; must run
-// after the syncColumns migration so the `type` column already exists to
-// carry over.
+// Relaxes purchase_orders.supplier_id to nullable, so an Immediate Purchase can be recorded without a real vendor (self/walk-in purchase) the…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L784
 async function relaxPurchaseOrdersSupplierIdNullable(adapter: DbAdapter): Promise<void> {
   try {
     const tableInfo = await adapter.all(
@@ -848,10 +733,8 @@ async function relaxPurchaseOrdersSupplierIdNullable(adapter: DbAdapter): Promis
   }
 }
 
-// One-off data clear for legacy transactions (retaining products, batches,
-// users, and settings), gated on a localStorage flag so it only ever runs
-// once per device. `onCleared` lets the web caller persist the change
-// (Tauri writes land on disk directly, with no equivalent save step).
+// One-off data clear for legacy transactions (retaining products, batches, users, and settings), gated on a localStorage flag so it only ever…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L833
 async function clearLegacyTransactionsOnce(
   adapter: DbAdapter,
   onCleared?: () => Promise<void>,
@@ -888,23 +771,8 @@ async function clearLegacyTransactionsOnce(
   }
 }
 
-// Every index the local read paths depend on (see docs/LOCAL_DB_INDEXES.md
-// for which query each one serves). SCHEMA_SQL carries the subset whose
-// columns exist in its own CREATE TABLE bodies; the store_id-scoped ones can
-// only be created here, because store_id is itself a migration-added column
-// and is absent from SCHEMA_SQL. Listing all of them here regardless keeps
-// one authoritative set for both populations - fresh installs run this pass
-// immediately after SCHEMA_SQL, so they converge on the same indexes as a
-// device upgrading from a pre-index database. CREATE INDEX IF NOT EXISTS is
-// idempotent on both backends; tryRun is kept for consistency with the rest
-// of this file. None of these are UNIQUE: duplicate barcodes and duplicate
-// product names both exist in real catalogs today (every lookup is LIMIT 1
-// and dedupe is app-level), so a unique index would fail to build on exactly
-// the mature databases this is meant to speed up. store_id is never indexed
-// on its own either: a single-store device has one value for every row, and
-// a standalone index on it got picked over the selective one (measured: the
-// import's barcode lookup chose idx_products_store_id and still visited the
-// whole catalog), so it only ever appears as a composite's leading column.
+// Every index the local read paths depend on (see docs/LOCAL_DB_INDEXES.md for which query each one serves).
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L873
 const READ_PATH_INDEXES = [
   `CREATE INDEX IF NOT EXISTS idx_stock_batches_product_id ON stock_batches(product_id)`,
   `CREATE INDEX IF NOT EXISTS idx_sale_items_sale_id ON sale_items(sale_id)`,
@@ -925,25 +793,13 @@ const READ_PATH_INDEXES = [
   `CREATE INDEX IF NOT EXISTS idx_sync_queue_table_name_record_id ON _sync_queue(table_name, record_id)`,
 ];
 
-// How far `sales` may outgrow the row count the last ANALYZE recorded before
-// the stats are rebuilt. Generous on purpose: a full ANALYZE is ~94 ms on the
-// one-year synthetic store, so it should run a handful of times over a
-// device's life, not on every launch.
+// How far `sales` may outgrow the row count the last ANALYZE recorded before the stats are rebuilt.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L910
 const ANALYZE_STALENESS_FACTOR = 4;
 const ANALYZE_STALENESS_FLOOR = 1000;
 
-// The indexes alone are not enough, and shipping them without this step is
-// worse than shipping nothing: with no sqlite_stat1 the planner falls back to
-// its built-in row-count guesses, and on the synthetic one-year store it then
-// drove getCustomers' 2,000-customer join off idx_sales_store_id_created_at
-// (which matches every sale on a single-store device) instead of
-// idx_sales_customer_id - 10.2 s unindexed became 30.5 s indexed. A full
-// ANALYZE turns the same query into 55 ms. Sampling it (PRAGMA
-// analysis_limit) is 14x cheaper but leaves the activity log's COUNT(*)
-// preferring a 200k-row index scan over the table scan that actually wins, so
-// the stats are built in full and instead rebuilt rarely: `sales` is the
-// proxy for how much the store has grown since the last pass, which also
-// covers the fresh install that ANALYZEd an empty database.
+// The indexes alone are not enough, and shipping them without this step is worse than shipping nothing:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L917
 async function ensureReadPathIndexes(
   adapter: DbAdapter,
   persist?: () => Promise<void>,
@@ -979,11 +835,8 @@ async function areTableStatsStale(adapter: DbAdapter): Promise<boolean> {
   }
 }
 
-// The full, ordered migration sequence initDatabase() applies to an existing
-// local database, identical on both backends. `persist` is only supplied on
-// the web/sql.js path, where an in-memory write (the legacy-transaction
-// delete, the one-off ANALYZE) still has to be written back to IndexedDB;
-// Tauri's SQL plugin writes land on disk directly.
+// The full, ordered migration sequence initDatabase() applies to an existing local database, identical on both backends.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L964
 export async function runSchemaMigrations(
   adapter: DbAdapter,
   persist?: () => Promise<void>,

@@ -1,15 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { resolveMovementDisplayType, FILTER_TYPES } from "@/components/stock-batch/stock-movement-utils";
 
-/**
- * A bulk-import stock correction for an existing product is written with
- * movement_type "adjustment" (same audit machinery as a manual cycle count),
- * so the general Stock Movements table - which reads movement_type directly -
- * showed it as an ordinary "Adjustment" with no way to tell the two apart.
- * The Adjustments Ledger already solves this via reference_type/reason (see
- * groupAdjustmentMovements); resolveMovementDisplayType does the same for
- * this table.
- */
+// A bulk-import stock correction for an existing product is written with movement_type "adjustment" (same audit machinery…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-stock-movement-import-type-test-ts-L4
 describe("resolveMovementDisplayType", () => {
   it("labels a current-shape bulk-import correction as import, not adjustment", () => {
     const row = { movement_type: "adjustment", reference_type: "import", reason: "Bulk import stock update" };

@@ -30,13 +30,8 @@ export const FIELD_LABELS: Record<ProductField, string> = {
   ignore: "Ignore this column",
 };
 
-/**
- * Known header strings from QuickBooks POS's "Export Templates" dialog,
- * Moniebook's inventory export, and DumosRx's own export — seeded from the
- * actual files reviewed while designing this feature (see
- * docs/superpowers/specs/2026-08-31-stock-import-export-design.md). Any
- * header not listed here falls back to "ignore" and the user maps it by hand.
- */
+// Known header strings from QuickBooks POS's "Export Templates" dialog, Moniebook's inventory export, and DumosRx's own export — seeded from t…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-product-import-export-ts-L33
 const HEADER_ALIASES: Record<string, ProductField> = {
   "item name": "name",
   "product name": "name",
@@ -79,11 +74,8 @@ const HEADER_ALIASES: Record<string, ProductField> = {
   "visible online": "show_online",
 };
 
-/**
- * Strips bracket suffixes like " [Main branch]" (Moniebook's per-branch
- * columns) and "( % )" (Moniebook's margin columns) before matching, since
- * DumosRx is single-store and doesn't need the branch qualifier.
- */
+// Strips bracket suffixes like " [Main branch]" (Moniebook's per-branch columns) and "( % )" (Moniebook's margin columns) before matching, sin…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-product-import-export-ts-L82
 function normalizeHeader(header: string): string {
   return header
     .replace(/\s*\[[^\]]*\]\s*/g, " ")
@@ -95,13 +87,8 @@ function normalizeHeader(header: string): string {
 
 export type ColumnMapping = Record<string, ProductField>;
 
-/**
- * Auto-maps a file's header row to internal fields. Fields that can
- * legitimately repeat across columns (e.g. Moniebook's "Stock [Branch]" per
- * branch) only take their FIRST matching column — DumosRx tracks one
- * quantity per product, not one per branch — so every later column that
- * would map to an already-claimed field falls back to "ignore".
- */
+// Auto-maps a file's header row to internal fields.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-product-import-export-ts-L98
 export function detectColumnMapping(headers: string[]): ColumnMapping {
   const mapping: ColumnMapping = {};
   const claimed = new Set<ProductField>();
@@ -134,10 +121,8 @@ export interface ProductImportRow {
 const TRUE_VALUES = new Set(["1", "true", "yes", "y", "on", "online", "visible", "show", "shown"]);
 const FALSE_VALUES = new Set(["0", "false", "no", "n", "off", "offline", "hidden", "hide"]);
 
-/** Accepts the spellings a store owner actually types in a spreadsheet
- * ("Yes"/"TRUE"/1/"online"), and returns undefined rather than guessing for
- * anything else — an unrecognised value must not silently publish a product to
- * the public storefront. */
+// Accepts the spellings a store owner actually types in a spreadsheet ("Yes"/"TRUE"/1/"online"), and returns undefined rather than guessing fo…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-product-import-export-ts-L137
 export function parseBooleanValue(raw: unknown): boolean | undefined {
   if (raw === null || raw === undefined || raw === "") return undefined;
   if (typeof raw === "boolean") return raw;
@@ -148,12 +133,8 @@ export function parseBooleanValue(raw: unknown): boolean | undefined {
   return undefined;
 }
 
-/** Accepts "1500", 1500, "1,500.00", "₦1,500.00"; rejects blank/non-numeric/
- * negative. Every field this feeds (cost/selling price, quantity, reorder
- * level) is a real-world quantity that can never legitimately be negative,
- * so a negative parse is treated the same as an unparseable one (undefined)
- * rather than being imported as-is — previously a "-500" in a price column
- * silently wrote negative money/stock with no validation at all. */
+// Accepts "1500", 1500, "1,500.00", "₦1,500.00"; rejects blank/non-numeric/ negative.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-product-import-export-ts-L151
 export function parseNumericValue(raw: unknown): number | undefined {
   if (raw === null || raw === undefined || raw === "") return undefined;
   const cleaned = String(raw).replace(/[^0-9.-]/g, "");
@@ -241,14 +222,8 @@ export function buildExportRows(
   return { headers: selected.map((c) => c.label), rows };
 }
 
-/** Printable physical stock-count sheet: system quantity plus blank columns
- * for a staff member to write the counted quantity and any notes while
- * walking the floor. Modeled on the sheet clients migrating from other
- * inventory apps already use for this (checkbox + blank counted-qty/notes
- * columns next to the system quantity). Takes the minimal shape shared by
- * ExportableProduct and the Cycle Count screen's AuditItem, since the
- * "Print" action lives inside that screen (client/components/stock-batch/
- * stock-audits.tsx) rather than the general product export menu. */
+// Printable physical stock-count sheet:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-product-import-export-ts-L244
 export function buildStockAuditRows(
   products: { name: string; category?: string; quantity: number }[],
 ): { headers: string[]; rows: Record<string, unknown>[]; columnFlex: number[] } {

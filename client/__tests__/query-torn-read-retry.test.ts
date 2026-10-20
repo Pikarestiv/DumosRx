@@ -6,22 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression coverage for the Product Catalog's "No products found" flash
- * during a large sync (see docs/KNOWN_BUGS.md).
- *
- * query() yields a tick back to the browser every QUERY_YIELD_INTERVAL rows
- * so a big result set doesn't block painting. sql.js has one shared
- * connection with no reader isolation, so a write landing during one of
- * those yields modifies the very table the live statement is stepping
- * through — SQLite's behavior there is undefined, and the observed outcome
- * was a silently short (in the worst case empty) result with no error
- * raised. query() now re-runs the read instead of returning it.
- *
- * Only queries big enough to reach a yield point are exposed to this, which
- * is why the ~1900-row catalog query flashed empty while the single-row
- * "Total Products" aggregates stayed correct in the same window.
- */
+// Regression coverage for the Product Catalog's "No products found" flash during a large sync (see docs/KNOWN_BUGS.md).
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-query-torn-read-retry-test-ts-L9
 describe("query() vs. a write interleaved into its row-fetch yield", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

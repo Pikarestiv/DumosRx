@@ -1,16 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 
-/**
- * install_app_updates gates the updater's USER-FACING half: the floating
- * "Check for updates" pill and the consent/restart prompts it can open.
- * The startup check and the silent patch download behind it are deliberately
- * left running for every session - they are not a user action, and stopping
- * them would strand a till on an old build rather than restrict anyone.
- *
- * A session with no signed-in user (login screen, first run) is ungated:
- * there is no group to check, and the updater is the device's own.
- */
+// install_app_updates gates the updater's USER-FACING half:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-auto-updater-install-permission-test-tsx-L4
 
 const hasPermission = vi.fn((_key: string) => true);
 let currentUser: { role: string } | null = { role: "sales_staff" };

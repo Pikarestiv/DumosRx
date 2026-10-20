@@ -6,11 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Phase 1 of the stuck-data work. The server derives stock from movements and
- * the client derives it locally; neither ever compared the two, so a device
- * drifting (A-173/A-176) was invisible until a physical count found it.
- */
+// Phase 1 of the stuck-data work.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-stock-fingerprint-test-ts-L9
 describe("buildStockFingerprint", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -26,9 +23,8 @@ describe("buildStockFingerprint", () => {
     });
     db = new SQL.Database();
     db.run(SCHEMA_SQL);
-    // runSchemaMigrations() adds store_id to every STORE_SCOPED_TABLES entry
-    // on a real device; SCHEMA_SQL alone does not, and the query under test
-    // relies on it exactly as health-check.ts already does.
+    // runSchemaMigrations() adds store_id to every STORE_SCOPED_TABLES entry on a real device; SCHEMA_SQL alone does not, and…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-stock-fingerprint-test-ts-L29
     db.run("ALTER TABLE stock_batches ADD COLUMN store_id TEXT");
     core.__setDatabaseForTesting(db);
   });

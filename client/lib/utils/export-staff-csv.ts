@@ -1,8 +1,7 @@
 import type { StaffListItem } from "@/lib/types/user";
 
-// A leading =/+/-/@ is interpreted as a formula by Excel/Sheets when the CSV
-// is opened there - prefixing with a tab (invisible, doesn't shift columns)
-// neutralizes it without altering the visible value.
+// A leading =/+/-/@ is interpreted as a formula by Excel/Sheets when the CSV is opened there - prefixing with a tab (invisible, doesn't shift…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-export-staff-csv-ts-L3
 const FORMULA_TRIGGER_RE = /^[=+\-@]/;
 
 function csvField(value: string): string {

@@ -12,20 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * Regression test for a real report: the server silently skips inserting a
- * category/supplier whose name collides with one it already has, remapping
- * the id only in that one push request's memory (see SyncController::push).
- * The client's only repair mechanism, DUPLICATE_NAME_TABLES reconciliation
- * below, can only fix a collision if the pre-existing row it collided with
- * appears in THIS pull's response — but a normal delta pull only asks the
- * server for rows changed since last_synced_at, and a long-unchanged
- * category like "DRUGS" never will. The server's pull() treats a table
- * missing from last_synced as "return everything" (no filter applied at
- * all), so categories/suppliers must never be given a last_synced cursor —
- * they're small collections (tens, rarely hundreds), so a full fetch every
- * time costs nothing and closes the gap for good.
- */
+// Regression test for a real report:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-full-fetches-categories-suppliers-test-ts-L15
 describe("pullChanges always full-fetches categories and suppliers", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

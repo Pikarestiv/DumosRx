@@ -13,18 +13,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * A-305. `_sync_state` was keyed by `table_name` alone, so one watermark
- * served every store a device held, and nothing reset it on a switch. A device
- * that spent a week on store A advanced every table's watermark to "now"; on
- * switching to B the pull asked for B's rows changed since *now*, and
- * everything B changed that week was never delivered — while every watermark
- * read perfectly current, which is why nothing looked wrong.
- *
- * Measured on production 2026-10-19: 17 undelivered `sales`, 518
- * `sale_items`, 520 `sale_item_batches`, 520 `stock_movements` on one
- * two-store device, unchanged across nine syncs over three hours.
- */
+// A-305. `_sync_state` was keyed by `table_name` alone, so one watermark served every store a device held, and nothing res…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-watermark-is-per-store-test-ts-L16
 describe("the pull watermark belongs to one store", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -68,9 +58,8 @@ describe("the pull watermark belongs to one store", () => {
     core.setActiveStoreId("store-b");
     await pullChanges();
 
-    // Store B has never synced `sales`, so it must ask for everything. With a
-    // shared watermark it would have asked for changes since 11:00 and never
-    // received anything store A's week of syncing had already advanced past.
+    // Store B has never synced `sales`, so it must ask for everything.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-pull-watermark-is-per-store-test-ts-L71
     expect(lastSyncedSent().sales).toBeUndefined();
   });
 

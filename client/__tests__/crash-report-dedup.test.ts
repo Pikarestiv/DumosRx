@@ -20,14 +20,8 @@ vi.mock("@/lib/api/logger", () => ({
   reportClientError: (...args: unknown[]) => reportClientErrorMock(...args),
 }));
 
-/**
- * Coverage for logCrash()'s crash-report coalescing (error-logger.ts): a
- * bug that keeps re-throwing the SAME error should fold into one
- * still-unsynced `feedback` row with a growing occurrence_count, instead
- * of a fresh row (and a fresh sync-queue push) per throw - and the direct
- * reportClientError HTTP call should be throttled the same way, since it
- * fires independently of the local sync queue entirely.
- */
+// Coverage for logCrash()'s crash-report coalescing (error-logger.ts):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-crash-report-dedup-test-ts-L23
 describe("logCrash() crash-report dedup", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -68,12 +62,8 @@ describe("logCrash() crash-report dedup", () => {
     const auditRows = await core.query(`SELECT * FROM audit_logs`);
     expect(auditRows).toHaveLength(0);
 
-    // Every queued push targets the SAME single row (one insert() the first
-    // time, then update()s for each repeat) - unlike audit_logs, feedback
-    // genuinely supports server-side UPDATE by id, so these coalesce into
-    // one final row server-side rather than needing the append-only
-    // workaround logAction() uses. The point being tested is "one row,"
-    // not "one queue entry."
+    // Every queued push targets the SAME single row (one insert() the first time, then update()s for each repeat) - unlike aud…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-crash-report-dedup-test-ts-L71
     const queued = await core.query<{ id: number }>(
       `SELECT id FROM _sync_queue WHERE table_name = 'feedback' AND record_id = ?`,
       [rows[0].id],

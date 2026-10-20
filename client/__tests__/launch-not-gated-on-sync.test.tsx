@@ -4,18 +4,8 @@ import initSqlJs, { type Database } from "sql.js";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-/**
- * A-7 (docs/KNOWN_BUGS.md): every online launch was gated behind a full
- * push+pull round. LicenseGuard's performCheck() awaited
- * `Promise.race([sync(true), 5 s timeout])` while rendering <SplashScreen/>,
- * so first paint cost up to five seconds on a slow or captive-portal
- * network — and the effect's storeProfile dependencies re-fired it as the
- * profile settled, firing a second sync(true). StoreProvider fired a third
- * sync() of its own on mount.
- *
- * The app must paint from local state immediately, and the launch sync must
- * have exactly one owner.
- */
+// A-7 (docs/KNOWN_BUGS.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-launch-not-gated-on-sync-test-tsx-L7
 
 vi.mock("@sentry/nextjs", () => ({
   setUser: vi.fn(),

@@ -106,11 +106,8 @@ export function ActivityTab({
 
   usePullToRefreshHandler(refetch);
 
-  // Filtering to one customer or searching must match their entire history, not
-  // just the recent-activity window loaded by default, unless a custom date
-  // range is already active. In that case that's the window the user
-  // explicitly asked for, so search/filter should stay scoped within it
-  // rather than silently discarding the range for full history.
+  // Filtering to one customer or searching must match their entire history, not just the recent-activity window loaded by de…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-customers-activity-tab-tsx-L109
   useEffect(() => {
     if (dateRange.from) return;
     if (filterCustomerId || searchTerm) loadFullHistory();

@@ -13,16 +13,8 @@ import {
 } from "lucide-react";
 import { getCategoryIcon } from "@/lib/constants/category-icons";
 
-/**
- * Regression test for a real bug Cynthia hit: "Site Safety & Accessories",
- * "Sanitary Ware", and "Plumbing & Pipe Fittings" all rendered the Wine
- * icon. fuzzyKeywordMatch()'s threshold (ceil(keyword.length / 3)) was too
- * loose for exactly-4-letter keywords like "wine": a distance of 2 out of 4
- * characters — half the word — was accepted, which is exactly the edit
- * distance between "wine" and each of "site", "ware" (from "sanitary
- * WARE"), and "pipe" (from "PIPE fittings"). Ordinary short English words
- * kept coincidentally landing within 2 edits of a 4-letter keyword.
- */
+// Regression test for a real bug Cynthia hit:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-category-icon-fuzzy-match-test-ts-L16
 describe("getCategoryIcon() fuzzy matching", () => {
   it("does not mistake 'site' for the 'wine' keyword", () => {
     expect(getCategoryIcon("Site Safety & Accessories")).not.toBe(Wine);
@@ -50,16 +42,12 @@ describe("getCategoryIcon() fuzzy matching", () => {
   });
 });
 
-/**
- * Cynthia's own construction-materials store categories, previously
- * uncovered by the pharmacy/grocery keyword sets and landing on either an
- * arbitrary FALLBACK_ICONS rotation or a wrong fuzzy match (see above).
- */
+// Cynthia's own construction-materials store categories, previously uncovered by the pharmacy/grocery keyword sets and lan…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-category-icon-fuzzy-match-test-ts-L53
 describe("getCategoryIcon() construction/hardware coverage", () => {
   it.each([
-    // "electrical" wins over "lighting" as the earlier KEYWORD_ICONS entry
-    // when a name contains both - still a purpose-built icon, just the
-    // broader of the two matched keywords.
+    // "electrical" wins over "lighting" as the earlier KEYWORD_ICONS entry when a name contains both - still a purpose-built i…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-category-icon-fuzzy-match-test-ts-L60
     ["Electrical - Lighting", Zap],
     ["Lighting & Bulbs", Lightbulb],
     ["Electrical - Wiring & Sockets", Zap],

@@ -3,11 +3,8 @@
  * These do not rely on React state, Context, or SQLite databases.
  */
 
-// Money is stored/summed as floats throughout (no integer minor-units), so
-// every function here that produces a value meant to be stored (not just
-// displayed) rounds to the cent/kobo - otherwise the stored value can drift
-// from what the receipt/UI rounds and displays, and SUM()s in reports don't
-// tie out to the sum of displayed line values.
+// Money is stored/summed as floats throughout (no integer minor-units), so every function here that produces a value meant to be stored (not j…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-pos-calculations-ts-L6
 export function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
 }
@@ -17,11 +14,8 @@ export function calculateSubtotal(items: { subtotal: number }[]): number {
   return roundMoney(items.reduce((sum, item) => sum + (item.subtotal || 0), 0));
 }
 
-// VAT is charged on the net-of-discount amount, not the raw subtotal — a
-// discount is a reduction in the price charged, so tax should never be
-// computed on money the customer isn't actually being charged. Callers that
-// also apply a discount MUST pass (subtotal - discountAmount) here, not the
-// raw subtotal, or the customer is overcharged VAT on the discounted portion.
+// VAT is charged on the net-of-discount amount, not the raw subtotal — a discount is a reduction in the price charged, so tax should never be…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-pos-calculations-ts-L20
 export function calculateTax(subtotal: number, vatPercentage: number): number {
   if (subtotal < 0 || vatPercentage < 0) return 0;
   return roundMoney(subtotal * (vatPercentage / 100));
@@ -39,13 +33,8 @@ export function calculateDiscountAmount(
   return roundMoney(discount);
 }
 
-// NOTE: this still subtracts discountAmount from the raw subtotal even
-// though tax should be computed net-of-discount (see calculateTax above).
-// That's not double-subtracting: if the caller already computed `tax` from
-// (subtotal - discountAmount), then subtotal + tax - discountAmount equals
-// (subtotal - discountAmount) + tax, i.e. discounted-subtotal-plus-tax — the
-// correct total. Passing a `tax` computed from the raw subtotal here (the
-// old, buggy call pattern) would overcharge VAT; see use-pos-cart.ts.
+// NOTE: this still subtracts discountAmount from the raw subtotal even though tax should be computed net-of-discount (see calculateTax above).
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-pos-calculations-ts-L42
 export function calculateTotal(
   subtotal: number,
   tax: number,
@@ -59,9 +48,8 @@ export function calculateChangeDue(amountPaid: number, total: number): number {
   return Math.max(0, amountPaid - total);
 }
 
-/** How much is still owed on a cash tender, 0 once it covers the total.
- * Mirrors calculateChangeDue for the other direction so the payment dialog
- * can report a shortfall inline while typing instead of only after submit. */
+// How much is still owed on a cash tender, 0 once it covers the total.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-pos-calculations-ts-L62
 export function calculateCashShortfall(amountPaid: number, total: number): number {
   if (!Number.isFinite(amountPaid) || total < 0) return 0;
   return roundMoney(Math.max(0, total - Math.max(0, amountPaid)));
@@ -116,9 +104,8 @@ export function calculateSplitShortage(
   shortageAmount: number;
   changeDueAmount: number;
 } {
-  // Negative splits are floored here too, not just at the input: a negative
-  // amount would otherwise offset a larger positive one and make an
-  // under-collected sale look fully covered.
+  // Negative splits are floored here too, not just at the input:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-pos-calculations-ts-L118
   const totalSplitAmount = roundMoney(
     splits.reduce((acc, s) => acc + Math.max(0, s.amount || 0), 0),
   );
@@ -136,11 +123,8 @@ interface PaymentSplit {
   amount: number;
 }
 
-/** How much of a mixed-payment sale was actually collected at sale time —
- * excludes any credit split, since that portion is owed, not paid. Using
- * the raw split total here (including credit) is what previously made a
- * mixed sale with an unpaid credit portion look fully paid. Negative split
- * amounts are floored to 0: no tender can subtract from what was collected. */
+// How much of a mixed-payment sale was actually collected at sale time — excludes any credit split, since that portion is owed, not paid.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-pos-calculations-ts-L139
 export function calculateMixedAmountPaid(splits: PaymentSplit[]): number {
   return roundMoney(
     splits.reduce(
@@ -150,20 +134,14 @@ export function calculateMixedAmountPaid(splits: PaymentSplit[]): number {
   );
 }
 
-/** Change due for a mixed-payment sale, computed against non-credit tender
- * only. A credit split is money the customer still owes, not money they
- * handed over, so it can never produce change - using the raw split total
- * here (including credit) previously let an over-allocated credit split
- * make the sale look overpaid, handing real cash back for an "overpayment"
- * that was never actually tendered. */
+// Change due for a mixed-payment sale, computed against non-credit tender only.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-pos-calculations-ts-L153
 export function calculateMixedChangeDue(splits: PaymentSplit[], total: number): number {
   return roundMoney(Math.max(0, calculateMixedAmountPaid(splits) - total));
 }
 
-/** The largest credit split a mixed sale can carry: whatever the sale still
- * owes once every non-credit tender is counted. applyCreditPaymentFIFO() can
- * only ever settle `total_amount - amount_paid` against this sale, so any
- * credit beyond this is debt with no sale behind it. */
+// The largest credit split a mixed sale can carry:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-pos-calculations-ts-L163
 export function calculateMaxAllowedCreditSplit(splits: PaymentSplit[], total: number): number {
   return Math.max(0, roundMoney(total - calculateMixedAmountPaid(splits)));
 }
@@ -184,10 +162,8 @@ export function isCreditSplitOverAllocated(splits: PaymentSplit[], total: number
   );
 }
 
-/** A mixed sale with a nonzero credit split still owes that amount, so it
- * must be "partial" — the same status recordCustomerPayment()/
- * applyCreditPaymentFIFO() already look for — not "completed", or debt
- * repayment later can never find and settle it. */
+// A mixed sale with a nonzero credit split still owes that amount, so it must be "partial" — the same status recordCustomerPayment()/ applyCre…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-pos-calculations-ts-L187
 export function calculateSalePaymentStatus(
   paymentMethod: "cash" | "card" | "transfer" | "credit" | "mixed",
   splits: PaymentSplit[],

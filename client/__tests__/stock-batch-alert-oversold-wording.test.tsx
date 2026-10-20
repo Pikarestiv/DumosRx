@@ -9,12 +9,8 @@ vi.mock("@/components/ui/chart", () => ({
   ChartTooltipContent: () => null,
 }));
 
-/**
- * An oversold alert's `quantity` is a deficit, not a stock level, and it has
- * no reorder threshold — rendering it through the low-stock sentence printed
- * "4 unit(s) in stock (min: undefined unit(s))" for an item that is in fact
- * four units short.
- */
+// An oversold alert's `quantity` is a deficit, not a stock level, and it has no reorder threshold — rendering it through t…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-stock-batch-alert-oversold-wording-test-tsx-L12
 describe("Critical Stock Batch Alerts wording", () => {
   const renderWith = (alerts: Parameters<typeof StockBatchInsightsTab>[0]["stock_batchAlerts"]) =>
     render(<StockBatchInsightsTab stock_batchAlerts={alerts} salesByCategory={[]} />);

@@ -2,9 +2,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-// PrescriptionMedications only reads storeProfile.currency from useStore()
-// (for the money-formatted cost hint); it doesn't need a real StoreProvider
-// or its underlying DB-backed queries.
+// PrescriptionMedications only reads storeProfile.currency from useStore() (for the money-formatted cost hint); it doesn't…
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-prescription-strength-fallback-test-ts-L5
 vi.mock("@/lib/context/store-context", () => ({
   useStore: () => ({ storeProfile: { currency: "NGN" } }),
 }));
@@ -19,20 +18,8 @@ import type {
 // React 19's `act` warns unless the environment explicitly opts in.
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-/**
- * Regression coverage for: "Strength selector is unusable (but harmless)
- * for any product with a blank `strength` column" (_findings-log.md).
- *
- * The New Prescription form's "Strength *" combobox was populated only from
- * a chosen product's non-empty `strength` values, so a product with a blank
- * `products.strength` (common on this store's imported catalog) rendered a
- * required-looking dropdown with zero options. Fix: fall back to a free-text
- * Input when the selected product has no non-empty strength options.
- *
- * No @testing-library/react is installed in this repo (see
- * use-pos-payment-loyalty-gate.test.ts), so this uses the same manual
- * react-dom/client + `act` harness, asserting on plain DOM nodes.
- */
+// Regression coverage for:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-prescription-strength-fallback-test-ts-L22
 describe("PrescriptionMedications strength field fallback", () => {
   let container: HTMLDivElement;
   let root: Root;

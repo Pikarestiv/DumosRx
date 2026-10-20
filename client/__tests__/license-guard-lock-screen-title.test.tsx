@@ -1,17 +1,8 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 
-/**
- * The lock screen rendered its title through three independent `&&`
- * expressions rather than one mutually exclusive chain. The third read
- * `!(!clockTampered && isSuspended)`, which negates only the SECOND branch,
- * so with isClockTampered = true it evaluated to `!(false && …)` → true and
- * rendered alongside the first — producing the literal string
- * "Clock DiscrepancySubscription Expired" on a store owner's till.
- *
- * Reported from production after a laptop's system clock ran ~12 hours fast.
- * See docs/KNOWN_BUGS.md.
- */
+// The lock screen rendered its title through three independent `&&` expressions rather than one mutually exclusive chain.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-license-guard-lock-screen-title-test-tsx-L4
 const licenseState = {
   current: {
     isValid: false,

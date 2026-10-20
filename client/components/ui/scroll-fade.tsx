@@ -17,9 +17,8 @@ interface ScrollFadeProps {
  */
 export function ScrollFade({ children, className, containerClassName }: ScrollFadeProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  // Content grows asynchronously (data loads after mount) without the
-  // scroll container's own box size changing, so we watch the unclipped
-  // content wrapper instead: that's what actually reflects scrollHeight.
+  // Content grows asynchronously (data loads after mount) without the scroll container's own box size changing, so we watch…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-scroll-fade-tsx-L20
   const contentRef = useRef<HTMLDivElement>(null);
   const [showTop, setShowTop] = useState(false);
   const [showBottom, setShowBottom] = useState(false);
@@ -72,15 +71,8 @@ interface HorizontalScrollFadeProps {
   containerClassName?: string;
 }
 
-/**
- * Left/right counterpart to ScrollFade, for the horizontal metric and card
- * strips that deliberately hide their scrollbar (`.hide-scrollbar`): without
- * a scrollbar and without this, a strip cut off at the viewport edge looks
- * like the full set rather than the start of a longer one.
- *
- * It owns the scroll element itself (rather than wrapping an existing one)
- * so the fades can't drift from what actually scrolls.
- */
+// Left/right counterpart to ScrollFade, for the horizontal metric and card strips that deliberately hide their scrollbar (…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-scroll-fade-tsx-L75
 export function HorizontalScrollFade({
   children,
   className,

@@ -21,9 +21,8 @@ import {
   clampLabelQuantity,
   MAX_LABEL_QUANTITY,
 } from "./barcode-label-sheet";
-/** Only the four fields a label actually carries, so any product shape can
- * be printed — POSProduct satisfies it structurally, and the catalog's
- * camelCase ProductViewModel maps onto it at the call site. */
+// Only the four fields a label actually carries, so any product shape can be printed — POSProduct satisfies it structurall…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-barcode-print-dialog-tsx-L24
 export interface BarcodeLabelProduct {
   id: string;
   name: string;
@@ -31,9 +30,8 @@ export interface BarcodeLabelProduct {
   unit_price: number;
 }
 
-// printNode() ships this as a page <style> in the popped-out print window, so
-// it's a plain string, not a Tailwind class — the uppercase-display toggle
-// has to be baked into the CSS text itself rather than a React className.
+// printNode() ships this as a page <style> in the popped-out print window, so it's a plain string, not a Tailwind class —…
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-stock-batch-barcode-print-dialog-tsx-L34
 function getLabelPageStyle(uppercaseNames: boolean) {
   return `
   @page { size: 50mm 25mm; margin: 0; }

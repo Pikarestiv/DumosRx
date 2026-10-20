@@ -19,24 +19,8 @@ vi.mock("sonner", () => ({
   },
 }));
 
-/**
- * Regression coverage for a Critical review finding on the _known-bugs.md
- * #11 fix: update() no longer bumps `_version` locally (correct for the
- * two-device case), but `addToSyncQueue` still appends one new
- * `_sync_queue` row per update() call with NO coalescing. Two ordinary
- * SEQUENTIAL edits to the SAME row before the next sync therefore queue two
- * separate rows that both freeze the identical base `_version`. Pushed
- * together, the server accepts the first (bumping its version) and rejects
- * the second as a false "version_conflict" — a single-device edit silently
- * lost, with a misleading "conflict" signal, even though there was never
- * any other device involved.
- *
- * This reproduces the REAL trigger, not an abstract two-field case:
- * use-pos-payment.ts's mixed/credit checkout does
- * `update("customers", id, {outstanding_balance})` immediately followed by
- * `update("customers", id, {loyalty_points})` on the SAME customer row, with
- * no sync in between (see push.ts's coalescePendingUpdates() doc comment).
- */
+// Regression coverage for a Critical review finding on the _known-bugs.md #11 fix:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-coalesces-same-record-updates-test-ts-L22
 describe("pushChanges coalesces multiple pending UPDATEs for the same record", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -68,22 +52,14 @@ describe("pushChanges coalesces multiple pending UPDATEs for the same record", (
     toastWarning.mockClear();
   });
 
-  // update()/insert() also queue an audit_logs INSERT into _sync_queue on
-  // every call (see logAction() in core.ts) — real, correct behavior, but
-  // orthogonal to what this file tests (customers-row UPDATE coalescing).
-  // Stripped out after each write so assertions here can stay focused on
-  // the customers rows specifically, without asserting on audit-log
-  // bookkeeping this fix doesn't touch.
+  // update()/insert() also queue an audit_logs INSERT into _sync_queue on every call (see logAction() in core.ts) — real, co…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-push-coalesces-same-record-updates-test-ts-L71
   function clearAuditLogQueueNoise() {
     db.run(`DELETE FROM _sync_queue WHERE table_name = 'audit_logs'`);
   }
 
-  /**
-   * A second pending UPDATE for the same record. Seeded directly because
-   * write-time collapsing (A-203) now keeps one pending UPDATE per record, so
-   * a multi-row backlog only exists on a device that queued it before that
-   * shipped — which is exactly the state push-time coalescing is still for.
-   */
+  // A second pending UPDATE for the same record.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-coalesces-same-record-updates-test-ts-L81
   function queueLegacySiblingUpdate(
     recordId: string,
     payload: Record<string, unknown>,
@@ -125,9 +101,8 @@ describe("pushChanges coalesces multiple pending UPDATEs for the same record", (
       // Both field values are present in the single merged payload.
       expect(customerChanges[0].payload.outstanding_balance).toBe(500);
       expect(customerChanges[0].payload.loyalty_points).toBe(25);
-      // Carries the EARLIEST entry's base version (1 — insert()'s starting
-      // value; unchanged by either update() per the _version fix), not the
-      // second edit's snapshot.
+      // Carries the EARLIEST entry's base version (1 — insert()'s starting value; unchanged by either update() per the _version…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-push-coalesces-same-record-updates-test-ts-L128
       expect(customerChanges[0].payload._version).toBe(1);
 
       return {
@@ -175,15 +150,13 @@ describe("pushChanges coalesces multiple pending UPDATEs for the same record", (
       processed: 0,
       failed: [{ id: repId, table_name: "customers", record_id: customerId, reason: "version_conflict" }],
     });
-    // The server only ever sees ONE change for this record (asserted in the
-    // test above), so it can only ever report ONE failed entry for it — the
-    // mock above reflects that real constraint.
+    // The server only ever sees ONE change for this record (asserted in the test above), so it can only ever report ONE failed…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-push-coalesces-same-record-updates-test-ts-L178
 
     await pushChanges();
 
-    // Every underlying queue row for this record is gone — not just the
-    // representative one, which would silently strand the other half of
-    // the merged edit forever.
+    // Every underlying queue row for this record is gone — not just the representative one, which would silently strand the ot…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-push-coalesces-same-record-updates-test-ts-L184
     const remaining = db.exec(`SELECT id FROM _sync_queue WHERE table_name = 'customers'`);
     expect(remaining.length).toBe(0);
 

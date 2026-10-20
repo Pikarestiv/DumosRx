@@ -18,9 +18,8 @@ interface CustomerBehaviorTabProps {
     value: string;
     change: string;
     trend: string;
-    /** True only when `change` is a percentage measured against the previous
-     * period - rows like "45% of total" or "Healthy" are not, and must not
-     * get the "vs last period" suffix. */
+    // True only when `change` is a percentage measured against the previous period - rows like "45% of total" or "Healthy" are…
+    // Rationale: docs/CLIENT_COMMENTS.md#block-components-analytics-customer-behavior-tab-tsx-L21
     isPeriodComparison?: boolean;
   }[];
   purchasePatterns?: {

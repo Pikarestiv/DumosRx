@@ -4,10 +4,8 @@ import type { AuditLogRow } from "@/lib/types/audit-log";
 
 export type ActivityLogSortKey = "created_at" | "action" | "user_name";
 
-// Whitelisted, not interpolated from arbitrary caller input: sortKey/
-// sortDirection end up inside the SQL string directly (SQLite doesn't
-// support parameterized ORDER BY column/direction), so only values that
-// resolve through this map/ternary can ever reach the query.
+// Whitelisted, not interpolated from arbitrary caller input:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-activity-log-ts-L7
 const SORT_COLUMNS: Record<ActivityLogSortKey, string> = {
   created_at: "al.created_at",
   action: "al.action",
@@ -32,11 +30,8 @@ export interface ActivityLogResult {
   total: number;
 }
 
-/** The general-purpose, paginated version of what getProductHistory() does
- * for a single product: every audit_logs row, across every table, with
- * optional date/action/user filters. Distinct from the dashboard's small
- * "Recent Activity" widget (which reads from sales/stock_movements/etc.
- * directly, not audit_logs); this is the full trail. */
+// The general-purpose, paginated version of what getProductHistory() does for a single product:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-activity-log-ts-L35
 export async function getActivityLog(
   filters: ActivityLogFilters = {},
 ): Promise<ActivityLogResult> {

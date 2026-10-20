@@ -59,10 +59,8 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
   const { canAccessLoyaltyProgramPlan, getUpgradeMessage } = useFeatureGate();
   const [section, setSection] = useState<"tiers" | "redemption">("tiers");
 
-  // Same field, same mutation mechanism as the Business Info tab's "Enable
-  // Loyalty Program" switch — both write stores.loyalty_program_enabled via
-  // updateStoreProfile() (a direct `update("stores", storeId, {...})` under
-  // the hood), so the two toggles can never drift onto separate paths.
+  // Same field, same mutation mechanism as the Business Info tab's "Enable Loyalty Program" switch — both write stores.loyal…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-customers-loyalty-settings-dialog-tsx-L62
   const loyaltyProgramEnabled = storeProfile?.loyalty_program_enabled !== 0;
   const handleToggleLoyaltyProgram = (val: boolean) => {
     if (!canAccessLoyaltyProgramPlan) {
@@ -72,16 +70,14 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
     void updateStoreProfile({ loyalty_program_enabled: val ? 1 : 0 });
   };
 
-  // Defense-in-depth: the only current entry point (LoyaltyTab's "Edit
-  // Settings" button) is already gated, but this closes the dialog if it's
-  // ever reached another way by a role lacking either right.
+  // Defense-in-depth: the only current entry point (LoyaltyTab's "Edit Settings" button) is already gated, but this closes t…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-customers-loyalty-settings-dialog-tsx-L75
   useEffect(() => {
     if (open && !(canManageStockBatch && canManageLoyalty)) onOpenChange(false);
   }, [open, canManageStockBatch, canManageLoyalty, onOpenChange]);
 
-  // Stored as points-per-currency-unit (e.g. 0.01), edited here as
-  // "points per 100 [currency]" since that reads far more naturally than a
-  // fractional per-unit rate (1, not 0.01).
+  // Stored as points-per-currency-unit (e.g.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-customers-loyalty-settings-dialog-tsx-L82
   const [earnRateInput, setEarnRateInput] = useState("1");
   useEffect(() => {
     if (!open) return;

@@ -12,17 +12,8 @@ vi.mock("@sentry/nextjs", () => ({
   captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }));
 
-/**
- * A-172. `logCrash()` has filtered expected plan restrictions since
- * 2026-09-17, so the ordinary stuck path was already covered. What was NOT
- * covered is `reportStuckCrashLog()`, which calls `Sentry.captureException`
- * directly for `feedback` rows and therefore bypasses that filter — the exact
- * table the reported issues were about.
- *
- * These tests assert against the REAL logCrash and the real Sentry boundary;
- * an earlier version mocked logCrash away, which manufactured its own RED by
- * discarding the filter it was supposed to be testing.
- */
+// A-172. `logCrash()` has filtered expected plan restrictions since 2026-09-17, so the ordinary stuck path was already cov…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-stuck-sync-skips-expected-restrictions-test-ts-L15
 describe("stuck sync reporting skips expected plan restrictions", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

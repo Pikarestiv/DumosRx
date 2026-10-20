@@ -6,14 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression coverage (final review, Important I8): getUserPermissionGroup
- * already guards its JSON.parse with try/catch, but getStorePermissionGroups
- * didn't - one malformed/legacy `permissions` value (see also Critical C1,
- * a real way such a value could arrive via sync before that fix) took out
- * the ENTIRE Roles & Permissions matrix and the staff form's Group
- * dropdown, instead of degrading to just that one row.
- */
+// Regression coverage (final review, Important I8):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-get-store-permission-groups-malformed-row-test-ts-L9
 describe("getStorePermissionGroups", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

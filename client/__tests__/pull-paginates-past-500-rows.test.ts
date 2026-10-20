@@ -12,15 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * Regression test: SyncController::pull() caps each table at 500 rows/table
- * and now reports has_more per table (see docs/KNOWN_BUGS.md — previously
- * the client fetched exactly one page and stamped its cursor to now()
- * regardless, permanently losing every row past the 500th changed row).
- * pullChanges() must keep requesting pages (bumping page_offset) until the
- * server reports has_more: false for a table before advancing that table's
- * _sync_state cursor.
- */
+// Regression test: SyncController::pull() caps each table at 500 rows/table and now reports has_more per table (see docs/K…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-paginates-past-500-rows-test-ts-L15
 describe("pullChanges pages past the server's 500-row cap", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

@@ -158,15 +158,8 @@ export function TraditionalLoginForm({
             Cancel
           </Button>
         )}
-        {/* <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-widest">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-          System Online • Encrypted Session
-        </div> */}
-        {/* <div className="flex justify-center w-full mt-2 border-t border-border pt-3">
-          <span className="text-[10px] text-muted-foreground font-medium">
-            v{APP_VERSION}
-          </span>
-        </div> */}
+        {/* <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-widest"> <span className="w… — docs/CLIENT_COMMENTS.md#block-components-auth-traditional-login-form-tsx-L161 */}
+        {/* <div className="flex justify-center w-full mt-2 border-t border-border pt-3"> <span className="text-[10px] text-muted-fo… — docs/CLIENT_COMMENTS.md#block-components-auth-traditional-login-form-tsx-L165 */}
       </CardFooter>
     </form>
   );

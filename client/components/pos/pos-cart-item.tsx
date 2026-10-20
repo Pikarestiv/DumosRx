@@ -34,20 +34,13 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
   // see pos-cart.tsx's canApplyDiscounts for the hook-ordering reason.
   const canOverridePrice = useHasPermission("override_price");
 
-  // The price input is uncontrolled-while-typing: it holds its own local
-  // string state so keystrokes aren't clamped one-at-a-time against
-  // item.unit_price (already-committed, already-clamped state) - clamping
-  // on every keystroke meant typing "150" against a floor of 100 clamped
-  // after the "1" alone, turning the next keystroke into "1005" instead of
-  // "150". The real updateUnitPrice (which still clamps, as the source of
-  // truth) only runs on blur/Enter.
+  // The price input is uncontrolled-while-typing:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-cart-item-tsx-L37
   const [priceInput, setPriceInput] = useState(String(item.unit_price));
 
   useEffect(() => {
-    // Re-sync when the external value changes from elsewhere (e.g. reseller
-    // mode toggled off reverts the price) - but don't fight the user's
-    // in-progress typing by resetting on every render when nothing external
-    // actually changed.
+    // Re-sync when the external value changes from elsewhere (e.g.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-cart-item-tsx-L47
     setPriceInput((prev) =>
       Number(prev) === item.unit_price ? prev : String(item.unit_price),
     );
@@ -59,12 +52,8 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
     else setPriceInput(String(item.unit_price));
   };
 
-  // Same uncontrolled-while-typing pattern as priceInput above: typing "50"
-  // directly (e.g. buying 50 tablets) must not go through updateQuantity on
-  // every keystroke - that would re-clamp/re-render against stock on each
-  // digit and mangle multi-digit entry the same way the price input did
-  // before this fix. Commits via the existing updateQuantity (which already
-  // validates against stock and removes the item on <= 0) on blur/Enter.
+  // Same uncontrolled-while-typing pattern as priceInput above:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-cart-item-tsx-L62
   const [qtyInput, setQtyInput] = useState(String(item.quantity));
 
   useEffect(() => {

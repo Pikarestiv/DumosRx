@@ -21,15 +21,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * syncSubscriptionStatus() is the one sync path that runs even for stores
- * with cloud sync switched off, so it is how a plan downgrade, a suspension
- * or a renewal ever reaches a device. It writes directly into `stores` with
- * a hand-built UPDATE and had no coverage: nothing checked that it only
- * touches the five subscription fields (the rest of `stores` is local
- * settings the server has no business overwriting), that it refuses to
- * insert a store the device doesn't have, or that it stamps the pull cursor.
- */
+// syncSubscriptionStatus() is the one sync path that runs even for stores with cloud sync switched off, so it is how a pla…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-subscription-status-test-ts-L24
 describe("syncSubscriptionStatus", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

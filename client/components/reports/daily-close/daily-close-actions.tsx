@@ -39,8 +39,7 @@ export function DailyCloseActions({
   };
 
   // @react-pdf/renderer and the PDF document are both pulled in on demand:
-  // statically imported, they were downloaded and parsed on every visit to
-  // the Reports route just in case someone exported.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-reports-daily-close-daily-close-actions-tsx-L41
   const handleDownloadPdf = async () => {
     const [{ pdf }, { DailyClosePdf }] = await Promise.all([
       import("@react-pdf/renderer"),

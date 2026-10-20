@@ -11,13 +11,8 @@ import type { ActivityLogSortKey } from "@/lib/db/queries/activity-log";
 
 const GRID_COLS = "grid-cols-[minmax(240px,1fr)_180px_190px]";
 
-/** Collapses consecutive rows sharing a correlation_id (e.g. everything one
- * sale writes - sales, sale_items, stock_movements, loyalty_transactions...)
- * into one visual row, so a store owner sees "Sale processed (+12 more)"
- * instead of 13 separate entries. Only ever merges rows already adjacent in
- * the current (already paginated/sorted) list - no query, sort, or
- * pagination change, so a group split across two pages just shows partially
- * on each rather than being force-merged. */
+// Collapses consecutive rows sharing a correlation_id (e.g.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-activity-log-activity-log-rows-tsx-L14
 interface GroupedActivityRow {
   primary: AuditLogRow;
   group: AuditLogRow[];

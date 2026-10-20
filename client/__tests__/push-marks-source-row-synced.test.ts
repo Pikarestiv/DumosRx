@@ -19,20 +19,8 @@ vi.mock("sonner", () => ({
   },
 }));
 
-/**
- * Regression coverage for a real, reproduced bug: markSynced() only ever
- * DELETEd the processed _sync_queue row — it never set the SOURCE table
- * row's own `_synced` flag back to 1. Every write already sets `_synced = 0`
- * at insert()/update() time (base-helpers.ts), so once its queue row is
- * deleted after a successful push, the row is left permanently looking
- * "unsynced with no queue entry" — exactly the condition
- * requeueOrphanedRows() (reconcile-identity.ts, run every app boot from
- * DatabaseProvider.tsx) treats as needing a fresh queue entry. That
- * mass-requeues a device's entire already-synced history on every boot,
- * producing (for insert-only tables like audit_logs, which the server
- * treats a resubmitted INSERT as a stale-timestamp conflict) a runaway
- * "could not be saved" toast loop and a growing _sync_queue backlog.
- */
+// Regression coverage for a real, reproduced bug:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-marks-source-row-synced-test-ts-L22
 describe("pushChanges flags the source row _synced = 1 after a successful push", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

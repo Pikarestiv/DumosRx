@@ -9,15 +9,8 @@ interface InventoryAuditContextType {
 
 const InventoryAuditContext = createContext<InventoryAuditContextType | undefined>(undefined);
 
-/** Instantiated in app/(dashboard)/layout.tsx, wrapping DashboardLayout from
- * the outside. DashboardLayout keys its page-content wrapper on `pathname`
- * (see dashboard-layout.tsx) to retrigger the route-transition animation on
- * every navigation, which force-remounts everything below it on every
- * navigation - including the "/inventory/audits" -> router.replace
- * ("/inventory/overview") bounce in useStockBatchManagement. State living
- * anywhere below that boundary gets wiped before the audit overlay ever got
- * a chance to stay open, so this context (and the overlay it drives) must
- * live above it instead. */
+// Instantiated in app/(dashboard)/layout.tsx, wrapping DashboardLayout from the outside.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#context-inventory-audit-context-tsx-L12
 export function InventoryAuditProvider({ children }: { children: React.ReactNode }) {
   const [isAuditing, setIsAuditing] = useState(false);
   const value = useMemo(() => ({ isAuditing, setIsAuditing }), [isAuditing]);

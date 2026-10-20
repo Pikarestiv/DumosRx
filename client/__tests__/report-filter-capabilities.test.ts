@@ -10,11 +10,8 @@ vi.mock("@/lib/db/queries/reports", () => ({
 }));
 vi.mock("@/lib/context/store-context", () => ({ useStore: () => ({}) }));
 
-/**
- * The in-modal filter bar renders only the controls a report's query can
- * actually act on, so these two flags are read by the dialog rather than
- * re-derived from a second list that could drift from REPORT_CONFIG.
- */
+// The in-modal filter bar renders only the controls a report's query can actually act on, so these two flags are read by t…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-report-filter-capabilities-test-ts-L13
 describe("report filter capabilities", () => {
   it("reports which ids accept a date range", async () => {
     const { reportSupportsDateRange } = await import("@/lib/hooks/use-report-export");

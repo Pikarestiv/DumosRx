@@ -16,11 +16,8 @@ const A4_PAGE_STYLE = `
   body { margin: 0; background: #fff; }
 `;
 
-/**
- * Renders the receipt off-screen (not display:none, that would carry over
- * into the printed clone and hide it there too) and prints it in isolation
- * via printNode, sized for whichever paper the device is set to.
- */
+// Renders the receipt off-screen (not display:none, that would carry over into the printed clone and hide it there too) an…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-pos-use-print-receipt-tsx-L19
 export function usePrintReceipt() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [transaction, setTransaction] = useState<ReceiptTransaction | null>(

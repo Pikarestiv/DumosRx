@@ -66,12 +66,8 @@ export async function getProductBasicInfo(productId: string) {
   return rows[0] || null;
 }
 
-/** The weighted-average cost across a product's active batches - the same
- * DISPLAY figure getProductsWithDetails() derives for the catalog. Nothing
- * computes on it (margin/COGS and FEFO deduction read each batch's own
- * cost_price); it is read here only so the post-receive confirmation can
- * state what the catalog will now show alongside the singular batch cost
- * that was actually typed. */
+// The weighted-average cost across a product's active batches - the same DISPLAY figure getProductsWithDetails() derives for the catalog.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-products-ts-L69
 export async function getAverageCostPrice(productId: string): Promise<number | null> {
   const rows = await query<{ cost_price: number | null }>(
     `SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as cost_price
@@ -138,9 +134,8 @@ export interface ProductCreator {
   user_name: string | null;
 }
 
-/** Earliest audit_logs entry for this product, for the Details tab's
- * "Created by / Date created" line; the fuller trail lives in the
- * History tab via getProductHistory() below. */
+// Earliest audit_logs entry for this product, for the Details tab's "Created by / Date created" line; the fuller trail lives in the History ta…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-products-ts-L141
 export async function getProductCreator(
   productId: string,
 ): Promise<ProductCreator | null> {
@@ -156,9 +151,8 @@ export async function getProductCreator(
   return rows[0] || null;
 }
 
-/** @param viewerId - when provided, restricts results to entries performed by this
- * user (pass undefined for viewers allowed to see everyone's activity, i.e.
- * checkCanViewAllActivity(role) === true). */
+// @param viewerId - when provided, restricts results to entries performed by this user (pass undefined for viewers allowed to see everyone's a…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-products-ts-L159
 export async function getProductHistory(productId: string, viewerId?: string) {
   const auditLogs = await query<AuditLogRow>(
     `SELECT al.*, TRIM(u.first_name || ' ' || u.last_name) as user_name

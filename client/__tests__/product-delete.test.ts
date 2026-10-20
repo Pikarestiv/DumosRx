@@ -6,15 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * deleteProduct() is the catalog's first destructive action. The design it
- * encodes is documented in client/AGENTS.md ("Deleting a product"): a soft
- * delete, blocked while anything in the store still depends on the product.
- * Stock on hand and an open purchase order are the two dependencies that a
- * delete would orphan; sale history is deliberately not one, because every
- * report joins `products` without a `_deleted = 0` filter and so still
- * resolves a deleted product's name.
- */
+// deleteProduct() is the catalog's first destructive action.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-product-delete-test-ts-L9
 describe("deleteProduct", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

@@ -5,9 +5,8 @@ import { Button } from "@/components/ui/button";
 interface HeaderActionButtonProps {
   action: { label: string; path: string };
   size?: "default" | "compact";
-  /** "outline" is for the secondary action shown before the primary one
-   * (desktop only — see DashboardHeader); it skips the "+" icon since a
-   * secondary action isn't necessarily a "create" action (e.g. Start Audit). */
+  // "outline" is for the secondary action shown before the primary one (desktop only — see DashboardHeader); it skips the "+…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-dashboard-header-action-button-tsx-L8
   variant?: "default" | "outline";
 }
 

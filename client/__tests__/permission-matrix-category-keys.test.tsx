@@ -30,9 +30,8 @@ vi.mock("@/lib/hooks/use-feature-gate", () => ({
   }),
 }));
 
-// Lives in its own file on purpose: React only logs a missing-key warning
-// once per offending component, so a second render of PermissionMatrix
-// anywhere in the same file would make this assertion vacuous.
+// Lives in its own file on purpose:
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-permission-matrix-category-keys-test-tsx-L33
 describe("PermissionMatrix category rows", () => {
   it("renders the category groupings without a React key warning", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});

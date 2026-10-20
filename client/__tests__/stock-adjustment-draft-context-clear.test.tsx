@@ -4,14 +4,8 @@ import initSqlJs, { type Database } from "sql.js";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-/**
- * Regression coverage for FIXED_BUGS.md A-44: the Adjust Stock draft is
- * persisted under one global key, exactly like the POS cart and the
- * cycle-count draft, so it must be cleared on a store switch and on logout.
- * Without that, a half-entered adjustment staged against store A's product
- * ids reappears under store B, or under whichever cashier signs in next on
- * a shared terminal.
- */
+// Regression coverage for FIXED_BUGS.md A-44:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-stock-adjustment-draft-context-clear-test-tsx-L7
 
 vi.mock("@sentry/nextjs", () => ({
   setUser: vi.fn(),

@@ -3,12 +3,8 @@ import { render, screen } from "@testing-library/react";
 import { ProductBatchHistory } from "@/components/products/product-details/product-batch-history";
 import type { StockBatch } from "@/lib/types/stock-batch";
 
-/**
- * Regression coverage: every batch in this panel used to show a hardcoded
- * "Sell first (FEFO)" label, rather than only the one batch FEFO would
- * actually dispense from first (earliest expiry among active, in-stock,
- * not-yet-expired batches - matching the real sale-deduction order).
- */
+// Regression coverage: every batch in this panel used to show a hardcoded "Sell first (FEFO)" label, rather than only the…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-product-batch-history-fefo-label-test-tsx-L6
 function batch(overrides: Partial<StockBatch> = {}): StockBatch {
   return {
     id: "b1",

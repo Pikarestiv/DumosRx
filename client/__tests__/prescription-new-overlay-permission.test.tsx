@@ -34,11 +34,8 @@ vi.mock("@/lib/db/queries/sales", () => ({
 
 import { usePrescriptionManagement } from "@/lib/hooks/use-prescription-management";
 
-/**
- * "?action=add" and "?edit_rx=<id>" are typeable, so hiding the "New
- * Prescription" header action alone is not a gate - the overlay itself has
- * to require manage_prescriptions.
- */
+// "?action=add" and "?edit_rx=<id>" are typeable, so hiding the "New Prescription" header action alone is not a gate - the…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-prescription-new-overlay-permission-test-tsx-L37
 describe("new/edit prescription overlay permission", () => {
   beforeEach(() => {
     hasPermission.mockReset();

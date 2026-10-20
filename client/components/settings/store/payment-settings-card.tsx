@@ -34,12 +34,8 @@ export function PaymentSettingsCard({
 }: PaymentSettingsCardProps) {
   const { updateStoreProfile } = useStore();
 
-  // Each row saves immediately on toggle rather than sitting behind an
-  // edit/save mode — matches how the rest of the Payment Methods page reads
-  // (a live list of switches, not a form you commit). Persisting directly
-  // via updateStoreProfile (rather than the parent's handleSaveProfile)
-  // avoids reading enabledPaymentMethods through a stale closure — the
-  // parent's save handler only sees the new value after its own re-render.
+  // Each row saves immediately on toggle rather than sitting behind an edit/save mode — matches how the rest of the Payment…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-store-payment-settings-card-tsx-L37
   const toggleMethod = (id: string, checked: boolean) => {
     const next = checked
       ? [...enabledPaymentMethods, id]

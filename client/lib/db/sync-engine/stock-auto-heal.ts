@@ -8,20 +8,13 @@ import {
   type StockIntegrityReport,
 } from "./stock-integrity";
 
-/**
- * Automatic repair of this device's own stock drift, run from the 24-hourly
- * sync health check. Rationale, refusals and failure modes:
- * docs/superpowers/specs/2026-10-08-stock-integrity-fold-design.md, "Phase 3".
- */
+// Automatic repair of this device's own stock drift, run from the 24-hourly sync health check.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-stock-auto-heal-ts-L11
 
 type HealSkipReason = "movement-log-incomplete" | "inspection-session";
 
-/**
- * Whether this device holds the whole movement log up to a server timestamp:
- * a stamped window with no mid-window cursor left over. Mid-window, the log
- * is known-incomplete and a fold would mass-rewrite quantities the rest of
- * the window is about to correct anyway.
- */
+// Whether this device holds the whole movement log up to a server timestamp:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-stock-auto-heal-ts-L19
 export async function movementLogIsComplete(): Promise<boolean> {
   // Store-scoped since A-305 keyed _sync_state by (store_id, table_name):
   // without it this read another store's row and gated the fold on it.
@@ -64,12 +57,8 @@ function describe(
   );
 }
 
-/**
- * Verifies, repairs what the log can rebuild, re-verifies, and reports once.
- * Silent to the owner by design; the Sentry report and the audit row the fold
- * writes are the record. Swallows its own failures so it can never break the
- * row-count deficit path that follows it in the health check.
- */
+// Verifies, repairs what the log can rebuild, re-verifies, and reports once.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-stock-auto-heal-ts-L67
 export async function healStockIntegrity(): Promise<void> {
   try {
     const before = await verifyStockIntegrity();

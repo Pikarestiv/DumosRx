@@ -94,9 +94,8 @@ export interface ExpiringItem {
   base_unit?: string;
 }
 
-// Excludes deactivated batches and already-expired stock outright (FEFO
-// prioritizes near-expiry stock, it doesn't dispense already-expired stock);
-// NULL-expiry batches sort last, not first (SQLite's default for ASC).
+// Excludes deactivated batches and already-expired stock outright (FEFO prioritizes near-expiry stock, it doesn't dispense already-expired sto…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L97
 export async function getBatchesForProduct(productId: string) {
   return query<StockBatch>(
     `SELECT * FROM stock_batches
@@ -107,23 +106,8 @@ export async function getBatchesForProduct(productId: string) {
   );
 }
 
-/**
- * Same as getBatchesForProduct but without the `quantity > 0` filter — used
- * where the caller needs to know "does this product have an existing,
- * genuinely sellable batch to attach to" rather than "which batches can I
- * pick stock from right now" (FEFO sale/deduction paths correctly want the
- * filtered version; see submitStockAudit's restock branch below for why the
- * unfiltered-on-quantity version matters there). Despite the name, this
- * previously filtered only `_deleted = 0` — not `is_active = 1` or expiry —
- * which let a stock audit's "found extra stock" branch write found units
- * into an already-expired or deactivated batch, where they become
- * permanently unsellable (the FEFO sale path excludes such batches) while
- * still counting toward on-hand quantity/valuation. It also ordered by
- * `expiry_date ASC` alone, and SQLite sorts NULL first under ASC, so a
- * batch with no expiry date (common for non-perishables) would be picked
- * ahead of one actually expiring soon. Both are fixed to match
- * getBatchesForProduct's filtering/ordering convention.
- */
+// Same as getBatchesForProduct but without the `quantity > 0` filter — used where the caller needs to know "does this product have an existing…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-inventory-L110
 export async function getAllActiveBatchesForProduct(productId: string) {
   return query<StockBatch>(
     `SELECT * FROM stock_batches
@@ -134,20 +118,8 @@ export async function getAllActiveBatchesForProduct(productId: string) {
   );
 }
 
-/**
- * Fallback for sale processing: getBatchesForProduct's `quantity > 0` filter
- * is correct for FEFO picking, but if the product's true stock has already
- * been fully depleted (e.g. a stale on-screen stock count let the cashier
- * add one more unit than actually exists), that filter returns an empty
- * list. Callers that only consult getBatchesForProduct then skip the whole
- * stock_batches/stock_movements write for that line item — the sale still
- * completes and is recorded as revenue, but the unit sold leaves no trace in
- * the stock ledger at all (see use-pos-payment.ts's handlePayment). This
- * returns the single most-recently-touched active batch regardless of its
- * quantity, so that deduction can still be attributed and logged (batch and
- * on-hand stock going negative, same way an already-negative batch does
- * today) instead of vanishing untracked.
- */
+// Fallback for sale processing:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-inventory-L137
 export async function getAnyActiveBatchForProduct(
   productId: string,
   options?: { includeExpired?: boolean },
@@ -176,21 +148,8 @@ interface RecordSaleItemStockParams {
   correlationId?: string;
 }
 
-/**
- * Inserts the sale_items row for one cart line and deducts/logs the stock it
- * consumed. Extracted out of use-pos-payment.ts's handlePayment so the
- * getBatchesForProduct-empty-list case (see getAnyActiveBatchForProduct) has
- * a single, unit-testable place to fix and guard against regressing: every
- * completed sale must leave a stock_movements trace for what it sold, even
- * when the product's real stock was already fully depleted.
- */
-/**
- * The quantity write and its `stock_movements` row must land together or a
- * concurrent stock fold reads the batch as diverged and writes the pre-sale
- * number back — see docs/FIXED_BUGS.md A-219. Nested `transaction()` calls
- * deadlock on core.ts's FIFO queue, so a caller that already opened one runs
- * this inline.
- */
+// Inserts the sale_items row for one cart line and deducts/logs the stock it consumed.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L152
 export async function recordSaleItemStock(params: RecordSaleItemStockParams) {
   if (isInTransaction()) return writeSaleItemStock(params);
   return transaction(() => writeSaleItemStock(params));
@@ -206,18 +165,14 @@ async function writeSaleItemStock({
   cashierId,
   correlationId,
 }: RecordSaleItemStockParams) {
-  // Prefer FEFO picking among batches that still show positive stock; if the
-  // product's true stock is already fully depleted, fall back to whatever
-  // batch was touched most recently so the sale still leaves a trace in
-  // stock_batches/stock_movements instead of silently untracked shrinkage.
+  // Prefer FEFO picking among batches that still show positive stock; if the product's true stock is already fully depleted, fall back to whatev…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L171
   let batches = await getBatchesForProduct(productId);
   if (batches.length === 0) {
     batches = await getAnyActiveBatchForProduct(productId);
   }
-  // Last resort, in order: an expired batch, then a batch opened here.
-  // Without it, a product whose only batches are expired (or which has none
-  // at all) produced a sale line with revenue, no COGS and no stock ledger
-  // trace whatsoever — see docs/FIXED_BUGS.md (A-57).
+  // Last resort, in order:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L179
   if (batches.length === 0) {
     batches = await getAnyActiveBatchForProduct(productId, { includeExpired: true });
   }
@@ -233,9 +188,8 @@ async function writeSaleItemStock({
   const saleItemId = await insert("sale_items", {
     sale_id: saleId,
     product_id: productId,
-    // Primary/first batch consumed; retained for backward-compat display
-    // only. Accurate per-batch accounting (for FEFO splits) lives in
-    // sale_item_batches below.
+    // Primary/first batch consumed; retained for backward-compat display only.
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L198
     stock_batch_id: batches[0]?.id || null,
     quantity,
     unit_price: unitPrice,
@@ -245,45 +199,20 @@ async function writeSaleItemStock({
 
   let remainingToDeduct = quantity;
 
-  // Accumulates the total quantity deducted per unique batch id across BOTH
-  // the main positive-stock loop below and the partial-shortfall fallback
-  // loop that can follow it. The fallback (getAnyActiveBatchForProduct,
-  // ordered by updated_at DESC) is very likely to re-select the very batch
-  // the main loop just partially deducted from, since deductFromBatch just
-  // bumped that batch's updated_at — so a batch can legitimately be touched
-  // twice in one call. Writing sale_item_batches/stock_movements rows once
-  // per touch would then produce two rows for the same (sale_item, batch)
-  // pair with the deduction split across them. Deferring those two inserts
-  // until every batch has been fully deducted, keyed by batch id, ensures
-  // exactly one row per unique batch with the correctly summed quantity.
+  // Accumulates the total quantity deducted per unique batch id across BOTH the main positive-stock loop below and the partial-shortfall fallbac…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L210
   const deductionByBatchId = new Map<string, number>();
 
-  // Batches touched by a deduction that exceeded what they actually had
-  // available (deduction > batch.quantity at the time it was applied) —
-  // i.e. a genuine oversell, not merely "this batch was already low." A
-  // batch can be touched more than once in one call (see the fallback loop
-  // comment below), so this is a set: one oversold touch is enough to tag
-  // the batch's summed stock_movements row.
+  // Batches touched by a deduction that exceeded what they actually had available (deduction > batch.quantity at the time it was applied) — i.e.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L223
   const oversoldBatchIds = new Set<string>();
 
-  // What each touched batch has left as this call proceeds. The fallback loop
-  // below re-reads the batches from the database, where the quantity is not
-  // written until the movement row is (see base-helpers' recompute), so
-  // without this a batch already emptied by the first loop would read as full
-  // and absorb the remainder twice.
+  // What each touched batch has left as this call proceeds.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L231
   const liveQuantity = new Map<string, number>();
 
-  // batch.quantity can be <= 0 when this batch only turned up via the
-  // getAnyActiveBatchForProduct fallback (nothing with positive stock left
-  // for this product); clamping to it in that case would silently drop some
-  // or all of the deduction again. Only clamp against genuinely available
-  // stock when computing `deduction`; otherwise the batch absorbs the full
-  // remainder so sale_item_batches/stock_movements still record the true
-  // amount sold. The STORED stock_batches.quantity, however, is floored at
-  // 0 (product decision: "floor + alert" — a stale on-screen stock count
-  // can let a sale legitimately oversell, but the batch's own running
-  // balance should never be written negative); the oversell itself is
-  // surfaced via the oversoldBatchIds tag below and getOversoldAlerts().
+  // batch.quantity can be <= 0 when this batch only turned up via the getAnyActiveBatchForProduct fallback (nothing with positive stock left for…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L238
   const deductFromBatch = (batch: StockBatch) => {
     const available = liveQuantity.get(batch.id) ?? batch.quantity;
     const deduction =
@@ -308,13 +237,8 @@ async function writeSaleItemStock({
     await deductFromBatch(batch);
   }
 
-  // Partial shortfall: the positive-stock batches above didn't cover the
-  // whole quantity — e.g. a stale on-screen stock count let the cashier sell
-  // more than a single batch (or the sum of all positive batches) actually
-  // has left. This is the same untracked-shrinkage risk the zero-batches
-  // fallback above guards against, just arrived at a different way, so it
-  // gets the same fallback: attribute the leftover to the most-recently-
-  // touched active batch instead of leaving it undeducted and unlogged.
+  // Partial shortfall: the positive-stock batches above didn't cover the whole quantity — e.g.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L273
   if (remainingToDeduct > 0) {
     let fallbackBatches = await getAnyActiveBatchForProduct(productId);
     if (fallbackBatches.length === 0) {
@@ -426,20 +350,8 @@ export async function getExpiryAlerts() {
   );
 }
 
-/**
- * Products carrying an oversell shortfall, biggest first, for the dashboard
- * action centre and the stock-batch alerts. Derived from the movement log via
- * getBatchDeficits(): a product appears while its ledger is actually short,
- * and stops appearing once the shortfall is cleared. Previously matched the
- * word "oversold" in a movement's reason inside a 30-day window, which
- * reported the event rather than the outstanding deficit and went quiet after
- * a month whether or not anything had been reconciled (A-212).
- *
- * Silent until this device's movement log is complete, the same condition the
- * counting screen uses: mid-catch-up, a batch's sales can arrive pages before
- * the receipt that covers them, and "Reconcile Now" against a deficit the next
- * page explains sends staff to count a shelf that is fine.
- */
+// Products carrying an oversell shortfall, biggest first, for the dashboard action centre and the stock-batch alerts.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-inventory-L429
 export async function getOversoldAlerts() {
   if (!(await movementLogIsComplete())) return [];
 
@@ -477,9 +389,8 @@ export interface StockBatchStatsRow {
   active_categories: number;
 }
 
-// Default 90, matching `expiry_warning_days INTEGER DEFAULT 90` in the schema
-// and every UI caption/fallback. A 30 here silently re-introduced the
-// count-vs-caption mismatch for any caller that omits the argument.
+// Default 90, matching `expiry_warning_days INTEGER DEFAULT 90` in the schema and every UI caption/fallback.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L430
 export async function getStockBatchStats(expiryDays: number = 90) {
   const storeId = getActiveStoreId();
   const result = await query<StockBatchStatsRow>(
@@ -555,18 +466,8 @@ export async function createStockBatch(batch: {
   return insert("stock_batches", batch);
 }
 
-/**
- * Finds a genuinely active, non-expired batch to land newly-found or
- * restored stock into, or creates one if none exists. Shared by
- * submitStockAudit's "found extra stock" branch and
- * restoreReturnedStock's no-recorded-batch fallback (see returns.ts) so
- * neither writes stock into an expired/deactivated batch — where it would
- * be permanently unsellable (the FEFO sale path excludes such batches)
- * while still counting toward on-hand quantity/valuation — nor leaves the
- * write untracked. The new batch (when one has to be created) is valued at
- * `unitCost` and scoped to the product's own store_id, not whatever store
- * happens to be active on this device.
- */
+// Finds a genuinely active, non-expired batch to land newly-found or restored stock into, or creates one if none exists.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-inventory-L558
 export async function getOrCreateTargetBatchForProduct(
   productId: string,
   options: { unitCost: number; batchNumberPrefix?: string },
@@ -574,12 +475,8 @@ export async function getOrCreateTargetBatchForProduct(
   const targets = await getAllActiveBatchesForProduct(productId);
   if (targets.length > 0) return targets[0];
 
-  // store_id is added to `products` via a schema migration rather than the
-  // base CREATE TABLE, so a device/test harness that hasn't (or doesn't
-  // need to) run migrations may not have the column yet - fall back to no
-  // explicit store_id (insert()'s own active-store auto-scoping still
-  // applies) rather than let a missing column abort the whole restore/
-  // restock.
+  // store_id is added to `products` via a schema migration rather than the base CREATE TABLE, so a device/test harness that hasn't (or doesn't n…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L517
   const productRows = await query<{ store_id: string | null }>(
     "SELECT store_id FROM products WHERE id = ?",
     [productId],
@@ -596,20 +493,15 @@ export async function getOrCreateTargetBatchForProduct(
   await createStockBatch({
     ...batch,
     batch_number: batch.batch_number!,
-    // Only set explicitly when known — an explicit `store_id: undefined`
-    // key would still make it into the INSERT's column list and fail
-    // against a `stock_batches` table that predates the store_id migration
-    // column; omitting the key entirely instead lets insert()'s own
-    // active-store auto-scoping (or a legacy NULL) apply normally.
+    // Only set explicitly when known — an explicit `store_id:
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L539
     ...(storeId ? { store_id: storeId } : {}),
   });
   return batch;
 }
 
-/** The product's live quantity: the SUM of its active, non-deleted batches,
- * i.e. the same aggregate getProducts() derives stock_quantity from. Used
- * both inside submitStockAudit's transaction and by the cycle-count ledger
- * to stamp a row's baseline when a figure is entered (A-263). */
+// The product's live quantity:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-inventory-ts-L560
 export async function getProductStockQuantity(productId: string): Promise<number> {
   const rows = await query<{ qty: number }>(
     `SELECT COALESCE(SUM(quantity), 0) as qty FROM stock_batches WHERE product_id = ? AND _deleted = 0 AND is_active = 1`,
@@ -624,12 +516,8 @@ export interface StockAuditSubmission {
   /** Omitted for a price-only correction, and resolved below against the
    * quantity this function re-reads - never treated as zero. */
   countedQty?: number;
-  /** What the system believed this product held at the moment `countedQty`
-   * was observed. The discrepancy is measured against this, not against
-   * stock at submit time, so movements between the count and the submit are
-   * preserved rather than reversed. Omitted by callers whose semantics are
-   * "the stock is X right now" (catalog quick edit, CSV import), which keep
-   * the re-read behaviour. See A-263. */
+  // What the system believed this product held at the moment `countedQty` was observed.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-inventory-ts-L578
   baselineQty?: number;
   systemCostPrice?: number;
   countedCostPrice?: number;
@@ -638,51 +526,31 @@ export interface StockAuditSubmission {
   reason?: string;
 }
 
-/** Persists a completed cycle count: for each product whose counted quantity
- * and/or counted cost/selling price differs from what's on record, records a
- * reconciled stock_audits entry capturing every deviation. Quantity
- * differences are applied to stock_batches (FEFO: soonest-expiring batch
- * first, same convention as sale consumption/returns) with a matching
- * stock_movements("adjustment") entry; a corrected cost price is applied to
- * the product's active batches (cost is a per-batch acquisition cost, but an
- * audit-time correction is a master-data fix, not a new purchase); a
- * corrected selling price is applied to products.selling_price (the single
- * source of truth for selling price, unlike cost). */
+// Persists a completed cycle count:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-inventory-L641
 export async function submitStockAudit(
   items: StockAuditSubmission[],
   performedBy: string | null,
   referenceType: string = AUDIT_REFERENCE_TYPE,
 ) {
-  // stock_audits.user_id is a constrained foreign key server-side. Writing a
-  // "system" sentinel here saved fine locally and then failed every push on
-  // the FK, retried through backoff, and surfaced as a permanently stuck
-  // sync item. Every caller — the cycle-count screen, the catalog quick
-  // edit, the CSV import dialog — reads it from useAuth().user?.id on a
-  // route-guarded screen, so there is no legitimate performer-less audit.
+  // stock_audits.user_id is a constrained foreign key server-side.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L582
   if (!performedBy) {
     throw new Error("Cannot record a stock audit without a performing user");
   }
 
   return transaction(async () => {
     for (const item of items) {
-      // Re-read the product's ACTUAL current system quantity inside the
-      // transaction rather than trusting item.systemQty as-is: that value
-      // was read by the caller when the audit list was rendered, and a sale
-      // (or any other stock movement) landing between then and this submit
-      // would make the caller-supplied figure stale - the resulting
-      // adjustment would silently be off by exactly the concurrent
-      // movement's quantity. Same fix shape as the loyalty-redemption
-      // balance check. Matches getProducts()' own stock_quantity aggregate
-      // (SUM of active, non-deleted batches).
+      // Re-read the product's ACTUAL current system quantity inside the transaction rather than trusting item.systemQty as-is:
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L594
       const currentSystemQty = await getProductStockQuantity(item.productId);
 
       const hasCount = Number.isFinite(item.countedQty as number);
       const countedQty = hasCount
         ? (item.countedQty as number)
         : currentSystemQty;
-      // The baseline only applies to a row that was actually counted: a
-      // price-only row has no observation, so measuring its (absent) count
-      // against a stale baseline would post a phantom adjustment.
+      // The baseline only applies to a row that was actually counted:
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L609
       const baselineQty =
         hasCount && item.baselineQty !== undefined
           ? item.baselineQty
@@ -719,9 +587,8 @@ export async function submitStockAudit(
       });
 
       if (costDiff !== 0 && item.countedCostPrice !== undefined) {
-        // A cost-price audit correction is a master-data fix, not a new
-        // purchase at a new cost; apply it to every active batch of this
-        // product rather than trying to attribute it to one batch.
+        // A cost-price audit correction is a master-data fix, not a new purchase at a new cost; apply it to every active batch of this product rather…
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L648
         const activeBatches = await getBatchesForProduct(item.productId);
         for (const batch of activeBatches) {
           await update("stock_batches", batch.id, {
@@ -738,10 +605,8 @@ export async function submitStockAudit(
 
       if (diff === 0) continue;
 
-      // Without unit_cost/total_cost, a cycle-count adjustment's real value
-      // impact was invisible to getStockMoM()'s 30-day added/removed-value
-      // sums (they read IFNULL(unit_cost, 0)), silently treating every
-      // write-off as ₦0 regardless of the stock actually lost.
+      // Without unit_cost/total_cost, a cycle-count adjustment's real value impact was invisible to getStockMoM()'s 30-day added/removed-value sums…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L667
       const unitCost = item.countedCostPrice ?? item.systemCostPrice ?? 0;
 
       await applyStockAdjustmentDelta({
@@ -773,11 +638,8 @@ interface StockAdjustmentDelta {
   performedBy: string | null;
 }
 
-/** The one implementation of "move a product's on-hand stock by `delta`,
- * spread across its batches, leaving a stock_movements trail". Shared by the
- * cycle count (submitStockAudit) and the quick Adjust Stock flow
- * (submitStockAdjustment) so the two can never drift apart - see
- * client/AGENTS.md. Must run inside an existing transaction. */
+// The one implementation of "move a product's on-hand stock by `delta`, spread across its batches, leaving a stock_movements trail".
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-inventory-ts-L719
 async function applyStockAdjustmentDelta({
   productId,
   delta,
@@ -795,18 +657,8 @@ async function applyStockAdjustmentDelta({
   const batches = await getBatchesForProduct(productId);
 
   if (delta > 0) {
-    // Found more stock than recorded: add it to the soonest-expiring,
-    // genuinely active/non-expired *existing* batch (regardless of its
-    // current quantity — including zero, e.g. a batch a sync pull raced
-    // to zero, or one a prior audit/sale already depleted), or open a
-    // new one only if the product genuinely has no valid batch at all.
-    // getOrCreateTargetBatchForProduct excludes expired/deactivated
-    // batches (writing found stock into one would make it permanently
-    // unsellable, since the FEFO sale path refuses to dispense it, while
-    // it still counted toward on-hand quantity/valuation), and values a
-    // newly-created batch at unitCost/the product's real store_id
-    // instead of defaulting to 0 and whatever store happens to be
-    // active on this device.
+    // Found more stock than recorded:
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L721
     const targetBatch = await getOrCreateTargetBatchForProduct(productId, {
       unitCost,
       batchNumberPrefix,
@@ -850,22 +702,11 @@ async function applyStockAdjustmentDelta({
     remaining -= deductQty;
   }
 
-  // The removal was larger than every active batch's summed quantity could
-  // cover (system quantity was already spread thinner across batches than
-  // reality) - same situation recordSaleItemStock guards against for a sale.
-  // Attribute the remainder to the most recently touched batch rather than
-  // silently dropping it: the batch's own quantity is floored at 0 (it never
-  // goes negative), but this still leaves a
-  // stock_movements record explaining the full shortfall - without this, the
-  // submitted figure doesn't match any recorded movement, and there's no
-  // trace of where the rest of it went.
+  // The removal was larger than every active batch's summed quantity could cover (system quantity was already spread thinner across batches than…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L776
   if (remaining > 0) {
-    // includeExpired: true - unlike the sale-dispensing fallback (which
-    // correctly excludes expired stock), a correction needs to be able to
-    // write off a shortfall even when the product's only remaining batches
-    // are expired. Without this, a product whose entire stock has expired
-    // would return no fallback batch here and this whole write would be
-    // silently skipped.
+    // includeExpired: true - unlike the sale-dispensing fallback (which correctly excludes expired stock), a correction needs to be able to write…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L786
     const [fallbackBatch] = await getAnyActiveBatchForProduct(productId, {
       includeExpired: true,
     });
@@ -893,10 +734,8 @@ export interface StockAdjustmentSubmission {
   unitCost?: number;
 }
 
-/** Persists a quick Adjust Stock submission: every item moves under one
- * shared reference_id so the Adjustments ledger can show the whole
- * submission as a single row, tagged reference_type ADJUSTMENT_REFERENCE_TYPE
- * to stay distinguishable from a full cycle count. Returns that reference id. */
+// Persists a quick Adjust Stock submission:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-inventory-ts-L839
 export async function submitStockAdjustment(
   items: StockAdjustmentSubmission[],
   { reason, performedBy }: { reason: string; performedBy: string | null },
@@ -990,10 +829,8 @@ export async function getFastMovers(days: number = 7) {
     LEFT JOIN previous_period p ON c.id = p.product_id
     ORDER BY soldQuantity DESC
     LIMIT 5`,
-    // previous_period deliberately carries no store filter of its own: it is
-    // only ever reached through the LEFT JOIN on current_period's already
-    // store-scoped product ids, so both sides of percentageChange draw on the
-    // same population (every sale of that product within each window).
+    // previous_period deliberately carries no store filter of its own:
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L914
     storeId
       ? [days.toString(), days.toString(), days.toString(), storeId, days.toString(), days.toString(), days.toString(), days.toString()]
       : [days.toString(), days.toString(), days.toString(), days.toString(), days.toString(), days.toString(), days.toString()]
@@ -1040,13 +877,8 @@ export async function getStockMoM() {
     WHERE created_at >= ? AND movement_type = 'adjustment' AND (_deleted = 0 OR _deleted IS NULL) AND quantity > 0${storeId ? " AND store_id = ?" : ""}
   `, movementParams);
 
-  // Same population as getStockBatchStats's total_stock_batch_value (every
-  // non-deleted batch, no is_active filter): this value is the baseline the
-  // "+x% from last month" figure on the "Total stock value" card is measured
-  // against, and that card's value comes from getStockBatchStats. Filtering
-  // on is_active = 1 here made the percentage a ratio between two different
-  // populations - and silently dropped every batch synced down without an
-  // is_active value (NULL), which is neither active nor inactive to SQLite.
+  // Same population as getStockBatchStats's total_stock_batch_value (every non-deleted batch, no is_active filter):
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L964
   const currentStock = await query<{ total_value?: number }>(`
     SELECT SUM(cost_price * quantity) as total_value
     FROM stock_batches

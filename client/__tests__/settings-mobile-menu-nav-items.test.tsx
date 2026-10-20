@@ -7,13 +7,8 @@ vi.mock("next/link", () => ({
     React.createElement("a", { href, ...rest }, children),
 }));
 
-/**
- * settings-client renders this menu as the ONLY settings navigation below the
- * md breakpoint (the desktop sidebar is `hidden md:flex`), so an entry left
- * `disabled: true, badge: "Soon"` here is unreachable on phones even after the
- * desktop tab nav has shipped it. Roles & Permissions was exactly that: live on
- * desktop, permanently "Soon" on mobile.
- */
+// settings-client renders this menu as the ONLY settings navigation below the md breakpoint (the desktop sidebar is `hidde…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-settings-mobile-menu-nav-items-test-tsx-L10
 async function renderMenu(isAdmin: boolean): Promise<HTMLElement> {
   const { SettingsMobileMenu } = await import("@/components/settings/settings-mobile-menu");
   const container = document.createElement("div");

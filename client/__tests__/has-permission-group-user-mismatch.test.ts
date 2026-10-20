@@ -1,12 +1,7 @@
 import { describe, it, expect } from "vitest";
 
-/**
- * A-55: on a lock-screen "switch account" (user -> user, no logout in
- * between) AuthContext still holds the OUTGOING user's permission group
- * until the async read for the incoming user resolves. hasPermission() must
- * therefore refuse to evaluate a group that belongs to someone else and
- * fall back to the incoming user's role tier instead.
- */
+// A-55: on a lock-screen "switch account" (user -> user, no logout in between) AuthContext still holds the OUTGOING user's…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-has-permission-group-user-mismatch-test-ts-L3
 describe("hasPermission — group/user identity mismatch", () => {
   it("ignores a permission group belonging to a different user and falls back to the role tier", async () => {
     const { hasPermission } = await import("@/lib/hooks/use-permissions");

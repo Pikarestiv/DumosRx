@@ -46,19 +46,12 @@ interface UsePOSPaymentProps {
   dispensedRxId?: string | null;
   setDispensedRxId?: (id: string | null) => void;
   isRefillDispense?: boolean;
-  /** Defense-in-depth: even if the POS UI's Redeem Reward control is somehow
-   * bypassed (stale tab, plan downgrade mid-session), no loyalty_transactions
-   * write — earn or redeem — happens unless the caller confirms the gate
-   * (plan tier AND the store's own on/off toggle) is currently open. Fails
-   * closed (defaults to false) — a caller that forgets to pass it gets no
-   * loyalty writes rather than silently bypassing the gate. */
+  // Defense-in-depth: even if the POS UI's Redeem Reward control is somehow bypassed (stale tab, plan downgrade mid-session), no loyalty_transac…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-payment-ts-L49
   canUseLoyaltyProgram?: boolean;
   isResellerSale?: boolean;
-  /** "reseller" (commission owed, goes through the redeem/store-claim
-   * flow) or "store" (markup kept by the store, pre-settled at checkout -
-   * see use-pos-payment-helpers.ts's computeResellerCommission). Required
-   * whenever isResellerSale is true - validatePaymentReadiness blocks
-   * checkout otherwise. */
+  // "reseller" (commission owed, goes through the redeem/store-claim flow) or "store" (markup kept by the store, pre-settled at checkout - see u…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-payment-ts-L57
   markupType?: "reseller" | "store" | null;
   /** Store-wide % of the markup remitted to the reseller - snapshotted onto
    * the sale at checkout time, never recalculated later. */
@@ -66,11 +59,8 @@ interface UsePOSPaymentProps {
   /** Store-configurable base earn rate (points per currency unit spent),
    * before any loyalty-tier multiplier is applied. */
   loyaltyPointsPerCurrency?: number;
-  /** Called when the sale is rejected because the customer's real current
-   * points balance can't cover the redemption picked earlier in checkout
-   * (see InsufficientLoyaltyPointsError) - the caller should clear the
-   * stale redemption so retrying the same sale doesn't hit the same
-   * rejection again. */
+  // Called when the sale is rejected because the customer's real current points balance can't cover the redemption picked earlier in checkout (s…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-payment-ts-L69
   onInsufficientLoyaltyPoints?: () => void;
 }
 
@@ -106,19 +96,8 @@ export function usePOSPayment({
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([]);
   const [processingPayment, setProcessingPayment] = useState(false);
-  // Synchronous re-entrancy guard: the Process Payment button's own
-  // `disabled={processingPayment}` prop only takes effect after React
-  // commits the setProcessingPayment(true) below - a render tick behind
-  // the click that caused it. A close-enough double-tap/ghost-click (a
-  // real phenomenon on the touchscreen POS tablets this app targets, see
-  // globals.css's hover: media-query fix for the same touch/click
-  // ambiguity) can dispatch a second handlePayment() call before that
-  // render lands, each generating its own unique transactionNumber (so
-  // the UNIQUE constraint doesn't catch it as a duplicate) - producing two
-  // sales rows, double stock deduction, and double loyalty/commission for
-  // one physical transaction. A ref updates synchronously, unlike state,
-  // so it closes this gap where checking `processingPayment` itself would
-  // not (both calls would still read the same pre-render value).
+  // Synchronous re-entrancy guard:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-ts-L99
   const processingPaymentRef = useRef(false);
   const [completedTransaction, setCompletedTransaction] =
     useState<ReceiptTransaction | null>(null);
@@ -161,11 +140,8 @@ export function usePOSPayment({
     try {
       const user = getStoredUser() ?? {};
       const cashierId = user?.id || null;
-      // Date.now() collides across two terminals checking out in the same
-      // millisecond (or with clock skew) - transaction_number is UNIQUE NOT
-      // NULL, so the losing terminal's sale hits a constraint violation and
-      // never syncs. generateId() is the same collision-safe id generator
-      // used everywhere else in the app.
+      // Date.now() collides across two terminals checking out in the same millisecond (or with clock skew) - transaction_number is UNIQUE NOT NULL,…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-ts-L154
       const transactionNumber = `TXN-${generateShortId()}`;
 
       const earnedPoints = await computeEarnedPoints({
@@ -181,26 +157,15 @@ export function usePOSPayment({
         markupType,
         resellerCommissionPercentage,
       });
-      // A store-markup sale has no reseller to pay, so there's nothing to
-      // redeem later - settle it right here, at checkout, instead of
-      // leaving it sitting in "Not yet redeemed" until someone remembers
-      // to click Store Claims Markup in Transaction Details.
+      // A store-markup sale has no reseller to pay, so there's nothing to redeem later - settle it right here, at checkout, instead of leaving it si…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-ts-L174
       const isStoreMarkup = isResellerSale && markupType === "store";
 
-      // Every write below (the sale row, its line items + stock deduction,
-      // any credit-balance update, loyalty points) must land together or
-      // not at all: without a transaction, an interruption partway through
-      // (app closed, a transient lock error, storage quota exceeded) leaves
-      // a real `sales` row with only some stock deducted and no visible
-      // error. A cashier who then retries the sale double-books revenue and
-      // double-decrements whatever stock did get deducted the first time.
+      // Every write below (the sale row, its line items + stock deduction, any credit-balance update, loyalty points) must land together or not at a…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-ts-L180
       const saleId = await runInTransaction(async () => {
-        // Pre-generated (rather than letting insert() assign one) so every
-        // other write this sale makes - line items, stock deduction,
-        // credit-balance update, loyalty points - can tag its audit_logs
-        // row with the same id as the correlationId, letting the Activity
-        // Log collapse them into one entry instead of showing each action
-        // to a store owner separately.
+        // Pre-generated (rather than letting insert() assign one) so every other write this sale makes - line items, stock deduction, credit-balance u…
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-ts-L188
         const newSaleId = generateId();
         await insert("sales", {
           id: newSaleId,
@@ -213,9 +178,8 @@ export function usePOSPayment({
           discount_percentage: discountType === "percentage" ? rawDiscount : 0,
           discount_type: discountType,
           tax_amount: tax,
-          // Derived from the actual charged amounts rather than hardcoded, so it
-          // always matches whatever VAT rate was really applied (the store's
-          // configured rate, which may not be 7.5%, or may be 0).
+          // Derived from the actual charged amounts rather than hardcoded, so it always matches whatever VAT rate was really applied (the store's config…
+          // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-ts-L206
           tax_percentage: calculateTaxPercentage(tax, subtotal),
           total_amount: total,
           amount_paid:
@@ -234,9 +198,8 @@ export function usePOSPayment({
                 : 0,
           ),
           points_earned: earnedPoints,
-          // Only ever set when a customer is selected — the UI gates the
-          // redemption picker on that already, but guard here too in case a
-          // stale redemption survives a customer being cleared mid-checkout.
+          // Only ever set when a customer is selected — the UI gates the redemption picker on that already, but guard here too in case a stale redemptio…
+          // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-ts-L227
           points_redeemed:
             selectedCustomer && canUseLoyaltyProgram
               ? redeemedOption?.pointsCost || 0
@@ -281,11 +244,8 @@ export function usePOSPayment({
           });
         }
 
-        // Re-read the current balance rather than trusting selectedCustomer
-        // (captured when the cashier picked the customer, possibly stale by
-        // the time checkout completes — e.g. another terminal recorded a
-        // sale or payment for the same customer in between). Mirrors
-        // recordCustomerPayment's own re-read for the same reason.
+        // Re-read the current balance rather than trusting selectedCustomer (captured when the cashier picked the customer, possibly stale by the time…
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-ts-L274
         if (paymentMethod === "credit" && selectedCustomer) {
           const balanceRows = await getCustomerBalance(selectedCustomer.id);
           const currentBalance = balanceRows[0]?.balance || 0;
@@ -297,10 +257,8 @@ export function usePOSPayment({
           );
         } else if (paymentMethod === "mixed" && selectedCustomer) {
           const creditSplit = paymentSplits.find((s) => s.method === "credit");
-          // Clamped to what this sale can actually still owe: anything beyond
-          // it is debt applyCreditPaymentFIFO() could never settle against
-          // this sale (validatePaymentReadiness rejects it up front; this is
-          // the write-side guard). See docs/FIXED_BUGS.md (A-56).
+          // Clamped to what this sale can actually still owe:
+          // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-ts-L290
           const creditOwed = Math.min(
             creditSplit?.amount ?? 0,
             calculateMaxAllowedCreditSplit(paymentSplits, total),
@@ -326,11 +284,8 @@ export function usePOSPayment({
           correlationId: newSaleId,
         });
 
-        // Committed inside the same transaction as the sale itself, not
-        // after it: this used to run once the transaction had already
-        // committed and returned, so an interruption between the sale
-        // committing and this running left the sale durably recorded but
-        // the prescription still "pending" - dispensable a second time.
+        // Committed inside the same transaction as the sale itself, not after it:
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-ts-L319
         if (dispensedRxId) {
           if (isRefillDispense) {
             await dispensePrescriptionRefill(dispensedRxId);

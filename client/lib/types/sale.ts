@@ -20,11 +20,8 @@ export interface Sale {
   points_earned?: number;
   points_redeemed?: number;
   is_reseller_sale?: number;
-  /** Distinguishes a real reseller/agent sale (commission owed, goes
-   * through the redeem/store-claim decision) from a store staff member
-   * pricing above normal for their own reasons (markup pre-settled
-   * straight to the store - see use-pos-payment.ts). Only meaningful when
-   * is_reseller_sale is set. */
+  // Distinguishes a real reseller/agent sale (commission owed, goes through the redeem/store-claim decision) from a store staff member pricing a…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#types-sale-ts-L23
   markup_type?: "reseller" | "store" | null;
   reseller_commission_percentage?: number;
   reseller_commission_amount?: number;
@@ -32,11 +29,8 @@ export interface Sale {
    * items) before the store's commission percentage is applied. */
   reseller_markup_amount?: number;
   reseller_commission_redeemed?: number;
-  /** The amount that actually left the store at settlement time: either
-   * reseller_commission_amount (paid to the reseller), or 0 when the store
-   * claimed the entire markup for itself (reseller_commission_claim_type ===
-   * "store_claim") - snapshotted so profit reporting doesn't have to
-   * re-derive it. */
+  // The amount that actually left the store at settlement time:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#types-sale-ts-L35
   reseller_commission_redeemed_amount?: number;
   reseller_commission_claim_type?: "commission" | "store_claim" | null;
   reseller_commission_redeemed_at?: string;

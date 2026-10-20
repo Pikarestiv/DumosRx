@@ -1,13 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { checkCanFactoryReset } from "@/lib/context/auth-context";
 
-/**
- * checkCanFactoryReset gates the Factory Reset button/dialog in
- * Settings > Data (components/settings/data-settings.tsx). Deliberately
- * narrower than checkIsAdmin, which also passes "manager" - wiping every
- * local table and disconnecting cloud sync shouldn't be something a
- * manager can trigger unilaterally.
- */
+// checkCanFactoryReset gates the Factory Reset button/dialog in Settings > Data (components/settings/data-settings.tsx).
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-check-can-factory-reset-test-ts-L4
 describe("checkCanFactoryReset", () => {
   it("allows the store owner", () => {
     expect(checkCanFactoryReset("store_owner")).toBe(true);

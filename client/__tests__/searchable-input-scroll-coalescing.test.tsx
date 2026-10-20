@@ -6,15 +6,8 @@ import {
   isSameMenuRect,
 } from "@/components/ui/searchable-input";
 
-/**
- * searchable-input registers its `scroll` listener in the capture phase (it
- * has to - see the doc comment on the effect), so it fires for scrolling on
- * every scrollable element on the page while its dropdown is open, and each
- * event used to do a getBoundingClientRect() (a forced layout) plus a state
- * update. Scrolling a long list with a dropdown open is the common case, so
- * the work has to be coalesced to one measurement per frame, and a
- * measurement that produced the same rect must not re-render at all.
- */
+// searchable-input registers its `scroll` listener in the capture phase (it has to - see the doc comment on the effect), s…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-searchable-input-scroll-coalescing-test-tsx-L9
 
 describe("isSameMenuRect", () => {
   it("treats two identical rects as unchanged", () => {

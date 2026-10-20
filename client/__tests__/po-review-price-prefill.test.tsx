@@ -10,15 +10,8 @@ vi.mock("@/lib/context/store-context", () => ({
   useStore: () => ({ storeProfile: { uppercase_display_enabled: 1 } }),
 }));
 
-/**
- * The "Review price" popover previously always showed a blank Sell Price
- * input (placeholder "0.00") regardless of the product's actual current
- * selling price, forcing the user to look it up elsewhere before deciding
- * whether to change it. It should be prefilled with the product's current
- * selling price so the user can see - and edit from - what's already on
- * file, without that prefill silently becoming a "change" if left untouched
- * (an untouched field must not override the product's price on submit).
- */
+// The "Review price" popover previously always showed a blank Sell Price input (placeholder "0.00") regardless of the prod…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-po-review-price-prefill-test-tsx-L13
 describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
   const product: POProduct = {
     id: "p1",
@@ -42,10 +35,8 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
   };
 
   afterEach(() => {
-    // Radix Popover portals its content directly onto document.body,
-    // separate from the test's own container - clear anything left behind
-    // so a later test's querySelectorAll('input[type="number"]') can't
-    // accidentally pick up a stray node from a previous test.
+    // Radix Popover portals its content directly onto document.body, separate from the test's own container - clear anything l…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-po-review-price-prefill-test-tsx-L45
     document.body.innerHTML = "";
   });
 
@@ -67,9 +58,8 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
     return { container, root };
   }
 
-  /** The trigger reads "Review price" until the line is repriced, and shows
-   * the new price itself afterwards - match on its accessible name, which
-   * stays stable either way. */
+  // The trigger reads "Review price" until the line is repriced, and shows the new price itself afterwards - match on its ac…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-po-review-price-prefill-test-tsx-L70
   function findReviewPriceTrigger(container: HTMLElement): HTMLButtonElement {
     const trigger = Array.from(container.querySelectorAll("button")).find((b) =>
       /price/i.test(b.getAttribute("aria-label") || ""),

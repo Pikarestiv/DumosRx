@@ -2,28 +2,8 @@ import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
 
-/**
- * A-158: app/globals.css has a compat shim (`@supports not (color: color-mix(...))`)
- * that forces low-opacity utilities on theme-CSS-variable colors (primary,
- * destructive, etc.) to fully transparent on browsers without color-mix()
- * support (e.g. Chrome <111 / Windows 7) - without it, those utilities
- * silently fall back to a SOLID, full-opacity color, which can collide with
- * same-color foreground text/icons and make them invisible.
- *
- * The shim's selector list only ever listed bare tokens like
- * "hover:bg-primary/10". Several components style their inactive/hover tab
- * or filter-chip state with the *compound* variant
- * "data-[state=inactive]:hover:bg-primary/10" - a different literal class
- * string - so they slipped past the shim entirely (found live: a tab's and
- * a filter chip's label text disappearing on hover, since the un-mitigated
- * fallback made the "10% tint" solid, full-opacity primary blue behind
- * equally-blue hover text).
- *
- * Rather than pinning this to one file, this scans every .tsx file under
- * components/ and app/ for the pattern, so any current or future file using
- * this compound variant is covered the same way, not just the ones known
- * at the time of the fix.
- */
+// A-158: app/globals.css has a compat shim (`@supports not (color:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-tabs-hover-compat-shim-coverage-test-ts-L5
 describe("globals.css compat shim covers every compound-variant opacity utility in the app", () => {
   function listTsxFiles(dir: string): string[] {
     const entries = fs.readdirSync(dir, { withFileTypes: true });

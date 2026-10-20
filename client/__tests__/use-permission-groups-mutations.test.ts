@@ -8,14 +8,8 @@ vi.mock("idb-keyval", () => ({
 
 import initSqlJs, { type Database } from "sql.js";
 
-/**
- * The standalone delete/revert helpers were already covered, but every
- * mutation the Roles & Permissions matrix actually calls — toggling a single
- * permission on or off, creating, copying and renaming a group — lived in
- * usePermissionGroups' callbacks at 0%. These writes decide what staff can
- * do, so a duplicate-grant bug, a copy that inherits default-group
- * immutability, or a rename that mutates a default group all matter.
- */
+// The standalone delete/revert helpers were already covered, but every mutation the Roles & Permissions matrix actually ca…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-permission-groups-mutations-test-ts-L11
 describe("usePermissionGroups mutations", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

@@ -8,37 +8,8 @@ import {
 import { roundMoney } from "@/lib/utils/pos-calculations";
 import { checkIsAdmin } from "@/lib/context/auth-context";
 
-/**
- * Data-model decision (see docs/superpowers or PR description for the
- * fuller writeup): transfers are NOT given a dedicated `stock_transfers`
- * header table. They're represented purely as a paired `movement_type:
- * 'transfer_out'` / `'transfer_in'` row in the already-synced
- * `stock_movements` table, sharing a generated id as `reference_id` with
- * `reference_type: 'stock_transfer'` — exactly the pattern the rest of the
- * app already uses to cross-reference a sale or a stock audit. A header
- * table was considered (and is explicitly the "recommended" shape per the
- * feature spec) but rejected for now: this repo's sync engine has no
- * generic per-table plumbing gap, but a brand-new table still needs a
- * matching Laravel migration on the server side (laravel-server/) before it
- * can round-trip through cloud sync, and this change is client-only. Adding
- * an un-synced local table on a live production account (see task
- * instructions) would mean transfer history silently fails to appear on any
- * other device/terminal until that server work lands — worse than not
- * having a header table at all. `getStockTransferHistory()` below
- * reconstructs the same "one row per transfer" view by grouping
- * stock_movements on reference_id, so the UI doesn't need one.
- *
- * "Cashier requests, owner reviews later": rather than a real approval gate
- * (nothing here is ever blocked pending approval - the transfer always
- * takes effect immediately, same as an admin-initiated one), a
- * non-admin-initiated transfer's two rows are flagged
- * `status: "needs_review"` (see `initiatedByRole` below) so an owner can
- * spot it after the fact, and `markStockTransferReviewed()` below is what
- * clears that flag. Added directly to stock_movements rather than a new
- * header table, for the same already-synced-table reasoning above. See
- * client/AGENTS.md's Inventory & Stock block for why this is a review
- * mechanism rather than a gate-before-it-lands approval queue.
- */
+// Data-model decision (see docs/superpowers or PR description for the fuller writeup):
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-stock-transfers-L11
 export const STOCK_TRANSFER_REFERENCE_TYPE = "stock_transfer";
 export const STOCK_TRANSFER_NEEDS_REVIEW_STATUS = "needs_review";
 export const STOCK_TRANSFER_REVIEWED_STATUS = "reviewed";
@@ -52,11 +23,8 @@ export interface StockTransferParams {
   quantity: number;
   performedBy: string | null;
   reason?: string;
-  /** The initiating user's role. When not admin-tier (e.g. a cashier
-   * requesting stock from another store, no owner immediately available),
-   * both rows this transfer writes are flagged `status: "needs_review"` so
-   * an owner can check it after the fact — the transfer itself still takes
-   * effect immediately either way; nothing here blocks it. */
+  // The initiating user's role.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-stock-transfers-ts-L26
   initiatedByRole?: string;
 }
 
@@ -103,17 +71,8 @@ interface SourceProductRow {
   units_per_bulk: number | null;
 }
 
-/**
- * Available (positive-quantity, active, non-deleted, non-expired) batches
- * for a product, FEFO-ordered — the exact same "soonest-expiring first"
- * convention getBatchesForProduct() (lib/db/queries/inventory.ts) already
- * uses for deducting stock on a sale, reused here rather than inventing a
- * second deduction order for transfers. Also scoped to storeId directly
- * (not just via product_id): a batch can be attributed to another store
- * (or be a store_id-less legacy row) while still hanging off this
- * product_id, the same leak fixed in getStockBatchStats/
- * fetchStockBatchReportData.
- */
+// Available (positive-quantity, active, non-deleted, non-expired) batches for a product, FEFO-ordered — the exact same "soonest-expiring first…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-stock-transfers-L106
 async function getAvailableSourceBatches(
   productId: string,
   storeId: string,
@@ -138,12 +97,8 @@ async function getSourceProduct(
   return rows[0] ?? null;
 }
 
-/**
- * Mirrors findExistingProductId's precedence in product-import.ts (barcode
- * -> name+category -> name), just scoped to an explicit destStoreId instead
- * of the active-store resolver, since a transfer's destination store is
- * very often NOT the store currently active in the UI.
- */
+// Mirrors findExistingProductId's precedence in product-import.ts (barcode -> name+category -> name), just scoped to an explicit destStoreId i…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-stock-transfers-ts-L103
 async function findDestProductId(
   product: SourceProductRow,
   destStoreId: string,
@@ -207,16 +162,8 @@ async function resolveDestCategoryId(
   );
 }
 
-/**
- * Creates the destination-store product row the first time a product is
- * transferred to a store that's never carried it before. Copies static,
- * product-identity fields (name, category, manufacturer/dosage metadata,
- * barcode, unit config, an initial selling price) so the new row is usable
- * immediately; deliberately does NOT copy `reorder_level` (a per-branch
- * reorder threshold — two branches can have very different turnover for the
- * same product, so it should start at this table's own default, not
- * whatever the source branch happened to have it set to).
- */
+// Creates the destination-store product row the first time a product is transferred to a store that's never carried it before.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-stock-transfers-L210
 async function createDestProduct(
   product: SourceProductRow,
   destStoreId: string,
@@ -256,16 +203,8 @@ async function createDestProduct(
   );
 }
 
-/**
- * Moves `quantity` units of one product from `sourceStoreId` to
- * `destStoreId`, deducting FEFO from the source's batches, auto-creating (or
- * reusing) the matching product on the destination store, opening a single
- * new destination batch carrying the weighted-average cost of everything
- * drawn from, and writing the paired transfer_out/transfer_in
- * stock_movements rows. Fully atomic: any failure (store not found,
- * insufficient stock) throws before any write and the whole transaction
- * rolls back.
- */
+// Moves `quantity` units of one product from `sourceStoreId` to `destStoreId`, deducting FEFO from the source's batches, auto-creating (or reu…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-stock-transfers-L259
 export async function transferStock(
   params: StockTransferParams,
 ): Promise<StockTransferResult> {
@@ -342,9 +281,8 @@ export async function transferStock(
         earliestExpiry = batch.expiry_date;
       }
 
-      // No quantity write here: the transfer_out movement below rebuilds this
-      // batch from its own log (see lib/db/batch-quantity.ts), and a pre-write
-      // would be counted twice for an A-148 carve-out batch.
+      // No quantity write here:
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-stock-transfers-ts-L284
     }
 
     const averageCost = roundMoney(totalCost / quantity);
@@ -354,13 +292,8 @@ export async function transferStock(
       destProductId = await createDestProduct(sourceProduct, destStoreId);
     }
 
-    // Always opens a fresh batch on the destination rather than merging
-    // into an existing one: the source draw can span multiple batches
-    // with different expiry dates, and folding that into an arbitrary
-    // pre-existing destination batch would blur its own FEFO ordering.
-    // The new batch's expiry is the earliest (most conservative) of
-    // everything it was drawn from, so the destination's FEFO picking
-    // never overstates shelf life.
+    // Always opens a fresh batch on the destination rather than merging into an existing one:
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-stock-transfers-ts-L296
     const destBatchId = await insert(
       "stock_batches",
       {
@@ -432,15 +365,8 @@ interface FlaggedTransferLegRow {
   store_id: string | null;
 }
 
-/**
- * Clears the `needs_review` flag on every leg of one transfer, marking it
- * `reviewed` rather than blanking it so the record still shows the transfer
- * was flagged and then checked. Idempotent: it only ever touches rows still
- * sitting at `needs_review`, so a second call (or two devices reviewing the
- * same transfer) writes nothing and returns 0. Each leg is updated under its
- * OWN `store_id`, never the acting store's, because the out and in legs live
- * in two different stores by definition.
- */
+// Clears the `needs_review` flag on every leg of one transfer, marking it `reviewed` rather than blanking it so the record still shows the tra…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-stock-transfers-ts-L381
 export async function markStockTransferReviewed(
   transferId: string,
 ): Promise<number> {
@@ -479,10 +405,8 @@ export interface TransferableProductRow {
   available_quantity: number;
 }
 
-/** Products with positive stock in `storeId`, for the transfer dialog's
- * product picker — deliberately takes an explicit store id rather than
- * reading the active-store resolver, since the dialog's chosen source store
- * is very often not the store currently active in the rest of the UI. */
+// Products with positive stock in `storeId`, for the transfer dialog's product picker — deliberately takes an explicit store id rather than re…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-stock-transfers-ts-L428
 export async function getTransferableProducts(
   storeId: string,
 ): Promise<TransferableProductRow[]> {
@@ -517,12 +441,8 @@ export interface StockTransferHistoryRow {
   reason: string | null;
 }
 
-/**
- * Reconstructs one row per transfer by grouping the transfer_out side of
- * stock_movements on reference_id and joining in its paired transfer_in row
- * — see the header-table decision note at the top of this file for why
- * there's no dedicated table to just SELECT * from instead.
- */
+// Reconstructs one row per transfer by grouping the transfer_out side of stock_movements on reference_id and joining in its paired transfer_in…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-stock-transfers-ts-L466
 export async function getStockTransferHistory(
   limit = 100,
 ): Promise<StockTransferHistoryRow[]> {

@@ -16,10 +16,8 @@ import { boundedNowIso } from "./monotonic-clock";
 const LICENSE_TIERS = ["free", "local", "pro", "enterprise"] as const;
 export type LicenseTier = (typeof LICENSE_TIERS)[number];
 
-/** Narrows a raw tier string (from the store profile or a license token) to a
- * known LicenseTier, falling back to "free" for anything unrecognized:
- * this gates paid-feature access, so an unchecked cast could grant tiers
- * that don't exist. */
+// Narrows a raw tier string (from the store profile or a license token) to a known LicenseTier, falling back to "free" for anything unrecogniz…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#licensing-licensing-manager-ts-L19
 function toLicenseTier(value: string | null | undefined): LicenseTier {
   return (LICENSE_TIERS as readonly string[]).includes(value ?? "")
     ? (value as LicenseTier)
@@ -31,10 +29,8 @@ export interface LicenseInfo {
   tier: LicenseTier;
   expiryDate: string | null;
   isClockTampered: boolean;
-  /** True only when the store account itself was suspended (stores.status ===
-   * "Suspended"), as opposed to an expired/absent subscription. Branch on
-   * this, never on `message` — that field is display text and its wording
-   * may change. */
+  // True only when the store account itself was suspended (stores.status === "Suspended"), as opposed to an expired/absent subscription.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#licensing-licensing-manager-ts-L34
   isSuspended: boolean;
   isTrial?: boolean;
   message?: string;
@@ -144,17 +140,8 @@ export async function checkLicenseStatus(): Promise<LicenseInfo> {
   }
 }
 
-/**
- * The admin-present version of reconcileClockWithServer(): still requires an
- * authoritative server reading, so a tampered device cannot talk its way out —
- * but it takes that reading from readInspectionServerClock(), which the server
- * refuses without a live session row, and applies no device-agreement check.
- * Disagreement is exactly the case a physically-present admin resolves.
- *
- * Only reachable from an on-till inspection session, which is online-only and
- * exists only for platform_admin and above. See
- * docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md.
- */
+// The admin-present version of reconcileClockWithServer():
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#licensing-licensing-manager-L147
 export async function overrideClockLockout(): Promise<
   { ok: boolean; reason: string }
 > {
@@ -166,10 +153,8 @@ export async function overrideClockLockout(): Promise<
   const profile = await getStoreProfile();
   if (!profile) return { ok: false, reason: "No store profile on this device." };
 
-  // Deliberately NOT the public /health endpoint: this call carries the
-  // session id and the server refuses it unless a live admin_till_sessions row
-  // exists, so the authority is a server-side row rather than a sessionStorage
-  // flag anyone could forge in devtools.
+  // Deliberately NOT the public /health endpoint:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-licensing-licensing-manager-ts-L156
   const serverNow = await readInspectionServerClock(session.sessionId);
   if (!serverNow) {
     return {
@@ -188,21 +173,8 @@ export async function overrideClockLockout(): Promise<
   return { ok: true, reason: "Clock watermark reset to server time by admin override." };
 }
 
-/**
- * Clears a clock lock, but only against authoritative server time.
- *
- * A device whose wall clock ran fast wrote that future time into
- * `last_monotonic_time`, so correcting the clock makes every later check read
- * as a rollback and the device locks out permanently (docs/KNOWN_BUGS.md
- * A-191). The watermark is device-local: the pull strips it and a factory
- * reset preserves it, so nothing else can repair it.
- *
- * This is the only route out, and it is deliberately online-only — the store
- * owner is the party the backdating check exists to stop, so an offline
- * override would hand the escape hatch to the adversary. Returns true when the
- * watermark was reset. See
- * docs/superpowers/specs/2026-10-08-license-clock-recovery-design.md.
- */
+// Clears a clock lock, but only against authoritative server time.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#licensing-licensing-manager-L191
 export async function reconcileClockWithServer(): Promise<
   { reconciled: boolean; reason: string }
 > {

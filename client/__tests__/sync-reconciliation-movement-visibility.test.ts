@@ -8,12 +8,8 @@ vi.mock("idb-keyval", () => ({
 
 const STORE_ID = "store-1";
 
-/**
- * A-148: a 'sync_reconciliation' movement is a real, permanent record, but
- * it is a sync correction rather than a stock event — so it must not appear
- * in the owner's day-to-day Stock Movements list, nor inflate the
- * added/removed stock-value figures. See client/AGENTS.md.
- */
+// A-148: a 'sync_reconciliation' movement is a real, permanent record, but it is a sync correction rather than a stock eve…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-reconciliation-movement-visibility-test-ts-L11
 describe("sync_reconciliation movement visibility", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -121,11 +117,8 @@ describe("sync_reconciliation movement visibility", () => {
     ).toBe(false);
   });
 
-  /**
-   * A-221: the A-214 repair writes compensating `sync_reconciliation_reversal`
-   * movements, which are the same kind of row for the same reason and must be
-   * hidden in the same three places.
-   */
+  // A-221: the A-214 repair writes compensating `sync_reconciliation_reversal` movements, which are the same kind of row for…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-reconciliation-movement-visibility-test-ts-L124
   describe("sync_reconciliation_reversal is hidden in exactly the same places", () => {
     it("getStockMovements hides it", async () => {
       insertMovement("mv-sale", "sale", -4);

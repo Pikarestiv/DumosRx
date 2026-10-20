@@ -3,25 +3,8 @@ import fs from "fs";
 import path from "path";
 import initSqlJs, { type Database } from "sql.js";
 
-// Audit follow-up to the dashboard "Customer Retention" -> "Repeat Purchase
-// Rate" relabel (lib/hooks/use-bi-data.ts): the Customers page's
-// "Retention & Engagement" card used the exact same construction —
-// getCustomerRetentionMetrics() in lib/db/queries/customers.ts counts
-// customers with >1 sale *inside a single trailing 30-day window* over
-// customers with >=1 sale in that window. That is a repeat-purchase rate, not
-// retention of a prior cohort or of the store's customer base. There is no
-// unambiguous cohort/baseline definition available in this app, so the
-// calculation is intentionally unchanged and only the labels were corrected.
-//
-// "Avg Visits/Mo" had a second, independent problem: the average is taken over
-// the customers who *bought in the window*, not over all registered customers
-// and not store-wide, so it is now "Avg Visits/Customer" under a card titled
-// "Engagement (Last 30 Days)".
-//
-// These tests pin both the corrected labels (source inspection — no component
-// render harness exists in this repo, see
-// profit-loss-tab-currency-formatting.test.ts for the same pattern) and the
-// numerator/denominator the labels now promise.
+// Audit follow-up to the dashboard "Customer Retention" -> "Repeat Purchase Rate" relabel (lib/hooks/use-bi-data.ts):
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-customer-engagement-metric-labels-test-ts-L6
 
 describe("Customers page engagement card labels", () => {
   const source = fs.readFileSync(

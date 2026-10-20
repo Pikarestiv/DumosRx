@@ -42,9 +42,8 @@ export function RequestItemDialog({
   const uppercaseNames = useUppercaseDisplay();
   const capsClass = uppercaseNames ? "uppercase" : "capitalize";
 
-  // Re-seed the name field whenever the dialog is (re)opened, since the
-  // caller's initialProductName (e.g. the POS search term) can change
-  // between opens while the dialog instance itself stays mounted.
+  // Re-seed the name field whenever the dialog is (re)opened, since the caller's initialProductName (e.g.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-request-item-dialog-tsx-L45
   useEffect(() => {
     if (open) setProductName(initialProductName);
   }, [open, initialProductName]);
@@ -54,19 +53,13 @@ export function RequestItemDialog({
   const [loading, setLoading] = useState(false);
 
   const { data: customers = [] } = useQuery({
-    // getAllCustomers() (a flat list for POS-style pickers) is a different
-    // shape from getCustomers() (used by useCustomerData, with joined
-    // total_spent/last_visit). This must NOT share a cache key with that
-    // one, or whichever query runs second overwrites the cache with an
-    // incompatible shape for the other's consumers. Reuses the same key as
-    // use-pos-data.ts's identical getAllCustomers() call for consistency.
+    // getAllCustomers() (a flat list for POS-style pickers) is a different shape from getCustomers() (used by useCustomerData,…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-request-item-dialog-tsx-L57
     ...queryKeys.customers.posList(),
     queryFn: getAllCustomers,
     staleTime: 1000 * 60 * 5, // 5 mins
-    // This dialog is permanently mounted at five call sites (catalog, POS
-    // cart, POS product list, two procurement screens), so without this gate
-    // every one of those screens paid for a full customer + product list read
-    // on mount for a dialog that is almost never opened.
+    // This dialog is permanently mounted at five call sites (catalog, POS cart, POS product list, two procurement screens), so…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-request-item-dialog-tsx-L66
     enabled: open,
   });
 
@@ -77,12 +70,8 @@ export function RequestItemDialog({
     enabled: open,
   });
 
-  // Warn (non-blocking) when the typed name looks like something already in
-  // the catalog: staff should double check before logging a duplicate
-  // "missing product" request for stock that's already on hand.
-  // Debounced: the hint is advisory, and re-running a fuzzy search over the
-  // whole catalog on every keystroke of a product name is the expensive half
-  // of typing in this dialog.
+  // Warn (non-blocking) when the typed name looks like something already in the catalog:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-request-item-dialog-tsx-L80
   const debouncedProductName = useDebouncedValue(productName, 250);
   const possibleExistingMatch = useMemo(() => {
     const term = debouncedProductName.trim();
@@ -156,10 +145,8 @@ export function RequestItemDialog({
                 value={productName}
                 onValueChange={setProductName}
                 options={products.map((p: Product) => ({
-                  // Selecting an option must still set the underlying stored
-                  // (lowercase) name as `value` — only `label` gets the
-                  // display treatment, so the dropdown looks right without
-                  // writing a styled string into requested_products.
+                  // Selecting an option must still set the underlying stored (lowercase) name as `value` — only `label` gets the display tre…
+                  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-request-item-dialog-tsx-L159
                   label: uppercaseNames ? p.name.toUpperCase() : capitalizeWords(p.name),
                   value: p.name,
                 }))}

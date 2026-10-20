@@ -5,19 +5,8 @@ import { PRODUCT_IMPORT_REFERENCE_TYPE } from "@/lib/constants/stock-adjustments
 import type { ProductImportRow } from "@/lib/utils/product-import-export";
 import { roundMoney } from "@/lib/utils/pos-calculations";
 
-/**
- * Groups row indexes that would collide on import. findExistingProductId()
- * only trusts a barcode when it actually hits an existing DB row — when it
- * doesn't, that row falls through to a name+category lookup instead. So a
- * barcode-only (or name+category-only) key can't predict every real
- * collision: two rows sharing a barcode that doesn't exist in the DB yet
- * would only be caught by name+category, and two rows sharing a barcode
- * that DOES exist would only be caught by the barcode key. Both keys are
- * computed and unioned (not a single fallback key) so a row is flagged as a
- * duplicate if it collides under EITHER one. The barcode key is compared
- * exact/case-sensitive (only trimmed) to match findExistingProductId()'s
- * `barcode = ?` lookup, which has no COLLATE NOCASE.
- */
+// Groups row indexes that would collide on import.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-product-import-L8
 export function findInFileDuplicates(rows: ProductImportRow[]): number[][] {
   const byBarcode = new Map<string, number[]>();
   const byNameCategory = new Map<string, number[]>();
@@ -37,10 +26,8 @@ export function findInFileDuplicates(rows: ProductImportRow[]): number[][] {
     else byNameCategory.set(nameKey, [index]);
   });
 
-  // Union-find: a row can belong to both a barcode group and a
-  // name+category group, and those two groups need merging whenever they
-  // share a row, so the reported clusters reflect every transitive
-  // collision rather than just one key at a time.
+  // Union-find: a row can belong to both a barcode group and a name+category group, and those two groups need merging whenever they share a row,…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-product-import-ts-L29
   const parent = rows.map((_, i) => i);
   const find = (x: number): number => {
     while (parent[x] !== x) {
@@ -136,23 +123,8 @@ export interface ImportResult {
   stockAdjusted: number;
 }
 
-/**
- * Upserts every row inside a single transaction. Matched products only have
- * their fields updated — existing stock_batches are never touched by
- * default, so re-running the same import twice can't double-count quantity
- * (see docs/superpowers/specs/2026-08-31-stock-import-export-design.md).
- * Passing `updateStockForMatched: true` opts into applying the file's
- * quantity to matched products too, as a proper stock-audit adjustment
- * (logged in Stock Movements) rather than silently rewriting stock_batches —
- * for the deliberate "re-sync my counts from this file" case, distinct from
- * the accidental-re-import case the default protects against.
- */
-// How often (in rows) to yield to the event loop during a bulk import. Each
-// query on the web (sql.js/WASM) path resolves synchronously, so without an
-// explicit yield a 1000+ row import runs as one uninterruptible block and
-// freezes the tab for its entire duration — this hands control back to the
-// browser periodically so it can repaint (e.g. a progress bar) and stay
-// responsive, without adding per-row overhead from yielding every iteration.
+// Upserts every row inside a single transaction.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-product-import-ts-L128
 const YIELD_INTERVAL = 25;
 
 export async function importProductRows(
@@ -160,14 +132,8 @@ export async function importProductRows(
   onProgress?: (completed: number, total: number) => void,
   options?: { updateStockForMatched?: boolean; performedBy?: string | null },
 ): Promise<ImportResult> {
-  // The matched-stock branch below reconciles through submitStockAudit(),
-  // whose stock_audits.user_id is a constrained foreign key server-side —
-  // it now refuses a performer-less audit rather than writing a sentinel
-  // that can only fail on push. Checked here, before a single row is
-  // written, so an import can't commit its products and then abort on the
-  // stock phase. Not a legitimate state: the only caller
-  // (import-mapping-dialog.tsx) is a route-guarded screen that passes
-  // useAuth().user.id.
+  // The matched-stock branch below reconciles through submitStockAudit(), whose stock_audits.user_id is a constrained foreign key server-side —…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-product-import-ts-L143
   if (options?.updateStockForMatched && !options.performedBy) {
     throw new Error(
       "Importing stock for matched products requires a performing user",
@@ -175,20 +141,8 @@ export async function importProductRows(
   }
 
   const result: ImportResult = { created: 0, updated: 0, skipped: [], stockAdjusted: 0 };
-  // Collected during the main transaction, applied after it commits: submitStockAudit()
-  // opens its own transaction, and this codebase's transaction() serializes
-  // via a queue that a nested call would deadlock against (the inner call
-  // waits on the outer's own queue slot, which only clears once the outer
-  // transaction's fn() — still awaiting the inner call — finishes).
-  // Keyed by productId so an in-file duplicate (same product matched by
-  // multiple rows) only ever contributes one audit entry — last row wins,
-  // consistent with how duplicate rows are already merged elsewhere in this
-  // import. Without this, submitStockAudit() below computes every entry's
-  // delta against the SAME pre-import systemQty snapshot (it's captured
-  // once, before any adjustment is applied), so two rows for one product
-  // each apply their full delta on top of that same stale baseline instead
-  // of the second seeing the first's result — double-applying the
-  // difference and silently driving real stock negative.
+  // Collected during the main transaction, applied after it commits:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-product-import-ts-L158
   const matchedStockUpdates = new Map<string, { productId: string; quantity: number }>();
 
   await transaction(async () => {
@@ -215,15 +169,8 @@ export async function importProductRows(
           if (options?.updateStockForMatched && row.quantity !== undefined) {
             matchedStockUpdates.set(existingId, { productId: existingId, quantity: row.quantity });
           }
-          // cost_price lives on stock_batches, not products - there's no
-          // column here to include in the update() above. Re-importing a
-          // corrected price list used to leave margin/COGS reporting on
-          // the stale cost while reporting the row as "updated." Only
-          // correct it when unambiguous (exactly one active batch) - with
-          // more than one, which specific batch(es) a blanket file-level
-          // cost is meant to correct isn't something this import can infer,
-          // and guessing would misattribute cost the same way the
-          // now-fixed returned-COGS averaging bug did.
+          // cost_price lives on stock_batches, not products - there's no column here to include in the update() above.
+          // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-product-import-ts-L198
           if (row.costPrice !== undefined) {
             const activeBatches = await getAllActiveBatchesForProduct(existingId);
             if (activeBatches.length === 1) {
@@ -256,17 +203,8 @@ export async function importProductRows(
             supplier_id: supplierId ?? null,
             is_active: 1,
           });
-          // The server never trusts stock_batches.quantity from a client
-          // payload (INSERT or UPDATE) — it's forced to 0 and re-derived by
-          // replaying stock_movements deltas on top, so quantity commutes
-          // correctly across concurrent devices/terminals instead of one
-          // write silently clobbering another (see SyncController::push's
-          // stock_batches handling). Writing the batch row alone is enough
-          // to show the right count locally, but without a matching
-          // movement the server-side quantity stays permanently 0 for
-          // every bulk-imported product once synced. Every other code path
-          // that creates an initial batch (procurement receiving, setup's
-          // seed data) logs this movement; import must too.
+          // The server never trusts stock_batches.quantity from a client payload (INSERT or UPDATE) — it's forced to 0 and re-derived by replaying stock…
+          // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-product-import-ts-L239
           await insert("stock_movements", {
             product_id: productId,
             stock_batch_id: batchId,

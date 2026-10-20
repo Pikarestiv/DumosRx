@@ -38,9 +38,8 @@ describe("usePOSHeldTransactions recall + reseller mode", () => {
   let container: HTMLDivElement;
   let root: Root;
 
-  // Catalog price has since changed to 120, but the held transaction was
-  // saved at 100 (its unit_price at hold time). The recall path always
-  // rebuilds from the current catalog product per its existing design.
+  // Catalog price has since changed to 120, but the held transaction was saved at 100 (its unit_price at hold time).
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-use-pos-held-transactions-reseller-test-ts-L41
   const product = {
     id: "p1",
     name: "Cement Bag",

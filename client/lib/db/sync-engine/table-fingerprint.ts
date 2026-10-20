@@ -1,12 +1,8 @@
 import { query } from "../core";
 import { STORE_SCOPED_TABLES } from "../schema-migrations";
 
-/**
- * One table's digest. Short keys because this rides on every eligible push
- * and 26 tables of long keys is most of a kilobyte of nothing.
- *
- * `t` table, `r` rows, `v` sum of `_version`, `p` unpushed queue rows.
- */
+// One table's digest. Short keys because this rides on every eligible push and 26 tables of long keys is most of a kilobyte of nothing.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-table-fingerprint-ts-L4
 export interface TableDigest {
   t: string;
   r: number;
@@ -18,15 +14,8 @@ export interface TableFingerprint {
   tables: TableDigest[];
 }
 
-/**
- * Tables the server does not compare, so computing a digest for them is a
- * scan with no reader. `audit_logs` is the only one: the server's allowlist
- * omits it because the sync engine maps it onto `activity_logs`, a different
- * physical table, and comparing the two produced a large false delta. It is
- * also the device's longest-retained table (730 days), so the saved scan is
- * the biggest of the 26. Keep this in step with
- * `CountsSyncedTableRows::AGREEMENT_TABLES`, which is the authority.
- */
+// Tables the server does not compare, so computing a digest for them is a scan with no reader.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-table-fingerprint-ts-L21
 export const TABLES_NOT_COMPARED = new Set(["audit_logs"]);
 
 /**
@@ -69,21 +58,8 @@ async function digestFor(
   }
 }
 
-/**
- * What this device holds, per synced table: how many rows and the sum of
- * their `_version`. The server compares each against the rows a pull would
- * send the same device, so a table that has silently stopped agreeing is
- * visible without anyone reading code.
- *
- * Soft-deleted rows are counted: the device keeps them with `_deleted = 1`
- * and the server keeps them with `deleted_at` set, so excluding them here
- * would read as a divergence on every store — and a server that HARD-deletes
- * where the device soft-deletes is exactly the bug class this detects.
- *
- * Returns null when there is nothing to say, which is also what the throttle
- * window returns: a report is only ever sent in the push that computed it,
- * so the server never compares a stale device reading against a live cloud.
- */
+// What this device holds, per synced table:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-table-fingerprint-L72
 export async function buildTableFingerprint(storeId: string | null): Promise<TableFingerprint | null> {
   if (!storeId || Date.now() - lastBuiltAt < THROTTLE_MS) {
     return null;

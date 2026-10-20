@@ -7,21 +7,8 @@ import { getDeviceLabel } from "@/lib/utils/device-label";
 import { getStoredActiveStoreId, getStoredUser } from "@/lib/storage-keys";
 import { APP_VERSION, BUILD_SHA } from "@/lib/constants";
 
-/**
- * The device/store/actor stamp every sync call carries. X-Acting-User-Id is
- * the locally signed-in user, which is the only place that fact exists: a
- * staff PIN login never mints its own API token, so the bearer always names
- * the account that linked the device. Self-asserted, and the server treats it
- * as visibility only - see A-202 and laravel-server/AGENTS.md.
- *
- * X-App-Version/X-Build-Sha name the bundle, and are visibility only too:
- * nothing on the server gates on them. The only reader is the reconciliation
- * activity log's `app_version` property (`SyncController.php`), and Health
- * Sync is refused unconditionally by `config('dumos.health_sync_enabled')`,
- * not by any version floor. A version gate was considered for A-213 and
- * discarded - see docs/FIXED_BUGS.md A-213. Do not write code that leans on
- * one existing.
- */
+// The device/store/actor stamp every sync call carries.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#api-client-L10
 function syncHeaders(runStoreId?: string | null): Record<string, string> {
   const headers: Record<string, string> = {};
   if (typeof window === "undefined") {
@@ -119,9 +106,8 @@ class ApiClient extends FleetBillingApiClient {
     });
   }
 
-  // The request body's `token` is the sole credential here; the endpoint
-  // does not read the Authorization header at all (see AuthHandoffController),
-  // so no explicit header override is set.
+  // The request body's `token` is the sole credential here; the endpoint does not read the Authorization header at all (see AuthHandoffControlle…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-api-client-ts-L109
   async createHandoffCode(token: string) {
     return this.request<{ code: string; expires_in: number }>("/auth/handoff", {
       method: "POST",
@@ -165,10 +151,8 @@ class ApiClient extends FleetBillingApiClient {
     },
     isManual: boolean = false,
     isSetup: boolean = false,
-    // One token per sync() call, repeated on every batch of that run. The
-    // server measures the plan's sync-interval throttle per RUN rather than
-    // per request, so a backlog spanning many batches isn't rejected by its
-    // own first batch — see SyncController::validateSync.
+    // One token per sync() call, repeated on every batch of that run.
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-api-client-ts-L155
     runId?: string,
     runStoreId?: string | null,
   ) {
@@ -203,18 +187,16 @@ class ApiClient extends FleetBillingApiClient {
     return this.request("/app/sync/peer-freshness", { headers: syncHeaders() });
   }
 
-  // Authoritative row counts, per table, for the caller's store - not a
-  // pull, just COUNT(*)s a device periodically checks itself against. See
-  // lib/db/sync-engine/health-check.ts for why this exists.
+  // Authoritative row counts, per table, for the caller's store - not a pull, just COUNT(*)s a device periodically checks itself against.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-api-client-ts-L193
   async getSyncCounts(): Promise<{ success: boolean; counts: Record<string, number> }> {
     const headers = syncHeaders();
 
     return this.request("/app/sync/counts", { headers });
   }
 
-  // Hands the server this device's own stock_batches.quantity snapshot so it
-  // can adopt any value it never derived from a movement delta. See
-  // lib/db/sync-engine/reconcile-quantities.ts.
+  // Hands the server this device's own stock_batches.quantity snapshot so it can adopt any value it never derived from a movement delta.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-api-client-ts-L202
   async reconcileStockQuantities(payload: {
     batches: { id: string; quantity: number }[];
   }): Promise<{

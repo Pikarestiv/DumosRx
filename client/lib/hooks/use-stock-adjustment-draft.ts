@@ -23,9 +23,8 @@ const EMPTY_DRAFT = {
   items: [] as AdjustmentDraftItem[],
 };
 
-/** Persisted for the same reason the cycle-count draft is (see
- * use-stock-audit-draft.ts): a half-entered adjustment must survive a
- * reload or an accidental navigation. */
+// Persisted for the same reason the cycle-count draft is (see use-stock-audit-draft.ts):
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-stock-adjustment-draft-ts-L26
 export const useStockAdjustmentDraftStore = create<StockAdjustmentDraftState>()(
   persist(
     (set) => ({
@@ -54,10 +53,8 @@ export const useStockAdjustmentDraftStore = create<StockAdjustmentDraftState>()(
   ),
 );
 
-/** Called on a store switch and on logout, alongside clearPOSCartStorage()
- * and clearStockAuditDraft(): the draft is staged against one store's
- * product ids under a single global key, so it must not survive into a
- * newly-active store or a different cashier on a shared terminal. */
+// Called on a store switch and on logout, alongside clearPOSCartStorage() and clearStockAuditDraft():
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-stock-adjustment-draft-ts-L57
 export function clearStockAdjustmentDraft() {
   useStockAdjustmentDraftStore.getState().clearDraft();
 }

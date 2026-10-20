@@ -7,19 +7,8 @@ vi.mock("@/lib/utils/error-logger", () => ({
   logCrash: (...args: unknown[]) => logCrashMock(...args),
 }));
 
-/**
- * A-171's real cause, found in review. `DUMOSRX-CLIENT-F` — 260 fatal events,
- * no stacktrace, no `area` — is the stale-chunk SyntaxError that
- * `chunk-error.ts` already recognises: a static-export host serves
- * `index.html` for a missing chunk and the browser executes HTML as script.
- *
- * The app already self-heals it with a one-time reload. The defect was
- * ordering: `logCrash(..., true)` ran BEFORE `reloadOnChunkError`, so every
- * recoverable stale chunk was first reported as a fatal crash.
- *
- * A chunk error that survives the reload is a different matter and must
- * still be reported — that is what the reload guard distinguishes.
- */
+// A-171's real cause, found in review.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-stale-chunk-not-reported-as-crash-test-tsx-L10
 describe("GlobalErrorListener and stale chunks", () => {
   let GlobalErrorListener: typeof import("@/components/tauri/global-error-listener").GlobalErrorListener;
   const reloadSpy = vi.fn();

@@ -6,14 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression coverage for KNOWN_BUGS.md #7: getCustomers()'s total_spent
- * summed sales.total_amount only, never subtracting returns.total_refunded
- * — sales.total_amount is deliberately never mutated on return (net figures
- * are meant to be derived as total_amount - total_refunded elsewhere in the
- * app), so a customer's displayed total spent overstated by the sum of
- * their refunds.
- */
+// Regression coverage for KNOWN_BUGS.md #7:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-customers-total-spent-test-ts-L9
 describe("getCustomers total_spent", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

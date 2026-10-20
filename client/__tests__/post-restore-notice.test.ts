@@ -4,15 +4,8 @@ import {
   consumePostRestoreCloudLinkNotice,
 } from "@/lib/utils/post-restore-notice";
 
-/**
- * Regression tests for known bug #10, Part B (docs/features/_known-bugs.md):
- * restoreDatabase() never touches the cloud auth token, so a device
- * recovered from a local backup silently loses its cloud link. The fix is a
- * one-time, restore-specific notice (not a persistent nag - the dashboard
- * header's SyncIndicator already covers "always unlinked") gated on a
- * short-lived sessionStorage marker set right before the post-restore
- * reload.
- */
+// Regression tests for known bug #10, Part B (docs/features/_known-bugs.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-post-restore-notice-test-ts-L7
 describe("post-restore cloud-link notice", () => {
   beforeEach(() => {
     sessionStorage.clear();

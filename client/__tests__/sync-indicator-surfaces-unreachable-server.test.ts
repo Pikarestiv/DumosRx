@@ -72,15 +72,8 @@ vi.mock("@/lib/context/store-context", () => ({
   useStore: () => ({ storeProfile: mockStoreProfile }),
 }));
 
-/**
- * A-273. The expected-noise list widened to cover genuine network failures so
- * they stop filling Sentry and the `feedback` table, and the first cut had the
- * indicator reading that same widened list — which made an unreachable server
- * display "online" on an automatic sync. In a POS a cashier shown "online"
- * while nothing reaches the server is the silent divergence the whole change
- * exists to prevent, so the indicator reads `isExpectedPlanRestriction` and a
- * network failure still surfaces. See client/AGENTS.md, "Expected sync noise".
- */
+// A-273. The expected-noise list widened to cover genuine network failures so they stop filling Sentry and the `feedback`…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-indicator-surfaces-unreachable-server-test-ts-L75
 describe("SyncIndicator surfaces an unreachable server", () => {
   let container: HTMLDivElement;
   let root: Root;

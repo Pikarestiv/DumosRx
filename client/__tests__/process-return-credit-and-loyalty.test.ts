@@ -14,13 +14,8 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
-/**
- * useProcessReturnMutation carries the money and points consequences of a
- * customer return: how much of a credit sale's debt is forgiven, how the
- * sale's payment_status flips, whether a prescription re-enters the dispense
- * queue, and how many loyalty points are clawed back or refunded. None of
- * that had test coverage.
- */
+// useProcessReturnMutation carries the money and points consequences of a customer return:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-process-return-credit-and-loyalty-test-ts-L17
 describe("useProcessReturnMutation", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

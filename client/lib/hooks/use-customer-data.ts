@@ -93,10 +93,8 @@ async function fetchCustomerData() {
   const totalCustomers = transformed.length;
   const loyaltyMembers = transformed.filter((c) => c.points > 0).length;
   const totalPoints = transformed.reduce((acc, c) => acc + (c.points || 0), 0);
-  // "Avg points / member" is per LOYALTY MEMBER, so the denominator is the
-  // members (customers with points), not the whole customer book - dividing
-  // by every customer, most of whom hold no points, understated the figure
-  // by roughly the non-member share of the base.
+  // "Avg points / member" is per LOYALTY MEMBER, so the denominator is the members (customers with points), not the whole customer book - dividi…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-customer-data-ts-L96
   const avgPoints = loyaltyMembers > 0 ? Math.round(totalPoints / loyaltyMembers) : 0;
 
   const tierNames = tiers?.length

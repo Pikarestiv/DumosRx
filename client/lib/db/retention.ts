@@ -26,18 +26,8 @@ function isPruneDue(now: Date): boolean {
   );
 }
 
-/**
- * An upper bound on real time, for deriving the cutoff. `_sync_state`'s
- * `last_synced_at` is the server's own `server_timestamp`, so it can never run
- * ahead of real time however wrong this device's clock is; taking the lower of
- * the two means a clock reading years ahead cannot push the cutoff past the
- * retention window and delete the whole local trail. A device that has never
- * synced has nothing to bound with and also nothing to prune — the prune only
- * touches rows already `_synced = 1`.
- *
- * Lagging by the time since the last sync is the whole cost, against a 730-day
- * window.
- */
+// An upper bound on real time, for deriving the cutoff.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-retention-L29
 async function boundedNow(wallNow: Date): Promise<Date> {
   // Deliberately across every store: any store's server timestamp is a valid
   // upper bound on real time, and the audit-log prune is device-wide (A-305).
@@ -55,26 +45,16 @@ function markPruned(now: Date): void {
   localStorage.setItem(LAST_PRUNE_KEY, now.toISOString());
 }
 
-/**
- * Drops `audit_logs` rows this device has already pushed and that are older
- * than the local retention window. The server keeps the full trail, so this
- * is a local storage bound, not a data deletion: the rows are gone from this
- * device's IndexedDB blob only.
- *
- * Runs at most once a day and deliberately uses raw `execute()` rather than
- * `softDelete()`, so nothing lands in `_sync_queue` and no other device ever
- * sees a delete for these rows.
- */
+// Drops `audit_logs` rows this device has already pushed and that are older than the local retention window.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-retention-L58
 export async function pruneSyncedAuditLogs(
   options: AuditLogPruneOptions = {},
 ): Promise<number> {
   const now = options.now ?? new Date();
   const retentionDays = options.retentionDays ?? AUDIT_LOG_LOCAL_RETENTION_DAYS;
 
-  // Both the interval and the cutoff are measured in the bounded clock, and
-  // markPruned() below stamps it too, so a device whose own clock runs ahead
-  // neither prunes past the window nor re-reads its own future stamp as due on
-  // every round.
+  // Both the interval and the cutoff are measured in the bounded clock, and markPruned() below stamps it too, so a device whose own clock runs a…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-retention-ts-L56
   const bounded = await boundedNow(now);
 
   if (!options.force && !isPruneDue(bounded)) return 0;

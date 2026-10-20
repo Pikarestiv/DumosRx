@@ -17,9 +17,7 @@ test.describe('Sales Module', () => {
     await login(page);
 
     // The seeded test store has no products yet, so create one via the catalog.
-    // The quick-add form has no initial-stock fields (removed by design: stock
-    // is only ever added via receiving a purchase order or a stock audit), so
-    // a freshly created product always starts at zero stock.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-e2e-sales-spec-ts-L19
     await page.goto('/inventory/catalog');
     await page.getByRole('button', { name: /Add Product/i }).click();
     const productName = `E2E Cart Test Product ${Date.now()}`;

@@ -8,18 +8,8 @@ import {
   clearAuthTokenIssuedAt as removeAuthTokenIssuedAt,
 } from "@/lib/storage-keys";
 
-/**
- * "refreshed": got a new token, safe to retry the original request.
- * "confirmed-invalid": the server gave a definitive 401/403 - the token is
- * actually dead (already cleared by the time this returns).
- * "unconfirmed": couldn't reach the server, or got some other status
- * (timeout, network error, captive portal, transient 5xx) - NOT evidence
- * the token is invalid; the existing token is left untouched. Callers must
- * not treat "didn't get a new token" as equivalent to "confirmed-invalid" -
- * that conflation previously caused base-client.ts to clear a perfectly
- * good token on a connectivity hiccup, silently and permanently unlinking
- * the device from cloud sync. See docs/FIXED_BUGS.md.
- */
+// "refreshed": got a new token, safe to retry the original request.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#api-token-manager-L11
 export type RefreshOutcome = "refreshed" | "confirmed-invalid" | "unconfirmed";
 
 let token: string | null = null;
@@ -71,12 +61,8 @@ export const refreshTokenSilently = async (baseURL: string): Promise<RefreshOutc
 
       if (!currentToken) return "unconfirmed";
 
-      // base-client.ts awaits this before every API request once the token
-      // is stale, so an un-timed fetch here blocks every request behind it -
-      // the same "iOS Safari can leave a doomed fetch pending far longer
-      // than Chrome before it rejects" issue already fixed in
-      // license-guard.tsx's sync call and the service worker's navigate
-      // handler, just left open here.
+      // base-client.ts awaits this before every API request once the token is stale, so an un-timed fetch here blocks every request behind it - the…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-api-token-manager-ts-L64
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
       const response = await fetch(url, {
@@ -97,12 +83,8 @@ export const refreshTokenSilently = async (baseURL: string): Promise<RefreshOutc
         }
         return "unconfirmed";
       } else if (response.status === 401 || response.status === 403) {
-        // Only a definitive "this token is invalid" response should unlink
-        // the store from cloud sync. Any other status - a captive portal's
-        // 511, a proxy's 407, a transient 502/503 - is not evidence the
-        // token is dead, and clearing it here silently and permanently
-        // dropped the device out of sync (sync() then returns
-        // "Unauthenticated" forever) until the user manually re-links.
+        // Only a definitive "this token is invalid" response should unlink the store from cloud sync.
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-api-token-manager-ts-L90
         clearToken();
         return "confirmed-invalid";
       } else {
@@ -110,10 +92,8 @@ export const refreshTokenSilently = async (baseURL: string): Promise<RefreshOutc
         return "unconfirmed";
       }
     } catch (error) {
-      // Network errors (offline, timeout/abort above, DNS failure, etc.)
-      // are not evidence the token is invalid either - same reasoning as
-      // the non-401/403 branch above. Leave the token in place; the next
-      // successful request or refresh attempt will sort it out.
+      // Network errors (offline, timeout/abort above, DNS failure, etc.) are not evidence the token is invalid either - same reasoning as the non-40…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-api-token-manager-ts-L103
       console.error("Silent token refresh failed:", error);
       return "unconfirmed";
     } finally {

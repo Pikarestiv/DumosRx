@@ -5,18 +5,8 @@ import { createRoot, type Root } from "react-dom/client";
 // React 19's `act` warns unless the environment explicitly opts in.
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-/**
- * Regression test: a cloud setup whose sync pull FAILED must show the real
- * error and return to the cloud step - never the "no staff accounts were
- * found" empty state, and never a bounce into registration.
- *
- * pullChanges() fires onCriticalTablesReady from a `finally`, so the
- * callback also runs when the pull threw and nothing at all was written
- * (the page-1 transaction, which carries stores AND users, rolls back as a
- * unit). Onboarding used to treat that signal as "identity is ready",
- * count zero local users and report a genuinely-failed sync as an empty
- * store. The callback now carries whether the pull succeeded.
- */
+// Regression test: a cloud setup whose sync pull FAILED must show the real error and return to the cloud step - never the…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-onboarding-cloud-setup-failed-pull-test-ts-L8
 
 const routerPushMock = vi.fn();
 const loginMock = vi.fn(async () => true);

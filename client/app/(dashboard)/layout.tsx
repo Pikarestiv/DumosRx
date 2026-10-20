@@ -8,12 +8,8 @@ export default function AppDashboardLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // InventoryAuditProvider must wrap DashboardLayout from the outside, not live
-  // inside it: DashboardLayout keys its page-content wrapper on `pathname` (to
-  // retrigger the route-transition animation on every navigation), which force
-  // -remounts everything below it - including any inventory/[tab] layout - on
-  // every navigation. That's what was silently resetting the audit overlay's
-  // open state right after "Start Audit" set it.
+  // InventoryAuditProvider must wrap DashboardLayout from the outside, not live inside it:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-app-(dashboard)-layout-tsx-L11
   return (
     <InventoryAuditProvider>
       <DashboardLayout>{children}</DashboardLayout>

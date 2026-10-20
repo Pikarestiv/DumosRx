@@ -9,12 +9,8 @@ const data: Row[] = [
   { id: "b", name: "Amoxil", qty: 1 },
 ];
 
-/**
- * P5: every call site passes a fresh `accessors` object literal per render,
- * and the hook listed that object in its memo's dependency array — so
- * `[...data].sort()` re-ran on every render of every sortable table in the
- * app. The accessors must not participate in the memo's identity.
- */
+// P5: every call site passes a fresh `accessors` object literal per render, and the hook listed that object in its memo's…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-sortable-data-memo-test-ts-L12
 describe("useSortableData memoization", () => {
   it("returns the identical sorted array across renders when only the accessors object is new", () => {
     const { result, rerender } = renderHook(
@@ -67,10 +63,8 @@ describe("useSortableData memoization", () => {
     rerender({ invert: false });
     expect(result.current.sortedData.map((r) => r.id)).toEqual(["b", "a"]);
 
-    // Flipping direction re-runs the comparator: it must use the accessor
-    // from the latest render, not one captured when the hook first ran. (A
-    // new accessor alone does NOT re-sort — deliberate, since accessors are
-    // pure row projections; see the hook's own note.)
+    // Flipping direction re-runs the comparator:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-use-sortable-data-memo-test-ts-L70
     rerender({ invert: true });
     result.current.toggleSort("qty");
     rerender({ invert: true });

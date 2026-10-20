@@ -7,13 +7,8 @@ export interface StockFingerprint {
   value_sum: number;
 }
 
-/**
- * What this device believes about its stock: how many batches, how many units,
- * and what they are worth at cost. The server compares these against what it
- * derives itself, so a divergence between two devices of one store is visible
- * without anyone counting shelves. See docs/superpowers/specs/2026-10-07-stuck-data-and-
- * divergence-visibility-design.md, Phase 1.
- */
+// What this device believes about its stock:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-stock-fingerprint-ts-L10
 export async function buildStockFingerprint(storeId: string | null): Promise<StockFingerprint | null> {
   if (!storeId) {
     return null;

@@ -33,10 +33,8 @@ export function AppearanceSettings({
   setLocalResellerCommission,
   handleSaveRegional,
 }: AppearanceSettingsProps) {
-  // Currency, VAT and the reseller commission are store-wide figures that
-  // happen to sit on the everyone-can-open General tab, so they carry their
-  // own key while the theme and sidebar cards above stay open. Converted
-  // from isAdmin, which is the same population by default.
+  // Currency, VAT and the reseller commission are store-wide figures that happen to sit on the everyone-can-open General tab…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-appearance-settings-tsx-L36
   const canManageStoreSettings = useHasPermission("manage_store_settings");
 
   return (

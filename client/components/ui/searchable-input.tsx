@@ -14,14 +14,11 @@ interface SearchableInputProps extends Omit<React.InputHTMLAttributes<HTMLInputE
   options: (string | SearchOption)[]
   value: string
   onValueChange: (value: string) => void
-  /** Escape closes the suggestion dropdown either way; this additionally
-   * signals "cancel the whole edit", for callers that treat this input as a
-   * commit-on-blur editable cell rather than a plain filter field. */
+  // Escape closes the suggestion dropdown either way; this additionally signals "cancel the whole edit", for callers that tr…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-searchable-input-tsx-L17
   onEscapeKey?: () => void
-  /** Fired with the definitive final value whenever Enter or a dropdown
-   * click commits one — a caller reading `value`/onValueChange's own state
-   * instead would see it a render behind here, since selecting an option
-   * calls onValueChange and this in the same synchronous handler. */
+  // Fired with the definitive final value whenever Enter or a dropdown click commits one — a caller reading `value`/onValueC…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-searchable-input-tsx-L21
   onCommitKey?: (value: string) => void
 }
 
@@ -53,26 +50,15 @@ export function SearchableInput({ options, value, onValueChange, onEscapeKey, on
 
   const [inputValue, setInputValue] = React.useState(getLabelForValue(value))
   const containerRef = React.useRef<HTMLDivElement>(null)
-  // The portaled menu (see below) lives outside containerRef's own DOM
-  // subtree, so the click-outside check below needs its own ref to still
-  // recognize a click on an option as "inside" instead of closing the menu
-  // out from under it before the click can land.
+  // The portaled menu (see below) lives outside containerRef's own DOM subtree, so the click-outside check below needs its o…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-searchable-input-tsx-L56
   const menuRef = React.useRef<HTMLDivElement>(null)
   const [activeIndex, setActiveIndex] = React.useState(-1)
-  // Rendered via a portal (see below) instead of a plain absolutely
-  // positioned child, since every caller so far embeds this inside a
-  // scrollable table/list (catalog-list.tsx's `overflow-y-auto` row
-  // container): a CSS-absolute dropdown positioned relative to an ancestor
-  // inside that container gets clipped by the container's own overflow
-  // the moment it would extend past the visible scroll area, no matter how
-  // high its z-index is — z-index can't override an ancestor's clipping.
-  // Portaling to <body> with `position: fixed` coordinates computed from
-  // the input's own bounding rect escapes every ancestor's overflow/stacking
-  // context, the same way Radix's Popover/DropdownMenu do internally.
+  // Rendered via a portal (see below) instead of a plain absolutely positioned child, since every caller so far embeds this…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-searchable-input-tsx-L62
   const [menuRect, setMenuRect] = React.useState<MenuRect | null>(null)
-  // Stable per-instance ids: the input keeps DOM focus and points at the
-  // highlighted option through aria-activedescendant, so each option needs
-  // its own id and two of these on one page must not collide.
+  // Stable per-instance ids:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-searchable-input-tsx-L73
   const listboxId = React.useId()
   const optionId = (index: number) => `${listboxId}-opt-${index}`
 

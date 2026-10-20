@@ -1,12 +1,7 @@
 import { describe, it, expect } from "vitest";
 
-/**
- * A-58: `npm run test:schema` compared client `audit_logs` against a
- * vestigial MySQL `audit_logs` table instead of the real sync target
- * `activity_logs` (SyncController's `'audit_logs' => ActivityLog::class`),
- * and its column parser lost every column that followed an inline `--`
- * comment in SCHEMA_SQL (e.g. `loyalty_transactions.transaction_id`).
- */
+// A-58: `npm run test:schema` compared client `audit_logs` against a vestigial MySQL `audit_logs` table instead of the rea…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-verify-schema-sync-parsing-test-ts-L3
 describe("verify-schema-sync parsing", () => {
   it("maps client table names onto the server tables the sync engine really writes", async () => {
     const { serverTableFor } = await import("@/scripts/verify-schema-sync");

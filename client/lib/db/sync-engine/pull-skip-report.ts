@@ -8,12 +8,8 @@ export interface SkippedRecord {
 
 export const MAX_REPORTED_SKIPS = 20;
 
-/**
- * One report per pull run instead of one per skipped row. The record ids stay
- * out of the message so a recurring skip keeps a single crash fingerprint and
- * a single Sentry issue; the sample in the context is what identifies them.
- * See client/AGENTS.md, "What reaches Sentry".
- */
+// One report per pull run instead of one per skipped row.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-pull-skip-report-ts-L11
 export function summarizeSkippedRecords(
   skipped: SkippedRecord[],
 ): { message: string; context: CrashContext } | null {

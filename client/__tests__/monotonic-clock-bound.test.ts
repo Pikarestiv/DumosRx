@@ -6,14 +6,8 @@ import {
   MAX_FORWARD_DRIFT_MS,
 } from "@/lib/licensing/monotonic-clock";
 
-/**
- * §2 of docs/superpowers/specs/2026-10-08-license-clock-recovery-design.md.
- *
- * A-191: a laptop's wall clock ran ~12 hours fast, every checkLicenseStatus()
- * wrote that future time into stores.last_monotonic_time, and correcting the
- * clock then locked the till out permanently. Bounding the write against a
- * monotonic reference stops the watermark being poisoned in the first place.
- */
+// §2 of docs/superpowers/specs/2026-10-08-license-clock-recovery-design.md.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-monotonic-clock-bound-test-ts-L9
 const BASE = Date.UTC(2026, 9, 8, 11, 0, 0);
 
 let perf = 0;

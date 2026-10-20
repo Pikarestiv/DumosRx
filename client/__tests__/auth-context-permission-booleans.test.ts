@@ -3,14 +3,8 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import initSqlJs, { type Database } from "sql.js";
 
-// Same mock set as auth-impersonation-storage-leak.test.tsx: mounting the
-// real AuthProvider otherwise pulls in Sentry/apiClient/sync-engine/the
-// shared queryClient singleton/native widget bridge, none of which this
-// file needs to exercise - and, without mocking the queryClient singleton
-// specifically, a still-running effect from a prior test in this file
-// (see the afterEach cleanup below for why that shouldn't happen either,
-// belt-and-braces) could call the real invalidateQueries during another
-// test file's run.
+// Same mock set as auth-impersonation-storage-leak.test.tsx:
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-auth-context-permission-booleans-test-ts-L6
 vi.mock("@sentry/nextjs", () => ({
   setUser: vi.fn(),
   setTag: vi.fn(),
@@ -39,14 +33,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Confirms the migration is behavior-preserving: an auditor (who is denied
- * process_sales by DEFAULT_GROUP_PERMISSIONS.auditor, same as
- * checkCanProcessSales denied them before) still sees canProcessSales as
- * false once assigned their seeded default group, and a manager (granted
- * it) sees it as true - i.e. the new data-driven path agrees with the old
- * hardcoded arrays for the default groups.
- */
+// Confirms the migration is behavior-preserving:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-auth-context-permission-booleans-test-ts-L42
 describe("useAuth's permission booleans after the group-based migration", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -79,13 +67,7 @@ describe("useAuth's permission booleans after the group-based migration", () => 
   });
 
   // Without this, each test's AuthProvider (and its live useEffects, e.g.
-  // the async getUserPermissionGroup() lookup) stays mounted after the
-  // test's own assertions run, free to fire a state update - or a real DB
-  // query against whatever `db` a LATER test file has since installed via
-  // core.__setDatabaseForTesting() - well outside this test's own act()
-  // boundary. Confirmed to cause exactly that: an unrelated test file
-  // failed only when run in the same suite as this one, never in
-  // isolation, until this cleanup was added.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-auth-context-permission-booleans-test-ts-L81
   afterEach(() => {
     act(() => root?.unmount());
     container.remove();
@@ -132,27 +114,13 @@ describe("useAuth's permission booleans after the group-based migration", () => 
     expect(capturedFlags.canProcessSales).toBe(true);
   });
 
-  // The two cases above happen to agree with the OLD hardcoded
-  // checkCanProcessSales(role) array too, so on their own they can't prove
-  // the new logic actually reads the assigned GROUP rather than just the
-  // role string. This case uses a role checkCanProcessSales would have
-  // denied (auditor), but grants it via the group instead - only
-  // group-driven logic can pass this.
-  /**
-   * Pins a DELIBERATE, spec-sanctioned behavior change: the old hardcoded
-   * helpers (checkIsAdmin/checkCanManageStockBatch/checkCanViewAllActivity)
-   * never listed super_admin in their role arrays, so they returned false
-   * for that role. hasPermission() now short-circuits to "everything
-   * granted" for store_owner/super_admin ("can never lock themselves out",
-   * per the design spec), so a super_admin - i.e. an impersonation session -
-   * now sees admin-tier UI in these three places. Intentional, not a
-   * regression: if this test starts failing, the bypass rule was changed,
-   * not "fixed".
-   */
+  // The two cases above happen to agree with the OLD hardcoded checkCanProcessSales(role) array too, so on their own they ca…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-auth-context-permission-booleans-test-ts-L135
+  // Pins a DELIBERATE, spec-sanctioned behavior change:
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-auth-context-permission-booleans-test-ts-L141
   it("grants a super_admin every admin-tier boolean via the bypass rule, unlike the old helpers", async () => {
-    // An EMPTY group, not no group at all: with no group the role-string
-    // fallback would grant these anyway, so only an assigned group that
-    // grants nothing can prove the store_owner/super_admin bypass itself.
+    // An EMPTY group, not no group at all:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-auth-context-permission-booleans-test-ts-L153
     await renderWithUser("super_admin", []);
     expect(capturedFlags.isAdmin).toBe(true);
     expect(capturedFlags.canManageStockBatch).toBe(true);

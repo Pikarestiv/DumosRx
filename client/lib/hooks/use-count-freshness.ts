@@ -46,9 +46,8 @@ export function useCountFreshness(): CountFreshness {
     minutesBehind: device.minutes_behind,
   }));
 
-  // Only asserted against a complete movement log: a device still catching up
-  // can read a deficit that the movements it has not pulled yet would explain,
-  // which is the same freshness condition the count warning itself exists for.
+  // Only asserted against a complete movement log:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-count-freshness-ts-L49
   const { data: deficitRows } = useQuery({
     ...queryKeys.stockBatches.batchDeficits(),
     queryFn: async () => ((await movementLogIsComplete()) ? getBatchDeficits() : []),

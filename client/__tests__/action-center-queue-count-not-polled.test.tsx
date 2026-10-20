@@ -4,16 +4,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import React from "react";
 
-/**
- * A-18 (docs/KNOWN_BUGS.md): useActionCenterAlerts polled
- * queryKeys.sync.queueCount() every 5 seconds. Because SyncIndicator shares
- * that exact query key, the shorter interval won app-wide while the
- * dashboard was mounted, running a COUNT(*) against main-thread sql.js —
- * behind the connection-wide lock — every 5 s forever.
- *
- * The count must instead be driven by core.ts's sync-queue change events,
- * with only the same slow 30 s safety net SyncIndicator already uses.
- */
+// A-18 (docs/KNOWN_BUGS.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-action-center-queue-count-not-polled-test-tsx-L7
 
 const state = {
   syncQueueCount: 0,

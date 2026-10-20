@@ -14,9 +14,8 @@ interface UserSelectionProps {
   onSetUpNewDevice?: () => void;
 }
 
-// Deterministic per-user accent so avatars aren't all the same flat primary
-// tint. Cycles through a small curated set rather than hashing to anything
-// unbounded, so the palette stays on-brand.
+// Deterministic per-user accent so avatars aren't all the same flat primary tint.
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-user-selection-tsx-L17
 const AVATAR_ACCENTS = [
   {
     ring: "group-hover:ring-primary/40 group-focus-visible:ring-primary/40",
@@ -60,10 +59,8 @@ const tileVariants = {
   show: { opacity: 1, y: 0, scale: 1 },
 };
 
-// Netflix/Apple-TV-style profile picker: floating avatar + label, no card
-// chrome, colored glow bloom behind each avatar on hover. Chosen over a
-// bordered-card grid because the previous design read as "the same" at a
-// glance. This reads unmistakably different even in a quick screenshot.
+// Netflix/Apple-TV-style profile picker:
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-user-selection-tsx-L63
 export function UserSelection({
   recentUsers,
   onSelectUser,
@@ -72,15 +69,13 @@ export function UserSelection({
   onSetUpNewDevice,
 }: UserSelectionProps) {
   const [removingUser, setRemovingUser] = useState<RecentUser | null>(null);
-  // ConfirmDialog keeps rendering through its exit animation after
-  // removingUser is nulled on confirm/close - keep the last real value
-  // around so the description doesn't flash "undefined" mid-fade.
+  // ConfirmDialog keeps rendering through its exit animation after removingUser is nulled on confirm/close - keep the last r…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-user-selection-tsx-L75
   const lastRemovingUser = useRef<RecentUser | null>(null);
   if (removingUser) lastRemovingUser.current = removingUser;
   const removingUserDisplay = removingUser ?? lastRemovingUser.current;
-  // Determined client-side only (defaults to the Windows/Linux label on
-  // first render) to avoid a hydration mismatch: navigator isn't available
-  // during SSR.
+  // Determined client-side only (defaults to the Windows/Linux label on first render) to avoid a hydration mismatch:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-user-selection-tsx-L81
   const [lockShortcutLabel, setLockShortcutLabel] = useState("Ctrl+L");
   useEffect(() => {
     if (navigator.userAgent.includes("Mac")) {
@@ -92,11 +87,8 @@ export function UserSelection({
   const avatarSize = isSingle
     ? "h-28 w-28 sm:h-32 sm:w-32"
     : "h-20 w-20 sm:h-24 sm:w-24";
-  // Tile width must be >= the avatar's own width at every breakpoint. A
-  // narrower fixed tile (there used to be a flat w-24 here regardless of
-  // avatarSize) lets the circle overflow its own slot, silently eating into
-  // whatever gap-x is set and, worse, compounding with the hover scale below
-  // until neighboring tiles visibly overlap.
+  // Tile width must be >= the avatar's own width at every breakpoint.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-user-selection-tsx-L95
   const tileWidth = isSingle ? "w-28 sm:w-32" : "w-20 sm:w-24";
 
   return (
@@ -128,13 +120,8 @@ export function UserSelection({
           variants={listVariants}
           initial="hidden"
           animate="show"
-          // Grid, not flex-wrap: flex-wrap re-centers each wrapped row
-          // independently, so a trailing row with just one or two tiles (e.g.
-          // 3 users + the "Someone else" tile) ends up visually orphaned with
-          // a big centered gap under it. A fixed-column grid keeps every row
-          // left-aligned to the same columns instead. The single-user case
-          // has only two tiles total (them + "someone else"), so it stays a
-          // simple centered row rather than a mostly-empty 3-column grid.
+          // Grid, not flex-wrap: flex-wrap re-centers each wrapped row independently, so a trailing row with just one or two tiles (…
+          // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-user-selection-tsx-L131
           className={cn(
             isSingle
               ? "flex justify-center gap-x-8"
@@ -149,10 +136,7 @@ export function UserSelection({
                 variants={tileVariants}
                 className={cn("group relative", tileWidth)}
               >
-                {/* A plain button, not motion.button: the remove "x" below
-                   needs to be a sibling (not a nested interactive
-                   descendant, which the button content model disallows and
-                   which real browsers/AT can drop from the a11y tree). */}
+                {/* A plain button, not motion.button: — docs/CLIENT_COMMENTS.md#block-components-auth-user-selection-tsx-L152 */}
                 <button
                   type="button"
                   onClick={() => onSelectUser(user)}

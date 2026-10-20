@@ -7,16 +7,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression test for the High-severity bug: a redemption picked earlier in
- * checkout (e.g. from a stale cached customer.loyalty_points, or another
- * terminal having already spent the points) was applied against the
- * customer's real balance by clamping the result at 0 instead of rejecting
- * - the customer effectively got the reward's discount for free. Runs
- * against a real in-memory SQLite engine, not a mocked update(), since the
- * bug is specifically about what applyLoyaltyPointsForSale does with the
- * freshly re-read balance.
- */
+// Regression test for the High-severity bug:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-loyalty-redemption-revalidation-test-ts-L10
 describe("applyLoyaltyPointsForSale re-validates the redemption against the real balance", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -48,9 +40,8 @@ describe("applyLoyaltyPointsForSale re-validates the redemption against the real
   const baseCustomer = { id: "c1", first_name: "Jane", loyalty_points: 50 } as unknown as Customer;
 
   it("rejects (throws InsufficientLoyaltyPointsError) instead of clamping when the real balance can't cover the redemption", async () => {
-    // selectedCustomer is stale here on purpose - the cart picked a
-    // redemption when the cache said 200 points, but the real row (just
-    // seeded above) only has 50.
+    // selectedCustomer is stale here on purpose - the cart picked a redemption when the cache said 200 points, but the real ro…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-loyalty-redemption-revalidation-test-ts-L51
     const staleCustomer = { ...baseCustomer, loyalty_points: 200 };
 
     await expect(
@@ -72,9 +63,8 @@ describe("applyLoyaltyPointsForSale re-validates the redemption against the real
   });
 
   it("still applies a redemption the real balance can genuinely cover", async () => {
-    // Balance raised above LOYALTY_RULES.MIN_REDEMPTION_POINTS (100), which
-    // is now a hard floor on a reward's cost - a 30-point redemption would be
-    // rejected by that rule rather than by the balance check under test here.
+    // Balance raised above LOYALTY_RULES.MIN_REDEMPTION_POINTS (100), which is now a hard floor on a reward's cost - a 30-poin…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-loyalty-redemption-revalidation-test-ts-L75
     db.run(`UPDATE customers SET loyalty_points = 150 WHERE id = 'c1'`);
 
     await applyLoyaltyPointsForSale({

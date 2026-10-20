@@ -4,16 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-/**
- * Regression test (A-154, docs/FIXED_BUGS.md): /login's setup/login tabs
- * share one mounted page instance across the whole register -> confirm-wipe
- * -> new-account flow (no remount). useDeviceAuthStatus() used to read
- * userCount/recentUsers only once, on that instance's first mount - before
- * clearDatabaseForNewStore() ever ran - so a later bounce back to /login
- * (e.g. dashboard-layout's `!user` guard) rendered the stale pre-wipe
- * account instead of the new one. Fixed by having useOnboarding() call an
- * injected refetch callback right after the wipe and right after login.
- */
+// Regression test (A-154, docs/FIXED_BUGS.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-onboarding-refetches-device-auth-status-test-ts-L7
 
 const routerPushMock = vi.fn();
 const loginMock = vi.fn(async () => true);
@@ -134,9 +126,8 @@ describe("useOnboarding(onDeviceDataChanged)", () => {
     const loginOrder = loginMock.mock.invocationCallOrder[0];
     const secondRefetchOrder = onDeviceDataChangedMock.mock.invocationCallOrder[1];
 
-    // Refetches straddle both staleness windows: right after the wipe (so a
-    // bounce-to-/login before login() resolves sees userCount=0, not the old
-    // account) and right after login() (so it sees the new account).
+    // Refetches straddle both staleness windows:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-onboarding-refetches-device-auth-status-test-ts-L137
     expect(wipeOrder).toBeLessThan(firstRefetchOrder);
     expect(firstRefetchOrder).toBeLessThan(loginOrder);
     expect(loginOrder).toBeLessThan(secondRefetchOrder);

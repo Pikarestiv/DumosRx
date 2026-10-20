@@ -1,12 +1,8 @@
 import type { DeviceDiagnostics } from "@/lib/db/queries/diagnostics";
 import { peekDeliveredAges } from "@/lib/db/sync-engine/delivery-age";
 
-/**
- * The pasteable support ticket. Privacy is the governing constraint, not
- * completeness: a sync `last_error`'s first 300 chars can be a driver error
- * quoting a whole row, so this file emits reason CLASSES, never raw errors,
- * and never the licence token or an audit row's free-form details.
- */
+// The pasteable support ticket.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-diagnostics-diagnostics-report-ts-L4
 const LOOKS_LIKE_SQL = /SQLSTATE|INSERT |UPDATE |SELECT |constraint/i;
 
 /** Matches `/support`'s own `max` on `message` — see laravel-server/AGENTS.md,

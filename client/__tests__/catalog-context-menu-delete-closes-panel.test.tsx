@@ -2,12 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import React from "react";
 
-/**
- * Regression coverage for FIXED_BUGS.md A-46: deleting a product through the
- * row context menu left its detail panel open and editable against a row
- * that no longer exists. The panel's own Delete action always called
- * onClose(); the context-menu path only refetched the list.
- */
+// Regression coverage for FIXED_BUGS.md A-46:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-catalog-context-menu-delete-closes-panel-test-tsx-L5
 
 if (!globalThis.ResizeObserver) {
   globalThis.ResizeObserver = class {

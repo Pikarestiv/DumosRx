@@ -4,24 +4,8 @@ import React from "react";
 import type { Product } from "@/components/products/types";
 import type { CatalogRowProps } from "@/components/products/catalog-row";
 
-/**
- * CatalogRow is React.memo'd, but every save handler CatalogList passed it was
- * a fresh function on every render, so the memo never bailed out and all ~20
- * visible rows (each with four stateful editable cells) re-rendered on any
- * parent render. Two causes:
- *
- *  - the useCallbacks depended on the whole `useMutation` result, which
- *    react-query rebuilds as a new object literal on every render
- *    (`return { ...result, mutate, mutateAsync: result.mutate }`); only
- *    `.mutateAsync` is stable, being bound once per observer.
- *  - `onProductUpdated` arrived from product-database as an inline
- *    `() => void refetch()`.
- *
- * Render-count assertions are brittle (see pos-product-list-memoization), so
- * this pins the actual mechanism instead: the handler props CatalogRow receives
- * must keep their identity across a parent rerender that changes nothing
- * relevant.
- */
+// CatalogRow is React.memo'd, but every save handler CatalogList passed it was a fresh function on every render, so the me…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-catalog-list-row-callback-identity-test-tsx-L7
 
 const capturedProps: CatalogRowProps[] = [];
 
@@ -47,9 +31,8 @@ vi.mock("@tanstack/react-virtual", () => ({
   }),
 }));
 
-// Mirrors react-query's real contract: a brand-new result object per render,
-// with a stable mutateAsync. A fix that depends on the whole object therefore
-// still breaks here, exactly as it does in the app.
+// Mirrors react-query's real contract:
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-catalog-list-row-callback-identity-test-tsx-L50
 const quickEditMutateAsync = vi.fn().mockResolvedValue(undefined);
 const stockAuditMutateAsync = vi.fn().mockResolvedValue(undefined);
 

@@ -8,15 +8,8 @@ interface FakeMovementLike {
   _deleted?: unknown;
 }
 
-/**
- * What `insert("stock_movements", …)` now does to the batch it names, for the
- * in-memory fakes that stub out `@/lib/db/local-database` — see
- * `resolveBatchQuantity()` in `lib/db/batch-quantity.ts`, which this mirrors.
- * Call it after the movement has been pushed onto `movements`, the way the
- * real hook runs after the row is written. `applied: false` mirrors
- * `movementChange(q, false)`, i.e. a soft-delete: pass the movement's own
- * quantity and mark it `_deleted` in `movements` first.
- */
+// What `insert("stock_movements", …)` now does to the batch it names, for the in-memory fakes that stub out `@/lib/db/loca…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-helpers-fake-batch-quantity-ts-L11
 export function applyMovementToFakeBatch(
   batches: Record<string, FakeBatchLike>,
   movements: FakeMovementLike[],

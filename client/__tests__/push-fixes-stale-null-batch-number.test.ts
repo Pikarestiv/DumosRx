@@ -12,18 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * Regression test for a real report: fixing importProductRows() to stop
- * writing batch_number: null (see product-import.ts) only prevents NEW
- * stock_batches inserts from having the bug — any row already sitting in
- * _sync_queue keeps its frozen JSON snapshot from before the fix, still
- * carrying the literal null. Those kept failing the server's NOT NULL
- * constraint on every retry, indefinitely, since a client code fix alone
- * can't rewrite data already queued. Confirmed via a real failure log: a
- * still-queued stock_batches INSERT from before the fix, retried after the
- * backoff-bypass change, failing with the exact same "Column batch_number
- * cannot be null" error. push.ts must patch it defensively at push time.
- */
+// Regression test for a real report:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-fixes-stale-null-batch-number-test-ts-L15
 describe("pushChanges patches a stale null batch_number before sending", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -68,24 +58,8 @@ describe("pushChanges patches a stale null batch_number before sending", () => {
     expect(sentChanges[0].payload.batch_number).toBe("Opening Stock");
   });
 
-  /**
-   * Regression coverage for a review finding on the round-2 stock_batches
-   * version-conflict exemption (_known-bugs.md #11): this same fallback
-   * used to run unconditionally for EVERY stock_batches change, including
-   * ordinary UPDATEs. A real quantity-only sale UPDATE (see
-   * updateStockBatchQuantity()/deductFromBatch() in
-   * lib/db/queries/inventory.ts, restoreBatchQuantity() in
-   * lib/db/queries/returns.ts) queues a payload of just
-   * {quantity, updated_at, _version, _synced} — no batch_number at all — so
-   * this line was silently injecting the placeholder into it. The server's
-   * narrowed exemption (SyncController::push) only fires when the payload
-   * is provably quantity-only after stripping bookkeeping fields; with
-   * batch_number always present, it was never actually empty, so the
-   * exemption never fired — reintroducing the exact false version_conflict
-   * on ordinary multi-terminal sales the exemption was built to prevent.
-   * Gating the fallback to INSERT-only (matching its actual, stated
-   * rationale: a NOT NULL column on legacy queued INSERTs) fixes this.
-   */
+  // Regression coverage for a review finding on the round-2 stock_batches version-conflict exemption (_known-bugs.md #11):
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-fixes-stale-null-batch-number-test-ts-L71
   it("does NOT inject batch_number into an ordinary stock_batches UPDATE payload, preserving the server exemption's provably-quantity-only property", async () => {
     db.run(
       `INSERT INTO stock_batches (id, product_id, batch_number, quantity, _deleted) VALUES ('b2', 'p1', 'B-REAL-100', 100, 0)`,
@@ -101,9 +75,8 @@ describe("pushChanges patches a stale null batch_number before sending", () => {
 
     const sentChanges = apiClient.pushChanges.mock.calls[0][0].changes;
     expect(sentChanges[0].payload.batch_number).toBeUndefined();
-    // The real batch_number was never touched by this fallback at all —
-    // still exactly what the local row already had, not overwritten with
-    // a placeholder and not sent back to the server to clobber anything.
+    // The real batch_number was never touched by this fallback at all — still exactly what the local row already had, not over…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-push-fixes-stale-null-batch-number-test-ts-L104
     expect("batch_number" in sentChanges[0].payload).toBe(false);
   });
 });

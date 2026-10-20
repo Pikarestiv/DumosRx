@@ -37,15 +37,8 @@ export function useSavePrescriptionMutation() {
           updated_at: now,
         });
 
-        // Reconcile items instead of delete-all-then-reinsert: a blind
-        // reinsert gives every medication a fresh row, which resets
-        // refills_used to 0 and recomputes next_refill_date from "now",
-        // silently wiping the refill history of a medication that's still on
-        // the prescription. Identity here is product_name + strength + dosage
-        // (the form doesn't round-trip a stable item id for existing rows), so
-        // a still-present medication is updated in place — keeping its id,
-        // refills_used and next_refill_date — while only genuinely removed
-        // rows are deleted and genuinely new ones inserted.
+        // Reconcile items instead of delete-all-then-reinsert:
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-save-prescription-mutation-ts-L40
         const existingItems = await getPrescriptionItems(editRxId);
         const identityKey = (productName: string, strength?: string, dosage?: string) =>
           `${productName}|${strength || ""}|${dosage || ""}`;

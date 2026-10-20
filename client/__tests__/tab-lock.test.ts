@@ -1,15 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-/**
- * Minimal same-process BroadcastChannel fake, scoped to one describe block
- * via a fresh registry per test (see its beforeEach/afterEach below). The
- * real BroadcastChannel is a genuine cross-realm primitive keyed by name,
- * not JS module state - `vi.resetModules()` gives tab-lock.ts a fresh
- * `handoffChannel` variable each test, but a real channel object it created
- * in an earlier test is never closed and keeps receiving broadcasts, so
- * reusing the real one here would leak listeners (with stale/undefined
- * callbacks) across tests and race with the current test's own listener.
- */
+// Minimal same-process BroadcastChannel fake, scoped to one describe block via a fresh registry per test (see its beforeEa…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-tab-lock-test-ts-L3
 class FakeBroadcastChannel {
   private static registry = new Map<string, Set<FakeBroadcastChannel>>();
   private listeners = new Set<(event: { data: unknown }) => void>();
@@ -41,13 +33,8 @@ class FakeBroadcastChannel {
   }
 }
 
-/**
- * Regression coverage for the single-writer-tab election in tab-lock.ts
- * (docs/KNOWN_BUGS.md C1 - two browser/PWA tabs could silently overwrite
- * each other's committed sql.js data with no error or warning). jsdom
- * doesn't implement the Web Locks API at all, so every scenario here stubs
- * `navigator.locks` directly rather than relying on a real browser lock.
- */
+// Regression coverage for the single-writer-tab election in tab-lock.ts (docs/KNOWN_BUGS.md C1 - two browser/PWA tabs coul…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-tab-lock-test-ts-L44
 describe("tab-lock", () => {
   const originalLocks = (navigator as unknown as { locks?: unknown }).locks;
 
@@ -129,11 +116,8 @@ describe("tab-lock", () => {
     expect(isWriterTab()).toBe(false);
     expect(onPromoted).not.toHaveBeenCalled();
 
-    // "The other tab closes" - the queued lock request is now granted. Not
-    // awaited directly: like the real Web Locks API, the callback holds the
-    // lock (and its returned promise) open indefinitely once granted, so
-    // only a couple of microtask ticks are awaited here, enough for
-    // onPromoted() and the writer-flag flip inside it to run.
+    // "The other tab closes" - the queued lock request is now granted.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-tab-lock-test-ts-L132
     expect(queuedGrant).not.toBeNull();
     void queuedGrant!();
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -199,16 +183,8 @@ describe("tab-lock", () => {
   });
 });
 
-/**
- * Graceful handoff (BroadcastChannel handshake): a read-only tab can ask the
- * current writer tab to force a save and voluntarily release the Web Lock,
- * rather than waiting for it to close on its own. jsdom/Node both provide a
- * real BroadcastChannel; tests use a second, independently-constructed
- * instance with the same channel name to stand in for "the other tab" -
- * BroadcastChannel deliberately never delivers a message back to the
- * instance that sent it, so reusing tab-lock's own internal channel for
- * both sides of a handshake within one test would never see anything.
- */
+// Graceful handoff (BroadcastChannel handshake):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-tab-lock-test-ts-L202
 describe("tab-lock: writer handoff handshake", () => {
   const HANDOFF_CHANNEL_NAME = "dumosrx-db-writer-handoff";
   const originalBroadcastChannel = globalThis.BroadcastChannel;
@@ -305,9 +281,8 @@ describe("tab-lock: writer handoff handshake", () => {
           requests.push({ opts });
           if (opts.steal) return Promise.resolve(cb({}));
           if (opts.ifAvailable) return Promise.resolve(cb(null)); // contested - read-only
-          // This tab's queued request behind the current (never-modeled)
-          // holder - stays pending, putting this tab in the read-only state
-          // stealWriterLock() is meant to be called from.
+          // This tab's queued request behind the current (never-modeled) holder - stays pending, putting this tab in the read-only s…
+          // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-tab-lock-test-ts-L308
           return new Promise<void>(() => {});
         },
       },

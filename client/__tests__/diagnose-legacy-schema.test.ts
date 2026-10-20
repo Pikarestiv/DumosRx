@@ -7,13 +7,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Sanity check for diagnoseLegacySchema(): a device already fully on the
- * current schema reports clean, and a device carrying real legacy artifacts
- * (old table name, unmigrated stock_quantity, NOT NULL supplier_id) reports
- * every one of them by name. Run before trusting the tool's output against
- * real production/dev devices.
- */
+// Sanity check for diagnoseLegacySchema():
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-diagnose-legacy-schema-test-ts-L10
 describe("diagnoseLegacySchema()", () => {
   it("reports clean on a database that's already fully migrated", async () => {
     const core = await import("@/lib/db/core");
@@ -68,10 +63,8 @@ describe("diagnoseLegacySchema()", () => {
     });
     const db = new SQL.Database();
     db.run(SCHEMA_SQL);
-    // SCHEMA_SQL alone doesn't carry store_id on products — that column is
-    // added by runSyncColumnMigrations at init. Add it the same way, then
-    // leave a row with a NULL store_id, i.e. exactly what
-    // backfillStoreIdOnLegacyRows exists to repair.
+    // SCHEMA_SQL alone doesn't carry store_id on products — that column is added by runSyncColumnMigrations at init.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-diagnose-legacy-schema-test-ts-L71
     db.run("ALTER TABLE products ADD COLUMN store_id TEXT");
     db.run("INSERT INTO products (id, name, store_id) VALUES ('p_legacy', 'legacy item', NULL)");
     core.__setDatabaseForTesting(db);

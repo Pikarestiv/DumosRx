@@ -142,12 +142,8 @@ export function clearRecentUsers(): void {
   remove(STORAGE_KEYS.recentUsers);
 }
 
-/**
- * The store id the API client stamps on `X-Store-Id`. Named `…Stored…` to
- * keep it distinct from `core.ts`'s `getActiveStoreId()`, which resolves the
- * store id used for local queries — the two having drifted apart is the bug
- * class A-23 exists to prevent (see `auth-context.tsx`).
- */
+// The store id the API client stamps on `X-Store-Id`.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#storage-keys-ts-L145
 export function getStoredActiveStoreId(): string | null {
   return read(STORAGE_KEYS.activeStoreId);
 }
@@ -162,12 +158,8 @@ export function getLastSyncTime(): string | null {
   return stored;
 }
 
-/**
- * Whether anything is stored under the last-sync key, readable or not. The
- * difference matters: `getLastSyncTime()` returns null both for a device that
- * has never synced and for one whose stored value cannot be parsed, and a
- * guard that treats the second as the first stops running (A-234).
- */
+// Whether anything is stored under the last-sync key, readable or not.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#storage-keys-ts-L165
 export function hasStoredLastSyncTime(): boolean {
   return read(STORAGE_KEYS.lastSyncTime) !== null;
 }

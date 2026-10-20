@@ -3,14 +3,8 @@ import { render, fireEvent, screen } from "@testing-library/react";
 import { EditableQuickNumberCell } from "@/components/products/catalog-editable-cells";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 
-/**
- * U5: the catalog's inline stock-quantity quick-edit committed a real
- * inventory adjustment (and a permanent movement-ledger row) ON BLUR, so
- * tapping away from a half-typed number on a tablet wrote a wrong stock
- * level. That cell must commit only on an explicit confirm.
- * U10: none of these number inputs set inputMode, so Android WebView showed
- * a full keyboard instead of a numeric keypad.
- */
+// U5: the catalog's inline stock-quantity quick-edit committed a real inventory adjustment (and a permanent movement-ledge…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-catalog-quick-edit-commit-test-tsx-L6
 describe("catalog quick-edit commit semantics", () => {
   function renderCell(props: Partial<React.ComponentProps<typeof EditableQuickNumberCell>> = {}) {
     const onSave = vi.fn();

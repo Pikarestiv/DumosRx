@@ -11,9 +11,8 @@ const NO_BLOCKERS: ProductDeletionBlockers = {
   openPurchaseOrders: 0,
 };
 
-/** Reads the two dependencies that stop a product being deleted, so the
- * confirmation dialog can say which one is in the way. deleteProduct()
- * re-checks them itself - this is for wording, not enforcement. */
+// Reads the two dependencies that stop a product being deleted, so the confirmation dialog can say which one is in the way.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-product-delete-ts-L14
 export function useProductDeletionBlockers(productId: string | null) {
   const { data = NO_BLOCKERS, isPending } = useQuery({
     ...queryKeys.products.deletionBlockers(productId),

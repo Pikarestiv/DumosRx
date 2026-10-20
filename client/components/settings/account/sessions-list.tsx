@@ -16,9 +16,8 @@ function getDeviceIcon(session: Session) {
   return Monitor;
 }
 
-// Pre-fix registrations named their token literally 'auth_token' (see
-// RegistersAccounts.php) - treated as absent so those sessions still fall
-// back to a real, readable name instead of showing that internal string.
+// Pre-fix registrations named their token literally 'auth_token' (see RegistersAccounts.php) - treated as absent so those…
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-account-sessions-list-tsx-L19
 const NOT_A_REAL_DEVICE_NAME = new Set(["unknown", "auth_token"]);
 
 function parseDeviceName(session: Session) {

@@ -5,14 +5,8 @@ import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { useUppercaseDisplayClass, capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 
-/** Shared hover/touch affordance for a per-cell quick edit: on a mouse/
- * trackpad device every editable cell's pencil appears together as soon as
- * the pointer is anywhere over the row (`group-hover`, keyed off the row's
- * own `group` class) — signalling up front which cells are editable, rather
- * than only revealing one pencil at a time as the cursor happens to pass
- * over it. On a touch-capable device it renders statically since :hover
- * never fires there, so it has to be visible up front to be discoverable at
- * all. */
+// Shared hover/touch affordance for a per-cell quick edit:
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-products-catalog-editable-cells-tsx-L8
 function CellEditPencil({ hasTouchCapability }: { hasTouchCapability: boolean }) {
   return (
     <Pencil

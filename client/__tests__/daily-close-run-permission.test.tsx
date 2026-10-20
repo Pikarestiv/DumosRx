@@ -15,14 +15,8 @@ vi.mock("@/hooks/use-settings", () => ({
 
 import { DailyCloseHeader } from "@/components/reports/daily-close/daily-close-header";
 
-/**
- * "Run Daily Close (End of Day)" is not a ledger-locking write in this app —
- * the close IS securing the day's data: a full local backup of the SQLite
- * file plus a forced cloud sync, both offered from the Daily Close banner.
- * Those two buttons are the only things on the whole screen that DO
- * anything, and they were reachable by every role, cashiers included, while
- * the identical operations in Settings sit behind backup_restore_data.
- */
+// "Run Daily Close (End of Day)" is not a ledger-locking write in this app — the close IS securing the day's data:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-daily-close-run-permission-test-tsx-L18
 describe("Daily Close run permission", () => {
   beforeEach(() => {
     hasPermission.mockReset();

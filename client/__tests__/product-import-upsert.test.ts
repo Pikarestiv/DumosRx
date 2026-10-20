@@ -134,10 +134,8 @@ describe("importProductRows", () => {
     ]);
 
     expect(result.created).toBe(1);
-    // COLLATE NOCASE rather than asserting a specific case: the pre-existing
-    // row was inserted via raw SQL above (bypassing the app's own
-    // lowercase-on-write normalization), while the imported row goes through
-    // it — this only cares that both count as "PARACETAMOL" regardless.
+    // COLLATE NOCASE rather than asserting a specific case:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-product-import-upsert-test-ts-L137
     const count = db.exec(`SELECT COUNT(*) FROM products WHERE name = 'PARACETAMOL' COLLATE NOCASE`);
     expect(count[0].values[0][0]).toBe(2);
   });
@@ -212,10 +210,8 @@ describe("importProductRows", () => {
     expect(noopRun.stockAdjusted).toBe(0);
   });
 
-  // A-21: the matched-stock branch reconciles through submitStockAudit(),
-  // whose stock_audits.user_id is a constrained FK server-side. The check
-  // has to happen before the main transaction, or an import commits its
-  // products and only then discovers it can't record the stock audit.
+  // A-21: the matched-stock branch reconciles through submitStockAudit(), whose stock_audits.user_id is a constrained FK ser…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-product-import-upsert-test-ts-L215
   it("refuses an updateStockForMatched import with no performing user, before writing anything", async () => {
     await expect(
       importProductRows(

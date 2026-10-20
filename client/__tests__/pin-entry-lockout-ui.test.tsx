@@ -16,13 +16,8 @@ class ResizeObserverStub {
 (globalThis as unknown as { ResizeObserver: typeof ResizeObserverStub }).ResizeObserver =
   ResizeObserverStub;
 
-/**
- * Regression coverage for a follow-up to the PIN-lockout fix: a lockout
- * was originally surfaced only via a toast (auto-dismisses in a few
- * seconds, easy to miss, no visible reason the Unlock button stopped
- * working). PinEntry must show a persistent, visible countdown and
- * disable PIN input for as long as the lockout is active.
- */
+// Regression coverage for a follow-up to the PIN-lockout fix:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pin-entry-lockout-ui-test-tsx-L19
 
 vi.mock("framer-motion", () => ({
   motion: new Proxy(

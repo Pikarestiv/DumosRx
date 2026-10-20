@@ -6,13 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Exercises logRequestedProduct()/getRequestedProducts() against a genuine
- * in-memory SQLite engine (sql.js), not a mocked query(). The dedup/merge
- * logic in logRequestedProduct (case-insensitive name match, incrementing
- * request_count, merging customer names and notes without duplicating them)
- * is exactly the kind of business logic a mock can't verify.
- */
+// Exercises logRequestedProduct()/getRequestedProducts() against a genuine in-memory SQLite engine (sql.js), not a mocked…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-requested-products-test-ts-L9
 describe("requested-products-queries.ts", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

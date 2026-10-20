@@ -22,9 +22,8 @@ interface TooltipContextValue {
 }
 const TooltipContext = React.createContext<TooltipContextValue | null>(null)
 
-/** Radix's hover/focus-based trigger doesn't respond to touch, so on
- * touch devices this manages its own controlled `open` state and lets
- * TooltipTrigger toggle it on tap instead. */
+// Radix's hover/focus-based trigger doesn't respond to touch, so on touch devices this manages its own controlled `open` s…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-tooltip-tsx-L25
 function Tooltip({
   open: openProp,
   onOpenChange,
@@ -64,14 +63,8 @@ const TooltipTrigger = React.forwardRef<
       ref={ref}
       onClick={(e) => {
         onClick?.(e)
-        // Toggle the touch-controlled open state alongside whatever this
-        // trigger's own click does (navigate, submit, etc.) — never
-        // preventDefault here: it doesn't stop other composed onClick
-        // handlers (a plain <button>'s onClick fires regardless), but it
-        // does make next/link check event.defaultPrevented and skip its
-        // own router.push(), silently cancelling navigation on the first
-        // tap for any tooltip-wrapped Link (exactly the iPad "first tap
-        // only shows the tooltip, second tap navigates" bug this caused).
+        // Toggle the touch-controlled open state alongside whatever this trigger's own click does (navigate, submit, etc.) — never…
+        // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-tooltip-tsx-L67
         if (ctx) {
           ctx.setOpen(!ctx.open)
         }

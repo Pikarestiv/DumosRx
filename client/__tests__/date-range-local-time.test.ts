@@ -1,18 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 
-/**
- * Regression test: toQueryRange() anchored a date-only picker value to
- * literal UTC midnight (`${date}T00:00:00.000Z`), but every store-local
- * timestamp it's compared against (sales.transaction_date,
- * returns.created_at, etc.) is a real UTC instant of a LOCAL calendar day -
- * the dashboard/daily-close bucket by local time via SQLite's 'localtime'
- * modifier. Anchoring to UTC midnight instead shifted every report's
- * day/month boundaries by the store's UTC offset relative to the
- * dashboard.
- *
- * Runs with TZ=Africa/Lagos (UTC+1) so local and UTC genuinely differ,
- * proving the fix rather than coincidentally passing in a UTC test env.
- */
+// Regression test: toQueryRange() anchored a date-only picker value to literal UTC midnight (`${date}T00:00:00.000Z`), but…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-date-range-local-time-test-ts-L3
 describe("toQueryRange (local-time day boundaries)", () => {
   let originalTZ: string | undefined;
   let toQueryRange: typeof import("@/lib/utils/date-range").toQueryRange;
@@ -42,9 +31,8 @@ describe("toQueryRange (local-time day boundaries)", () => {
 
   it("a sale just after local midnight now falls inside a `from` bound of that same local day", () => {
     const { from } = toQueryRange({ from: "2026-09-21" });
-    // 2026-09-20T23:30:00.000Z is local 2026-09-21T00:30 (Lagos) - genuinely
-    // "on" 2026-09-21 locally. The old UTC-midnight bound
-    // (2026-09-21T00:00:00.000Z) would have excluded it.
+    // 2026-09-20T23:30:00.000Z is local 2026-09-21T00:30 (Lagos) - genuinely "on" 2026-09-21 locally.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-date-range-local-time-test-ts-L45
     const saleInstant = "2026-09-20T23:30:00.000Z";
     expect(saleInstant >= from!).toBe(true);
   });

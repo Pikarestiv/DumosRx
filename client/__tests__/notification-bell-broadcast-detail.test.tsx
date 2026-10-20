@@ -2,12 +2,8 @@ import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-/**
- * A broadcast's message is line-clamped in the bell's list, which is right for
- * a compact list but left the full text unreachable. Clicking the row now
- * opens the shared ResponsiveModal detail view (the house
- * "row -> <Entity>DetailModal" pattern), and the list stays clamped.
- */
+// A broadcast's message is line-clamped in the bell's list, which is right for a compact list but left the full text unrea…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-notification-bell-broadcast-detail-test-tsx-L5
 
 class ResizeObserverStub {
   observe() {}

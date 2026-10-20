@@ -6,13 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * deleteSupplier() mirrors deleteCustomer(): a soft delete, blocked only by
- * money still owed. Order history is deliberately not a blocker — every
- * purchase-order and stock-batch query LEFT JOINs `suppliers` without a
- * `_deleted = 0` filter, so a deleted vendor's name still resolves on the
- * orders it already fulfilled. See client/AGENTS.md ("Deleting a supplier").
- */
+// deleteSupplier() mirrors deleteCustomer():
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-supplier-delete-test-ts-L9
 describe("deleteSupplier", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

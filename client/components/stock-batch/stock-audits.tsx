@@ -66,18 +66,14 @@ export interface AuditItem {
   countedCostPrice?: number;
   sellingPrice?: number;
   countedSellingPrice?: number;
-  /** Set once someone has actually been to the shelf for this row - by any
-   * edit, or by ticking the row by hand when the count matched. See
-   * isAuditItemCounted. */
+  // Set once someone has actually been to the shelf for this row - by any edit, or by ticking the row by hand when the count…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-audits-tsx-L69
   counted?: boolean;
-  /** Live stock as re-read at the moment this row's count was entered, and
-   * the only figure the submit may measure the count against. Absent on a
-   * row whose count predates that read - a draft resumed from an older
-   * build - which must fall back to re-reading at submit. See A-263. */
+  // Live stock as re-read at the moment this row's count was entered, and the only figure the submit may measure the count a…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-audits-tsx-L73
   baselineQty?: number;
-  /** When this product was last reconciled by a submitted count
-   * (products.last_audited_at), so a counter can see what has gone longest
-   * without one. Read-only; never submitted. */
+  // When this product was last reconciled by a submitted count (products.last_audited_at), so a counter can see what has gon…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-audits-tsx-L78
   lastAuditedAt?: string | null;
   reason?: string;
 }
@@ -115,10 +111,8 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
 
-  // Reconcile against the latest server state as soon as the count screen
-  // opens, otherwise a stale local snapshot could make an already-corrected
-  // discrepancy look like a fresh one, or hide a real one that happened
-  // elsewhere since this device last synced.
+  // Reconcile against the latest server state as soon as the count screen opens, otherwise a stale local snapshot could make…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-stock-batch-stock-audits-tsx-L118
   useEffect(() => {
     void (async () => {
       setIsSyncing(true);
@@ -416,10 +410,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
         />
       )}
 
-      {/* Off-screen (not display:none, so it still lays out for printNode's
-         clone) printable sheet, mounted only while a print/export is actually
-         running - it used to reconcile every product x every column on every
-         `items` change, i.e. on every keystroke in the ledger. */}
+      {/* Off-screen (not display:none, so it still lays out for printNode's clone) printable sheet, mounted only while a print/ex… — docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-audits-tsx-L419 */}
       {isPreparingOutput && (
       <div
         style={{ position: "fixed", top: 0, left: "-9999px" }}
@@ -432,10 +423,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
           <p className="text-sm text-muted-foreground mb-4">
             {items.length} product(s)
           </p>
-          {/* Div-based with ARIA roles per the no-raw-<table> rule, but laid
-             out with `display: table*` rather than grid: printed page-break
-             header repetition keys off `table-header-group`, and this sheet
-             routinely runs to several pages. */}
+          {/* Div-based with ARIA roles per the no-raw-<table> rule, but laid out with `display: — docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-audits-tsx-L435 */}
           <div
             role="table"
             aria-label="Stock audit sheet"

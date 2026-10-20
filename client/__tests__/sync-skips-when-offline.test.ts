@@ -24,18 +24,8 @@ vi.mock("@/lib/api/client", () => ({
   apiClient: { getSystemConfig: vi.fn(async () => null), pullChanges: vi.fn() },
 }));
 
-/**
- * Regression coverage for the "stuck sync" false-alarm bug: sync() had no
- * navigator.onLine check of its own, relying on every call site to check
- * first — two of them (store-context's store-switch handler, auth-context's
- * PIN-recovery sync) didn't. An offline device hitting either path attempted
- * a real fetch, failed with "Failed to fetch" for every queued item, burned
- * through the sync queue's 5-attempt exponential backoff, and fired a
- * spurious "stuck sync" crash report — for an app whose entire premise is
- * working correctly while offline. Centralizing the check in sync() itself
- * (mirroring what syncSubscriptionStatus already did) protects every call
- * site at once, present and future.
- */
+// Regression coverage for the "stuck sync" false-alarm bug:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-skips-when-offline-test-ts-L27
 describe("sync() skips push/pull entirely when navigator.onLine is false", () => {
   const originalOnLine = Object.getOwnPropertyDescriptor(navigator, "onLine");
 

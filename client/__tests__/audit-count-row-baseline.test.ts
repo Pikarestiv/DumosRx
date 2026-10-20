@@ -21,11 +21,8 @@ function sheet(): AuditItem[] {
   ];
 }
 
-/**
- * A-263. The two state transitions behind countRow(), tested directly
- * rather than through a copy of them: a spec that re-implements the
- * callback cannot fail when the real one drifts.
- */
+// A-263. The two state transitions behind countRow(), tested directly rather than through a copy of them:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-audit-count-row-baseline-test-ts-L24
 describe("counting a row re-baselines it against live stock", () => {
   it("shows the typed figure before the read resolves, so typing never waits on the database", () => {
     const [row] = applyOptimisticCount(sheet(), "p1", 7);
@@ -69,13 +66,8 @@ describe("counting a row re-baselines it against live stock", () => {
   });
 });
 
-/**
- * The guard that makes counting last-TYPED-wins rather than last-READ-wins.
- * Typing "12" is two counts (EditableNumberCell commits per keystroke) and
- * their live reads can resolve out of order, because a read issued while a
- * sync transaction is reserved queues behind it while a later one bypasses
- * the queue.
- */
+// The guard that makes counting last-TYPED-wins rather than last-READ-wins.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-audit-count-row-baseline-test-ts-L72
 describe("createCountSequencer", () => {
   it("keeps the newest count and drops an earlier read that lands late", () => {
     const seq = createCountSequencer();

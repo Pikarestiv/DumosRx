@@ -30,11 +30,8 @@ async function openMenu() {
   return input;
 }
 
-/**
- * Item 4: the Add Product category dropdown used to read from the static
- * FORM_SUGGESTIONS list and never from the real `categories` table, so a
- * construction-materials store was offered pharmacy categories only.
- */
+// Item 4: the Add Product category dropdown used to read from the static FORM_SUGGESTIONS list and never from the real `ca…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-category-combobox-source-test-tsx-L33
 describe("CategoryCombobox source", () => {
   beforeEach(() => {
     getCategoryList.mockReset();

@@ -6,15 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * A-26: the A-9 fix deliberately keys a receipt's rows on the PO line plus its
- * already-received balance, so a stale second device's legitimate second
- * partial receipt collapses into the first one and its `quantity_received`
- * UPDATE is dropped server-side as a terminal `version_conflict`. The keying
- * stays; what is fixed is the silence. `_sync_conflicts` records the drop and
- * `getDroppedReceiptSignal()` reports it against the order so the receiving
- * screen can tell the store to re-check the received figure.
- */
+// A-26: the A-9 fix deliberately keys a receipt's rows on the PO line plus its already-received balance, so a stale second…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-po-dropped-receipt-signal-test-ts-L9
 describe("dropped-receipt signal for a purchase order", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -146,11 +139,8 @@ describe("dropped-receipt signal for a purchase order", () => {
   });
 
   it("records other tables too, but keeps them out of the purchase-order signal", async () => {
-    // The ledger used to be allowlisted to purchase_order_items so it stayed
-    // small; it now logs every table (a terminal drop elsewhere left no trace
-    // at all) and is bounded by a row cap instead — see
-    // __tests__/conflict-ledger-bounded.test.ts. What must not change is that
-    // this reader only ever sees its own table's rows.
+    // The ledger used to be allowlisted to purchase_order_items so it stayed small; it now logs every table (a terminal drop e…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-po-dropped-receipt-signal-test-ts-L149
     seedOrder("po1", ["item1"]);
     await conflictLog.recordTerminalConflict({
       table_name: "products",

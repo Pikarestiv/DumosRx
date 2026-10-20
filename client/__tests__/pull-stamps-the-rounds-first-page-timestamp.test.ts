@@ -17,14 +17,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * A-282, the multi-page half. A table's window is stamped on the page that
- * drains it, so a round spanning several pages stamped the LAST page's
- * `server_timestamp` — covering time the earlier pages never queried. A row
- * that entered the window mid-round with an older `updated_at` than the
- * keyset cursor already passed sorts behind it, is never seen in that round,
- * and the watermark moves past it anyway.
- */
+// A-282, the multi-page half.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-stamps-the-rounds-first-page-timestamp-test-ts-L20
 describe("pullChanges stamps the window with the round's first page timestamp", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

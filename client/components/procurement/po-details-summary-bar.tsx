@@ -8,13 +8,11 @@ import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 
 interface PODetailsSummaryBarProps {
   vendorName: string;
-  /** Omitted entirely on the edit page, where every PO is Standard and a
-   * type badge would be redundant with the page's own "Edit Purchase
-   * Order" title. */
+  // Omitted entirely on the edit page, where every PO is Standard and a type badge would be redundant with the page's own "E…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-details-summary-bar-tsx-L11
   poTypeLabel?: string;
-  /** Payment terms stay visible here once the details form collapses -
-   * otherwise payment status, due date and amount paid are entered and then
-   * disappear from the screen entirely until the dialog is reopened. */
+  // Payment terms stay visible here once the details form collapses - otherwise payment status, due date and amount paid are…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-details-summary-bar-tsx-L15
   paymentStatus?: string;
   dueDate?: string;
   amountPaid?: string;
@@ -35,11 +33,8 @@ function SummaryChip({ children }: { children: ReactNode }) {
   );
 }
 
-/** Compact stand-in for the full details form once it's been confirmed:
- * shows just enough to orient the user (vendor, type, payment terms) plus a
- * way back into PODetailsFields via PODetailsDialog, so item entry can be
- * the dominant content on screen instead of competing with the form above
- * it. */
+// Compact stand-in for the full details form once it's been confirmed:
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-details-summary-bar-tsx-L38
 export function PODetailsSummaryBar({
   vendorName,
   poTypeLabel,

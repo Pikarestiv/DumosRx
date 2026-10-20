@@ -1,15 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-/**
- * /inventory/batches is in generateStaticParams but
- * stock-batch-management.tsx renders no <TabsContent> for it, so the route
- * resolved to a blank panel. Three things pointed at it — the Stock
- * Inventory header action ("Add Batch", ?action=add, which nothing handles),
- * the Needs Attention card and an action-centre alert — so the fix belongs
- * on the route, not on any one caller: it redirects to the Catalog tab, the
- * all-products view those callers actually meant.
- */
+// /inventory/batches is in generateStaticParams but stock-batch-management.tsx renders no <TabsContent> for it, so the rou…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-inventory-batches-dead-route-test-tsx-L4
 
 const hasPermission = vi.fn((_key: string) => true);
 const replace = vi.fn();

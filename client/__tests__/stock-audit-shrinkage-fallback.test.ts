@@ -17,19 +17,8 @@ interface FakeMovement {
   [key: string]: unknown;
 }
 
-/**
- * Regression: submitStockAudit's shrinkage branch deducted FEFO across
- * active (quantity > 0) batches until the counted shortfall was covered -
- * but if the product's system quantity was spread thinner across batches
- * than the recorded shortfall (e.g. every batch shows less stock than the
- * audit says is missing, a real scenario when batches were previously
- * miscounted), the loop simply ran out of batches and silently dropped the
- * remainder: no stock_movements record, and the batches' summed quantity
- * afterward doesn't match what the audit itself just reconciled to.
- * recordSaleItemStock already guards against the equivalent situation for a
- * sale (getAnyActiveBatchForProduct fallback); the audit path had no
- * equivalent until this fix.
- */
+// Regression: submitStockAudit's shrinkage branch deducted FEFO across active (quantity > 0) batches until the counted sho…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-stock-audit-shrinkage-fallback-test-ts-L20
 let batches: Record<string, FakeBatch>;
 let movements: FakeMovement[];
 

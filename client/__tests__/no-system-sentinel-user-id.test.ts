@@ -14,21 +14,8 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
 }));
 
-/**
- * A-21. `returns.user_id` and `stock_audits.user_id` both fell back to the
- * literal string "system" when the caller passed no user. Both columns are
- * `foreignUuid('user_id')->constrained('users')` server-side, so the row
- * writes locally, pushes, fails the FK, retries through backoff, and is
- * finally reported to superadmins as a permanently stuck sync item after 5
- * attempts — the same failure shape already fixed once for `feedback`.
- *
- * Every real call site sources the id from `useAuth().user?.id` on a
- * route-guarded screen (the return dialog, the cycle-count screen, the
- * catalog quick edit, the CSV import dialog), so a missing id is a caller
- * bug, not a legitimate state. Fail loudly and locally at the call, before
- * anything is written, instead of writing a row that can only fail later,
- * elsewhere, and silently.
- */
+// A-21. `returns.user_id` and `stock_audits.user_id` both fell back to the literal string "system" when the caller passed…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-no-system-sentinel-user-id-test-ts-L17
 describe("returns/stock_audits refuse a missing user id instead of writing a sentinel", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

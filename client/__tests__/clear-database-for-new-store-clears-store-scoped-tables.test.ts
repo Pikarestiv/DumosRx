@@ -3,13 +3,8 @@ import initSqlJs, { type SqlJsStatic, type Database } from "sql.js";
 import { SCHEMA_SQL } from "@/lib/db/schema";
 import { STORE_SCOPED_TABLES } from "@/lib/db/schema-migrations";
 
-/**
- * A-163 (docs/FIXED_BUGS.md): a store-scoped table left behind by
- * clearDatabaseForNewStore() keeps the previous store's rows at
- * `_synced = 0` with no queue entry - precisely what requeueOrphanedRows()
- * re-queues - so they are pushed under the new account's identity and
- * refused as cross-tenant forever.
- */
+// A-163 (docs/FIXED_BUGS.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-clear-database-for-new-store-clears-store-scoped-tables-test-ts-L6
 
 vi.mock("idb-keyval", () => ({
   get: vi.fn(async () => undefined),

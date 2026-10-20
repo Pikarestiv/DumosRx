@@ -1,9 +1,5 @@
-/**
- * Demo activity data: customers, sales, expenses, staff, and in-flight
- * purchase orders. Split out from template.ts purely to stay under the
- * project's max-lines lint rule; see template.ts for the catalog
- * (categories/supplier/products/receiving plan) this data references by ref.
- */
+// Demo activity data: customers, sales, expenses, staff, and in-flight purchase orders.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#demo-template-activity-ts-L1
 
 export interface DemoCustomer {
   ref: string;

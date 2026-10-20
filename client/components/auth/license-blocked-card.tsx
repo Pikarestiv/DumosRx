@@ -27,17 +27,8 @@ interface Props {
   onRecheck: () => void;
 }
 
-/**
- * The full-screen card LicenseGuard renders INSTEAD of its children when a
- * device is blocked. Extracted because license-guard.tsx was 436 lines, over
- * the 350-line limit in root AGENTS.md §4.
- *
- * It carries the on-till admin entry because nothing else can: while this card
- * is up there is no app, no lock screen and no "someone else" — so an admin
- * standing at a clock-tampered till would otherwise have no way in, and the
- * clock override would be unreachable. See
- * docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md.
- */
+// The full-screen card LicenseGuard renders INSTEAD of its children when a device is blocked.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-auth-license-blocked-card-tsx-L30
 export function LicenseBlockedCard({
   license,
   deviceId,

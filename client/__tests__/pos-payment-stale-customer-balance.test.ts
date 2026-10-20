@@ -10,22 +10,8 @@ vi.mock("idb-keyval", () => ({
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-/**
- * Regression: handlePayment() wrote outstanding_balance/loyalty_points as
- * `(selectedCustomer.outstanding_balance || 0) + delta` — a read-modify-write
- * against the in-memory Customer object captured when the cashier picked the
- * customer, not the DB row at write time. Every sibling write path
- * (recordCustomerPayment, computeEarnedPoints) deliberately re-reads current
- * state first for exactly this reason; checkout was the one outlier. If the
- * customer's real balance/points changed after selection (another terminal's
- * sale/payment landed via sync, or just time passing in a long POS session)
- * before this checkout completed, that change was silently clobbered — no
- * error, no conflict signal, since only the JS object was stale, not the
- * DB row's _version.
- *
- * Fix: both writes now re-read the current value from the DB immediately
- * before computing the new one, exactly like recordCustomerPayment.
- */
+// Regression: handlePayment() wrote outstanding_balance/loyalty_points as `(selectedCustomer.outstanding_balance || 0) + d…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-payment-stale-customer-balance-test-ts-L13
 
 const recordSaleItemStockMock = vi.fn();
 

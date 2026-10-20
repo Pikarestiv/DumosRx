@@ -4,14 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-/**
- * Regression tests for known bug #10, Part B's React wiring
- * (lib/hooks/use-post-restore-cloud-link-notice.ts): the pure gating logic
- * lives in lib/utils/post-restore-notice.ts (see
- * __tests__/post-restore-notice.test.ts) - this covers the hook that
- * actually surfaces the one-time toast on mount, wired into both
- * post-restore landing spots (/login and the dashboard shell).
- */
+// Regression tests for known bug #10, Part B's React wiring (lib/hooks/use-post-restore-cloud-link-notice.ts):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-post-restore-cloud-link-notice-hook-test-ts-L7
 
 const toastWarningMock = vi.fn();
 

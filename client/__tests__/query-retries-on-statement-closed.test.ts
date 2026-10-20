@@ -5,21 +5,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression test for a real, reproduced-in-production-testing bug: a
- * concurrent write operation could invalidate a query()'s in-flight
- * prepared statement mid-read-loop (see docs/KNOWN_BUGS.md's sync-engine
- * "Statement closed" entry), and every subsequent `.step()` call on that
- * statement threw "Statement closed" forever after — permanently wedging
- * whatever was running the query (the sync engine, in the reproduction).
- *
- * A SELECT has no side effects, so the fix retries once against a freshly
- * `prepare()`d statement instead of surfacing the error as terminal. This
- * test drives that retry path directly with a fake `db` whose first
- * `.prepare()` returns a statement that throws "Statement closed" on
- * `.step()`, and whose second `.prepare()` returns a working one — without
- * needing to actually reproduce the underlying concurrency race.
- */
+// Regression test for a real, reproduced-in-production-testing bug:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-query-retries-on-statement-closed-test-ts-L8
 describe("query() retries once on a Statement-closed error", () => {
   let core: typeof import("@/lib/db/core");
 

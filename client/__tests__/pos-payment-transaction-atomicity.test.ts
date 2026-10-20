@@ -10,23 +10,8 @@ vi.mock("idb-keyval", () => ({
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-/**
- * Regression: handlePayment() used to write the sale row, then deduct stock
- * for each cart line, then update the customer balance and loyalty points,
- * as a sequence of independent, individually-committed statements - no
- * transaction(). An interruption partway through (app closed, a transient
- * lock error, a thrown exception on any line item past the first) left a
- * real `sales` row committed with only some of its `sale_items`/stock
- * deductions done and no visible error beyond a generic toast. A cashier
- * retrying the sale would then double-book revenue and double-decrement
- * whatever stock did get deducted the first time.
- *
- * Fix: the whole write sequence (sale row, per-item stock deduction,
- * customer balance, loyalty) now runs inside transaction() (lib/db/core.ts),
- * so a failure on e.g. the second of three cart lines rolls back the sale
- * row and the first line's stock deduction too, instead of leaving a
- * half-committed sale behind.
- */
+// Regression: handlePayment() used to write the sale row, then deduct stock for each cart line, then update the customer b…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-payment-transaction-atomicity-test-ts-L13
 
 const recordSaleItemStockMock = vi.fn();
 

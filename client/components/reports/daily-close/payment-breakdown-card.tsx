@@ -8,9 +8,8 @@ interface PaymentBreakdownCardProps {
     card: number;
     transfer: number;
     credit: number;
-    /** Unrecognized/legacy payment_method, or a mixed refund with no split
-     * data to prorate - only shown when non-zero, so Cash + Card + Transfer
-     * + Credit (+ Other) always reconciles to Total Sales. */
+    // Unrecognized/legacy payment_method, or a mixed refund with no split data to prorate - only shown when non-zero, so Cash…
+    // Rationale: docs/CLIENT_COMMENTS.md#block-components-reports-daily-close-payment-breakdown-card-tsx-L11
     other?: number;
     cardAccounts?: Record<string, {name: string; total: number}>;
     transferAccounts?: Record<string, {name: string; total: number}>;

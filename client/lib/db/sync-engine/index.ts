@@ -39,20 +39,14 @@ export function isSyncing(): boolean {
   return isSyncInProgress;
 }
 
-/** Opaque per-sync-run token. crypto.randomUUID is unavailable on insecure
- * origins and older webviews, so it falls back to timestamp+random; only
- * per-device uniqueness within one short run window matters. */
+// Opaque per-sync-run token.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-index-ts-L42
 /** Returned instead of a real failure when another sync already holds the
  * mutex. Callers must treat it as a no-op, not an error (see SyncIndicator). */
 export { SYNC_IN_PROGRESS_ERROR } from "./sync-outcome";
 
-/**
- * Escape hatch for a device whose pull cursor has drifted ahead of rows it
- * never received: clears `_sync_state` only, forcing a full re-fetch. The
- * cleared windows are stashed and put back if the resync commits no page at
- * all, so a pull that cannot succeed leaves the device no worse off than it
- * started (A-243). See client/AGENTS.md, "`sync()` and friends".
- */
+// Escape hatch for a device whose pull cursor has drifted ahead of rows it never received:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-index-ts-L49
 export async function forceFullResync(): Promise<SyncResult> {
   if (isSyncInProgress) {
     return { success: false, pushed: 0, pulled: 0, error: SYNC_IN_PROGRESS_ERROR };
@@ -70,9 +64,8 @@ export async function forceFullResync(): Promise<SyncResult> {
   }
 }
 
-/** See reconcile-quantities.ts for the implementation; re-exported here so
- * every other sync-engine entry point (including the `window.*` DevTools
- * hooks below) lives in one place. */
+// See reconcile-quantities.ts for the implementation; re-exported here so every other sync-engine entry point (including the `window.*` DevToo…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-index-ts-L73
 export async function reconcileStockQuantities(): Promise<{
   reconciled: number;
   checked: number;
@@ -84,11 +77,8 @@ export async function reconcileStockQuantities(): Promise<{
 // 350-line limit. Imported for its side effect.
 import "./devtools-hooks";
 
-/**
- * Records every attempt's outcome, then returns it. A wrapper rather than a
- * line at each `return` so an exit path added later cannot forget — see
- * sync-outcome.ts for why the last ATTEMPT is the number that was missing.
- */
+// Records every attempt's outcome, then returns it.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-index-ts-L87
 export async function sync(
   isManual: boolean = false,
   isSetup: boolean = false,
@@ -261,13 +251,8 @@ async function runSync(
   }
 }
 
-/**
- * Privileged Subscription Status Sync
- *
- * Pulls ONLY the `stores` table (subscription_tier, status,
- * suspension_reason, license_token), regardless of plan tier, so downgrades,
- * suspensions and renewals still land when full sync is disabled.
- */
+// Privileged Subscription Status Sync Pulls ONLY the `stores` table (subscription_tier, status, suspension_reason, license_token), regardless…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-index-ts-L264
 export async function syncSubscriptionStatus(): Promise<{
   success: boolean;
   updated: boolean;

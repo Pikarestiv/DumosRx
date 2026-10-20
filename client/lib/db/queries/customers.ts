@@ -26,14 +26,8 @@ export async function getCustomers() {
   );
 }
 
-/** Net-of-refunds lifetime spend for one customer, as of right now - used at
- * POS checkout to find which loyalty tier a sale's points should earn at
- * (see getApplicableTierMultiplier). Same netting logic as getCustomers(),
- * scoped to a single customer instead of aggregating the whole store.
- * Scoped by store_id (not just customer_id) the same way
- * getCustomerTransactions() is - on a device with multi-store access, a
- * device-wide cache can hold another store's sales too, and customer_id
- * alone doesn't rule those out at the SQL level. */
+// Net-of-refunds lifetime spend for one customer, as of right now - used at POS checkout to find which loyalty tier a sale's points should ear…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-customers-ts-L29
 export async function getCustomerTotalSpent(customerId: string): Promise<number> {
   const storeId = getActiveStoreId();
   const rows = await query<{ total_spent: number }>(
@@ -50,16 +44,8 @@ export async function getCustomerTotalSpent(customerId: string): Promise<number>
   return rows[0]?.total_spent || 0;
 }
 
-/**
- * Combined feed of every customer's transactions store-wide: grows the same way
- * stock_movements does (a row per sale), so `sinceDays` bounds the default recent
- * view. Omit it for full history, which the caller should only do when the user
- * is actively searching or filtering to a specific customer, so those still
- * match against every record, not just what's been loaded for browsing.
- *
- * `from`/`to` (YYYY-MM-DD) take precedence over `sinceDays` when both are passed:
- * an explicit date-range pick from the UI overrides the relative window.
- */
+// Combined feed of every customer's transactions store-wide:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-customers-L53
 export async function getCustomerTransactions(
   options: { sinceDays?: number; from?: string; to?: string } = {},
 ) {
@@ -101,11 +87,8 @@ export async function getCustomerTransactions(
   );
 }
 
-// Money is stored/compared in float columns, so a debt paid off exactly can
-// leave sub-cent rounding dust (e.g. 2.8e-14) instead of a clean zero. 0.01
-// treats anything below a cent as fully settled, both here and wherever a
-// balance/payment amount is written (see recordCustomerPayment,
-// applyCreditPaymentFIFO).
+// Money is stored/compared in float columns, so a debt paid off exactly can leave sub-cent rounding dust (e.g.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-customers-ts-L90
 const MONEY_EPSILON = 0.01;
 
 export async function getDebtors() {
@@ -140,29 +123,12 @@ export async function getCustomerById(id: string) {
   return rows[0] || null;
 }
 
-/** Applies a credit payment to a customer's oldest outstanding credit sales
- * first (FIFO): a sale is marked "completed" once its cumulative amount_paid
- * reaches its total, otherwise "partial". Doesn't touch the customer's
- * outstanding_balance; the caller (recordCustomerPayment) does that. */
+// Applies a credit payment to a customer's oldest outstanding credit sales first (FIFO):
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-customers-ts-L135
 async function applyCreditPaymentFIFO(customerId: string, amount: number) {
   const storeId = getActiveStoreId();
-  // Includes 'refunded'/'partially_refunded': a return against a credit sale
-  // overwrites payment_status with one of those (see
-  // use-process-return-mutation.ts), which would otherwise drop a sale that
-  // still has a nonzero balance (partial return, credit portion only
-  // partly forgiven) out of this ledger forever. The `owed <= 0` guard below
-  // is what keeps a fully-settled/fully-forgiven sale from being touched.
-  //
-  // The payment_method guard on the refunded/partially_refunded branch below
-  // protects against a legacy edge: a cash/card/transfer sale's amount_paid
-  // can be left at the schema default of 0 (e.g. old synced rows predating
-  // stricter writes), and once 'refunded'/'partially_refunded' are included
-  // here, such a sale would otherwise look like it owes its full
-  // total_amount and get swept into this credit ledger even though it was
-  // never actually sold on credit. 'pending'/'partial' sales aren't gated on
-  // payment_method - by construction (see calculateSalePaymentStatus) only a
-  // credit/mixed-with-credit sale ever gets those statuses in the first
-  // place.
+  // Includes 'refunded'/'partially_refunded':
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-customers-ts-L133
   const pendingSales = await query<{
     id: string;
     total_amount: number;
@@ -186,13 +152,8 @@ async function applyCreditPaymentFIFO(customerId: string, amount: number) {
     const applied = Math.min(owed, remaining);
     const newAmountPaid = Math.round(((sale.amount_paid || 0) + applied) * 100) / 100;
     const isFullySettled = newAmountPaid >= sale.total_amount - MONEY_EPSILON;
-    // A sale already marked 'refunded'/'partially_refunded' carries
-    // information the Refunded tab/badge (pos-transaction-history.tsx,
-    // transaction-item.tsx) key off of - overwriting it to
-    // 'completed'/'partial' here would silently erase that a return ever
-    // happened, even though this payment only settled the sale's remaining
-    // (unforgiven) debt. Leave those statuses alone; only 'pending'/'partial'
-    // sales get the normal completed/partial transition.
+    // A sale already marked 'refunded'/'partially_refunded' carries information the Refunded tab/badge (pos-transaction-history.tsx, transaction-i…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-customers-ts-L173
     const wasRefundStatus =
       sale.payment_status === "refunded" || sale.payment_status === "partially_refunded";
     const newStatus = wasRefundStatus
@@ -210,24 +171,16 @@ async function applyCreditPaymentFIFO(customerId: string, amount: number) {
   }
 }
 
-/** Single source of truth for recording a customer debt payment: used by
- * both the Customer Directory and the Record Payment button on a specific
- * sale's transaction details. Self-contained (re-reads the customer's
- * current balance rather than trusting caller-held state) since it's called
- * from more than one page. */
+// Single source of truth for recording a customer debt payment:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-customers-ts-L205
 export async function recordCustomerPayment(
   customerId: string,
   amount: number,
   paymentMethod: string,
   notes?: string,
 ): Promise<number> {
-  // The payment receipt, the balance reduction, and the FIFO settlement of
-  // individual sales must land together: without a transaction, a throw
-  // partway through (e.g. inside applyCreditPaymentFIFO's per-sale update
-  // loop) could leave the balance already reduced and a payment receipt
-  // already recorded while the underlying sales stay pending/partial - the
-  // debtor ledger and the per-sale settlement then permanently disagree,
-  // and the next payment re-settles sales that were already paid for.
+  // The payment receipt, the balance reduction, and the FIFO settlement of individual sales must land together:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-customers-ts-L205
   return transaction(async () => {
     const now = new Date().toISOString();
     await insert("customer_payments", {
@@ -267,26 +220,8 @@ export async function getAllCustomers(): Promise<Customer[]> {
   }));
 }
 
-/**
- * Purchase-engagement metrics over the trailing 30 days, restricted to sales
- * that carry a customer_id (walk-in/anonymous sales are excluded from every
- * numerator and denominator here).
- *
- * The returned field names are historical; what they actually measure is:
- *  - `retentionRate`: customers with more than one sale inside the 30-day
- *    window / customers with at least one sale inside it, as a percentage.
- *    This is a repeat-purchase rate *within a single window* - it says nothing
- *    about retention of a prior cohort or of the store's customer base, so the
- *    UI labels it "Repeat Purchase Rate" (same resolution as the dashboard
- *    tile in lib/hooks/use-bi-data.ts). Computing true retention would need a
- *    cohort/baseline definition this app does not have, so the calculation is
- *    deliberately left as-is and only described accurately.
- *  - `avgVisits`: sales in the window / customers who bought in the window,
- *    i.e. visits per *buying* customer over ~one month. Not per registered
- *    customer, and not store-wide visits - hence "Avg Visits/Customer".
- *  - `avgTransactionValue`: net revenue (refunds deducted) / sales in the
- *    window.
- */
+// Purchase-engagement metrics over the trailing 30 days, restricted to sales that carry a customer_id (walk-in/anonymous sales are excluded fr…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-customers-L270
 export async function getCustomerRetentionMetrics() {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

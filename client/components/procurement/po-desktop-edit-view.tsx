@@ -28,10 +28,8 @@ interface PODesktopEditViewProps {
   amountPaid?: string;
 }
 
-/** Desktop full-screen takeover for editing an existing purchase order, the
- * counterpart to POMobileEditView. Extracted out of edit/page.tsx so both
- * views derive their "Estimated total" from the same getOrderTotal call the
- * rows below them use, and so the page can render only the active one. */
+// Desktop full-screen takeover for editing an existing purchase order, the counterpart to POMobileEditView.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-desktop-edit-view-tsx-L31
 export function PODesktopEditView({
   poId,
   selectedSupplierName,

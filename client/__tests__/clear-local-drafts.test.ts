@@ -10,16 +10,8 @@ vi.mock("@/lib/hooks/use-pos-cart", () => ({
   clearPOSCartStorage: clearPOSCartStorageMock,
 }));
 
-/**
- * Three device-local drafts (POS cart, cycle count, stock adjustment) each
- * live under their own single global localStorage key with no store or user
- * in it, so every path that tears down one store/account's context has to
- * drop all three. Two of the five - linking a new cloud store and the
- * factory reset - were clearing only the cart, so a count started against
- * the outgoing store's product ids survived into the new one and could be
- * submitted against foreign ids. They now all call one function; this pins
- * that it really empties all three.
- */
+// Three device-local drafts (POS cart, cycle count, stock adjustment) each live under their own single global localStorage…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-clear-local-drafts-test-ts-L13
 describe("clearLocalDrafts", () => {
   beforeEach(() => {
     localStorage.clear();

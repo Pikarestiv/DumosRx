@@ -7,13 +7,8 @@ interface SearchInputProps {
   onChange: (val: string) => void;
   placeholder?: string;
   inputClassName?: string;
-  /**
-   * Accessible name for the input. A placeholder is not an accessible name
-   * (it disappears as soon as anything is typed, and some screen readers
-   * ignore it entirely), so pass something that says WHAT is being searched,
-   * e.g. "Search products". Falls back to the placeholder text when omitted,
-   * which is a weaker but non-empty name.
-   */
+  // Accessible name for the input.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-search-input-tsx-L10
   "aria-label"?: string;
 }
 

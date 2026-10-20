@@ -12,26 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * The `stores` prune soft-deletes a live local store the pull response's
- * `stores` list omits, on the premise that the server always answers with a
- * complete snapshot of every store the ACCOUNT owns. Two situations break
- * that premise, and both end with a store vanishing from the switcher on a
- * device that had it:
- *
- *  - The snapshot is scoped to the authenticated identity, not the account:
- *    `SyncController::resolvePullTenantScope()` narrows `$ownedStoreIds` to
- *    `[$user->store_id]` for any user carrying a store_id (every staff
- *    account). A pull on a staff session therefore legitimately returns one
- *    store, and pruning against it deletes the owner's other stores.
- *  - A pruned store with a pending `_sync_queue` row can never come back:
- *    the pull's own pending-local-edit rule skips re-applying that row, so
- *    the `_deleted = 1` the prune wrote is never cleared by a later,
- *    correctly-scoped pull.
- *
- * The prune must fail closed in both cases — a stale entry lingering in the
- * switcher is the error direction this code already prefers.
- */
+// The `stores` prune soft-deletes a live local store the pull response's `stores` list omits, on the premise that the serv…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-store-prune-fails-closed-test-ts-L15
 describe("pull.ts store prune fails closed when the snapshot may not be account-wide", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

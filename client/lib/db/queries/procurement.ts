@@ -20,10 +20,8 @@ export interface POProduct {
   cost_price: number;
   stock_quantity: number;
   selling_price: number | null;
-  /** Catalog fields the PO item search needs. They are here so the builder
-   * can hand this one list to its ProductCombobox instead of every combobox
-   * querying the whole catalog again under its own key - without them, the
-   * combobox would silently lose generic-name matching. */
+  // Catalog fields the PO item search needs.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-procurement-ts-L23
   generic_name?: string | null;
   manufacturer?: string | null;
   strength?: string | null;
@@ -56,11 +54,8 @@ export async function getAllVendors() {
   );
 }
 
-/** Promotes any leftover "draft" purchase orders to "pending" - a status
- * this app no longer creates, but old local rows (or rows from a device that
- * hasn't picked up this migration) can still carry it. Runs once at app
- * boot (see DatabaseProvider). Goes through update() (not a raw UPDATE) so
- * the change actually syncs to the cloud and isn't silently local-only. */
+// Promotes any leftover "draft" purchase orders to "pending" - a status this app no longer creates, but old local rows (or rows from a device…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-procurement-ts-L59
 export async function promoteDraftPurchaseOrdersToPending() {
   const storeId = getActiveStoreId();
   const drafts = await query<{ id: string }>(
@@ -96,15 +91,8 @@ export interface DroppedReceiptSignal {
   detectedAt: string;
 }
 
-/**
- * A-26: a stale device's legitimate second partial receipt derives the same
- * deterministic ids as the first, so the server collapses its stock rows into
- * the first receipt's and drops its `quantity_received` UPDATE as a terminal
- * conflict. The stock is on the shelf and not in the system, and the PO just
- * reads as having an ordinary outstanding balance. This reports whether any
- * such drop is still outstanding against this order's lines so the receiving
- * screen can say so. See client/AGENTS.md, "The terminal-conflict ledger".
- */
+// A-26: a stale device's legitimate second partial receipt derives the same deterministic ids as the first, so the server collapses its stock…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-procurement-ts-L99
 export async function getDroppedReceiptSignal(
   purchaseOrderId: string,
 ): Promise<DroppedReceiptSignal | null> {

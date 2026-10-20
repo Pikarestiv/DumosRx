@@ -24,9 +24,8 @@ import {
 
 interface SettingsTabNavProps {
   isAdmin: boolean;
-  /** Per-tab permission resolver from use-settings. Omitted falls back to
-   * the coarse isAdmin check this rail carried before the Store & Settings
-   * keys were wired. */
+  // Per-tab permission resolver from use-settings.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-app-(dashboard)-settings-[tab]-settings-tab-nav-tsx-L27
   canAccessTab?: (tab: string) => boolean;
 }
 
@@ -192,7 +191,6 @@ function SettingsTabNavInner({ isAdmin, canAccessTab }: SettingsTabNavProps) {
   );
 }
 
-/** Memoized: its props are a boolean and a stable useCallback, but it renders ~18 triggers and sits
- * inside a component that re-renders on every keystroke in any settings form
- * (see use-settings.ts's deliberate prop-bag design). */
+// Memoized: its props are a boolean and a stable useCallback, but it renders ~18 triggers and sits inside a component that…
+// Rationale: docs/CLIENT_COMMENTS.md#block-app-(dashboard)-settings-[tab]-settings-tab-nav-tsx-L195
 export const SettingsTabNav = React.memo(SettingsTabNavInner);

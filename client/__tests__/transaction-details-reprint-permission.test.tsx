@@ -86,12 +86,8 @@ function renderDialog() {
   );
 }
 
-/**
- * Reprinting a completed sale's receipt (or its tax invoice) is the real
- * action behind "reprint_receipt". The receipt shown immediately after
- * checkout is part of process_sales and stays ungated; this is only the
- * after-the-fact copy pulled from transaction history.
- */
+// Reprinting a completed sale's receipt (or its tax invoice) is the real action behind "reprint_receipt".
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-transaction-details-reprint-permission-test-tsx-L89
 describe("Transaction details reprint permission", () => {
   beforeEach(() => {
     hasPermission.mockReset();

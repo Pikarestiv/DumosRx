@@ -21,14 +21,8 @@ vi.mock("@/lib/hooks/use-action-center-alerts", () => ({
   ],
 }));
 
-/**
- * A-158: ActionCenterCard passed its priority tint (e.g. `bg-destructive/10`)
- * straight into <Card>'s className, which replaced (rather than layered on
- * top of) Card's own opaque `bg-card` background via Tailwind class-merging
- * — leaving the card with no solid base, just a translucent tint over
- * whatever's behind it. Reported live as "doesn't have a white background,
- * feels transparent."
- */
+// A-158: ActionCenterCard passed its priority tint (e.g.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-action-center-card-opaque-background-test-tsx-L24
 describe("ActionCenterCard background", () => {
   it("keeps the Card's opaque bg-card base alongside its priority tint", async () => {
     const { DashboardActionCenter } = await import(

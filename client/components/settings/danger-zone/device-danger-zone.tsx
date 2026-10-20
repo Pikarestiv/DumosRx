@@ -20,9 +20,8 @@ interface DeviceDangerZoneProps {
   handleResetDatabase: () => void;
 }
 
-/** Wipes only this device's local SQLite/IndexedDB store and disconnects
- * cloud sync. Other devices synced to the same account, and any data
- * already on the server, are untouched — see CloudDangerZone for that. */
+// Wipes only this device's local SQLite/IndexedDB store and disconnects cloud sync.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-danger-zone-device-danger-zone-tsx-L23
 export function DeviceDangerZone({
   isCloudLinked,
   handleResetDatabase,

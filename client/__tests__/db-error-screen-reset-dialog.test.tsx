@@ -1,11 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 
-/**
- * Regression coverage for A-14 (docs/KNOWN_BUGS.md), UI half: the recovery
- * button used the native `window.confirm`, which `.agents/AGENTS.md` §9
- * forbids, and its handler never touched the IndexedDB database.
- */
+// Regression coverage for A-14 (docs/KNOWN_BUGS.md), UI half:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-db-error-screen-reset-dialog-test-tsx-L4
 
 const discardLocalDatabaseBlob = vi.fn(async () => ({ backedUp: true }));
 

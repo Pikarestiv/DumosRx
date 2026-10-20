@@ -35,9 +35,8 @@ interface StoreProfileSectionProps {
   getUpgradeMessage: (feature: string, fallback?: string) => string;
 }
 
-/** The parts of Business Information that are specific to this store's
- * storefront presence, kept visually nested since a business may eventually
- * run more than one store under the same identity above. */
+// The parts of Business Information that are specific to this store's storefront presence, kept visually nested since a bu…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-store-store-profile-section-tsx-L38
 export function StoreProfileSection({
   storeType,
   isEditingProfile,
@@ -99,9 +98,8 @@ export function StoreProfileSection({
   };
 
   const showPharmacyFields = storeType === "pharmacy";
-  // Nothing left to show is a real state for a retail store whose group
-  // lacks the storefront key and whose plan has no loyalty program - render
-  // nothing rather than an empty bordered box with only a heading in it.
+  // Nothing left to show is a real state for a retail store whose group lacks the storefront key and whose plan has no loyal…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-store-store-profile-section-tsx-L102
   if (
     !canManageOnlineStore &&
     !setLoyaltyProgramEnabled &&

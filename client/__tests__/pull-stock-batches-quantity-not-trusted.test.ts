@@ -12,23 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * Regression test for a real, at-scale reproduction: a pull landing between
- * a stock_batches row's creation push and its corresponding opening-stock
- * stock_movements push saw the server's not-yet-derived quantity (always 0
- * on creation — see SyncController::push's documented design) and blindly
- * overwrote the local, already-correct quantity with it. Once zeroed, the
- * batch became invisible to submitStockAudit's "does a batch already exist"
- * check (which filters quantity > 0), so every subsequent restock forked a
- * duplicate batch instead of correcting the real one — 504 of ~509 products
- * ended up split across two batch rows in the session that found this (see
- * docs/KNOWN_BUGS.md).
- *
- * The fix: stock_batches.quantity is never written from a pulled snapshot
- * at all (mirroring the server's own rule for pushed payloads); instead a
- * newly-pulled stock_movements row applies its own delta to the batch it
- * references, exactly like the server's `increment('quantity', delta)`.
- */
+// Regression test for a real, at-scale reproduction:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-stock-batches-quantity-not-trusted-test-ts-L15
 describe("pullChanges never trusts a pulled stock_batches.quantity snapshot", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -162,12 +147,8 @@ describe("pullChanges never trusts a pulled stock_batches.quantity snapshot", ()
   });
 
   it("floors a batch's quantity at 0 when a pulled movement's delta would take it negative, mirroring the local oversell floor", async () => {
-    // Another device sold 5 from a batch that only had 2 left there — its
-    // own local write floors at 0 (see deductFromBatch() in
-    // lib/db/queries/inventory.ts), but the movement it pushed still
-    // carries the full, unfloored -5 delta. This device's own local batch
-    // must floor identically when applying that same delta, or the two
-    // devices permanently disagree about this batch's on-hand quantity.
+    // Another device sold 5 from a batch that only had 2 left there — its own local write floors at 0 (see deductFromBatch() i…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-pull-stock-batches-quantity-not-trusted-test-ts-L165
     db.run(
       `INSERT INTO stock_batches (id, product_id, batch_number, quantity, is_active, _deleted, _version)
        VALUES ('batch-4', 'prod-1', 'Oversold Batch', 2, 1, 0, 1)`,

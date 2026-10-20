@@ -9,12 +9,8 @@ const monthNames = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
-// Hard ceiling on how many months the chart will ever render, independent
-// of how wide a range is selected (e.g. an "all time" filter) - without
-// this, a multi-year range would produce a bar per month indefinitely.
-// Falls back to trimming to the most RECENT months within the ceiling,
-// same as the previous hardcoded "last 6 months" behavior for a range
-// that's still wider than this after the fix below.
+// Hard ceiling on how many months the chart will ever render, independent of how wide a range is selected (e.g.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-monthly-sales-data-ts-L12
 const MAX_MONTHS = 24;
 
 export function useMonthlySalesData(dateFilter: string, toFilter?: string, filters?: SalesFilters) {
@@ -29,11 +25,8 @@ export function useMonthlySalesData(dateFilter: string, toFilter?: string, filte
     const rawMonthlyReturns = metrics?.rawMonthlyReturns || [];
     const rawExpenseData = metrics?.rawExpenseData || [];
 
-    // Renders the months actually covered by the SELECTED range
-    // (dateFilter..toFilter), not a fixed "last 6 calendar months from
-    // today" - a range narrower or older than 6 months used to show
-    // months outside it entirely (including months after the selected
-    // range), while the KPI cards above the chart correctly honored it.
+    // Renders the months actually covered by the SELECTED range (dateFilter..toFilter), not a fixed "last 6 calendar months from today" - a range…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-monthly-sales-data-ts-L32
     const from = new Date(dateFilter);
     const to = toFilter ? new Date(toFilter) : new Date();
 

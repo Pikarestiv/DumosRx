@@ -12,10 +12,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-// The exact lists the permission-groups feature shipped with on 2026-09-27
-// (a5f40463) - what an already-seeded store like the live production one is
-// still carrying, and what the Laravel seeder went on seeding new stores
-// with for two more days.
+// The exact lists the permission-groups feature shipped with on 2026-09-27 (a5f40463) - what an already-seeded store like…
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-permission-catalog-backfill-test-ts-L15
 const V1_DEFAULTS: Record<DefaultGroupRole, string[]> = {
   admin: [
     "process_sales", "apply_discounts", "void_refund_sales", "open_cash_drawer", "override_price",

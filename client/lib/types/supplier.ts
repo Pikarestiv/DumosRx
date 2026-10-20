@@ -33,9 +33,8 @@ export interface SupplierViewModel {
   taxId?: string;
 }
 
-/** Row shape returned by getSuppliers(): the raw `suppliers` table joined
- * with each supplier's total outstanding debt across unpaid purchase orders,
- * plus its overall order count/value across all (non-deleted) purchase orders. */
+// Row shape returned by getSuppliers():
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#types-supplier-ts-L36
 export interface SupplierDbRow {
   id: string;
   name: string;

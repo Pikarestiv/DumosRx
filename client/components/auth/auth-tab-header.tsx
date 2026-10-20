@@ -10,9 +10,8 @@ interface AuthTabHeaderProps {
   setupHref: string;
 }
 
-// Always rendered as the first child inside a step's AuthCardShell: every
-// login/setup step goes through that shell now, so there's no longer a
-// "floats above a bare Card" case to style differently.
+// Always rendered as the first child inside a step's AuthCardShell:
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-auth-tab-header-tsx-L13
 export function AuthTabHeader({
   active,
   showBack,

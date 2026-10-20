@@ -6,15 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * The diagnostics console exists because none of this was reachable from
- * inside the app during the 2026-10-08 incident: the sync queue, how far each
- * table had synced, unapplied stock deltas and unresolvable categories all had
- * to be relayed by hand or guessed at. See
- * docs/superpowers/specs/2026-10-08-device-diagnostics-console-design.md.
- *
- * Everything it runs must be a SELECT.
- */
+// The diagnostics console exists because none of this was reachable from inside the app during the 2026-10-08 incident:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-device-diagnostics-queries-test-ts-L9
 describe("collectDeviceDiagnostics", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

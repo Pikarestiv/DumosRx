@@ -37,12 +37,8 @@ export function useProcessReturnMutation() {
       itemsToReturn,
       saleItems,
     }: ProcessReturnParams) => {
-      // returns.user_id is a constrained foreign key server-side, so a
-      // sentinel written here only fails much later and somewhere else: the
-      // row saves locally, pushes, is rejected on the FK, retried through
-      // backoff and finally reported as a permanently stuck sync item. The
-      // return dialog is reachable for a frame while useAuth().user is still
-      // null, which is a caller bug worth surfacing here and now.
+      // returns.user_id is a constrained foreign key server-side, so a sentinel written here only fails much later and somewhere else:
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-process-return-mutation-ts-L40
       if (!userId) {
         throw new Error("Cannot process a return without a signed-in user");
       }
@@ -84,9 +80,8 @@ export function useProcessReturnMutation() {
           });
         }
 
-        // 3. Mark sale as returned once every line item's full remaining
-        // balance has been returned (across this and any prior returns),
-        // not just when every original line item is touched in this one.
+        // 3. Mark sale as returned once every line item's full remaining balance has been returned (across this and any prior returns), not just when…
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-process-return-mutation-ts-L87
         const allItemsReturned = isFullyReturned(
           saleItems,
           itemsToReturn.map((i) => ({ id: i.id, returnQuantity: i.returnQuantity })),
@@ -96,17 +91,13 @@ export function useProcessReturnMutation() {
         });
 
         // A full return of a prescription-linked sale undoes the dispense.
-        // Send it back to "ready" so it re-enters the dispense queue instead
-        // of staying "completed" with no sale to show for it. Partial returns
-        // (e.g. one med out of several) leave the prescription's status alone.
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-process-return-mutation-ts-L98
         if (sale.prescription_id && allItemsReturned) {
           await updatePrescriptionStatus(sale.prescription_id, "ready");
         }
 
-        // If any part of this sale was paid on credit, returning goods must also
-        // reduce what the customer owes, otherwise they're still on the hook
-        // for items they gave back. Prorate by the credit share of the original
-        // sale for mixed-payment sales; a plain "credit" sale is 100% credit.
+        // If any part of this sale was paid on credit, returning goods must also reduce what the customer owes, otherwise they're still on the hook fo…
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-process-return-mutation-ts-L106
         if (sale.customer_id) {
           let creditFraction = 0;
           if (sale.payment_method === "credit") {
@@ -131,24 +122,14 @@ export function useProcessReturnMutation() {
           if (creditFraction > 0) {
             const creditPortionOfRefund = totalRefund * creditFraction;
 
-            // The credit portion of a return is debt forgiveness, not a
-            // collection event, but applyCreditPaymentFIFO() computes what a
-            // sale still owes as `total_amount - amount_paid`. Without also
-            // crediting that forgiven amount against amount_paid here, this
-            // sale's remaining balance would stay overstated by exactly the
-            // returned amount even though the customer no longer owes it -
-            // and once payment_status below flips to refunded/
-            // partially_refunded, a later credit payment would then have
-            // nothing left to correctly apply it against.
+            // The credit portion of a return is debt forgiveness, not a collection event, but applyCreditPaymentFIFO() computes what a sale still owes as…
+            // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-process-return-mutation-ts-L134
             const owed = Math.max(
               0,
               (sale.total_amount || 0) - (sale.amount_paid || 0),
             );
-            // Cap the debt forgiveness at what this sale actually still owes -
-            // crediting the customer's outstanding_balance by the full
-            // creditPortionOfRefund (rather than the capped `forgiven` amount)
-            // would over-credit the customer whenever the sale was already
-            // partially paid, silently eating into their other sales' debt.
+            // Cap the debt forgiveness at what this sale actually still owes - crediting the customer's outstanding_balance by the full creditPortionOfRef…
+            // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-process-return-mutation-ts-L147
             const forgiven = Math.min(owed, creditPortionOfRefund);
 
             const balanceRows = await getCustomerBalance(sale.customer_id);
@@ -164,13 +145,8 @@ export function useProcessReturnMutation() {
             }
           }
 
-          // A return must also undo its proportional share of whatever this
-          // sale did to the customer's points balance — otherwise a customer
-          // keeps points earned on merchandise they gave back, or loses a
-          // reward's points cost permanently even though the discount it
-          // bought is being reversed too. Prorated by the same
-          // items-returned share as the refund itself, for consistency with
-          // a partial return only undoing part of the sale.
+          // A return must also undo its proportional share of whatever this sale did to the customer's points balance — otherwise a customer keeps point…
+          // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-process-return-mutation-ts-L167
           const itemsSubtotal = itemsToReturn.reduce(
             (sum, i) => sum + (i.unit_price || 0) * i.returnQuantity,
             0,

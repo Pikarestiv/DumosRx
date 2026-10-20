@@ -26,16 +26,8 @@ export function useCustomerRetention() {
   return { data, isLoading };
 }
 
-/**
- * The "+x% from last month" figure on the Total stock value card.
- *
- * In react-query (not a bare useState/useEffect([]) fetch) so it is keyed by
- * the active store and invalidated by stock_movements/stock_batches writes
- * like every other inventory figure: the one-shot effect resolved
- * getActiveStoreId() once at mount and never re-ran, so after a store switch
- * the percentage kept describing the previous store's inventory next to the
- * new store's value - two different stores in one card.
- */
+// The "+x% from last month" figure on the Total stock value card.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-analytics-L29
 export function useStockMoM() {
   const { data, isLoading } = useQuery({
     ...queryKeys.stockBatches.mom(),

@@ -1,8 +1,7 @@
 import { formatActionLabel } from "./format-action-label";
 
-/** Human-readable noun for each syncable table. Turns "table_name"
- * into something a non-technical reader recognizes instead of a raw SQL
- * table identifier. */
+// Human-readable noun for each syncable table.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-activity-log-describe-activity-ts-L3
 const TABLE_NOUNS: Record<string, string> = {
   products: "product",
   stock_batches: "stock batch",
@@ -56,9 +55,8 @@ const STANDALONE_ACTIONS: Record<string, string> = {
   STOCK_DAMAGED: "Marked stock as damaged",
 };
 
-// Short, friendly verb for the generic CRUD ops (see base-helpers.ts) and
-// the remaining named actions. Used both standalone (filter labels) and as
-// the first word of the full per-row sentence.
+// Short, friendly verb for the generic CRUD ops (see base-helpers.ts) and the remaining named actions.
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-activity-log-describe-activity-ts-L59
 const ACTION_VERBS: Record<string, string> = {
   INSERT: "Created",
   UPDATE: "Updated",
@@ -73,9 +71,8 @@ export function describeActionVerb(action: string): string {
   return STANDALONE_ACTIONS[key] || ACTION_VERBS[key] || formatActionLabel(action);
 }
 
-/** Full human sentence for an activity_log row, e.g. "Added a category",
- * "Removed a purchase order", "Signed in". This is what a non-technical
- * reader sees instead of raw "INSERT" / "purchase_orders". */
+// Full human sentence for an activity_log row, e.g.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-activity-log-describe-activity-ts-L76
 export function describeActivity(row: {
   action: string;
   table_name?: string | null;

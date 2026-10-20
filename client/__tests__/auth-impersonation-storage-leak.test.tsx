@@ -3,16 +3,8 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import initSqlJs, { type Database } from "sql.js";
 import React from "react";
 
-/**
- * Regression coverage for a High-severity bug (docs/KNOWN_BUGS.md):
- * loginFromHandoff() deliberately avoids calling setDbUser() for an
- * impersonated profile (moving the local DB's "current user" pointer to a
- * foreign-store user would corrupt audit-log/performed_by attribution), but
- * it persisted the profile under the SAME "dumos_user" localStorage key the
- * normal mount effect reads - so the very next reload restored it through
- * the ordinary path anyway, calling setDbUser() and defeating the intended
- * separation.
- */
+// Regression coverage for a High-severity bug (docs/KNOWN_BUGS.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-auth-impersonation-storage-leak-test-tsx-L6
 
 vi.mock("@sentry/nextjs", () => ({
   setUser: vi.fn(),
@@ -102,9 +94,8 @@ describe("impersonation session storage separation", () => {
     expect(localStorage.getItem("dumos_user")).toBeNull();
     expect(localStorage.getItem("dumos_impersonated_user")).toContain("foreign-user-1");
 
-    // setDbUser (core.setCurrentUser) must never have been called with the
-    // impersonated profile - moving the local DB's "current user" pointer
-    // to a foreign-store user is exactly what this separation prevents.
+    // setDbUser (core.setCurrentUser) must never have been called with the impersonated profile - moving the local DB's "curre…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-auth-impersonation-storage-leak-test-tsx-L105
     const calledWithForeignUser = setCurrentUserSpy.mock.calls.some(
       (call: unknown[]) => (call[0] as { id?: string } | null)?.id === "foreign-user-1",
     );

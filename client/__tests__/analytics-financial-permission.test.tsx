@@ -1,13 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-/**
- * The Analytics dashboard's margin surfaces under "view_financial_reports":
- * the Profit & Loss sub-tab, the Net Profit key metric above it (the same
- * figure, condensed) and the "Export Reports" button, which downloads the
- * profit-loss CSV and nothing else. The other four sub-tabs are operational
- * and stay under view_reports alone.
- */
+// The Analytics dashboard's margin surfaces under "view_financial_reports":
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-analytics-financial-permission-test-tsx-L4
 
 const hasPermission = vi.fn((_key: string) => true);
 

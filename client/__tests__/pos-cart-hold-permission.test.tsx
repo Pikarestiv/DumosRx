@@ -64,12 +64,8 @@ function renderCart(heldSalesCount = 0) {
   );
 }
 
-/**
- * "hold_sales" gates parking a sale, the same way "apply_discounts" gates
- * creating a discount. Seeing that holds exist is deliberately NOT gated -
- * the amber "N on hold" banner stays, so a cashier without the right can
- * still tell a colleague's sale is parked on this till.
- */
+// "hold_sales" gates parking a sale, the same way "apply_discounts" gates creating a discount.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-cart-hold-permission-test-tsx-L67
 describe("POS cart hold permission", () => {
   beforeEach(() => {
     hasPermission.mockReset();

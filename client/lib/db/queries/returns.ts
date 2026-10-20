@@ -10,23 +10,14 @@ interface RestoreParams {
   legacyStockBatchId?: string | null;
   returnQuantity: number;
   returnId: string;
-  /** The parent sale, used to scope how much of this product's per-batch
-   * split a *prior* return already restored (see the comment in
-   * restoreReturnedStock below). Optional only for callers that predate
-   * this field - omitting it disables the already-returned-quantity netting
-   * and restores the old (buggy on a second partial return) behavior. */
+  // The parent sale, used to scope how much of this product's per-batch split a *prior* return already restored (see the comment in restoreRetur…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-returns-ts-L13
   saleId?: string;
   performedBy?: string | null;
 }
 
-/** How much of each of this sale_item's original per-batch split has
- * already been restored by an *earlier* return of the same product within
- * the same sale. Scoped to `saleId` (not just `productId`) so a return of
- * the same product from a *different* sale that happens to share a batch
- * (routine under FEFO) is never counted - and to `saleId` rather than
- * `saleItemId` directly because return_items has no sale_item_id column;
- * this is safe because the POS cart merges duplicate products into one
- * line, so at most one sale_item per product exists within a given sale. */
+// How much of each of this sale_item's original per-batch split has already been restored by an *earlier* return of the same product within th…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-returns-ts-L22
 async function getAlreadyRestoredByBatch(
   productId: string,
   saleId: string,
@@ -57,11 +48,8 @@ async function restoreBatchQuantity(
   quantity: number,
   { productId, costPrice, returnId, performedBy }: Omit<RestoreParams, "saleItemId" | "legacyStockBatchId" | "returnQuantity">,
 ) {
-  // unit_cost/total_cost record the stock's cost basis, matching how sale
-  // and purchase-order movements populate these fields: using the sale's
-  // selling price here (as this used to) mixed cost and revenue figures
-  // under the same field, showing e.g. a refund's revenue value right next
-  // to a sale's cost-of-goods value on the dashboard activity feed.
+  // unit_cost/total_cost record the stock's cost basis, matching how sale and purchase-order movements populate these fields:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-returns-ts-L51
   await insert("stock_movements", {
     product_id: productId,
     stock_batch_id: stockBatchId,
@@ -77,23 +65,13 @@ async function restoreBatchQuantity(
   });
 }
 
-/**
- * Restores stock for a returned sale line to the exact batches it was drawn
- * from, in the proportions recorded at sale time (FEFO splits may span >1
- * batch). Falls back to the legacy single stock_batch_id for sales made
- * before sale_item_batches existed.
- */
+// Restores stock for a returned sale line to the exact batches it was drawn from, in the proportions recorded at sale time (FEFO splits may sp…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-returns-ts-L80
 export async function restoreReturnedStock(params: RestoreParams) {
   const { saleItemId, legacyStockBatchId, returnQuantity, productId, costPrice, returnId, saleId, performedBy } = params;
   const consumedBatches = await getSaleItemBatches(saleItemId);
-  // A second (or third) partial return of the same sale line must not
-  // restore batches from scratch — without this, every partial return
-  // restarted allocation at the first batch in `consumedBatches`, so e.g. a
-  // 10-unit line split 6/batch-A + 4/batch-B returned as 6 then 4 put all
-  // 10 units back into batch A and left batch B permanently 4 short (wrong
-  // expiry date on those 4 units, and a skewed per-batch cost valuation) —
-  // product-level totals looked correct throughout, which is why this had
-  // no visible symptom on any stock screen.
+  // A second (or third) partial return of the same sale line must not restore batches from scratch — without this, every partial return restarte…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-returns-ts-L76
   const alreadyRestored = saleId
     ? await getAlreadyRestoredByBatch(productId, saleId, returnId)
     : new Map<string, number>();
@@ -114,16 +92,8 @@ export async function restoreReturnedStock(params: RestoreParams) {
     if (legacyStockBatchId) {
       await restoreBatchQuantity(legacyStockBatchId, remaining, { productId, costPrice, returnId, performedBy });
     } else {
-      // No specific batch to credit (no sale_item_batches rows and no
-      // legacy stock_batch_id) — previously this logged a stock_movements
-      // row with stock_batch_id: null and never touched stock_batches at
-      // all, so on-hand stock (SUM(stock_batches.quantity)) was never
-      // credited back even though the customer was refunded. Find a
-      // reasonable target batch for this product (or create one) and
-      // restore into it instead, the same way a stock audit's "found extra
-      // stock" branch picks/creates a target batch (see
-      // getOrCreateTargetBatchForProduct) — so the ledger and the actual
-      // on-hand total agree.
+      // No specific batch to credit (no sale_item_batches rows and no legacy stock_batch_id) — previously this logged a stock_movements row with sto…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-returns-ts-L104
       const targetBatch = await getOrCreateTargetBatchForProduct(productId, {
         unitCost: costPrice,
         batchNumberPrefix: "RETURN",

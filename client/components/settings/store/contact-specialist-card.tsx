@@ -8,10 +8,8 @@ import { Phone, Mail } from "lucide-react";
 import { useAccountManager } from "@/lib/hooks/use-account-manager";
 import { getUserInitials } from "@/lib/utils";
 
-/** WhatsApp deep link needs digits only (no +, spaces, dashes); Nigerian
- * numbers are commonly entered as 0803... locally, which isn't a valid
- * international number - swap the leading 0 for the country code so the
- * link actually opens a chat instead of an invalid-number error. */
+// WhatsApp deep link needs digits only (no +, spaces, dashes); Nigerian numbers are commonly entered as 0803...
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-store-contact-specialist-card-tsx-L11
 function toWhatsAppLink(phone: string) {
   const digits = phone.replace(/\D/g, "");
   const withCountryCode = digits.startsWith("0") ? `234${digits.slice(1)}` : digits;

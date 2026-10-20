@@ -3,15 +3,8 @@ import { render, screen } from "@testing-library/react";
 import { createRef } from "react";
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
 
-/**
- * The cycle count is the app's only surface where a product's cost price
- * and selling price can each be corrected as master data, so it is where
- * "edit_product_cost" and "edit_product_price" split apart from the coarse
- * manage_products right. Performing the count itself stays
- * "perform_stock_audit": a counter without the price keys still enters
- * counted quantities, and still SEES both counted figures - they just fall
- * back to a read-only value instead of an input.
- */
+// The cycle count is the app's only surface where a product's cost price and selling price can each be corrected as master…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-audit-ledger-step-price-permissions-test-tsx-L6
 
 const hasPermission = vi.fn((_key: string) => true);
 

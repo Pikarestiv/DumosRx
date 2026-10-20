@@ -3,13 +3,8 @@ import { renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
-/**
- * getRecentSales() reads 100 sales with three correlated subqueries per row and
- * is consumed only by the POS History tab, but it used to run on every POS
- * mount - i.e. for every cashier who only ever rings up sales. use-pos-system
- * already knows the active tab from the URL before it calls usePOSData, so the
- * read is gated on that.
- */
+// getRecentSales() reads 100 sales with three correlated subqueries per row and is consumed only by the POS History tab, b…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-data-history-gating-test-tsx-L6
 
 const getRecentSales = vi.fn(async () => []);
 const getProductsWithStock = vi.fn(async () => []);

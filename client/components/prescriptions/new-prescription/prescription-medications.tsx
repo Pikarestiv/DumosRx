@@ -60,10 +60,8 @@ export function PrescriptionMedications({
     );
   }, [availableProducts, newMedication.productName]);
 
-  // Products imported with a blank `strength` column offer zero dropdown
-  // options once selected, leaving a required-looking combobox with nothing
-  // to pick. Fall back to a free-text input in that case so the field stays
-  // usable instead of rendering an unselectable empty dropdown.
+  // Products imported with a blank `strength` column offer zero dropdown options once selected, leaving a required-looking c…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-prescriptions-new-prescription-prescription-medications-tsx-L63
   const hasSelectedProduct = !!newMedication.productName;
   const noStrengthOptionsAvailable =
     hasSelectedProduct && strengthOptions.length === 0;

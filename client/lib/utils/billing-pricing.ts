@@ -3,15 +3,8 @@ import { normalizePlanId } from "@/lib/constants/subscription-plans-catalog";
 
 const PLAN_WEIGHT: Record<string, number> = { free: 0, starter: 1, pro: 2, enterprise: 3 };
 
-/**
- * Price shown on the card after applying the coupon discount and, when no
- * coupon is applied, referral credits too (matching the referral tab's copy:
- * "Automatically applied at checkout"). This is a display estimate only --
- * it must never be passed as the `amount` sent to `pay()`. The server
- * applies referral credits itself via `use_credits`, so subtracting them
- * here AND sending `use_credits: true` would double-count them. Use
- * `getChargeAmount` for the amount actually sent to `pay()`.
- */
+// Price shown on the card after applying the coupon discount and, when no coupon is applied, referral credits too (matching the referral tab's…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-billing-pricing-ts-L6
 export function getDiscountedPrice(
   numericPrice: number,
   appliedCoupon: AppliedCoupon | null,
@@ -48,12 +41,8 @@ export function isDiscounted(
   return numericPrice > 0 && (appliedCoupon !== null || userCredits > 0);
 }
 
-/**
- * Amount to actually charge via `pay()`. Only the coupon discount reduces
- * this figure client-side; referral credits are intentionally NOT
- * subtracted here since `use_credits: true` already tells the server to
- * apply them -- the server is the source of truth for the final charge.
- */
+// Amount to actually charge via `pay()`.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-billing-pricing-ts-L51
 export function getChargeAmount(numericPrice: number, appliedCoupon: AppliedCoupon | null): number {
   if (numericPrice === 0 || !appliedCoupon) return numericPrice;
 

@@ -14,14 +14,8 @@ import { useSettingsSecurity } from "./use-settings-security";
 import { useSettingsSync } from "./use-settings-sync";
 import { useSettingsTabResolution } from "./use-settings-tab-resolution";
 
-/**
- * Resolves the user's typed/selected auto-sync interval against the
- * store's plan-tier minimum. `0` (instant sync) is a real, meaningful
- * value distinct from "unset" — parseInt(rawInput) || 15 would silently
- * coerce "0" to 15 (0 is falsy), so this checks for NaN explicitly instead.
- * Extracted as a pure function so the clamp logic is unit-testable without
- * a StoreContext render harness.
- */
+// Resolves the user's typed/selected auto-sync interval against the store's plan-tier minimum.
+// Rationale: docs/CLIENT_COMMENTS.md#block-hooks-use-settings-ts-L17
 export function resolveAutoSyncInterval(
   rawInput: string,
   enabled: boolean,
@@ -55,15 +49,8 @@ export function useSettings() {
   const [activeTab, setActiveTab] = useState(tabParam || "appearance");
   const [isDesktop, setIsDesktop] = useState(true);
 
-  // "/settings" (root, isIndex) and "/settings/[tab]" are separate route
-  // chunks even though they render the same SettingsClient — the sidebar's
-  // <Link> only auto-prefetches whichever one it points to ("/settings"),
-  // so landing there first and then clicking any tab (all of which share
-  // this one "[tab]" chunk) pays a real first-time network+parse cost with
-  // nothing yet on screen — the same gap confirmed live for Inventory's
-  // Catalog/Movements tabs. Prefetching one representative tab warms that
-  // shared chunk for every tab, not just this one; a no-op if we're
-  // already on a "[tab]" route ourselves.
+  // "/settings" (root, isIndex) and "/settings/[tab]" are separate route chunks even though they render the same SettingsCli…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-hooks-use-settings-ts-L58
   useEffect(() => {
     router.prefetch("/settings/appearance");
   }, [router]);

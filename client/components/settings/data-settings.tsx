@@ -63,11 +63,8 @@ export function DataSettings({
     getUpgradeMessage,
   } = useFeatureGate();
 
-  // Restoring replaces the entire local database, so it gets the same
-  // confirm-before-acting treatment as the other destructive actions in
-  // Settings. The browser path can only ask *after* the file has been picked
-  // (the input's onChange is the first hook we get), so the chosen file is
-  // parked here until the user confirms.
+  // Restoring replaces the entire local database, so it gets the same confirm-before-acting treatment as the other destructi…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-data-settings-tsx-L66
   const [pendingRestoreFile, setPendingRestoreFile] = useState<File | null>(null);
   const [showTauriRestoreConfirm, setShowTauriRestoreConfirm] = useState(false);
   const [showUndoRestoreConfirm, setShowUndoRestoreConfirm] = useState(false);

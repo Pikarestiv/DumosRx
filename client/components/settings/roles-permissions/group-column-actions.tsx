@@ -18,10 +18,8 @@ interface GroupColumnActionsProps {
   onDeleteGroup: (groupId: string) => Promise<void>;
 }
 
-/** Per-group column header actions in the Roles & Permissions matrix -
- * Revert to Default for a default group (its permissions can be edited
- * but its name/identity can't, per Global Constraints), Rename/Delete for
- * a custom group. Never both on the same group. */
+// Per-group column header actions in the Roles & Permissions matrix - Revert to Default for a default group (its permissio…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-roles-permissions-group-column-actions-tsx-L21
 export function GroupColumnActions({ group, onRevertToDefault, onRenameGroup, onDeleteGroup }: GroupColumnActionsProps) {
   const [confirmRevert, setConfirmRevert] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);

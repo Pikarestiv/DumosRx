@@ -42,9 +42,8 @@ interface StaffFormFieldsProps {
   availableStores: StoreProfile[];
 }
 
-/** The staff form's actual input fields, split out from StaffFormDialog so
- * the dialog wrapper (state, submit handling, footer buttons) stays focused
- * on orchestration rather than markup. */
+// The staff form's actual input fields, split out from StaffFormDialog so the dialog wrapper (state, submit handling, foot…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-staff-staff-form-fields-tsx-L45
 export function StaffFormFields({
   formId,
   onSubmit,

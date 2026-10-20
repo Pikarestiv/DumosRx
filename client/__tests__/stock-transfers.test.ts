@@ -390,9 +390,8 @@ describe('transferStock', () => {
     const destBatch = Object.values(batches).find((b) => b.product_id === result.destProductId);
     expect(destBatch?.cost_price).toBe(127.77);
 
-    // total_cost is a separate multiplication (rounded average * quantity),
-    // which can itself reintroduce a long float (127.77 * 3 === 383.30999999999995)
-    // if not rounded again before being written to the movement row.
+    // total_cost is a separate multiplication (rounded average * quantity), which can itself reintroduce a long float (127.77…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-stock-transfers-test-ts-L393
     const inRow = movements.find((m) => m.movement_type === 'transfer_in');
     expect(inRow?.total_cost).toBe(383.31);
 

@@ -19,10 +19,8 @@ vi.mock("@/components/settings/store/fleet-form-dialog", () => ({
   FleetFormDialog: () => null,
 }));
 
-// Tooltip content only mounts on real hover via Radix's own timers; mocked
-// here (matching the established pattern in assistant-launcher-plan-gate.
-// test.tsx) so the test can assert on its content directly without
-// simulating pointer events.
+// Tooltip content only mounts on real hover via Radix's own timers; mocked here (matching the established pattern in assis…
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-header-store-switcher-tooltip-test-tsx-L22
 vi.mock("@/components/ui/tooltip", () => ({
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   TooltipTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -35,12 +33,8 @@ function makeStore(overrides: Partial<StoreProfile> = {}): StoreProfile {
   return { id: "s1", name: LONG_NAME, ...overrides } as StoreProfile;
 }
 
-/**
- * A-158 follow-up: the store name in the header is truncated
- * (`truncate max-w-[...]`) for both the plain non-admin label and the admin
- * switcher button, with nothing to reveal the full name once it's cut off.
- * Reported live by the user.
- */
+// A-158 follow-up: the store name in the header is truncated (`truncate max-w-[...]`) for both the plain non-admin label a…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-header-store-switcher-tooltip-test-tsx-L38
 describe("HeaderStoreSwitcher tooltip", () => {
   it("shows the full store name in a tooltip for the admin switcher button", () => {
     render(
@@ -69,9 +63,8 @@ describe("HeaderStoreSwitcher tooltip", () => {
       />,
     );
     const matches = screen.getAllByText(LONG_NAME);
-    // Without a tooltip, the truncated label itself already renders the
-    // full text node (CSS-only truncation) - the real assertion is that a
-    // second copy exists inside the mocked TooltipContent.
+    // Without a tooltip, the truncated label itself already renders the full text node (CSS-only truncation) - the real assert…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-header-store-switcher-tooltip-test-tsx-L72
     expect(matches.length).toBeGreaterThanOrEqual(2);
   });
 });

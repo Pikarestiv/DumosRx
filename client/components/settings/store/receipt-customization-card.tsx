@@ -30,11 +30,8 @@ import { useReceiptPaperSize } from "@/lib/hooks/use-receipt-paper-size";
 import { toast } from "sonner";
 import { useState } from "react";
 
-/** A simple label/description + switch row, shown as read-only
- * Enabled/Disabled text outside edit mode. Shared by the receipt toggles
- * that don't need feature-gating (Show Phone, Show Address) - Show Logo and
- * Hide Powered By stay inline since they each wrap their switch in
- * withRestriction()/a tooltip. */
+// A simple label/description + switch row, shown as read-only Enabled/Disabled text outside edit mode.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-store-receipt-customization-card-tsx-L33
 function ReceiptToggleRow({
   label,
   description,
@@ -182,9 +179,8 @@ export function ReceiptCustomizationCard({
                     className="h-20 w-20 object-contain border rounded-lg p-1 bg-white"
                   />
                 ) : (
-                  // Never a click target on this card (the upload lives on
-                  // Business Information) - plain, not dashed, so it doesn't
-                  // read as an upload dropzone here.
+                  // Never a click target on this card (the upload lives on Business Information) - plain, not dashed, so it doesn't read as…
+                  // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-store-receipt-customization-card-tsx-L185
                   <div className="h-20 w-20 border rounded-lg flex items-center justify-center text-muted-foreground bg-muted/30">
                     <ImageOff className="h-6 w-6" />
                   </div>

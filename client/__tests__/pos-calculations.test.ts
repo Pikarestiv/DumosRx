@@ -222,9 +222,8 @@ describe('POS Calculations', () => {
 
   describe('Mixed-payment amount paid and status (KNOWN_BUGS.md #6)', () => {
     it('excludes the credit split from amount actually collected', () => {
-      // Regression: a ₦1000 sale split cash ₦600 / credit ₦400 previously
-      // recorded amount_paid as 1000 (the full split sum), making the sale
-      // look fully paid when ₦400 was never actually collected.
+      // Regression: a ₦1000 sale split cash ₦600 / credit ₦400 previously recorded amount_paid as 1000 (the full split sum), mak…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-pos-calculations-test-ts-L225
       const splits = [
         { method: 'cash', amount: 600 },
         { method: 'credit', amount: 400 },
@@ -278,12 +277,8 @@ describe('POS Calculations', () => {
     });
 
     it('does not treat an over-allocated credit split as cash overpayment', () => {
-      // Regression: a ₦10,000 sale with ₦5,000 cash entered, then a credit
-      // split auto-filled to the full ₦10,000 remaining before the cashier
-      // corrected it, previously computed change from the raw split total
-      // (5000 + 10000 = 15000 -&gt; "change: 5000"), handing out cash that was
-      // never actually tendered. Only the ₦5,000 cash was real money; it
-      // doesn't cover the ₦10,000 total, so no change is due.
+      // Regression: a ₦10,000 sale with ₦5,000 cash entered, then a credit split auto-filled to the full ₦10,000 remaining befor…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-pos-calculations-test-ts-L281
       const splits = [
         { method: 'cash', amount: 5000 },
         { method: 'credit', amount: 10000 },
@@ -309,13 +304,8 @@ describe('POS Calculations', () => {
   });
 });
 
-/**
- * A-260's convention test is a static scan: it only sees arithmetic written
- * literally inside a `column: expr` write, so a money value produced by a
- * helper or held in a variable is invisible to it. These are the cases that
- * blind spot was hiding - found by grepping for `Math.` rather than by the
- * test going red.
- */
+// A-260's convention test is a static scan:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-calculations-test-ts-L312
 describe("money that reaches the database through a helper, not inline arithmetic", () => {
   it("rounds mixed tender, which is a sum of typed split amounts", () => {
     expect(

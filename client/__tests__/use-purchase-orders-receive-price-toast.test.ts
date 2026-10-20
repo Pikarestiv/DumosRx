@@ -30,13 +30,8 @@ vi.mock("@/lib/db/queries/products", () => ({
   getAverageCostPrice: vi.fn(async () => 5200),
 }));
 
-/**
- * Regression coverage (final review of the procurement UX branch): receiving
- * an existing PO writes products.selling_price synchronously, exactly like
- * an Immediate Purchase's create-and-receive - the same "toast when the
- * price change takes place immediately" rule the user asked for applies
- * here too, and previously didn't.
- */
+// Regression coverage (final review of the procurement UX branch):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-purchase-orders-receive-price-toast-test-ts-L33
 function wrapper({ children }: { children: ReactNode }) {
   const queryClient = new QueryClient();
   return React.createElement(QueryClientProvider, { client: queryClient }, children);

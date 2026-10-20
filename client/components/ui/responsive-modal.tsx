@@ -49,16 +49,8 @@ export function ResponsiveModal({
   footer,
 }: ResponsiveModalProps) {
   const isDesktop = useMediaQuery("(min-width: 768px)");
-  // useMediaQuery starts at `false` on every first render (SSR/static-export
-  // safe) and corrects itself in an effect right after mount. Rendering
-  // Dialog or Drawer off the uncorrected value would mount the wrong one
-  // first when this modal happens to already be `open` at that moment, and
-  // swapping mid-open once the real value lands is what used to leave
-  // `document.body.style.pointerEvents` stuck (two scroll-lock
-  // implementations racing). Rendering nothing until mounted skips that
-  // race: React batches the `mounted` and corrected-`isDesktop` effects
-  // into one re-render, so the first real render already has the right
-  // answer and only ever mounts one of the two.
+  // useMediaQuery starts at `false` on every first render (SSR/static-export safe) and corrects itself in an effect right af…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-responsive-modal-tsx-L52
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
 

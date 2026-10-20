@@ -1,13 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { getDefaultMinimumSyncIntervalMinutes } from "@/lib/hooks/use-feature-gate";
 
-/**
- * Fallback used only when the server's subscription_plans config has no
- * explicit `limits.sync_interval` for a tier — see getLimit() in
- * use-feature-gate.ts. Enterprise gets 0 (sync instantly on any change);
- * Pro and Starter get positive polling intervals; anything else (free)
- * falls back to the existing 360-minute default.
- */
+// Fallback used only when the server's subscription_plans config has no explicit `limits.sync_interval` for a tier — see g…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-feature-gate-sync-interval-test-ts-L4
 describe("getDefaultMinimumSyncIntervalMinutes", () => {
   it("enterprise defaults to 0 (sync instantly after every change)", () => {
     expect(getDefaultMinimumSyncIntervalMinutes(true, false, false)).toBe(0);

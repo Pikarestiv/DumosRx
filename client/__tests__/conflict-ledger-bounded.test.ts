@@ -6,13 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * The ledger was allowlisted to `purchase_order_items`, so a terminal drop on
- * any other table left no local trace: once the push finished the queue was
- * empty and the conflict count was zero. That is why the repeated "changes
- * could not be saved" loops were never diagnosable. Widening it means it has
- * to be bounded instead.
- */
+// The ledger was allowlisted to `purchase_order_items`, so a terminal drop on any other table left no local trace:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-conflict-ledger-bounded-test-ts-L9
 describe("the terminal-conflict ledger", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

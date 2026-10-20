@@ -6,14 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * The end-of-day summary reads (payment-method totals, transaction count,
- * top staff) and the POS's two product-suggestion rankings were all
- * uncovered. The summary reads are what a pharmacy reconciles its cash
- * drawer against, and all three bound the day on the STORE's local wall
- * clock while transaction_date holds a UTC instant — the exact boundary bug
- * already fixed in getRecentSales.
- */
+// The end-of-day summary reads (payment-method totals, transaction count, top staff) and the POS's two product-suggestion…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-eod-summary-and-pos-suggestion-queries-test-ts-L9
 describe("EOD summary and POS suggestion queries", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

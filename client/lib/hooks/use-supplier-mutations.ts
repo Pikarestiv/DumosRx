@@ -4,12 +4,8 @@ import { update } from "@/lib/db/base-helpers";
 import { queryKeys } from "@/lib/query-keys";
 import type { SupplierPayload } from "@/lib/types/supplier";
 
-/** Shared by every "Add Supplier" call site (Procurement's new/edit PO
- * pages, the Supplier Directory) so they all go through one mutation
- * instead of three separate copies of the same try/catch. Each caller
- * still supplies its own onSuccess/onError via mutate()'s second argument
- * for its own toast wording / dialog-closing / selection behavior — this
- * hook only owns the actual createSupplier() call and its pending state. */
+// Shared by every "Add Supplier" call site (Procurement's new/edit PO pages, the Supplier Directory) so they all go through one mutation inste…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-supplier-mutations-ts-L7
 export function useCreateSupplierMutation() {
   return useMutation({
     mutationFn: (payload: SupplierPayload) => createSupplier(payload),
@@ -46,9 +42,8 @@ interface UpdateSupplierRatingParams {
   rating: number;
 }
 
-/** The Supplier Directory table's inline "quick edit rating" affordance only
- * ever patches this one field — a separate, narrower mutation than the full
- * add/edit dialog's payload. */
+// The Supplier Directory table's inline "quick edit rating" affordance only ever patches this one field — a separate, narrower mutation than t…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-supplier-mutations-ts-L49
 export function useUpdateSupplierRatingMutation() {
   const queryClient = useQueryClient();
   return useMutation({

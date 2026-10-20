@@ -1,30 +1,7 @@
 import { test, expect, login, loginAsPaidTier } from './fixtures';
 
-/**
- * Settings had zero dedicated e2e or unit coverage before this task (see
- * docs/features/settings.md, Step 3) despite being the single tab group
- * with the widest blast radius in the app — a role change or a sync
- * setting can silently affect every other feature. Given 21 sub-tabs, this
- * spec deliberately does NOT try to cover all of them: it follows the
- * brief's instruction to prioritize by blast radius, covering `staff`
- * (permission/role changes), `security` (auto-lock), `data`/`cloud` (sync
- * settings, directly tied to Task 0's sync-queue transaction race fix),
- * and `roles` (the permission matrix). Purely cosmetic tabs like
- * `appearance`/`general` (theme/color/sidebar — device-local preferences
- * with no business-state impact) are scoped out on purpose, not silently
- * skipped.
- *
- * Auto-Lock (Security) and Auto-Sync (Data) are both paid-tier features
- * (`canAutoLock`/`canCloudSync` in lib/hooks/use-feature-gate.ts, both
- * `!isFree` fallbacks), and Staff account creation is capped at 0 seats on
- * the free tier (`maxStaffAccounts`). The shared e2e fixture
- * (e2e/.auth/test-db.bin) is a free-tier store on purpose (other specs rely
- * on that to test LockedModuleOverlay), so this spec elevates its own
- * per-test copy via the same dev-only `window.__e2eSetSubscriptionTier`
- * hook `expenses.spec.ts` established, then reloads so every
- * `useFeatureGate()` consumer picks up the elevated tier from a clean
- * mount (via the shared `loginAsPaidTier` helper in fixtures.ts).
- */
+// Settings had zero dedicated e2e or unit coverage before this task (see docs/features/settings.md, Step 3) despite being…
+// Rationale: docs/CLIENT_COMMENTS.md#block-e2e-settings-spec-ts-L3
 
 test.describe('Settings', () => {
   test('staff: editing a staff member\'s role persists after reload', async ({ page }) => {

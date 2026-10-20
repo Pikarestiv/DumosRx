@@ -18,23 +18,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * A-173, corrected in review. An earlier version of this file asserted that
- * "Health Sync" must REFUSE while deferred deltas are pending, on the theory
- * that the device would otherwise assert understated quantities over the
- * server's correct ones.
- *
- * That theory was wrong, and the guard it justified was removed. A delta is
- * pending only while its `stock_batches` row is ABSENT locally — that is the
- * condition that defers it. An absent batch is not in the payload this
- * function sends, and the server only touches batches that are in the
- * payload. So the understated write cannot happen, and the guard refused
- * repairs while protecting nothing — permanently, for any device whose pull
- * scoping means the batch never arrives.
- *
- * These tests pin the real safety property instead: a batch with an unapplied
- * delta is excluded from the payload by construction.
- */
+// A-173, corrected in review.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-reconcile-proceeds-with-pending-deltas-test-ts-L21
 describe("reconcileStockQuantities with pending deltas", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

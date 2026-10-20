@@ -15,13 +15,8 @@ interface SubmitStockAdjustmentParams {
   performedBy: string | null;
 }
 
-/** Turns a draft (a fixed reason, an optional note, and per-item quantities
- * entered as plain positive numbers) into the signed deltas the DB layer
- * writes. Under Inventory count the entered number is the counted on-shelf
- * quantity rather than an amount to move, so its delta is the difference from
- * current stock and can be negative - see resolveAdjustmentDelta. The note
- * rides in `reason` behind a separator, since stock_movements has no note
- * column (see adjustment-derivations.ts). */
+// Turns a draft (a fixed reason, an optional note, and per-item quantities entered as plain positive numbers) into the signed deltas the DB la…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-stock-adjustment-mutation-ts-L18
 export function useSubmitStockAdjustmentMutation() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -10,9 +10,8 @@ interface TransactionItemProps {
   sale: SaleWithDetails;
   currencyCode?: string;
   canReturn?: boolean;
-  /** Takes the sale rather than a pre-bound closure, so the parent can pass
-   * one stable handler for every row instead of a fresh arrow per row (which
-   * would defeat the memoization below). */
+  // Takes the sale rather than a pre-bound closure, so the parent can pass one stable handler for every row instead of a fre…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-pos-transaction-item-tsx-L13
   onSelect: (sale: SaleWithDetails) => void;
   onReturnClick: (sale: SaleWithDetails) => void;
 }

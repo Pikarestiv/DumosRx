@@ -1,7 +1,5 @@
-/** A recent-activity feed row: the shared shape after tagging heterogeneous
- * rows (sales, stock movements, purchase orders, expenses, prescriptions)
- * with `activity_type` and merging them into one sorted feed. Every field
- * beyond `id`/`activity_type` only applies to some activity types. */
+// A recent-activity feed row:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#types-dashboard-activity-ts-L1
 export interface DashboardActivity {
   id: string;
   activity_type: "sale" | "stock_movement" | "purchase_order" | "expense" | "prescription" | "return" | "product";

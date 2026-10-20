@@ -6,13 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * A whole-row requeue rebuilds its payload from `SELECT *`, so a column that
- * is nullable locally but NOT NULL (with a server-side DEFAULT) in MySQL
- * went up as an explicit `null` and was rejected by the write — the
- * stock_batches.cost_price failure in docs/FIXED_BUGS.md A-128. Null-valued
- * keys are stripped so the server applies its own default instead.
- */
+// A whole-row requeue rebuilds its payload from `SELECT *`, so a column that is nullable locally but NOT NULL (with a serv…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-requeue-strips-null-columns-test-ts-L9
 describe("whole-row requeue payloads never carry a null value", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

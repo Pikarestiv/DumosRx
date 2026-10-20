@@ -13,9 +13,8 @@ export interface StockBatch {
   created_at?: string;
 }
 
-/** Row shape returned by getAvailableStockBatches(): active stock_batches
- * joined with their product's name/strength/selling price, for pickers that
- * need to prescribe/sell against available batches. */
+// Row shape returned by getAvailableStockBatches():
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#types-stock-batch-ts-L16
 export interface AvailableStockBatch extends StockBatch {
   product_name?: string;
   m_strength?: string;

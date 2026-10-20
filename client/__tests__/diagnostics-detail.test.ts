@@ -57,9 +57,8 @@ describe("diagnostics detail queries", () => {
   });
 
   it("reduces a driver error to a class, never quoting the attempted statement", async () => {
-    // A sync last_error's first 300 chars can be the SQL head with bound
-    // values — a password hash, a customer's details. The class is safe to
-    // put on screen and in a pasted ticket; the raw string is not.
+    // A sync last_error's first 300 chars can be the SQL head with bound values — a password hash, a customer's details.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-diagnostics-detail-test-ts-L60
     db.run(
       `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at, retry_count, last_error)
        VALUES ('products', 'p1', 'UPDATE', '{}', '2026-10-01T09:00:00Z', 7,

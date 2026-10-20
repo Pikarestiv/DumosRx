@@ -15,10 +15,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
       position={isDesktop ? "bottom-right" : "top-center"}
-      // Toasts already support swipe-to-dismiss (sonner's built-in pointer
-      // gesture), but the default for a centered position is "swipe up"
-      // only. Allow left/right too since that's the more familiar mobile
-      // dismiss gesture.
+      // Toasts already support swipe-to-dismiss (sonner's built-in pointer gesture), but the default for a centered position is…
+      // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-sonner-tsx-L18
       swipeDirections={isDesktop ? undefined : ["left", "right", "top"]}
       // On mobile, rely on swipe-to-dismiss only; the close button is
       // desktop-only since there's no swipe gesture there.

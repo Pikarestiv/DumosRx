@@ -1,10 +1,8 @@
 import { describe, it, expect, beforeAll, vi } from "vitest";
 import initSqlJs from "sql.js";
 
-// transaction() persists via idb-keyval when not running in Tauri; stub it
-// out since jsdom has no real IndexedDB and we only care about the
-// notification-batching semantics here, not persistence. Same stub as
-// db-transaction.test.ts.
+// transaction() persists via idb-keyval when not running in Tauri; stub it out since jsdom has no real IndexedDB and we on…
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sync-queue-change-listeners-test-ts-L4
 vi.mock("idb-keyval", () => ({
   get: vi.fn(async () => undefined),
   set: vi.fn(async () => undefined),

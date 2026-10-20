@@ -70,16 +70,13 @@ export interface StoreProfile {
   loyalty_points_per_currency?: number;
   uppercase_display_enabled?: number;
   store_slug?: string;
-  /** Server-set by the online-payment onboarding endpoint and pulled down by
-   * sync; read-only here (nothing in this app may write them, see
-   * client/AGENTS.md). The bank code and last 4 exist purely so the settings
-   * panel can show which account a connected store settles to. */
+  // Server-set by the online-payment onboarding endpoint and pulled down by sync; read-only here (nothing in this app may write them, see client…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#context-store-context-tsx-L73
   paystack_subaccount_code?: string | null;
   paystack_bank_code?: string | null;
   paystack_account_number_last4?: string | null;
-  /** Server-set the last time store_slug actually changed (not on the
-   * first-ever set) - drives the Settings UI's "you can change this again
-   * on [date]" cooldown message. Read-only: nothing in this app writes it. */
+  // Server-set the last time store_slug actually changed (not on the first-ever set) - drives the Settings UI's "you can change this again on [d…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#context-store-context-tsx-L80
   store_slug_changed_at?: string | null;
   updated_at?: string;
   license_token?: string;
@@ -88,14 +85,11 @@ export interface StoreProfile {
   is_demo?: number;
   require_sale_notes?: number;
   display_stock_levels?: number;
-  /** Off by default: whether non-admin staff (specialist, sales_staff) can
-   * use the POS header's "Request stock from another store" button.
-   * Admin-tier roles (see checkIsAdmin) can always request transfers
-   * regardless of this setting. */
+  // Off by default: whether non-admin staff (specialist, sales_staff) can use the POS header's "Request stock from another store" button.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#context-store-context-tsx-L91
   staff_can_request_transfers?: number;
-  /** Off by default: gates the POS cart's "Reseller sale" row (both the
-   * reseller-commission and store-markup sub-types) - see
-   * isMarkupSalesEnabled in use-feature-gate.ts. */
+  // Off by default: gates the POS cart's "Reseller sale" row (both the reseller-commission and store-markup sub-types) - see isMarkupSalesEnable…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#context-store-context-tsx-L96
   markup_sales_enabled?: number;
 }
 
@@ -112,26 +106,8 @@ interface StoreContextType {
   activeStoreId: string | null;
   availableStores: StoreProfile[];
   switchStore: (storeId: string) => void;
-  /**
-   * True for the duration of switchStore()'s async work (cancel + clear).
-   * Consumers (LicenseGuard) show a splash for that window so nothing ever
-   * paints mid-transition: `children` (and every query observer inside it)
-   * unmounts the instant this flips true, and remounts once it flips back,
-   * by which point queryClient.clear() below has already emptied the
-   * cache, so the remount finds no data to render for any query - store-
-   * scoped or not - rather than something stale.
-   *
-   * (An earlier version of this used invalidateQueries() instead of
-   * clear(), on the theory that a background refetch would land before the
-   * splash cleared. It didn't: invalidateQueries()'s default
-   * `refetchType: 'active'` only refetches queries with a mounted
-   * observer, and unmounting `children` synchronously - before the awaited
-   * invalidate call even runs - leaves zero active observers to refetch.
-   * The "round trip" resolved almost instantly without doing any real
-   * work, and the first render after remount read the previous store's
-   * data straight out of cache. clear() has no such gap: it doesn't depend
-   * on anything being mounted to do its job.)
-   */
+  // True for the duration of switchStore()'s async work (cancel + clear).
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#context-store-context-tsx-L115
   isSwitchingStore: boolean;
   refetch: () => Promise<unknown>;
 }
@@ -139,8 +115,7 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 // Upper bound on how long a store switch may hold the transition splash.
-// Purely a stuck-state guard, not a tuned delay - the local-first query
-// layer normally settles far inside it.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L117
 const SWITCH_STORE_MAX_WAIT_MS = 5000;
 
 // Hoisted so an unresolved store list hands every useStore() consumer the same
@@ -180,16 +155,8 @@ const terminology: Record<StoreType, Record<string, string>> = {
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const { user, isHydrated: isAuthHydrated } = useAuth();
-  // Lazy-initialized (not a useEffect) so the saved choice is already in
-  // state on the very first render, before `user` has even hydrated from
-  // its own localStorage read. Previously this started at null and was
-  // only populated by a later effect gated on `user`. During that gap,
-  // targetId below was null, so the profile query fell back to
-  // getFirstStore() (arbitrary row), and the "sync activeStoreId back"
-  // effect further down then persisted THAT as the real choice, silently
-  // overwriting a real selection (e.g. from the multi-store cloud-restore
-  // picker) with whatever SQLite happened to return first. Reading
-  // synchronously here closes that window instead of racing it.
+  // Lazy-initialized (not a useEffect) so the saved choice is already in state on the very first render, before `user` has even hydrated from it…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L159
   const [activeStoreId, setActiveStoreId] = React.useState<string | null>(() =>
     typeof window !== "undefined" ? getStoredActiveStoreId() : null,
   );
@@ -198,19 +165,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Otherwise, use activeStoreId if set, else fallback to LIMIT 1
   const targetId = user?.store_id || activeStoreId;
 
-  // Mirror this same precedence into the query layer's module-scope resolver
-  // (lib/db/core.ts): plain async query functions have no React context, so
-  // this is how they learn which store to filter by. Must stay in lockstep
-  // with `targetId` above: a staff member's fixed store_id always wins.
-  //
-  // Gated on isAuthHydrated: on the very first render, `user` is still null
-  // (AuthProvider's own localStorage read hasn't run its effect yet), so
-  // `targetId` falls back to `activeStoreId` even for a staff member whose
-  // real (different) store_id just hasn't loaded yet. Any query that fired
-  // in that window - and the storeProfile query right below is exactly one
-  // - would resolve/scope against the WRONG store for that device. Waiting
-  // for isAuthHydrated closes the window; it flips true in the same tick
-  // AuthProvider's mount effect runs, so this costs no perceptible delay.
+  // Mirror this same precedence into the query layer's module-scope resolver (lib/db/core.ts):
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L177
   React.useEffect(() => {
     if (!isAuthHydrated) return;
     setResolvedStoreId(targetId);
@@ -224,22 +180,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const profile = await getStoreById(targetId);
         if (profile) return profile;
 
-        // The active/fixed store no longer exists locally, most likely
-        // pruned by the sync-engine's reconciliation step because the
-        // server no longer recognizes it (a stale local-only store, or one
-        // this account lost access to). For an owner/admin (no fixed
-        // store_id), fall back to whatever store IS still known rather than
-        // getting stuck showing nothing. A staff member's fixed store_id
-        // genuinely disappearing is a deeper problem worth surfacing, not
-        // papering over the same way.
-        //
-        // Clearing the stale id is NOT done here: a query function can be
-        // re-invoked on retry without a real change in circumstances, and
-        // doing it here previously fired setActiveStoreId(null) (a React
-        // state update) on every such invocation - which flips `targetId`
-        // mid-fetch, produces a new query key, and triggers a second fetch
-        // on every miss. The effect below runs once React Query has settled
-        // on a confirmed result instead.
+        // The active/fixed store no longer exists locally, most likely pruned by the sync-engine's reconciliation step because the server no longer re…
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L203
         if (!user?.store_id) {
           return getFirstStore();
         }
@@ -249,12 +191,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   });
 
-  // Not just isStoreProfileLoading: with `enabled: isAuthHydrated`, React
-  // Query's own isLoading (isPending && isFetching) reads false while
-  // disabled and not yet fetched - it would otherwise briefly report "not
-  // loading" during the pre-hydration window despite storeProfile still
-  // being undefined, letting a consumer treat that gap as "confirmed no
-  // store" rather than "still resolving."
+  // Not just isStoreProfileLoading:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L228
   const loading = !isAuthHydrated || isStoreProfileLoading;
 
   // During render, not in an effect: children format money in this same
@@ -268,9 +206,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
 
 
-  // Set once on mount: distinguishes which physical device/terminal at a
-  // multi-device store a remote log came from, since store_id/user_id alone
-  // are shared across every device tied to that store.
+  // Set once on mount: distinguishes which physical device/terminal at a multi-device store a remote log came from, since store_id/user_id alone…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L247
   React.useEffect(() => {
     if (typeof window !== "undefined") {
       Sentry.setTag("device_id", getDeviceId());
@@ -291,19 +228,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
 
 
-  // Sync activeStoreId back whenever the resolved profile doesn't match
-  // targetId, for an owner/admin with no fixed store_id - covers both
-  // falling back to LIMIT 1 (no targetId at all) and a targetId that no
-  // longer resolves to a real store (queryFn's fallback returned a
-  // *different* store than requested; see the comment on the fallback
-  // branch above). Setting the resolved id directly, in one state update,
-  // rather than clearing to null first and letting a second effect pass
-  // pick that up - the two-step version doubled the number of query
-  // cycles this settles through (null is itself a distinct targetId,
-  // producing its own queryKey/fetch before this effect could fire again
-  // to land on the real value). Naturally runs at most once per mismatch:
-  // once synced, storeProfile.id === targetId and this can't fire again
-  // until a new mismatch appears.
+  // Sync activeStoreId back whenever the resolved profile doesn't match targetId, for an owner/admin with no fixed store_id - covers both fallin…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L270
   React.useEffect(() => {
     if (
       storeProfile &&
@@ -325,51 +251,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setStoredActiveStoreId(storeId);
     }
 
-    // Every store-scoped query reads the active store from lib/db/core.ts's
-    // module-scope resolver at call time, not from its React Query key
-    // (queryKeys.ts's factory DOES suffix keys with the active store id,
-    // but plenty of call sites still hand-roll their own useQuery key and
-    // aren't covered by that), so without clearing the cache below, screens
-    // would keep showing the previous store's cached results indefinitely.
-    //
-    // Must set the resolver synchronously here rather than relying on the
-    // useEffect above (which mirrors targetId into it): that effect only
-    // runs after React commits the re-render, which is after the async work
-    // below has already kicked off. Without this, work started in that gap
-    // would read the OLD store id (stale resolver), cache the old store's
-    // data under the same query keys, and never refetch again: the exact
-    // "needs a reload to reflect" bug.
+    // Every store-scoped query reads the active store from lib/db/core.ts's module-scope resolver at call time, not from its React Query key (quer…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L304
     setResolvedStoreId(storeId);
     // Cancels in-flight fetches from the outgoing store before clearing:
-    // clear() alone doesn't abort a request already in flight, and every
-    // query function reads the active store id from lib/db/core.ts's
-    // module-level resolver at execution time rather than from its React
-    // Query key. Without this, a request issued (and still pending) before
-    // the switch could resolve after resolvedStoreId flips and get cached
-    // as "fresh" under a store-unscoped key, momentarily showing the
-    // previous store's data.
-    //
-    // Hold a transition state until this settles, so nothing renders the
-    // outgoing store's still-cached data while cancellation is in flight.
-    // Capped by a timeout on the cancelQueries() step only: a fetch that
-    // never settles must not strand the app on the splash screen - falling
-    // back to the (at worst briefly stale) UI is better than a stuck one.
-    // clear() itself is synchronous (no network round trip, unlike the
-    // invalidateQueries() this used to call) and always runs after the
-    // race below, timeout or not, so the cache is never left un-cleared.
-    //
-    // clear() rather than invalidateQueries(): invalidateQueries() only
-    // marks queries stale and its default refetchType only refetches
-    // queries with an ACTIVE (mounted) observer - and setIsSwitchingStore
-    // below unmounts `children`, and every observer in it, synchronously,
-    // before any of this async work even starts. With zero active
-    // observers, invalidateQueries() did nothing but resolve immediately,
-    // and the remount after the splash cleared read the previous store's
-    // data straight out of cache. clear() doesn't depend on anything being
-    // mounted: it empties the cache outright, so the remount finds nothing
-    // to serve for any query and fetches fresh under the new store - the
-    // same approach the working multi-staff PIN "Switch Account" path
-    // already uses via auth-context.tsx's login()/logout().
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L319
     setIsSwitchingStore(true);
     void (async () => {
       try {
@@ -378,26 +264,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           new Promise((resolve) => setTimeout(resolve, SWITCH_STORE_MAX_WAIT_MS)),
         ]);
         queryClient.clear();
-        // A POS cart staged against the outgoing store's product ids must
-        // not survive into the newly-active store — it isn't scoped by
-        // store, and checking it out against the new store would sell
-        // product ids/prices that belong to a different store entirely.
+        // A POS cart staged against the outgoing store's product ids must not survive into the newly-active store — it isn't scoped by store, and chec…
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L357
         clearLocalDrafts();
       } finally {
         setIsSwitchingStore(false);
       }
     })();
 
-    // Pulls this store's data down if this device has never synced it
-    // before (X-Store-Id now points at the newly-selected store; see
-    // lib/api/client.ts). Best-effort: offline/unauthenticated devices still
-    // work from whatever's already local. Guarded on navigator.onLine (like
-    // the mount-time triggerSync effect below) so switching stores while
-    // offline doesn't attempt a doomed fetch — every queued item across
-    // however many tables have pending changes would otherwise fail with
-    // "Failed to fetch" and burn through the sync-queue's retry backoff for
-    // no reason, eventually firing a spurious "stuck sync" crash report for
-    // what is, correctly, just this being an offline-first app.
+    // Pulls this store's data down if this device has never synced it before (X-Store-Id now points at the newly-selected store; see lib/api/clien…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L367
     if (typeof window !== "undefined" && navigator.onLine) {
       import("@/lib/db/sync-engine").then(({ sync }) => sync()).catch(() => {});
     }
@@ -468,9 +344,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, [refetch]);
 
-  // Privileged subscription status sync: always runs regardless of tier,
-  // so plan downgrades, suspensions, and renewals written on the server
-  // are reflected locally even when full cloud sync is gated off.
+  // Privileged subscription status sync:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L447
   React.useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -510,16 +385,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [refetch]);
 
   const updateStoreProfile = useCallback(async (data: Partial<StoreProfile>) => {
-    // Every real caller of this is a settings write against an ALREADY
-    // onboarded store (theme toggle, loyalty settings, payment config, ...)
-    // - onboarding creates the very first store through its own explicit
-    // path (app/setup/use-onboarding.ts), not through here. `storeProfile`
-    // being null at this point means its query hasn't resolved yet (or a
-    // staff member's fixed store was pruned), not "no store exists on this
-    // account yet" - minting a hardcoded id "default"/"My Store" row here
-    // silently created a phantom store (that then synced to the server)
-    // for what's actually a loading-state race or a data problem that
-    // deserves to be surfaced, not papered over.
+    // Every real caller of this is a settings write against an ALREADY onboarded store (theme toggle, loyalty settings, payment config, ...) - onb…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L489
     if (!storeProfile) {
       console.error(
         "[StoreContext] updateStoreProfile called with no storeProfile loaded - write skipped:",
@@ -532,10 +399,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [storeProfile, refetch]);
 
   const setTheme = useCallback((newTheme: string) => {
-    // Fire-and-forget by design (the UI applies the theme immediately,
-    // optimistically) — but a failed write must not fail silently, or the
-    // displayed theme and the persisted/synced one quietly diverge with no
-    // signal to the user.
+    // Fire-and-forget by design (the UI applies the theme immediately, optimistically) — but a failed write must not fail silently, or the display…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L511
     updateStoreProfile({ theme: newTheme }).catch((err) => {
       console.error("[StoreContext] Failed to persist theme change:", err);
       toast.error("Couldn't save your theme choice — it may not stick after reload.");

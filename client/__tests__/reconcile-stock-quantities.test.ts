@@ -128,9 +128,8 @@ describe("reconcileStockQuantities", () => {
 
     const result = await reconcileStockQuantities();
 
-    // Not calls[0]: reconcile now checks _pending_stock_deltas first, so a
-    // device holding unapplied deltas cannot assert its quantities as
-    // authoritative (A-173).
+    // Not calls[0]: reconcile now checks _pending_stock_deltas first, so a device holding unapplied deltas cannot assert its q…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-reconcile-stock-quantities-test-ts-L131
     const batchCall = vi
       .mocked(query)
       .mock.calls.find(([sql]) => /FROM stock_batches/i.test(sql as string));

@@ -1,20 +1,13 @@
 import { query, execute } from "../core";
 import { recomputeBatchQuantities } from "../batch-quantity";
 
-/**
- * Deferred `stock_movements` quantity deltas, persisted rather than held in
- * memory so an interrupted pull round cannot lose one. See client/AGENTS.md,
- * "Deferred movement deltas".
- */
+// Deferred `stock_movements` quantity deltas, persisted rather than held in memory so an interrupted pull round cannot lose one.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-deferred-stock-deltas-ts-L4
 
 const REPORT_AFTER_ATTEMPTS = 10;
 
-/**
- * A delta whose batch never arrives never resolves, so reporting it once and
- * falling silent reads as "it fixed itself". It is re-reported on this
- * interval afterwards: often enough that a chronic divergence stays visible,
- * rarely enough that it doesn't drown the issue it belongs to.
- */
+// A delta whose batch never arrives never resolves, so reporting it once and falling silent reads as "it fixed itself".
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-deferred-stock-deltas-ts-L12
 const REREPORT_EVERY_ATTEMPTS = 25;
 
 function shouldReport(attempts: number): boolean {
@@ -54,18 +47,8 @@ export async function countDeferredStockDeltas(): Promise<number> {
   return Number(rows[0]?.pending ?? 0);
 }
 
-/**
- * Settles every deferred delta whose batch has since arrived by rebuilding
- * that batch from its own movement log, deleting the rows in the same
- * transaction. Must be called inside a `transaction()`. Returns the deltas whose
- * batch has been unreachable long enough to be worth reporting; they stay
- * pending, since only a batch arriving can settle them.
- *
- * `countAttempts: false` applies whatever is resolvable without charging an
- * attempt against what is not — for the mid-round drains, which run several
- * times per round and would otherwise race a long first sync to the
- * reporting threshold while the batches were still on their way.
- */
+// Settles every deferred delta whose batch has since arrived by rebuilding that batch from its own movement log, deleting the rows in the same…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-deferred-stock-deltas-L57
 export async function applyDeferredStockDeltas(
   options: { countAttempts?: boolean } = {},
 ): Promise<DeferredStockDelta[]> {
@@ -110,12 +93,8 @@ export async function applyDeferredStockDeltas(
     await discard(delta.movement_id);
   }
 
-  // Once per batch, not once per delta, and carrying NO change: the movements
-  // these rows stand for were written to the log pages ago, so claiming their
-  // inbound here would subtract it back off a log that already holds it, read
-  // the batch as a carve-out and add the delta a second time. A batch with a
-  // pending delta arrived with its quantity stripped, so it is never a
-  // carve-out and the rebuild is all it needs.
+  // Once per batch, not once per delta, and carrying NO change:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-deferred-stock-deltas-ts-L96
   await recomputeBatchQuantities(
     new Map([...resolved].map((batchId) => [batchId, { delta: 0, inbound: 0 }])),
   );
@@ -127,11 +106,8 @@ async function discard(movementId: string): Promise<void> {
   await execute("DELETE FROM _pending_stock_deltas WHERE movement_id = ?", [movementId]);
 }
 
-/**
- * Drops deltas for movements the server has voided. The drain already does
- * this from the local row, but a mid-round drain runs before that page's own
- * soft-deletes have been written, so the void has to be read off the payload.
- */
+// Drops deltas for movements the server has voided.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-deferred-stock-deltas-ts-L120
 export async function discardDeferredStockDeltas(movementIds: string[]): Promise<void> {
   for (const movementId of movementIds) {
     await discard(movementId);

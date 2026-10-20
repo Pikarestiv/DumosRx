@@ -19,14 +19,8 @@ vi.mock("@/lib/db/base-helpers", async (importOriginal) => {
   };
 });
 
-/**
- * A-219: `recordSaleItemStock()` decremented `stock_batches.quantity` per
- * batch and inserted the matching `stock_movements` row only afterwards, in
- * a separate loop — each write taking its own slot on core.ts's FIFO queue.
- * In the window between them the batch reads as diverged by exactly the sale
- * quantity, so a concurrent stock fold writes the pre-sale number back and
- * the sale's deduction is lost until the next day's heal.
- */
+// A-219: `recordSaleItemStock()` decremented `stock_batches.quantity` per batch and inserted the matching `stock_movements…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-record-sale-item-stock-atomicity-test-ts-L22
 describe("recordSaleItemStock writes a deduction and its movement atomically", () => {
   let db: Database;
   let recordSaleItemStock: typeof import("@/lib/db/queries/inventory").recordSaleItemStock;

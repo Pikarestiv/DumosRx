@@ -9,9 +9,8 @@ interface SettingsHeaderProps {
   showBadge?: boolean;
 }
 
-/** Shared by the mobile menu-list route and every inner tab — with the app
- * sidebar/header hidden on all settings routes, this back button is the
- * only way out. */
+// Shared by the mobile menu-list route and every inner tab — with the app sidebar/header hidden on all settings routes, th…
+// Rationale: docs/CLIENT_COMMENTS.md#block-app-(dashboard)-settings-[tab]-settings-header-tsx-L12
 function SettingsHeaderInner({
   title,
   onBack,

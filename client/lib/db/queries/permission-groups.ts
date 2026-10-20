@@ -7,24 +7,8 @@ import {
   type DefaultGroupRole,
 } from "@/lib/constants/permissions";
 
-/**
- * Deterministic, UUID-shaped id derived from (storeId, role) - NOT random,
- * unlike generateId(). Two devices seeding the same store's default groups
- * independently, before either has synced (seeding fires from
- * auth-context on login, with no guarantee a sync round-trip has
- * happened yet), would otherwise mint different ids for "the same"
- * default group - permanently divergent Manager/Specialist/... rows, one
- * per device, with staff split across them. Deriving the id instead means
- * both devices compute the SAME id, so when their INSERTs eventually
- * reach the server, the sync engine's existing "INSERT against an
- * already-existing id becomes an UPDATE" handling (SyncController::push)
- * collapses the race into one row per role, not a duplicate.
- *
- * Not cryptographic - four independent FNV-1a-style 32-bit lanes over the
- * same seed give 128 bits of spread from one pass, comfortably enough to
- * avoid collisions across the tiny (store, role) space this app actually
- * has (one store, 5 roles).
- */
+// Deterministic, UUID-shaped id derived from (storeId, role) - NOT random, unlike generateId().
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-permission-groups-L10
 function deterministicDefaultGroupId(storeId: string, role: string): string {
   const seed = `permission-group-default:${storeId}:${role}`;
   const lanes = [0x811c9dc5, 0x9e3779b9, 0x85ebca6b, 0xc2b2ae35].map((seedOffset) => {
@@ -39,19 +23,8 @@ function deterministicDefaultGroupId(storeId: string, role: string): string {
   return `${a}-${b.slice(0, 4)}-4${b.slice(5, 8)}-${((parseInt(c[0], 16) & 0x3) | 0x8).toString(16)}${c.slice(1, 4)}-${d}${c.slice(4, 8)}`;
 }
 
-/**
- * Seeds the 5 default permission groups (Manager, Specialist, Sales Staff,
- * Auditor, Admin) the first time this feature touches a store, exactly
- * mirroring ensureLoyaltyDefaultsSeeded's gate-on-timestamp pattern (see
- * lib/db/queries/loyalty.ts) - gated on stores.permission_groups_seeded_at
- * rather than "zero groups exist right now", so a store that deliberately
- * deletes a custom group (or, in principle, all groups) never gets
- * silently reseeded. Also backfills every existing staff member's
- * permission_group_id to the default group matching their current role,
- * in the same pass - without this, editing a default group's checkboxes
- * changes nothing for any staff member who existed before this feature
- * shipped, since they'd have no group assigned at all.
- */
+// Seeds the 5 default permission groups (Manager, Specialist, Sales Staff, Auditor, Admin) the first time this feature touches a store, exactl…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-permission-groups-L42
 export async function ensurePermissionGroupsSeeded(): Promise<void> {
   const storeId = getActiveStoreId();
   if (!storeId) return;
@@ -63,12 +36,8 @@ export async function ensurePermissionGroupsSeeded(): Promise<void> {
     );
     if (stores.length === 0 || stores[0].permission_groups_seeded_at) return;
 
-    // Second guard, matching ensureLoyaltyDefaultsSeeded's own double-check
-    // (tiers.length === 0 in addition to the timestamp): a device that
-    // crashed between inserting the groups and stamping the timestamp
-    // (or one that pulled another device's already-seeded groups down
-    // before its own timestamp update landed) must not insert a second
-    // set on top of rows that already exist for this store.
+    // Second guard, matching ensureLoyaltyDefaultsSeeded's own double-check (tiers.length === 0 in addition to the timestamp):
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-permission-groups-ts-L39
     const existingGroups = await query<{ based_on_role: string }>(
       `SELECT based_on_role FROM permission_groups WHERE store_id = ? AND (_deleted = 0 OR _deleted IS NULL)`,
       [storeId],
@@ -98,13 +67,8 @@ export async function ensurePermissionGroupsSeeded(): Promise<void> {
       });
     }
 
-    // Backfill: every existing staff member with no group yet gets the
-    // default group matching their current `role` string. Never touches a
-    // user who already has a permission_group_id (e.g. one assigned via
-    // the staff form, or from an earlier seed pass). Goes through
-    // update() (not a raw bulk UPDATE) so each assignment is queued for
-    // sync like any other write - other devices/the server need to learn
-    // it too, not just this device's local copy.
+    // Backfill: every existing staff member with no group yet gets the default group matching their current `role` string.
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-permission-groups-ts-L74
     for (const role of Object.keys(DEFAULT_GROUP_PERMISSIONS) as (keyof typeof DEFAULT_GROUP_PERMISSIONS)[]) {
       const unassigned = await query<{ id: string }>(
         `SELECT id FROM users WHERE store_id = ? AND role = ? AND permission_group_id IS NULL AND (_deleted = 0 OR _deleted IS NULL)`,
@@ -124,9 +88,8 @@ export async function ensurePermissionGroupsSeeded(): Promise<void> {
   await backfillDefaultGroupPermissions();
 }
 
-/** The keys a default group for `role` is owed by every catalog version
- * newer than `fromVersion`, in catalog order. Exported for the sync-engine
- * and server-parity tests. */
+// The keys a default group for `role` is owed by every catalog version newer than `fromVersion`, in catalog order.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-permission-groups-ts-L100
 export function pendingCatalogAdditions(role: string, fromVersion: number): string[] {
   const pending: string[] = [];
   for (const [version, byRole] of Object.entries(DEFAULT_GROUP_PERMISSION_ADDITIONS)) {
@@ -136,22 +99,8 @@ export function pendingCatalogAdditions(role: string, fromVersion: number): stri
   return Array.from(new Set(pending));
 }
 
-/**
- * Brings an ALREADY-seeded store's default groups forward to the current
- * catalog. ensurePermissionGroupsSeeded() only ever runs once per store, so
- * without this a store seeded under an older catalog is frozen on the
- * permission lists that catalog shipped with - which is how the live
- * production store's cashiers would have lost Hold Sale, Recent Sales,
- * receipt reprinting, the reseller price override and the customer balance
- * block the moment enforcement landed.
- *
- * Add-only, delta-scoped and idempotent by construction: it unions in the
- * keys listed for each role under every catalog version newer than the
- * store's stamp, never removes anything, and writes a group only when its
- * stored array actually changes. See client/AGENTS.md's "Catalog versioning
- * and the default-group backfill" for the race-resolution design the
- * write-only-on-change rule and the stamp-last ordering belong to.
- */
+// Brings an ALREADY-seeded store's default groups forward to the current catalog.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-permission-groups-L139
 export async function backfillDefaultGroupPermissions(): Promise<void> {
   const storeId = getActiveStoreId();
   if (!storeId) return;
@@ -209,13 +158,8 @@ export async function getUserPermissionGroup(
   try {
     return { userId, id: rows[0].id, permissions: JSON.parse(rows[0].permissions) };
   } catch {
-    // A present-but-corrupt row denies, rather than returning null and letting
-    // hasPermission's `?? fallbackPermissions(role)` silently restore the whole
-    // role tier. That fallback is for the offline/pre-sync gap, where no row
-    // exists yet; a malformed row is the opposite case and is distinguishable,
-    // so the two must not be conflated. Matches getStorePermissionGroups below.
-    // A store_owner/super_admin is still never locked out - hasPermission
-    // short-circuits for those roles before any group is consulted.
+    // A present-but-corrupt row denies, rather than returning null and letting hasPermission's `?? fallbackPermissions(role)` silently restore the…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-permission-groups-ts-L170
     return { userId, id: rows[0].id, permissions: [] };
   }
 }
@@ -237,10 +181,8 @@ export async function getStorePermissionGroups() {
     try {
       permissions = JSON.parse(r.permissions);
     } catch {
-      // One malformed/legacy row must degrade to "grants nothing" rather
-      // than take out the whole matrix/staff-form dropdown for every
-      // OTHER group in this store - matches getUserPermissionGroup's own
-      // guard above.
+      // One malformed/legacy row must degrade to "grants nothing" rather than take out the whole matrix/staff-form dropdown for every OTHER group in…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-permission-groups-ts-L198
       permissions = [];
     }
     return { ...r, permissions };

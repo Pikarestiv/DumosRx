@@ -8,14 +8,8 @@ vi.mock("idb-keyval", () => ({
 
 const DAY = 24 * 60 * 60 * 1000;
 
-/**
- * The refill side of lib/db/queries/prescriptions.ts was untested: whether a
- * refill dispense actually consumes an authorization and pushes the next due
- * date out by the item's own interval, which items count as "due", and which
- * statuses stamp dispensed_at. All of it decides whether a patient can
- * collect medication they aren't entitled to, or is turned away from one
- * they are.
- */
+// The refill side of lib/db/queries/prescriptions.ts was untested:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-prescription-refill-queries-test-ts-L11
 describe("prescription refill queries", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

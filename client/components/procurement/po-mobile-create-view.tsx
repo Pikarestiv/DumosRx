@@ -54,12 +54,8 @@ interface POMobileCreateViewProps {
   setIsEditDetailsOpen: (open: boolean) => void;
 }
 
-/** Mobile full-screen takeover for creating a purchase order. Same
- * interaction model as POS: fixed header, scrollable form, and a floating
- * summary/save drawer instead of an always-visible footer. Mirrors the
- * desktop view's two-phase flow: order details are confirmed first, then
- * item entry becomes the dominant content, with details editable via
- * PODetailsDialog afterward. */
+// Mobile full-screen takeover for creating a purchase order.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-mobile-create-view-tsx-L57
 export function POMobileCreateView(props: POMobileCreateViewProps) {
   const {
     poType,

@@ -36,11 +36,8 @@ function getMySQLSchema(): Column[] {
   }
 }
 
-/** The sync engine does not always write a client table to a server table of
- * the same name: `audit_logs` rows are applied to `activity_logs`, mirroring
- * SyncController's getModelForTable(). A separate, unused MySQL `audit_logs`
- * table also exists, so looking the client name up directly compared against
- * the wrong table entirely. Keep this in step with getModelForTable(). */
+// The sync engine does not always write a client table to a server table of the same name:
+// Rationale: docs/CLIENT_COMMENTS.md#block-scripts-verify-schema-sync-ts-L39
 const CLIENT_TO_SERVER_TABLE = new Map<string, string>([['audit_logs', 'activity_logs']]);
 
 export function serverTableFor(clientTable: string): string {
@@ -61,9 +58,8 @@ export function parseSQLiteSchema(content: string): Record<string, string[]> {
   let match;
   while ((match = tableRegex.exec(content)) !== null) {
     const tableName = match[1];
-    // Inline `-- ...` comments contain commas of their own ("-- 'earned',
-    // 'redeemed'"), so splitting the raw block on commas both invented
-    // phantom columns and swallowed the real column after the comment.
+    // Inline `-- ...` comments contain commas of their own ("-- 'earned', 'redeemed'"), so splitting the raw block on commas b…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-scripts-verify-schema-sync-ts-L64
     const columnsBlock = stripSQLComments(match[2]);
 
     const columns = columnsBlock.split(',').map(line => {
@@ -85,9 +81,8 @@ function getSyncConfig(): string[] {
   console.log('Extracting STORE_SCOPED_TABLES from schema-migrations.ts...');
   const content = fs.readFileSync(SCHEMA_MIGRATIONS_FILE, 'utf-8');
 
-  // Find the STORE_SCOPED_TABLES block (the canonical list of synced,
-  // store-scoped tables - moved here from core.ts's old inline syncColumns
-  // array during the sync-engine extraction).
+  // Find the STORE_SCOPED_TABLES block (the canonical list of synced, store-scoped tables - moved here from core.ts's old in…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-scripts-verify-schema-sync-ts-L88
   const configMatch = content.match(/export const STORE_SCOPED_TABLES\s*=\s*\[([\s\S]*?)\];/);
   if (!configMatch) {
     console.error('Could not find STORE_SCOPED_TABLES in schema-migrations.ts');

@@ -28,12 +28,8 @@ interface POImmediateConfirmDialogProps {
   onConfirm: () => void;
 }
 
-/** Last stop before createAndReceivePurchaseOrder, which adds stock AND
- * rewrites products.selling_price store-wide in the same action with no undo
- * path. Spells out what is about to change - item count, money, and how many
- * lines carry a real selling-price change - because the button that opens
- * this used to read "Save" and the only explanation anywhere was a hover
- * tooltip no touch user could reach. */
+// Last stop before createAndReceivePurchaseOrder, which adds stock AND rewrites products.selling_price store-wide in the s…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-immediate-confirm-dialog-tsx-L31
 export function POImmediateConfirmDialog({
   open,
   onOpenChange,

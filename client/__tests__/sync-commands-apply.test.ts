@@ -6,15 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Phase 4. These commands are the only thing in the system that lets an
- * operator act on a customer's device, so the guards ARE the feature.
- *
- * In particular: a business record exists only on the device that made it, so
- * abandoning a queued sale or stock movement would permanently lose revenue
- * data or falsify stock. The client refuses independently of the server —
- * two locks, because a client must never rely on a check it cannot see.
- */
+// Phase 4. These commands are the only thing in the system that lets an operator act on a customer's device, so the guards…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-commands-apply-test-ts-L9
 describe("applySyncCommands", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

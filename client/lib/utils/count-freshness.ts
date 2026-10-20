@@ -1,8 +1,5 @@
-/**
- * How stale this device's view of the cloud may be before a stock count
- * stops being trustworthy. Justified in client/AGENTS.md, "Counting on a
- * device that is behind sync (A-211)".
- */
+// How stale this device's view of the cloud may be before a stock count stops being trustworthy.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-count-freshness-ts-L1
 export const COUNT_STALE_AFTER_MINUTES = 60;
 
 export function minutesSince(

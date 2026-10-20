@@ -13,11 +13,8 @@ export function useStockBatchManagement(currentTab: string) {
     "view_stock_adjustment_history",
   );
   const router = useRouter();
-  // Owned by app/(dashboard)/layout.tsx, not local state here: DashboardLayout
-  // remounts everything below it on every navigation (see dashboard-layout.tsx's
-  // key={pathname}), including the router.replace below. Local state here would
-  // be reset before the overlay ever got a chance to render - see
-  // inventory-audit-context.tsx.
+  // Owned by app/(dashboard)/layout.tsx, not local state here:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-stock-batch-management-ts-L16
   const { isAuditing, setIsAuditing } = useInventoryAudit();
 
   const stats = useStockBatchStats();
@@ -27,15 +24,13 @@ export function useStockBatchManagement(currentTab: string) {
       if (canPerformStockAudit) setIsAuditing(true);
       router.replace("/inventory/overview");
     }
-    // /inventory/batches is a generateStaticParams route with no <TabsContent>
-    // behind it, so it rendered a blank panel. The Catalog tab is the
-    // all-products view its three callers actually meant.
+    // /inventory/batches is a generateStaticParams route with no <TabsContent> behind it, so it rendered a blank panel.
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-stock-batch-management-ts-L30
     if (currentTab === "batches") {
       router.replace("/inventory/catalog");
     }
-    // The "Movements" tab UI is hidden entirely for roles without stock-management
-    // access, but the /inventory/ledger route itself is still directly reachable
-    // (typed URL, stale bookmark) - bounce those viewers back to a tab they can see.
+    // The "Movements" tab UI is hidden entirely for roles without stock-management access, but the /inventory/ledger route itself is still directl…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-stock-batch-management-ts-L36
     if (
       (currentTab === "ledger" || currentTab === "adjustments") &&
       !canViewAdjustmentHistory
@@ -50,18 +45,8 @@ export function useStockBatchManagement(currentTab: string) {
     setIsAuditing,
   ]);
 
-  // The sidebar's own <Link> only ever prefetches "/inventory" (wherever it
-  // points), never the *other* tabs reachable once you're already on this
-  // page — those switch via router.push() from handleTabChange below, which
-  // Next never auto-prefetches the way a rendered <Link> does. Each of
-  // "/inventory/[tab]" (catalog, ledger) is its own separate JS chunk from
-  // "/inventory" itself, so the first click into a not-yet-visited tab pays
-  // a real network+parse cost with nothing on screen to show for it yet —
-  // confirmed live via a production Network-tab capture (a fresh
-  // "catalog.txt?_rsc=" + "page-*.js" fetch firing exactly when the tab was
-  // clicked). Warming both here, once, as soon as any inventory tab mounts
-  // means that cost is already paid in the background by the time it's
-  // needed, regardless of which tab the user lands on first.
+  // The sidebar's own <Link> only ever prefetches "/inventory" (wherever it points), never the *other* tabs reachable once you're already on thi…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-stock-batch-management-ts-L53
   useEffect(() => {
     router.prefetch("/inventory/catalog");
     if (canViewAdjustmentHistory) {

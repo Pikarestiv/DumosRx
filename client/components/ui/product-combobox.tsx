@@ -28,48 +28,29 @@ export interface SelectedProduct {
 interface ProductComboboxProps {
   value: string;
   onChange: (product: SelectedProduct) => void;
-  /** Called only when the value is cleared via the explicit clear (X)
-   * button, not when the user backspaces the field to empty. Lets
-   * consumers reset fields that were autofilled from the selection
-   * without wiping them out on incidental retyping. */
+  // Called only when the value is cleared via the explicit clear (X) button, not when the user backspaces the field to empty.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-product-combobox-tsx-L31
   onClear?: () => void;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
-  /** When false, the dropdown only shows real catalog matches and the
-   * "create new" fallback — never the static reference-list ("Suggested")
-   * names. Used by PO item search, where catalog results and non-catalog
-   * name suggestions must never appear in the same list. Defaults to true
-   * to preserve existing behavior (e.g. the new-product name field, where
-   * suggesting non-catalog names is exactly the point). */
+  // When false, the dropdown only shows real catalog matches and the "create new" fallback — never the static reference-list…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-product-combobox-tsx-L39
   showGlobalSuggestions?: boolean;
-  /** Fired only when the user explicitly clicks "Add "X" as new product",
-   * not on every keystroke. Optional — callers that don't pass it keep the
-   * existing onChange({ source: "new" }) behavior for that click. */
+  // Fired only when the user explicitly clicks "Add "X" as new product", not on every keystroke.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-product-combobox-tsx-L46
   onCreateNew?: (name: string) => void;
-  /** When false, never renders the pinned "Create ... as new product" row.
-   * Used where this combobox names a product that's already being created
-   * (the Add/Edit Product dialog's own name field) — offering to "create"
-   * the very product you're naming doesn't make sense there. Defaults to
-   * true everywhere else (e.g. PO item search, where it's the only way to
-   * add a product that isn't in the catalog yet). */
+  // When false, never renders the pinned "Create ...
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-product-combobox-tsx-L50
   showCreateNewOption?: boolean;
-  /** Shows a leading search icon, matching the shared SearchInput
-   * component's look used on other list pages. Hidden below the `sm`
-   * breakpoint to keep the input's typing area from feeling cramped on
-   * phones. Defaults to false to preserve existing callers' appearance
-   * (e.g. the Add/Edit Product dialog's name field, which isn't a search
-   * bar). */
+  // Shows a leading search icon, matching the shared SearchInput component's look used on other list pages.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-product-combobox-tsx-L57
   showSearchIcon?: boolean;
-  /** Forwarded straight to the underlying input - lets a caller (e.g. the
-   * PO item search bar) focus it programmatically, on mount or from an
-   * empty-state action button. */
+  // Forwarded straight to the underlying input - lets a caller (e.g.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-product-combobox-tsx-L64
   inputRef?: React.Ref<HTMLInputElement>;
-  /** Catalog to search, when the caller already holds one. Every instance
-   * otherwise runs its own useProductList query for the same full catalog,
-   * which the PO builder pays for twice over (once here, once through
-   * useProcurementData). Omitted, the internal query is used exactly as
-   * before, so no other caller changes. */
+  // Catalog to search, when the caller already holds one.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-product-combobox-tsx-L68
   products?: { id: string; name: string; generic_name?: string | null; barcode?: string | null; category_name?: string | null; manufacturer?: string | null; strength?: string | null; dosage_form?: string | null }[];
 }
 
@@ -128,10 +109,8 @@ function ProductComboboxItem({
       id={id}
       role="option"
       aria-selected={isSelected}
-      // The input keeps DOM focus and drives this list via
-      // aria-activedescendant, so options are not themselves tabbable.
-      // onMouseDown (not onClick) + preventDefault so the input never blurs
-      // (a blur would close the list before a click event could fire).
+      // The input keeps DOM focus and drives this list via aria-activedescendant, so options are not themselves tabbable.
+      // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-product-combobox-tsx-L131
       onMouseDown={(e) => {
         if (e.button !== 0) return; // left-click/primary touch only
         e.preventDefault();
@@ -213,9 +192,8 @@ export function ProductCombobox({
   const containerRef = React.useRef<HTMLDivElement>(null);
   const listRef = React.useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = React.useState(-1);
-  // Stable per-instance id prefix so the input's aria-activedescendant can
-  // point at the active option, and so two comboboxes on one page never
-  // collide.
+  // Stable per-instance id prefix so the input's aria-activedescendant can point at the active option, and so two comboboxes…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-product-combobox-tsx-L216
   const listboxId = React.useId();
   // activeIndex -1 is the pinned "Create new product" row when it is shown.
   const optionId = (idx: number) =>

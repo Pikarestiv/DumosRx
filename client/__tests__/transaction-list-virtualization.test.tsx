@@ -3,11 +3,8 @@ import { render, screen } from "@testing-library/react";
 import React, { createRef } from "react";
 import type { SaleWithDetails } from "@/lib/types/sale";
 
-// jsdom reports zero size for every element, so the real useVirtualizer would
-// compute an empty visible range and nothing would render. Stubbed to return
-// every row, same shape react-virtual does - these tests are about the
-// flattening and ordering, not virtualization mechanics (that needs real
-// layout, i.e. an e2e browser test).
+// jsdom reports zero size for every element, so the real useVirtualizer would compute an empty visible range and nothing w…
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-transaction-list-virtualization-test-tsx-L6
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({
     count,

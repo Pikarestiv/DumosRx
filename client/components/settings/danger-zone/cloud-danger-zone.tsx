@@ -26,10 +26,8 @@ const RESET_TYPES: { type: string; label: string; description: string }[] = [
   { type: "all", label: "Nuke Everything (Full Reset)", description: "Deletes ALL of the above at once: sales, logs, products, stock batches, customers, and terminals. Equivalent to starting the cloud account over from zero." },
 ];
 
-/** Deletes data directly on the server - affects every device synced to
- * this account, immediately, with no confirmation step beyond the password
- * dialog below. See DeviceDangerZone for the device-local equivalent,
- * which only affects the device running it. */
+// Deletes data directly on the server - affects every device synced to this account, immediately, with no confirmation ste…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-danger-zone-cloud-danger-zone-tsx-L29
 export function CloudDangerZone() {
   const { data: user, isLoading: isUserLoading } = useCurrentUser();
   const canResetCloudData = checkCanFactoryReset(user?.role);

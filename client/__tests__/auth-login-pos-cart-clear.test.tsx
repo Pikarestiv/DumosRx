@@ -3,20 +3,8 @@ import { renderHook, act } from "@testing-library/react";
 import initSqlJs, { type Database } from "sql.js";
 import React from "react";
 
-/**
- * Regression coverage for a MEDIUM data-loss bug found in an Opus review of
- * a prior fix round: that round added clearPOSCartStorage() inside login()
- * intending to clear the cart only when switching to a DIFFERENT cashier or
- * logging out. But login() is ALSO how the lock-screen's ordinary "same
- * user unlocks with their own PIN after auto-lock/idle timeout" flow
- * re-authenticates (see lock-screen.tsx / dashboard-layout.tsx's
- * onUnlockSuccess wiring) — so a cashier who stepped away with an
- * in-progress cart came back to an empty one.
- *
- * The fix captures the previously-logged-in user's id before login()
- * overwrites it, and only clears the cart when the incoming user is
- * genuinely different.
- */
+// Regression coverage for a MEDIUM data-loss bug found in an Opus review of a prior fix round:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-auth-login-pos-cart-clear-test-tsx-L6
 
 vi.mock("@sentry/nextjs", () => ({
   setUser: vi.fn(),
@@ -180,9 +168,8 @@ describe("login() only clears the POS cart on a genuine user switch", () => {
       expect(success).toBe(true);
     });
 
-    // No previous user was logged in, so there is nothing "carried over"
-    // from a different cashier — but this still exercises the guard's
-    // `previousUserId` branch (undefined) without throwing.
+    // No previous user was logged in, so there is nothing "carried over" from a different cashier — but this still exercises t…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-auth-login-pos-cart-clear-test-tsx-L183
     expect(clearPOSCartStorageMock).not.toHaveBeenCalled();
   });
 

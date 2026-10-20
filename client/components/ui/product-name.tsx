@@ -10,20 +10,8 @@ import {
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { cn } from "@/lib/utils";
 
-/**
- * One product name, rendered the way the store asked for it and readable
- * even when its column cannot hold it. Reveals the full name on hover, or
- * on tap on a touch device, and only when it is actually clamped.
- *
- * Block-level by default, for the table cell it usually fills; pass
- * `className="inline-block max-w-full align-bottom"` to sit it inside a
- * sentence.
- *
- * Names are stored lowercase (withNormalizedName in base-helpers.ts), so any
- * render without the store's casing class shows raw storage casing. In a
- * dense ledger the name is also the only thing identifying the row. See
- * client/AGENTS.md.
- */
+// One product name, rendered the way the store asked for it and readable even when its column cannot hold it.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-product-name-tsx-L13
 export function ProductName({
   name,
   className,
@@ -39,10 +27,8 @@ export function ProductName({
   const ref = useRef<HTMLSpanElement>(null);
   const [isOpen, setIsOpen] = useState(false);
 
-  // Measured into a ref at the moment the tooltip is asked to open, not
-  // into state: whether the name is clamped depends on the rendered column
-  // width, which no prop knows, and a state round-trip would decide one
-  // render too late - i.e. never on the first hover.
+  // Measured into a ref at the moment the tooltip is asked to open, not into state:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-product-name-tsx-L42
   const handleOpenChange = useCallback((next: boolean) => {
     if (!next) return setIsOpen(false);
     const el = ref.current;

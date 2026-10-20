@@ -10,10 +10,8 @@ export interface AuditLogRow {
   created_at?: string;
   user_name?: string;
   correlation_id?: string | null;
-  /** How many times this exact (action, table, record_id) has repeated
-   * since this row started - see logAction()'s dedup path in core.ts.
-   * 1 (or undefined, on a row from before this column existed) for a
-   * normal, non-repeating action. */
+  // How many times this exact (action, table, record_id) has repeated since this row started - see logAction()'s dedup path in core.ts.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#types-audit-log-ts-L13
   occurrence_count?: number | null;
   last_occurred_at?: string | null;
 }

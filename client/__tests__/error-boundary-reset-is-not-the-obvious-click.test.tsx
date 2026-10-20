@@ -10,11 +10,8 @@ function Boom(): React.ReactElement {
   throw new RangeError("Invalid time value");
 }
 
-/**
- * A-223's real hazard: the crash screen's remedy wiped unsynced sales. Reload
- * must stay the primary action and the destructive one must state its cost
- * before it can be reached.
- */
+// A-223's real hazard: the crash screen's remedy wiped unsynced sales.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-error-boundary-reset-is-not-the-obvious-click-test-tsx-L13
 describe("ErrorBoundary's destructive escape hatch", () => {
   let container: HTMLDivElement;
   let root: Root;

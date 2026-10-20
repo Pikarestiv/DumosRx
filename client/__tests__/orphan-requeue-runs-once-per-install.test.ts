@@ -6,20 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * A-8 (docs/KNOWN_BUGS.md), boot-scan half: DatabaseProvider ran
- * `requeueOrphanedRows(STORE_SCOPED_TABLES)` on EVERY boot — one
- * `SELECT * FROM <table> WHERE (_synced = 0 OR _synced IS NULL) AND id NOT IN
- * (SELECT record_id FROM _sync_queue …)` per store-scoped table. `_synced`
- * is unindexed, so that is a full scan of all 26 tables at every launch, to
- * repair a state that is created only by a write interrupted between its row
- * INSERT and its queue INSERT.
- *
- * It runs once per install, full stop. A-274 removed the second trigger — a
- * `force` passed when `localStorage` held crashes queued by a previous
- * session — because its premise does not hold and its cost is a full re-push
- * of the device's history. See client/AGENTS.md, "The boot-time orphan scan".
- */
+// A-8 (docs/KNOWN_BUGS.md), boot-scan half:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-orphan-requeue-runs-once-per-install-test-ts-L9
 describe("requeueOrphanedRowsOnce", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -76,17 +64,8 @@ describe("requeueOrphanedRowsOnce", () => {
     expect(queuedIds()).toEqual([]);
   });
 
-  /**
-   * A-274. This case previously asserted the opposite — that a recorded crash
-   * re-triggers the scan — and that is the mechanism behind the 20,000-row
-   * requeue storms. A crash reaching `localStorage` means the SQLite write
-   * FAILED, so no row was committed and no orphan can exist; an orphan needs a
-   * *partial* write, which `insert()` already makes impossible by wrapping the
-   * row, its queue entry and its audit entry in one transaction. The real
-   * orphan producer was a wipe that cleared `_sync_queue` while leaving three
-   * store-scoped tables behind, and that is now closed at the source
-   * (`local-wipe-leaves-no-orphans.test.ts`).
-   */
+  // A-274. This case previously asserted the opposite — that a recorded crash re-triggers the scan — and that is the mechani…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-orphan-requeue-runs-once-per-install-test-ts-L79
   it("does not scan again just because a crash was recorded", async () => {
     await mod.requeueOrphanedRowsOnce(["customers"]);
     db.run(`DELETE FROM _sync_queue`);

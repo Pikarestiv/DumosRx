@@ -3,13 +3,8 @@ import { render } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
-/**
- * RequestItemDialog is permanently mounted at five call sites (the inventory
- * catalog, the POS cart, the POS product list and two procurement screens),
- * so an ungated query in it meant opening Inventory or POS always paid for a
- * full customer list + product list read for a dialog that is almost never
- * opened. Both reads must wait until the dialog is actually open.
- */
+// RequestItemDialog is permanently mounted at five call sites (the inventory catalog, the POS cart, the POS product list a…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-request-item-dialog-query-gating-test-tsx-L6
 
 if (!window.matchMedia) {
   window.matchMedia = ((query: string) => ({

@@ -1,16 +1,7 @@
 import { test, expect, login } from './fixtures';
 
-/** Full golden-path lifecycle test using realistic pharmacy data (not
- * "Test Product 1" placeholders), covering the flow a real demo/store walk-
- * through exercises end to end: stock a real medicine via a cycle count,
- * sell it with a discount, log a real expense, and confirm the dashboard/POS
- * tiles reflect all of it correctly.
- *
- * Stock is added via Inventory -> Cycle Count rather than Procurement,
- * because Procurement is gated behind a paid subscription tier (Starter and
- * above); a fresh free-tier store like this test's seeded fixture can't
- * reach it. Cycle Count isn't tier-gated and is the other real path to
- * getting stock into the system. */
+// Full golden-path lifecycle test using realistic pharmacy data (not "Test Product 1" placeholders), covering the flow a r…
+// Rationale: docs/CLIENT_COMMENTS.md#block-e2e-sales-lifecycle-spec-ts-L3
 test.describe('Sales Lifecycle (realistic data)', () => {
   test('stock via cycle count, sell with discount, and log an expense', async ({ page }) => {
     test.setTimeout(120000);

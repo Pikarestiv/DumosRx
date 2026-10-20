@@ -2,18 +2,8 @@ import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 
-// Regression test for a broken-link bug found while smoke-testing the
-// Dashboard's Action Center: clicking the "N Items Low Stock" alert
-// navigated to `/inventory/products?status=low_stock`, but the inventory
-// section's dynamic route (app/(dashboard)/inventory/[tab]/page.tsx) only
-// pre-renders a fixed set of tabs via generateStaticParams(). "products"
-// isn't one of them, so under `output: export` Next.js throws a full-page
-// runtime error ("missing param ... in generateStaticParams()") instead of
-// navigating.
-//
-// This test parses both source files (no component rendering / router
-// mocking needed) and asserts every `/inventory/<tab>` actionRoute the
-// Action Center can produce resolves to a tab that actually exists.
+// Regression test for a broken-link bug found while smoke-testing the Dashboard's Action Center:
+// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-dashboard-action-center-routes-test-ts-L5
 
 describe('dashboard action center routes', () => {
   it('every /inventory/<tab> actionRoute points at a real inventory tab', () => {
@@ -79,13 +69,8 @@ describe('dashboard action center routes', () => {
     }
   });
 
-  // Bug #9: a product floored to quantity=0 by bug #4's oversell fix produced
-  // zero signal on the Dashboard's Action Center (it fell into
-  // `getStockBatchStats()`'s dead `critical_stock_count` field, since
-  // `low_stock_count` requires `total_qty > 0`). Fix adds a dedicated
-  // "Oversold" card, following the exact same threaded-prop + conditional
-  // pattern as the existing "Low Stock" card, sourced from
-  // `getOversoldAlerts()` instead of `getStockBatchStats()`.
+  // Bug #9: a product floored to quantity=0 by bug #4's oversell fix produced zero signal on the Dashboard's Action Center (…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-dashboard-action-center-routes-test-ts-L82
   it('surfaces an Oversold card wired to oversoldCount, conditional and routed like Low Stock', () => {
     const actionCenterSource = fs.readFileSync(
       path.join(__dirname, '../components/dashboard/dashboard-action-center.tsx'),
@@ -108,9 +93,8 @@ describe('dashboard action center routes', () => {
     // pattern as `if (lowStockCount > 0) { ... }`.
     expect(alertsHookSource).toMatch(/if\s*\(oversoldCount > 0\)\s*\{/);
 
-    // Distinct card id + a real, working actionRoute (out_of_stock is a
-    // genuine status filter chip on the catalog tab, unlike the low-stock
-    // card's own status param this merely mirrors).
+    // Distinct card id + a real, working actionRoute (out_of_stock is a genuine status filter chip on the catalog tab, unlike…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-dashboard-action-center-routes-test-ts-L111
     const oversoldCardMatch = alertsHookSource.match(
       /id:\s*"oversold"[\s\S]{0,400}?actionRoute:\s*"([^"]+)"/,
     );

@@ -1,15 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-/**
- * RequireRole is the ONLY enforcement point for the procurement routes in
- * this local-first app - hiding a tab or a header button is not a gate
- * when the URL is typeable. Its new `permission` prop narrows the coarse
- * (isAdmin || canManageStockBatch) baseline to a specific key, so
- * /procurement/new and /procurement/edit now require
- * "manage_purchase_orders" and /procurement/vendors requires
- * "view_suppliers", without widening the baseline for anyone.
- */
+// RequireRole is the ONLY enforcement point for the procurement routes in this local-first app - hiding a tab or a header…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-require-role-permission-test-tsx-L4
 
 const hasPermission = vi.fn((_key: string) => true);
 const replace = vi.fn();

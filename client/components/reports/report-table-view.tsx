@@ -37,13 +37,8 @@ function comparableValue(value: unknown): string | number {
     : text.toLowerCase();
 }
 
-/**
- * One generic on-screen renderer for every Report Center report: they all
- * come back from useReportExport's getRows() as pre-labelled
- * Record<string, unknown> rows, so a single column-driven table covers all
- * six rather than six bespoke views. Div/grid/ARIA, per the no-raw-<table>
- * convention in client/AGENTS.md.
- */
+// One generic on-screen renderer for every Report Center report:
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-reports-report-table-view-tsx-L40
 export function ReportTableView({ rows, headers, onRowClick }: ReportTableViewProps) {
   const columns = useMemo(
     () => headers ?? (rows.length > 0 ? Object.keys(rows[0]) : []),

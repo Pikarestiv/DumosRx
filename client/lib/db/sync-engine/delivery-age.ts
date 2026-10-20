@@ -28,11 +28,8 @@ function bucketFor(ageMs: number): keyof DeliveredAges {
   return BUCKETS.find(([, ceiling]) => ageMs < ceiling)?.[0] ?? "over_1d";
 }
 
-/**
- * Reads without clearing, for the pasteable support ticket. The per-push
- * report owns the drain; a second drain here would silently halve what the
- * admin panel sees.
- */
+// Reads without clearing, for the pasteable support ticket.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-delivery-age-ts-L31
 export function peekDeliveredAges(): DeliveredAges | null {
   return read();
 }
@@ -58,12 +55,8 @@ function read(): DeliveredAges | null {
   }
 }
 
-/**
- * How long each just-accepted edit waited between being queued and being
- * delivered. Counted here because the queue row is deleted moments later and
- * nothing else ever knew an edit's age; a per-attempt success rate cannot
- * tell a push that worked from one that has been failing for a day.
- */
+// How long each just-accepted edit waited between being queued and being delivered.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-delivery-age-ts-L61
 export function recordDeliveredAges(createdAt: string[]): void {
   if (typeof window === "undefined" || createdAt.length === 0) return;
 
@@ -85,11 +78,8 @@ export function recordDeliveredAges(createdAt: string[]): void {
   }
 }
 
-/**
- * Reads and clears, so each report describes the interval since the last one
- * rather than a cumulative total that only ever grows. Null when nothing was
- * delivered, which is not the same as everything being delivered instantly.
- */
+// Reads and clears, so each report describes the interval since the last one rather than a cumulative total that only ever grows.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-delivery-age-ts-L88
 export function drainDeliveredAges(): DeliveredAges | null {
   const totals = read();
 

@@ -27,9 +27,8 @@ export interface POLineItemDraft {
   selling_price?: number | string;
 }
 
-/** A line paired with its index in the order's real item array. The lists
- * render a possibly-filtered subset, so a row cannot infer which line it
- * edits from its own position on screen. */
+// A line paired with its index in the order's real item array.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-item-ledger-table-tsx-L30
 export interface POItemRow {
   item: POLineItemDraft;
   index: number;
@@ -54,10 +53,8 @@ export function useProductMap(products: POProduct[]) {
   return useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 }
 
-/** Memoised so editing one line's quantity re-renders that line only, not
- * every other line's inputs, date picker and price popover. Its props are
- * primitives, the row's own objects, or callbacks POItemBuilder keeps stable
- * with useCallback. */
+// Memoised so editing one line's quantity re-renders that line only, not every other line's inputs, date picker and price…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-item-ledger-table-tsx-L57
 const POItemLedgerRow = React.memo(function POItemLedgerRow({
   item,
   index,

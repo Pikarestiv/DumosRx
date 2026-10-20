@@ -20,18 +20,8 @@ vi.mock("@/lib/api/logger", () => ({
   reportClientError: (...args: unknown[]) => reportClientErrorMock(...args),
 }));
 
-/**
- * Regression coverage for the production crash-log amplification loop
- * (Sentry DUMOSRX-CLIENT-1B/17/19/1A/1G/1M, docs/FIXED_BUGS.md SF-CRASH-1).
- *
- * recordSyncFailure() reported a stuck queue item by embedding the raw push
- * error into a new crash description; for a DB-level rejection that error is
- * the whole attempted SQL statement, i.e. a verbatim copy of the row being
- * pushed. logCrash() stores that description as a `feedback` row, which is
- * queued for push, fails the same way, and gets reported again — each
- * generation containing all previous ones until MySQL's column limit is hit,
- * which then fails forever.
- */
+// Regression coverage for the production crash-log amplification loop (Sentry DUMOSRX-CLIENT-1B/17/19/1A/1G/1M, docs/FIXED…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-stuck-sync-crash-log-amplification-test-ts-L23
 describe("stuck sync item crash-log amplification", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

@@ -6,18 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Coverage for logAction()'s occurrence-count coalescing (core.ts): a
- * repeating DEDUPABLE action (LOGIN_FAILED) for the same (action, table,
- * record_id, store) should fold into one still-unsynced audit_logs row
- * with a growing occurrence_count, and its still-pending _sync_queue
- * INSERT entry should be rewritten in place - not multiplied - so a bug
- * that keeps re-firing doesn't produce one row (and one queued push) per
- * occurrence. A non-dedupable action must still get a fresh row every
- * time, and once a dedupable row has actually synced (_synced = 1), the
- * next repeat must start a NEW row rather than continuing to rewrite the
- * already-sent one.
- */
+// Coverage for logAction()'s occurrence-count coalescing (core.ts):
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-audit-log-dedup-test-ts-L9
 describe("logAction() dedup for repeating errors", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

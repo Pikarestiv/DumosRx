@@ -9,17 +9,8 @@ import { getSaleForPrescription } from "@/lib/db/queries/sales";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { formatDateTime } from "@/lib/utils";
 
-/**
- * All business logic for the Prescription Management page: the prescription
- * queue itself (via usePrescriptionQueue), the full-screen "new prescription"
- * overlay's URL-driven visibility, and navigation into POS/Returns for
- * dispense/refill/return actions, so the component only has to render what
- * this hook returns.
- *
- * The overlay's visibility is where "manage_prescriptions" is enforced:
- * ?action=add and ?edit_rx=<id> are typeable, so gating the header action
- * and the detail panel's Edit button alone would not be a gate.
- */
+// All business logic for the Prescription Management page:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-prescription-management-L12
 export function usePrescriptionManagement() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -36,16 +27,14 @@ export function usePrescriptionManagement() {
 
   const handleEdit = (prescription: Prescription) => {
     // Navigate to edit form, could just show new prescription with ID.
-    // Close the detail side panel first; otherwise it stays open on top of
-    // (and blocks interaction with) the full-screen edit overlay underneath.
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-prescription-management-ts-L29
     queue.setSelectedPrescription(null);
     router.push(`/prescriptions?action=add&edit_rx=${prescription.id}`);
   };
 
   const handleDispense = (prescription: Prescription) => {
-    // Hand off to POS to actually deduct stock and record the sale. POS
-    // marks the prescription "completed" itself once payment succeeds
-    // (see usePOSPrescription / use-pos-payment.ts).
+    // Hand off to POS to actually deduct stock and record the sale.
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-prescription-management-ts-L37
     router.push(`/pos?dispense_rx=${prescription.id}`);
   };
 
@@ -60,11 +49,8 @@ export function usePrescriptionManagement() {
   >(null);
 
   const handleProcessReturn = async (prescription: Prescription) => {
-    // A prescription-linked sale is the actual source of truth for stock/
-    // payment: "cancelling" a prescription used to just relabel its status
-    // without touching either. Route to the real Return flow instead, which
-    // reverses stock/payment and (on a full return) reverts the rx to
-    // "ready" itself (see return-dialog.tsx).
+    // A prescription-linked sale is the actual source of truth for stock/ payment:
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-prescription-management-ts-L54
     setProcessingReturnRxId(prescription.id);
     try {
       const sale = await getSaleForPrescription(prescription.id);

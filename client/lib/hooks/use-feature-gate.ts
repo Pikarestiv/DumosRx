@@ -7,15 +7,8 @@ import { isMobileDevice } from "@/lib/utils";
 
 export type SubscriptionTier = "free" | "starter" | "local" | "pro" | "enterprise";
 
-/**
- * The Loyalty Program is gated on BOTH the plan-tier entitlement
- * (`tierAllows`, from getFeature('loyalty_program', ...)) AND the store's
- * own on/off toggle (`stores.loyalty_program_enabled`, DEFAULT 1 so
- * existing Pro/Enterprise stores see no behavior change). `!== 0` treats
- * undefined/null (pre-migration rows) as "on", matching that DEFAULT 1.
- * Extracted as a pure function so the AND logic is unit-testable without a
- * StoreContext/useSystemConfigStore render harness.
- */
+// The Loyalty Program is gated on BOTH the plan-tier entitlement (`tierAllows`, from getFeature('loyalty_program', ...)) AND the store's own o…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-feature-gate-ts-L10
 export function isLoyaltyProgramEnabled(
   tierAllows: boolean,
   storeToggle: number | undefined | null,
@@ -23,16 +16,8 @@ export function isLoyaltyProgramEnabled(
   return tierAllows && storeToggle !== 0;
 }
 
-/**
- * The POS cart's "Reseller sale" row (both the reseller-commission and
- * store-markup sub-types) is gated on BOTH the plan-tier entitlement
- * (`tierAllows`, from getFeature('reseller_commission', ...)) AND the
- * store's own on/off toggle (`stores.markup_sales_enabled`). Unlike
- * isLoyaltyProgramEnabled, this defaults OFF (`storeToggle === 1`, not
- * `!== 0`) - an owner has to explicitly turn it on before any staff can
- * mark up a sale at all. Extracted as a pure function for the same
- * unit-testability reason as isLoyaltyProgramEnabled.
- */
+// The POS cart's "Reseller sale" row (both the reseller-commission and store-markup sub-types) is gated on BOTH the plan-tier entitlement (`ti…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-feature-gate-L26
 export function isMarkupSalesEnabled(
   tierAllows: boolean,
   storeToggle: number | undefined | null,
@@ -40,13 +25,8 @@ export function isMarkupSalesEnabled(
   return tierAllows && storeToggle === 1;
 }
 
-/**
- * Fallback used only when the server's subscription_plans config has no
- * explicit `limits.sync_interval` for the current tier (see getLimit()
- * below). Extracted as a pure function (same reasoning as
- * isLoyaltyProgramEnabled above) so the tier->default mapping is
- * unit-testable without a StoreContext/useSystemConfigStore render harness.
- */
+// Fallback used only when the server's subscription_plans config has no explicit `limits.sync_interval` for the current tier (see getLimit() b…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-feature-gate-ts-L35
 export function getDefaultMinimumSyncIntervalMinutes(
   isEnterprise: boolean,
   isPro: boolean,
@@ -55,12 +35,8 @@ export function getDefaultMinimumSyncIntervalMinutes(
   return isEnterprise ? 0 : isPro ? 15 : isStarter ? 30 : 360;
 }
 
-/**
- * A store limit of 1 can never support more than one store; anything above
- * that always can. Extracted as a pure function (same reasoning as
- * isLoyaltyProgramEnabled/getDefaultMinimumSyncIntervalMinutes above) so the
- * derivation is unit-testable without a render harness.
- */
+// A store limit of 1 can never support more than one store; anything above that always can.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-feature-gate-ts-L50
 export function hasMultiStoreAccess(storesLimit: number): boolean {
   return storesLimit > 1;
 }
@@ -166,9 +142,8 @@ export function useFeatureGate() {
     currentTier: normalizedTier,
     // Max staff accounts allowed
     maxStaffAccounts: getLimit('staff', isEnterprise ? Infinity : isPro ? 10 : isStarter ? 3 : 0),
-    // Max stores/branches allowed — not enforced anywhere client-side yet
-    // (nothing today caps store creation against this), but needed so
-    // canManageMultiStore below has a real number to derive from.
+    // Max stores/branches allowed — not enforced anywhere client-side yet (nothing today caps store creation against this), but needed so canManag…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-feature-gate-ts-L145
     maxStores,
 
     // Cloud sync permissions
@@ -177,25 +152,16 @@ export function useFeatureGate() {
     // Multi-device sync
     canUseMobileApp: getFeature('mobile_app', 'mobile_access', isPro || isEnterprise),
 
-    // Multi-store functionality, derived directly from the `stores` limit
-    // instead of a separately admin-configured boolean — the two could
-    // disagree (Pro sold 3 stores while multi_store stayed false until
-    // this fix), and a store limit of 1 can never mean "multi-store" by
-    // definition, so there's nothing a separate toggle could express that
-    // the limit doesn't already say.
+    // Multi-store functionality, derived directly from the `stores` limit instead of a separately admin-configured boolean — the two could disagre…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-feature-gate-ts-L156
     canManageMultiStore: hasMultiStoreAccess(maxStores),
 
-    // Advanced E-commerce — Enterprise-only: a real per-tenant storefront
-    // needs its own domain + SSL, which the current shared-hosting setup
-    // (no wildcard SSL) can't provision cheaply below Enterprise pricing.
+    // Advanced E-commerce — Enterprise-only:
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-feature-gate-ts-L164
     canUseEcommerce: getFeature('ecommerce', 'store_url', isEnterprise),
 
-    // Core POS/checkout access. Every tier's `smart_pos` config value is
-    // `true` today (no tier currently loses this), but it's wired as a
-    // real gate — not left ungated — for parity with every other module
-    // flag and so a future ultra-restricted tier could actually use it.
-    // Flipping this false for a tier in production blocks checkout
-    // entirely for that tier — treat changes to it with real caution.
+    // Core POS/checkout access.
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-feature-gate-ts-L169
     canUseSmartPos: getFeature('smart_pos', 'smart_pos', true),
 
     // Minimum sync interval in minutes (0 = sync instantly on any change)
@@ -219,12 +185,8 @@ export function useFeatureGate() {
     
     // New Features
     canUseBarcodeGeneration: getFeature('barcode_generation', 'barcode_generation', !isFree),
-    // Plan-tier entitlement only (Pro/Enterprise), independent of the
-    // store's own on/off toggle. Settings UI uses this (not
-    // canUseLoyaltyProgram below) to decide whether to show the "Enable
-    // Loyalty Program" switch at all — gating visibility on the combined
-    // value would hide the switch the moment it's toggled off, making it
-    // impossible to turn back on.
+    // Plan-tier entitlement only (Pro/Enterprise), independent of the store's own on/off toggle.
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-feature-gate-ts-L198
     canAccessLoyaltyProgramPlan: getFeature('loyalty_program', 'loyalty_program', isPro || isEnterprise),
     // Combined gate actually enforced at runtime (POS redemption, points
     // writes): plan tier AND the store's own toggle.
@@ -232,15 +194,12 @@ export function useFeatureGate() {
       getFeature('loyalty_program', 'loyalty_program', isPro || isEnterprise),
       storeProfile?.loyalty_program_enabled,
     ),
-    // Report Center's non-daily-close reports (other report types, cross-
-    // report filtering) plus the BI/analytics dashboard and their CSV/PDF
-    // exports.
+    // Report Center's non-daily-close reports (other report types, cross- report filtering) plus the BI/analytics dashboard and their CSV/PDF expo…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-feature-gate-ts-L211
     canUseAdvancedReports: getFeature('advanced_reports', 'advanced_reports', isPro || isEnterprise),
     canCreateCustomPermissionGroups: getFeature('custom_permission_groups', 'custom_permission_groups', isPro || isEnterprise),
-    // Plan-tier entitlement only, independent of the store's own toggle -
-    // same reasoning as canAccessLoyaltyProgramPlan above. The Register
-    // Configs settings switch uses this (not canUseMarkupSales) so it stays
-    // visible/toggleable even while off.
+    // Plan-tier entitlement only, independent of the store's own toggle - same reasoning as canAccessLoyaltyProgramPlan above.
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-feature-gate-ts-L216
     canUseResellerCommission: getFeature('reseller_commission', 'reseller_commission', isPro || isEnterprise),
     // Combined gate actually enforced at runtime (the POS cart's "Reseller
     // sale" row): plan tier AND the store's own toggle.
@@ -250,9 +209,8 @@ export function useFeatureGate() {
     ),
     // The POS "Preview Quote" (proforma) flow.
     canUseProformaQuotes: getFeature('proforma_quotes', 'proforma_quotes', isPro || isEnterprise),
-    // The End-of-Day / Daily Close report tab, including its own export —
-    // deliberately Starter+ (not Pro-only), matching expenses/procurement/
-    // prescriptions: core day-to-day ops stay available at Starter.
+    // The End-of-Day / Daily Close report tab, including its own export — deliberately Starter+ (not Pro-only), matching expenses/procurement/ pre…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-feature-gate-ts-L229
     canUseDailyCloseReport: getFeature('daily_close_report', 'daily_close_report', !isFree),
   };
 }

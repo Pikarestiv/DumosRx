@@ -6,14 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression coverage for KNOWN_BUGS.md #1: the Return dialog used to source
- * its "how much can still be returned" data from getSaleItems(), which only
- * knows the original sold quantity — with no way to see that some of it was
- * already returned. That let the same items be returned (and refunded, and
- * restocked) more than once. The dialog now uses getTransactionDetails(),
- * exercised here directly against a real SQLite engine.
- */
+// Regression coverage for KNOWN_BUGS.md #1:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sales-returned-quantity-test-ts-L9
 describe("getTransactionDetails returned_quantity", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -73,9 +67,8 @@ describe("getTransactionDetails returned_quantity", () => {
   });
 
   it("accumulates returned_quantity across multiple separate returns on the same sale", async () => {
-    // The exact repro from KNOWN_BUGS.md #1: without this accumulation, a
-    // second return dialog session would see the item as fully un-returned
-    // again and allow refunding it a second time.
+    // The exact repro from KNOWN_BUGS.md #1:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sales-returned-quantity-test-ts-L76
     db.run(`INSERT INTO products (id, name) VALUES ('p1', 'Panadol')`);
     db.run(`INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price) VALUES ('si1', 'sale1', 'p1', 5, 100)`);
     db.run(`INSERT INTO returns (id, sale_id, total_refunded, created_at) VALUES
@@ -100,12 +93,8 @@ describe("getTransactionDetails returned_quantity", () => {
   });
 
   it("distributes returned_quantity sequentially instead of double-attributing it to every sale_item of the same product", async () => {
-    // return_items has no sale_item_id column, so the raw SQL gives every
-    // sale_item row for a product the SAME combined returned_quantity. Two
-    // sale_items of the same product (5 + 3 = 8 total), 4 units returned:
-    // without redistribution both rows would independently show
-    // returned_quantity=4, making getMaxReturnable report 1 + 0 = 1 unit
-    // still returnable instead of the true (5+3)-4 = 4.
+    // return_items has no sale_item_id column, so the raw SQL gives every sale_item row for a product the SAME combined return…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sales-returned-quantity-test-ts-L103
     db.run(`INSERT INTO products (id, name) VALUES ('p1', 'Panadol')`);
     db.run(`INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, created_at) VALUES
       ('si1', 'sale1', 'p1', 5, 100, '2026-01-01T00:00:00Z'),

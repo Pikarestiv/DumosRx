@@ -1,24 +1,12 @@
 import { execute, query } from "../core";
 import { logCrash } from "@/lib/utils/error-logger";
 
-/**
- * Consecutive full-table rewinds allowed before a table's baseline is put
- * back and the device reports instead of grinding. Reset to zero whenever
- * the table drains skip-free (PULL_PROGRESS.completeWindow), so this only
- * bites a table that genuinely cannot re-stamp its window. Rationale and
- * the A-218/A-229 failure paths: client/AGENTS.md, "Pull window rewinds".
- */
+// Consecutive full-table rewinds allowed before a table's baseline is put back and the device reports instead of grinding.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-pull-window-ts-L4
 export const MAX_PULL_WINDOW_REWINDS = 3;
 
-/**
- * Tables the server never sends, so a pull window for them is meaningless.
- * `feedback` is the crash log: write-only telemetry, absent from pull()'s
- * table list, so its window can never drain clean and can never have its
- * rewind budget refreshed by `completeWindow`. Left in place it reports
- * "budget still exhausted" on every round for ever - and each report is
- * itself a crash log, which is the row that keeps the condition alive. See
- * docs/FIXED_BUGS.md A-256.
- */
+// Tables the server never sends, so a pull window for them is meaningless.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-pull-window-ts-L13
 export const TABLES_NEVER_PULLED = new Set(["feedback"]);
 
 const REWIND_SQL = `INSERT INTO _sync_state (store_id, table_name, last_synced_at, server_cursor, rewind_count, rewound_from)
@@ -37,12 +25,8 @@ const STAMP_SQL = `INSERT INTO _sync_state (store_id, table_name, last_synced_at
    ON CONFLICT(store_id, table_name) DO UPDATE SET last_synced_at = excluded.last_synced_at
    WHERE rewind_count = 0`;
 
-/**
- * The only way a caller outside this module may advance a pull window. It
- * names the one column it owns — an INSERT OR REPLACE reverted the rewind
- * bookkeeping to its schema defaults (A-228) — and refuses to stamp over a
- * rewind in flight, because a newer stamp cancels the re-pull.
- */
+// The only way a caller outside this module may advance a pull window.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-pull-window-ts-L40
 export async function stampPullWindowUnlessRewinding(
   storeId: string,
   table: string,
@@ -64,12 +48,8 @@ async function restoreBaseline(storeId: string, table: string, cause: string): P
   );
 }
 
-/**
- * Runs at the start of every pull round, unconditionally: the budget is spent
- * by live faults, but the fault may never fire again, and until this ran only
- * inside rewindPullWindow() such a table kept a null window for ever. See
- * client/AGENTS.md, "Pull window rewinds".
- */
+// Runs at the start of every pull round, unconditionally:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-pull-window-ts-L67
 export async function restoreExhaustedPullWindows(storeId: string): Promise<string[]> {
   const exhausted = await query<{ table_name: string }>(EXHAUSTED_SQL, [
     storeId,
@@ -79,9 +59,8 @@ export async function restoreExhaustedPullWindows(storeId: string): Promise<stri
   const restored: string[] = [];
 
   for (const { table_name } of exhausted) {
-    // Nothing to restore a baseline for, and reporting it would write the
-    // very row that caused the exhaustion. Drop the row instead, which also
-    // heals a device already stuck in that loop.
+    // Nothing to restore a baseline for, and reporting it would write the very row that caused the exhaustion.
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-pull-window-ts-L62
     if (TABLES_NEVER_PULLED.has(table_name)) {
       await execute("DELETE FROM _sync_state WHERE store_id = ? AND table_name = ?", [
         storeId,
@@ -118,11 +97,8 @@ export async function clearPullWindows(storeId: string): Promise<StashedPullWind
   return stashed;
 }
 
-/**
- * Restores a stash, but only while `_sync_state` is still empty: any row means
- * the resync committed a page, so its fresh positions must win. Returns
- * whether it restored anything.
- */
+// Restores a stash, but only while `_sync_state` is still empty:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-pull-window-ts-L121
 export async function restorePullWindows(
   storeId: string,
   stashed: StashedPullWindow[],
@@ -153,12 +129,8 @@ export async function restorePullWindows(
   return true;
 }
 
-/**
- * shortcut: rewinds the whole table's window rather than re-requesting the
- * one row, because the sync API has no by-id re-send endpoint. Upgrade to a
- * targeted request when one exists — A-176 needs the same endpoint, and it
- * would remove the need for this budget entirely.
- */
+// shortcut: rewinds the whole table's window rather than re-requesting the one row, because the sync API has no by-id re-send endpoint.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-pull-window-ts-L156
 export async function rewindPullWindow(
   storeId: string,
   table: string,

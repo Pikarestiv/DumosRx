@@ -95,16 +95,14 @@ export function getReportHeaders(reportId: ReportId): string[] {
   return REPORT_CONFIG[reportId].headers as unknown as string[];
 }
 
-/** Whether a report's query takes dateFrom/dateTo at all - Inventory
- * Valuation and Customer Loyalty are point-in-time snapshots, so the report
- * view renders no date control for them rather than an inert one. */
+// Whether a report's query takes dateFrom/dateTo at all - Inventory Valuation and Customer Loyalty are point-in-time snapshots, so the report…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-report-export-ts-L98
 export function reportSupportsDateRange(reportId: ReportId): boolean {
   return REPORT_CONFIG[reportId].takesDateRange;
 }
 
-/** Whether a report's query takes a SalesFilters object (staff id + payment
- * method). Same contract as reportSupportsDateRange, read from the one
- * config both the exports and the on-screen view already run on. */
+// Whether a report's query takes a SalesFilters object (staff id + payment method).
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-report-export-ts-L105
 export function reportSupportsSalesFilters(reportId: ReportId): boolean {
   return REPORT_CONFIG[reportId].takesSalesFilters;
 }
@@ -113,37 +111,26 @@ const DRILLDOWN_COLUMN_BY_REPORT: Partial<Record<ReportId, string>> = {
   sales: SALES_TRANSACTION_COLUMN,
 };
 
-/** The column holding the reference a row drills down on, or undefined for
- * a report whose rows stand for no single openable record (see
- * client/AGENTS.md, "Report row drill-down"). */
+// The column holding the reference a row drills down on, or undefined for a report whose rows stand for no single openable record (see client/…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-report-export-ts-L116
 export function getReportDrilldownColumn(reportId: ReportId): string | undefined {
   return DRILLDOWN_COLUMN_BY_REPORT[reportId];
 }
 
-// Only these two report types carry a product or category name column, and
-// both alias their SQL output to the exact header name (see
-// fetchStockBatchReportData/fetchTopSellersReportData in lib/db/queries/
-// reports.ts), so this is a safe, narrow list rather than a blanket
-// transform over every report's differently-shaped rows.
+// Only these two report types carry a product or category name column, and both alias their SQL output to the exact header name (see fetchStoc…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-report-export-ts-L120
 const NAME_COLUMNS_BY_REPORT: Partial<Record<ReportId, readonly string[]>> = {
   stock_batches: ["Product"],
   top_sellers: ["Product", "Category"],
 };
 
-/**
- * A filtered Profit & Loss reports 0 expenses on purpose - an expense carries
- * no staff/payment-method attribution that means the same thing as the sales
- * filter (see the "JUDGEMENT CALL" comment on fetchProfitLossReportData in
- * lib/db/queries/reports.ts). That's deliberate, but silent: this is the copy
- * that says so, shared by the CSV, the PDF and the on-screen Report Center
- * banner so all three read the same.
- */
+// A filtered Profit & Loss reports 0 expenses on purpose - an expense carries no staff/payment-method attribution that means the same thing as…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-report-export-ts-L133
 export const PROFIT_LOSS_FILTERED_NOTE =
   "Expenses are excluded because this report is filtered by staff or payment method - these figures are a contribution margin, not a full store P&L. Run it without a filter for the complete picture.";
 
-/** The note a report carries for the filters it was run with, if any.
- * Returns undefined when nothing needs saying (every report but a filtered
- * Profit & Loss, today). */
+// The note a report carries for the filters it was run with, if any.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-report-export-ts-L144
 export function getReportNote(
   reportId: ReportId,
   filters?: SalesFilters,
@@ -218,10 +205,8 @@ export function useReportExport() {
 
       return rows.map((row) => {
         const formatted = { ...row };
-        // The DB stores these as raw date/datetime strings; format them
-        // consistently (dd/mm/yyyy) instead of leaking whatever precision
-        // the underlying column happens to have (e.g. full ISO timestamps)
-        // into the exported CSV/PDF.
+        // The DB stores these as raw date/datetime strings; format them consistently (dd/mm/yyyy) instead of leaking whatever precision the underlying…
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-report-export-ts-L211
         for (const col of dateColumns) {
           const value = formatted[col];
           if (typeof value === "string" || value instanceof Date) {
@@ -263,11 +248,8 @@ export function useReportExport() {
     async (reportId: ReportId, dateFrom?: string, dateTo?: string, filters?: SalesFilters) => {
       const config = REPORT_CONFIG[reportId];
       const rows = await getRows(reportId, dateFrom, dateTo, filters);
-      // Reports configured takesDateRange: false (stock_batches, customers)
-      // are always all-time - they never actually filter by dateFrom/dateTo
-      // even when a caller passes them (see getRows below), so stamping the
-      // PDF with a period subtitle mislabeled all-time data as scoped to a
-      // range it was never filtered by.
+      // Reports configured takesDateRange:
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-report-export-ts-L256
       const subtitle =
         config.takesDateRange && dateFrom && dateTo
           ? `${formatDateToDDMMYYYY(dateFrom)} – ${formatDateToDDMMYYYY(dateTo)}`
@@ -276,9 +258,8 @@ export function useReportExport() {
         storeName: storeProfile?.name || "Store",
         title: config.label,
         subtitle,
-        // Sits under the subtitle in the PDF's header block - same mechanism,
-        // a second line, so a caveat about the figures travels with the
-        // exported document instead of living only in the app's UI.
+        // Sits under the subtitle in the PDF's header block - same mechanism, a second line, so a caveat about the figures travels with the exported d…
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-report-export-ts-L269
         note: getReportNote(reportId, filters),
         headers: config.headers as unknown as string[],
         rows,

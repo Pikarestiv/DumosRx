@@ -76,14 +76,8 @@ export interface FallbackRedemptionOption {
   sort_order: number;
 }
 
-/**
- * Client-side preview of the Loyalty tab's redemption options for a store
- * that has never opened Loyalty Settings (which is what actually seeds
- * `loyalty_redemption_options` via ensureLoyaltyDefaultsSeeded()). Mirrors
- * buildDefaultRedemptionOptions() (lib/db/queries/loyalty.ts) content exactly
- * so what's previewed here matches what a user gets once it's really seeded —
- * same mechanism/shape as buildFallbackTiers() above for loyalty tiers.
- */
+// Client-side preview of the Loyalty tab's redemption options for a store that has never opened Loyalty Settings (which is what actually seeds…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-customer-management-ts-L79
 export function buildFallbackRedemptionOptions(
   currencySymbol = "₦",
 ): FallbackRedemptionOption[] {
@@ -121,15 +115,8 @@ export function buildFallbackRedemptionOptions(
   ];
 }
 
-/**
- * All business logic for the Customer Management page: data fetching, tab/URL
- * sync, search/filter derivation, and modal/selection state, so the component
- * itself only has to render what this hook returns.
- *
- * The ?action=add opener is where "manage_customers" is enforced: that URL is
- * typeable and is also what the dashboard header's "Add Customer" navigates
- * to, so gating the header action alone would not be a gate.
- */
+// All business logic for the Customer Management page:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-customer-management-ts-L124
 export function useCustomerManagement() {
   const { storeType, storeProfile } = useStore();
   const isStore = storeType === "pharmacy";
@@ -152,9 +139,8 @@ export function useCustomerManagement() {
     queryFn: getLoyaltyTiers,
   });
 
-  // Memoized: this parses a JSON column per tier and sorts the result, and
-  // both the array and the getTierColor closure below it are handed to every
-  // customer row.
+  // Memoized: this parses a JSON column per tier and sorts the result, and both the array and the getTierColor closure below it are handed to ev…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-customer-management-ts-L142
   const loyaltyTiers: LoyaltyTier[] = useMemo(
     () =>
       dbTiers && dbTiers.length > 0
@@ -265,9 +251,8 @@ export function useCustomerManagement() {
     setPayingCustomer(null);
   };
 
-  // Debounced and memoized: unmemoized this re-ran the whole fuzzy search
-  // (including its Levenshtein fallback tier) on every render of
-  // CustomerManagement, not just when the search term actually changed.
+  // Debounced and memoized:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-customer-management-ts-L255
   const filteredCustomers = useMemo(
     () =>
       genericFuzzySearch(debouncedSearchTerm, customers, [

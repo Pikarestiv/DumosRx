@@ -11,23 +11,13 @@ type ClaimType = "commission" | "store_claim";
 interface RedeemParams {
   saleId: string;
   userId?: string;
-  /** "commission" (default) pays the reseller their usual percentage cut of
-   * the markup. "store_claim" pays the reseller nothing - the store keeps
-   * the entire markup as its own profit instead. This covers a store
-   * sometimes pricing a sale above normal for a particular customer (the
-   * reseller toggle used purely as a price-override mechanism) without
-   * intending to pay anyone a commission on it. */
+  // "commission" (default) pays the reseller their usual percentage cut of the markup.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-redeem-reseller-commission-mutation-ts-L14
   claimType?: ClaimType;
 }
 
-/**
- * Settles a reseller sale's commission - either paid out to the reseller, or
- * kept by the store. Not a payout/ledger mutation - there is no till/cash-
- * drawer model in this app - just a status flag + timestamp + who processed
- * it, guarded so the same commission can't be settled twice. Snapshots the
- * amount that actually left the store (0 when the store claims the markup
- * for itself) so profit reporting can subtract exactly that.
- */
+// Settles a reseller sale's commission - either paid out to the reseller, or kept by the store.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-redeem-reseller-commission-mutation-ts-L23
 export async function redeemResellerCommission({
   saleId,
   userId,

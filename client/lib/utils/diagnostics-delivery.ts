@@ -3,16 +3,8 @@ import { buildExportFilename } from "@/lib/utils/export-filename";
 import { SUPPORT_EMAIL } from "@/lib/constants";
 import { getTillInspectionSession } from "@/lib/utils/till-inspection";
 
-/**
- * Getting a device report off a broken till. Two routes, deliberately:
- *
- * - Download works offline, which is exactly when a till is least able to
- *   send anything, and is the only route that survives a dead sync engine.
- * - Send posts straight to the public `/support` endpoint rather than queueing
- *   a `feedback` row through the sync engine. Filing it locally would put the
- *   report behind the very queue it is reporting on — and `insert()` refuses
- *   during a read-only inspection session anyway.
- */
+// Getting a device report off a broken till.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-diagnostics-delivery-L6
 export function downloadDiagnosticsReport(
   report: string,
   storeName: string | null | undefined,
@@ -46,14 +38,12 @@ export async function sendDiagnosticsReport(options: {
   const { report, storeName, deviceLabel } = options;
   const session = getTillInspectionSession();
 
-  // The inspecting admin, so a reply reaches whoever is standing at the till;
-  // otherwise DumosRx support, never the store's own address — the report goes
-  // TO support and the owner has no use for it.
+  // The inspecting admin, so a reply reaches whoever is standing at the till; otherwise DumosRx support, never the store's own address — the rep…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-diagnostics-delivery-ts-L41
   const email = session?.admin.email ?? SUPPORT_EMAIL;
 
-  // Plain fetch, no bearer: `/support` is public, and routing it through
-  // apiClient would put it on the 401 refresh-and-clear path that can unlink
-  // the till's own sync token.
+  // Plain fetch, no bearer:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-diagnostics-delivery-ts-L46
   const response = await fetch(`${apiClient.getBaseURL()}/support`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

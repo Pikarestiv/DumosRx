@@ -5,13 +5,8 @@ export interface SuggestionRule {
   suggestedNames?: string[];
 }
 
-/**
- * Symptom/condition clusters: categories customers commonly buy together for the
- * same ailment episode (e.g. malaria + typhoid are frequently treated together,
- * plus fever and immune support). Unlike SMART_SUGGESTIONS_RULES (one-directional
- * "trigger X, suggest Y"), every category in a cluster suggests every other
- * category in the same cluster: buying any one of them surfaces the rest.
- */
+// Symptom/condition clusters:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-smart-suggestions-rules-ts-L8
 export const SMART_SUGGESTIONS_CLUSTERS: string[][] = [
   // Fever / malaria-typhoid episode
   ["Antimalarials", "Antityphoids", "Antipyretics", "Vitamins & Supplements"],
@@ -32,9 +27,8 @@ export const SMART_SUGGESTIONS_CLUSTERS: string[][] = [
 ];
 
 export const SMART_SUGGESTIONS_RULES: SuggestionRule[] = [
-  // ==========================================
-  // PHARMACY / CLINICAL RULES
-  // ==========================================
+  // ========================================== PHARMACY / CLINICAL RULES ==========================================
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-constants-smart-suggestions-rules-ts-L30
   {
     triggerCategory: "Analgesics",
     triggerKeywords: ["pain relief", "painkiller"],
@@ -154,9 +148,8 @@ export const SMART_SUGGESTIONS_RULES: SuggestionRule[] = [
     suggestedNames: ["Baby Wipes", "Baby Oil", "Molfix Diapers", "Pampers", "Baby Powder"]
   },
 
-  // ==========================================
-  // GENERAL GROCERY & RETAIL RULES
-  // ==========================================
+  // ========================================== GENERAL GROCERY & RETAIL RULES ==========================================
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-constants-smart-suggestions-rules-ts-L152
   {
     triggerKeywords: ["bread", "sliced bread", "loaf"],
     suggestedNames: ["Lipton tea", "Milo", "Blue Band", "Butter", "Milk"]

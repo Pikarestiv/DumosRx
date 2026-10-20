@@ -6,28 +6,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * A-9. Receiving the same purchase order from two devices booked the
- * delivery twice. The single-device double-click is guarded by the UI, but
- * `receivePurchaseOrder()` read the PO — including each line's
- * `quantity_received` — *outside* its transaction, so two receipts racing
- * each other both computed the full outstanding balance from the same stale
- * snapshot. Both then created a stock batch and a purchase movement with
- * fresh random ids, which the server has no way to recognise as the same
- * delivery: both were accepted (stock doubled) while one of the two
- * `quantity_received` updates lost the version check, so the PO showed a
- * single receipt.
- *
- * Two changes close it, and this file covers both halves:
- *  - the line's `quantity_received` is re-read inside the transaction (the
- *    pattern `submitStockAudit` already uses for system quantity), which
- *    settles any race within one device;
- *  - the batch and its movement are keyed on a deterministic id derived
- *    from the PO line and its already-received balance, so a second
- *    device's copy of the same receipt carries the same ids and collapses
- *    onto the first server-side rather than doubling it. The server half is
- *    covered by `laravel-server/tests/Feature/SyncPushPurchaseOrderReceiptTest.php`.
- */
+// A-9. Receiving the same purchase order from two devices booked the delivery twice.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-po-receive-no-double-booking-test-ts-L9
 describe("receivePurchaseOrder cannot book one delivery twice", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

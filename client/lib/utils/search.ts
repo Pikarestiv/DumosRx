@@ -37,14 +37,8 @@ export function calculateLevenshteinDistance(a: string, b: string): number {
   return matrix[bLen][aLen];
 }
 
-/**
- * Levenshtein distance, skipped entirely when the two lengths are already
- * further apart than the caller can accept. Distance is never less than the
- * difference in lengths, so the answer in that case is only ever "too far" -
- * and the matrix that would prove it is the expensive part. Returns Infinity
- * for a candidate rejected on length, which compares correctly against any
- * maximum the caller is filtering on.
- */
+// Levenshtein distance, skipped entirely when the two lengths are already further apart than the caller can accept.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-search-ts-L40
 export function boundedLevenshteinDistance(
   a: string,
   b: string,
@@ -59,22 +53,16 @@ export interface SearchProductResult<T> {
   isFuzzyFallback: boolean;
 }
 
-// Minimum term length before the fuzzy (typo-tolerant) fallback fires at
-// all. Below this, a term is too short for Levenshtein distance to be a
-// meaningful similarity signal — a 3-character term is within distance 3 of
-// huge swaths of unrelated short words/codes, so it used to return noisy
-// "suggestions" for what should just be an empty result.
+// Minimum term length before the fuzzy (typo-tolerant) fallback fires at all.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-search-ts-L56
 const MIN_FUZZY_TERM_LENGTH = 4;
 
-// A squashed term shorter than this matches too much mid-string once spaces
-// are gone ("nc" hits "zinc" and "vitamin c" alike), so below it only
-// whole-name and word-start matches count.
+// A squashed term shorter than this matches too much mid-string once spaces are gone ("nc" hits "zinc" and "vitamin c" alike), so below it onl…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-search-ts-L63
 const MIN_SQUASHED_SUBSTRING_LENGTH = 4;
 
-// Allowed Levenshtein distance scales with term length instead of a flat 3
-// for every term: a fixed cap of 3 let a 4-character term match almost
-// anything (up to 3 of its 4 characters could differ), which is most of the
-// reason short terms produced arbitrary matches.
+// Allowed Levenshtein distance scales with term length instead of a flat 3 for every term:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-search-ts-L68
 function maxFuzzyDistanceFor(termLength: number): number {
   if (termLength <= 5) return 1;
   if (termLength <= 8) return 2;
@@ -92,16 +80,8 @@ interface LowercasedProduct {
   squashedWords: string[];
 }
 
-/**
- * Per-array cache of the lowercased searchable fields.
- *
- * Without it every call re-lowercased name + generic_name + barcode for every
- * product (and the fuzzy tier did it again, plus a split per field), i.e. a few
- * thousand throwaway strings per keystroke at a realistic catalog size. Keyed on
- * the array reference, which is exactly the right granularity here: React Query
- * hands out a new array whenever the catalog changes, so a stale index is not
- * reachable. WeakMap so an array that goes out of scope takes its index with it.
- */
+// Per-array cache of the lowercased searchable fields.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-search-L95
 const lowercaseIndexCache = new WeakMap<object, LowercasedProduct[]>();
 
 function lowercaseIndexFor<
@@ -133,10 +113,8 @@ function lowercaseIndexFor<
   return index;
 }
 
-/** Strips everything that isn't a letter or digit, so the spellings a
- * cashier types interchangeably — "M&B", "M B", "M & B", "MB" — collapse to
- * one key. Punctuation-only differences must not hide a product at the till.
- * See docs/KNOWN_BUGS.md. */
+// Strips everything that isn't a letter or digit, so the spellings a cashier types interchangeably — "M&B", "M B", "M & B", "MB" — collapse to…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-search-ts-L128
 export function squashForMatching(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
@@ -196,12 +174,8 @@ export function searchProducts<
         }
       }
 
-      // Tier 3.5: punctuation-insensitive match, graded. Every band sits
-      // below tier 3's 20, so this only ever adds results and never reorders
-      // existing ones — but the bands matter among themselves: squashing
-      // deletes spaces, so a mid-string hit can straddle two words
-      // ("paracetamol tab 12s" contains "b12"). A flat score let that
-      // outrank a real "vitamin b-12" on a till.
+      // Tier 3.5: punctuation-insensitive match, graded.
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-search-ts-L183
       if (score === 0 && squashedTerm) {
         const { squashedName, squashedGeneric, squashedWords } = index[i];
 
@@ -293,10 +267,8 @@ export function searchProducts<
         }
       }
 
-      // A scanned barcode with no exact match previously fell straight
-      // through to fuzzy-matching against product NAMES, with barcode never
-      // scored at all — a near-miss scan (one misread digit) should match
-      // on the barcode itself instead of surfacing unrelated products.
+      // A scanned barcode with no exact match previously fell straight through to fuzzy-matching against product NAMES, with barcode never scored at…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-search-ts-L280
       if (entry.barcode) {
         const barcode = entry.barcode;
         minDistance = Math.min(

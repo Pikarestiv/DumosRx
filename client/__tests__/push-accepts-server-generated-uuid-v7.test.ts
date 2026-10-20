@@ -12,18 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * push.ts guards products against a non-UUID category_id/supplier_id so one
- * bad row cannot block the whole queue. Its version nibble was [1-5], which
- * only admits UUID v1-v5 — but Laravel's HasUuids emits **v7**, so any row
- * the SERVER created and a product then referenced was rejected by the
- * client's own guard and parked in _sync_queue indefinitely.
- *
- * Hit in production: sync:repair-cross-tenant-categories created one
- * category server-side for store 571582a9, and products repointed onto it
- * could never push ("Invalid category_id (not a UUID)", DUMOSRX-CLIENT-22).
- * A real v7 id from that server is used below.
- */
+// push.ts guards products against a non-UUID category_id/supplier_id so one bad row cannot block the whole queue.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-accepts-server-generated-uuid-v7-test-ts-L15
 const SERVER_V7_CATEGORY_ID = "01a11c6e-12dc-72a6-bc2c-cd1c32d206b9";
 const CLIENT_V4_CATEGORY_ID = "b1e4c0e5-2354-4ff9-98e4-69d3b4c482fa";
 

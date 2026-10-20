@@ -5,12 +5,8 @@ import {
 } from "@/components/settings/diagnostics/diagnostics-report";
 import type { DeviceDiagnostics } from "@/lib/db/queries/diagnostics";
 
-/**
- * `feedback.content` is a MySQL TEXT column (65,535 bytes) and `/support`
- * caps `message` at MAX_REPORT_CHARS, so an over-long report used to be lost
- * whole — on exactly the till with the most to say. Rationale in
- * laravel-server/AGENTS.md, "Remote device report".
- */
+// `feedback.content` is a MySQL TEXT column (65,535 bytes) and `/support` caps `message` at MAX_REPORT_CHARS, so an over-l…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-diagnostics-report-truncation-test-ts-L8
 const base: DeviceDiagnostics = {
   queue: [],
   queueTotal: 0,

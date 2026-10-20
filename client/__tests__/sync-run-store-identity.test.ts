@@ -14,25 +14,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * A-304. The store a run belongs to is decided once, at the start, and every
- * request and report of that run carries it. Before this, `client.ts` stamped
- * `X-Store-Id` from localStorage at request time while the report builders
- * read the module resolver at the start — so switching store mid-run filed one
- * store's digest against the other store's cloud. A real device did that and
- * the panel reported -4,129 units against a device that was in step.
- *
- * Both cases move BOTH sources, as `switchStore()` does: a test that flips
- * only the resolver proves nothing, because the header is built from
- * localStorage and the builders read the resolver.
- *
- * What these pin precisely: that `pushChanges` hands the run's store to the
- * API client rather than re-reading ambient state. `apiClient` is mocked, so
- * `syncHeaders()`'s assembly of that value into `X-Store-Id` is not exercised
- * here — it is a one-line `runStoreId ?? getStoredActiveStoreId()`, and the
- * structural guard in `sync-engine-store-identity.test.ts` is what keeps the
- * callers honest.
- */
+// A-304. The store a run belongs to is decided once, at the start, and every request and report of that run carries it.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-run-store-identity-test-ts-L17
 describe("a sync run keeps one store identity", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -82,10 +65,8 @@ describe("a sync run keeps one store identity", () => {
 
     await pushChanges(false, false, run);
 
-    // The first push consumed the queue row, so re-seed: it is this SECOND
-    // push — issued entirely after the active store changed — that would
-    // carry store-b if the header were read per request instead of taken
-    // from the run.
+    // The first push consumed the queue row, so re-seed:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sync-run-store-identity-test-ts-L85
     db.run(
       `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
        VALUES ('products', 'p2', 'INSERT', '{"id":"p2","name":"Coartem"}', '2026-10-19T00:01:00Z')`,

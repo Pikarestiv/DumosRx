@@ -3,24 +3,16 @@ import { cn } from "@/lib/utils";
 
 interface LoadingOverlayProps {
   message?: string;
-  /** 0-100. Omit for an indeterminate spinner only - pass this when there
-   * are real stages to report. Steps with no progress hook of their own
-   * (e.g. a PDF worker that only reports back once, at the end) will hold
-   * the bar at its pre-step value and jump when they resolve - that's
-   * expected, not a bug. */
+  // 0-100. Omit for an indeterminate spinner only - pass this when there are real stages to report.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-loading-overlay-tsx-L6
   progress?: number;
-  /** Shows a Cancel button when provided. Only wire this up for steps that
-   * can actually be aborted cleanly (e.g. terminating a Web Worker) - for a
-   * synchronous main-thread step there's nothing to cancel into. */
+  // Shows a Cancel button when provided.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-loading-overlay-tsx-L12
   onCancel?: () => void;
 }
 
-/** Full-viewport overlay for work that runs long enough to look like the app
- * hung with no feedback at all - whether that's genuinely blocking the main
- * thread, or just a slow off-thread/async step with nothing else on screen
- * to show for it. Mount it, then yield a frame (e.g.
- * `await new Promise(r => requestAnimationFrame(r))`) before starting a
- * synchronous step, so the overlay actually gets to paint first. */
+// Full-viewport overlay for work that runs long enough to look like the app hung with no feedback at all - whether that's…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-loading-overlay-tsx-L18
 export function LoadingOverlay({ message = "Working...", progress, onCancel }: LoadingOverlayProps) {
   const showBar = typeof progress === "number";
   return (

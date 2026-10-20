@@ -99,12 +99,8 @@ describe("useDailyCloseData reseller commission profit adjustment", () => {
   });
 });
 
-/**
- * The commission is a RATE multiplication - the A-261 class, not float dust
- * - and it is both stored and paid out to a reseller, so it has to be
- * rounded where it is computed. The A-260 scan cannot see it: the write is
- * `reseller_commission_amount: resellerCommissionAmount`, a bare variable.
- */
+// The commission is a RATE multiplication - the A-261 class, not float dust - and it is both stored and paid out to a rese…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-daily-close-reseller-profit-test-ts-L102
 describe("reseller commission is stored at two decimals", () => {
   it("rounds a commission that does not divide evenly", async () => {
     const { computeResellerCommission } = await import(

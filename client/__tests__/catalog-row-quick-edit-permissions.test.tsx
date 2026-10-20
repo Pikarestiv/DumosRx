@@ -4,12 +4,8 @@ import React from "react";
 import { CatalogRow } from "@/components/products/catalog-row";
 import type { Product } from "@/components/products/types";
 
-/**
- * The row half of the catalog gates: a withheld key must leave the figure
- * on screen read-only rather than render a disabled control, and the Avg
- * Cost cell must disappear entirely (its grid column goes with it) rather
- * than render blank.
- */
+// The row half of the catalog gates:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-catalog-row-quick-edit-permissions-test-tsx-L7
 
 vi.mock("@/lib/hooks/use-uppercase-display", () => ({
   useUppercaseDisplayClass: () => "capitalize",

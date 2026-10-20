@@ -34,21 +34,8 @@ export async function getTransactionDetails(saleId: string) {
       [saleId]
     );
 
-    // The query above has no sale_item_id to join return_items against
-    // (that column doesn't exist), so it gives every sale_item row for a
-    // given product the SAME combined returned_quantity for that product
-    // across the whole sale. That's correct as long as a sale has at most
-    // one sale_item per product (true for a normal POS checkout - the cart
-    // merges duplicates), but if it ever doesn't - a held transaction
-    // restored from a stale pre-merge snapshot, say - every row for that
-    // product would independently believe the full combined amount was
-    // already returned against IT alone, undercounting how much is really
-    // still returnable (getMaxReturnable = quantity - returned_quantity,
-    // so extra rows only ever make the customer's remaining allowance look
-    // smaller than it is, never the reverse). This redistributes that same
-    // total sequentially across each product's sale_item rows, in a fixed
-    // (creation) order, so returned_quantity is attributed once per unit
-    // instead of once per row.
+    // The query above has no sale_item_id to join return_items against (that column doesn't exist), so it gives every sale_item row for a given pr…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-sales-ts-L37
     const returnedByProduct = new Map<string, number>();
     for (const item of items) {
       const remaining = returnedByProduct.get(item.product_id) ?? (item.returned_quantity || 0);
@@ -242,13 +229,8 @@ export async function getSaleForPrescription(prescriptionId: string) {
   return rows[0] || null;
 }
 
-/**
- * With no dateRange, returns the 100 most recent sales (the default POS
- * Recent Sales view). Once a dateRange is picked, the query is bounded by
- * that range instead of the row snapshot - matching getStockMovements()'s
- * same-shaped default-window/explicit-range split - so a range that reaches
- * past the last 100 sales doesn't silently come back empty/incomplete.
- */
+// With no dateRange, returns the 100 most recent sales (the default POS Recent Sales view).
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-sales-ts-L245
 export async function getRecentSales(
   userId?: string,
   dateRange?: { from?: string; to?: string },
@@ -258,15 +240,8 @@ export async function getRecentSales(
   const storeFilter = storeId ? ` AND s.store_id = ?` : "";
   const params: string[] = [...(userId ? [userId] : [])];
 
-  // `dateRange` carries plain yyyy-MM-dd calendar dates on the STORE's local
-  // wall clock (see use-my-today-sales.ts's getLocalTodayDate() and the
-  // DateRangePicker), but created_at is stored as a UTC instant. Appending a
-  // literal "T00:00:00.000Z"/"T23:59:59.999Z" treated those local dates as
-  // UTC midnight, shifting the day boundary by the store's UTC offset - in
-  // UTC+1 a sale rung at 00:30 local (23:30Z the day before) fell into the
-  // previous day's bucket. Widen the local day to its UTC-equivalent instant
-  // the same way getDailyCloseData/getSalesTotalsByPaymentMethod/
-  // getTopStaffByDate above and toQueryRange() in lib/utils/date-range.ts do.
+  // `dateRange` carries plain yyyy-MM-dd calendar dates on the STORE's local wall clock (see use-my-today-sales.ts's getLocalTodayDate() and the…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-sales-ts-L256
   let dateFilter = "";
   if (dateRange?.from) {
     const [year, month, day] = dateRange.from.split("-").map(Number);
@@ -302,13 +277,8 @@ export async function getRecentSales(
 
 export async function getRecentlySoldProductIds() {
   const storeId = getActiveStoreId();
-  // `SELECT DISTINCT product_id ... ORDER BY created_at` orders a column
-  // that isn't part of the DISTINCT result set, so SQLite is free to pick an
-  // arbitrary representative row per product - it can drop the
-  // most-recently-sold product entirely instead of ranking by its actual
-  // latest sale. Aggregating the true latest created_at per product first,
-  // then ordering by that, fixes the ordering without changing the result
-  // set (still one row per product_id).
+  // `SELECT DISTINCT product_id ...
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-sales-ts-L300
   const data = await query<{ product_id: string }>(
     `SELECT product_id FROM (
        SELECT product_id, MAX(created_at) as last_sold_at
@@ -356,13 +326,8 @@ export async function getDailyCloseData(reportDate: string) {
       storeId ? [startIso, endIso, storeId] : [startIso, endIso],
     ),
 
-    // Uses the sale-time cost_price (pre-aggregated per (sale_id, product_id)
-    // to stay correct when a sale has >1 sale_items row for the same
-    // product), not a recomputed current-stock average — see the matching
-    // fix on returnedCogsData/rawMonthlyReturns in reports.ts. return_items
-    // has no cost_price column of its own, so a `||` fallback here would
-    // always fire and silently use today's stock cost instead of the cost
-    // actually recorded at sale time.
+    // Uses the sale-time cost_price (pre-aggregated per (sale_id, product_id) to stay correct when a sale has >1 sale_items row for the same produ…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-sales-ts-L354
     query<ReturnItemDetail & { med_cost_price?: number }>(
       `SELECT ri.*, IFNULL(si.avg_cost_price, 0) as med_cost_price
        FROM return_items ri

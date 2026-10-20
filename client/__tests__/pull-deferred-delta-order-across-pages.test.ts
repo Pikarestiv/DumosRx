@@ -12,15 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * A-197: a delta deferred because its batch hadn't arrived yet was applied
- * only after the whole page loop, so a later page's movements for the same
- * batch ran first and were clamped away by the per-movement MAX(0, …) floor.
- * Stage 1 of the derived-quantity design takes the order dependence out: the
- * oracle is MAX(0, Σ log), which no page split can change. The server still
- * floors per movement until stage 2, so the two replicas still part company
- * on an oversold history.
- */
+// A-197: a delta deferred because its batch hadn't arrived yet was applied only after the whole page loop, so a later page…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-deferred-delta-order-across-pages-test-ts-L15
 describe("pullChanges: a pulled batch holds MAX(0, Σ its log) whichever page it arrives on", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

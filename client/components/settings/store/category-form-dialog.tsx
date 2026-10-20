@@ -41,10 +41,8 @@ export function CategoryFormDialog({
     if (open) setName(editingCategory?.name ?? "");
   }, [open, editingCategory]);
 
-  // Suggestions matching how the product form already picks a category list
-  // by business type, minus names already in use — no point suggesting a
-  // category that already exists (the one being edited stays offered, so
-  // reselecting the current name isn't blocked).
+  // Suggestions matching how the product form already picks a category list by business type, minus names already in use — n…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-store-category-form-dialog-tsx-L44
   const existingLower = new Set(
     existingNames
       .filter((n) => n.toLowerCase() !== editingCategory?.name.toLowerCase())
@@ -55,9 +53,8 @@ export function CategoryFormDialog({
     : FORM_SUGGESTIONS.retail.categories
   ).filter((c) => !existingLower.has(c.toLowerCase()));
 
-  // Accepts an explicit value for the Enter-key path: SearchableInput's
-  // onCommitKey fires synchronously alongside its own onValueChange call, so
-  // reading the `name` state here instead would see it a render behind.
+  // Accepts an explicit value for the Enter-key path:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-store-category-form-dialog-tsx-L58
   const handleSubmit = (committedName?: string) => {
     const trimmed = (committedName ?? name).trim();
     if (!trimmed || isSubmitting) return;

@@ -9,13 +9,8 @@ import {
 } from "@/lib/payment-methods";
 import { PaymentMethodSelector } from "@/components/pos/payment-method-selector";
 
-/**
- * Regression coverage for FIXED_BUGS.md A-42: a store row whose
- * enabled_payment_methods column was never written must read back as NULL
- * after a sync pull, not as an empty list. NULL means "the store never chose",
- * and the POS shows every method; an empty list would render a payment step
- * with no payment buttons at all.
- */
+// Regression coverage for FIXED_BUGS.md A-42:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-enabled-payment-methods-null-fallback-test-tsx-L12
 function renderSelector(raw: string | null | undefined) {
   return render(
     <PaymentMethodSelector

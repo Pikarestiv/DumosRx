@@ -7,12 +7,8 @@ interface SaveProductParams {
   payload: NewProductPayload;
 }
 
-/**
- * Extracted out of the useMutation call so it can be exercised directly in
- * a test against a real database (no React/QueryClient tree required) —
- * see __tests__/save-product-no-category.test.ts, a regression test for the
- * `category_id = undefined` bug below.
- */
+// Extracted out of the useMutation call so it can be exercised directly in a test against a real database (no React/QueryClient tree required)…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-save-product-mutation-ts-L10
 export async function saveProductToLocalDb(payload: NewProductPayload) {
   const isEditing = !!payload.id;
 
@@ -37,12 +33,8 @@ export async function saveProductToLocalDb(payload: NewProductPayload) {
       localPayload.category_id = newId;
     }
   } else {
-    // sql.js's bind() throws ("tried to bind a value of an unknown type
-    // (undefined)") on a JS `undefined` parameter — it only accepts null
-    // for a missing value. Category is optional (no "*" in the Add Product
-    // dialog), so leaving it `undefined` here used to crash insert()/
-    // update() for every product saved without one, surfacing as a silent
-    // "Failed to save Product" toast with no row ever created.
+    // sql.js's bind() throws ("tried to bind a value of an unknown type (undefined)") on a JS `undefined` parameter — it only accepts null for a m…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-save-product-mutation-ts-L36
     localPayload.category_id = null;
   }
 

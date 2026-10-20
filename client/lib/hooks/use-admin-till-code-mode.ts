@@ -7,15 +7,8 @@ import {
 
 const DEBOUNCE_MS = 400;
 
-/**
- * True once the typed identifier is one only the on-till admin path can serve:
- * an email that matches no user on this device. Drives the login form's switch
- * from the 4-slot PIN to a 12-digit till access code field.
- *
- * Runs on a debounce AND is re-evaluated on every identifier change, because
- * if it never fires the admin cannot submit at all — the submit button stays
- * gated on a 4-digit length.
- */
+// True once the typed identifier is one only the on-till admin path can serve:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-admin-till-code-mode-ts-L10
 export function useAdminTillCodeMode(identifier: string): boolean {
   const candidate = identifier.trim();
   // Derived synchronously so the common case needs no effect and no state.

@@ -3,12 +3,8 @@ import { render, screen, cleanup } from "@testing-library/react";
 import { CountFreshnessWarning } from "@/components/stock-batch/count-freshness-warning";
 import type { CountFreshness } from "@/lib/hooks/use-count-freshness";
 
-/**
- * Stage 1 of docs/superpowers/specs/2026-10-14-oversell-compensating-movement-design.md:
- * a counter standing in front of a shelf has no way to know the ledger owes
- * units, so their count pays the shortfall off and the figure does not move
- * (A-265). Until the compensating write lands, saying so is the fix.
- */
+// Stage 1 of docs/superpowers/specs/2026-10-14-oversell-compensating-movement-design.md:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-count-freshness-warning-deficit-test-tsx-L6
 const fresh: CountFreshness = {
   localMinutes: 2,
   isLocalStale: false,

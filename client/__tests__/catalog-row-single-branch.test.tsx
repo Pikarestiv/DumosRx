@@ -4,13 +4,8 @@ import React from "react";
 import { CatalogRow } from "@/components/products/catalog-row";
 import type { Product } from "@/components/products/types";
 
-/**
- * catalog-list used to mount BOTH the mobile card and the desktop grid row for
- * every visible row inside the virtualizer, hiding one with CSS. With ~20 rows
- * on screen that meant ~80 stateful editable cells mounted where ~20 should be
- * visible. Each row now renders only the branch that is actually on screen, so
- * these pin that exactly one of the two is in the DOM at a time.
- */
+// catalog-list used to mount BOTH the mobile card and the desktop grid row for every visible row inside the virtualizer, h…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-catalog-row-single-branch-test-tsx-L7
 
 vi.mock("@/lib/hooks/use-uppercase-display", () => ({
   useUppercaseDisplayClass: () => "capitalize",

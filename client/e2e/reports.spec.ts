@@ -1,15 +1,7 @@
 import { test, expect, login } from './fixtures';
 
-/**
- * Reports (app/(dashboard)/reports/page.tsx) has no plan-tier gate at all —
- * confirmed by reading lib/hooks/use-feature-gate.ts (its featureKey union
- * has no reports/analytics/daily_close entry) and the page itself (no
- * LockedModuleOverlay anywhere). Access is role-gated only: Operational
- * Reports and Analytics & Insights tabs only render for isAdmin, everyone
- * else lands on Daily Close. The shared e2e fixture's "admin" user is a
- * Store Owner, so no elevateToPaidTier-style workaround is needed here
- * (unlike expenses.spec.ts / procurement.spec.ts).
- */
+// Reports (app/(dashboard)/reports/page.tsx) has no plan-tier gate at all — confirmed by reading lib/hooks/use-feature-gat…
+// Rationale: docs/CLIENT_COMMENTS.md#block-e2e-reports-spec-ts-L3
 test.describe('Reports Module', () => {
   test('should log in and render Daily Close, Operational Reports, and Analytics & Insights with real data', async ({ page }) => {
     await login(page);
@@ -17,10 +9,8 @@ test.describe('Reports Module', () => {
     await page.locator('a[href="/reports"]').first().click();
     await expect(page.locator('header').getByText('Reporting Center', { exact: true })).toBeVisible();
 
-    // Default tab (no ?tab= param) is Operational Reports for admins
-    // (isAdmin ? "reports" : "daily_close" in app/(dashboard)/reports/page.tsx) -
-    // confirm the Report Center's 6 report cards render, each with
-    // Export/Print actions, not an error/blank state.
+    // Default tab (no ?tab= param) is Operational Reports for admins (isAdmin ? "reports" :
+    // Rationale: docs/CLIENT_COMMENTS.md#line-e2e-reports-spec-ts-L20
     await expect(page.getByText('Detailed Sales Report', { exact: true })).toBeVisible();
     await expect(page.getByText('Inventory Valuation', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /^Export$/i }).first()).toBeVisible();
@@ -29,9 +19,8 @@ test.describe('Reports Module', () => {
     await page.getByRole('tab', { name: /Daily Close/i }).click();
     await expect(page).toHaveURL(/tab=daily_close/);
     await expect(page.getByText(/Total Sales/i).first()).toBeVisible();
-    // Exact, because "Net Cash Expected" (cash sales less the day's cash
-    // expenses) now sits below the payment-method row and a loose /Cash
-    // Expected/i matches both.
+    // Exact, because "Net Cash Expected" (cash sales less the day's cash expenses) now sits below the payment-method row and a…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-e2e-reports-spec-ts-L32
     await expect(page.getByText('Cash Expected', { exact: true })).toBeVisible();
     await expect(
       page.getByText('Net Cash Expected', { exact: true }),

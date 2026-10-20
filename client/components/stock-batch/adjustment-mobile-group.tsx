@@ -9,9 +9,8 @@ interface Props {
   adjustments: AdjustmentGroup[];
 }
 
-/** Phone-width equivalent of the ledger's desktop grid, mirroring
- * StockMovementMobileGroup: a date heading followed by one card per
- * adjustment, carrying the same five facts the desktop columns show. */
+// Phone-width equivalent of the ledger's desktop grid, mirroring StockMovementMobileGroup:
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-adjustment-mobile-group-tsx-L12
 export function AdjustmentMobileGroup({ groupLabel, adjustments }: Props) {
   return (
     <div className="mb-6">

@@ -1,9 +1,5 @@
-/**
- * Named audit-log action types, for the mutations where "INSERT"/"UPDATE" on
- * a table name isn't specific enough to tell what actually happened without
- * parsing the details blob. Pass one of these to insert()/update()/remove()'s
- * `options.action` to override the generic default.
- */
+// Named audit-log action types, for the mutations where "INSERT"/"UPDATE" on a table name isn't specific enough to tell what actually happened…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-audit-actions-ts-L1
 export const AUDIT_ACTIONS = {
   LOGIN: "LOGIN",
   LOGOUT: "LOGOUT",
@@ -20,22 +16,8 @@ export const AUDIT_ACTIONS = {
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
 
-/**
- * Actions eligible for logAction()'s occurrence-count coalescing (see
- * core.ts): a REPEATED, machine-generated event for the same (action,
- * table, record_id) - a bug/failure that keeps re-firing - collapses into
- * one row with a growing `occurrence_count` instead of a fresh audit_logs
- * row (and a fresh sync-queue INSERT) every single time. Deliberately NOT
- * applied to every action: a genuine user action (a sale, a PIN change, a
- * stock adjustment) must stay one row per real-world occurrence, since
- * that's exactly what the Activity Log exists to show.
- *
- * LOGIN_FAILED is the one case already in this codebase that fires
- * unboundedly for the same identifier (repeated PIN mistakes, or a
- * brute-force attempt) - the shape this was written for. Add a new action
- * here only if it's genuinely the same kind of "the same failure keeps
- * re-happening," not a real distinct event that happens to repeat.
- */
+// Actions eligible for logAction()'s occurrence-count coalescing (see core.ts):
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-audit-actions-L23
 export const DEDUPABLE_AUDIT_ACTIONS = new Set<string>([AUDIT_ACTIONS.LOGIN_FAILED]);
 
 export function isDedupableAuditAction(action: string): boolean {

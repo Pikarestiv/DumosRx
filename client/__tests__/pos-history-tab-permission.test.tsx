@@ -18,14 +18,8 @@ function renderNav() {
   );
 }
 
-/**
- * "view_sales_history" answers "does the Recent Sales tab exist for this
- * role at all", which is a different question from "whose sales show up in
- * it" - that one is already answered by "view_activity_log"
- * (pos-transaction-history.tsx scopes getRecentSales to the acting user
- * without it). The two compose: no history key means no tab; the tab plus
- * no activity-log key means own sales only.
- */
+// "view_sales_history" answers "does the Recent Sales tab exist for this role at all", which is a different question from…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-history-tab-permission-test-tsx-L21
 describe("POS Recent Sales tab permission", () => {
   beforeEach(() => {
     hasPermission.mockReset();

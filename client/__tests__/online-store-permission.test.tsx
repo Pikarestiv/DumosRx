@@ -1,17 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-/**
- * manage_online_store is the storefront slice of the Store & Settings
- * category, and it deliberately cuts ACROSS two tabs rather than owning one:
- * the Store Profile block (public URL slug + the Enable Online Store switch)
- * lives inside Business Info, which is manage_store_settings, and the
- * Paystack payout onboarding lives inside Payment Methods, which is
- * manage_payment_accounts. Both only exist to make the public storefront
- * work, so they carry the storefront key on top of their tab's own.
- *
- * products.show_online stays under manage_products - see AGENTS.md.
- */
+// manage_online_store is the storefront slice of the Store & Settings category, and it deliberately cuts ACROSS two tabs r…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-online-store-permission-test-tsx-L4
 
 const hasPermission = vi.fn((_key: string) => true);
 

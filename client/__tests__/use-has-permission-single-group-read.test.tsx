@@ -39,17 +39,8 @@ vi.mock("@/lib/db/queries/permission-groups", () => ({
   ensurePermissionGroupsSeeded: vi.fn(async () => {}),
 }));
 
-/**
- * useHasPermission used to keep its own useState/useEffect, its own
- * getUserPermissionGroup() query and its own `dumos_sync_completed` listener -
- * duplicating state AuthContext already maintained. With 26+ call sites that
- * meant 26+ independent synchronous sql.js reads per sync cycle on the main
- * thread, and 26+ copies of the same state that could transiently disagree with
- * each other and with AuthContext's own isAdmin/canManageStockBatch booleans.
- *
- * AuthContext is now the single owner. These pin that: one read for any number
- * of call sites, and every call site agreeing with AuthContext.
- */
+// useHasPermission used to keep its own useState/useEffect, its own getUserPermissionGroup() query and its own `dumos_sync…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-has-permission-single-group-read-test-tsx-L42
 describe("useHasPermission reads one shared permission group", () => {
   let container: HTMLDivElement;
   let root: Root;

@@ -1,22 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { hasPermission } from "@/lib/hooks/use-permissions";
 
-/**
- * "request_stock_transfers" now sits IN pos-layout-header.tsx's
- * composition rather than beside it. Reconciling the two mechanisms that
- * already existed:
- *
- *  - the per-group key is the acting user's own right,
- *  - `staff_can_request_transfers` stays the store-wide opt-in that lets a
- *    non-admin-tier account use it at all.
- *
- * They compose with AND, so unticking the key actually withholds the
- * button (it previously did nothing), while every role keeps exactly the
- * access it had - which is why sales_staff was granted the key by default
- * when enforcement landed: the toggle exists precisely so cashiers can
- * pull stock in, and an AND with a key they lacked would have silently
- * disabled that feature for every store using it.
- */
+// "request_stock_transfers" now sits IN pos-layout-header.tsx's composition rather than beside it.
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-request-stock-transfer-permission-test-ts-L4
 function canRequestTransfer(
   role: string | undefined,
   staffCanRequestTransfers: number | undefined,

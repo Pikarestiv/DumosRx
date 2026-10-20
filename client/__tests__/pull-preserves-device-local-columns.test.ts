@@ -12,15 +12,8 @@ vi.mock("@/lib/api/client", () => ({
   },
 }));
 
-/**
- * A-12. `stores.last_monotonic_time` anchors the offline clock-tamper guard
- * (licensing-manager.ts refuses a local time earlier than the last recorded
- * action). It is written by a raw local `execute` (queries/setup.ts's
- * updateStoreMonotonicTime) and never pushed, so the server's copy of the
- * column is permanently NULL — and the pull, which writes back every column
- * the server returns, wrote that NULL over the local anchor on every single
- * sync round, re-arming the guard from whatever the clock currently says.
- */
+// A-12. `stores.last_monotonic_time` anchors the offline clock-tamper guard (licensing-manager.ts refuses a local time ear…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pull-preserves-device-local-columns-test-ts-L15
 describe("pullChanges preserves device-local columns", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

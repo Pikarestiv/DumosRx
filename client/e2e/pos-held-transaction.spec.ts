@@ -1,31 +1,7 @@
 import { test, expect, login } from './fixtures';
 
-/** Regression coverage for POS's hold/recall ("park sale") flow.
- *
- * Found uncovered while smoke-testing POS (docs/features/pos.md): grepping
- * __tests__/, e2e/, and components/pos/ for "held_transaction"/"hold" turned
- * up zero test files touching the feature, despite held_transactions being a
- * real, user-facing table (lib/db/schema.ts) wired into pos-system.tsx via
- * usePOSHeldTransactions (lib/hooks/use-pos-held-transactions.ts).
- *
- * The riskiest failure mode is silent: handleRecallTransaction rebuilds cart
- * lines from the held row's items_json by looking each item back up in the
- * live products list (`products.find(m => m.id === item.product_id)`), and
- * `.filter((item): item is CartItem => item !== null)` drops a miss with no
- * error. A product renamed, deactivated, or simply not yet loaded in that
- * list would silently shrink the cart on recall - the cashier would see a
- * shorter total, not a warning. This test asserts a multi-item cart, with a
- * discount applied, survives a hold + recall byte-for-byte (quantities,
- * item count, and the charged total after checkout).
- *
- * Note: the Cycle Count screen here (Physical Inventory: search + inline
- * "Counted Qty" cell + "Review & submit" + "Submit audit") is the *current*
- * UI, verified live against the running app. It differs from the
- * select-a-category-then-"Start count" flow older specs
- * (sales-lifecycle.spec.ts) still assert - that flow no longer exists and
- * those assertions are stale, a pre-existing/unrelated breakage, not
- * something this test should route around.
- */
+// Regression coverage for POS's hold/recall ("park sale") flow.
+// Rationale: docs/CLIENT_COMMENTS.md#block-e2e-pos-held-transaction-spec-ts-L3
 test.describe('POS held transactions', () => {
   test('recall restores every line item, quantity, and the discount that was on the cart when held', async ({
     page,

@@ -19,17 +19,8 @@ vi.mock("sonner", () => ({
   },
 }));
 
-/**
- * Regression coverage for _known-bugs.md #11's client-side conflict
- * handling: a `version_conflict` (or legacy `stale_timestamp`) entry in
- * response.failed means this exact edit's base version is permanently
- * stale — retrying it through recordSyncFailure's exponential-backoff path
- * can never succeed, since the base version doesn't change no matter how
- * many times it's resent. push.ts must instead drop the item from
- * `_sync_queue` outright and surface a visible, "loud not silent" signal
- * (a toast), rather than the old silent-retry-forever (or silent-accept)
- * behavior.
- */
+// Regression coverage for _known-bugs.md #11's client-side conflict handling:
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-version-conflict-handling-test-ts-L22
 describe("pushChanges handles a version_conflict failure as non-retryable", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -53,10 +44,8 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
   });
 
   beforeEach(() => {
-    // Cases below do not all set up a pull window; a budget left exhausted by
-    // an earlier one makes restoreBaseline() log a crash, which queues its own
-    // `feedback` row (A-273 made that report awaited, so it lands in time to
-    // be counted).
+    // Cases below do not all set up a pull window; a budget left exhausted by an earlier one makes restoreBaseline() log a cra…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-push-version-conflict-handling-test-ts-L56
     db.run(`DELETE FROM products; DELETE FROM _sync_queue; DELETE FROM _sync_state; DELETE FROM feedback;`);
     vi.clearAllMocks();
     toastWarning.mockClear();
@@ -87,11 +76,8 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
     const remaining = db.exec(`SELECT id FROM _sync_queue`);
     expect(remaining.length).toBe(0); // The queue item is gone.
 
-    // The title's other half, previously unasserted. `_synced = 0` with no
-    // queue row is the only local marker that this row's content differs from
-    // the cloud: the device report reads it, and the stock fold shields a
-    // batch because of it. The pull is what settles a version_conflict, so
-    // nothing here may flip it.
+    // The title's other half, previously unasserted.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-push-version-conflict-handling-test-ts-L90
     const synced = db.exec(`SELECT _synced FROM products WHERE id = 'p1'`);
     expect(synced[0].values[0][0]).toBe(0);
   });
@@ -124,20 +110,15 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
 
     expect(toastWarning).toHaveBeenCalledTimes(1);
     const message = toastWarning.mock.calls[0][0] as string;
-    // Deliberately does not assert (or claim) "another device" — the client
-    // can't actually verify who/what changed the record server-side, only
-    // that this edit no longer matches what it was based on. See push.ts's
-    // toast wording comment.
+    // Deliberately does not assert (or claim) "another device" — the client can't actually verify who/what changed the record…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-push-version-conflict-handling-test-ts-L127
     expect(message).toContain("could not be saved");
     expect(message.toLowerCase()).toContain("product");
   });
 
   it("mutes the toast for a version_conflict on an item that was already retried (likely its own prior attempt already landed)", async () => {
-    // Simulates a lost-response scenario: this queue row's first send
-    // already timed out once (recordSyncFailure bumped retry_count to 1
-    // before this, the retried, send). The version_conflict this retry now
-    // hits is very likely this device colliding with its own earlier,
-    // actually-successful write, not a genuinely conflicting edit.
+    // Simulates a lost-response scenario:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-push-version-conflict-handling-test-ts-L136
     db.run(`INSERT INTO products (id, name, selling_price, _version, _deleted) VALUES ('p1', 'Maca Gummies', 777, 1, 0)`);
     db.run(
       `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at, retry_count)
@@ -171,10 +152,8 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
        VALUES (10, 'products', 'p-bad', 'UPDATE', ?, '2026-09-04T00:00:00Z')`,
       [JSON.stringify({ id: "p-bad", category_id: "not-a-uuid", _version: 1 })],
     );
-    // Item B: an ordinary, otherwise-valid change in the SAME batch, so
-    // `changes` isn't empty and the network call (which then throws) is
-    // actually attempted, landing both items in the catch block's full
-    // `batch` iteration.
+    // Item B: an ordinary, otherwise-valid change in the SAME batch, so `changes` isn't empty and the network call (which then…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-push-version-conflict-handling-test-ts-L174
     db.run(`INSERT INTO products (id, name, selling_price, _version, _deleted) VALUES ('p-ok', 'Vitamin C', 500, 1, 0)`);
     db.run(
       `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at)
@@ -217,15 +196,8 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
   });
 
   it("sends the record's CURRENT local _version, not a stale one frozen into the queue payload (Critical bug fix)", async () => {
-    // Reproduces the mid-flight-edit race: an earlier push for this record
-    // already completed and bumped the local row's _version to 2 (e.g. via
-    // the `versions` handling exercised in the test below), but THIS queue
-    // row was created by an update() call that ran before that bump landed,
-    // so its frozen payload still carries the old _version: 1. Without
-    // re-reading the current version at send time, this payload would be
-    // sent as-is, collide against the server's already-bumped version, and
-    // get dropped as a false "version_conflict" - silently losing a
-    // completely ordinary, non-conflicting edit.
+    // Reproduces the mid-flight-edit race:
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-push-version-conflict-handling-test-ts-L220
     db.run(`INSERT INTO products (id, name, selling_price, _version, _deleted) VALUES ('p3', 'Ibuprofen', 850, 2, 0)`);
     db.run(
       `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at)
@@ -248,11 +220,8 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
   });
 
   it("falls back to the frozen _version (and still pushes the rest of the batch) when the re-read query itself fails", async () => {
-    // A queue row naming a table that doesn't exist locally (e.g. a stale
-    // row from a schema this device hasn't migrated) makes the re-read
-    // query throw. That must not reject the whole batch's Promise.all and
-    // take every other item in it down too - it should fall back to the
-    // frozen value for just this one item.
+    // A queue row naming a table that doesn't exist locally (e.g.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-push-version-conflict-handling-test-ts-L251
     db.run(
       `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at)
        VALUES (4, 'no_such_table', 'x1', 'UPDATE', ?, '2026-09-04T00:00:00Z')`,
@@ -303,13 +272,8 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
     expect(row[0].values[0][0]).toBe(2);
   });
 
-  // `permission_denied` is the server's stable reason for a payload
-  // sanitizePermissionGroupSyncPayload refuses on privilege grounds. The
-  // payload is frozen and the caller's own grants don't change by resending
-  // it, so retrying can never succeed - the realistic producer is an
-  // upgrading device's catalog-backfill push arriving after the server's own
-  // backfill already applied the same superset. See client/AGENTS.md's
-  // "Catalog versioning and the default-group backfill".
+  // `permission_denied` is the server's stable reason for a payload sanitizePermissionGroupSyncPayload refuses on privilege…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-push-version-conflict-handling-test-ts-L306
   describe("permission_denied", () => {
     function queueGroupUpdate() {
       db.run(
@@ -353,13 +317,8 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
     });
   });
 
-  /**
-   * A-205: dropping the queue row changes nothing server-side, so nothing
-   * bumps that row's `updated_at`. Once the pull watermark passes it the
-   * incremental pull never offers it again and the device keeps the value
-   * that LOST the conflict, permanently. The drop has to rewind the
-   * watermark for that table so the server re-offers the row.
-   */
+  // A-205: dropping the queue row changes nothing server-side, so nothing bumps that row's `updated_at`.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-push-version-conflict-handling-test-ts-L356
   describe("re-pull after a terminal conflict", () => {
     const windowFor = (table: string) =>
       db.exec(`SELECT last_synced_at FROM _sync_state WHERE table_name = '${table}'`);

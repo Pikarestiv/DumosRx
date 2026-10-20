@@ -8,12 +8,8 @@ import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { isNativeMobileApp } from "@/lib/utils";
 
-/**
- * Read-only enforcement for the native mobile build, extracted from
- * license-guard.tsx to keep that file under the 350-line limit in root
- * AGENTS.md §4. Unrelated to licence state — it only happens to have been
- * mounted alongside it.
- */
+// Read-only enforcement for the native mobile build, extracted from license-guard.tsx to keep that file under the 350-line…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-auth-mobile-restriction-guard-tsx-L11
 const MUTATING_KEYWORDS = [
   "save",
   "create",

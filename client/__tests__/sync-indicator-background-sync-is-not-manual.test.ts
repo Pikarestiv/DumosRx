@@ -71,14 +71,8 @@ vi.mock("@/lib/context/store-context", () => ({
   useStore: () => ({ storeProfile: mockStoreProfile }),
 }));
 
-/**
- * The background auto-sync daemon used to call the very same handler the
- * "Sync Now" button does, so every automatic sync went out flagged
- * `manual` - which on the client means "ignore each queue item's
- * exponential backoff" and on the server means "skip the plan's
- * sync-interval throttle" (see docs/FIXED_BUGS.md, A-5). Only a real user
- * click is manual.
- */
+// The background auto-sync daemon used to call the very same handler the "Sync Now" button does, so every automatic sync w…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-indicator-background-sync-is-not-manual-test-ts-L74
 describe("SyncIndicator background sync is not flagged manual", () => {
   let container: HTMLDivElement;
   let root: Root;

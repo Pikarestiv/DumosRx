@@ -1,33 +1,11 @@
 import { STORAGE_KEYS } from "@/lib/storage-keys";
-/**
- * Single source of truth for "is this session an impersonated (superadmin
- * handoff) session?".
- *
- * Two localStorage flags describe an impersonated session, both written when
- * a superadmin hands off into this app (see app/auth/callback/page.tsx):
- *
- *  - IMPERSONATED_USER_STORAGE_KEY: the impersonated profile itself, written
- *    by auth-context's loginFromHandoff() under a key distinct from
- *    "dumos_user" so it is never restored through setDbUser().
- *  - IMPERSONATOR_RETURN_CODE_KEY: the one-time code for the trip back to the
- *    admin panel, used by ImpersonationBanner's "End Session" button.
- *
- * Either one alone is enough to mean "impersonated": the return code is only
- * stored when the admin panel managed to mint one (that mint can fail while
- * the impersonation itself still proceeds — see web/app/admin/stores/page.tsx),
- * and the profile key is what survives a reload. Both are cleared together by
- * a real PIN login, a logout, and the banner's own "End Session".
- *
- * Lives in its own (React-free) module so the sync engine, the auth context
- * and the UI all answer this question the same way rather than each poking at
- * localStorage with its own hard-coded key.
- */
+// Single source of truth for "is this session an impersonated (superadmin handoff) session?".
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-impersonation-L2
 export const IMPERSONATED_USER_STORAGE_KEY = STORAGE_KEYS.impersonatedUser;
 export const IMPERSONATOR_RETURN_CODE_KEY = STORAGE_KEYS.impersonatorReturnCode;
 
-/** True when this device currently holds an impersonated (superadmin handoff)
- * session. Safe to call during SSR/prerender and when localStorage access
- * itself throws (private-mode Safari, blocked storage): both answer false. */
+// True when this device currently holds an impersonated (superadmin handoff) session.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-impersonation-ts-L7
 export function isImpersonatedSession(): boolean {
   if (typeof window === "undefined") return false;
   try {

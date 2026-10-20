@@ -10,9 +10,8 @@ import { RequestedProductsTab } from "./requested-products-tab";
 import { ProcurementTabNav } from "./procurement-tab-nav";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 
-// Radix only mounts the active TabsContent's children, so tying registration
-// to this tab-scoped component (rather than the top of ProcurementManagement)
-// ensures it's only active while the Orders tab actually is.
+// Radix only mounts the active TabsContent's children, so tying registration to this tab-scoped component (rather than the…
+// Rationale: docs/CLIENT_COMMENTS.md#line-components-procurement-procurement-management-tsx-L13
 function OrdersPullToRefresh({ onRefresh }: { onRefresh: () => Promise<void> }) {
   usePullToRefreshHandler(onRefresh);
   return null;

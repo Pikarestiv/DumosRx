@@ -32,10 +32,8 @@ export function ProductDatabase() {
   const { storeType, storeProfile } = useStore();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [searchTerm, setSearchTerm] = useState("");
-  // The inputs below stay bound to searchTerm so typing is instant; the
-  // expensive work (genericFuzzySearch over the WHOLE catalog, whose Tier-4
-  // Levenshtein fallback fires exactly while a user is mid-word, on the same
-  // main thread as synchronous sql.js) runs off the settled value instead.
+  // The inputs below stay bound to searchTerm so typing is instant; the expensive work (genericFuzzySearch over the WHOLE ca…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-products-product-database-tsx-L35
   const debouncedSearchTerm = useDebouncedValue(searchTerm, SEARCH_DEBOUNCE_MS);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");

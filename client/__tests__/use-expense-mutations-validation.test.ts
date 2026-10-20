@@ -10,12 +10,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(async () => undefined),
 }));
 
-/**
- * Regression coverage for docs/KNOWN_BUGS.md's "Expense amount has no
- * numeric validation": parseFloat(formData.amount) could store NaN for a
- * non-numeric input, nothing rejected a negative amount, and nothing rounded
- * to the cent before writing into expenses.amount (a REAL column).
- */
+// Regression coverage for docs/KNOWN_BUGS.md's "Expense amount has no numeric validation":
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-expense-mutations-validation-test-ts-L13
 describe("expense amount validation and rounding", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");

@@ -1,13 +1,5 @@
-/**
- * Purchase Order Receiving
- *
- * Split out from procurement.ts (which keeps PO/supplier CRUD): everything
- * here is specifically about turning an order into real stock — creating
- * stock_batches/stock_movements rows and marking the order received, for
- * both a Standard PO (receivePurchaseOrder, after createPurchaseOrder) and
- * an Immediate Purchase (createAndReceivePurchaseOrder, order + receipt in
- * one atomic step).
- */
+// Purchase Order Receiving
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-receiving-L1
 
 import { generateId, logAction, query, transaction } from "./core";
 import { receiptBatchId, receiptMovementId } from "./deterministic-id";
@@ -32,18 +24,14 @@ export interface ReceivedItem {
   quantity?: number | string;
   lot_number?: string;
   expiry_date?: string;
-  /** Overrides the PO line's cost for this receipt, if the actual invoiced
-   * cost differs from what was ordered. Per BASE unit (per tablet/bag), not
-   * per bulk unit - the same scale as products' catalog cost and as the
-   * Immediate Purchase flow's "New Cost". */
+  // Overrides the PO line's cost for this receipt, if the actual invoiced cost differs from what was ordered.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-receiving-ts-L27
   cost_price?: number | string;
-  /** When set, updates the product's global selling price; lets a price
-   * change discovered while receiving stock be applied immediately instead
-   * of requiring a separate trip to the product's edit screen. */
+  // When set, updates the product's global selling price; lets a price change discovered while receiving stock be applied immediately instead of…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-receiving-ts-L32
   selling_price?: number | string;
-  /** The product's live selling_price when the receive panel was opened -
-   * not written anywhere, just carried through so a caller can tell
-   * whether `selling_price` above is a real change. */
+  // The product's live selling_price when the receive panel was opened - not written anywhere, just carried through so a caller can tell whether…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-receiving-ts-L36
   current_selling_price?: number | null;
   product_id?: string;
 }
@@ -72,13 +60,8 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
     for (const item of poData.items) {
       const receivedItem = receivedItems?.find(ri => ri.po_item_id === item.id);
 
-      // Re-read the line's received balance INSIDE the transaction rather
-      // than trusting the poData snapshot taken before it: that snapshot was
-      // read before this transaction's turn in the queue, so a receipt
-      // racing this one (two tabs, or the same delivery submitted twice)
-      // computes the full outstanding balance from a balance that is no
-      // longer true and books the delivery again. Same fix shape as
-      // submitStockAudit's system-quantity re-read.
+      // Re-read the line's received balance INSIDE the transaction rather than trusting the poData snapshot taken before it:
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-procurement-receiving-ts-L63
       const receivedRows = await query<{ quantity_received: number | null }>(
         "SELECT quantity_received FROM purchase_order_items WHERE id = ?",
         [item.id],
@@ -90,10 +73,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
       const outstanding = Math.max(0, Number(item.bulk_quantity) - alreadyReceived);
 
       // Default to the whole outstanding balance if not provided in payload.
-      // A submitted quantity is floored at 0 (the form clamps too, but a negative
-      // reaching here would silently corrupt on-hand stock at the moment of receipt)
-      // and capped at the outstanding balance, so a typo can't book more stock
-      // than was ever ordered.
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-procurement-receiving-ts-L80
       const bulkQty = receivedItem?.quantity !== undefined
         ? Math.min(outstanding, Math.max(0, Number(receivedItem.quantity)))
         : outstanding;
@@ -111,27 +91,16 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
       const batchNumber = receivedItem?.lot_number?.trim() || poData.id.split('-')[0].toUpperCase();
       const expiryDate = receivedItem?.expiry_date ? new Date(receivedItem.expiry_date).toISOString().slice(0, 10) : null;
 
-      // Same helper the Immediate Purchase flow uses, so the two paths can't
-      // drift on what "cost" means: a typed override is per base unit, an
-      // absent one falls back to the line's per-bulk unit_cost divided down.
+      // Same helper the Immediate Purchase flow uses, so the two paths can't drift on what "cost" means:
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-procurement-receiving-ts-L102
       const baseUnitCost = resolveBaseUnitCost({
         costOverride: receivedItem?.cost_price,
         unitCost: Number(item.unit_cost),
         unitsPerBulk,
       });
 
-      // Deterministic, not random: two devices booking the same delivery
-      // derive the same pair of ids (this PO line, this already-received
-      // balance), so the second device's push collapses onto the first's
-      // rows server-side — SyncController::push turns an INSERT whose id
-      // already exists into an UPDATE, which for stock_batches drops the
-      // quantity outright and for stock_movements contributes no delta.
-      // Without this, both receipts are independent rows the server has no
-      // way to recognise as one delivery, and on-hand stock doubles while
-      // the PO still shows a single receipt (one of the two
-      // quantity_received updates loses the version check). A genuine later
-      // partial receipt starts from a different balance and so keeps its own
-      // ids. See lib/db/deterministic-id.ts.
+      // Deterministic, not random:
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-procurement-receiving-ts-L111
       const invId = await insert("stock_batches", {
         id: receiptBatchId(item.id, alreadyReceived),
         product_id: item.product_id,
@@ -175,11 +144,8 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
         });
       }
 
-      // bulk_quantity/units_per_bulk are re-sent unchanged so the sync
-      // push's purchase_order_items mapping (SyncController::push) can scale
-      // quantity_received into base units the same way it scales
-      // quantity_ordered — it only does so when both are present in the
-      // payload, and a sync-queue UPDATE payload carries changed fields only.
+      // bulk_quantity/units_per_bulk are re-sent unchanged so the sync push's purchase_order_items mapping (SyncController::push) can scale quantity…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-procurement-receiving-ts-L166
       await update("purchase_order_items", item.id, {
         quantity_received: alreadyReceived + bulkQty,
         bulk_quantity: item.bulk_quantity,
@@ -187,9 +153,8 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
       });
     }
 
-    // A submit with every line left at 0 against a PO that has nothing
-    // received yet isn't a partial receipt, it's a no-op — the order stays
-    // exactly where it was rather than moving into the partial state.
+    // A submit with every line left at 0 against a PO that has nothing received yet isn't a partial receipt, it's a no-op — the order stays exactl…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-procurement-receiving-ts-L178
     if (outstandingRemains && !anyQuantityReceived) return;
 
     const status = outstandingRemains ? "partially_received" : "received";
@@ -213,20 +178,14 @@ function immediateBaseUnitCost(item: ImmediateLineItemDraft): number {
   });
 }
 
-/** What the line costs on the ORDER - the figure the owner is invoiced for -
- * not item.subtotal, which is only set when the row is first added. Priced
- * from the per-bulk cost as typed when there is no override, so a ₦1,000
- * carton of 3 reads ₦1,000 and not 3 x ₦333.33; the batch keeps the rounded
- * per-unit cost for valuation. See client/AGENTS.md. */
+// What the line costs on the ORDER - the figure the owner is invoiced for - not item.subtotal, which is only set when the row is first added.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-receiving-ts-L208
 function computeImmediateLineTotal(item: ImmediateLineItemDraft): number {
   return roundMoney(immediateLineAmount(item));
 }
 
-/** Immediate Purchase: order and receipt happen in one transaction. Unlike
- * createPurchaseOrder() + receivePurchaseOrder(), this never leaves the PO
- * sitting in "pending" — it's created already "received", with its stock
- * batches, in a single atomic step. Reuses the exact per-item batch/cost/
- * expiry math receivePurchaseOrder() uses for Standard POs. */
+// Immediate Purchase: order and receipt happen in one transaction.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-receiving-ts-L217
 export async function createAndReceivePurchaseOrder(
   supplierId: string | null,
   notes: string,

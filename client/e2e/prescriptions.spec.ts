@@ -1,31 +1,14 @@
 import { test, expect, login } from './fixtures';
 
-/** Baseline flow coverage for Prescriptions (docs/features/prescriptions.md):
- * zero e2e coverage existed for this module before this test.
- *
- * The New Prescription form's medication picker only offers products with a
- * real positive-quantity stock batch (getAvailableStockBatches() in
- * lib/db/queries/inventory.ts, used by use-new-prescription.ts), and the seeded
- * test store starts with zero products. The quick-add product dialog has no
- * initial-stock field by design (see e2e/sales.spec.ts) — Cycle Count is the
- * only stock-granting path a fresh free-tier store can reach (Procurement is
- * gated behind a paid tier), so this test creates a product and gives it
- * stock the same way e2e/pos-held-transaction.spec.ts does before touching
- * Prescriptions at all.
- */
+// Baseline flow coverage for Prescriptions (docs/features/prescriptions.md):
+// Rationale: docs/CLIENT_COMMENTS.md#block-e2e-prescriptions-spec-ts-L3
 test.describe('Prescriptions Module', () => {
   test('should log in, navigate to prescriptions, and create a prescription', async ({ page }) => {
     test.setTimeout(60000);
     await login(page);
 
-    // The seeded test store's Business Vertical defaults to "General", which
-    // hides the Prescriptions nav link entirely (dashboard-sidebar.tsx only
-    // renders it when storeType === "pharmacy") and locks the module behind
-    // LockedModuleOverlay even if navigated to directly
-    // (lib/hooks/use-feature-gate.ts's canUsePrescriptions requires
-    // store_type === "pharmacy" unconditionally — see
-    // docs/features/prescriptions.md). Switch it first, the same real-write
-    // path a store owner would use (Settings > Business Info).
+    // The seeded test store's Business Vertical defaults to "General", which hides the Prescriptions nav link entirely (dashbo…
+    // Rationale: docs/CLIENT_COMMENTS.md#line-e2e-prescriptions-spec-ts-L21
     await page.goto('/settings/business-info');
     await page.getByRole('button', { name: 'Pharmacy', exact: true }).click();
     await expect(page.getByText('Switched to Pharmacy mode')).toBeVisible();

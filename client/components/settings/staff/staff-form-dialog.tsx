@@ -9,15 +9,8 @@ import { useStore } from "@/lib/context/store-context";
 import type { StaffUpdatePayload, StaffListItem } from "@/lib/types/user";
 import { StaffFormFields, type StaffFormData } from "./staff-form-fields";
 
-/**
- * Resolves the store_id to actually persist for a staff row from the
- * controlled <select>'s value (empty string when unselected/no store
- * active) plus the currently active store as a fallback. Always returns
- * `null`, never `""`, for "no store" — an empty string matches neither
- * `store_id = ?` nor the `store_id IS NULL` fallback
- * getUsers()/local-database.ts checks for, which made such an account
- * invisible in every staff list while still able to log in.
- */
+// Resolves the store_id to actually persist for a staff row from the controlled <select>'s value (empty string when unsele…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-staff-staff-form-dialog-tsx-L12
 export function resolveStaffStoreId(
   formStoreId: string,
   activeStoreId: string | null,
@@ -25,14 +18,8 @@ export function resolveStaffStoreId(
   return formStoreId || activeStoreId || null;
 }
 
-/**
- * Every submit-blocking rule for the staff form, as a pure function so each
- * one is testable without a rendered dialog (same reason resolveStaffStoreId
- * above is extracted). Returns the message to show, or null when the form is
- * good to submit. A Group is required: without it a staff member is saved
- * with no permission_group_id at all and silently falls back to role-string
- * permissions, which is never what the person filling the form intended.
- */
+// Every submit-blocking rule for the staff form, as a pure function so each one is testable without a rendered dialog (sam…
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-staff-staff-form-dialog-tsx-L28
 export function validateStaffForm(
   formData: StaffFormData,
   isEditing: boolean,
@@ -131,15 +118,12 @@ export function StaffFormDialog({
           username: formData.username,
           email: formData.email,
           role: formData.role,
-          // Sent alongside role so the two never disagree about which
-          // staff member they describe - see staff-form-fields.tsx's
-          // Group Select, which sets both together.
+          // Sent alongside role so the two never disagree about which staff member they describe - see staff-form-fields.tsx's Group…
+          // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-staff-staff-form-dialog-tsx-L134
           permission_group_id: formData.permission_group_id,
         };
-        // Only touch store_id when the selector was actually shown to the
-        // user (multi-store accounts). Single-store accounts never render
-        // it, so sending it unconditionally would silently overwrite
-        // main-account rows (store_id === null) with activeStoreId.
+        // Only touch store_id when the selector was actually shown to the user (multi-store accounts).
+        // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-staff-staff-form-dialog-tsx-L139
         if (availableStores && availableStores.length > 1) {
           updateData.store_id = resolveStaffStoreId(formData.store_id, activeStoreId);
         }

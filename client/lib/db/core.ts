@@ -32,21 +32,14 @@ import {
 
 export { isWriterTab, onWriterTabChange, onPromotionFailed };
 
-/**
- * UI entry point for the graceful writer handoff (tab-lock.ts's
- * `requestWriterTakeover()`): asks the current writer to force-save and drop
- * to read-only. Callers should offer `forceWriterTakeover()` on "timeout"
- * (unresponsive holder) or "unsupported" (no BroadcastChannel).
- */
+// UI entry point for the graceful writer handoff (tab-lock.ts's `requestWriterTakeover()`):
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-core-ts-L35
 export function requestWriterHandoff(): Promise<"acked" | "timeout" | "unsupported"> {
   return requestWriterTakeover();
 }
 
-/**
- * Fallback for `requestWriterHandoff()` timing out or being unsupported:
- * steals the Web Lock, rehydrating first. The outgoing holder's unsaved
- * changes are lost here, unlike the graceful path — see `stealWriterLock()`.
- */
+// Fallback for `requestWriterHandoff()` timing out or being unsupported:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-core-ts-L45
 export function forceWriterTakeover(): Promise<boolean> {
   return stealWriterLock(rehydrateFromIndexedDb);
 }
@@ -92,11 +85,8 @@ export function getActiveStoreId(): string | null {
   return activeStoreId;
 }
 
-/** Test-only: injects a bare database instance directly, bypassing
- * initDatabase()'s IndexedDB persistence and schema-migration machinery, so
- * unit tests can exercise query()/execute()/transaction() against a real
- * SQLite engine (e.g. a throwaway sql.js instance) instead of mocks. Never
- * called from production code paths. */
+// Test-only: injects a bare database instance directly, bypassing initDatabase()'s IndexedDB persistence and schema-migration machinery, so un…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-core-ts-L95
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function __setDatabaseForTesting(instance: any): void {
   db = instance;
@@ -118,16 +108,14 @@ export function generateId(): string {
   });
 }
 
-/** A short, human-scannable unique id for display fields people read
- * (receipt/transaction numbers). 48 random bits: short enough to print,
- * with enough headroom that collisions need tens of millions of rows. */
+// A short, human-scannable unique id for display fields people read (receipt/transaction numbers).
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-core-ts-L121
 export function generateShortId(): string {
   return generateId().split("-").slice(0, 2).join("").toUpperCase();
 }
 
-// STORE_SCOPED_TABLES and the schema-migration machinery now live in
-// ./schema-migrations; re-exported here so existing importers of
-// `STORE_SCOPED_TABLES` from "./core" keep working unchanged.
+// STORE_SCOPED_TABLES and the schema-migration machinery now live in ./schema-migrations; re-exported here so existing importers of `STORE_SCO…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-core-ts-L117
 export { STORE_SCOPED_TABLES };
 
 
@@ -243,14 +231,8 @@ async function initDatabaseInternal(): Promise<any> {
   }
 }
 
-/**
- * Re-reads the shared IndexedDB snapshot into `db`. Called by tab-lock.ts
- * once per tab, at promotion to writer. Returns `true` after a successful
- * rehydrate or when no snapshot exists at all; `false` only on a real read
- * failure, which tab-lock.ts treats as "refuse to promote". Deliberately
- * does not re-run schema migrations. See client/AGENTS.md, "One connection,
- * one writer".
- */
+// Re-reads the shared IndexedDB snapshot into `db`.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-core-ts-L246
 async function rehydrateFromIndexedDb(): Promise<boolean> {
   if (!SQL) return false;
   let savedData: Uint8Array | undefined;
@@ -373,11 +355,8 @@ export function isInTransaction(): boolean {
 // queries never pay the setTimeout round-trip.
 const QUERY_YIELD_INTERVAL = 200;
 
-/**
- * Bumped by every write, so a query() suspended at a yield point can tell
- * its read may have been torn. See client/AGENTS.md, "One connection, one
- * writer".
- */
+// Bumped by every write, so a query() suspended at a yield point can tell its read may have been torn.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-core-ts-L376
 let writeEpoch = 0;
 
 function bumpWriteEpoch(): void {
@@ -571,12 +550,8 @@ export async function execute(
 // nesting is unsupported and deadlocks (client/AGENTS.md, "One connection").
 let transactionQueue: Promise<void> = Promise.resolve();
 
-/**
- * Reserves the next slot in the shared connection-wide FIFO queue and
- * returns this caller's `previous`/`release` pair. Used by transaction(),
- * execute() and query(). Reserves synchronously, before the caller awaits
- * anything. See client/AGENTS.md, "One connection, one writer".
- */
+// Reserves the next slot in the shared connection-wide FIFO queue and returns this caller's `previous`/`release` pair.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-core-ts-L574
 function reserveDbSlot(): { previous: Promise<void>; release: () => void } {
   const previous = transactionQueue;
   let release!: () => void;
@@ -586,27 +561,14 @@ function reserveDbSlot(): { previous: Promise<void>; release: () => void } {
   return { previous, release };
 }
 
-/**
- * Waits for every transaction() reserved so far to commit or roll back.
- * Await this before a bare query() whose rows leave the device (see
- * `getPendingSyncItems()`); it narrows, but does not close, the window.
- * See client/AGENTS.md, "One connection, one writer".
- */
+// Waits for every transaction() reserved so far to commit or roll back.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-core-ts-L589
 export async function awaitSettledTransactions(): Promise<void> {
   await transactionQueue;
 }
 
-/**
- * Runs `fn` inside a real SQL transaction so a multi-statement operation
- * either fully applies or fully rolls back. Every write inside `fn` must go
- * through query()/execute() (and so insert()/update()/etc.) against the same
- * `db` handle to participate in it.
- *
- * Do NOT call this from inside another transaction()'s `fn`: it deadlocks by
- * design. If BEGIN itself fails, `fn` runs without atomicity rather than
- * being blocked. See client/AGENTS.md, "One connection, one writer", for
- * both, including the vendored Tauri plugin's `.max_connections(1)` cap.
- */
+// Runs `fn` inside a real SQL transaction so a multi-statement operation either fully applies or fully rolls back.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-core-L599
 export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
   const { previous, release: releaseNext } = reserveDbSlot();
 
@@ -679,11 +641,8 @@ export async function transaction<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-/**
- * Returns the raw database binary for export: sql.js (web) only. `db` is a
- * real Tauri SQL plugin connection on desktop/mobile, which has no
- * `.export()` method; use backupDatabaseToFile() there instead.
- */
+// Returns the raw database binary for export:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-core-ts-L673
 export function getDatabaseBinary(): Uint8Array | null {
   if (!db || isTauri()) return null;
   return db.export();
@@ -693,17 +652,8 @@ export function getDatabaseBinary(): Uint8Array | null {
 // not only outright garbage.
 const RESTORE_SANITY_CHECK_TABLES = ["users", "stores", "products", "sales"];
 
-/**
- * Overwrites the current database with provided binary data: sql.js (web)
- * only — on desktop/mobile use restoreDatabaseFromFile(), or `db` is
- * silently disconnected from the file Tauri manages. Returns whether the
- * pre-restore snapshot succeeded, so the caller can warn that
- * restorePreRestoreSnapshot() will not be available. Also runs the
- * cold-start schema pass (SCHEMA_SQL + runSchemaMigrations) against the
- * restored database before persisting it, so a backup taken on an older
- * app version comes up on the current schema immediately. See
- * client/AGENTS.md, "Backup, restore, wipes and diagnostics".
- */
+// Overwrites the current database with provided binary data:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-core-L696
 export async function restoreDatabase(binaryData: Uint8Array): Promise<{ snapshotSucceeded: boolean }> {
   if (isTauri()) {
     throw new Error(
@@ -739,11 +689,8 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<{ snapsho
   }
 
   let snapshotSucceeded = true;
-  // Reserves the same connection-wide lock query()/execute()/transaction()
-  // use (see reserveDbSlot()), for the same reason rehydrateFromIndexedDb()
-  // does: nothing in flight may resume against the outgoing `db` once it has
-  // been close()d, and nothing may read the restored one until its schema
-  // pass below has finished.
+  // Reserves the same connection-wide lock query()/execute()/transaction() use (see reserveDbSlot()), for the same reason rehydrateFromIndexedDb…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-core-ts-L693
   const { previous, release } = reserveDbSlot();
   try {
     await previous;
@@ -761,13 +708,8 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<{ snapsho
 
     db = candidate;
 
-    // A backup taken on an older app version carries that version's schema,
-    // which leaves the live process running against a database missing
-    // whatever tables/columns have shipped since (the permission_groups
-    // drift traced in docs/KNOWN_BUGS.md) until the next cold start. Apply
-    // the exact pass initDatabaseInternal() applies to an existing database:
-    // CREATE TABLE IF NOT EXISTS plus the idempotent migrations, both
-    // additive against the restored rows.
+    // A backup taken on an older app version carries that version's schema, which leaves the live process running against a database missing whate…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-core-ts-L715
     db.run(SCHEMA_SQL);
     await runSchemaMigrations(makeSqlJsAdapter(db));
 
@@ -778,12 +720,8 @@ export async function restoreDatabase(binaryData: Uint8Array): Promise<{ snapsho
   return { snapshotSucceeded };
 }
 
-/**
- * Recovers the database as it stood immediately before the most recent
- * restoreDatabase() call (web only) — the one-generation-deep safety net
- * that restoreDatabase() snapshots into on every restore. Returns false
- * (does nothing) if no snapshot exists yet.
- */
+// Recovers the database as it stood immediately before the most recent restoreDatabase() call (web only) — the one-generation-deep safety net…
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-core-ts-L763
 export async function restorePreRestoreSnapshot(): Promise<boolean> {
   const snapshot = await get<Uint8Array>(`${APP_NAME.toLowerCase()}_db_pre_restore_backup`);
   if (!snapshot) return false;
@@ -791,12 +729,8 @@ export async function restorePreRestoreSnapshot(): Promise<boolean> {
   return true;
 }
 
-/**
- * Last-resort recovery for a local database that cannot be opened at all
- * (web/PWA only): snapshots the blob to `dumosrx_db_pre_reset_backup`, then
- * deletes the live key so the next boot starts fresh and re-pulls.
- * Deliberately does not touch `db` — it runs on the init-failure screen.
- */
+// Last-resort recovery for a local database that cannot be opened at all (web/PWA only):
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-core-ts-L776
 export async function discardLocalDatabaseBlob(): Promise<{ backedUp: boolean }> {
   if (isTauri()) return { backedUp: false };
 
@@ -854,12 +788,8 @@ export async function backupDatabaseToFile(): Promise<{ success: boolean; path?:
 // The SQLite format's own magic header: first 16 bytes of any real .db.
 const SQLITE_FILE_HEADER = "SQLite format 3\0";
 
-/**
- * Desktop/mobile-only restore: native open dialog, header validation,
- * snapshot of the live file, close, then overwrite `dumosrx.db`. The caller
- * must reload the app afterwards so initDatabase() reconnects. See
- * client/AGENTS.md, "Backup, restore, wipes and diagnostics".
- */
+// Desktop/mobile-only restore:
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-core-ts-L839
 export async function restoreDatabaseFromFile(): Promise<{ success: boolean }> {
   if (!isTauri()) {
     throw new Error("restoreDatabaseFromFile() is desktop/mobile-only; use restoreDatabase() on web.");
@@ -919,14 +849,8 @@ export async function restoreDatabaseFromFile(): Promise<{ success: boolean }> {
   return { success: true };
 }
 
-/**
- * Read-only audit of legacy schema artifacts on this device. Run as
- * `await window.diagnoseLegacySchema()` from the console; safe anywhere,
- * including production, since it never writes. `findings` lists problems
- * present; `retirable` gives the per-migration verdict on whether THIS
- * device blocks deleting it. See client/AGENTS.md, "Backup, restore, wipes
- * and diagnostics", and docs/KNOWN_BUGS.md's deferred-work entry.
- */
+// Read-only audit of legacy schema artifacts on this device.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-core-ts-L904
 export async function diagnoseLegacySchema(): Promise<{
   clean: boolean;
   findings: string[];
@@ -1179,12 +1103,8 @@ export async function clearDatabaseForNewStore(): Promise<void> {
   }
 }
 
-/**
- * Caches describing this device's relationship with the account/store being
- * replaced, as opposed to the device itself. Device-level keys (deviceId,
- * apiUrl, UI preferences, and especially loginLockout, which is a
- * brute-force control) are deliberately absent — see client/AGENTS.md, A-153.
- */
+// Caches describing this device's relationship with the account/store being replaced, as opposed to the device itself.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-core-ts-L1164
 function clearAccountScopedCaches(): void {
   const accountScoped: StorageKey[] = [
     STORAGE_KEYS.suggestions,

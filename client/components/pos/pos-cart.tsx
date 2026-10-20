@@ -21,11 +21,8 @@ import type { Customer } from "@/lib/types/customer";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 
-/** Literal class strings, not a `grid-cols-${n}` template: Tailwind's
- * scanner only sees classes that appear whole in the source. Indexed by how
- * many of the three secondary cart actions are currently rendered, which now
- * varies with the acting user's "hold_sales" permission as well as the cart
- * and prescription-lock state. */
+// Literal class strings, not a `grid-cols-${n}` template:
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-pos-pos-cart-tsx-L24
 const SECONDARY_ACTION_GRID_COLS = [
   "grid-cols-1",
   "grid-cols-1",
@@ -102,21 +99,13 @@ export const POSCart = memo(function POSCart({
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [showProformaDialog, setShowProformaDialog] = useState(false);
   const { withRestriction, canUseResellerCommission, canUseMarkupSales, canUseProformaQuotes } = useFeatureGate();
-  // Unconditional top-level const, never inlined into the JSX conditions
-  // below: useHasPermission's answer changes between renders while the
-  // permission group resolves, and calling it inside a short-circuit is how
-  // the "Rendered more hooks than during the previous render" crash got in
-  // before - see pos-layout-header.tsx.
+  // Unconditional top-level const, never inlined into the JSX conditions below:
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-cart-tsx-L105
   const canApplyDiscounts = useHasPermission("apply_discounts");
   const canHoldSales = useHasPermission("hold_sales");
 
-  // canUseMarkupSales can flip false mid-session (an admin disables the
-  // markup_sales_enabled toggle on another device, or downgrades plan) -
-  // without this, a cart that already had isResellerSale persisted true
-  // would lose the entire row below (including the only Switch that turns
-  // it back off), leaving validatePaymentReadiness's markup-type-required
-  // guard permanently blocking checkout with no way to clear it short of
-  // discarding the cart.
+  // canUseMarkupSales can flip false mid-session (an admin disables the markup_sales_enabled toggle on another device, or do…
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-cart-tsx-L113
   useEffect(() => {
     if (!canUseMarkupSales && isResellerSale) {
       setIsResellerSale?.(false);

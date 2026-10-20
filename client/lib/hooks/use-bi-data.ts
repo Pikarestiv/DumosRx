@@ -15,13 +15,8 @@ import type { DateRangeValue } from "@/components/ui/date-range-picker";
 
 const CATEGORY_CHART_COLORS = ["#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
-/** @param dateRange - defaults to the last 180 days when `from` is unset, and
- * to "up to now" when `to` is unset. Both ends are honoured: the selected
- * range's END is the upper bound of every current-period query, not "now"
- * (a range ending last month used to silently include everything since).
- * The previous-period comparison window is the same length as the SELECTED
- * range, immediately before it (e.g. 1-31 March compares against 29 Jan -
- * 28 Feb), rather than a "now minus from"-wide window anchored to now. */
+// @param dateRange - defaults to the last 180 days when `from` is unset, and to "up to now" when `to` is unset.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-bi-data-ts-L18
 export function useBIData(
   dateRange?: DateRangeValue,
   filters?: SalesFilters,
@@ -34,12 +29,8 @@ export function useBIData(
 
   const { dateFilter, toFilter, prevDateFilter } = useMemo(() => {
     const now = new Date();
-    // toQueryRange() widens the picker's date-only values to LOCAL midnight /
-    // end-of-day, which is the calendar every report query buckets against
-    // (strftime(..., 'localtime')); `new Date("2026-03-01")` would anchor
-    // them to UTC midnight and shift the boundaries by the store's offset.
-    // Guarded because DateRangeValue can in principle already carry a full
-    // ISO timestamp, which toQueryRange's yyyy-MM-dd parser can't read.
+    // toQueryRange() widens the picker's date-only values to LOCAL midnight / end-of-day, which is the calendar every report query buckets against…
+    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-bi-data-ts-L32
     const dateOnly = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
     const widened = toQueryRange({
       from: dateOnly(dateRange?.from),
@@ -59,9 +50,8 @@ export function useBIData(
     };
   }, [dateRange?.from, dateRange?.to]);
 
-  // toFilter is appended to the factory's key rather than added to the
-  // factory itself (lib/query-keys.ts is owned elsewhere) - without it two
-  // ranges sharing a `from` would read each other's cached metrics.
+  // toFilter is appended to the factory's key rather than added to the factory itself (lib/query-keys.ts is owned elsewhere) - without it two ra…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-bi-data-ts-L57
   const metricsKey = queryKeys.bi.metrics(
     dateFilter,
     prevDateFilter,
@@ -77,19 +67,14 @@ export function useBIData(
   // Gross Sales: list-price total before discount, tax, or refunds.
   const grossSales = metrics?.grossSalesData[0]?.total || 0;
   const totalTax = metrics?.taxData[0]?.total || 0;
-  // Already netted to its EX-VAT share by getBIMetrics (total_refunded is
-  // VAT-inclusive; see the comment on totalRefundsData in reports.ts), so the
-  // subtraction below removes each refund's VAT exactly once - via totalTax -
-  // instead of twice. Nothing extra to adjust here.
+  // Already netted to its EX-VAT share by getBIMetrics (total_refunded is VAT-inclusive; see the comment on totalRefundsData in reports.ts), so…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-bi-data-ts-L75
   const totalRefunds = metrics?.totalRefundsData[0]?.total || 0;
-  // Net Sales: what the business actually keeps after discounts (already
-  // baked into total_amount), tax collected on the government's behalf
-  // (not real revenue), and the ex-VAT value of what came back as refunds.
+  // Net Sales: what the business actually keeps after discounts (already baked into total_amount), tax collected on the government's behalf (not…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-bi-data-ts-L80
   const netSales = (metrics?.revenueData[0]?.total || 0) - totalTax - totalRefunds;
-  // totalRevenue kept as an alias for netSales, not a separate tax-inclusive
-  // figure: every consumer of this hook (BIKeyMetrics' "Total Revenue" card,
-  // avg-transaction-value, revenue-change %) should read the corrected,
-  // tax-excluded number now, not the old tax-inclusive one.
+  // totalRevenue kept as an alias for netSales, not a separate tax-inclusive figure:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-bi-data-ts-L84
   const totalRevenue = netSales;
   const totalCogs = (metrics?.cogsData[0]?.total || 0) - (metrics?.returnedCogsData[0]?.total || 0);
   const totalExpenses = metrics?.expensesData[0]?.total || 0;
@@ -111,9 +96,8 @@ export function useBIData(
     return Math.round((r.returning_count / r.total) * 100);
   }, [metrics?.retentionData]);
 
-  // Previous-period Net Sales, defined exactly like netSales above (gross
-  // total_amount minus tax minus refunds) so revenueChange/
-  // avgTransactionChange divide a net figure by a net figure.
+  // Previous-period Net Sales, defined exactly like netSales above (gross total_amount minus tax minus refunds) so revenueChange/ avgTransaction…
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-bi-data-ts-L109
   const prevRevenue =
     (metrics?.prevRevenueData[0]?.total || 0) -
     (metrics?.prevTaxData[0]?.total || 0) -
@@ -182,10 +166,8 @@ export function useBIData(
     }));
   }, [categoryDistribution]);
 
-  // Gated on their own tab: neither is displayed on the default Sales tab, so
-  // together they were four extra reads on every mount of the dashboard. Radix
-  // keeps the active tab mounted, so switching to one of these fetches then
-  // and the result stays cached from there on.
+  // Gated on their own tab:
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-bi-data-ts-L180
   const stock_batchAlerts = useStockBatchAlerts(
     activeTab === undefined || activeTab === "stock_batches",
   );
@@ -224,12 +206,8 @@ export function useBIData(
         isPeriodComparison: true,
       },
       {
-        // Labelled for what the number actually is: the share of the
-        // customers who bought *inside this period* that bought more than
-        // once in it (walk-in/anonymous sales carry no customer_id and are
-        // excluded from both sides). It is not retention against the
-        // store's customer base or against a prior period, which is what
-        // "Customer Retention" implied.
+        // Labelled for what the number actually is:
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-bi-data-ts-L222
         metric: "Repeat Purchase Rate",
         value: `${retentionRate}%`,
         change: retentionRate >= 50 ? "Healthy" : "Needs attention",

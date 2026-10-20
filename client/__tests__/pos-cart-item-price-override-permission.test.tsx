@@ -53,13 +53,8 @@ function renderItem() {
   );
 }
 
-/**
- * The reseller / store-markup unit-price field is the app's only
- * "override the price of this line at checkout" surface, so it is what
- * "override_price" gates. An override already on the line (a resumed held
- * sale, a marked-up reseller cart) still renders - read-only - for someone
- * without the permission; only retyping it is gated.
- */
+// The reseller / store-markup unit-price field is the app's only "override the price of this line at checkout" surface, so…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-cart-item-price-override-permission-test-tsx-L56
 describe("POS cart item price override permission", () => {
   beforeEach(() => {
     hasPermission.mockReset();

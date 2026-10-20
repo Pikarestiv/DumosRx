@@ -63,13 +63,8 @@ vi.mock("@/lib/db/DatabaseProvider", () => ({
   useDatabase: () => ({ isReadOnlyTab: false }),
 }));
 
-/**
- * U3: the indicator under-reported real backlogs (pending state was gated on
- * the last sync being 30+ minutes stale, so unsynced sales still showed a
- * green "Cloud Active") and over-reported failures (two mounted instances
- * racing produced sync()'s "Sync already in progress", which was rendered as
- * a red "Sync Error" on a sync that actually succeeded).
- */
+// U3: the indicator under-reported real backlogs (pending state was gated on the last sync being 30+ minutes stale, so uns…
+// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-indicator-pending-and-concurrent-test-tsx-L66
 describe("SyncIndicator pending state and concurrent-sync handling", () => {
   let container: HTMLDivElement;
   let root: Root;

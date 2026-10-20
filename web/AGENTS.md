@@ -399,8 +399,9 @@ Overview. A refused role issues **no request at all** — pinned by
 
 **This is presentation, not protection.** The route middleware is what refuses
 the data; the guard is what makes the refusal legible. Never treat a page guard
-(or a hidden button) as a security control. PG-15 is this same defect on
-`/admin` — when fixing it, copy this pattern.
+(or a hidden button) as a security control. PG-20 is this same defect on
+`/admin` (a bookmarked URL; the logo link was fixed under PG-15) — when fixing
+it, copy this pattern.
 
 ### Subscriptions (Phase 3, 2026-10-07)
 

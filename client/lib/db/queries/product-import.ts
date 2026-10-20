@@ -123,10 +123,12 @@ export interface ImportResult {
   stockAdjusted: number;
 }
 
-// Upserts every row inside a single transaction.
+// How often (in rows) to yield to the event loop during a bulk import.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-product-import-ts-L128
 const YIELD_INTERVAL = 25;
 
+// Upserts every row inside a single transaction.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-product-import-L139
 export async function importProductRows(
   rows: ProductImportRow[],
   onProgress?: (completed: number, total: number) => void,

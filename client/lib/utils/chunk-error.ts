@@ -1,5 +1,7 @@
 import { STORAGE_KEYS } from "@/lib/storage-keys";
-// A stale tab holding chunk hashes from before the last auto-deploy (see the debounced storefront rebuild) will 404 the moment it lazy-loads a…
+// A stale tab holding chunk hashes from before the last auto-deploy will 404 the moment it lazy-loads a route it doesn't have.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-chunk-error-ts-L2
+// Each browser engine phrases a stale/missing dynamic-import chunk differently, plus a fourth static-export-specific failure shape.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-chunk-error-ts-L2
 export const CHUNK_ERROR_PATTERN =
   /Loading (chunk|CSS chunk) [\w.-]+ failed|Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Unexpected token '<'/i;

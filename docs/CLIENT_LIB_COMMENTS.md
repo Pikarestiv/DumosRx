@@ -5812,15 +5812,6 @@ No header action: the page itself already has a back button, title,
 and item count in its own panel header (desktop), and this header is
 hidden entirely on mobile for this route (full-screen takeover).
 
-### line-constants-settings-tabs-ts-L58
-
-`client/lib/constants/settings-tabs.ts:58`
-
-Pure so the whole tab-visibility rule is unit-testable without an auth render harness.
-Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-settings-tabs-ts-L62
-The two support sessions that can see the diagnostics console.
-Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-settings-tabs-ts-L67
-
 ### line-constants-settings-tabs-ts-L73
 
 `client/lib/constants/settings-tabs.ts:73`
@@ -7188,15 +7179,6 @@ Excludes deactivated batches and already-expired stock outright (FEFO
 prioritizes near-expiry stock, it doesn't dispense already-expired stock);
 NULL-expiry batches sort last, not first (SQLite's default for ASC).
 
-### line-db-queries-inventory-ts-L152
-
-`client/lib/db/queries/inventory.ts:152`
-
-Inserts the sale_items row for one cart line and deducts/logs the stock it consumed.
-Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-inventory-ts-L152
-The quantity write and its `stock_movements` row must land together or a concurrent stock fold reads the batch as diverged and writes the pr…
-Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-inventory-ts-L160
-
 ### line-db-queries-inventory-ts-L171
 
 `client/lib/db/queries/inventory.ts:171`
@@ -7519,8 +7501,6 @@ collision rather than just one key at a time.
 
 `client/lib/db/queries/product-import.ts:128`
 
-Upserts every row inside a single transaction.
-Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-product-import-L139
 How often (in rows) to yield to the event loop during a bulk import. Each
 query on the web (sql.js/WASM) path resolves synchronously, so without an
 explicit yield a 1000+ row import runs as one uninterruptible block and
@@ -10214,8 +10194,6 @@ displaying screen in the app.
 
 `client/lib/utils/chunk-error.ts:2`
 
-A stale tab holding chunk hashes from before the last auto-deploy (see the debounced storefront rebuild) will 404 the moment it lazy-loads a…
-Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-chunk-error-ts-L2
 Each browser engine phrases a stale/missing dynamic-import chunk
 differently: Chromium says "Loading chunk N failed" (webpack's own
 wording) or "Failed to fetch dynamically imported module"; Safari says

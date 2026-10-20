@@ -149,8 +149,10 @@ interface RecordSaleItemStockParams {
 }
 
 // Inserts the sale_items row for one cart line and deducts/logs the stock it consumed.
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L152
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-inventory-ts-L152
 export async function recordSaleItemStock(params: RecordSaleItemStockParams) {
+  // The quantity write and its `stock_movements` row must land together or a concurrent stock fold writes the pre-sale number back.
+  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-inventory-ts-L160
   if (isInTransaction()) return writeSaleItemStock(params);
   return transaction(() => writeSaleItemStock(params));
 }

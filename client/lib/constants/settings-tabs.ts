@@ -55,13 +55,15 @@ export const SETTINGS_TAB_PERMISSIONS: Record<string, string> = {
   system: "manage_device_settings",
 };
 
-// Pure so the whole tab-visibility rule is unit-testable without an auth render harness.
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-constants-settings-tabs-ts-L58
+// The two support sessions that can see the diagnostics console.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-settings-tabs-ts-L67
 export interface SupportSessionAccess {
   inspecting?: boolean;
   impersonating?: boolean;
 }
 
+// Pure so the whole tab-visibility rule is unit-testable without an auth render harness.
+// Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-settings-tabs-ts-L62
 export function canAccessSettingsTab(
   tab: string,
   isAdmin: boolean,

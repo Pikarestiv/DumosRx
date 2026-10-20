@@ -143,7 +143,7 @@ leaves `_version` alone.
 
 The fix is **not** to move the server snapshot before the push loop: that puts
 25 aggregate queries inside the push transaction on shared MySQL, which is the
-transaction-length problem the 60s watermark lag exists to mitigate, and it
+transaction-length problem the pull watermark lag exists to mitigate, and it
 would do nothing for the cross-till case.
 
 The four verdicts:

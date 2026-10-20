@@ -18,19 +18,16 @@ This document tracks the proposed features for the DumosRx system, sorted by imp
 The review's conclusion was explicitly **not to rewrite the sync engine**:
 every defect the October audit found (A-271 → A-290 in `docs/FIXED_BUGS.md`)
 was a local one inside a sound design, and all of them were fixable in place.
-The three things it recommended next, in order:
+The two things still open from what it recommended next, in order (the first,
+A-286 — restamp `_synced_at` at commit — is done, see `docs/FIXED_BUGS.md`):
 
-1. **A-286 — restamp `_synced_at` at commit** instead of per change inside the
-   push loop, so A-282's 60-second watermark lag becomes a clock-skew
-   allowance rather than the only thing between a slow push and a silently
-   lost row. Once it lands, `PULL_WATERMARK_LAG_SECONDS` can drop to seconds.
-2. **A two-device simulation harness**, asserting the three properties nothing
+1. **A two-device simulation harness**, asserting the three properties nothing
    tests end to end today: eventual agreement between two devices and the
    cloud, ledger consistency (a batch's quantity equals the sum of its
    movements on both sides), and no lost edit without a trace. The per-table
    agreement digest already computes the oracle — what is missing is a test
    that drives two clients against one server.
-3. **Derived-quantity Stage 2**
+2. **Derived-quantity Stage 2**
    (`docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`),
    which is also the prerequisite for A-283.
 

@@ -139,6 +139,23 @@ describe("admin navigation role filtering", () => {
     expect(screen.getByRole("link", { name: "My Stores" })).toBeTruthy();
   });
 
+  it("points the logo at the first item the role can load, not at /admin", () => {
+    const { container } = render(<AdminSidebar />);
+    const logo = container.querySelector("#tour-brand");
+    expect(logo?.getAttribute("href")).toBe(
+      visibleSidebarItems(agentUser)[0].href,
+    );
+    expect(logo?.getAttribute("href")).not.toBe("/admin");
+  });
+
+  it("keeps the logo on /admin for a super_admin", () => {
+    authState.user = { ...agentUser, role: "super_admin" };
+    const { container } = render(<AdminSidebar />);
+    expect(container.querySelector("#tour-brand")?.getAttribute("href")).toBe(
+      "/admin",
+    );
+  });
+
   /** The admin layout clips the sidebar at screen height, so if the item list
    * is not its own scroll area it pushes the profile/sign-out block out of
    * view entirely and Sign Out becomes unreachable. */

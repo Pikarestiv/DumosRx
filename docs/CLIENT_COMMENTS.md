@@ -11850,3 +11850,26 @@ jsdom implements no matchMedia, and anything rendering the house Tooltip
 (now including every product name) reads it to detect a touch device.
 Defaults to the pointer path; a test wanting the touch path overrides it.
 
+
+## stock-audits-last-audited-refresh
+
+`client/components/stock-batch/stock-audits.tsx`
+
+A draft with any counted row blocks the full rebuild effect above
+indefinitely (`shouldRebuildAuditSheet` returns false once any row is
+counted, by design, so a background refetch can't clobber counts in
+progress). That meant `lastAuditedAt` — the ledger's "Last Counted"
+column — froze at whatever it read when the draft was first built, on
+any till whose draft has lived long enough to pick up a stray count.
+What actually stayed correct is *catalog* stock — read fresh on its own
+page, not from this draft at all. The ledger's own `systemQty` cell is
+just as frozen as `lastAuditedAt` was: only `baselineQty`, and only for
+the one row a count touches (`countRow()`), is re-read live, per
+`client/AGENTS.md` ("only the row you then touch corrects itself").
+Reported at Divamax, where two Edge tills showed "Never" for audits the
+PC till had already submitted, while the catalog's own stock figures
+agreed everywhere.
+
+Fix: a second effect, independent of the rebuild gate, that merges fresh
+`last_audited_at` values into the existing draft by product id whenever
+`rawProducts` changes, touching nothing else on the row.

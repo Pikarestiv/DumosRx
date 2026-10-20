@@ -40,6 +40,7 @@ import {
   createCountSequencer,
   buildAuditCategoryOptions,
   hasUnsavedAuditEdits,
+  mergeFreshLastAuditedAt,
   selectAdjustedAuditItems,
   selectAuditCategoryItems,
   matchesAuditStatus,
@@ -157,6 +158,14 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawProducts, items.length]);
+
+  // A draft with any counted row blocks the full rebuild above indefinitely, so "Last Counted" would otherwise freeze at whatever it read when the draft was first built — refresh it in place from fresh product data without touching counts in progress.
+  // Rationale: docs/CLIENT_COMMENTS.md#stock-audits-last-audited-refresh
+  useEffect(() => {
+    if (!rawProducts || rawProducts.length === 0) return;
+    setItems((prev) => mergeFreshLastAuditedAt(prev, rawProducts));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawProducts]);
 
   // Every derivation below is memoized on its real inputs: each of them used
   // to re-run on every keystroke in any of the ledger's hundreds of inputs.

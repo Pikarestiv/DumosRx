@@ -8,6 +8,7 @@ import {
   selectAuditStatusItems,
   matchesAuditStatus,
   isAuditItemCounted,
+  mergeFreshLastAuditedAt,
   shouldRebuildAuditSheet,
   toStockAuditSubmissions,
   hasUnsavedAuditEdits,
@@ -201,5 +202,37 @@ describe("shouldRebuildAuditSheet", () => {
   it("refuses when any row in a long sheet has been counted", () => {
     const sheet = [item({ id: "a" }), item({ id: "b", countedQty: 3 }), item({ id: "c" })];
     expect(shouldRebuildAuditSheet(sheet)).toBe(false);
+  });
+});
+
+describe("mergeFreshLastAuditedAt", () => {
+  it("updates lastAuditedAt by id without touching anything else on the row", () => {
+    const sheet = [
+      item({ id: "a", lastAuditedAt: null, countedQty: 5 }),
+      item({ id: "b", lastAuditedAt: "2026-10-01T00:00:00Z" }),
+    ];
+    const merged = mergeFreshLastAuditedAt(sheet, [
+      { id: "a", last_audited_at: "2026-10-20T12:00:00Z" },
+      { id: "b", last_audited_at: "2026-10-01T00:00:00Z" },
+    ]);
+    expect(merged[0].lastAuditedAt).toBe("2026-10-20T12:00:00Z");
+    expect(merged[0].countedQty).toBe(5); // the in-progress count survives
+    expect(merged[1]).toBe(sheet[1]); // unchanged row keeps its identity
+  });
+
+  it("returns the same array reference when nothing changed", () => {
+    const sheet = [item({ id: "a", lastAuditedAt: "2026-10-20T12:00:00Z" })];
+    const merged = mergeFreshLastAuditedAt(sheet, [
+      { id: "a", last_audited_at: "2026-10-20T12:00:00Z" },
+    ]);
+    expect(merged).toBe(sheet);
+  });
+
+  it("ignores a product id that isn't on the sheet", () => {
+    const sheet = [item({ id: "a", lastAuditedAt: null })];
+    const merged = mergeFreshLastAuditedAt(sheet, [
+      { id: "z", last_audited_at: "2026-10-20T12:00:00Z" },
+    ]);
+    expect(merged).toBe(sheet);
   });
 });

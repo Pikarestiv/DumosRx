@@ -61,6 +61,27 @@ export function shouldRebuildAuditSheet(items: AuditItem[]): boolean {
   return !items.some(isAuditItemCounted);
 }
 
+// Refreshes each item's `lastAuditedAt` from fresh product data by id, leaving everything else on the row untouched.
+// Rationale: docs/CLIENT_COMMENTS.md#stock-audits-last-audited-refresh
+export function mergeFreshLastAuditedAt(
+  items: AuditItem[],
+  freshProducts: { id: string; last_audited_at?: string | null }[],
+): AuditItem[] {
+  const freshById = new Map(
+    freshProducts.map((p) => [p.id, p.last_audited_at ?? null]),
+  );
+  let changed = false;
+  const next = items.map((item) => {
+    const fresh = freshById.get(item.id);
+    if (fresh !== undefined && fresh !== item.lastAuditedAt) {
+      changed = true;
+      return { ...item, lastAuditedAt: fresh };
+    }
+    return item;
+  });
+  return changed ? next : items;
+}
+
 export type AuditCountStatus = "all" | "counted" | "uncounted" | "differences";
 
 // The ledger's count-progress lens:

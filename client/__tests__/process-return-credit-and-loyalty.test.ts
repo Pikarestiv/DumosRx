@@ -507,7 +507,7 @@ describe("useProcessReturnMutation", () => {
     expect(scalar(`SELECT reseller_commission_amount FROM sales WHERE id = 's-rs'`)).toBe(15);
   });
 
-  it("records owed-back commission, and keeps the paid figures, when a redeemed sale is returned", async () => {
+  it("records owed-back commission from the stored row, not the stale sale prop, and keeps the paid figures", async () => {
     const { sale, saleItem } = seedSale({ saleId: "s-stale", quantity: 4, unitPrice: 150 });
     db.run(
       `UPDATE sales SET is_reseller_sale = 1, markup_type = 'reseller', reseller_commission_percentage = 10,

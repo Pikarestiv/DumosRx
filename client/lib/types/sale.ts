@@ -35,9 +35,9 @@ export interface Sale {
   reseller_commission_claim_type?: "commission" | "store_claim" | null;
   reseller_commission_redeemed_at?: string;
   reseller_commission_redeemed_by?: string;
-  /** Summed over the sale's lines that carry a list_price: money charged above / below list. */
   /** Commission already paid to the reseller that a later return makes refundable; null until a return of a redeemed sale. */
   reseller_commission_owed_back?: number | null;
+  /** Summed over the sale's lines that carry a list_price: money charged above / below list. */
   price_markup_total?: number;
   price_cut_total?: number;
 }

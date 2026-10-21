@@ -6646,7 +6646,7 @@ Before that, work focused on the **Inventory** area:
   line's signed `(unit_price - original_unit_price) * quantity` and floors the
   sale total at 0, so a cut offsets a markup on another line. Sales stored
   before 2026-10-21 used a per-line floor; nothing is backfilled, every reader
-  uses the stored amounts. A return re-derives the sale's markup and *unpaid* commission from the surviving lines (`resellerPatchAfterReturn`, `lib/utils/reseller-return-adjustment.ts`, called from `use-process-return-mutation.ts`); commission already redeemed is never touched, and a sale with any line lacking `list_price` is left as stored. What is still open is A-307 in `docs/KNOWN_BUGS.md`.
+  uses the stored amounts. A return re-derives the sale's markup and *unpaid* commission from the surviving lines (`resellerPatchAfterReturn`, `lib/utils/reseller-return-adjustment.ts`, called from `use-process-return-mutation.ts`); commission already redeemed is kept as history and the refundable part is written to `sales.reseller_commission_owed_back` (shown in the return dialog and the details, subtracted in daily close), and a sale with any line lacking `list_price` is left as stored. Server column: migration `2026_10_21_000002`, deploy it before clients that write it.
 
 ## Reseller markup-type guard sits on the Charge button
 

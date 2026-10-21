@@ -264,14 +264,6 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** store money as integer minor units (kobo, centimes) and never divide without deciding where the remainder goes; or, less invasively, keep the columns and put `decimal.js`/`big.js` in front of every client-side money sum and `brick/math` or integer arithmetic server-side. Either is a cross-cutting change touching the schema on both sides, so it needs the §5 cross-repo schema check and a §11 backward-compatibility plan — old bundles will keep sending floats indefinitely.
 - **Do not fold this into A-271.** That entry's `decimal(10,2)` overflow at values ≥ 100,000,000 is a separate, already-documented failure of the same column; this entry is about the representation on either side of it.
 
-
-#### A-307. `client/` — a return of a reseller sale whose commission was already paid out records nothing
-- **Found:** 2026-10-21, while moving `computeResellerCommission()` to net-of-cuts. The pending and store-claimed halves are fixed (`docs/FIXED_BUGS.md`, "A-307 (part a)"); this is the half that needs an owner decision.
-- **Location:** `client/lib/utils/reseller-return-adjustment.ts` (`resellerPatchAfterReturn()` returns `null` when `reseller_commission_redeemed = 1` and the claim type is `commission`), `client/lib/hooks/use-daily-close-data.ts` `redeemedResellerPayouts`.
-- **What's wrong:** the customer is refunded at the marked-up `unit_price`, but cash already paid to the reseller is not reduced and nothing records that part of it is now owed back. Daily close still deducts the full payout on the day, so profit reads low on a refunded redeemed sale.
-- **Consequence:** the store refunds markup it has already paid out. Bounded to reseller sales that were redeemed and then returned; no data loss.
-- **Fix:** owner's policy first (never claw back paid cash is the suggested default). Then a nullable `sales.reseller_commission_owed_back` (client schema, `SYNC_COLUMN_MIGRATIONS`, Laravel migration, `Sale.php` `$fillable`), set by `resellerPatchAfterReturn()` from the same surviving-lines recompute, shown in `transaction-details-dialog.tsx`, and netted in daily close. A cheap interim step: refuse to redeem a fully refunded sale.
-
 ### Tier 3 — sync reliability, observability, latent hazards
 
 #### A-204. `laravel-server/` — a sync command is marked `sent` the moment it is handed out, is never re-offered, and has no timeout, so a device that does not answer loses it permanently

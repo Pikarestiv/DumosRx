@@ -28,6 +28,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ReturnItemRow } from "./return-item-row";
 import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
 import { ProductName } from "@/components/ui/product-name";
+import { resellerPatchAfterReturn } from "@/lib/utils/reseller-return-adjustment";
 
 interface ReturnDialogProps {
   open: boolean;
@@ -114,6 +115,15 @@ export function ReturnDialog({
     saleTaxAmount: sale?.tax_amount || 0,
     saleDiscountAmount: sale?.discount_total ?? sale?.discount_amount ?? 0,
   });
+
+  const commissionOwedBack =
+    (sale && saleItems
+      ? resellerPatchAfterReturn(
+          sale,
+          saleItems,
+          itemsToReturn.map((i) => ({ id: i.id, returnQuantity: i.returnQuantity })),
+        )?.reseller_commission_owed_back
+      : 0) ?? 0;
 
   const handleInitialSubmit = () => {
     if (itemsToReturn.length === 0) {
@@ -267,6 +277,12 @@ export function ReturnDialog({
               <p className="font-medium text-destructive">
                 Total Refund: {formatCurrency(totalRefund, currencyCode)}
               </p>
+              {commissionOwedBack > 0 && (
+                <p className="text-sm text-amber-600 mt-1">
+                  The reseller was already paid commission on this sale;{" "}
+                  {formatCurrency(commissionOwedBack, currencyCode)} of it is owed back.
+                </p>
+              )}
             </div>
             <p className="text-xs text-muted-foreground pt-2">
               <strong>Consequences:</strong> The returned quantities will be

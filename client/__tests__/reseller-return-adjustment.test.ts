@@ -31,10 +31,27 @@ describe("resellerPatchAfterReturn", () => {
     });
   });
 
-  it("leaves a sale alone when commission was already paid out or a line has no list price", () => {
-    const items = [line("a", 150, 100)];
-    const paid = { ...(pending as object), reseller_commission_redeemed: 1, reseller_commission_claim_type: "commission" } as never;
-    expect(resellerPatchAfterReturn(paid, items, [{ id: "a", returnQuantity: 1 }])).toBeNull();
+  it("records the refundable part of an already-paid commission as owed back and keeps the paid figures", () => {
+    const paid = { ...(pending as object), reseller_commission_redeemed: 1, reseller_commission_claim_type: "commission", reseller_commission_redeemed_amount: 20 } as never;
+    expect(resellerPatchAfterReturn(paid, [line("a", 150, 100, 4)], [{ id: "a", returnQuantity: 1 }])).toEqual({
+      reseller_markup_amount: 150,
+      reseller_commission_owed_back: 5,
+    });
+    expect(resellerPatchAfterReturn(paid, [line("a", 150, 100, 4)], [{ id: "a", returnQuantity: 4 }])).toEqual({
+      reseller_markup_amount: 0,
+      reseller_commission_owed_back: 20,
+    });
+  });
+
+  it("owes nothing back when the surviving lines still earn what was paid", () => {
+    const paid = { ...(pending as object), reseller_commission_redeemed: 1, reseller_commission_claim_type: "commission", reseller_commission_redeemed_amount: 5 } as never;
+    expect(resellerPatchAfterReturn(paid, [line("a", 150, 100, 1), line("b", 20, 20, 1)], [{ id: "b", returnQuantity: 1 }])).toEqual({
+      reseller_markup_amount: 50,
+      reseller_commission_owed_back: 0,
+    });
+  });
+
+  it("leaves a sale alone when a line has no list price", () => {
     expect(resellerPatchAfterReturn(pending, [line("a", 150, null)], [{ id: "a", returnQuantity: 1 }])).toBeNull();
   });
 

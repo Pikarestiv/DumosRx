@@ -80,6 +80,22 @@ describe("useDailyCloseData reseller commission profit adjustment", () => {
     expect(result.current.totalProfit).toBe(120);
   });
 
+  it("nets owed-back commission against the redeemed payout (50 redeemed, 20 owed back: 170 - 30 = 140)", async () => {
+    db.run(`
+      INSERT INTO sales (id, transaction_number, subtotal, total_amount, payment_method, transaction_date, is_reseller_sale, reseller_markup_amount, reseller_commission_amount, reseller_commission_redeemed, reseller_commission_redeemed_amount, reseller_commission_claim_type, reseller_commission_owed_back)
+      VALUES ('s4', 'TXN4', 270, 270, 'cash', '2026-09-18T10:00:00.000Z', 1, 70, 50, 1, 50, 'commission', 20)
+    `);
+    db.run(`
+      INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, cost_price, total_price)
+      VALUES ('si4', 's4', 'p1', 1, 270, 100, 270)
+    `);
+
+    const { result } = renderData();
+    await waitFor(() => expect(result.current.salesToday.length).toBe(1));
+
+    expect(result.current.totalProfit).toBe(140);
+  });
+
   it("keeps the full markup as profit when the store claims it instead of paying a commission", async () => {
     db.run(`
       INSERT INTO sales (id, transaction_number, subtotal, total_amount, payment_method, transaction_date, is_reseller_sale, reseller_markup_amount, reseller_commission_amount, reseller_commission_redeemed, reseller_commission_redeemed_amount, reseller_commission_claim_type)

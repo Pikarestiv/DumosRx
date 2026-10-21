@@ -1,6 +1,7 @@
 "use client";
 
-import { memo, useState, useEffect } from "react";
+import { memo, useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import {
   ShoppingCart,
   Trash2,
@@ -112,6 +113,26 @@ export const POSCart = memo(function POSCart({
     }
   }, [canUseMarkupSales, isResellerSale, setIsResellerSale]);
 
+  const markupPickerRef = useRef<HTMLDivElement>(null);
+  const [markupPickerAlert, setMarkupPickerAlert] = useState(false);
+
+  useEffect(() => {
+    if (!markupPickerAlert) return;
+    const timer = setTimeout(() => setMarkupPickerAlert(false), 1500);
+    return () => clearTimeout(timer);
+  }, [markupPickerAlert]);
+
+  const handleCharge = () => {
+    if (isResellerSale && !markupType) {
+      toast.error("Choose who this reseller sale is for: a Reseller Agent or Store Markup");
+      markupPickerRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      setMarkupPickerAlert(false);
+      requestAnimationFrame(() => setMarkupPickerAlert(true));
+      return;
+    }
+    onCheckout();
+  };
+
   const showHoldAction = cart.length > 0 && canHoldSales;
   const showClearCartAction = cart.length > 0 && !isPrescriptionLocked;
 
@@ -134,7 +155,12 @@ export const POSCart = memo(function POSCart({
         </div>
       )}
       {cart.length > 0 && canUseMarkupSales && (
-        <div className="mx-5 mt-3 flex flex-col gap-2 px-3 py-2 rounded-lg border border-border bg-muted/20 shrink-0">
+        <div
+          ref={markupPickerRef}
+          className={`mx-5 mt-3 flex flex-col gap-2 px-3 py-2 rounded-lg border bg-muted/20 shrink-0 ${
+            markupPickerAlert ? "animate-attention-shake border-destructive ring-2 ring-destructive/30" : "border-border"
+          }`}
+        >
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11.5px] font-semibold text-foreground">
               Reseller sale
@@ -387,7 +413,7 @@ export const POSCart = memo(function POSCart({
         )}
 
         <button
-          onClick={onCheckout}
+          onClick={handleCharge}
           disabled={cart.length === 0}
           className="w-full bg-primary text-primary-foreground border-0 p-3.5 rounded-xl text-[15px] font-bold cursor-pointer flex items-center justify-center gap-2 shadow-[0_1px_2px_rgba(0,0,0,0.1)] hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >

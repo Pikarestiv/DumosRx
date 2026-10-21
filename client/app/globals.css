@@ -611,7 +611,27 @@ textarea,
   background-size: 220% 220%;
   animation: assistant-sheen 6s ease-in-out infinite;
 }
+@keyframes attention-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+.animate-attention-shake {
+  animation: attention-shake 0.45s ease-in-out;
+}
 @media (prefers-reduced-motion: reduce) {
+  .animate-attention-shake {
+    animation: none;
+  }
   .animate-assistant-sheen {
     animation: none;
     background-position: 0% 50%;

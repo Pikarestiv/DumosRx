@@ -6644,3 +6644,13 @@ Before that, work focused on the **Inventory** area:
   `PriceAdjustmentBadge` / `LinePriceNote`. Customer receipts deliberately omit it.
 - Commission is unchanged: `computeResellerCommission` floors **each line's**
   markup at 0, so a cut on one line does not offset a markup on another.
+
+## Reseller markup-type guard sits on the Charge button
+
+- `POSCart.handleCharge` stops a reseller sale with no `markupType` before the
+  payment dialog opens: error toast, `scrollIntoView` on the picker, and
+  `animate-attention-shake` plus a destructive ring for 1.5s (`app/globals.css`;
+  the shake is disabled under `prefers-reduced-motion`, the ring still shows).
+  The mobile drawer's `onCheckout` wrapper (which closes the drawer) is only
+  invoked when the guard passes, so the drawer stays open on the picker.
+  `validatePaymentInput` keeps its own message as a backstop.

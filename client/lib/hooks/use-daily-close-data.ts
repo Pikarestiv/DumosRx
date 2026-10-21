@@ -219,7 +219,7 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
       (sum, sale) =>
         sum +
         (sale.is_reseller_sale && sale.reseller_commission_redeemed
-          ? sale.reseller_commission_redeemed_amount || 0
+          ? Math.max(0, (sale.reseller_commission_redeemed_amount || 0) - (sale.reseller_commission_owed_back || 0))
           : 0),
       0,
     );

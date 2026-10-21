@@ -197,6 +197,7 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       // Distinguishes a real reseller/agent sale (commission owed, subject to the redeem/store-claim decision above) from a store staff member simpl…
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L222
       "markup_type TEXT DEFAULT 'reseller'",
+      "reseller_commission_owed_back REAL",
     ],
   },
   {

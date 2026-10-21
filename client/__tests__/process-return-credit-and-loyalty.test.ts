@@ -507,7 +507,7 @@ describe("useProcessReturnMutation", () => {
     expect(scalar(`SELECT reseller_commission_amount FROM sales WHERE id = 's-rs'`)).toBe(15);
   });
 
-  it("reads the stored reseller state, so a commission redeemed after the sale row was loaded is not overwritten", async () => {
+  it("records owed-back commission from the stored row, not the stale sale prop, and keeps the paid figures", async () => {
     const { sale, saleItem } = seedSale({ saleId: "s-stale", quantity: 4, unitPrice: 150 });
     db.run(
       `UPDATE sales SET is_reseller_sale = 1, markup_type = 'reseller', reseller_commission_percentage = 10,
@@ -526,6 +526,8 @@ describe("useProcessReturnMutation", () => {
     });
 
     expect(scalar(`SELECT reseller_commission_amount FROM sales WHERE id = 's-stale'`)).toBe(20);
-    expect(scalar(`SELECT reseller_markup_amount FROM sales WHERE id = 's-stale'`)).toBe(200);
+    expect(scalar(`SELECT reseller_commission_redeemed_amount FROM sales WHERE id = 's-stale'`)).toBe(20);
+    expect(scalar(`SELECT reseller_commission_owed_back FROM sales WHERE id = 's-stale'`)).toBe(5);
+    expect(scalar(`SELECT reseller_markup_amount FROM sales WHERE id = 's-stale'`)).toBe(150);
   });
 });

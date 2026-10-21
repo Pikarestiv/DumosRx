@@ -265,6 +265,13 @@ suggested tackle order rather than a strict ranking.
 - **Do not fold this into A-271.** That entry's `decimal(10,2)` overflow at values ≥ 100,000,000 is a separate, already-documented failure of the same column; this entry is about the representation on either side of it.
 
 
+#### A-307. `client/` — a return never adjusts the sale's reseller markup or commission
+- **Found:** 2026-10-21, while moving `computeResellerCommission()` to net-of-cuts. Not fixed in that change because the per-line share of a net markup is undefined and `return_items` cannot identify the sale line.
+- **Location:** `client/lib/hooks/use-process-return-mutation.ts` (writes `returns`/`return_items`, flips `payment_status`, reverses credit and points, but never touches `sales.reseller_markup_amount`, `reseller_commission_amount` or `reseller_commission_redeemed_amount`); `client/lib/db/queries/sales.ts` `getPendingResellerCommissionTotal()`; `client/lib/hooks/use-daily-close-data.ts` `redeemedResellerPayouts`.
+- **What's wrong:** the customer is refunded at the marked-up `unit_price` (`return-dialog.tsx`), but the commission computed once at checkout stays as written. Pending: the pending-commission badge still shows the full amount and Redeem pays it. Redeemed as commission: the cash is already with the reseller and nothing records that part of it is owed back; daily close still deducts the full payout. Store-claimed: `reseller_markup_amount` overstates the markup in reports. Partial, multiple and mixed markup/cut returns make the "returned share" ill-defined under the net calculation.
+- **Consequence:** the store refunds markup it has already paid out, or pays out markup it has already refunded. Bounded to reseller sales with a return; no data loss.
+- **Fix:** a policy decision first (owner's call; the suggested default is a proportional reduction of *pending* commission only, never a clawback of paid cash). Then `return_items.sale_item_id` (nullable, in both schemas, `SYNC_COLUMN_MIGRATIONS`, a Laravel migration and `ReturnItem` fillable) so a return can find its line's `list_price`; recompute pending commission from the surviving lines rather than overwriting the checkout figure; for a redeemed sale record an owed-back amount in a new nullable column and show it in `transaction-details-dialog.tsx`. A cheap interim step: refuse to redeem a fully refunded sale.
+
 ### Tier 3 — sync reliability, observability, latent hazards
 
 #### A-204. `laravel-server/` — a sync command is marked `sent` the moment it is handed out, is never re-offered, and has no timeout, so a device that does not answer loses it permanently

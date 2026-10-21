@@ -4261,9 +4261,10 @@ itself.
 
 `client/lib/hooks/use-pos-payment-helpers.ts:153`
 
-Only positive per-line markups earn commission; a line sold below list
-counts as 0 and never offsets another line (updateUnitPrice allows cuts
-since the reseller price floor was removed).
+Commission is on the sale's net markup: cuts offset markups across
+lines and the total is floored at 0 (updateUnitPrice allows cuts since
+the reseller price floor was removed). Sales recorded before 2026-10-21
+were computed per line, with cuts counted as 0.
 
 ### hooks-use-pos-payment-helpers-ts-L186
 

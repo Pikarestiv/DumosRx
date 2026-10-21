@@ -6642,8 +6642,11 @@ Before that, work focused on the **Inventory** area:
   `getResellerCommissionSales`, the dashboard feed and `getDailyCloseData`, and
   by `sumPriceAdjustments()` over loaded lines in the details dialog. Shown via
   `PriceAdjustmentBadge` / `LinePriceNote`. Customer receipts deliberately omit it.
-- Commission is unchanged: `computeResellerCommission` floors **each line's**
-  markup at 0, so a cut on one line does not offset a markup on another.
+- Commission is on the **net** markup: `computeResellerCommission` sums every
+  line's signed `(unit_price - original_unit_price) * quantity` and floors the
+  sale total at 0, so a cut offsets a markup on another line. Sales stored
+  before 2026-10-21 used a per-line floor; nothing is backfilled, every reader
+  uses the stored amounts. Refunds still do not reduce commission.
 
 ## Reseller markup-type guard sits on the Charge button
 

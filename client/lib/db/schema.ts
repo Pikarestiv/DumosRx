@@ -155,6 +155,7 @@ CREATE TABLE IF NOT EXISTS sale_items (
   stock_batch_id TEXT,
   quantity INTEGER NOT NULL,
   unit_price REAL NOT NULL,
+  list_price REAL,
   cost_price REAL DEFAULT 0,
   discount_amount REAL DEFAULT 0,
   total_price REAL NOT NULL,

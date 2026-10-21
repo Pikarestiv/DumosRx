@@ -44,6 +44,8 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Reseller Sales & Store Markups:** Selling above your normal price? Mark the sale up and choose why: for an independent reseller who found their own client (the system works out their commission automatically, a percentage of the markup set once in Settings, for you to pay out whenever they collect it), or as a markup your store simply keeps for itself, with the money going straight into your books instead of sitting around waiting to be settled. Either way it's clearly badged and filterable in your sales history, so you can always tell the two apart. Turn this on for your staff in Settings → Register Configs (off by default).
 
+**Sold Above / Below List Price:** Reseller sales may now be priced below the normal price as well as above it. Every sale line remembers the normal (list) price it was rung up against, and wherever the sale shows (sales history, the dashboard feed, daily close and the transaction details) a green `+` or red `Price cut −` badge shows the total charged above or below list; opening the sale shows the list price and per-unit difference on each line. Customer receipts do not show it. Sales recorded before this existed have no list price and show no badge.
+
 ### 📦 Inventory & Stock Management
 
 **Product Catalog:** Manage your entire list of products, including brand names, generic names, strengths, and NAFDAC regulatory numbers.

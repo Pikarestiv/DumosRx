@@ -6626,3 +6626,21 @@ Before that, work focused on the **Inventory** area:
 - `sw.js`'s catch-all stale-while-revalidate branch was fixed on
   2026-09-26 — see the PWA section above. `sw.js` still has **no test
   coverage** of any kind, which remains the real open item here.
+
+## Sale-line list price (`sale_items.list_price`)
+
+- Added 2026-10-21 with the removal of the reseller price floor
+  (`updateUnitPrice` now only stops a price going below 0). `list_price` is the
+  catalog price at ring-up (`item.original_unit_price`), nullable: lines from
+  before the column, online-order fulfilments and demo data carry `NULL` and
+  are treated as "unknown", never as zero. Server column is
+  `decimal(12,2) nullable` (migration `2026_10_21_000001`), so deploy the
+  server migration before clients that write it.
+- The sale-level totals `price_markup_total` / `price_cut_total` are **not
+  stored**: they are derived per read by `PRICE_ADJUSTMENT_COLUMNS_SQL`
+  (`lib/db/queries/price-adjustment-sql.ts`) in `getRecentSales`,
+  `getResellerCommissionSales`, the dashboard feed and `getDailyCloseData`, and
+  by `sumPriceAdjustments()` over loaded lines in the details dialog. Shown via
+  `PriceAdjustmentBadge` / `LinePriceNote`. Customer receipts deliberately omit it.
+- Commission is unchanged: `computeResellerCommission` floors **each line's**
+  markup at 0, so a cut on one line does not offset a markup on another.

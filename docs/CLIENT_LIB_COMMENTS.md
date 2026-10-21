@@ -9455,14 +9455,6 @@ redemptions too, since they share this same discount slot — see
 redeemReward() above) — otherwise a discounted/redeemed sale is
 overcharged VAT on money the customer was never actually charged.
 
-### line-hooks-use-pos-cart-ts-L347
-
-`client/lib/hooks/use-pos-cart.ts:347`
-
-A reseller sale can only mark price up, never down - clamped here
-too, not just in the input's `min`, so a pasted/typed value below
-the floor can't get through either.
-
 ### line-hooks-use-pos-cart-ts-L362
 
 `client/lib/hooks/use-pos-cart.ts:362`

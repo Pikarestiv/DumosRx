@@ -27,6 +27,8 @@ import { toast } from "sonner";
 import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
 import { saleToReceiptTransaction } from "./sale-to-receipt-transaction";
 import { TransactionItemsView } from "./transaction-items-view";
+import { PriceAdjustmentBadge } from "./price-adjustment-badge";
+import { sumPriceAdjustments } from "@/lib/utils/price-adjustment";
 
 interface TransactionDetailsDialogProps {
   sale: SaleWithDetails | null;
@@ -229,6 +231,8 @@ export function TransactionDetailsDialog({
     </div>
   );
 
+  const priceAdjustments = sumPriceAdjustments(items);
+
   const content = (
     <div className="flex flex-col flex-1 min-h-0">
       <ScrollFade containerClassName="flex-1" className="px-4 sm:px-6 pb-4">
@@ -276,6 +280,13 @@ export function TransactionDetailsDialog({
             </div>
           )}
         </div>
+
+        {(priceAdjustments.markup > 0 || priceAdjustments.cut > 0) && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            Against list price:
+            <PriceAdjustmentBadge markup={priceAdjustments.markup} cut={priceAdjustments.cut} currencyCode={currencyCode} />
+          </div>
+        )}
 
         {!!effectiveSale.is_reseller_sale && (isAdmin || isSaleCashier) && (
           <div

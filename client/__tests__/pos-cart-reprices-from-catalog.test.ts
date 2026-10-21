@@ -120,6 +120,23 @@ describe("POS cart re-prices persisted lines from the current catalog", () => {
     expect(result.current.cart[0].unit_price).toBe(150);
   });
 
+  it("keeps a reseller cut as a cut under the new catalog price", () => {
+    const oldCatalog = [product()];
+    const { result, rerender } = renderHook(
+      ({ products }: { products: Product[] }) => usePOSCart(products),
+      { initialProps: { products: oldCatalog } },
+    );
+
+    act(() => result.current.addToCart(oldCatalog[0]));
+    act(() => result.current.setIsResellerSale(true));
+    act(() => result.current.updateUnitPrice("p1", 80));
+
+    rerender({ products: [product({ unit_price: 120 })] });
+
+    expect(result.current.cart[0].original_unit_price).toBe(120);
+    expect(result.current.cart[0].unit_price).toBe(100);
+  });
+
   it("leaves a line alone while the catalog is still loading (empty or missing product)", () => {
     const oldCatalog = [product()];
     const { result, rerender } = renderHook(

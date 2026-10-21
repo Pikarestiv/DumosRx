@@ -207,6 +207,7 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "_synced_at TEXT",
       "_deleted INTEGER DEFAULT 0",
       "store_id TEXT",
+      "list_price REAL",
     ],
   },
   {

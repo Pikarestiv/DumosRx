@@ -16,6 +16,6 @@ class SaleItem extends Model
 
     protected $fillable = [
         'sale_id', 'product_id', 'stock_batch_id', 'quantity',
-        'unit_price', 'discount_amount', 'total_price', 'cost_price',
+        'unit_price', 'list_price', 'discount_amount', 'total_price', 'cost_price',
     ];
 }

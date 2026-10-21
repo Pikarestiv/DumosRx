@@ -102,9 +102,13 @@ export function usePOSHeldTransactions({
           if (!product) return null;
           // Prices are rebuilt from the current catalog, which is the floor a markup sits on top of; a held reseller sale keeps the agreed marked-up uni…
           // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-held-transactions-ts-L109
-          const unitPrice = wasResellerSale
-            ? Math.max(item.unit_price, product.unit_price)
-            : product.unit_price;
+          const heldDelta =
+            item.original_unit_price == null ? null : item.unit_price - item.original_unit_price;
+          const unitPrice = !wasResellerSale
+            ? product.unit_price
+            : heldDelta == null
+              ? Math.max(item.unit_price, product.unit_price)
+              : Math.max(0, product.unit_price + heldDelta);
           return {
             ...product,
             quantity: item.quantity,

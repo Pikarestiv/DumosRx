@@ -237,6 +237,7 @@ export function usePOSPayment({
             productId: item.id,
             quantity: item.quantity,
             unitPrice: item.unit_price,
+            listPrice: item.original_unit_price,
             costPrice: item.cost_price || 0,
             subtotal: item.subtotal,
             cashierId,

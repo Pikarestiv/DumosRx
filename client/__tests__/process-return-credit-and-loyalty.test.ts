@@ -485,4 +485,47 @@ describe("useProcessReturnMutation", () => {
       scalar(`SELECT total_cost FROM stock_movements WHERE movement_type = 'return'`),
     ).toBe(10);
   });
+
+  it("reduces a pending reseller commission to match the lines that survive a return", async () => {
+    const { sale, saleItem } = seedSale({ saleId: "s-rs", quantity: 4, unitPrice: 150 });
+    db.run(
+      `UPDATE sales SET is_reseller_sale = 1, markup_type = 'reseller', reseller_commission_percentage = 10,
+        reseller_markup_amount = 200, reseller_commission_amount = 20 WHERE id = 's-rs'`,
+    );
+    db.run(`UPDATE sale_items SET list_price = 100 WHERE id = 'si1'`);
+
+    await processReturn({
+      sale: { ...sale, is_reseller_sale: 1, markup_type: "reseller", reseller_commission_percentage: 10 },
+      userId: "user-1",
+      reason: "Wrong item",
+      totalRefund: 150,
+      itemsToReturn: [{ ...saleItem, list_price: 100, returnQuantity: 1 }],
+      saleItems: [{ ...saleItem, list_price: 100 }],
+    });
+
+    expect(scalar(`SELECT reseller_markup_amount FROM sales WHERE id = 's-rs'`)).toBe(150);
+    expect(scalar(`SELECT reseller_commission_amount FROM sales WHERE id = 's-rs'`)).toBe(15);
+  });
+
+  it("reads the stored reseller state, so a commission redeemed after the sale row was loaded is not overwritten", async () => {
+    const { sale, saleItem } = seedSale({ saleId: "s-stale", quantity: 4, unitPrice: 150 });
+    db.run(
+      `UPDATE sales SET is_reseller_sale = 1, markup_type = 'reseller', reseller_commission_percentage = 10,
+        reseller_markup_amount = 200, reseller_commission_amount = 20, reseller_commission_redeemed = 1,
+        reseller_commission_redeemed_amount = 20, reseller_commission_claim_type = 'commission' WHERE id = 's-stale'`,
+    );
+    db.run(`UPDATE sale_items SET list_price = 100 WHERE id = 'si1'`);
+
+    await processReturn({
+      sale: { ...sale, is_reseller_sale: 1, markup_type: "reseller", reseller_commission_percentage: 10, reseller_commission_redeemed: 0 },
+      userId: "user-1",
+      reason: "Wrong item",
+      totalRefund: 150,
+      itemsToReturn: [{ ...saleItem, list_price: 100, returnQuantity: 1 }],
+      saleItems: [{ ...saleItem, list_price: 100 }],
+    });
+
+    expect(scalar(`SELECT reseller_commission_amount FROM sales WHERE id = 's-stale'`)).toBe(20);
+    expect(scalar(`SELECT reseller_markup_amount FROM sales WHERE id = 's-stale'`)).toBe(200);
+  });
 });

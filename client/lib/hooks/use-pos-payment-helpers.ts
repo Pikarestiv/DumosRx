@@ -140,7 +140,7 @@ export async function computeEarnedPoints(params: {
 // Commission is on the sale's net markup (cuts offset markups across lines), floored at 0.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-payment-helpers-ts-L153
 export function computeResellerCommission(params: {
-  cart: CartItem[];
+  cart: Pick<CartItem, "unit_price" | "original_unit_price" | "quantity">[];
   isResellerSale: boolean;
   /** "store" means the markup stays with the store, not a real reseller -
    * no commission is ever owed regardless of resellerCommissionPercentage. */

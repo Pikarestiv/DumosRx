@@ -13,6 +13,7 @@ import { RotateCcw } from "lucide-react";
 import type { SaleItemDetail } from "@/lib/types/sale";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { LinePriceNote } from "@/components/pos/price-adjustment-badge";
 
 export function TransactionItemsView({
   items,
@@ -55,6 +56,7 @@ export function TransactionItemsView({
                 </TableCell>
                 <TableCell className="text-right text-muted-foreground">
                   {formatCurrency(item.unit_price, currencyCode)}
+                  <LinePriceNote unitPrice={item.unit_price} listPrice={item.list_price} currencyCode={currencyCode} />
                 </TableCell>
                 <TableCell className="text-right font-semibold">
                   {formatCurrency(item.total_price, currencyCode)}
@@ -94,6 +96,7 @@ export function TransactionItemsView({
                 </span>
               </span>
             </div>
+            <LinePriceNote unitPrice={item.unit_price} listPrice={item.list_price} currencyCode={currencyCode} />
             <div className="flex justify-between items-center pt-2.5 border-t border-border/60">
               <span className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">
                 Total

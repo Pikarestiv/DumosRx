@@ -36,6 +36,7 @@ describe("getDashboardOverviewData timezone handling", () => {
         created_at TEXT, _deleted INTEGER DEFAULT 0
       );
       CREATE TABLE users (id TEXT PRIMARY KEY, first_name TEXT, last_name TEXT);
+      CREATE TABLE sale_items (id TEXT, sale_id TEXT, quantity REAL, unit_price REAL, list_price REAL, _deleted INTEGER DEFAULT 0);
       CREATE TABLE stock_movements (
         id TEXT PRIMARY KEY, product_id TEXT, movement_type TEXT, quantity INTEGER,
         reference_type TEXT, performed_by TEXT, created_at TEXT, _deleted INTEGER DEFAULT 0

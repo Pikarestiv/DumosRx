@@ -1,5 +1,6 @@
 import { query } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
+import { PRICE_ADJUSTMENT_COLUMNS_SQL } from "@/lib/db/queries/price-adjustment-sql";
 import type { Sale, SaleWithDetails, SaleItemDetail, ReturnRecord, ReturnItemDetail } from "@/lib/types/sale";
 import type { StockBatch } from "@/lib/types/stock-batch";
 
@@ -201,7 +202,8 @@ export async function getResellerCommissionSales() {
     `SELECT
       s.*,
       TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,
-      (SELECT GROUP_CONCAT(pr.name, '||') FROM sale_items si JOIN products pr ON si.product_id = pr.id WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_names
+      (SELECT GROUP_CONCAT(pr.name, '||') FROM sale_items si JOIN products pr ON si.product_id = pr.id WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_names,
+      ${PRICE_ADJUSTMENT_COLUMNS_SQL}
      FROM sales s
      LEFT JOIN customers c ON s.customer_id = c.id
      WHERE s.is_reseller_sale = 1 AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}
@@ -264,7 +266,8 @@ export async function getRecentSales(
       TRIM(u.first_name || ' ' || u.last_name) as cashier_name,
       (SELECT SUM(quantity) FROM sale_items si WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_count,
       COALESCE((SELECT SUM(r.total_refunded) FROM returns r WHERE r.sale_id = s.id AND (r._deleted = 0 OR r._deleted IS NULL)), 0) as total_refunded,
-      (SELECT GROUP_CONCAT(pr.name, '||') FROM sale_items si JOIN products pr ON si.product_id = pr.id WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_names
+      (SELECT GROUP_CONCAT(pr.name, '||') FROM sale_items si JOIN products pr ON si.product_id = pr.id WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_names,
+      ${PRICE_ADJUSTMENT_COLUMNS_SQL}
      FROM sales s
      LEFT JOIN customers c ON s.customer_id = c.id
      LEFT JOIN users u ON u.id = s.user_id
@@ -310,7 +313,7 @@ export async function getDailyCloseData(reportDate: string) {
   // await at a time (same shape as getCurrentMonthRevenue in finance.ts).
   const [salesToday, itemsToday, returnsToday, returnItemsToday] = await Promise.all([
     query<Sale>(
-      `SELECT * FROM sales WHERE transaction_date >= ? AND transaction_date <= ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`,
+      `SELECT s.*, ${PRICE_ADJUSTMENT_COLUMNS_SQL} FROM sales s WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}`,
       storeId ? [startIso, endIso, storeId] : [startIso, endIso],
     ),
 

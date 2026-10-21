@@ -107,12 +107,12 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
             {item.name}
           </div>
           {isResellerSale && canOverridePrice ? (
-            <div className="flex items-center gap-1 text-[11.5px]">
+            <div className="flex flex-col items-start gap-1 text-[11.5px]">
               <input
                 type="number"
                 aria-label="Override unit price"
                 inputMode="decimal"
-                min={item.original_unit_price}
+                min={0}
                 step="1"
                 value={priceInput}
                 onChange={(e) => setPriceInput(e.target.value)}
@@ -124,7 +124,7 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
                 }}
                 className="w-20 h-6 px-1.5 rounded border border-border bg-background text-[11.5px]"
               />
-              <span className="text-muted-foreground">each (min {formatCurrency(item.original_unit_price, currencyCode)})</span>
+              <span className="text-muted-foreground">each (list {formatCurrency(item.original_unit_price, currencyCode)})</span>
             </div>
           ) : (
             <div className="text-[11.5px] text-muted-foreground leading-tight">

@@ -59,7 +59,7 @@ describe("usePOSCart reseller mode", () => {
     return { get: () => hookResult };
   }
 
-  it("clamps updateUnitPrice to never go below the item's original price", async () => {
+  it("allows updateUnitPrice below the original price but never below zero", async () => {
     const handle = renderCart();
     act(() => handle.get().clearCart());
     act(() => handle.get().addToCart(product));
@@ -69,8 +69,11 @@ describe("usePOSCart reseller mode", () => {
     expect(handle.get().cart[0].subtotal).toBe(150);
 
     act(() => handle.get().updateUnitPrice("p1", 50));
-    expect(handle.get().cart[0].unit_price).toBe(100);
-    expect(handle.get().cart[0].subtotal).toBe(100);
+    expect(handle.get().cart[0].unit_price).toBe(50);
+    expect(handle.get().cart[0].subtotal).toBe(50);
+
+    act(() => handle.get().updateUnitPrice("p1", -5));
+    expect(handle.get().cart[0].unit_price).toBe(0);
   });
 
   it("reverts all item prices to original when isResellerSale is turned off", async () => {

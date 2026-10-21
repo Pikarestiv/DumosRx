@@ -30,6 +30,16 @@ interface UsePOSHeldTransactionsProps {
   markupType: MarkupType | null;
 }
 
+function recalledUnitPrice(
+  item: { unit_price: number; original_unit_price?: number },
+  catalogPrice: number,
+  wasResellerSale: boolean,
+): number {
+  if (!wasResellerSale) return catalogPrice;
+  if (item.original_unit_price == null) return Math.max(item.unit_price, catalogPrice);
+  return roundMoney(Math.max(0, catalogPrice + item.unit_price - item.original_unit_price));
+}
+
 export function usePOSHeldTransactions({
   cart,
   total,
@@ -100,11 +110,9 @@ export function usePOSHeldTransactions({
         .map((item) => {
           const product = productFor(item);
           if (!product) return null;
-          // Prices are rebuilt from the current catalog, which is the floor a markup sits on top of; a held reseller sale keeps the agreed marked-up uni…
+          // Rebuilt from the current catalog; a held reseller sale keeps its agreed markup or cut relative to it.
           // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-held-transactions-ts-L109
-          const unitPrice = wasResellerSale
-            ? Math.max(item.unit_price, product.unit_price)
-            : product.unit_price;
+          const unitPrice = recalledUnitPrice(item, product.unit_price, wasResellerSale);
           return {
             ...product,
             quantity: item.quantity,

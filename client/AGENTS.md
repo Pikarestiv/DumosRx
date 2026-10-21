@@ -6626,3 +6626,34 @@ Before that, work focused on the **Inventory** area:
 - `sw.js`'s catch-all stale-while-revalidate branch was fixed on
   2026-09-26 — see the PWA section above. `sw.js` still has **no test
   coverage** of any kind, which remains the real open item here.
+
+## Sale-line list price (`sale_items.list_price`)
+
+- Added 2026-10-21 with the removal of the reseller price floor
+  (`updateUnitPrice` now only stops a price going below 0). `list_price` is the
+  catalog price at ring-up (`item.original_unit_price`), nullable: lines from
+  before the column, online-order fulfilments and demo data carry `NULL` and
+  are treated as "unknown", never as zero. Server column is
+  `decimal(12,2) nullable` (migration `2026_10_21_000001`), so deploy the
+  server migration before clients that write it.
+- The sale-level totals `price_markup_total` / `price_cut_total` are **not
+  stored**: they are derived per read by `PRICE_ADJUSTMENT_COLUMNS_SQL`
+  (`lib/db/queries/price-adjustment-sql.ts`) in `getRecentSales`,
+  `getResellerCommissionSales`, the dashboard feed and `getDailyCloseData`, and
+  by `sumPriceAdjustments()` over loaded lines in the details dialog. Shown via
+  `PriceAdjustmentBadge` / `LinePriceNote`. Customer receipts deliberately omit it.
+- Commission is on the **net** markup: `computeResellerCommission` sums every
+  line's signed `(unit_price - original_unit_price) * quantity` and floors the
+  sale total at 0, so a cut offsets a markup on another line. Sales stored
+  before 2026-10-21 used a per-line floor; nothing is backfilled, every reader
+  uses the stored amounts. Refunds still do not reduce commission.
+
+## Reseller markup-type guard sits on the Charge button
+
+- `POSCart.handleCharge` stops a reseller sale with no `markupType` before the
+  payment dialog opens: error toast, `scrollIntoView` on the picker, and
+  `animate-attention-shake` plus a destructive ring for 1.5s (`app/globals.css`;
+  the shake is disabled under `prefers-reduced-motion`, the ring still shows).
+  The mobile drawer's `onCheckout` wrapper (which closes the drawer) is only
+  invoked when the guard passes, so the drawer stays open on the picker.
+  `validatePaymentInput` keeps its own message as a backstop.

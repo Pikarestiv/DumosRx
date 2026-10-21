@@ -4261,9 +4261,10 @@ itself.
 
 `client/lib/hooks/use-pos-payment-helpers.ts:153`
 
-Markup is clamped to >= 0 by construction (updateUnitPrice never lets
-unit_price go below original_unit_price), but Math.max here is a second
-layer of defense, not the only one.
+Commission is on the sale's net markup: cuts offset markups across
+lines and the total is floored at 0 (updateUnitPrice allows cuts since
+the reseller price floor was removed). Sales recorded before 2026-10-21
+were computed per line, with cuts counted as 0.
 
 ### hooks-use-pos-payment-helpers-ts-L186
 
@@ -9455,14 +9456,6 @@ redemptions too, since they share this same discount slot — see
 redeemReward() above) — otherwise a discounted/redeemed sale is
 overcharged VAT on money the customer was never actually charged.
 
-### line-hooks-use-pos-cart-ts-L347
-
-`client/lib/hooks/use-pos-cart.ts:347`
-
-A reseller sale can only mark price up, never down - clamped here
-too, not just in the input's `min`, so a pasted/typed value below
-the floor can't get through either.
-
 ### line-hooks-use-pos-cart-ts-L362
 
 `client/lib/hooks/use-pos-cart.ts:362`
@@ -9518,10 +9511,9 @@ Discarding a non-empty cart is confirmed by the caller
 
 `client/lib/hooks/use-pos-held-transactions.ts:109`
 
-Prices are rebuilt from the current catalog, which is the floor a
-markup sits on top of; a held reseller sale keeps the agreed
-marked-up unit price (clamped to that floor) instead of silently
-re-quoting the customer at shelf price.
+Prices are rebuilt from the current catalog; a held reseller sale keeps
+its agreed markup or cut relative to it (recalledUnitPrice) instead of
+silently re-quoting the customer at shelf price.
 
 ### line-hooks-use-pos-held-transactions-ts-L126
 

@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { getActiveStoreId } from "@/lib/db/core";
+import { PRICE_ADJUSTMENT_COLUMNS_SQL } from "@/lib/db/queries/price-adjustment-sql";
 import { getLocalTodayDate } from "@/lib/utils";
 import type { DashboardActivity } from "@/lib/types/dashboard-activity";
 import type { SaleWithDetails } from "@/lib/types/sale";
@@ -164,7 +165,7 @@ export async function getDashboardOverviewData(viewerId?: string) {
     ),
 
     query<SaleWithDetails>(
-      `SELECT s.*, TRIM(u.first_name || ' ' || u.last_name) as cashier_name
+      `SELECT s.*, TRIM(u.first_name || ' ' || u.last_name) as cashier_name, ${PRICE_ADJUSTMENT_COLUMNS_SQL}
        FROM sales s
        LEFT JOIN users u ON u.id = s.user_id
        WHERE s._deleted = 0${viewerId ? " AND s.user_id = ?" : ""}${storeId ? " AND s.store_id = ?" : ""}

@@ -4,6 +4,7 @@ import { Receipt, RotateCcw, Banknote, CreditCard, ArrowLeftRight, Pill, Handsha
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
+import { PriceAdjustmentBadge } from '@/components/pos/price-adjustment-badge';
 import type { SaleWithDetails } from '@/lib/types/sale';
 
 interface TransactionItemProps {
@@ -175,6 +176,7 @@ function TransactionItemInner({
                 Reseller
               </Badge>
             )}
+            <PriceAdjustmentBadge markup={sale.price_markup_total} cut={sale.price_cut_total} currencyCode={currencyCode} />
           </div>
           <div className="text-xs text-muted-foreground truncate">
             {time && `${time} · `}

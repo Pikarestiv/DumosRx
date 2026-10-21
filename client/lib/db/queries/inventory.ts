@@ -140,6 +140,8 @@ interface RecordSaleItemStockParams {
   productId: string;
   quantity: number;
   unitPrice: number;
+  /** Catalog price when the line was rung up; null when unknown. */
+  listPrice?: number | null;
   costPrice: number;
   subtotal: number;
   cashierId: string | null;
@@ -162,6 +164,7 @@ async function writeSaleItemStock({
   productId,
   quantity,
   unitPrice,
+  listPrice,
   costPrice,
   subtotal,
   cashierId,
@@ -195,6 +198,7 @@ async function writeSaleItemStock({
     stock_batch_id: batches[0]?.id || null,
     quantity,
     unit_price: unitPrice,
+    list_price: listPrice ?? null,
     cost_price: costPrice || 0,
     total_price: subtotal,
   }, { correlationId });

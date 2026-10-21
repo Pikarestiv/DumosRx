@@ -137,7 +137,7 @@ export async function computeEarnedPoints(params: {
   return calculateEarnedPoints(total, loyaltyPointsPerCurrency, tierMultiplier);
 }
 
-// Markup is clamped to >= 0 by construction (updateUnitPrice never lets unit_price go below original_unit_price), but Math.max here is a secon…
+// Commission is on the sale's net markup (cuts offset markups across lines), floored at 0.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-payment-helpers-ts-L153
 export function computeResellerCommission(params: {
   cart: CartItem[];
@@ -150,11 +150,13 @@ export function computeResellerCommission(params: {
   const { cart, isResellerSale, markupType, resellerCommissionPercentage } = params;
 
   const resellerMarkup = isResellerSale
-    ? roundMoney(
-        cart.reduce(
-          (sum, item) =>
-            sum + Math.max(0, item.unit_price - item.original_unit_price) * item.quantity,
-          0,
+    ? Math.max(
+        0,
+        roundMoney(
+          cart.reduce(
+            (sum, item) => sum + (item.unit_price - item.original_unit_price) * item.quantity,
+            0,
+          ),
         ),
       )
     : 0;

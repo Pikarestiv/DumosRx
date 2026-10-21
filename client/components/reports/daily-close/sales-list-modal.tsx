@@ -8,6 +8,7 @@ import { Receipt } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import type { Sale } from "@/lib/types/sale";
+import { PriceAdjustmentBadge } from "@/components/pos/price-adjustment-badge";
 
 interface SalesListModalProps {
   isOpen: boolean;
@@ -108,6 +109,9 @@ export function SalesListModal({
                   </TableCell>
                   <TableCell className="font-medium">
                     {sale.transaction_number}
+                    <span className="ml-2 inline-flex gap-1 align-middle">
+                      <PriceAdjustmentBadge markup={sale.price_markup_total} cut={sale.price_cut_total} currencyCode={currencyCode} />
+                    </span>
                   </TableCell>
                   <TableCell className="capitalize">
                     {sale.payment_method}

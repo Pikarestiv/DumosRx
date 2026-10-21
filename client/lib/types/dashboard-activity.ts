@@ -13,6 +13,8 @@ export interface DashboardActivity {
   total?: number;
   is_reseller_sale?: number;
   markup_type?: "reseller" | "store" | null;
+  price_markup_total?: number;
+  price_cut_total?: number;
   // stock_movement
   movement_type?: string;
   reference_type?: string | null;

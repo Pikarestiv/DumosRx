@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
+import { PriceAdjustmentBadge } from "@/components/pos/price-adjustment-badge";
 import {
   ShoppingCart,
   PackagePlus,
@@ -161,6 +162,10 @@ function ActivityList({
                         Reseller
                       </Badge>
                     )}
+                  <PriceAdjustmentBadge
+                    markup={activity.rawActivity.price_markup_total}
+                    cut={activity.rawActivity.price_cut_total}
+                  />
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
                   {activity.message.split(":")[1]?.trim()}

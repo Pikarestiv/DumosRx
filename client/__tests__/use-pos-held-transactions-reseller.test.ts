@@ -129,11 +129,42 @@ describe("usePOSHeldTransactions recall + reseller mode", () => {
 
     act(() => handle.cart().updateUnitPrice("p1", 50));
     expect(Number.isNaN(handle.cart().cart[0].unit_price)).toBe(false);
-    // Clamped to the floor (current catalog price), not NaN.
-    expect(handle.cart().cart[0].unit_price).toBe(120);
+    expect(handle.cart().cart[0].unit_price).toBe(50);
 
     act(() => handle.cart().updateUnitPrice("p1", 150));
     expect(handle.cart().cart[0].unit_price).toBe(150);
+  });
+
+  it("keeps a held reseller cut as a cut under the current catalog price", async () => {
+    const handle = renderHooks();
+    const held: HeldTransaction = {
+      id: "held_cut",
+      is_reseller_sale: 1,
+      customer_id: null,
+      customer_name: "Walk-in Customer",
+      items_json: JSON.stringify([
+        {
+          id: "p1",
+          product_id: "p1",
+          quantity: 2,
+          unit_price: 80,
+          original_unit_price: 100,
+          subtotal: 200,
+        },
+      ]),
+      total_amount: 200,
+      discount: 0,
+      discount_type: "fixed",
+      created_at: new Date().toISOString(),
+    };
+
+    await act(async () => {
+      await handle.held().handleRecallTransaction(held);
+    });
+
+    const recalledItem = handle.cart().cart[0];
+    expect(recalledItem.original_unit_price).toBe(120);
+    expect(recalledItem.unit_price).toBe(100);
   });
 
   it("sets original_unit_price on recall even when items_json is missing it entirely (pre-feature held transaction)", async () => {
@@ -163,6 +194,6 @@ describe("usePOSHeldTransactions recall + reseller mode", () => {
 
     act(() => handle.cart().updateUnitPrice("p1", 10));
     expect(Number.isNaN(handle.cart().cart[0].unit_price)).toBe(false);
-    expect(handle.cart().cart[0].unit_price).toBe(120);
+    expect(handle.cart().cart[0].unit_price).toBe(10);
   });
 });

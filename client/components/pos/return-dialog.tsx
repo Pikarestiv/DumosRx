@@ -156,7 +156,7 @@ export function ReturnDialog({
           </span>
         }
         description={`Select the items to return for Receipt #${sale.receipt_number || sale.id.substring(0, 8).toUpperCase()}`}
-        className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+        className="md:max-w-[min(72rem,90vw)] max-h-[90vh] overflow-hidden flex flex-col"
         footer={
           <DialogFooter>
             <Button

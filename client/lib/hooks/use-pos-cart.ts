@@ -117,8 +117,7 @@ export function repriceCartFromCatalog(
     const product = products.find((p) => p.id === item.id);
     if (!product) return item;
 
-    const markup = Math.max(0, item.unit_price - item.original_unit_price);
-    const unitPrice = product.unit_price + markup;
+    const unitPrice = roundMoney(Math.max(0, product.unit_price + (item.unit_price - item.original_unit_price)));
     const costPrice = product.cost_price ?? item.cost_price;
 
     const priceMoved =
@@ -322,9 +321,7 @@ export function usePOSCart(products: Product[]) {
       setCart((prev) =>
         prev.map((item) => {
           if (item.id !== id) return item;
-          // A reseller sale can only mark price up, never down - clamped here too, not just in the input's `min`, so a pasted/typed value below the floo…
-          // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L347
-          const clamped = Math.max(newPrice, item.original_unit_price);
+          const clamped = Math.max(newPrice, 0);
           return { ...item, unit_price: clamped, subtotal: roundMoney(clamped * item.quantity) };
         }),
       );

@@ -64,7 +64,7 @@ Key constraints from the clarifying conversation:
 ## Goals
 
 - Let a cashier mark a sale as a reseller sale and enter the reseller's
-  quoted price per line item — never below that item's normal selling price.
+  quoted price per line item — never below that item's normal selling price. (Superseded 2026-10-21: the floor was removed; a quote below list is allowed and earns zero commission.)
 - Compute and store the commission (store-wide % of the markup) on that sale
   at checkout time, as a snapshot — immune to the store's commission % or the
   product's price changing later.

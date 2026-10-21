@@ -110,7 +110,7 @@ export function usePOSHeldTransactions({
         .map((item) => {
           const product = productFor(item);
           if (!product) return null;
-          // Prices are rebuilt from the current catalog, which is the floor a markup sits on top of; a held reseller sale keeps the agreed marked-up uni…
+          // Rebuilt from the current catalog; a held reseller sale keeps its agreed markup or cut relative to it.
           // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-held-transactions-ts-L109
           const unitPrice = recalledUnitPrice(item, product.unit_price, wasResellerSale);
           return {

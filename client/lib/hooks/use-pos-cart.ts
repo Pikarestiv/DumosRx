@@ -117,7 +117,7 @@ export function repriceCartFromCatalog(
     const product = products.find((p) => p.id === item.id);
     if (!product) return item;
 
-    const unitPrice = Math.max(0, product.unit_price + (item.unit_price - item.original_unit_price));
+    const unitPrice = roundMoney(Math.max(0, product.unit_price + (item.unit_price - item.original_unit_price)));
     const costPrice = product.cost_price ?? item.cost_price;
 
     const priceMoved =

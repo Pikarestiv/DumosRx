@@ -4261,9 +4261,9 @@ itself.
 
 `client/lib/hooks/use-pos-payment-helpers.ts:153`
 
-Markup is clamped to >= 0 by construction (updateUnitPrice never lets
-unit_price go below original_unit_price), but Math.max here is a second
-layer of defense, not the only one.
+Only positive per-line markups earn commission; a line sold below list
+counts as 0 and never offsets another line (updateUnitPrice allows cuts
+since the reseller price floor was removed).
 
 ### hooks-use-pos-payment-helpers-ts-L186
 
@@ -9510,10 +9510,9 @@ Discarding a non-empty cart is confirmed by the caller
 
 `client/lib/hooks/use-pos-held-transactions.ts:109`
 
-Prices are rebuilt from the current catalog, which is the floor a
-markup sits on top of; a held reseller sale keeps the agreed
-marked-up unit price (clamped to that floor) instead of silently
-re-quoting the customer at shelf price.
+Prices are rebuilt from the current catalog; a held reseller sale keeps
+its agreed markup or cut relative to it (recalledUnitPrice) instead of
+silently re-quoting the customer at shelf price.
 
 ### line-hooks-use-pos-held-transactions-ts-L126
 

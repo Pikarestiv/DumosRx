@@ -137,7 +137,7 @@ export async function computeEarnedPoints(params: {
   return calculateEarnedPoints(total, loyaltyPointsPerCurrency, tierMultiplier);
 }
 
-// Markup is clamped to >= 0 by construction (updateUnitPrice never lets unit_price go below original_unit_price), but Math.max here is a secon…
+// Only positive per-line markups earn commission; a line sold below list counts as 0 and never offsets another line.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-payment-helpers-ts-L153
 export function computeResellerCommission(params: {
   cart: CartItem[];

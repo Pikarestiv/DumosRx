@@ -137,6 +137,22 @@ describe("POS cart re-prices persisted lines from the current catalog", () => {
     expect(result.current.cart[0].unit_price).toBe(100);
   });
 
+  it("rounds a repriced cut to currency precision", () => {
+    const oldCatalog = [product()];
+    const { result, rerender } = renderHook(
+      ({ products }: { products: Product[] }) => usePOSCart(products),
+      { initialProps: { products: oldCatalog } },
+    );
+
+    act(() => result.current.addToCart(oldCatalog[0]));
+    act(() => result.current.setIsResellerSale(true));
+    act(() => result.current.updateUnitPrice("p1", 80.1));
+
+    rerender({ products: [product({ unit_price: 120 })] });
+
+    expect(result.current.cart[0].unit_price).toBe(100.1);
+  });
+
   it("leaves a line alone while the catalog is still loading (empty or missing product)", () => {
     const oldCatalog = [product()];
     const { result, rerender } = renderHook(

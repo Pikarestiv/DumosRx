@@ -1483,7 +1483,7 @@ table the client never pulls.
   mid-round with an older `updated_at` than the cursor already passed sorts
   behind it and is never seen that round. Stamping the last page's instant
   moved the watermark past it anyway. The server also lags `server_timestamp`
-  by 60s for the same class of gap — see `laravel-server/AGENTS.md`, "The pull
+  by 10s for the same class of gap — see `laravel-server/AGENTS.md`, "The pull
   watermark lags", before changing either half.
 - **`categories`/`suppliers` (`DUPLICATE_NAME_TABLES`) are never given a
   cursor.** The server treats a table missing from `last_synced` as "return

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/context/auth-context";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
+import { SpreadMonthsHint } from "./spread-months-hint";
 import { formatCurrency, getLocalTodayDate } from "@/lib/utils";
 import { useStore } from "@/lib/context/store-context";
 import { useSaveExpenseMutation } from "@/lib/hooks/use-expense-mutations";
@@ -63,7 +64,6 @@ export function AddExpenseDialog({
         covers_months: expenseToEdit.covers_months?.toString() || "",
       });
     } else if (!open) {
-      // Reset form when closed
       setFormData({
         category: "Rent",
         amount: "",
@@ -99,7 +99,6 @@ export function AddExpenseDialog({
           toast.success(expenseToEdit ? "Expense updated successfully" : "Expense added successfully");
           onSaved?.();
           onOpenChange(false);
-          // Form reset is handled by useEffect when modal closes
         },
         onError: (error) => {
           console.error("Failed to save expense:", error);
@@ -241,10 +240,17 @@ export function AddExpenseDialog({
           </div>
 
           <div>
-            <label className="text-[12.5px] font-semibold mb-1.5 block text-foreground">
-              Spread over how many months? (optional)
-            </label>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <label
+                htmlFor="expense-covers-months"
+                className="text-[12.5px] font-semibold text-foreground"
+              >
+                Spread over how many months? (optional)
+              </label>
+              <SpreadMonthsHint />
+            </div>
             <input
+              id="expense-covers-months"
               type="number"
               inputMode="decimal"
               min="2"

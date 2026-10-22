@@ -254,7 +254,7 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
   }, [salesToday, itemsToday, returnsToday, returnItemsToday, paymentAccounts]);
 
   const netCashBreakdown = useMemo(
-    () => buildNetCashBreakdown({ cashSales, cashRefunds, cashExpenses }),
+    () => buildNetCashBreakdown({ cashSales, cashRefunds, cashExpenses, reportDate }),
     [cashSales, cashRefunds, cashExpenses],
   );
   const totalProfit = profitBreakdown.total;

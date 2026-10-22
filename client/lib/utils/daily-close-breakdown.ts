@@ -21,15 +21,17 @@ export function buildNetCashBreakdown({
   cashSales,
   cashRefunds,
   cashExpenses,
+  reportDate,
 }: {
   cashSales: number;
   cashRefunds: number;
   cashExpenses: number;
+  reportDate: string;
 }): FigureBreakdown {
   return fromLines([
     { label: "Cash taken in sales", amount: cashSales },
     { label: "Cash refunded on returns", amount: -cashRefunds },
-    { label: "Cash expenses paid out", amount: -cashExpenses, href: "/expenses" },
+    { label: "Cash expenses paid out", amount: -cashExpenses, href: `/expenses?from=${reportDate}&to=${reportDate}` },
   ]);
 }
 
@@ -50,7 +52,7 @@ export function buildProfitBreakdown({
     { label: "Sales", amount: grossSales },
     { label: "Refunds", amount: -refunds },
     { label: "VAT / tax collected (not yours to keep)", amount: -tax },
-    { label: "Cost of goods sold, less returned stock", amount: -costOfGoods },
+    { label: "Cost of goods sold, minus returned stock", amount: -costOfGoods },
     ...(resellerPayouts
       ? [{ label: "Reseller commission paid out", amount: -resellerPayouts }]
       : []),

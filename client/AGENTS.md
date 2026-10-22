@@ -2092,7 +2092,9 @@ treated as a single day by `useExpensesPage()`. While a range is set the
 insights strip shows that filtered sum and the smoothed figures for the
 range in place of the lifetime and this-month ones. Both dates are in
 `queryKeys.expenses.page`. `EXPENSES_PAGE_SIZE` is 50 (it was 100, over the
-§8 limit); "Load older" grows the window by 50.
+§8 limit); "Load older" grows the window by 50. The initial range is read
+from `?from=YYYY-MM-DD&to=YYYY-MM-DD` (malformed values are ignored); Daily
+Close's "View in Expenses" link sets both to the report day.
 
 ### Stock quantity reconciliation and the `sync_reconciliation` movement type (2026-10-02)
 

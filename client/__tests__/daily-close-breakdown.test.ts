@@ -27,9 +27,20 @@ describe("daily close figure breakdowns", () => {
       cashSales: 1000.1,
       cashRefunds: 200.2,
       cashExpenses: 50.05,
+      reportDate: "2026-10-23",
     });
     expect(breakdown.lines.map((l) => l.amount)).toEqual([1000.1, -200.2, -50.05]);
     expect(breakdown.total).toBe(sumOfLines(breakdown));
+  });
+
+  it("links the expenses line to the report day", () => {
+    const breakdown = buildNetCashBreakdown({
+      cashSales: 0,
+      cashRefunds: 0,
+      cashExpenses: 10,
+      reportDate: "2026-10-23",
+    });
+    expect(breakdown.lines[2].href).toBe("/expenses?from=2026-10-23&to=2026-10-23");
   });
 
   it("derives profit from sales, refunds, tax, cost of goods and reseller payouts", () => {

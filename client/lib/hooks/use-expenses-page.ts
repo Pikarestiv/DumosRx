@@ -1,10 +1,20 @@
 import { useCallback, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { DateRangeValue } from "@/components/ui/date-range-picker";
 import { useStore } from "@/lib/context/store-context";
 import { useExpenseList, useExpenseTotals } from "@/lib/hooks/use-finance-data";
 import { Expense, EXPENSES_PAGE_SIZE } from "@/lib/db/queries/finance";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+function rangeFromParams(params: URLSearchParams): DateRangeValue {
+  const from = params.get("from");
+  const to = params.get("to");
+  if (!from || !ISO_DATE.test(from)) return {};
+  return { from, to: to && ISO_DATE.test(to) ? to : from };
+}
 
 const CATEGORIES = [
   "All",
@@ -20,6 +30,7 @@ const CATEGORIES = [
  * filtering (all pushed into SQL), and the headline figures. */
 export function useExpensesPage() {
   const { storeProfile } = useStore();
+  const searchParams = useSearchParams();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -28,7 +39,7 @@ export function useExpensesPage() {
   );
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
   const [limit, setLimit] = useState(EXPENSES_PAGE_SIZE);
-  const [dateRange, setDateRange] = useState<DateRangeValue>({});
+  const [dateRange, setDateRange] = useState<DateRangeValue>(() => rangeFromParams(searchParams));
   const appliedRange = useMemo<DateRangeValue>(
     () =>
       dateRange.from

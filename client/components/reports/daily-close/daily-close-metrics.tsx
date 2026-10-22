@@ -92,7 +92,7 @@ export function DailyCloseMetrics({
           className="border-emerald-200/50"
           title="Net Cash Expected"
           value={formatMetricCurrency(netCashBreakdown.total, currencyCode)}
-          description={`Cash sales less ${formatMetricCurrency(cashExpenses, currencyCode)} paid out today`}
+          description={`Cash sales minus ${formatMetricCurrency(cashExpenses, currencyCode)} paid out today`}
           icon={<Wallet className="h-4 w-4" />}
           iconBgClass="bg-emerald-50 text-emerald-700"
           valueClassName="font-serif"

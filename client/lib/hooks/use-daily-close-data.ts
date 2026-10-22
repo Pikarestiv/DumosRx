@@ -6,6 +6,7 @@ import { getDailyCloseData } from "@/lib/db/queries/sales";
 import { getPaymentAccounts } from "@/lib/db/queries/setup";
 import { getCashExpensesForDate } from "@/lib/db/queries/finance";
 import { queryKeys } from "@/lib/query-keys";
+import { buildNetCashBreakdown, buildProfitBreakdown } from "@/lib/utils/daily-close-breakdown";
 import type { PaymentAccount } from "@/lib/types/payment-account";
 
 interface PaymentSplitEntry {
@@ -53,7 +54,7 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
 
   const paymentAccounts = useMemo(() => paymentAccountsData || [], [paymentAccountsData]);
 
-  const { aggregatedTotals, totalProfit, topSellingMeds } = useMemo(() => {
+  const { aggregatedTotals, profitBreakdown, cashSales, cashRefunds, topSellingMeds } = useMemo(() => {
     const totals = {
       cash: 0,
       card: 0,
@@ -118,6 +119,9 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
         totals.other += sale.total_amount;
       }
     });
+
+    const grossSales = totals.total;
+    const cashSalesBeforeRefunds = totals.cash;
 
     // Sales keyed by id so a refund can find the sale it belongs to - used below for the VAT netting (see totalTaxToday).
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-daily-close-data-ts-L129
@@ -230,18 +234,31 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
       salesToday.reduce((sum, sale) => sum + (sale.tax_amount || 0), 0) -
       refundedTaxToday;
 
-    const calculatedProfit =
-      totals.total - totalTaxToday - totalCostPrice - redeemedResellerPayouts;
     const topMeds = Object.values(itemMap)
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 5);
 
     return {
       aggregatedTotals: totals,
-      totalProfit: calculatedProfit,
+      profitBreakdown: buildProfitBreakdown({
+        grossSales,
+        refunds: totals.refunds,
+        tax: totalTaxToday,
+        costOfGoods: totalCostPrice,
+        resellerPayouts: redeemedResellerPayouts,
+      }),
+      cashSales: cashSalesBeforeRefunds,
+      cashRefunds: cashSalesBeforeRefunds - totals.cash,
       topSellingMeds: topMeds,
     };
   }, [salesToday, itemsToday, returnsToday, returnItemsToday, paymentAccounts]);
+
+  const netCashBreakdown = useMemo(
+    () => buildNetCashBreakdown({ cashSales, cashRefunds, cashExpenses }),
+    [cashSales, cashRefunds, cashExpenses],
+  );
+  const totalProfit = profitBreakdown.total;
+  const netCashExpected = netCashBreakdown.total;
 
   const exportToCSV = () => {
     const csvContent = [
@@ -250,7 +267,7 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
       ["Total Refunds", aggregatedTotals.refunds.toString()],
       ["Cash Expected (gross)", aggregatedTotals.cash.toString()],
       ["Cash Expenses Paid Out", cashExpenses.toString()],
-      ["Net Cash Expected", (aggregatedTotals.cash - cashExpenses).toString()],
+      ["Net Cash Expected", netCashExpected.toString()],
       ["Transfer / Mobile", aggregatedTotals.transfer.toString()],
       ...(showProfit
         ? [["Total Net Profit (Est.)", totalProfit.toString()]]
@@ -306,6 +323,9 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
     aggregatedTotals,
     cashExpenses,
     totalProfit,
+    netCashExpected,
+    profitBreakdown,
+    netCashBreakdown,
     topSellingMeds,
     exportToCSV,
   };

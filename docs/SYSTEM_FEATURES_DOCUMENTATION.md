@@ -76,6 +76,12 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Net Cash Expected:** Daily Close deducts the day's cash-paid expenses from the cash the drawer should hold, so the figure you reconcile against is what you actually expect to find — not gross cash sales. A prepaid expense (one spread over months) is deducted in full on the day it was paid, because that is when the money left the till; the Profit & Loss report still amortises it across the months it covers. Expenses paid by transfer or card never touch this figure.
 
+**See How a Figure Is Made:** Tap "Net Cash Expected" or "Total Profit (Est.)" on Daily Close to see every number that goes into it — cash sales, cash refunds and cash expenses for the first; sales, refunds, VAT, cost of goods and any reseller commission paid out for the second — adding up exactly to the figure on the card.
+
+**Expenses by Date Range:** Filter the Expenses list to any range of dates, or pick a preset such as "This month" or "Last month". The total, the spread-cost figure, the top category and the transaction count all follow the range; clear it to go back to every expense.
+
+**Spreading a Prepaid Expense:** When adding an expense, "Spread over how many months?" lets a payment that covers several months (a year's rent, say) count an equal share in each month of your profit reports instead of all at once. The info icon beside the field explains it in place.
+
 **This Device:** Settings → System names the device you are on and shows its device ID, the same one that appears beside its activity in the owner's dashboard — so a support call can identify the right till without guessing.
 
 **Offline Backups:** You can manually export a backup of your entire store's data to a flash drive for extra peace of mind.

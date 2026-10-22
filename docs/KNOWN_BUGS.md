@@ -539,6 +539,12 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** pick one. "Account Manager" is the better choice: it matches the API field, the settings tab, and ordinary business usage, and it is what the partner SOP teaches. Rename the two card labels, fix the self-contradicting body text, and grep for both strings afterwards. No API change needed.
 - **Also update** `docs/partner-sop/DumosRx-Partner-SOP.docx` section 1, which currently explains the discrepancy and promises it will be tidied up.
 
+#### A-308. `client/` — the Expenses list shows each expense's date as "Mar 05, 2026", not DD/MM/YYYY
+- **Found:** 2026-10-23, while adding the Expenses date range filter.
+- **Location:** `components/expenses/expense-list.tsx` (mobile row, `format(new Date(expense.date), "MMM dd, yyyy")`), `components/expenses/expense-desktop-row.tsx:79` (same pattern), `components/expenses/expense-detail-dialog.tsx:120` (`"MMMM dd, yyyy"`).
+- **What's wrong:** the house rule is DD/MM/YYYY for dates (`.agents/AGENTS.md` §6). These are calendar dates, so date-only is right, but the month-first wording is not. `new Date(expense.date)` also reads a bare `YYYY-MM-DD` as UTC midnight, which shows the previous day in any timezone west of UTC (no current customer, but it is the bug `parseLocalDateOnly()` exists to avoid).
+- **Fix:** `format(parseLocalDateOnly(expense.date), "dd/MM/yyyy")` in all three places. Check `e2e/expenses.spec.ts` for any locator that matches the old text.
+
 ---
 
 ## Accepted tradeoffs (no fix planned)

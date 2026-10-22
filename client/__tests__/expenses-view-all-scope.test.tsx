@@ -26,7 +26,7 @@ vi.mock("@/lib/db/queries/finance", () => ({
   getExpensesPage: (...args: unknown[]) => getExpensesPage(...(args as [])),
   getExpensesLifetimeTotal: (...args: unknown[]) =>
     getExpensesLifetimeTotal(...(args as [])),
-  EXPENSES_PAGE_SIZE: 100,
+  EXPENSES_PAGE_SIZE: 50,
 }));
 
 vi.mock("@tanstack/react-query", () => ({

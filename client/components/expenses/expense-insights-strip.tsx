@@ -2,6 +2,8 @@
 
 import { format } from "date-fns";
 import { formatMetricCurrency } from "@/lib/utils";
+import { parseLocalDateOnly } from "@/lib/utils/date-utils";
+import type { DateRangeValue } from "@/components/ui/date-range-picker";
 import { MetricCard } from "@/components/ui/metric-card";
 import { HorizontalScrollFade } from "@/components/ui/scroll-fade";
 
@@ -11,6 +13,13 @@ interface ExpenseInsightsStripProps {
   topCategoryStr: string;
   transactionCount: number;
   currencyCode?: string;
+  dateRange?: DateRangeValue;
+}
+
+function formatRangeLabel({ from, to }: DateRangeValue): string | null {
+  if (!from || !to) return null;
+  const day = (value: string) => format(parseLocalDateOnly(value), "dd/MM/yyyy");
+  return from === to ? day(from) : `${day(from)} – ${day(to)}`;
 }
 
 export function ExpenseInsightsStrip({
@@ -19,7 +28,9 @@ export function ExpenseInsightsStrip({
   topCategoryStr,
   transactionCount,
   currencyCode,
+  dateRange = {},
 }: ExpenseInsightsStripProps) {
+  const rangeLabel = formatRangeLabel(dateRange);
   return (
     <HorizontalScrollFade className="flex overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-[10px] sm:gap-4 hide-scrollbar snap-x snap-mandatory mb-4">
       <MetricCard
@@ -40,12 +51,12 @@ export function ExpenseInsightsStrip({
           </svg>
         }
         iconBgClass="bg-primary/10 text-primary"
-        description={<span className="hidden sm:inline">all time</span>}
+        description={<span className="hidden sm:inline">{rangeLabel ?? "all time"}</span>}
       />
 
       <MetricCard
         className="min-w-[180px] sm:min-w-0 shrink-0 snap-start border-border"
-        title="This month"
+        title={rangeLabel ? "Counted in range" : "This month"}
         value={formatMetricCurrency(thisMonthExpenses, currencyCode || "NGN")}
         valueClassName="font-serif"
         icon={
@@ -63,7 +74,7 @@ export function ExpenseInsightsStrip({
         iconBgClass="bg-chart-1/10 text-chart-1"
         description={
           <span className="hidden sm:inline">
-            {format(new Date(), "MMMM yyyy")}
+            {rangeLabel ? "spread expenses prorated" : format(new Date(), "MMMM yyyy")}
           </span>
         }
       />
@@ -87,7 +98,9 @@ export function ExpenseInsightsStrip({
         }
         iconBgClass="bg-muted text-muted-foreground"
         description={
-          <span className="hidden sm:inline">highest spend this month</span>
+          <span className="hidden sm:inline">
+            {rangeLabel ? "highest spend in range" : "highest spend this month"}
+          </span>
         }
       />
 
@@ -109,7 +122,11 @@ export function ExpenseInsightsStrip({
           </svg>
         }
         iconBgClass="bg-muted text-muted-foreground"
-        description={<span className="hidden sm:inline">recorded all time</span>}
+        description={
+          <span className="hidden sm:inline">
+            {rangeLabel ? "recorded in range" : "recorded all time"}
+          </span>
+        }
       />
     </HorizontalScrollFade>
   );

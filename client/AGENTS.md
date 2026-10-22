@@ -2064,6 +2064,36 @@ blank/legacy `payment_method` as cash, since the expense form's own default
 is "Cash" and missing one would leave the drawer short against the figure on
 screen. Pinned by `__tests__/daily-close-cash-expenses.test.ts`.
 
+### A Daily Close headline is the sum of its breakdown (2026-10-23)
+
+"Net Cash Expected" and "Total Profit (Est.)" each open a
+`FigureBreakdownModal` listing the signed components of the figure. The
+headline is **read from** the breakdown, never computed beside it:
+`lib/utils/daily-close-breakdown.ts` builds `{ lines, total }` with `total`
+reduced from `lines`, and `useDailyCloseData()` exposes `totalProfit =
+profitBreakdown.total` and `netCashExpected = netCashBreakdown.total`. The
+card, the modal, the CSV export and the PDF all use those two values, so
+they cannot drift apart. Cash refunds are derived as the drop in the cash
+bucket across the returns loop, which keeps the prorated cash share of a
+mixed-payment refund in that line. Profit deliberately does **not** deduct
+operating expenses (it never has); the modal says so. If you add a component
+to either figure, add it as a line, not as an adjustment to the total.
+Pinned by `__tests__/daily-close-breakdown.test.ts`.
+
+### Expenses list: date range filter and page size (2026-10-23)
+
+The Expenses page reuses `DateRangePicker` with an empty default range
+(all expenses), the same default as Sales history, Activity Log and Stock
+Movements. `getExpensesPage()` takes inclusive `YYYY-MM-DD` `from`/`to`
+compared with `date(e.date)` (an expense date is a calendar date, so no
+`toQueryRange()` conversion), and returns `amount`, the SQL sum over the
+whole filtered scope. A start date with no end yet (mid-selection) is
+treated as a single day by `useExpensesPage()`. While a range is set the
+insights strip shows that filtered sum and the smoothed figures for the
+range in place of the lifetime and this-month ones. Both dates are in
+`queryKeys.expenses.page`. `EXPENSES_PAGE_SIZE` is 50 (it was 100, over the
+§8 limit); "Load older" grows the window by 50.
+
 ### Stock quantity reconciliation and the `sync_reconciliation` movement type (2026-10-02)
 
 **Health Sync is OFF as of 2026-10-10 and the section below is history, not
@@ -6657,3 +6687,13 @@ Before that, work focused on the **Inventory** area:
   The mobile drawer's `onCheckout` wrapper (which closes the drawer) is only
   invoked when the guard passes, so the drawer stays open on the picker.
   `validatePaymentInput` keeps its own message as a backstop.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

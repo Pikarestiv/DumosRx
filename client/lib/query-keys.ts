@@ -132,6 +132,8 @@ export const queryKeys = {
       limit: number,
       search: string | undefined,
       category: string | undefined,
+      from?: string,
+      to?: string,
     ) =>
       resource(
         [
@@ -141,6 +143,8 @@ export const queryKeys = {
           limit,
           search ?? "",
           category ?? "All",
+          from ?? "",
+          to ?? "",
         ] as const,
         ["expenses"],
       ),

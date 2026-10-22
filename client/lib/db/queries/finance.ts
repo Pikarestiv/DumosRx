@@ -221,9 +221,11 @@ export interface ExpensesPage {
   /** Every row matching the scope, not just the ones in this page - so a caller
    * can tell whether there is anything older left to load. */
   total: number;
+  /** Sum of `amount` over every row matching the scope. */
+  amount: number;
 }
 
-export const EXPENSES_PAGE_SIZE = 100;
+export const EXPENSES_PAGE_SIZE = 50;
 
 // One page of the expense ledger, newest first.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-finance-ts-L272
@@ -231,6 +233,8 @@ export async function getExpensesPage({
   viewerId,
   search,
   category,
+  from,
+  to,
   limit = EXPENSES_PAGE_SIZE,
   offset = 0,
 }: {
@@ -240,6 +244,9 @@ export async function getExpensesPage({
   search?: string;
   /** Omitted or "All" means every category. */
   category?: string;
+  /** Inclusive "YYYY-MM-DD" calendar dates; either may be omitted. */
+  from?: string;
+  to?: string;
   limit?: number;
   offset?: number;
 } = {}): Promise<ExpensesPage> {
@@ -252,6 +259,8 @@ export async function getExpensesPage({
     ...(storeId ? [storeId] : []),
     ...(trimmedSearch ? [`%${trimmedSearch}%`] : []),
     ...(categoryFilter ? [categoryFilter] : []),
+    ...(from ? [from] : []),
+    ...(to ? [to] : []),
   ];
   const scopeClause =
     `${viewerId ? " AND e.user_id = ?" : ""}` +
@@ -259,7 +268,9 @@ export async function getExpensesPage({
     // LIKE is case-insensitive for ASCII in SQLite by default, matching the
     // toLowerCase()-based comparison this replaces.
     `${trimmedSearch ? " AND e.description LIKE ?" : ""}` +
-    `${categoryFilter ? " AND e.category = ?" : ""}`;
+    `${categoryFilter ? " AND e.category = ?" : ""}` +
+    `${from ? " AND date(e.date) >= date(?)" : ""}` +
+    `${to ? " AND date(e.date) <= date(?)" : ""}`;
 
   const [rows, countRows] = await Promise.all([
     query<Expense>(
@@ -271,13 +282,13 @@ export async function getExpensesPage({
        LIMIT ? OFFSET ?`,
       [...scopeParams, limit, offset],
     ),
-    query<{ total: number }>(
-      `SELECT COUNT(*) as total FROM expenses e WHERE e._deleted = 0${scopeClause}`,
+    query<{ total: number; amount: number | null }>(
+      `SELECT COUNT(*) as total, SUM(e.amount) as amount FROM expenses e WHERE e._deleted = 0${scopeClause}`,
       scopeParams,
     ),
   ]);
 
-  return { rows, total: countRows[0]?.total || 0 };
+  return { rows, total: countRows[0]?.total || 0, amount: countRows[0]?.amount || 0 };
 }
 
 // The lifetime expense figure, summed in SQL.

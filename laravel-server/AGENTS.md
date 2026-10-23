@@ -1109,6 +1109,12 @@ migration here **and** the corresponding update on the `client/` side
       the push response rewrites a local `store_id`, and a pull for the wrong
       store does not include the row, so that device holds the wrong copy
       until it next pulls the row's real store.
+    - **How a store-less server row gets a store:** only a staff session or a
+      single-store owner's push can attribute it. For an owner with two or
+      more stores, or a super admin, the remedy is
+      `php artisan sync:backfill-store-ids` (A-288); until it runs the row is
+      invisible to every other till, because `NULL` never matches `whereIn`
+      (§11).
     `users` is exempt because a staff member is reassigned through it, which
     is also why its own store backfill in `normalizePushPayload()` is
     **INSERT-only**: on UPDATE it used to fill in the active store whenever

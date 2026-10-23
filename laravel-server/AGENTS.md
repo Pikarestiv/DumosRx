@@ -1136,7 +1136,7 @@ collapses the race instead of leaving two rows.
 `client/AGENTS.md`, "Catalog versioning and the default-group backfill".
 
 **`permission_groups.permissions` uses the `JsonList` cast (2026-10-23,
-A-318).** The client stores the column as SQLite TEXT and pushes it as a JSON
+A-320).** The client stores the column as SQLite TEXT and pushes it as a JSON
 *string*. Under the old `'array'` cast that string was encoded a second time,
 so every client-written row read back as a PHP string. Two things broke:
 `ensureCatalogBackfilled()` treated such a row as `[]` and would have
@@ -1146,8 +1146,8 @@ every client-created custom group), and `sanitizePermissionGroupSyncPayload()`'s
 escalation check, which only inspects arrays, never ran for a real client
 push. `JsonList` heals double-encoded rows on read, with no data migration,
 and `LegacyStockQuantitiesGrant::apply()` decodes the payload's
-`permissions` to a list before the sanitizer sees it. Pull now returns the
-column as a JSON array instead of a string; every bundle that has the
+`permissions` to a list before the sanitizer sees it. Pull now returns a
+client-written group's column as a JSON array instead of a string; every bundle that has the
 `permission_groups` table (2026-09-27, `a5f40463`) stringifies an
 array-valued column on pull (`pull.ts`), so no reader changes.
 

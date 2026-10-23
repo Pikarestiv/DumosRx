@@ -443,6 +443,17 @@ suggested tackle order rather than a strict ranking.
 - **Why not just fixed:** root cause of the `!user` bounce itself hasn't been found — static code reading alone (the only method used so far, per earlier explicit instruction not to live-reproduce) didn't turn up an obvious race in `login()`'s synchronous `setUser`/`sessionStorage` writes vs. `DashboardLayoutInner`'s first render. Needs either live reproduction (with console/network instrumentation to catch the exact moment `user` reads as `null`) or more targeted tracing of `AuthProvider`'s mount/update timing than has been done so far.
 
 
+#### A-312. `laravel-server/`, `client/` — follow-ups from the till re-link code and token expiry review (A-311)
+- **Found:** 2026-10-23, in the independent review of the A-311 fix.
+- **Issue:** #254
+- **Rate limiter and proxies:** `throttle:relink` is keyed on `$request->ip()` (`AppServiceProvider.php:87-89`) and `bootstrap/app.php` has no `trustProxies()`. If `api.dumosrx.com` sits behind a proxy or CDN, every till shares one 5-a-minute bucket, so a stranger can block re-linking for the whole fleet, and re-linking is the recovery path. If proxies were ever trusted with `*`, a spoofed `X-Forwarded-For` voids the limit. `throttle:auth` is keyed the same way. Confirm the production proxy topology, then add a second limit keyed on `X-Store-Id`.
+- **Inactive owner on consume:** `TillRelinkService` returns `403 ACCOUNT_SUSPENDED` for a deactivated owner, where `login()` returns a 422 "Account is deactivated." The client's `base-client.ts` reads any `403 ACCOUNT_SUSPENDED` as a store suspension and runs `UPDATE stores SET status = 'Suspended'` with no WHERE, then reloads. The window is small (owner deactivated between generate and consume) and the middleware already does the same on every other call, but `laravel-server/AGENTS.md` says "same semantics as login()" and it is not.
+- **Till with no store id:** `X-Store-Id` is omitted when `dumos_active_store_id` is unset, so consume answers the generic "Invalid or expired code." and the user regenerates codes for nothing. Pre-check in `use-cloud-link.ts` and say the device has no store yet.
+- **Sessions list shows dead rows:** `SessionController.php:33` has no `expires_at` filter, so expired tokens and the 30-second `admin-refresh-rotated` markers show until the daily prune. Filter `expires_at` null-or-future and exclude that name.
+- **Backfill speed:** the `2026_10_23_000001` migration issues one UPDATE per token. Correct and idempotent, but it is N queries inside the deploy's `migrate`; a set-based UPDATE would need a per-driver date expression.
+- **Fix:** as listed per item above.
+
+
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
 #### A-208. `laravel-server/` — an admin till access code never expires, so a forgotten one stays a working credential for ever

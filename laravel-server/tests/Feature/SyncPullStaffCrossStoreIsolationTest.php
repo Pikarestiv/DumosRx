@@ -143,4 +143,101 @@ class SyncPullStaffCrossStoreIsolationTest extends TestCase
         $productNames = collect($response->json('changes.products'))->pluck('name');
         $this->assertTrue($productNames->contains('Store B Product'));
     }
+
+    /** A-254: an unowned store id must not make every store-scoped table read as an empty, complete window. */
+    #[Test]
+    public function an_unowned_store_header_withholds_every_store_scoped_table_but_still_serves_the_header_independent_ones(): void
+    {
+        $response = $this->pull($this->owner, (string) Str::uuid());
+
+        $response->assertStatus(200);
+        $this->assertSame(['stores', 'payment_accounts'], array_keys($response->json('changes')));
+        $this->assertEqualsCanonicalizing(
+            [$this->storeA->id, $this->storeB->id],
+            collect($response->json('changes.stores'))->pluck('id')->all(),
+        );
+        $this->assertNotNull($response->json('refused_store_id'));
+    }
+
+    #[Test]
+    public function a_staff_account_naming_a_sibling_store_gets_only_its_own_store_row(): void
+    {
+        $response = $this->pull($this->staffOfA, $this->storeB->id);
+
+        $response->assertStatus(200);
+        $this->assertSame(['stores', 'payment_accounts'], array_keys($response->json('changes')));
+        $this->assertSame([$this->storeA->id], collect($response->json('changes.stores'))->pluck('id')->all());
+        $this->assertSame($this->storeB->id, $response->json('refused_store_id'));
+    }
+
+    #[Test]
+    public function an_owned_store_header_still_pulls_every_table_and_refuses_nothing(): void
+    {
+        $response = $this->pull($this->owner, $this->storeA->id);
+
+        $response->assertStatus(200);
+        $this->assertArrayHasKey('products', $response->json('changes'));
+        $this->assertArrayHasKey('refused_store_id', $response->json());
+        $this->assertNull($response->json('refused_store_id'));
+    }
+
+    #[Test]
+    public function a_header_naming_the_callers_deleted_store_is_answered_with_that_stores_tombstone(): void
+    {
+        $this->storeB->delete();
+
+        $response = $this->pull($this->owner, $this->storeB->id);
+
+        $response->assertStatus(200);
+        $this->assertSame($this->storeB->id, $response->json('refused_store_id'));
+        $stores = collect($response->json('changes.stores'))->keyBy('id');
+        $this->assertTrue($stores->has($this->storeB->id));
+        $this->assertTrue((bool) $stores[$this->storeB->id]['_deleted']);
+    }
+
+    #[Test]
+    public function a_non_string_store_id_is_refused_rather_than_crashing_or_widening_the_pull(): void
+    {
+        $response = $this->actingAs($this->owner)->postJson('/api/v1/app/sync/pull', [
+            'last_synced' => [],
+            'store_id' => ['not', 'a', 'string'],
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertSame('(invalid)', $response->json('refused_store_id'));
+        $this->assertSame(['stores', 'payment_accounts'], array_keys($response->json('changes')));
+    }
+
+    #[Test]
+    public function a_staff_account_naming_a_deleted_sibling_store_gets_no_row_for_it(): void
+    {
+        $this->storeB->delete();
+
+        $response = $this->pull($this->staffOfA, $this->storeB->id);
+
+        $response->assertStatus(200);
+        $this->assertSame([$this->storeA->id], collect($response->json('changes.stores'))->pluck('id')->all());
+    }
+
+    #[Test]
+    public function the_header_independent_table_list_matches_what_the_scope_actually_ignores(): void
+    {
+        $controller = app(\App\Http\Controllers\Api\App\SyncController::class);
+        $apply = new \ReflectionMethod($controller, 'applyPullTenantScope');
+        $sentinel = 'store-header-sentinel';
+        $scope = ['ownerId' => 'owner', 'storeIds' => [$sentinel], 'ownedStoreIds' => ['owned'], 'storeRowIds' => ['owned'], 'userIds' => ['user']];
+
+        $independent = [];
+        foreach (['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'sale_items', 'sale_item_batches', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments', 'returns', 'return_items', 'prescriptions', 'prescription_items', 'loyalty_tiers', 'loyalty_redemption_options', 'stock_audits', 'held_transactions', 'loyalty_transactions', 'customer_payments', 'audit_logs', 'permission_groups'] as $table) {
+            $modelClass = $controller->getModelForTable($table);
+            $query = $modelClass::query();
+            $apply->invoke($controller, $query, $table, $scope);
+            if ($table !== 'users' && !in_array($sentinel, $query->getBindings(), true)) {
+                $independent[] = $table;
+            }
+        }
+
+        $listed = (new \ReflectionClassConstant($controller, 'PULL_TABLES_INDEPENDENT_OF_STORE_HEADER'))->getValue();
+        $this->assertEqualsCanonicalizing($listed, $independent);
+    }
 }

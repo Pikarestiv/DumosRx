@@ -921,6 +921,7 @@ class SyncController extends Controller
                 new OA\Property(property: 'success', type: 'boolean'),
                 new OA\Property(property: 'server_timestamp', type: 'string', format: 'date-time'),
                 new OA\Property(property: 'changes', type: 'object', description: 'Keyed by table name, each value an array of row objects', additionalProperties: new OA\AdditionalProperties(type: 'array', items: new OA\Items(type: 'object'))),
+                new OA\Property(property: 'refused_store_id', type: 'string', nullable: true, description: "Set when X-Store-Id names a store outside the caller's scope: only `stores` (including that store's tombstone if it is the owner's deleted store) and `payment_accounts` are served, every other table is omitted so no window can be stamped from it (A-254)"),
             ])),
             new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
             new OA\Response(response: 403, description: 'Cloud sync disabled on current plan, or store count exceeds plan limit'),
@@ -985,6 +986,12 @@ class SyncController extends Controller
             ? null
             : $this->resolvePullTenantScope($user, $request);
 
+        $refusedStoreId = $tenantScope['refusedStoreId'] ?? null;
+        if ($refusedStoreId !== null) {
+            $tables = array_values(array_intersect($tables, self::PULL_TABLES_INDEPENDENT_OF_STORE_HEADER));
+            $this->logRefusedPullStore($user->id, $refusedStoreId);
+        }
+
         foreach ($tables as $table) {
             $modelClass = $this->getModelForTable($table);
 
@@ -1025,7 +1032,8 @@ class SyncController extends Controller
             'success' => true,
             'server_timestamp' => $serverTimestamp,
             'changes' => $changes,
-            'has_more' => $hasMore
+            'has_more' => $hasMore,
+            'refused_store_id' => $refusedStoreId,
         ]);
     }
 
@@ -1165,16 +1173,7 @@ class SyncController extends Controller
 
         match ($table) {
             'users' => $query->whereIn('id', $userIds),
-            // Unlike every other table, 'stores' isn't scoped to the
-            // X-Store-Id-narrowed $storeIds: it IS the "which stores
-            // do I own" discovery list the store switcher is built
-            // from, so narrowing it to whichever single store happens
-            // to be active meant a newly created store (or any store
-            // metadata change on a non-active store, e.g. a plan
-            // granted by an admin) could never be pulled down at all.
-            // Staff (fixed store_id) still only ever see their own
-            // store, same as before.
-            'stores' => $query->whereIn('id', $ownedStoreIds)->with(['user.subscriptions']),
+            'stores' => $query->whereIn('id', $scope['storeRowIds'] ?? $ownedStoreIds)->with(['user.subscriptions']),
             // These 11 tables now carry a real store_id column (see
             // add_store_id_to_domain_tables migration); scope directly
             // by store rather than by an owner/cashier user-id chain, so
@@ -1251,38 +1250,64 @@ class SyncController extends Controller
         return Sale::withTrashed()->select('id')->whereIn('store_id', $storeIds);
     }
 
+    /** Tables applyPullTenantScope() scopes by every owned store or by the owner, never by X-Store-Id; a test derives and checks it. */
+    private const PULL_TABLES_INDEPENDENT_OF_STORE_HEADER = ['stores', 'payment_accounts'];
+
+    private function logRefusedPullStore(string $userId, string $refusedStoreId): void
+    {
+        try {
+            if (\Illuminate\Support\Facades\Cache::add('sync-pull-refused:'.$userId, true, now()->addDay())) {
+                Log::warning('Sync pull: X-Store-Id is outside the caller\'s scope; withholding store-scoped tables (A-254)', [
+                    'user_id' => $userId,
+                    'refused_store_id' => mb_substr($refusedStoreId, 0, 64),
+                ]);
+            }
+        } catch (\Throwable) {
+        }
+    }
+
+    /** An owner's own deleted store; never a staff member's sibling store (A-129). */
+    private function isCallersOwnDeletedStore($user, ?string $ownerId, string $storeId): bool
+    {
+        return $ownerId === $user->id && Store::onlyTrashed()->whereKey($storeId)->where('user_id', $ownerId)->exists();
+    }
+
     /**
-     * Resolves, once per request, everything applyPullTenantScope() needs:
-     * the subscription owner, the store list this pull is narrowed to, the
-     * full owned-store list ('stores' is deliberately never narrowed by
-     * X-Store-Id — it IS the store-switcher's discovery list), and the staff
-     * ids that go with them.
+     * Resolves, once per request, everything applyPullTenantScope() needs: the subscription owner, the stores this
+     * pull is narrowed to, the store rows it serves, and the staff ids. Rules: laravel-server/AGENTS.md, A-129 and A-254.
      */
     private function resolvePullTenantScope($user, Request $request): array
     {
         ['ownerId' => $ownerId, 'storeIds' => $ownedStoreIds] = $this->resolveOwnershipIdentity($user);
 
-        $requestedStoreId = $request->header('X-Store-Id') ?? $request->input('store_id');
-        if ($requestedStoreId) {
-            // A-129: this used to check "does this store belong to the same
-            // owner" (Store::where('user_id', $ownerId)), which let a staff
-            // account read a sibling store's data by sending that store's
-            // id here — any store under the same owner passed. $ownedStoreIds
-            // is already the caller's own correctly-narrowed scope (one
-            // store for staff, every owned store for an owner), exactly
-            // like resolveAllowedOwnershipScope() already enforces for push.
-            $storeIds = in_array($requestedStoreId, $ownedStoreIds, true) ? [$requestedStoreId] : [];
-        } else {
-            $storeIds = $ownedStoreIds;
+        $requested = $request->header('X-Store-Id') ?? $request->input('store_id');
+        $requestedStoreId = match (true) {
+            $requested === null || $requested === '' => null,
+            is_string($requested) => $requested,
+            default => '(invalid)',
+        };
+
+        $storeIds = $requestedStoreId === null
+            ? $ownedStoreIds
+            : (in_array($requestedStoreId, $ownedStoreIds, true) ? [$requestedStoreId] : []);
+        $refusedStoreId = $requestedStoreId !== null && $storeIds === [] ? $requestedStoreId : null;
+
+        $storeRowIds = $ownedStoreIds;
+        if ($refusedStoreId !== null && $this->isCallersOwnDeletedStore($user, $ownerId, $refusedStoreId)) {
+            $storeRowIds[] = $refusedStoreId;
         }
 
-        $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($ownerId)->toArray();
+        $userIds = $refusedStoreId !== null
+            ? [$ownerId]
+            : User::whereIn('store_id', $storeIds)->pluck('id')->push($ownerId)->toArray();
 
         return [
             'ownerId' => $ownerId,
             'storeIds' => $storeIds,
             'ownedStoreIds' => $ownedStoreIds,
+            'storeRowIds' => $storeRowIds,
             'userIds' => $userIds,
+            'refusedStoreId' => $refusedStoreId,
         ];
     }
 

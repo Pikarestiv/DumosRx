@@ -26,6 +26,7 @@ export interface PullResponse {
   server_timestamp: string;
   changes: Record<string, Record<string, unknown>[]>;
   has_more?: Record<string, boolean>;
+  refused_store_id?: string | null;
 }
 
 export interface SyncResult {

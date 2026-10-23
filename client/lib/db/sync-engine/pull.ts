@@ -5,7 +5,7 @@ import { PullResponse } from "./types";
 import { getValidColumns } from "./schema";
 import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconcile-identity";
 import { logCrash } from "@/lib/utils/error-logger";
-import { restoreExhaustedPullWindows, rewindPullWindow } from "./pull-window";
+import { forgetWithheldPullWindows, restoreExhaustedPullWindows, rewindPullWindow } from "./pull-window";
 import { summarizeSkippedRecords, type SkippedRecord } from "./pull-skip-report";
 import { STORAGE_KEYS, getStoredUser } from "@/lib/storage-keys";
 import { recomputeBatchQuantities } from "../batch-quantity";
@@ -218,6 +218,10 @@ export async function pullChanges(
       )) as PullResponse;
       const { changes, server_timestamp, has_more } = response;
       roundTimestamp ??= server_timestamp;
+
+      if (page === 1 && response.refused_store_id && response.refused_store_id === activeRun.storeId) {
+        await forgetWithheldPullWindows(windowStoreId, Object.keys(changes ?? {}));
+      }
 
       if (!changes || Object.keys(changes).length === 0) {
         break;

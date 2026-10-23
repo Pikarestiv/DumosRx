@@ -1,6 +1,7 @@
 import { query, transaction, getActiveStoreId } from "@/lib/db/core";
 import { insert, update } from "@/lib/db/base-helpers";
 import {
+  ALL_GROUP_PERMISSION_ADDITIONS,
   DEFAULT_GROUP_PERMISSIONS,
   DEFAULT_GROUP_PERMISSION_ADDITIONS,
   PERMISSION_CATALOG_VERSION,
@@ -90,11 +91,14 @@ export async function ensurePermissionGroupsSeeded(): Promise<void> {
 
 // The keys a default group for `role` is owed by every catalog version newer than `fromVersion`, in catalog order.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-permission-groups-ts-L100
-export function pendingCatalogAdditions(role: string, fromVersion: number): string[] {
+export function pendingCatalogAdditions(role: string, fromVersion: number, isDefault = true): string[] {
   const pending: string[] = [];
   for (const [version, byRole] of Object.entries(DEFAULT_GROUP_PERMISSION_ADDITIONS)) {
-    if (Number(version) <= fromVersion) continue;
+    if (Number(version) <= fromVersion || !isDefault) continue;
     pending.push(...(byRole[role as DefaultGroupRole] ?? []));
+  }
+  for (const [version, keys] of Object.entries(ALL_GROUP_PERMISSION_ADDITIONS)) {
+    if (Number(version) > fromVersion) pending.push(...keys);
   }
   return Array.from(new Set(pending));
 }
@@ -115,14 +119,14 @@ export async function backfillDefaultGroupPermissions(): Promise<void> {
     const stamped = stores[0].permission_catalog_version ?? 1;
     if (stamped >= PERMISSION_CATALOG_VERSION) return;
 
-    const groups = await query<{ id: string; based_on_role: string; permissions: string }>(
-      `SELECT id, based_on_role, permissions FROM permission_groups
-       WHERE store_id = ? AND is_default = 1 AND (_deleted = 0 OR _deleted IS NULL)`,
+    const groups = await query<{ id: string; based_on_role: string; is_default: number; permissions: string }>(
+      `SELECT id, based_on_role, is_default, permissions FROM permission_groups
+       WHERE store_id = ? AND (_deleted = 0 OR _deleted IS NULL)`,
       [storeId],
     );
 
     for (const group of groups) {
-      const owed = pendingCatalogAdditions(group.based_on_role, stamped);
+      const owed = pendingCatalogAdditions(group.based_on_role, stamped, Number(group.is_default) === 1);
       if (owed.length === 0) continue;
 
       let granted: string[];

@@ -24,6 +24,10 @@ vi.mock("@/lib/context/store-context", () => ({
   useStore: () => ({ storeProfile: { uppercase_display_enabled: 1 } }),
 }));
 
+vi.mock("@/lib/hooks/use-stock-visibility", () => ({
+  useStockVisibility: () => ({ canSeeQuantities: true, describeStock: (qty: number) => `${qty} left` }),
+}));
+
 vi.mock("@/components/pos/request-item-dialog", () => ({
   RequestItemDialog: () => null,
 }));

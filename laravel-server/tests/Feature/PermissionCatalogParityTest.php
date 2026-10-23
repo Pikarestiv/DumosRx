@@ -74,7 +74,7 @@ class PermissionCatalogParityTest extends TestCase
         return $parsed;
     }
 
-    /** @return array{0: string[], 1: array<string, string[]>, 2: array<int, array<string, string[]>>} */
+    /** @return array{0: string[], 1: array<string, string[]>, 2: array<int, array<string, string[]>>, 3: array<int, string[]>} */
     private static function parseClientConstants(): array
     {
         $source = self::clientConstantsSource();
@@ -91,7 +91,14 @@ class PermissionCatalogParityTest extends TestCase
             $additions[(int) $match[1]] = self::rolesIn($match[2], $catalogKeys);
         }
 
-        return [$catalogKeys, $defaults, $additions];
+        preg_match_all('/(\d+)\s*:\s*\[([^\]]*)\]/', self::blockAfter($source, 'ALL_GROUP_PERMISSION_ADDITIONS'), $allMatches, PREG_SET_ORDER);
+        $allGroupAdditions = [];
+        foreach ($allMatches as $match) {
+            preg_match_all('/"([a-z_]+)"/', $match[2], $keys);
+            $allGroupAdditions[(int) $match[1]] = $keys[1];
+        }
+
+        return [$catalogKeys, $defaults, $additions, $allGroupAdditions];
     }
 
     public function test_the_typescript_parser_actually_parsed_something(): void
@@ -101,6 +108,7 @@ class PermissionCatalogParityTest extends TestCase
         $this->assertGreaterThanOrEqual(40, count($catalogKeys), 'parsed an implausibly small PERMISSION_CATALOG');
         $this->assertSame(self::ROLES, array_keys($defaults), 'parsed DEFAULT_GROUP_PERMISSIONS is missing a role');
         $this->assertNotEmpty($additions, 'parsed no catalog-version addition sets');
+        $this->assertNotEmpty(self::parseClientConstants()[3], 'parsed no all-group addition sets');
         $this->assertContains('process_sales', $defaults['sales_staff']);
     }
 
@@ -153,6 +161,17 @@ class PermissionCatalogParityTest extends TestCase
                     "PermissionGroupSeeder's v{$version} additions for '{$role}' have drifted from the client's",
                 );
             }
+        }
+    }
+
+    public function test_the_php_all_group_additions_match_the_client_and_name_catalog_keys(): void
+    {
+        [$catalogKeys, , $additions, $allGroupAdditions] = self::parseClientConstants();
+
+        $this->assertSame($allGroupAdditions, PermissionGroupSeeder::allGroupPermissionAdditions());
+        foreach ($allGroupAdditions as $version => $keys) {
+            $this->assertArrayHasKey($version, $additions, "all-group additions name v{$version}, which has no default-group entry");
+            $this->assertEmpty(array_diff($keys, $catalogKeys), "v{$version} all-group additions name a key outside PERMISSION_CATALOG");
         }
     }
 }

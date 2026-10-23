@@ -43,6 +43,7 @@ function renderRow(
       showCostColumn
       canEditSellingPrice
       canAdjustStockQuantity
+      showStockQuantity
       hasTouchCapability={false}
       canPrintLabels
       canDeleteProducts

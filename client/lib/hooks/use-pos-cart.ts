@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
+import { useStockVisibility } from "@/lib/hooks/use-stock-visibility";
+import { formatInsufficientStock } from "@/lib/utils/stock-status";
 import {
   calculateSubtotal,
   calculateTax,
@@ -88,10 +90,6 @@ export function clearPOSCartStorage() {
   });
 }
 
-export function formatInsufficientStock(availableStock: number) {
-  return `Insufficient stock — only ${availableStock} unit${availableStock === 1 ? "" : "s"} available`;
-}
-
 /** Below a tenth of a kobo two prices are the same price; anything coarser
  * re-prices a line on a float artefact and nags the cashier about it. */
 const PRICE_EPSILON = 0.001;
@@ -144,6 +142,7 @@ export function repriceCartFromCatalog(
 export function usePOSCart(products: Product[]) {
   const { vatPercentage } = useStore();
   const { canUseLoyaltyProgram } = useFeatureGate();
+  const { canSeeQuantities } = useStockVisibility();
   const cart = usePOSCartStore((state) => state.cart);
   const setCart = usePOSCartStore((state) => state.setCart);
   const discount = usePOSCartStore((state) => state.discount);
@@ -268,7 +267,7 @@ export function usePOSCart(products: Product[]) {
 
       const product = products.find((m) => m.id === id);
       if (product && newQuantity > product.stock) {
-        toast.warning(formatInsufficientStock(product.stock));
+        toast.warning(formatInsufficientStock(product.stock, canSeeQuantities));
         return;
       }
 
@@ -284,7 +283,7 @@ export function usePOSCart(products: Product[]) {
         ),
       );
     },
-    [products, setCart, removeFromCart],
+    [products, setCart, removeFromCart, canSeeQuantities],
   );
 
   const addToCart = useCallback(
@@ -295,7 +294,7 @@ export function usePOSCart(products: Product[]) {
         if (existingItem.quantity < product.stock) {
           updateQuantity(product.id, existingItem.quantity + 1);
         } else {
-          toast.warning(formatInsufficientStock(product.stock));
+          toast.warning(formatInsufficientStock(product.stock, canSeeQuantities));
         }
         return;
       }
@@ -313,7 +312,7 @@ export function usePOSCart(products: Product[]) {
         toast.error("This item is out of stock");
       }
     },
-    [cart, setCart, updateQuantity, displayName],
+    [cart, setCart, updateQuantity, displayName, canSeeQuantities],
   );
 
   const updateUnitPrice = useCallback(

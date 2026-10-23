@@ -3,6 +3,10 @@ import { act, renderHook } from "@testing-library/react";
 
 const toastCalls: { message: string; options?: { action?: { label: string; onClick: () => void } } }[] = [];
 
+vi.mock("@/lib/hooks/use-stock-visibility", () => ({
+  useStockVisibility: () => ({ canSeeQuantities: true }),
+}));
+
 vi.mock("sonner", () => ({
   toast: Object.assign(
     (message: string, options?: { action?: { label: string; onClick: () => void } }) => {

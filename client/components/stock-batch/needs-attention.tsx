@@ -14,6 +14,7 @@ import { useStore } from "@/lib/context/store-context";
 import { useRouter } from "next/navigation";
 import { queryKeys } from "@/lib/query-keys";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
+import { useStockVisibility } from "@/lib/hooks/use-stock-visibility";
 
 interface AttentionItem {
   type: "expiring" | "critical" | "low";
@@ -48,6 +49,7 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
   const router = useRouter();
   const { storeProfile } = useStore();
   const capsClass = useUppercaseDisplayClass();
+  const { canSeeQuantities } = useStockVisibility();
   const expiryDays = storeProfile?.expiry_warning_days || 90;
 
   const { data: expiringBatchesData } = useQuery({
@@ -81,7 +83,9 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
       type: "expiring",
       id: batch.id,
       product_name: batch.name,
-      description: `Batch ${batch.batch_number} · ${expiryText} · ${batch.stock_quantity} ${formatUnit(batch.stock_quantity, batch.base_unit)}`,
+      description: canSeeQuantities
+        ? `Batch ${batch.batch_number} · ${expiryText} · ${batch.stock_quantity} ${formatUnit(batch.stock_quantity, batch.base_unit)}`
+        : `Batch ${batch.batch_number} · ${expiryText}`,
       icon: <Calendar className="w-4 h-4" />,
       iconClass: "bg-destructive/10 text-destructive",
       actionText: "View batch",
@@ -101,7 +105,7 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
         description:
           item.quantity === 0
             ? `Out of stock · Missing out on sales`
-            : `${item.quantity} ${formatUnit(item.quantity, item.base_unit)} left · Reorder at ${item.reorder_level} ${formatUnit(item.reorder_level ?? 0, item.base_unit)}`,
+            : `${canSeeQuantities ? `${item.quantity} ${formatUnit(item.quantity, item.base_unit)} left` : "Low stock"} · Reorder at ${item.reorder_level} ${formatUnit(item.reorder_level ?? 0, item.base_unit)}`,
         icon: isCritical ? (
           <AlertCircle className="w-4 h-4" />
         ) : (

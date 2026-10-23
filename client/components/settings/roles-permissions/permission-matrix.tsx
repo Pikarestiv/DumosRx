@@ -10,6 +10,7 @@ import { useHasPermission, useOwnPermissionGroupId, useOwnGrantScope } from "@/l
 import { canGrantPermission, isGroupEditable } from "@/lib/permissions/grant-scope";
 import { GroupToolbar } from "./group-toolbar";
 import { GroupColumnActions } from "./group-column-actions";
+import { PermissionDescription, StockQuantitiesOverlapWarning } from "./permission-row-hints";
 import { getCategoryCheckState, getCategoryToggleKeys, getCategoryToggleTarget } from "./category-selection";
 
 // A user who isn't store_owner/super_admin has no unconditional bypass in hasPermission(), so unticking manage_roles_permi…
@@ -146,6 +147,7 @@ export function PermissionMatrix() {
                       <div key={entry.key} role="row" className="grid border-t" style={gridStyle}>
                         <div role="cell" className="sticky left-0 z-10 flex items-center bg-background p-2 pl-7">
                           {entry.label}
+                          <PermissionDescription label={entry.label} description={entry.description} />
                           {!ENFORCED_PERMISSION_KEYS.has(entry.key) && (
                             <Badge
                               variant="outline"
@@ -178,6 +180,11 @@ export function PermissionMatrix() {
                                 title={locked ? lockedTitle : undefined}
                                 onChange={(e) => toggle(g.id, entry.key, e.target.checked)}
                                 aria-label={`${entry.label} - ${g.name}`}
+                              />
+                              <StockQuantitiesOverlapWarning
+                                permissionKey={entry.key}
+                                groupName={g.name}
+                                permissions={g.permissions}
                               />
                             </div>
                           );

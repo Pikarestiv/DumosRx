@@ -11,6 +11,7 @@ import {
   EditableCategoryCell,
   EditableQuickNumberCell,
 } from "./catalog-editable-cells";
+import { describeStock } from "@/lib/utils/stock-status";
 
 const NO_LABEL_PERMISSION =
   "You don't have permission to print product labels. Ask an admin for the “Print Product Labels” permission.";
@@ -41,6 +42,7 @@ export interface CatalogRowProps {
   showCostColumn: boolean;
   canEditSellingPrice: boolean;
   canAdjustStockQuantity: boolean;
+  showStockQuantity: boolean;
   hasTouchCapability: boolean;
   canPrintLabels: boolean;
   canDeleteProducts: boolean;
@@ -65,6 +67,7 @@ function CatalogRowInner({
   showCostColumn,
   canEditSellingPrice,
   canAdjustStockQuantity,
+  showStockQuantity,
   hasTouchCapability,
   canPrintLabels,
   canDeleteProducts,
@@ -77,6 +80,7 @@ function CatalogRowInner({
   onPrintLabel,
   onDeleteProduct,
 }: CatalogRowProps) {
+  const stockColour = product.stockQuantity <= product.reorderLevel ? "text-destructive" : "text-primary";
   const row = (
     <div
       role="button"
@@ -126,8 +130,9 @@ function CatalogRowInner({
               <div
                 className={`text-[13px] font-semibold mt-0.5 ${product.stockQuantity <= product.reorderLevel ? "text-orange-600" : "text-emerald-600"}`}
               >
-                {product.stockQuantity} {product.baseUnit || "unit"}
-                {product.stockQuantity === 1 ? "" : "s"}
+                {showStockQuantity
+                  ? `${product.stockQuantity} ${product.baseUnit || "unit"}${product.stockQuantity === 1 ? "" : "s"}`
+                  : describeStock(product.stockQuantity, product.reorderLevel, false)}
               </div>
             </div>
             <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
@@ -187,17 +192,23 @@ function CatalogRowInner({
             ariaLabel={`Edit selling price for ${product.name} (${formatCurrency(product.sellingPrice)})`}
             onSave={(val) => onSaveSellingPrice(product, val)}
           />
-          <EditableQuickNumberCell
-            displayValue={`${product.stockQuantity} ${product.baseUnit || "unit"}${product.stockQuantity === 1 ? "" : "s"}`}
-            displayClassName={`text-[13px] font-semibold ${product.stockQuantity <= product.reorderLevel ? "text-destructive" : "text-primary"}`}
-            value={product.stockQuantity}
-            parse={(raw) => parseInt(raw, 10)}
-            canEdit={canEdit && canAdjustStockQuantity}
-            hasTouchCapability={hasTouchCapability}
-            ariaLabel={`Edit stock quantity for ${product.name} (${product.stockQuantity})`}
-            commitOnBlur={false}
-            onSave={(val) => onSaveStockQuantity(product, val)}
-          />
+          {showStockQuantity ? (
+            <EditableQuickNumberCell
+              displayValue={`${product.stockQuantity} ${product.baseUnit || "unit"}${product.stockQuantity === 1 ? "" : "s"}`}
+              displayClassName={`text-[13px] font-semibold ${stockColour}`}
+              value={product.stockQuantity}
+              parse={(raw) => parseInt(raw, 10)}
+              canEdit={canEdit && canAdjustStockQuantity}
+              hasTouchCapability={hasTouchCapability}
+              ariaLabel={`Edit stock quantity for ${product.name} (${product.stockQuantity})`}
+              commitOnBlur={false}
+              onSave={(val) => onSaveStockQuantity(product, val)}
+            />
+          ) : (
+            <div className={`text-[13px] font-semibold ${stockColour}`}>
+              {describeStock(product.stockQuantity, product.reorderLevel, false)}
+            </div>
+          )}
           <EditableQuickNumberCell
             displayValue={String(product.reorderLevel)}
             displayClassName="text-[13px] text-muted-foreground"

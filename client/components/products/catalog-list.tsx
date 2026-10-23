@@ -7,6 +7,7 @@ import { Product } from "./types";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
+import { useStockVisibility } from "@/lib/hooks/use-stock-visibility";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { RequestItemDialog } from "@/components/pos/request-item-dialog";
 import { BarcodePrintDialog } from "@/components/stock-batch/barcode-print-dialog";
@@ -75,6 +76,7 @@ export function CatalogList({
   const showCostColumn = useHasPermission("view_cost_fields");
   const canEditSellingPrice = useHasPermission("edit_product_price");
   const canAdjustStockQuantity = useHasPermission("adjust_stock_counts");
+  const showStockQuantity = useStockVisibility().canSeeQuantities || canAdjustStockQuantity;
   const canPrintLabels = useHasPermission("print_product_labels");
   const canDeleteProducts = useHasPermission("delete_products");
   const [showRequestDialog, setShowRequestDialog] = useState(false);
@@ -222,12 +224,16 @@ export function CatalogList({
           direction={sortDirection}
           onClick={() => onToggleSort("sellingPrice")}
         />
-        <SortableHeaderCell
-          label="Stock"
-          active={sortKey === "stockQuantity"}
-          direction={sortDirection}
-          onClick={() => onToggleSort("stockQuantity")}
-        />
+        {showStockQuantity ? (
+          <SortableHeaderCell
+            label="Stock"
+            active={sortKey === "stockQuantity"}
+            direction={sortDirection}
+            onClick={() => onToggleSort("stockQuantity")}
+          />
+        ) : (
+          <div>Stock</div>
+        )}
         <SortableHeaderCell
           label="Reorder"
           active={sortKey === "reorderLevel"}
@@ -284,6 +290,7 @@ export function CatalogList({
                     showCostColumn={showCostColumn}
                     canEditSellingPrice={canEditSellingPrice}
                     canAdjustStockQuantity={canAdjustStockQuantity}
+                    showStockQuantity={showStockQuantity}
                     hasTouchCapability={hasTouchCapability}
                     canPrintLabels={canPrintLabels}
                     canDeleteProducts={canDeleteProducts}

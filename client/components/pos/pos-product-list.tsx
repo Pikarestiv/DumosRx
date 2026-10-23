@@ -19,6 +19,8 @@ import { VirtualizedProductGrid } from "@/components/pos/pos-virtualized-product
 import type { POSProduct } from "@/lib/types/product";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
+import { useStockVisibility } from "@/lib/hooks/use-stock-visibility";
+import { stockLevel } from "@/lib/utils/stock-status";
 import { HorizontalScrollFade } from "@/components/ui/scroll-fade";
 
 type PosGroup = "suggestion" | "recent" | "common" | "standard";
@@ -91,9 +93,9 @@ export const POSProductCard = memo(function POSProductCard({
     cardStyle = "border-yellow-200/50 bg-yellow-50/30 hover:bg-yellow-50/80";
   }
 
-  const isLowStock =
-    product.stock > 0 && product.stock <= (product.reorder_level || 10);
-  const isOutOfStock = product.stock === 0;
+  const { describeStock } = useStockVisibility();
+  const level = stockLevel(product.stock, product.reorder_level);
+  const isOutOfStock = level === "out";
   const CategoryIcon = getCategoryIcon(product.category_name);
   const capsClass = useUppercaseDisplayClass();
 
@@ -135,12 +137,12 @@ export const POSProductCard = memo(function POSProductCard({
             className={`text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md ${
               isOutOfStock
                 ? "bg-destructive/10 text-destructive"
-                : isLowStock
+                : level === "low"
                   ? "bg-amber-500/10 text-amber-600"
                   : "bg-emerald-500/10 text-emerald-600"
             }`}
           >
-            {isOutOfStock ? "Out of stock" : `${product.stock} left`}
+            {describeStock(product.stock, product.reorder_level)}
           </div>
         )}
       </div>

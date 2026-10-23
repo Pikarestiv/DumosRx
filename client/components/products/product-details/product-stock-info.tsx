@@ -3,6 +3,7 @@ import { Separator } from "@/components/ui/separator";
 import { AlertTriangle, Calendar, ClipboardCheck } from "lucide-react";
 import type { Product } from "./use-product-details";
 import { formatDateSafe } from "@/lib/utils/date-utils";
+import { describeStock } from "@/lib/utils/stock-status";
 
 // Cycle counts older than this are treated as stale, flagged so staff know
 // to prioritize this product next time they run a count.
@@ -13,6 +14,7 @@ interface ProductStockInfoProps {
   formatDate: (dateString: string) => string;
   daysToExpiry: number;
   expiryWarningDays: number;
+  canSeeQuantities: boolean;
 }
 
 export function ProductStockInfo({
@@ -20,6 +22,7 @@ export function ProductStockInfo({
   formatDate,
   daysToExpiry,
   expiryWarningDays,
+  canSeeQuantities,
 }: ProductStockInfoProps) {
   const daysSinceAudit = product.lastAuditedAt
     ? Math.floor(
@@ -44,7 +47,9 @@ export function ProductStockInfo({
             <p
               className={`font-bold text-lg ${product.stockQuantity <= product.reorderLevel ? "text-destructive" : "text-primary"}`}
             >
-              {product.stockQuantity} {product.baseUnit}(s)
+              {canSeeQuantities
+                ? `${product.stockQuantity} ${product.baseUnit}(s)`
+                : describeStock(product.stockQuantity, product.reorderLevel, false)}
             </p>
           </div>
           <div>
@@ -63,10 +68,12 @@ export function ProductStockInfo({
                 1 {product.bulkUnit} = {product.unitsPerBulk} {product.baseUnit}
                 (s)
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Total Stock (in {product.bulkUnit}):{" "}
-                {(product.stockQuantity / product.unitsPerBulk).toFixed(2)}
-              </p>
+              {canSeeQuantities && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Total Stock (in {product.bulkUnit}):{" "}
+                  {(product.stockQuantity / product.unitsPerBulk).toFixed(2)}
+                </p>
+              )}
             </div>
           </>
         )}

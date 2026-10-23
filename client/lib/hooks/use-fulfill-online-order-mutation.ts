@@ -24,6 +24,11 @@ export interface OnlineOrderStockGap {
   available: number;
 }
 
+export function describeStockGap(gap: OnlineOrderStockGap, canSeeQuantities: boolean): string {
+  const shortfall = canSeeQuantities ? `sellable ${gap.available}` : "not enough in stock";
+  return `${gap.productName} — ordered ${gap.requested}, ${shortfall}`;
+}
+
 // Lines the store cannot actually dispense:
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-fulfill-online-order-mutation-ts-L29
 export async function findOnlineOrderStockGaps(order: OnlineOrder): Promise<OnlineOrderStockGap[]> {

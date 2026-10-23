@@ -6,7 +6,8 @@ import { getDailyCloseData } from "@/lib/db/queries/sales";
 import { getPaymentAccounts } from "@/lib/db/queries/setup";
 import { getCashExpensesForDate } from "@/lib/db/queries/finance";
 import { queryKeys } from "@/lib/query-keys";
-import { buildNetCashBreakdown, buildProfitBreakdown, DAILY_CLOSE_PROFIT_LABEL } from "@/lib/utils/daily-close-breakdown";
+import { buildNetCashBreakdown, buildProfitBreakdown, DAILY_CLOSE_PROFIT_AFTER_EXPENSES_LABEL, DAILY_CLOSE_PROFIT_LABEL } from "@/lib/utils/daily-close-breakdown";
+import { useDailyCloseProfitAfterExpenses } from "@/lib/hooks/use-daily-close-profit-after-expenses";
 import type { PaymentAccount } from "@/lib/types/payment-account";
 
 interface PaymentSplitEntry {
@@ -255,9 +256,11 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
 
   const netCashBreakdown = useMemo(
     () => buildNetCashBreakdown({ cashSales, cashRefunds, cashExpenses, reportDate }),
-    [cashSales, cashRefunds, cashExpenses],
+    [cashSales, cashRefunds, cashExpenses, reportDate],
   );
+  const profitAfterExpensesBreakdown = useDailyCloseProfitAfterExpenses(reportDate, profitBreakdown, showProfit);
   const totalProfit = profitBreakdown.total;
+  const profitAfterExpenses = profitAfterExpensesBreakdown.total;
   const netCashExpected = netCashBreakdown.total;
 
   const exportToCSV = () => {
@@ -270,7 +273,10 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
       ["Net Cash Expected", netCashExpected.toString()],
       ["Transfer / Mobile", aggregatedTotals.transfer.toString()],
       ...(showProfit
-        ? [[DAILY_CLOSE_PROFIT_LABEL, totalProfit.toString()]]
+        ? [
+            [DAILY_CLOSE_PROFIT_LABEL, totalProfit.toString()],
+            [DAILY_CLOSE_PROFIT_AFTER_EXPENSES_LABEL, profitAfterExpenses.toString()],
+          ]
         : []),
       [],
       ["Payment Breakdown"],
@@ -323,8 +329,10 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
     aggregatedTotals,
     cashExpenses,
     totalProfit,
+    profitAfterExpenses,
     netCashExpected,
     profitBreakdown,
+    profitAfterExpensesBreakdown,
     netCashBreakdown,
     topSellingMeds,
     exportToCSV,

@@ -34,9 +34,11 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
     aggregatedTotals,
     cashExpenses,
     totalProfit,
+    profitAfterExpenses,
     netCashExpected,
     netCashBreakdown,
     profitBreakdown,
+    profitAfterExpensesBreakdown,
     topSellingMeds,
     exportToCSV,
   } = useDailyCloseData(reportDate, showProfit);
@@ -67,6 +69,7 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
           cashExpenses={cashExpenses}
           netCashBreakdown={netCashBreakdown}
           profitBreakdown={profitBreakdown}
+          profitAfterExpensesBreakdown={profitAfterExpensesBreakdown}
           openSalesModal={openSalesModal}
           showProfit={showProfit}
         />
@@ -95,6 +98,7 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
           cashExpenses,
           netCashExpected,
           totalProfit,
+          profitAfterExpenses,
           topSellingMeds: topSellingMeds.map((med) => ({
             ...med,
             name: displayName(med.name),

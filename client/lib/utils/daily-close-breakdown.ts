@@ -1,4 +1,5 @@
 export const DAILY_CLOSE_PROFIT_LABEL = "Profit before expenses (Est.)";
+export const DAILY_CLOSE_PROFIT_AFTER_EXPENSES_LABEL = "Profit after expenses (Est.)";
 
 export interface BreakdownLine {
   label: string;
@@ -14,6 +15,8 @@ export interface FigureBreakdown {
   lines: BreakdownLine[];
   total: number;
 }
+
+const expensesForDayHref = (reportDate: string) => `/expenses?from=${reportDate}&to=${reportDate}`;
 
 function fromLines(lines: BreakdownLine[]): FigureBreakdown {
   return { lines, total: lines.reduce((sum, line) => sum + line.amount, 0) };
@@ -33,7 +36,7 @@ export function buildNetCashBreakdown({
   return fromLines([
     { label: "Cash taken in sales", amount: cashSales },
     { label: "Cash refunded on returns", amount: -cashRefunds },
-    { label: "Cash expenses paid out", amount: -cashExpenses, href: `/expenses?from=${reportDate}&to=${reportDate}` },
+    { label: "Cash expenses paid out", amount: -cashExpenses, href: expensesForDayHref(reportDate) },
   ]);
 }
 
@@ -58,5 +61,20 @@ export function buildProfitBreakdown({
     ...(resellerPayouts
       ? [{ label: "Reseller commission paid out", amount: -resellerPayouts }]
       : []),
+  ]);
+}
+
+export function buildProfitAfterExpensesBreakdown({
+  profitBreakdown,
+  dayExpenses,
+  reportDate,
+}: {
+  profitBreakdown: FigureBreakdown;
+  dayExpenses: number;
+  reportDate: string;
+}): FigureBreakdown {
+  return fromLines([
+    ...profitBreakdown.lines,
+    { label: "Expenses for this day", amount: -dayExpenses, href: expensesForDayHref(reportDate) },
   ]);
 }

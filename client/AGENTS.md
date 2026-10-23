@@ -2075,10 +2075,41 @@ profitBreakdown.total` and `netCashExpected = netCashBreakdown.total`. The
 card, the modal, the CSV export and the PDF all use those two values, so
 they cannot drift apart. Cash refunds are derived as the drop in the cash
 bucket across the returns loop, which keeps the prorated cash share of a
-mixed-payment refund in that line. Profit deliberately does **not** deduct
-operating expenses (it never has); its label (`DAILY_CLOSE_PROFIT_LABEL`) and the modal footnote say so, and "Net Profit" is reserved for the P&L's profit after expenses (A-255). If you add a component
-to either figure, add it as a line, not as an adjustment to the total.
+mixed-payment refund in that line. "Profit before expenses" deliberately does **not** deduct
+operating expenses; its label (`DAILY_CLOSE_PROFIT_LABEL`) and the modal footnote say so, and "Net Profit" is reserved for the P&L's profit after expenses (A-255). If you add a component
+to any figure, add it as a line, not as an adjustment to the total.
 Pinned by `__tests__/daily-close-breakdown.test.ts`.
+
+"Profit after expenses (Est.)" (`DAILY_CLOSE_PROFIT_AFTER_EXPENSES_LABEL`,
+2026-10-23) is a third breakdown, `buildProfitAfterExpensesBreakdown()`: the
+before-expenses lines followed by one negative "Expenses for this day" line,
+read by the hook as `profitAfterExpenses = profitAfterExpensesBreakdown.total`.
+The day's expenses come from `getExpensesAttributableToDate()` in
+`lib/db/queries/finance.ts`, which sums `getExpenseAmountForDay()` over every
+non-deleted, store-scoped expense that is either dated that day or has
+`covers_months` > 1:
+
+- `covers_months` null, 0 or 1: the full amount on its own date, any payment
+  method. A one-month "spread" is counted on its date rather than smeared
+  across the month, which is what an owner who typed it expects to see.
+- `covers_months` > 1: one day's share, `getSmoothedAmountInWindow()` over the
+  report day's calendar month divided by `getDaysInMonth()`, so the
+  installment rule (months start from the expense's own month) is the P&L's
+  rule and not a second copy. It applies on every day of an installment month,
+  and the entry day gets only the share, never the full amount. The owner chose
+  a day share so rent day does not look like a loss and every other day like a
+  windfall (the A-255 objection).
+
+Each share is `roundMoney()`ed and the sum is rounded again, so the line is a
+2-decimal amount and the headline has no long fraction. The query lives in
+`useDailyCloseProfitAfterExpenses()` (its own hook, to keep
+`use-daily-close-data.ts` under the size limit) with `enabled: showProfit`, so
+it never runs where profit is hidden. The cash-drawer figure is unaffected: it
+still uses `getCashExpensesForDate()`, which deducts a prepaid cash expense in
+full. The modal's "View in Expenses" link lists expenses *dated* that day, so a
+spread expense entered on another date contributes a share without appearing in
+that list; the footnote says so. Pinned by
+`__tests__/daily-close-profit-after-expenses.test.ts`.
 
 ### Expenses list: date range filter and page size (2026-10-23)
 

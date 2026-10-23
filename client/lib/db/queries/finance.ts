@@ -1,7 +1,8 @@
-import { addMonths, startOfMonth, endOfMonth } from "date-fns";
+import { addMonths, startOfMonth, endOfMonth, getDaysInMonth } from "date-fns";
 import { query } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
 import { parseLocalDateOnly } from "@/lib/utils/date-utils";
+import { roundMoney } from "@/lib/utils/pos-calculations";
 import {
   ADJUSTMENT_REASON_NOTE_SEPARATOR,
   STOCK_LOSS_REASON_LABELS,
@@ -321,4 +322,28 @@ export async function getCashExpensesForDate(reportDate: string): Promise<number
     storeId ? [reportDate, storeId] : [reportDate],
   );
   return result[0]?.total || 0;
+}
+
+export function getExpenseAmountForDay(
+  expense: Pick<Expense, "amount" | "date" | "covers_months">,
+  reportDate: string,
+): number {
+  if (!expense.covers_months || expense.covers_months <= 1) {
+    return expense.date.slice(0, 10) === reportDate ? expense.amount : 0;
+  }
+  const day = parseLocalDateOnly(reportDate);
+  const monthStart = startOfMonth(day);
+  const installment = getSmoothedAmountInWindow(expense, monthStart, addMonths(monthStart, 1));
+  return roundMoney(installment / getDaysInMonth(day));
+}
+
+export async function getExpensesAttributableToDate(reportDate: string): Promise<number> {
+  const storeId = getActiveStoreId();
+  const rows = await query<Pick<Expense, "amount" | "date" | "covers_months">>(
+    `SELECT amount, date, covers_months FROM expenses
+     WHERE _deleted = 0 AND (date(date) = date(?) OR covers_months > 1)
+     ${storeId ? " AND store_id = ?" : ""}`,
+    storeId ? [reportDate, storeId] : [reportDate],
+  );
+  return roundMoney(rows.reduce((sum, row) => sum + getExpenseAmountForDay(row, reportDate), 0));
 }

@@ -5,10 +5,11 @@ import {
   RotateCcw,
   TrendingUp,
   Wallet,
+  PiggyBank,
 } from "lucide-react";
 import { useState } from "react";
 import { formatMetricCurrency } from "@/lib/utils";
-import { DAILY_CLOSE_PROFIT_LABEL, type FigureBreakdown } from "@/lib/utils/daily-close-breakdown";
+import { DAILY_CLOSE_PROFIT_AFTER_EXPENSES_LABEL, DAILY_CLOSE_PROFIT_LABEL, type FigureBreakdown } from "@/lib/utils/daily-close-breakdown";
 import { FigureBreakdownModal } from "./figure-breakdown-modal";
 import { MetricCard } from "@/components/ui/metric-card";
 import { HorizontalScrollFade } from "@/components/ui/scroll-fade";
@@ -24,6 +25,7 @@ interface DailyCloseMetricsProps {
   cashExpenses: number;
   netCashBreakdown: FigureBreakdown;
   profitBreakdown: FigureBreakdown;
+  profitAfterExpensesBreakdown: FigureBreakdown;
   openSalesModal: (filter: string) => void;
   showProfit?: boolean;
 }
@@ -34,12 +36,18 @@ export function DailyCloseMetrics({
   cashExpenses,
   netCashBreakdown,
   profitBreakdown,
+  profitAfterExpensesBreakdown,
   openSalesModal,
   showProfit = true,
 }: DailyCloseMetricsProps) {
-  const [openBreakdown, setOpenBreakdown] = useState<"netCash" | "profit" | null>(null);
+  const [openBreakdown, setOpenBreakdown] = useState<"netCash" | "profit" | "profitAfterExpenses" | null>(null);
   const closeBreakdown = (open: boolean) => !open && setOpenBreakdown(null);
   const totalProfit = profitBreakdown.total;
+  const profitAfterExpenses = profitAfterExpensesBreakdown.total;
+  const profitTone = (value: number) =>
+    value >= 0
+      ? { icon: "bg-emerald-50 text-emerald-700", value: "font-serif text-emerald-600" }
+      : { icon: "bg-red-50 text-red-700", value: "font-serif text-destructive" };
   return (
     <div className="flex flex-col gap-5">
       <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
@@ -87,7 +95,7 @@ export function DailyCloseMetrics({
         </HorizontalScrollFade>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4${showProfit ? " lg:grid-cols-3" : ""}`}>
         <MetricCard
           className="border-emerald-200/50"
           title="Net Cash Expected"
@@ -105,13 +113,22 @@ export function DailyCloseMetrics({
           title={DAILY_CLOSE_PROFIT_LABEL}
           value={formatMetricCurrency(totalProfit, currencyCode)}
           icon={<TrendingUp className="h-4 w-4" />}
-          iconBgClass={
-            totalProfit >= 0
-              ? "bg-emerald-50 text-emerald-700"
-              : "bg-red-50 text-red-700"
-          }
-          valueClassName={`font-serif ${totalProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}
+          iconBgClass={profitTone(totalProfit).icon}
+          valueClassName={profitTone(totalProfit).value}
           onClick={() => setOpenBreakdown("profit")}
+        />
+        )}
+
+        {showProfit && (
+        <MetricCard
+          className="border-emerald-200/50"
+          title={DAILY_CLOSE_PROFIT_AFTER_EXPENSES_LABEL}
+          value={formatMetricCurrency(profitAfterExpenses, currencyCode)}
+          description="Spread expenses count one day's share"
+          icon={<PiggyBank className="h-4 w-4" />}
+          iconBgClass={profitTone(profitAfterExpenses).icon}
+          valueClassName={profitTone(profitAfterExpenses).value}
+          onClick={() => setOpenBreakdown("profitAfterExpenses")}
         />
         )}
       </div>
@@ -134,7 +151,19 @@ export function DailyCloseMetrics({
           description="What today's sales earned after the cost of the goods sold."
           breakdown={profitBreakdown}
           totalLabel={DAILY_CLOSE_PROFIT_LABEL}
-          footnote="Expenses such as rent, salaries or power are not deducted from this figure. For profit after expenses, see Profit & Loss under Analytics. Cost uses the cost price recorded on each sale line."
+          footnote={`Expenses such as rent, salaries or power are not deducted from this figure; see ${DAILY_CLOSE_PROFIT_AFTER_EXPENSES_LABEL} for that. Cost uses the cost price recorded on each sale line.`}
+          currencyCode={currencyCode}
+        />
+      )}
+      {showProfit && (
+        <FigureBreakdownModal
+          open={openBreakdown === "profitAfterExpenses"}
+          onOpenChange={closeBreakdown}
+          title={DAILY_CLOSE_PROFIT_AFTER_EXPENSES_LABEL}
+          description="Profit before expenses, minus the expenses that belong to this day."
+          breakdown={profitAfterExpensesBreakdown}
+          totalLabel={DAILY_CLOSE_PROFIT_AFTER_EXPENSES_LABEL}
+          footnote="Every expense dated this day counts in full, however it was paid. An expense spread over several months (such as rent paid for a quarter) counts only one day's share of its monthly amount, on every day of the months it covers. The Expenses link lists expenses dated this day, so a spread expense entered on another date is not in that list."
           currencyCode={currencyCode}
         />
       )}

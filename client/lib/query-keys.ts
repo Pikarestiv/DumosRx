@@ -267,6 +267,8 @@ export const queryKeys = {
       ]),
     cashExpenses: (reportDate: string) =>
       resource(["dailyCloseCashExpenses", reportDate] as const, ["expenses"]),
+    dayExpenses: (reportDate: string) =>
+      resource(["dailyCloseDayExpenses", reportDate] as const, ["expenses"]),
   },
   activityLog: {
     list: (filtersKey: string) =>

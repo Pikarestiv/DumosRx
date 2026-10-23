@@ -143,4 +143,40 @@ class SyncPullStaffCrossStoreIsolationTest extends TestCase
         $productNames = collect($response->json('changes.products'))->pluck('name');
         $this->assertTrue($productNames->contains('Store B Product'));
     }
+
+    /** A-254: an unowned store id must not make every store-scoped table read as an empty, complete window. */
+    #[Test]
+    public function an_unowned_store_header_withholds_every_store_scoped_table_but_still_serves_the_callers_stores(): void
+    {
+        $response = $this->pull($this->owner, (string) Str::uuid());
+
+        $response->assertStatus(200);
+        $this->assertSame(['stores'], array_keys($response->json('changes')));
+        $this->assertEqualsCanonicalizing(
+            [$this->storeA->id, $this->storeB->id],
+            collect($response->json('changes.stores'))->pluck('id')->all(),
+        );
+        $this->assertNotNull($response->json('refused_store_id'));
+    }
+
+    #[Test]
+    public function a_staff_account_naming_a_sibling_store_gets_only_its_own_store_row(): void
+    {
+        $response = $this->pull($this->staffOfA, $this->storeB->id);
+
+        $response->assertStatus(200);
+        $this->assertSame(['stores'], array_keys($response->json('changes')));
+        $this->assertSame([$this->storeA->id], collect($response->json('changes.stores'))->pluck('id')->all());
+        $this->assertSame($this->storeB->id, $response->json('refused_store_id'));
+    }
+
+    #[Test]
+    public function an_owned_store_header_still_pulls_every_table_and_refuses_nothing(): void
+    {
+        $response = $this->pull($this->owner, $this->storeA->id);
+
+        $response->assertStatus(200);
+        $this->assertArrayHasKey('products', $response->json('changes'));
+        $this->assertNull($response->json('refused_store_id'));
+    }
 }

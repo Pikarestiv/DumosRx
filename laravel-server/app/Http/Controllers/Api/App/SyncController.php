@@ -920,6 +920,7 @@ class SyncController extends Controller
                 new OA\Property(property: 'success', type: 'boolean'),
                 new OA\Property(property: 'server_timestamp', type: 'string', format: 'date-time'),
                 new OA\Property(property: 'changes', type: 'object', description: 'Keyed by table name, each value an array of row objects', additionalProperties: new OA\AdditionalProperties(type: 'array', items: new OA\Items(type: 'object'))),
+                new OA\Property(property: 'refused_store_id', type: 'string', nullable: true, description: "Set when X-Store-Id names a store outside the caller's scope: only `stores` is served, every other table is omitted so no window can be stamped from it (A-254)"),
             ])),
             new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
             new OA\Response(response: 403, description: 'Cloud sync disabled on current plan, or store count exceeds plan limit'),
@@ -984,10 +985,15 @@ class SyncController extends Controller
             ? null
             : $this->resolvePullTenantScope($user, $request);
 
+        $refusedStoreId = $tenantScope['refusedStoreId'] ?? null;
+        if ($refusedStoreId !== null) {
+            Log::warning("Sync pull: X-Store-Id {$refusedStoreId} is outside user {$user->id}'s scope; serving stores only (A-254)");
+        }
+
         foreach ($tables as $table) {
             $modelClass = $this->getModelForTable($table);
 
-            if (!$modelClass)
+            if (!$modelClass || ($refusedStoreId !== null && $table !== 'stores'))
                 continue;
 
             // withTrashed() is a Builder macro registered by SoftDeletingScope,
@@ -1024,7 +1030,8 @@ class SyncController extends Controller
             'success' => true,
             'server_timestamp' => $serverTimestamp,
             'changes' => $changes,
-            'has_more' => $hasMore
+            'has_more' => $hasMore,
+            'refused_store_id' => $refusedStoreId,
         ]);
     }
 
@@ -1262,6 +1269,7 @@ class SyncController extends Controller
         ['ownerId' => $ownerId, 'storeIds' => $ownedStoreIds] = $this->resolveOwnershipIdentity($user);
 
         $requestedStoreId = $request->header('X-Store-Id') ?? $request->input('store_id');
+        $refusedStoreId = null;
         if ($requestedStoreId) {
             // A-129: this used to check "does this store belong to the same
             // owner" (Store::where('user_id', $ownerId)), which let a staff
@@ -1271,6 +1279,7 @@ class SyncController extends Controller
             // store for staff, every owned store for an owner), exactly
             // like resolveAllowedOwnershipScope() already enforces for push.
             $storeIds = in_array($requestedStoreId, $ownedStoreIds, true) ? [$requestedStoreId] : [];
+            $refusedStoreId = $storeIds === [] ? (string) $requestedStoreId : null;
         } else {
             $storeIds = $ownedStoreIds;
         }
@@ -1282,6 +1291,7 @@ class SyncController extends Controller
             'storeIds' => $storeIds,
             'ownedStoreIds' => $ownedStoreIds,
             'userIds' => $userIds,
+            'refusedStoreId' => $refusedStoreId,
         ];
     }
 

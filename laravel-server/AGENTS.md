@@ -3587,6 +3587,32 @@ query string) — do not reintroduce it or a variant.
   source-text scan, so treat it as "look closer", never as a safety
   certificate.
 
+## An `X-Store-Id` outside the caller's scope gets `stores` only (A-254, 2026-10-23)
+
+`resolvePullTenantScope()` narrows a pull to the one store `X-Store-Id` names,
+and refuses one outside the caller's scope (A-129: one store for staff, every
+owned store for an owner). That refusal used to scope every table to nothing,
+which the client read as an empty, complete window and stamped, so a later
+regain of access never pulled that store's older rows.
+
+Now `pull()` serves **only `stores`** (scoped by every owned store, never by the
+header) and omits every other table, sets `refused_store_id` in the response,
+and logs a warning. The client stamps only tables present in `changes`, so
+nothing else moves.
+
+- **Why not a 403, as the entry first proposed:** a stale header is what a
+  deleted store or a staff member moved between stores leaves behind, and the
+  `stores` rows are how that device learns it. A 403 would cut that off and
+  fail every round for ever on every shipped bundle.
+- **§11:** additive. Every bundle since at least 2026-09-26 stamps inside the
+  loop over `changes` (checked against that version of `pull.ts`); one that
+  ignores `refused_store_id` behaves correctly.
+- **Not done:** the client does not yet act on `refused_store_id` (for example
+  by re-resolving its active store). The device keeps asking, cheaply, and the
+  server logs each refusal.
+- Coverage: `tests/Feature/SyncPullStaffCrossStoreIsolationTest.php`; client side
+  `client/__tests__/pull-refused-store-stamps-only-served-tables.test.ts`.
+
 ## Cross-tenant category references and `sync:repair-cross-tenant-categories` (2026-10-08)
 
 `pull()` scopes categories with `whereIn('store_id', $storeIds)`. That is

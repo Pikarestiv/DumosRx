@@ -1,3 +1,5 @@
+export const DAILY_CLOSE_PROFIT_LABEL = "Profit before expenses (Est.)";
+
 export interface BreakdownLine {
   label: string;
   /** Signed: a deduction is negative. */

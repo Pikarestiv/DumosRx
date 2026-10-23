@@ -6,7 +6,7 @@ import { getDailyCloseData } from "@/lib/db/queries/sales";
 import { getPaymentAccounts } from "@/lib/db/queries/setup";
 import { getCashExpensesForDate } from "@/lib/db/queries/finance";
 import { queryKeys } from "@/lib/query-keys";
-import { buildNetCashBreakdown, buildProfitBreakdown } from "@/lib/utils/daily-close-breakdown";
+import { buildNetCashBreakdown, buildProfitBreakdown, DAILY_CLOSE_PROFIT_LABEL } from "@/lib/utils/daily-close-breakdown";
 import type { PaymentAccount } from "@/lib/types/payment-account";
 
 interface PaymentSplitEntry {
@@ -270,7 +270,7 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
       ["Net Cash Expected", netCashExpected.toString()],
       ["Transfer / Mobile", aggregatedTotals.transfer.toString()],
       ...(showProfit
-        ? [["Total Net Profit (Est.)", totalProfit.toString()]]
+        ? [[DAILY_CLOSE_PROFIT_LABEL, totalProfit.toString()]]
         : []),
       [],
       ["Payment Breakdown"],

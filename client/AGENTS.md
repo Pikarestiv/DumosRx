@@ -2066,7 +2066,7 @@ screen. Pinned by `__tests__/daily-close-cash-expenses.test.ts`.
 
 ### A Daily Close headline is the sum of its breakdown (2026-10-23)
 
-"Net Cash Expected" and "Total Profit (Est.)" each open a
+"Net Cash Expected" and "Profit before expenses (Est.)" each open a
 `FigureBreakdownModal` listing the signed components of the figure. The
 headline is **read from** the breakdown, never computed beside it:
 `lib/utils/daily-close-breakdown.ts` builds `{ lines, total }` with `total`
@@ -2076,7 +2076,7 @@ card, the modal, the CSV export and the PDF all use those two values, so
 they cannot drift apart. Cash refunds are derived as the drop in the cash
 bucket across the returns loop, which keeps the prorated cash share of a
 mixed-payment refund in that line. Profit deliberately does **not** deduct
-operating expenses (it never has); the modal says so. If you add a component
+operating expenses (it never has); its label (`DAILY_CLOSE_PROFIT_LABEL`) and the modal footnote say so, and "Net Profit" is reserved for the P&L's profit after expenses (A-255). If you add a component
 to either figure, add it as a line, not as an adjustment to the total.
 Pinned by `__tests__/daily-close-breakdown.test.ts`.
 

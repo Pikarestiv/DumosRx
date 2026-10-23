@@ -1,4 +1,5 @@
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { DAILY_CLOSE_PROFIT_LABEL } from "@/lib/utils/daily-close-breakdown";
 
 const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10, fontFamily: "Helvetica", color: "#1a1a1a" },
@@ -86,7 +87,7 @@ export function DailyClosePdf({
           </View>
           {showProfit && (
             <View style={styles.metricBox}>
-              <Text style={styles.metricLabel}>Net Profit (Est.)</Text>
+              <Text style={styles.metricLabel}>{DAILY_CLOSE_PROFIT_LABEL}</Text>
               <Text style={styles.metricValue}>
                 {money(currencyCode, totalProfit)}
               </Text>

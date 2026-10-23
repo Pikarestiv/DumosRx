@@ -2443,7 +2443,7 @@ defaults; every other store saw store A's live config with no boundary.
 
 Clickable metric cards are shortcuts into the screen behind the figure
 (Daily Close's payment totals open the sales list, Net Cash Expected
-and Total Profit open a breakdown of how they are derived). A div with an onClick is invisible to the
+and Profit before expenses open a breakdown of how they are derived). A div with an onClick is invisible to the
 keyboard, so they carry button semantics; a card with no onClick stays a
 plain card and must not be focusable.
 

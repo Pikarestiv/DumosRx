@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { formatMetricCurrency } from "@/lib/utils";
-import type { FigureBreakdown } from "@/lib/utils/daily-close-breakdown";
+import { DAILY_CLOSE_PROFIT_LABEL, type FigureBreakdown } from "@/lib/utils/daily-close-breakdown";
 import { FigureBreakdownModal } from "./figure-breakdown-modal";
 import { MetricCard } from "@/components/ui/metric-card";
 import { HorizontalScrollFade } from "@/components/ui/scroll-fade";
@@ -102,7 +102,7 @@ export function DailyCloseMetrics({
         {showProfit && (
         <MetricCard
           className="border-emerald-200/50"
-          title="Total Profit (Est.)"
+          title={DAILY_CLOSE_PROFIT_LABEL}
           value={formatMetricCurrency(totalProfit, currencyCode)}
           icon={<TrendingUp className="h-4 w-4" />}
           iconBgClass={
@@ -130,11 +130,11 @@ export function DailyCloseMetrics({
         <FigureBreakdownModal
           open={openBreakdown === "profit"}
           onOpenChange={closeBreakdown}
-          title="Total Profit (Est.)"
+          title={DAILY_CLOSE_PROFIT_LABEL}
           description="What today's sales earned after the cost of the goods sold."
           breakdown={profitBreakdown}
-          totalLabel="Total profit (est.)"
-          footnote="Operating expenses such as rent or salaries are not deducted here. Cost uses the cost price recorded on each sale line."
+          totalLabel={DAILY_CLOSE_PROFIT_LABEL}
+          footnote="Expenses such as rent, salaries or power are not deducted from this figure. For profit after expenses, see Profit & Loss under Analytics. Cost uses the cost price recorded on each sale line."
           currencyCode={currencyCode}
         />
       )}

@@ -237,6 +237,7 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "print_product_labels", // catalog-detail-panel.tsx, catalog-list.tsx/catalog-row.tsx (opens barcode-print-dialog.tsx)
   "delete_products", // catalog-detail-panel.tsx, catalog-list.tsx/catalog-row.tsx (opens product-delete-dialog.tsx)
   "delete_suppliers", // supplier-detail-pane.tsx (opens supplier-delete-dialog.tsx)
+  "view_stock_quantities", // use-stock-visibility.ts via pos-product-list.tsx, use-pos-cart.ts, transfer-stock-dialog.tsx, online-orders-modal.tsx, needs-attention.tsx, catalog-list.tsx, catalog-detail-panel.tsx; assistant product_stock tool (status word instead of the number, never denies)
   "export_product_list", // import-export-toolbar.tsx
   "view_suppliers", // procurement-tab-nav.tsx, procurement/vendors route
   "dispense_prescriptions", // prescription-detail-panel.tsx, use-pos-prescription.ts

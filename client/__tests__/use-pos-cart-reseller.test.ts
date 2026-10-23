@@ -2,6 +2,10 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
+vi.mock("@/lib/hooks/use-stock-visibility", () => ({
+  useStockVisibility: () => ({ canSeeQuantities: true }),
+}));
+
 vi.mock("idb-keyval", () => ({
   get: vi.fn(async () => undefined),
   set: vi.fn(async () => undefined),

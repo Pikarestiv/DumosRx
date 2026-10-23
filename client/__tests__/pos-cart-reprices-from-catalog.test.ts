@@ -3,6 +3,10 @@ import { act, renderHook } from "@testing-library/react";
 
 const warnings: string[] = [];
 
+vi.mock("@/lib/hooks/use-stock-visibility", () => ({
+  useStockVisibility: () => ({ canSeeQuantities: true }),
+}));
+
 vi.mock("sonner", () => ({
   toast: Object.assign((message: string) => void message, {
     success: vi.fn(),

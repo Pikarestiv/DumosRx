@@ -20,7 +20,7 @@ describe("ProductBatchHistory expiry status", () => {
     const batches = [batch({ expiry_date: undefined })];
 
     render(
-      <ProductBatchHistory batches={batches} loadingBatches={false} storeType="pharmacy" />,
+      <ProductBatchHistory batches={batches} loadingBatches={false} storeType="pharmacy" canSeeQuantities />,
     );
 
     expect(screen.getByText("No expiry")).toBeTruthy();
@@ -31,7 +31,7 @@ describe("ProductBatchHistory expiry status", () => {
     const batches = [batch({ expiry_date: "2020-01-01" })];
 
     render(
-      <ProductBatchHistory batches={batches} loadingBatches={false} storeType="pharmacy" />,
+      <ProductBatchHistory batches={batches} loadingBatches={false} storeType="pharmacy" canSeeQuantities />,
     );
 
     expect(screen.getByText("Expired")).toBeTruthy();
@@ -44,7 +44,7 @@ describe("ProductBatchHistory expiry status", () => {
     const batches = [batch({ expiry_date: isoDate })];
 
     render(
-      <ProductBatchHistory batches={batches} loadingBatches={false} storeType="pharmacy" />,
+      <ProductBatchHistory batches={batches} loadingBatches={false} storeType="pharmacy" canSeeQuantities />,
     );
 
     expect(screen.getByText(/Expires in \d+ days/)).toBeTruthy();

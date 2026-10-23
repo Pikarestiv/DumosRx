@@ -5,6 +5,7 @@ interface ProductBatchHistoryProps {
   batches: StockBatch[];
   loadingBatches: boolean;
   storeType: string;
+  canSeeQuantities: boolean;
 }
 
 function NoBatchRecordsFound({ storeType }: { storeType: string }) {
@@ -21,6 +22,7 @@ export function ProductBatchHistory({
   batches,
   loadingBatches,
   storeType,
+  canSeeQuantities,
 }: ProductBatchHistoryProps) {
   if (loadingBatches) {
     return (
@@ -92,8 +94,12 @@ export function ProductBatchHistory({
               </span>
             </div>
             <div className="text-[13px] text-muted-foreground">
-              {batch.quantity} units
-              {batch.id === sellFirstBatchId && " · Sell first (FEFO)"}
+              {[
+                canSeeQuantities && `${batch.quantity} units`,
+                batch.id === sellFirstBatchId && "Sell first (FEFO)",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </div>
           </div>
         );

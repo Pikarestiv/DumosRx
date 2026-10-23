@@ -10,6 +10,7 @@ import { Edit, Barcode, Trash2 } from "lucide-react";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
+import { useStockVisibility } from "@/lib/hooks/use-stock-visibility";
 import { BarcodePrintDialog } from "@/components/stock-batch/barcode-print-dialog";
 import { ProductDeleteDialog } from "./product-delete-dialog";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,7 @@ export function CatalogDetailPanel({
   const { canManageStockBatch } = useAuth();
   const canPrintLabels = useHasPermission("print_product_labels");
   const canDeleteProducts = useHasPermission("delete_products");
+  const { canSeeQuantities } = useStockVisibility();
   const [isLabelDialogOpen, setIsLabelDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
@@ -224,6 +226,7 @@ export function CatalogDetailPanel({
                 formatDate={formatDate}
                 daysToExpiry={daysToExpiry}
                 expiryWarningDays={expiryWarningDays}
+                canSeeQuantities={canSeeQuantities}
               />
             </div>
           </TabsContent>
@@ -233,6 +236,7 @@ export function CatalogDetailPanel({
               batches={batches}
               loadingBatches={loadingBatches}
               storeType={storeProfile?.store_type || "pharmacy"}
+              canSeeQuantities={canSeeQuantities}
             />
           </TabsContent>
 

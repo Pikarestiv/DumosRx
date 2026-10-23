@@ -1084,10 +1084,51 @@ migration here **and** the corresponding update on the `client/` side
   `$directStoreTables` now hold the same 21 tables (the six parent-FK child
   tables reach the resolver through its own per-table branches instead);
   keep them that way.
+  - **An UPDATE never moves a row that already has a store, and a store-less
+    row's claim counts only from a single-store session (A-248, 2026-10-23).**
+    `withoutStoreReassignment()` runs just before the UPDATE branch's
+    `forceFill()`, on every table except `users`:
+    - a payload `store_id` that differs from a stored, non-`NULL` one is
+      dropped, and the rest of the edit applies. `normalizePushPayload()`'s
+      foreign-store refusal only rejects stores outside the caller's scope,
+      and for an owner that is every store they own, so without this an
+      owner's device could move a row between its own stores, which is how
+      two production products changed tenant;
+    - a claim on a stored `NULL` is honoured only when it names **the
+      session's one and only store** (`claimIsEvidence()`): a multi-store
+      owner's claim is the active store, i.e. a guess; a super admin's is
+      the least informative guess of all; and a claim naming a store outside
+      the scope is never written (child tables' `store_id` is not validated
+      anywhere else). The A-298 DELETE claim follows the same rule. The
+      client applies the multi-store half too (`deviceHoldsSeveralStores()`).
+    - It runs right after authorization, before the version check and
+      `CrossStoreReferenceGuard`, so a dropped claim cannot turn a
+      quantity-only batch update into a version conflict.
+    - **What the server cannot fix:** an old bundle already wrote the wrong
+      store into its *local* row. The server keeps the real one, but nothing in
+      the push response rewrites a local `store_id`, and a pull for the wrong
+      store does not include the row, so that device holds the wrong copy
+      until it next pulls the row's real store.
+    - **How a store-less server row gets a store:** only a staff session or a
+      single-store owner's push can attribute it. For an owner with two or
+      more stores, or a super admin, the remedy is
+      `php artisan sync:backfill-store-ids` (A-288); until it runs the row is
+      invisible to every other till, because `NULL` never matches `whereIn`
+      (§11).
+    `users` is exempt because a staff member is reassigned through it, which
+    is also why its own store backfill in `normalizePushPayload()` is
+    **INSERT-only**: on UPDATE it used to fill in the active store whenever
+    the payload carried no `role`, so editing a staff member's phone under
+    another store moved them there. A resent `users` INSERT flipped to UPDATE
+    always drops `store_id`: a deliberate reassignment is an UPDATE, and the
+    sanitizer may already have stripped the client's value before the
+    INSERT backfill put the active store back. Nothing in the client moves a
+    business row between stores; the only legitimate move is
+    `sync:repair-product-store-stamps`, which runs server-side.
   - **The backfill half of that list is INSERT-only; the foreign-store
     refusal half is not.** `normalizePushPayload()` runs for every operation,
-    and a client UPDATE never resends `store_id` (ownership is immutable
-    client-side), so an unconditional backfill reassigned a row to whichever
+    and a client UPDATE normally carries no `store_id` (the exception is the
+    legacy-row claim, below), so an unconditional backfill reassigned a row to whichever
     store happened to be active for that push — a real outcome for a
     multi-store owner flushing writes queued before a store switch, and one
     `authorizeChangeTarget()` cannot catch, because it resolves ownership
@@ -1676,9 +1717,10 @@ tables because `pull.ts` filters every pulled column through its own
 `applyStockBatchDeltas()` runs `UPDATE stock_batches SET quantity = … WHERE
 id = ?` for every delta a push accumulated. It had **no join to the owning
 store and no check against `$allowedStoreIds`**, and the movement that produced
-the delta cannot supply one: `authorizeInsertTarget('stock_movements')` resolves
-ownership from the movement's *own* `store_id`, which `normalizePushPayload()`
-backfills from the session, so it always passes. Any authenticated till — a
+the delta could not supply one: `authorizeInsertTarget('stock_movements')`
+resolved ownership from the movement's *own* `store_id`, which
+`normalizePushPayload()` backfills from the session, so it always passed (until
+A-287, below). Any authenticated till — a
 `sales_staff` token is enough — could move another store's stock, and because
 the movement filed under the **pusher's** store, the victim's pull never showed
 it. Reproduced before fixing: a push from one store took another's batch from
@@ -1696,18 +1738,49 @@ it resolves to no store, which is not the same as belonging to someone else, and
 a batch may legitimately arrive later in the same backlog. Only an existing
 batch in a foreign store is refused.
 
-**The refusal is reported but the current client ignores it.** Every entry
-`applyStockBatchDeltas()` adds to `$failed` carries `'id' => null` (there is no
-queue row behind an accumulated delta — the movement's own row was already
-accepted), and `push.ts`'s failure loop opens with `if (f.id == null) continue;`.
-So it reaches the response, the `Log::warning` and `SyncFailureRecorder`, and
-nothing else: it is not parked the way A-165 parks a `forbidden` row, and
-nothing is settled. That is worse than a parked row and much better than a
-silent cross-tenant write. Making it visible on the device needs the null-id
-case handled in `push.ts` first; filed as part of A-280's entry.
+**Since A-287 (2026-10-23) the whole movement is refused, not just its delta.**
+`authorizeInsertTarget('stock_movements')` runs the same `isBatchOutsideScope()`
+check on the payload's `stock_batch_id`, so a movement against a batch whose
+product is outside the session's scope is refused `forbidden` with the change's
+own queue id, and `push.ts` parks it under A-165's retry machinery. Before, the
+movement was accepted and only its delta refused with `'id' => null`, which the
+client skips (`if (f.id == null) continue;`), so the batch's cloud quantity froze
+while the device knew nothing. That is the mis-stamped product case (A-248): a
+staff session of store 1 selling from a batch whose product says store 2. A stuck
+queue row is the signal an operator can act on (run
+`sync:repair-product-store-stamps`, after which the parked row succeeds).
+`forbidden`, not `permission_denied`, because a staff session's scope is narrower
+than its owner's and the same payload can succeed later.
 
-**§11:** server-only, no shim. A legitimate client never names another tenant's
-batch, and the response shape is unchanged.
+The same check (`namesForeignBatch()`) refuses an UPDATE that **repoints** an
+existing movement at a batch outside the scope; an UPDATE that leaves
+`stock_batch_id` unchanged (a resent INSERT, a void) is not refused, even if the
+batch has since left the scope. The batch's store is one
+`stock_batches JOIN products` lookup (soft-deleted products included), memoized
+within a push and reset at the start of each one: Laravel reuses the controller
+instance across requests, so a property memo would otherwise outlive the push.
+
+The delta check in `applyStockBatchDeltas()` is defence in depth only, and
+looks the batch up fresh. `push()` sorts every `stock_movements` change to the
+end, so every batch write of a push lands before any movement is authorized,
+and a batch INSERT under a foreign product, live or soft-deleted, is itself
+refused (`resolveParentStoreId('stock_batches')` uses `withTrashed()`). It is
+pinned by a direct test so it cannot rot unnoticed. A batch UPDATE that
+repoints `product_id` is not checked at all: that is A-325.
+
+**A product legitimately moved between stores parks too, on staff tills.** A
+till of the losing store still holds the product (A-291's phantom) and can sell
+from it; each such sale's movement is now refused `forbidden`, where before the
+ledger row was accepted under the wrong store and only its delta refused. The
+sale, its `sale_items` and `sale_item_batches` still sync; only the
+`stock_movements` row is withheld. It stays parked (retried with backoff,
+visible under Settings → Device diagnostics "Stuck changes" and in Sentry)
+until an owner session pushes from that device or A-291 ships, per A-165's
+documented transient `forbidden`. Owner sessions cover every owned store and
+are accepted. No repair command clears it.
+
+**§11:** server-only, no shim. The refusal uses an existing reason the client
+already parks; the response shape is unchanged.
 
 ## A raw `update()` on a synced table must move `_version` (A-245, 2026-10-18)
 
@@ -3365,10 +3438,21 @@ already does — not by trusting the schema to enforce it.
 rather than in one bug entry: the test suite is STRONGER than production.**
 SQLite honours the migrations' `constrained()`, so an FK-dependent code path
 passes every test and does nothing in the field. A-179 was the transaction
-version of this; `docs/KNOWN_BUGS.md` A-292 is the foreign-key version (the
+version of this; A-292 (`docs/FIXED_BUGS.md`) is the foreign-key version (the
 store purge's user-level cascade). Assume any third instance is also invisible
 to CI, and when a guarantee is load-bearing, write a test that removes the
 capability SQLite provides for free rather than one that relies on it.
+**`Schema::withoutForeignKeyConstraints()` is a no-op under `RefreshDatabase`:**
+SQLite ignores `PRAGMA foreign_keys` inside the already-open test transaction,
+so the engine keeps cascading. To test FK-free behaviour, set the PRAGMA off
+before the test transaction opens, as `tests/Feature/Admin/AdminStorePurgeUserRowsTest.php`
+does by overriding `beginDatabaseTransaction()`. Restore it on the stored PDO,
+`RefreshDatabaseState::$inMemoryConnections['sqlite']->exec('PRAGMA foreign_keys = ON')`,
+not with `DB::statement()`: RefreshDatabase's rollback callback runs first and
+disconnects, so `DB::statement()` lands on a throwaway reconnected `:memory:`
+database and every later test class inherits enforcement OFF. For a single
+case, `UnresolvedReferenceServiceTest::withForeignKeysOff()` (commit, flip,
+clean up, flip back on the same connection, re-begin) is the other correct shape.
 
 **Two engine rules that follow from it.** Never leave `'engine'` unset — a
 new table silently inherits whatever the host prefers. And if you ever
@@ -3587,6 +3671,55 @@ query string) — do not reintroduce it or a variant.
   source-text scan, so treat it as "look closer", never as a safety
   certificate.
 
+## An `X-Store-Id` outside the caller's scope withholds every store-scoped table (A-254, 2026-10-23)
+
+`resolvePullTenantScope()` narrows a pull to the one store `X-Store-Id` names,
+checked against `resolveOwnershipIdentity()`'s scope: one store for staff,
+every owned store for an owner. It must not be widened to "any store of the
+same owner" (A-129: that let staff read a sibling store by naming it).
+
+`stores` is the exception that is never narrowed by the header: it is the
+store switcher's "which stores do I own" list, so narrowing it to the active
+store meant a new store, or a change to an inactive one, never arrived. Staff
+still see only their own store.
+
+A header outside the caller's scope used to scope every table to nothing,
+which the client read as an empty, complete window and stamped, so a later
+regain of access never pulled that store's older rows. Now:
+
+- `pull()` serves only `PULL_TABLES_INDEPENDENT_OF_STORE_HEADER` (`stores` and
+  the owner-scoped `payment_accounts`) and omits every other table, so no
+  window for it can move. A test derives that list from
+  `applyPullTenantScope()` itself (any table whose query does not bind the
+  requested store), so the two cannot drift.
+- `users` is withheld although its scope always includes the owner: serving
+  the owner's row alone would stamp `users` complete for that store key and
+  hide its staff if access is regained, which is this bug again. An owner's
+  own row is therefore not refreshed while their device holds a refused header.
+- If the refused id is **the owner's own** soft-deleted store, its tombstone is
+  added to `stores`, so the device learns the store is gone. Never a deleted
+  *sibling* store for staff. A staff member's own store is never refused:
+  `resolveOwnershipIdentity()` puts their `users.store_id` in the owned list.
+- The response carries `refused_store_id`. The client clears every window it
+  holds under that store key except the served tables, which also heals a
+  window a pre-fix empty pull poisoned.
+- A non-string `store_id` input is refused as `(invalid)`; it is never cast and
+  never treated as absent (which would widen the pull to every owned store).
+- The refusal is logged at most once per user per day, with the ids as
+  context; a cache failure never fails the pull.
+- **Why not a 403, as the entry first proposed:** a stale header is what a
+  deleted store or a staff member moved between stores leaves behind, and the
+  `stores` rows are how that device can notice. A 403 would fail every round
+  for ever on every shipped bundle.
+- **§11:** additive. Every bundle since at least 2026-09-26 stamps only tables
+  present in `changes` (checked against that version of `pull.ts`), so an old
+  bundle that ignores `refused_store_id` still stamps nothing it did not get.
+- **Not done:** the client neither surfaces a refusal nor re-resolves its
+  active store (A-323), and a device poisoned before this fix that has since
+  regained access cannot be detected (A-322).
+- Coverage: `tests/Feature/SyncPullStaffCrossStoreIsolationTest.php`; client side
+  `client/__tests__/pull-refused-store-stamps-only-served-tables.test.ts`.
+
 ## Cross-tenant category references and `sync:repair-cross-tenant-categories` (2026-10-08)
 
 `pull()` scopes categories with `whereIn('store_id', $storeIds)`. That is
@@ -3637,6 +3770,61 @@ mis-pointed rows were not repaired. See `docs/KNOWN_BUGS.md` A-189.
   describes.
 - Products with a `NULL` `store_id` are counted and skipped: there is no owning
   store to repoint them to, and inventing one would be a guess.
+
+## Cross-store supplier references (A-321, 2026-10-23)
+
+`CrossStoreReferenceGuard` guards `supplier_id` on `purchase_orders`,
+`supplier_payments` and `stock_batches` as it guards `products.category_id`:
+a pushed row naming **a sibling store's** supplier (another store of the same
+owner) is re-owned onto its own store's same-named supplier, and the change is
+recorded in `sync_failures` as `cross_store_reference`.
+
+- **Suppliers: same owner only. Categories: any other store, as A-302 always
+  did.** A supplier in another tenant's store is left exactly as pushed: copying
+  it would plant that tenant's supplier name (who they buy from) in the
+  pusher's store. Category names are generic, and re-owning a foreign-tenant
+  category is how A-302 heals the A-189 shape, so that stays.
+- **A `stock_batches` row's store is its product's**, the same rule as
+  `resolveParentStoreId()` and pull scoping (applied by `guardedRowStoreId()`), never the
+  batch's own `store_id`, which is `NULL` on legacy batches and can disagree
+  with the product. `guardedRowStoreId()` only looks the product up when the
+  batch payload carries `supplier_id`, so the quantity-only batch update every
+  sale pushes costs no extra query. A referent that does not exist or has no `store_id` is also left
+  alone (A-294, A-288). A **soft-deleted** referent in a sibling store is still
+  re-owned; its store's devices never pull it either.
+- **The row's store is the one being written.** On UPDATE the guard checks
+  against `$payload['store_id'] ?? $model->store_id`, because `forceFill()`
+  applies the payload's store.
+- **Suppliers: live match, else create; never revive.** `OwnedSupplierResolver`
+  locks the store row first (suppliers have no unique index, so two concurrent
+  pushes could otherwise both create one), matches the name exactly as
+  `findDuplicateInsertConflict()` does, oldest first when a store has
+  duplicates, and creates a new supplier with the **name, `is_active` and the
+  store owner as `user_id` only**: the referent
+  can belong to another tenant, so contact details never cross. It does not
+  restore a supplier the store soft-deleted (categories revive only because
+  their `(store_id, name)` unique index counts trashed rows; suppliers have no
+  such index). Categories still go through
+  `CrossTenantCategoryRepairService::resolveOwnedCategoryId()`.
+- **Per-change lifecycle, like `PushedRowRestamper`.** `push()` calls
+  `discardChange()` at the start of each change and on rollback, and
+  `commitChange($restamper)` beside the restamper's own commit. A remap from a
+  change that rolled back is never reported, its memo entries are forgotten (so
+  a later change in the batch cannot be pointed at a supplier the rollback
+  removed), and a referent this request created or revived is handed to the
+  restamper so it is stamped at commit (A-286); one that was only matched is
+  left alone, so it is not re-pulled for nothing. The UPDATE-path call sits after the
+  version-conflict check, so a rejected change creates nothing.
+- **Why it exists:** the client's push-side `id_map` remap of a legacy
+  `NULL`-store supplier is deliberately unscoped (`client/AGENTS.md`,
+  "Duplicate-name reconciliation"), so on a two-store device it repoints the
+  other store's rows at the winning store's supplier.
+- **It only heals what is pushed.** Rows already stored with a cross-store
+  `supplier_id` stay until something re-pushes them; there is no repair command
+  for suppliers. Measure before building one:
+  `SELECT COUNT(*) FROM purchase_orders x JOIN suppliers s ON s.id = x.supplier_id WHERE s.store_id IS NOT NULL AND s.store_id <> x.store_id`
+  and the same for `supplier_payments` and `stock_batches`.
+- Coverage: `tests/Feature/SyncPushCrossStoreSupplierTest.php`.
 
 ## Health Sync zeroing repair: `sync:repair-health-sync-reconciliation` (2026-10-10)
 
@@ -3935,10 +4123,11 @@ On production use the 8.2 binary (next section):
   holds, so a batch the device has never received cannot be one of them.
 - **Idempotent and chunked** (keyset paging on `products.id`, 200 at a time).
   A second `--apply` reports "No product disagrees …".
-- **Retirement:** delete the command once the A-248 client claim path is fixed
-  *and* one dry run across production reports zero repairable and zero refused.
-  Until the claim path is closed the mis-stamp recurs, so the command is the
-  standing repair, not a one-shot.
+- **Retirement:** the claim path and the UPDATE reassignment are closed (A-248
+  part a, 2026-10-23); what still produces a mis-stamp is a never-pushed legacy
+  INSERT from a multi-store device (A-248 in `docs/KNOWN_BUGS.md`). Delete the
+  command once that is closed too *and* one dry run across production reports
+  zero repairable and zero refused. Until then it stays the standing repair.
 - **Tests:** `tests/Feature/RepairProductStoreStampTest.php` — detection and
   attribution, **the batch becoming pullable for the correct store** (the
   actual goal), contradictory evidence reported and left alone, cross-tenant

@@ -1736,6 +1736,15 @@ table the client never pulls.
   a JSON-shaped column already stores it.
 - Updates set only the columns the server returned, preserving local-only
   columns (`is_initialized`, `theme`, `license_token`).
+- **A table missing from `changes` is never stamped, and the server relies
+  on it (A-254).** A window is completed only inside the loop over the
+  response's own tables. When `X-Store-Id` names a store outside the caller's
+  scope, the server serves only `stores` and `payment_accounts` and sets
+  `refused_store_id`; if that is this run's store, `pull.ts` clears every
+  other window under it (`forgetWithheldPullWindows()`), so access regained
+  later starts from a full pull. Stamping every requested table at the end of
+  a round would silently undo this. Pinned by
+  `pull-refused-store-stamps-only-served-tables.test.ts`.
 - **Duplicate-name reconciliation:** a local row absent from the response
   but name-matching a server row has its references remapped to the server's
   id and is then soft-deleted rather than left as an orphaned duplicate.
@@ -1745,15 +1754,21 @@ table the client never pulls.
     match anyway (the lookup is keyed `store_id|name` and a tenant-scoped page
     has no `NULL`-store rows), but a **super_admin's pull is unscoped** and
     does. Single-store devices still fold: that is the legacy case the fold
-    exists for. Pinned by `duplicate-name-reconciliation.test.ts`.
+    exists for. Pinned by `duplicate-name-reconciliation.test.ts`. The same
+    rule decides whether `update()`/`softDelete()` claim a `NULL`-store row
+    for the active store (A-248); both read it from
+    `lib/db/device-stores.ts`'s `deviceHoldsSeveralStores()`, so they cannot
+    drift. `backfillStoreIdOnLegacyRows()` applies it through the migration
+    adapter, which cannot use that helper.
   - **The push-side `id_map` remap of a `NULL`-store row is deliberately
     unscoped.** The server has already merged the row, so the mapping must be
     honoured; `remapForeignKey(…, null)` repoints every store's references and
-    requeues them. For **categories** that heals: the server's
-    `CrossStoreReferenceGuard` (A-302) re-owns store B's products onto store
-    B's same-named category on ingest. Scoping the remap to the push's store
-    would leave them on an id that exists nowhere. For **suppliers** nothing
-    heals it yet (A-321). Pinned by `push-id-map-reconciliation.test.ts`.
+    requeues them. That heals on ingest: the server's
+    `CrossStoreReferenceGuard` re-owns store B's references onto store B's
+    same-named row, for categories (A-302) and, since A-321, for suppliers on
+    `purchase_orders`, `supplier_payments` and `stock_batches`. Scoping the
+    remap to the push's store would leave them on an id that exists nowhere.
+    Pinned by `push-id-map-reconciliation.test.ts`.
 - **`onCriticalTablesReady` / `SETUP_CRITICAL_TABLES` (`stores`, `users`).**
   Fires once, the first time those tables have fully drained this round, so
   a caller mid-first-sync (`startSyncProcess` in `use-onboarding.ts`) can let

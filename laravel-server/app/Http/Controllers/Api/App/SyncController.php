@@ -174,6 +174,7 @@ class SyncController extends Controller
 
     public function push(Request $request)
     {
+        $this->batchStoreIds = [];
         $validation = $this->validateSync($request, true);
         if (!$validation['valid']) {
             $this->recordRejectedPush($request, $validation['code'] ?? null);
@@ -304,6 +305,7 @@ class SyncController extends Controller
                 // though the movement it came from never actually committed.
                 $pendingStockBatchDelta = null;
                 $restamper->discardChange();
+                $crossStoreGuard->discardChange();
 
                 // The OA doc marks payload as nullable (DELETE doesn't need one), and the
                 // request validation above allows it through as such. Default a genuinely-
@@ -368,7 +370,7 @@ class SyncController extends Controller
                         $insertOverrides++;
                         // normalizePushPayload() already ran, so it gated its
                         // store_id backfill on the pre-override operation.
-                        if (!$clientNamedStoreId && in_array($change['table_name'], self::STORE_ID_BACKFILL_TABLES, true)) {
+                        if ($change['table_name'] === 'users' || (!$clientNamedStoreId && in_array($change['table_name'], self::STORE_ID_BACKFILL_TABLES, true))) {
                             unset($payload['store_id']);
                         }
                     }
@@ -414,7 +416,7 @@ class SyncController extends Controller
                         $payload = $crossStoreGuard->apply(
                             $change['table_name'],
                             $payload,
-                            $payload['store_id'] ?? null,
+                            $this->guardedRowStoreId($change['table_name'], $payload),
                             $recordId,
                         );
                         $model = new $modelClass();
@@ -533,11 +535,10 @@ class SyncController extends Controller
                         $model = \method_exists($modelClass, 'trashed') ? $modelClass::withTrashed()->lockForUpdate()->find($recordId) : $modelClass::lockForUpdate()->find($recordId);
                     }
 
-                    if ($model && $currentUser && !$isSuperAdmin && !$this->authorizeChangeTarget($change['table_name'], $model, $allowedStoreIds, $allowedUserIds)) {
-                        // Reject before even looking at version info: the
-                        // record exists but doesn't belong to the caller's
-                        // store(s) — see the ownership-scope comment above
-                        // $allowedStoreIds for why this check exists at all.
+                    if ($model && $currentUser && !$isSuperAdmin && (
+                        !$this->authorizeChangeTarget($change['table_name'], $model, $allowedStoreIds, $allowedUserIds)
+                        || $this->namesForeignBatch($change['table_name'], $payload, $allowedStoreIds, $model)
+                    )) {
                         DB::commit();
                         $failed[] = [
                             'id' => $change['id'] ?? null,
@@ -549,12 +550,7 @@ class SyncController extends Controller
                     }
 
                     if ($model) {
-                        $payload = $crossStoreGuard->apply(
-                            $change['table_name'],
-                            $payload,
-                            $model->store_id ?? null,
-                            $recordId,
-                        );
+                        $payload = $this->withoutStoreReassignment($change['table_name'], $payload, $model, $isSuperAdmin ? null : $allowedStoreIds);
                     }
 
                     // A receipt can never book more than was ordered. The client
@@ -695,12 +691,18 @@ class SyncController extends Controller
                         // edit was made from, not a real new version.
                         unset($payload['_version']);
 
-                        // Inventory Reconciliation: Ignore quantity updates for stock_batches, rely on stock_movements
                         if ($change['table_name'] === 'stock_batches') {
                             if (isset($payload['quantity'])) {
                                 unset($payload['quantity']);
                             }
                         }
+
+                        $payload = $crossStoreGuard->apply(
+                            $change['table_name'],
+                            $payload,
+                            $this->guardedRowStoreId($change['table_name'], $payload, $model),
+                            $recordId,
+                        );
 
                         $model->forceFill($payload);
                         if ($newVersion !== null) {
@@ -769,7 +771,8 @@ class SyncController extends Controller
                             ];
                             continue;
                         }
-                        $claimIsInScope = !empty($payload['store_id']) && ($isSuperAdmin || in_array($payload['store_id'], $allowedStoreIds, true));
+                        $claimIsInScope = !empty($payload['store_id'])
+                            && $this->claimIsEvidence($payload['store_id'], $isSuperAdmin ? null : $allowedStoreIds);
                         if (empty($target->store_id) && $claimIsInScope && \Illuminate\Support\Facades\Schema::hasColumn($target->getTable(), 'store_id')) {
                             $target->store_id = $payload['store_id'];
                             $target->save();
@@ -788,12 +791,14 @@ class SyncController extends Controller
                     $stockBatchDeltas[$pendingBatchId] = ($stockBatchDeltas[$pendingBatchId] ?? 0) + $pendingQtyDelta;
                 }
 
+                $crossStoreGuard->commitChange($restamper);
                 $restamper->commitChange();
                 $processed++;
                 DB::commit();
                 } catch (\Exception $e) {
                     DB::rollBack();
                     $restamper->discardChange();
+                    $crossStoreGuard->discardChange();
                     Log::warning("Sync push: skipped {$change['table_name']} " . ($change['record_id'] ?? '?') . ": " . $e->getMessage());
                     $failed[] = [
                         'id' => $change['id'] ?? null,
@@ -920,6 +925,7 @@ class SyncController extends Controller
                 new OA\Property(property: 'success', type: 'boolean'),
                 new OA\Property(property: 'server_timestamp', type: 'string', format: 'date-time'),
                 new OA\Property(property: 'changes', type: 'object', description: 'Keyed by table name, each value an array of row objects', additionalProperties: new OA\AdditionalProperties(type: 'array', items: new OA\Items(type: 'object'))),
+                new OA\Property(property: 'refused_store_id', type: 'string', nullable: true, description: "Set when X-Store-Id names a store outside the caller's scope: only `stores` (including that store's tombstone if it is the owner's deleted store) and `payment_accounts` are served, every other table is omitted so no window can be stamped from it (A-254)"),
             ])),
             new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
             new OA\Response(response: 403, description: 'Cloud sync disabled on current plan, or store count exceeds plan limit'),
@@ -984,6 +990,12 @@ class SyncController extends Controller
             ? null
             : $this->resolvePullTenantScope($user, $request);
 
+        $refusedStoreId = $tenantScope['refusedStoreId'] ?? null;
+        if ($refusedStoreId !== null) {
+            $tables = array_values(array_intersect($tables, self::PULL_TABLES_INDEPENDENT_OF_STORE_HEADER));
+            $this->logRefusedPullStore($user->id, $refusedStoreId);
+        }
+
         foreach ($tables as $table) {
             $modelClass = $this->getModelForTable($table);
 
@@ -1024,7 +1036,8 @@ class SyncController extends Controller
             'success' => true,
             'server_timestamp' => $serverTimestamp,
             'changes' => $changes,
-            'has_more' => $hasMore
+            'has_more' => $hasMore,
+            'refused_store_id' => $refusedStoreId,
         ]);
     }
 
@@ -1164,16 +1177,7 @@ class SyncController extends Controller
 
         match ($table) {
             'users' => $query->whereIn('id', $userIds),
-            // Unlike every other table, 'stores' isn't scoped to the
-            // X-Store-Id-narrowed $storeIds: it IS the "which stores
-            // do I own" discovery list the store switcher is built
-            // from, so narrowing it to whichever single store happens
-            // to be active meant a newly created store (or any store
-            // metadata change on a non-active store, e.g. a plan
-            // granted by an admin) could never be pulled down at all.
-            // Staff (fixed store_id) still only ever see their own
-            // store, same as before.
-            'stores' => $query->whereIn('id', $ownedStoreIds)->with(['user.subscriptions']),
+            'stores' => $query->whereIn('id', $scope['storeRowIds'] ?? $ownedStoreIds)->with(['user.subscriptions']),
             // These 11 tables now carry a real store_id column (see
             // add_store_id_to_domain_tables migration); scope directly
             // by store rather than by an owner/cashier user-id chain, so
@@ -1250,38 +1254,64 @@ class SyncController extends Controller
         return Sale::withTrashed()->select('id')->whereIn('store_id', $storeIds);
     }
 
+    /** Tables applyPullTenantScope() scopes by every owned store or by the owner, never by X-Store-Id; a test derives and checks it. */
+    private const PULL_TABLES_INDEPENDENT_OF_STORE_HEADER = ['stores', 'payment_accounts'];
+
+    private function logRefusedPullStore(string $userId, string $refusedStoreId): void
+    {
+        try {
+            if (\Illuminate\Support\Facades\Cache::add('sync-pull-refused:'.$userId, true, now()->addDay())) {
+                Log::warning('Sync pull: X-Store-Id is outside the caller\'s scope; withholding store-scoped tables (A-254)', [
+                    'user_id' => $userId,
+                    'refused_store_id' => mb_substr($refusedStoreId, 0, 64),
+                ]);
+            }
+        } catch (\Throwable) {
+        }
+    }
+
+    /** An owner's own deleted store; never a staff member's sibling store (A-129). */
+    private function isCallersOwnDeletedStore($user, ?string $ownerId, string $storeId): bool
+    {
+        return $ownerId === $user->id && Store::onlyTrashed()->whereKey($storeId)->where('user_id', $ownerId)->exists();
+    }
+
     /**
-     * Resolves, once per request, everything applyPullTenantScope() needs:
-     * the subscription owner, the store list this pull is narrowed to, the
-     * full owned-store list ('stores' is deliberately never narrowed by
-     * X-Store-Id — it IS the store-switcher's discovery list), and the staff
-     * ids that go with them.
+     * Resolves, once per request, everything applyPullTenantScope() needs: the subscription owner, the stores this
+     * pull is narrowed to, the store rows it serves, and the staff ids. Rules: laravel-server/AGENTS.md, A-129 and A-254.
      */
     private function resolvePullTenantScope($user, Request $request): array
     {
         ['ownerId' => $ownerId, 'storeIds' => $ownedStoreIds] = $this->resolveOwnershipIdentity($user);
 
-        $requestedStoreId = $request->header('X-Store-Id') ?? $request->input('store_id');
-        if ($requestedStoreId) {
-            // A-129: this used to check "does this store belong to the same
-            // owner" (Store::where('user_id', $ownerId)), which let a staff
-            // account read a sibling store's data by sending that store's
-            // id here — any store under the same owner passed. $ownedStoreIds
-            // is already the caller's own correctly-narrowed scope (one
-            // store for staff, every owned store for an owner), exactly
-            // like resolveAllowedOwnershipScope() already enforces for push.
-            $storeIds = in_array($requestedStoreId, $ownedStoreIds, true) ? [$requestedStoreId] : [];
-        } else {
-            $storeIds = $ownedStoreIds;
+        $requested = $request->header('X-Store-Id') ?? $request->input('store_id');
+        $requestedStoreId = match (true) {
+            $requested === null || $requested === '' => null,
+            is_string($requested) => $requested,
+            default => '(invalid)',
+        };
+
+        $storeIds = $requestedStoreId === null
+            ? $ownedStoreIds
+            : (in_array($requestedStoreId, $ownedStoreIds, true) ? [$requestedStoreId] : []);
+        $refusedStoreId = $requestedStoreId !== null && $storeIds === [] ? $requestedStoreId : null;
+
+        $storeRowIds = $ownedStoreIds;
+        if ($refusedStoreId !== null && $this->isCallersOwnDeletedStore($user, $ownerId, $refusedStoreId)) {
+            $storeRowIds[] = $refusedStoreId;
         }
 
-        $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($ownerId)->toArray();
+        $userIds = $refusedStoreId !== null
+            ? [$ownerId]
+            : User::whereIn('store_id', $storeIds)->pluck('id')->push($ownerId)->toArray();
 
         return [
             'ownerId' => $ownerId,
             'storeIds' => $storeIds,
             'ownedStoreIds' => $ownedStoreIds,
+            'storeRowIds' => $storeRowIds,
             'userIds' => $userIds,
+            'refusedStoreId' => $refusedStoreId,
         ];
     }
 
@@ -1664,26 +1694,76 @@ class SyncController extends Controller
         $conflict->save();
     }
 
+    /** @var array<string, string> Batch id to its product's store, for authorization within one push; reset by push(). */
+    private array $batchStoreIds = [];
+
+    /** A-248: a device may claim a store-less row only for its one store, and never move a row that has a store. */
+    private function withoutStoreReassignment(string $tableName, array $payload, $model, ?array $allowedStoreIds): array
+    {
+        if ($tableName === 'users' || !array_key_exists('store_id', $payload)) {
+            return $payload;
+        }
+
+        if (empty($model->store_id) && $this->claimIsEvidence($payload['store_id'], $allowedStoreIds)) {
+            return $payload;
+        }
+
+        if (!empty($model->store_id) && $payload['store_id'] !== $model->store_id) {
+            Log::info('Sync push: ignored a store reassignment (A-248)', [
+                'table' => $tableName,
+                'record_id' => $model->getKey(),
+                'store_id' => $model->store_id,
+                'claimed_store_id' => $payload['store_id'],
+            ]);
+        }
+        unset($payload['store_id']);
+
+        return $payload;
+    }
+
+    /** A claim for a store-less row counts only when it names the session's one and only store; null scope (super admin) is a guess. */
+    private function claimIsEvidence($claimedStoreId, ?array $allowedStoreIds): bool
+    {
+        return $allowedStoreIds !== null
+            && count($allowedStoreIds) === 1
+            && $claimedStoreId === $allowedStoreIds[array_key_first($allowedStoreIds)];
+    }
+
     /**
      * Whether an accumulated delta's batch exists and belongs to a store the
      * pusher may not write to. A batch that does not exist resolves to no
      * store and is deliberately NOT out of scope — see
      * laravel-server/AGENTS.md, "Stock batch deltas are store-scoped".
+     * $memoize is false for the delta backstop, which must see this push's own writes.
      */
-    private function isBatchOutsideScope($stockBatchId, ?array $allowedStoreIds): bool
+    private function isBatchOutsideScope($stockBatchId, ?array $allowedStoreIds, bool $memoize = false): bool
     {
         if ($allowedStoreIds === null) {
             return false;
         }
 
-        $productId = StockBatch::where('id', $stockBatchId)->value('product_id');
-        if (!$productId) {
-            return false;
+        $key = (string) $stockBatchId;
+        $storeId = $memoize ? ($this->batchStoreIds[$key] ?? null) : null;
+        if ($storeId === null) {
+            $storeId = DB::table('stock_batches')
+                ->join('products', 'products.id', '=', 'stock_batches.product_id')
+                ->where('stock_batches.id', $key)
+                ->value('products.store_id');
+            if ($memoize && $storeId !== null) {
+                $this->batchStoreIds[$key] = $storeId;
+            }
         }
 
-        $storeId = Product::withTrashed()->where('id', $productId)->value('store_id');
-
         return $storeId !== null && !in_array($storeId, $allowedStoreIds, true);
+    }
+
+    /** A movement may not name, or be repointed at, a batch outside the session's scope (A-287). */
+    private function namesForeignBatch(string $tableName, array $payload, array $allowedStoreIds, $model = null): bool
+    {
+        return $tableName === 'stock_movements'
+            && !empty($payload['stock_batch_id'])
+            && $payload['stock_batch_id'] !== $model?->stock_batch_id
+            && $this->isBatchOutsideScope($payload['stock_batch_id'], $allowedStoreIds, true);
     }
 
     /**
@@ -1850,8 +1930,7 @@ class SyncController extends Controller
             }
         }
 
-        // Ensure staff users get associated with the store
-        if ($change['table_name'] === 'users' && $currentStoreId) {
+        if ($change['table_name'] === 'users' && $currentStoreId && $change['operation'] === 'INSERT') {
             if (($payload['role'] ?? null) !== 'store_owner' && ($payload['role'] ?? null) !== 'admin') {
                 $payload['store_id'] = $payload['store_id'] ?? $currentStoreId;
             }
@@ -2519,6 +2598,10 @@ class SyncController extends Controller
             return true;
         }
 
+        if ($this->namesForeignBatch($tableName, $payload, $allowedStoreIds)) {
+            return false;
+        }
+
         $resolvedStoreId = $this->resolveChangeStoreId($tableName, (object) $payload);
 
         if ($resolvedStoreId === null) {
@@ -2526,6 +2609,20 @@ class SyncController extends Controller
         }
 
         return in_array($resolvedStoreId, $allowedStoreIds, true);
+    }
+
+    /** The store a row being written belongs to, for CrossStoreReferenceGuard: a batch's is its product's, looked up only when it names a supplier. */
+    private function guardedRowStoreId(string $tableName, array $payload, $model = null): ?string
+    {
+        if ($tableName === 'stock_batches') {
+            $productId = $payload['product_id'] ?? $model?->product_id;
+
+            return isset($payload['supplier_id']) && $productId
+                ? Product::withTrashed()->whereKey($productId)->value('store_id')
+                : null;
+        }
+
+        return $payload['store_id'] ?? $model?->store_id;
     }
 
     /**
@@ -2577,7 +2674,7 @@ class SyncController extends Controller
             return isset($model->purchase_order_id) ? PurchaseOrder::withTrashed()->where('id', $model->purchase_order_id)->value('store_id') : null;
         }
         if ($tableName === 'stock_batches') {
-            return isset($model->product_id) ? Product::where('id', $model->product_id)->value('store_id') : null;
+            return isset($model->product_id) ? Product::withTrashed()->where('id', $model->product_id)->value('store_id') : null;
         }
         if ($tableName === 'sale_item_batches') {
             if (!isset($model->sale_item_id)) {

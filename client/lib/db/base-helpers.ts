@@ -15,6 +15,7 @@ import {
   transaction,
   isInTransaction,
 } from "./core";
+import { deviceHoldsSeveralStores } from "./device-stores";
 import {
   isTillInspectionSession,
   READ_ONLY_REFUSAL_MESSAGE,
@@ -68,9 +69,7 @@ async function assertStoreOwnership(
   if (!row) return { needsClaim: false }; // No such row; let the caller's own statement naturally no-op.
 
   if (row.store_id === null || row.store_id === undefined) {
-    // Legacy pre-migration row: the caller claims it for the active store
-    // as part of its own write — see this function's doc comment above.
-    return { needsClaim: true, activeStoreId };
+    return (await deviceHoldsSeveralStores()) ? { needsClaim: false } : { needsClaim: true, activeStoreId };
   }
 
   if (row.store_id !== activeStoreId) {

@@ -1,11 +1,12 @@
 import { query, execute, transaction, STORE_SCOPED_TABLES } from "../core";
+import { deviceHoldsSeveralStores } from "../device-stores";
 import { resolveSyncRun, type SyncRun } from "./sync-run";
 import { apiClient } from "@/lib/api/client";
 import { PullResponse } from "./types";
 import { getValidColumns } from "./schema";
 import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconcile-identity";
 import { logCrash } from "@/lib/utils/error-logger";
-import { restoreExhaustedPullWindows, rewindPullWindow } from "./pull-window";
+import { forgetWithheldPullWindows, restoreExhaustedPullWindows, rewindPullWindow } from "./pull-window";
 import { summarizeSkippedRecords, type SkippedRecord } from "./pull-skip-report";
 import { STORAGE_KEYS, getStoredUser } from "@/lib/storage-keys";
 import { recomputeBatchQuantities } from "../batch-quantity";
@@ -218,6 +219,10 @@ export async function pullChanges(
       )) as PullResponse;
       const { changes, server_timestamp, has_more } = response;
       roundTimestamp ??= server_timestamp;
+
+      if (page === 1 && response.refused_store_id && response.refused_store_id === activeRun.storeId) {
+        await forgetWithheldPullWindows(windowStoreId, Object.keys(changes ?? {}));
+      }
 
       if (!changes || Object.keys(changes).length === 0) {
         break;
@@ -525,8 +530,7 @@ export async function pullChanges(
                 WHERE (_deleted = 0 OR _deleted IS NULL)`,
             );
 
-            const storeCount = await query<{ count: number }>("SELECT COUNT(*) AS count FROM stores");
-            const legacyRowsAreUnattributable = (storeCount[0]?.count ?? 0) > 1;
+            const legacyRowsAreUnattributable = await deviceHoldsSeveralStores();
 
             for (const row of localRows) {
               if (serverIds.has(row.id)) continue;

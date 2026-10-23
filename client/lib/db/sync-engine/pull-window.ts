@@ -84,6 +84,15 @@ export interface StashedPullWindow {
   rewound_from: string | null;
 }
 
+/** A-254: a store the server refused gets nothing back, so any window it holds for a withheld table is unearned. */
+export async function forgetWithheldPullWindows(storeId: string, servedTables: string[]): Promise<void> {
+  const placeholders = servedTables.map(() => "?").join(", ");
+  await execute(
+    `DELETE FROM _sync_state WHERE store_id = ?${servedTables.length > 0 ? ` AND table_name NOT IN (${placeholders})` : ""}`,
+    [storeId, ...servedTables],
+  );
+}
+
 /**
  * Empties every pull window and hands back what it removed, so a full resync
  * that never commits a page can be undone. See A-243 in docs/FIXED_BUGS.md.

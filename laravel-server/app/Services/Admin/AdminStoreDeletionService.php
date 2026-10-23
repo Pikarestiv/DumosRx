@@ -6,31 +6,26 @@ use App\Exceptions\StoreActionBlockedException;
 use App\Models\ActivityLog;
 use App\Models\Store;
 use App\Models\User;
+use App\Support\SchemaTables;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * Archive, restore and purge for a store, kept out of AdminStoreService so
- * the irreversible action lives in a file whose whole purpose is obvious.
- * The behaviour of all three — and the reasons behind the purge's schema
- * introspection, its transaction shape and the restore's suspension
- * warning — is documented in docs/ADMIN_STORE_LIFECYCLE.md.
- */
+/** Archive, restore and purge for a store. Behaviour and rationale: docs/ADMIN_STORE_LIFECYCLE.md. */
 class AdminStoreDeletionService
 {
-    /** Tables whose rows belong to a store through something other than a
-     * store_id column, cleared explicitly during a purge. */
+    /** Tables whose rows belong to a store through something other than store_id. */
     private const OWNER_SCOPED_TABLES = [
         'subscriptions' => 'user_id',
         'payment_transactions' => 'user_id',
     ];
 
-    /** Roles whose accounts run the platform rather than a shop; purging a
-     * store they own would take the account with it. */
+    /** Roles whose accounts run the platform rather than a shop. */
     private const PLATFORM_ROLES = ['super_admin', 'platform_admin', 'agent'];
 
-    public function __construct(private ForeignKeyCascadeEmulator $cascades)
-    {
+    public function __construct(
+        private ForeignKeyCascadeEmulator $cascades,
+        private PurgedUserRowSweeper $userRows,
+    ) {
     }
 
     public function archiveStore(string $storeId, ?string $reason, User $actor): ?Store
@@ -133,8 +128,7 @@ class AdminStoreDeletionService
         $storeName = $store->name;
         $removed = [];
 
-        // SQLite ignores `PRAGMA foreign_keys` inside an open transaction, so
-        // the constraint suspension has to wrap the transaction, not sit in it.
+        // SQLite ignores `PRAGMA foreign_keys` inside an open transaction, so this wraps it.
         Schema::withoutForeignKeyConstraints(function () use ($store, $storeId, $storeName, $actor, &$removed) {
             DB::transaction(function () use ($store, $storeId, $storeName, $actor, &$removed) {
                 $this->purgeRows($store, $removed);
@@ -142,10 +136,6 @@ class AdminStoreDeletionService
                 ActivityLog::create([
                     'user_id' => $actor->id,
                     'action' => 'STORE_PURGED',
-                    // A-146 (see docs/FIXED_BUGS.md): description is a
-                    // bounded VARCHAR(255); the structured breakdown goes
-                    // in `properties` instead. Still truncated defensively
-                    // here since `name` alone is validated up to 255 chars.
                     'description' => mb_substr("Permanently deleted store: {$storeName} ({$storeId})", 0, 255),
                     'properties' => ['rows_removed' => $removed],
                 ]);
@@ -155,16 +145,9 @@ class AdminStoreDeletionService
         return $removed;
     }
 
-    /**
-     * The purge's own deletions, split out of purgeStore() so the audit-log
-     * write can sit in the same transaction despite this body's early return.
-     *
-     * @param  array<string, int>  $removed
-     */
+    /** @param  array<string, int>  $removed */
     private function purgeRows(Store $store, array &$removed): void
     {
-        // Read inside the transaction, under a row lock on the owner's stores,
-        // so a store created concurrently for the same owner cannot be missed.
         $ownerId = $store->user_id;
         $staffIds = User::withTrashed()->where('store_id', $store->id)->pluck('id')->all();
         $ownedStoreIds = $ownerId
@@ -173,7 +156,9 @@ class AdminStoreDeletionService
         $ownerIsSolelyThisStore = $ownerId
             && array_values(array_diff($ownedStoreIds, [$store->id])) === [];
 
-        foreach ($this->storeScopedTables() as $table) {
+        $storeScopedTables = $this->storeScopedTables();
+
+        foreach ($storeScopedTables as $table) {
             $count = DB::table($table)->where('store_id', $store->id)->delete();
             if ($count > 0) {
                 $removed[$table] = $count;
@@ -205,17 +190,18 @@ class AdminStoreDeletionService
         }
 
         $this->revokeSessions($userIds);
-        $this->cascades->cascadeChildren('users', $userIds, $removed, ['stores']);
+        $this->userRows->sweep(
+            $userIds,
+            (bool) $ownerIsSolelyThisStore,
+            $storeScopedTables,
+            ['users', 'stores', ...array_keys(self::OWNER_SCOPED_TABLES)],
+            $removed,
+        );
+        $this->cascades->cascadeChildren('users', $userIds, $removed, ['stores', ...$storeScopedTables]);
 
         $removed['users'] = User::withTrashed()->whereIn('id', $userIds)->forceDelete();
     }
 
-    /**
-     * AdminUserService::deleteUser() archives the owner's store as a side
-     * effect of soft-deleting the owner. Restoring such a store on its own
-     * would put a live store back in the fleet with a deleted owner, so the
-     * owner has to come back first.
-     */
     private function assertRestoreAllowed(Store $store): void
     {
         if (!$store->user_id) {
@@ -231,11 +217,6 @@ class AdminStoreDeletionService
         }
     }
 
-    /**
-     * Refuses a purge that would take a platform account with it, or that
-     * the acting admin aimed at their own store. Both used to run and then
-     * fail partway through on the activity-log foreign key.
-     */
     private function assertPurgeAllowed(Store $store, User $actor): void
     {
         $owner = $store->user_id ? User::withTrashed()->find($store->user_id) : null;
@@ -258,12 +239,6 @@ class AdminStoreDeletionService
     }
 
     /**
-     * Sales synced before sales.store_id existed carry a null store_id and
-     * are attributed to a store through the cashier, exactly as
-     * AdminStoreService::revenueSubquery() and AdminStoreMetricsService do.
-     * Left behind, they silently reattribute this store's revenue to
-     * whichever other store the surviving owner still has.
-     *
      * @param  list<string>  $staffIds
      * @param  array<string, int>  $removed
      */
@@ -285,7 +260,8 @@ class AdminStoreDeletionService
             return;
         }
 
-        $this->cascades->cascadeChildren('sales', $saleIds, $removed);
+        $this->userRows->sweepChildren('sales', $saleIds, $removed);
+        $this->cascades->cascadeChildren('sales', $saleIds, $removed, $this->storeScopedTables());
 
         $count = DB::table('sales')->whereIn('id', $saleIds)->delete();
 
@@ -307,13 +283,7 @@ class AdminStoreDeletionService
             ->all();
     }
 
-    /**
-     * Archiving has to cut the store off from the API, not just hide it
-     * from admin listings: the sync endpoints resolve their tenant scope
-     * from users.store_id and would happily keep accepting pushes.
-     *
-     * @param  list<string>  $userIds
-     */
+    /** @param  list<string>  $userIds */
     private function revokeSessions(array $userIds): void
     {
         if ($userIds === [] || !Schema::hasTable('personal_access_tokens')) {
@@ -331,9 +301,7 @@ class AdminStoreDeletionService
     {
         $tables = [];
 
-        foreach (Schema::getTableListing() as $table) {
-            $name = str_contains($table, '.') ? substr($table, strrpos($table, '.') + 1) : $table;
-
+        foreach (SchemaTables::names() as $name) {
             if ($name === 'stores' || $name === 'users') {
                 continue;
             }

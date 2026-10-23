@@ -129,24 +129,78 @@ Three guards:
 SQLite ignores `PRAGMA foreign_keys` inside an open transaction, so the
 purge suspends constraints *around* its transaction rather than inside it.
 Suspending them also suspends every `ON DELETE CASCADE` / `SET NULL` the
-schema does declare, on MySQL and SQLite alike, so deleting the owner and
-staff used to leave dangling `notifications`, `permission_user`,
-`coupon_usages` and `activity_logs` rows and dangling
-`account_manager_id` / `referred_by_id` / `registered_by_id` pointers on
-*other* users. `ForeignKeyCascadeEmulator` replays those declared actions in
-PHP, reading them from `Schema::getForeignKeys()`, so a foreign key added
-later is covered without editing it.
+schema declares, and production declares **none** (A-179: every table was
+created as MyISAM, which discards FK definitions, and the InnoDB conversion
+recreated none). So nothing the database does can be relied on here.
 
-> **⚠️ On production this paragraph does not hold — see `docs/KNOWN_BUGS.md`
-> A-292.** The emulator derives its entire action map from
-> `Schema::getForeignKeys()`, and production declares **no** foreign keys: per
-> A-179 all 63 tables were created as MyISAM, which parses and discards FK
-> definitions, and the later `ALTER TABLE … ENGINE=InnoDB` conversion does not
-> recreate a constraint that was never created. So every `cascadeChildren()`
-> call is a no-op there, while the test suite passes because SQLite *does*
-> honour the migrations' `constrained()`. The purge's explicit sweeps (the
-> `store_id` list and `OWNER_SCOPED_TABLES`) work everywhere; everything this
-> paragraph credits to the emulator currently happens only in tests.
+### Rows keyed to a purged user
+
+`PurgedUserRowSweeper` (A-292, 2026-10-23) removes what the force-deleted
+owner and staff leave behind, introspecting the live schema rather than its
+foreign keys:
+
+- **Every table with a `user_id` and no `store_id`** (`notifications`,
+  `permission_user`, `coupon_usages`, `feedback`, `sessions`,
+  `referral_credit_transactions`, …): rows of those users are deleted.
+- **Every table with both** (`products`, `sales`, `prescriptions`, …): only
+  rows whose `store_id` is `NULL`, and only when the purge takes the **whole
+  tenant** (the owner had no other store). When the owner keeps another store,
+  a staff member's `NULL`-store rows may have been written at that store
+  before `store_id` existed, so they are left rather than guessed at. They
+  are **permanent inert residue**, not deferred work: `sync:backfill-store-ids`
+  attributes them through `users.user_id`, and the purge has just
+  force-deleted that `users` row, so no later backfill can place them. The
+  same class as A-324's leftovers. A row carrying **another**
+  store's id is never touched. `vendors`, the one store-less business table,
+  follows the same whole-tenant rule.
+- **A swept parent's descendants go with it**, per
+  `PurgedUserRowSweeper::CHILDREN`: a sale's `sale_items` (and their
+  `sale_item_batches`) and `returns` (and their `return_items`), a
+  prescription's `prescription_items`. A test checks that map against every
+  `CASCADE` the schema declares for those parents, so a new child cannot be
+  covered by the emulator alone.
+- **Not swept:** a whole-tenant purge's `NULL`-store rows in tables that carry
+  no `user_id` (`purchase_orders`, `stock_movements`, `customer_payments`, …)
+  stay behind, because nothing on the row says whose they are (A-324).
+- **Kept on purpose:** a purged staff member's `activity_logs`,
+  `user_devices` and `audit_logs` rows that carry a surviving store's id.
+  They are that store's history; their `user_id` simply resolves to nobody.
+- **Pointers the schema declares `SET NULL`** (`PurgedUserRowSweeper::POINTER_COLUMNS`)
+  are nulled explicitly, on surviving rows only, and each touched row moves
+  `_version` once and gets a fresh `updated_at`/`_synced_at`, so it reaches
+  the next pull instead of later failing a device's version check. A test
+  checks the list against every `SET NULL` reference the schema declares, so
+  a new one cannot be added to the migrations alone.
+- **A legacy cashier sale goes with its children** even when the owner keeps
+  another store: its `cashier_id` attributes it to this store in the fleet
+  revenue query, so leaving it would move the purged store's revenue onto the
+  survivor. That is why a legacy *sale* is deleted where a staff member's other
+  `NULL`-store rows are kept.
+
+`ForeignKeyCascadeEmulator` still runs afterwards as a backstop for whatever a
+schema *does* declare, but is told to skip every store-scoped table, for the
+users cascade and the legacy-sale cascade alike, so both schema shapes delete
+the same rows. Without
+that, on a schema with FKs (the test suite's, a local MySQL built from the
+migrations, or production if constraints are ever added) its replay of
+`products.user_id → users ON DELETE CASCADE` deleted a sibling store's
+products authored by a purged staff member.
+
+**Testing it:** under `RefreshDatabase` the purge's FK suspension is ignored
+(the test transaction is already open), so SQLite itself cascades and the
+suite models a schema production does not have. `AdminStorePurgeUserRowsTest`
+turns enforcement off before the test transaction opens, and fakes an
+emulator with no foreign keys for the production shape.
+
+### Guards and audit details (moved out of `AdminStoreDeletionService`)
+
+Restore-needs-the-owner is under "Archive (soft delete)", the platform-account
+and own-store refusal under "Three guards", and the lock on the owner's stores
+in the paragraph below.
+
+- **The `STORE_PURGED` description stays within 255 characters** (A-146): the
+  per-table breakdown goes in `properties.rows_removed`, and the description is
+  truncated defensively because a store name alone may be 255 long.
 
 The purge also deletes **legacy sales with a null `store_id`** whose
 `cashier_id` is the owner or one of the store's staff, plus their cascade

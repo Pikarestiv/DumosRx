@@ -1,5 +1,7 @@
 import type { AuditItem } from "./stock-audits";
 import type { StockAuditSubmission } from "@/lib/db/queries/inventory";
+import { genericFuzzySearch } from "@/lib/utils/search";
+import { sortByAccessor, type SortDirection } from "@/lib/hooks/use-sortable-data";
 
 export const ALL_AUDIT_CATEGORIES = "__all__";
 
@@ -108,6 +110,101 @@ export function selectAuditStatusItems(
 ): AuditItem[] {
   if (status === "all") return items;
   return items.filter((item) => matchesAuditStatus(item, status));
+}
+
+export interface AuditLens {
+  category: string;
+  status: AuditCountStatus;
+  search: string;
+}
+
+export function selectAuditExportItems(
+  items: AuditItem[],
+  lens: AuditLens,
+): AuditItem[] {
+  return genericFuzzySearch(
+    lens.search,
+    selectAuditStatusItems(
+      selectAuditCategoryItems(items, lens.category),
+      lens.status,
+    ),
+    ["name", "sku"],
+  ).results;
+}
+
+export function isAuditLensActive(lens: AuditLens): boolean {
+  return (
+    lens.category !== ALL_AUDIT_CATEGORIES ||
+    lens.status !== "all" ||
+    lens.search.trim() !== ""
+  );
+}
+
+const AUDIT_STATUS_LABELS = new Map<AuditCountStatus, string>([
+  ["counted", "Counted"],
+  ["uncounted", "Not Counted"],
+  ["differences", "Qty Differences"],
+]);
+
+export function describeAuditLens(
+  lens: AuditLens,
+  shown: number,
+  total: number,
+): string {
+  if (!isAuditLensActive(lens)) return `${total} product(s)`;
+  const search = lens.search.trim();
+  return [
+    `${shown} of ${total} product(s)`,
+    lens.category !== ALL_AUDIT_CATEGORIES && `Category: ${lens.category}`,
+    AUDIT_STATUS_LABELS.get(lens.status),
+    search && `Search: "${search}"`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+export function auditExportFileName(
+  lens: AuditLens,
+  extension: string,
+  date = new Date(),
+): string {
+  const slug =
+    lens.category === ALL_AUDIT_CATEGORIES
+      ? ""
+      : lens.category.replace(/[^A-Za-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+  const suffix = slug ? `_${slug}` : "";
+  return `StockAudit_${date.toISOString().slice(0, 10)}${suffix}.${extension}`;
+}
+
+const diffQtyOf = (item: AuditItem) =>
+  (item.countedQty ?? item.systemQty) - item.systemQty;
+
+export const AUDIT_SORT_ACCESSORS = {
+  name: (item: AuditItem) => item.name.toLowerCase(),
+  countedQty: (item: AuditItem) => item.countedQty ?? item.systemQty,
+  systemQty: (item: AuditItem) => item.systemQty,
+  diffQty: diffQtyOf,
+  costPrice: (item: AuditItem) => item.costPrice ?? 0,
+  countedCost: (item: AuditItem) => item.countedCostPrice ?? item.costPrice ?? 0,
+  diffCost: (item: AuditItem) =>
+    item.costPrice !== undefined ? diffQtyOf(item) * item.costPrice : 0,
+  sellingPrice: (item: AuditItem) => item.sellingPrice ?? 0,
+  countedSelling: (item: AuditItem) =>
+    item.countedSellingPrice ?? item.sellingPrice ?? 0,
+  diffSelling: (item: AuditItem) =>
+    item.sellingPrice !== undefined ? diffQtyOf(item) * item.sellingPrice : 0,
+  lastAuditedAt: (item: AuditItem) =>
+    item.lastAuditedAt ? new Date(item.lastAuditedAt).getTime() : 0,
+};
+
+export type AuditSortKey = keyof typeof AUDIT_SORT_ACCESSORS;
+
+export function sortAuditItems(
+  items: AuditItem[],
+  key: AuditSortKey | null,
+  direction: SortDirection,
+): AuditItem[] {
+  return key ? sortByAccessor(items, AUDIT_SORT_ACCESSORS[key], direction) : items;
 }
 
 export function selectAdjustedAuditItems(countedItems: AuditItem[]): AuditItem[] {

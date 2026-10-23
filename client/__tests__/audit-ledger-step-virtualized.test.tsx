@@ -66,6 +66,7 @@ describe("AuditLedgerStep virtualized rows", () => {
     search: "",
     setSearch: vi.fn(),
     scrollElementRef: createRef<HTMLDivElement>(),
+    sort: { sortKey: null, direction: "asc" as const, toggleSort: vi.fn() },
   };
 
   it("renders a row per item, each with its three editable cells", () => {

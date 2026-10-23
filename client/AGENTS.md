@@ -1875,7 +1875,8 @@ on screen from having walked to the shelf.
   quantity as the input's `placeholder` so the row still says what it is
   being compared against. The field *is* the record of the count. This is the
   convention the printed count sheet has always used
-  (`buildStockAuditRows()` emits an empty "Counted Qty" column) and the one
+  (`buildStockAuditRows()` leaves "Counted Qty" blank on any row not yet
+  counted, and since A-318 fills in a count already entered) and the one
   Odoo/NetSuite/Fishbowl count sheets use.
 - **Never prefill `countedQty` with 0.** Submit posts every row whose counted
   figure differs from the system's, so a zero prefill turns every untouched
@@ -1993,7 +1994,39 @@ on screen from having walked to the shelf.
   Pinned by `__tests__/stock-audit-draft-migration.test.ts`.
 - The ledger's `Count` filter pill (All / Counted / Not Counted / Qty
   Differences) is `selectAuditStatusItems()`, applied between the category
-  lens and the fuzzy search in `stock-audits.tsx`.
+  lens and the fuzzy search in `lib/hooks/use-audit-ledger-lens.ts`, which
+  owns all three filters, the sticky-row set and the ledger's sort.
+- **Print, Download PDF, Export CSV and Export Excel output exactly the
+  filtered, sorted list (A-318, 2026-10-23).** They read
+  `useAuditLedgerLens().exportItems` = `selectAuditExportItems(items, lens)`
+  (category → status → search, `audit-derivations.ts`) sorted by
+  `sortAuditItems()` with the ledger's own key and direction. The sort lives
+  in the parent for this reason: `AuditLedgerStep` receives rows already
+  sorted plus a `sort` prop, and must not sort on its own again, or the
+  screen and the printout drift apart. Both sorts use
+  `AUDIT_SORT_ACCESSORS` and `sortByAccessor()` (`use-sortable-data.ts`).
+  - **Strict, not sticky.** The screen keeps rows that matched when a Count
+    lens was chosen (so a row never vanishes mid-tap); the export does not.
+    A "Not Counted" printout therefore omits rows counted since, and can be
+    a few rows shorter than the screen. Its header says how many it holds,
+    so the document is self-consistent. Don't "fix" this by exporting the
+    on-screen list: the sheet goes to someone walking those shelves.
+  - **Counted Qty is filled on export when entered**, blank otherwise
+    (`buildStockAuditRows()`'s optional `countedQty`). A fresh sheet has no
+    counts, so the blank count sheet is unchanged; a "Counted" or "Qty
+    Differences" export now carries both figures.
+  - The print/PDF subtitle is `describeAuditLens()` ("2 of 310 product(s) ·
+    Category: X · Not Counted · Search: "y"", or today's "N product(s)" with
+    no filter). CSV/XLSX get no preamble row (row 1 must stay the header);
+    the category goes into the filename instead via `auditExportFileName()`,
+    sanitised to `[A-Za-z0-9-]` because a category name is user input.
+  - Print and the three export items are disabled when the export set is
+    empty; the dropdown trigger stays enabled so "Start over" is reachable
+    under a filter that matches nothing. Exports ignore the 50-row page
+    rule (§8): the ledger is virtualised, and an export is a document.
+  - Pinned by `__tests__/audit-export-derivations.test.ts`,
+    `__tests__/stock-audit-rows.test.ts` and the component test
+    `__tests__/stock-audits-export-filters.test.tsx`.
 - **A count is a session.** Ticks never survive a submit: `clearDraft()` runs
   in `onSuccess` and the next open rebuilds from `getProductsWithDetails()`,
   so last week's ticks can't make this week's count look done. What persists

@@ -1,60 +1,31 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useMemo, useRef } from "react";
 import { AuditLedgerStep } from "./audit-ledger-step";
 import { AuditReviewStep } from "./audit-review-step";
-import { ChevronLeft, CheckCircle2, Loader2, Printer, ChevronDown } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getProductsWithDetails } from "@/lib/db/queries/products";
-import { getProductStockQuantity } from "@/lib/db/queries/inventory";
-import { sync } from "@/lib/db/sync-engine";
+import { AuditExportMenu } from "./audit-export-menu";
+import { AuditPrintableSheet } from "./audit-printable-sheet";
+import { ChevronLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { useSubmitStockAuditMutation } from "@/lib/hooks/use-stock-audit-mutation";
-import { genericFuzzySearch } from "@/lib/utils/search";
-import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
 import { toast } from "sonner";
-import type { ProductWithDetails } from "@/lib/types/product";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
-import {
-  generateReportPdfBlob,
-  PdfGenerationCancelledError,
-} from "@/lib/utils/report-pdf";
-import { downloadBlob } from "@/lib/utils/download-blob";
-import { printNode } from "@/lib/utils/print-node";
-import {
-  buildStockAuditRows,
-  buildBlobFromRows,
-} from "@/lib/utils/product-import-export";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
-  ALL_AUDIT_CATEGORIES,
-  applyCountBaseline,
-  applyOptimisticCount,
-  createCountSequencer,
-  buildAuditCategoryOptions,
   hasUnsavedAuditEdits,
-  mergeFreshLastAuditedAt,
   selectAdjustedAuditItems,
-  selectAuditCategoryItems,
-  matchesAuditStatus,
-  selectAuditStatusItems,
   selectCountedAuditItems,
-  shouldRebuildAuditSheet,
   toStockAuditSubmissions,
-  type AuditCountStatus,
 } from "./audit-derivations";
 import { useStockAuditDraftStore } from "@/lib/hooks/use-stock-audit-draft";
 import { useCountFreshness } from "@/lib/hooks/use-count-freshness";
+import { useAuditLedgerLens } from "@/lib/hooks/use-audit-ledger-lens";
+import { useAuditSheetExport } from "@/lib/hooks/use-audit-sheet-export";
+import { useAuditSheetSource } from "@/lib/hooks/use-audit-sheet-source";
+import { useAuditCounting } from "@/lib/hooks/use-audit-counting";
 
 type AuditStep = "ledger" | "review" | "done";
-const ALL_CATEGORIES = ALL_AUDIT_CATEGORIES;
 
 export interface AuditItem {
   id: string;
@@ -79,137 +50,31 @@ export interface AuditItem {
   reason?: string;
 }
 
+const STEP_WIDTH = (step: AuditStep) =>
+  step === "ledger" ? "w-full max-w-[1280px]" : "w-full max-w-[560px]";
+const PRIMARY_BUTTON =
+  "w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer hover:bg-primary/90 transition-colors";
+
 export function StockAudits({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
   const { storeProfile } = useStore();
-  const queryClient = useQueryClient();
+  const storeName = storeProfile?.name || "";
   const [step, setStep] = useState<AuditStep>("ledger");
   const freshness = useCountFreshness();
   const [staleAcknowledged, setStaleAcknowledged] = useState(false);
-  const [selectedCategory, setSelectedCategory] =
-    useState<string>(ALL_CATEGORIES);
-  const [search, setSearch] = useState("");
-  const [countStatus, setCountStatus] = useState<AuditCountStatus>("all");
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isPreparingOutput, setIsPreparingOutput] = useState(false);
-  const [printStage, setPrintStage] = useState<
-    { message: string; progress: number } | null
-  >(null);
   const [submittedSummary, setSubmittedSummary] = useState<{
     counted: number;
     adjusted: number;
   } | null>(null);
 
-  // Data fetching
-  const { data: rawProducts, isLoading } = useQuery({
-    ...queryKeys.products.withDetails(),
-    queryFn: () => getProductsWithDetails(),
-  });
-
+  const { isLoading, isSyncing } = useAuditSheetSource();
   const items = useStockAuditDraftStore((state) => state.items);
-  const setItems = useStockAuditDraftStore((state) => state.setItems);
   const clearDraft = useStockAuditDraftStore((state) => state.clearDraft);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
 
-  // Reconcile against the latest server state as soon as the count screen opens, otherwise a stale local snapshot could make…
-  // Rationale: docs/CLIENT_COMMENTS.md#line-components-stock-batch-stock-audits-tsx-L118
-  useEffect(() => {
-    void (async () => {
-      setIsSyncing(true);
-      try {
-        await sync(true);
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.products.withDetails().queryKey,
-        });
-      } catch (error) {
-        console.error("Pre-audit sync failed:", error);
-        toast.warning(
-          "Couldn't sync before starting: continuing with the data already on this device.",
-        );
-      } finally {
-        setIsSyncing(false);
-      }
-    })();
-    // Only ever run once, on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Counted Qty opens empty; the cost/price columns do not. Rebuild rules
-  // and the deps: client/AGENTS.md.
-  useEffect(() => {
-    if (rawProducts && shouldRebuildAuditSheet(items)) {
-      const formatted: AuditItem[] = rawProducts.map(
-        (p: ProductWithDetails) => ({
-          id: p.id,
-          name: p.name,
-          sku: p.barcode || `SKU-${p.id.substring(0, 6)}`,
-          category: p.category_name || "Uncategorized",
-          systemQty: p.stock_quantity || 0,
-          costPrice: p.cost_price ?? undefined,
-          sellingPrice: p.selling_price ?? undefined,
-          countedQty: undefined,
-          countedCostPrice: p.cost_price ?? undefined,
-          countedSellingPrice: p.selling_price ?? undefined,
-          lastAuditedAt: p.last_audited_at ?? null,
-        }),
-      );
-      setItems(formatted);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawProducts, items.length]);
-
-  // A draft with any counted row blocks the full rebuild above indefinitely, so "Last Counted" would otherwise freeze at whatever it read when the draft was first built — refresh it in place from fresh product data without touching counts in progress.
-  // Rationale: docs/CLIENT_COMMENTS.md#stock-audits-last-audited-refresh
-  useEffect(() => {
-    if (!rawProducts || rawProducts.length === 0) return;
-    setItems((prev) => mergeFreshLastAuditedAt(prev, rawProducts));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawProducts]);
-
-  // Every derivation below is memoized on its real inputs: each of them used
-  // to re-run on every keystroke in any of the ledger's hundreds of inputs.
-  const categories = useMemo(() => buildAuditCategoryOptions(items), [items]);
-
-  const categoryItems = useMemo(
-    () => selectAuditCategoryItems(items, selectedCategory),
-    [items, selectedCategory],
-  );
-
-  // Counting a row under the "Not Counted" lens used to make it disappear
-  // from under the finger mid-tap, shifting every virtualized row below it.
-  // The rows that matched when the lens was chosen stay on screen until the
-  // lens itself changes; only then is the set re-taken.
-  // Keyed on the lens alone and re-taken during render, so counting a row
-  // never hides it mid-tap. Why not an effect: client/AGENTS.md.
-  const lensKey = `${countStatus}|${selectedCategory}|${search}`;
-  const [stickyRows, setStickyRows] = useState<{
-    key: string;
-    ids: Set<string>;
-  }>({ key: lensKey, ids: new Set() });
-  if (stickyRows.key !== lensKey) {
-    setStickyRows({
-      key: lensKey,
-      ids: new Set(selectAuditStatusItems(items, countStatus).map((i) => i.id)),
-    });
-  }
-  const stickyRowIds = stickyRows.ids;
-
-  const statusItems = useMemo(
-    () =>
-      countStatus === "all"
-        ? categoryItems
-        : categoryItems.filter(
-            (item) =>
-              stickyRowIds.has(item.id) || matchesAuditStatus(item, countStatus),
-          ),
-    [categoryItems, countStatus, stickyRowIds],
-  );
-
-  const filteredList = useMemo(
-    () => genericFuzzySearch(search, statusItems, ["name", "sku"]).results,
-    [search, statusItems],
-  );
+  const ledger = useAuditLedgerLens(items);
+  const { countRow, cancelPendingCounts, updateLedgerItem } = useAuditCounting();
 
   const countedItems = useMemo(() => selectCountedAuditItems(items), [items]);
   const adjustedItems = useMemo(
@@ -217,138 +82,11 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     [countedItems],
   );
 
-  /** Records a count against the system figure as it is RIGHT NOW, not the
-   * one the sheet opened with. The typed value lands immediately so typing
-   * never waits on the database; the baseline follows when the read
-   * resolves. Ticking with no value means "counted, and it matched", which
-   * is the live figure. See A-263. */
-  const counts = useRef(createCountSequencer());
-  const countRow = useCallback(
-    async (id: string, countedQty?: number) => {
-      const token = counts.current.begin(id);
-      if (countedQty !== undefined) {
-        setItems((prev) => applyOptimisticCount(prev, id, countedQty));
-      }
-      const live = await getProductStockQuantity(id);
-      if (!counts.current.isCurrent(id, token)) return;
-      setItems((prev) => applyCountBaseline(prev, id, countedQty, live));
-    },
-    [setItems],
-  );
-
-  const cancelPendingCounts = useCallback(
-    (id?: string) => counts.current.cancel(id),
-    [],
-  );
-
-  const updateLedgerItem = useCallback(
-    (id: string, patch: Partial<AuditItem>) => {
-      setItems((prev) =>
-        prev.map((i) =>
-          i.id === id
-            ? { ...i, ...patch, counted: patch.counted ?? true }
-            : i,
-        ),
-      );
-    },
-    [setItems],
-  );
-
-  /** Updates the overlay and yields a frame so it actually paints before the
-   * next step runs. PDF generation runs off the main thread (see
-   * generateReportPdfBlob), so the UI stays responsive through that step
-   * even without real percentage progress from inside it - the bar just
-   * holds at its pre-render value and jumps once the worker resolves. */
-  const setPrintProgress = async (message: string, progress: number) => {
-    setPrintStage({ message, progress });
-    await new Promise((resolve) => requestAnimationFrame(resolve));
-  };
-
-  const printableRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const pdfAbortRef = useRef<AbortController | null>(null);
-
-  // Was called fresh (3x per render, rebuilding the full items array each
-  // time) for the always-mounted hidden printable table plus both export
-  // handlers - memoized so a store with thousands of products doesn't redo
-  // that work 3x on every render.
-  const {
-    headers: auditHeaders,
-    rows: auditRowData,
-    columnFlex: auditColumnFlex,
-  } = useMemo(
-    () =>
-      buildStockAuditRows(
-        items.map((i) => ({
-          name: i.name,
-          category: i.category,
-          quantity: i.systemQty,
-        })),
-      ),
-    [items],
+  const sheetExport = useAuditSheetExport(
+    { exportItems: ledger.exportItems, lens: ledger.lens, totalCount: items.length },
+    storeName,
   );
-
-  /** Prints the sheet directly (no PDF render step) via the hidden table
-   * below - a real browser print dialog, not a PDF opened in a new tab. */
-  const handlePrint = async () => {
-    setIsPreparingOutput(true);
-    try {
-      // Two frames: one for React to commit the printable table, one for the
-      // browser to lay it out before printNode clones it.
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-      if (!printableRef.current) return;
-      await printNode(printableRef.current);
-    } catch (error) {
-      console.error("Failed to print stock audit sheet:", error);
-      toast.error("Couldn't open the print dialog. Please try again.");
-    } finally {
-      setIsPreparingOutput(false);
-    }
-  };
-
-  const handleDownloadPdf = async () => {
-    await setPrintProgress("Preparing rows...", 25);
-    const controller = new AbortController();
-    pdfAbortRef.current = controller;
-    try {
-      await setPrintProgress("Rendering PDF...", 60);
-      const blob = await generateReportPdfBlob(
-        {
-          storeName: storeProfile?.name || "",
-          title: "Stock Audit Sheet",
-          subtitle: `${items.length} product(s)`,
-          headers: auditHeaders,
-          rows: auditRowData,
-          columnFlex: auditColumnFlex,
-        },
-        controller.signal,
-      );
-      downloadBlob(blob, `StockAudit_${new Date().toISOString().slice(0, 10)}.pdf`);
-      await setPrintProgress("Done", 100);
-      await new Promise((resolve) => setTimeout(resolve, 400));
-    } catch (error) {
-      if (!(error instanceof PdfGenerationCancelledError)) {
-        console.error("Failed to generate stock audit PDF:", error);
-        toast.error("Couldn't generate the PDF. Please try again.");
-      }
-    } finally {
-      pdfAbortRef.current = null;
-      setPrintStage(null);
-    }
-  };
-
-  const handleCancelPdfDownload = () => {
-    pdfAbortRef.current?.abort();
-  };
-
-  const handleExport = async (format: "csv" | "xlsx") => {
-    const blob = await buildBlobFromRows(auditHeaders, auditRowData, format, "Stock Audit");
-    downloadBlob(
-      blob,
-      `StockAudit_${new Date().toISOString().slice(0, 10)}.${format}`,
-    );
-  };
 
   const submitAuditMutation = useSubmitStockAuditMutation();
   const isSubmitting = submitAuditMutation.isPending;
@@ -405,73 +143,24 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
           setShowResetDialog(false);
           cancelPendingCounts();
           clearDraft();
-          setSelectedCategory(ALL_CATEGORIES);
-          setCountStatus("all");
-          setSearch("");
+          ledger.resetLens();
         }}
       />
 
-      {printStage && (
+      {sheetExport.printStage && (
         <LoadingOverlay
-          message={printStage.message}
-          progress={printStage.progress}
-          onCancel={handleCancelPdfDownload}
+          message={sheetExport.printStage.message}
+          progress={sheetExport.printStage.progress}
+          onCancel={sheetExport.handleCancelPdfDownload}
         />
       )}
 
-      {/* Off-screen (not display:none, so it still lays out for printNode's clone) printable sheet, mounted only while a print/ex… — docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-audits-tsx-L419 */}
-      {isPreparingOutput && (
-      <div
-        style={{ position: "fixed", top: 0, left: "-9999px" }}
-        aria-hidden="true"
-      >
-        <div ref={printableRef} className="p-6">
-          <h1 className="text-lg font-bold mb-1">
-            {storeProfile?.name || ""} - Stock Audit Sheet
-          </h1>
-          <p className="text-sm text-muted-foreground mb-4">
-            {items.length} product(s)
-          </p>
-          {/* Div-based with ARIA roles per the no-raw-<table> rule, but laid out with `display: — docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-audits-tsx-L435 */}
-          <div
-            role="table"
-            aria-label="Stock audit sheet"
-            className="table w-full border-collapse text-sm"
-          >
-            <div role="rowgroup" className="table-header-group">
-              <div role="row" className="table-row">
-                {auditHeaders.map((h) => (
-                  <div
-                    key={h}
-                    role="columnheader"
-                    className="table-cell border border-border px-2 py-1 text-left font-bold"
-                  >
-                    {h}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div role="rowgroup" className="table-row-group">
-              {auditRowData.map((row, i) => (
-                <div key={i} role="row" className="table-row">
-                  {auditHeaders.map((h) => (
-                    <div
-                      key={h}
-                      role="cell"
-                      className="table-cell border border-border px-2 py-1"
-                    >
-                      {String(row[h] ?? "")}
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-      )}
+      <AuditPrintableSheet
+        sheet={sheetExport.printSheet}
+        storeName={storeName}
+        sheetRef={sheetExport.printableRef}
+      />
 
-      {/* Header, top padding clears the status bar / Tauri title bar */}
       <div
         className="flex items-center gap-3 px-4 md:px-6 pb-4 md:pb-5 border-b border-border bg-card"
         style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1rem)" }}
@@ -501,43 +190,14 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
         </div>
         <div className="ml-auto flex items-center gap-2">
           {step === "ledger" && (
-            <DropdownMenu>
-              <div className="flex">
-                <button
-                  className="flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-l-full border border-r-0 border-border hover:bg-muted transition-colors disabled:opacity-60"
-                  onClick={() => void handlePrint()}
-                  disabled={!!printStage || items.length === 0}
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  Print
-                </button>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className="flex items-center px-2 py-1.5 rounded-r-full border border-border hover:bg-muted transition-colors disabled:opacity-60"
-                    disabled={!!printStage || items.length === 0}
-                  >
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </button>
-                </DropdownMenuTrigger>
-              </div>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => void handleDownloadPdf()}>
-                  Download PDF
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => void handleExport("csv")}>
-                  Export CSV
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => void handleExport("xlsx")}>
-                  Export Excel
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => setShowResetDialog(true)}
-                >
-                  Start over
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <AuditExportMenu
+              menuDisabled={!!sheetExport.printStage || items.length === 0}
+              exportDisabled={ledger.exportItems.length === 0}
+              onPrint={() => void sheetExport.handlePrint()}
+              onDownloadPdf={() => void sheetExport.handleDownloadPdf()}
+              onExport={(format) => void sheetExport.handleExport(format)}
+              onStartOver={() => setShowResetDialog(true)}
+            />
           )}
           <div className="hidden md:flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-200 rounded-full px-3 py-1.5">
             <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
@@ -556,34 +216,29 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
             "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1rem)",
         }}
       >
-        <div
-          className={
-            step === "ledger" ? "w-full max-w-[1280px]" : "w-full max-w-[560px]"
-          }
-        >
-          {/* LEDGER */}
+        <div className={STEP_WIDTH(step)}>
           {step === "ledger" && (
             <AuditLedgerStep
-              items={filteredList}
+              items={ledger.visibleItems}
               totalItems={items.length}
               isLoading={isLoading}
               isSyncing={isSyncing}
               onUpdateItem={updateLedgerItem}
               onCountRow={(id, qty) => void countRow(id, qty)}
               onClearCount={cancelPendingCounts}
-              categories={categories}
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
-              countStatus={countStatus}
-              setCountStatus={setCountStatus}
+              categories={ledger.categories}
+              selectedCategory={ledger.selectedCategory}
+              setSelectedCategory={ledger.setSelectedCategory}
+              countStatus={ledger.countStatus}
+              setCountStatus={ledger.setCountStatus}
               countedCount={countedItems.length}
-              search={search}
-              setSearch={setSearch}
+              search={ledger.search}
+              setSearch={ledger.setSearch}
               scrollElementRef={scrollAreaRef}
+              sort={ledger.sort}
             />
           )}
 
-          {/* REVIEW */}
           {step === "review" && (
             <AuditReviewStep
               countedItems={countedItems}
@@ -594,7 +249,6 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
             />
           )}
 
-          {/* DONE */}
           {step === "done" && (
             <div className="text-center py-10 animate-in zoom-in-95 duration-500">
               <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-700 flex items-center justify-center mx-auto mb-4">
@@ -612,25 +266,17 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      {/* FIXED FOOTER */}
       <div className="border-t border-border bg-background p-4 md:px-8 md:py-5 flex justify-center shrink-0">
-        <div
-          className={
-            step === "ledger" ? "w-full max-w-[1280px]" : "w-full max-w-[560px]"
-          }
-        >
+        <div className={STEP_WIDTH(step)}>
           {step === "ledger" && (
-            <button
-              className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer hover:bg-primary/90 transition-colors"
-              onClick={() => setStep("review")}
-            >
+            <button className={PRIMARY_BUTTON} onClick={() => setStep("review")}>
               Review &amp; submit
             </button>
           )}
 
           {step === "review" && (
             <button
-              className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+              className={`${PRIMARY_BUTTON} disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
               disabled={
                 isSubmitting ||
                 countedItems.length === 0 ||
@@ -644,10 +290,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
           )}
 
           {step === "done" && (
-            <button
-              className="w-full bg-primary text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer hover:bg-primary/90 transition-colors"
-              onClick={onClose}
-            >
+            <button className={PRIMARY_BUTTON} onClick={onClose}>
               Close Audit
             </button>
           )}

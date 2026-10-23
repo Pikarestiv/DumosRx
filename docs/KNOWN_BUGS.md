@@ -453,6 +453,12 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** as listed per item above.
 
 
+#### A-316. `laravel-server/` — production logs to one unrotated `laravel.log` at debug level and it has reached 1.9 GB
+- **Found:** 2026-10-23, from `ls -la ~/api.dumosrx.com/storage/logs/` on the production host (`laravel.log`, 1.9G, last written 04:21 the same day, the only file in the folder).
+- **Issue:** #257
+- **Issue:** the app has no `config/logging.php`, so the framework defaults apply: `LOG_STACK` defaults to `single` and `LOG_LEVEL` to `debug` (`vendor/laravel/framework/config/logging.php:21,57,64`), and `.env.example` sets the same values (`LOG_STACK=single`, `LOG_LEVEL=debug`). Nothing rotates the file and every debug line is kept. A file that size is slow to open when an incident needs it and can exhaust the shared-hosting disk quota, which would take the API down. The public, throttled `POST /logs/client-error` (`ActivityLogController.php:101`) writes every client API error to this file at error level, up to about 12 KB each, so it is a likely contributor; the file's real composition was not measured. The production `.env` was not read; this is what the template and the file's size imply.
+- **Fix:** set `LOG_STACK=daily` and `LOG_DAILY_DAYS=14` in the production `.env`, set `LOG_LEVEL` to `warning` or `info`, change the template to match, and archive then truncate the existing file. Nothing in `app/` reads `laravel.log` back; the only references write to it.
+
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
 #### A-315. `laravel-server/` — a `refresh`-only admin token is accepted as a general bearer on every `auth:sanctum` route

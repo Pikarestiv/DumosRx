@@ -165,4 +165,44 @@ class AuthHandoffTest extends TestCase
 
         $response->assertStatus(410);
     }
+
+    public function test_create_rejects_a_refresh_only_token(): void
+    {
+        $token = $this->user->createToken('admin-refresh', ['refresh'])->plainTextToken;
+
+        $this->postJson('/api/v1/auth/handoff', ['token' => $token])->assertStatus(403);
+    }
+
+    public function test_create_rejects_an_expired_token(): void
+    {
+        $token = $this->user->createToken('test', ['*'], now()->subMinute())->plainTextToken;
+
+        $this->postJson('/api/v1/auth/handoff', ['token' => $token])->assertStatus(403);
+    }
+
+    public function test_consume_rejects_a_code_whose_token_expired_before_redemption(): void
+    {
+        $result = $this->user->createToken('test', ['*'], now()->addSeconds(30));
+        $code = $this->postJson('/api/v1/auth/handoff', ['token' => $result->plainTextToken])->json('code');
+        $this->travel(31)->seconds();
+
+        $this->postJson('/api/v1/auth/handoff/consume', ['code' => $code])->assertStatus(403);
+    }
+
+    public function test_create_rejects_a_token_with_no_abilities_recorded(): void
+    {
+        $result = $this->user->createToken('test');
+        \Illuminate\Support\Facades\DB::table('personal_access_tokens')->where('id', $result->accessToken->id)->update(['abilities' => null]);
+
+        $this->postJson('/api/v1/auth/handoff', ['token' => $result->plainTextToken])->assertStatus(403);
+    }
+
+    public function test_create_honours_the_global_sanctum_expiration_like_the_bearer_guard(): void
+    {
+        $token = $this->user->createToken('test')->plainTextToken;
+        config(['sanctum.expiration' => 60]);
+        $this->travel(61)->minutes();
+
+        $this->postJson('/api/v1/auth/handoff', ['token' => $token])->assertStatus(403);
+    }
 }

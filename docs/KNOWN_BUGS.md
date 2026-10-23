@@ -40,13 +40,6 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** skip a `NULL`-store losing row when the device holds more than one store (`SELECT COUNT(*) FROM stores`), leaving single-store devices — where the legacy fold is both safe and the reason it exists — untouched. One test per branch.
 - **Why not just backfill:** the backfill refuses multi-store devices because it cannot know which store a legacy row belongs to, and guessing is how a row ends up in the wrong tenant. That refusal is right; this entry is about not *remapping* what we cannot attribute.
 
-#### A-199. `laravel-server/` — two endpoints resolve a Personal Access Token from the request body without checking its abilities
-- **Found:** 2026-10-09, second adversarial review of the on-till admin inspection plan.
-- **Location:** `app/Http/Controllers/Api/Admin/AdminStoreController.php:518-529` (`restoreSession`), `app/Http/Controllers/Api/AuthHandoffController.php:32-48` (`create`).
-- **What's wrong:** both call `PersonalAccessToken::findToken($validated['token'])` on a token taken from the **request body** and act on its owner without ever checking that token's abilities. `restoreSession` then mints an `admin-refresh` cookie for that owner, and the public cookie-only `/admin/session/refresh` (`routes/api.php:58`) turns that into a general-ability `web` token. The bearer on the request only has to satisfy `auth:sanctum`, which the till's own `['*']` sync token does.
-- **Consequence:** any Sanctum token belonging to a super_admin, however narrowly scoped it was meant to be, can be escalated to a durable full superadmin session by whoever holds it. No such narrow token is minted today, which is why this is latent rather than live — but it is precisely why the on-till inspection credential is deliberately **not** a Sanctum token (see `docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md`). Any future narrowly-scoped token walks straight into it.
-- **Fix:** require `->can('*')` (or an explicit expected ability) on the body token in both handlers, and prefer deriving the identity from the authenticated bearer rather than from a body token at all.
-
 #### A-292. `laravel-server/` — the store purge's user-level cascade is a no-op on production, because `ForeignKeyCascadeEmulator` replays foreign keys that production has never had
 - **Premise confirmed by direct measurement, not inference (2026-10-19):** `SELECT COUNT(*) FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE()` on production returns **0**. The entry no longer rests on A-179's record of the MyISAM era; production declares no foreign keys today. The general rule this implies is in `laravel-server/AGENTS.md` beside the engine rules, because it is wider than the purge.
 - **Found:** 2026-10-19, tracing how the 50 ownerless business rows A-288 measured came to exist. Their `user_id` (`a265af61-…`) has no `users` row and no `stores` row in any state, yet the account's `activity_logs` and `feedback` rows survived — so whatever removed it ran with no cascades at all.
@@ -461,6 +454,13 @@ suggested tackle order rather than a strict ranking.
 
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
+
+#### A-315. `laravel-server/` — a `refresh`-only admin token is accepted as a general bearer on every `auth:sanctum` route
+- **Found:** 2026-10-23, fixing A-199. Confirmed with a throwaway test: a token minted with `['refresh']` sent as `Authorization: Bearer` to `GET /api/v1/user` returns 200.
+- **Location:** `routes/api.php`'s `auth:sanctum` group; no `abilities`/`ability` middleware alias is registered in `bootstrap/app.php`, and nothing else calls `tokenCan()`. The only ability check anywhere is `refreshAdminSession()`'s `can('refresh')` and, since A-199, `FullAccessToken::find()` on the three body-token endpoints.
+- **What's wrong:** `web/AGENTS.md` and the refresh endpoint's OpenAPI text described the `drx_admin_session` token as "never a general bearer credential". The ability is only a label: anyone who holds the raw value has a full session for 30 days, with no rotation, because rotation only happens on `/admin/session/refresh`.
+- **Why it is not urgent:** the token lives only in an `HttpOnly`, `SameSite=Strict` cookie and never appears in a JSON response, so page script cannot read it. Exposure needs the cookie itself (a compromised browser profile, a proxy log). It also matters for any future narrow token, which would inherit the same problem; that is half of why the on-till inspection credential is not a Sanctum token.
+- **Fix:** a small middleware on the `auth:sanctum` group that refuses a token without the `*` ability (`$request->user()->currentAccessToken()?->can('*')`, letting a `TransientToken` through for first-party session auth). §11: every token minted today is `['*']` or `['refresh']`, so no shipped client sends a narrow token as a bearer. Confirm that against `personal_access_tokens.abilities` on production before shipping. Pin it with the probe above as a test.
 
 #### A-208. `laravel-server/` — an admin till access code never expires, so a forgotten one stays a working credential for ever
 - **Found:** 2026-10-10, reviewing the super_admin code-visibility change (`docs/FIXED_BUGS.md` A-207).

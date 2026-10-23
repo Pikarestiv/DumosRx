@@ -671,6 +671,32 @@ change to one affects the other. Full detail (including the
 impersonation/handoff subsystem, which is separate again) is in
 `web/AGENTS.md`.
 
+### Body-token endpoints: `FullAccessToken::find()`, never `findToken()`
+
+`POST /auth/handoff`, `/auth/handoff/consume` and `/admin/restore-session`
+authenticate off a token in the **request body**, not the `Authorization`
+header, so Sanctum's guard never sees it and its expiry is not enforced.
+(The guard checks expiry only; it never checks abilities, for bearers
+either: see A-315.) `PersonalAccessToken::findToken()` checks neither. Every
+such read goes through `App\Support\FullAccessToken::find()`, which returns
+the token only if it exists, records abilities, has the `*` ability and has
+not lapsed by `TokenLifetime::hasLapsed()`. That is the one expiry rule, the
+same pair of checks as Sanctum's guard (`expires_at`, plus the global
+`sanctum.expiration` if it is ever set again), and `refreshAdminSession()`
+uses it too. A refresh-only (`['refresh']`) token or an expired one is refused
+(A-199, 2026-10-23). Coverage: `AuthHandoffTest`, `RestoreSessionTest`.
+
+- **Why the body token cannot simply be the bearer.** The handoff exists
+  because `dumosrx.com` and `app.dumosrx.com` are different origins with no
+  shared storage: `create` wraps an already-possessed token in a 60-second
+  opaque code safe for a redirect URL, `consume` redeems it once. Impersonation
+  mints a code for a token that is *not* the caller's own (the impersonated
+  user's), and restore-session restores the admin's token while the bearer is
+  the impersonated user, so neither can require header == body.
+- **`consume` re-checks the token at redemption**, not just at `create`: the
+  token can be revoked or expire inside the 60 seconds. `Cache::pull()` burns
+  the code before that check, so a failed redemption cannot be retried.
+
 ### Things the auth code used to explain inline
 
 - `AuthController` is split into traits (`AuthenticatesSessions`,
@@ -2055,15 +2081,15 @@ inspection session (`admin_till_sessions`). Full design in
 `POST /api/v1/app/admin-till-session` returns an **opaque session id**, never a
 token. That is deliberate and must not be "simplified" back to Sanctum:
 
-- `AdminStoreController::restoreSession()` resolves a `PersonalAccessToken`
-  from the request **body** and never checks its abilities, then mints an
-  `admin-refresh` cookie for its owner. The public cookie-only
-  `/admin/session/refresh` turns that into a general-ability `web` token, and
-  the bearer on the request only has to satisfy `auth:sanctum` — which the
-  till's own `['*']` sync token does. `AuthHandoffController::create()` has the
-  same body-token pattern. So any narrowly-scoped Sanctum token read off a till
-  would launder into a durable full superadmin session. See `docs/KNOWN_BUGS.md`
-  A-199.
+- `AdminStoreController::restoreSession()` and `AuthHandoffController`
+  resolve a token from the request **body** and act on its owner. Until
+  A-199 (fixed 2026-10-23) neither checked its abilities, so any
+  narrowly-scoped Sanctum token read off a till would have laundered into a
+  durable full superadmin session. They now go through `FullAccessToken::find()`
+  (see "Body-token endpoints" under the admin auth section), but a narrow
+  Sanctum token is still a general bearer on every `auth:sanctum` route
+  (A-315), so the till credential staying out of Sanctum is still what keeps
+  it narrow.
 - An opaque id is not a `PersonalAccessToken`, so `findToken()` never resolves
   it and both laundering paths are dead by construction.
 - It is also less code: no `ability` middleware alias (which is **not**

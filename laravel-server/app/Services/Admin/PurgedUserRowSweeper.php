@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin;
 
+use App\Support\SchemaTables;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -12,27 +13,44 @@ use Illuminate\Support\Facades\Schema;
 class PurgedUserRowSweeper
 {
     /** @var array<string, list<string>> Columns the schema declares ON DELETE SET NULL against users. */
-    private const POINTER_COLUMNS = [
+    public const POINTER_COLUMNS = [
         'users' => ['account_manager_id', 'referred_by_id', 'registered_by_id'],
         'coupons' => ['created_by', 'assigned_to_user_id'],
         'referral_credit_transactions' => ['referred_user_id'],
     ];
 
+    /** @var array<string, array<string, string>> Child table to its parent column, for parents carrying no user_id of their own. */
+    private const CHILDREN = [
+        'prescriptions' => ['prescription_items' => 'prescription_id'],
+        'returns' => ['return_items' => 'return_id'],
+    ];
+
     /**
      * @param  list<string>  $userIds
+     * @param  list<string>  $storeScopedTables  Tables carrying store_id.
      * @param  list<string>  $skipTables  Tables the caller clears itself.
      * @param  array<string, int>  $removed
      */
-    public function sweep(array $userIds, array $skipTables, array &$removed): void
+    public function sweep(array $userIds, bool $wholeTenantGone, array $storeScopedTables, array $skipTables, array &$removed): void
     {
         if ($userIds === []) {
             return;
         }
 
-        foreach ($this->userKeyedTables($skipTables) as $table => $hasStoreId) {
+        foreach (SchemaTables::names() as $table) {
+            if (in_array($table, $skipTables, true) || !Schema::hasColumn($table, 'user_id')) {
+                continue;
+            }
+
+            $isStoreScoped = in_array($table, $storeScopedTables, true);
+            if ($isStoreScoped && !$wholeTenantGone) {
+                continue;
+            }
+
             $query = DB::table($table)->whereIn('user_id', $userIds);
-            if ($hasStoreId) {
+            if ($isStoreScoped) {
                 $query->whereNull('store_id');
+                $this->sweepChildren($table, (clone $query)->pluck('id')->all(), $removed);
             }
 
             $this->count($removed, $table, $query->delete());
@@ -60,11 +78,26 @@ class PurgedUserRowSweeper
         $this->count($removed, 'sale_items', DB::table('sale_items')->whereIn('sale_id', $saleIds)->delete());
     }
 
-    /** @param array<string, int> $removed */
-    private function count(array &$removed, string $table, int $count): void
+    /**
+     * @param  list<string>  $parentIds
+     * @param  array<string, int>  $removed
+     */
+    private function sweepChildren(string $parentTable, array $parentIds, array &$removed): void
     {
-        if ($count > 0) {
-            $removed[$table] = ($removed[$table] ?? 0) + $count;
+        if ($parentIds === []) {
+            return;
+        }
+
+        if ($parentTable === 'sales') {
+            $this->sweepSaleChildren($parentIds, $removed);
+
+            return;
+        }
+
+        foreach (self::CHILDREN[$parentTable] ?? [] as $childTable => $column) {
+            if (Schema::hasTable($childTable)) {
+                $this->count($removed, $childTable, DB::table($childTable)->whereIn($column, $parentIds)->delete());
+            }
         }
     }
 
@@ -77,10 +110,11 @@ class PurgedUserRowSweeper
                 continue;
             }
 
-            $rowIds = DB::table($table)
-                ->where(fn ($q) => array_map(fn ($c) => $q->orWhereIn($c, $userIds), $columns))
-                ->pluck('id')
-                ->all();
+            $rows = DB::table($table)->where(fn ($q) => array_map(fn ($c) => $q->orWhereIn($c, $userIds), $columns));
+            if ($table === 'users') {
+                $rows->whereNotIn('id', $userIds);
+            }
+            $rowIds = $rows->pluck('id')->all();
             if ($rowIds === []) {
                 continue;
             }
@@ -89,30 +123,31 @@ class PurgedUserRowSweeper
                 DB::table($table)->whereIn('id', $rowIds)->whereIn($column, $userIds)->update([$column => null]);
             }
 
-            if (Schema::hasColumn($table, '_version')) {
-                DB::table($table)->whereIn('id', $rowIds)->update(['_version' => DB::raw('COALESCE(_version, 0) + 1')]);
-            }
+            DB::table($table)->whereIn('id', $rowIds)->update($this->syncStamp($table));
         }
     }
 
-    /**
-     * @param  list<string>  $skipTables
-     * @return array<string, bool> Table name to whether it also carries store_id.
-     */
-    private function userKeyedTables(array $skipTables): array
+    /** @return array<string, mixed> What moves a raw update into the next pull (A-245, A-286). */
+    private function syncStamp(string $table): array
     {
-        $tables = [];
-
-        foreach (Schema::getTableListing() as $table) {
-            $name = str_contains($table, '.') ? substr($table, strrpos($table, '.') + 1) : $table;
-
-            if (in_array($name, $skipTables, true) || !Schema::hasColumn($name, 'user_id')) {
-                continue;
+        $stamp = [];
+        if (Schema::hasColumn($table, '_version')) {
+            $stamp['_version'] = DB::raw('COALESCE(_version, 0) + 1');
+        }
+        foreach (['updated_at', '_synced_at'] as $column) {
+            if (Schema::hasColumn($table, $column)) {
+                $stamp[$column] = now();
             }
-
-            $tables[$name] = Schema::hasColumn($name, 'store_id');
         }
 
-        return $tables;
+        return $stamp;
+    }
+
+    /** @param array<string, int> $removed */
+    private function count(array &$removed, string $table, int $count): void
+    {
+        if ($count > 0) {
+            $removed[$table] = ($removed[$table] ?? 0) + $count;
+        }
     }
 }

@@ -133,7 +133,9 @@ class AdminStorePurgeUserRowsTest extends TestCase
             'account_manager_id' => $this->staff->id,
             'referred_by_id' => $this->owner->id,
             '_version' => 3,
+            'updated_at' => now()->subDay(),
         ]);
+        $this->travel(1)->minutes();
 
         $this->purge();
 
@@ -141,11 +143,21 @@ class AdminStorePurgeUserRowsTest extends TestCase
         $this->assertNull($row->account_manager_id);
         $this->assertNull($row->referred_by_id);
         $this->assertSame(4, (int) $row->_version);
+        $this->assertTrue(\Illuminate\Support\Carbon::parse($row->updated_at)->greaterThan(now()->subMinute()));
+    }
+
+    public static function foreignKeyShapes(): array
+    {
+        return ['no declared foreign keys (production)' => [false], 'declared foreign keys' => [true]];
     }
 
     #[Test]
-    public function a_staff_members_rows_in_a_sibling_store_survive_whether_or_not_the_schema_declares_foreign_keys(): void
+    #[\PHPUnit\Framework\Attributes\DataProvider('foreignKeyShapes')]
+    public function a_staff_members_rows_in_a_sibling_store_survive_whether_or_not_the_schema_declares_foreign_keys(bool $declared): void
     {
+        if (!$declared) {
+            $this->withoutDeclaredForeignKeys();
+        }
         $sibling = Store::create([
             'user_id' => $this->owner->id,
             'name' => 'Sibling Store',
@@ -191,5 +203,67 @@ class AdminStorePurgeUserRowsTest extends TestCase
 
         $this->assertFalse(DB::table('sales')->where('id', $sale->id)->exists());
         $this->assertFalse(DB::table('sale_items')->where('id', $saleItemId)->exists());
+    }
+
+    #[Test]
+    public function a_staff_members_storeless_rows_are_kept_when_the_owner_keeps_another_store(): void
+    {
+        $this->withoutDeclaredForeignKeys();
+        Store::create([
+            'user_id' => $this->owner->id,
+            'name' => 'Surviving Store',
+            'device_id' => 'DEV-PURGE-003',
+            'status' => Store::STATUS_ACTIVE,
+        ]);
+        $ambiguous = $this->seedProduct(null, $this->staff->id);
+
+        $this->purge();
+
+        $this->assertTrue(DB::table('products')->where('id', $ambiguous)->exists());
+    }
+
+    #[Test]
+    public function a_storeless_prescription_takes_its_items_with_it(): void
+    {
+        $this->withoutDeclaredForeignKeys();
+        $prescriptionId = (string) Str::uuid();
+        DB::table('prescriptions')->insert([
+            'id' => $prescriptionId, 'store_id' => null, 'user_id' => $this->owner->id,
+            'prescription_number' => 'RX-LEGACY', 'prescription_date' => now()->toDateString(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $itemId = (string) Str::uuid();
+        DB::table('prescription_items')->insert([
+            'id' => $itemId, 'prescription_id' => $prescriptionId, 'product_id' => (string) Str::uuid(),
+            'quantity_prescribed' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->purge();
+
+        $this->assertFalse(DB::table('prescriptions')->where('id', $prescriptionId)->exists());
+        $this->assertFalse(DB::table('prescription_items')->where('id', $itemId)->exists());
+    }
+
+    #[Test]
+    public function the_pointer_list_covers_every_set_null_reference_the_schema_declares_against_users(): void
+    {
+        $declared = [];
+        foreach (\App\Support\SchemaTables::names() as $table) {
+            foreach (\Illuminate\Support\Facades\Schema::getForeignKeys($table) as $foreignKey) {
+                if ($foreignKey['foreign_table'] === 'users' && strtolower((string) $foreignKey['on_delete']) === 'set null') {
+                    $declared[] = $table.'.'.$foreignKey['columns'][0];
+                }
+            }
+        }
+
+        $listed = [];
+        foreach (\App\Services\Admin\PurgedUserRowSweeper::POINTER_COLUMNS as $table => $columns) {
+            foreach ($columns as $column) {
+                $listed[] = $table.'.'.$column;
+            }
+        }
+
+        $this->assertNotEmpty($declared);
+        $this->assertSame([], array_values(array_diff($declared, $listed)));
     }
 }

@@ -142,16 +142,24 @@ foreign keys:
 - **Every table with a `user_id` and no `store_id`** (`notifications`,
   `permission_user`, `coupon_usages`, `feedback`, `sessions`,
   `referral_credit_transactions`, …): rows of those users are deleted.
-- **Every table with both** (`products`, `sales`, `activity_logs`, …): only
-  rows whose `store_id` is `NULL` are deleted, the pre-backfill rows A-288
-  measured that the `store_id` sweep cannot see. A row carrying **another**
-  store's id is kept: a staff member who once worked at a sibling store
-  authored rows that belong to that store.
-- **Pointers the schema declares `SET NULL`** (`users.account_manager_id`,
-  `referred_by_id`, `registered_by_id`, `coupons.created_by`,
-  `assigned_to_user_id`, `referral_credit_transactions.referred_user_id`) are
-  nulled explicitly, and a row's `_version` moves once where the table has one,
-  so devices pick the change up.
+- **Every table with both** (`products`, `sales`, `prescriptions`, …): only
+  rows whose `store_id` is `NULL`, and only when the purge takes the **whole
+  tenant** (the owner had no other store). When the owner keeps another store,
+  a staff member's `NULL`-store rows may have been written at that store
+  before `store_id` existed, so they are left, exactly as
+  `sync:backfill-store-ids` refuses to guess. A row carrying **another**
+  store's id is never touched. A swept parent's children go with it
+  (`sale_items` and `sale_item_batches`, `prescription_items`,
+  `return_items`).
+- **Kept on purpose:** a purged staff member's `activity_logs`,
+  `user_devices` and `audit_logs` rows that carry a surviving store's id.
+  They are that store's history; their `user_id` simply resolves to nobody.
+- **Pointers the schema declares `SET NULL`** (`PurgedUserRowSweeper::POINTER_COLUMNS`)
+  are nulled explicitly, on surviving rows only, and each touched row moves
+  `_version` once and gets a fresh `updated_at`/`_synced_at`, so it reaches
+  the next pull instead of later failing a device's version check. A test
+  checks the list against every `SET NULL` reference the schema declares, so
+  a new one cannot be added to the migrations alone.
 - **A legacy cashier sale's `sale_items` and `sale_item_batches`** go with it.
 
 `ForeignKeyCascadeEmulator` still runs afterwards as a backstop for whatever a
@@ -166,6 +174,20 @@ products authored by a purged staff member.
 suite models a schema production does not have. `AdminStorePurgeUserRowsTest`
 turns enforcement off before the test transaction opens, and fakes an
 emulator with no foreign keys for the production shape.
+
+### Guards and audit details (moved out of `AdminStoreDeletionService`)
+
+- **Restore needs the owner first.** `AdminUserService::deleteUser()` archives
+  the owner's store as a side effect; restoring that store alone would put a
+  live store back with a deleted owner, so `restoreStore()` refuses until the
+  owner is restored.
+- **A purge never takes a platform account, or the actor's own store.** Both
+  used to run and then fail partway on the activity-log foreign key.
+- **The `STORE_PURGED` description stays within 255 characters** (A-146): the
+  per-table breakdown goes in `properties.rows_removed`, and the description is
+  truncated defensively because a store name alone may be 255 long.
+- **The owner's other-store check and the staff read happen inside the
+  transaction**, under a row lock on the owner's stores (see below).
 
 The purge also deletes **legacy sales with a null `store_id`** whose
 `cashier_id` is the owner or one of the store's staff, plus their cascade

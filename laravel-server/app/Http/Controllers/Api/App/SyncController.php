@@ -370,7 +370,7 @@ class SyncController extends Controller
                         $insertOverrides++;
                         // normalizePushPayload() already ran, so it gated its
                         // store_id backfill on the pre-override operation.
-                        if (!$clientNamedStoreId && in_array($change['table_name'], self::STORE_ID_BACKFILL_TABLES, true)) {
+                        if ($change['table_name'] === 'users' || (!$clientNamedStoreId && in_array($change['table_name'], self::STORE_ID_BACKFILL_TABLES, true))) {
                             unset($payload['store_id']);
                         }
                     }
@@ -549,6 +549,10 @@ class SyncController extends Controller
                         continue;
                     }
 
+                    if ($model) {
+                        $payload = $this->withoutStoreReassignment($change['table_name'], $payload, $model, $isSuperAdmin ? null : $allowedStoreIds);
+                    }
+
                     // A receipt can never book more than was ordered. The client
                     // clamps to the outstanding balance already, but that clamp is
                     // computed against whatever that device knew — so two devices
@@ -687,7 +691,6 @@ class SyncController extends Controller
                         // edit was made from, not a real new version.
                         unset($payload['_version']);
 
-                        // Inventory Reconciliation: Ignore quantity updates for stock_batches, rely on stock_movements
                         if ($change['table_name'] === 'stock_batches') {
                             if (isset($payload['quantity'])) {
                                 unset($payload['quantity']);
@@ -768,7 +771,8 @@ class SyncController extends Controller
                             ];
                             continue;
                         }
-                        $claimIsInScope = !empty($payload['store_id']) && ($isSuperAdmin || in_array($payload['store_id'], $allowedStoreIds, true));
+                        $claimIsInScope = !empty($payload['store_id'])
+                            && $this->claimIsEvidence($payload['store_id'], $isSuperAdmin ? null : $allowedStoreIds);
                         if (empty($target->store_id) && $claimIsInScope && \Illuminate\Support\Facades\Schema::hasColumn($target->getTable(), 'store_id')) {
                             $target->store_id = $payload['store_id'];
                             $target->save();
@@ -1693,6 +1697,38 @@ class SyncController extends Controller
     /** @var array<string, string> Batch id to its product's store, for authorization within one push; reset by push(). */
     private array $batchStoreIds = [];
 
+    /** A-248: a device may claim a store-less row only for its one store, and never move a row that has a store. */
+    private function withoutStoreReassignment(string $tableName, array $payload, $model, ?array $allowedStoreIds): array
+    {
+        if ($tableName === 'users' || !array_key_exists('store_id', $payload)) {
+            return $payload;
+        }
+
+        if (empty($model->store_id) && $this->claimIsEvidence($payload['store_id'], $allowedStoreIds)) {
+            return $payload;
+        }
+
+        if (!empty($model->store_id) && $payload['store_id'] !== $model->store_id) {
+            Log::info('Sync push: ignored a store reassignment (A-248)', [
+                'table' => $tableName,
+                'record_id' => $model->getKey(),
+                'store_id' => $model->store_id,
+                'claimed_store_id' => $payload['store_id'],
+            ]);
+        }
+        unset($payload['store_id']);
+
+        return $payload;
+    }
+
+    /** A claim for a store-less row counts only when it names the session's one and only store; null scope (super admin) is a guess. */
+    private function claimIsEvidence($claimedStoreId, ?array $allowedStoreIds): bool
+    {
+        return $allowedStoreIds !== null
+            && count($allowedStoreIds) === 1
+            && $claimedStoreId === $allowedStoreIds[array_key_first($allowedStoreIds)];
+    }
+
     /**
      * Whether an accumulated delta's batch exists and belongs to a store the
      * pusher may not write to. A batch that does not exist resolves to no
@@ -1894,8 +1930,7 @@ class SyncController extends Controller
             }
         }
 
-        // Ensure staff users get associated with the store
-        if ($change['table_name'] === 'users' && $currentStoreId) {
+        if ($change['table_name'] === 'users' && $currentStoreId && $change['operation'] === 'INSERT') {
             if (($payload['role'] ?? null) !== 'store_owner' && ($payload['role'] ?? null) !== 'admin') {
                 $payload['store_id'] = $payload['store_id'] ?? $currentStoreId;
             }

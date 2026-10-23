@@ -1084,10 +1084,51 @@ migration here **and** the corresponding update on the `client/` side
   `$directStoreTables` now hold the same 21 tables (the six parent-FK child
   tables reach the resolver through its own per-table branches instead);
   keep them that way.
+  - **An UPDATE never moves a row that already has a store, and a store-less
+    row's claim counts only from a single-store session (A-248, 2026-10-23).**
+    `withoutStoreReassignment()` runs just before the UPDATE branch's
+    `forceFill()`, on every table except `users`:
+    - a payload `store_id` that differs from a stored, non-`NULL` one is
+      dropped, and the rest of the edit applies. `normalizePushPayload()`'s
+      foreign-store refusal only rejects stores outside the caller's scope,
+      and for an owner that is every store they own, so without this an
+      owner's device could move a row between its own stores, which is how
+      two production products changed tenant;
+    - a claim on a stored `NULL` is honoured only when it names **the
+      session's one and only store** (`claimIsEvidence()`): a multi-store
+      owner's claim is the active store, i.e. a guess; a super admin's is
+      the least informative guess of all; and a claim naming a store outside
+      the scope is never written (child tables' `store_id` is not validated
+      anywhere else). The A-298 DELETE claim follows the same rule. The
+      client applies the multi-store half too (`deviceHoldsSeveralStores()`).
+    - It runs right after authorization, before the version check and
+      `CrossStoreReferenceGuard`, so a dropped claim cannot turn a
+      quantity-only batch update into a version conflict.
+    - **What the server cannot fix:** an old bundle already wrote the wrong
+      store into its *local* row. The server keeps the real one, but nothing in
+      the push response rewrites a local `store_id`, and a pull for the wrong
+      store does not include the row, so that device holds the wrong copy
+      until it next pulls the row's real store.
+    - **How a store-less server row gets a store:** only a staff session or a
+      single-store owner's push can attribute it. For an owner with two or
+      more stores, or a super admin, the remedy is
+      `php artisan sync:backfill-store-ids` (A-288); until it runs the row is
+      invisible to every other till, because `NULL` never matches `whereIn`
+      (§11).
+    `users` is exempt because a staff member is reassigned through it, which
+    is also why its own store backfill in `normalizePushPayload()` is
+    **INSERT-only**: on UPDATE it used to fill in the active store whenever
+    the payload carried no `role`, so editing a staff member's phone under
+    another store moved them there. A resent `users` INSERT flipped to UPDATE
+    always drops `store_id`: a deliberate reassignment is an UPDATE, and the
+    sanitizer may already have stripped the client's value before the
+    INSERT backfill put the active store back. Nothing in the client moves a
+    business row between stores; the only legitimate move is
+    `sync:repair-product-store-stamps`, which runs server-side.
   - **The backfill half of that list is INSERT-only; the foreign-store
     refusal half is not.** `normalizePushPayload()` runs for every operation,
-    and a client UPDATE never resends `store_id` (ownership is immutable
-    client-side), so an unconditional backfill reassigned a row to whichever
+    and a client UPDATE normally carries no `store_id` (the exception is the
+    legacy-row claim, below), so an unconditional backfill reassigned a row to whichever
     store happened to be active for that push — a real outcome for a
     multi-store owner flushing writes queued before a store switch, and one
     `authorizeChangeTarget()` cannot catch, because it resolves ownership
@@ -4082,10 +4123,11 @@ On production use the 8.2 binary (next section):
   holds, so a batch the device has never received cannot be one of them.
 - **Idempotent and chunked** (keyset paging on `products.id`, 200 at a time).
   A second `--apply` reports "No product disagrees …".
-- **Retirement:** delete the command once the A-248 client claim path is fixed
-  *and* one dry run across production reports zero repairable and zero refused.
-  Until the claim path is closed the mis-stamp recurs, so the command is the
-  standing repair, not a one-shot.
+- **Retirement:** the claim path and the UPDATE reassignment are closed (A-248
+  part a, 2026-10-23); what still produces a mis-stamp is a never-pushed legacy
+  INSERT from a multi-store device (A-248 in `docs/KNOWN_BUGS.md`). Delete the
+  command once that is closed too *and* one dry run across production reports
+  zero repairable and zero refused. Until then it stays the standing repair.
 - **Tests:** `tests/Feature/RepairProductStoreStampTest.php` — detection and
   attribution, **the batch becoming pullable for the correct store** (the
   actual goal), contradictory evidence reported and left alone, cross-tenant

@@ -273,4 +273,194 @@ class SyncPushStoreIdBackfillTest extends TestCase
         $this->assertSame($this->store->id, $row->store_id);
         $this->assertSame('Bronze', $row->name);
     }
+
+    /** A-248: an owner may write every store they own, but an update must not move an existing row between them. */
+    public function test_an_update_naming_the_owners_other_store_keeps_the_rows_store_and_applies_the_rest()
+    {
+        $second = $this->createSecondStore();
+        $tierId = 'loyalty-tier-a248-update';
+        $this->seedTier($tierId, $this->store->id);
+
+        $response = $this->push('loyalty_tiers', $tierId, [
+            'id' => $tierId,
+            'store_id' => $second->id,
+            'name' => 'Silver',
+            '_version' => 1,
+        ], 'UPDATE', ['X-Store-Id' => $second->id]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+        $row = DB::table('loyalty_tiers')->where('id', $tierId)->first();
+        $this->assertSame($this->store->id, $row->store_id);
+        $this->assertSame('Silver', $row->name);
+    }
+
+    public function test_a_resent_insert_naming_the_owners_other_store_keeps_the_rows_store()
+    {
+        $second = $this->createSecondStore();
+        $tierId = 'loyalty-tier-a248-resent';
+        $this->seedTier($tierId, $this->store->id);
+
+        $this->push('loyalty_tiers', $tierId, [
+            'id' => $tierId,
+            'store_id' => $second->id,
+            'name' => 'Bronze',
+            '_version' => 1,
+        ], 'INSERT', ['X-Store-Id' => $second->id])->assertStatus(200);
+
+        $this->assertSame($this->store->id, DB::table('loyalty_tiers')->where('id', $tierId)->value('store_id'));
+    }
+
+    public function test_a_legacy_row_with_no_store_can_still_be_claimed_by_an_update()
+    {
+        $tierId = 'loyalty-tier-a248-legacy';
+        $this->seedTier($tierId, $this->store->id);
+        DB::table('loyalty_tiers')->where('id', $tierId)->update(['store_id' => null]);
+
+        $this->push('loyalty_tiers', $tierId, [
+            'id' => $tierId,
+            'store_id' => $this->store->id,
+            'name' => 'Bronze',
+            '_version' => 1,
+        ], 'UPDATE')->assertStatus(200);
+
+        $this->assertSame($this->store->id, DB::table('loyalty_tiers')->where('id', $tierId)->value('store_id'));
+    }
+
+    private function seedProduct(string $id, ?string $storeId): void
+    {
+        DB::table('products')->insert([
+            'id' => $id, 'store_id' => $storeId, 'user_id' => $this->owner->id,
+            'name' => 'swibetic card', 'selling_price' => 500, '_version' => 1,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+    public function test_the_incident_shape_a_product_edited_under_the_other_store_stays_in_its_own()
+    {
+        $second = $this->createSecondStore();
+        $this->seedProduct('product-a248', $this->store->id);
+
+        $this->push('products', 'product-a248', [
+            'id' => 'product-a248', 'store_id' => $second->id, 'selling_price' => 650, '_version' => 1,
+        ], 'UPDATE', ['X-Store-Id' => $second->id])->assertJsonCount(0, 'failed');
+
+        $row = DB::table('products')->where('id', 'product-a248')->first();
+        $this->assertSame($this->store->id, $row->store_id);
+        $this->assertEquals(650, $row->selling_price);
+    }
+
+    public function test_a_soft_delete_sent_as_an_update_does_not_move_the_row_either()
+    {
+        $second = $this->createSecondStore();
+        $this->seedProduct('product-a248-deleted', $this->store->id);
+
+        $this->push('products', 'product-a248-deleted', [
+            'id' => 'product-a248-deleted', 'store_id' => $second->id, '_deleted' => 1, '_version' => 1,
+        ], 'UPDATE', ['X-Store-Id' => $second->id])->assertStatus(200);
+
+        $row = DB::table('products')->where('id', 'product-a248-deleted')->first();
+        $this->assertSame($this->store->id, $row->store_id);
+        $this->assertNotNull($row->deleted_at);
+    }
+
+    public function test_a_two_store_owners_claim_on_a_store_less_row_is_ignored_as_a_guess()
+    {
+        $second = $this->createSecondStore();
+        $this->seedProduct('product-a248-legacy', null);
+
+        $this->push('products', 'product-a248-legacy', [
+            'id' => 'product-a248-legacy', 'store_id' => $second->id, 'selling_price' => 700, '_version' => 1,
+        ], 'UPDATE', ['X-Store-Id' => $second->id])->assertJsonCount(0, 'failed');
+
+        $row = DB::table('products')->where('id', 'product-a248-legacy')->first();
+        $this->assertNull($row->store_id);
+        $this->assertEquals(700, $row->selling_price);
+    }
+
+    public function test_editing_a_staff_member_under_the_other_store_does_not_move_them_but_a_reassignment_does()
+    {
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $second = $this->createSecondStore();
+        $staff = User::create([
+            'first_name' => 'Kept', 'last_name' => 'Staff', 'email' => 'kept-staff@dumosrx.com',
+            'password' => bcrypt('password'), 'role' => 'sales_staff', 'store_id' => $this->store->id,
+        ]);
+
+        $edit = $this->push('users', $staff->id, [
+            'id' => $staff->id, 'phone' => '08011112222',
+        ], 'UPDATE', ['X-Store-Id' => $second->id]);
+        $edit->assertJsonCount(0, 'failed');
+        $this->assertSame($this->store->id, DB::table('users')->where('id', $staff->id)->value('store_id'));
+
+        $move = $this->push('users', $staff->id, [
+            'id' => $staff->id, 'store_id' => $second->id,
+        ], 'UPDATE', ['X-Store-Id' => $second->id]);
+        $move->assertJsonCount(0, 'failed');
+        $this->assertSame($second->id, DB::table('users')->where('id', $staff->id)->value('store_id'));
+    }
+
+    private function seedStorelessBatch(string $batchId, string $productId): void
+    {
+        $this->seedProduct($productId, $this->store->id);
+        DB::table('stock_batches')->insert([
+            'id' => $batchId, 'product_id' => $productId, 'store_id' => null, 'batch_number' => 'B-'.$batchId,
+            'quantity' => 10, 'cost_price' => 50, '_version' => 3, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+    public function test_a_two_store_owners_delete_claim_on_a_store_less_row_is_ignored()
+    {
+        $second = $this->createSecondStore();
+        $this->seedProduct('product-a248-delete', null);
+
+        $this->push('products', 'product-a248-delete', ['id' => 'product-a248-delete', 'store_id' => $second->id], 'DELETE', ['X-Store-Id' => $second->id])
+            ->assertJsonCount(0, 'failed');
+
+        $row = DB::table('products')->where('id', 'product-a248-delete')->first();
+        $this->assertNull($row->store_id);
+        $this->assertNotNull($row->deleted_at);
+    }
+
+    public function test_an_owners_own_resent_user_insert_never_stamps_them_with_a_store()
+    {
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $second = $this->createSecondStore();
+        DB::table('users')->where('id', $this->owner->id)->update(['store_id' => null]);
+
+        $this->push('users', $this->owner->id, [
+            'id' => $this->owner->id, 'first_name' => 'Renamed', 'store_id' => $second->id,
+        ], 'INSERT', ['X-Store-Id' => $second->id])->assertStatus(200);
+
+        $this->assertNull(DB::table('users')->where('id', $this->owner->id)->value('store_id'));
+    }
+
+    public function test_a_single_store_sessions_claim_naming_another_tenants_store_is_ignored()
+    {
+        $foreignOwner = User::create([
+            'first_name' => 'Far', 'last_name' => 'Away', 'email' => 'far-away@dumosrx.com',
+            'password' => bcrypt('password'), 'role' => 'admin',
+        ]);
+        $foreignStore = Store::create([
+            'user_id' => $foreignOwner->id, 'name' => 'Far Store', 'email' => 'far-store@dumosrx.com',
+            'phone' => '6666666666', 'address' => '6 Far St', 'slug' => 'far-store', 'device_id' => 'WEB-FAR',
+        ]);
+        $this->seedStorelessBatch('batch-foreign-claim', 'product-foreign-claim');
+
+        $this->push('stock_batches', 'batch-foreign-claim', [
+            'id' => 'batch-foreign-claim', 'store_id' => $foreignStore->id, 'cost_price' => 60, '_version' => 3,
+        ], 'UPDATE')->assertStatus(200);
+
+        $this->assertNull(DB::table('stock_batches')->where('id', 'batch-foreign-claim')->value('store_id'));
+    }
+
+    public function test_a_dropped_claim_does_not_turn_a_quantity_only_batch_update_into_a_version_conflict()
+    {
+        $second = $this->createSecondStore();
+        $this->seedStorelessBatch('batch-qty-claim', 'product-qty-claim');
+
+        $this->push('stock_batches', 'batch-qty-claim', [
+            'id' => 'batch-qty-claim', 'store_id' => $second->id, 'quantity' => 7, '_version' => 1,
+        ], 'UPDATE', ['X-Store-Id' => $second->id])->assertJsonCount(0, 'failed');
+    }
 }

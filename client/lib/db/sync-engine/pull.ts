@@ -1,4 +1,5 @@
 import { query, execute, transaction, STORE_SCOPED_TABLES } from "../core";
+import { deviceHoldsSeveralStores } from "../device-stores";
 import { resolveSyncRun, type SyncRun } from "./sync-run";
 import { apiClient } from "@/lib/api/client";
 import { PullResponse } from "./types";
@@ -529,8 +530,7 @@ export async function pullChanges(
                 WHERE (_deleted = 0 OR _deleted IS NULL)`,
             );
 
-            const storeCount = await query<{ count: number }>("SELECT COUNT(*) AS count FROM stores");
-            const legacyRowsAreUnattributable = (storeCount[0]?.count ?? 0) > 1;
+            const legacyRowsAreUnattributable = await deviceHoldsSeveralStores();
 
             for (const row of localRows) {
               if (serverIds.has(row.id)) continue;

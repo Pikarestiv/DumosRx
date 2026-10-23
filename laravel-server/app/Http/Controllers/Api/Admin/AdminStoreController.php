@@ -12,7 +12,7 @@ use App\Services\Admin\AdminStoreService;
 use App\Services\Admin\Filters\StoreListFilters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Laravel\Sanctum\PersonalAccessToken;
+use App\Support\FullAccessToken;
 use OpenApi\Attributes as OA;
 
 class AdminStoreController extends AdminBaseController
@@ -125,10 +125,6 @@ class AdminStoreController extends AdminBaseController
     )]
     public function registerStore(Request $request)
     {
-        // hasRole('super_admin') checks the raw `role` string column, so it
-        // can't be blocked by stale/missing role_id or permission_role data
-        // the way hasPermission() can. Matches the bypass the route's own
-        // `permission:manage_platform` middleware already grants super_admin.
         if (!$request->user()->hasRole('super_admin') && !$request->user()->hasPermission('create_accounts')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
@@ -481,17 +477,6 @@ class AdminStoreController extends AdminBaseController
         try {
             $data = $this->adminStoreService->impersonateStore($id);
 
-            // Previously also set drx_admin_session here, to the
-            // impersonated user's own full-ability token, with the
-            // pre-2026-08-26-redesign SameSite=None pattern. The admin
-            // panel's actual impersonation flow (app/admin/stores/page.tsx)
-            // never reads this cookie — it uses the JSON body's `token`
-            // directly for the handoff-code exchange — so this write served
-            // no purpose except silently overwriting the calling admin's
-            // own Strict, refresh-scoped drx_admin_session cookie with the
-            // impersonated user's unscoped one on every impersonation,
-            // breaking the admin's own dumosrx.com session on next reload.
-            // Removed rather than fixed-in-place, since nothing needs it.
             return response()->json($data);
         } catch (\Exception $e) {
             Log::error("Admin Impersonate Error: " . $e->getMessage());
@@ -502,7 +487,7 @@ class AdminStoreController extends AdminBaseController
     #[OA\Post(
         path: '/admin/restore-session',
         summary: "End impersonation and restore the admin's own session",
-        description: 'Dead code from the current UI\'s perspective (useRestoreSessionMutation is defined but never called — impersonation return uses the handoff-code flow instead) — kept working and hardened rather than removed, in case it is wired up later. The supplied token must resolve to a real Sanctum token owned by a super_admin; it is not trusted blindly.',
+        description: 'Dead code from the current UI\'s perspective (useRestoreSessionMutation is defined but never called — impersonation return uses the handoff-code flow instead) — kept working and hardened rather than removed, in case it is wired up later. The supplied token must resolve to a live, full-ability (`*`), unexpired Sanctum token owned by a super_admin; it is not trusted blindly.',
         tags: ['Admin'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
@@ -522,14 +507,12 @@ class AdminStoreController extends AdminBaseController
             'token' => 'required|string'
         ]);
 
-        $accessToken = PersonalAccessToken::findToken($validated['token']);
-        $admin = $accessToken?->tokenable;
+        $admin = FullAccessToken::find($validated['token'])?->tokenable;
 
         if (!$admin || !$admin->hasRole('super_admin')) {
             return response()->json(['error' => 'Invalid restore token.'], 403);
         }
 
-        // Log the end of impersonation
         ActivityLog::create([
             'user_id' => $admin->id,
             'action' => 'ADMIN_IMPERSONATION_END',

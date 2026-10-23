@@ -671,6 +671,32 @@ change to one affects the other. Full detail (including the
 impersonation/handoff subsystem, which is separate again) is in
 `web/AGENTS.md`.
 
+### Body-token endpoints: `FullAccessToken::find()`, never `findToken()`
+
+`POST /auth/handoff`, `/auth/handoff/consume` and `/admin/restore-session`
+authenticate off a token in the **request body**, not the `Authorization`
+header, so Sanctum's guard never sees it and its expiry is not enforced.
+(The guard checks expiry only; it never checks abilities, for bearers
+either: see A-315.) `PersonalAccessToken::findToken()` checks neither. Every
+such read goes through `App\Support\FullAccessToken::find()`, which returns
+the token only if it exists, records abilities, has the `*` ability and has
+not lapsed by `TokenLifetime::hasLapsed()`. That is the one expiry rule, the
+same pair of checks as Sanctum's guard (`expires_at`, plus the global
+`sanctum.expiration` if it is ever set again), and `refreshAdminSession()`
+uses it too. A refresh-only (`['refresh']`) token or an expired one is refused
+(A-199, 2026-10-23). Coverage: `AuthHandoffTest`, `RestoreSessionTest`.
+
+- **Why the body token cannot simply be the bearer.** The handoff exists
+  because `dumosrx.com` and `app.dumosrx.com` are different origins with no
+  shared storage: `create` wraps an already-possessed token in a 60-second
+  opaque code safe for a redirect URL, `consume` redeems it once. Impersonation
+  mints a code for a token that is *not* the caller's own (the impersonated
+  user's), and restore-session restores the admin's token while the bearer is
+  the impersonated user, so neither can require header == body.
+- **`consume` re-checks the token at redemption**, not just at `create`: the
+  token can be revoked or expire inside the 60 seconds. `Cache::pull()` burns
+  the code before that check, so a failed redemption cannot be retried.
+
 ### Things the auth code used to explain inline
 
 - `AuthController` is split into traits (`AuthenticatesSessions`,
@@ -1078,6 +1104,31 @@ migration here **and** the corresponding update on the `client/` side
     resolves to a store outside the caller's scope. Don't "tidy" the
     fail-open away — `backfillStoreIdOnLegacyRows` is still live for
     accounts with local DBs older than its ship date.
+  - **Authorize on the row as stored; apply a payload's claim only after.**
+    The DELETE branch honours a legacy row's `store_id` claim (the client's
+    `softDelete()` sends the active store for a row whose local `store_id` is
+    NULL), but it must write that claim onto `$target` *after*
+    `authorizeChangeTarget()` passes, never before: `resolveChangeStoreId()`
+    reads `$target->store_id`, so a pre-applied claim made the caller's own
+    assertion the thing that authorized it (A-298 — any tenant could delete
+    another's NULL-store product by naming its own store). UPDATE already had
+    the right order (find → authorize → `forceFill()`). A row that falls open
+    still takes the claim, which is the §11 trade the bullet above describes —
+    but only a claim naming one of the caller's own stores is ever written.
+    `normalizePushPayload()` checks `store_id` only for
+    `STORE_ID_BACKFILL_TABLES`, so on a child table the branch checks it
+    itself; without that, a fall-open child line took whatever store the
+    payload named, another tenant's included.
+  - **A DELETE against `audit_logs` is refused as `unsupported_operation`,
+    never looked up.** The client only ever queues INSERT for it (even
+    `logAction()`'s repeat-dedup in `client/lib/db/core.ts` rewrites the
+    pending INSERT), and `ActivityLog` has no `SoftDeletes`, so a delete would
+    be a hard delete of a tamper-evidence record. Worse, `activity_logs.id` is
+    the server's bigint while the client's id lives in
+    `properties->client_id`, so `find()` on a client id coerces it to its
+    leading numeric run and can hit an unrelated row in the same store, which
+    store-ownership authorization then waves through. There is no correct row
+    to find, so the branch does not guess.
   - `normalizePushPayload()`'s foreign-`store_id` rejection is deliberately
     **not** gated on `$currentStoreId`. It used to be, which meant a caller
     who owns no store yet (`resolvePushStoreId()` → null) had an explicit
@@ -2030,15 +2081,15 @@ inspection session (`admin_till_sessions`). Full design in
 `POST /api/v1/app/admin-till-session` returns an **opaque session id**, never a
 token. That is deliberate and must not be "simplified" back to Sanctum:
 
-- `AdminStoreController::restoreSession()` resolves a `PersonalAccessToken`
-  from the request **body** and never checks its abilities, then mints an
-  `admin-refresh` cookie for its owner. The public cookie-only
-  `/admin/session/refresh` turns that into a general-ability `web` token, and
-  the bearer on the request only has to satisfy `auth:sanctum` — which the
-  till's own `['*']` sync token does. `AuthHandoffController::create()` has the
-  same body-token pattern. So any narrowly-scoped Sanctum token read off a till
-  would launder into a durable full superadmin session. See `docs/KNOWN_BUGS.md`
-  A-199.
+- `AdminStoreController::restoreSession()` and `AuthHandoffController`
+  resolve a token from the request **body** and act on its owner. Until
+  A-199 (fixed 2026-10-23) neither checked its abilities, so any
+  narrowly-scoped Sanctum token read off a till would have laundered into a
+  durable full superadmin session. They now go through `FullAccessToken::find()`
+  (see "Body-token endpoints" under the admin auth section), but a narrow
+  Sanctum token is still a general bearer on every `auth:sanctum` route
+  (A-315), so the till credential staying out of Sanctum is still what keeps
+  it narrow.
 - An opaque id is not a `PersonalAccessToken`, so `findToken()` never resolves
   it and both laundering paths are dead by construction.
 - It is also less code: no `ability` middleware alias (which is **not**

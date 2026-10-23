@@ -258,6 +258,7 @@ suggested tackle order rather than a strict ranking.
 
 #### A-309. `client/` — two tills returning different lines of the same sale offline leave the reseller commission figures computed from only one of them
 - **Found:** 2026-10-23, in the independent review of A-307. Reasoned from the code, not reproduced with two devices.
+- **Issue:** #252
 - **Location:** `client/lib/db/base-helpers.ts` (`update()` queues a partial patch carrying the base `_version`), `SyncController.php` (`version_conflict` on the second push), `client/lib/db/sync-engine/push.ts` (`version_conflict` is non-retryable, so the patch is dropped from the queue).
 - **What's wrong:** a return writes `reseller_markup_amount`, `reseller_commission_amount` and `reseller_commission_owed_back` (and `payment_status`) as one patch recomputed on the returning device. When two offline devices each return a different line of one sale, the second patch hits a version conflict and is discarded, while its `returns`/`return_items` rows are accepted. Nothing recomputes the figures afterwards.
 - **Consequence:** sale of 4 × 150 (list 100), commission 20 redeemed; till A returns 1 (owed back 5), till B returns 2 offline. B's patch is dropped, so the stored owed-back stays 5 where 15 is correct, on the server and on every device. The `payment_status` half was already true; the money fields widen it.
@@ -540,6 +541,7 @@ suggested tackle order rather than a strict ranking.
 
 #### A-310. `client/` — small A-307 follow-ups: details card disagrees with itself after a return, return dialog edge cases, an oversized file
 - **Found:** 2026-10-23, in the independent review of A-307.
+- **Issue:** #251
 - **Details card:** `transaction-details-dialog.tsx` "Against list price" sums price adjustments over full line quantities and never shrinks after a return, while "Reseller markup" does, so "+200" can sit beside "Reseller markup: 150".
 - **Return dialog:** `return-dialog.tsx` reads the fresh sale at "Confirm Return & Refund", not at "Yes, Process Return", so a redemption between the two steps is stored correctly (the mutation re-reads) but its warning is not shown. `handleInitialSubmit` has no try/catch, so a failing `getSaleById` makes the button do nothing silently.
 - **File size:** `transaction-details-dialog.tsx` is 407 lines, over the 350 limit (`.agents/AGENTS.md` §4); split it.

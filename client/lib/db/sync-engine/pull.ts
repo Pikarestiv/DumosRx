@@ -525,11 +525,15 @@ export async function pullChanges(
                 WHERE (_deleted = 0 OR _deleted IS NULL)`,
             );
 
+            const storeCount = await query<{ count: number }>("SELECT COUNT(*) AS count FROM stores");
+            const legacyRowsAreUnattributable = (storeCount[0]?.count ?? 0) > 1;
+
             for (const row of localRows) {
               if (serverIds.has(row.id)) continue;
               if (hasStoreId && row.store_id !== null && !pageStoreIds.has(row.store_id)) {
                 continue;
               }
+              if (row.store_id === null && legacyRowsAreUnattributable) continue;
               const matchedServerId = serverIdByName.get(
                 `${row.store_id ?? ""}|${String(row.name ?? "").trim().toLowerCase()}`,
               );

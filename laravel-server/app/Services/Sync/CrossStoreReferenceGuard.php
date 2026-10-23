@@ -46,9 +46,7 @@ class CrossStoreReferenceGuard
 
             $referent = $this->referent($model, $referencedId);
 
-            // Absent referent: a child pushed before its parent is legitimate
-            // offline ordering, so it is never rewritten here (A-294). A
-            // referent with no store of its own is A-288/A-303's territory.
+            // Absent or store-less referents are left alone: docs/FIXED_BUGS.md A-302.
             if ($referent === null || $referent['store_id'] === null) {
                 continue;
             }

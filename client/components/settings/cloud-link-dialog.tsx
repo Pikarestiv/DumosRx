@@ -51,7 +51,7 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
   const handleLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (useCode && normalizeRelinkCode(code).length !== RELINK_CODE_LENGTH) {
-      setCodeError(`Enter the ${RELINK_CODE_LENGTH}-character code from the web dashboard`);
+      setCodeError(`Enter the ${RELINK_CODE_LENGTH}-character code from the owner`);
       return;
     }
     if (!useCode && (!email || !password)) {
@@ -92,7 +92,7 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
             <DialogTitle className="text-center">Link DumosRx Cloud</DialogTitle>
             <DialogDescription className="text-center">
               {useCode
-                ? "Enter the re-link code the store owner generated on the web dashboard."
+                ? "Enter the re-link code the store owner generated in Settings > Account > Sessions & Devices."
                 : "Enter your online account credentials to enable automatic cloud backup and synchronization."}
             </DialogDescription>
           </DialogHeader>

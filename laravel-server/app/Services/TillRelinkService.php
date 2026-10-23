@@ -25,7 +25,7 @@ class TillRelinkService
     ) {
     }
 
-    public function generate(User $owner, Store $store): array
+    public function generate(User $owner, Store $store, array $device): array
     {
         $code = $this->randomCode();
         $expiresAt = now()->addSeconds(self::TTL_SECONDS);
@@ -36,17 +36,17 @@ class TillRelinkService
             'created_by' => $owner->id,
         ], $expiresAt);
 
+        $this->auditIssued($owner, $store, $expiresAt, $device);
+
         return ['code' => $code, 'expires_at' => $expiresAt->toIso8601String()];
     }
 
-    /**
-     * @return array|null the login() response body, or null for any code that is unknown, expired, used or for another store
-     */
+    /** @return array|null the login() response body, or null for an unknown, expired, used or other-store code */
     public function consume(string $code, string $storeId, array $device): ?array
     {
         $entry = Cache::pull($this->cacheKey($this->normalize($code)));
 
-        if (!is_array($entry) || !hash_equals((string) $entry['store_id'], $storeId)) {
+        if (!is_array($entry) || !hash_equals((string) $entry['store_id'], $storeId) || !$this->claim($code)) {
             return null;
         }
 
@@ -84,6 +84,24 @@ class TillRelinkService
         if ($refusal) {
             throw new HttpResponseException($refusal);
         }
+    }
+
+    private function claim(string $code): bool
+    {
+        return Cache::add('till_relink_used:' . hash('sha256', $this->normalize($code)), 1, self::TTL_SECONDS);
+    }
+
+    private function auditIssued(User $owner, Store $store, \DateTimeInterface $expiresAt, array $device): void
+    {
+        ActivityLog::create([
+            'user_id' => $owner->id,
+            'store_id' => $store->id,
+            'action' => 'TILL_RELINK_CODE_ISSUED',
+            'description' => 'Till re-link code issued',
+            'ip_address' => $device['ip'],
+            'user_agent' => $device['user_agent'],
+            'properties' => ['expires_at' => $expiresAt->format(DATE_ATOM)],
+        ]);
     }
 
     private function audit(User $owner, Store $store, ?string $createdBy, array $device): void

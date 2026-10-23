@@ -131,6 +131,32 @@ class TillRelinkCodeTest extends TestCase
         $this->consume($code)->assertStatus(422)->assertJson(['message' => 'Invalid or expired code.']);
     }
 
+    public function test_a_code_whose_entry_is_read_twice_still_mints_only_one_token()
+    {
+        $code = $this->issueCode();
+        $key = 'till_relink:' . hash('sha256', $code);
+        $entry = \Illuminate\Support\Facades\Cache::get($key);
+
+        $this->consume($code)->assertOk();
+        \Illuminate\Support\Facades\Cache::put($key, $entry, now()->addMinutes(15));
+
+        $this->consume($code)->assertStatus(422);
+        $this->assertSame(1, PersonalAccessToken::where('name', 'Client App')->count());
+    }
+
+    public function test_issuing_a_code_is_audited_without_the_code()
+    {
+        $code = $this->issueCode();
+
+        $log = \App\Models\ActivityLog::where('action', 'TILL_RELINK_CODE_ISSUED')->first();
+
+        $this->assertNotNull($log);
+        $this->assertSame($this->store->id, $log->store_id);
+        $this->assertSame($this->owner->id, $log->user_id);
+        $this->assertStringNotContainsString($code, json_encode($log->toArray()));
+        $this->assertStringNotContainsString(hash('sha256', $code), json_encode($log->toArray()));
+    }
+
     public function test_an_expired_code_is_rejected()
     {
         $code = $this->issueCode();

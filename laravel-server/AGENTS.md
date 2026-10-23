@@ -758,7 +758,9 @@ at it. `App\Http\Controllers\Api\App\TillRelinkController` (thin) over
   minute per IP, `AppServiceProvider`). Inputs: `code` and the `X-Store-Id`
   header the client's `syncHeaders()` already sends. `Cache::pull` burns the
   code **before** anything is checked, so a wrong store or a refused account
-  still uses it up. An unknown, expired, used, or other-store code all get the
+  still uses it up. `Cache::pull` is a get-then-forget on the `database` cache
+  store, so a `Cache::add` marker (`till_relink_used:<hash>`) is claimed after the
+  store check and a second reader of the same entry is refused. An unknown, expired, used, or other-store code all get the
   identical `422 {"message": "Invalid or expired code."}`, so the endpoint never
   says whether a code exists or which store it belongs to.
 - **It repeats login()'s guards on the owner**: `CheckAccountStatus::refusalFor()`
@@ -769,7 +771,9 @@ at it. `App\Http\Controllers\Api\App\TillRelinkController` (thin) over
   `SubscriptionService::enforceStaffLimits()`. It then mints `Client App` with
   `TokenLifetime::till()`, stamps `ip_address`/`user_agent` like `login()` so
   the Sessions list shows it, and returns `login()`'s exact body shape.
-- **Audit:** an `activity_logs` row `TILL_RELINKED` with the store, ip, user
+- **Audit:** issuing a code writes `TILL_RELINK_CODE_ISSUED` (store, ip, user
+  agent, expiry; never the code or its hash). Consuming one writes an
+  `activity_logs` row `TILL_RELINKED` with the store, ip, user
   agent and `properties.{created_by, device_id, device_label}`; the description
   carries the device label (or "Unnamed device"), never a bare device id.
 - **The token is the owner's**, as with every till today: the code binds by

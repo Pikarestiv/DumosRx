@@ -27,7 +27,10 @@ class TillRelinkController extends Controller
             return response()->json(['message' => 'Only the store owner can generate a re-link code.'], 403);
         }
 
-        return response()->json($this->relinks->generate($user, $store));
+        return response()->json($this->relinks->generate($user, $store, [
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]));
     }
 
     public function consume(Request $request)

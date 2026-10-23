@@ -209,7 +209,8 @@ trait RegistersAccounts
             }
         }
 
-        $token = $user->createToken($request->device_name ?? 'Client App', ['*'], TokenLifetime::till())->plainTextToken;
+        $deviceName = $request->device_name ?? 'Client App';
+        $token = $user->createToken($deviceName, ['*'], TokenLifetime::forLogin($user, $deviceName))->plainTextToken;
 
         return response()->json([
             'message' => 'User registered successfully',

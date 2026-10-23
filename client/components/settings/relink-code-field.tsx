@@ -38,7 +38,7 @@ export function RelinkCodeField({ value, error, disabled, onChange }: RelinkCode
         </p>
       ) : (
         <p className="text-xs text-muted-foreground">
-          Single use and valid for 15 minutes. The owner generates it under Sessions &amp; Devices on the web dashboard.
+          Single use and valid for 15 minutes. The owner generates it in the DumosRx app, under Settings &gt; Account &gt; Sessions &amp; Devices, on any linked device.
         </p>
       )}
     </div>

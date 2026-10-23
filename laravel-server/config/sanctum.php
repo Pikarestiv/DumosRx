@@ -40,13 +40,16 @@ return [
     | Expiration Minutes
     |--------------------------------------------------------------------------
     |
-    | This value controls the number of minutes until an issued token will be
-    | considered expired. If this value is null, personal access tokens do
-    | not expire. This won't tweak the lifetime of first-party sessions.
+    | Null: every token carries its own expires_at instead, set by
+    | App\Support\TokenLifetime from the two lifetimes below.
     |
     */
 
-    'expiration' => 43200,
+    'expiration' => null,
+
+    'admin_token_lifetime_days' => (int) env('SANCTUM_ADMIN_TOKEN_LIFETIME_DAYS', 30),
+
+    'till_token_lifetime_days' => (int) env('SANCTUM_TILL_TOKEN_LIFETIME_DAYS', 180),
 
     /*
     |--------------------------------------------------------------------------

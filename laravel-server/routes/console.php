@@ -17,3 +17,4 @@ Schedule::command('backups:prune')->dailyAt('03:00');
 Schedule::command('storefront:sweep-payment-intents')->hourly();
 Schedule::command('subscriptions:expire')->dailyAt('02:00');
 Schedule::command('sync:prune-failures')->dailyAt('03:30');
+Schedule::command('sanctum:prune-expired --hours=24')->dailyAt('04:00');

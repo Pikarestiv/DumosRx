@@ -671,6 +671,67 @@ change to one affects the other. Full detail (including the
 impersonation/handoff subsystem, which is separate again) is in
 `web/AGENTS.md`.
 
+### Things the auth code used to explain inline
+
+- `AuthController` is split into traits (`AuthenticatesSessions`,
+  `RegistersAccounts`, ...) rather than separate controllers because every
+  route's middleware is bound to the class name by route group
+  (`throttle:auth`, `throttle:session-refresh`, the `auth:sanctum` group).
+- `login()` refuses a user with a null/empty `password` before
+  `Hash::check()`: PIN-only staff have no web credential, and
+  `password_verify()` on null is a deprecation (see "Staff credentials").
+- The new-device email fires only when the account already has more than one
+  token and no other token shares this IP *or* user agent (either match counts,
+  to avoid over-alerting). It is best effort: the token is already saved, so an
+  SMTP failure is logged and never fails the login (it used to 500 on an
+  undeliverable address).
+- `/refresh` never sets `drx_admin_session`. It once did, reachable by any
+  bearer caller, which reintroduced the general-ability-token-in-a-cookie shape
+  the redesign removed.
+- `/admin/session/refresh`: an unknown token, or one whose rotation grace has
+  lapsed, gets a bare 401 **without** clearing the cookie; clearing it there
+  turned a multi-tab race into a logout. A token without the `refresh` ability
+  is cleared. Rotation renames the outgoing token `admin-refresh-rotated` and
+  gives it a 30 second `expires_at` (long enough for in-flight sibling requests,
+  too short to replay); a request presenting a rotated token inside that window
+  gets an access token and no cookie, so it cannot overwrite the winner's.
+  "Was rotated" is decided by that **name**, not by `expires_at` being set,
+  because every token now carries an `expires_at` (below).
+- `restoreSession()` mints a fresh `admin-refresh` token for its cookie rather
+  than putting the body token in it: the cookie must only ever hold a
+  `refresh`-ability token or `refreshAdminSession()` clears it on next reload.
+- `impersonateStore()` does not set `drx_admin_session`; the panel uses the
+  JSON `token` for the handoff exchange, and writing the cookie overwrote the
+  admin's own session.
+
+### Token lifetimes (2026-10-23, A-311)
+
+`config/sanctum.php`'s global `expiration` is `null`. Every `createToken()`
+call passes its own `expires_at`, taken from `App\Support\TokenLifetime`, the
+one place a lifetime is decided:
+
+| Token | Lifetime |
+|---|---|
+| `login()` with `device_name: "web"`, or any login by a `super_admin` | `TokenLifetime::admin()`, 30 days (`SANCTUM_ADMIN_TOKEN_LIFETIME_DAYS`) |
+| `login()` with any other `device_name` (tills send `"Client App"`), `register()` | `TokenLifetime::till()`, 180 days (`SANCTUM_TILL_TOKEN_LIFETIME_DAYS`) |
+| `/refresh` (renames to `web`, serves tills and admin bearer callers alike) | by role: `super_admin` 30, everyone else 180 |
+| `admin-refresh`, `/admin/session/refresh`'s `web`, `Impersonation Token` | 30 days |
+
+Why: a till offline for more than 30 days used to come back to a 401 and
+unlink, because `/refresh` only runs online. Token names cannot tell a till
+from the dashboard (`/refresh` renames everything `web`), hence the role rule.
+
+- **Never call `createToken()` without the third argument.** With the global
+  expiration gone, a token minted without one never expires.
+- Migration `2026_10_23_000001_backfill_personal_access_token_expiry` set
+  `expires_at = created_at + 30 days` on every row that had none, so existing
+  tokens keep the lifetime they were issued under rather than becoming immortal.
+  It computes the date in PHP (§7: no MySQL `NOW()`), so it is portable to the
+  SQLite test DB. A till picks up 180 days on its next `/refresh`.
+- `sanctum:prune-expired --hours=24` runs daily at 04:00 (`routes/console.php`).
+- Backward compatibility (§11): no response shape changed; old clients get
+  longer-lived tokens and nothing else.
+
 ## Sync engine (server side)
 
 `app/Http/Controllers/Api/App/SyncController.php` (~1000 lines — the

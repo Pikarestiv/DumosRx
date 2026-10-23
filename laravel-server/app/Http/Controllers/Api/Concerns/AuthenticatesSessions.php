@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Concerns;
 use App\Http\Controllers\Concerns\ManagesAdminSessionCookie;
 use App\Models\User;
 use App\Services\SubscriptionService;
+use App\Support\TokenLifetime;
 use App\Mail\NewDeviceLoginEmail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -15,19 +16,6 @@ use Laravel\Sanctum\PersonalAccessToken;
 use Exception;
 use OpenApi\Attributes as OA;
 
-/**
- * Login/logout, token refresh, the cookie-backed admin session and the
- * authenticated-user lookup of AuthController.
- *
- * Extracted verbatim from AuthController purely to make that ~900-line file
- * navigable. It is a trait, NOT a separate controller, deliberately: every
- * AuthController route's middleware is assigned by route group in
- * routes/api.php (three different groups - throttle:auth,
- * throttle:session-refresh and the auth:sanctum protected group), so the
- * class name in those bindings must not change. Using traits keeps the
- * controller's identity, its route bindings and its middleware application
- * exactly as they were.
- */
 trait AuthenticatesSessions
 {
     use ManagesAdminSessionCookie;
@@ -66,8 +54,6 @@ trait AuthenticatesSessions
 
         $user = User::where('email', $request->email)->first();
 
-        // PIN-only staff have no web credential at all, and password_verify()
-        // against null is a PHP deprecation. "Staff credentials" in AGENTS.md.
         if (!$user || $user->password === null || $user->password === '' || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['Invalid credentials.'],
@@ -89,15 +75,13 @@ trait AuthenticatesSessions
             $subService->enforceStaffLimits($owner);
         }
 
-        $tokenResult = $user->createToken($request->device_name);
+        $tokenResult = $user->createToken($request->device_name, ['*'], TokenLifetime::forLogin($user, $request->device_name));
         $token = $tokenResult->plainTextToken;
-        
+
         $tokenModel = $tokenResult->accessToken;
         $ipAddress = $request->ip();
         $userAgent = $request->userAgent();
 
-        // Fingerprint check: Is this a completely new combination we haven't seen for this user?
-        // Note: we don't alert on the very first token ever created (count == 0 before save)
         $priorTokensCount = $user->tokens()->count();
         $isNewDevice = false;
 
@@ -106,7 +90,7 @@ trait AuthenticatesSessions
                 ->where('id', '!=', $tokenModel->id)
                 ->where(function($query) use ($ipAddress, $userAgent) {
                     $query->where('ip_address', $ipAddress)
-                          ->orWhere('user_agent', $userAgent); // Partial match avoids over-alerting
+                          ->orWhere('user_agent', $userAgent);
                 })->exists();
         }
 
@@ -114,14 +98,6 @@ trait AuthenticatesSessions
         $tokenModel->user_agent = $userAgent;
         $tokenModel->save();
 
-        // Dispatch security email if device is unrecognized. Best-effort:
-        // authentication has already succeeded and the token is already
-        // saved above, so a mail failure (bad address, SMTP rejection, etc.)
-        // must not fail the whole login response. Previously unguarded, this
-        // turned an undeliverable email on the account into a 500 on every
-        // login from a new device, even though the user was in fact
-        // authenticated (confirmed via Sentry: SMTP 550 "No Such User Here"
-        // crashing the request past the point the token was already saved).
         if ($isNewDevice) {
             try {
                 Mail::to($user->email)->send(
@@ -141,12 +117,7 @@ trait AuthenticatesSessions
         ]);
 
         if ($request->device_name === 'web') {
-            // The browser admin panel never sees this token or stores it -
-            // it exists only to let /admin/session/refresh mint a fresh
-            // access token after a page reload (the access token itself
-            // lives in JS memory only). Restricted to the 'refresh'
-            // ability so it can't be used as a general bearer credential.
-            $refreshToken = $user->createToken('admin-refresh', ['refresh'])->plainTextToken;
+            $refreshToken = $user->createToken('admin-refresh', ['refresh'], TokenLifetime::admin())->plainTextToken;
             $response->withCookie($this->buildAdminSessionCookie($request, $refreshToken));
         }
 
@@ -195,17 +166,8 @@ trait AuthenticatesSessions
     {
         $user = $request->user();
         $user->currentAccessToken()->delete();
-        $token = $user->createToken("web")->plainTextToken;
+        $token = $user->createToken('web', ['*'], TokenLifetime::forUser($user))->plainTextToken;
 
-        // Previously also set drx_admin_session here, unconditionally, to
-        // the full-ability token above with the pre-2026-08-26-redesign
-        // SameSite=None pattern — reachable by ANY bearer-token caller
-        // (this route has no device_name gate, unlike login()'s equivalent
-        // cookie-minting), reintroducing exactly the credential shape
-        // (general-ability token in a widely-sendable cookie) that redesign
-        // eliminated. This endpoint is client/'s bearer-token-only flow
-        // (see AGENTS.md) and has no cookie dependency at all — removed
-        // rather than gated, since it never needed to set this cookie.
         return response()->json([
             "token" => $token,
             "user" => $user->append('effective_permissions'),
@@ -234,20 +196,10 @@ trait AuthenticatesSessions
 
         $refreshToken = PersonalAccessToken::findToken($raw);
 
-        // A token this server has never heard of, or one whose rotation grace
-        // window has lapsed, gets a plain 401 and NOTHING else. Clearing the
-        // cookie here is what used to turn a harmless lost race into a logout:
-        // several tabs refresh at once, the losers find the shared token
-        // already rotated away, and their cookie-clearing responses land after
-        // the winner's fresh cookie and delete the session that had just been
-        // established. See docs/FIXED_BUGS.md.
         if (!$refreshToken || $this->adminRefreshTokenGraceHasLapsed($refreshToken)) {
             return response()->json(['message' => 'Session expired.'], 401);
         }
 
-        // Genuinely the wrong kind of credential (not the ability-scoped
-        // refresh token this endpoint mints), so the cookie is worthless and
-        // is cleared.
         if (!$refreshToken->can('refresh')) {
             return response()->json(['message' => 'Session expired.'], 401)
                 ->withCookie($this->forgetAdminSessionCookie($request));
@@ -260,22 +212,17 @@ trait AuthenticatesSessions
                 ->withCookie($this->forgetAdminSessionCookie($request));
         }
 
-        // Inside the grace window the winning request has already rotated this
-        // token and already handed the browser a fresh cookie. Issuing a second
-        // cookie here would overwrite a perfectly good one with a token this
-        // response may or may not deliver first, so the loser is served an
-        // access token and leaves the cookie completely alone.
         if ($this->adminRefreshTokenWasRotated($refreshToken)) {
             return response()->json([
-                'token' => $user->createToken('web')->plainTextToken,
+                'token' => $user->createToken('web', ['*'], TokenLifetime::admin())->plainTextToken,
                 'user' => $user->append('effective_permissions'),
             ]);
         }
 
         $this->rotateAdminRefreshToken($refreshToken);
 
-        $accessToken = $user->createToken('web')->plainTextToken;
-        $newRefreshToken = $user->createToken('admin-refresh', ['refresh'])->plainTextToken;
+        $accessToken = $user->createToken('web', ['*'], TokenLifetime::admin())->plainTextToken;
+        $newRefreshToken = $user->createToken('admin-refresh', ['refresh'], TokenLifetime::admin())->plainTextToken;
 
         return response()->json([
             'token' => $accessToken,
@@ -283,26 +230,11 @@ trait AuthenticatesSessions
         ])->withCookie($this->buildAdminSessionCookie($request, $newRefreshToken));
     }
 
-    /**
-     * How long a just-rotated admin refresh token keeps resolving to its
-     * session. Long enough to cover requests that were already in flight when
-     * the winner rotated (a multi-tab reload, a restored window), short enough
-     * that it is not a meaningful replay window for a stolen cookie.
-     */
     private function adminRefreshRotationGraceSeconds(): int
     {
         return 30;
     }
 
-    /**
-     * Rotation marks the outgoing token instead of deleting it outright.
-     * `expires_at` is what makes the marking safe: Sanctum's guard rejects an
-     * expired token everywhere else in the app, so the old value stops being a
-     * usable credential the moment the grace window closes, exactly as the
-     * previous hard delete intended - it just stays readable here long enough
-     * for concurrent siblings to recognise it as "already rotated" rather than
-     * "revoked".
-     */
     private function rotateAdminRefreshToken(PersonalAccessToken $refreshToken): void
     {
         $refreshToken->forceFill([
@@ -319,7 +251,7 @@ trait AuthenticatesSessions
 
     private function adminRefreshTokenWasRotated(PersonalAccessToken $refreshToken): bool
     {
-        return $refreshToken->expires_at !== null;
+        return $refreshToken->name === 'admin-refresh-rotated';
     }
 
     private function adminRefreshTokenGraceHasLapsed(PersonalAccessToken $refreshToken): bool
@@ -341,10 +273,4 @@ trait AuthenticatesSessions
     {
         return $request->user();
     }
-
-    // adminSessionCookieDomain()/buildAdminSessionCookie()/
-    // forgetAdminSessionCookie() now live on the shared
-    // ManagesAdminSessionCookie trait (used above), so this controller and
-    // AdminStoreController's impersonation flow can't drift apart on the
-    // cookie's security attributes again.
 }

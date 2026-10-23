@@ -5717,8 +5717,12 @@ handler, just left open here.
 
 `client/lib/api/token-manager.ts:90`
 
-Only a definitive "this token is invalid" response should unlink
-the store from cloud sync. Any other status - a captive portal's
+Only a 401 should unlink the store from cloud sync. A 403 is not a
+dead token: `/refresh` sits behind the account-status and
+email-verified middleware, which answer 403 (`ACCOUNT_SUSPENDED`,
+`STORE_ARCHIVED`, `email_not_verified`) while the token is still
+valid, so clearing on 403 permanently unlinked every till of a
+temporarily suspended store. Any other status - a captive portal's
 511, a proxy's 407, a transient 502/503 - is not evidence the
 token is dead, and clearing it here silently and permanently
 dropped the device out of sync (sync() then returns
@@ -5730,7 +5734,7 @@ dropped the device out of sync (sync() then returns
 
 Network errors (offline, timeout/abort above, DNS failure, etc.)
 are not evidence the token is invalid either - same reasoning as
-the non-401/403 branch above. Leave the token in place; the next
+the non-401 branch above. Leave the token in place; the next
 successful request or refresh attempt will sort it out.
 
 ### line-constants-category-icons-tsx-L154

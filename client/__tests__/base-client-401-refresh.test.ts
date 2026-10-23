@@ -55,6 +55,27 @@ describe("BaseApiClient 401 handling", () => {
     expect(getToken()).toBe("initial-token");
   });
 
+  it("does NOT clear the token when the refresh endpoint answers 403 (suspended or unverified account)", async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ message: "Unauthenticated" }),
+        text: async () => JSON.stringify({ message: "Unauthenticated" }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        json: async () => ({ message: "ACCOUNT_SUSPENDED" }),
+        text: async () => JSON.stringify({ message: "ACCOUNT_SUSPENDED" }),
+      });
+
+    await expect(apiClient.getProfile()).rejects.toThrow();
+
+    expect(getToken()).toBe("initial-token");
+  });
+
   it("clears the token when the refresh attempt gets a definitive 401", async () => {
     const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
     fetchMock

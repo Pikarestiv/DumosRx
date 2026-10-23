@@ -6663,6 +6663,15 @@ Before that, work focused on the **Inventory** area:
   with a large sale in it (grouping is presentational-only by design, see
   the correlationId section above — the SQL/pagination layer was
   deliberately left untouched, this is the known cost of that choice).
+- **One window per install.** `public/manifest.json` carries `id: "/"`, `scope: "/"` and
+  `launch_handler: { client_mode: "focus-existing" }`, so relaunching the installed PWA
+  focuses the open window on Chromium instead of opening a second, read-only one
+  (`isReadOnlyTab` stays as the fallback for Safari, Firefox and plain tabs). Keep `id` equal
+  to the old implicit value (`start_url`) or browsers treat it as a new app. Tauri desktop
+  uses `tauri-plugin-single-instance`; the writer lock does not run there.
+- **Unlinked tills.** Only a 401 on `/refresh` clears the token; a 403 (suspended, archived,
+  unverified) leaves it. The indicator reads "Not Backed Up" when a till is unlinked and has
+  unsynced changes. Open follow-up: A-311.
 - The PWA precache manifest includes every file in the static export
   (every route's HTML/JS chunks, both sql.js wasm binaries) with no
   curation — fine at current app size, but worth revisiting (a smaller

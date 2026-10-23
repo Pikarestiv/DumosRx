@@ -547,6 +547,11 @@ suggested tackle order rather than a strict ranking.
 - **File size:** `transaction-details-dialog.tsx` is 407 lines, over the 350 limit (`.agents/AGENTS.md` §4); split it.
 - **Fix:** shrink the list-price figure by returned quantity (or label it as the original sale), re-read at the second confirm and catch the failure with a toast, and extract the reseller block into its own component.
 
+
+#### A-311. `client/`, `laravel-server/` — an unlinked till has no self-service recovery and a long offline gap still unlinks it
+- **Found:** 2026-10-23, while answering "what if a till unlinks and the owner isn't there".
+- **Issue:** Sanctum tokens expire after 30 days (`config/sanctum.php`) and `/refresh` only runs online, so a till offline longer than that comes back to a 401 and unlinks. Only a user with `backup_restore_data` (or admin) and the owner's cloud email and password can re-link, in Settings > Data. Until then `_sync_queue` grows with no cap, and a lost device loses its unsynced sales. `linkCloudAccount` (`auth-context.tsx:586`) may also reject a manager whose email differs from the logged-in user; unverified.
+- **Fix:** let `/refresh` accept a recently expired till token inside a grace window (additive, so old clients are unaffected), and add a single-use, store-scoped, rate-limited re-link code the owner generates on the web dashboard. Do not reuse the read-only admin inspection till code.
 ---
 
 ## Accepted tradeoffs (no fix planned)

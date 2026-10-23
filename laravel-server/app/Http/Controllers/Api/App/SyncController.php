@@ -920,7 +920,7 @@ class SyncController extends Controller
                 new OA\Property(property: 'success', type: 'boolean'),
                 new OA\Property(property: 'server_timestamp', type: 'string', format: 'date-time'),
                 new OA\Property(property: 'changes', type: 'object', description: 'Keyed by table name, each value an array of row objects', additionalProperties: new OA\AdditionalProperties(type: 'array', items: new OA\Items(type: 'object'))),
-                new OA\Property(property: 'refused_store_id', type: 'string', nullable: true, description: "Set when X-Store-Id names a store outside the caller's scope: only `stores` is served, every other table is omitted so no window can be stamped from it (A-254)"),
+                new OA\Property(property: 'refused_store_id', type: 'string', nullable: true, description: "Set when X-Store-Id names a store outside the caller's scope: only `stores` (including that store's tombstone if it is the owner's deleted store) and `payment_accounts` are served, every other table is omitted so no window can be stamped from it (A-254)"),
             ])),
             new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
             new OA\Response(response: 403, description: 'Cloud sync disabled on current plan, or store count exceeds plan limit'),
@@ -987,13 +987,14 @@ class SyncController extends Controller
 
         $refusedStoreId = $tenantScope['refusedStoreId'] ?? null;
         if ($refusedStoreId !== null) {
-            Log::warning("Sync pull: X-Store-Id {$refusedStoreId} is outside user {$user->id}'s scope; serving stores only (A-254)");
+            $tables = array_values(array_intersect($tables, self::PULL_TABLES_INDEPENDENT_OF_STORE_HEADER));
+            $this->logRefusedPullStore($user->id, $refusedStoreId);
         }
 
         foreach ($tables as $table) {
             $modelClass = $this->getModelForTable($table);
 
-            if (!$modelClass || ($refusedStoreId !== null && $table !== 'stores'))
+            if (!$modelClass)
                 continue;
 
             // withTrashed() is a Builder macro registered by SoftDeletingScope,
@@ -1180,7 +1181,7 @@ class SyncController extends Controller
             // granted by an admin) could never be pulled down at all.
             // Staff (fixed store_id) still only ever see their own
             // store, same as before.
-            'stores' => $query->whereIn('id', $ownedStoreIds)->with(['user.subscriptions']),
+            'stores' => $query->whereIn('id', $scope['storeRowIds'] ?? $ownedStoreIds)->with(['user.subscriptions']),
             // These 11 tables now carry a real store_id column (see
             // add_store_id_to_domain_tables migration); scope directly
             // by store rather than by an owner/cashier user-id chain, so
@@ -1264,24 +1265,34 @@ class SyncController extends Controller
      * X-Store-Id — it IS the store-switcher's discovery list), and the staff
      * ids that go with them.
      */
+    /** Tables applyPullTenantScope() scopes by every owned store or by the owner, never by X-Store-Id. */
+    private const PULL_TABLES_INDEPENDENT_OF_STORE_HEADER = ['stores', 'payment_accounts'];
+
+    private function logRefusedPullStore(string $userId, string $refusedStoreId): void
+    {
+        if (\Illuminate\Support\Facades\Cache::add('sync-pull-refused:'.sha1($userId.'|'.$refusedStoreId), true, now()->addDay())) {
+            Log::warning('Sync pull: X-Store-Id is outside the caller\'s scope; withholding store-scoped tables (A-254)', [
+                'user_id' => $userId,
+                'refused_store_id' => $refusedStoreId,
+            ]);
+        }
+    }
+
     private function resolvePullTenantScope($user, Request $request): array
     {
         ['ownerId' => $ownerId, 'storeIds' => $ownedStoreIds] = $this->resolveOwnershipIdentity($user);
 
-        $requestedStoreId = $request->header('X-Store-Id') ?? $request->input('store_id');
-        $refusedStoreId = null;
-        if ($requestedStoreId) {
-            // A-129: this used to check "does this store belong to the same
-            // owner" (Store::where('user_id', $ownerId)), which let a staff
-            // account read a sibling store's data by sending that store's
-            // id here — any store under the same owner passed. $ownedStoreIds
-            // is already the caller's own correctly-narrowed scope (one
-            // store for staff, every owned store for an owner), exactly
-            // like resolveAllowedOwnershipScope() already enforces for push.
-            $storeIds = in_array($requestedStoreId, $ownedStoreIds, true) ? [$requestedStoreId] : [];
-            $refusedStoreId = $storeIds === [] ? (string) $requestedStoreId : null;
-        } else {
-            $storeIds = $ownedStoreIds;
+        $requested = $request->header('X-Store-Id') ?? $request->input('store_id');
+        $requestedStoreId = is_string($requested) && $requested !== '' ? $requested : null;
+
+        $storeIds = $requestedStoreId === null
+            ? $ownedStoreIds
+            : (in_array($requestedStoreId, $ownedStoreIds, true) ? [$requestedStoreId] : []);
+        $refusedStoreId = $requestedStoreId !== null && $storeIds === [] ? $requestedStoreId : null;
+
+        $storeRowIds = $ownedStoreIds;
+        if ($refusedStoreId !== null && Store::onlyTrashed()->whereKey($refusedStoreId)->where('user_id', $ownerId)->exists()) {
+            $storeRowIds[] = $refusedStoreId;
         }
 
         $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($ownerId)->toArray();
@@ -1290,6 +1301,7 @@ class SyncController extends Controller
             'ownerId' => $ownerId,
             'storeIds' => $storeIds,
             'ownedStoreIds' => $ownedStoreIds,
+            'storeRowIds' => $storeRowIds,
             'userIds' => $userIds,
             'refusedStoreId' => $refusedStoreId,
         ];

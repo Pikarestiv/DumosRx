@@ -146,12 +146,12 @@ class SyncPullStaffCrossStoreIsolationTest extends TestCase
 
     /** A-254: an unowned store id must not make every store-scoped table read as an empty, complete window. */
     #[Test]
-    public function an_unowned_store_header_withholds_every_store_scoped_table_but_still_serves_the_callers_stores(): void
+    public function an_unowned_store_header_withholds_every_store_scoped_table_but_still_serves_the_header_independent_ones(): void
     {
         $response = $this->pull($this->owner, (string) Str::uuid());
 
         $response->assertStatus(200);
-        $this->assertSame(['stores'], array_keys($response->json('changes')));
+        $this->assertSame(['stores', 'payment_accounts'], array_keys($response->json('changes')));
         $this->assertEqualsCanonicalizing(
             [$this->storeA->id, $this->storeB->id],
             collect($response->json('changes.stores'))->pluck('id')->all(),
@@ -165,7 +165,7 @@ class SyncPullStaffCrossStoreIsolationTest extends TestCase
         $response = $this->pull($this->staffOfA, $this->storeB->id);
 
         $response->assertStatus(200);
-        $this->assertSame(['stores'], array_keys($response->json('changes')));
+        $this->assertSame(['stores', 'payment_accounts'], array_keys($response->json('changes')));
         $this->assertSame([$this->storeA->id], collect($response->json('changes.stores'))->pluck('id')->all());
         $this->assertSame($this->storeB->id, $response->json('refused_store_id'));
     }
@@ -177,6 +177,33 @@ class SyncPullStaffCrossStoreIsolationTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertArrayHasKey('products', $response->json('changes'));
+        $this->assertArrayHasKey('refused_store_id', $response->json());
+        $this->assertNull($response->json('refused_store_id'));
+    }
+
+    #[Test]
+    public function a_header_naming_the_callers_deleted_store_is_answered_with_that_stores_tombstone(): void
+    {
+        $this->storeB->delete();
+
+        $response = $this->pull($this->owner, $this->storeB->id);
+
+        $response->assertStatus(200);
+        $this->assertSame($this->storeB->id, $response->json('refused_store_id'));
+        $stores = collect($response->json('changes.stores'))->keyBy('id');
+        $this->assertTrue($stores->has($this->storeB->id));
+        $this->assertTrue((bool) $stores[$this->storeB->id]['_deleted']);
+    }
+
+    #[Test]
+    public function a_non_string_store_id_is_ignored_rather_than_crashing_the_pull(): void
+    {
+        $response = $this->actingAs($this->owner)->postJson('/api/v1/app/sync/pull', [
+            'last_synced' => [],
+            'store_id' => ['not', 'a', 'string'],
+        ]);
+
+        $response->assertStatus(200);
         $this->assertNull($response->json('refused_store_id'));
     }
 }

@@ -56,6 +56,12 @@ suggested tackle order rather than a strict ranking.
 - **Consequence:** store B's devices never pull store A's supplier, so those purchase orders and payments show no supplier there, permanently. Bounded the same way A-303 was: un-backfilled multi-store devices and suppliers created before the 2026-08 migration.
 - **Fix:** extend `CrossStoreReferenceGuard::GUARDED` to `purchase_orders.supplier_id`, `supplier_payments.supplier_id` and `stock_batches.supplier_id`, with a supplier counterpart of `resolveOwnedCategoryId()`. Do **not** scope the client remap instead: the server has already merged the row, so a scoped remap leaves store B on an id that exists nowhere, which is worse (see A-303 in `docs/FIXED_BUGS.md`). Measure first: `SELECT COUNT(*)` of those three tables whose `supplier_id` names another store's supplier.
 
+#### A-322. `client/` — a device whose windows an unowned-store pull stamped before A-254, and which has since regained that store, still misses the store's older rows
+- **Found:** 2026-10-23, by the review of A-254's fix.
+- **What's wrong:** before A-254, a pull with an `X-Store-Id` outside the caller's scope returned empty tables and the client stamped every window for that store key. A-254 clears those windows when the refusal is seen, but a device that was refused, then regained access (a staff member moved back, a store restored) before running a fixed bundle, still holds the stamps and is now served normally, so nothing tells it to clear them. Rows of that store older than the stamp never arrive.
+- **Consequence:** silent, permanent gaps on exactly those devices. Population unknown and probably small: it needs a refusal, then a regained scope, both before the fixed bundle ran.
+- **Fix, if worth it:** the agreement panel's per-table counts (`TableAgreementService`) already detect a device behind the cloud for a store; a "force full resync of this store" sync command for a flagged device is the targeted repair. Not worth a blind fleet-wide window reset.
+
 ### Tier 2 — stock and money figures wrong
 
 #### A-265. `client/` — a cycle count on a batch carrying an oversell deficit silently does nothing the first time, and the ledger ends up double-counting the correction

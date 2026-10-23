@@ -1739,10 +1739,12 @@ table the client never pulls.
 - **A table missing from `changes` is never stamped, and the server relies
   on it (A-254).** A window is completed only inside the loop over the
   response's own tables. When `X-Store-Id` names a store outside the caller's
-  scope, the server serves `stores` alone and sets `refused_store_id`, so no
-  other table's window moves on a response that could not contain its rows.
-  Stamping every requested table at the end of a round would silently undo
-  that. Pinned by `pull-refused-store-stamps-only-served-tables.test.ts`.
+  scope, the server serves only `stores` and `payment_accounts` and sets
+  `refused_store_id`; if that is this run's store, `pull.ts` clears every
+  other window under it (`forgetWithheldPullWindows()`), so access regained
+  later starts from a full pull. Stamping every requested table at the end of
+  a round would silently undo this. Pinned by
+  `pull-refused-store-stamps-only-served-tables.test.ts`.
 - **Duplicate-name reconciliation:** a local row absent from the response
   but name-matching a server row has its references remapped to the server's
   id and is then soft-deleted rather than left as an orphaned duplicate.

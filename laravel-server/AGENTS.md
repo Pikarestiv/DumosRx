@@ -3587,29 +3587,41 @@ query string) — do not reintroduce it or a variant.
   source-text scan, so treat it as "look closer", never as a safety
   certificate.
 
-## An `X-Store-Id` outside the caller's scope gets `stores` only (A-254, 2026-10-23)
+## An `X-Store-Id` outside the caller's scope withholds every store-scoped table (A-254, 2026-10-23)
 
 `resolvePullTenantScope()` narrows a pull to the one store `X-Store-Id` names,
-and refuses one outside the caller's scope (A-129: one store for staff, every
-owned store for an owner). That refusal used to scope every table to nothing,
-which the client read as an empty, complete window and stamped, so a later
-regain of access never pulled that store's older rows.
+checked against `resolveOwnershipIdentity()`'s scope: one store for staff,
+every owned store for an owner. It must not be widened to "any store of the
+same owner" (A-129: that let staff read a sibling store by naming it).
 
-Now `pull()` serves **only `stores`** (scoped by every owned store, never by the
-header) and omits every other table, sets `refused_store_id` in the response,
-and logs a warning. The client stamps only tables present in `changes`, so
-nothing else moves.
+A header outside that scope used to scope every table to nothing, which the
+client read as an empty, complete window and stamped, so a later regain of
+access never pulled that store's older rows. Now:
 
+- `pull()` serves only `PULL_TABLES_INDEPENDENT_OF_STORE_HEADER` (`stores`,
+  scoped by every owned store, and `payment_accounts`, scoped by owner) and
+  omits every other table, so no window for it can move. `users` is withheld
+  too: its scope is derived from the requested store.
+- If the refused id is **the owner's own soft-deleted store**, its tombstone is
+  added to `stores`, so the device learns the store is gone. Without that,
+  `resolveOwnershipIdentity()` excludes trashed stores and the device would
+  never see it.
+- The response carries `refused_store_id`. The client clears every window it
+  holds under that store key except the served tables, which also heals a
+  window a pre-fix empty pull poisoned.
+- A non-string `store_id` input is ignored (treated as absent), never cast.
+- The refusal is logged once per user and store per day, with the ids as
+  context, not in the message.
 - **Why not a 403, as the entry first proposed:** a stale header is what a
   deleted store or a staff member moved between stores leaves behind, and the
-  `stores` rows are how that device learns it. A 403 would cut that off and
-  fail every round for ever on every shipped bundle.
-- **§11:** additive. Every bundle since at least 2026-09-26 stamps inside the
-  loop over `changes` (checked against that version of `pull.ts`); one that
-  ignores `refused_store_id` behaves correctly.
-- **Not done:** the client does not yet act on `refused_store_id` (for example
-  by re-resolving its active store). The device keeps asking, cheaply, and the
-  server logs each refusal.
+  `stores` rows are how that device can notice. A 403 would fail every round
+  for ever on every shipped bundle.
+- **§11:** additive. Every bundle since at least 2026-09-26 stamps only tables
+  present in `changes` (checked against that version of `pull.ts`), so an old
+  bundle that ignores `refused_store_id` still stamps nothing it did not get.
+- **Not done:** the client does not re-resolve its active store on a refusal;
+  it keeps asking each round. A device that was poisoned before this fix and
+  has since regained access cannot be detected (A-322).
 - Coverage: `tests/Feature/SyncPullStaffCrossStoreIsolationTest.php`; client side
   `client/__tests__/pull-refused-store-stamps-only-served-tables.test.ts`.
 

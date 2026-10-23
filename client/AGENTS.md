@@ -3228,6 +3228,12 @@ first cell `sticky left-0`; the scroll box is a `ScrollFade` that takes its
 height from the Settings panel (`h-full` on the roles `TabsContent` plus
 `flex-1 min-h-0` here), so don't reintroduce a fixed pixel height.
 
+A category title row ("Sales & POS") is `bg-slate-200 dark:bg-slate-800` with bold
+`text-slate-900` text, not the column header's `bg-muted`, because its checkbox
+ticks every permission in the category and must not be mistaken for one
+permission's row. The sticky first cell repeats the row's background so the
+label stays opaque while scrolling.
+
 On phones it stays **one matrix, horizontally scrolled**, the dense-ledger
 treatment (`overflow-x-auto` + pinned name column), not the card-list swap
 `supplier-table.tsx`/`activity-log-page.tsx` do: a permission is only

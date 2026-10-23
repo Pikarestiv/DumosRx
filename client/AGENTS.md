@@ -1749,11 +1749,12 @@ table the client never pulls.
   - **The push-side `id_map` remap of a `NULL`-store row is deliberately
     unscoped.** The server has already merged the row, so the mapping must be
     honoured; `remapForeignKey(…, null)` repoints every store's references and
-    requeues them. For **categories** that heals: the server's
-    `CrossStoreReferenceGuard` (A-302) re-owns store B's products onto store
-    B's same-named category on ingest. Scoping the remap to the push's store
-    would leave them on an id that exists nowhere. For **suppliers** nothing
-    heals it yet (A-321). Pinned by `push-id-map-reconciliation.test.ts`.
+    requeues them. That heals on ingest: the server's
+    `CrossStoreReferenceGuard` re-owns store B's references onto store B's
+    same-named row, for categories (A-302) and, since A-321, for suppliers on
+    `purchase_orders`, `supplier_payments` and `stock_batches`. Scoping the
+    remap to the push's store would leave them on an id that exists nowhere.
+    Pinned by `push-id-map-reconciliation.test.ts`.
 - **`onCriticalTablesReady` / `SETUP_CRITICAL_TABLES` (`stores`, `users`).**
   Fires once, the first time those tables have fully drained this round, so
   a caller mid-first-sync (`startSyncProcess` in `use-onboarding.ts`) can let

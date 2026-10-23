@@ -9,13 +9,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * Archive, restore and purge for a store, kept out of AdminStoreService so
- * the irreversible action lives in a file whose whole purpose is obvious.
- * The behaviour of all three — and the reasons behind the purge's schema
- * introspection, its transaction shape and the restore's suspension
- * warning — is documented in docs/ADMIN_STORE_LIFECYCLE.md.
- */
+/** Archive, restore and purge for a store. Behaviour and rationale: docs/ADMIN_STORE_LIFECYCLE.md. */
 class AdminStoreDeletionService
 {
     /** Tables whose rows belong to a store through something other than a
@@ -29,8 +23,10 @@ class AdminStoreDeletionService
      * store they own would take the account with it. */
     private const PLATFORM_ROLES = ['super_admin', 'platform_admin', 'agent'];
 
-    public function __construct(private ForeignKeyCascadeEmulator $cascades)
-    {
+    public function __construct(
+        private ForeignKeyCascadeEmulator $cascades,
+        private PurgedUserRowSweeper $userRows,
+    ) {
     }
 
     public function archiveStore(string $storeId, ?string $reason, User $actor): ?Store
@@ -173,7 +169,9 @@ class AdminStoreDeletionService
         $ownerIsSolelyThisStore = $ownerId
             && array_values(array_diff($ownedStoreIds, [$store->id])) === [];
 
-        foreach ($this->storeScopedTables() as $table) {
+        $storeScopedTables = $this->storeScopedTables();
+
+        foreach ($storeScopedTables as $table) {
             $count = DB::table($table)->where('store_id', $store->id)->delete();
             if ($count > 0) {
                 $removed[$table] = $count;
@@ -205,7 +203,8 @@ class AdminStoreDeletionService
         }
 
         $this->revokeSessions($userIds);
-        $this->cascades->cascadeChildren('users', $userIds, $removed, ['stores']);
+        $this->userRows->sweep($userIds, ['users', 'stores', ...array_keys(self::OWNER_SCOPED_TABLES)], $removed);
+        $this->cascades->cascadeChildren('users', $userIds, $removed, ['stores', ...$storeScopedTables]);
 
         $removed['users'] = User::withTrashed()->whereIn('id', $userIds)->forceDelete();
     }
@@ -285,6 +284,7 @@ class AdminStoreDeletionService
             return;
         }
 
+        $this->userRows->sweepSaleChildren($saleIds, $removed);
         $this->cascades->cascadeChildren('sales', $saleIds, $removed);
 
         $count = DB::table('sales')->whereIn('id', $saleIds)->delete();

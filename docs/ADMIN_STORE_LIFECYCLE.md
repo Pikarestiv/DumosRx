@@ -129,24 +129,43 @@ Three guards:
 SQLite ignores `PRAGMA foreign_keys` inside an open transaction, so the
 purge suspends constraints *around* its transaction rather than inside it.
 Suspending them also suspends every `ON DELETE CASCADE` / `SET NULL` the
-schema does declare, on MySQL and SQLite alike, so deleting the owner and
-staff used to leave dangling `notifications`, `permission_user`,
-`coupon_usages` and `activity_logs` rows and dangling
-`account_manager_id` / `referred_by_id` / `registered_by_id` pointers on
-*other* users. `ForeignKeyCascadeEmulator` replays those declared actions in
-PHP, reading them from `Schema::getForeignKeys()`, so a foreign key added
-later is covered without editing it.
+schema declares, and production declares **none** (A-179: every table was
+created as MyISAM, which discards FK definitions, and the InnoDB conversion
+recreated none). So nothing the database does can be relied on here.
 
-> **⚠️ On production this paragraph does not hold — see `docs/KNOWN_BUGS.md`
-> A-292.** The emulator derives its entire action map from
-> `Schema::getForeignKeys()`, and production declares **no** foreign keys: per
-> A-179 all 63 tables were created as MyISAM, which parses and discards FK
-> definitions, and the later `ALTER TABLE … ENGINE=InnoDB` conversion does not
-> recreate a constraint that was never created. So every `cascadeChildren()`
-> call is a no-op there, while the test suite passes because SQLite *does*
-> honour the migrations' `constrained()`. The purge's explicit sweeps (the
-> `store_id` list and `OWNER_SCOPED_TABLES`) work everywhere; everything this
-> paragraph credits to the emulator currently happens only in tests.
+### Rows keyed to a purged user
+
+`PurgedUserRowSweeper` (A-292, 2026-10-23) removes what the force-deleted
+owner and staff leave behind, introspecting the live schema rather than its
+foreign keys:
+
+- **Every table with a `user_id` and no `store_id`** (`notifications`,
+  `permission_user`, `coupon_usages`, `feedback`, `sessions`,
+  `referral_credit_transactions`, …): rows of those users are deleted.
+- **Every table with both** (`products`, `sales`, `activity_logs`, …): only
+  rows whose `store_id` is `NULL` are deleted, the pre-backfill rows A-288
+  measured that the `store_id` sweep cannot see. A row carrying **another**
+  store's id is kept: a staff member who once worked at a sibling store
+  authored rows that belong to that store.
+- **Pointers the schema declares `SET NULL`** (`users.account_manager_id`,
+  `referred_by_id`, `registered_by_id`, `coupons.created_by`,
+  `assigned_to_user_id`, `referral_credit_transactions.referred_user_id`) are
+  nulled explicitly, and a row's `_version` moves once where the table has one,
+  so devices pick the change up.
+- **A legacy cashier sale's `sale_items` and `sale_item_batches`** go with it.
+
+`ForeignKeyCascadeEmulator` still runs afterwards as a backstop for whatever a
+schema *does* declare, but is told to skip every store-scoped table. Without
+that, on a schema with FKs (the test suite's, a local MySQL built from the
+migrations, or production if constraints are ever added) its replay of
+`products.user_id → users ON DELETE CASCADE` deleted a sibling store's
+products authored by a purged staff member.
+
+**Testing it:** under `RefreshDatabase` the purge's FK suspension is ignored
+(the test transaction is already open), so SQLite itself cascades and the
+suite models a schema production does not have. `AdminStorePurgeUserRowsTest`
+turns enforcement off before the test transaction opens, and fakes an
+emulator with no foreign keys for the production shape.
 
 The purge also deletes **legacy sales with a null `store_id`** whose
 `cashier_id` is the owner or one of the store's staff, plus their cascade

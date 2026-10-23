@@ -3365,10 +3365,15 @@ already does — not by trusting the schema to enforce it.
 rather than in one bug entry: the test suite is STRONGER than production.**
 SQLite honours the migrations' `constrained()`, so an FK-dependent code path
 passes every test and does nothing in the field. A-179 was the transaction
-version of this; `docs/KNOWN_BUGS.md` A-292 is the foreign-key version (the
+version of this; A-292 (`docs/FIXED_BUGS.md`) is the foreign-key version (the
 store purge's user-level cascade). Assume any third instance is also invisible
 to CI, and when a guarantee is load-bearing, write a test that removes the
 capability SQLite provides for free rather than one that relies on it.
+**`Schema::withoutForeignKeyConstraints()` is a no-op under `RefreshDatabase`:**
+SQLite ignores `PRAGMA foreign_keys` inside the already-open test transaction,
+so the engine keeps cascading. To test FK-free behaviour, set the PRAGMA off
+before the test transaction opens, as `tests/Feature/Admin/AdminStorePurgeUserRowsTest.php`
+does by overriding `beginDatabaseTransaction()`, and restore it after rollback.
 
 **Two engine rules that follow from it.** Never leave `'engine'` unset — a
 new table silently inherits whatever the host prefers. And if you ever

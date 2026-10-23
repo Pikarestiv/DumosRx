@@ -463,4 +463,24 @@ class SyncPushStoreIdBackfillTest extends TestCase
             'id' => 'batch-qty-claim', 'store_id' => $second->id, 'quantity' => 7, '_version' => 1,
         ], 'UPDATE', ['X-Store-Id' => $second->id])->assertJsonCount(0, 'failed');
     }
+
+    public function test_a_two_store_owners_store_less_product_insert_is_not_stamped_with_the_active_store()
+    {
+        $second = $this->createSecondStore();
+
+        $this->push('products', 'product-a248-new-legacy', [
+            'id' => 'product-a248-new-legacy', 'name' => 'Legacy Syrup', 'selling_price' => 500,
+        ], 'INSERT', ['X-Store-Id' => $second->id])->assertJsonCount(0, 'failed');
+
+        $this->assertNull(DB::table('products')->where('id', 'product-a248-new-legacy')->value('store_id'));
+    }
+
+    public function test_a_single_store_owners_store_less_product_insert_is_still_backfilled()
+    {
+        $this->push('products', 'product-a248-single', [
+            'id' => 'product-a248-single', 'name' => 'Single Syrup', 'selling_price' => 500,
+        ], 'INSERT')->assertJsonCount(0, 'failed');
+
+        $this->assertSame($this->store->id, DB::table('products')->where('id', 'product-a248-single')->value('store_id'));
+    }
 }

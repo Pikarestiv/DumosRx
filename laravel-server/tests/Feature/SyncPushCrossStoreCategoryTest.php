@@ -114,7 +114,7 @@ class SyncPushCrossStoreCategoryTest extends TestCase
             'operation' => 'INSERT',
             'record_id' => 'prod-insert-1',
             'payload' => [
-                'id' => 'prod-insert-1',
+                'id' => 'prod-insert-1', 'store_id' => $this->storeA->id,
                 'name' => 'Panadol',
                 'category_id' => $this->categoryB->id,
                 'selling_price' => 500,
@@ -169,7 +169,7 @@ class SyncPushCrossStoreCategoryTest extends TestCase
             'operation' => 'INSERT',
             'record_id' => 'prod-insert-2',
             'payload' => [
-                'id' => 'prod-insert-2',
+                'id' => 'prod-insert-2', 'store_id' => $this->storeA->id,
                 'name' => 'Cologne',
                 'category_id' => $perfume->id,
                 'selling_price' => 900,
@@ -200,7 +200,7 @@ class SyncPushCrossStoreCategoryTest extends TestCase
                         'operation' => 'INSERT',
                         'record_id' => 'prod-same-batch',
                         'payload' => [
-                            'id' => 'prod-same-batch',
+                            'id' => 'prod-same-batch', 'store_id' => $this->storeA->id,
                             'name' => 'Benylin',
                             'category_id' => 'cat-same-batch',
                             'selling_price' => 700,
@@ -224,7 +224,7 @@ class SyncPushCrossStoreCategoryTest extends TestCase
             'operation' => 'INSERT',
             'record_id' => 'prod-dangling',
             'payload' => [
-                'id' => 'prod-dangling',
+                'id' => 'prod-dangling', 'store_id' => $this->storeA->id,
                 'name' => 'Mystery',
                 'category_id' => 'category-that-never-synced',
                 'selling_price' => 100,
@@ -256,7 +256,7 @@ class SyncPushCrossStoreCategoryTest extends TestCase
             'operation' => 'INSERT',
             'record_id' => 'prod-legacy',
             'payload' => [
-                'id' => 'prod-legacy',
+                'id' => 'prod-legacy', 'store_id' => $this->storeA->id,
                 'name' => 'Aspirin',
                 'category_id' => $legacy->id,
                 'selling_price' => 300,
@@ -285,7 +285,7 @@ class SyncPushCrossStoreCategoryTest extends TestCase
             'table_name' => 'products',
             'operation' => 'INSERT',
             'record_id' => 'prod-foreign-cat',
-            'payload' => ['id' => 'prod-foreign-cat', 'name' => 'Panadol', 'category_id' => $foreignDrugs->id, 'selling_price' => 500],
+            'payload' => ['id' => 'prod-foreign-cat', 'store_id' => $this->storeA->id, 'name' => 'Panadol', 'category_id' => $foreignDrugs->id, 'selling_price' => 500],
         ], $this->storeA->id)->assertStatus(200);
 
         $this->assertSame($this->categoryA->id, DB::table('products')->where('id', 'prod-foreign-cat')->value('category_id'));

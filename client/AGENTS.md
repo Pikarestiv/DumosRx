@@ -1745,6 +1745,15 @@ table the client never pulls.
   later starts from a full pull. Stamping every requested table at the end of
   a round would silently undo this. Pinned by
   `pull-refused-store-stamps-only-served-tables.test.ts`.
+- **Legacy products are attributed by evidence (A-248 part c).** At the start
+  of every push on a device holding more than one store,
+  `attributeStorelessProductsFromEvidence()` gives a store-less product the
+  one store its own `stock_batches` and `stock_movements` all name, both
+  locally and in its pending INSERT payload. Evidence naming two stores, or
+  none, leaves it alone. The server no longer guesses a store for such a
+  product, so without evidence it stays unattributed until
+  `sync:repair-product-store-stamps` runs. Pinned by
+  `legacy-product-attribution.test.ts`.
 - **Duplicate-name reconciliation:** a local row absent from the response
   but name-matching a server row has its references remapped to the server's
   id and is then soft-deleted rather than left as an orphaned duplicate.

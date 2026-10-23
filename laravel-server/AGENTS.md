@@ -1125,6 +1125,15 @@ migration here **and** the corresponding update on the `client/` side
     INSERT backfill put the active store back. Nothing in the client moves a
     business row between stores; the only legitimate move is
     `sync:repair-product-store-stamps`, which runs server-side.
+  - **A store-less `products` INSERT from a multi-store session is not
+    backfilled (A-248 part c).** The active store is a guess there: a legacy
+    product queued under one store and first pushed under another took the
+    wrong one. It is stored unattributed and logged instead. The client first
+    attributes it from its own batches and movements when they all name one
+    store (`legacy-product-attribution.ts`), and
+    `sync:repair-product-store-stamps` attributes it from the pushed evidence
+    otherwise. Single-store sessions are still backfilled. Other tables in the
+    list still take the guess (A-326).
   - **The backfill half of that list is INSERT-only; the foreign-store
     refusal half is not.** `normalizePushPayload()` runs for every operation,
     and a client UPDATE normally carries no `store_id` (the exception is the
@@ -4123,11 +4132,17 @@ On production use the 8.2 binary (next section):
   holds, so a batch the device has never received cannot be one of them.
 - **Idempotent and chunked** (keyset paging on `products.id`, 200 at a time).
   A second `--apply` reports "No product disagrees …".
-- **Retirement:** the claim path and the UPDATE reassignment are closed (A-248
-  part a, 2026-10-23); what still produces a mis-stamp is a never-pushed legacy
-  INSERT from a multi-store device (A-248 in `docs/KNOWN_BUGS.md`). Delete the
-  command once that is closed too *and* one dry run across production reports
-  zero repairable and zero refused. Until then it stays the standing repair.
+- **Store-less products too (A-248 part c, 2026-10-23).** A product whose
+  `store_id` is `NULL` but whose batches or movements name a store is a
+  candidate, attributed by the same single-store evidence rule. Its tenant
+  check uses the product's author (`user_id`: the author if they own stores,
+  else their store's owner), since there is no current store to compare. This
+  is now the expected way such a product gets a store: the server no longer
+  guesses one for a multi-store session's store-less product INSERT.
+- **Retirement:** every path that produced a mis-stamp is closed (A-248 parts a,
+  b and c). Keep the command while store-less products are still arriving from
+  legacy devices; delete it once one dry run across production reports zero
+  repairable and zero refused.
 - **Tests:** `tests/Feature/RepairProductStoreStampTest.php` — detection and
   attribution, **the batch becoming pullable for the correct store** (the
   actual goal), contradictory evidence reported and left alone, cross-tenant

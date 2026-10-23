@@ -71,7 +71,7 @@ class RepairProductStoreStampTest extends TestCase
         ]);
     }
 
-    private function insertProduct(string $storeId, string $name = 'swibetic card', int $version = 12): string
+    private function insertProduct(?string $storeId, string $name = 'swibetic card', int $version = 12): string
     {
         $id = (string) Str::uuid();
 
@@ -298,5 +298,46 @@ class RepairProductStoreStampTest extends TestCase
         $this->artisan('sync:repair-product-store-stamps')
             ->expectsOutputToContain('Database:')
             ->assertSuccessful();
+    }
+
+    public function test_a_store_less_product_is_attributed_to_the_store_its_stock_belongs_to(): void
+    {
+        $productId = $this->insertProduct(null, 'legacy syrup');
+        $this->insertBatchWithMovement($productId, $this->correctStore->id);
+
+        $this->artisan('sync:repair-product-store-stamps --apply')
+            ->expectsConfirmation('Write these moves?', 'yes')
+            ->expectsOutputToContain('Repairable: 1')
+            ->assertSuccessful();
+
+        $this->assertSame($this->correctStore->id, $this->productRow($productId)->store_id);
+    }
+
+    public function test_a_store_less_product_whose_evidence_names_another_tenant_is_refused(): void
+    {
+        $stranger = $this->makeOwner('stranger-legacy');
+        $strangerStore = $this->makeStore($stranger, 'Stranger Legacy Pharmacy');
+        $productId = $this->insertProduct(null, 'legacy cross tenant');
+        $this->insertBatchWithMovement($productId, $strangerStore->id);
+
+        $this->artisan('sync:repair-product-store-stamps')
+            ->expectsOutputToContain('ANOTHER TENANT')
+            ->expectsOutputToContain('Repairable: 0')
+            ->assertSuccessful();
+
+        $this->assertNull($this->productRow($productId)->store_id);
+    }
+
+    public function test_a_store_less_product_with_contradictory_evidence_is_left_alone(): void
+    {
+        $productId = $this->insertProduct(null, 'legacy contradictory');
+        $this->insertBatchWithMovement($productId, $this->correctStore->id);
+        $this->insertBatchWithMovement($productId, $this->wrongStore->id);
+
+        $this->artisan('sync:repair-product-store-stamps')
+            ->expectsOutputToContain('Contradictory: 1')
+            ->assertSuccessful();
+
+        $this->assertNull($this->productRow($productId)->store_id);
     }
 }

@@ -2050,7 +2050,12 @@ class SyncController extends Controller
         if (in_array($change['table_name'], self::STORE_ID_BACKFILL_TABLES, true)) {
             if (empty($payload['store_id'])) {
                 if ($change['operation'] === 'INSERT') {
-                    if ($currentStoreId) {
+                    if ($change['table_name'] === 'products' && ($isSuperAdmin || count($allowedStoreIds) > 1)) {
+                        Log::info('Sync push: left a store-less product unattributed rather than guess the active store (A-248)', [
+                            'record_id' => $change['record_id'] ?? null,
+                            'active_store_id' => $currentStoreId,
+                        ]);
+                    } elseif ($currentStoreId) {
                         $payload['store_id'] = $currentStoreId;
                     }
                 } else {

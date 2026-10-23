@@ -4,6 +4,7 @@ import {
   markSynced,
   recordSyncFailure,
 } from "../local-database";
+import { attributeStorelessProductsFromEvidence } from "./legacy-product-attribution";
 import { apiClient } from "@/lib/api/client";
 import { buildStockFingerprint } from "./stock-fingerprint";
 import { buildTableFingerprint } from "./table-fingerprint";
@@ -252,6 +253,7 @@ export async function pushChanges(
   const stockFingerprint = await buildStockFingerprint(activeRun.storeId);
   const tableFingerprint = await buildTableFingerprint(activeRun.storeId);
   const queueState = await buildQueueStateReport(activeRun.storeId);
+  await attributeStorelessProductsFromEvidence();
   let pending = await getPendingSyncItems(isManual);
 
   if (pending.length === 0) {

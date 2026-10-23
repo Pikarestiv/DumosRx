@@ -1620,6 +1620,24 @@ store_id arrives by runtime migration, not SCHEMA_SQL. Added here, before
 any pull warms getValidColumns()'s per-table cache, so a pulled row
 actually lands with its store_id.
 
+## line-__tests__-duplicate-name-reconciliation-test-ts-L83
+
+`client/__tests__/duplicate-name-reconciliation.test.ts:83`
+
+p1 had no _sync_queue entry at all (it was already fully synced under the old id) — without requeueing, this corrected category_id would never reach the server: _synced would stay 0 forever with nothing to push it.
+
+## block-__tests__-duplicate-name-reconciliation-test-ts-L93
+
+`client/__tests__/duplicate-name-reconciliation.test.ts:93`
+
+A-301, measured on production: 2,138 products of one store and 2,500 of the other were repointed at each other's same-named categories, in two four-minute bursts. A device holding both stores pulls the ACTIVE store's categories, so the other store's local rows are never in `serverIds` and looked orphaned — then matched by name, remapped, and soft-deleted, taking that store's whole catalogue with them. Every device of the losing store then renders "Uncategorized" for ever, because a pull only ever delivers its own store's categories.
+
+## block-__tests__-duplicate-name-reconciliation-test-ts-L133
+
+`client/__tests__/duplicate-name-reconciliation.test.ts:133`
+
+The scope must come from the PAGE, not from whichever store happens to be active when the response lands. `switchStore()` flips the resolver synchronously but does not cancel an in-flight `runSync()`, so a pull requested for store A can be applied while B is active — and an active-store scope would then treat B's categories as the candidates and repoint B's catalogue at A's category. Scoping by each losing row's own `store_id` removes the timing dependency entirely.
+
 ## block-__tests__-editable-number-cell-leading-zero-test-tsx-L5
 
 `client/__tests__/editable-number-cell-leading-zero.test.tsx:5`
@@ -4070,6 +4088,12 @@ long-unchanged row like "DRUGS" or "COSMETICS" never will, so any product
 referencing the old local id failed its foreign key check forever. This
 proves push.ts now applies the server's id_map immediately instead of
 waiting on a pull that may never come.
+
+## line-__tests__-push-id-map-reconciliation-test-ts-L63
+
+`client/__tests__/push-id-map-reconciliation.test.ts:63`
+
+Represents a product still awaiting its own push (e.g. in a later batch) whose frozen payload snapshot still has the stale local id.
 
 ## line-__tests__-push-id-map-reconciliation-test-ts-L99
 

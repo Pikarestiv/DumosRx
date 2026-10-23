@@ -7,7 +7,7 @@ use App\Models\Category;
 /**
  * Keeps a pushed row from naming another store's category. Rationale, the
  * production measurement and why this remaps rather than refuses or drops:
- * docs/KNOWN_BUGS.md A-302 and docs/FIXED_BUGS.md A-301.
+ * docs/FIXED_BUGS.md A-301 and A-302.
  */
 class CrossStoreReferenceGuard
 {
@@ -46,9 +46,7 @@ class CrossStoreReferenceGuard
 
             $referent = $this->referent($model, $referencedId);
 
-            // Absent referent: a child pushed before its parent is legitimate
-            // offline ordering, so it is never rewritten here (A-294). A
-            // referent with no store of its own is A-288/A-303's territory.
+            // Absent or store-less referents are left alone: docs/FIXED_BUGS.md A-302.
             if ($referent === null || $referent['store_id'] === null) {
                 continue;
             }

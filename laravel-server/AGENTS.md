@@ -1094,11 +1094,16 @@ migration here **and** the corresponding update on the `client/` side
       and for an owner that is every store they own, so without this an
       owner's device could move a row between its own stores, which is how
       two production products changed tenant;
-    - a claim on a stored `NULL` is honoured only when the session can write
-      exactly one store (`claimIsAGuess()`); a multi-store owner's claim is the
-      active store, i.e. a guess, so the row stays unattributed. The A-298
-      DELETE claim follows the same rule. The client applies it too
-      (`deviceHoldsSeveralStores()`), so a current bundle never sends one.
+    - a claim on a stored `NULL` is honoured only when it names **the
+      session's one and only store** (`claimIsEvidence()`): a multi-store
+      owner's claim is the active store, i.e. a guess; a super admin's is
+      the least informative guess of all; and a claim naming a store outside
+      the scope is never written (child tables' `store_id` is not validated
+      anywhere else). The A-298 DELETE claim follows the same rule. The
+      client applies the multi-store half too (`deviceHoldsSeveralStores()`).
+    - It runs right after authorization, before the version check and
+      `CrossStoreReferenceGuard`, so a dropped claim cannot turn a
+      quantity-only batch update into a version conflict.
     - **What the server cannot fix:** an old bundle already wrote the wrong
       store into its *local* row. The server keeps the real one, but nothing in
       the push response rewrites a local `store_id`, and a pull for the wrong
@@ -1109,7 +1114,9 @@ migration here **and** the corresponding update on the `client/` side
     **INSERT-only**: on UPDATE it used to fill in the active store whenever
     the payload carried no `role`, so editing a staff member's phone under
     another store moved them there. A resent `users` INSERT flipped to UPDATE
-    drops a merely-backfilled `store_id` too. Nothing in the client moves a
+    always drops `store_id`: a deliberate reassignment is an UPDATE, and the
+    sanitizer may already have stripped the client's value before the
+    INSERT backfill put the active store back. Nothing in the client moves a
     business row between stores; the only legitimate move is
     `sync:repair-product-store-stamps`, which runs server-side.
   - **The backfill half of that list is INSERT-only; the foreign-store

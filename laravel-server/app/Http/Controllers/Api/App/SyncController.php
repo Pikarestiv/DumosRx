@@ -368,7 +368,7 @@ class SyncController extends Controller
                         $insertOverrides++;
                         // normalizePushPayload() already ran, so it gated its
                         // store_id backfill on the pre-override operation.
-                        if (!$clientNamedStoreId && ($change['table_name'] === 'users' || in_array($change['table_name'], self::STORE_ID_BACKFILL_TABLES, true))) {
+                        if ($change['table_name'] === 'users' || (!$clientNamedStoreId && in_array($change['table_name'], self::STORE_ID_BACKFILL_TABLES, true))) {
                             unset($payload['store_id']);
                         }
                     }
@@ -549,6 +549,7 @@ class SyncController extends Controller
                     }
 
                     if ($model) {
+                        $payload = $this->withoutStoreReassignment($change['table_name'], $payload, $model, $isSuperAdmin ? null : $allowedStoreIds);
                         $payload = $crossStoreGuard->apply(
                             $change['table_name'],
                             $payload,
@@ -701,8 +702,6 @@ class SyncController extends Controller
                             }
                         }
 
-                        $payload = $this->withoutStoreReassignment($change['table_name'], $payload, $model, $isSuperAdmin ? null : $allowedStoreIds);
-
                         $model->forceFill($payload);
                         if ($newVersion !== null) {
                             $model->_version = $newVersion;
@@ -771,7 +770,7 @@ class SyncController extends Controller
                             continue;
                         }
                         $claimIsInScope = !empty($payload['store_id'])
-                            && ($isSuperAdmin || (in_array($payload['store_id'], $allowedStoreIds, true) && !$this->claimIsAGuess($allowedStoreIds)));
+                            && $this->claimIsEvidence($payload['store_id'], $isSuperAdmin ? null : $allowedStoreIds);
                         if (empty($target->store_id) && $claimIsInScope && \Illuminate\Support\Facades\Schema::hasColumn($target->getTable(), 'store_id')) {
                             $target->store_id = $payload['store_id'];
                             $target->save();
@@ -1666,18 +1665,18 @@ class SyncController extends Controller
         $conflict->save();
     }
 
-    /** A-248: a device may claim a store-less row only when it has one store to claim it for, and never move one that has a store. */
+    /** A-248: a device may claim a store-less row only for its one store, and never move a row that has a store. */
     private function withoutStoreReassignment(string $tableName, array $payload, $model, ?array $allowedStoreIds): array
     {
         if ($tableName === 'users' || !array_key_exists('store_id', $payload)) {
             return $payload;
         }
 
-        if (empty($model->store_id)) {
-            return $this->claimIsAGuess($allowedStoreIds) ? array_diff_key($payload, ['store_id' => true]) : $payload;
+        if (empty($model->store_id) && $this->claimIsEvidence($payload['store_id'], $allowedStoreIds)) {
+            return $payload;
         }
 
-        if ($payload['store_id'] !== $model->store_id) {
+        if (!empty($model->store_id) && $payload['store_id'] !== $model->store_id) {
             Log::info('Sync push: ignored a store reassignment (A-248)', [
                 'table' => $tableName,
                 'record_id' => $model->getKey(),
@@ -1690,10 +1689,12 @@ class SyncController extends Controller
         return $payload;
     }
 
-    /** A claim for a store-less row is only evidence when the session can write exactly one store. */
-    private function claimIsAGuess(?array $allowedStoreIds): bool
+    /** A claim for a store-less row counts only when it names the session's one and only store; null scope (super admin) is a guess. */
+    private function claimIsEvidence($claimedStoreId, ?array $allowedStoreIds): bool
     {
-        return $allowedStoreIds !== null && count($allowedStoreIds) > 1;
+        return $allowedStoreIds !== null
+            && count($allowedStoreIds) === 1
+            && $claimedStoreId === $allowedStoreIds[array_key_first($allowedStoreIds)];
     }
 
     /**

@@ -399,4 +399,68 @@ class SyncPushStoreIdBackfillTest extends TestCase
         $move->assertJsonCount(0, 'failed');
         $this->assertSame($second->id, DB::table('users')->where('id', $staff->id)->value('store_id'));
     }
+
+    private function seedStorelessBatch(string $batchId, string $productId): void
+    {
+        $this->seedProduct($productId, $this->store->id);
+        DB::table('stock_batches')->insert([
+            'id' => $batchId, 'product_id' => $productId, 'store_id' => null, 'batch_number' => 'B-'.$batchId,
+            'quantity' => 10, 'cost_price' => 50, '_version' => 3, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+    public function test_a_two_store_owners_delete_claim_on_a_store_less_row_is_ignored()
+    {
+        $second = $this->createSecondStore();
+        $this->seedProduct('product-a248-delete', null);
+
+        $this->push('products', 'product-a248-delete', ['id' => 'product-a248-delete', 'store_id' => $second->id], 'DELETE', ['X-Store-Id' => $second->id])
+            ->assertJsonCount(0, 'failed');
+
+        $row = DB::table('products')->where('id', 'product-a248-delete')->first();
+        $this->assertNull($row->store_id);
+        $this->assertNotNull($row->deleted_at);
+    }
+
+    public function test_an_owners_own_resent_user_insert_never_stamps_them_with_a_store()
+    {
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $second = $this->createSecondStore();
+        DB::table('users')->where('id', $this->owner->id)->update(['store_id' => null]);
+
+        $this->push('users', $this->owner->id, [
+            'id' => $this->owner->id, 'first_name' => 'Renamed', 'store_id' => $second->id,
+        ], 'INSERT', ['X-Store-Id' => $second->id])->assertStatus(200);
+
+        $this->assertNull(DB::table('users')->where('id', $this->owner->id)->value('store_id'));
+    }
+
+    public function test_a_single_store_sessions_claim_naming_another_tenants_store_is_ignored()
+    {
+        $foreignOwner = User::create([
+            'first_name' => 'Far', 'last_name' => 'Away', 'email' => 'far-away@dumosrx.com',
+            'password' => bcrypt('password'), 'role' => 'admin',
+        ]);
+        $foreignStore = Store::create([
+            'user_id' => $foreignOwner->id, 'name' => 'Far Store', 'email' => 'far-store@dumosrx.com',
+            'phone' => '6666666666', 'address' => '6 Far St', 'slug' => 'far-store', 'device_id' => 'WEB-FAR',
+        ]);
+        $this->seedStorelessBatch('batch-foreign-claim', 'product-foreign-claim');
+
+        $this->push('stock_batches', 'batch-foreign-claim', [
+            'id' => 'batch-foreign-claim', 'store_id' => $foreignStore->id, 'cost_price' => 60, '_version' => 3,
+        ], 'UPDATE')->assertStatus(200);
+
+        $this->assertNull(DB::table('stock_batches')->where('id', 'batch-foreign-claim')->value('store_id'));
+    }
+
+    public function test_a_dropped_claim_does_not_turn_a_quantity_only_batch_update_into_a_version_conflict()
+    {
+        $second = $this->createSecondStore();
+        $this->seedStorelessBatch('batch-qty-claim', 'product-qty-claim');
+
+        $this->push('stock_batches', 'batch-qty-claim', [
+            'id' => 'batch-qty-claim', 'store_id' => $second->id, 'quantity' => 7, '_version' => 1,
+        ], 'UPDATE', ['X-Store-Id' => $second->id])->assertJsonCount(0, 'failed');
+    }
 }

@@ -4,8 +4,6 @@ import {
   auditExportFileName,
   describeAuditLens,
   isAuditLensActive,
-  selectAuditExportItems,
-  sortAuditItems,
   type AuditLens,
 } from "@/components/stock-batch/audit-derivations";
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
@@ -37,72 +35,6 @@ const sheet: AuditItem[] = [
 ];
 
 const ids = (rows: AuditItem[]) => rows.map((r) => r.id);
-
-describe("selectAuditExportItems", () => {
-  it("returns every row, in sheet order, when no filter is set", () => {
-    expect(ids(selectAuditExportItems(sheet, NO_LENS))).toEqual([
-      "a", "b", "c", "d", "e",
-    ]);
-  });
-
-  it("keeps only the selected category", () => {
-    expect(
-      ids(selectAuditExportItems(sheet, { ...NO_LENS, category: "Antibiotics" })),
-    ).toEqual(["b", "c", "d"]);
-  });
-
-  it("applies each count status", () => {
-    expect(ids(selectAuditExportItems(sheet, { ...NO_LENS, status: "counted" })))
-      .toEqual(["b", "c", "e"]);
-    expect(ids(selectAuditExportItems(sheet, { ...NO_LENS, status: "uncounted" })))
-      .toEqual(["a", "d"]);
-    expect(ids(selectAuditExportItems(sheet, { ...NO_LENS, status: "differences" })))
-      .toEqual(["c", "e"]);
-  });
-
-  it("applies the search over name and SKU", () => {
-    expect(ids(selectAuditExportItems(sheet, { ...NO_LENS, search: "amox" })))
-      .toEqual(["b", "c"]);
-    expect(ids(selectAuditExportItems(sheet, { ...NO_LENS, search: "V-1" })))
-      .toEqual(["e"]);
-  });
-
-  it("combines category, status and search", () => {
-    expect(
-      ids(
-        selectAuditExportItems(sheet, {
-          category: "Antibiotics",
-          status: "differences",
-          search: "amox",
-        }),
-      ),
-    ).toEqual(["c"]);
-  });
-
-  it("matches status strictly, so a row counted after the lens was chosen leaves a Not Counted export", () => {
-    const lens: AuditLens = { ...NO_LENS, status: "uncounted" };
-    expect(ids(selectAuditExportItems(sheet, lens))).toEqual(["a", "d"]);
-    const afterCounting = sheet.map((row) =>
-      row.id === "a" ? { ...row, countedQty: 10, counted: true } : row,
-    );
-    expect(ids(selectAuditExportItems(afterCounting, lens))).toEqual(["d"]);
-  });
-});
-
-describe("sortAuditItems", () => {
-  it("leaves the order alone when no column is sorted", () => {
-    expect(ids(sortAuditItems(sheet, null, "asc"))).toEqual(ids(sheet));
-  });
-
-  it("sorts with the same accessors as the ledger's headers", () => {
-    expect(ids(sortAuditItems(sheet, "name", "asc"))).toEqual([
-      "c", "b", "d", "a", "e",
-    ]);
-    expect(ids(sortAuditItems(sheet, "diffQty", "desc"))).toEqual([
-      "a", "b", "d", "c", "e",
-    ]);
-  });
-});
 
 describe("describeAuditLens", () => {
   it("keeps today's wording when nothing is filtered", () => {
@@ -165,6 +97,12 @@ describe("auditExportFileName", () => {
     expect(
       auditExportFileName({ ...NO_LENS, category: "Uncategorized" }, "pdf", date),
     ).toBe("StockAudit_2026-10-23_Uncategorized.pdf");
+  });
+
+  it("transliterates accented letters instead of dropping them", () => {
+    expect(
+      auditExportFileName({ ...NO_LENS, category: "Médicaments" }, "csv", date),
+    ).toBe("StockAudit_2026-10-23_Medicaments.csv");
   });
 
   it("drops a category with no safe characters left", () => {

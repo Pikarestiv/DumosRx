@@ -6,9 +6,7 @@ import {
   buildAuditCategoryOptions,
   matchesAuditStatus,
   selectAuditCategoryItems,
-  selectAuditExportItems,
   selectAuditStatusItems,
-  sortAuditItems,
   type AuditCountStatus,
   type AuditLens,
 } from "@/components/stock-batch/audit-derivations";
@@ -69,8 +67,8 @@ export function useAuditLedgerLens(items: AuditItem[]) {
   );
 
   const exportItems = useMemo(
-    () => sortAuditItems(selectAuditExportItems(items, lens), sortKey, direction),
-    [items, lens, sortKey, direction],
+    () => sortedData.filter((item) => matchesAuditStatus(item, countStatus)),
+    [sortedData, countStatus],
   );
 
   const resetLens = () => {

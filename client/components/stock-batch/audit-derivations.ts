@@ -1,7 +1,5 @@
 import type { AuditItem } from "./stock-audits";
 import type { StockAuditSubmission } from "@/lib/db/queries/inventory";
-import { genericFuzzySearch } from "@/lib/utils/search";
-import { sortByAccessor, type SortDirection } from "@/lib/hooks/use-sortable-data";
 
 export const ALL_AUDIT_CATEGORIES = "__all__";
 
@@ -118,20 +116,6 @@ export interface AuditLens {
   search: string;
 }
 
-export function selectAuditExportItems(
-  items: AuditItem[],
-  lens: AuditLens,
-): AuditItem[] {
-  return genericFuzzySearch(
-    lens.search,
-    selectAuditStatusItems(
-      selectAuditCategoryItems(items, lens.category),
-      lens.status,
-    ),
-    ["name", "sku"],
-  ).results;
-}
-
 export function isAuditLensActive(lens: AuditLens): boolean {
   return (
     lens.category !== ALL_AUDIT_CATEGORIES ||
@@ -171,7 +155,10 @@ export function auditExportFileName(
   const slug =
     lens.category === ALL_AUDIT_CATEGORIES
       ? ""
-      : lens.category.replace(/[^A-Za-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+      : lens.category
+          .normalize("NFD")
+          .replace(/\p{M}/gu, "")
+          .replace(/[^A-Za-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
   const suffix = slug ? `_${slug}` : "";
   return `StockAudit_${date.toISOString().slice(0, 10)}${suffix}.${extension}`;
 }
@@ -198,14 +185,6 @@ export const AUDIT_SORT_ACCESSORS = {
 };
 
 export type AuditSortKey = keyof typeof AUDIT_SORT_ACCESSORS;
-
-export function sortAuditItems(
-  items: AuditItem[],
-  key: AuditSortKey | null,
-  direction: SortDirection,
-): AuditItem[] {
-  return key ? sortByAccessor(items, AUDIT_SORT_ACCESSORS[key], direction) : items;
-}
 
 export function selectAdjustedAuditItems(countedItems: AuditItem[]): AuditItem[] {
   return countedItems.filter(differsFromSystem);

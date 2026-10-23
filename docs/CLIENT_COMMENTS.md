@@ -10311,7 +10311,7 @@ clone) printable sheet, mounted only while a print is actually running
 (`useAuditSheetExport().printSheet` is non-null) - it used to reconcile
 every product x every column on every `items` change, i.e. on every
 keystroke in the ledger. The rows are built from the export set
-(`selectAuditExportItems()` + the ledger's sort) at the moment Print is
+(the ledger's sorted list, strict on Count status) at the moment Print is
 pressed, not memoised per render.
 
 Div-based with ARIA roles per the no-raw-<table> rule, but laid out with
@@ -10367,8 +10367,8 @@ it carried:
 - `exportItems` is deliberately **not** the on-screen list: it re-applies
   the status filter strictly, without the sticky set, so a printed "Not
   Counted" sheet does not carry rows counted a moment ago. It is sorted
-  with the same key and direction as the ledger, via `sortAuditItems()`
-  and the shared `AUDIT_SORT_ACCESSORS`. "Last Counted" sorts a
+  with the same key and direction as the ledger (it is the ledger's own
+  sorted list) and the shared `AUDIT_SORT_ACCESSORS`. "Last Counted" sorts a
   never-counted row as the oldest, which is what someone sorting by that
   column is looking for.
 

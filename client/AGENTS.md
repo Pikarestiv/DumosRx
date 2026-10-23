@@ -1998,9 +1998,10 @@ on screen from having walked to the shelf.
   owns all three filters, the sticky-row set and the ledger's sort.
 - **Print, Download PDF, Export CSV and Export Excel output exactly the
   filtered, sorted list (A-318, 2026-10-23).** They read
-  `useAuditLedgerLens().exportItems` = `selectAuditExportItems(items, lens)`
-  (category → status → search, `audit-derivations.ts`) sorted by
-  `sortAuditItems()` with the ledger's own key and direction. The sort lives
+  `useAuditLedgerLens().exportItems` = the on-screen, already-sorted list
+  filtered by `matchesAuditStatus()`, so an export can never hold a row the
+  ledger was not showing (re-filtering from the full sheet let the fuzzy
+  search fallback add near-miss names). The sort lives
   in the parent for this reason: `AuditLedgerStep` receives rows already
   sorted plus a `sort` prop, and must not sort on its own again, or the
   screen and the printout drift apart. Both sorts use

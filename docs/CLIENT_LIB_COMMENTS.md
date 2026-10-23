@@ -5483,8 +5483,12 @@ walking the floor. Modeled on the sheet clients migrating from other
 inventory apps already use for this (checkbox + blank counted-qty/notes
 columns next to the system quantity). Takes the minimal shape shared by
 ExportableProduct and the Cycle Count screen's AuditItem, since the
-"Print" action lives inside that screen (client/components/stock-batch/
-stock-audits.tsx) rather than the general product export menu.
+"Print" action lives inside that screen (client/lib/hooks/
+use-audit-sheet-export.ts) rather than the general product export menu.
+Since A-318 (2026-10-23) a row that carries a `countedQty` prints it in
+the Counted Qty column; a row without one stays blank, so a fresh count
+sheet is unchanged. `#` numbers 1..n within whatever (filtered) set the
+caller passes.
 
 ### utils-returns-calculations-ts-L14
 

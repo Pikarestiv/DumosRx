@@ -10294,30 +10294,83 @@ without one. Read-only; never submitted.
 
 ## line-components-stock-batch-stock-audits-tsx-L118
 
-`client/components/stock-batch/stock-audits.tsx:118`
+`client/lib/hooks/use-audit-sheet-source.ts` (moved out of `stock-audits.tsx`
+on 2026-10-23; the anchor name is kept so existing links resolve)
 
 Reconcile against the latest server state as soon as the count screen
 opens, otherwise a stale local snapshot could make an already-corrected
 discrepancy look like a fresh one, or hide a real one that happened
 elsewhere since this device last synced.
 
-## block-components-stock-batch-stock-audits-tsx-L419
+## block-components-stock-batch-audit-printable-sheet-tsx
 
-`client/components/stock-batch/stock-audits.tsx:419`
+`client/components/stock-batch/audit-printable-sheet.tsx`
 
 Off-screen (not display:none, so it still lays out for printNode's
-clone) printable sheet, mounted only while a print/export is actually
-running - it used to reconcile every product x every column on every
-`items` change, i.e. on every keystroke in the ledger.
+clone) printable sheet, mounted only while a print is actually running
+(`useAuditSheetExport().printSheet` is non-null) - it used to reconcile
+every product x every column on every `items` change, i.e. on every
+keystroke in the ledger. The rows are built from the export set
+(the ledger's sorted list, strict on Count status) at the moment Print is
+pressed, not memoised per render.
 
-## block-components-stock-batch-stock-audits-tsx-L435
+Div-based with ARIA roles per the no-raw-<table> rule, but laid out with
+`display: table*` rather than grid: printed page-break header repetition
+keys off `table-header-group`, and this sheet routinely runs to several
+pages.
 
-`client/components/stock-batch/stock-audits.tsx:435`
+## block-components-stock-batch-audit-ledger-step-tsx-ledger
 
-Div-based with ARIA roles per the no-raw-<table> rule, but laid
-out with `display: table*` rather than grid: printed page-break
-header repetition keys off `table-header-group`, and this sheet
-routinely runs to several pages.
+`client/components/stock-batch/audit-ledger-step.tsx` (`AuditLedgerStep`)
+
+Dense, single-screen count flow: every item is visible and editable at
+once (qty, cost price, selling price). The category, Count and search
+filters are lenses on this one continuous session, not scope gates, so
+switching them mid-count never loses anything already entered. Div-based,
+ARIA roles standing in for real <table> semantics; see
+stock-batch/supplier-table.tsx. The rows arrive already filtered and
+sorted: the parent owns the sort (`useAuditLedgerLens`) so that Print and
+the exports can follow the same order (A-318).
+
+## block-components-stock-batch-audit-ledger-step-tsx-scroll-margin
+
+`client/components/stock-batch/audit-ledger-step.tsx` (scrollMargin layout effect)
+
+No deps array on purpose (same reasoning as pos-virtualized-product-grid):
+the filter row, the category pill and the intro copy above these rows can
+all change height without this component's row list changing, and a stale
+scrollMargin draws every row at the wrong offset. The !== guard is what
+prevents a loop.
+
+## block-components-stock-batch-audit-ledger-step-tsx-diff-value
+
+`client/components/stock-batch/audit-ledger-step.tsx` (row diffCost/diffSelling)
+
+Valued at the system price, not the counted one: this is the financial
+exposure of the quantity variance itself (shrinkage cost / lost revenue),
+not a price-correction diff. Counted Cost/Counted Selling still track
+price corrections independently via costChanged/sellingChanged.
+
+## stock-audits-ledger-lens
+
+`client/lib/hooks/use-audit-ledger-lens.ts`
+
+Moved out of `stock-audits.tsx` on 2026-10-23 (A-318), with the comments
+it carried:
+
+- Every derivation is memoized on its real inputs: each of them used to
+  re-run on every keystroke in any of the ledger's hundreds of inputs.
+- Counting a row under the "Not Counted" lens used to make it disappear
+  from under the finger mid-tap, shifting every virtualized row below it.
+  The rows that matched when the lens was chosen stay on screen until the
+  lens itself changes; only then is the set re-taken ("sticky rows").
+- `exportItems` is deliberately **not** the on-screen list: it re-applies
+  the status filter strictly, without the sticky set, so a printed "Not
+  Counted" sheet does not carry rows counted a moment ago. It is sorted
+  with the same key and direction as the ledger (it is the ledger's own
+  sorted list) and the shared `AUDIT_SORT_ACCESSORS`. "Last Counted" sorts a
+  never-counted row as the oldest, which is what someone sorting by that
+  column is looking for.
 
 ## block-components-stock-batch-stock-batch-management-tsx-L38
 
@@ -11856,7 +11909,7 @@ Defaults to the pointer path; a test wanting the touch path overrides it.
 
 ## stock-audits-last-audited-refresh
 
-`client/components/stock-batch/stock-audits.tsx`
+`client/lib/hooks/use-audit-sheet-source.ts` (moved out of `stock-audits.tsx` on 2026-10-23)
 
 A draft with any counted row blocks the full rebuild effect above
 indefinitely (`shouldRebuildAuditSheet` returns false once any row is

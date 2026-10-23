@@ -82,6 +82,8 @@ function parseCsvRows(text: string): string[][] {
   return rows;
 }
 
+const stripFormulaGuard = (cell: string) => cell.replace(/^'(?=[=+\-@\t\r])/, "");
+
 function csvRowsToSpreadsheet(csvRows: string[][]): ParsedSpreadsheet {
   if (csvRows.length === 0) return { headers: [], rows: [] };
   const [headerRow, ...dataRows] = csvRows;
@@ -93,7 +95,7 @@ function csvRowsToSpreadsheet(csvRows: string[][]): ParsedSpreadsheet {
     if (cells.every((c) => c === "")) continue;
     const row: Record<string, unknown> = {};
     headers.forEach((header, idx) => {
-      row[header] = cells[idx] ?? "";
+      row[header] = stripFormulaGuard(cells[idx] ?? "");
     });
     rows.push(row);
   }
@@ -101,7 +103,8 @@ function csvRowsToSpreadsheet(csvRows: string[][]): ParsedSpreadsheet {
 }
 
 function csvEscapeField(value: unknown): string {
-  const str = value === null || value === undefined ? "" : String(value);
+  const raw = value === null || value === undefined ? "" : String(value);
+  const str = typeof value === "string" && /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
   return /[",\r\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
 }
 

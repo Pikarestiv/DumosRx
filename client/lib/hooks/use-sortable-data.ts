@@ -25,20 +25,30 @@ export function useSortableData<T, K extends string>(
   const accessorsRef = useRef(accessors);
   accessorsRef.current = accessors;
 
-  const sortedData = useMemo(() => {
-    if (!sortKey) return data;
-    const accessor = accessorsRef.current[sortKey];
-    const sign = direction === "asc" ? 1 : -1;
-    return [...data].sort((a, b) => {
-      const av = accessor(a);
-      const bv = accessor(b);
-      const cmp =
-        typeof av === "string" && typeof bv === "string"
-          ? av.localeCompare(bv)
-          : (av as number) - (bv as number);
-      return cmp * sign;
-    });
-  }, [data, sortKey, direction]);
+  const sortedData = useMemo(
+    () =>
+      sortKey
+        ? sortByAccessor(data, accessorsRef.current[sortKey], direction)
+        : data,
+    [data, sortKey, direction],
+  );
 
   return { sortKey, direction, toggleSort, sortedData };
+}
+
+export function sortByAccessor<T>(
+  data: T[],
+  accessor: (item: T) => string | number,
+  direction: SortDirection,
+): T[] {
+  const sign = direction === "asc" ? 1 : -1;
+  return [...data].sort((a, b) => {
+    const av = accessor(a);
+    const bv = accessor(b);
+    const cmp =
+      typeof av === "string" && typeof bv === "string"
+        ? av.localeCompare(bv)
+        : (av as number) - (bv as number);
+    return cmp * sign;
+  });
 }

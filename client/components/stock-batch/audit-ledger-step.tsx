@@ -10,10 +10,15 @@ import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import type { AuditItem } from "./stock-audits";
-import { isAuditItemCounted, type AuditCountStatus } from "./audit-derivations";
+import {
+  isAuditItemCounted,
+  isAuditLensActive,
+  type AuditCountStatus,
+  type AuditSortKey,
+} from "./audit-derivations";
 import { formatCurrency } from "@/lib/utils";
 import { formatDateSafe } from "@/lib/utils/date-utils";
-import { useSortableData } from "@/lib/hooks/use-sortable-data";
+import type { SortDirection } from "@/lib/hooks/use-sortable-data";
 
 const ALL_CATEGORIES = "__all__";
 const GRID_COLS =
@@ -43,8 +48,7 @@ interface AuditLedgerStepProps {
   onUpdateItem: (id: string, patch: Partial<AuditItem>) => void;
   /** Records a count and re-baselines the row against live stock (A-263). */
   onCountRow: (id: string, countedQty?: number) => void;
-  /** Drops any re-read still in flight for a row being un-counted, so it
-   * cannot land afterwards and count the row again. */
+  /** Drops a re-read still in flight, so it cannot re-count a cleared row. */
   onClearCount: (id: string) => void;
   categories: { id: string; label: string; count: number }[];
   selectedCategory: string;
@@ -55,19 +59,17 @@ interface AuditLedgerStepProps {
   countedCount: number;
   search: string;
   setSearch: (val: string) => void;
-  /** The one scrollable ancestor these rows live in (the screen's own
-   * `flex-1 overflow-y-auto` region) — same arrangement as POS's virtualized
-   * grid: react-virtual needs the real scroll element, not one of its own. */
+  /** The screen's own scroll region; react-virtual needs the real one. */
   scrollElementRef: React.RefObject<HTMLDivElement | null>;
+  sort: {
+    sortKey: AuditSortKey | null;
+    direction: SortDirection;
+    toggleSort: (key: AuditSortKey) => void;
+  };
 }
 
-/** Dense, single-screen count flow: every item is visible and editable at
- * once (qty, cost price, selling price). The category picker
- * is just a lens on this one continuous session, not a scope gate: every
- * item is pre-filled and counted from the moment the screen opens, so
- * switching categories mid-count never loses anything already entered.
- * Div-based, ARIA roles standing in for real <table> semantics; see
- * stock-batch/supplier-table.tsx. */
+// Dense, single-screen count flow; the filters are lenses, not scope gates.
+// Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-audit-ledger-step-tsx-ledger
 export function AuditLedgerStep({
   items,
   totalItems,
@@ -85,12 +87,11 @@ export function AuditLedgerStep({
   search,
   setSearch,
   scrollElementRef,
+  sort,
 }: AuditLedgerStepProps) {
   const canEditProductCost = useHasPermission("edit_product_cost");
   const canEditProductPrice = useHasPermission("edit_product_price");
-  // Totals reflect the rows currently shown (respects the category filter
-  // and search), so switching categories gives a live subtotal for that
-  // slice as well as the whole-audit total when nothing's filtered.
+  // Totals cover the rows shown, so a filtered view gets a live subtotal.
   const totals = useMemo(
     () =>
       items.reduce(
@@ -109,42 +110,12 @@ export function AuditLedgerStep({
     [items],
   );
 
-  const { sortKey, direction, toggleSort, sortedData } = useSortableData(
-    items,
-    {
-      name: (item) => item.name.toLowerCase(),
-      countedQty: (item) => item.countedQty ?? item.systemQty,
-      systemQty: (item) => item.systemQty,
-      diffQty: (item) => (item.countedQty ?? item.systemQty) - item.systemQty,
-      costPrice: (item) => item.costPrice ?? 0,
-      countedCost: (item) => item.countedCostPrice ?? item.costPrice ?? 0,
-      diffCost: (item) => {
-        const diffQty = (item.countedQty ?? item.systemQty) - item.systemQty;
-        return item.costPrice !== undefined ? diffQty * item.costPrice : 0;
-      },
-      sellingPrice: (item) => item.sellingPrice ?? 0,
-      countedSelling: (item) =>
-        item.countedSellingPrice ?? item.sellingPrice ?? 0,
-      diffSelling: (item) => {
-        const diffQty = (item.countedQty ?? item.systemQty) - item.systemQty;
-        return item.sellingPrice !== undefined
-          ? diffQty * item.sellingPrice
-          : 0;
-      },
-      // Never-counted sorts as the oldest, which is what someone sorting by
-      // this column is looking for.
-      lastAuditedAt: (item) =>
-        item.lastAuditedAt ? new Date(item.lastAuditedAt).getTime() : 0,
-    },
-  );
+  const { sortKey, direction, toggleSort } = sort;
 
   const rowsContainerRef = useRef<HTMLDivElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
-  // No deps array on purpose (same reasoning as pos-virtualized-product-grid):
-  // the filter row, the category pill and the intro copy above these rows can
-  // all change height without this component's row list changing, and a stale
-  // scrollMargin draws every row at the wrong offset. The !== guard is what
-  // prevents a loop.
+  // No deps array on purpose; the !== guard prevents a loop.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-audit-ledger-step-tsx-scroll-margin
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     const top = rowsContainerRef.current?.offsetTop;
@@ -152,7 +123,7 @@ export function AuditLedgerStep({
   });
 
   const rowVirtualizer = useVirtualizer({
-    count: sortedData.length,
+    count: items.length,
     getScrollElement: () => scrollElementRef.current,
     estimateSize: () => LEDGER_ROW_HEIGHT,
     overscan: 10,
@@ -335,21 +306,17 @@ export function AuditLedgerStep({
               ref={rowsContainerRef}
               className="relative"
               style={{
-                height: sortedData.length > 0 ? rowVirtualizer.getTotalSize() : undefined,
+                height: items.length > 0 ? rowVirtualizer.getTotalSize() : undefined,
               }}
             >
               {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                const item = sortedData[virtualRow.index];
+                const item = items[virtualRow.index];
                 if (!item) return null;
                 const isCounted = isAuditItemCounted(item);
                 const countedQty = item.countedQty ?? item.systemQty;
                 const diffQty = countedQty - item.systemQty;
-                // Valued at the system price, not the counted one: this is
-                // the financial exposure of the quantity variance itself
-                // (shrinkage cost / lost revenue), not a price-correction
-                // diff. Counted Cost/Counted Selling still track price
-                // corrections independently via costChanged/sellingChanged
-                // below.
+                // Valued at the system price, not the counted one.
+                // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-audit-ledger-step-tsx-diff-value
                 const diffCost =
                   item.costPrice !== undefined ? diffQty * item.costPrice : 0;
                 const diffSelling =
@@ -575,7 +542,9 @@ export function AuditLedgerStep({
                     className="px-3 py-2 sticky left-0 z-10 bg-muted text-muted-foreground text-[11px] uppercase"
                   >
                     Totals
-                    {selectedCategory !== ALL_CATEGORIES ? " (filtered)" : ""}
+                    {isAuditLensActive({ category: selectedCategory, status: countStatus, search })
+                      ? " (filtered)"
+                      : ""}
                   </div>
                   <div role="cell" className="px-3 py-2" />
                   <div role="cell" className="px-3 py-2" />

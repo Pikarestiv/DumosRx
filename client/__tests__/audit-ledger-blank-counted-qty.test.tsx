@@ -65,6 +65,7 @@ describe("cycle count ledger: Counted Qty is blank until entered", () => {
         search=""
         setSearch={vi.fn()}
         scrollElementRef={createRef<HTMLDivElement>()}
+        sort={{ sortKey: null, direction: "asc", toggleSort: vi.fn() }}
       />,
     );
   }

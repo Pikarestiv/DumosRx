@@ -1727,12 +1727,16 @@ refused (`resolveParentStoreId('stock_batches')` uses `withTrashed()`). It is
 pinned by a direct test so it cannot rot unnoticed. A batch UPDATE that
 repoints `product_id` is not checked at all: that is A-325.
 
-**A product legitimately moved between stores parks too, and only A-291 clears
-it.** A till of the losing store still holds the product (A-291's phantom) and
-can sell from it; each such sale's movement is now parked `forbidden` and
-retried, visibly, where before the ledger row was accepted under the wrong
-store and only its delta refused. No repair command clears that case; fixing
-A-291 does.
+**A product legitimately moved between stores parks too, on staff tills.** A
+till of the losing store still holds the product (A-291's phantom) and can sell
+from it; each such sale's movement is now refused `forbidden`, where before the
+ledger row was accepted under the wrong store and only its delta refused. The
+sale, its `sale_items` and `sale_item_batches` still sync; only the
+`stock_movements` row is withheld. It stays parked (retried with backoff,
+visible under Settings → Device diagnostics "Stuck changes" and in Sentry)
+until an owner session pushes from that device or A-291 ships, per A-165's
+documented transient `forbidden`. Owner sessions cover every owned store and
+are accepted. No repair command clears it.
 
 **§11:** server-only, no shim. The refusal uses an existing reason the client
 already parks; the response shape is unchanged.

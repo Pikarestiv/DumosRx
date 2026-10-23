@@ -868,4 +868,79 @@ class SyncPushOwnershipTest extends TestCase
         $response->assertJsonPath('failed.0.reason', 'forbidden');
         $this->assertDatabaseHas('permission_groups', ['id' => $groupId]);
     }
+
+    /**
+     * A-298: a legacy row with no `store_id` may carry a store claim in its
+     * payload, but that claim must not be what authorizes the change. The
+     * victim's product resolves through its `user_id`, so naming the
+     * attacker's own store must still be refused.
+     */
+    public function test_delete_claiming_the_callers_store_for_another_tenants_storeless_row_is_rejected()
+    {
+        $productId = $this->seedStorelessVictimProduct('victim-storeless-product-1');
+
+        $response = $this->pushStoreClaim($productId, 'DELETE');
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'failed');
+        $response->assertJsonPath('failed.0.reason', 'forbidden');
+        $this->assertNull(DB::table('products')->where('id', $productId)->value('deleted_at'));
+        $this->assertNull(DB::table('products')->where('id', $productId)->value('store_id'));
+    }
+
+    public function test_update_claiming_the_callers_store_for_another_tenants_storeless_row_is_rejected()
+    {
+        $productId = $this->seedStorelessVictimProduct('victim-storeless-product-2');
+
+        $response = $this->pushStoreClaim($productId, 'UPDATE', ['selling_price' => 1, '_version' => 1]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1, 'failed');
+        $response->assertJsonPath('failed.0.reason', 'forbidden');
+        $this->assertDatabaseHas('products', ['id' => $productId, 'selling_price' => 500, 'store_id' => null]);
+    }
+
+    /** The claim itself still lands for a caller who owns the legacy row (§11). */
+    public function test_delete_of_the_callers_own_storeless_row_still_records_its_store_claim()
+    {
+        $productId = $this->seedStorelessVictimProduct('own-storeless-product-1', $this->attackerOwner->id);
+
+        $response = $this->pushStoreClaim($productId, 'DELETE');
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+        $this->assertNotNull(DB::table('products')->where('id', $productId)->value('deleted_at'));
+        $this->assertSame($this->attackerStore->id, DB::table('products')->where('id', $productId)->value('store_id'));
+    }
+
+    private function seedStorelessVictimProduct(string $productId, ?string $ownerId = null): string
+    {
+        DB::table('products')->insert([
+            'id' => $productId,
+            'store_id' => null,
+            'user_id' => $ownerId ?? $this->victimOwner->id,
+            'name' => 'Legacy Syrup',
+            'selling_price' => 500,
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return $productId;
+    }
+
+    private function pushStoreClaim(string $productId, string $operation, array $fields = [])
+    {
+        return $this->actingAs($this->attackerOwner)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'products',
+                    'operation' => $operation,
+                    'record_id' => $productId,
+                    'payload' => ['id' => $productId, 'store_id' => $this->attackerStore->id] + $fields,
+                ],
+            ],
+        ]);
+    }
 }

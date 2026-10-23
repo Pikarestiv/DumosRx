@@ -966,6 +966,16 @@ migration here **and** the corresponding update on the `client/` side
     resolves to a store outside the caller's scope. Don't "tidy" the
     fail-open away — `backfillStoreIdOnLegacyRows` is still live for
     accounts with local DBs older than its ship date.
+  - **Authorize on the row as stored; apply a payload's claim only after.**
+    The DELETE branch honours a legacy row's `store_id` claim (the client's
+    `softDelete()` sends the active store for a row whose local `store_id` is
+    NULL), but it must write that claim onto `$target` *after*
+    `authorizeChangeTarget()` passes, never before: `resolveChangeStoreId()`
+    reads `$target->store_id`, so a pre-applied claim made the caller's own
+    assertion the thing that authorized it (A-298 — any tenant could delete
+    another's NULL-store product by naming its own store). UPDATE already had
+    the right order (find → authorize → `forceFill()`). A row that falls open
+    still takes the claim, which is the §11 trade the bullet above describes.
   - `normalizePushPayload()`'s foreign-`store_id` rejection is deliberately
     **not** gated on `$currentStoreId`. It used to be, which meant a caller
     who owns no store yet (`resolvePushStoreId()` → null) had an explicit

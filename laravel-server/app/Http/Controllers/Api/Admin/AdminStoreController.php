@@ -125,10 +125,6 @@ class AdminStoreController extends AdminBaseController
     )]
     public function registerStore(Request $request)
     {
-        // hasRole('super_admin') checks the raw `role` string column, so it
-        // can't be blocked by stale/missing role_id or permission_role data
-        // the way hasPermission() can. Matches the bypass the route's own
-        // `permission:manage_platform` middleware already grants super_admin.
         if (!$request->user()->hasRole('super_admin') && !$request->user()->hasPermission('create_accounts')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
@@ -481,17 +477,6 @@ class AdminStoreController extends AdminBaseController
         try {
             $data = $this->adminStoreService->impersonateStore($id);
 
-            // Previously also set drx_admin_session here, to the
-            // impersonated user's own full-ability token, with the
-            // pre-2026-08-26-redesign SameSite=None pattern. The admin
-            // panel's actual impersonation flow (app/admin/stores/page.tsx)
-            // never reads this cookie — it uses the JSON body's `token`
-            // directly for the handoff-code exchange — so this write served
-            // no purpose except silently overwriting the calling admin's
-            // own Strict, refresh-scoped drx_admin_session cookie with the
-            // impersonated user's unscoped one on every impersonation,
-            // breaking the admin's own dumosrx.com session on next reload.
-            // Removed rather than fixed-in-place, since nothing needs it.
             return response()->json($data);
         } catch (\Exception $e) {
             Log::error("Admin Impersonate Error: " . $e->getMessage());

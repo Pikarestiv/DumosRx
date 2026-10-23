@@ -196,7 +196,7 @@ trait AuthenticatesSessions
 
         $refreshToken = PersonalAccessToken::findToken($raw);
 
-        if (!$refreshToken || $this->adminRefreshTokenGraceHasLapsed($refreshToken)) {
+        if (!$refreshToken || TokenLifetime::hasLapsed($refreshToken)) {
             return response()->json(['message' => 'Session expired.'], 401);
         }
 
@@ -252,11 +252,6 @@ trait AuthenticatesSessions
     private function adminRefreshTokenWasRotated(PersonalAccessToken $refreshToken): bool
     {
         return $refreshToken->name === 'admin-refresh-rotated';
-    }
-
-    private function adminRefreshTokenGraceHasLapsed(PersonalAccessToken $refreshToken): bool
-    {
-        return $refreshToken->expires_at !== null && $refreshToken->expires_at->isPast();
     }
 
     #[OA\Get(

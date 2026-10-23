@@ -99,12 +99,15 @@ Server side:
   and the device id; returns an **opaque session id** plus the admin's
   identity. Rate-limited per IP, per device and per admin.
 
-**The session is deliberately not a Sanctum token.** `restoreSession()` and
-`AuthHandoffController::create()` both resolve a Personal Access Token from the
-request *body* without checking its abilities, so a narrowly-scoped token read
-off a till would launder into a durable full superadmin session — see
-`docs/KNOWN_BUGS.md` A-199. An opaque id is not a `PersonalAccessToken`, so
-`findToken()` never resolves it and both paths are dead by construction. It
+**The session is deliberately not a Sanctum token.** When this was designed,
+`restoreSession()` and `AuthHandoffController::create()` both resolved a
+Personal Access Token from the request *body* without checking its abilities,
+so a narrowly-scoped token read off a till would have laundered into a durable
+full superadmin session (A-199, fixed 2026-10-23; see `docs/FIXED_BUGS.md`).
+The reasoning still holds: a narrow Sanctum token is still accepted as a full
+bearer on every `auth:sanctum` route (A-315 in `docs/KNOWN_BUGS.md`). An opaque
+id is not a `PersonalAccessToken`, so `findToken()` never resolves it and every
+such path is dead by construction. It
 also gives the audit log its exit duration for free.
 
 **Lifetime:** 20 minutes idle, extended by interaction, with a visible

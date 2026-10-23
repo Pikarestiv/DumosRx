@@ -10,15 +10,10 @@ class FullAccessToken
     {
         $token = PersonalAccessToken::findToken($plainTextToken);
 
-        if (!$token || !$token->can('*') || self::hasExpired($token)) {
+        if (!$token || !is_array($token->abilities) || !$token->can('*') || TokenLifetime::hasLapsed($token)) {
             return null;
         }
 
         return $token;
-    }
-
-    private static function hasExpired(PersonalAccessToken $token): bool
-    {
-        return $token->expires_at !== null && $token->expires_at->isPast();
     }
 }

@@ -675,11 +675,15 @@ impersonation/handoff subsystem, which is separate again) is in
 
 `POST /auth/handoff`, `/auth/handoff/consume` and `/admin/restore-session`
 authenticate off a token in the **request body**, not the `Authorization`
-header, so Sanctum's guard never sees it and neither its abilities nor its
-`expires_at` are enforced for them. `PersonalAccessToken::findToken()` checks
-neither. Every such read goes through `App\Support\FullAccessToken::find()`,
-which returns the token only if it exists, has the `*` ability and has not
-expired. A refresh-only (`['refresh']`) token or an expired one is refused
+header, so Sanctum's guard never sees it and its expiry is not enforced.
+(The guard checks expiry only; it never checks abilities, for bearers
+either: see A-315.) `PersonalAccessToken::findToken()` checks neither. Every
+such read goes through `App\Support\FullAccessToken::find()`, which returns
+the token only if it exists, records abilities, has the `*` ability and has
+not lapsed by `TokenLifetime::hasLapsed()`. That is the one expiry rule, the
+same pair of checks as Sanctum's guard (`expires_at`, plus the global
+`sanctum.expiration` if it is ever set again), and `refreshAdminSession()`
+uses it too. A refresh-only (`['refresh']`) token or an expired one is refused
 (A-199, 2026-10-23). Coverage: `AuthHandoffTest`, `RestoreSessionTest`.
 
 - **Why the body token cannot simply be the bearer.** The handoff exists

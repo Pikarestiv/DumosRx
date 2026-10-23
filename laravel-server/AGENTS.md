@@ -1097,7 +1097,8 @@ migration here **and** the corresponding update on the `client/` side
 ## `PermissionGroupSeeder` is a hand-maintained port of a client constant
 
 `app/Services/PermissionGroupSeeder.php`'s `DEFAULT_GROUP_PERMISSIONS`,
-`CATALOG_VERSION` and `DEFAULT_GROUP_PERMISSION_ADDITIONS` must match
+`CATALOG_VERSION`, `DEFAULT_GROUP_PERMISSION_ADDITIONS` and
+`ALL_GROUP_PERMISSION_ADDITIONS` must match
 `client/lib/constants/permissions.ts` key-for-key. They silently drifted by
 20 keys over two days (the client was maintained through every permission
 pass; this file was only ever edited for removals), which would have frozen
@@ -1116,6 +1117,39 @@ backfill" — read that before touching either, especially before adding any
 exemption to that sanitizer: one was tried and removed on 2026-09-29 because
 `validateSync()` backfills the server before any pushed change is processed,
 which made the exemption both unreachable and a hole.
+
+**Why the server seeds at all, and why the ids are deterministic.** The
+client seeds on login, but a store whose groups are only ever touched from
+the web dashboard, or a second device pulling before the first device's
+seed has pushed, would otherwise never see default groups, so
+`validateSync()` calls `ensureSeeded()` lazily too.
+`deterministicDefaultGroupId()` is a byte-for-byte port of the client's
+4-lane FNV-1a-style hash. That is load-bearing: a client and the server
+seeding the same store independently must compute the same id per role, so
+the sync engine's "INSERT against an existing id becomes an UPDATE" handling
+collapses the race instead of leaving two rows.
+
+**`ensureCatalogBackfilled()` touches every group from v3 on**, not only
+`is_default` ones: a custom group receives the version's
+`ALL_GROUP_PERMISSION_ADDITIONS` carve-out keys (today only
+`view_stock_quantities`) and never a role's default delta. The design is in
+`client/AGENTS.md`, "Catalog versioning and the default-group backfill".
+
+**`permission_groups.permissions` uses the `JsonList` cast (2026-10-23,
+A-318).** The client stores the column as SQLite TEXT and pushes it as a JSON
+*string*. Under the old `'array'` cast that string was encoded a second time,
+so every client-written row read back as a PHP string. Two things broke:
+`ensureCatalogBackfilled()` treated such a row as `[]` and would have
+overwritten it with only the owed keys (harmless while it touched only
+default groups that the server itself had seeded, fatal once v3 reached
+every client-created custom group), and `sanitizePermissionGroupSyncPayload()`'s
+escalation check, which only inspects arrays, never ran for a real client
+push. `JsonList` heals double-encoded rows on read, with no data migration,
+and `LegacyStockQuantitiesGrant::apply()` decodes the payload's
+`permissions` to a list before the sanitizer sees it. Pull now returns the
+column as a JSON array instead of a string; every bundle that has the
+`permission_groups` table (2026-09-27, `a5f40463`) stringifies an
+array-valued column on pull (`pull.ts`), so no reader changes.
 
 **Every authorization refusal on the push path must carry a machine-checkable
 reason.** `push()`'s per-change catch falls back to `$e->getMessage()` for any
@@ -1143,6 +1177,39 @@ identity, so any guard reading `$allowedStoreIds` is session-relative unless
 you check otherwise — `storeBelongsToTenantOwner()` is that check. See
 `docs/FIXED_BUGS.md` A-167, which found real transactional rows being destroyed
 this way, and A-168 for the two sites deliberately left terminal.
+
+## `LegacyStockQuantitiesGrant`: old bundles must not strip `view_stock_quantities`
+
+`app/Services/Sync/LegacyStockQuantitiesGrant.php`, called from
+`SyncController::normalizePushPayload()` for every `permission_groups`
+change, before the sanitizer. A bundle older than the key cannot express
+"untick it", but two of its actions drop it anyway: "Revert to Default"
+writes that bundle's `DEFAULT_GROUP_PERMISSIONS`, and "New group" starts at
+`"[]"`. On an updated till the group would then hide stock numbers its owner
+never chose to hide. So when `X-App-Version` is missing or below
+`INTRODUCED_IN` (`0.0.41`) and the payload carries `permissions` without the
+key:
+
+- an UPDATE (or an INSERT that lands on an existing row) gets the key back
+  if the stored row holds it;
+- an INSERT for a new row gets it;
+- only when the caller is `store_owner`/`admin`/`super_admin` or holds the
+  key in their own group, so the shim can never escalate. A caller without
+  it pushes the payload unchanged and the escalation check applies as usual.
+
+A missing header counts as old: `X-App-Version` was first sent on
+2026-10-10, so a bundle older than that sends none. Every bundle shipped
+between 2026-09-25 and this change reported `0.0.40`, which is why this change
+also bumped `APP_VERSION` (and `package.json`, `tauri.conf.json`,
+`Cargo.toml`, `Cargo.lock`, `web/lib/constants.ts`) to `0.0.41`. **Do not
+ship this without that bump**, or an updated till also reports `0.0.40` and an
+owner's untick is put back on every push.
+
+**Retire it** once no active device reports an `X-App-Version` below
+`0.0.41`: delete the class, its call in `normalizePushPayload()` and
+`tests/Feature/LegacyStockQuantitiesGrantTest.php`. Keep the payload
+decode (`JsonList::decodeList()`) when you do, because the escalation check
+depends on it. Pinned by `tests/Feature/LegacyStockQuantitiesGrantTest.php`.
 
 ## Known gotcha: MySQL timezone vs. Laravel's UTC clock
 

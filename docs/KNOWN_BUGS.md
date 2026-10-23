@@ -456,6 +456,12 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
+#### A-319. `client/` — `/inventory` has no route guard at all
+- **Found:** 2026-10-23, while specifying `view_stock_quantities` (request #2). Logged as a finding, not a bug to fix now: that feature keeps the page reachable on purpose.
+- **Location:** `client/app/(dashboard)/inventory/` has no layout or page-level `RequireRole`, and `components/dashboard/dashboard-sidebar.tsx:74-79` lists Inventory for every role.
+- **What's wrong:** every signed-in role, cashiers included, can open Inventory Overview and Catalog by link or URL. Nothing on those pages is a write a cashier can make without a further key (`manage_products`, `adjust_stock_counts`, `delete_products` and the rest are checked per control), and on-hand numbers now follow `view_stock_quantities`, so today this is a visibility question rather than a hole. But it is the one dashboard area with no route-level decision recorded, so the next control added there inherits "everyone" by default.
+- **Fix:** decide explicitly. Either keep it open and say so in `dashboard-page-routes.ts` beside the other routes, or add a `RequireRole` with `allowSalesStaff` (cashiers use Catalog for price and expiry lookups, so they should keep it).
+
 #### A-208. `laravel-server/` — an admin till access code never expires, so a forgotten one stays a working credential for ever
 - **Found:** 2026-10-10, reviewing the super_admin code-visibility change (`docs/FIXED_BUGS.md` A-207).
 - **Location:** `app/Models/AdminTillCode.php:27` — `scopeActive()` is `whereNull('revoked_at')` and nothing else.

@@ -636,8 +636,10 @@ shipped, since they'd have no group assigned at all.
 
 `client/lib/db/queries/permission-groups.ts:139`
 
-Brings an ALREADY-seeded store's default groups forward to the current
-catalog. ensurePermissionGroupsSeeded() only ever runs once per store, so
+Brings an ALREADY-seeded store's groups forward to the current catalog:
+default groups get their role's delta, and every group (custom ones too)
+gets the version's `ALL_GROUP_PERMISSION_ADDITIONS` carve-out keys.
+ensurePermissionGroupsSeeded() only ever runs once per store, so
 without this a store seeded under an older catalog is frozen on the
 permission lists that catalog shipped with - which is how the live
 production store's cashiers would have lost Hold Sale, Recent Sales,
@@ -3106,9 +3108,10 @@ table has no store_id column, and customer_id is already store-unique.
 
 `client/lib/db/queries/permission-groups.ts:100`
 
-The keys a default group for `role` is owed by every catalog version
-newer than `fromVersion`, in catalog order. Exported for the sync-engine
-and server-parity tests.
+The keys a group for `role` is owed by every catalog version newer than
+`fromVersion`, in catalog order: the role's default-group delta when
+`isDefault`, plus that version's all-group carve-out keys either way.
+Exported for the sync-engine and server-parity tests.
 
 ### db-queries-prescriptions-ts-L52
 

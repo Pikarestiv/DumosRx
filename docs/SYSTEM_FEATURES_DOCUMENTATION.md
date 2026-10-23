@@ -120,6 +120,8 @@ Your Cloud Dashboard is your management hub. Log in from any web browser to get 
 
 **Role-Based Access:** Decide exactly what each staff member is allowed to see or do.
 
+**Hide Stock Numbers From Staff:** Untick "View Stock Quantities" for a group (Settings → Roles & Permissions) and its members see "In stock", "Low stock" or "Out of stock" instead of how many units you hold, at the till, in the cart, in Inventory, on stock-transfer requests, online orders and when they ask the assistant. They are still told when something is out of stock or when they ask for more than is available, just without the number. Every group keeps seeing numbers until you change this, and staff who can count, adjust or receive stock, view stock history or view reports still see numbers on those screens. It hides numbers from view rather than locking the till's data, and each till picks it up once it is updated. The older "Display Item Stock Levels" switch under Register Configs still hides the till's stock chips for everyone, owners included.
+
 **Secure PIN Login:** Assign unique 4-digit PINs to your cashiers for fast, secure login at the store computers.
 
 **Remote Logout:** Instantly sign out devices remotely if a computer is lost or a staff member leaves the company.

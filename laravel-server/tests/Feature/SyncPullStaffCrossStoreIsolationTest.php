@@ -196,7 +196,7 @@ class SyncPullStaffCrossStoreIsolationTest extends TestCase
     }
 
     #[Test]
-    public function a_non_string_store_id_is_ignored_rather_than_crashing_the_pull(): void
+    public function a_non_string_store_id_is_refused_rather_than_crashing_or_widening_the_pull(): void
     {
         $response = $this->actingAs($this->owner)->postJson('/api/v1/app/sync/pull', [
             'last_synced' => [],
@@ -204,6 +204,40 @@ class SyncPullStaffCrossStoreIsolationTest extends TestCase
         ]);
 
         $response->assertStatus(200);
-        $this->assertNull($response->json('refused_store_id'));
+        $this->assertSame('(invalid)', $response->json('refused_store_id'));
+        $this->assertSame(['stores', 'payment_accounts'], array_keys($response->json('changes')));
+    }
+
+    #[Test]
+    public function a_staff_account_naming_a_deleted_sibling_store_gets_no_row_for_it(): void
+    {
+        $this->storeB->delete();
+
+        $response = $this->pull($this->staffOfA, $this->storeB->id);
+
+        $response->assertStatus(200);
+        $this->assertSame([$this->storeA->id], collect($response->json('changes.stores'))->pluck('id')->all());
+    }
+
+    #[Test]
+    public function the_header_independent_table_list_matches_what_the_scope_actually_ignores(): void
+    {
+        $controller = app(\App\Http\Controllers\Api\App\SyncController::class);
+        $apply = new \ReflectionMethod($controller, 'applyPullTenantScope');
+        $sentinel = 'store-header-sentinel';
+        $scope = ['ownerId' => 'owner', 'storeIds' => [$sentinel], 'ownedStoreIds' => ['owned'], 'storeRowIds' => ['owned'], 'userIds' => ['user']];
+
+        $independent = [];
+        foreach (['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'sale_items', 'sale_item_batches', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments', 'returns', 'return_items', 'prescriptions', 'prescription_items', 'loyalty_tiers', 'loyalty_redemption_options', 'stock_audits', 'held_transactions', 'loyalty_transactions', 'customer_payments', 'audit_logs', 'permission_groups'] as $table) {
+            $modelClass = $controller->getModelForTable($table);
+            $query = $modelClass::query();
+            $apply->invoke($controller, $query, $table, $scope);
+            if ($table !== 'users' && !in_array($sentinel, $query->getBindings(), true)) {
+                $independent[] = $table;
+            }
+        }
+
+        $listed = (new \ReflectionClassConstant($controller, 'PULL_TABLES_INDEPENDENT_OF_STORE_HEADER'))->getValue();
+        $this->assertEqualsCanonicalizing($listed, $independent);
     }
 }

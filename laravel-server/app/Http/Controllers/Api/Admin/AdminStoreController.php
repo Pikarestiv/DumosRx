@@ -12,7 +12,7 @@ use App\Services\Admin\AdminStoreService;
 use App\Services\Admin\Filters\StoreListFilters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Laravel\Sanctum\PersonalAccessToken;
+use App\Support\FullAccessToken;
 use OpenApi\Attributes as OA;
 
 class AdminStoreController extends AdminBaseController
@@ -502,7 +502,7 @@ class AdminStoreController extends AdminBaseController
     #[OA\Post(
         path: '/admin/restore-session',
         summary: "End impersonation and restore the admin's own session",
-        description: 'Dead code from the current UI\'s perspective (useRestoreSessionMutation is defined but never called — impersonation return uses the handoff-code flow instead) — kept working and hardened rather than removed, in case it is wired up later. The supplied token must resolve to a real Sanctum token owned by a super_admin; it is not trusted blindly.',
+        description: 'Dead code from the current UI\'s perspective (useRestoreSessionMutation is defined but never called — impersonation return uses the handoff-code flow instead) — kept working and hardened rather than removed, in case it is wired up later. The supplied token must resolve to a live, full-ability (`*`), unexpired Sanctum token owned by a super_admin; it is not trusted blindly.',
         tags: ['Admin'],
         security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
@@ -522,14 +522,12 @@ class AdminStoreController extends AdminBaseController
             'token' => 'required|string'
         ]);
 
-        $accessToken = PersonalAccessToken::findToken($validated['token']);
-        $admin = $accessToken?->tokenable;
+        $admin = FullAccessToken::find($validated['token'])?->tokenable;
 
         if (!$admin || !$admin->hasRole('super_admin')) {
             return response()->json(['error' => 'Invalid restore token.'], 403);
         }
 
-        // Log the end of impersonation
         ActivityLog::create([
             'user_id' => $admin->id,
             'action' => 'ADMIN_IMPERSONATION_END',

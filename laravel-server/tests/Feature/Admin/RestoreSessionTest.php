@@ -104,4 +104,26 @@ class RestoreSessionTest extends TestCase
 
         $response->assertStatus(422);
     }
+
+    public function test_restore_session_rejects_a_refresh_only_admin_token()
+    {
+        $token = $this->admin->createToken('admin-refresh', ['refresh'])->plainTextToken;
+
+        $response = $this->actingAs($this->storeOwner)
+            ->postJson('/api/v1/admin/restore-session', ['token' => $token]);
+
+        $response->assertStatus(403);
+        $response->assertCookieMissing('drx_admin_session');
+    }
+
+    public function test_restore_session_rejects_an_expired_admin_token()
+    {
+        $token = $this->admin->createToken('test-admin', ['*'], now()->subMinute())->plainTextToken;
+
+        $response = $this->actingAs($this->storeOwner)
+            ->postJson('/api/v1/admin/restore-session', ['token' => $token]);
+
+        $response->assertStatus(403);
+        $response->assertCookieMissing('drx_admin_session');
+    }
 }

@@ -177,7 +177,7 @@ trait AuthenticatesSessions
     #[OA\Post(
         path: '/admin/session/refresh',
         summary: 'Silently restore an admin browser session after a page reload',
-        description: 'The admin panel keeps its access token in memory only (never localStorage), so it does not survive a reload. This reads the HttpOnly, SameSite=Strict `drx_admin_session` cookie directly - a token scoped to the `refresh` ability only, never a general bearer credential - and rotates it for a fresh access token + refresh cookie.',
+        description: 'The admin panel keeps its access token in memory only (never localStorage), so it does not survive a reload. This reads the HttpOnly, SameSite=Strict `drx_admin_session` cookie directly - a token carrying only the `refresh` ability, which this endpoint checks (general routes do not, see A-315) - and rotates it for a fresh access token + refresh cookie.',
         tags: ['Auth'],
         responses: [
             new OA\Response(response: 200, description: 'New access token issued', content: new OA\JsonContent(properties: [

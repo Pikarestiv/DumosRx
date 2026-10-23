@@ -92,6 +92,49 @@ describe("update()/softDelete() store-ownership check", () => {
     });
   });
 
+  describe("a legacy NULL-store row on a device holding two stores (A-248)", () => {
+    beforeEach(() => {
+      db.run(`DELETE FROM _sync_queue; INSERT INTO stores (id, name) VALUES ('store-a', 'A'), ('store-b', 'B')`);
+    });
+
+    function queuedPayload(): Record<string, unknown> {
+      const res = db.exec(`SELECT payload FROM _sync_queue WHERE record_id = 'c1' ORDER BY id DESC LIMIT 1`);
+      return JSON.parse(res[0].values[0][0] as string);
+    }
+
+    it("update() edits the row but does not guess its store", async () => {
+      insertCategory("c1", "Legacy", null);
+      core.setActiveStoreId("store-b");
+
+      try {
+        await update("categories", "c1", { name: "Legacy Renamed" });
+
+        const row = readCategory("c1");
+        expect(row.name).toBe("legacy renamed");
+        expect(row.store_id).toBeNull();
+        expect(queuedPayload()).not.toHaveProperty("store_id");
+      } finally {
+        db.run(`DELETE FROM stores`);
+      }
+    });
+
+    it("softDelete() deletes the row but does not guess its store", async () => {
+      insertCategory("c1", "Legacy", null);
+      core.setActiveStoreId("store-b");
+
+      try {
+        await softDelete("categories", "c1");
+
+        const row = readCategory("c1");
+        expect(row._deleted).toBe(1);
+        expect(row.store_id).toBeNull();
+        expect(queuedPayload()).not.toHaveProperty("store_id");
+      } finally {
+        db.run(`DELETE FROM stores`);
+      }
+    });
+  });
+
   describe("softDelete()", () => {
     it("allows deleting your own store's row", async () => {
       insertCategory("c1", "Drugs", "store-a");

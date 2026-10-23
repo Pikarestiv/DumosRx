@@ -1084,6 +1084,18 @@ migration here **and** the corresponding update on the `client/` side
   `$directStoreTables` now hold the same 21 tables (the six parent-FK child
   tables reach the resolver through its own per-table branches instead);
   keep them that way.
+  - **An UPDATE never moves a row that already has a store (A-248, 2026-10-23).**
+    `withoutStoreReassignment()` drops a payload `store_id` before
+    `forceFill()` whenever the stored row's `store_id` is set, on every table
+    except `users` (a staff member is reassigned through it). The rest of the
+    edit still applies, and the row's next pull hands the device its real
+    store back. `normalizePushPayload()`'s foreign-store refusal only rejects
+    stores outside the caller's scope, and for an owner that is every store
+    they own, so without this an owner's device could move a row between its
+    own stores, which is how two production products changed tenant. A stored
+    `NULL` can still be claimed (a legacy row must sync, §11). Nothing in the
+    client moves a business row between stores; the only legitimate move is
+    `sync:repair-product-store-stamps`, which runs server-side.
   - **The backfill half of that list is INSERT-only; the foreign-store
     refusal half is not.** `normalizePushPayload()` runs for every operation,
     and a client UPDATE never resends `store_id` (ownership is immutable
@@ -3935,10 +3947,11 @@ On production use the 8.2 binary (next section):
   holds, so a batch the device has never received cannot be one of them.
 - **Idempotent and chunked** (keyset paging on `products.id`, 200 at a time).
   A second `--apply` reports "No product disagrees …".
-- **Retirement:** delete the command once the A-248 client claim path is fixed
-  *and* one dry run across production reports zero repairable and zero refused.
-  Until the claim path is closed the mis-stamp recurs, so the command is the
-  standing repair, not a one-shot.
+- **Retirement:** the claim path and the UPDATE reassignment are closed (A-248
+  part a, 2026-10-23); what still produces a mis-stamp is a never-pushed legacy
+  INSERT from a multi-store device (A-248 in `docs/KNOWN_BUGS.md`). Delete the
+  command once that is closed too *and* one dry run across production reports
+  zero repairable and zero refused. Until then it stays the standing repair.
 - **Tests:** `tests/Feature/RepairProductStoreStampTest.php` — detection and
   attribution, **the batch becoming pullable for the correct store** (the
   actual goal), contradictory evidence reported and left alone, cross-tenant

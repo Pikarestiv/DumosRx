@@ -273,4 +273,57 @@ class SyncPushStoreIdBackfillTest extends TestCase
         $this->assertSame($this->store->id, $row->store_id);
         $this->assertSame('Bronze', $row->name);
     }
+
+    /** A-248: an owner may write every store they own, but an update must not move an existing row between them. */
+    public function test_an_update_naming_the_owners_other_store_keeps_the_rows_store_and_applies_the_rest()
+    {
+        $second = $this->createSecondStore();
+        $tierId = 'loyalty-tier-a248-update';
+        $this->seedTier($tierId, $this->store->id);
+
+        $response = $this->push('loyalty_tiers', $tierId, [
+            'id' => $tierId,
+            'store_id' => $second->id,
+            'name' => 'Silver',
+            '_version' => 1,
+        ], 'UPDATE', ['X-Store-Id' => $second->id]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+        $row = DB::table('loyalty_tiers')->where('id', $tierId)->first();
+        $this->assertSame($this->store->id, $row->store_id);
+        $this->assertSame('Silver', $row->name);
+    }
+
+    public function test_a_resent_insert_naming_the_owners_other_store_keeps_the_rows_store()
+    {
+        $second = $this->createSecondStore();
+        $tierId = 'loyalty-tier-a248-resent';
+        $this->seedTier($tierId, $this->store->id);
+
+        $this->push('loyalty_tiers', $tierId, [
+            'id' => $tierId,
+            'store_id' => $second->id,
+            'name' => 'Bronze',
+            '_version' => 1,
+        ], 'INSERT', ['X-Store-Id' => $second->id])->assertStatus(200);
+
+        $this->assertSame($this->store->id, DB::table('loyalty_tiers')->where('id', $tierId)->value('store_id'));
+    }
+
+    public function test_a_legacy_row_with_no_store_can_still_be_claimed_by_an_update()
+    {
+        $tierId = 'loyalty-tier-a248-legacy';
+        $this->seedTier($tierId, $this->store->id);
+        DB::table('loyalty_tiers')->where('id', $tierId)->update(['store_id' => null]);
+
+        $this->push('loyalty_tiers', $tierId, [
+            'id' => $tierId,
+            'store_id' => $this->store->id,
+            'name' => 'Bronze',
+            '_version' => 1,
+        ], 'UPDATE')->assertStatus(200);
+
+        $this->assertSame($this->store->id, DB::table('loyalty_tiers')->where('id', $tierId)->value('store_id'));
+    }
 }

@@ -144,11 +144,15 @@ enforcing it on the write path.
 Three outcomes, matching the controller's ruling exactly:
  - row.store_id === activeStoreId → allowed, `{ needsClaim: false }`.
  - row.store_id is NULL (pre-migration legacy row, see
-   backfillStoreIdOnLegacyRows in core.ts) → allowed, with
-   `{ needsClaim: true, activeStoreId }` telling update()/softDelete()
-   to claim it for the active store as part of their own write, so a
-   second store touching it later hits the reject branch instead of
-   clobbering it forever. remove() ignores `needsClaim`: it's a hard,
+   backfillStoreIdOnLegacyRows in core.ts) → allowed. On a device holding
+   at most one store it returns `{ needsClaim: true, activeStoreId }`,
+   telling update()/softDelete() to claim it for the active store as part
+   of their own write, so a second store touching it later hits the
+   reject branch. On a device holding **more than one** store it returns
+   `{ needsClaim: false }`: the active store is only a guess there, and
+   that guess is how two products moved between one owner's stores in
+   production (A-248). The row stays unattributed, exactly as the
+   backfill leaves it on such a device. remove() ignores `needsClaim`: it's a hard,
    unrecoverable DELETE, so claiming the row first only to destroy it in
    the very next statement protects nothing — there's no row left
    afterward for the claim to matter to. The delete is simply allowed

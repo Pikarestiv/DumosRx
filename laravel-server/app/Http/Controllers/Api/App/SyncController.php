@@ -695,12 +695,13 @@ class SyncController extends Controller
                         // edit was made from, not a real new version.
                         unset($payload['_version']);
 
-                        // Inventory Reconciliation: Ignore quantity updates for stock_batches, rely on stock_movements
                         if ($change['table_name'] === 'stock_batches') {
                             if (isset($payload['quantity'])) {
                                 unset($payload['quantity']);
                             }
                         }
+
+                        $payload = $this->withoutStoreReassignment($change['table_name'], $payload, $model);
 
                         $model->forceFill($payload);
                         if ($newVersion !== null) {
@@ -1670,6 +1671,21 @@ class SyncController extends Controller
      * store and is deliberately NOT out of scope — see
      * laravel-server/AGENTS.md, "Stock batch deltas are store-scoped".
      */
+    /** A-248: a device may claim a row that has no store, but never move one that has. */
+    private function withoutStoreReassignment(string $tableName, array $payload, $model): array
+    {
+        if ($tableName === 'users' || !array_key_exists('store_id', $payload) || empty($model->store_id)) {
+            return $payload;
+        }
+
+        if ($payload['store_id'] !== $model->store_id) {
+            Log::info("Sync push: kept {$tableName} {$model->getKey()} in store {$model->store_id}; ignored a reassignment to {$payload['store_id']} (A-248)");
+        }
+        unset($payload['store_id']);
+
+        return $payload;
+    }
+
     private function isBatchOutsideScope($stockBatchId, ?array $allowedStoreIds): bool
     {
         if ($allowedStoreIds === null) {

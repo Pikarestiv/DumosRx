@@ -7,7 +7,7 @@ use App\Models\Category;
 /**
  * Keeps a pushed row from naming another store's category. Rationale, the
  * production measurement and why this remaps rather than refuses or drops:
- * docs/KNOWN_BUGS.md A-302 and docs/FIXED_BUGS.md A-301.
+ * docs/FIXED_BUGS.md A-301 and A-302.
  */
 class CrossStoreReferenceGuard
 {

@@ -288,7 +288,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       tooltip: errorMessage || "Sync failed. Please try again.",
     },
     pending: {
-      label: "Pending Sync",
+      label: isLinked ? "Pending Sync" : "Not Backed Up",
       icon: (
         <Cloud
           className={cn(
@@ -303,7 +303,9 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
         ? "bg-destructive/10 hover:bg-destructive/20"
         : "bg-amber-500/10 hover:bg-amber-500/20",
       mobileBg: isSyncOverdue ? "bg-destructive/10" : "bg-amber-500/10",
-      tooltip: `${pendingCount} local change${pendingCount > 1 ? "s" : ""} pending sync since ${lastSync ? formatDistanceSafe(lastSync) + " ago" : "a while"}.`,
+      tooltip: isLinked
+        ? `${pendingCount} local change${pendingCount > 1 ? "s" : ""} pending sync since ${lastSync ? formatDistanceSafe(lastSync) + " ago" : "a while"}.`
+        : `This till is not linked to the cloud, so ${pendingCount} local change${pendingCount > 1 ? "s are" : " is"} not backed up. Re-link it in Settings > Data with the owner's login or a re-link code from the owner (Settings > Account > Sessions & Devices).`,
     },
     active: {
       label: "Cloud Active",

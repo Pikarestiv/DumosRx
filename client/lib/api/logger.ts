@@ -59,6 +59,7 @@ export const sanitizePayload = (payload: unknown): unknown => {
         "newpassword",
         "oldpassword",
         "credentials",
+        "code",
       ];
       for (const key of Object.keys(sanitized)) {
         const lowerKey = key.toLowerCase();

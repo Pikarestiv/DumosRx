@@ -79,6 +79,25 @@ class ApiClient extends FleetBillingApiClient {
     });
   }
 
+  async generateRelinkCode(storeId: string) {
+    return this.request<{ code: string; expires_at: string }>("/app/relink-code", {
+      method: "POST",
+      body: JSON.stringify({ store_id: storeId }),
+    });
+  }
+
+  async consumeRelinkCode(code: string) {
+    return this.request<{
+      token: string;
+      user: { id: string; email: string; name: string; role: string };
+      message: string;
+    }>("/app/relink-code/consume", {
+      method: "POST",
+      headers: syncHeaders(),
+      body: JSON.stringify({ code }),
+    });
+  }
+
   async getProfile() {
     return this.request<CurrentUser>("/user");
   }

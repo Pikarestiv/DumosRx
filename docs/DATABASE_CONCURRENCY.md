@@ -403,6 +403,7 @@ Consequences, all verifiable in code:
 - **The writer lock is never engaged.** `initWriterLock()` is called only after the Tauri branch
   has returned (`core.ts:214`), `assertWritable()` returns immediately under Tauri
   (`core.ts:553`), and `tab-lock.ts:12-14` documents the exclusion.
+- **A second desktop process is prevented**, not tolerated: `tauri-plugin-single-instance` is registered first in the builder (`src-tauri/src/lib.rs`, desktop targets only) and focuses the existing `main` window instead, because the writer lock above does not run on Tauri and two processes would each run their own sync engine over the same `_sync_queue`.
 - **Concurrency is handled by SQLite itself**, further constrained by the vendored plugin fork
   capping the sqlx pool at `.max_connections(1)` (`core.ts:667-674`, referencing
   `src-tauri/vendor/tauri-plugin-sql/src/wrapper.rs`).

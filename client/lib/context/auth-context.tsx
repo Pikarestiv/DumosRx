@@ -19,8 +19,7 @@ import {
   getTillInspectionSession,
   isTillInspectionSession,
 } from "@/lib/utils/till-inspection";
-import { apiClient } from "@/lib/api/client";
-import { withNetworkRetry } from "@/lib/api/retry-on-network-error";
+import { useCloudLink, type CloudLinkResult } from "@/lib/hooks/use-cloud-link";
 import {
   getUsersByUsernameOrEmail,
   createDefaultAdmin,
@@ -129,7 +128,8 @@ interface AuthContextType {
   permissionGroup: { userId: string; id: string; permissions: string[] } | null;
   changePin: (currentPin: string, newPin: string) => Promise<{ success: boolean; message: string }>;
   verifyPin: (pin: string) => Promise<boolean>;
-  linkCloudAccount: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
+  linkCloudAccount: (email: string, password: string) => Promise<CloudLinkResult>;
+  linkWithRelinkCode: (code: string) => Promise<CloudLinkResult>;
   isCloudLinked: boolean;
   // True while this session came from a superadmin impersonation handoff (see loginFromHandoff).
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#context-auth-context-tsx-L160
@@ -581,42 +581,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return true;
   }, [user]);
 
-  const linkCloudAccount = useCallback(async (email: string, password: string) => {
-    try {
-      // Prevent linking to a different account if already linked before
-      if (user?.email && user.email.toLowerCase() !== email.toLowerCase()) {
-        return { 
-          success: false, 
-          message: `Account mismatch. This device is already linked to ${user.email}. Please use that account.` 
-        };
-      }
-
-      const response = await withNetworkRetry(() => apiClient.login(email, password));
-
-      if (response.token) {
-        apiClient.setToken(response.token);
-        setIsCloudLinked(true);
-
-        // A credentialed cloud login is by definition not a superadmin handoff, and it replaces whatever token an impersonated session was carrying.
-        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L762
-        clearImpersonatedSession();
-        setIsImpersonating(false);
-
-
-        // Update local user info if already logged in locally
-        if (user) {
-          const updatedUser = { ...user, email };
-          setUser(updatedUser);
-          setStoredUser(updatedUser);
-        }
-
-        return { success: true, message: "Cloud account linked successfully!" };
-      }
-      return { success: false, message: "Invalid credentials" };
-    } catch (e) {
-      return { success: false, message: e instanceof Error ? e.message : "Failed to connect to cloud" };
-    }
-  }, [user]);
+  const { linkCloudAccount, linkWithRelinkCode } = useCloudLink({
+    user,
+    setUser,
+    setIsCloudLinked,
+    setIsImpersonating,
+  });
 
   // Seeds the active store's 5 default permission groups (idempotent, see ensurePermissionGroupsSeeded) the moment a session is established - co…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L789
@@ -673,6 +643,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       changePin,
       verifyPin,
       linkCloudAccount,
+      linkWithRelinkCode,
       isCloudLinked,
       isImpersonating,
       isInspecting,
@@ -691,6 +662,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       changePin,
       verifyPin,
       linkCloudAccount,
+      linkWithRelinkCode,
       isCloudLinked,
       isImpersonating,
       isInspecting,

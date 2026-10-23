@@ -248,6 +248,14 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** store money as integer minor units (kobo, centimes) and never divide without deciding where the remainder goes; or, less invasively, keep the columns and put `decimal.js`/`big.js` in front of every client-side money sum and `brick/math` or integer arithmetic server-side. Either is a cross-cutting change touching the schema on both sides, so it needs the §5 cross-repo schema check and a §11 backward-compatibility plan — old bundles will keep sending floats indefinitely.
 - **Do not fold this into A-271.** That entry's `decimal(10,2)` overflow at values ≥ 100,000,000 is a separate, already-documented failure of the same column; this entry is about the representation on either side of it.
 
+#### A-309. `client/` — two tills returning different lines of the same sale offline leave the reseller commission figures computed from only one of them
+- **Found:** 2026-10-23, in the independent review of A-307. Reasoned from the code, not reproduced with two devices.
+- **Issue:** #252
+- **Location:** `client/lib/db/base-helpers.ts` (`update()` queues a partial patch carrying the base `_version`), `SyncController.php` (`version_conflict` on the second push), `client/lib/db/sync-engine/push.ts` (`version_conflict` is non-retryable, so the patch is dropped from the queue).
+- **What's wrong:** a return writes `reseller_markup_amount`, `reseller_commission_amount` and `reseller_commission_owed_back` (and `payment_status`) as one patch recomputed on the returning device. When two offline devices each return a different line of one sale, the second patch hits a version conflict and is discarded, while its `returns`/`return_items` rows are accepted. Nothing recomputes the figures afterwards.
+- **Consequence:** sale of 4 × 150 (list 100), commission 20 redeemed; till A returns 1 (owed back 5), till B returns 2 offline. B's patch is dropped, so the stored owed-back stays 5 where 15 is correct, on the server and on every device. The `payment_status` half was already true; the money fields widen it.
+- **Fix:** derive the three figures (ideally `payment_status` too) from `sale_items` + `return_items` instead of storing a patch, either on the client whenever a pulled `return_items` row lands for a local sale or on the server when a `returns` row is inserted. Needs the §11 plan: old bundles keep sending patches.
+
 ### Tier 3 — sync reliability, observability, latent hazards
 
 #### A-204. `laravel-server/` — a sync command is marked `sent` the moment it is handed out, is never re-offered, and has no timeout, so a device that does not answer loses it permanently
@@ -274,14 +282,14 @@ suggested tackle order rather than a strict ranking.
 - **Why not fixed with A-167:** the blast radius is materially smaller and the fix is materially riskier. It is one table (`permission_groups`), holding role configuration rather than transactional data, and the local row survives — the loss is "this group never reaches the cloud or the owner's other devices", recoverable by the owner re-saving it. Against that, the terminal classification here predates A-161 and is load-bearing in the other direction: `ensurePermissionGroupsSeeded()` makes a client seed five default groups locally, and on a staff device whose store the server has already seeded, `$isFirstTimeDefaultSeed` is false and the permissions diff refuses them — making that refusal retryable would reproduce A-161's `Sync item stuck after 5 attempts` loop for every staff device instead of the one owner device it was fixed for. Resolving it properly means distinguishing a client-seeded default group from an owner-authored custom one at this throw site, which needs its own scoping, and is best done together with A-165's bounded-abandonment work.
 - **Locked meanwhile:** `laravel-server/tests/Feature/SyncPushSessionScopedRefusalTest.php::test_permission_group_privilege_refusals_stay_terminal_permission_denied` pins the current behaviour, so the decision is explicit rather than accidental.
 
-#### A-311. `laravel-server/` — a legacy NULL-store row authored by a user outside the session's allowed users cannot be updated or deleted by its own store
+#### A-313. `laravel-server/` — a legacy NULL-store row authored by a user outside the session's allowed users cannot be updated or deleted by its own store
 - **Found:** 2026-10-23, vetting A-298's fix. Confirmed with a throwaway test against both versions of `push()`: the pre-fix DELETE was accepted, the fixed one returns `forbidden`.
 - **Location:** `SyncController::resolveAllowedOwnershipScope()` builds `$allowedUserIds` from `User::whereIn('store_id', $allowedStoreIds)`, whose `SoftDeletes` scope drops removed staff; `authorizeChangeTarget()`'s `user_id` fallback then finds the author outside the scope, sees the user still exists (`withTrashed()`), and denies.
 - **What's wrong:** a server row with `store_id` NULL whose `user_id` is not in `$allowedUserIds` is treated as another tenant's. Three legitimate shapes reach it: the author was soft-deleted; the author was moved to a sibling store (for a staff session, whose allowed stores are its own one store); or the author's `users.store_id` was cleared. An owner session covers the sibling-store case, since its allowed users span all its stores. UPDATE has always behaved this way; DELETE used to pass only because the payload's store claim authorized it, which was the A-298 hole, so closing that brought DELETE in line.
 - **Consequence:** the change is parked as `forbidden` and retried indefinitely (A-165); the row is not lost, but the edit or delete never reaches the cloud. Population is close to zero today: only rows whose **server** `store_id` is still NULL qualify, and the 2026-10-19 `sync:backfill-store-ids` run left 50, all belonging to a deleted trial account. New ones need an old bundle pushing a legacy row the backfill could not attribute.
 - **Fix, if it ever matters:** on the reject path only (like the dangling-id check), accept a soft-deleted author whose `users.store_id` is in `$allowedStoreIds`, via `withTrashed()`, so it covers UPDATE and DELETE alike. Leave the other two shapes refused: an author now in a sibling store or with no store gives no evidence which store the NULL row belongs to, and a staff session's narrower scope is exactly what `forbidden` (retryable, A-165) exists for. Do **not** reintroduce the payload claim as an authorizer. Pin it with a removed-staff case for both operations.
 
-#### A-312. `laravel-server/` — an UPDATE to a child-table row writes whatever `store_id` its payload names, another tenant's included
+#### A-314. `laravel-server/` — an UPDATE to a child-table row writes whatever `store_id` its payload names, another tenant's included
 - **Found:** 2026-10-23, by the independent review of A-298's fix; confirmed with a throwaway test on both the pre- and post-fix code (pre-existing, not introduced by A-298).
 - **Location:** `normalizePushPayload()` validates a payload's `store_id` against `$allowedStoreIds` only for `STORE_ID_BACKFILL_TABLES`. The six parent-FK child tables (`stock_batches`, `sale_items`, `sale_item_batches`, `return_items`, `prescription_items`, `purchase_order_items`) are not on it, yet carry a `store_id` column, so the UPDATE branch's `forceFill($payload)` writes any value.
 - **Reproduced:** the attacker's own `purchase_order_items` line under its own PO, pushed as an UPDATE with `store_id = <victim store>`: accepted, and the row now carries the victim's store id.
@@ -441,6 +449,17 @@ suggested tackle order rather than a strict ranking.
 - **Why not just fixed:** root cause of the `!user` bounce itself hasn't been found — static code reading alone (the only method used so far, per earlier explicit instruction not to live-reproduce) didn't turn up an obvious race in `login()`'s synchronous `setUser`/`sessionStorage` writes vs. `DashboardLayoutInner`'s first render. Needs either live reproduction (with console/network instrumentation to catch the exact moment `user` reads as `null`) or more targeted tracing of `AuthProvider`'s mount/update timing than has been done so far.
 
 
+#### A-312. `laravel-server/`, `client/` — follow-ups from the till re-link code and token expiry review (A-311)
+- **Found:** 2026-10-23, in the independent review of the A-311 fix.
+- **Issue:** #254
+- **Rate limiter and proxies:** `throttle:relink` is keyed on `$request->ip()` (`AppServiceProvider.php:87-89`) and `bootstrap/app.php` has no `trustProxies()`. If `api.dumosrx.com` sits behind a proxy or CDN, every till shares one 5-a-minute bucket, so a stranger can block re-linking for the whole fleet, and re-linking is the recovery path. If proxies were ever trusted with `*`, a spoofed `X-Forwarded-For` voids the limit. `throttle:auth` is keyed the same way. Confirm the production proxy topology, then add a second limit keyed on `X-Store-Id`.
+- **Inactive owner on consume:** `TillRelinkService` returns `403 ACCOUNT_SUSPENDED` for a deactivated owner, where `login()` returns a 422 "Account is deactivated." The client's `base-client.ts` reads any `403 ACCOUNT_SUSPENDED` as a store suspension and runs `UPDATE stores SET status = 'Suspended'` with no WHERE, then reloads. The window is small (owner deactivated between generate and consume) and the middleware already does the same on every other call, but `laravel-server/AGENTS.md` says "same semantics as login()" and it is not.
+- **Till with no store id:** `X-Store-Id` is omitted when `dumos_active_store_id` is unset, so consume answers the generic "Invalid or expired code." and the user regenerates codes for nothing. Pre-check in `use-cloud-link.ts` and say the device has no store yet.
+- **Sessions list shows dead rows:** `SessionController.php:33` has no `expires_at` filter, so expired tokens and the 30-second `admin-refresh-rotated` markers show until the daily prune. Filter `expires_at` null-or-future and exclude that name.
+- **Backfill speed:** the `2026_10_23_000001` migration issues one UPDATE per token. Correct and idempotent, but it is N queries inside the deploy's `migrate`; a set-based UPDATE would need a per-driver date expression.
+- **Fix:** as listed per item above.
+
+
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
 #### A-208. `laravel-server/` — an admin till access code never expires, so a forgotten one stays a working credential for ever
@@ -536,6 +555,14 @@ suggested tackle order rather than a strict ranking.
 - **Why it matters beyond tidiness:** this is the term partners use with customers, and the SOP now has to spend a paragraph explaining that two labels mean the same thing. An operator reading "Contact Specialist" on a store page has no way to know it is the same field as the "Account Manager" setting they just changed.
 - **Fix:** pick one. "Account Manager" is the better choice: it matches the API field, the settings tab, and ordinary business usage, and it is what the partner SOP teaches. Rename the two card labels, fix the self-contradicting body text, and grep for both strings afterwards. No API change needed.
 - **Also update** `docs/partner-sop/DumosRx-Partner-SOP.docx` section 1, which currently explains the discrepancy and promises it will be tidied up.
+
+#### A-310. `client/` — small A-307 follow-ups: details card disagrees with itself after a return, return dialog edge cases, an oversized file
+- **Found:** 2026-10-23, in the independent review of A-307.
+- **Issue:** #251
+- **Details card:** `transaction-details-dialog.tsx` "Against list price" sums price adjustments over full line quantities and never shrinks after a return, while "Reseller markup" does, so "+200" can sit beside "Reseller markup: 150".
+- **Return dialog:** `return-dialog.tsx` reads the fresh sale at "Confirm Return & Refund", not at "Yes, Process Return", so a redemption between the two steps is stored correctly (the mutation re-reads) but its warning is not shown. `handleInitialSubmit` has no try/catch, so a failing `getSaleById` makes the button do nothing silently.
+- **File size:** `transaction-details-dialog.tsx` is 407 lines, over the 350 limit (`.agents/AGENTS.md` §4); split it.
+- **Fix:** shrink the list-price figure by returned quantity (or label it as the original sale), re-read at the second confirm and catch the failure with a toast, and extract the reseller block into its own component.
 
 ---
 

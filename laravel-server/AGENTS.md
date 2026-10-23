@@ -671,6 +671,118 @@ change to one affects the other. Full detail (including the
 impersonation/handoff subsystem, which is separate again) is in
 `web/AGENTS.md`.
 
+### Things the auth code used to explain inline
+
+- `AuthController` is split into traits (`AuthenticatesSessions`,
+  `RegistersAccounts`, ...) rather than separate controllers because every
+  route's middleware is bound to the class name by route group
+  (`throttle:auth`, `throttle:session-refresh`, the `auth:sanctum` group).
+- `login()` refuses a user with a null/empty `password` before
+  `Hash::check()`: PIN-only staff have no web credential, and
+  `password_verify()` on null is a deprecation (see "Staff credentials").
+- The new-device email fires only when the account already has more than one
+  token and no other token shares this IP *or* user agent (either match counts,
+  to avoid over-alerting). It is best effort: the token is already saved, so an
+  SMTP failure is logged and never fails the login (it used to 500 on an
+  undeliverable address).
+- `/refresh` never sets `drx_admin_session`. It once did, reachable by any
+  bearer caller, which reintroduced the general-ability-token-in-a-cookie shape
+  the redesign removed.
+- `/admin/session/refresh`: an unknown token, or one whose rotation grace has
+  lapsed, gets a bare 401 **without** clearing the cookie; clearing it there
+  turned a multi-tab race into a logout. A token without the `refresh` ability
+  is cleared. Rotation renames the outgoing token `admin-refresh-rotated` and
+  gives it a 30 second `expires_at` (long enough for in-flight sibling requests,
+  too short to replay); a request presenting a rotated token inside that window
+  gets an access token and no cookie, so it cannot overwrite the winner's.
+  "Was rotated" is decided by that **name**, not by `expires_at` being set,
+  because every token now carries an `expires_at` (below).
+- `restoreSession()` mints a fresh `admin-refresh` token for its cookie rather
+  than putting the body token in it: the cookie must only ever hold a
+  `refresh`-ability token or `refreshAdminSession()` clears it on next reload.
+- `EnsureEmailIsVerified` is a soft block: GETs pass so the dashboard still
+  renders, every write and every `api/sync*` call is refused.
+- `impersonateStore()` does not set `drx_admin_session`; the panel uses the
+  JSON `token` for the handoff exchange, and writing the cookie overwrote the
+  admin's own session.
+
+### Token lifetimes (2026-10-23, A-311)
+
+`config/sanctum.php`'s global `expiration` is `null`. Every `createToken()`
+call passes its own `expires_at`, taken from `App\Support\TokenLifetime`, the
+one place a lifetime is decided:
+
+| Token | Lifetime |
+|---|---|
+| `login()` with `device_name: "web"`, or any login by a `super_admin` | `TokenLifetime::admin()`, 30 days (`SANCTUM_ADMIN_TOKEN_LIFETIME_DAYS`) |
+| `login()` with any other `device_name` (tills send `"Client App"`), `register()`, a consumed till re-link code | `TokenLifetime::till()`, 180 days (`SANCTUM_TILL_TOKEN_LIFETIME_DAYS`) |
+| `/refresh` (renames to `web`, serves tills and admin bearer callers alike) | by role: `super_admin` 30, everyone else 180 |
+| `admin-refresh`, `/admin/session/refresh`'s `web`, `Impersonation Token` | 30 days |
+
+Why: a till offline for more than 30 days used to come back to a 401 and
+unlink, because `/refresh` only runs online. Token names cannot tell a till
+from the dashboard (`/refresh` renames everything `web`), hence the role rule.
+
+- **Never call `createToken()` without the third argument.** With the global
+  expiration gone, a token minted without one never expires.
+- Migration `2026_10_23_000001_backfill_personal_access_token_expiry` set
+  `expires_at = created_at + 30 days` on every row that had none, so existing
+  tokens keep the lifetime they were issued under rather than becoming immortal.
+  It computes the date in PHP (§7: no MySQL `NOW()`), so it is portable to the
+  SQLite test DB. A till picks up 180 days on its next `/refresh`.
+- `sanctum:prune-expired --hours=24` runs daily at 04:00 (`routes/console.php`).
+- Backward compatibility (§11): no response shape changed; old clients get
+  longer-lived tokens and nothing else.
+
+### Till re-link codes (2026-10-23, A-311)
+
+An unlinked till can be re-linked without anyone typing the owner's password
+at it. `App\Http\Controllers\Api\App\TillRelinkController` (thin) over
+`App\Services\TillRelinkService`.
+
+- **`POST /app/relink-code`** (inside the `auth:sanctum` + `account_status`
+  group, *not* the `subscription` group): body `store_id`. Only the store's
+  owner (`stores.user_id === caller`) may call it; staff, other owners and an
+  `Impersonation Token` session get 403. Returns `{code, expires_at}`, the only
+  time the code is ever shown. Client UI: Settings > Account > Sessions &
+  Devices (`client/components/settings/account/relink-code-dialog.tsx`). The
+  owner dashboard lives in `client/`, not `web/` (`web/app/dashboard` only
+  redirects), so there is no `web/` UI for this.
+- **No table.** Same pattern as `AuthHandoffController`: `Cache::put` under
+  `till_relink:` + sha256 of the code, value `{user_id (the owner), store_id,
+  created_by}`, TTL 900s. Code: 8 chars from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`
+  (no 0/O/1/I) via `random_int`. Production's `CACHE_STORE=database` means a
+  code survives a PHP worker restart; the test suite's `array` store is per
+  test.
+- **`POST /app/relink-code/consume`** is public, behind `throttle:relink` (5 a
+  minute per IP, `AppServiceProvider`). Inputs: `code` and the `X-Store-Id`
+  header the client's `syncHeaders()` already sends. `Cache::pull` burns the
+  code **before** anything is checked, so a wrong store or a refused account
+  still uses it up. `Cache::pull` is a get-then-forget on the `database` cache
+  store, so a `Cache::add` marker (`till_relink_used:<hash>`) is claimed after the
+  store check and a second reader of the same entry is refused. An unknown, expired, used, or other-store code all get the
+  identical `422 {"message": "Invalid or expired code."}`, so the endpoint never
+  says whether a code exists or which store it belongs to.
+- **It repeats login()'s guards on the owner**: `CheckAccountStatus::refusalFor()`
+  (inactive owner and suspended store give `403 ACCOUNT_SUSPENDED`, archived
+  store gives `STORE_ARCHIVED`; the same responses the middleware returns, from
+  the same code), `EnsureEmailIsVerified::refusalFor()` (`403
+  email_not_verified` when verification is required), then
+  `SubscriptionService::enforceStaffLimits()`. It then mints `Client App` with
+  `TokenLifetime::till()`, stamps `ip_address`/`user_agent` like `login()` so
+  the Sessions list shows it, and returns `login()`'s exact body shape.
+- **Audit:** issuing a code writes `TILL_RELINK_CODE_ISSUED` (store, ip, user
+  agent, expiry; never the code or its hash). Consuming one writes an
+  `activity_logs` row `TILL_RELINKED` with the store, ip, user
+  agent and `properties.{created_by, device_id, device_label}`; the description
+  carries the device label (or "Unnamed device"), never a bare device id.
+- **The token is the owner's**, as with every till today: the code binds by
+  store, not by who is standing at the till. That is why generating is
+  owner-only.
+- **Backward compatibility (§11):** two new routes and two new public static
+  helpers on existing middleware; no existing route, payload or response
+  changed. Old clients never call the new routes.
+
 ## Sync engine (server side)
 
 `app/Http/Controllers/Api/App/SyncController.php` (~1000 lines — the

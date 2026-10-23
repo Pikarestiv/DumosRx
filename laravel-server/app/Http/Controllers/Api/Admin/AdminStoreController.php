@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Support\TokenLifetime;
 use App\Http\Controllers\Concerns\ManagesAdminSessionCookie;
 use App\Models\ActivityLog;
 use App\Services\Admin\AdminFleetMetricsService;
@@ -535,21 +536,7 @@ class AdminStoreController extends AdminBaseController
             'description' => "Admin ended impersonation session",
         ]);
 
-        // Previously hand-rolled its own SameSite=None cookie call, AND put
-        // the raw validated token (a general-ability access token) directly
-        // into it. Fixed to route through the same hardened (Strict,
-        // HttpOnly) cookie builder login()/refreshAdminSession() use, per
-        // AGENTS.md's own note that this needs that treatment before it's
-        // ever wired up — but an independent review pass after that first
-        // fix caught that the cookie's VALUE was still wrong: this cookie
-        // must only ever hold a `refresh`-ability-scoped token (that's what
-        // refreshAdminSession()'s `$refreshToken->can('refresh')` gate
-        // checks), never a general one, so a cookie built from
-        // $validated['token'] as-is would fail that gate and get the
-        // session cleared on the very next reload. Mints a fresh
-        // refresh-scoped token for the same admin instead, exactly like
-        // login()/refreshAdminSession() do.
-        $refreshToken = $admin->createToken('admin-refresh', ['refresh'])->plainTextToken;
+        $refreshToken = $admin->createToken('admin-refresh', ['refresh'], TokenLifetime::admin())->plainTextToken;
 
         return response()->json(['message' => 'Session restored'])
             ->withCookie($this->buildAdminSessionCookie($request, $refreshToken));

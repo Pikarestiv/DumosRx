@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin;
 
+use App\Support\TokenLifetime;
 use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Models\PaymentTransaction;
@@ -568,8 +569,7 @@ class AdminStoreService
             throw new \Exception('Store owner not found.');
         }
 
-        // Generate impersonation token
-        $token = $user->createToken('Impersonation Token')->plainTextToken;
+        $token = $user->createToken('Impersonation Token', ['*'], TokenLifetime::admin())->plainTextToken;
 
         ActivityLog::create([
             'user_id' => Auth::id(),

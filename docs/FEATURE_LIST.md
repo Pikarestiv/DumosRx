@@ -97,6 +97,7 @@ tracks current behavior.
 - "Download Local Backup" / "Restore from File" export or replace the **entire local database** — every store ever logged into that device, not just one — there's no per-store scoping on either side
 - A pre-login restore path exists for a brand-new device ("Have a local backup file? Restore Now" on the no-local-accounts screen), separate from the logged-in Settings → Data flow
 - Restoring does not carry cloud-sync linkage across devices (a portable backup file intentionally never contains a live session credential) — a one-time toast prompts re-linking cloud sync on the next load if the device isn't already linked
+- An unlinked till can be re-linked without the owner's password: the owner generates a single-use 8-character code (valid 15 minutes, bound to one store) in Settings → Account → Sessions & Devices, and it is entered in Settings → Data → Link Account → "Have a re-link code?"
 - Local Danger Zone: Factory Reset (wipe all local data and start fresh)
 
 ## Cross-cutting

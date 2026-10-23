@@ -28,3 +28,9 @@ export function useRevokeAllSessionsMutation() {
     },
   });
 }
+
+export function useGenerateRelinkCodeMutation() {
+  return useMutation({
+    mutationFn: (storeId: string) => apiClient.generateRelinkCode(storeId),
+  });
+}

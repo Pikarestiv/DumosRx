@@ -216,7 +216,7 @@ class SyncPushCrossStoreSupplierTest extends TestCase
         $this->assertSame($this->supplierB->id, $this->storedSupplierId('purchase_orders', 'po-trashed-ref-1'));
     }
 
-    public function test_an_update_moving_the_row_to_another_store_is_checked_against_the_new_store()
+    public function test_an_update_naming_another_store_is_judged_against_the_rows_own_store()
     {
         $this->actingAs($this->owner)
             ->withHeaders(['X-Store-Id' => $this->storeA->id])
@@ -231,7 +231,7 @@ class SyncPushCrossStoreSupplierTest extends TestCase
             'payload' => ['id' => 'po-move-1', 'store_id' => $this->storeB->id, 'supplier_id' => $this->supplierA->id, '_version' => 1],
         ])->assertStatus(200);
 
-        $this->assertSame($this->supplierB->id, $this->storedSupplierId('purchase_orders', 'po-move-1'));
+        $this->assertSame($this->supplierA->id, $this->storedSupplierId('purchase_orders', 'po-move-1'));
     }
 
     public function test_a_rejected_update_creates_no_supplier()
@@ -376,24 +376,32 @@ class SyncPushCrossStoreSupplierTest extends TestCase
         $this->assertSame($this->supplierB->id, $this->storedSupplierId('stock_batches', 'batch-update'));
     }
 
-    public function test_a_batch_update_without_a_supplier_does_not_look_up_its_product_for_the_guard()
+    public function test_only_a_batch_update_naming_a_supplier_pays_the_guards_product_lookup()
     {
         $this->pushBatch('batch-qty', $this->storeB->id, $this->storeB->id);
-        $guardLookups = 0;
-        DB::listen(function ($query) use (&$guardLookups) {
-            if (str_contains($query->sql, 'from "products"') && ! str_contains($query->sql, 'deleted_at')) {
-                $guardLookups++;
-            }
-        });
+        $this->pushBatch('batch-sup', $this->storeB->id, $this->storeB->id);
 
-        $this->push([
-            'table_name' => 'stock_batches',
-            'operation' => 'UPDATE',
-            'record_id' => 'batch-qty',
-            'payload' => ['id' => 'batch-qty', 'quantity' => 7, '_version' => 1],
-        ])->assertStatus(200);
+        $lookupsFor = function (string $id, array $extra) {
+            $lookups = 0;
+            DB::listen(function ($query) use (&$lookups) {
+                if (str_contains($query->sql, 'from "products"') && ! str_contains($query->sql, 'deleted_at')) {
+                    $lookups++;
+                }
+            });
+            $this->push([
+                'table_name' => 'stock_batches',
+                'operation' => 'UPDATE',
+                'record_id' => $id,
+                'payload' => ['id' => $id, '_version' => 1] + $extra,
+            ])->assertStatus(200);
 
-        $this->assertSame(0, $guardLookups);
+            return $lookups;
+        };
+
+        $withoutSupplier = $lookupsFor('batch-qty', ['quantity' => 7]);
+        $withSupplier = $lookupsFor('batch-sup', ['supplier_id' => $this->supplierB->id]);
+
+        $this->assertSame($withoutSupplier + 1, $withSupplier);
     }
 
     public function test_a_created_supplier_belongs_to_the_stores_owner()

@@ -2,24 +2,13 @@
 
 namespace App\Services\Admin;
 
+use App\Support\SchemaTables;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Applies, in PHP, the ON DELETE actions the database would have applied
- * by itself.
- *
- * AdminStoreDeletionService::purgeStore() runs inside
- * Schema::withoutForeignKeyConstraints(), because most store_id columns in
- * this schema carry no constraint at all and the ones that do would reject
- * the deletion order the purge needs. Suspending the checks also suspends
- * every ON DELETE CASCADE / SET NULL trigger though, on MySQL and SQLite
- * alike, so deleting a user used to leave dangling notifications,
- * permission rows and referral pointers behind. This walks the live
- * schema's foreign keys and performs those actions explicitly instead.
- *
- * Reads the schema through Schema::getForeignKeys(), so a table added
- * later is covered without touching this file.
+ * Replays the schema's declared ON DELETE actions in PHP. A backstop only: production declares none.
+ * See docs/ADMIN_STORE_LIFECYCLE.md, "Rows keyed to a purged user".
  */
 class ForeignKeyCascadeEmulator
 {
@@ -98,16 +87,13 @@ class ForeignKeyCascadeEmulator
 
         $map = [];
 
-        foreach (Schema::getTableListing() as $table) {
-            $name = str_contains($table, '.') ? substr($table, strrpos($table, '.') + 1) : $table;
-
+        foreach (SchemaTables::names() as $name) {
             foreach (Schema::getForeignKeys($name) as $foreignKey) {
                 if (count($foreignKey['columns']) !== 1) {
                     continue;
                 }
 
-                $parent = $foreignKey['foreign_table'];
-                $parent = str_contains($parent, '.') ? substr($parent, strrpos($parent, '.') + 1) : $parent;
+                $parent = SchemaTables::unqualified($foreignKey['foreign_table']);
 
                 $map[$parent][] = [
                     'table' => $name,

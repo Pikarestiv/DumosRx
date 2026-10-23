@@ -196,15 +196,115 @@ class SyncPushCrossStoreSupplierTest extends TestCase
         $this->assertNull($owned->phone);
     }
 
-    public function test_a_soft_deleted_same_named_supplier_is_revived_rather_than_duplicated()
+    public function test_a_soft_deleted_same_named_supplier_stays_deleted_and_a_new_one_is_created()
     {
         $this->supplierB->delete();
 
-        $this->push($this->purchaseOrderInsert('po-revive-1', $this->supplierA->id))->assertStatus(200);
+        $this->push($this->purchaseOrderInsert('po-deleted-1', $this->supplierA->id))->assertStatus(200);
 
-        $this->assertSame($this->supplierB->id, $this->storedSupplierId('purchase_orders', 'po-revive-1'));
-        $this->assertNull(Supplier::withTrashed()->find($this->supplierB->id)->deleted_at);
-        $this->assertSame(1, Supplier::withTrashed()->where('store_id', $this->storeB->id)->count());
+        $ownedId = $this->storedSupplierId('purchase_orders', 'po-deleted-1');
+        $this->assertNotContains($ownedId, [$this->supplierA->id, $this->supplierB->id]);
+        $this->assertNotNull(Supplier::withTrashed()->find($this->supplierB->id)->deleted_at);
+    }
+
+    public function test_a_soft_deleted_referent_in_a_sibling_store_is_still_re_owned()
+    {
+        $this->supplierA->delete();
+
+        $this->push($this->purchaseOrderInsert('po-trashed-ref-1', $this->supplierA->id))->assertStatus(200);
+
+        $this->assertSame($this->supplierB->id, $this->storedSupplierId('purchase_orders', 'po-trashed-ref-1'));
+    }
+
+    public function test_an_update_moving_the_row_to_another_store_is_checked_against_the_new_store()
+    {
+        $this->actingAs($this->owner)
+            ->withHeaders(['X-Store-Id' => $this->storeA->id])
+            ->postJson('/api/v1/app/sync/push', ['setup' => true, 'changes' => [
+                $this->purchaseOrderInsert('po-move-1', $this->supplierA->id),
+            ]])->assertStatus(200);
+
+        $this->push([
+            'table_name' => 'purchase_orders',
+            'operation' => 'UPDATE',
+            'record_id' => 'po-move-1',
+            'payload' => ['id' => 'po-move-1', 'store_id' => $this->storeB->id, 'supplier_id' => $this->supplierA->id, '_version' => 1],
+        ])->assertStatus(200);
+
+        $this->assertSame($this->supplierB->id, $this->storedSupplierId('purchase_orders', 'po-move-1'));
+    }
+
+    public function test_a_rejected_update_creates_no_supplier()
+    {
+        $fidson = $this->makeSupplier($this->storeA->id, 'Fidson');
+        $this->push($this->purchaseOrderInsert('po-stale-1', $this->supplierB->id))->assertStatus(200);
+
+        $response = $this->push([
+            'table_name' => 'purchase_orders',
+            'operation' => 'UPDATE',
+            'record_id' => 'po-stale-1',
+            'payload' => ['id' => 'po-stale-1', 'supplier_id' => $fidson->id, '_version' => 7],
+        ]);
+
+        $response->assertJsonPath('failed.0.record_id', 'po-stale-1');
+        $this->assertSame(0, Supplier::withTrashed()->where('store_id', $this->storeB->id)->where('name', 'Fidson')->count());
+        $this->assertDatabaseMissing('sync_failures', ['record_id' => 'po-stale-1', 'reason' => 'cross_store_reference']);
+    }
+
+    public function test_a_change_that_rolls_back_does_not_leave_a_later_change_on_a_vanished_supplier()
+    {
+        $fidson = $this->makeSupplier($this->storeA->id, 'Fidson');
+        $broken = $this->purchaseOrderInsert('po-broken-1', $fidson->id);
+        $broken['payload']['column_that_does_not_exist'] = 'x';
+
+        $response = $this->actingAs($this->owner)
+            ->withHeaders(['X-Store-Id' => $this->storeB->id])
+            ->postJson('/api/v1/app/sync/push', ['setup' => true, 'changes' => [
+                $broken,
+                $this->purchaseOrderInsert('po-after-1', $fidson->id),
+            ]]);
+
+        $response->assertJsonPath('failed.0.record_id', 'po-broken-1');
+        $ownedId = $this->storedSupplierId('purchase_orders', 'po-after-1');
+        $this->assertNotNull(Supplier::find($ownedId));
+        $this->assertSame($this->storeB->id, Supplier::find($ownedId)->store_id);
+        $this->assertDatabaseMissing('sync_failures', ['record_id' => 'po-broken-1', 'reason' => 'cross_store_reference']);
+    }
+
+    public function test_a_created_supplier_is_stamped_for_the_next_pull()
+    {
+        $fidson = $this->makeSupplier($this->storeA->id, 'Fidson');
+
+        $this->push($this->purchaseOrderInsert('po-stamp-1', $fidson->id))->assertStatus(200);
+
+        $ownedId = $this->storedSupplierId('purchase_orders', 'po-stamp-1');
+        $this->assertNotNull(DB::table('suppliers')->where('id', $ownedId)->value('_synced_at'));
+    }
+
+    public function test_another_tenants_supplier_is_never_copied_into_this_store()
+    {
+        $stranger = User::create([
+            'first_name' => 'Other',
+            'last_name' => 'Tenant',
+            'email' => 'other-tenant@dumosrx.com',
+            'password' => bcrypt('password'),
+            'role' => 'admin',
+        ]);
+        $foreignStore = Store::create([
+            'user_id' => $stranger->id,
+            'name' => 'Foreign Store',
+            'email' => 'foreign@dumosrx.com',
+            'phone' => '5999999999',
+            'address' => 'Foreign St',
+            'slug' => 'foreign-store',
+            'device_id' => 'WEB-FOREIGN',
+        ]);
+        $secret = $this->makeSupplier($foreignStore->id, 'Secret Wholesaler');
+
+        $this->push($this->purchaseOrderInsert('po-foreign-1', $secret->id))->assertStatus(200);
+
+        $this->assertSame(0, Supplier::where('store_id', $this->storeB->id)->where('name', 'Secret Wholesaler')->count());
+        $this->assertDatabaseMissing('sync_failures', ['record_id' => 'po-foreign-1', 'reason' => 'cross_store_reference']);
     }
 
     public function test_a_supplier_with_no_store_of_its_own_is_left_untouched()

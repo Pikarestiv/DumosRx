@@ -304,6 +304,7 @@ class SyncController extends Controller
                 // though the movement it came from never actually committed.
                 $pendingStockBatchDelta = null;
                 $restamper->discardChange();
+                $crossStoreGuard->discardChange();
 
                 // The OA doc marks payload as nullable (DELETE doesn't need one), and the
                 // request validation above allows it through as such. Default a genuinely-
@@ -548,15 +549,6 @@ class SyncController extends Controller
                         continue;
                     }
 
-                    if ($model) {
-                        $payload = $crossStoreGuard->apply(
-                            $change['table_name'],
-                            $payload,
-                            $model->store_id ?? null,
-                            $recordId,
-                        );
-                    }
-
                     // A receipt can never book more than was ordered. The client
                     // clamps to the outstanding balance already, but that clamp is
                     // computed against whatever that device knew — so two devices
@@ -702,6 +694,13 @@ class SyncController extends Controller
                             }
                         }
 
+                        $payload = $crossStoreGuard->apply(
+                            $change['table_name'],
+                            $payload,
+                            $payload['store_id'] ?? $model->store_id ?? null,
+                            $recordId,
+                        );
+
                         $model->forceFill($payload);
                         if ($newVersion !== null) {
                             $model->_version = $newVersion;
@@ -788,12 +787,14 @@ class SyncController extends Controller
                     $stockBatchDeltas[$pendingBatchId] = ($stockBatchDeltas[$pendingBatchId] ?? 0) + $pendingQtyDelta;
                 }
 
+                $crossStoreGuard->commitChange($restamper);
                 $restamper->commitChange();
                 $processed++;
                 DB::commit();
                 } catch (\Exception $e) {
                     DB::rollBack();
                     $restamper->discardChange();
+                    $crossStoreGuard->discardChange();
                     Log::warning("Sync push: skipped {$change['table_name']} " . ($change['record_id'] ?? '?') . ": " . $e->getMessage());
                     $failed[] = [
                         'id' => $change['id'] ?? null,

@@ -3,12 +3,12 @@
 namespace App\Services\Sync;
 
 use App\Models\Category;
+use App\Models\Store;
 use App\Models\Supplier;
 
 /**
- * Keeps a pushed row from naming another store's category or supplier.
- * Rationale, the production measurement and why this remaps rather than
- * refuses or drops: docs/FIXED_BUGS.md A-301, A-302 and A-321.
+ * Re-owns a pushed reference to another store's category or supplier onto the row's own store.
+ * Rationale and lifecycle: laravel-server/AGENTS.md, "Cross-store supplier references".
  */
 class CrossStoreReferenceGuard
 {
@@ -26,8 +26,20 @@ class CrossStoreReferenceGuard
     /** @var array<string, ?string> */
     private array $ownedByName = [];
 
+    /** @var array<string, ?string> */
+    private array $storeOwners = [];
+
     /** @var array<int, array<string, string>> */
     private array $remapped = [];
+
+    /** @var array<int, array<string, string>> */
+    private array $pendingRemapped = [];
+
+    /** @var array<int, string> */
+    private array $pendingOwnedKeys = [];
+
+    /** @var array<string, array{0: class-string, 1: string}> */
+    private array $pendingReferents = [];
 
     public function __construct(
         private CrossTenantCategoryRepairService $repair,
@@ -53,12 +65,7 @@ class CrossStoreReferenceGuard
 
             $referent = $this->referent($model, $referencedId);
 
-            // Absent or store-less referents are left alone: docs/FIXED_BUGS.md A-302.
-            if ($referent === null || $referent['store_id'] === null) {
-                continue;
-            }
-
-            if ($referent['store_id'] === $rowStoreId) {
+            if (! $this->isSameOwnersOtherStore($referent['store_id'] ?? null, $rowStoreId)) {
                 continue;
             }
 
@@ -69,7 +76,8 @@ class CrossStoreReferenceGuard
             }
 
             $payload[$column] = $ownedId;
-            $this->remapped[] = [
+            $this->pendingReferents[$model.'|'.$ownedId] = [$model, $ownedId];
+            $this->pendingRemapped[] = [
                 'table_name' => $table,
                 'record_id' => (string) $recordId,
                 'reason' => 'cross_store_reference',
@@ -79,13 +87,65 @@ class CrossStoreReferenceGuard
         return $payload;
     }
 
+    public function commitChange(PushedRowRestamper $restamper): void
+    {
+        foreach ($this->pendingReferents as [$model, $id]) {
+            $row = $model::withTrashed()->find($id);
+            if ($row !== null) {
+                $restamper->remember($row);
+            }
+        }
+
+        array_push($this->remapped, ...$this->pendingRemapped);
+        $this->resetPending();
+    }
+
+    public function discardChange(): void
+    {
+        foreach ($this->pendingOwnedKeys as $key) {
+            unset($this->ownedByName[$key]);
+        }
+
+        $this->resetPending();
+    }
+
     /** @return array<int, array<string, string>> */
     public function remapped(): array
     {
         return $this->remapped;
     }
 
-    /** @return array{store_id: ?string, name: string, is_active: mixed}|null */
+    private function resetPending(): void
+    {
+        $this->pendingRemapped = [];
+        $this->pendingOwnedKeys = [];
+        $this->pendingReferents = [];
+    }
+
+    private function isSameOwnersOtherStore(?string $referentStoreId, string $rowStoreId): bool
+    {
+        if ($referentStoreId === null || $referentStoreId === $rowStoreId) {
+            return false;
+        }
+
+        $owner = $this->storeOwner($rowStoreId);
+
+        return $owner !== null && $owner === $this->storeOwner($referentStoreId);
+    }
+
+    private function storeOwner(string $storeId): ?string
+    {
+        if (! array_key_exists($storeId, $this->storeOwners)) {
+            $this->storeOwners[$storeId] = Store::withTrashed()->whereKey($storeId)->value('user_id');
+        }
+
+        return $this->storeOwners[$storeId];
+    }
+
+    /**
+     * @param  class-string  $model
+     * @return array{store_id: ?string, name: string, is_active: mixed}|null
+     */
     private function referent(string $model, string $id): ?array
     {
         $key = $model.'|'.$id;
@@ -94,7 +154,7 @@ class CrossStoreReferenceGuard
             return $this->referents[$key];
         }
 
-        $row = $model::query()->whereKey($id)->first(['store_id', 'name', 'is_active']);
+        $row = $model::withTrashed()->whereKey($id)->first(['store_id', 'name', 'is_active']);
 
         return $this->referents[$key] = $row === null ? null : [
             'store_id' => $row->store_id,
@@ -111,6 +171,8 @@ class CrossStoreReferenceGuard
         if (array_key_exists($key, $this->ownedByName)) {
             return $this->ownedByName[$key];
         }
+
+        $this->pendingOwnedKeys[] = $key;
 
         return $this->ownedByName[$key] = $model === Supplier::class
             ? $this->suppliers->resolve($storeId, $name, $isActive)

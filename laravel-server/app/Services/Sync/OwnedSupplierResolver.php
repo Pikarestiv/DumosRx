@@ -8,22 +8,19 @@ class OwnedSupplierResolver
 {
     public function resolve(string $storeId, string $name, mixed $sourceIsActive): string
     {
-        $owned = Supplier::withTrashed()
+        $ownedId = Supplier::query()
             ->where('store_id', $storeId)
-            ->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($name))])
-            ->orderByRaw('deleted_at IS NOT NULL')
-            ->first();
+            ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower(trim($name))])
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->value('id');
 
-        if ($owned !== null) {
-            if ($owned->trashed()) {
-                $owned->restore();
-            }
-
-            return $owned->id;
+        if ($ownedId !== null) {
+            return $ownedId;
         }
 
         $supplier = new Supplier();
-        $supplier->name = $name;
+        $supplier->name = trim($name);
         $supplier->store_id = $storeId;
         $supplier->is_active = $sourceIsActive === null ? true : (bool) $sourceIsActive;
         $supplier->save();

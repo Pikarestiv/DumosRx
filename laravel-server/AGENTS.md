@@ -1676,9 +1676,10 @@ tables because `pull.ts` filters every pulled column through its own
 `applyStockBatchDeltas()` runs `UPDATE stock_batches SET quantity = … WHERE
 id = ?` for every delta a push accumulated. It had **no join to the owning
 store and no check against `$allowedStoreIds`**, and the movement that produced
-the delta cannot supply one: `authorizeInsertTarget('stock_movements')` resolves
-ownership from the movement's *own* `store_id`, which `normalizePushPayload()`
-backfills from the session, so it always passes. Any authenticated till — a
+the delta could not supply one: `authorizeInsertTarget('stock_movements')`
+resolved ownership from the movement's *own* `store_id`, which
+`normalizePushPayload()` backfills from the session, so it always passed (until
+A-287, below). Any authenticated till — a
 `sales_staff` token is enough — could move another store's stock, and because
 the movement filed under the **pusher's** store, the victim's pull never showed
 it. Reproduced before fixing: a push from one store took another's batch from
@@ -1710,9 +1711,21 @@ queue row is the signal an operator can act on (run
 `forbidden`, not `permission_denied`, because a staff session's scope is narrower
 than its owner's and the same payload can succeed later.
 
-The delta check in `applyStockBatchDeltas()` stays as the backstop for a batch
-that did not exist when its movement was authorized (the fail-open above) and
-was then created in the same push.
+The same check (`namesForeignBatch()`) refuses an UPDATE that repoints an
+existing movement at a batch outside the scope. The batch's store is one
+`stock_batches JOIN products` lookup, memoized per request.
+
+The delta check in `applyStockBatchDeltas()` is now defence in depth only: a
+batch that did not exist when its movement was authorized can appear in the
+same push solely through a `stock_batches` INSERT, which is itself refused for
+a foreign product. It is pinned by a direct test so it cannot rot unnoticed.
+
+**A product legitimately moved between stores parks too, and only A-291 clears
+it.** A till of the losing store still holds the product (A-291's phantom) and
+can sell from it; each such sale's movement is now parked `forbidden` and
+retried, visibly, where before the ledger row was accepted under the wrong
+store and only its delta refused. No repair command clears that case; fixing
+A-291 does.
 
 **§11:** server-only, no shim. The refusal uses an existing reason the client
 already parks; the response shape is unchanged.

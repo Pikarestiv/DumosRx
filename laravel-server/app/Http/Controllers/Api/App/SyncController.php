@@ -533,11 +533,10 @@ class SyncController extends Controller
                         $model = \method_exists($modelClass, 'trashed') ? $modelClass::withTrashed()->lockForUpdate()->find($recordId) : $modelClass::lockForUpdate()->find($recordId);
                     }
 
-                    if ($model && $currentUser && !$isSuperAdmin && !$this->authorizeChangeTarget($change['table_name'], $model, $allowedStoreIds, $allowedUserIds)) {
-                        // Reject before even looking at version info: the
-                        // record exists but doesn't belong to the caller's
-                        // store(s) — see the ownership-scope comment above
-                        // $allowedStoreIds for why this check exists at all.
+                    if ($model && $currentUser && !$isSuperAdmin && (
+                        !$this->authorizeChangeTarget($change['table_name'], $model, $allowedStoreIds, $allowedUserIds)
+                        || $this->namesForeignBatch($change['table_name'], $payload, $allowedStoreIds)
+                    )) {
                         DB::commit();
                         $failed[] = [
                             'id' => $change['id'] ?? null,
@@ -1670,20 +1669,33 @@ class SyncController extends Controller
      * store and is deliberately NOT out of scope — see
      * laravel-server/AGENTS.md, "Stock batch deltas are store-scoped".
      */
+    /** @var array<string, ?string> Batch id to its product's store, memoized for one request. */
+    private array $batchStoreIds = [];
+
     private function isBatchOutsideScope($stockBatchId, ?array $allowedStoreIds): bool
     {
         if ($allowedStoreIds === null) {
             return false;
         }
 
-        $productId = StockBatch::where('id', $stockBatchId)->value('product_id');
-        if (!$productId) {
-            return false;
+        $key = (string) $stockBatchId;
+        if (!array_key_exists($key, $this->batchStoreIds)) {
+            $this->batchStoreIds[$key] = DB::table('stock_batches')
+                ->join('products', 'products.id', '=', 'stock_batches.product_id')
+                ->where('stock_batches.id', $key)
+                ->value('products.store_id');
         }
 
-        $storeId = Product::withTrashed()->where('id', $productId)->value('store_id');
+        $storeId = $this->batchStoreIds[$key];
 
         return $storeId !== null && !in_array($storeId, $allowedStoreIds, true);
+    }
+
+    private function namesForeignBatch(string $tableName, array $payload, array $allowedStoreIds): bool
+    {
+        return $tableName === 'stock_movements'
+            && !empty($payload['stock_batch_id'])
+            && $this->isBatchOutsideScope($payload['stock_batch_id'], $allowedStoreIds);
     }
 
     /**
@@ -2519,7 +2531,7 @@ class SyncController extends Controller
             return true;
         }
 
-        if ($tableName === 'stock_movements' && !empty($payload['stock_batch_id']) && $this->isBatchOutsideScope($payload['stock_batch_id'], $allowedStoreIds)) {
+        if ($this->namesForeignBatch($tableName, $payload, $allowedStoreIds)) {
             return false;
         }
 

@@ -9,13 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
-/**
- * A-280. `applyStockBatchDeltas()` moved quantity on whatever
- * `stock_batch_id` a pushed `stock_movements` row named, with no join to the
- * owning store — and the movement itself always authorizes, because
- * `normalizePushPayload()` backfills its `store_id` from the session.
- * Rationale in laravel-server/AGENTS.md, "Stock batch deltas are store-scoped".
- */
+/** A-280 and A-287: a stock movement may only name a batch in the session's scope. Rationale: laravel-server/AGENTS.md, "Stock batch deltas are store-scoped". */
 class SyncPushStockMovementBatchScopeTest extends TestCase
 {
     use RefreshDatabase;
@@ -243,5 +237,39 @@ class SyncPushStockMovementBatchScopeTest extends TestCase
             15.0,
             (float) DB::table('stock_batches')->where('id', 'victim-batch')->value('quantity'),
         );
+    }
+
+    public function test_an_update_cannot_repoint_an_own_movement_at_another_stores_batch()
+    {
+        $this->seedBatch($this->attackerStore->id, $this->attackerOwner->id, 'own-product', 'own-batch', 40);
+        $this->seedBatch($this->victimStore->id, $this->victimOwner->id, 'victim-product', 'victim-batch', 40);
+        $this->pushMovement($this->attackerOwner, 'own-batch', -5, 'own-product')->assertJsonCount(0, 'failed');
+        $movementId = DB::table('stock_movements')->value('id');
+
+        $response = $this->actingAs($this->attackerOwner)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [[
+                'id' => 8,
+                'table_name' => 'stock_movements',
+                'operation' => 'UPDATE',
+                'record_id' => $movementId,
+                'payload' => ['id' => $movementId, 'stock_batch_id' => 'victim-batch', '_version' => 1],
+            ]],
+        ]);
+
+        $response->assertJsonPath('failed.0.reason', 'forbidden');
+        $this->assertSame('own-batch', DB::table('stock_movements')->where('id', $movementId)->value('stock_batch_id'));
+    }
+
+    public function test_the_delta_backstop_still_refuses_a_batch_outside_the_scope()
+    {
+        $this->seedBatch($this->victimStore->id, $this->victimOwner->id, 'victim-product', 'victim-batch', 40);
+        $failed = [];
+
+        $apply = new \ReflectionMethod(\App\Http\Controllers\Api\App\SyncController::class, 'applyStockBatchDeltas');
+        $apply->invokeArgs(app(\App\Http\Controllers\Api\App\SyncController::class), [['victim-batch' => -25], &$failed, [$this->attackerStore->id]]);
+
+        $this->assertSame('permission_denied', $failed[0]['reason'] ?? null);
+        $this->assertSame(40.0, (float) DB::table('stock_batches')->where('id', 'victim-batch')->value('quantity'));
     }
 }

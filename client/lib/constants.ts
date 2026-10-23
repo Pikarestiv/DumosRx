@@ -4,7 +4,7 @@ export const APP_NAME = "DumosRx";
  * renderer, so clearing the field prints no footer at all. */
 export const RECEIPT_FOOTER_DEFAULT = "Thank you for your patronage!";
 export const isDevelopment = process.env.NODE_ENV === "development";
-export const APP_VERSION = "0.0.40"; // DumosRx current version (update when bumping version)
+export const APP_VERSION = "0.0.41"; // DumosRx current version (update when bumping version)
 
 // Short commit SHA of the build this bundle came from, injected by CI.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-ts-L9

@@ -110,4 +110,46 @@ describe("assistant inventory tools", () => {
     const reply = inventoryStatusTool.format(result, {}, privilegedCtx);
     expect(reply.text).toMatch(/value/i);
   });
+
+  it("answers product_stock with a status word and no number without view_stock_quantities", async () => {
+    seedLowStockProduct();
+    const inStock = await productStockTool.execute({ product: "Paracetamol 500mg" }, unprivilegedCtx);
+    const low = await productStockTool.execute({ product: "Amoxicillin 250mg" }, unprivilegedCtx);
+
+    expect(productStockTool.format(inStock, { product: "Paracetamol 500mg" }, unprivilegedCtx).text).toBe(
+      "Paracetamol 500mg: in stock",
+    );
+    expect(productStockTool.format(low, { product: "Amoxicillin 250mg" }, unprivilegedCtx).text).toBe(
+      "Amoxicillin 250mg: low stock",
+    );
+    expect(JSON.stringify(inStock)).not.toContain("25");
+    expect(JSON.stringify(low)).not.toMatch(/"(stock|reorderLevel)":\d/);
+  });
+
+  it("answers product_stock with the number for a role holding view_stock_quantities", async () => {
+    const withKey: ToolContext = { ...unprivilegedCtx, permissionGroup: { permissions: ["view_stock_quantities"] } };
+    const result = await productStockTool.execute({ product: "Paracetamol 500mg" }, withKey);
+    expect(productStockTool.format(result, { product: "Paracetamol 500mg" }, withKey).text).toBe(
+      "Paracetamol 500mg: 25 in stock (reorder level: 10)",
+    );
+  });
+
+  it("answers out of stock either way", async () => {
+    db.run(`UPDATE stock_batches SET quantity = 0 WHERE id = 'b1'`);
+    const result = await productStockTool.execute({ product: "Paracetamol 500mg" }, unprivilegedCtx);
+    expect(productStockTool.format(result, { product: "Paracetamol 500mg" }, unprivilegedCtx).text).toBe(
+      "Paracetamol 500mg: out of stock",
+    );
+  });
+
+  it("never prints or carries a per-item quantity in inventory_status", async () => {
+    seedLowStockProduct();
+    const { inventoryStatusTool } = await import("@/lib/assistant/tools/inventory-tools");
+    const result = await inventoryStatusTool.execute({}, ctx);
+    const reply = inventoryStatusTool.format(result, {}, ctx);
+
+    expect(result.lowStockItems).toEqual([{ product: "Amoxicillin 250mg" }]);
+    expect(reply.text).not.toMatch(/Amoxicillin 250mg[^,.]*\d/);
+    expect(reply.text).not.toMatch(/\b3\b/);
+  });
 });

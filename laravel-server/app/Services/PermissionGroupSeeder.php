@@ -8,27 +8,13 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-/**
- * Server-side counterpart to the client's ensurePermissionGroupsSeeded()
- * (client/lib/db/queries/permission-groups.ts) - the spec ("Default group
- * seeding") calls for a lazy check on "relevant API entry points" server
- * side too, not just client-side on login (final review, Important I4):
- * a store whose staff/groups are only ever touched through the web
- * dashboard, or a second device pulling before the first device's own
- * seed has pushed up, would otherwise never see default groups exist.
- *
- * deterministicDefaultGroupId() is a byte-for-byte port of the client's
- * own algorithm (same 4-lane FNV-1a-style hash) - this is load-bearing:
- * a client and this server seeding the SAME store independently, before
- * either has synced with the other, must compute the SAME id per role so
- * the sync engine's existing "INSERT against an existing id becomes an
- * UPDATE" handling collapses the race instead of leaving two rows.
- */
+/** Port of the client's permission-group seeding and catalog backfill; see
+ * laravel-server/AGENTS.md's "PermissionGroupSeeder" section. */
 class PermissionGroupSeeder
 {
     /** Hand-maintained port of client/lib/constants/permissions.ts's
      * PERMISSION_CATALOG_VERSION. See PermissionCatalogParityTest. */
-    private const CATALOG_VERSION = 2;
+    private const CATALOG_VERSION = 3;
 
     private const DEFAULT_GROUP_PERMISSIONS = [
         'admin' => [
@@ -48,6 +34,7 @@ class PermissionGroupSeeder
             'manage_staff', 'manage_roles_permissions',
             'manage_store_settings', 'manage_payment_accounts', 'manage_online_store', 'manage_billing',
             'backup_restore_data', 'manage_device_settings', 'install_app_updates', 'factory_reset',
+            'view_stock_quantities',
         ],
         'manager' => [
             'process_sales', 'apply_discounts', 'void_refund_sales', 'override_price',
@@ -66,6 +53,7 @@ class PermissionGroupSeeder
             'manage_staff',
             'manage_store_settings', 'manage_payment_accounts', 'manage_online_store', 'backup_restore_data',
             'manage_device_settings', 'install_app_updates',
+            'view_stock_quantities',
         ],
         'specialist' => [
             'process_sales',
@@ -80,6 +68,7 @@ class PermissionGroupSeeder
             'view_dashboard',
             'record_expenses',
             'manage_device_settings',
+            'view_stock_quantities',
         ],
         'sales_staff' => [
             'process_sales', 'override_price',
@@ -88,6 +77,7 @@ class PermissionGroupSeeder
             'manage_customers', 'view_customer_balances',
             'view_dashboard',
             'record_expenses',
+            'view_stock_quantities',
         ],
         'auditor' => [
             'view_reports', 'export_reports', 'view_all_expenses',
@@ -95,6 +85,7 @@ class PermissionGroupSeeder
             'view_cost_fields', 'view_stock_adjustment_history', 'view_suppliers',
             'export_product_list',
             'view_customer_balances', 'view_dashboard', 'view_financial_reports',
+            'view_stock_quantities',
         ],
     ];
 
@@ -137,6 +128,19 @@ class PermissionGroupSeeder
                 'view_financial_reports', 'export_product_list',
             ],
         ],
+        3 => [
+            'admin' => ['view_stock_quantities'],
+            'manager' => ['view_stock_quantities'],
+            'specialist' => ['view_stock_quantities'],
+            'sales_staff' => ['view_stock_quantities'],
+            'auditor' => ['view_stock_quantities'],
+        ],
+    ];
+
+    /** Port of the client's ALL_GROUP_PERMISSION_ADDITIONS: carve-out keys
+     * every group, default or custom, gains at that version. */
+    private const ALL_GROUP_PERMISSION_ADDITIONS = [
+        3 => ['view_stock_quantities'],
     ];
 
     public static function catalogVersion(): int
@@ -154,6 +158,12 @@ class PermissionGroupSeeder
     public static function defaultGroupPermissionAdditions(): array
     {
         return self::DEFAULT_GROUP_PERMISSION_ADDITIONS;
+    }
+
+    /** @return array<int, string[]> */
+    public static function allGroupPermissionAdditions(): array
+    {
+        return self::ALL_GROUP_PERMISSION_ADDITIONS;
     }
 
     private const LABELS = [
@@ -240,40 +250,29 @@ class PermissionGroupSeeder
         $store->save();
     }
 
-    /** The keys a default group for $role is owed by every catalog version
-     * newer than $fromVersion. Mirror of the client's
-     * pendingCatalogAdditions(). */
-    public static function pendingCatalogAdditions(string $role, int $fromVersion): array
+    /** Mirror of the client's pendingCatalogAdditions(). */
+    public static function pendingCatalogAdditions(string $role, int $fromVersion, bool $isDefault = true): array
     {
         $pending = [];
         foreach (self::DEFAULT_GROUP_PERMISSION_ADDITIONS as $version => $byRole) {
-            if ($version <= $fromVersion) {
+            if ($version <= $fromVersion || !$isDefault) {
                 continue;
             }
             foreach ($byRole[$role] ?? [] as $key) {
                 $pending[$key] = true;
             }
         }
+        foreach (self::ALL_GROUP_PERMISSION_ADDITIONS as $version => $keys) {
+            if ($version > $fromVersion) {
+                $pending += array_fill_keys($keys, true);
+            }
+        }
 
         return array_keys($pending);
     }
 
-    /**
-     * Brings an already-seeded store's DEFAULT groups forward to the current
-     * catalog. Add-only, delta-scoped and idempotent: it unions in the keys
-     * listed for each role under every catalog version newer than the
-     * store's stamp, removes nothing, and writes a group only when its
-     * stored array actually changes.
-     *
-     * The _version bump on a changed group is load-bearing, not bookkeeping:
-     * a device that has not backfilled yet still holds the pre-backfill
-     * array at the pre-backfill version, and without the bump its next push
-     * would pass push()'s strict version-equality check and silently erase
-     * this write. With it, that push is rejected as a version_conflict,
-     * which the client's push.ts already resolves by dropping the queue row
-     * and letting the next pull bring this superset down. See
-     * client/AGENTS.md's "Catalog versioning and the default-group backfill".
-     */
+    /** Add-only, delta-scoped, idempotent; the _version bump is load-bearing.
+     * See client/AGENTS.md's "Catalog versioning and the default-group backfill". */
     public static function ensureCatalogBackfilled(Store $store): void
     {
         $stamped = $store->permission_catalog_version ?? 1;
@@ -281,9 +280,9 @@ class PermissionGroupSeeder
             return;
         }
 
-        $groups = PermissionGroup::where('store_id', $store->id)->where('is_default', true)->get();
+        $groups = PermissionGroup::where('store_id', $store->id)->get();
         foreach ($groups as $group) {
-            $owed = self::pendingCatalogAdditions($group->based_on_role, $stamped);
+            $owed = self::pendingCatalogAdditions((string) $group->based_on_role, $stamped, (bool) $group->is_default);
             if (empty($owed)) {
                 continue;
             }

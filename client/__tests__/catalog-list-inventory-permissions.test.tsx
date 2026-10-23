@@ -175,4 +175,24 @@ describe("Catalog list inventory permissions", () => {
     expect(props.canAdjustStockQuantity).toBe(false);
     expect(props.canEditSellingPrice).toBe(true);
   });
+
+  it("hides stock numbers and the Stock sort without view_stock_quantities or adjust_stock_counts", () => {
+    hasPermission.mockImplementation((key: string) => key !== "view_stock_quantities" && key !== "adjust_stock_counts");
+    const props = renderList();
+    expect(props.showStockQuantity).toBe(false);
+    expect(screen.queryByRole("button", { name: /^Stock/ })).toBeNull();
+    expect(screen.queryByText("Stock")).not.toBeNull();
+  });
+
+  it("keeps stock numbers for a group that can adjust stock even without view_stock_quantities", () => {
+    withoutKey("view_stock_quantities");
+    const props = renderList();
+    expect(props.showStockQuantity).toBe(true);
+  });
+
+  it("keeps stock numbers and the Stock sort with view_stock_quantities", () => {
+    const props = renderList();
+    expect(props.showStockQuantity).toBe(true);
+    expect(screen.queryByRole("button", { name: /^Stock/ })).not.toBeNull();
+  });
 });

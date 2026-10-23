@@ -14,6 +14,7 @@ import { Loader2, CheckCircle, PackageOpen } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 
 import {
+  describeStockGap,
   findOnlineOrderStockGaps,
   useFulfillOnlineOrderMutation,
   type OnlineOrderStockGap,
@@ -32,6 +33,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useStore } from "@/lib/context/store-context";
 import type { OnlineOrder } from "@/lib/types/online-order";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
+import { useStockVisibility } from "@/lib/hooks/use-stock-visibility";
 
 function NoOnlineOrdersFound() {
   return <EmptyState icon={PackageOpen} title="No online orders found" className="py-8" />;
@@ -43,6 +45,7 @@ export function OnlineOrdersModal() {
   const { storeProfile } = useStore();
   const currencyCode = storeProfile?.currency;
   const capsClass = useUppercaseDisplayClass();
+  const { canSeeQuantities } = useStockVisibility();
   const {
     data: orders = [],
     isLoading: loading,
@@ -200,7 +203,7 @@ export function OnlineOrdersModal() {
           <ul className="space-y-1 text-sm text-muted-foreground">
             {(pendingOversell?.gaps ?? []).map((gap) => (
               <li key={gap.productId} className={capsClass}>
-                {gap.productName} — ordered {gap.requested}, sellable {gap.available}
+                {describeStockGap(gap, canSeeQuantities)}
               </li>
             ))}
           </ul>

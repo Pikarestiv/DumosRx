@@ -16,6 +16,7 @@ import {
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
+import { useStockVisibility } from "@/lib/hooks/use-stock-visibility";
 import { TransferProductPicker } from "./transfer-product-picker";
 import {
   getTransferableProducts,
@@ -37,6 +38,7 @@ export function TransferStockDialog({
   const { availableStores, activeStoreId } = useStore();
   const { user } = useAuth();
   const isAdmin = useHasPermission("manage_products");
+  const { canSeeQuantities } = useStockVisibility();
 
   const [sourceStoreId, setSourceStoreId] = useState("");
   const [manualDestStoreId, setManualDestStoreId] = useState("");
@@ -133,7 +135,12 @@ export function TransferStockDialog({
       handleOpenChange(false);
     } catch (err) {
       console.error("Stock transfer failed:", err);
-      toast.error(err instanceof Error ? err.message : "Transfer failed");
+      const message = err instanceof Error ? err.message : "Transfer failed";
+      toast.error(
+        !canSeeQuantities && message.startsWith("Insufficient stock")
+          ? "Not enough stock in that store for that quantity"
+          : message,
+      );
     } finally {
       setSubmitting(false);
     }
@@ -224,6 +231,7 @@ export function TransferStockDialog({
             disabled={!sourceStoreId || loadingProducts}
             productId={productId}
             onSelect={setProductId}
+            showQuantities={canSeeQuantities}
             placeholder={
               !sourceStoreId
                 ? "Select a source store first"
@@ -252,13 +260,18 @@ export function TransferStockDialog({
             placeholder="0"
             disabled={!productId}
           />
-          {selectedProduct && (
+          {selectedProduct && canSeeQuantities && (
             <p className="text-xs text-muted-foreground">
               {selectedProduct.available_quantity}{" "}
               {selectedProduct.base_unit || "unit"}(s) available
             </p>
           )}
-          {exceedsAvailable && (
+          {selectedProduct && !canSeeQuantities && (
+            <p className={`text-xs ${exceedsAvailable ? "text-destructive" : "text-muted-foreground"}`}>
+              {exceedsAvailable ? "Not enough for that quantity" : "Available"}
+            </p>
+          )}
+          {exceedsAvailable && canSeeQuantities && (
             <p className="text-xs text-destructive">
               Only {selectedProduct?.available_quantity} available - reduce the
               quantity.

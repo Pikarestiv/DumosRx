@@ -2,33 +2,45 @@ import { getProductsWithStock } from "@/lib/db/queries/products";
 import { getStockBatchStats, getLowStockAlerts } from "@/lib/db/queries/inventory";
 import { hasPermission } from "@/lib/hooks/use-permissions";
 import { searchProducts } from "@/lib/utils/search";
-import type { POSProduct } from "@/lib/types/product";
+import { describeStock } from "@/lib/utils/stock-status";
 import type { AssistantTool } from "../types";
 import { formatMoney } from "../reply-formatters";
 
-export const productStockTool: AssistantTool<{ product: string }, POSProduct[] | null> = {
+interface ProductStockResult {
+  name: string;
+  stock: number | null;
+  reorderLevel: number | null;
+  status: string;
+  alternates: string[];
+}
+
+export const productStockTool: AssistantTool<{ product: string }, ProductStockResult | null> = {
   name: "product_stock",
   description: "Looks up on-hand quantity for a named product.",
   parameters: { product: { type: "string", description: "Product name to search for", required: true } },
   examples: ["how many paracetamol do we have", "is amoxicillin in stock"],
-  execute: async ({ product }) => {
+  execute: async ({ product }, ctx) => {
     const products = await getProductsWithStock();
-    const { results } = searchProducts(product, products);
-    return results.length > 0 ? results : null;
+    const [top, ...rest] = searchProducts(product, products).results;
+    if (!top) return null;
+
+    const canSeeQuantities = hasPermission(ctx.user, ctx.permissionGroup, "view_stock_quantities", "any");
+    return {
+      name: top.name,
+      stock: canSeeQuantities ? top.stock : null,
+      reorderLevel: canSeeQuantities && typeof top.reorder_level === "number" ? top.reorder_level : null,
+      status: describeStock(top.stock, top.reorder_level, false).toLowerCase(),
+      alternates: rest.slice(0, 3).map((p) => p.name),
+    };
   },
   format: (result) => {
-    if (!result || result.length === 0) {
+    if (!result) {
       return { kind: "fallback", text: "I couldn't find a product matching that name." };
     }
 
-    const top = result[0];
-    let text = `${top.name}: ${top.stock} in stock`;
-    if (typeof top.reorder_level === "number") text += ` (reorder level: ${top.reorder_level})`;
-
-    if (result.length > 1) {
-      const alternates = result.slice(1, 4).map((p) => p.name).join(", ");
-      text += `. Did you mean one of: ${alternates}?`;
-    }
+    let text = result.stock === null ? `${result.name}: ${result.status}` : `${result.name}: ${result.stock} in stock`;
+    if (result.reorderLevel !== null) text += ` (reorder level: ${result.reorderLevel})`;
+    if (result.alternates.length > 0) text += `. Did you mean one of: ${result.alternates.join(", ")}?`;
 
     return { kind: "answer", text };
   },
@@ -39,7 +51,7 @@ interface InventoryStatusResult {
   expiringSoonCount: number;
   expiredCount: number;
   stockValue: number;
-  lowStockItems: { product: string; quantity: number; threshold: number }[];
+  lowStockItems: { product: string }[];
   includeValue: boolean;
 }
 
@@ -58,11 +70,7 @@ export const inventoryStatusTool: AssistantTool<Record<string, never>, Inventory
       expiringSoonCount: stats.expiring_soon_count,
       expiredCount: stats.expired_count,
       stockValue: includeValue ? stats.total_stock_batch_value : 0,
-      lowStockItems: lowStockAlerts.map((a) => ({
-        product: a.product,
-        quantity: a.quantity,
-        threshold: a.threshold,
-      })),
+      lowStockItems: lowStockAlerts.map((a) => ({ product: a.product })),
       includeValue,
     };
   },

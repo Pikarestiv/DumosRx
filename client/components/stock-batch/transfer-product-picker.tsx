@@ -17,6 +17,7 @@ export function TransferProductPicker({
   onSelect,
   placeholder,
   emptyText,
+  showQuantities,
 }: {
   products: TransferableProductRow[];
   loading: boolean;
@@ -25,6 +26,7 @@ export function TransferProductPicker({
   onSelect: (id: string) => void;
   placeholder: string;
   emptyText: string;
+  showQuantities: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [term, setTerm] = useState("");
@@ -159,7 +161,9 @@ export function TransferProductPicker({
               >
                 <span className={cn("truncate", capsClass)}>{product.name}</span>
                 <span className="shrink-0 text-xs text-muted-foreground">
-                  {product.available_quantity} {product.base_unit || "unit"}
+                  {showQuantities
+                    ? `${product.available_quantity} ${product.base_unit || "unit"}`
+                    : product.available_quantity > 0 ? "Available" : "Not available"}
                 </span>
               </div>
             ))}

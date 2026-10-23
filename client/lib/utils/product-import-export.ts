@@ -225,7 +225,7 @@ export function buildExportRows(
 // Printable physical stock-count sheet:
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-product-import-export-ts-L244
 export function buildStockAuditRows(
-  products: { name: string; category?: string; quantity: number }[],
+  products: { name: string; category?: string; quantity: number; countedQty?: number }[],
 ): { headers: string[]; rows: Record<string, unknown>[]; columnFlex: number[] } {
   const headers = ["#", "Product", "Category", "System Qty", "Counted Qty", "Notes"];
   const columnFlex = [0.5, 3, 1.5, 1, 1, 2];
@@ -234,7 +234,7 @@ export function buildStockAuditRows(
     Product: product.name,
     Category: product.category || "",
     "System Qty": product.quantity,
-    "Counted Qty": "",
+    "Counted Qty": product.countedQty ?? "",
     Notes: "",
   }));
   return { headers, rows, columnFlex };

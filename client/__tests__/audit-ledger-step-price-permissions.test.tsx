@@ -70,6 +70,7 @@ function renderLedger() {
       search=""
       setSearch={vi.fn()}
       scrollElementRef={createRef<HTMLDivElement>()}
+      sort={{ sortKey: null, direction: "asc", toggleSort: vi.fn() }}
     />,
   );
 }

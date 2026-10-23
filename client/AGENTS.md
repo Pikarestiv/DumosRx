@@ -1875,7 +1875,8 @@ on screen from having walked to the shelf.
   quantity as the input's `placeholder` so the row still says what it is
   being compared against. The field *is* the record of the count. This is the
   convention the printed count sheet has always used
-  (`buildStockAuditRows()` emits an empty "Counted Qty" column) and the one
+  (`buildStockAuditRows()` leaves "Counted Qty" blank on any row not yet
+  counted, and since A-318 fills in a count already entered) and the one
   Odoo/NetSuite/Fishbowl count sheets use.
 - **Never prefill `countedQty` with 0.** Submit posts every row whose counted
   figure differs from the system's, so a zero prefill turns every untouched
@@ -1993,7 +1994,40 @@ on screen from having walked to the shelf.
   Pinned by `__tests__/stock-audit-draft-migration.test.ts`.
 - The ledger's `Count` filter pill (All / Counted / Not Counted / Qty
   Differences) is `selectAuditStatusItems()`, applied between the category
-  lens and the fuzzy search in `stock-audits.tsx`.
+  lens and the fuzzy search in `lib/hooks/use-audit-ledger-lens.ts`, which
+  owns all three filters, the sticky-row set and the ledger's sort.
+- **Print, Download PDF, Export CSV and Export Excel output exactly the
+  filtered, sorted list (A-318, 2026-10-23).** They read
+  `useAuditLedgerLens().exportItems` = the on-screen, already-sorted list
+  filtered by `matchesAuditStatus()`, so an export can never hold a row the
+  ledger was not showing (re-filtering from the full sheet let the fuzzy
+  search fallback add near-miss names). The sort lives
+  in the parent for this reason: `AuditLedgerStep` receives rows already
+  sorted plus a `sort` prop, and must not sort on its own again, or the
+  screen and the printout drift apart. Both sorts use
+  `AUDIT_SORT_ACCESSORS` and `sortByAccessor()` (`use-sortable-data.ts`).
+  - **Strict, not sticky.** The screen keeps rows that matched when a Count
+    lens was chosen (so a row never vanishes mid-tap); the export does not.
+    A "Not Counted" printout therefore omits rows counted since, and can be
+    a few rows shorter than the screen. Its header says how many it holds,
+    so the document is self-consistent. Don't "fix" this by exporting the
+    on-screen list: the sheet goes to someone walking those shelves.
+  - **Counted Qty is filled on export when entered**, blank otherwise
+    (`buildStockAuditRows()`'s optional `countedQty`). A fresh sheet has no
+    counts, so the blank count sheet is unchanged; a "Counted" or "Qty
+    Differences" export now carries both figures.
+  - The print/PDF subtitle is `describeAuditLens()` ("2 of 310 product(s) ·
+    Category: X · Not Counted · Search: "y"", or today's "N product(s)" with
+    no filter). CSV/XLSX get no preamble row (row 1 must stay the header);
+    the category goes into the filename instead via `auditExportFileName()`,
+    sanitised to `[A-Za-z0-9-]` because a category name is user input.
+  - Print and the three export items are disabled when the export set is
+    empty; the dropdown trigger stays enabled so "Start over" is reachable
+    under a filter that matches nothing. Exports ignore the 50-row page
+    rule (§8): the ledger is virtualised, and an export is a document.
+  - Pinned by `__tests__/audit-export-derivations.test.ts`,
+    `__tests__/stock-audit-rows.test.ts` and the component test
+    `__tests__/stock-audits-export-filters.test.tsx`.
 - **A count is a session.** Ticks never survive a submit: `clearDraft()` runs
   in `onSuccess` and the next open rebuilds from `getProductsWithDetails()`,
   so last week's ticks can't make this week's count look done. What persists
@@ -4147,6 +4181,100 @@ has now been resolved one way or the other — two were wired, three had their
 missing feature **built** (`delete_products`, `delete_suppliers`,
 `approve_stock_transfers`), and six were removed.
 
+### `view_stock_quantities` — hiding on-hand numbers from staff (2026-10-23)
+
+A positive "may see stock numbers" key, catalog v3, granted by default to all
+five groups and backfilled into custom groups (`ALL_GROUP_PERMISSION_ADDITIONS`,
+see "Catalog versioning" below), so nothing changes for any store until an
+owner unticks it. It follows the `view_cost_fields` pattern: the figure is
+hidden, the screen stays reachable. A negative `hide_stock_quantities` key was
+rejected because grant scope (`lib/permissions/grant-scope.ts`) would let only
+an owner apply it, and `admin`'s `PERMISSION_CATALOG.map(...)` default would
+hide stock from admins.
+
+**One helper decides what a user without the key sees**, so no two surfaces
+disagree: `lib/utils/stock-status.ts` (`stockLevel`, `describeStock`,
+`formatInsufficientStock`, `lowStockThreshold`, and
+`DEFAULT_LOW_STOCK_THRESHOLD = 10`, the `reorder_level || 10` threshold the
+POS tile already used) and the hook `lib/hooks/use-stock-visibility.ts`
+(`useStockVisibility()` → `{ canSeeQuantities, describeStock(qty, reorder) }`,
+built on `useHasPermission`, so a test that mocks `use-permissions` controls
+it too). Without the key, 0 or below is "Out of stock", 1 up to the threshold
+is "Low stock" (the product owner chose to show the band), above it is "In
+stock". Out-of-stock reads and behaves the same with or without the key:
+`addToCart` still refuses with "This item is out of stock", and the greyed
+tile shows regardless of the key and of `display_stock_levels`. A tile now
+also counts negative (oversold) stock as out, matching `addToCart`'s
+`stock > 0` check; before, it read "-3 left" in green.
+
+Call sites (all read the key once, unconditionally, at the top level):
+
+- `components/pos/pos-product-list.tsx` (`POSProductCard`) — the number only
+  when `display_stock_levels` is on **and** the key is held; the status word
+  when the store toggle is on and the key is not; no chip when the store
+  toggle is off. `display_stock_levels` is unchanged: a store-wide "no
+  numbers at the till for anyone, owners included" switch on top of the key.
+- `lib/hooks/use-pos-cart.ts` — the two "only N units available" toasts
+  become "Not enough stock for that quantity". This reaches barcode scan,
+  prescription dispense and held-sale recall too, since they go through
+  `addToCart`/`updateQuantity`.
+- `components/stock-batch/transfer-stock-dialog.tsx` +
+  `transfer-product-picker.tsx` — "Available"/"Not available" in the picker,
+  "Available"/"Not enough for that quantity" under the quantity field, and
+  `transferStock()`'s "Insufficient stock: only N…" error reworded at the
+  toast site (the query is shared with owner screens, so it stays as is).
+- `components/pos/online-orders-modal.tsx` via
+  `describeStockGap()` in `use-fulfill-online-order-mutation.ts` — "ordered
+  X, not enough in stock" instead of "sellable Y".
+- `components/stock-batch/needs-attention.tsx` — "Low stock · Reorder at R"
+  and expiring rows without the batch quantity.
+- `components/products/catalog-list.tsx` + `catalog-row.tsx` — the status
+  word in the stock cell, and the Stock header becomes a plain label so the
+  list cannot be sorted by quantity. The low/out-of-stock filters stay: they
+  reveal a band, not a number. **`adjust_stock_counts` also shows the number
+  here**, because that cell is the stock-quantity quick editor.
+- `components/products/catalog-detail-panel.tsx` →
+  `product-details/product-stock-info.tsx` (Current Stock word, bulk-unit
+  total hidden) and `product-batch-history.tsx` (units hidden, batch number,
+  expiry and the FEFO hint kept). Both take a required `canSeeQuantities`
+  prop rather than calling the hook, so a missing prop is a type error, not
+  a silent default.
+- Assistant `product_stock` — see "Assistant tool authorization".
+
+**Screens about the quantity itself are deliberately not gated**: cycle
+count (`perform_stock_audit`), adjust stock (`adjust_stock_counts`),
+receiving and procurement (`receive_purchase_orders`, `RequireRole`), the
+Movements/Adjustments ledgers (`view_stock_adjustment_history`) and reports
+and exports (`view_reports`, `export_product_list`). A group that holds any
+of those still sees numbers there. The Roles & Permissions matrix says so:
+the row carries an info tooltip (`PermissionCatalogEntry.description`,
+rendered by `components/settings/roles-permissions/permission-row-hints.tsx`)
+and an amber warning icon appears in a group's cell when the key is unticked
+but the group holds one of `perform_stock_audit`, `adjust_stock_counts`,
+`receive_purchase_orders`, `view_stock_adjustment_history` or
+`view_reports`. Movement quantities on `product-history.tsx`, the dashboard
+feed and the movement details dialog are not gated either: without
+`view_activity_log` they show only the user's own actions.
+
+**This is a display policy, not access control.** Every till holds the whole
+store's `stock_batches` in local SQLite (DevTools-readable on the PWA, a file
+on Tauri), offline selling needs them, and the cart cap is itself an oracle:
+pressing "+" until the till refuses gives the number. The key stops casual
+viewing and shoulder-surfing, which is what owners ask for, and the matrix
+tooltip says it "does not encrypt the till's data". Do not describe it as
+more than that.
+
+**Old bundles.** A bundle that predates the key keeps showing every number
+until it updates (the tooltip says "takes effect on each till once that till
+is updated"). The dangerous case is an old bundle *writing* a group: "Revert
+to Default" writes its own `DEFAULT_GROUP_PERMISSIONS` (no key), and "New
+group" starts at `"[]"`. Both would strip the key on every updated till. The
+server re-adds it for any `X-App-Version` below 0.0.41 (the release that
+introduced it); see `laravel-server/AGENTS.md`, "`LegacyStockQuantitiesGrant`".
+That is why this change also bumped `APP_VERSION` to 0.0.41: until then
+every bundle since 2026-09-25 reported 0.0.40, and the shim could not tell
+an updated till from an old one.
+
 ### Removed from the catalog (2026-09-29)
 
 The twelve catalog-only keys were re-investigated from scratch on
@@ -4264,8 +4392,9 @@ Two things fix it, and both are load-bearing.
 copy of `lib/constants/permissions.ts`; it had only ever been edited for
 removals and was 20 keys behind. `PermissionCatalogParityTest`
 (`laravel-server/tests/Feature/`) parses the TypeScript constants and asserts
-`DEFAULT_GROUP_PERMISSIONS`, `PERMISSION_CATALOG_VERSION` and
-`DEFAULT_GROUP_PERMISSION_ADDITIONS` match the PHP copies key-for-key, plus a
+`DEFAULT_GROUP_PERMISSIONS`, `PERMISSION_CATALOG_VERSION`,
+`DEFAULT_GROUP_PERMISSION_ADDITIONS` and `ALL_GROUP_PERMISSION_ADDITIONS`
+match the PHP copies key-for-key, plus a
 guard test that the parser actually parsed a plausible catalog rather than
 passing on an empty parse. **It lives on the PHP side on purpose**: the
 Checks workflow's `client` job has Node but no PHP, while its `server` job
@@ -4274,7 +4403,7 @@ only one of the two jobs where both artifacts exist. The client remains the
 source of truth; the test just refuses to let the copy drift again.
 
 **2. `stores.permission_catalog_version` + an add-only, delta-scoped
-backfill.** `PERMISSION_CATALOG_VERSION` (currently `2`) names the revision
+backfill.** `PERMISSION_CATALOG_VERSION` (currently `3`) names the revision
 the current default lists belong to — `1` is the 2026-09-27 launch lists
 (`a5f40463`). `DEFAULT_GROUP_PERMISSION_ADDITIONS` records, per version, the
 keys each role **gained** at that version. `backfillDefaultGroupPermissions()`
@@ -4303,14 +4432,36 @@ Three properties make that safe, and each has a test on both sides:
   changes, so a second run is a genuine no-op — no duplicate keys, no queue
   rows, no `_version` bump.
 
+**`ALL_GROUP_PERMISSION_ADDITIONS` (v3, 2026-10-23): carve-out keys reach
+custom groups too.** Most new keys grant something new, so a custom group
+not receiving them is correct: the owner never chose them. A *carve-out* key
+is the opposite: it splits a right every group already had into a key that
+can now be withheld. `view_stock_quantities` is the first. Before it, every
+group saw on-hand numbers; after it, only groups holding the key do. A
+custom group (an owner's "Supervisor", or one copied from a default) that
+did not receive it on upgrade would silently lose stock numbers on every
+updated till, which is exactly the regression this section exists to
+prevent. So `ALL_GROUP_PERMISSION_ADDITIONS[version]` lists keys that every
+non-deleted group in the store, default or custom, gains when the store's
+stamp moves past that version. Both backfills read it
+(`pendingCatalogAdditions(role, fromVersion, isDefault)` on the client,
+`PermissionGroupSeeder::pendingCatalogAdditions()` on the server), and the
+rules are unchanged: add-only, delta-scoped on the store stamp, idempotent,
+and the server bumps `_version`. A custom group created *after* the store is
+stamped at v3 is not touched (it was made with the key visible in the
+matrix), and an owner's untick made at v3 survives every later run. The
+next carve-out key reuses this table; a key that grants something new
+goes in `DEFAULT_GROUP_PERMISSION_ADDITIONS` only.
+
 **`is_default` does NOT track customization — do not read it that way.**
 `toggle()`/`toggleMany()`/`revertToDefault()` (`lib/hooks/use-permission-groups.ts`)
 never clear the flag, and the sync layer actively refuses to let a payload
 change it (`sanitizePermissionGroupSyncPayload`). It means "this is one of
 the five seeded role groups", full stop. So `is_default = 1` is the right
-filter for *which rows the backfill may touch* (a copied or hand-made group
-is `is_default = 0` and is never touched), but it is **not** what protects a
-customized default group — the version delta is.
+filter for *which rows receive a role's default delta* (a copied or
+hand-made group is `is_default = 0` and only ever receives the
+`ALL_GROUP_PERMISSION_ADDITIONS` carve-out keys above), but it is **not**
+what protects a customized default group — the version delta is.
 
 **The client/server race, and how it resolves.** Both sides can backfill the
 same store minutes apart, and a third device may still be holding the
@@ -4395,9 +4546,12 @@ diff would have to reproduce the derivation identically in two languages to
 stay in parity.
 
 Bumping `PERMISSION_CATALOG_VERSION` therefore means: add the version's entry
-to `DEFAULT_GROUP_PERMISSION_ADDITIONS`, mirror both into the PHP seeder
-(the parity test fails otherwise), and nothing else — the backfill, the
-stamping and the race handling are already generic over the version number.
+to `DEFAULT_GROUP_PERMISSION_ADDITIONS` (and to
+`ALL_GROUP_PERMISSION_ADDITIONS` if the new key is a carve-out), mirror them
+into the PHP seeder (the parity test fails otherwise), and decide whether an
+old bundle can strip the key by writing a group (see "Old bundles writing a
+group" in the `view_stock_quantities` section). The backfill, the stamping
+and the race handling are already generic over the version number.
 
 ### The dead `/inventory/batches` route (2026-09-29)
 
@@ -4729,6 +4883,14 @@ flag and `RequireRole`'s `allowSalesStaff` prop for the pattern — don't
 just delete/loosen the existing `actionAdminOnly`/`canManageStockBatch`
 check, that widens the gate for every non-admin role at once, not just
 the one you meant to add.
+
+Stock **quantities** follow the same idea through a key rather than a role
+check: `useStockVisibility()` (`lib/hooks/use-stock-visibility.ts`) and the
+pure `describeStock()` (`lib/utils/stock-status.ts`) turn a number into
+In stock / Low stock / Out of stock for a user without
+`view_stock_quantities`. A new screen that shows an on-hand quantity uses
+them; see the `view_stock_quantities` section above for the full call-site
+list and the screens deliberately left showing numbers.
 
 The in-app assistant follows the same convention by a different mechanism:
 rather than hiding a store-wide answer, its router *narrows* the question —
@@ -5674,7 +5836,7 @@ logic here or gate tools ad hoc inside `execute`; declare
 answer with a `denied` reply instead of running the query.
 
 **The accepted exception: a permission that shapes an answer rather than
-gating it.** Two tools read a permission themselves, and both do it to vary
+gating it.** Three tools read a permission themselves, and both do it to vary
 *what is in* an answer they are allowed to give, never to decide whether to
 give one:
 
@@ -5684,6 +5846,14 @@ give one:
   signed-in user. Declaring `view_cost_fields` as the tool's
   `requiredPermission` would instead refuse the whole "what's low on stock"
   question to every cashier, which is the wrong answer.
+- `productStockTool` calls `hasPermission(…, "view_stock_quantities")` in
+  `execute()`. Without it the reply is "Amoxil: low stock" (the
+  `describeStock` word, lowercased) with no number and no reorder level, and
+  the result object carries `stock: null` and `reorderLevel: null`, so the
+  number never leaves `execute`. Refusing would be wrong: "do we have X" is a
+  question a cashier must be able to ask. `inventoryStatusTool` never printed
+  a per-item quantity, and since 2026-10-23 its `lowStockItems` carry only
+  the product name, so it no longer holds one either.
 - `navigateHelpTool` checks the matched `HelpTopic`'s own optional
   `requiredPermission` in `format()`, and on a miss returns the steps-free
   "…you'll need permission from your store owner" reply with **no**

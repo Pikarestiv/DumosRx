@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 import {
+  ALL_GROUP_PERMISSION_ADDITIONS,
   DEFAULT_GROUP_PERMISSIONS,
   DEFAULT_GROUP_PERMISSION_ADDITIONS,
   PERMISSION_CATALOG_VERSION,
@@ -43,6 +44,13 @@ const V1_DEFAULTS: Record<DefaultGroupRole, string[]> = {
 };
 
 const ROLES = Object.keys(V1_DEFAULTS) as DefaultGroupRole[];
+
+function withEveryDelta(role: DefaultGroupRole): string[] {
+  const keys = [...V1_DEFAULTS[role]];
+  for (const byRole of Object.values(DEFAULT_GROUP_PERMISSION_ADDITIONS)) keys.push(...byRole[role]);
+  for (const added of Object.values(ALL_GROUP_PERMISSION_ADDITIONS)) keys.push(...added);
+  return Array.from(new Set(keys));
+}
 
 describe("backfillDefaultGroupPermissions", () => {
   let db: Database;
@@ -133,16 +141,69 @@ describe("backfillDefaultGroupPermissions", () => {
     expect(granted).toContain("manage_stock_batches");
   });
 
-  it("leaves a custom (non-default) group completely untouched", async () => {
-    seedPreExpansionStore();
+  function seedCustomGroup(permissions: string[]) {
     db.run(
       `INSERT INTO permission_groups (id, store_id, name, based_on_role, is_default, permissions, _version)
-       VALUES ('pg-custom', 'store1', 'Supervisor', 'manager', 0, '["process_sales"]', 1)`,
+       VALUES ('pg-custom', 'store1', 'Supervisor', 'manager', 0, ?, 1)`,
+      [JSON.stringify(permissions)],
     );
+  }
+
+  it("gives a custom group only the all-groups carve-out keys, never a role's default delta", async () => {
+    seedPreExpansionStore();
+    seedCustomGroup(["process_sales"]);
+
+    await queries.backfillDefaultGroupPermissions();
+
+    expect(await permissionsOf("pg-custom")).toEqual(["process_sales", "view_stock_quantities"]);
+  });
+
+  it("gives a v2-stamped store's custom group view_stock_quantities so it keeps seeing quantities", async () => {
+    seedPreExpansionStore();
+    db.run(`UPDATE stores SET permission_catalog_version = 2 WHERE id = 'store1'`);
+    seedCustomGroup(["process_sales", "hold_sales"]);
+
+    await queries.backfillDefaultGroupPermissions();
+
+    expect(await permissionsOf("pg-custom")).toEqual(["process_sales", "hold_sales", "view_stock_quantities"]);
+    expect(await permissionsOf("pg-sales_staff")).toContain("view_stock_quantities");
+  });
+
+  it("leaves a custom group created after the v3 stamp without the key", async () => {
+    seedPreExpansionStore();
+    db.run(`UPDATE stores SET permission_catalog_version = 3 WHERE id = 'store1'`);
+    seedCustomGroup(["process_sales"]);
 
     await queries.backfillDefaultGroupPermissions();
 
     expect(await permissionsOf("pg-custom")).toEqual(["process_sales"]);
+  });
+
+  it("keeps an owner's v3 untick of view_stock_quantities across a re-run", async () => {
+    seedPreExpansionStore();
+    db.run(`UPDATE stores SET permission_catalog_version = 2 WHERE id = 'store1'`);
+    seedCustomGroup(["process_sales"]);
+    await queries.backfillDefaultGroupPermissions();
+    db.run(`UPDATE permission_groups SET permissions = '["process_sales"]' WHERE id IN ('pg-custom', 'pg-sales_staff')`);
+    await core.execute(`DELETE FROM _sync_queue`, []);
+
+    await queries.backfillDefaultGroupPermissions();
+
+    expect(await permissionsOf("pg-custom")).toEqual(["process_sales"]);
+    expect(await permissionsOf("pg-sales_staff")).toEqual(["process_sales"]);
+    expect(await core.query(`SELECT id FROM _sync_queue`)).toHaveLength(0);
+  });
+
+  it("is idempotent for custom groups too", async () => {
+    seedPreExpansionStore();
+    seedCustomGroup(["process_sales"]);
+    await queries.backfillDefaultGroupPermissions();
+    await core.execute(`DELETE FROM _sync_queue`, []);
+
+    await queries.backfillDefaultGroupPermissions();
+
+    expect(await permissionsOf("pg-custom")).toEqual(["process_sales", "view_stock_quantities"]);
+    expect(await core.query(`SELECT id FROM _sync_queue`)).toHaveLength(0);
   });
 
   // is_default stays 1 for the lifetime of a default group - toggling a
@@ -208,11 +269,7 @@ describe("backfillDefaultGroupPermissions", () => {
   // conflicts.
   it("queues no permission_groups push when the rows already carry the whole delta", async () => {
     const merged: Partial<Record<DefaultGroupRole, string[]>> = {};
-    for (const role of ROLES) {
-      merged[role] = Array.from(
-        new Set([...V1_DEFAULTS[role], ...DEFAULT_GROUP_PERMISSION_ADDITIONS[2][role]]),
-      );
-    }
+    for (const role of ROLES) merged[role] = withEveryDelta(role);
     seedPreExpansionStore(merged);
 
     await queries.backfillDefaultGroupPermissions();
@@ -245,11 +302,7 @@ describe("backfillDefaultGroupPermissions", () => {
 
     db.run(`DELETE FROM permission_groups; DELETE FROM stores; DELETE FROM _sync_queue`);
     const serverApplied: Partial<Record<DefaultGroupRole, string[]>> = {};
-    for (const role of ROLES) {
-      serverApplied[role] = Array.from(
-        new Set([...V1_DEFAULTS[role], ...DEFAULT_GROUP_PERMISSION_ADDITIONS[2][role]]),
-      );
-    }
+    for (const role of ROLES) serverApplied[role] = withEveryDelta(role);
     seedPreExpansionStore(serverApplied);
     await queries.backfillDefaultGroupPermissions();
     const serverFirst = await Promise.all(ROLES.map((r) => permissionsOf(`pg-${r}`)));

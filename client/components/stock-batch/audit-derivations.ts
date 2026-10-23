@@ -110,6 +110,82 @@ export function selectAuditStatusItems(
   return items.filter((item) => matchesAuditStatus(item, status));
 }
 
+export interface AuditLens {
+  category: string;
+  status: AuditCountStatus;
+  search: string;
+}
+
+export function isAuditLensActive(lens: AuditLens): boolean {
+  return (
+    lens.category !== ALL_AUDIT_CATEGORIES ||
+    lens.status !== "all" ||
+    lens.search.trim() !== ""
+  );
+}
+
+const AUDIT_STATUS_LABELS = new Map<AuditCountStatus, string>([
+  ["counted", "Counted"],
+  ["uncounted", "Not Counted"],
+  ["differences", "Qty Differences"],
+]);
+
+export function describeAuditLens(
+  lens: AuditLens,
+  shown: number,
+  total: number,
+): string {
+  if (!isAuditLensActive(lens)) return `${total} product(s)`;
+  const search = lens.search.trim();
+  return [
+    `${shown} of ${total} product(s)`,
+    lens.category !== ALL_AUDIT_CATEGORIES && `Category: ${lens.category}`,
+    AUDIT_STATUS_LABELS.get(lens.status),
+    search && `Search: "${search}"`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+export function auditExportFileName(
+  lens: AuditLens,
+  extension: string,
+  date = new Date(),
+): string {
+  const slug =
+    lens.category === ALL_AUDIT_CATEGORIES
+      ? ""
+      : lens.category
+          .normalize("NFD")
+          .replace(/\p{M}/gu, "")
+          .replace(/[^A-Za-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+  const suffix = slug ? `_${slug}` : "";
+  return `StockAudit_${date.toISOString().slice(0, 10)}${suffix}.${extension}`;
+}
+
+const diffQtyOf = (item: AuditItem) =>
+  (item.countedQty ?? item.systemQty) - item.systemQty;
+
+export const AUDIT_SORT_ACCESSORS = {
+  name: (item: AuditItem) => item.name.toLowerCase(),
+  countedQty: (item: AuditItem) => item.countedQty ?? item.systemQty,
+  systemQty: (item: AuditItem) => item.systemQty,
+  diffQty: diffQtyOf,
+  costPrice: (item: AuditItem) => item.costPrice ?? 0,
+  countedCost: (item: AuditItem) => item.countedCostPrice ?? item.costPrice ?? 0,
+  diffCost: (item: AuditItem) =>
+    item.costPrice !== undefined ? diffQtyOf(item) * item.costPrice : 0,
+  sellingPrice: (item: AuditItem) => item.sellingPrice ?? 0,
+  countedSelling: (item: AuditItem) =>
+    item.countedSellingPrice ?? item.sellingPrice ?? 0,
+  diffSelling: (item: AuditItem) =>
+    item.sellingPrice !== undefined ? diffQtyOf(item) * item.sellingPrice : 0,
+  lastAuditedAt: (item: AuditItem) =>
+    item.lastAuditedAt ? new Date(item.lastAuditedAt).getTime() : 0,
+};
+
+export type AuditSortKey = keyof typeof AUDIT_SORT_ACCESSORS;
+
 export function selectAdjustedAuditItems(countedItems: AuditItem[]): AuditItem[] {
   return countedItems.filter(differsFromSystem);
 }

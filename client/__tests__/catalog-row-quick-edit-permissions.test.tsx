@@ -39,6 +39,7 @@ function renderRow(
       showCostColumn
       canEditSellingPrice
       canAdjustStockQuantity
+      showStockQuantity
       hasTouchCapability={false}
       canPrintLabels
       canDeleteProducts
@@ -84,5 +85,22 @@ describe("CatalogRow inventory permission props", () => {
     expect(
       screen.queryByLabelText(/Edit reorder level for Panadol/),
     ).not.toBeNull();
+  });
+
+  it("shows a status word and no on-hand number when showStockQuantity is false", () => {
+    renderRow({ showStockQuantity: false });
+    expect(screen.queryByText("In stock")).not.toBeNull();
+    expect(screen.queryByText(/12 units/)).toBeNull();
+    expect(screen.queryByLabelText(/Edit stock quantity for Panadol/)).toBeNull();
+  });
+
+  it("uses the low-stock word on the mobile row without the number", () => {
+    const { container } = renderRow({
+      isDesktop: false,
+      showStockQuantity: false,
+      product: { ...product, stockQuantity: 4 },
+    });
+    expect(screen.queryByText("Low stock")).not.toBeNull();
+    expect(container.textContent).not.toContain("4 units");
   });
 });

@@ -2529,6 +2529,20 @@ class SyncController extends Controller
         return in_array($resolvedStoreId, $allowedStoreIds, true);
     }
 
+    /** The store a row being written belongs to, for CrossStoreReferenceGuard: a batch's is its product's, looked up only when it names a supplier. */
+    private function guardedRowStoreId(string $tableName, array $payload, $model = null): ?string
+    {
+        if ($tableName === 'stock_batches') {
+            $productId = $payload['product_id'] ?? $model?->product_id;
+
+            return isset($payload['supplier_id']) && $productId
+                ? Product::withTrashed()->whereKey($productId)->value('store_id')
+                : null;
+        }
+
+        return $payload['store_id'] ?? $model?->store_id;
+    }
+
     /**
      * Resolves the store_id a change target belongs to: its parent's store for
      * a child table, else the row's own `store_id` where it has one, else null.
@@ -2544,18 +2558,6 @@ class SyncController extends Controller
      * treats as "fall back to user_id ownership," not "denied" — a child pushed
      * before its parent must still work (§11).
      */
-    /** The store a row being written belongs to, for CrossStoreReferenceGuard: a batch's is its product's. */
-    private function guardedRowStoreId(string $tableName, array $payload, $model = null): ?string
-    {
-        if ($tableName === 'stock_batches') {
-            $productId = $payload['product_id'] ?? $model?->product_id;
-
-            return $productId ? Product::withTrashed()->whereKey($productId)->value('store_id') : null;
-        }
-
-        return $payload['store_id'] ?? $model?->store_id;
-    }
-
     private function resolveChangeStoreId(string $tableName, $model): ?string
     {
         return $this->resolveParentStoreId($tableName, $model) ?? ($model->store_id ?? null);

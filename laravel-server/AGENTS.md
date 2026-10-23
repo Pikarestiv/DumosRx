@@ -3652,9 +3652,11 @@ recorded in `sync_failures` as `cross_store_reference`.
   pusher's store. Category names are generic, and re-owning a foreign-tenant
   category is how A-302 heals the A-189 shape, so that stays.
 - **A `stock_batches` row's store is its product's**, the same rule as
-  `resolveParentStoreId()` and pull scoping (`guardedRowStoreId()`), never the
+  `resolveParentStoreId()` and pull scoping (applied by `guardedRowStoreId()`), never the
   batch's own `store_id`, which is `NULL` on legacy batches and can disagree
-  with the product. A referent that does not exist or has no `store_id` is also left
+  with the product. `guardedRowStoreId()` only looks the product up when the
+  batch payload carries `supplier_id`, so the quantity-only batch update every
+  sale pushes costs no extra query. A referent that does not exist or has no `store_id` is also left
   alone (A-294, A-288). A **soft-deleted** referent in a sibling store is still
   re-owned; its store's devices never pull it either.
 - **The row's store is the one being written.** On UPDATE the guard checks

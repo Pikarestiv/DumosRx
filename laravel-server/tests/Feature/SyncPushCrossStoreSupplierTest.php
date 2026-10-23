@@ -359,6 +359,43 @@ class SyncPushCrossStoreSupplierTest extends TestCase
         $this->assertSame($this->supplierB->id, $this->storedSupplierId('stock_batches', 'batch-drifted'));
     }
 
+    public function test_an_updated_stock_batch_naming_another_stores_supplier_is_remapped_to_its_own()
+    {
+        $this->pushBatch('batch-update', $this->storeB->id, $this->storeB->id);
+        DB::table('stock_batches')->where('id', 'batch-update')->update(['supplier_id' => $this->supplierB->id]);
+
+        $response = $this->push([
+            'table_name' => 'stock_batches',
+            'operation' => 'UPDATE',
+            'record_id' => 'batch-update',
+            'payload' => ['id' => 'batch-update', 'supplier_id' => $this->supplierA->id, '_version' => 1],
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+        $this->assertSame($this->supplierB->id, $this->storedSupplierId('stock_batches', 'batch-update'));
+    }
+
+    public function test_a_batch_update_without_a_supplier_does_not_look_up_its_product_for_the_guard()
+    {
+        $this->pushBatch('batch-qty', $this->storeB->id, $this->storeB->id);
+        $guardLookups = 0;
+        DB::listen(function ($query) use (&$guardLookups) {
+            if (str_contains($query->sql, 'from "products"') && ! str_contains($query->sql, 'deleted_at')) {
+                $guardLookups++;
+            }
+        });
+
+        $this->push([
+            'table_name' => 'stock_batches',
+            'operation' => 'UPDATE',
+            'record_id' => 'batch-qty',
+            'payload' => ['id' => 'batch-qty', 'quantity' => 7, '_version' => 1],
+        ])->assertStatus(200);
+
+        $this->assertSame(0, $guardLookups);
+    }
+
     public function test_a_created_supplier_belongs_to_the_stores_owner()
     {
         $fidson = $this->makeSupplier($this->storeA->id, 'Fidson');

@@ -103,6 +103,18 @@ class PermissionCatalogBackfillTest extends TestCase
         return $store->fresh();
     }
 
+    private function withEveryDelta(string $role, array $permissions): array
+    {
+        foreach (PermissionGroupSeeder::defaultGroupPermissionAdditions() as $byRole) {
+            $permissions = array_merge($permissions, $byRole[$role]);
+        }
+        foreach (PermissionGroupSeeder::allGroupPermissionAdditions() as $keys) {
+            $permissions = array_merge($permissions, $keys);
+        }
+
+        return array_values(array_unique($permissions));
+    }
+
     private function groupFor(Store $store, string $role): PermissionGroup
     {
         return PermissionGroup::where('store_id', $store->id)->where('based_on_role', $role)->first();
@@ -146,9 +158,8 @@ class PermissionCatalogBackfillTest extends TestCase
         $this->assertContains('manage_stock_batches', $granted);
     }
 
-    public function test_it_leaves_a_custom_non_default_group_untouched(): void
+    private function seedCustomGroup(Store $store, array $permissions): PermissionGroup
     {
-        $store = $this->seedPreExpansionStore();
         $custom = new PermissionGroup();
         $custom->forceFill([
             'id' => (string) Str::uuid(),
@@ -156,14 +167,80 @@ class PermissionCatalogBackfillTest extends TestCase
             'name' => 'Supervisor',
             'based_on_role' => 'manager',
             'is_default' => false,
-            'permissions' => ['process_sales'],
+            'permissions' => $permissions,
             '_version' => 1,
         ])->save();
+
+        return $custom;
+    }
+
+    private function stampStore(Store $store, int $version): Store
+    {
+        $store->forceFill(['permission_catalog_version' => $version])->save();
+
+        return $store->fresh();
+    }
+
+    public function test_a_custom_group_gains_only_the_all_groups_carve_out_keys(): void
+    {
+        $store = $this->seedPreExpansionStore();
+        $custom = $this->seedCustomGroup($store, ['process_sales']);
+
+        PermissionGroupSeeder::ensureSeeded($store);
+
+        $this->assertSame(['process_sales', 'view_stock_quantities'], $custom->fresh()->permissions);
+        $this->assertSame(2, (int) $custom->fresh()->_version);
+    }
+
+    public function test_a_v2_stamped_stores_custom_group_gains_view_stock_quantities(): void
+    {
+        $store = $this->stampStore($this->seedPreExpansionStore(), 2);
+        $custom = $this->seedCustomGroup($store, ['process_sales', 'hold_sales']);
+
+        PermissionGroupSeeder::ensureSeeded($store);
+
+        $this->assertSame(['process_sales', 'hold_sales', 'view_stock_quantities'], $custom->fresh()->permissions);
+        $this->assertGreaterThan(1, (int) $custom->fresh()->_version);
+        $this->assertContains('view_stock_quantities', $this->groupFor($store, 'sales_staff')->permissions);
+    }
+
+    public function test_a_double_encoded_custom_group_keeps_its_keys_when_backfilled(): void
+    {
+        $store = $this->stampStore($this->seedPreExpansionStore(), 2);
+        $custom = $this->seedCustomGroup($store, ['process_sales']);
+        \DB::table('permission_groups')->where('id', $custom->id)
+            ->update(['permissions' => json_encode(json_encode(['process_sales', 'hold_sales']))]);
+
+        PermissionGroupSeeder::ensureSeeded($store);
+
+        $this->assertSame(['process_sales', 'hold_sales', 'view_stock_quantities'], $custom->fresh()->permissions);
+    }
+
+    public function test_a_custom_group_created_after_the_v3_stamp_is_left_alone(): void
+    {
+        $store = $this->stampStore($this->seedPreExpansionStore(), 3);
+        $custom = $this->seedCustomGroup($store, ['process_sales']);
 
         PermissionGroupSeeder::ensureSeeded($store);
 
         $this->assertSame(['process_sales'], $custom->fresh()->permissions);
         $this->assertSame(1, (int) $custom->fresh()->_version);
+    }
+
+    public function test_an_owners_v3_untick_survives_a_rerun_and_the_custom_backfill_is_idempotent(): void
+    {
+        $store = $this->stampStore($this->seedPreExpansionStore(), 2);
+        $custom = $this->seedCustomGroup($store, ['process_sales']);
+        PermissionGroupSeeder::ensureSeeded($store);
+        $afterFirst = (int) $custom->fresh()->_version;
+
+        PermissionGroupSeeder::ensureSeeded($store->fresh());
+        $this->assertSame($afterFirst, (int) $custom->fresh()->_version);
+
+        $custom->fresh()->forceFill(['permissions' => ['process_sales']])->save();
+        PermissionGroupSeeder::ensureSeeded($store->fresh());
+
+        $this->assertSame(['process_sales'], $custom->fresh()->permissions);
     }
 
     public function test_it_does_not_restore_a_key_the_owner_unticked_outside_the_version_delta(): void
@@ -253,10 +330,7 @@ class PermissionCatalogBackfillTest extends TestCase
 
         $alreadyApplied = [];
         foreach (self::V1_DEFAULTS as $role => $permissions) {
-            $alreadyApplied[$role] = array_values(array_unique(array_merge(
-                $permissions,
-                PermissionGroupSeeder::defaultGroupPermissionAdditions()[2][$role],
-            )));
+            $alreadyApplied[$role] = $this->withEveryDelta($role, $permissions);
         }
         $clientFirst = $this->seedPreExpansionStore($alreadyApplied);
         PermissionGroupSeeder::ensureSeeded($clientFirst);
@@ -276,10 +350,7 @@ class PermissionCatalogBackfillTest extends TestCase
     {
         $alreadyApplied = [];
         foreach (self::V1_DEFAULTS as $role => $permissions) {
-            $alreadyApplied[$role] = array_values(array_unique(array_merge(
-                $permissions,
-                PermissionGroupSeeder::defaultGroupPermissionAdditions()[2][$role],
-            )));
+            $alreadyApplied[$role] = $this->withEveryDelta($role, $permissions);
         }
         $store = $this->seedPreExpansionStore($alreadyApplied);
 

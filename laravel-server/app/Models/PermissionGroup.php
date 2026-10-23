@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\JsonList;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -22,7 +23,7 @@ class PermissionGroup extends Model
 
     protected $casts = [
         'is_default' => 'boolean',
-        'permissions' => 'array',
+        'permissions' => JsonList::class,
         '_synced_at' => 'datetime',
     ];
 

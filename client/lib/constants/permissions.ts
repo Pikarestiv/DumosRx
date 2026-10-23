@@ -3,6 +3,7 @@
 export interface PermissionCatalogEntry {
   key: string;
   label: string;
+  description?: string;
   category:
     | "Sales & POS"
     | "Inventory & Stock"
@@ -43,6 +44,13 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
   { key: "export_product_list", label: "Export Product List", category: "Inventory & Stock" },
   { key: "view_suppliers", label: "View Supplier Details", category: "Inventory & Stock" },
   { key: "delete_suppliers", label: "Delete Suppliers", category: "Inventory & Stock" },
+  {
+    key: "view_stock_quantities",
+    label: "View Stock Quantities",
+    category: "Inventory & Stock",
+    description:
+      "Hides stock numbers on selling and browsing screens. Staff still see 'In stock', 'Low stock' and 'Out of stock'. Staff who can count, adjust or receive stock, view stock history or view reports still see quantities on those screens. This hides numbers from view; it does not encrypt the till's data. It takes effect on each till once that till is updated.",
+  },
 
   { key: "dispense_prescriptions", label: "Dispense Prescriptions", category: "Prescriptions" },
   { key: "manage_prescriptions", label: "Manage Prescription Records", category: "Prescriptions" },
@@ -100,6 +108,7 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "delete_customers", "view_customer_balances",
     "view_dashboard", "view_financial_reports",
     "manage_device_settings", "install_app_updates",
+    "view_stock_quantities",
     // NOT: view_activity_log, manage_roles_permissions, manage_billing, factory_reset
     // (checkCanViewAllActivity/checkCanFactoryReset both exclude "manager" today)
   ],
@@ -116,6 +125,7 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "export_product_list", "view_suppliers",
     "view_dashboard", "manage_device_settings",
     "view_customer_balances",
+    "view_stock_quantities",
     // NOT: void_refund_sales/apply_discounts/override_price (checkIsAdmin-only today),
     // NOT: view_reports/export_reports/view_activity_log/manage_staff/manage_* settings
   ],
@@ -127,6 +137,7 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "request_stock_transfers",
     "override_price",
     "view_customer_balances",
+    "view_stock_quantities",
   ],
   auditor: [
     "view_reports", "export_reports", "view_all_expenses",
@@ -136,12 +147,13 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "view_cost_fields", "view_stock_adjustment_history", "view_suppliers",
     "view_customer_balances", "view_dashboard", "view_financial_reports",
     "export_product_list",
+    "view_stock_quantities",
   ],
 };
 
 // What a version means and what bumping it requires: see client/AGENTS.md's
 // "Catalog versioning and the default-group backfill" section.
-export const PERMISSION_CATALOG_VERSION = 2;
+export const PERMISSION_CATALOG_VERSION = 3;
 
 export type DefaultGroupRole = keyof typeof DEFAULT_GROUP_PERMISSIONS;
 
@@ -184,6 +196,19 @@ export const DEFAULT_GROUP_PERMISSION_ADDITIONS: Record<number, Record<DefaultGr
       "view_financial_reports", "export_product_list",
     ],
   },
+  3: {
+    admin: ["view_stock_quantities"],
+    manager: ["view_stock_quantities"],
+    specialist: ["view_stock_quantities"],
+    sales_staff: ["view_stock_quantities"],
+    auditor: ["view_stock_quantities"],
+  },
+};
+
+// Carve-out keys every group, default or custom, gains at that version: see
+// client/AGENTS.md's catalog-versioning section.
+export const ALL_GROUP_PERMISSION_ADDITIONS: Record<number, string[]> = {
+  3: ["view_stock_quantities"],
 };
 
 // Hand-maintained; add a key here in the same commit as its first call site.

@@ -22,6 +22,7 @@ use App\Models\StockMovement;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\RequestedProduct;
+use App\Services\Sync\LegacyStockQuantitiesGrant;
 use App\Services\Sync\PeerSyncFreshnessService;
 use App\Services\Web\UserDeviceTracker;
 use App\Services\Web\SyncPayloadMapper;
@@ -1851,6 +1852,10 @@ class SyncController extends Controller
         if ($change['table_name'] === 'users' && $currentUser && !$isSuperAdmin) {
             $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
             $payload = $this->sanitizeUserSyncPayload($payload, $recordId, $currentUser, $allowedStoreIds);
+        }
+
+        if ($change['table_name'] === 'permission_groups' && $currentUser) {
+            $payload = LegacyStockQuantitiesGrant::apply($payload, $change['record_id'] ?? ($payload['id'] ?? null), $change['operation'], $request->header('X-App-Version'), $currentUser);
         }
 
         if ($change['table_name'] === 'permission_groups' && $currentUser && !$isSuperAdmin) {

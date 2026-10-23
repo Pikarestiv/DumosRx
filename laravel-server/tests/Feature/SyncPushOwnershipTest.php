@@ -174,7 +174,7 @@ class SyncPushOwnershipTest extends TestCase
         return $lineId;
     }
 
-    private function pushDelete(string $lineId)
+    private function pushDelete(string $lineId, ?string $claimedStoreId = null)
     {
         return $this->actingAs($this->attackerOwner)->postJson('/api/v1/app/sync/push', [
             'setup' => true,
@@ -183,7 +183,7 @@ class SyncPushOwnershipTest extends TestCase
                     'table_name' => 'purchase_order_items',
                     'operation' => 'DELETE',
                     'record_id' => $lineId,
-                    'payload' => ['id' => $lineId],
+                    'payload' => array_filter(['id' => $lineId, 'store_id' => $claimedStoreId]),
                 ],
             ],
         ]);
@@ -869,15 +869,10 @@ class SyncPushOwnershipTest extends TestCase
         $this->assertDatabaseHas('permission_groups', ['id' => $groupId]);
     }
 
-    /**
-     * A-298: a legacy row with no `store_id` may carry a store claim in its
-     * payload, but that claim must not be what authorizes the change. The
-     * victim's product resolves through its `user_id`, so naming the
-     * attacker's own store must still be refused.
-     */
+    /** A-298: a payload's store claim must not authorize the change it rides on. */
     public function test_delete_claiming_the_callers_store_for_another_tenants_storeless_row_is_rejected()
     {
-        $productId = $this->seedStorelessVictimProduct('victim-storeless-product-1');
+        $productId = $this->seedStorelessProduct('victim-storeless-product-1');
 
         $response = $this->pushStoreClaim($productId, 'DELETE');
 
@@ -890,7 +885,7 @@ class SyncPushOwnershipTest extends TestCase
 
     public function test_update_claiming_the_callers_store_for_another_tenants_storeless_row_is_rejected()
     {
-        $productId = $this->seedStorelessVictimProduct('victim-storeless-product-2');
+        $productId = $this->seedStorelessProduct('victim-storeless-product-2');
 
         $response = $this->pushStoreClaim($productId, 'UPDATE', ['selling_price' => 1, '_version' => 1]);
 
@@ -900,10 +895,9 @@ class SyncPushOwnershipTest extends TestCase
         $this->assertDatabaseHas('products', ['id' => $productId, 'selling_price' => 500, 'store_id' => null]);
     }
 
-    /** The claim itself still lands for a caller who owns the legacy row (§11). */
     public function test_delete_of_the_callers_own_storeless_row_still_records_its_store_claim()
     {
-        $productId = $this->seedStorelessVictimProduct('own-storeless-product-1', $this->attackerOwner->id);
+        $productId = $this->seedStorelessProduct('own-storeless-product-1', $this->attackerOwner->id);
 
         $response = $this->pushStoreClaim($productId, 'DELETE');
 
@@ -913,7 +907,30 @@ class SyncPushOwnershipTest extends TestCase
         $this->assertSame($this->attackerStore->id, DB::table('products')->where('id', $productId)->value('store_id'));
     }
 
-    private function seedStorelessVictimProduct(string $productId, ?string $ownerId = null): string
+    public function test_delete_of_a_storeless_line_claiming_the_callers_store_under_another_stores_parent_is_rejected()
+    {
+        $lineId = $this->seedLineUnderUnattributableParent('victim-claimed-line-1', null);
+        DB::table('purchase_orders')->where('id', 'parent-'.$lineId)->update(['store_id' => $this->victimStore->id]);
+
+        $response = $this->pushDelete($lineId, $this->attackerStore->id);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('failed.0.reason', 'forbidden');
+        $this->assertNull(DB::table('purchase_order_items')->where('id', $lineId)->value('deleted_at'));
+    }
+
+    public function test_a_store_claim_outside_the_callers_stores_is_never_written_to_a_row_that_falls_open()
+    {
+        $lineId = $this->seedLineUnderUnattributableParent('foreign-claimed-line-1', null);
+
+        $response = $this->pushDelete($lineId, $this->victimStore->id);
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+        $this->assertNull(DB::table('purchase_order_items')->where('id', $lineId)->value('store_id'));
+    }
+
+    private function seedStorelessProduct(string $productId, ?string $ownerId = null): string
     {
         DB::table('products')->insert([
             'id' => $productId,

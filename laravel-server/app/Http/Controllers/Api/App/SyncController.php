@@ -741,20 +741,6 @@ class SyncController extends Controller
                         }
                     }
                 } elseif ($change['operation'] === 'DELETE') {
-                    // audit_logs is append-only on both sides: the client only
-                    // ever queues INSERT for it (see logAction() in
-                    // client/lib/db/core.ts - even the repeat-dedup path
-                    // rewrites the pending INSERT rather than queueing an
-                    // UPDATE or DELETE), and ActivityLog has no SoftDeletes,
-                    // so $target->delete() here is a HARD delete of a
-                    // tamper-evidence record. Because activity_logs.id is the
-                    // server's own bigint while the client's id lives in
-                    // properties->client_id, a client id passed to find() gets
-                    // coerced to its leading numeric run and can match a
-                    // COMPLETELY UNRELATED row in the same store, which
-                    // authorizeChangeTarget() (store-ownership only) then
-                    // happily waves through. There is no correct row for this
-                    // lookup to find, so reject rather than guess.
                     if ($change['table_name'] === 'audit_logs') {
                         DB::commit();
                         Log::warning('Sync push: rejected DELETE against append-only audit_logs for record ' . ($change['record_id'] ?? '?'));
@@ -782,7 +768,8 @@ class SyncController extends Controller
                             ];
                             continue;
                         }
-                        if (empty($target->store_id) && !empty($payload['store_id']) && \Illuminate\Support\Facades\Schema::hasColumn($target->getTable(), 'store_id')) {
+                        $claimIsInScope = !empty($payload['store_id']) && ($isSuperAdmin || in_array($payload['store_id'], $allowedStoreIds, true));
+                        if (empty($target->store_id) && $claimIsInScope && \Illuminate\Support\Facades\Schema::hasColumn($target->getTable(), 'store_id')) {
                             $target->store_id = $payload['store_id'];
                             $target->save();
                         }

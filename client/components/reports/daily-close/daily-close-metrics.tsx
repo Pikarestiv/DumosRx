@@ -163,7 +163,7 @@ export function DailyCloseMetrics({
           description="Profit before expenses, minus the expenses that belong to this day."
           breakdown={profitAfterExpensesBreakdown}
           totalLabel={DAILY_CLOSE_PROFIT_AFTER_EXPENSES_LABEL}
-          footnote="Every expense dated this day counts in full, however it was paid. An expense spread over several months (such as rent paid for a quarter) counts only one day's share of its monthly amount, on every day of the months it covers. The Expenses link lists expenses dated this day, so a spread expense entered on another date is not in that list."
+          footnote="Every expense dated this day counts in full, however it was paid, unless it is spread. An expense spread over several months (such as rent paid for a quarter) counts only one day's share of its monthly amount, on every day of the months it covers. The Expenses link lists expenses dated this day, so a spread expense entered on another date is not in that list, and one dated this day appears there at its full amount."
           currencyCode={currencyCode}
         />
       )}

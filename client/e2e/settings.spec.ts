@@ -161,7 +161,7 @@ test.describe('Settings', () => {
     await loginAsPaidTier(page);
 
     await page.goto('/settings/staff');
-    await page.getByRole('tab', { name: 'Roles & Permissions' }).click();
+    await page.getByRole('tab', { name: 'Roles' }).click();
     await expect(page.getByRole('button', { name: 'New Group' })).toBeVisible();
 
     // Auditor's seeded default set grants reports/expenses only, so this

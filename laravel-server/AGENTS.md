@@ -1078,6 +1078,31 @@ migration here **and** the corresponding update on the `client/` side
     resolves to a store outside the caller's scope. Don't "tidy" the
     fail-open away — `backfillStoreIdOnLegacyRows` is still live for
     accounts with local DBs older than its ship date.
+  - **Authorize on the row as stored; apply a payload's claim only after.**
+    The DELETE branch honours a legacy row's `store_id` claim (the client's
+    `softDelete()` sends the active store for a row whose local `store_id` is
+    NULL), but it must write that claim onto `$target` *after*
+    `authorizeChangeTarget()` passes, never before: `resolveChangeStoreId()`
+    reads `$target->store_id`, so a pre-applied claim made the caller's own
+    assertion the thing that authorized it (A-298 — any tenant could delete
+    another's NULL-store product by naming its own store). UPDATE already had
+    the right order (find → authorize → `forceFill()`). A row that falls open
+    still takes the claim, which is the §11 trade the bullet above describes —
+    but only a claim naming one of the caller's own stores is ever written.
+    `normalizePushPayload()` checks `store_id` only for
+    `STORE_ID_BACKFILL_TABLES`, so on a child table the branch checks it
+    itself; without that, a fall-open child line took whatever store the
+    payload named, another tenant's included.
+  - **A DELETE against `audit_logs` is refused as `unsupported_operation`,
+    never looked up.** The client only ever queues INSERT for it (even
+    `logAction()`'s repeat-dedup in `client/lib/db/core.ts` rewrites the
+    pending INSERT), and `ActivityLog` has no `SoftDeletes`, so a delete would
+    be a hard delete of a tamper-evidence record. Worse, `activity_logs.id` is
+    the server's bigint while the client's id lives in
+    `properties->client_id`, so `find()` on a client id coerces it to its
+    leading numeric run and can hit an unrelated row in the same store, which
+    store-ownership authorization then waves through. There is no correct row
+    to find, so the branch does not guess.
   - `normalizePushPayload()`'s foreign-`store_id` rejection is deliberately
     **not** gated on `$currentStoreId`. It used to be, which meant a caller
     who owns no store yet (`resolvePushStoreId()` → null) had an explicit

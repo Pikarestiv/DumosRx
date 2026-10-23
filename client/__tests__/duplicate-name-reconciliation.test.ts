@@ -80,26 +80,14 @@ describe("pull.ts duplicate-name reconciliation", () => {
     const localCat = db.exec(`SELECT _deleted FROM categories WHERE id = 'local-cat'`);
     expect(localCat[0].values[0][0]).toBe(1);
 
-    // p1 had no _sync_queue entry at all (it was already fully synced under
-    // the old id) — without requeueing, this corrected category_id would
-    // never reach the server: _synced would stay 0 forever with nothing to
-    // push it.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-duplicate-name-reconciliation-test-ts-L83
     const queued = db.exec(`SELECT operation, payload FROM _sync_queue WHERE table_name = 'products' AND record_id = 'p1'`);
     expect(queued[0].values[0][0]).toBe("INSERT");
     const payload = JSON.parse(queued[0].values[0][1] as string);
     expect(payload.category_id).toBe("server-cat");
   });
 
-  /**
-   * A-301, measured on production: 2,138 products of one store and 2,500 of
-   * the other were repointed at each other's same-named categories, in two
-   * four-minute bursts. A device holding both stores pulls the ACTIVE store's
-   * categories, so the other store's local rows are never in `serverIds` and
-   * looked orphaned — then matched by name, remapped, and soft-deleted,
-   * taking that store's whole catalogue with them. Every device of the losing
-   * store then renders "Uncategorized" for ever, because a pull only ever
-   * delivers its own store's categories.
-   */
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-duplicate-name-reconciliation-test-ts-L93
   it("leaves another store's products and categories alone while reconciling the active store's", async () => {
     core.setActiveStoreId("store-a");
     db.run(`INSERT INTO categories (id, name, store_id, _deleted) VALUES ('cat-a', 'Drugs', 'store-a', 0)`);
@@ -130,15 +118,7 @@ describe("pull.ts duplicate-name reconciliation", () => {
     expect(otherCategory[0].values[0][0]).toBe(0);
   });
 
-  /**
-   * The scope must come from the PAGE, not from whichever store happens to be
-   * active when the response lands. `switchStore()` flips the resolver
-   * synchronously but does not cancel an in-flight `runSync()`, so a pull
-   * requested for store A can be applied while B is active — and an
-   * active-store scope would then treat B's categories as the candidates and
-   * repoint B's catalogue at A's category. Scoping by each losing row's own
-   * `store_id` removes the timing dependency entirely.
-   */
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-duplicate-name-reconciliation-test-ts-L133
   it("touches nothing when the pulled page belongs to a different store than the one now active", async () => {
     core.setActiveStoreId("store-b");
     db.run(`INSERT INTO categories (id, name, store_id, _deleted) VALUES ('cat-b', 'Drugs', 'store-b', 0)`);
@@ -159,6 +139,38 @@ describe("pull.ts duplicate-name reconciliation", () => {
 
     const category = db.exec(`SELECT _deleted FROM categories WHERE id = 'cat-b'`);
     expect(category[0].values[0][0]).toBe(0);
+  });
+
+  async function pullUnscopedPageOverLegacyCategory(storeIds: string[]): Promise<unknown[]> {
+    for (const id of storeIds) db.run(`INSERT INTO stores (id, name) VALUES (?, ?)`, [id, id]);
+    db.run(`INSERT INTO categories (id, name, store_id, _deleted) VALUES ('legacy-cat', 'Analgesics', NULL, 0)`);
+    db.run(`INSERT INTO products (id, name, category_id, store_id, _deleted) VALUES ('p-a', 'Panadol', 'legacy-cat', 'store-a', 0)`);
+    db.run(`INSERT INTO products (id, name, category_id, store_id, _deleted) VALUES ('p-b', 'Coartem', 'legacy-cat', 'store-b', 0)`);
+
+    apiClient.pullChanges.mockResolvedValueOnce({
+      success: true,
+      changes: {
+        categories: [{ id: "server-legacy-cat", name: "Analgesics", store_id: null, _version: 1 }],
+      },
+      server_timestamp: "2026-10-23T00:00:00Z",
+    });
+
+    try {
+      await pullChanges();
+      return db.exec(`SELECT category_id FROM products ORDER BY id`)[0].values.map((row) => row[0]);
+    } finally {
+      db.run(`DELETE FROM stores`);
+    }
+  }
+
+  it("does not fold a NULL-store category on a two-store device, even from a page that carries one (A-303)", async () => {
+    expect(await pullUnscopedPageOverLegacyCategory(["store-a", "store-b"])).toEqual(["legacy-cat", "legacy-cat"]);
+    const legacy = db.exec(`SELECT _deleted FROM categories WHERE id = 'legacy-cat'`);
+    expect(legacy[0].values[0][0]).toBe(0);
+  });
+
+  it("still folds a NULL-store category on a single-store device, the case the legacy fold exists for", async () => {
+    expect(await pullUnscopedPageOverLegacyCategory(["store-a"])).toEqual(["server-legacy-cat", "server-legacy-cat"]);
   });
 
   it("rewrites a stale _sync_queue payload that still has the old category id", async () => {

@@ -1696,18 +1696,26 @@ it resolves to no store, which is not the same as belonging to someone else, and
 a batch may legitimately arrive later in the same backlog. Only an existing
 batch in a foreign store is refused.
 
-**The refusal is reported but the current client ignores it.** Every entry
-`applyStockBatchDeltas()` adds to `$failed` carries `'id' => null` (there is no
-queue row behind an accumulated delta — the movement's own row was already
-accepted), and `push.ts`'s failure loop opens with `if (f.id == null) continue;`.
-So it reaches the response, the `Log::warning` and `SyncFailureRecorder`, and
-nothing else: it is not parked the way A-165 parks a `forbidden` row, and
-nothing is settled. That is worse than a parked row and much better than a
-silent cross-tenant write. Making it visible on the device needs the null-id
-case handled in `push.ts` first; filed as part of A-280's entry.
+**Since A-287 (2026-10-23) the whole movement is refused, not just its delta.**
+`authorizeInsertTarget('stock_movements')` runs the same `isBatchOutsideScope()`
+check on the payload's `stock_batch_id`, so a movement against a batch whose
+product is outside the session's scope is refused `forbidden` with the change's
+own queue id, and `push.ts` parks it under A-165's retry machinery. Before, the
+movement was accepted and only its delta refused with `'id' => null`, which the
+client skips (`if (f.id == null) continue;`), so the batch's cloud quantity froze
+while the device knew nothing. That is the mis-stamped product case (A-248): a
+staff session of store 1 selling from a batch whose product says store 2. A stuck
+queue row is the signal an operator can act on (run
+`sync:repair-product-store-stamps`, after which the parked row succeeds).
+`forbidden`, not `permission_denied`, because a staff session's scope is narrower
+than its owner's and the same payload can succeed later.
 
-**§11:** server-only, no shim. A legitimate client never names another tenant's
-batch, and the response shape is unchanged.
+The delta check in `applyStockBatchDeltas()` stays as the backstop for a batch
+that did not exist when its movement was authorized (the fail-open above) and
+was then created in the same push.
+
+**§11:** server-only, no shim. The refusal uses an existing reason the client
+already parks; the response shape is unchanged.
 
 ## A raw `update()` on a synced table must move `_version` (A-245, 2026-10-18)
 

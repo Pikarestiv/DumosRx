@@ -2519,6 +2519,10 @@ class SyncController extends Controller
             return true;
         }
 
+        if ($tableName === 'stock_movements' && !empty($payload['stock_batch_id']) && $this->isBatchOutsideScope($payload['stock_batch_id'], $allowedStoreIds)) {
+            return false;
+        }
+
         $resolvedStoreId = $this->resolveChangeStoreId($tableName, (object) $payload);
 
         if ($resolvedStoreId === null) {

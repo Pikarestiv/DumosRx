@@ -102,6 +102,7 @@ class SyncPushStockMovementBatchScopeTest extends TestCase
             'setup' => true,
             'changes' => [
                 [
+                    'id' => 7,
                     'table_name' => 'stock_movements',
                     'operation' => 'INSERT',
                     'record_id' => $movementId,
@@ -138,12 +139,44 @@ class SyncPushStockMovementBatchScopeTest extends TestCase
             (float) DB::table('stock_batches')->where('id', 'victim-batch')->value('quantity'),
             "A push from one store must not move another store's batch quantity.",
         );
-        $this->assertSame(
-            'permission_denied',
-            collect($response->json('failed'))
-                ->firstWhere('record_id', 'victim-batch')['reason'] ?? null,
-            'The refused delta must be reported, not silently dropped.',
-        );
+        $this->assertMovementParkedAsForbidden($response);
+    }
+
+    /** A-287: the refusal is the whole movement's, carrying its queue id, so the device parks it visibly. */
+    private function assertMovementParkedAsForbidden($response): void
+    {
+        $failed = collect($response->json('failed'));
+        $this->assertCount(1, $failed);
+        $this->assertSame('stock_movements', $failed[0]['table_name']);
+        $this->assertSame(7, $failed[0]['id']);
+        $this->assertSame('forbidden', $failed[0]['reason']);
+        $this->assertSame(0, DB::table('stock_movements')->where('id', $failed[0]['record_id'])->count());
+    }
+
+    public function test_a_staff_sale_against_a_batch_whose_product_was_stamped_to_a_sibling_store_is_parked_whole()
+    {
+        $sibling = Store::create([
+            'user_id' => $this->attackerOwner->id,
+            'name' => 'Sibling Store',
+            'slug' => 'sibling-store',
+            'device_id' => 'WEB-SIBLING',
+            'currency' => 'NGN',
+        ]);
+        $staff = User::create([
+            'first_name' => 'Till',
+            'last_name' => 'Staff',
+            'email' => 'till-staff@dumosrx.com',
+            'password' => bcrypt('password'),
+            'role' => 'sales_staff',
+            'store_id' => $this->attackerStore->id,
+        ]);
+        $this->seedBatch($sibling->id, $this->attackerOwner->id, 'mis-stamped-product', 'mis-stamped-batch', 40);
+
+        $response = $this->pushMovement($staff, 'mis-stamped-batch', -5, 'mis-stamped-product');
+
+        $response->assertStatus(200);
+        $this->assertMovementParkedAsForbidden($response);
+        $this->assertSame(40.0, (float) DB::table('stock_batches')->where('id', 'mis-stamped-batch')->value('quantity'));
     }
 
     public function test_a_movement_against_the_callers_own_batch_still_applies()

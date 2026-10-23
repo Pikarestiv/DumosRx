@@ -323,4 +323,58 @@ class SyncPushCrossStoreSupplierTest extends TestCase
         $this->assertSame($this->supplierB->id, $this->storedSupplierId('purchase_orders', 'po-own-1'));
         $this->assertDatabaseMissing('sync_failures', ['record_id' => 'po-own-1']);
     }
+
+    private function pushBatch(string $batchId, ?string $batchStoreId, string $productStoreId): void
+    {
+        $productId = 'prod-'.$batchId;
+        DB::table('products')->insert([
+            'id' => $productId, 'store_id' => $productStoreId, 'user_id' => $this->owner->id,
+            'name' => 'Paracetamol', 'selling_price' => 100, '_version' => 1,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->push([
+            'table_name' => 'stock_batches',
+            'operation' => 'INSERT',
+            'record_id' => $batchId,
+            'payload' => array_filter([
+                'id' => $batchId, 'product_id' => $productId, 'store_id' => $batchStoreId,
+                'supplier_id' => $this->supplierA->id, 'batch_number' => 'B-'.$batchId,
+                'quantity' => 1, 'cost_price' => 50, '_version' => 1,
+            ], fn ($v) => $v !== null),
+        ])->assertStatus(200);
+    }
+
+    public function test_a_legacy_batch_with_no_store_of_its_own_is_re_owned_through_its_product()
+    {
+        $this->pushBatch('batch-legacy', null, $this->storeB->id);
+
+        $this->assertSame($this->supplierB->id, $this->storedSupplierId('stock_batches', 'batch-legacy'));
+    }
+
+    public function test_a_batch_is_judged_by_its_products_store_not_its_own()
+    {
+        $this->pushBatch('batch-drifted', $this->storeA->id, $this->storeB->id);
+
+        $this->assertSame($this->supplierB->id, $this->storedSupplierId('stock_batches', 'batch-drifted'));
+    }
+
+    public function test_a_created_supplier_belongs_to_the_stores_owner()
+    {
+        $fidson = $this->makeSupplier($this->storeA->id, 'Fidson');
+
+        $this->push($this->purchaseOrderInsert('po-owner-1', $fidson->id))->assertStatus(200);
+
+        $this->assertSame($this->owner->id, Supplier::find($this->storedSupplierId('purchase_orders', 'po-owner-1'))->user_id);
+    }
+
+    public function test_an_existing_supplier_that_was_only_matched_is_not_restamped()
+    {
+        DB::table('suppliers')->where('id', $this->supplierB->id)->update(['_synced_at' => now()->subDay(), 'updated_at' => now()->subDays(2)]);
+        $stamp = DB::table('suppliers')->where('id', $this->supplierB->id)->value('_synced_at');
+
+        $this->push($this->purchaseOrderInsert('po-matched-1', $this->supplierA->id))->assertStatus(200);
+
+        $this->assertSame($stamp, DB::table('suppliers')->where('id', $this->supplierB->id)->value('_synced_at'));
+    }
 }

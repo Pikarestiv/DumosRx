@@ -65,7 +65,7 @@ class CrossStoreReferenceGuard
 
             $referent = $this->referent($model, $referencedId);
 
-            if (! $this->isSameOwnersOtherStore($referent['store_id'] ?? null, $rowStoreId)) {
+            if (! $this->mayReOwn($model, $referent['store_id'] ?? null, $rowStoreId)) {
                 continue;
             }
 
@@ -91,7 +91,7 @@ class CrossStoreReferenceGuard
     {
         foreach ($this->pendingReferents as [$model, $id]) {
             $row = $model::withTrashed()->find($id);
-            if ($row !== null) {
+            if ($row !== null && $this->wasWrittenUnstamped($row)) {
                 $restamper->remember($row);
             }
         }
@@ -122,15 +122,29 @@ class CrossStoreReferenceGuard
         $this->pendingReferents = [];
     }
 
-    private function isSameOwnersOtherStore(?string $referentStoreId, string $rowStoreId): bool
+    /** Categories re-own across tenants as A-302 always did; a supplier's name never crosses one. */
+    private function mayReOwn(string $model, ?string $referentStoreId, string $rowStoreId): bool
     {
         if ($referentStoreId === null || $referentStoreId === $rowStoreId) {
             return false;
         }
 
+        if ($model !== Supplier::class) {
+            return true;
+        }
+
         $owner = $this->storeOwner($rowStoreId);
 
         return $owner !== null && $owner === $this->storeOwner($referentStoreId);
+    }
+
+    /** A row this request created or revived carries no stamp newer than its own write. */
+    private function wasWrittenUnstamped(\Illuminate\Database\Eloquent\Model $row): bool
+    {
+        $syncedAt = $row->getAttribute('_synced_at');
+        $updatedAt = $row->getAttribute('updated_at');
+
+        return $syncedAt === null || ($updatedAt !== null && \Illuminate\Support\Carbon::parse($syncedAt)->lt($updatedAt));
     }
 
     private function storeOwner(string $storeId): ?string

@@ -3646,18 +3646,26 @@ a pushed row naming **a sibling store's** supplier (another store of the same
 owner) is re-owned onto its own store's same-named supplier, and the change is
 recorded in `sync_failures` as `cross_store_reference`.
 
-- **Same owner only, for categories too.** A referent in another tenant's store
-  is left exactly as pushed, never copied: copying would plant that tenant's
-  supplier or category name in the pusher's store, where their next pull
-  returns it. A referent that does not exist or has no `store_id` is also left
+- **Suppliers: same owner only. Categories: any other store, as A-302 always
+  did.** A supplier in another tenant's store is left exactly as pushed: copying
+  it would plant that tenant's supplier name (who they buy from) in the
+  pusher's store. Category names are generic, and re-owning a foreign-tenant
+  category is how A-302 heals the A-189 shape, so that stays.
+- **A `stock_batches` row's store is its product's**, the same rule as
+  `resolveParentStoreId()` and pull scoping (`guardedRowStoreId()`), never the
+  batch's own `store_id`, which is `NULL` on legacy batches and can disagree
+  with the product. A referent that does not exist or has no `store_id` is also left
   alone (A-294, A-288). A **soft-deleted** referent in a sibling store is still
   re-owned; its store's devices never pull it either.
 - **The row's store is the one being written.** On UPDATE the guard checks
   against `$payload['store_id'] ?? $model->store_id`, because `forceFill()`
   applies the payload's store.
 - **Suppliers: live match, else create; never revive.** `OwnedSupplierResolver`
-  matches `LOWER(TRIM(name))`, oldest first when a store has duplicates, and
-  creates a new supplier with the **name and `is_active` only**: the referent
+  locks the store row first (suppliers have no unique index, so two concurrent
+  pushes could otherwise both create one), matches the name exactly as
+  `findDuplicateInsertConflict()` does, oldest first when a store has
+  duplicates, and creates a new supplier with the **name, `is_active` and the
+  store owner as `user_id` only**: the referent
   can belong to another tenant, so contact details never cross. It does not
   restore a supplier the store soft-deleted (categories revive only because
   their `(store_id, name)` unique index counts trashed rows; suppliers have no
@@ -3668,8 +3676,9 @@ recorded in `sync_failures` as `cross_store_reference`.
   `commitChange($restamper)` beside the restamper's own commit. A remap from a
   change that rolled back is never reported, its memo entries are forgotten (so
   a later change in the batch cannot be pointed at a supplier the rollback
-  removed), and every re-owned row is handed to the restamper so a created
-  supplier is stamped at commit (A-286). The UPDATE-path call sits after the
+  removed), and a referent this request created or revived is handed to the
+  restamper so it is stamped at commit (A-286); one that was only matched is
+  left alone, so it is not re-pulled for nothing. The UPDATE-path call sits after the
   version-conflict check, so a rejected change creates nothing.
 - **Why it exists:** the client's push-side `id_map` remap of a legacy
   `NULL`-store supplier is deliberately unscoped (`client/AGENTS.md`,

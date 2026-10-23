@@ -268,4 +268,26 @@ class SyncPushCrossStoreCategoryTest extends TestCase
             DB::table('products')->where('id', 'prod-legacy')->value('category_id'),
         );
     }
+
+    public function test_a_product_naming_another_tenants_category_is_still_re_owned_as_before()
+    {
+        $stranger = User::create([
+            'first_name' => 'Other', 'last_name' => 'Tenant', 'email' => 'cross-stranger@dumosrx.com',
+            'password' => bcrypt('password'), 'role' => 'admin',
+        ]);
+        $foreignStore = Store::create([
+            'user_id' => $stranger->id, 'name' => 'Foreign', 'email' => 'cross-foreign@dumosrx.com',
+            'phone' => '4999999999', 'address' => 'F St', 'slug' => 'cross-foreign', 'device_id' => 'WEB-CROSS-FOREIGN',
+        ]);
+        $foreignDrugs = $this->makeCategory($foreignStore->id, 'drugs');
+
+        $this->push([
+            'table_name' => 'products',
+            'operation' => 'INSERT',
+            'record_id' => 'prod-foreign-cat',
+            'payload' => ['id' => 'prod-foreign-cat', 'name' => 'Panadol', 'category_id' => $foreignDrugs->id, 'selling_price' => 500],
+        ], $this->storeA->id)->assertStatus(200);
+
+        $this->assertSame($this->categoryA->id, DB::table('products')->where('id', 'prod-foreign-cat')->value('category_id'));
+    }
 }

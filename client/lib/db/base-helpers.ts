@@ -15,6 +15,7 @@ import {
   transaction,
   isInTransaction,
 } from "./core";
+import { deviceHoldsSeveralStores } from "./device-stores";
 import {
   isTillInspectionSession,
   READ_ONLY_REFUSAL_MESSAGE,
@@ -68,8 +69,7 @@ async function assertStoreOwnership(
   if (!row) return { needsClaim: false }; // No such row; let the caller's own statement naturally no-op.
 
   if (row.store_id === null || row.store_id === undefined) {
-    const [stores] = await query<{ count: number }>("SELECT COUNT(*) AS count FROM stores");
-    return (stores?.count ?? 0) > 1 ? { needsClaim: false } : { needsClaim: true, activeStoreId };
+    return (await deviceHoldsSeveralStores()) ? { needsClaim: false } : { needsClaim: true, activeStoreId };
   }
 
   if (row.store_id !== activeStoreId) {

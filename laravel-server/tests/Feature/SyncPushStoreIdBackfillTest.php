@@ -326,4 +326,77 @@ class SyncPushStoreIdBackfillTest extends TestCase
 
         $this->assertSame($this->store->id, DB::table('loyalty_tiers')->where('id', $tierId)->value('store_id'));
     }
+
+    private function seedProduct(string $id, ?string $storeId): void
+    {
+        DB::table('products')->insert([
+            'id' => $id, 'store_id' => $storeId, 'user_id' => $this->owner->id,
+            'name' => 'swibetic card', 'selling_price' => 500, '_version' => 1,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+    public function test_the_incident_shape_a_product_edited_under_the_other_store_stays_in_its_own()
+    {
+        $second = $this->createSecondStore();
+        $this->seedProduct('product-a248', $this->store->id);
+
+        $this->push('products', 'product-a248', [
+            'id' => 'product-a248', 'store_id' => $second->id, 'selling_price' => 650, '_version' => 1,
+        ], 'UPDATE', ['X-Store-Id' => $second->id])->assertJsonCount(0, 'failed');
+
+        $row = DB::table('products')->where('id', 'product-a248')->first();
+        $this->assertSame($this->store->id, $row->store_id);
+        $this->assertEquals(650, $row->selling_price);
+    }
+
+    public function test_a_soft_delete_sent_as_an_update_does_not_move_the_row_either()
+    {
+        $second = $this->createSecondStore();
+        $this->seedProduct('product-a248-deleted', $this->store->id);
+
+        $this->push('products', 'product-a248-deleted', [
+            'id' => 'product-a248-deleted', 'store_id' => $second->id, '_deleted' => 1, '_version' => 1,
+        ], 'UPDATE', ['X-Store-Id' => $second->id])->assertStatus(200);
+
+        $row = DB::table('products')->where('id', 'product-a248-deleted')->first();
+        $this->assertSame($this->store->id, $row->store_id);
+        $this->assertNotNull($row->deleted_at);
+    }
+
+    public function test_a_two_store_owners_claim_on_a_store_less_row_is_ignored_as_a_guess()
+    {
+        $second = $this->createSecondStore();
+        $this->seedProduct('product-a248-legacy', null);
+
+        $this->push('products', 'product-a248-legacy', [
+            'id' => 'product-a248-legacy', 'store_id' => $second->id, 'selling_price' => 700, '_version' => 1,
+        ], 'UPDATE', ['X-Store-Id' => $second->id])->assertJsonCount(0, 'failed');
+
+        $row = DB::table('products')->where('id', 'product-a248-legacy')->first();
+        $this->assertNull($row->store_id);
+        $this->assertEquals(700, $row->selling_price);
+    }
+
+    public function test_editing_a_staff_member_under_the_other_store_does_not_move_them_but_a_reassignment_does()
+    {
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $second = $this->createSecondStore();
+        $staff = User::create([
+            'first_name' => 'Kept', 'last_name' => 'Staff', 'email' => 'kept-staff@dumosrx.com',
+            'password' => bcrypt('password'), 'role' => 'sales_staff', 'store_id' => $this->store->id,
+        ]);
+
+        $edit = $this->push('users', $staff->id, [
+            'id' => $staff->id, 'phone' => '08011112222',
+        ], 'UPDATE', ['X-Store-Id' => $second->id]);
+        $edit->assertJsonCount(0, 'failed');
+        $this->assertSame($this->store->id, DB::table('users')->where('id', $staff->id)->value('store_id'));
+
+        $move = $this->push('users', $staff->id, [
+            'id' => $staff->id, 'store_id' => $second->id,
+        ], 'UPDATE', ['X-Store-Id' => $second->id]);
+        $move->assertJsonCount(0, 'failed');
+        $this->assertSame($second->id, DB::table('users')->where('id', $staff->id)->value('store_id'));
+    }
 }

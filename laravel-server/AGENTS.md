@@ -1084,22 +1084,38 @@ migration here **and** the corresponding update on the `client/` side
   `$directStoreTables` now hold the same 21 tables (the six parent-FK child
   tables reach the resolver through its own per-table branches instead);
   keep them that way.
-  - **An UPDATE never moves a row that already has a store (A-248, 2026-10-23).**
-    `withoutStoreReassignment()` drops a payload `store_id` before
-    `forceFill()` whenever the stored row's `store_id` is set, on every table
-    except `users` (a staff member is reassigned through it). The rest of the
-    edit still applies, and the row's next pull hands the device its real
-    store back. `normalizePushPayload()`'s foreign-store refusal only rejects
-    stores outside the caller's scope, and for an owner that is every store
-    they own, so without this an owner's device could move a row between its
-    own stores, which is how two production products changed tenant. A stored
-    `NULL` can still be claimed (a legacy row must sync, §11). Nothing in the
-    client moves a business row between stores; the only legitimate move is
+  - **An UPDATE never moves a row that already has a store, and a store-less
+    row's claim counts only from a single-store session (A-248, 2026-10-23).**
+    `withoutStoreReassignment()` runs just before the UPDATE branch's
+    `forceFill()`, on every table except `users`:
+    - a payload `store_id` that differs from a stored, non-`NULL` one is
+      dropped, and the rest of the edit applies. `normalizePushPayload()`'s
+      foreign-store refusal only rejects stores outside the caller's scope,
+      and for an owner that is every store they own, so without this an
+      owner's device could move a row between its own stores, which is how
+      two production products changed tenant;
+    - a claim on a stored `NULL` is honoured only when the session can write
+      exactly one store (`claimIsAGuess()`); a multi-store owner's claim is the
+      active store, i.e. a guess, so the row stays unattributed. The A-298
+      DELETE claim follows the same rule. The client applies it too
+      (`deviceHoldsSeveralStores()`), so a current bundle never sends one.
+    - **What the server cannot fix:** an old bundle already wrote the wrong
+      store into its *local* row. The server keeps the real one, but nothing in
+      the push response rewrites a local `store_id`, and a pull for the wrong
+      store does not include the row, so that device holds the wrong copy
+      until it next pulls the row's real store.
+    `users` is exempt because a staff member is reassigned through it, which
+    is also why its own store backfill in `normalizePushPayload()` is
+    **INSERT-only**: on UPDATE it used to fill in the active store whenever
+    the payload carried no `role`, so editing a staff member's phone under
+    another store moved them there. A resent `users` INSERT flipped to UPDATE
+    drops a merely-backfilled `store_id` too. Nothing in the client moves a
+    business row between stores; the only legitimate move is
     `sync:repair-product-store-stamps`, which runs server-side.
   - **The backfill half of that list is INSERT-only; the foreign-store
     refusal half is not.** `normalizePushPayload()` runs for every operation,
-    and a client UPDATE never resends `store_id` (ownership is immutable
-    client-side), so an unconditional backfill reassigned a row to whichever
+    and a client UPDATE normally carries no `store_id` (the exception is the
+    legacy-row claim, below), so an unconditional backfill reassigned a row to whichever
     store happened to be active for that push — a real outcome for a
     multi-store owner flushing writes queued before a store switch, and one
     `authorizeChangeTarget()` cannot catch, because it resolves ownership

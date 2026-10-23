@@ -368,7 +368,7 @@ class SyncController extends Controller
                         $insertOverrides++;
                         // normalizePushPayload() already ran, so it gated its
                         // store_id backfill on the pre-override operation.
-                        if (!$clientNamedStoreId && in_array($change['table_name'], self::STORE_ID_BACKFILL_TABLES, true)) {
+                        if (!$clientNamedStoreId && ($change['table_name'] === 'users' || in_array($change['table_name'], self::STORE_ID_BACKFILL_TABLES, true))) {
                             unset($payload['store_id']);
                         }
                     }
@@ -701,7 +701,7 @@ class SyncController extends Controller
                             }
                         }
 
-                        $payload = $this->withoutStoreReassignment($change['table_name'], $payload, $model);
+                        $payload = $this->withoutStoreReassignment($change['table_name'], $payload, $model, $isSuperAdmin ? null : $allowedStoreIds);
 
                         $model->forceFill($payload);
                         if ($newVersion !== null) {
@@ -770,7 +770,8 @@ class SyncController extends Controller
                             ];
                             continue;
                         }
-                        $claimIsInScope = !empty($payload['store_id']) && ($isSuperAdmin || in_array($payload['store_id'], $allowedStoreIds, true));
+                        $claimIsInScope = !empty($payload['store_id'])
+                            && ($isSuperAdmin || (in_array($payload['store_id'], $allowedStoreIds, true) && !$this->claimIsAGuess($allowedStoreIds)));
                         if (empty($target->store_id) && $claimIsInScope && \Illuminate\Support\Facades\Schema::hasColumn($target->getTable(), 'store_id')) {
                             $target->store_id = $payload['store_id'];
                             $target->save();
@@ -1665,27 +1666,42 @@ class SyncController extends Controller
         $conflict->save();
     }
 
-    /**
-     * Whether an accumulated delta's batch exists and belongs to a store the
-     * pusher may not write to. A batch that does not exist resolves to no
-     * store and is deliberately NOT out of scope — see
-     * laravel-server/AGENTS.md, "Stock batch deltas are store-scoped".
-     */
-    /** A-248: a device may claim a row that has no store, but never move one that has. */
-    private function withoutStoreReassignment(string $tableName, array $payload, $model): array
+    /** A-248: a device may claim a store-less row only when it has one store to claim it for, and never move one that has a store. */
+    private function withoutStoreReassignment(string $tableName, array $payload, $model, ?array $allowedStoreIds): array
     {
-        if ($tableName === 'users' || !array_key_exists('store_id', $payload) || empty($model->store_id)) {
+        if ($tableName === 'users' || !array_key_exists('store_id', $payload)) {
             return $payload;
         }
 
+        if (empty($model->store_id)) {
+            return $this->claimIsAGuess($allowedStoreIds) ? array_diff_key($payload, ['store_id' => true]) : $payload;
+        }
+
         if ($payload['store_id'] !== $model->store_id) {
-            Log::info("Sync push: kept {$tableName} {$model->getKey()} in store {$model->store_id}; ignored a reassignment to {$payload['store_id']} (A-248)");
+            Log::info('Sync push: ignored a store reassignment (A-248)', [
+                'table' => $tableName,
+                'record_id' => $model->getKey(),
+                'store_id' => $model->store_id,
+                'claimed_store_id' => $payload['store_id'],
+            ]);
         }
         unset($payload['store_id']);
 
         return $payload;
     }
 
+    /** A claim for a store-less row is only evidence when the session can write exactly one store. */
+    private function claimIsAGuess(?array $allowedStoreIds): bool
+    {
+        return $allowedStoreIds !== null && count($allowedStoreIds) > 1;
+    }
+
+    /**
+     * Whether an accumulated delta's batch exists and belongs to a store the
+     * pusher may not write to. A batch that does not exist resolves to no
+     * store and is deliberately NOT out of scope — see
+     * laravel-server/AGENTS.md, "Stock batch deltas are store-scoped".
+     */
     private function isBatchOutsideScope($stockBatchId, ?array $allowedStoreIds): bool
     {
         if ($allowedStoreIds === null) {
@@ -1866,8 +1882,7 @@ class SyncController extends Controller
             }
         }
 
-        // Ensure staff users get associated with the store
-        if ($change['table_name'] === 'users' && $currentStoreId) {
+        if ($change['table_name'] === 'users' && $currentStoreId && $change['operation'] === 'INSERT') {
             if (($payload['role'] ?? null) !== 'store_owner' && ($payload['role'] ?? null) !== 'admin') {
                 $payload['store_id'] = $payload['store_id'] ?? $currentStoreId;
             }

@@ -1745,7 +1745,12 @@ table the client never pulls.
     match anyway (the lookup is keyed `store_id|name` and a tenant-scoped page
     has no `NULL`-store rows), but a **super_admin's pull is unscoped** and
     does. Single-store devices still fold: that is the legacy case the fold
-    exists for. Pinned by `duplicate-name-reconciliation.test.ts`.
+    exists for. Pinned by `duplicate-name-reconciliation.test.ts`. The same
+    rule decides whether `update()`/`softDelete()` claim a `NULL`-store row
+    for the active store (A-248); both read it from
+    `lib/db/device-stores.ts`'s `deviceHoldsSeveralStores()`, so they cannot
+    drift. `backfillStoreIdOnLegacyRows()` applies it through the migration
+    adapter, which cannot use that helper.
   - **The push-side `id_map` remap of a `NULL`-store row is deliberately
     unscoped.** The server has already merged the row, so the mapping must be
     honoured; `remapForeignKey(…, null)` repoints every store's references and

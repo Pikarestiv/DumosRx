@@ -1711,14 +1711,21 @@ queue row is the signal an operator can act on (run
 `forbidden`, not `permission_denied`, because a staff session's scope is narrower
 than its owner's and the same payload can succeed later.
 
-The same check (`namesForeignBatch()`) refuses an UPDATE that repoints an
-existing movement at a batch outside the scope. The batch's store is one
-`stock_batches JOIN products` lookup, memoized per request.
+The same check (`namesForeignBatch()`) refuses an UPDATE that **repoints** an
+existing movement at a batch outside the scope; an UPDATE that leaves
+`stock_batch_id` unchanged (a resent INSERT, a void) is not refused, even if the
+batch has since left the scope. The batch's store is one
+`stock_batches JOIN products` lookup (soft-deleted products included), memoized
+within a push and reset at the start of each one: Laravel reuses the controller
+instance across requests, so a property memo would otherwise outlive the push.
 
-The delta check in `applyStockBatchDeltas()` is now defence in depth only: a
-batch that did not exist when its movement was authorized can appear in the
-same push solely through a `stock_batches` INSERT, which is itself refused for
-a foreign product. It is pinned by a direct test so it cannot rot unnoticed.
+The delta check in `applyStockBatchDeltas()` is defence in depth only, and
+looks the batch up fresh. `push()` sorts every `stock_movements` change to the
+end, so every batch write of a push lands before any movement is authorized,
+and a batch INSERT under a foreign product, live or soft-deleted, is itself
+refused (`resolveParentStoreId('stock_batches')` uses `withTrashed()`). It is
+pinned by a direct test so it cannot rot unnoticed. A batch UPDATE that
+repoints `product_id` is not checked at all: that is A-325.
 
 **A product legitimately moved between stores parks too, and only A-291 clears
 it.** A till of the losing store still holds the product (A-291's phantom) and

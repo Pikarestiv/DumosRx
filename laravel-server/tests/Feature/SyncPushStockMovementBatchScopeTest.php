@@ -88,9 +88,9 @@ class SyncPushStockMovementBatchScopeTest extends TestCase
         ]);
     }
 
-    private function pushMovement(User $as, string $batchId, float $quantity, ?string $productId = null)
+    private function pushMovement(User $as, string $batchId, float $quantity, ?string $productId = null, ?string $movementId = null)
     {
-        $movementId = 'movement-'.uniqid();
+        $movementId ??= 'movement-'.uniqid();
 
         return $this->actingAs($as)->postJson('/api/v1/app/sync/push', [
             'setup' => true,
@@ -271,5 +271,53 @@ class SyncPushStockMovementBatchScopeTest extends TestCase
 
         $this->assertSame('permission_denied', $failed[0]['reason'] ?? null);
         $this->assertSame(40.0, (float) DB::table('stock_batches')->where('id', 'victim-batch')->value('quantity'));
+    }
+
+    public function test_a_resent_movement_whose_batch_has_since_left_the_scope_is_still_accepted()
+    {
+        $this->seedBatch($this->victimStore->id, $this->attackerOwner->id, 'own-product', 'own-batch', 40);
+        DB::table('stock_movements')->insert([
+            'id' => 'movement-resent', 'stock_batch_id' => 'own-batch', 'product_id' => 'own-product',
+            'store_id' => $this->attackerStore->id, 'quantity' => -5, 'movement_type' => 'sale',
+            'performed_by' => $this->attackerOwner->id, '_version' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->pushMovement($this->attackerOwner, 'own-batch', -5, 'own-product', 'movement-resent')
+            ->assertJsonCount(0, 'failed');
+    }
+
+    public function test_a_parked_movement_succeeds_in_a_later_push_once_the_stamp_is_repaired()
+    {
+        $this->seedBatch($this->victimStore->id, $this->attackerOwner->id, 'stamped-product', 'stamped-batch', 40);
+        $this->assertMovementParkedAsForbidden($this->pushMovement($this->attackerOwner, 'stamped-batch', -5, 'stamped-product', 'movement-parked'));
+
+        DB::table('products')->where('id', 'stamped-product')->update(['store_id' => $this->attackerStore->id]);
+
+        $this->pushMovement($this->attackerOwner, 'stamped-batch', -5, 'stamped-product', 'movement-parked')
+            ->assertJsonCount(0, 'failed');
+        $this->assertSame(35.0, (float) DB::table('stock_batches')->where('id', 'stamped-batch')->value('quantity'));
+    }
+
+    public function test_a_batch_under_another_tenants_soft_deleted_product_is_refused()
+    {
+        $this->seedBatch($this->victimStore->id, $this->victimOwner->id, 'victim-trashed-product', 'victim-existing-batch', 1);
+        DB::table('products')->where('id', 'victim-trashed-product')->update(['deleted_at' => now()]);
+
+        $response = $this->actingAs($this->attackerOwner)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [[
+                'id' => 9,
+                'table_name' => 'stock_batches',
+                'operation' => 'INSERT',
+                'record_id' => 'planted-batch',
+                'payload' => [
+                    'id' => 'planted-batch', 'product_id' => 'victim-trashed-product', 'store_id' => $this->attackerStore->id,
+                    'batch_number' => 'P-1', 'quantity' => 0, 'cost_price' => 1, '_version' => 1,
+                ],
+            ]],
+        ]);
+
+        $response->assertJsonPath('failed.0.reason', 'forbidden');
+        $this->assertFalse(DB::table('stock_batches')->where('id', 'planted-batch')->exists());
     }
 }

@@ -93,8 +93,7 @@ class ForeignKeyCascadeEmulator
                     continue;
                 }
 
-                $parent = $foreignKey['foreign_table'];
-                $parent = str_contains($parent, '.') ? substr($parent, strrpos($parent, '.') + 1) : $parent;
+                $parent = SchemaTables::unqualified($foreignKey['foreign_table']);
 
                 $map[$parent][] = [
                     'table' => $name,

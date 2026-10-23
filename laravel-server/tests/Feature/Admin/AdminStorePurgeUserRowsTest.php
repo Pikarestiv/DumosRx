@@ -250,7 +250,7 @@ class AdminStorePurgeUserRowsTest extends TestCase
         $declared = [];
         foreach (\App\Support\SchemaTables::names() as $table) {
             foreach (\Illuminate\Support\Facades\Schema::getForeignKeys($table) as $foreignKey) {
-                if ($foreignKey['foreign_table'] === 'users' && strtolower((string) $foreignKey['on_delete']) === 'set null') {
+                if (\App\Support\SchemaTables::unqualified($foreignKey['foreign_table']) === 'users' && strtolower((string) $foreignKey['on_delete']) === 'set null') {
                     $declared[] = $table.'.'.$foreignKey['columns'][0];
                 }
             }
@@ -265,5 +265,74 @@ class AdminStorePurgeUserRowsTest extends TestCase
 
         $this->assertNotEmpty($declared);
         $this->assertSame([], array_values(array_diff($declared, $listed)));
+    }
+
+    private function legacySaleWithAReturn(): array
+    {
+        $sale = Sale::create([
+            'transaction_number' => 'TXN-RET-'.uniqid(),
+            'cashier_id' => $this->staff->id,
+            'subtotal' => 100, 'total_amount' => 100, 'payment_method' => 'cash',
+            'payment_status' => 'completed', 'amount_paid' => 100,
+        ]);
+        DB::table('sales')->where('id', $sale->id)->update(['store_id' => null]);
+        $returnId = (string) Str::uuid();
+        DB::table('returns')->insert([
+            'id' => $returnId, 'store_id' => null, 'sale_id' => $sale->id, 'user_id' => $this->staff->id,
+            'total_refunded' => 10, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $returnItemId = (string) Str::uuid();
+        DB::table('return_items')->insert([
+            'id' => $returnItemId, 'return_id' => $returnId, 'product_id' => (string) Str::uuid(),
+            'quantity' => 1, 'unit_price' => 100, 'subtotal' => 100, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        return [$returnId, $returnItemId];
+    }
+
+    #[Test]
+    #[\PHPUnit\Framework\Attributes\DataProvider('foreignKeyShapes')]
+    public function a_legacy_sales_returns_go_with_it_whether_or_not_the_schema_declares_foreign_keys(bool $declared): void
+    {
+        if (!$declared) {
+            $this->withoutDeclaredForeignKeys();
+        }
+        Store::create(['user_id' => $this->owner->id, 'name' => 'Kept', 'device_id' => 'DEV-PURGE-004', 'status' => Store::STATUS_ACTIVE]);
+        [$returnId, $returnItemId] = $this->legacySaleWithAReturn();
+
+        $this->purge();
+
+        $this->assertFalse(DB::table('returns')->where('id', $returnId)->exists());
+        $this->assertFalse(DB::table('return_items')->where('id', $returnItemId)->exists());
+    }
+
+    #[Test]
+    public function a_staff_members_vendor_is_kept_when_the_owner_keeps_another_store(): void
+    {
+        $this->withoutDeclaredForeignKeys();
+        Store::create(['user_id' => $this->owner->id, 'name' => 'Kept', 'device_id' => 'DEV-PURGE-005', 'status' => Store::STATUS_ACTIVE]);
+        $vendorId = (string) Str::uuid();
+        DB::table('vendors')->insert(['id' => $vendorId, 'user_id' => $this->staff->id, 'name' => 'Emzor', 'created_at' => now(), 'updated_at' => now()]);
+
+        $this->purge();
+
+        $this->assertTrue(DB::table('vendors')->where('id', $vendorId)->exists());
+    }
+
+    #[Test]
+    public function the_children_map_covers_every_cascade_the_schema_declares_for_a_swept_parent(): void
+    {
+        $missing = [];
+        foreach (\App\Support\SchemaTables::names() as $table) {
+            foreach (\Illuminate\Support\Facades\Schema::getForeignKeys($table) as $foreignKey) {
+                $parent = \App\Support\SchemaTables::unqualified($foreignKey['foreign_table']);
+                if (isset(\App\Services\Admin\PurgedUserRowSweeper::CHILDREN[$parent]) && strtolower((string) $foreignKey['on_delete']) === 'cascade'
+                    && (\App\Services\Admin\PurgedUserRowSweeper::CHILDREN[$parent][$table] ?? null) !== $foreignKey['columns'][0]) {
+                    $missing[] = "{$parent} -> {$table}.{$foreignKey['columns'][0]}";
+                }
+            }
+        }
+
+        $this->assertSame([], $missing);
     }
 }

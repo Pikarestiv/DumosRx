@@ -19,11 +19,16 @@ class PurgedUserRowSweeper
         'referral_credit_transactions' => ['referred_user_id'],
     ];
 
-    /** @var array<string, array<string, string>> Child table to its parent column, for parents carrying no user_id of their own. */
-    private const CHILDREN = [
-        'prescriptions' => ['prescription_items' => 'prescription_id'],
+    /** @var array<string, array<string, string>> Parent table to [child table => column naming the parent]; children are swept depth first. */
+    public const CHILDREN = [
+        'sales' => ['sale_items' => 'sale_id', 'returns' => 'sale_id'],
+        'sale_items' => ['sale_item_batches' => 'sale_item_id'],
         'returns' => ['return_items' => 'return_id'],
+        'prescriptions' => ['prescription_items' => 'prescription_id'],
     ];
+
+    /** Tenant business data with a user_id and no store_id: removed only when the whole tenant goes. */
+    private const TENANT_TABLES_WITHOUT_STORE = ['vendors'];
 
     /**
      * @param  list<string>  $userIds
@@ -38,18 +43,21 @@ class PurgedUserRowSweeper
         }
 
         foreach (SchemaTables::names() as $table) {
-            if (in_array($table, $skipTables, true) || !Schema::hasColumn($table, 'user_id')) {
+            if (in_array($table, $skipTables, true) || !in_array('user_id', Schema::getColumnListing($table), true)) {
                 continue;
             }
 
             $isStoreScoped = in_array($table, $storeScopedTables, true);
-            if ($isStoreScoped && !$wholeTenantGone) {
+            $isTenantData = $isStoreScoped || in_array($table, self::TENANT_TABLES_WITHOUT_STORE, true);
+            if ($isTenantData && !$wholeTenantGone) {
                 continue;
             }
 
             $query = DB::table($table)->whereIn('user_id', $userIds);
             if ($isStoreScoped) {
                 $query->whereNull('store_id');
+            }
+            if (isset(self::CHILDREN[$table])) {
                 $this->sweepChildren($table, (clone $query)->pluck('id')->all(), $removed);
             }
 
@@ -60,44 +68,35 @@ class PurgedUserRowSweeper
     }
 
     /**
-     * @param  list<string>  $saleIds
-     * @param  array<string, int>  $removed
-     */
-    public function sweepSaleChildren(array $saleIds, array &$removed): void
-    {
-        if ($saleIds === [] || !Schema::hasTable('sale_items')) {
-            return;
-        }
-
-        $saleItemIds = DB::table('sale_items')->whereIn('sale_id', $saleIds)->pluck('id')->all();
-
-        if ($saleItemIds !== [] && Schema::hasTable('sale_item_batches')) {
-            $this->count($removed, 'sale_item_batches', DB::table('sale_item_batches')->whereIn('sale_item_id', $saleItemIds)->delete());
-        }
-
-        $this->count($removed, 'sale_items', DB::table('sale_items')->whereIn('sale_id', $saleIds)->delete());
-    }
-
-    /**
+     * Deletes every descendant of $parentIds in $parentTable, per CHILDREN. Does not delete the parents.
+     *
      * @param  list<string>  $parentIds
      * @param  array<string, int>  $removed
      */
-    private function sweepChildren(string $parentTable, array $parentIds, array &$removed): void
+    public function sweepChildren(string $parentTable, array $parentIds, array &$removed): void
     {
         if ($parentIds === []) {
             return;
         }
 
-        if ($parentTable === 'sales') {
-            $this->sweepSaleChildren($parentIds, $removed);
-
-            return;
-        }
-
         foreach (self::CHILDREN[$parentTable] ?? [] as $childTable => $column) {
-            if (Schema::hasTable($childTable)) {
-                $this->count($removed, $childTable, DB::table($childTable)->whereIn($column, $parentIds)->delete());
+            if (!Schema::hasTable($childTable)) {
+                continue;
             }
+
+            if (isset(self::CHILDREN[$childTable])) {
+                $this->sweepChildren($childTable, DB::table($childTable)->whereIn($column, $parentIds)->pluck('id')->all(), $removed);
+            }
+
+            $this->count($removed, $childTable, DB::table($childTable)->whereIn($column, $parentIds)->delete());
+        }
+    }
+
+    /** @param array<string, int> $removed */
+    private function count(array &$removed, string $table, int $count): void
+    {
+        if ($count > 0) {
+            $removed[$table] = ($removed[$table] ?? 0) + $count;
         }
     }
 
@@ -143,11 +142,4 @@ class PurgedUserRowSweeper
         return $stamp;
     }
 
-    /** @param array<string, int> $removed */
-    private function count(array &$removed, string $table, int $count): void
-    {
-        if ($count > 0) {
-            $removed[$table] = ($removed[$table] ?? 0) + $count;
-        }
-    }
 }

@@ -148,9 +148,17 @@ foreign keys:
   a staff member's `NULL`-store rows may have been written at that store
   before `store_id` existed, so they are left, exactly as
   `sync:backfill-store-ids` refuses to guess. A row carrying **another**
-  store's id is never touched. A swept parent's children go with it
-  (`sale_items` and `sale_item_batches`, `prescription_items`,
-  `return_items`).
+  store's id is never touched. `vendors`, the one store-less business table,
+  follows the same whole-tenant rule.
+- **A swept parent's descendants go with it**, per
+  `PurgedUserRowSweeper::CHILDREN`: a sale's `sale_items` (and their
+  `sale_item_batches`) and `returns` (and their `return_items`), a
+  prescription's `prescription_items`. A test checks that map against every
+  `CASCADE` the schema declares for those parents, so a new child cannot be
+  covered by the emulator alone.
+- **Not swept:** a whole-tenant purge's `NULL`-store rows in tables that carry
+  no `user_id` (`purchase_orders`, `stock_movements`, `customer_payments`, …)
+  stay behind, because nothing on the row says whose they are (A-324).
 - **Kept on purpose:** a purged staff member's `activity_logs`,
   `user_devices` and `audit_logs` rows that carry a surviving store's id.
   They are that store's history; their `user_id` simply resolves to nobody.
@@ -160,10 +168,16 @@ foreign keys:
   the next pull instead of later failing a device's version check. A test
   checks the list against every `SET NULL` reference the schema declares, so
   a new one cannot be added to the migrations alone.
-- **A legacy cashier sale's `sale_items` and `sale_item_batches`** go with it.
+- **A legacy cashier sale goes with its children** even when the owner keeps
+  another store: its `cashier_id` attributes it to this store in the fleet
+  revenue query, so leaving it would move the purged store's revenue onto the
+  survivor. That is why a legacy *sale* is deleted where a staff member's other
+  `NULL`-store rows are kept.
 
 `ForeignKeyCascadeEmulator` still runs afterwards as a backstop for whatever a
-schema *does* declare, but is told to skip every store-scoped table. Without
+schema *does* declare, but is told to skip every store-scoped table, for the
+users cascade and the legacy-sale cascade alike, so both schema shapes delete
+the same rows. Without
 that, on a schema with FKs (the test suite's, a local MySQL built from the
 migrations, or production if constraints are ever added) its replay of
 `products.user_id → users ON DELETE CASCADE` deleted a sibling store's

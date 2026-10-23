@@ -260,8 +260,8 @@ class AdminStoreDeletionService
             return;
         }
 
-        $this->userRows->sweepSaleChildren($saleIds, $removed);
-        $this->cascades->cascadeChildren('sales', $saleIds, $removed);
+        $this->userRows->sweepChildren('sales', $saleIds, $removed);
+        $this->cascades->cascadeChildren('sales', $saleIds, $removed, $this->storeScopedTables());
 
         $count = DB::table('sales')->whereIn('id', $saleIds)->delete();
 

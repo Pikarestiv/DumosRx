@@ -54,6 +54,12 @@ suggested tackle order rather than a strict ranking.
 - **Consequence:** store B's devices never pull store A's supplier, so those purchase orders and payments show no supplier there, permanently. Bounded the same way A-303 was: un-backfilled multi-store devices and suppliers created before the 2026-08 migration.
 - **Fix:** extend `CrossStoreReferenceGuard::GUARDED` to `purchase_orders.supplier_id`, `supplier_payments.supplier_id` and `stock_batches.supplier_id`, with a supplier counterpart of `resolveOwnedCategoryId()`. Do **not** scope the client remap instead: the server has already merged the row, so a scoped remap leaves store B on an id that exists nowhere, which is worse (see A-303 in `docs/FIXED_BUGS.md`). Measure first: `SELECT COUNT(*)` of those three tables whose `supplier_id` names another store's supplier.
 
+#### A-324. `laravel-server/` — a whole-tenant purge leaves `NULL`-store rows in tables that carry no `user_id`
+- **Found:** 2026-10-23, by the second review of A-292's fix.
+- **What's wrong:** A-292's sweeper removes a purged tenant's pre-backfill `NULL`-store rows through `user_id`. Tables without one (`purchase_orders` keyed by `ordered_by`, `stock_movements` by `performed_by`, `customer_payments` and `loyalty_transactions` through their customer, `held_transactions`, `supplier_payments`, `requested_products`) keep theirs, and so do the children of a swept customer, product or supplier.
+- **Consequence:** inert residue: unreachable by any tenant scope, counted by nothing an owner reads. The same class as A-288's leftovers.
+- **Fix:** attribute per table through the column that does name an owner (`ordered_by`, `performed_by`, the parent FK), only on a whole-tenant purge, and add those parents to `PurgedUserRowSweeper::CHILDREN`. Measure first: none of the 50 rows measured on 2026-10-19 is in these tables.
+
 ### Tier 2 — stock and money figures wrong
 
 #### A-265. `client/` — a cycle count on a batch carrying an oversell deficit silently does nothing the first time, and the ledger ends up double-counting the correction

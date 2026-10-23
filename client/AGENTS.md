@@ -6663,6 +6663,23 @@ Before that, work focused on the **Inventory** area:
   with a large sale in it (grouping is presentational-only by design, see
   the correlationId section above — the SQL/pagination layer was
   deliberately left untouched, this is the known cost of that choice).
+- **One window per install.** `public/manifest.json` carries `id: "/"`, `scope: "/"` and
+  `launch_handler: { client_mode: "focus-existing" }`, so relaunching the installed PWA
+  focuses the open window on Chromium instead of opening a second, read-only one
+  (`isReadOnlyTab` stays as the fallback for Safari, Firefox and plain tabs). Keep `id` equal
+  to the old implicit value (`start_url`) or browsers treat it as a new app. Tauri desktop
+  uses `tauri-plugin-single-instance`; the writer lock does not run there.
+- **Unlinked tills.** Only a 401 on `/refresh` clears the token; a 403 (suspended, archived,
+  unverified) leaves it. The indicator reads "Not Backed Up" when a till is unlinked and has
+  unsynced changes. Till tokens live 180 days (`laravel-server/AGENTS.md`, "Token lifetimes").
+  To re-link without the owner's password, the owner clicks "Generate till re-link code" in
+  Settings > Account > Sessions & Devices (`relink-code-dialog.tsx`, owner-only, hidden while
+  impersonating), and anyone at the till who can open the Data tab (`backup_restore_data`) enters
+  it in the CloudLinkDialog's "Have a re-link code?" path. Both link paths live in `lib/hooks/use-cloud-link.ts` and share
+  `adoptCloudToken()`. The code path deliberately skips `linkCloudAccount`'s "email must match
+  the local user" guard and its local-email rewrite: the server binds the code to the store in
+  `X-Store-Id`, not to a login. It is also not wrapped in `withNetworkRetry`, because the code
+  is single use and a retry after a lost response would only burn it.
 - The PWA precache manifest includes every file in the static export
   (every route's HTML/JS chunks, both sql.js wasm binaries) with no
   curation — fine at current app size, but worth revisiting (a smaller
@@ -6709,7 +6726,7 @@ Before that, work focused on the **Inventory** area:
   line's signed `(unit_price - original_unit_price) * quantity` and floors the
   sale total at 0, so a cut offsets a markup on another line. Sales stored
   before 2026-10-21 used a per-line floor; nothing is backfilled, every reader
-  uses the stored amounts. A return re-derives the sale's markup and *unpaid* commission from the surviving lines (`resellerPatchAfterReturn`, `lib/utils/reseller-return-adjustment.ts`, called from `use-process-return-mutation.ts`); commission already redeemed is kept as history and the refundable part is written to `sales.reseller_commission_owed_back` (shown in the return dialog and the details, subtracted in daily close), and a sale with any line lacking `list_price` is left as stored. Server column: migration `2026_10_21_000002`, deploy it before clients that write it.
+  uses the stored amounts. A return re-derives the sale's markup and *unpaid* commission from the surviving lines (`resellerPatchAfterReturn`, `lib/utils/reseller-return-adjustment.ts`, called from `use-process-return-mutation.ts`); commission already redeemed is kept as history and the refundable part is written to `sales.reseller_commission_owed_back` (shown in the return dialog and the details, subtracted in daily close), and a sale with any line lacking `list_price` is left as stored. Returning a price-cut line raises the net markup (floored at zero overall), so `owed_back` is `max(0, redeemed − recomputed)` and an underpaid reseller is not recorded; the recompute is a client-side patch, so concurrent offline returns on one sale are open as A-309. Server column: migration `2026_10_21_000002`, deploy it before clients that write it.
 
 ## Reseller markup-type guard sits on the Charge button
 

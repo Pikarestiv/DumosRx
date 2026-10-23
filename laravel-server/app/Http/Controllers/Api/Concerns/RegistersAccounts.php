@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Concerns;
 
+use App\Support\TokenLifetime;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Store;
@@ -208,9 +209,8 @@ trait RegistersAccounts
             }
         }
 
-        // Was the literal string 'auth_token' - showed up verbatim as the
-        // session's device name in Settings -> Sessions & Devices.
-        $token = $user->createToken($request->device_name ?? 'Client App')->plainTextToken;
+        $deviceName = $request->device_name ?? 'Client App';
+        $token = $user->createToken($deviceName, ['*'], TokenLifetime::forLogin($user, $deviceName))->plainTextToken;
 
         return response()->json([
             'message' => 'User registered successfully',

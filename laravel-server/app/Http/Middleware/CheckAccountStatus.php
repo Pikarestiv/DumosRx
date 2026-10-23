@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use App\Models\Store;
+use App\Models\User;
 
 class CheckAccountStatus
 {
@@ -27,11 +28,7 @@ class CheckAccountStatus
         }
 
         if (!$user->is_active) {
-            return response()->json([
-                'success' => false,
-                'message' => 'ACCOUNT_SUSPENDED',
-                'reason' => 'Your user account has been deactivated/suspended. Please contact administrative support.'
-            ], 403);
+            return $this->inactiveResponse();
         }
 
         $store = $this->resolveRequestStore($request, $user);
@@ -41,6 +38,20 @@ class CheckAccountStatus
         }
 
         return $this->checkEveryOwnedStore($user) ?? $next($request);
+    }
+
+    public function refusalFor(User $user, Store $store): ?Response
+    {
+        return $user->is_active ? $this->blockedResponse($store) : $this->inactiveResponse();
+    }
+
+    private function inactiveResponse(): Response
+    {
+        return response()->json([
+            'success' => false,
+            'message' => 'ACCOUNT_SUSPENDED',
+            'reason' => 'Your user account has been deactivated/suspended. Please contact administrative support.'
+        ], 403);
     }
 
     /**

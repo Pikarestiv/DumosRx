@@ -105,6 +105,25 @@ describe("SyncIndicator pending state and concurrent-sync handling", () => {
     expect(container.textContent).not.toContain("Cloud Active");
   });
 
+  it("tells the cashier the backlog is not backed up when the till is unlinked", async () => {
+    localStorage.removeItem("auth_token");
+    mockPendingCount = 3;
+
+    await render();
+
+    expect(container.textContent).toContain("Not Backed Up");
+    expect(container.textContent).not.toContain("Pending Sync");
+  });
+
+  it("still reports an unlinked till with no backlog as Not Linked", async () => {
+    localStorage.removeItem("auth_token");
+    mockPendingCount = 0;
+
+    await render();
+
+    expect(container.textContent).toContain("Not Linked");
+  });
+
   it("still shows cloud active when there is no backlog", async () => {
     localStorage.setItem("last_sync_time", new Date().toISOString());
     mockPendingCount = 0;

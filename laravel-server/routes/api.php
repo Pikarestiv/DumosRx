@@ -67,6 +67,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/app/admin-till-session/end', [\App\Http\Controllers\Api\App\AdminTillSessionController::class, 'end']);
         Route::post('/app/admin-till-session/server-time', [\App\Http\Controllers\Api\App\AdminTillSessionController::class, 'serverTime']);
     });
+    Route::middleware('throttle:relink')->group(function () {
+        Route::post('/app/relink-code/consume', [\App\Http\Controllers\Api\App\TillRelinkController::class, 'consume']);
+    });
     Route::middleware('throttle:handoff')->group(function () {
         Route::post('/auth/handoff', [AuthHandoffController::class, 'create']);
         Route::post('/auth/handoff/consume', [AuthHandoffController::class, 'consume']);
@@ -141,6 +144,8 @@ Route::prefix('v1')->group(function () {
             Route::post('/request-deletion', [AuthController::class, 'requestDeletion']);
             Route::post('/cancel-deletion', [AuthController::class, 'cancelDeletion']);
         });
+
+        Route::post('/app/relink-code', [\App\Http\Controllers\Api\App\TillRelinkController::class, 'create']);
 
         Route::prefix('sessions')->group(function () {
             Route::get('/', [SessionController::class, 'index']);

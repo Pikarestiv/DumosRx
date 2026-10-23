@@ -82,7 +82,7 @@ export const refreshTokenSilently = async (baseURL: string): Promise<RefreshOutc
           return "refreshed";
         }
         return "unconfirmed";
-      } else if (response.status === 401 || response.status === 403) {
+      } else if (response.status === 401) {
         // Only a definitive "this token is invalid" response should unlink the store from cloud sync.
         // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-api-token-manager-ts-L90
         clearToken();

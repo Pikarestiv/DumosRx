@@ -3612,9 +3612,10 @@ regain of access never pulled that store's older rows. Now:
   the owner's row alone would stamp `users` complete for that store key and
   hide its staff if access is regained, which is this bug again. An owner's
   own row is therefore not refreshed while their device holds a refused header.
-- If the refused id is **the caller's own** soft-deleted store (an owner's, or
-  a staff member's own store), its tombstone is added to `stores`, so the
-  device learns the store is gone. Never a deleted *sibling* store for staff.
+- If the refused id is **the owner's own** soft-deleted store, its tombstone is
+  added to `stores`, so the device learns the store is gone. Never a deleted
+  *sibling* store for staff. A staff member's own store is never refused:
+  `resolveOwnershipIdentity()` puts their `users.store_id` in the owned list.
 - The response carries `refused_store_id`. The client clears every window it
   holds under that store key except the served tables, which also heals a
   window a pre-fix empty pull poisoned.

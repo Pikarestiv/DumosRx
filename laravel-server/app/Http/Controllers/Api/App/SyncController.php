@@ -1265,19 +1265,16 @@ class SyncController extends Controller
         }
     }
 
+    /** An owner's own deleted store; never a staff member's sibling store (A-129). */
+    private function isCallersOwnDeletedStore($user, ?string $ownerId, string $storeId): bool
+    {
+        return $ownerId === $user->id && Store::onlyTrashed()->whereKey($storeId)->where('user_id', $ownerId)->exists();
+    }
+
     /**
      * Resolves, once per request, everything applyPullTenantScope() needs: the subscription owner, the stores this
      * pull is narrowed to, the store rows it serves, and the staff ids. Rules: laravel-server/AGENTS.md, A-129 and A-254.
      */
-
-    /** An owner's own deleted store, or a staff member's own; never a sibling's (A-129). */
-    private function isCallersOwnDeletedStore($user, ?string $ownerId, string $storeId): bool
-    {
-        $isOwnStore = $ownerId === $user->id || $user->store_id === $storeId;
-
-        return $isOwnStore && Store::onlyTrashed()->whereKey($storeId)->where('user_id', $ownerId)->exists();
-    }
-
     private function resolvePullTenantScope($user, Request $request): array
     {
         ['ownerId' => $ownerId, 'storeIds' => $ownedStoreIds] = $this->resolveOwnershipIdentity($user);

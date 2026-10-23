@@ -174,6 +174,7 @@ class SyncController extends Controller
 
     public function push(Request $request)
     {
+        $this->batchStoreIds = [];
         $validation = $this->validateSync($request, true);
         if (!$validation['valid']) {
             $this->recordRejectedPush($request, $validation['code'] ?? null);
@@ -534,11 +535,10 @@ class SyncController extends Controller
                         $model = \method_exists($modelClass, 'trashed') ? $modelClass::withTrashed()->lockForUpdate()->find($recordId) : $modelClass::lockForUpdate()->find($recordId);
                     }
 
-                    if ($model && $currentUser && !$isSuperAdmin && !$this->authorizeChangeTarget($change['table_name'], $model, $allowedStoreIds, $allowedUserIds)) {
-                        // Reject before even looking at version info: the
-                        // record exists but doesn't belong to the caller's
-                        // store(s) — see the ownership-scope comment above
-                        // $allowedStoreIds for why this check exists at all.
+                    if ($model && $currentUser && !$isSuperAdmin && (
+                        !$this->authorizeChangeTarget($change['table_name'], $model, $allowedStoreIds, $allowedUserIds)
+                        || $this->namesForeignBatch($change['table_name'], $payload, $allowedStoreIds, $model)
+                    )) {
                         DB::commit();
                         $failed[] = [
                             'id' => $change['id'] ?? null,
@@ -1690,26 +1690,44 @@ class SyncController extends Controller
         $conflict->save();
     }
 
+    /** @var array<string, string> Batch id to its product's store, for authorization within one push; reset by push(). */
+    private array $batchStoreIds = [];
+
     /**
      * Whether an accumulated delta's batch exists and belongs to a store the
      * pusher may not write to. A batch that does not exist resolves to no
      * store and is deliberately NOT out of scope — see
      * laravel-server/AGENTS.md, "Stock batch deltas are store-scoped".
+     * $memoize is false for the delta backstop, which must see this push's own writes.
      */
-    private function isBatchOutsideScope($stockBatchId, ?array $allowedStoreIds): bool
+    private function isBatchOutsideScope($stockBatchId, ?array $allowedStoreIds, bool $memoize = false): bool
     {
         if ($allowedStoreIds === null) {
             return false;
         }
 
-        $productId = StockBatch::where('id', $stockBatchId)->value('product_id');
-        if (!$productId) {
-            return false;
+        $key = (string) $stockBatchId;
+        $storeId = $memoize ? ($this->batchStoreIds[$key] ?? null) : null;
+        if ($storeId === null) {
+            $storeId = DB::table('stock_batches')
+                ->join('products', 'products.id', '=', 'stock_batches.product_id')
+                ->where('stock_batches.id', $key)
+                ->value('products.store_id');
+            if ($memoize && $storeId !== null) {
+                $this->batchStoreIds[$key] = $storeId;
+            }
         }
 
-        $storeId = Product::withTrashed()->where('id', $productId)->value('store_id');
-
         return $storeId !== null && !in_array($storeId, $allowedStoreIds, true);
+    }
+
+    /** A movement may not name, or be repointed at, a batch outside the session's scope (A-287). */
+    private function namesForeignBatch(string $tableName, array $payload, array $allowedStoreIds, $model = null): bool
+    {
+        return $tableName === 'stock_movements'
+            && !empty($payload['stock_batch_id'])
+            && $payload['stock_batch_id'] !== $model?->stock_batch_id
+            && $this->isBatchOutsideScope($payload['stock_batch_id'], $allowedStoreIds, true);
     }
 
     /**
@@ -2545,6 +2563,10 @@ class SyncController extends Controller
             return true;
         }
 
+        if ($this->namesForeignBatch($tableName, $payload, $allowedStoreIds)) {
+            return false;
+        }
+
         $resolvedStoreId = $this->resolveChangeStoreId($tableName, (object) $payload);
 
         if ($resolvedStoreId === null) {
@@ -2617,7 +2639,7 @@ class SyncController extends Controller
             return isset($model->purchase_order_id) ? PurchaseOrder::withTrashed()->where('id', $model->purchase_order_id)->value('store_id') : null;
         }
         if ($tableName === 'stock_batches') {
-            return isset($model->product_id) ? Product::where('id', $model->product_id)->value('store_id') : null;
+            return isset($model->product_id) ? Product::withTrashed()->where('id', $model->product_id)->value('store_id') : null;
         }
         if ($tableName === 'sale_item_batches') {
             if (!isset($model->sale_item_id)) {

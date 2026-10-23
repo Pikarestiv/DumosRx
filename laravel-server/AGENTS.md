@@ -1676,9 +1676,10 @@ tables because `pull.ts` filters every pulled column through its own
 `applyStockBatchDeltas()` runs `UPDATE stock_batches SET quantity = … WHERE
 id = ?` for every delta a push accumulated. It had **no join to the owning
 store and no check against `$allowedStoreIds`**, and the movement that produced
-the delta cannot supply one: `authorizeInsertTarget('stock_movements')` resolves
-ownership from the movement's *own* `store_id`, which `normalizePushPayload()`
-backfills from the session, so it always passes. Any authenticated till — a
+the delta could not supply one: `authorizeInsertTarget('stock_movements')`
+resolved ownership from the movement's *own* `store_id`, which
+`normalizePushPayload()` backfills from the session, so it always passed (until
+A-287, below). Any authenticated till — a
 `sales_staff` token is enough — could move another store's stock, and because
 the movement filed under the **pusher's** store, the victim's pull never showed
 it. Reproduced before fixing: a push from one store took another's batch from
@@ -1696,18 +1697,49 @@ it resolves to no store, which is not the same as belonging to someone else, and
 a batch may legitimately arrive later in the same backlog. Only an existing
 batch in a foreign store is refused.
 
-**The refusal is reported but the current client ignores it.** Every entry
-`applyStockBatchDeltas()` adds to `$failed` carries `'id' => null` (there is no
-queue row behind an accumulated delta — the movement's own row was already
-accepted), and `push.ts`'s failure loop opens with `if (f.id == null) continue;`.
-So it reaches the response, the `Log::warning` and `SyncFailureRecorder`, and
-nothing else: it is not parked the way A-165 parks a `forbidden` row, and
-nothing is settled. That is worse than a parked row and much better than a
-silent cross-tenant write. Making it visible on the device needs the null-id
-case handled in `push.ts` first; filed as part of A-280's entry.
+**Since A-287 (2026-10-23) the whole movement is refused, not just its delta.**
+`authorizeInsertTarget('stock_movements')` runs the same `isBatchOutsideScope()`
+check on the payload's `stock_batch_id`, so a movement against a batch whose
+product is outside the session's scope is refused `forbidden` with the change's
+own queue id, and `push.ts` parks it under A-165's retry machinery. Before, the
+movement was accepted and only its delta refused with `'id' => null`, which the
+client skips (`if (f.id == null) continue;`), so the batch's cloud quantity froze
+while the device knew nothing. That is the mis-stamped product case (A-248): a
+staff session of store 1 selling from a batch whose product says store 2. A stuck
+queue row is the signal an operator can act on (run
+`sync:repair-product-store-stamps`, after which the parked row succeeds).
+`forbidden`, not `permission_denied`, because a staff session's scope is narrower
+than its owner's and the same payload can succeed later.
 
-**§11:** server-only, no shim. A legitimate client never names another tenant's
-batch, and the response shape is unchanged.
+The same check (`namesForeignBatch()`) refuses an UPDATE that **repoints** an
+existing movement at a batch outside the scope; an UPDATE that leaves
+`stock_batch_id` unchanged (a resent INSERT, a void) is not refused, even if the
+batch has since left the scope. The batch's store is one
+`stock_batches JOIN products` lookup (soft-deleted products included), memoized
+within a push and reset at the start of each one: Laravel reuses the controller
+instance across requests, so a property memo would otherwise outlive the push.
+
+The delta check in `applyStockBatchDeltas()` is defence in depth only, and
+looks the batch up fresh. `push()` sorts every `stock_movements` change to the
+end, so every batch write of a push lands before any movement is authorized,
+and a batch INSERT under a foreign product, live or soft-deleted, is itself
+refused (`resolveParentStoreId('stock_batches')` uses `withTrashed()`). It is
+pinned by a direct test so it cannot rot unnoticed. A batch UPDATE that
+repoints `product_id` is not checked at all: that is A-325.
+
+**A product legitimately moved between stores parks too, on staff tills.** A
+till of the losing store still holds the product (A-291's phantom) and can sell
+from it; each such sale's movement is now refused `forbidden`, where before the
+ledger row was accepted under the wrong store and only its delta refused. The
+sale, its `sale_items` and `sale_item_batches` still sync; only the
+`stock_movements` row is withheld. It stays parked (retried with backoff,
+visible under Settings → Device diagnostics "Stuck changes" and in Sentry)
+until an owner session pushes from that device or A-291 ships, per A-165's
+documented transient `forbidden`. Owner sessions cover every owned store and
+are accepted. No repair command clears it.
+
+**§11:** server-only, no shim. The refusal uses an existing reason the client
+already parks; the response shape is unchanged.
 
 ## A raw `update()` on a synced table must move `_version` (A-245, 2026-10-18)
 

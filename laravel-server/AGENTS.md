@@ -3638,6 +3638,34 @@ mis-pointed rows were not repaired. See `docs/KNOWN_BUGS.md` A-189.
 - Products with a `NULL` `store_id` are counted and skipped: there is no owning
   store to repoint them to, and inventing one would be a guess.
 
+## Cross-store supplier references (A-321, 2026-10-23)
+
+`CrossStoreReferenceGuard` guards `supplier_id` on `purchase_orders`,
+`supplier_payments` and `stock_batches` the same way it guards
+`products.category_id`: a pushed row naming another store's supplier is
+re-owned onto the row's own store's same-named supplier (case-insensitive),
+reviving a soft-deleted one before creating a new one, and the change is
+recorded in `sync_failures` as `cross_store_reference`. A referent that does
+not exist, or has no `store_id`, is left alone, exactly as for categories.
+
+- **A created supplier copies the name and `is_active` only.** The referent can
+  belong to another tenant, so its contact details (phone, email, address,
+  tax id) must never be copied into this one. `OwnedSupplierResolver` holds
+  the lookup; categories keep going through
+  `CrossTenantCategoryRepairService::resolveOwnedCategoryId()`.
+- **Why it exists:** the client's push-side `id_map` remap of a legacy
+  `NULL`-store supplier is deliberately unscoped (`client/AGENTS.md`,
+  "Duplicate-name reconciliation"), so on a two-store device it repoints the
+  other store's rows at the winning store's supplier. Without this guard those
+  rows were stored that way and showed no supplier on the other store's
+  devices for good.
+- **It only heals what is pushed.** Rows already stored with a cross-store
+  `supplier_id` stay until something re-pushes them; there is no repair command
+  for suppliers. Measure before building one:
+  `SELECT 'purchase_orders' t, COUNT(*) FROM purchase_orders x JOIN suppliers s ON s.id = x.supplier_id WHERE s.store_id IS NOT NULL AND s.store_id <> x.store_id`
+  and the same for `supplier_payments` and `stock_batches`.
+- Coverage: `tests/Feature/SyncPushCrossStoreSupplierTest.php`.
+
 ## Health Sync zeroing repair: `sync:repair-health-sync-reconciliation` (2026-10-10)
 
 One Health Sync run at `2026-10-10 08:53:29` accepted a half-rebuilt device's

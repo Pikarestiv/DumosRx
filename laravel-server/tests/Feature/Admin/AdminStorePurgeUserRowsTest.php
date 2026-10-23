@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Admin\AdminStoreDeletionService;
 use App\Services\Admin\ForeignKeyCascadeEmulator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
@@ -25,7 +26,8 @@ class AdminStorePurgeUserRowsTest extends TestCase
         // SQLite ignores this PRAGMA inside the test transaction, so set it first (docs/ADMIN_STORE_LIFECYCLE.md).
         DB::statement('PRAGMA foreign_keys = OFF');
         $this->beginRefreshTransaction();
-        $this->beforeApplicationDestroyed(fn () => DB::statement('PRAGMA foreign_keys = ON'));
+        // The rollback above disconnects first, so restore the pragma on the PDO RefreshDatabase hands the next test.
+        $this->beforeApplicationDestroyed(fn () => RefreshDatabaseState::$inMemoryConnections['sqlite']->exec('PRAGMA foreign_keys = ON'));
     }
 
     protected User $superAdmin;

@@ -146,8 +146,11 @@ foreign keys:
   rows whose `store_id` is `NULL`, and only when the purge takes the **whole
   tenant** (the owner had no other store). When the owner keeps another store,
   a staff member's `NULL`-store rows may have been written at that store
-  before `store_id` existed, so they are left, exactly as
-  `sync:backfill-store-ids` refuses to guess. A row carrying **another**
+  before `store_id` existed, so they are left rather than guessed at. They
+  are **permanent inert residue**, not deferred work: `sync:backfill-store-ids`
+  attributes them through `users.user_id`, and the purge has just
+  force-deleted that `users` row, so no later backfill can place them. The
+  same class as A-324's leftovers. A row carrying **another**
   store's id is never touched. `vendors`, the one store-less business table,
   follows the same whole-tenant rule.
 - **A swept parent's descendants go with it**, per
@@ -191,17 +194,13 @@ emulator with no foreign keys for the production shape.
 
 ### Guards and audit details (moved out of `AdminStoreDeletionService`)
 
-- **Restore needs the owner first.** `AdminUserService::deleteUser()` archives
-  the owner's store as a side effect; restoring that store alone would put a
-  live store back with a deleted owner, so `restoreStore()` refuses until the
-  owner is restored.
-- **A purge never takes a platform account, or the actor's own store.** Both
-  used to run and then fail partway on the activity-log foreign key.
+Restore-needs-the-owner is under "Archive (soft delete)", the platform-account
+and own-store refusal under "Three guards", and the lock on the owner's stores
+in the paragraph below.
+
 - **The `STORE_PURGED` description stays within 255 characters** (A-146): the
   per-table breakdown goes in `properties.rows_removed`, and the description is
   truncated defensively because a store name alone may be 255 long.
-- **The owner's other-store check and the staff read happen inside the
-  transaction**, under a row lock on the owner's stores (see below).
 
 The purge also deletes **legacy sales with a null `store_id`** whose
 `cashier_id` is the owner or one of the store's staff, plus their cascade

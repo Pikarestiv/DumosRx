@@ -3373,7 +3373,13 @@ capability SQLite provides for free rather than one that relies on it.
 SQLite ignores `PRAGMA foreign_keys` inside the already-open test transaction,
 so the engine keeps cascading. To test FK-free behaviour, set the PRAGMA off
 before the test transaction opens, as `tests/Feature/Admin/AdminStorePurgeUserRowsTest.php`
-does by overriding `beginDatabaseTransaction()`, and restore it after rollback.
+does by overriding `beginDatabaseTransaction()`. Restore it on the stored PDO,
+`RefreshDatabaseState::$inMemoryConnections['sqlite']->exec('PRAGMA foreign_keys = ON')`,
+not with `DB::statement()`: RefreshDatabase's rollback callback runs first and
+disconnects, so `DB::statement()` lands on a throwaway reconnected `:memory:`
+database and every later test class inherits enforcement OFF. For a single
+case, `UnresolvedReferenceServiceTest::withForeignKeysOff()` (commit, flip,
+clean up, flip back on the same connection, re-begin) is the other correct shape.
 
 **Two engine rules that follow from it.** Never leave `'engine'` unset — a
 new table silently inherits whatever the host prefers. And if you ever

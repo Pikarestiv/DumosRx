@@ -461,6 +461,14 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
+#### A-317. `laravel-server/` — `GET /stock-movements` and `GET /stock-adjustments` have no caller and hand any staff member the tenant-wide stock ledger
+- **Found:** 2026-10-23, while mapping every surface that shows stock quantities for the hide-quantities-by-role work.
+- **Issue:** #259
+- **Location:** `routes/api.php:168-169`, `app/Http/Controllers/Api/App/StockMovementController.php` (`index()`, `adjustments()`); the only references are `tests/Feature/StockMovementControllerTest.php`.
+- **What's wrong:** both routes sit in the plain `auth:sanctum` group with no `permission:` middleware, so any authenticated user, a cashier included, gets signed quantities, reasons and user names for every store the tenant owns (`ledgerUserIds()` spans all of the owner's stores, not the caller's active one). No code in `client/` or `web/` calls either URL; the client reads movements from local SQLite. `a9ba1a5c` removed the last client callers when it deleted the pre-offline-first cloud CRUD, so the routes have been dead since then. That commit kept the routes on purpose (read-only, tenant-scoped, outside the finding it was fixing); the missing permission gate was not part of that ruling.
+- **Why it is not urgent:** it needs a valid session and the data is the caller's own tenant. It does defeat any role-level "cannot see stock quantities" rule, because the numbers are one authenticated request away.
+- **Fix:** delete the two routes, the two controller methods and their tests. §11: no shipped client sends these requests today, but a bundle from before `a9ba1a5c` might; a 404 for those is harmless because that bundle's UI reads local data. If they are kept instead, gate them behind `view_reports` and scope them to the active store.
+
 #### A-315. `laravel-server/` — a `refresh`-only admin token is accepted as a general bearer on every `auth:sanctum` route
 - **Found:** 2026-10-23, fixing A-199. Confirmed with a throwaway test: a token minted with `['refresh']` sent as `Authorization: Bearer` to `GET /api/v1/user` returns 200.
 - **Location:** `routes/api.php`'s `auth:sanctum` group; no `abilities`/`ability` middleware alias is registered in `bootstrap/app.php`, and nothing else calls `tokenCan()`. The only ability check anywhere is `refreshAdminSession()`'s `can('refresh')` and, since A-199, `FullAccessToken::find()` on the three body-token endpoints.

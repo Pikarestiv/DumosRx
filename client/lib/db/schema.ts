@@ -139,6 +139,7 @@ CREATE TABLE IF NOT EXISTS sales (
   reseller_commission_claim_type TEXT,
   reseller_commission_redeemed_at TEXT,
   reseller_commission_redeemed_by TEXT,
+  reseller_commission_owed_back REAL,
   created_at TEXT,
   updated_at TEXT,
   deleted_at TEXT,

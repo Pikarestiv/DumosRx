@@ -314,6 +314,8 @@ export function TransactionDetailsDialog({
                     : "Commission redeemed"}
                   {effectiveSale.reseller_commission_redeemed_at &&
                     ` on ${formatDateToDDMMYYYY(effectiveSale.reseller_commission_redeemed_at)}`}
+                  {(effectiveSale.reseller_commission_owed_back ?? 0) > 0 &&
+                    ` · ${formatCurrency(effectiveSale.reseller_commission_owed_back ?? 0, currencyCode)} owed back by the reseller`}
                 </span>
               ) : (
                 <span className="text-xs font-medium text-amber-600">

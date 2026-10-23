@@ -2064,6 +2064,69 @@ blank/legacy `payment_method` as cash, since the expense form's own default
 is "Cash" and missing one would leave the drawer short against the figure on
 screen. Pinned by `__tests__/daily-close-cash-expenses.test.ts`.
 
+### A Daily Close headline is the sum of its breakdown (2026-10-23)
+
+"Net Cash Expected" and "Profit before expenses (Est.)" each open a
+`FigureBreakdownModal` listing the signed components of the figure. The
+headline is **read from** the breakdown, never computed beside it:
+`lib/utils/daily-close-breakdown.ts` builds `{ lines, total }` with `total`
+reduced from `lines`, and `useDailyCloseData()` exposes `totalProfit =
+profitBreakdown.total` and `netCashExpected = netCashBreakdown.total`. The
+card, the modal, the CSV export and the PDF all use those two values, so
+they cannot drift apart. Cash refunds are derived as the drop in the cash
+bucket across the returns loop, which keeps the prorated cash share of a
+mixed-payment refund in that line. "Profit before expenses" deliberately does **not** deduct
+operating expenses; its label (`DAILY_CLOSE_PROFIT_LABEL`) and the modal footnote say so, and "Net Profit" is reserved for the P&L's profit after expenses (A-255). If you add a component
+to any figure, add it as a line, not as an adjustment to the total.
+Pinned by `__tests__/daily-close-breakdown.test.ts`.
+
+"Profit after expenses (Est.)" (`DAILY_CLOSE_PROFIT_AFTER_EXPENSES_LABEL`,
+2026-10-23) is a third breakdown, `buildProfitAfterExpensesBreakdown()`: the
+before-expenses lines followed by one negative "Expenses for this day" line,
+read by the hook as `profitAfterExpenses = profitAfterExpensesBreakdown.total`.
+The day's expenses come from `getExpensesAttributableToDate()` in
+`lib/db/queries/finance.ts`, which sums `getExpenseAmountForDay()` over every
+non-deleted, store-scoped expense that is either dated that day or has
+`covers_months` > 1:
+
+- `covers_months` null, 0 or 1: the full amount on its own date, any payment
+  method. A one-month "spread" is counted on its date rather than smeared
+  across the month, which is what an owner who typed it expects to see.
+- `covers_months` > 1: one day's share, `getSmoothedAmountInWindow()` over the
+  report day's calendar month divided by `getDaysInMonth()`, so the
+  installment rule (months start from the expense's own month) is the P&L's
+  rule and not a second copy. It applies on every day of an installment month,
+  and the entry day gets only the share, never the full amount. The owner chose
+  a day share so rent day does not look like a loss and every other day like a
+  windfall (the A-255 objection).
+
+Each share is `roundMoney()`ed and the sum is rounded again, so the line is a
+2-decimal amount and the headline has no long fraction. The query lives in
+`useDailyCloseProfitAfterExpenses()` (its own hook, to keep
+`use-daily-close-data.ts` under the size limit) with `enabled: showProfit`, so
+it never runs where profit is hidden. The cash-drawer figure is unaffected: it
+still uses `getCashExpensesForDate()`, which deducts a prepaid cash expense in
+full. The modal's "View in Expenses" link lists expenses *dated* that day, so a
+spread expense entered on another date contributes a share without appearing in
+that list; the footnote says so. Pinned by
+`__tests__/daily-close-profit-after-expenses.test.ts`.
+
+### Expenses list: date range filter and page size (2026-10-23)
+
+The Expenses page reuses `DateRangePicker` with an empty default range
+(all expenses), the same default as Sales history, Activity Log and Stock
+Movements. `getExpensesPage()` takes inclusive `YYYY-MM-DD` `from`/`to`
+compared with `date(e.date)` (an expense date is a calendar date, so no
+`toQueryRange()` conversion), and returns `amount`, the SQL sum over the
+whole filtered scope. A start date with no end yet (mid-selection) is
+treated as a single day by `useExpensesPage()`. While a range is set the
+insights strip shows that filtered sum and the smoothed figures for the
+range in place of the lifetime and this-month ones. Both dates are in
+`queryKeys.expenses.page`. `EXPENSES_PAGE_SIZE` is 50 (it was 100, over the
+§8 limit); "Load older" grows the window by 50. The initial range is read
+from `?from=YYYY-MM-DD&to=YYYY-MM-DD` (malformed values are ignored); Daily
+Close's "View in Expenses" link sets both to the report day.
+
 ### Stock quantity reconciliation and the `sync_reconciliation` movement type (2026-10-02)
 
 **Health Sync is OFF as of 2026-10-10 and the section below is history, not
@@ -6646,7 +6709,7 @@ Before that, work focused on the **Inventory** area:
   line's signed `(unit_price - original_unit_price) * quantity` and floors the
   sale total at 0, so a cut offsets a markup on another line. Sales stored
   before 2026-10-21 used a per-line floor; nothing is backfilled, every reader
-  uses the stored amounts. Refunds still do not reduce commission.
+  uses the stored amounts. A return re-derives the sale's markup and *unpaid* commission from the surviving lines (`resellerPatchAfterReturn`, `lib/utils/reseller-return-adjustment.ts`, called from `use-process-return-mutation.ts`); commission already redeemed is kept as history and the refundable part is written to `sales.reseller_commission_owed_back` (shown in the return dialog and the details, subtracted in daily close), and a sale with any line lacking `list_price` is left as stored. Server column: migration `2026_10_21_000002`, deploy it before clients that write it.
 
 ## Reseller markup-type guard sits on the Charge button
 
@@ -6657,3 +6720,13 @@ Before that, work focused on the **Inventory** area:
   The mobile drawer's `onCheckout` wrapper (which closes the drawer) is only
   invoked when the guard passes, so the drawer stays open on the picker.
   `validatePaymentInput` keeps its own message as a backstop.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

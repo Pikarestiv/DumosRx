@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useDailyCloseData } from "@/lib/hooks/use-daily-close-data";
 import { useStore } from "@/lib/context/store-context";
 import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
@@ -22,7 +21,6 @@ interface DailyCloseReportProps {
 }
 
 export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
-  const router = useRouter();
   const displayName = useDisplayName();
   const { storeProfile } = useStore();
   const { user } = useAuth();
@@ -36,6 +34,11 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
     aggregatedTotals,
     cashExpenses,
     totalProfit,
+    profitAfterExpenses,
+    netCashExpected,
+    netCashBreakdown,
+    profitBreakdown,
+    profitAfterExpensesBreakdown,
     topSellingMeds,
     exportToCSV,
   } = useDailyCloseData(reportDate, showProfit);
@@ -64,9 +67,10 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
           currencyCode={currencyCode}
           aggregatedTotals={aggregatedTotals}
           cashExpenses={cashExpenses}
-          totalProfit={totalProfit}
+          netCashBreakdown={netCashBreakdown}
+          profitBreakdown={profitBreakdown}
+          profitAfterExpensesBreakdown={profitAfterExpensesBreakdown}
           openSalesModal={openSalesModal}
-          onOpenExpenses={() => router.push("/expenses")}
           showProfit={showProfit}
         />
 
@@ -92,7 +96,9 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
           currencyCode,
           aggregatedTotals,
           cashExpenses,
+          netCashExpected,
           totalProfit,
+          profitAfterExpenses,
           topSellingMeds: topSellingMeds.map((med) => ({
             ...med,
             name: displayName(med.name),

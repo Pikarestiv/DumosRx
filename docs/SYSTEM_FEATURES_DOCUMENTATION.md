@@ -44,7 +44,7 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Reseller Sales & Store Markups:** Selling above your normal price? Mark the sale up and choose why: for an independent reseller who found their own client (the system works out their commission automatically, a percentage of the markup set once in Settings, for you to pay out whenever they collect it), or as a markup your store simply keeps for itself, with the money going straight into your books instead of sitting around waiting to be settled. Either way it's clearly badged and filterable in your sales history, so you can always tell the two apart. Turn this on for your staff in Settings → Register Configs (off by default).
 
-**Sold Above / Below List Price:** Reseller sales may now be priced below the normal price as well as above it. Every sale line remembers the normal (list) price it was rung up against, and wherever the sale shows (sales history, the dashboard feed, daily close and the transaction details) a green `+` or red `Price cut −` badge shows the total charged above or below list; opening the sale shows the list price and per-unit difference on each line. Customer receipts do not show it. Sales recorded before this existed have no list price and show no badge.
+**Sold Above / Below List Price:** Reseller sales may now be priced below the normal price as well as above it. Every sale line remembers the normal (list) price it was rung up against, and wherever the sale shows (sales history, the dashboard feed, daily close and the transaction details) a green `+` or red `Price cut −` badge shows the total charged above or below list; opening the sale shows the list price and per-unit difference on each line. Customer receipts do not show it. Sales recorded before this existed have no list price and show no badge. Returning goods from a reseller sale lowers the markup and any unpaid commission to match what was actually kept; if the commission was already paid, the return screen warns how much the reseller owes back and the sale records it.
 
 ### 📦 Inventory & Stock Management
 
@@ -75,6 +75,14 @@ The desktop application is built for speed, reliability, and ease of use. It con
 **Expense Tracking:** Log daily operational expenses directly from the cash register.
 
 **Net Cash Expected:** Daily Close deducts the day's cash-paid expenses from the cash the drawer should hold, so the figure you reconcile against is what you actually expect to find — not gross cash sales. A prepaid expense (one spread over months) is deducted in full on the day it was paid, because that is when the money left the till; the Profit & Loss report still amortises it across the months it covers. Expenses paid by transfer or card never touch this figure.
+
+**See How a Figure Is Made:** Tap "Net Cash Expected", "Profit before expenses (Est.)" or "Profit after expenses (Est.)" on Daily Close to see every number that goes into it — cash sales, cash refunds and cash expenses for the first; sales, refunds, VAT, cost of goods and any reseller commission paid out for the second; the same lines plus the day's expenses for the third — adding up exactly to the figure on the card.
+
+**Profit After Expenses:** Daily Close shows a second profit figure, "Profit after expenses (Est.)", beside "Profit before expenses (Est.)". It takes off every expense dated that day in full, however it was paid, and for an expense spread over several months (such as quarterly rent) one day's share of that month's installment, on every day of the months it covers. Like the first profit figure, it is hidden from cashiers, and it appears in the CSV and PDF exports.
+
+**Expenses by Date Range:** Filter the Expenses list to any range of dates, or pick a preset such as "This month" or "Last month". The total, the spread-cost figure, the top category and the transaction count all follow the range; clear it to go back to every expense.
+
+**Spreading a Prepaid Expense:** When adding an expense, "Spread over how many months?" lets a payment that covers several months (a year's rent, say) count an equal share in each month of your profit reports instead of all at once. The info icon beside the field explains it in place.
 
 **This Device:** Settings → System names the device you are on and shows its device ID, the same one that appears beside its activity in the owner's dashboard — so a support call can identify the right till without guessing.
 

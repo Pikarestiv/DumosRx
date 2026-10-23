@@ -12,6 +12,8 @@ import {
   Expense
 } from '../db/queries/finance';
 import { queryKeys } from '../query-keys';
+import { toQueryRange } from '../utils/date-range';
+import type { DateRangeValue } from '@/components/ui/date-range-picker';
 
 const EMPTY_EXPENSES: Expense[] = [];
 import { useAuth } from '../context/auth-context';
@@ -73,17 +75,20 @@ export function useExpenseList({
   limit = EXPENSES_PAGE_SIZE,
   search,
   category,
+  dateRange = {},
 }: {
   limit?: number;
   search?: string;
   category?: string;
+  dateRange?: DateRangeValue;
 } = {}) {
   const { user } = useAuth();
   const viewerId = useHasPermission("view_all_expenses") ? undefined : user?.id;
+  const { from, to } = dateRange;
 
   const { data, isLoading, error, refetch } = useQuery({
-    ...queryKeys.expenses.page(viewerId, limit, search, category),
-    queryFn: () => getExpensesPage({ viewerId, limit, search, category }),
+    ...queryKeys.expenses.page(viewerId, limit, search, category, from, to),
+    queryFn: () => getExpensesPage({ viewerId, limit, search, category, from, to }),
     // Keeps the current rows on screen while a wider window or a new search
     // term resolves, instead of flashing an empty list.
     placeholderData: keepPreviousData,
@@ -93,6 +98,8 @@ export function useExpenseList({
     expenses: data?.rows ?? EMPTY_EXPENSES,
     /** Every expense in scope, not just the loaded ones. */
     totalCount: data?.total ?? 0,
+    /** Sum of every expense in scope, not just the loaded ones. */
+    totalAmount: data?.amount ?? 0,
     hasMore: (data?.total ?? 0) > (data?.rows.length ?? 0),
     isLoading,
     error: error instanceof Error ? error : null,
@@ -100,13 +107,18 @@ export function useExpenseList({
   };
 }
 
-/** The lifetime ledger figure and this month's smoothed figures, all aggregated
- * in SQL over every expense rather than over whatever the list has loaded. */
-export function useExpenseTotals() {
+/** The lifetime ledger figure and the smoothed figures for the given range
+ * (this month when none is given), aggregated in SQL over every expense rather than
+ * over whatever the list has loaded. */
+export function useExpenseTotals({ from: rangeFrom, to: rangeTo }: DateRangeValue = {}) {
   const { user } = useAuth();
   const viewerId = useHasPermission("view_all_expenses") ? undefined : user?.id;
 
   const { from, to } = useMemo(() => {
+    if (rangeFrom && rangeTo) {
+      const range = toQueryRange({ from: rangeFrom, to: rangeTo });
+      return { from: range.from as string, to: range.to as string };
+    }
     const now = new Date();
     // endOfMonth, not the start of next month:
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-finance-data-ts-L111
@@ -114,7 +126,7 @@ export function useExpenseTotals() {
       from: startOfMonth(now).toISOString(),
       to: endOfMonth(now).toISOString(),
     };
-  }, []);
+  }, [rangeFrom, rangeTo]);
 
   const { data: lifetimeTotal } = useQuery({
     ...queryKeys.expenses.lifetimeTotal(viewerId),

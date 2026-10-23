@@ -19,7 +19,7 @@ import { calculateProportionalRefund } from "@/lib/utils/pos-calculations";
 import { getMaxReturnable } from "@/lib/utils/returns-calculations";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getTransactionDetails } from "@/lib/db/queries/sales";
+import { getSaleById, getTransactionDetails } from "@/lib/db/queries/sales";
 import { queryKeys } from "@/lib/query-keys";
 import { useProcessReturnMutation } from "@/lib/hooks/use-process-return-mutation";
 import { Loader2, RotateCcw } from "lucide-react";
@@ -28,6 +28,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ReturnItemRow } from "./return-item-row";
 import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
 import { ProductName } from "@/components/ui/product-name";
+import { resellerPatchAfterReturn } from "@/lib/utils/reseller-return-adjustment";
 
 interface ReturnDialogProps {
   open: boolean;
@@ -55,6 +56,7 @@ export function ReturnDialog({
   >(new Map());
   const [reason, setReason] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
+  const [freshSale, setFreshSale] = useState<SaleWithDetails | null>(null);
 
   // Fetch items for this sale, including how much of each has already been returned in a prior return on this sale — getSale…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-return-dialog-tsx-L59
@@ -115,11 +117,21 @@ export function ReturnDialog({
     saleDiscountAmount: sale?.discount_total ?? sale?.discount_amount ?? 0,
   });
 
-  const handleInitialSubmit = () => {
+  const commissionOwedBack =
+    (sale && saleItems
+      ? resellerPatchAfterReturn(
+          freshSale ?? sale,
+          saleItems,
+          itemsToReturn.map((i) => ({ id: i.id, returnQuantity: i.returnQuantity })),
+        )?.reseller_commission_owed_back
+      : 0) ?? 0;
+
+  const handleInitialSubmit = async () => {
     if (itemsToReturn.length === 0) {
       toast.error("Please select at least one item to return");
       return;
     }
+    setFreshSale(await getSaleById(sale.id));
     setShowConfirm(true);
   };
 
@@ -267,6 +279,12 @@ export function ReturnDialog({
               <p className="font-medium text-destructive">
                 Total Refund: {formatCurrency(totalRefund, currencyCode)}
               </p>
+              {commissionOwedBack > 0 && (
+                <p className="text-sm text-amber-600 mt-1">
+                  The reseller was already paid commission on this sale;{" "}
+                  {formatCurrency(commissionOwedBack, currencyCode)} of it is owed back.
+                </p>
+              )}
             </div>
             <p className="text-xs text-muted-foreground pt-2">
               <strong>Consequences:</strong> The returned quantities will be

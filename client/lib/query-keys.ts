@@ -132,6 +132,8 @@ export const queryKeys = {
       limit: number,
       search: string | undefined,
       category: string | undefined,
+      from?: string,
+      to?: string,
     ) =>
       resource(
         [
@@ -141,6 +143,8 @@ export const queryKeys = {
           limit,
           search ?? "",
           category ?? "All",
+          from ?? "",
+          to ?? "",
         ] as const,
         ["expenses"],
       ),
@@ -263,6 +267,8 @@ export const queryKeys = {
       ]),
     cashExpenses: (reportDate: string) =>
       resource(["dailyCloseCashExpenses", reportDate] as const, ["expenses"]),
+    dayExpenses: (reportDate: string) =>
+      resource(["dailyCloseDayExpenses", reportDate] as const, ["expenses"]),
   },
   activityLog: {
     list: (filtersKey: string) =>

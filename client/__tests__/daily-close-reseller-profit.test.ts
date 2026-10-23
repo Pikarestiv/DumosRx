@@ -80,6 +80,22 @@ describe("useDailyCloseData reseller commission profit adjustment", () => {
     expect(result.current.totalProfit).toBe(120);
   });
 
+  it("nets owed-back commission against the redeemed payout (50 redeemed, 20 owed back: 170 - 30 = 140)", async () => {
+    db.run(`
+      INSERT INTO sales (id, transaction_number, subtotal, total_amount, payment_method, transaction_date, is_reseller_sale, reseller_markup_amount, reseller_commission_amount, reseller_commission_redeemed, reseller_commission_redeemed_amount, reseller_commission_claim_type, reseller_commission_owed_back)
+      VALUES ('s4', 'TXN4', 270, 270, 'cash', '2026-09-18T10:00:00.000Z', 1, 70, 50, 1, 50, 'commission', 20)
+    `);
+    db.run(`
+      INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, cost_price, total_price)
+      VALUES ('si4', 's4', 'p1', 1, 270, 100, 270)
+    `);
+
+    const { result } = renderData();
+    await waitFor(() => expect(result.current.salesToday.length).toBe(1));
+
+    expect(result.current.totalProfit).toBe(140);
+  });
+
   it("keeps the full markup as profit when the store claims it instead of paying a commission", async () => {
     db.run(`
       INSERT INTO sales (id, transaction_number, subtotal, total_amount, payment_method, transaction_date, is_reseller_sale, reseller_markup_amount, reseller_commission_amount, reseller_commission_redeemed, reseller_commission_redeemed_amount, reseller_commission_claim_type)
@@ -96,6 +112,31 @@ describe("useDailyCloseData reseller commission profit adjustment", () => {
     // 270 - 100 cost - 0 paid out = 170: the store keeps the whole markup
     // since nothing was actually paid to a reseller.
     expect(result.current.totalProfit).toBe(170);
+  });
+
+  it("exports the figure as profit before expenses, never as net profit", async () => {
+    db.run(`
+      INSERT INTO sales (id, transaction_number, subtotal, total_amount, payment_method, transaction_date)
+      VALUES ('s5', 'TXN5', 270, 270, 'cash', '2026-09-18T10:00:00.000Z')
+    `);
+    db.run(`
+      INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, cost_price, total_price)
+      VALUES ('si5', 's5', 'p1', 1, 270, 100, 270)
+    `);
+    let exported: Blob | undefined;
+    vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => {
+      exported = blob as Blob;
+      return "blob:csv";
+    });
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+
+    const { result } = renderData();
+    await waitFor(() => expect(result.current.salesToday.length).toBe(1));
+    result.current.exportToCSV();
+
+    const csv = await exported!.text();
+    expect(csv).toContain("Profit before expenses (Est.),170");
+    expect(csv).not.toMatch(/Net Profit/i);
   });
 });
 

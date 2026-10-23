@@ -1,4 +1,5 @@
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { DAILY_CLOSE_PROFIT_AFTER_EXPENSES_LABEL, DAILY_CLOSE_PROFIT_LABEL } from "@/lib/utils/daily-close-breakdown";
 
 const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10, fontFamily: "Helvetica", color: "#1a1a1a" },
@@ -49,7 +50,9 @@ interface DailyClosePdfProps {
     transferAccounts: Record<string, { name: string; total: number }>;
   };
   cashExpenses: number;
+  netCashExpected: number;
   totalProfit: number;
+  profitAfterExpenses: number;
   topSellingMeds: { name: string; quantity: number; revenue: number }[];
   generatedAt: string;
   showProfit?: boolean;
@@ -61,7 +64,9 @@ export function DailyClosePdf({
   currencyCode,
   aggregatedTotals,
   cashExpenses,
+  netCashExpected,
   totalProfit,
+  profitAfterExpenses,
   topSellingMeds,
   generatedAt,
   showProfit = true,
@@ -84,9 +89,17 @@ export function DailyClosePdf({
           </View>
           {showProfit && (
             <View style={styles.metricBox}>
-              <Text style={styles.metricLabel}>Net Profit (Est.)</Text>
+              <Text style={styles.metricLabel}>{DAILY_CLOSE_PROFIT_LABEL}</Text>
               <Text style={styles.metricValue}>
                 {money(currencyCode, totalProfit)}
+              </Text>
+            </View>
+          )}
+          {showProfit && (
+            <View style={styles.metricBox}>
+              <Text style={styles.metricLabel}>{DAILY_CLOSE_PROFIT_AFTER_EXPENSES_LABEL}</Text>
+              <Text style={styles.metricValue}>
+                {money(currencyCode, profitAfterExpenses)}
               </Text>
             </View>
           )}
@@ -134,7 +147,7 @@ export function DailyClosePdf({
         <View style={styles.row}>
           <Text>Net Cash Expected</Text>
           <Text>
-            {money(currencyCode, aggregatedTotals.cash - cashExpenses)}
+            {money(currencyCode, netCashExpected)}
           </Text>
         </View>
 

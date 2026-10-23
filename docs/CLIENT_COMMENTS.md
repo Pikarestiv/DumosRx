@@ -2443,7 +2443,7 @@ defaults; every other store saw store A's live config with no boundary.
 
 Clickable metric cards are shortcuts into the screen behind the figure
 (Daily Close's payment totals open the sales list, Net Cash Expected
-opens the expense ledger). A div with an onClick is invisible to the
+and both profit figures open a breakdown of how they are derived). A div with an onClick is invisible to the
 keyboard, so they carry button semantics; a card with no onClick stays a
 plain card and must not be focusable.
 
@@ -9553,6 +9553,9 @@ near-zero window into an actually-hit one.
 Profit is hidden from cashiers specifically, not everyone who isn't
 admin - an auditor has read access to every sale/return/expense this
 figure is derived from, so there's no reason to hide the derived number.
+The same `showProfit` flag gates both profit figures (before and after
+expenses) in the cards, modals, CSV and PDF, and disables the day's
+expenses query, so a cashier's device never runs it.
 
 ## line-components-reports-daily-close-daily-close-actions-tsx-L41
 

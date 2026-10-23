@@ -2,15 +2,16 @@ import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { isFullyReturned } from "@/lib/utils/returns-calculations";
-import { insert, update, transaction } from "@/lib/db/local-database";
+import { insert, update, query, transaction } from "@/lib/db/local-database";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { restoreReturnedStock } from "@/lib/db/queries/returns";
 import { getCustomerBalance, getCustomerLoyaltyPoints } from "@/lib/db/queries/customers";
 import { updatePrescriptionStatus } from "@/lib/db/queries/prescriptions";
 import { calculateLoyaltyPointsAfterSale, calculateReturnPointsAdjustment } from "@/lib/utils/loyalty-calculator";
-import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
+import type { Sale, SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
 import { getStoredUser } from "@/lib/storage-keys";
 import { roundMoney } from "@/lib/utils/pos-calculations";
+import { resellerPatchAfterReturn } from "@/lib/utils/reseller-return-adjustment";
 
 type ReturnableItem = SaleItemDetail & {
   returnQuantity: number;
@@ -86,8 +87,15 @@ export function useProcessReturnMutation() {
           saleItems,
           itemsToReturn.map((i) => ({ id: i.id, returnQuantity: i.returnQuantity })),
         );
+        const [storedSale] = await query<Sale>(`SELECT * FROM sales WHERE id = ?`, [sale.id]);
+        const resellerPatch = resellerPatchAfterReturn(
+          storedSale ?? sale,
+          saleItems,
+          itemsToReturn.map((i) => ({ id: i.id, returnQuantity: i.returnQuantity })),
+        );
         await update("sales", sale.id, {
           payment_status: allItemsReturned ? "refunded" : "partially_refunded",
+          ...resellerPatch,
         });
 
         // A full return of a prescription-linked sale undoes the dispense.

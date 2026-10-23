@@ -120,6 +120,54 @@ describe("expenses paging", () => {
       expect((await finance.getExpensesPage({ category: "All" })).total).toBe(2);
     });
 
+    it("filters by an inclusive calendar date range and sums only the rows in it", async () => {
+      db.run(
+        `INSERT INTO expenses (id, category, amount, date, _deleted) VALUES
+          ('e1', 'Rent', 1000, '2026-02-28', 0),
+          ('e2', 'Rent', 2000, '2026-03-01', 0),
+          ('e3', 'Rent', 3000, '2026-03-15T09:30:00', 0),
+          ('e4', 'Rent', 4000, '2026-03-31', 0),
+          ('e5', 'Rent', 5000, '2026-04-01', 0),
+          ('e6', 'Rent', 9999, '2026-03-10', 1)`,
+      );
+
+      const page = await finance.getExpensesPage({ from: "2026-03-01", to: "2026-03-31" });
+      expect(page.rows.map((r) => r.id)).toEqual(["e4", "e3", "e2"]);
+      expect(page.total).toBe(3);
+      expect(page.amount).toBe(9000);
+    });
+
+    it("treats a range with only a start date as open-ended", async () => {
+      db.run(
+        `INSERT INTO expenses (id, category, amount, date, _deleted) VALUES
+          ('e1', 'Rent', 1000, '2026-02-28', 0),
+          ('e2', 'Rent', 2000, '2026-03-01', 0),
+          ('e3', 'Rent', 3000, '2026-05-01', 0)`,
+      );
+
+      const page = await finance.getExpensesPage({ from: "2026-03-01" });
+      expect(page.total).toBe(2);
+      expect(page.amount).toBe(5000);
+    });
+
+    it("combines the date range with category and paging", async () => {
+      seed(25);
+      db.run(
+        `INSERT INTO expenses (id, category, amount, date, _deleted)
+         VALUES ('u1x', 'Utilities', 700, '2026-03-05', 0)`,
+      );
+
+      const page = await finance.getExpensesPage({
+        from: "2026-03-01",
+        to: "2026-03-10",
+        category: "Rent",
+        limit: 5,
+      });
+      expect(page.rows).toHaveLength(5);
+      expect(page.total).toBe(10);
+      expect(page.amount).toBe(1000);
+    });
+
     it("returns an empty page rather than failing when there are no expenses", async () => {
       const page = await finance.getExpensesPage({ limit: 10 });
       expect(page.rows).toEqual([]);

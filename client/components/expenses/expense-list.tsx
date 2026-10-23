@@ -10,6 +10,7 @@ import { useExpensesPage } from "@/lib/hooks/use-expenses-page";
 import { ExpenseDetailDialog } from "./expense-detail-dialog";
 import { AddExpenseDialog } from "./add-expense-dialog";
 import { ExpenseCategoryFilter } from "./expense-category-filter";
+import { ExpenseDateRangeFilter } from "./expense-date-range-filter";
 import { Card } from "@/components/ui/card";
 import { Expense } from "@/lib/db/queries/finance";
 import { ExpenseInsightsStrip } from "./expense-insights-strip";
@@ -37,6 +38,9 @@ export function ExpenseList() {
     setSearchTerm,
     selectedCategory,
     setSelectedCategory,
+    dateRange,
+    setDateRange,
+    appliedRange,
     selectedExpenseId,
     setSelectedExpenseId,
     expenseToEdit,
@@ -156,6 +160,7 @@ export function ExpenseList() {
         topCategoryStr={topCategoryStr}
         transactionCount={totalCount}
         currencyCode={storeProfile?.currency}
+        dateRange={appliedRange}
       />
 
       {/* Mobile: search bar stands alone above the category chips */}
@@ -166,6 +171,8 @@ export function ExpenseList() {
         value={selectedCategory}
         onChange={setSelectedCategory}
       />
+
+      <ExpenseDateRangeFilter value={dateRange} onChange={setDateRange} />
 
       {/* Mobile: flat card list, no wrapping table card. — docs/CLIENT_COMMENTS.md#block-components-expenses-expense-list-tsx-L170 */}
       {!isDesktop && (

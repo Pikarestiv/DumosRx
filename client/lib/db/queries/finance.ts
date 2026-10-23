@@ -1,7 +1,8 @@
-import { addMonths, startOfMonth, endOfMonth } from "date-fns";
+import { addMonths, startOfMonth, endOfMonth, getDaysInMonth } from "date-fns";
 import { query } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
 import { parseLocalDateOnly } from "@/lib/utils/date-utils";
+import { roundMoney } from "@/lib/utils/pos-calculations";
 import {
   ADJUSTMENT_REASON_NOTE_SEPARATOR,
   STOCK_LOSS_REASON_LABELS,
@@ -221,9 +222,11 @@ export interface ExpensesPage {
   /** Every row matching the scope, not just the ones in this page - so a caller
    * can tell whether there is anything older left to load. */
   total: number;
+  /** Sum of `amount` over every row matching the scope. */
+  amount: number;
 }
 
-export const EXPENSES_PAGE_SIZE = 100;
+export const EXPENSES_PAGE_SIZE = 50;
 
 // One page of the expense ledger, newest first.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-finance-ts-L272
@@ -231,6 +234,8 @@ export async function getExpensesPage({
   viewerId,
   search,
   category,
+  from,
+  to,
   limit = EXPENSES_PAGE_SIZE,
   offset = 0,
 }: {
@@ -240,6 +245,9 @@ export async function getExpensesPage({
   search?: string;
   /** Omitted or "All" means every category. */
   category?: string;
+  /** Inclusive "YYYY-MM-DD" calendar dates; either may be omitted. */
+  from?: string;
+  to?: string;
   limit?: number;
   offset?: number;
 } = {}): Promise<ExpensesPage> {
@@ -252,6 +260,8 @@ export async function getExpensesPage({
     ...(storeId ? [storeId] : []),
     ...(trimmedSearch ? [`%${trimmedSearch}%`] : []),
     ...(categoryFilter ? [categoryFilter] : []),
+    ...(from ? [from] : []),
+    ...(to ? [to] : []),
   ];
   const scopeClause =
     `${viewerId ? " AND e.user_id = ?" : ""}` +
@@ -259,7 +269,9 @@ export async function getExpensesPage({
     // LIKE is case-insensitive for ASCII in SQLite by default, matching the
     // toLowerCase()-based comparison this replaces.
     `${trimmedSearch ? " AND e.description LIKE ?" : ""}` +
-    `${categoryFilter ? " AND e.category = ?" : ""}`;
+    `${categoryFilter ? " AND e.category = ?" : ""}` +
+    `${from ? " AND date(e.date) >= date(?)" : ""}` +
+    `${to ? " AND date(e.date) <= date(?)" : ""}`;
 
   const [rows, countRows] = await Promise.all([
     query<Expense>(
@@ -271,13 +283,13 @@ export async function getExpensesPage({
        LIMIT ? OFFSET ?`,
       [...scopeParams, limit, offset],
     ),
-    query<{ total: number }>(
-      `SELECT COUNT(*) as total FROM expenses e WHERE e._deleted = 0${scopeClause}`,
+    query<{ total: number; amount: number | null }>(
+      `SELECT COUNT(*) as total, SUM(e.amount) as amount FROM expenses e WHERE e._deleted = 0${scopeClause}`,
       scopeParams,
     ),
   ]);
 
-  return { rows, total: countRows[0]?.total || 0 };
+  return { rows, total: countRows[0]?.total || 0, amount: countRows[0]?.amount || 0 };
 }
 
 // The lifetime expense figure, summed in SQL.
@@ -310,4 +322,28 @@ export async function getCashExpensesForDate(reportDate: string): Promise<number
     storeId ? [reportDate, storeId] : [reportDate],
   );
   return result[0]?.total || 0;
+}
+
+export function getExpenseAmountForDay(
+  expense: Pick<Expense, "amount" | "date" | "covers_months">,
+  reportDate: string,
+): number {
+  if (!expense.covers_months || expense.covers_months <= 1) {
+    return expense.date.slice(0, 10) === reportDate ? expense.amount : 0;
+  }
+  const day = parseLocalDateOnly(reportDate);
+  const monthStart = startOfMonth(day);
+  const installment = getSmoothedAmountInWindow(expense, monthStart, addMonths(monthStart, 1));
+  return roundMoney(installment / getDaysInMonth(day));
+}
+
+export async function getExpensesAttributableToDate(reportDate: string): Promise<number> {
+  const storeId = getActiveStoreId();
+  const rows = await query<Pick<Expense, "amount" | "date" | "covers_months">>(
+    `SELECT amount, date, covers_months FROM expenses
+     WHERE _deleted = 0 AND (date(date) = date(?) OR covers_months > 1)
+     ${storeId ? " AND store_id = ?" : ""}`,
+    storeId ? [reportDate, storeId] : [reportDate],
+  );
+  return roundMoney(rows.reduce((sum, row) => sum + getExpenseAmountForDay(row, reportDate), 0));
 }

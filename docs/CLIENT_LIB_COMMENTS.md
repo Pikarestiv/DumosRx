@@ -6255,7 +6255,7 @@ repopulate a store/user-unscoped query key.
 
 ### line-context-auth-context-tsx-L762
 
-`client/lib/context/auth-context.tsx:762`
+`client/lib/hooks/use-cloud-link.ts` (`adoptCloudToken()`, shared by the email/password and re-link code paths; moved from `auth-context.tsx:762`)
 
 A credentialed cloud login is by definition not a superadmin
 handoff, and it replaces whatever token an impersonated session

@@ -305,7 +305,7 @@ export function SyncIndicator({ collapsed = false, isMobileHeader = false }: { c
       mobileBg: isSyncOverdue ? "bg-destructive/10" : "bg-amber-500/10",
       tooltip: isLinked
         ? `${pendingCount} local change${pendingCount > 1 ? "s" : ""} pending sync since ${lastSync ? formatDistanceSafe(lastSync) + " ago" : "a while"}.`
-        : `This till is not linked to the cloud, so ${pendingCount} local change${pendingCount > 1 ? "s are" : " is"} not backed up. Ask the store owner to re-link it in Settings > Data.`,
+        : `This till is not linked to the cloud, so ${pendingCount} local change${pendingCount > 1 ? "s are" : " is"} not backed up. Re-link it in Settings > Data with the owner's login or a re-link code from the web dashboard.`,
     },
     active: {
       label: "Cloud Active",

@@ -113,7 +113,7 @@ trait AuthenticatesSessions
             'user' => $user->append('effective_permissions'),
             'token' => $token,
             'role' => $user->role,
-            'require_email_verification' => \App\Models\SystemConfig::getVal('require_email_verification', false) === true || \App\Models\SystemConfig::getVal('require_email_verification', false) === 'true'
+            'require_email_verification' => \App\Http\Middleware\EnsureEmailIsVerified::isRequired(),
         ]);
 
         if ($request->device_name === 'web') {

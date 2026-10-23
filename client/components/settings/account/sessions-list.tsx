@@ -9,6 +9,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
 import { useSessions, useRevokeSessionMutation, useRevokeAllSessionsMutation } from "@/lib/hooks/use-sessions";
 import type { Session } from "@/lib/types/user";
+import { formatDateSafe } from "@/lib/utils/date-utils";
+import { RelinkCodeDialog } from "./relink-code-dialog";
 
 function getDeviceIcon(session: Session) {
   const ua = (session.user_agent || "").toLowerCase();
@@ -70,12 +72,15 @@ export function SessionsList() {
           <CardTitle>Sessions & Devices</CardTitle>
           <CardDescription>Everywhere you&apos;re currently logged in.</CardDescription>
         </div>
-        {sessions.length > 1 && (
-          <Button variant="outline" size="sm" onClick={() => void handleRevokeAll()} disabled={revokeAll.isPending}>
-            {revokeAll.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Log out of all other devices
-          </Button>
-        )}
+        <div className="flex flex-wrap justify-end gap-2">
+          <RelinkCodeDialog />
+          {sessions.length > 1 && (
+            <Button variant="outline" size="sm" onClick={() => void handleRevokeAll()} disabled={revokeAll.isPending}>
+              {revokeAll.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Log out of all other devices
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {isLoading && (
@@ -122,7 +127,7 @@ export function SessionsList() {
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {session.ip_address || "Unknown IP"} • Last active:{" "}
-                      {new Date(session.last_used_at || session.created_at).toLocaleString()}
+                      {formatDateSafe(session.last_used_at || session.created_at, "dd/MM/yyyy HH:mm")}
                     </p>
                   </div>
                 </div>

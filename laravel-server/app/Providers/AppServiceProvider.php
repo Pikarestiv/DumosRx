@@ -84,6 +84,10 @@ class AppServiceProvider extends ServiceProvider
         // 'anon' key (the request carries no email), so ten posts a minute
         // from anywhere stopped every till from closing its session — losing
         // the exit audit row and its duration for all of them.
+        RateLimiter::for('relink', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
+
         RateLimiter::for('till-session-end', function (Request $request) {
             return Limit::perMinute(30)->by($request->ip());
         });

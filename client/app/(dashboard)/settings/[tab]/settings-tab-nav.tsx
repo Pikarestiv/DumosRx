@@ -72,7 +72,7 @@ const NAV_GROUPS: NavGroup[] = [
       { value: "staff", label: "Staff", icon: Users, adminOnly: true },
       {
         value: "roles",
-        label: "Roles & Permissions",
+        label: "Roles",
         icon: KeyRound,
         adminOnly: true,
       },

@@ -91,18 +91,18 @@ export function PermissionMatrix() {
               const categoryKeys = entries.map((e) => e.key);
               return (
                 <Fragment key={category}>
-                  <div role="row" className="grid border-t bg-muted" style={gridStyle}>
-                    <div role="cell" className="sticky left-0 z-10 bg-muted px-2 pt-3 pb-2">
+                  <div role="row" className="grid border-t bg-slate-200 dark:bg-slate-800" style={gridStyle}>
+                    <div role="cell" className="sticky left-0 z-10 bg-slate-200 dark:bg-slate-800 px-2 pt-3 pb-2">
                       <button
                         type="button"
                         onClick={() => setCollapsed((prev) => ({ ...prev, [category]: !isCollapsed }))}
                         aria-expanded={!isCollapsed}
                         aria-label={`${isCollapsed ? "Expand" : "Collapse"} ${category}`}
-                        className="flex items-center gap-1.5 font-semibold text-muted-foreground hover:text-foreground"
+                        className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-slate-50 hover:text-primary"
                       >
                         {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                         {category}
-                        <span className="text-xs font-normal">({entries.length})</span>
+                        <span className="text-xs font-medium text-slate-600 dark:text-slate-300">({entries.length})</span>
                       </button>
                     </div>
                     {groups.map((g) => {

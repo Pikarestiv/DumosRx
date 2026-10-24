@@ -1,0 +1,1333 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Cannot call method addDays\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Console/Commands/SendFunnelReminders.php
+
+		-
+			message: '#^Cannot call method addHours\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Console/Commands/SendFunnelReminders.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$accountManager\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/AccountManagerController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$registeredBy\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/AccountManagerController.php
+
+		-
+			message: '#^Relation ''permissions'' is not found in App\\Models\\Role model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/Admin/AdminRoleController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Store\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Store\>\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Admin/AdminStoreController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Admin/AdminStoreController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:createToken\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Admin/AdminStoreController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:hasRole\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Admin/AdminStoreController.php
+
+		-
+			message: '#^Relation ''assignedUser'' is not found in App\\Models\\Coupon model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/Admin/CouponController.php
+
+		-
+			message: '#^Relation ''usages'' is not found in App\\Models\\Coupon model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/Admin/CouponController.php
+
+		-
+			message: '#^Relation ''referrals'' is not found in App\\Models\\User model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/Admin/ReferralController.php
+
+		-
+			message: '#^Relation ''referredBy'' is not found in App\\Models\\User model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/Admin/ReferralController.php
+
+		-
+			message: '#^Relation ''referredUser'' is not found in App\\Models\\ReferralCreditTransaction model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/Admin/ReferralController.php
+
+		-
+			message: '#^Relation ''store'' is not found in App\\Models\\User model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/Admin/ReferralController.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\ReferralCreditTransaction model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/Admin/ReferralController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\PurchaseOrder\:\:\$orderedBy\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/App/PurchaseOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\PurchaseOrder\:\:\$supplier\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/App/PurchaseOrderController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,App\\Models\\PurchaseOrder\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/Api/App/PurchaseOrderController.php
+
+		-
+			message: '#^Relation ''orderedBy'' is not found in App\\Models\\PurchaseOrder model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/App/PurchaseOrderController.php
+
+		-
+			message: '#^Relation ''supplier'' is not found in App\\Models\\PurchaseOrder model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/App/PurchaseOrderController.php
+
+		-
+			message: '#^Ternary operator condition is always true\.$#'
+			identifier: ternary.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/Api/App/PurchaseOrderController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StockMovement\:\:\$product\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/App/StockMovementController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StockMovement\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/App/StockMovementController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,App\\Models\\StockMovement\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 2
+			path: app/Http/Controllers/Api/App/StockMovementController.php
+
+		-
+			message: '#^Relation ''product'' is not found in App\\Models\\StockMovement model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Api/App/StockMovementController.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\StockMovement model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Http/Controllers/Api/App/StockMovementController.php
+
+		-
+			message: '#^Ternary operator condition is always true\.$#'
+			identifier: ternary.alwaysTrue
+			count: 2
+			path: app/Http/Controllers/Api/App/StockMovementController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StockBatch\:\:\$store_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/App/SyncController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\StockMovement\:\:\$store_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/App/SyncController.php
+
+		-
+			message: '#^Call to an undefined static method class\-string\|object\:\:withTrashed\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 4
+			path: app/Http/Controllers/Api/App/SyncController.php
+
+		-
+			message: '#^Cannot call method delete\(\) on class\-string\|object\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Http/Controllers/Api/App/SyncController.php
+
+		-
+			message: '#^Cannot call method restore\(\) on class\-string\|object\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Http/Controllers/Api/App/SyncController.php
+
+		-
+			message: '#^Negated boolean expression is always true\.$#'
+			identifier: booleanNot.alwaysTrue
+			count: 1
+			path: app/Http/Controllers/Api/App/SyncController.php
+
+		-
+			message: '#^Offset 0 on non\-empty\-list\<string\> on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Http/Controllers/Api/App/SyncController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of static method Illuminate\\Database\\Connection\:\:transaction\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Http/Controllers/Api/App/SyncController.php
+
+		-
+			message: '#^Using nullsafe property access on non\-nullable type Laravel\\Sanctum\\PersonalAccessToken\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Api/App/TillRelinkController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$store\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/AuthController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$is_active\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/AuthController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:createToken\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: app/Http/Controllers/Api/AuthController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Contracts\\Auth\\Authenticatable\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/BroadcastController.php
+
+		-
+			message: '#^Relation ''items'' is not found in App\\Models\\OnlineOrder model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/OnlineOrderController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Public/StorefrontController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$selling_price\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Api/Public/StorefrontController.php
+
+		-
+			message: '#^Relation ''items'' is not found in App\\Models\\OnlineOrder model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/Public/StorefrontController.php
+
+		-
+			message: '#^Relation ''order'' is not found in App\\Models\\OnlineOrderItem model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/Public/StorefrontController.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\ActivityLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/Web/ActivityLogController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ActivityLog\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Web/NotificationController.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\ActivityLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/Web/NotificationController.php
+
+		-
+			message: '#^Left side of && is always true\.$#'
+			identifier: booleanAnd.leftAlwaysTrue
+			count: 1
+			path: app/Http/Controllers/Api/Web/SessionController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$stores\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Web/StoreController.php
+
+		-
+			message: '#^Expression on left side of \?\? is not nullable\.$#'
+			identifier: nullCoalesce.expr
+			count: 1
+			path: app/Http/Controllers/Api/Web/StorePaymentAccountController.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Throwable\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Http/Controllers/Api/Web/StorePaymentAccountController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$store\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Web/SubscriptionController.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\User\>\:\:\$referredBy\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Api/Web/SubscriptionController.php
+
+		-
+			message: '#^Parameter \#1 \$num of function number_format expects float, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/Api/Web/SubscriptionController.php
+
+		-
+			message: '#^Relation ''store'' is not found in App\\Models\\User model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Http/Controllers/Api/Web/SubscriptionController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>slug" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Concerns/EnforcesStaffOwnership.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\StorefrontProductResource\:\:\$category\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/StorefrontProductResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\StorefrontProductResource\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/StorefrontProductResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\StorefrontProductResource\:\:\$dosage_form\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/StorefrontProductResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\StorefrontProductResource\:\:\$generic_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/StorefrontProductResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\StorefrontProductResource\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/StorefrontProductResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\StorefrontProductResource\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/StorefrontProductResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\StorefrontProductResource\:\:\$pack_size\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/StorefrontProductResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\StorefrontProductResource\:\:\$requires_prescription\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/StorefrontProductResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\StorefrontProductResource\:\:\$selling_price\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/StorefrontProductResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\StorefrontProductResource\:\:\$strength\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/StorefrontProductResource.php
+
+		-
+			message: '#^Access to an undefined property App\\Http\\Resources\\StorefrontProductResource\:\:\$unit_of_measure\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Resources/StorefrontProductResource.php
+
+		-
+			message: '#^Left side of && is always true\.$#'
+			identifier: booleanAnd.leftAlwaysTrue
+			count: 1
+			path: app/Mail/EmailVerificationMail.php
+
+		-
+			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: app/Mail/SuperAdminAlertMail.php
+
+		-
+			message: '#^Called ''env'' outside of the config directory which returns null when the config is cached, use ''config''\.$#'
+			identifier: larastan.noEnvCallsOutsideOfConfig
+			count: 1
+			path: app/Mail/WelcomeEmail.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperActivityLog\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/ActivityLog.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperBroadcast\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/Broadcast.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperCategory\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/Category.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperCoupon\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/Coupon.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperCouponUsage\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/CouponUsage.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperCustomer\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/Customer.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperCustomerPayment\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/CustomerPayment.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperDownloadLog\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/DownloadLog.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperEmailTemplate\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/EmailTemplate.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperExpense\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/Expense.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperFeedback\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/Feedback.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperHeldTransaction\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/HeldTransaction.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperLicense\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/License.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperLoyaltyRedemptionOption\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/LoyaltyRedemptionOption.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperLoyaltyTier\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/LoyaltyTier.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperLoyaltyTransaction\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/LoyaltyTransaction.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperNotification\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/Notification.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperOnlineOrder\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/OnlineOrder.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperOnlineOrderItem\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/OnlineOrderItem.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperPaymentAccount\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/PaymentAccount.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperPaymentTransaction\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/PaymentTransaction.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperPermission\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/Permission.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperPrescription\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/Prescription.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperPrescriptionItem\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/PrescriptionItem.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Product\:\:\$store_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Product.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Product\:\:\$user_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Product.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperProduct\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/Product.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperPurchaseOrder\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/PurchaseOrder.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperPurchaseOrderItem\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/PurchaseOrderItem.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperReferralCreditTransaction\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/ReferralCreditTransaction.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperRequestedProduct\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/RequestedProduct.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperRole\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/Role.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperSale\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/Sale.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperSaleItem\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/SaleItem.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperSaleItemBatch\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/SaleItemBatch.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperSaleReturn\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/SaleReturn.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperSaleReturnItem\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/SaleReturnItem.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperStockAudit\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/StockAudit.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperStockBatch\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/StockBatch.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperStockMovement\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/StockMovement.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperStore\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/Store.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperStorefrontPaymentIntent\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/StorefrontPaymentIntent.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperSubscription\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/Subscription.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperSupplier\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/Supplier.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperSupplierPayment\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/SupplierPayment.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperSystemConfig\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/SystemConfig.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$employerStore\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$userRole\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Models/User.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperUser\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^PHPDoc type array of property App\\Models\\User\:\:\$appends is not covariant with PHPDoc type list\<string\> of overridden property Illuminate\\Database\\Eloquent\\Model\:\:\$appends\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^PHPDoc type array\<int, string\> of property App\\Models\\User\:\:\$fillable is not covariant with PHPDoc type list\<string\> of overridden property Illuminate\\Database\\Eloquent\\Model\:\:\$fillable\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^PHPDoc type array\<int, string\> of property App\\Models\\User\:\:\$hidden is not covariant with PHPDoc type list\<string\> of overridden property Illuminate\\Database\\Eloquent\\Model\:\:\$hidden\.$#'
+			identifier: property.phpDocType
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^PHPDoc tag @mixin contains unknown class App\\Models\\IdeHelperUserDevice\.$#'
+			identifier: class.notFound
+			count: 1
+			path: app/Models/UserDevice.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$end_date\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Admin/AdminActivityFeedSources.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Admin/AdminActivityFeedSources.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$is_trial\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Admin/AdminActivityFeedSources.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$plan_name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Admin/AdminActivityFeedSources.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$start_date\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Admin/AdminActivityFeedSources.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\{id\: lowercase\-string&non\-falsy\-string, type\: ''admin_action'', at\: string, title\: string, detail\: string\|null, store_id\: string\|null, derived\: false\}, Closure\(App\\Models\\ActivityLog\)\: array\{id\: lowercase\-string&non\-falsy\-string, type\: ''admin_action'', at\: string, title\: string, detail\: string\|null, store_id\: string\|null, derived\: false\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Admin/AdminActivityFeedSources.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\{id\: non\-falsy\-string, type\: ''payment'', at\: string, title\: ''Payment abandoned''\|''Payment failed''\|''Payment pending''\|''Payment success'', detail\: non\-falsy\-string, store_id\: null, derived\: false\}, Closure\(App\\Models\\PaymentTransaction\)\: array\{id\: non\-falsy\-string, type\: ''payment'', at\: string, title\: ''Payment abandoned''\|''Payment failed''\|''Payment pending''\|''Payment success'', detail\: non\-falsy\-string, store_id\: null, derived\: false\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Admin/AdminActivityFeedSources.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\{id\: non\-falsy\-string, type\: ''sync_failure'', at\: string, title\: non\-falsy\-string, detail\: non\-falsy\-string, store_id\: string\|null, derived\: false\}, Closure\(App\\Models\\SyncFailure\)\: array\{id\: non\-falsy\-string, type\: ''sync_failure'', at\: string, title\: non\-falsy\-string, detail\: non\-falsy\-string, store_id\: string\|null, derived\: false\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Admin/AdminActivityFeedSources.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\ActivityLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Admin/AdminActivityFeedSources.php
+
+		-
+			message: '#^Relation ''userRole'' is not found in App\\Models\\ActivityLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Admin/AdminActivityFeedSources.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ActivityLog\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Admin/AdminActivityService.php
+
+		-
+			message: '#^Relation ''stores'' is not found in App\\Models\\ActivityLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Admin/AdminActivityService.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\ActivityLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 4
+			path: app/Services/Admin/AdminActivityService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>displayStore" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Admin/AdminActivityService.php
+
+		-
+			message: '#^Negated boolean expression is always false\.$#'
+			identifier: booleanNot.alwaysFalse
+			count: 1
+			path: app/Services/Admin/AdminChurnTrendService.php
+
+		-
+			message: '#^Parameter \#2 \$moment of static method App\\Support\\TimeSeries\:\:labelFor\(\) expects Illuminate\\Support\\Carbon, Carbon\\Carbon given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Admin/AdminChurnTrendService.php
+
+		-
+			message: '#^Parameter \#3 \$moment of method App\\Services\\Admin\\AdminChurnTrendService\:\:coveredAt\(\) expects Illuminate\\Support\\Carbon, Carbon\\Carbon given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Admin/AdminChurnTrendService.php
+
+		-
+			message: '#^Parameter \#2 \$syntax of method Carbon\\Carbon\:\:diffForHumans\(\) expects array\|int\|null, true given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Admin/AdminHealthService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\PaymentTransaction\:\:\$subscription\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Admin/AdminRevenueService.php
+
+		-
+			message: '#^Relation ''subscription'' is not found in App\\Models\\PaymentTransaction model\.$#'
+			identifier: larastan.relationExistence
+			count: 3
+			path: app/Services/Admin/AdminRevenueService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Role\:\:\$permissions\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Admin/AdminRoleService.php
+
+		-
+			message: '#^Relation ''permissions'' is not found in App\\Models\\Role model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Admin/AdminRoleService.php
+
+		-
+			message: '#^Parameter &\$removed by\-ref type of method App\\Services\\Admin\\AdminStoreDeletionService\:\:purgeRows\(\) expects array\<string, int\>, array\<string, mixed\> given\.$#'
+			identifier: parameterByRef.type
+			count: 1
+			path: app/Services/Admin/AdminStoreDeletionService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ActivityLog\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Admin/AdminStoreDetailService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ActivityLog\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Admin/AdminStoreDetailService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Store\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Admin/AdminStoreDetailService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\ActivityLog\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/Admin/AdminStoreDetailService.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\ActivityLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Admin/AdminStoreDetailService.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\Store model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Admin/AdminStoreDetailService.php
+
+		-
+			message: '#^Ternary operator condition is always true\.$#'
+			identifier: ternary.alwaysTrue
+			count: 1
+			path: app/Services/Admin/AdminStoreDetailService.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Carbon\\Carbon\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/Admin/AdminStoreDetailService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Store\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 6
+			path: app/Services/Admin/AdminStoreService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Store\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Store\>\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/Admin/AdminStoreService.php
+
+		-
+			message: '#^Parameter \#1 \$num of function number_format expects float, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Admin/AdminStoreService.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\Store model\.$#'
+			identifier: larastan.relationExistence
+			count: 6
+			path: app/Services/Admin/AdminStoreService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\PaymentTransaction\:\:\$subscription\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Services/Admin/AdminSubscriptionLifecycleService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$stores\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Admin/AdminSubscriptionLifecycleService.php
+
+		-
+			message: '#^Relation ''stores'' is not found in App\\Models\\User model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Admin/AdminSubscriptionLifecycleService.php
+
+		-
+			message: '#^Relation ''subscription'' is not found in App\\Models\\PaymentTransaction model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Admin/AdminSubscriptionLifecycleService.php
+
+		-
+			message: '#^Relation ''subscriptions'' is not found in App\\Models\\User model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Admin/AdminSubscriptionLifecycleService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ActivityLog\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Admin/AdminSummaryService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Store\:\:\$user\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Admin/AdminSummaryService.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\Store model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Admin/AdminSummaryService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SyncFailure\:\:\$refused\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Admin/AdminSyncHealthService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\SyncFailure\:\:\$total\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Admin/AdminSyncHealthService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\AdminTillCode\:\:\$admin\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Admin/AdminTillSessionService.php
+
+		-
+			message: '#^Relation ''admin'' is not found in App\\Models\\AdminTillCode model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Admin/AdminTillSessionService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>first_name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Admin/AdminTillSessionService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>last_name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Admin/AdminTillSessionService.php
+
+		-
+			message: '#^Parameter \#2 \$moment of static method App\\Support\\TimeSeries\:\:labelFor\(\) expects Illuminate\\Support\\Carbon, Carbon\\Carbon\|null given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Services/Admin/AdminTrendsService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$store\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Admin/AdminUserService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\:\:\$userRole\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Admin/AdminUserService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\User\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\User\>\:\:\$stores\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Admin/AdminUserService.php
+
+		-
+			message: '#^Relation ''employerStore'' is not found in App\\Models\\User model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Admin/AdminUserService.php
+
+		-
+			message: '#^Relation ''store'' is not found in App\\Models\\User model\.$#'
+			identifier: larastan.relationExistence
+			count: 2
+			path: app/Services/Admin/AdminUserService.php
+
+		-
+			message: '#^Relation ''stores'' is not found in App\\Models\\User model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Admin/AdminUserService.php
+
+		-
+			message: '#^Relation ''userRole'' is not found in App\\Models\\User model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Admin/AdminUserService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Admin/BroadcastEmailService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Admin/BroadcastEmailService.php
+
+		-
+			message: '#^Relation ''stores'' is not found in App\\Models\\User model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Admin/BroadcastEmailService.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Carbon\\Carbon\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Admin/DeviceQueueReportService.php
+
+		-
+			message: '#^Offset ''batch_count'' on array\{batch_count\: int, quantity_sum\: float\|int, value_sum\?\: float\|int\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Services/Admin/StockDivergenceService.php
+
+		-
+			message: '#^Offset ''quantity_sum'' on array\{batch_count\: int, quantity_sum\: float\|int, value_sum\?\: float\|int\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Services/Admin/StockDivergenceService.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between Carbon\\Carbon and null will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: app/Services/Admin/StockDivergenceService.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Carbon\\Carbon\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Admin/StockDivergenceService.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: app/Services/Admin/SyncCommandService.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Carbon\\Carbon\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Admin/SyncCommandService.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 3
+			path: app/Services/Admin/TableAgreementService.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between Carbon\\Carbon and null will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: app/Services/Admin/TableAgreementService.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Carbon\\Carbon\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Admin/TableAgreementService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>status" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Payment/PaymentMismatchHandler.php
+
+		-
+			message: '#^Right side of && is always true\.$#'
+			identifier: booleanAnd.rightAlwaysTrue
+			count: 1
+			path: app/Services/Payment/PaymentService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/Storefront/StorefrontPaymentReconciler.php
+
+		-
+			message: '#^Left side of && is always true\.$#'
+			identifier: booleanAnd.leftAlwaysTrue
+			count: 1
+			path: app/Services/SubscriptionService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Category\:\:\$store_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Sync/CrossTenantCategoryRepairService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$deleted_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Sync/CrossTenantCategoryRepairService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Sync/CrossTenantCategoryRepairService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>permissions" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Sync/LegacyStockQuantitiesGrant.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Supplier\:\:\$store_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Sync/OwnedSupplierResolver.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Supplier\:\:\$user_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Sync/OwnedSupplierResolver.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Product\:\:\$store_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Sync/StorelessProductAttributor.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Product\:\:\$user_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Sync/StorelessProductAttributor.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$product_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Sync/StorelessProductAttributor.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$store_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Sync/StorelessProductAttributor.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Sale\:\:\$cashier\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Web/DashboardService.php
+
+		-
+			message: '#^Relation ''cashier'' is not found in App\\Models\\Sale model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Web/DashboardService.php
+
+		-
+			message: '#^Relation ''user'' is not found in App\\Models\\ActivityLog model\.$#'
+			identifier: larastan.relationExistence
+			count: 1
+			path: app/Services/Web/DashboardService.php
+
+		-
+			message: '#^Parameter \#1 \$string of function substr expects string, int\<1, max\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Web/SyncPayloadMapper.php
+
+		-
+			message: '#^Dead catch \- Throwable is never thrown in the try block\.$#'
+			identifier: catch.neverThrown
+			count: 1
+			path: app/Support/HostMetrics.php
+
+		-
+			message: '#^Offset 0 on array\{float, float, float\} in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.offset
+			count: 1
+			path: app/Support/HostMetrics.php
+
+		-
+			message: '#^Offset 1 on array\{float, float, float\} in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.offset
+			count: 1
+			path: app/Support/HostMetrics.php
+
+		-
+			message: '#^Offset 2 on array\{float, float, float\} in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.offset
+			count: 1
+			path: app/Support/HostMetrics.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Schema\\ForeignKeyDefinition\:\:after\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: database/migrations/2026_05_16_070000_add_sync_fields_to_users_table.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Schema\\ColumnDefinition\:\:constrained\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: database/migrations/2026_07_05_171215_create_online_order_items_table.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Schema\\ColumnDefinition\:\:constrained\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: database/migrations/2026_07_05_171215_create_online_orders_table.php
+
+		-
+			message: '#^Called ''env'' outside of the config directory which returns null when the config is cached, use ''config''\.$#'
+			identifier: larastan.noEnvCallsOutsideOfConfig
+			count: 1
+			path: database/seeders/DatabaseSeeder.php
+
+		-
+			message: '#^Using nullsafe method call on non\-nullable type Illuminate\\Console\\Command\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: database/seeders/DatabaseSeeder.php

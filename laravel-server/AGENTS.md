@@ -4186,6 +4186,21 @@ leaves it at 1.0. Rationale for sampling dev rather than disabling it, and the
 rules for what belongs in Sentry at all, are in `client/AGENTS.md`, "What
 reaches Sentry" — they apply to both halves.
 
+## Static analysis and formatting (2026-10-24)
+
+`composer analyse` runs PHPStan with Larastan at level 5 over `app`, `config`,
+`database` and `routes`. `composer format` runs `pint --test`; drop `--test`
+to fix. Both pass on a clean tree.
+
+`phpstan-baseline.neon` holds the errors that existed when PHPStan was
+introduced, so only new ones fail. It only shrinks: fix a baselined error, then
+regenerate with `vendor/bin/phpstan analyse --generate-baseline
+phpstan-baseline.neon` and commit the smaller file. Never regenerate it to
+absorb a new error. Most baselined errors are Eloquent models missing
+`@property` docblocks or relation generics, so fixing a model clears many at
+once. Neither tool runs in `.github/workflows/checks.yml` yet, and that
+workflow gates the deploys.
+
 ## Running artisan on the production box (Namecheap shared hosting)
 
 The default `php` on that server is **7.4.33**; this app requires >= 8.2, so a

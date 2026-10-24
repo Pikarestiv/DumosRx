@@ -12,6 +12,19 @@ vi.mock("@/lib/context/auth-context", () => ({
   useAuth: () => ({ user: authState.user, isHydrated: true }),
 }));
 
+const persistSpy = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/storage-keys", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/storage-keys")>();
+  return {
+    ...actual,
+    setStoredActiveStoreId: (storeId: string) => {
+      persistSpy(storeId);
+      actual.setStoredActiveStoreId(storeId);
+    },
+  };
+});
+
 vi.mock("@sentry/nextjs", () => ({ setUser: vi.fn(), setTag: vi.fn() }));
 
 vi.mock("@/lib/db/sync-engine", () => ({
@@ -31,10 +44,13 @@ describe("store-context active-store persistence on logout", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
   let storeContext: typeof import("@/lib/context/store-context");
+  let queryKeysModule: typeof import("@/lib/query-keys");
+  let queryClient: QueryClient;
 
   beforeAll(async () => {
     core = await import("@/lib/db/core");
     storeContext = await import("@/lib/context/store-context");
+    queryKeysModule = await import("@/lib/query-keys");
     const { SCHEMA_SQL } = await import("@/lib/db/schema");
     const SQL = await initSqlJs({
       locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),
@@ -48,10 +64,19 @@ describe("store-context active-store persistence on logout", () => {
     db.run(`DELETE FROM stores;`);
     localStorage.clear();
     core.setActiveStoreId(null);
+    persistSpy.mockClear();
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   });
 
+  function seedCachedProfile(storeId: string) {
+    const profile = { id: storeId, name: storeId };
+    for (const resolverStoreId of ["store-a", "store-b", null]) {
+      core.setActiveStoreId(resolverStoreId);
+      queryClient.setQueryData(queryKeysModule.queryKeys.stores.profile(storeId).queryKey, profile);
+    }
+  }
+
   function wrapper({ children }: { children: React.ReactNode }) {
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     return React.createElement(
       QueryClientProvider,
       { client: queryClient },
@@ -68,10 +93,16 @@ describe("store-context active-store persistence on logout", () => {
     await waitFor(() => expect(result.current.storeProfile?.id).toBe("store-b"));
 
     localStorage.setItem("dumos_active_store_id", "store-b");
+    seedCachedProfile("store-a");
+    core.setActiveStoreId("store-b");
+    persistSpy.mockClear();
     authState.user = null;
     rerender();
 
+    expect(result.current.storeProfile?.id).toBe("store-a");
+    await waitFor(() => expect(result.current.loading).toBe(false));
     await waitFor(() => expect(result.current.storeProfile?.id).toBe("store-a"));
+    expect(persistSpy).not.toHaveBeenCalled();
     expect(localStorage.getItem("dumos_active_store_id")).toBe("store-b");
   });
 
@@ -84,5 +115,6 @@ describe("store-context active-store persistence on logout", () => {
 
     await waitFor(() => expect(result.current.storeProfile?.id).toBe("store-b"));
     await waitFor(() => expect(localStorage.getItem("dumos_active_store_id")).toBe("store-b"));
+    expect(persistSpy).toHaveBeenCalledWith("store-b");
   });
 });

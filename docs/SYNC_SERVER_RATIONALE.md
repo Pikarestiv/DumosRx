@@ -558,7 +558,7 @@ Above `if ($currentStoreId === null || $currentStoreId === '') {`:
 > an INSERT stays an INSERT and an UPDATE no-ops, instead of writing
 > to a row we cannot prove is the right one.
 
-### `resolveUpdateConflict`
+### `resolveUpdateConflict` (legacy fallback)
 
 Above `$modelUpdatedAt = \Carbon\Carbon::parse($model->updated_at);`:
 

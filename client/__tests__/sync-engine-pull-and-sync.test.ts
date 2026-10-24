@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Query } from '@tanstack/react-query';
 import { query, execute } from '../lib/db/core';
 import { asAsync } from './helpers/as-async';
@@ -48,6 +48,8 @@ vi.mock('../lib/query-client', () => ({
 }));
 
 describe('Sync Engine pull callbacks and sync()', () => {
+  afterEach(() => new Promise((resolve) => setTimeout(resolve, 0)));
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

@@ -76,7 +76,7 @@ offline; too shy and an admin can never get in at all.
 
 ## line-__tests__-admin-till-login-discriminator-test-ts-L40
 
-`client/__tests__/admin-till-login-discriminator.test.ts:40`
+`client/__tests__/admin-till-login-discriminator.test.ts:37`
 
 An owner typing their own address pauses constantly. Firing on a bare
 "@" swapped the 4-slot PIN for the 12-digit code field and back again,
@@ -84,7 +84,7 @@ remounting the input under their fingers.
 
 ## line-__tests__-admin-till-login-discriminator-test-ts-L49
 
-`client/__tests__/admin-till-login-discriminator.test.ts:49`
+`client/__tests__/admin-till-login-discriminator.test.ts:45`
 
 getUsersByUsernameOrEmail filters `is_active = 1 AND _deleted = 0`, so a
 deactivated owner matches nothing locally and reaches the admin path,
@@ -110,7 +110,7 @@ an existing, visible feature being restricted, not a new one.
 
 ## line-__tests__-assistant-launcher-plan-gate-test-tsx-L57
 
-`client/__tests__/assistant-launcher-plan-gate.test.tsx:57`
+`client/__tests__/assistant-launcher-plan-gate.test.tsx:55`
 
 A-158: the header wraps this button in a `rounded-full` ring
 (dashboard-header.tsx) with only 2px of padding, so a button that kept
@@ -127,7 +127,7 @@ callback cannot fail when the real one drifts.
 
 ## block-__tests__-audit-count-row-baseline-test-ts-L72
 
-`client/__tests__/audit-count-row-baseline.test.ts:72`
+`client/__tests__/audit-count-row-baseline.test.ts:70`
 
 The guard that makes counting last-TYPED-wins rather than last-READ-wins.
 Typing "12" is two counts (EditableNumberCell commits per keystroke) and
@@ -137,7 +137,7 @@ the queue.
 
 ## block-__tests__-audit-derivations-test-ts-L35
 
-`client/__tests__/audit-derivations.test.ts:35`
+`client/__tests__/audit-derivations.test.ts:37`
 
 P1/U4: the cycle-count screen derived its category groupings with an
 O(categories x items) filter-per-category pass, unmemoized, on every
@@ -146,7 +146,7 @@ Both now live in pure helpers the screen memoizes.
 
 ## line-__tests__-audit-derivations-test-ts-L145
 
-`client/__tests__/audit-derivations.test.ts:145`
+`client/__tests__/audit-derivations.test.ts:143`
 
 The row's own systemQty was frozen when the sheet was built. Coalescing
 to it here would post a day's sales back as found stock; submitStockAudit
@@ -154,7 +154,7 @@ re-reads the real quantity inside its transaction instead.
 
 ## line-__tests__-audit-derivations-test-ts-L165
 
-`client/__tests__/audit-derivations.test.ts:165`
+`client/__tests__/audit-derivations.test.ts:162`
 
 A draft resumed from a build before A-263 has a typed countedQty
 beside a systemQty frozen at sheet-build. Passing that frozen figure
@@ -174,7 +174,7 @@ shortcut for "counted, and it matched".
 
 ## line-__tests__-audit-ledger-blank-counted-qty-test-tsx-L111
 
-`client/__tests__/audit-ledger-blank-counted-qty.test.tsx:111`
+`client/__tests__/audit-ledger-blank-counted-qty.test.tsx:108`
 
 "Counted, and it matched" has to mean it matched what the system says
 right now - the row's own systemQty may be hours stale (A-263), so the
@@ -236,7 +236,7 @@ was the only path that ever cleared the table.
 
 ## line-__tests__-audit-log-local-retention-test-ts-L115
 
-`client/__tests__/audit-log-local-retention.test.ts:115`
+`client/__tests__/audit-log-local-retention.test.ts:111`
 
 A-247's fast clock, exaggerated: the cutoff is derived from the newest
 server-issued sync stamp rather than from `Date.now()`, so a wrong clock
@@ -246,7 +246,7 @@ outside the 730-day window.
 
 ## line-__tests__-audit-log-local-retention-test-ts-L133
 
-`client/__tests__/audit-log-local-retention.test.ts:133`
+`client/__tests__/audit-log-local-retention.test.ts:126`
 
 `_sync_state` empty, so boundedNow() has nothing to take the lower of and
 must use the device clock rather than refusing or landing on epoch 0 —
@@ -269,7 +269,7 @@ test file's run.
 
 ## block-__tests__-auth-context-permission-booleans-test-ts-L42
 
-`client/__tests__/auth-context-permission-booleans.test.ts:42`
+`client/__tests__/auth-context-permission-booleans.test.ts:37`
 
 Confirms the migration is behavior-preserving: an auditor (who is denied
 process_sales by DEFAULT_GROUP_PERMISSIONS.auditor, same as
@@ -280,7 +280,7 @@ hardcoded arrays for the default groups.
 
 ## line-__tests__-auth-context-permission-booleans-test-ts-L81
 
-`client/__tests__/auth-context-permission-booleans.test.ts:81`
+`client/__tests__/auth-context-permission-booleans.test.ts:70`
 
 Without this, each test's AuthProvider (and its live useEffects, e.g.
 the async getUserPermissionGroup() lookup) stays mounted after the
@@ -293,7 +293,7 @@ isolation, until this cleanup was added.
 
 ## line-__tests__-auth-context-permission-booleans-test-ts-L135
 
-`client/__tests__/auth-context-permission-booleans.test.ts:135`
+`client/__tests__/auth-context-permission-booleans.test.ts:118`
 
 The two cases above happen to agree with the OLD hardcoded
 checkCanProcessSales(role) array too, so on their own they can't prove
@@ -304,7 +304,7 @@ group-driven logic can pass this.
 
 ## block-__tests__-auth-context-permission-booleans-test-ts-L141
 
-`client/__tests__/auth-context-permission-booleans.test.ts:141`
+`client/__tests__/auth-context-permission-booleans.test.ts:120`
 
 Pins a DELIBERATE, spec-sanctioned behavior change: the old hardcoded
 helpers (checkIsAdmin/checkCanManageStockBatch/checkCanViewAllActivity)
@@ -318,7 +318,7 @@ not "fixed".
 
 ## line-__tests__-auth-context-permission-booleans-test-ts-L153
 
-`client/__tests__/auth-context-permission-booleans.test.ts:153`
+`client/__tests__/auth-context-permission-booleans.test.ts:123`
 
 An EMPTY group, not no group at all: with no group the role-string
 fallback would grant these anyway, so only an assigned group that
@@ -361,7 +361,7 @@ separation.
 
 ## line-__tests__-auth-impersonation-storage-leak-test-tsx-L105
 
-`client/__tests__/auth-impersonation-storage-leak.test.tsx:105`
+`client/__tests__/auth-impersonation-storage-leak.test.tsx:98`
 
 setDbUser (core.setCurrentUser) must never have been called with the
 impersonated profile - moving the local DB's "current user" pointer
@@ -386,7 +386,7 @@ genuinely different.
 
 ## line-__tests__-auth-login-pos-cart-clear-test-tsx-L183
 
-`client/__tests__/auth-login-pos-cart-clear.test.tsx:183`
+`client/__tests__/auth-login-pos-cart-clear.test.tsx:172`
 
 No previous user was logged in, so there is nothing "carried over"
 from a different cashier — but this still exercises the guard's
@@ -413,7 +413,7 @@ persisted key and the module-scope query resolver in lib/db/core.ts.
 
 ## line-__tests__-auth-login-sets-active-store-test-tsx-L157
 
-`client/__tests__/auth-login-sets-active-store.test.tsx:157`
+`client/__tests__/auth-login-sets-active-store.test.tsx:144`
 
 Nothing but AuthProvider is mounted here - no StoreProvider at all -
 so if the active store is correct it can only have been login() that
@@ -421,7 +421,7 @@ set it, closing the window before the provider's targetId effect runs.
 
 ## line-__tests__-auth-login-sets-active-store-test-tsx-L201
 
-`client/__tests__/auth-login-sets-active-store.test.tsx:201`
+`client/__tests__/auth-login-sets-active-store.test.tsx:187`
 
 An owner has access to every store on the device; their active store
 is whatever they last switched to, which store-context.tsx persists
@@ -465,7 +465,7 @@ match a real option.
 
 ## line-__tests__-auto-lock-duration-self-heal-test-ts-L103
 
-`client/__tests__/auto-lock-duration-self-heal.test.ts:103`
+`client/__tests__/auto-lock-duration-self-heal.test.ts:89`
 
 The self-heal effect corrects the store, not just the display —
 otherwise the same blank dropdown would come right back on the next
@@ -522,7 +522,7 @@ itself, so the next occurrence is diagnosable from the report alone.
 
 ## block-__tests__-base-client-html-response-test-ts-L94
 
-`client/__tests__/base-client-html-response.test.ts:94`
+`client/__tests__/base-client-html-response.test.ts:81`
 
 A-206. The error named the endpoint, status and content-type, and stopped
 there — which could not separate the three causes that produce this on
@@ -555,7 +555,7 @@ could not state.
 
 ## line-__tests__-batch-quantity-recompute-test-ts-L195
 
-`client/__tests__/batch-quantity-recompute.test.ts:195`
+`client/__tests__/batch-quantity-recompute.test.ts:191`
 
 The classification must read the log as it was BEFORE this movement.
 Reading it afterwards let `inbound` grow past a `stored` that sales had
@@ -565,7 +565,7 @@ where the shelf holds 15.
 
 ## line-__tests__-batch-quantity-recompute-test-ts-L229
 
-`client/__tests__/batch-quantity-recompute.test.ts:229`
+`client/__tests__/batch-quantity-recompute.test.ts:222`
 
 The residue and the movement being equal is the one case a value-based
 "already correct, nothing to write" guess gets wrong: it reads exactly
@@ -574,7 +574,7 @@ arithmetic, is what tells them apart — hence batches are created at 0.
 
 ## line-__tests__-batch-quantity-recompute-test-ts-L251
 
-`client/__tests__/batch-quantity-recompute.test.ts:251`
+`client/__tests__/batch-quantity-recompute.test.ts:242`
 
 The boundary is `unlogged residue > cumulative outbound`, not "stored
 has reached 0": stored is U + Σlog and the test is stored > inbound, so
@@ -587,7 +587,7 @@ visible.
 
 ## line-__tests__-batch-quantity-recompute-test-ts-L308
 
-`client/__tests__/batch-quantity-recompute.test.ts:308`
+`client/__tests__/batch-quantity-recompute.test.ts:293`
 
 A receipt, an import row and a transfer destination all create the batch
 at 0 and let the movement supply the figure. Creating it with the
@@ -596,7 +596,7 @@ receiving an equal-sized adjustment, and one of the two has to be wrong.
 
 ## line-__tests__-batch-quantity-recompute-test-ts-L337
 
-`client/__tests__/batch-quantity-recompute.test.ts:337`
+`client/__tests__/batch-quantity-recompute.test.ts:320`
 
 Four suites stub @/lib/db/local-database and model this rule by hand in
 __tests__/helpers/fake-batch-quantity.ts. Nothing else notices when the
@@ -683,7 +683,7 @@ relevant.
 
 ## line-__tests__-catalog-list-row-callback-identity-test-tsx-L50
 
-`client/__tests__/catalog-list-row-callback-identity.test.tsx:50`
+`client/__tests__/catalog-list-row-callback-identity.test.tsx:35`
 
 Mirrors react-query's real contract: a brand-new result object per render,
 with a stable mutateAsync. A fix that depends on the whole object therefore
@@ -742,7 +742,7 @@ kept coincidentally landing within 2 edits of a 4-letter keyword.
 
 ## block-__tests__-category-icon-fuzzy-match-test-ts-L53
 
-`client/__tests__/category-icon-fuzzy-match.test.ts:53`
+`client/__tests__/category-icon-fuzzy-match.test.ts:46`
 
 Cynthia's own construction-materials store categories, previously
 uncovered by the pharmacy/grocery keyword sets and landing on either an
@@ -750,7 +750,7 @@ arbitrary FALLBACK_ICONS rotation or a wrong fuzzy match (see above).
 
 ## line-__tests__-category-icon-fuzzy-match-test-ts-L60
 
-`client/__tests__/category-icon-fuzzy-match.test.ts:60`
+`client/__tests__/category-icon-fuzzy-match.test.ts:50`
 
 "electrical" wins over "lighting" as the earlier KEYWORD_ICONS entry
 when a name contains both - still a purpose-built icon, just the
@@ -802,7 +802,7 @@ inherited full admin UI privileges.
 
 ## line-__tests__-check-is-admin-test-ts-L17
 
-`client/__tests__/check-is-admin.test.ts:17`
+`client/__tests__/check-is-admin.test.ts:12`
 
 super_admin must stay included — a prior fix (pos-transaction-history)
 switched to checkIsAdmin specifically because the platform's top role
@@ -824,7 +824,7 @@ person had to manually refresh out of.
 
 ## line-__tests__-chunk-error-detection-test-ts-L34
 
-`client/__tests__/chunk-error-detection.test.ts:34`
+`client/__tests__/chunk-error-detection.test.ts:26`
 
 V8's own wording when response.json() (base-client.ts) hits a proxy/
 gateway HTML error page instead of JSON - same leading text as the
@@ -917,7 +917,7 @@ predicate decides which are pure noise.
 
 ## block-__tests__-console-noise-filter-test-ts-L32
 
-`client/__tests__/console-noise-filter.test.ts:32`
+`client/__tests__/console-noise-filter.test.ts:23`
 
 The straggler actually caught in CI: a mock missing an export makes the
 crash path throw, and the caught error is logged with a full stack - a
@@ -945,7 +945,7 @@ fires independently of the local sync queue entirely.
 
 ## line-__tests__-crash-report-dedup-test-ts-L71
 
-`client/__tests__/crash-report-dedup.test.ts:71`
+`client/__tests__/crash-report-dedup.test.ts:66`
 
 Every queued push targets the SAME single row (one insert() the first
 time, then update()s for each repeat) - unlike audit_logs, feedback
@@ -1102,7 +1102,7 @@ refunding it writes off a receivable rather than moving drawer cash.
 
 ## line-__tests__-daily-close-mixed-refund-attribution-test-ts-L119
 
-`client/__tests__/daily-close-mixed-refund-attribution.test.ts:119`
+`client/__tests__/daily-close-mixed-refund-attribution.test.ts:110`
 
 The full 10000 refund reverses the original 3000 cash / 7000 credit
 split exactly, the same as a pure-credit sale's refund already
@@ -1111,7 +1111,7 @@ not as a phantom cash movement.
 
 ## block-__tests__-daily-close-reseller-profit-test-ts-L102
 
-`client/__tests__/daily-close-reseller-profit.test.ts:102`
+`client/__tests__/daily-close-reseller-profit.test.ts:145`
 
 The commission is a RATE multiplication - the A-261 class, not float dust
 - and it is both stored and paid out to a reseller, so it has to be
@@ -1148,7 +1148,7 @@ Action Center can produce resolves to a tab that actually exists.
 
 ## line-__tests__-dashboard-action-center-routes-test-ts-L82
 
-`client/__tests__/dashboard-action-center-routes.test.ts:82`
+`client/__tests__/dashboard-action-center-routes.test.ts:73`
 
 Bug #9: a product floored to quantity=0 by bug #4's oversell fix produced
 zero signal on the Dashboard's Action Center (it fell into
@@ -1160,7 +1160,7 @@ pattern as the existing "Low Stock" card, sourced from
 
 ## line-__tests__-dashboard-action-center-routes-test-ts-L111
 
-`client/__tests__/dashboard-action-center-routes.test.ts:111`
+`client/__tests__/dashboard-action-center-routes.test.ts:97`
 
 Distinct card id + a real, working actionRoute (out_of_stock is a
 genuine status filter chip on the catalog tab, unlike the low-stock
@@ -1180,7 +1180,7 @@ every other call site uses, so it enforces whatever key a route declares.
 
 ## line-__tests__-dashboard-header-action-permission-test-tsx-L36
 
-`client/__tests__/dashboard-header-action-permission.test.tsx:36`
+`client/__tests__/dashboard-header-action-permission.test.tsx:30`
 
 canManageStockBatch is auth-context's own hasPermission("manage_products")
 call, so the mock derives it the same way rather than hardcoding true -
@@ -1248,7 +1248,7 @@ percentage again:
 
 ## line-__tests__-dashboard-ratio-denominators-test-ts-L97
 
-`client/__tests__/dashboard-ratio-denominators.test.ts:97`
+`client/__tests__/dashboard-ratio-denominators.test.ts:79`
 
 Denominator (yesterday): same definition - gross 1000 less the 400
 refund *issued yesterday*. Neither today's nor an older day's refund
@@ -1256,7 +1256,7 @@ may leak into it.
 
 ## line-__tests__-dashboard-ratio-denominators-test-ts-L139
 
-`client/__tests__/dashboard-ratio-denominators.test.ts:139`
+`client/__tests__/dashboard-ratio-denominators.test.ts:120`
 
 Refunds come back netted to their EX-VAT share (total_refunded is
 VAT-inclusive, revenue-minus-tax is not - see totalRefundsData in
@@ -1268,7 +1268,7 @@ revenueChange/avgTransactionChange now come from the same definition.
 
 ## line-__tests__-dashboard-ratio-denominators-test-ts-L171
 
-`client/__tests__/dashboard-ratio-denominators.test.ts:171`
+`client/__tests__/dashboard-ratio-denominators.test.ts:147`
 
 The card's value is the all-time count (3 live customers), so its
 baseline must be the all-time count as of the window start: c-old +
@@ -1277,7 +1277,7 @@ c-prev = 2. Counting only the previous window's signups (1) turned
 
 ## line-__tests__-dashboard-ratio-denominators-test-ts-L197
 
-`client/__tests__/dashboard-ratio-denominators.test.ts:197`
+`client/__tests__/dashboard-ratio-denominators.test.ts:171`
 
 10*100 + 5*100 + 2*100 = 1700; the soft-deleted batch is excluded from
 both. The percentage's baseline is derived from currentValue, so it has
@@ -1326,7 +1326,7 @@ proving the fix rather than coincidentally passing in a UTC test env.
 
 ## line-__tests__-date-range-local-time-test-ts-L45
 
-`client/__tests__/date-range-local-time.test.ts:45`
+`client/__tests__/date-range-local-time.test.ts:35`
 
 2026-09-20T23:30:00.000Z is local 2026-09-21T00:30 (Lagos) - genuinely
 "on" 2026-09-21 locally. The old UTC-midnight bound
@@ -1343,7 +1343,7 @@ local-midnight parsing correctly flips it.
 
 ## line-__tests__-date-utils-test-ts-L66
 
-`client/__tests__/date-utils.test.ts:66`
+`client/__tests__/date-utils.test.ts:65`
 
 Medium bug fix: a bare date-only string (stock_batches.expiry_date's
 actual shape) used to be parsed as UTC midnight via new Date(), not
@@ -1354,7 +1354,7 @@ up by one right at a day-boundary edge.
 
 ## line-__tests__-date-utils-test-ts-L74
 
-`client/__tests__/date-utils.test.ts:74`
+`client/__tests__/date-utils.test.ts:69`
 
 Old (UTC-midnight) parsing of '2024-01-11' landed exactly on a day
 boundary relative to this "now" and rounded up to 10; local-midnight
@@ -1382,7 +1382,7 @@ the right arguments, and cancelling a dialog doesn't touch the database.
 
 ## line-__tests__-db-backup-restore-test-ts-L127
 
-`client/__tests__/db-backup-restore.test.ts:127`
+`client/__tests__/db-backup-restore.test.ts:120`
 
 The close() call must happen before the FINAL (restore) copy, not
 after: copying over a file that's still open/locked by the old
@@ -1392,7 +1392,7 @@ default.
 
 ## line-__tests__-db-backup-restore-test-ts-L146
 
-`client/__tests__/db-backup-restore.test.ts:146`
+`client/__tests__/db-backup-restore.test.ts:136`
 
 Without this, a raw copy of the live db file can miss committed
 transactions still sitting in the -wal sidecar (WAL journaling is
@@ -1400,7 +1400,7 @@ enabled), making the pre-restore safety net silently incomplete.
 
 ## line-__tests__-db-backup-restore-test-ts-L186
 
-`client/__tests__/db-backup-restore.test.ts:186`
+`client/__tests__/db-backup-restore.test.ts:175`
 
 The pre-restore snapshot copy is fine (it ran before close()), but
 the actual restore copy (source -> live db) must NOT have happened -
@@ -1445,7 +1445,7 @@ the suite can't tell us.
 
 ## line-__tests__-db-transaction-test-ts-L80
 
-`client/__tests__/db-transaction.test.ts:80`
+`client/__tests__/db-transaction.test.ts:75`
 
 Nesting (calling transaction() from inside another transaction()'s `fn`)
 used to run the inner call inline against the outer's already-open
@@ -1459,7 +1459,7 @@ call query()/execute() directly instead of transaction() again.
 
 ## block-__tests__-db-transaction-test-ts-L110
 
-`client/__tests__/db-transaction.test.ts:110`
+`client/__tests__/db-transaction.test.ts:98`
 
 Regression test for a real bug found via code review: `inTransaction`
 used to be the only guard against nested BEGINs, but it's a plain
@@ -1489,7 +1489,7 @@ transient blip that resolved itself, which is the opposite of the truth.
 
 ## line-__tests__-deferred-stock-delta-chronic-reporting-test-ts-L113
 
-`client/__tests__/deferred-stock-delta-chronic-reporting.test.ts:113`
+`client/__tests__/deferred-stock-delta-chronic-reporting.test.ts:104`
 
 Quantity 0, the way the pull writes an arriving batch: `pull.ts` strips
 the server's figure, and the drain rebuilds from the log rather than
@@ -1545,7 +1545,7 @@ Everything it runs must be a SELECT.
 
 ## block-__tests__-device-report-command-test-ts-L31
 
-`client/__tests__/device-report-command.test.ts:31`
+`client/__tests__/device-report-command.test.ts:33`
 
 The ordinary telemetry channel fails exactly when it is needed: crash rows
 live in `feedback`, which rides the sync queue, so a till whose push is
@@ -1574,7 +1574,7 @@ real production/dev devices.
 
 ## line-__tests__-diagnose-legacy-schema-test-ts-L71
 
-`client/__tests__/diagnose-legacy-schema.test.ts:71`
+`client/__tests__/diagnose-legacy-schema.test.ts:67`
 
 SCHEMA_SQL alone doesn't carry store_id on products — that column is
 added by runSyncColumnMigrations at init. Add it the same way, then
@@ -1614,7 +1614,7 @@ collision (by name) and remaps every local reference to the server's id.
 
 ## line-__tests__-duplicate-name-reconciliation-test-ts-L45
 
-`client/__tests__/duplicate-name-reconciliation.test.ts:45`
+`client/__tests__/duplicate-name-reconciliation.test.ts:37`
 
 store_id arrives by runtime migration, not SCHEMA_SQL. Added here, before
 any pull warms getValidColumns()'s per-table cache, so a pulled row
@@ -1628,13 +1628,13 @@ p1 had no _sync_queue entry at all (it was already fully synced under the old id
 
 ## block-__tests__-duplicate-name-reconciliation-test-ts-L93
 
-`client/__tests__/duplicate-name-reconciliation.test.ts:93`
+`client/__tests__/duplicate-name-reconciliation.test.ts:90`
 
 A-301, measured on production: 2,138 products of one store and 2,500 of the other were repointed at each other's same-named categories, in two four-minute bursts. A device holding both stores pulls the ACTIVE store's categories, so the other store's local rows are never in `serverIds` and looked orphaned — then matched by name, remapped, and soft-deleted, taking that store's whole catalogue with them. Every device of the losing store then renders "Uncategorized" for ever, because a pull only ever delivers its own store's categories.
 
 ## block-__tests__-duplicate-name-reconciliation-test-ts-L133
 
-`client/__tests__/duplicate-name-reconciliation.test.ts:133`
+`client/__tests__/duplicate-name-reconciliation.test.ts:121`
 
 The scope must come from the PAGE, not from whichever store happens to be active when the response lands. `switchStore()` flips the resolver synchronously but does not cancel an in-flight `runSync()`, so a pull requested for store A can be applied while B is active — and an active-store scope would then treat B's categories as the candidates and repoint B's catalogue at A's category. Scoping by each losing row's own `store_id` removes the timing dependency entirely.
 
@@ -1670,7 +1670,7 @@ what the `[value]` effect's own dependency is watching.
 
 ## line-__tests__-editable-number-cell-leading-zero-test-tsx-L35
 
-`client/__tests__/editable-number-cell-leading-zero.test.tsx:35`
+`client/__tests__/editable-number-cell-leading-zero.test.tsx:11`
 
 Starts at a nonzero committed value (e.g. an existing selling price)
 so that a later rerender to a genuinely different `value` actually
@@ -1680,7 +1680,7 @@ dependency regardless of the fix).
 
 ## line-__tests__-editable-number-cell-leading-zero-test-tsx-L54
 
-`client/__tests__/editable-number-cell-leading-zero.test.tsx:54`
+`client/__tests__/editable-number-cell-leading-zero.test.tsx:27`
 
 ...but before blur, something else legitimately changes `value` to a
 DIFFERENT number (a sibling row's recalculation, a sync pull, or this
@@ -1692,7 +1692,7 @@ even though the field is still focused and the user isn't done typing.
 
 ## block-__tests__-editable-number-cell-leading-zero-test-tsx-L89
 
-`client/__tests__/editable-number-cell-leading-zero.test.tsx:89`
+`client/__tests__/editable-number-cell-leading-zero.test.tsx:57`
 
 A cycle-count row nobody has reached yet has no counted quantity at all,
 which is not the same as a count of zero - so the cell has to be able to
@@ -1775,7 +1775,7 @@ row when the CSV was opened.
 
 ## line-__tests__-export-staff-csv-test-ts-L74
 
-`client/__tests__/export-staff-csv.test.ts:74`
+`client/__tests__/export-staff-csv.test.ts:73`
 
 A correct CSV parser treats a newline inside a quoted field as part of
 the field's value, not a row separator - unquoted, it would have
@@ -1811,7 +1811,7 @@ still valid) is this action's only chance to leave any trace anywhere.
 
 ## line-__tests__-factory-reset-disconnects-cloud-test-ts-L100
 
-`client/__tests__/factory-reset-disconnects-cloud.test.ts:100`
+`client/__tests__/factory-reset-disconnects-cloud.test.ts:85`
 
 Order matters: the token must be gone *before* resetDatabase() runs
 (and reloads the page), not after - otherwise the mount-time auto-sync
@@ -1820,7 +1820,7 @@ reset by pulling everything back down.
 
 ## line-__tests__-factory-reset-disconnects-cloud-test-ts-L125
 
-`client/__tests__/factory-reset-disconnects-cloud.test.ts:125`
+`client/__tests__/factory-reset-disconnects-cloud.test.ts:108`
 
 The audit log must actually reach the server before the token that
 would let it get there is cleared - logging it locally right before
@@ -1828,7 +1828,7 @@ wiping local tables (and disconnecting) would be no trace at all.
 
 ## block-__tests__-finance-reports-test-ts-L9
 
-`client/__tests__/finance-reports.test.ts:9`
+`client/__tests__/finance-reports.test.ts:20`
 
 Exercises the revenue/COGS/expense aggregation queries against a genuine
 in-memory SQLite engine (sql.js), not a mocked query(). These are the
@@ -1906,7 +1906,7 @@ goes quiet when the shortfall is cleared rather than when a month passes.
 
 ## line-__tests__-get-oversold-alerts-test-ts-L55
 
-`client/__tests__/get-oversold-alerts.test.ts:55`
+`client/__tests__/get-oversold-alerts.test.ts:45`
 
 The alert is withheld until this device's movement window is drained, so
 the fixture has to say it is: mid-catch-up, a sale can arrive pages
@@ -1914,7 +1914,7 @@ before the receipt that covers it.
 
 ## line-__tests__-get-oversold-alerts-test-ts-L117
 
-`client/__tests__/get-oversold-alerts.test.ts:117`
+`client/__tests__/get-oversold-alerts.test.ts:106`
 
 Backdated well outside the window the old alert used. The two units the
 ledger owes have not gone anywhere, and the next delivery against this
@@ -1923,7 +1923,7 @@ quiet after a month was the defect, not the feature.
 
 ## line-__tests__-get-oversold-alerts-test-ts-L145
 
-`client/__tests__/get-oversold-alerts.test.ts:145`
+`client/__tests__/get-oversold-alerts.test.ts:132`
 
 +3, not +2: this batch's own single unit was never logged as inbound
 either, so the log is short by the whole three it recorded going out.
@@ -1932,7 +1932,7 @@ figure on screen moves, which is what the alert is reporting.
 
 ## line-__tests__-get-oversold-alerts-test-ts-L158
 
-`client/__tests__/get-oversold-alerts.test.ts:158`
+`client/__tests__/get-oversold-alerts.test.ts:143`
 
 Seeded with stock and no movement at all, the pre-a36b00e7 import shape:
 its sales sum below zero but the units were on the shelf, so nothing is
@@ -2024,7 +2024,7 @@ simulating pointer events.
 
 ## block-__tests__-header-store-switcher-tooltip-test-tsx-L38
 
-`client/__tests__/header-store-switcher-tooltip.test.tsx:38`
+`client/__tests__/header-store-switcher-tooltip.test.tsx:37`
 
 A-158 follow-up: the store name in the header is truncated
 (`truncate max-w-[...]`) for both the plain non-admin label and the admin
@@ -2033,7 +2033,7 @@ Reported live by the user.
 
 ## line-__tests__-header-store-switcher-tooltip-test-tsx-L72
 
-`client/__tests__/header-store-switcher-tooltip.test.tsx:72`
+`client/__tests__/header-store-switcher-tooltip.test.tsx:67`
 
 Without a tooltip, the truncated label itself already renders the
 full text node (CSS-only truncation) - the real assertion is that a
@@ -2069,7 +2069,7 @@ since the static version type-checks and works fine.
 
 ## line-__tests__-heavy-dependency-laziness-test-ts-L61
 
-`client/__tests__/heavy-dependency-laziness.test.ts:61`
+`client/__tests__/heavy-dependency-laziness.test.ts:47`
 
 The transitive route matters as much as the direct one: purchase-order-pdf
 statically imports @react-pdf/renderer, so a static value import of the
@@ -2162,7 +2162,7 @@ Regression coverage for two issues in this banner's "End Session" button:
 
 ## line-__tests__-impersonation-banner-stale-flag-test-ts-L58
 
-`client/__tests__/impersonation-banner-stale-flag.test.ts:58`
+`client/__tests__/impersonation-banner-stale-flag.test.ts:35`
 
 jsdom throws "Not implemented: navigation" on a real
 `window.location.href` assignment - replace it with a plain object
@@ -2196,7 +2196,7 @@ duplicate requests).
 
 ## line-__tests__-init-database-concurrency-test-ts-L42
 
-`client/__tests__/init-database-concurrency.test.ts:42`
+`client/__tests__/init-database-concurrency.test.ts:31`
 
 core.ts's own initSqlJs({locateFile: f => `/${f}`}) can't resolve the
 wasm binary under Node - warm the package's internal wasm cache first
@@ -2222,7 +2222,7 @@ would catch a regression in this path.
 
 ## line-__tests__-init-database-migrations-test-ts-L29
 
-`client/__tests__/init-database-migrations.test.ts:29`
+`client/__tests__/init-database-migrations.test.ts:18`
 
 clearLegacyTransactionsOnce wipes sales/purchase_orders/etc the first
 time it ever runs on a device (see core.ts); a real production device
@@ -2231,7 +2231,7 @@ test cares about the schema migrations, not that unrelated cleanup.
 
 ## line-__tests__-init-database-migrations-test-ts-L76
 
-`client/__tests__/init-database-migrations.test.ts:76`
+`client/__tests__/init-database-migrations.test.ts:63`
 
 Table was rebuilt to relax NOT NULL; verify a null supplier_id insert
 (an Immediate Purchase / walk-in) is now actually accepted, and the
@@ -2239,7 +2239,7 @@ pre-existing row's supplier_id was carried over.
 
 ## line-__tests__-init-database-migrations-test-ts-L118
 
-`client/__tests__/init-database-migrations.test.ts:118`
+`client/__tests__/init-database-migrations.test.ts:104`
 
 A Pro/Enterprise store already using the loyalty program before this
 migration must see zero behavior change: the new column must default
@@ -2248,7 +2248,7 @@ for every store currently using it.
 
 ## block-__tests__-init-database-migrations-test-ts-L162
 
-`client/__tests__/init-database-migrations.test.ts:162`
+`client/__tests__/init-database-migrations.test.ts:146`
 
 A-305: `_sync_state` was keyed by `table_name` alone, so one watermark
 served every store. SQLite cannot alter a primary key, so the fix rebuilds
@@ -2258,7 +2258,7 @@ scratch on the next sync.
 
 ## block-__tests__-init-database-migrations-test-ts-L208
 
-`client/__tests__/init-database-migrations.test.ts:208`
+`client/__tests__/init-database-migrations.test.ts:187`
 
 A watermark on a device holding two stores cannot be attributed to either
 of them — attributing it wrongly is the whole of A-305 — so it is parked
@@ -2266,7 +2266,7 @@ under '' and each store's first pull starts fresh.
 
 ## block-__tests__-init-database-migrations-test-ts-L240
 
-`client/__tests__/init-database-migrations.test.ts:240`
+`client/__tests__/init-database-migrations.test.ts:216`
 
 The rebuild is CREATE / copy / DROP / RENAME with no transaction, so a
 process death between the copy and the DROP leaves a populated
@@ -2364,7 +2364,7 @@ read-only - exactly this scenario.
 
 ## line-__tests__-license-guard-check-failure-test-tsx-L65
 
-`client/__tests__/license-guard-check-failure.test.tsx:65`
+`client/__tests__/license-guard-check-failure.test.tsx:55`
 
 Must resolve out of the splash screen rather than hang forever -
 fails open (renders children) since a failed check is treated as
@@ -2426,7 +2426,7 @@ freshly re-read balance.
 
 ## line-__tests__-loyalty-redemption-revalidation-test-ts-L51
 
-`client/__tests__/loyalty-redemption-revalidation.test.ts:51`
+`client/__tests__/loyalty-redemption-revalidation.test.ts:44`
 
 selectedCustomer is stale here on purpose - the cart picked a
 redemption when the cache said 200 points, but the real row (just
@@ -2434,7 +2434,7 @@ seeded above) only has 50.
 
 ## line-__tests__-loyalty-redemption-revalidation-test-ts-L75
 
-`client/__tests__/loyalty-redemption-revalidation.test.ts:75`
+`client/__tests__/loyalty-redemption-revalidation.test.ts:67`
 
 Balance raised above LOYALTY_RULES.MIN_REDEMPTION_POINTS (100), which
 is now a hard floor on a reward's cost - a 30-point redemption would be
@@ -2517,7 +2517,7 @@ another's view, which only shows up by asserting on actual returned rows.
 
 ## line-__tests__-multi-store-scoping-test-ts-L44
 
-`client/__tests__/multi-store-scoping.test.ts:44`
+`client/__tests__/multi-store-scoping.test.ts:38`
 
 store_id is added via core.ts's runtime ALTER TABLE migration, not the
 base CREATE TABLE statements in SCHEMA_SQL. Replicate it here since
@@ -2525,7 +2525,7 @@ __setDatabaseForTesting bypasses initDatabase()'s migration loop.
 
 ## line-__tests__-multi-store-scoping-test-ts-L163
 
-`client/__tests__/multi-store-scoping.test.ts:163`
+`client/__tests__/multi-store-scoping.test.ts:156`
 
 A store OWNER's own users.store_id is deliberately always null, so
 callers forwarding `user.store_id` handed insert() a null rather than
@@ -2601,7 +2601,7 @@ client-side one, so no stale React state can be observed after a restore.
 
 ## line-__tests__-onboarding-local-restore-reload-test-ts-L86
 
-`client/__tests__/onboarding-local-restore-reload.test.ts:86`
+`client/__tests__/onboarding-local-restore-reload.test.ts:75`
 
 jsdom's real window.location throws "not implemented" on assignment;
 replace it with a plain object whose href setter we can assert on,
@@ -2622,7 +2622,7 @@ injected refetch callback right after the wipe and right after login.
 
 ## line-__tests__-onboarding-refetches-device-auth-status-test-ts-L137
 
-`client/__tests__/onboarding-refetches-device-auth-status.test.ts:137`
+`client/__tests__/onboarding-refetches-device-auth-status.test.ts:130`
 
 Refetches straddle both staleness windows: right after the wipe (so a
 bounce-to-/login before login() resolves sees userCount=0, not the old
@@ -2717,7 +2717,7 @@ of the device's history. See client/AGENTS.md, "The boot-time orphan scan".
 
 ## block-__tests__-orphan-requeue-runs-once-per-install-test-ts-L79
 
-`client/__tests__/orphan-requeue-runs-once-per-install.test.ts:79`
+`client/__tests__/orphan-requeue-runs-once-per-install.test.ts:68`
 
 A-274. This case previously asserted the opposite — that a recorded crash
 re-triggers the scan — and that is the mechanism behind the 20,000-row
@@ -2731,7 +2731,7 @@ store-scoped tables behind, and that is now closed at the source
 
 ## line-__tests__-permission-catalog-backfill-test-ts-L15
 
-`client/__tests__/permission-catalog-backfill.test.ts:15`
+`client/__tests__/permission-catalog-backfill.test.ts:17`
 
 The exact lists the permission-groups feature shipped with on 2026-09-27
 (a5f40463) - what an already-seeded store like the live production one is
@@ -2749,7 +2749,7 @@ store's Manager group changes nothing for any pre-existing manager.
 
 ## line-__tests__-permission-groups-seeding-test-ts-L100
 
-`client/__tests__/permission-groups-seeding.test.ts:100`
+`client/__tests__/permission-groups-seeding.test.ts:99`
 
 Final review, Important I3: two devices seeding the same store's
 defaults before either has synced must not create permanently
@@ -2760,7 +2760,7 @@ the race into one row per role, instead of leaving duplicates.
 
 ## line-__tests__-permission-groups-seeding-test-ts-L112
 
-`client/__tests__/permission-groups-seeding.test.ts:112`
+`client/__tests__/permission-groups-seeding.test.ts:107`
 
 Simulate a second device: fresh local rows for the same store, as if
 this were a different device's never-before-seeded local DB that
@@ -2801,7 +2801,7 @@ push like any other local write), with no user-visible reset anywhere.
 
 ## line-__tests__-pin-hashing-lazy-migration-test-tsx-L135
 
-`client/__tests__/pin-hashing-lazy-migration.test.tsx:135`
+`client/__tests__/pin-hashing-lazy-migration.test.tsx:127`
 
 The whole design rests on a server-produced hash verifying correctly
 on-device. Every other test in this file hashes and verifies on the
@@ -2815,7 +2815,7 @@ PIN_HASH_ROUNDS in pin-hash.ts for why that doesn't need to match).
 
 ## line-__tests__-pin-hashing-lazy-migration-test-tsx-L232
 
-`client/__tests__/pin-hashing-lazy-migration.test.tsx:232`
+`client/__tests__/pin-hashing-lazy-migration.test.tsx:217`
 
 Queued for sync push like any other local write, which is what
 carries the hash to the server and on to this account's other
@@ -2843,7 +2843,7 @@ screen can tell the store to re-check the received figure.
 
 ## line-__tests__-po-dropped-receipt-signal-test-ts-L149
 
-`client/__tests__/po-dropped-receipt-signal.test.ts:149`
+`client/__tests__/po-dropped-receipt-signal.test.ts:144`
 
 The ledger used to be allowlisted to purchase_order_items so it stayed
 small; it now logs every table (a terminal drop elsewhere left no trace
@@ -2870,7 +2870,7 @@ device until the next pull overwrote it.
 
 ## line-__tests__-po-line-item-math-test-ts-L93
 
-`client/__tests__/po-line-item-math.test.ts:93`
+`client/__tests__/po-line-item-math.test.ts:91`
 
 Regression: the review-price popover previously showed the raw
 per-carton unit_cost (37,200) as "Cost", right next to a sell price
@@ -2879,7 +2879,7 @@ the catalog's per-tablet cost (620) instead.
 
 ## line-__tests__-po-line-item-math-test-ts-L119
 
-`client/__tests__/po-line-item-math.test.ts:119`
+`client/__tests__/po-line-item-math.test.ts:115`
 
 Regression: entering a new per-tablet cost (650) previously produced
 a total of bulk_quantity * 650 = 650, silently dropping the
@@ -2887,7 +2887,7 @@ a total of bulk_quantity * 650 = 650, silently dropping the
 
 ## line-__tests__-po-line-item-math-test-ts-L132
 
-`client/__tests__/po-line-item-math.test.ts:132`
+`client/__tests__/po-line-item-math.test.ts:127`
 
 Medium bug fix: `Number(amountPaid) || 0` alone silently recorded ₦0
 paid for a blank/non-numeric amount, and accepted any value above the
@@ -2895,7 +2895,7 @@ order total as-is with no cap or rounding.
 
 ## block-__tests__-po-line-item-math-test-ts-L188
 
-`client/__tests__/po-line-item-math.test.ts:188`
+`client/__tests__/po-line-item-math.test.ts:182`
 
 A line is one product, not one unit. The Immediate Purchase confirmation
 counted lines ("1 item worth 40,000") and a store owner who had just
@@ -2956,7 +2956,7 @@ file, without that prefill silently becoming a "change" if left untouched
 
 ## line-__tests__-po-review-price-prefill-test-tsx-L45
 
-`client/__tests__/po-review-price-prefill.test.tsx:45`
+`client/__tests__/po-review-price-prefill.test.tsx:39`
 
 Radix Popover portals its content directly onto document.body,
 separate from the test's own container - clear anything left behind
@@ -2965,7 +2965,7 @@ accidentally pick up a stray node from a previous test.
 
 ## block-__tests__-po-review-price-prefill-test-tsx-L70
 
-`client/__tests__/po-review-price-prefill.test.tsx:70`
+`client/__tests__/po-review-price-prefill.test.tsx:62`
 
 The trigger reads "Review price" until the line is repriced, and shows
 the new price itself afterwards - match on its accessible name, which
@@ -3001,7 +3001,7 @@ doesn't cover the ₦10,000 total, so no change is due.
 
 ## block-__tests__-pos-calculations-test-ts-L312
 
-`client/__tests__/pos-calculations.test.ts:312`
+`client/__tests__/pos-calculations.test.ts:308`
 
 A-260's convention test is a static scan: it only sees arithmetic written
 literally inside a `column: expr` write, so a money value produced by a
@@ -3040,7 +3040,7 @@ without the permission; only retyping it is gated.
 
 ## block-__tests__-pos-cart-remove-undo-test-ts-L40
 
-`client/__tests__/pos-cart-remove-undo.test.ts:40`
+`client/__tests__/pos-cart-remove-undo.test.ts:45`
 
 U12: an accidental swipe on a cart line silently dropped it — no toast, no
 undo. Removal now toasts with an Undo action that puts the line back at
@@ -3048,7 +3048,7 @@ the quantity it had.
 
 ## block-__tests__-pos-cart-reprices-from-catalog-test-ts-L38
 
-`client/__tests__/pos-cart-reprices-from-catalog.test.ts:38`
+`client/__tests__/pos-cart-reprices-from-catalog.test.ts:43`
 
 A-17. The POS cart is a zustand `persist` store: a line snapshots the
 product's selling price and average cost when it is added and keeps them
@@ -3136,7 +3136,7 @@ hoisting both calls to unconditional consts (the applied fix) closes it.
 
 ## line-__tests__-pos-layout-header-rules-of-hooks-test-tsx-L81
 
-`client/__tests__/pos-layout-header-rules-of-hooks.test.tsx:81`
+`client/__tests__/pos-layout-header-rules-of-hooks.test.tsx:59`
 
 Role fallback for "auditor" denies process_sales (DEFAULT_GROUP_PERMISSIONS.auditor
 has no process_sales) - but this user's actual assigned group DOES grant it,
@@ -3144,7 +3144,7 @@ exactly the "custom group more permissive than the role tier" case.
 
 ## block-__tests__-pos-payment-stale-customer-balance-test-ts-L13
 
-`client/__tests__/pos-payment-stale-customer-balance.test.ts:13`
+`client/__tests__/pos-payment-stale-customer-balance.test.ts:15`
 
 Regression: handlePayment() wrote outstanding_balance/loyalty_points as
 `(selectedCustomer.outstanding_balance || 0) + delta` — a read-modify-write
@@ -3163,7 +3163,7 @@ before computing the new one, exactly like recordCustomerPayment.
 
 ## block-__tests__-pos-payment-transaction-atomicity-test-ts-L13
 
-`client/__tests__/pos-payment-transaction-atomicity.test.ts:13`
+`client/__tests__/pos-payment-transaction-atomicity.test.ts:15`
 
 Regression: handlePayment() used to write the sale row, then deduct stock
 for each cart line, then update the customer balance and loyalty points,
@@ -3204,7 +3204,7 @@ unconditionally, same shape real react-virtual returns.
 
 ## block-__tests__-pos-product-list-memoization-test-tsx-L25
 
-`client/__tests__/pos-product-list-memoization.test.tsx:25`
+`client/__tests__/pos-product-list-memoization.test.tsx:22`
 
 Regression coverage for the KNOWN_BUGS.md "Unmemoized POS product grid"
 finding: pos-product-list.tsx rebuilt cartQuantityMap/grouped arrays with
@@ -3287,7 +3287,7 @@ or its underlying DB-backed queries.
 
 ## block-__tests__-prescription-strength-fallback-test-ts-L22
 
-`client/__tests__/prescription-strength-fallback.test.ts:22`
+`client/__tests__/prescription-strength-fallback.test.ts:21`
 
 Regression coverage for: "Strength selector is unusable (but harmless)
 for any product with a blank `strength` column" (_findings-log.md).
@@ -3304,7 +3304,7 @@ react-dom/client + `act` harness, asserting on plain DOM nodes.
 
 ## block-__tests__-process-return-credit-and-loyalty-test-ts-L17
 
-`client/__tests__/process-return-credit-and-loyalty.test.ts:17`
+`client/__tests__/process-return-credit-and-loyalty.test.ts:14`
 
 useProcessReturnMutation carries the money and points consequences of a
 customer return: how much of a credit sale's debt is forgiven, how the
@@ -3345,7 +3345,7 @@ require-role-permission.test.tsx).
 
 ## block-__tests__-procurement-test-ts-L9
 
-`client/__tests__/procurement.test.ts:9`
+`client/__tests__/procurement.test.ts:11`
 
 Exercises getSuppliers()/getPurchaseOrders() against a genuine in-memory
 SQLite engine (sql.js) built from the app's real schema, not a mocked
@@ -3358,7 +3358,7 @@ only asserting on the actual returned numbers does.
 
 ## line-__tests__-procurement-test-ts-L306
 
-`client/__tests__/procurement.test.ts:306`
+`client/__tests__/procurement-orders.test.ts:59`
 
 The order page prices an immediate line via immediateLineAmount, so
 3 cartons of 10 at a typed override of ₦90/unit reads ₦2,700 on
@@ -3369,7 +3369,7 @@ partial payment.
 
 ## line-__tests__-procurement-test-ts-L365
 
-`client/__tests__/procurement.test.ts:365`
+`client/__tests__/procurement-orders.test.ts:114`
 
 Regression: item.subtotal is only ever set once when a row is first
 added in the UI and is never kept in sync with later quantity
@@ -3378,7 +3378,7 @@ must not leak into what's actually persisted.
 
 ## line-__tests__-procurement-test-ts-L407
 
-`client/__tests__/procurement.test.ts:407`
+`client/__tests__/procurement-orders.test.ts:154`
 
 Simulates editing the quantity in the UI without touching cost: the
 stale subtotal (500, from the original 1-carton row) must not carry
@@ -3386,7 +3386,7 @@ through the edit.
 
 ## line-__tests__-procurement-test-ts-L493
 
-`client/__tests__/procurement.test.ts:493`
+`client/__tests__/procurement-receiving.test.ts:52`
 
 Regression: the UI's "New Cost" override is typed per base unit
 (per tablet, matching the catalog's current-cost display), but the
@@ -3451,7 +3451,7 @@ none existed for the read path before this migration at all.
 
 ## line-__tests__-product-import-export-read-test-ts-L99
 
-`client/__tests__/product-import-export-read.test.ts:99`
+`client/__tests__/product-import-export-read.test.ts:92`
 
 Two independent single-sheet exports simulate a multi-sheet file by
 reading the second one's worksheet and renaming it onto the first
@@ -3478,7 +3478,7 @@ it — this only cares that both count as "PARACETAMOL" regardless.
 
 ## line-__tests__-product-import-upsert-test-ts-L215
 
-`client/__tests__/product-import-upsert.test.ts:215`
+`client/__tests__/product-import-upsert.test.ts:214`
 
 A-21: the matched-stock branch reconciles through submitStockAudit(),
 whose stock_audits.user_id is a constrained FK server-side. The check
@@ -3518,7 +3518,7 @@ odd-priced batches instead of reflecting what's actually on the shelf.
 
 ## line-__tests__-products-cost-price-test-ts-L54
 
-`client/__tests__/products-cost-price.test.ts:54`
+`client/__tests__/products-cost-price.test.ts:48`
 
 Batch A: 500 units @ ₦10 (the bulk of stock). Batch B: 5 units @ ₦1000
 (one emergency spot-price restock). True weighted cost = (500*10 +
@@ -3550,7 +3550,7 @@ the BIKeyMetrics cards it duplicates.
 
 ## line-__tests__-profit-loss-tab-currency-formatting-test-ts-L35
 
-`client/__tests__/profit-loss-tab-currency-formatting.test.ts:35`
+`client/__tests__/profit-loss-tab-currency-formatting.test.ts:20`
 
 The fix: formatMetricCurrency is imported and used for each of the
 six aggregate lines in the Financial Performance Statement +
@@ -3600,7 +3600,7 @@ transaction as the movement row and drained on every later pull.
 
 ## block-__tests__-pull-deferred-stock-delta-survives-failed-round-test-ts-L170
 
-`client/__tests__/pull-deferred-stock-delta-survives-failed-round.test.ts:170`
+`client/__tests__/pull-deferred-stock-delta-survives-failed-round.test.ts:163`
 
 A-176: a batch whose `updated_at` predates the device's pull cursor is
 never re-sent, so its deferred delta can never resolve. Rewinding the
@@ -3710,7 +3710,7 @@ references, exactly like the server's `increment('quantity', delta)`.
 
 ## line-__tests__-pull-stock-batches-quantity-not-trusted-test-ts-L165
 
-`client/__tests__/pull-stock-batches-quantity-not-trusted.test.ts:165`
+`client/__tests__/pull-stock-batches-quantity-not-trusted.test.ts:151`
 
 Another device sold 5 from a batch that only had 2 left there — its
 own local write floors at 0 (see deductFromBatch() in
@@ -3735,7 +3735,7 @@ group via sync rather than creating it locally.
 
 ## line-__tests__-pull-stringifies-json-columns-test-ts-L65
 
-`client/__tests__/pull-stringifies-json-columns.test.ts:65`
+`client/__tests__/pull-stringifies-json-columns.test.ts:57`
 
 The real shape a Laravel `array`-cast attribute serializes
 to in the pull JSON response - a genuine array, not a
@@ -3757,7 +3757,7 @@ gaps":
 
 ## line-__tests__-pull-unique-skip-and-cross-page-ordering-test-ts-L146
 
-`client/__tests__/pull-unique-skip-and-cross-page-ordering.test.ts:146`
+`client/__tests__/pull-unique-skip-and-cross-page-ordering.test.ts:138`
 
 The stock_movements cursor is held back until the deferred delta is
 applied, then stamped in that same transaction — so by the end of a
@@ -3765,7 +3765,7 @@ successful pull it must be stamped, not left behind.
 
 ## block-__tests__-pull-unique-skip-and-cross-page-ordering-test-ts-L155
 
-`client/__tests__/pull-unique-skip-and-cross-page-ordering.test.ts:155`
+`client/__tests__/pull-unique-skip-and-cross-page-ordering.test.ts:146`
 
 Residual gap from the same KNOWN_BUGS entry: the deferred delta used to
 be applied in a SEPARATE transaction committed AFTER the page loop had
@@ -3797,7 +3797,7 @@ two-store device, unchanged across nine syncs over three hours.
 
 ## line-__tests__-pull-watermark-is-per-store-test-ts-L71
 
-`client/__tests__/pull-watermark-is-per-store.test.ts:71`
+`client/__tests__/pull-watermark-is-per-store.test.ts:62`
 
 Store B has never synced `sales`, so it must ask for everything. With a
 shared watermark it would have asked for changes since 11:00 and never
@@ -3815,7 +3815,7 @@ the whole catalogue, for ever.
 
 ## block-__tests__-pull-window-rewind-budget-test-ts-L122
 
-`client/__tests__/pull-window-rewind-budget.test.ts:122`
+`client/__tests__/pull-window-rewind-budget.test.ts:118`
 
 A-256. `feedback` is the crash log: never sent by pull(), so its window
 can never drain clean and `completeWindow` can never refresh its budget.
@@ -3825,7 +3825,7 @@ row is dropped instead, which also heals a device already stuck.
 
 ## block-__tests__-pull-window-rewind-budget-test-ts-L143
 
-`client/__tests__/pull-window-rewind-budget.test.ts:143`
+`client/__tests__/pull-window-rewind-budget.test.ts:134`
 
 A-273. The report was fired unawaited, so one push round's worth of
 concurrent calls raced past logCrash's own SELECT-then-INSERT dedup and
@@ -3834,7 +3834,7 @@ iPhone). Awaiting it is what lets that dedup see the previous row.
 
 ## block-__tests__-pull-window-rewind-budget-test-ts-L170
 
-`client/__tests__/pull-window-rewind-budget.test.ts:170`
+`client/__tests__/pull-window-rewind-budget.test.ts:157`
 
 A-273. The old wording ("this device cannot converge on its own") was
 false: the budget is per round, `completeWindow` refreshes it, and the
@@ -3881,7 +3881,7 @@ docs/FIXED_BUGS.md, A-5).
 
 ## line-__tests__-push-background-backs-off-failing-item-test-ts-L85
 
-`client/__tests__/push-background-backs-off-failing-item.test.ts:85`
+`client/__tests__/push-background-backs-off-failing-item.test.ts:80`
 
 Second background cycle, immediately after: the item is still inside
 its backoff window, so it must not be re-sent. A report-only request
@@ -3921,7 +3921,7 @@ and the rename was silently lost on the next pull.
 
 ## block-__tests__-push-coalesces-same-record-updates-test-ts-L22
 
-`client/__tests__/push-coalesces-same-record-updates.test.ts:22`
+`client/__tests__/push-coalesces-same-record-updates.test.ts:27`
 
 Regression coverage for a Critical review finding on the _known-bugs.md
 #11 fix: update() no longer bumps `_version` locally (correct for the
@@ -3942,7 +3942,7 @@ no sync in between (see push.ts's coalescePendingUpdates() doc comment).
 
 ## line-__tests__-push-coalesces-same-record-updates-test-ts-L71
 
-`client/__tests__/push-coalesces-same-record-updates.test.ts:71`
+`client/__tests__/push-coalesces-same-record-updates.test.ts:60`
 
 update()/insert() also queue an audit_logs INSERT into _sync_queue on
 every call (see logAction() in core.ts) — real, correct behavior, but
@@ -3953,7 +3953,7 @@ bookkeeping this fix doesn't touch.
 
 ## block-__tests__-push-coalesces-same-record-updates-test-ts-L81
 
-`client/__tests__/push-coalesces-same-record-updates.test.ts:81`
+`client/__tests__/push-coalesces-same-record-updates.test.ts:66`
 
 A second pending UPDATE for the same record. Seeded directly because
 write-time collapsing (A-203) now keeps one pending UPDATE per record, so
@@ -3962,7 +3962,7 @@ shipped — which is exactly the state push-time coalescing is still for.
 
 ## line-__tests__-push-coalesces-same-record-updates-test-ts-L128
 
-`client/__tests__/push-coalesces-same-record-updates.test.ts:128`
+`client/__tests__/push-coalesces-same-record-updates.test.ts:107`
 
 Carries the EARLIEST entry's base version (1 — insert()'s starting
 value; unchanged by either update() per the _version fix), not the
@@ -3970,7 +3970,7 @@ second edit's snapshot.
 
 ## line-__tests__-push-coalesces-same-record-updates-test-ts-L178
 
-`client/__tests__/push-coalesces-same-record-updates.test.ts:178`
+`client/__tests__/push-coalesces-same-record-updates.test.ts:156`
 
 The server only ever sees ONE change for this record (asserted in the
 test above), so it can only ever report ONE failed entry for it — the
@@ -3978,7 +3978,7 @@ mock above reflects that real constraint.
 
 ## line-__tests__-push-coalesces-same-record-updates-test-ts-L184
 
-`client/__tests__/push-coalesces-same-record-updates.test.ts:184`
+`client/__tests__/push-coalesces-same-record-updates.test.ts:161`
 
 Every underlying queue row for this record is gone — not just the
 representative one, which would silently strand the other half of
@@ -3997,7 +3997,7 @@ all, for the same reason.
 
 ## block-__tests__-push-delivers-command-results-when-queue-is-empty-test-ts-L110
 
-`client/__tests__/push-delivers-command-results-when-queue-is-empty.test.ts:110`
+`client/__tests__/push-delivers-command-results-when-queue-is-empty.test.ts:105`
 
 The case the whole command channel exists for. A stuck row is by
 definition one whose retries have backed off, and getPendingSyncItems()
@@ -4022,7 +4022,7 @@ cannot be null" error. push.ts must patch it defensively at push time.
 
 ## block-__tests__-push-fixes-stale-null-batch-number-test-ts-L71
 
-`client/__tests__/push-fixes-stale-null-batch-number.test.ts:71`
+`client/__tests__/push-fixes-stale-null-batch-number.test.ts:62`
 
 Regression coverage for a review finding on the round-2 stock_batches
 version-conflict exemption (_known-bugs.md #11): this same fallback
@@ -4043,7 +4043,7 @@ rationale: a NOT NULL column on legacy queued INSERTs) fixes this.
 
 ## line-__tests__-push-fixes-stale-null-batch-number-test-ts-L104
 
-`client/__tests__/push-fixes-stale-null-batch-number.test.ts:104`
+`client/__tests__/push-fixes-stale-null-batch-number.test.ts:79`
 
 The real batch_number was never touched by this fallback at all —
 still exactly what the local row already had, not overwritten with
@@ -4051,7 +4051,7 @@ a placeholder and not sent back to the server to clobber anything.
 
 ## block-__tests__-push-holds-back-record-with-backed-off-sibling-test-ts-L19
 
-`client/__tests__/push-holds-back-record-with-backed-off-sibling.test.ts:19`
+`client/__tests__/push-holds-back-record-with-backed-off-sibling.test.ts:24`
 
 Regression coverage for a second review finding on _known-bugs.md #11's
 coalescing fix (push-coalesces-same-record-updates.test.ts): coalescing
@@ -4076,7 +4076,7 @@ sibling row still backed off, rather than letting the due one race ahead.
 
 ## line-__tests__-push-holds-back-record-with-backed-off-sibling-test-ts-L72
 
-`client/__tests__/push-holds-back-record-with-backed-off-sibling.test.ts:72`
+`client/__tests__/push-holds-back-record-with-backed-off-sibling.test.ts:57`
 
 See push-coalesces-same-record-updates.test.ts's identical helper:
 update()/insert() also queue an unrelated audit_logs INSERT on every
@@ -4084,7 +4084,7 @@ call, orthogonal to what this file tests.
 
 ## block-__tests__-push-holds-back-record-with-backed-off-sibling-test-ts-L78
 
-`client/__tests__/push-holds-back-record-with-backed-off-sibling.test.ts:78`
+`client/__tests__/push-holds-back-record-with-backed-off-sibling.test.ts:62`
 
 A second pending UPDATE for the same record. Seeded directly because
 write-time collapsing (A-203) now keeps one pending UPDATE per record, so
@@ -4114,7 +4114,7 @@ Represents a product still awaiting its own push (e.g. in a later batch) whose f
 
 ## line-__tests__-push-id-map-reconciliation-test-ts-L99
 
-`client/__tests__/push-id-map-reconciliation.test.ts:99`
+`client/__tests__/push-id-map-reconciliation.test.ts:96`
 
 A second, still-pending edit to the SAME (now duplicate) category —
 e.g. a rename queued locally before this push ran, currently backed
@@ -4153,7 +4153,7 @@ window passed. A manual sync should always attempt the full queue.
 
 ## block-__tests__-push-manual-bypasses-backoff-test-ts-L63
 
-`client/__tests__/push-manual-bypasses-backoff.test.ts:63`
+`client/__tests__/push-manual-bypasses-backoff.test.ts:55`
 
 The request that does go out carries no changes: a non-empty queue still
 has to be able to attract an operator command, and a stuck row is by
@@ -4217,7 +4217,7 @@ proves pushChanges() now reports how many batches hit that exception path.
 
 ## line-__tests__-push-reports-batch-exceptions-test-ts-L79
 
-`client/__tests__/push-reports-batch-exceptions.test.ts:79`
+`client/__tests__/push-reports-batch-exceptions.test.ts:71`
 
 Regression: a batch-level `{ success: false }` response (the request
 completed - no exception - but the server rejected the whole batch, e.g.
@@ -4301,7 +4301,7 @@ behavior.
 
 ## line-__tests__-push-version-conflict-handling-test-ts-L56
 
-`client/__tests__/push-version-conflict-handling.test.ts:56`
+`client/__tests__/push-version-conflict-handling.test.ts:48`
 
 Cases below do not all set up a pull window; a budget left exhausted by
 an earlier one makes restoreBaseline() log a crash, which queues its own
@@ -4310,7 +4310,7 @@ be counted).
 
 ## line-__tests__-push-version-conflict-handling-test-ts-L90
 
-`client/__tests__/push-version-conflict-handling.test.ts:90`
+`client/__tests__/push-version-conflict-handling.test.ts:80`
 
 The title's other half, previously unasserted. `_synced = 0` with no
 queue row is the only local marker that this row's content differs from
@@ -4320,7 +4320,7 @@ nothing here may flip it.
 
 ## line-__tests__-push-version-conflict-handling-test-ts-L127
 
-`client/__tests__/push-version-conflict-handling.test.ts:127`
+`client/__tests__/push-version-conflict-handling.test.ts:114`
 
 Deliberately does not assert (or claim) "another device" — the client
 can't actually verify who/what changed the record server-side, only
@@ -4329,7 +4329,7 @@ toast wording comment.
 
 ## line-__tests__-push-version-conflict-handling-test-ts-L136
 
-`client/__tests__/push-version-conflict-handling.test.ts:136`
+`client/__tests__/push-version-conflict-handling.test.ts:121`
 
 Simulates a lost-response scenario: this queue row's first send
 already timed out once (recordSyncFailure bumped retry_count to 1
@@ -4339,7 +4339,7 @@ actually-successful write, not a genuinely conflicting edit.
 
 ## line-__tests__-push-version-conflict-handling-test-ts-L174
 
-`client/__tests__/push-version-conflict-handling.test.ts:174`
+`client/__tests__/push-version-conflict-handling.test.ts:156`
 
 Item B: an ordinary, otherwise-valid change in the SAME batch, so
 `changes` isn't empty and the network call (which then throws) is
@@ -4348,7 +4348,7 @@ actually attempted, landing both items in the catch block's full
 
 ## line-__tests__-push-version-conflict-handling-test-ts-L220
 
-`client/__tests__/push-version-conflict-handling.test.ts:220`
+`client/__tests__/push-version-conflict-handling.test.ts:200`
 
 Reproduces the mid-flight-edit race: an earlier push for this record
 already completed and bumped the local row's _version to 2 (e.g. via
@@ -4362,7 +4362,7 @@ completely ordinary, non-conflicting edit.
 
 ## line-__tests__-push-version-conflict-handling-test-ts-L251
 
-`client/__tests__/push-version-conflict-handling.test.ts:251`
+`client/__tests__/push-version-conflict-handling.test.ts:224`
 
 A queue row naming a table that doesn't exist locally (e.g. a stale
 row from a schema this device hasn't migrated) makes the re-read
@@ -4372,7 +4372,7 @@ frozen value for just this one item.
 
 ## line-__tests__-push-version-conflict-handling-test-ts-L306
 
-`client/__tests__/push-version-conflict-handling.test.ts:306`
+`client/__tests__/push-version-conflict-handling.test.ts:276`
 
 `permission_denied` is the server's stable reason for a payload
 sanitizePermissionGroupSyncPayload refuses on privilege grounds. The
@@ -4384,7 +4384,7 @@ backfill already applied the same superset. See client/AGENTS.md's
 
 ## block-__tests__-push-version-conflict-handling-test-ts-L356
 
-`client/__tests__/push-version-conflict-handling.test.ts:356`
+`client/__tests__/push-version-conflict-handling.test.ts:321`
 
 A-205: dropping the queue row changes nothing server-side, so nothing
 bumps that row's `updated_at`. Once the pull watermark passes it the
@@ -4406,7 +4406,7 @@ leak, because the switch itself changes which key is read/written.
 
 ## line-__tests__-query-key-scoping-test-ts-L52
 
-`client/__tests__/query-key-scoping.test.ts:52`
+`client/__tests__/query-key-scoping.test.ts:46`
 
 A dashboard fetch is issued under store A / user 1. This is the key
 React Query would use to cache whatever that in-flight request
@@ -4426,7 +4426,7 @@ logic, not real transaction/DB semantics.
 
 ## line-__tests__-query-keys-test-ts-L67
 
-`client/__tests__/query-keys.test.ts:67`
+`client/__tests__/query-keys.test.ts:63`
 
 Medium bug fix: reseller-commission-panel.tsx and
 transaction-details-dialog.tsx wrote their queryKey by hand
@@ -4437,7 +4437,7 @@ from the wrong store's (or wrong user's) cached data after a switch.
 
 ## line-__tests__-query-keys-test-ts-L90
 
-`client/__tests__/query-keys.test.ts:90`
+`client/__tests__/query-keys.test.ts:82`
 
 --- Predicate-based invalidation ---
 
@@ -4513,7 +4513,7 @@ wiring that persistence callback in for the writer tab.
 
 ## line-__tests__-read-only-tab-skips-migration-persistence-test-ts-L29
 
-`client/__tests__/read-only-tab-skips-migration-persistence.test.ts:29`
+`client/__tests__/read-only-tab-skips-migration-persistence.test.ts:20`
 
 Deliberately NOT set - this test wants clearLegacyTransactionsOnce to
 actually run (see init-database-migrations.test.ts, which sets this
@@ -4577,7 +4577,7 @@ proves it against a genuine in-memory SQLite engine.
 
 ## block-__tests__-reconcile-identity-test-ts-L152
 
-`client/__tests__/reconcile-identity.test.ts:152`
+`client/__tests__/reconcile-identity.test.ts:145`
 
 Regression test: called at plain app-boot (DatabaseProvider, not nested
 inside any transaction()), this used to INSERT each orphaned row's queue
@@ -4665,7 +4665,7 @@ negative) instead of vanishing.
 
 ## line-__tests__-record-sale-item-stock-depleted-batch-test-ts-L26
 
-`client/__tests__/record-sale-item-stock-depleted-batch.test.ts:26`
+`client/__tests__/record-sale-item-stock-depleted-batch.test.ts:12`
 
 Relative to "now" (not hardcoded dates) so these stay valid, unexpired
 expiry dates as real time passes - getBatchesForProduct excludes
@@ -4673,7 +4673,7 @@ already-expired batches from FEFO picking.
 
 ## line-__tests__-record-sale-item-stock-depleted-batch-test-ts-L63
 
-`client/__tests__/record-sale-item-stock-depleted-batch.test.ts:63`
+`client/__tests__/record-sale-item-stock-depleted-batch.test.ts:48`
 
 The one batch this product has is already at 0 — e.g. it was sold
 down to nothing in an earlier transaction — so getBatchesForProduct's
@@ -4681,7 +4681,7 @@ down to nothing in an earlier transaction — so getBatchesForProduct's
 
 ## line-__tests__-record-sale-item-stock-depleted-batch-test-ts-L88
 
-`client/__tests__/record-sale-item-stock-depleted-batch.test.ts:88`
+`client/__tests__/record-sale-item-stock-depleted-batch.test.ts:72`
 
 Floored at 0 (bug #4 fix), not left arbitrarily negative — the sale
 (a legitimate oversell, since the batch had 0 to give) still records
@@ -4689,7 +4689,7 @@ the true -1 deduction in stock_movements above.
 
 ## line-__tests__-record-sale-item-stock-depleted-batch-test-ts-L106
 
-`client/__tests__/record-sale-item-stock-depleted-batch.test.ts:106`
+`client/__tests__/record-sale-item-stock-depleted-batch.test.ts:89`
 
 A-57: this used to write a sale_item row with a null stock_batch_id and
 NO stock_movements row at all — revenue with zero ledger trace and zero
@@ -4699,7 +4699,7 @@ sale line must now produce exactly one stock_movements row.
 
 ## line-__tests__-record-sale-item-stock-depleted-batch-test-ts-L174
 
-`client/__tests__/record-sale-item-stock-depleted-batch.test.ts:174`
+`client/__tests__/record-sale-item-stock-depleted-batch.test.ts:154`
 
 Reproduces the narrower variant of the same bug: getBatchesForProduct
 returns a non-empty list (one batch with 1 unit left), so the
@@ -4710,7 +4710,7 @@ by the fallback instead of vanishing untracked.
 
 ## line-__tests__-record-sale-item-stock-depleted-batch-test-ts-L222
 
-`client/__tests__/record-sale-item-stock-depleted-batch.test.ts:222`
+`client/__tests__/record-sale-item-stock-depleted-batch.test.ts:198`
 
 Same setup as the partial-shortfall test above (1 unit in stock, sale
 of 3): the main loop deducts 1 from batch1 and bumps its updated_at,
@@ -4722,7 +4722,7 @@ the same (sale_item, batch) pair instead of merging into the first.
 
 ## line-__tests__-record-sale-item-stock-depleted-batch-test-ts-L262
 
-`client/__tests__/record-sale-item-stock-depleted-batch.test.ts:262`
+`client/__tests__/record-sale-item-stock-depleted-batch.test.ts:233`
 
 Two distinct batches, both with positive stock, sale quantity exceeds
 the first (FEFO-earliest) batch alone. The fix must not collapse
@@ -4790,7 +4790,7 @@ flight before the first one is allowed to resolve.
 
 ## line-__tests__-report-fanout-parallelism-test-ts-L21
 
-`client/__tests__/report-fanout-parallelism.test.ts:21`
+`client/__tests__/report-fanout-parallelism.test.ts:17`
 
 Two of getDashboardOverviewData's/getBIMetrics's reads go through
 lib/db/queries/finance.ts (getSmoothedExpensesTotal/getSmoothedAmountInWindow),
@@ -4807,7 +4807,7 @@ mocking here.
 
 ## block-__tests__-report-fanout-parallelism-test-ts-L54
 
-`client/__tests__/report-fanout-parallelism.test.ts:54`
+`client/__tests__/report-fanout-parallelism.test.ts:40`
 
 Resolves every pending query, including ones a resolved query's own
 continuation issues afterward (getSmoothedExpensesTotal awaits its
@@ -4837,7 +4837,7 @@ scoped to a period it was never filtered by.
 
 ## line-__tests__-report-reconciliation-test-ts-L9
 
-`client/__tests__/report-reconciliation.test.ts:9`
+`client/__tests__/report-reconciliation.test.ts:21`
 
 Set before sql.js is instantiated: the wasm build resolves SQLite's
 'localtime' modifier through the host timezone, so it has to be in place
@@ -4848,7 +4848,7 @@ coincidentally passing in a UTC CI environment.
 
 ## block-__tests__-report-reconciliation-test-ts-L18
 
-`client/__tests__/report-reconciliation.test.ts:18`
+`client/__tests__/report-reconciliation.test.ts:26`
 
 Integration-level RECONCILIATION coverage for the rolled-up financial
 figures (docs/KNOWN_BUGS.md, "Process / methodology gaps"): every existing
@@ -4937,7 +4937,7 @@ in a UTC test environment.
 
 ## line-__tests__-reports-timezone-test-ts-L88
 
-`client/__tests__/reports-timezone.test.ts:88`
+`client/__tests__/reports-timezone.test.ts:80`
 
 Sale at 2025-12-31T23:30:00Z: UTC calendar date is Dec 31, but Lagos
 local (+1h) is 2026-01-01T00:30 -> local calendar date is Jan 1, i.e.
@@ -5039,7 +5039,7 @@ allocating the current return's quantity.
 
 ## line-__tests__-return-stock-batch-attribution-test-ts-L113
 
-`client/__tests__/return-stock-batch-attribution.test.ts:113`
+`client/__tests__/return-stock-batch-attribution.test.ts:97`
 
 A second sale of the same product, also drawing from batch A, whose
 own return must not be counted against sale1's remaining-restorable
@@ -5047,7 +5047,7 @@ amount (and vice versa).
 
 ## line-__tests__-return-stock-batch-attribution-test-ts-L156
 
-`client/__tests__/return-stock-batch-attribution.test.ts:156`
+`client/__tests__/return-stock-batch-attribution.test.ts:139`
 
 A sale line with no sale_item_batches rows and no legacyStockBatchId -
 e.g. a pre-batch-attribution sale, or one where the batch write was
@@ -5092,7 +5092,7 @@ exercised here directly against a real SQLite engine.
 
 ## line-__tests__-sales-returned-quantity-test-ts-L76
 
-`client/__tests__/sales-returned-quantity.test.ts:76`
+`client/__tests__/sales-returned-quantity.test.ts:71`
 
 The exact repro from KNOWN_BUGS.md #1: without this accumulation, a
 second return dialog session would see the item as fully un-returned
@@ -5100,7 +5100,7 @@ again and allow refunding it a second time.
 
 ## line-__tests__-sales-returned-quantity-test-ts-L103
 
-`client/__tests__/sales-returned-quantity.test.ts:103`
+`client/__tests__/sales-returned-quantity.test.ts:97`
 
 return_items has no sale_item_id column, so the raw SQL gives every
 sale_item row for a product the SAME combined returned_quantity. Two
@@ -5142,7 +5142,7 @@ live app hit, confirmed live in Chrome before this fix.
 
 ## line-__tests__-save-product-no-category-test-ts-L58
 
-`client/__tests__/save-product-no-category.test.ts:58`
+`client/__tests__/save-product-no-category.test.ts:45`
 
 Product names are normalized to lowercase on write (see
 withNormalizedName in base-helpers.ts) — match on that, not the
@@ -5162,7 +5162,7 @@ that runs immediately after the schema, not from the schema itself.
 
 ## line-__tests__-schema-indexes-test-ts-L55
 
-`client/__tests__/schema-indexes.test.ts:55`
+`client/__tests__/schema-indexes.test.ts:49`
 
 core.ts asks sql.js for `/sql-wasm.wasm` (the browser's public path),
 which doesn't resolve under vitest; loading it once from node_modules
@@ -5200,7 +5200,7 @@ cashier actually types at speed.
 
 ## line-__tests__-search-punctuation-variants-test-ts-L57
 
-`client/__tests__/search-punctuation-variants.test.ts:57`
+`client/__tests__/search-punctuation-variants.test.ts:54`
 
 "paracetamol ta|b 12|s" squashes to a string containing "b12". A flat
 score once put it first, so a cashier typing b12 at speed rang up
@@ -5208,7 +5208,7 @@ paracetamol.
 
 ## line-__tests__-search-punctuation-variants-test-ts-L71
 
-`client/__tests__/search-punctuation-variants.test.ts:71`
+`client/__tests__/search-punctuation-variants.test.ts:67`
 
 "vitamin c" only contains "nc" once the space is squashed away, so the
 punctuation tier must not surface it. "zinc tablet" still matches, but
@@ -5216,7 +5216,7 @@ through the pre-existing token substring tier, not this one.
 
 ## line-__tests__-search-punctuation-variants-test-ts-L86
 
-`client/__tests__/search-punctuation-variants.test.ts:86`
+`client/__tests__/search-punctuation-variants.test.ts:81`
 
 The b12 case above is also saved by the minimum-length gate, so it
 cannot prove the grading. This term is long enough to clear that gate,
@@ -5247,7 +5247,7 @@ distance isn't a meaningful similarity signal at 3 characters.
 
 ## line-__tests__-search-test-ts-L81
 
-`client/__tests__/search.test.ts:81`
+`client/__tests__/search.test.ts:80`
 
 Regression: searchProducts' fuzzy fallback previously never scored
 barcode at all, so a scanned barcode with a misread digit fell
@@ -5313,7 +5313,7 @@ stable across renders) rather than the whole unstable syncState object.
 
 ## line-__tests__-settings-cloud-link-dialog-loop-test-ts-L61
 
-`client/__tests__/settings-cloud-link-dialog-loop.test.ts:61`
+`client/__tests__/settings-cloud-link-dialog-loop.test.ts:32`
 
 `hasKey` feeds canAccessTab, which the effect depends on. Passing an
 inline closure recreates it every render and reinstates the loop by a
@@ -5322,7 +5322,7 @@ extracted into use-settings-tab-resolution.ts.
 
 ## line-__tests__-settings-cloud-link-dialog-loop-test-ts-L70
 
-`client/__tests__/settings-cloud-link-dialog-loop.test.ts:70`
+`client/__tests__/settings-cloud-link-dialog-loop.test.ts:39`
 
 The bug: a bare `syncState` dependency - a fresh object every render -
 makes this effect (and its unconditional dialog-open call) rerun on
@@ -5330,7 +5330,7 @@ every render for as long as the route stays on the cloud alias.
 
 ## line-__tests__-settings-cloud-link-dialog-loop-test-ts-L75
 
-`client/__tests__/settings-cloud-link-dialog-loop.test.ts:75`
+`client/__tests__/settings-cloud-link-dialog-loop.test.ts:43`
 
 The fix: depend on the specific stable setter this effect actually
 calls, so it only reruns when tabParam/isCloudLinked/isAdmin/activeTab
@@ -5493,7 +5493,7 @@ entered gets both right.
 
 ## line-__tests__-stock-audit-baseline-test-ts-L153
 
-`client/__tests__/stock-audit-baseline.test.ts:153`
+`client/__tests__/stock-audit-baseline.test.ts:144`
 
 A draft started on an older bundle has a countedQty beside a
 systemQty frozen at sheet-build. Sending that frozen figure as the
@@ -5516,7 +5516,7 @@ instance (sql.js), not a reimplementation.
 
 ## line-__tests__-stock-audit-concurrent-sale-race-test-ts-L61
 
-`client/__tests__/stock-audit-concurrent-sale-race.test.ts:61`
+`client/__tests__/stock-audit-concurrent-sale-race.test.ts:54`
 
 Correct behavior: countedQty (15) matches the re-read current
 quantity (15), so there's NO discrepancy - diff is 0, batch
@@ -5524,7 +5524,7 @@ untouched, no adjustment movement written.
 
 ## line-__tests__-stock-audit-concurrent-sale-race-test-ts-L79
 
-`client/__tests__/stock-audit-concurrent-sale-race.test.ts:79`
+`client/__tests__/stock-audit-concurrent-sale-race.test.ts:71`
 
 Caller's stale systemQty (20) differs from the real current quantity
 (15), and the actual physical count (12) differs from BOTH - the real
@@ -5568,7 +5568,7 @@ double-delta bug in the old updateStockBatchQuantity.
 
 ## line-__tests__-stock-audit-test-ts-L50
 
-`client/__tests__/stock-audit.test.ts:50`
+`client/__tests__/stock-audit.test.ts:49`
 
 Whitespace-normalized so this stays robust to multi-line SQL
 formatting in the real queries (getBatchesForProduct /
@@ -5576,7 +5576,7 @@ getAllActiveBatchesForProduct both wrap across lines).
 
 ## line-__tests__-stock-audit-test-ts-L59
 
-`client/__tests__/stock-audit.test.ts:59`
+`client/__tests__/stock-audit.test.ts:57`
 
 getProductStockQuantity: the product's live quantity, summed over
 active, non-deleted batches. Modelled properly rather than returned
@@ -5586,7 +5586,7 @@ silently turns every count into "found everything".
 
 ## line-__tests__-stock-audit-test-ts-L77
 
-`client/__tests__/stock-audit.test.ts:77`
+`client/__tests__/stock-audit.test.ts:72`
 
 getAllActiveBatchesForProduct: every ACTIVE, non-expired batch
 regardless of quantity - the surplus/restock path needs to find a
@@ -5627,7 +5627,7 @@ drifting (A-173/A-176) was invisible until a physical count found it.
 
 ## line-__tests__-stock-fingerprint-test-ts-L29
 
-`client/__tests__/stock-fingerprint.test.ts:29`
+`client/__tests__/stock-fingerprint.test.ts:27`
 
 runSchemaMigrations() adds store_id to every STORE_SCOPED_TABLES entry
 on a real device; SCHEMA_SQL alone does not, and the query under test
@@ -5658,7 +5658,7 @@ batch the log cannot account for.
 
 ## line-__tests__-stock-integrity-fold-test-ts-L38
 
-`client/__tests__/stock-integrity-fold.test.ts:38`
+`client/__tests__/stock-integrity-fold.test.ts:29`
 
 SCHEMA_SQL predates multi-store; schema-migrations.ts adds store_id at
 runtime. Added here so the store-scoped query branch is actually
@@ -5680,7 +5680,7 @@ verifyStockIntegrity() must never write.
 
 ## line-__tests__-stock-integrity-verify-test-ts-L37
 
-`client/__tests__/stock-integrity-verify.test.ts:37`
+`client/__tests__/stock-integrity-verify.test.ts:29`
 
 SCHEMA_SQL predates multi-store; schema-migrations.ts adds store_id at
 runtime. Added here so the store-scoped query branch is actually
@@ -5700,7 +5700,7 @@ this table.
 
 ## line-__tests__-stock-transfers-test-ts-L393
 
-`client/__tests__/stock-transfers.test.ts:393`
+`client/__tests__/stock-transfers.test.ts:395`
 
 total_cost is a separate multiplication (rounded average * quantity),
 which can itself reintroduce a long float (127.77 * 3 === 383.30999999999995)
@@ -5726,7 +5726,7 @@ the final settled state, which wouldn't catch a transient wrong value.
 
 ## line-__tests__-store-context-hydration-race-test-tsx-L102
 
-`client/__tests__/store-context-hydration-race.test.tsx:102`
+`client/__tests__/store-context-hydration-race.test.tsx:90`
 
 Fresh QueryClient per render (i.e. per test, since each `it` calls
 renderHook exactly once) so query cache state can't leak between
@@ -5737,7 +5737,7 @@ switchStore() makes - useQuery() itself needs a real provider).
 
 ## line-__tests__-store-context-hydration-race-test-tsx-L124
 
-`client/__tests__/store-context-hydration-race.test.tsx:124`
+`client/__tests__/store-context-hydration-race.test.tsx:108`
 
 The device's last-active store (e.g. from an owner's prior session)
 is store A, but the logged-in user (about to hydrate from
@@ -5745,7 +5745,7 @@ localStorage["dumos_user"]) is fixed to store B.
 
 ## line-__tests__-store-context-hydration-race-test-tsx-L157
 
-`client/__tests__/store-context-hydration-race.test.tsx:157`
+`client/__tests__/store-context-hydration-race.test.tsx:140`
 
 Whatever the very first synchronous render observes, it must not be
 "confirmed not loading with no store" - that's the state a premature
@@ -5783,7 +5783,7 @@ repeatedly.
 
 ## line-__tests__-store-context-stale-store-clear-test-tsx-L112
 
-`client/__tests__/store-context-stale-store-clear.test.tsx:112`
+`client/__tests__/store-context-stale-store-clear.test.tsx:99`
 
 The device's last-active store id points at a store that no longer
 exists locally (e.g. pruned by sync reconciliation) - only "store-b"
@@ -5791,7 +5791,7 @@ is real.
 
 ## line-__tests__-store-context-stale-store-clear-test-tsx-L129
 
-`client/__tests__/store-context-stale-store-clear.test.tsx:129`
+`client/__tests__/store-context-stale-store-clear.test.tsx:115`
 
 The old version cleared the stale id to null (localStorage.removeItem
 + setActiveStoreId(null)) as a side effect inside queryFn itself, then
@@ -5833,7 +5833,7 @@ never left un-cleared.
 
 ## line-__tests__-store-context-switch-clears-cache-test-tsx-L151
 
-`client/__tests__/store-context-switch-clears-cache.test.tsx:151`
+`client/__tests__/store-context-switch-clears-cache.test.tsx:128`
 
 The cache must be cleared outright - not merely invalidated, which
 (with zero mounted observers at the moment it runs) would silently
@@ -5842,7 +5842,7 @@ serve.
 
 ## line-__tests__-store-context-switch-clears-cache-test-tsx-L158
 
-`client/__tests__/store-context-switch-clears-cache.test.tsx:158`
+`client/__tests__/store-context-switch-clears-cache.test.tsx:133`
 
 cancelQueries() must run before clear(), so an in-flight request from
 the outgoing store can't resolve after the cache has been emptied
@@ -5850,7 +5850,7 @@ and repopulate it with stale data.
 
 ## line-__tests__-store-context-switch-clears-cache-test-tsx-L175
 
-`client/__tests__/store-context-switch-clears-cache.test.tsx:175`
+`client/__tests__/store-context-switch-clears-cache.test.tsx:149`
 
 Simulates a cancelQueries() that hangs (e.g. a stuck in-flight
 fetch) - the SWITCH_STORE_MAX_WAIT_MS safety net should still let
@@ -5891,7 +5891,7 @@ softDelete() exports, not a reimplementation.
 
 ## line-__tests__-store-ownership-test-ts-L39
 
-`client/__tests__/store-ownership.test.ts:39`
+`client/__tests__/store-ownership.test.ts:32`
 
 store_id is added via core.ts's runtime ALTER TABLE migration, not the
 base CREATE TABLE statements in SCHEMA_SQL. Replicate it here since
@@ -5934,7 +5934,7 @@ step, regardless of what the server's stores response says.
 
 ## line-__tests__-store-prune-safety-test-ts-L43
 
-`client/__tests__/store-prune-safety.test.ts:43`
+`client/__tests__/store-prune-safety.test.ts:37`
 
 store_id is added via core.ts's runtime ALTER TABLE migration, not the
 base CREATE TABLE statements in SCHEMA_SQL. Replicate it here since
@@ -5942,7 +5942,7 @@ __setDatabaseForTesting bypasses initDatabase()'s migration loop.
 
 ## line-__tests__-store-prune-safety-test-ts-L48
 
-`client/__tests__/store-prune-safety.test.ts:48`
+`client/__tests__/store-prune-safety.test.ts:41`
 
 expenses already has store_id in the base SCHEMA_SQL (unlike
 products/sales, which only get it via core.ts's runtime ALTER TABLE
@@ -5965,7 +5965,7 @@ the server's snapshot no longer lists.
 
 ## line-__tests__-store-prune-skipped-when-unchanged-test-ts-L80
 
-`client/__tests__/store-prune-skipped-when-unchanged.test.ts:80`
+`client/__tests__/store-prune-skipped-when-unchanged.test.ts:72`
 
 The prune probes every store-scoped table for a `store_id` column before
 building its subquery list; `stores` itself is probed by the row-apply
@@ -6054,7 +6054,7 @@ back on the same cached document instead of a fresh one.
 
 ## line-__tests__-sw-navigate-no-store-test-ts-L23
 
-`client/__tests__/sw-navigate-no-store.test.ts:23`
+`client/__tests__/sw-navigate-no-store.test.ts:12`
 
 The navigate branch's own request fetch - distinct from the runtime
 stale-while-revalidate branch's plain `fetch(request)` further down,
@@ -6095,7 +6095,7 @@ onboarding's post-restore sync all go through this one function.
 
 ## line-__tests__-sync-blocked-during-impersonation-test-ts-L81
 
-`client/__tests__/sync-blocked-during-impersonation.test.ts:81`
+`client/__tests__/sync-blocked-during-impersonation.test.ts:69`
 
 The admin panel can fail to mint a return code while the impersonation
 itself still proceeds, and "End Session" can clear one flag but not the
@@ -6138,7 +6138,7 @@ from the run fails here, which a code review would not reliably catch.
 
 ## block-__tests__-sync-engine-store-identity-test-ts-L19
 
-`client/__tests__/sync-engine-store-identity.test.ts:19`
+`client/__tests__/sync-engine-store-identity.test.ts:10`
 
 What this guard covers: every file in a RUN's request-and-report path. The
 exemptions below are not oversights — each resolves the store and uses it
@@ -6173,7 +6173,7 @@ fully mocked and don't need real BEGIN/COMMIT semantics.
 
 ## line-__tests__-sync-engine-test-ts-L240
 
-`client/__tests__/sync-engine.test.ts:240`
+`client/__tests__/sync-engine.test.ts:233`
 
 The per-table sync cursor must not advance either, or the server's
 copy of this record would never be re-offered once the local edit
@@ -6181,7 +6181,7 @@ is pushed and resolved.
 
 ## line-__tests__-sync-engine-test-ts-L264
 
-`client/__tests__/sync-engine.test.ts:264`
+`client/__tests__/sync-engine.test.ts:256`
 
 The prune's candidate lookup: the live local stores the server's
 snapshot didn't list. The expensive per-table prune only runs when
@@ -6189,7 +6189,7 @@ this is non-empty (A-8).
 
 ## line-__tests__-sync-engine-test-ts-L380
 
-`client/__tests__/sync-engine.test.ts:380`
+`client/__tests__/sync-engine-pull-and-sync.test.ts:127`
 
 Falls back to firing once at the very end regardless (see pull.ts's
 doc comment on the fallback) — but only via that fallback, after
@@ -6198,7 +6198,7 @@ still outstanding.
 
 ## line-__tests__-sync-engine-test-ts-L406
 
-`client/__tests__/sync-engine.test.ts:406`
+`client/__tests__/sync-engine-pull-and-sync.test.ts:151`
 
 Nothing was written (the page transaction carrying stores AND users
 rolls back as a unit), so a caller must not read the callback as
@@ -6206,7 +6206,7 @@ rolls back as a unit), so a caller must not read the callback as
 
 ## line-__tests__-sync-engine-test-ts-L463
 
-`client/__tests__/sync-engine.test.ts:463`
+`client/__tests__/sync-engine-pull-and-sync.test.ts:207`
 
 A device whose local SQLite predates the migration that added
 permission_groups: PRAGMA table_info returns nothing for it, and
@@ -6269,7 +6269,7 @@ artificial delay and no separate DOM tree to swap into.
 
 ## line-__tests__-sync-indicator-expand-timing-test-ts-L62
 
-`client/__tests__/sync-indicator-expand-timing.test.ts:62`
+`client/__tests__/sync-indicator-expand-timing.test.ts:43`
 
 SyncIndicator reads isImpersonating from the auth context (sync is
 disabled wholesale during an impersonated session); this is an ordinary
@@ -6277,7 +6277,7 @@ non-impersonated session.
 
 ## line-__tests__-sync-indicator-expand-timing-test-ts-L143
 
-`client/__tests__/sync-indicator-expand-timing.test.ts:143`
+`client/__tests__/sync-indicator-expand-timing.test.ts:123`
 
 No setTimeout/delay involved — the very next render already carries
 the expanded (non-zero max-width) classes, which is what lets the
@@ -6303,7 +6303,7 @@ and an inert refresh button.
 
 ## line-__tests__-sync-indicator-impersonation-disabled-test-tsx-L129
 
-`client/__tests__/sync-indicator-impersonation-disabled.test.tsx:129`
+`client/__tests__/sync-indicator-impersonation-disabled.test.tsx:125`
 
 The indicator does subscribe to sync-queue changes to keep its pending
 COUNT fresh (that replaced a 5s poll against main-thread sql.js), so a
@@ -6338,7 +6338,7 @@ a red "Sync Error" on a sync that actually succeeded).
 
 ## block-__tests__-sync-indicator-surfaces-unreachable-server-test-ts-L75
 
-`client/__tests__/sync-indicator-surfaces-unreachable-server.test.ts:75`
+`client/__tests__/sync-indicator-surfaces-unreachable-server.test.ts:70`
 
 A-273. The expected-noise list widened to cover genuine network failures so
 they stop filling Sentry and the `feedback` table, and the first cut had the
@@ -6359,7 +6359,7 @@ reason lived in the indicator's React state and died on navigation. "Why do
 
 ## line-__tests__-sync-outcome-test-ts-L80
 
-`client/__tests__/sync-outcome.test.ts:80`
+`client/__tests__/sync-outcome.test.ts:77`
 
 canonicaliseReason knows the SERVER's refusal vocabulary, so every
 sync-level failure came out as "other" — including the stuck-push case
@@ -6367,7 +6367,7 @@ this exists to diagnose, which made the card useless.
 
 ## line-__tests__-sync-outcome-test-ts-L107
 
-`client/__tests__/sync-outcome.test.ts:107`
+`client/__tests__/sync-outcome.test.ts:103`
 
 An inspection session's own mount tick is refused as impersonated, and a
 second PWA tab is refused as read-only while sharing this storage key —
@@ -6429,7 +6429,7 @@ added/removed stock-value figures. See client/AGENTS.md.
 
 ## block-__tests__-sync-reconciliation-movement-visibility-test-ts-L124
 
-`client/__tests__/sync-reconciliation-movement-visibility.test.ts:124`
+`client/__tests__/sync-reconciliation-movement-visibility.test.ts:121`
 
 A-221: the A-214 repair writes compensating `sync_reconciliation_reversal`
 movements, which are the same kind of row for the same reason and must be
@@ -6459,7 +6459,7 @@ callers honest.
 
 ## line-__tests__-sync-run-store-identity-test-ts-L85
 
-`client/__tests__/sync-run-store-identity.test.ts:85`
+`client/__tests__/sync-run-store-identity.test.ts:69`
 
 The first push consumed the queue row, so re-seed: it is this SECOND
 push — issued entirely after the active store changed — that would
@@ -6509,7 +6509,7 @@ pipelines) for the known set of expected plan-restriction codes.
 
 ## block-__tests__-sync-throttle-not-reported-as-crash-test-ts-L63
 
-`client/__tests__/sync-throttle-not-reported-as-crash.test.ts:63`
+`client/__tests__/sync-throttle-not-reported-as-crash.test.ts:55`
 
 A-273. Two more outcomes that are not bugs and were filling Sentry and the
 `feedback` table: a tab that lost the single-writer election (core.ts's
@@ -6517,7 +6517,7 @@ assertWritable), and a device that is simply offline or on a flaky link.
 
 ## block-__tests__-sync-throttle-not-reported-as-crash-test-ts-L82
 
-`client/__tests__/sync-throttle-not-reported-as-crash.test.ts:82`
+`client/__tests__/sync-throttle-not-reported-as-crash.test.ts:71`
 
 A-273. The two lists are read by two different kinds of consumer. A
 cashier shown "online" while nothing reaches the server is the silent
@@ -6540,7 +6540,7 @@ callbacks) across tests and race with the current test's own listener.
 
 ## block-__tests__-tab-lock-test-ts-L44
 
-`client/__tests__/tab-lock.test.ts:44`
+`client/__tests__/tab-lock.test.ts:37`
 
 Regression coverage for the single-writer-tab election in tab-lock.ts
 (docs/KNOWN_BUGS.md C1 - two browser/PWA tabs could silently overwrite
@@ -6550,7 +6550,7 @@ doesn't implement the Web Locks API at all, so every scenario here stubs
 
 ## line-__tests__-tab-lock-test-ts-L132
 
-`client/__tests__/tab-lock.test.ts:132`
+`client/__tests__/tab-lock.test.ts:120`
 
 "The other tab closes" - the queued lock request is now granted. Not
 awaited directly: like the real Web Locks API, the callback holds the
@@ -6560,7 +6560,7 @@ onPromoted() and the writer-flag flip inside it to run.
 
 ## block-__tests__-tab-lock-test-ts-L202
 
-`client/__tests__/tab-lock.test.ts:202`
+`client/__tests__/tab-lock.test.ts:187`
 
 Graceful handoff (BroadcastChannel handshake): a read-only tab can ask the
 current writer tab to force a save and voluntarily release the Web Lock,
@@ -6573,7 +6573,7 @@ both sides of a handshake within one test would never see anything.
 
 ## line-__tests__-tab-lock-test-ts-L308
 
-`client/__tests__/tab-lock.test.ts:308`
+`client/__tests__/tab-lock.test.ts:285`
 
 This tab's queued request behind the current (never-modeled)
 holder - stays pending, putting this tab in the read-only state
@@ -6626,7 +6626,7 @@ because something in the client actually loads it.
 
 ## line-__tests__-till-inspection-banner-test-tsx-L108
 
-`client/__tests__/till-inspection-banner.test.tsx:108`
+`client/__tests__/till-inspection-banner.test.tsx:110`
 
 Several ticks, not one: the interval keeps firing while the POST is in
 flight, and a single tick hid a repeated end() that wrote duplicate
@@ -6669,7 +6669,7 @@ these explicit details a repair reads as the staff user's doing.
 
 ## line-__tests__-till-repair-audit-test-ts-L129
 
-`client/__tests__/till-repair-audit.test.ts:129`
+`client/__tests__/till-repair-audit.test.ts:126`
 
 user_id is what the Activity Log and the server's activity_logs show.
 SyncController backfills an empty or unknown id from the sync token's
@@ -6678,7 +6678,7 @@ OWNER as having run the clock override.
 
 ## line-__tests__-till-repair-audit-test-ts-L155
 
-`client/__tests__/till-repair-audit.test.ts:155`
+`client/__tests__/till-repair-audit.test.ts:150`
 
 Asserting null here proved nothing: null is what any implementation
 yields when no current user was ever set. Set one, so the fallback is
@@ -6724,7 +6724,7 @@ the client via the push response's `versions` field (see push.ts).
 
 ## line-__tests__-update-preserves-base-version-test-ts-L86
 
-`client/__tests__/update-preserves-base-version.test.ts:86`
+`client/__tests__/update-preserves-base-version.test.ts:73`
 
 Reset the local row back to its pre-edit state to simulate "device B"
 never having pulled device A's change (its local copy is still the
@@ -6732,7 +6732,7 @@ original ancestor).
 
 ## line-__tests__-update-preserves-base-version-test-ts-L98
 
-`client/__tests__/update-preserves-base-version.test.ts:98`
+`client/__tests__/update-preserves-base-version.test.ts:84`
 
 Both edits carry the SAME base version — this is exactly the shape the
 server's strict version-equality check (SyncController::push) now
@@ -6841,7 +6841,7 @@ immutability, or a rename that mutates a default group all matter.
 
 ## block-__tests__-use-pos-held-transactions-reseller-recall-test-ts-L37
 
-`client/__tests__/use-pos-held-transactions-reseller-recall.test.ts:37`
+`client/__tests__/use-pos-held-transactions-reseller-recall.test.ts:43`
 
 A-59: holding a reseller sale dropped `is_reseller_sale`/`markup_type` and
 re-quoted every line at the current catalog price, so the markup and the
@@ -6852,7 +6852,7 @@ the held sale still listed as recallable.
 
 ## line-__tests__-use-pos-held-transactions-reseller-test-ts-L41
 
-`client/__tests__/use-pos-held-transactions-reseller.test.ts:41`
+`client/__tests__/use-pos-held-transactions-reseller.test.ts:47`
 
 Catalog price has since changed to 120, but the held transaction was
 saved at 100 (its unit_price at hold time). The recall path always
@@ -6860,7 +6860,7 @@ rebuilds from the current catalog product per its existing design.
 
 ## block-__tests__-use-pos-payment-double-submit-test-ts-L14
 
-`client/__tests__/use-pos-payment-double-submit.test.ts:14`
+`client/__tests__/use-pos-payment-double-submit.test.ts:16`
 
 Regression coverage for usePOSPayment.handlePayment() having no
 re-entrancy guard: the only protection against a second invocation was
@@ -6877,7 +6877,7 @@ Harness mirrors use-pos-payment-loyalty-gate.test.ts's pattern (no
 
 ## block-__tests__-use-pos-payment-loyalty-gate-test-ts-L14
 
-`client/__tests__/use-pos-payment-loyalty-gate.test.ts:14`
+`client/__tests__/use-pos-payment-loyalty-gate.test.ts:17`
 
 Defense-in-depth coverage for the Gap 1 backend fix: usePOSPayment must
 never write loyalty_transactions (earn OR redeem) when canUseLoyaltyProgram
@@ -6895,7 +6895,7 @@ a real sql.js-backed query function.
 
 ## block-__tests__-use-pos-payment-loyalty-tier-test-ts-L13
 
-`client/__tests__/use-pos-payment-loyalty-tier.test.ts:13`
+`client/__tests__/use-pos-payment-loyalty-tier.test.ts:16`
 
 Coverage for wiring loyalty_tiers.points_multiplier into actual points
 earning at checkout (previously configured/displayed in Settings but never
@@ -6932,7 +6932,7 @@ app. The accessors must not participate in the memo's identity.
 
 ## line-__tests__-use-sortable-data-memo-test-ts-L70
 
-`client/__tests__/use-sortable-data-memo.test.ts:70`
+`client/__tests__/use-sortable-data-memo.test.ts:67`
 
 Flipping direction re-runs the comparator: it must use the accessor
 from the latest render, not one captured when the hook first ran. (A
@@ -6958,7 +6958,7 @@ left undefined previously fell back to Intl's decimal-style default of
 
 ## line-__tests__-utils-test-ts-L31
 
-`client/__tests__/utils.test.ts:31`
+`client/__tests__/utils.test.ts:30`
 
 A lowercase code (e.g. how a store setting might be stored/typed)
 previously got wiped to "" by the letters-only filter (which ran
@@ -6967,7 +6967,7 @@ formatting as the actually-requested currency.
 
 ## line-__tests__-utils-test-ts-L41
 
-`client/__tests__/utils.test.ts:41`
+`client/__tests__/utils.test.ts:38`
 
 A malformed residual code (not exactly 3 letters after sanitizing,
 e.g. "u$" -> "U" or "usd-x" -> "USDX") makes Intl.NumberFormat throw
@@ -6976,7 +6976,7 @@ money-displaying screen.
 
 ## line-__tests__-utils-test-ts-L53
 
-`client/__tests__/utils.test.ts:53`
+`client/__tests__/utils.test.ts:48`
 
 Used by the dashboard's "Today's Sales" and "Inventory Value" stat
 cards (components/dashboard/dashboard-overview.tsx) so headline figures
@@ -6984,7 +6984,7 @@ read as clean whole numbers instead of exact-to-the-kobo totals.
 
 ## line-__tests__-utils-test-ts-L78
 
-`client/__tests__/utils.test.ts:78`
+`client/__tests__/utils.test.ts:72`
 
 Task 8 (Reports) gap-fill: the pre-existing tests above never covered
 negative amounts, zero, or large values, even though this function is
@@ -6995,7 +6995,7 @@ valuation figure).
 
 ## line-__tests__-utils-test-ts-L117
 
-`client/__tests__/utils.test.ts:117`
+`client/__tests__/utils.test.ts:107`
 
 Regression: several chart/metric components hardcoded "\u20a6" instead of
 deriving it from the store's actual configured currency (Settings has
@@ -7049,7 +7049,7 @@ seeding effect below once poQuery.data loads.
 
 ## line-app-(dashboard)-procurement-edit-page-tsx-L89
 
-`client/app/(dashboard)/procurement/edit/page.tsx:89`
+`client/app/(dashboard)/procurement/edit/page.tsx:67` (comment and back-link removed from code)
 
 Only seed the form once per PO id — a background refetch (e.g. a sync
 pull invalidating purchase_orders) must not overwrite in-progress
@@ -7057,7 +7057,7 @@ unsaved edits with the freshly refetched data.
 
 ## line-app-(dashboard)-procurement-new-page-tsx-L52
 
-`client/app/(dashboard)/procurement/new/page.tsx:52`
+`client/app/(dashboard)/procurement/new/page.tsx:49`
 
 An immediate purchase is money already handed over at the counter, so it
 opens on Fully Paid; a standard PO is raised before paying, so it opens
@@ -7067,7 +7067,7 @@ rewritten by toggling the type above it.
 
 ## line-app-(dashboard)-procurement-new-page-tsx-L66
 
-`client/app/(dashboard)/procurement/new/page.tsx:66`
+`client/app/(dashboard)/procurement/new/page.tsx:60`
 
 Order details (type/vendor/notes/payment/due-date) are confirmed first;
 item entry only becomes the dominant content of the screen afterward.
@@ -7110,7 +7110,7 @@ on demand so the other fourteen tabs don't ship them.
 
 ## line-app-(dashboard)-settings-[tab]-settings-client-tsx-L112
 
-`client/app/(dashboard)/settings/[tab]/settings-client.tsx:112`
+`client/app/(dashboard)/settings/[tab]/settings-client.tsx:111`
 
 With the app sidebar/header hidden on every settings route, this
 header (and its back button) is the only way out — shown on desktop
@@ -7126,7 +7126,7 @@ only if its own content overflows.
 
 ## block-app-(dashboard)-settings-[tab]-settings-client-tsx-L240
 
-`client/app/(dashboard)/settings/[tab]/settings-client.tsx:240`
+`client/app/(dashboard)/settings/[tab]/settings-client.tsx:229`
 
 Support surface, not a store feature: only rendered during a
 superadmin handoff, and re-checked here rather than trusting
@@ -7167,7 +7167,7 @@ they remain redeemable. `searchParams` is therefore not where to look.
 
 ## line-app-auth-callback-page-tsx-L25
 
-`client/app/auth/callback/page.tsx:25`
+`client/app/auth/callback/page.tsx:22`
 
 Starts null rather than probing for the code here: the fragment is only
 readable on the client, so deriving initial state from it would render
@@ -7176,7 +7176,7 @@ effect below sets it instead.
 
 ## line-app-auth-callback-page-tsx-L31
 
-`client/app/auth/callback/page.tsx:31`
+`client/app/auth/callback/page.tsx:26`
 
 Guards against React Strict Mode's dev-only double-invoke of mount
 effects: without this, a second run reads the code/return_code this
@@ -7187,7 +7187,7 @@ stripping the URL can't just be moved out of here instead).
 
 ## line-app-auth-callback-page-tsx-L45
 
-`client/app/auth/callback/page.tsx:45`
+`client/app/auth/callback/page.tsx:36`
 
 Strip the codes from the visible URL/history immediately, before the
 exchange network call, so they don't linger in browser history or get
@@ -7195,7 +7195,7 @@ sent as a Referer header to any resource this page happens to load.
 
 ## line-app-auth-callback-page-tsx-L61
 
-`client/app/auth/callback/page.tsx:61`
+`client/app/auth/callback/page.tsx:47`
 
 /dashboard is gated on the local auth context's `user` (see
 DashboardLayout), which normally only PIN login populates. Without
@@ -7212,7 +7212,7 @@ generic error message.
 
 ## block-app-inspect-page-tsx-L9
 
-`client/app/inspect/page.tsx:9`
+`client/app/inspect/page.tsx:11`
 
 Where a read-only admin inspection session renders. Deliberately outside
 the (dashboard) route group: DashboardLayout hard-requires a staff `user`
@@ -7222,7 +7222,7 @@ docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md.
 
 ## line-app-inspect-page-tsx-L18
 
-`client/app/inspect/page.tsx:18`
+`client/app/inspect/page.tsx:15`
 
 Mounted flag: reading sessionStorage during render makes the server/
 prerender pass and the first client pass disagree, which React reports as
@@ -7240,7 +7240,7 @@ way those sub-hooks compose their own lower-level pieces.
 
 ## line-app-login-use-login-page-tsx-L22
 
-`client/app/login/use-login-page.tsx:22`
+`client/app/login/use-login-page.tsx:18`
 
 "New credentials" mode (from the dashboard lock overlay's "Login as
 someone else"), distinct from a plain /login visit, which otherwise
@@ -7249,7 +7249,7 @@ accounts already exist, to avoid ever showing two separate lock screens.
 
 ## line-app-login-use-login-page-tsx-L36
 
-`client/app/login/use-login-page.tsx:36`
+`client/app/login/use-login-page.tsx:30`
 
 Known bug #10, Part B: a device that just restored a local backup keeps
 100% of its data but silently loses its cloud link (restoreDatabase()
@@ -7260,7 +7260,7 @@ pre-login "Link DumosRx Cloud" step the setup wizard already has
 
 ## line-app-login-use-login-page-tsx-L46
 
-`client/app/login/use-login-page.tsx:46`
+`client/app/login/use-login-page.tsx:36`
 
 Login and Setup are tabs on this one page, not separate routes: no
 navigation, no remount, no second loading spinner when switching.
@@ -7277,7 +7277,7 @@ never flashes setup content before bouncing back.
 
 ## line-app-login-use-login-page-tsx-L73
 
-`client/app/login/use-login-page.tsx:73`
+`client/app/login/use-login-page.tsx:53`
 
 Only bounce to the dashboard's own lock overlay when there's actually a
 live (but idle-locked) session to hand off to, i.e. `isAuthenticated`.
@@ -7289,7 +7289,7 @@ renders its own account-tile picker (LockScreen) instead of redirecting.
 
 ## line-app-login-use-login-page-tsx-L115
 
-`client/app/login/use-login-page.tsx:115`
+`client/app/login/use-login-page.tsx:90`
 
 Header (Back + Login/Setup switcher) is hidden entirely for ?mode=new:
 a lone back arrow with no switcher looked unbalanced, especially on
@@ -7298,7 +7298,7 @@ in the login form itself (see TraditionalLoginForm's onCancel).
 
 ## line-app-login-use-login-page-tsx-L128
 
-`client/app/login/use-login-page.tsx:128`
+`client/app/login/use-login-page.tsx:101`
 
 ?mode=new only re-authenticates as a different existing user on an
 already-set-up device: registering, cloud setup, and cancelling all
@@ -7307,7 +7307,7 @@ outside that mode.
 
 ## line-app-page-tsx-L22
 
-`client/app/page.tsx:22`
+`client/app/page.tsx:32`
 
 If this device has logged in before, skip straight past the marketing
 page to /dashboard, whose own lock overlay is the one canonical place PIN
@@ -7334,7 +7334,7 @@ data - see handleRegister() and confirmCloudRestoreSwitch() below.
 
 ## line-app-setup-use-onboarding-ts-L54
 
-`client/app/setup/use-onboarding.ts:54`
+`client/app/setup/use-onboarding.ts:44`
 
 `isCloudLinked` from auth-context is a device-wide flag (true whenever a
 cloud auth token is cached in localStorage); it can be stale from an
@@ -7347,7 +7347,7 @@ genuine already-linked case: it sets this flag itself.
 
 ## line-app-setup-use-onboarding-ts-L76
 
-`client/app/setup/use-onboarding.ts:76`
+`client/app/setup/use-onboarding.ts:53`
 
 Always land on the setup tab. setStep can now be called from the
 login tab (e.g. TraditionalLoginForm's "Create account" / "Restore
@@ -7375,7 +7375,7 @@ pull its entire history into memory at once.
 
 ## block-components-activity-log-activity-log-page-tsx-L171
 
-`client/components/activity-log/activity-log-page.tsx:171`
+`client/components/activity-log/activity-log-page.tsx:169`
 
 Desktop: div-based table (ARIA roles stand in for real <table>
 semantics), horizontally scrollable if content ever demands more
@@ -7383,7 +7383,7 @@ than the column widths naturally settle at.
 
 ## block-components-activity-log-activity-log-page-tsx-L188
 
-`client/components/activity-log/activity-log-page.tsx:188`
+`client/components/activity-log/activity-log-page.tsx:184`
 
 Mobile: rows become stacked, tappable cards instead of a
 cramped table, matching the pattern used by the product
@@ -7419,7 +7419,7 @@ the first word of the full per-row sentence.
 
 ## block-components-activity-log-describe-activity-ts-L76
 
-`client/components/activity-log/describe-activity.ts:76`
+`client/components/activity-log/describe-activity.ts:75`
 
 Full human sentence for an activity_log row, e.g. "Added a category",
 "Removed a purchase order", "Signed in". This is what a non-technical
@@ -7451,7 +7451,7 @@ underperformers (not just the winners) are visible too.
 
 ## block-components-analytics-product-performance-table-tsx-L114
 
-`client/components/analytics/product-performance-table.tsx:114`
+`client/components/analytics/product-performance-table.tsx:113`
 
 Virtualized: this table deliberately lists EVERY product sold in
 the period (see the doc comment on getBIMetrics's
@@ -7488,7 +7488,7 @@ so the logo always shows, sized larger to read as the primary heading.
 
 ## block-components-auth-auth-card-shell-tsx-L21
 
-`client/components/auth/auth-card-shell.tsx:21`
+`client/components/auth/auth-card-shell.tsx:16`
 
 Card-level padding override. The onboarding steps (register/cloud/
 backup) manage their own inner CardHeader/CardContent/CardFooter
@@ -7498,7 +7498,7 @@ spacing. Ignored for variant="overlay", which always uses the default.
 
 ## block-components-auth-auth-card-shell-tsx-L27
 
-`client/components/auth/auth-card-shell.tsx:27`
+`client/components/auth/auth-card-shell.tsx:19`
 
 The single desktop-only visual shown above the header (page variant
 only; overlay always shows its own mobile-only logo regardless of
@@ -7510,7 +7510,7 @@ space when hidden, since the wrapper simply isn't rendered.
 
 ## line-components-auth-auth-card-shell-tsx-L50
 
-`client/components/auth/auth-card-shell.tsx:50`
+`client/components/auth/auth-card-shell.tsx:35`
 
 Shared by /login's login/setup tabs and the dashboard's auto-lock overlay.
 Was previously several hand-copied implementations that drifted (the
@@ -7520,7 +7520,7 @@ clipping bug).
 
 ## block-components-auth-auth-card-shell-tsx-L77
 
-`client/components/auth/auth-card-shell.tsx:77`
+`client/components/auth/auth-card-shell.tsx:58`
 
 shrink-0 on these two matters: Card is a column flex container
 with overflow-y-auto (not visible), which disables flexbox's
@@ -7544,7 +7544,7 @@ login/setup step goes through that shell now, so there's no longer a
 
 ## block-components-auth-license-blocked-card-tsx-L30
 
-`client/components/auth/license-blocked-card.tsx:30`
+`client/components/auth/license-blocked-card.tsx:33`
 
 The full-screen card LicenseGuard renders INSTEAD of its children when a
 device is blocked. Extracted because license-guard.tsx was 436 lines, over
@@ -7558,7 +7558,7 @@ docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md.
 
 ## line-components-auth-license-guard-tsx-L41
 
-`client/components/auth/license-guard.tsx:41`
+`client/components/auth/license-guard.tsx:43`
 
 Restricted mobile users may browse/navigate freely; only actions that
 create, update, or delete data are blocked. Detected by accessible-name
@@ -7568,7 +7568,7 @@ controls, and "view details" buttons — anything read-only.
 
 ## line-components-auth-license-guard-tsx-L53
 
-`client/components/auth/license-guard.tsx:53`
+`client/components/auth/license-guard.tsx:56`
 
 Bumped at the start of every performCheck() run so an overlapping
 earlier run (e.g. a storeProfile change firing again while a prior
@@ -7578,7 +7578,7 @@ state with its own now-outdated result.
 
 ## line-components-auth-license-guard-tsx-L69
 
-`client/components/auth/license-guard.tsx:69`
+`client/components/auth/license-guard.tsx:86`
 
 Only route out of a clock lock, and deliberately online-only: the
 watermark is device-local, so neither sync nor a factory reset can
@@ -7586,7 +7586,7 @@ repair it (A-191).
 
 ## line-components-auth-license-guard-tsx-L92
 
-`client/components/auth/license-guard.tsx:92`
+`client/components/auth/license-guard.tsx:63`
 
 Re-read the local DB. Guarded: checkLicenseStatus()
 does a local write of its own (updateStoreMonotonicTime), which
@@ -7602,7 +7602,7 @@ than hard-locking on an unproven failure.
 
 ## line-components-auth-license-guard-tsx-L140
 
-`client/components/auth/license-guard.tsx:140`
+`client/components/auth/license-guard.tsx:130`
 
 isSwitchingStore covers the store-switch transition: switchStore()
 clears the query cache so the remount below finds nothing stale to
@@ -7613,7 +7613,7 @@ store-context.tsx.)
 
 ## line-components-auth-license-guard-tsx-L150
 
-`client/components/auth/license-guard.tsx:150`
+`client/components/auth/license-guard.tsx:136`
 
 Renewing/paying must always be reachable no matter the license state --
 otherwise a suspended or clock-tampered lock screen (whose own "Renew
@@ -7623,7 +7623,7 @@ through, skipping the lock screen entirely.
 
 ## line-components-auth-license-guard-tsx-L159
 
-`client/components/auth/license-guard.tsx:159`
+`client/components/auth/license-guard.tsx:142`
 
 Render children for valid licenses OR expired subscriptions (downgraded to free).
 Only hard-block on suspension or clock tampering.
@@ -7634,7 +7634,7 @@ rewording it must not silently flip a suspended account into the
 
 ## line-components-auth-lock-screen-tsx-L39
 
-`client/components/auth/lock-screen.tsx:39`
+`client/components/auth/lock-screen.tsx:46`
 
 Absolute timestamp (ms) the current lockout (if any) ends at, for
 `selectedUser`. Null means not locked. Kept as a timestamp (not a
@@ -7644,7 +7644,7 @@ change when the interval fires unless the lockout actually clears.
 
 ## line-components-auth-lock-screen-tsx-L48
 
-`client/components/auth/lock-screen.tsx:48`
+`client/components/auth/lock-screen.tsx:55`
 
 Reflects any lockout already in effect the moment a user tile is
 selected (not just after they go on to fail 5 more times right here) -
@@ -7674,7 +7674,7 @@ from a real check rather than assumed.
 
 ## line-components-auth-lock-screen-tsx-L95
 
-`client/components/auth/lock-screen.tsx:95`
+`client/components/auth/lock-screen.tsx:94`
 
 Separated from the form's submit handler so it can also be triggered
 directly once the 4th digit is entered (auto-submit), not just via the
@@ -7716,7 +7716,7 @@ than just hide a link.
 
 ## block-components-auth-require-role-tsx-L22
 
-`client/components/auth/require-role.tsx:22`
+`client/components/auth/require-role.tsx:18`
 
 Expenses is the one page in this set cashiers are also meant to reach
 (e.g. logging a till expense) - everything else here (Procurement)
@@ -7724,7 +7724,7 @@ stays admin/stock-manager only.
 
 ## block-components-auth-require-role-tsx-L26
 
-`client/components/auth/require-role.tsx:26`
+`client/components/auth/require-role.tsx:21`
 
 A specific permission key required on TOP of the coarse role baseline,
 for routes whose category has been migrated off role gates - see
@@ -7749,7 +7749,7 @@ System Online • Encrypted Session
 
 ## block-components-auth-traditional-login-form-tsx-L165
 
-`client/components/auth/traditional-login-form.tsx:165`
+`client/components/auth/traditional-login-form.tsx:162`
 
 <div className="flex justify-center w-full mt-2 border-t border-border pt-3">
 <span className="text-[10px] text-muted-foreground font-medium">
@@ -7759,7 +7759,7 @@ v{APP_VERSION}
 
 ## line-components-auth-user-selection-tsx-L17
 
-`client/components/auth/user-selection.tsx:17`
+`client/components/auth/user-selection.tsx:20`
 
 Deterministic per-user accent so avatars aren't all the same flat primary
 tint. Cycles through a small curated set rather than hashing to anything
@@ -7767,7 +7767,7 @@ unbounded, so the palette stays on-brand.
 
 ## line-components-auth-user-selection-tsx-L63
 
-`client/components/auth/user-selection.tsx:63`
+`client/components/auth/user-selection.tsx:65`
 
 Netflix/Apple-TV-style profile picker: floating avatar + label, no card
 chrome, colored glow bloom behind each avatar on hover. Chosen over a
@@ -7784,7 +7784,7 @@ around so the description doesn't flash "undefined" mid-fade.
 
 ## line-components-auth-user-selection-tsx-L81
 
-`client/components/auth/user-selection.tsx:81`
+`client/components/auth/user-selection.tsx:78`
 
 Determined client-side only (defaults to the Windows/Linux label on
 first render) to avoid a hydration mismatch: navigator isn't available
@@ -7792,7 +7792,7 @@ during SSR.
 
 ## line-components-auth-user-selection-tsx-L95
 
-`client/components/auth/user-selection.tsx:95`
+`client/components/auth/user-selection.tsx:88`
 
 Tile width must be >= the avatar's own width at every breakpoint. A
 narrower fixed tile (there used to be a flat w-24 here regardless of
@@ -7802,7 +7802,7 @@ until neighboring tiles visibly overlap.
 
 ## line-components-auth-user-selection-tsx-L131
 
-`client/components/auth/user-selection.tsx:131`
+`client/components/auth/user-selection.tsx:121`
 
 Grid, not flex-wrap: flex-wrap re-centers each wrapped row
 independently, so a trailing row with just one or two tiles (e.g.
@@ -7814,7 +7814,7 @@ simple centered row rather than a mostly-empty 3-column grid.
 
 ## block-components-auth-user-selection-tsx-L152
 
-`client/components/auth/user-selection.tsx:152`
+`client/components/auth/user-selection.tsx:136`
 
 A plain button, not motion.button: the remove "x" below
 needs to be a sibling (not a nested interactive
@@ -7891,7 +7891,7 @@ not be the sale this modal was opened from.
 
 ## line-components-customers-record-payment-modal-tsx-L67
 
-`client/components/customers/record-payment-modal.tsx:67`
+`client/components/customers/record-payment-modal.tsx:69`
 
 The `max` on the amount input is only an HTML hint — enforce it here
 too. recordCustomerPayment floors the new balance at 0 but still logs
@@ -7910,7 +7910,7 @@ listed here, so a future alert type never renders without a backdrop.
 
 ## line-components-dashboard-dashboard-action-center-tsx-L61
 
-`client/components/dashboard/dashboard-action-center.tsx:61`
+`client/components/dashboard/dashboard-action-center.tsx:59`
 
 Split from a single combined string (A-158): a bg-*/10 tint passed into
 Card's own className replaced its opaque bg-card background outright via
@@ -7936,7 +7936,7 @@ state directly instead of going through router.push at all.
 
 ## block-components-dashboard-dashboard-header-tsx-L45
 
-`client/components/dashboard/dashboard-header.tsx:45`
+`client/components/dashboard/dashboard-header.tsx:40`
 
 Delegates to the same pure hasPermission() useHasPermission wraps, so a
 route's actionPermission is enforced whatever key it names. Enumerating
@@ -7945,7 +7945,7 @@ the list had not been updated for.
 
 ## line-components-dashboard-dashboard-header-tsx-L53
 
-`client/components/dashboard/dashboard-header.tsx:53`
+`client/components/dashboard/dashboard-header.tsx:46`
 
 Plan entitlement AND this device actually having synced 2+ stores —
 same combination stock-movements.tsx's canTransferStock uses. Only
@@ -7953,7 +7953,7 @@ actionRequiresMultiStore routes (Transfer Stock) read this.
 
 ## block-components-dashboard-dashboard-header-tsx-L138
 
-`client/components/dashboard/dashboard-header.tsx:138`
+`client/components/dashboard/dashboard-header.tsx:129`
 
 Mobile Bottom Row. Genuinely not rendered above `sm` rather than
 CSS-hidden: its SyncIndicator installs an auto-sync daemon of its
@@ -7962,7 +7962,7 @@ own, and two of those racing made one sync report the other's
 
 ## line-components-dashboard-dashboard-layout-tsx-L66
 
-`client/components/dashboard/dashboard-layout.tsx:66`
+`client/components/dashboard/dashboard-layout.tsx:76`
 
 One entry per distinct <main> treatment, keyed by the same route
 partition used everywhere else in this file (isPosRoute/isSettingsRoute/
@@ -7972,7 +7972,7 @@ impossible for one to get a route's case updated without the other.
 
 ## line-components-dashboard-dashboard-layout-tsx-L75
 
-`client/components/dashboard/dashboard-layout.tsx:75`
+`client/components/dashboard/dashboard-layout.tsx:82`
 
 POS and the mobile full-screen takeovers (create PO, settings inner
 tabs) manage their own padding/back-header, so <main> stays unpadded for
@@ -8001,7 +8001,7 @@ bottom-bar clearance from 640px up to lg:.
 
 ## line-components-dashboard-dashboard-layout-tsx-L126
 
-`client/components/dashboard/dashboard-layout.tsx:126`
+`client/components/dashboard/dashboard-layout.tsx:121`
 
 Known bug #10, Part B: the in-app Settings > Data > "Restore Backup"
 path reloads straight back into this layout. Fires once, only if that
@@ -8012,7 +8012,7 @@ hooks/use-settings.ts) rather than a new linking flow.
 
 ## line-components-dashboard-dashboard-layout-tsx-L150
 
-`client/components/dashboard/dashboard-layout.tsx:150`
+`client/components/dashboard/dashboard-layout.tsx:138`
 
 Create Purchase Order gets a POS-style full-screen takeover, but only on
 mobile (<lg). Desktop keeps the normal dashboard chrome since the page
@@ -8020,7 +8020,7 @@ already renders as a self-contained bordered panel there.
 
 ## line-components-dashboard-dashboard-layout-tsx-L154
 
-`client/components/dashboard/dashboard-layout.tsx:154`
+`client/components/dashboard/dashboard-layout.tsx:141`
 
 Settings is a full-screen takeover on every breakpoint (like POS/create-PO):
 no app sidebar, no bottom nav, no dashboard header — settings-client.tsx
@@ -8028,7 +8028,7 @@ renders its own back-button header instead.
 
 ## line-components-dashboard-dashboard-layout-tsx-L161
 
-`client/components/dashboard/dashboard-layout.tsx:161`
+`client/components/dashboard/dashboard-layout.tsx:147`
 
 Touch devices (tablets/iPads at the lg: breakpoint where the desktop
 sidebar shows) don't get real hover intent. A tap can synthesize a
@@ -8038,7 +8038,7 @@ touch at all: those devices only ever see plain collapsed or expanded.
 
 ## line-components-dashboard-dashboard-layout-tsx-L202
 
-`client/components/dashboard/dashboard-layout.tsx:202`
+`client/components/dashboard/dashboard-layout.tsx:170`
 
 An inspection session belongs at /inspect, which carries the banner, the
 End Session button and the idle timer. Reaching the dashboard with one
@@ -8048,7 +8048,7 @@ up to 20 minutes with no way out.
 
 ## line-components-dashboard-dashboard-layout-tsx-L237
 
-`client/components/dashboard/dashboard-layout.tsx:237`
+`client/components/dashboard/dashboard-layout.tsx:202`
 
 Single lookup: avoids indexing DIRECTION_ANIMATION twice (once to check,
 once to interpolate) and keeps the `direction === null` case contained
@@ -8056,7 +8056,7 @@ to this one spot instead of repeating `?? ""` at each usage site.
 
 ## line-components-dashboard-dashboard-layout-tsx-L245
 
-`client/components/dashboard/dashboard-layout.tsx:245`
+`client/components/dashboard/dashboard-layout.tsx:209`
 
 h-dvh, not min-h-screen: the actual scroll-containment fix is the
 `flex flex-col` added to the scrollRef div below, but min-h-screen is
@@ -8068,7 +8068,7 @@ collapsing/expanding, unlike the static h-screen/100vh.
 
 ## line-components-dashboard-dashboard-layout-tsx-L304
 
-`client/components/dashboard/dashboard-layout.tsx:304`
+`client/components/dashboard/dashboard-layout.tsx:263`
 
 On POS/settings routes there's no header to carry the inset, so
 keep it here. Elsewhere it moves onto the banner/header block
@@ -8078,7 +8078,7 @@ avoiding a seam.
 
 ## block-components-dashboard-dashboard-layout-tsx-L334
 
-`client/components/dashboard/dashboard-layout.tsx:334`
+`client/components/dashboard/dashboard-layout.tsx:289`
 
 Page content: scrolls internally. Needs `flex flex-col` itself —
 not just on <main> below — because flex properties (flex-1,
@@ -8131,7 +8131,7 @@ visibility) is what's plan-gated, via useFeatureGate's canManageMultiStore.
 
 ## line-components-dashboard-header-store-switcher-tsx-L50
 
-`client/components/dashboard/header-store-switcher.tsx:50`
+`client/components/dashboard/header-store-switcher.tsx:45`
 
 availableStores is empty for plenty of legitimate single-store admins
 (see store-context.tsx's `allStores` query - it only runs at all for a
@@ -8142,7 +8142,7 @@ is what "Create new store" needs a checked list to make sense next to.
 
 ## line-components-dashboard-header-store-switcher-tsx-L90
 
-`client/components/dashboard/header-store-switcher.tsx:90`
+`client/components/dashboard/header-store-switcher.tsx:81`
 
 Prefix-matches every cached variant of these queries regardless of
 which store/user args they were fetched with (a plain string literal
@@ -8152,7 +8152,7 @@ query-keys.ts can't silently desync from this call site).
 
 ## line-components-dashboard-header-store-switcher-tsx-L100
 
-`client/components/dashboard/header-store-switcher.tsx:100`
+`client/components/dashboard/header-store-switcher.tsx:88`
 
 Fleet writes (FleetFormDialog -> useSaveFleetStoreMutation) go straight
 to the cloud API and never touch local SQLite, so this dropdown's own
@@ -8164,7 +8164,7 @@ landed, so the new store shows up without needing a manual refresh.
 
 ## block-components-dashboard-header-store-switcher-tsx-L156
 
-`client/components/dashboard/header-store-switcher.tsx:156`
+`client/components/dashboard/header-store-switcher.tsx:138`
 
 DropdownMenuItem's base styles force any icon without its own
 text-* class to text-muted-foreground permanently (see
@@ -8175,7 +8175,7 @@ it group-focus:text-accent-foreground keeps both in sync.
 
 ## line-components-dashboard-impersonation-banner-tsx-L24
 
-`client/components/dashboard/impersonation-banner.tsx:24`
+`client/components/dashboard/impersonation-banner.tsx:22`
 
 Previously redeemed the stored return-hop code (a one-time,
 60-SECOND-lived handoff code minted back when impersonation
@@ -8202,7 +8202,7 @@ more than a minute looking around," and lands on the ordinary
 
 ## line-components-dashboard-sync-indicator-tsx-L212
 
-`client/components/dashboard/sync-indicator.tsx:212`
+`client/lib/hooks/use-sync-indicator-state.ts:187`
 
 A crash-report-only batch also rides the next real sync rather
 than triggering its own; user-submitted feedback still triggers
@@ -8210,7 +8210,7 @@ normally. See docs/SYNC_CRASH_REPORT_POLICY.md.
 
 ## block-components-dashboard-till-inspection-banner-tsx-L27
 
-`client/components/dashboard/till-inspection-banner.tsx:27`
+`client/components/dashboard/till-inspection-banner.tsx:32`
 
 Always on screen for the whole inspection session, so staff can never be
 unaware that someone else is looking at their till. Also owns the idle
@@ -8218,7 +8218,7 @@ lifecycle, being the one component guaranteed to be mounted throughout.
 
 ## line-components-dashboard-till-inspection-banner-tsx-L38
 
-`client/components/dashboard/till-inspection-banner.tsx:38`
+`client/components/dashboard/till-inspection-banner.tsx:46`
 
 Uses the id captured at mount, not a fresh read: on the idle path the
 session has already expired, so re-reading storage returns null and the
@@ -8227,7 +8227,7 @@ and no duration.
 
 ## line-components-dashboard-till-inspection-banner-tsx-L44
 
-`client/components/dashboard/till-inspection-banner.tsx:44`
+`client/components/dashboard/till-inspection-banner.tsx:50`
 
 Guarded: the 1s interval keeps firing while the POST is in flight, so
 without this the idle path called end repeatedly and wrote duplicate
@@ -8235,7 +8235,7 @@ exit rows to the audit log.
 
 ## line-components-dashboard-till-inspection-banner-tsx-L58
 
-`client/components/dashboard/till-inspection-banner.tsx:58`
+`client/components/dashboard/till-inspection-banner.tsx:63`
 
 Read after mount, never during render: a render-time sessionStorage read
 disagrees with the prerender pass and React reports a hydration mismatch.
@@ -8248,7 +8248,7 @@ is the authority, so a session it no longer recognises is cleared here.
 
 ## line-components-dashboard-till-inspection-banner-tsx-L97
 
-`client/components/dashboard/till-inspection-banner.tsx:97`
+`client/components/dashboard/till-inspection-banner.tsx:90`
 
 pagehide, not unload: an awaited fetch is cancelled with the page, so
 closing the app — the commonest exit on a desktop till — otherwise left
@@ -8272,7 +8272,7 @@ close vs iOS's delayed synthetic click).
 
 ## line-components-dashboard-user-nav-tsx-L151
 
-`client/components/dashboard/user-nav.tsx:151`
+`client/components/dashboard/user-nav.tsx:150`
 
 A broken/incomplete auth state (e.g. a corrupted localStorage write from
 a connection drop mid-save) shouldn't leave this spot blank with no way
@@ -8281,7 +8281,7 @@ them a direct way to get back to a clean login instead of vanishing.
 
 ## block-components-dashboard-user-nav-tsx-L249
 
-`client/components/dashboard/user-nav.tsx:249`
+`client/components/dashboard/user-nav.tsx:245`
 
 Direct settings shortcut disabled on desktop for now, re-enable by
 uncommenting once we're happy with where it lands next to the trigger.
@@ -8289,7 +8289,7 @@ uncommenting once we're happy with where it lands next to the trigger.
 
 ## block-components-dashboard-user-nav-tsx-L283
 
-`client/components/dashboard/user-nav.tsx:283`
+`client/components/dashboard/user-nav.tsx:276`
 
 Bottom padding clears the fixed mobile bottom navbar (h-16) plus
 the safe-area/Tauri inset it already pads itself with, so the
@@ -8297,7 +8297,7 @@ last action isn't sitting behind/under it.
 
 ## block-components-expenses-add-expense-dialog-tsx-L298
 
-`client/components/expenses/add-expense-dialog.tsx:298`
+`client/components/expenses/add-expense-dialog.tsx:302`
 
 <div className="text-[11.5px] text-muted-foreground bg-primary/5 border border-primary/20 rounded-[10px] px-3.5 py-3 flex gap-2 items-start mt-2">
 <Info className="w-[15px] h-[15px] text-primary shrink-0 mt-0.5" />
@@ -8315,7 +8315,7 @@ buttons), and nesting those inside a button is invalid HTML.
 
 ## block-components-expenses-expense-list-tsx-L170
 
-`client/components/expenses/expense-list.tsx:170`
+`client/components/expenses/expense-list.tsx:177`
 
 Mobile: flat card list, no wrapping table card. Conditionally
 rendered, not CSS-hidden: the desktop branch is virtualized and this
@@ -8335,7 +8335,7 @@ from a completed sale.
 
 ## block-components-pos-held-transactions-dialog-tsx-L27
 
-`client/components/pos/held-transactions-dialog.tsx:27`
+`client/components/pos/held-transactions-dialog.tsx:29`
 
 items_json is read straight from a local DB row, so a corrupted or
 truncated value must not throw in the render path — one bad row would
@@ -8359,7 +8359,7 @@ mutation's own variables (the id it was called with) double as the
 
 ## line-components-pos-online-orders-modal-tsx-L72
 
-`client/components/pos/online-orders-modal.tsx:72`
+`client/components/pos/online-orders-modal.tsx:76`
 
 A store OWNER's own users.store_id is always null by design (they
 "have" a store via stores.user_id), so passing it straight through
@@ -8380,7 +8380,7 @@ truth) only runs on blur/Enter.
 
 ## line-components-pos-pos-cart-item-tsx-L47
 
-`client/components/pos/pos-cart-item.tsx:47`
+`client/components/pos/pos-cart-item.tsx:40`
 
 Re-sync when the external value changes from elsewhere (e.g. reseller
 mode toggled off reverts the price) - but don't fight the user's
@@ -8389,7 +8389,7 @@ actually changed.
 
 ## line-components-pos-pos-cart-item-tsx-L62
 
-`client/components/pos/pos-cart-item.tsx:62`
+`client/components/pos/pos-cart-item.tsx:54`
 
 Same uncontrolled-while-typing pattern as priceInput above: typing "50"
 directly (e.g. buying 50 tablets) must not go through updateQuantity on
@@ -8400,7 +8400,7 @@ validates against stock and removes the item on <= 0) on blur/Enter.
 
 ## block-components-pos-pos-cart-tsx-L24
 
-`client/components/pos/pos-cart.tsx:24`
+`client/components/pos/pos-cart.tsx:21`
 
 Literal class strings, not a `grid-cols-${n}` template: Tailwind's
 scanner only sees classes that appear whole in the source. Indexed by how
@@ -8410,7 +8410,7 @@ and prescription-lock state.
 
 ## line-components-pos-pos-cart-tsx-L105
 
-`client/components/pos/pos-cart.tsx:105`
+`client/components/pos/pos-cart.tsx:99`
 
 Unconditional top-level const, never inlined into the JSX conditions
 below: useHasPermission's answer changes between renders while the
@@ -8420,7 +8420,7 @@ before - see pos-layout-header.tsx.
 
 ## line-components-pos-pos-cart-tsx-L113
 
-`client/components/pos/pos-cart.tsx:113`
+`client/components/pos/pos-cart.tsx:104`
 
 canUseMarkupSales can flip false mid-session (an admin disables the
 markup_sales_enabled toggle on another device, or downgrades plan) -
@@ -8459,7 +8459,7 @@ __tests__/pos-layout-header-rules-of-hooks.test.tsx).
 
 ## line-components-pos-pos-layout-header-tsx-L77
 
-`client/components/pos/pos-layout-header.tsx:77`
+`client/components/pos/pos-layout-header.tsx:66`
 
 Pulses until the user types something for the first time this visit —
 the point's made the moment they engage with it. Tracked separately
@@ -8469,7 +8469,7 @@ pulse back.
 
 ## line-components-pos-pos-layout-header-tsx-L94
 
-`client/components/pos/pos-layout-header.tsx:94`
+`client/components/pos/pos-layout-header.tsx:78`
 
 Keeps the store (and therefore the sidebar) in sync when fullscreen is
 exited some way other than this button - Esc, the browser's own exit
@@ -8477,7 +8477,7 @@ control, or leaving the POS route entirely.
 
 ## block-components-pos-pos-layout-header-tsx-L180
 
-`client/components/pos/pos-layout-header.tsx:180`
+`client/components/pos/pos-layout-header.tsx:162`
 
 Fullscreen toggle (Desktop only): also hides the app sidebar so
 the checkout screen actually gets the full viewport, not just
@@ -8485,7 +8485,7 @@ browser chrome-free.
 
 ## block-components-pos-pos-layout-header-tsx-L210
 
-`client/components/pos/pos-layout-header.tsx:210`
+`client/components/pos/pos-layout-header.tsx:190`
 
 Request Stock from Another Store: cashiers have no other way to
 reach the multi-store transfer flow (the Ledger tab's own entry
@@ -8515,7 +8515,7 @@ re-run on a stale-but-non-blank amount instead of leaving it stuck.
 
 ## line-components-pos-pos-payment-dialog-tsx-L84
 
-`client/components/pos/pos-payment-dialog.tsx:84`
+`client/components/pos/pos-payment-dialog.tsx:81`
 
 Reset on close so a value a cashier manually typed in a previous
 sale can't be silently overwritten just because a later sale's
@@ -8523,7 +8523,7 @@ total happens to match it.
 
 ## block-components-pos-pos-product-list-tsx-L46
 
-`client/components/pos/pos-product-list.tsx:46`
+`client/components/pos/pos-product-list.tsx:44`
 
 Shared scroll container this list renders inside of — see
 VirtualizedProductGrid's own doc comment for why it can't create its
@@ -8531,7 +8531,7 @@ own.
 
 ## line-components-pos-pos-product-list-tsx-L104
 
-`client/components/pos/pos-product-list.tsx:104`
+`client/components/pos/pos-product-card.tsx:67`
 
 Not `disabled`: clicking an out-of-stock tile still surfaces the
 "This item is out of stock" toast, and a disabled button would drop it
@@ -8553,7 +8553,7 @@ is affordance, not the only gate.
 
 ## line-components-pos-pos-redeem-reward-tsx-L45
 
-`client/components/pos/pos-redeem-reward.tsx:45`
+`client/components/pos/pos-redeem-reward.tsx:39`
 
 Dated points ledger, for FIFO expiry (LOYALTY_RULES.POINTS_EXPIRY_MONTHS)
 — the balance on the customer row still includes points that have since
@@ -8562,7 +8562,7 @@ have to be computed, not read.
 
 ## line-components-pos-pos-redeem-reward-tsx-L59
 
-`client/components/pos/pos-redeem-reward.tsx:59`
+`client/components/pos/pos-redeem-reward.tsx:52`
 
 Hidden entirely (not just disabled) when the Loyalty Program is gated
 off (plan tier and/or the store's own on/off toggle) — matches how
@@ -8572,7 +8572,7 @@ full-page module that would use LockedModuleOverlay.
 
 ## line-components-pos-pos-system-tsx-L109
 
-`client/components/pos/pos-system.tsx:109`
+`client/components/pos/pos-system.tsx:120`
 
 The Recent Sales tab is reachable by URL (?tab=history), so the panel and
 the resolved tab are gated here as well as the trigger in POSMainTabNav.
@@ -8597,7 +8597,7 @@ container of its own.
 
 ## line-components-pos-pos-transaction-history-tsx-L40
 
-`client/components/pos/pos-transaction-history.tsx:40`
+`client/components/pos/pos-transaction-history.tsx:39`
 
 ============================================================================
 Main Component
@@ -8605,7 +8605,7 @@ Main Component
 
 ## line-components-pos-pos-transaction-history-tsx-L54
 
-`client/components/pos/pos-transaction-history.tsx:54`
+`client/components/pos/pos-transaction-history.tsx:82`
 
 The input stays bound to searchQuery so typing is instant; the expensive
 work downstream (a fuzzy search over up to 500 sales, then a re-group of
@@ -8613,7 +8613,7 @@ the matches into date buckets) runs off the settled value instead.
 
 ## line-components-pos-pos-transaction-history-tsx-L77
 
-`client/components/pos/pos-transaction-history.tsx:77`
+`client/components/pos/pos-transaction-history.tsx:104`
 
 The `recentSales` prop is a fixed 100-row snapshot (see usePOSData) -
 fine as the default view, but a picked date range can reach further back
@@ -8622,7 +8622,7 @@ than those 100 rows cover. Once a range is picked, fetch it directly
 
 ## line-components-pos-pos-transaction-history-tsx-L89
 
-`client/components/pos/pos-transaction-history.tsx:89`
+`client/components/pos/pos-transaction-history.tsx:114`
 
 Today's metric cards are fetched date-scoped in SQL rather than derived
 from the `recentSales` prop: that prop is an undated, LIMIT-100 snapshot
@@ -8636,7 +8636,7 @@ date is part of the query key, so the cards also roll over at midnight.
 
 ## line-components-pos-pos-transaction-history-tsx-L135
 
-`client/components/pos/pos-transaction-history.tsx:135`
+`client/components/pos/pos-transaction-history.tsx:153`
 
 Filtered sales. Date range filtering happens at the query level (see
 salesSource above) - not here - since a picked range can reach past the
@@ -8653,7 +8653,7 @@ so a keystroke doesn't rebuild all 500 records.
 
 ## line-components-pos-pos-transaction-history-tsx-L168
 
-`client/components/pos/pos-transaction-history.tsx:168`
+`client/components/pos/pos-transaction-history.tsx:176`
 
 Filter the original array by matched id rather than returning
 `results` directly, so relevance scoring doesn't reorder sales out
@@ -8675,7 +8675,7 @@ actually renders per row, breaking the layout.
 
 ## block-components-pos-pos-virtualized-product-grid-tsx-L49
 
-`client/components/pos/pos-virtualized-product-grid.tsx:49`
+`client/components/pos/pos-virtualized-product-grid.tsx:44`
 
 The single scrollable ancestor this grid renders inside of (POS's
 products tab shares one scroll container across the category filter,
@@ -8686,7 +8686,7 @@ would both break.
 
 ## block-components-pos-pos-virtualized-product-grid-tsx-L59
 
-`client/components/pos/pos-virtualized-product-grid.tsx:59`
+`client/components/pos/pos-virtualized-product-grid.tsx:50`
 
 Row-virtualized replacement for a plain `products.map(...)` CSS grid —
 see docs/KNOWN_BUGS.md's POS perf finding. Every other large list in the
@@ -8703,7 +8703,7 @@ only mounts the rows currently in or near the viewport.
 
 ## line-components-pos-pos-virtualized-product-grid-tsx-L93
 
-`client/components/pos/pos-virtualized-product-grid.tsx:93`
+`client/components/pos/pos-virtualized-product-grid.tsx:72`
 
 How far this grid sits below the top of the shared scroll container
 (category filter, mobile search, any suggestion/recently-sold
@@ -8725,7 +8725,7 @@ value stops changing, so this can't loop.
 
 ## line-components-pos-pos-virtualized-product-grid-tsx-L126
 
-`client/components/pos/pos-virtualized-product-grid.tsx:126`
+`client/components/pos/pos-virtualized-product-grid.tsx:90`
 
 A card's height is fairly stable (name is line-clamped to 2 lines),
 so a fixed estimate keyed off breakpoint is close enough that
@@ -8734,7 +8734,7 @@ recompute from scratch.
 
 ## line-components-pos-pos-virtualized-product-grid-tsx-L135
 
-`client/components/pos/pos-virtualized-product-grid.tsx:135`
+`client/components/pos/pos-virtualized-product-grid.tsx:97`
 
 Reveal a product the moment its cart quantity goes up, wherever the add
 came from — a card tap, a barcode scan, the search box, a suggestion
@@ -8764,7 +8764,7 @@ between opens while the dialog instance itself stays mounted.
 
 ## line-components-pos-request-item-dialog-tsx-L57
 
-`client/components/pos/request-item-dialog.tsx:57`
+`client/components/pos/request-item-dialog.tsx:59`
 
 getAllCustomers() (a flat list for POS-style pickers) is a different
 shape from getCustomers() (used by useCustomerData, with joined
@@ -8775,7 +8775,7 @@ use-pos-data.ts's identical getAllCustomers() call for consistency.
 
 ## line-components-pos-request-item-dialog-tsx-L66
 
-`client/components/pos/request-item-dialog.tsx:66`
+`client/components/pos/request-item-dialog.tsx:64`
 
 This dialog is permanently mounted at five call sites (catalog, POS
 cart, POS product list, two procurement screens), so without this gate
@@ -8784,7 +8784,7 @@ on mount for a dialog that is almost never opened.
 
 ## line-components-pos-request-item-dialog-tsx-L80
 
-`client/components/pos/request-item-dialog.tsx:80`
+`client/components/pos/request-item-dialog.tsx:76`
 
 Warn (non-blocking) when the typed name looks like something already in
 the catalog: staff should double check before logging a duplicate
@@ -8795,7 +8795,7 @@ of typing in this dialog.
 
 ## line-components-pos-request-item-dialog-tsx-L159
 
-`client/components/pos/request-item-dialog.tsx:159`
+`client/components/pos/request-item-dialog.tsx:151`
 
 Selecting an option must still set the underlying stored
 (lowercase) name as `value` — only `label` gets the
@@ -8804,7 +8804,7 @@ writing a styled string into requested_products.
 
 ## line-components-pos-return-dialog-tsx-L59
 
-`client/components/pos/return-dialog.tsx:59`
+`client/components/pos/return-dialog.tsx:62`
 
 Fetch items for this sale, including how much of each has already been
 returned in a prior return on this sale — getSaleItems() (the previous
@@ -8825,7 +8825,7 @@ totals from sales.total_amount minus returns.total_refunded).
 
 ## line-components-pos-return-dialog-tsx-L133
 
-`client/components/pos/return-dialog.tsx:133`
+`client/components/pos/return-dialog.tsx:139`
 
 Passed as ConfirmDialog's onConfirm, which awaits it and only closes
 once it settles. Swallows the mutation's own rejection (already
@@ -8836,7 +8836,7 @@ that signals failure, not an exception surfacing here.
 
 ## line-components-pos-transaction-details-dialog-tsx-L48
 
-`client/components/pos/transaction-details-dialog.tsx:48`
+`client/components/pos/transaction-details-dialog.tsx:52`
 
 Unconditional top-level const (see pos-cart.tsx's canApplyDiscounts).
 Gates taking another copy of a finished sale's receipt off the device;
@@ -8844,7 +8844,7 @@ the receipt shown straight after checkout belongs to process_sales.
 
 ## line-components-pos-transaction-details-dialog-tsx-L72
 
-`client/components/pos/transaction-details-dialog.tsx:72`
+`client/components/pos/transaction-details-dialog.tsx:75`
 
 `sale` is a snapshot the caller captured in its own state (selectedSale
 etc.) - it's never refetched after a redeem, so without this the dialog
@@ -8854,7 +8854,7 @@ sale is opened so a stale override never leaks onto the next one.
 
 ## line-components-pos-transaction-details-dialog-tsx-L128
 
-`client/components/pos/transaction-details-dialog.tsx:128`
+`client/components/pos/transaction-details-dialog.tsx:130`
 
 Derives the key from the factory (with a throwaway .slice to drop
 the trailing activeStoreId/currentUserId resource() appends) rather
@@ -8863,7 +8863,7 @@ query-keys.ts can't silently desync from this call site.
 
 ## block-components-pos-transaction-item-tsx-L13
 
-`client/components/pos/transaction-item.tsx:13`
+`client/components/pos/transaction-item.tsx:15`
 
 Takes the sale rather than a pre-bound closure, so the parent can pass
 one stable handler for every row instead of a fresh arrow per row (which
@@ -8871,7 +8871,7 @@ would defeat the memoization below).
 
 ## line-components-pos-transaction-items-view-tsx-L25
 
-`client/components/pos/transaction-items-view.tsx:25`
+`client/components/pos/transaction-items-view.tsx:27`
 
 Conditional, not just CSS-hidden: both branches used to be mounted for
 every line item. The sm:/hidden classes stay as the first-frame guard,
@@ -8888,7 +8888,7 @@ header included.
 
 ## block-components-pos-transaction-list-tsx-L55
 
-`client/components/pos/transaction-list.tsx:55`
+`client/components/pos/transaction-list.tsx:54`
 
 The ancestor that actually scrolls (the History tab's TabsContent). The
 list has no scroll container of its own, so the virtualizer measures
@@ -8896,7 +8896,7 @@ against this and offsets by the list's position inside it.
 
 ## line-components-pos-transaction-list-tsx-L84
 
-`client/components/pos/transaction-list.tsx:84`
+`client/components/pos/transaction-list.tsx:82`
 
 Everything above this list inside the same scroll container (the
 metrics row, the filter bar) still occupies real space, so the
@@ -8975,7 +8975,7 @@ create flow, where these details are confirmed before any item exists.
 
 ## block-components-procurement-po-details-fields-tsx-L55
 
-`client/components/procurement/po-details-fields.tsx:55`
+`client/components/procurement/po-details-fields.tsx:54`
 
 Editing an existing PO is only ever done for Standard POs (Immediate
 ones are created already "received" and never enter an editable
@@ -9000,7 +9000,7 @@ disappear from the screen entirely until the dialog is reopened.
 
 ## block-components-procurement-po-details-summary-bar-tsx-L38
 
-`client/components/procurement/po-details-summary-bar.tsx:38`
+`client/components/procurement/po-details-summary-bar.tsx:37`
 
 Compact stand-in for the full details form once it's been confirmed:
 shows just enough to orient the user (vendor, type, payment terms) plus a
@@ -9033,7 +9033,7 @@ the same dropdown.
 
 ## line-components-procurement-po-item-builder-tsx-L48
 
-`client/components/procurement/po-item-builder.tsx:48`
+`client/components/procurement/po-item-builder.tsx:44`
 
 Staff's first instinct on a brand-new order is to start typing an item
 name right away, not to click into the search bar first - but this same
@@ -9044,7 +9044,7 @@ Only mount-focus when there's nothing in the order yet.
 
 ## line-components-procurement-po-item-builder-tsx-L68
 
-`client/components/procurement/po-item-builder.tsx:68`
+`client/components/procurement/po-item-builder.tsx:62`
 
 Reading the current items through a ref keeps them out of every
 handler's dependency list, so the callbacks handed to the memoised rows
@@ -9081,7 +9081,7 @@ of the two happened.
 
 ## block-components-procurement-po-line-item-math-ts-L47
 
-`client/components/procurement/po-line-item-math.ts:47`
+`client/components/procurement/po-line-item-math.ts:42`
 
 Single source of truth for cost math on BOTH the Immediate Purchase and
 the Receive-goods flows. unit_cost is
@@ -9095,7 +9095,7 @@ inline: that duplication is exactly how "New Cost", "Total", and
 
 ## line-components-procurement-po-line-item-math-ts-L68
 
-`client/components/procurement/po-line-item-math.ts:68`
+`client/components/procurement/po-line-item-math.ts:54`
 
 Loose `!=` (not `!==`) deliberately also catches `null`: a PO reloaded
 from the DB hands back SQL NULL for an unset override, not
@@ -9104,7 +9104,7 @@ as "override to zero cost" instead of "no override".
 
 ## block-components-procurement-po-line-item-math-ts-L88
 
-`client/components/procurement/po-line-item-math.ts:88`
+`client/components/procurement/po-line-item-math.ts:72`
 
 Guard for the money override inputs (New Cost / Cost Price / Sell Price)
 in the order-building and receiving tables. Their `min={0}` is only an
@@ -9116,7 +9116,7 @@ anything else is passed through verbatim so half-typed values like
 
 ## block-components-procurement-po-line-item-math-ts-L102
 
-`client/components/procurement/po-line-item-math.ts:102`
+`client/components/procurement/po-line-item-math.ts:79`
 
 The quantity still expected on a purchase-order line: what was ordered,
 less whatever has already been received against it on an earlier, partial
@@ -9126,7 +9126,7 @@ whole ordered quantity is still outstanding.
 
 ## block-components-procurement-po-line-item-math-ts-L117
 
-`client/components/procurement/po-line-item-math.ts:117`
+`client/components/procurement/po-line-item-math.ts:89`
 
 Guard for the receiving tables' "Qty Received" inputs. Their min/max are
 only HTML hints: a negative would corrupt on-hand stock at the moment of
@@ -9135,7 +9135,7 @@ than was ever ordered.
 
 ## block-components-procurement-po-line-item-math-ts-L128
 
-`client/components/procurement/po-line-item-math.ts:128`
+`client/components/procurement/po-line-item-math.ts:96`
 
 The amount a line is invoiced at: the per-bulk cost as typed, times the
 quantity. An override is typed per base unit, so that branch multiplies up
@@ -9146,7 +9146,7 @@ rounded unit cost; see client/AGENTS.md on what "cost" means where.
 
 ## block-components-procurement-po-line-item-math-ts-L160
 
-`client/components/procurement/po-line-item-math.ts:160`
+`client/components/procurement/po-line-item-math.ts:124`
 
 The order's total: every screen that shows an "Estimated total" must go
 through this rather than reducing over its own formula. The edit page's
@@ -9157,7 +9157,7 @@ once a "New Cost" override was typed.
 
 ## block-components-procurement-po-line-item-math-ts-L177
 
-`client/components/procurement/po-line-item-math.ts:177`
+`client/components/procurement/po-line-item-math.ts:135`
 
 Validates the free-text "Amount Paid" field before it's ever written to
 the PO: `Number(amountPaid) || 0` alone silently records ₦0 paid for a
@@ -9167,7 +9167,7 @@ anything above the order's total is clamped down to it.
 
 ## block-components-procurement-po-line-item-math-ts-L191
 
-`client/components/procurement/po-line-item-math.ts:191`
+`client/components/procurement/po-line-item-math.ts:144`
 
 The base units an Immediate Purchase will actually add to stock:
 bulk_quantity x units_per_bulk per line, the same conversion
@@ -9178,7 +9178,7 @@ po-immediate-confirm-dialog.tsx.
 
 ## block-components-procurement-po-line-item-math-ts-L207
 
-`client/components/procurement/po-line-item-math.ts:207`
+`client/components/procurement/po-line-item-math.ts:154`
 
 How many lines carry a real Sell Price override that actually differs
 from the product's current price - blank/null/undefined all mean "not
@@ -9195,7 +9195,7 @@ filled in - nothing has actually changed yet.
 
 ## block-components-procurement-po-line-item-math-ts-L232
 
-`client/components/procurement/po-line-item-math.ts:232`
+`client/components/procurement/po-line-item-math.ts:167`
 
 The lines on a receipt that carried a real cost override, with the cost
 that was typed. Each batch keeps its own singular cost_price, and that is
@@ -9281,7 +9281,7 @@ Product dialog.
 
 ## line-components-procurement-receive-item-category-editor-tsx-L38
 
-`client/components/procurement/receive-item-category-editor.tsx:38`
+`client/components/procurement/receive-item-category-editor.tsx:33`
 
 The PO detail query keys off purchase_orders/purchase_order_items, so a
 products write doesn't refetch this row's joined category_name - the
@@ -9306,7 +9306,7 @@ is a real change or a no-op re-submission of the current price.
 
 ## block-components-procurement-receive-po-panel-tsx-L50
 
-`client/components/procurement/receive-po-panel.tsx:50`
+`client/components/procurement/receive-po-panel.tsx:69`
 
 Embedded, full-height replacement for the old Receive Goods modal. It
 takes over the same side panel used for PO details so the ledger table
@@ -9315,7 +9315,7 @@ centered dialog.
 
 ## line-components-procurement-receive-po-panel-tsx-L78
 
-`client/components/procurement/receive-po-panel.tsx:78`
+`client/components/procurement/receive-po-panel.tsx:58`
 
 Prefill with the outstanding balance, not the full ordered
 quantity: on a follow-up receipt against a partially-received PO
@@ -9365,7 +9365,7 @@ just not having caught up yet (e.g. right after creating a new PO).
 
 ## block-components-products-add-product-dialog-tsx-L33
 
-`client/components/products/add-product-dialog.tsx:33`
+`client/components/products/add-product-dialog.tsx:36`
 
 Hide "Save & Add Another", for flows (e.g. quick-adding a product from
 a purchase order) where the user just wants to create one product and
@@ -9373,7 +9373,7 @@ get back to what they were doing.
 
 ## line-components-products-add-product-dialog-tsx-L246
 
-`client/components/products/add-product-dialog.tsx:246`
+`client/components/products/add-product-dialog.tsx:136`
 
 Only clear the form once the caller reports the save succeeded —
 otherwise a failed save would wipe everything the user just typed.
@@ -9415,7 +9415,7 @@ built for.
 
 ## block-components-products-catalog-list-tsx-L51
 
-`client/components/products/catalog-list.tsx:51`
+`client/components/products/catalog-list.tsx:57`
 
 Lets the catalog close a detail panel that is still showing the product
 the row context menu just deleted - the panel's own Delete action closes
@@ -9423,7 +9423,7 @@ itself, and this path has to match it.
 
 ## line-components-products-catalog-list-tsx-L89
 
-`client/components/products/catalog-list.tsx:89`
+`client/components/products/catalog-list.tsx:95`
 
 A 2-in-1 laptop's trackpad still lets it hover, but a user tapping its
 touchscreen directly never fires :hover — so the edit pencil must stay
@@ -9432,7 +9432,7 @@ devices (see useHasTouchCapability's doc comment for the distinction).
 
 ## line-components-products-catalog-list-tsx-L95
 
-`client/components/products/catalog-list.tsx:95`
+`client/components/products/catalog-list.tsx:99`
 
 Matches the sm: breakpoint the two row layouts used to be gated on in
 CSS. useMediaQuery starts at `false` and corrects itself right after
@@ -9441,7 +9441,7 @@ database after mount, so there are none to render on that first pass.
 
 ## line-components-products-catalog-list-tsx-L112
 
-`client/components/products/catalog-list.tsx:112`
+`client/components/products/catalog-list.tsx:114`
 
 Destructured to the stable member on purpose: react-query rebuilds its
 useMutation result as a new object literal on every render, so depending on
@@ -9450,7 +9450,7 @@ React.memo(CatalogRow). mutateAsync is bound once per observer.
 
 ## line-components-products-catalog-list-tsx-L186
 
-`client/components/products/catalog-list.tsx:186`
+`client/components/products/catalog-list.tsx:174`
 
 Row height differs between the stacked mobile layout and the desktop grid
 row, so this measures actual rendered height per row instead of assuming
@@ -9458,7 +9458,7 @@ one fixed size.
 
 ## line-components-products-catalog-row-tsx-L19
 
-`client/components/products/catalog-row.tsx:19`
+`client/components/products/catalog-row.tsx:21`
 
 The `title` above can never surface on a disabled item - the menu applies
 data-[disabled]:pointer-events-none, so it never receives hover. The short
@@ -9475,7 +9475,7 @@ column is rendered, which now varies with "view_cost_fields".
 
 ## block-components-products-catalog-row-tsx-L37
 
-`client/components/products/catalog-row.tsx:37`
+`client/components/products/catalog-row.tsx:36`
 
 Which of the two layouts to mount. Deliberately a real conditional
 rather than `sm:hidden`/`hidden sm:grid`: CSS-hiding the inactive branch
@@ -9531,7 +9531,7 @@ mount (which is too late - see that module's comment).
 
 ## line-components-pwa-registrar-tsx-L12
 
-`client/components/pwa-registrar.tsx:12`
+`client/components/pwa-registrar.tsx:11`
 
 sw.js calls skipWaiting()/clients.claim() unconditionally on every
 install, so a new deploy's worker takes over an already-open tab without
@@ -9547,7 +9547,7 @@ to localStorage (zustand persist), not in-memory state.
 
 ## line-components-pwa-registrar-tsx-L32
 
-`client/components/pwa-registrar.tsx:32`
+`client/components/pwa-registrar.tsx:22`
 
 On a brand-new install (no prior service worker for this origin at
 all) there is no controller yet at page load; clients.claim() in
@@ -9559,7 +9559,7 @@ update replacing a previous version), never on a first-ever install.
 
 ## line-components-pwa-registrar-tsx-L45
 
-`client/components/pwa-registrar.tsx:45`
+`client/components/pwa-registrar.tsx:30`
 
 This SPA's routing is entirely client-side once loaded, so a
 terminal left open across a shift (or, installed, across days)
@@ -9572,7 +9572,7 @@ device is backgrounded/offline.
 
 ## line-components-pwa-registrar-tsx-L66
 
-`client/components/pwa-registrar.tsx:66`
+`client/components/pwa-registrar.tsx:45`
 
 On a warm load (e.g. served from the HTTP cache) `window` can fire
 "load" before this effect commits, so the listener below would attach
@@ -9582,7 +9582,7 @@ take over the next time the device goes offline.
 
 ## line-components-pwa-registrar-tsx-L83
 
-`client/components/pwa-registrar.tsx:83`
+`client/components/pwa-registrar.tsx:59`
 
 Reloads immediately rather than after a delay to let the toast be
 seen (the original version waited 1200ms): sw.js's activate() prunes
@@ -9599,7 +9599,7 @@ near-zero window into an actually-hit one.
 
 ## line-components-reports-daily-close-report-tsx-L29
 
-`client/components/reports/daily-close-report.tsx:29`
+`client/components/reports/daily-close-report.tsx:28`
 
 Profit is hidden from cashiers specifically, not everyone who isn't
 admin - an auditor has read access to every sale/return/expense this
@@ -9653,7 +9653,7 @@ the card's full width instead.
 
 ## block-components-reports-report-card-tsx-L67
 
-`client/components/reports/report-card.tsx:67`
+`client/components/reports/report-card.tsx:62`
 
 min-h reserves room for a full 2 lines (line-clamp-2's cap) even
 when the description only wraps to 1, so the button row below
@@ -9661,7 +9661,7 @@ never shifts between cards.
 
 ## line-components-reports-report-center-tsx-L203
 
-`client/components/reports/report-center.tsx:203`
+`client/components/reports/report-center.tsx:208`
 
 Only set for a report whose figures the active filters change
 the meaning of - today, a staff/payment-method-filtered
@@ -9670,7 +9670,7 @@ copy the exported CSV/PDF carries.
 
 ## block-components-reports-report-center-tsx-L228
 
-`client/components/reports/report-center.tsx:228`
+`client/components/reports/report-center.tsx:230`
 
 Recent Downloads: min-h-0 stops this card's own content from
 growing the shared grid row taller than Report Center's natural
@@ -9716,7 +9716,7 @@ active store.
 
 ## line-components-settings-account-sessions-list-tsx-L19
 
-`client/components/settings/account/sessions-list.tsx:19`
+`client/components/settings/account/sessions-list.tsx:22`
 
 Pre-fix registrations named their token literally 'auth_token' (see
 RegistersAccounts.php) - treated as absent so those sessions still fall
@@ -9811,7 +9811,7 @@ APK here is a fallback for devices/browsers where the PWA install prompt
 
 ## line-components-settings-ios-install-card-tsx-L19
 
-`client/components/settings/ios-install-card.tsx:19`
+`client/components/settings/ios-install-card.tsx:21`
 
 iPadOS 13+ Safari sends a desktop macOS user agent by default
 ("Macintosh; Intel Mac OS X..."), so the UA-string check alone misses
@@ -9823,7 +9823,7 @@ to tell a touchscreen "Mac" (real iPad) apart from an actual Mac
 
 ## block-components-settings-ios-install-card-tsx-L30
 
-`client/components/settings/ios-install-card.tsx:30`
+`client/components/settings/ios-install-card.tsx:27`
 
 iOS forces every browser to use WebKit, but "Add to Home Screen" only
 produces a real standalone-mode install in Safari itself. Chrome/Firefox/
@@ -9833,7 +9833,7 @@ needs to detect actual Safari, not just "is this an iOS device".
 
 ## line-components-settings-ios-install-card-tsx-L40
 
-`client/components/settings/ios-install-card.tsx:40`
+`client/components/settings/ios-install-card.tsx:32`
 
 In-app WebViews (Facebook, Instagram, LinkedIn, etc.) render on WebKit
 and include "Safari" in their UA string just like real Safari does, but
@@ -9843,7 +9843,7 @@ instructions don't work there - the "other-browser" fallback below
 
 ## block-components-settings-ios-install-card-tsx-L77
 
-`client/components/settings/ios-install-card.tsx:77`
+`client/components/settings/ios-install-card.tsx:71`
 
 Shown only on iOS Safari when not already running as an installed
 PWA/desktop app. iOS has no automatic install prompt (unlike Android
@@ -9869,7 +9869,7 @@ state into "everything on".
 
 ## block-components-settings-roles-permissions-category-selection-ts-L23
 
-`client/components/settings/roles-permissions/category-selection.ts:23`
+`client/components/settings/roles-permissions/category-selection.ts:21`
 
 The keys a category click should actually write. `lockedKeys` are cells
 the matrix renders disabled (today: the acting user's own
@@ -9888,7 +9888,7 @@ a custom group. Never both on the same group.
 
 ## block-components-settings-roles-permissions-permission-matrix-tsx-L15
 
-`client/components/settings/roles-permissions/permission-matrix.tsx:15`
+`client/components/settings/roles-permissions/permission-matrix.tsx:17`
 
 A user who isn't store_owner/super_admin has no unconditional bypass in
 hasPermission(), so unticking manage_roles_permissions on their own
@@ -9899,7 +9899,7 @@ applies to a user's own role/permission_group_id.
 
 ## block-components-settings-roles-permissions-permission-matrix-tsx-L23
 
-`client/components/settings/roles-permissions/permission-matrix.tsx:23`
+`client/components/settings/roles-permissions/permission-matrix.tsx:21`
 
 The server rejects a permission_groups push that would grant a key the
 caller doesn't hold, and it checks the WHOLE resulting permissions array -
@@ -9911,7 +9911,7 @@ reverted by the next pull with nothing said.
 
 ## line-components-settings-roles-permissions-permission-matrix-tsx-L41
 
-`client/components/settings/roles-permissions/permission-matrix.tsx:41`
+`client/components/settings/roles-permissions/permission-matrix.tsx:34`
 
 Categories start expanded: the matrix's whole job is being scannable at
 a glance, so nothing is hidden behind a click until the admin chooses to
@@ -9929,7 +9929,7 @@ login elsewhere/next time).
 
 ## line-components-settings-security-settings-tsx-L78
 
-`client/components/settings/security-settings.tsx:78`
+`client/components/settings/security-settings.tsx:76`
 
 Self-heals a persisted duration that doesn't match any current option
 (an older app version's value, manual/corrupted localStorage, a future
@@ -9968,7 +9968,7 @@ invisible in every staff list while still able to log in.
 
 ## block-components-settings-staff-staff-form-dialog-tsx-L28
 
-`client/components/settings/staff/staff-form-dialog.tsx:28`
+`client/components/settings/staff/staff-form-dialog.tsx:22`
 
 Every submit-blocking rule for the staff form, as a pure function so each
 one is testable without a rendered dialog (same reason resolveStaffStoreId
@@ -9979,7 +9979,7 @@ permissions, which is never what the person filling the form intended.
 
 ## line-components-settings-staff-staff-form-dialog-tsx-L134
 
-`client/components/settings/staff/staff-form-dialog.tsx:134`
+`client/components/settings/staff/staff-form-dialog.tsx:125`
 
 Sent alongside role so the two never disagree about which
 staff member they describe - see staff-form-fields.tsx's
@@ -9987,7 +9987,7 @@ Group Select, which sets both together.
 
 ## line-components-settings-staff-staff-form-dialog-tsx-L139
 
-`client/components/settings/staff/staff-form-dialog.tsx:139`
+`client/components/settings/staff/staff-form-dialog.tsx:129`
 
 Only touch store_id when the selector was actually shown to the
 user (multi-store accounts). Single-store accounts never render
@@ -10012,7 +10012,7 @@ in edit mode so it isn't mistaken for one while read-only.
 
 ## line-components-settings-store-category-form-dialog-tsx-L44
 
-`client/components/settings/store/category-form-dialog.tsx:44`
+`client/components/settings/store/category-form-dialog.tsx:47`
 
 Suggestions matching how the product form already picks a category list
 by business type, minus names already in use — no point suggesting a
@@ -10038,7 +10038,7 @@ link actually opens a chat instead of an invalid-number error.
 
 ## line-components-settings-store-multi-store-card-tsx-L54
 
-`client/components/settings/store/multi-store-card.tsx:54`
+`client/components/settings/store/multi-store-card.tsx:57`
 
 Fleet writes go straight to the cloud API and never touch local SQLite,
 so React Query's own store caches never learn a write happened. This
@@ -10049,7 +10049,7 @@ that never refreshes.
 
 ## line-components-settings-store-multi-store-card-tsx-L61
 
-`client/components/settings/store/multi-store-card.tsx:61`
+`client/components/settings/store/multi-store-card.tsx:60`
 
 Prefix-matches every cached variant of these queries regardless of
 which store/user args they were fetched with (a plain string
@@ -10087,7 +10087,7 @@ abbreviations/precision, just a name pickers can select from.
 
 ## block-components-settings-store-receipt-customization-card-tsx-L33
 
-`client/components/settings/store/receipt-customization-card.tsx:33`
+`client/components/settings/store/receipt-customization-fields.tsx:7`
 
 A simple label/description + switch row, shown as read-only
 Enabled/Disabled text outside edit mode. Shared by the receipt toggles
@@ -10097,7 +10097,7 @@ withRestriction()/a tooltip.
 
 ## line-components-settings-store-receipt-customization-card-tsx-L185
 
-`client/components/settings/store/receipt-customization-card.tsx:185`
+`client/components/settings/store/receipt-customization-card.tsx:151`
 
 Never a click target on this card (the upload lives on
 Business Information) - plain, not dashed, so it doesn't
@@ -10122,7 +10122,7 @@ setting, since the POS row would still never appear.
 
 ## block-components-settings-store-store-profile-section-tsx-L38
 
-`client/components/settings/store/store-profile-section.tsx:38`
+`client/components/settings/store/store-profile-section.tsx:34`
 
 The parts of Business Information that are specific to this store's
 storefront presence, kept visually nested since a business may eventually
@@ -10130,7 +10130,7 @@ run more than one store under the same identity above.
 
 ## line-components-settings-store-store-profile-section-tsx-L102
 
-`client/components/settings/store/store-profile-section.tsx:102`
+`client/components/settings/store/store-profile-section.tsx:97`
 
 Nothing left to show is a real state for a retail store whose group
 lacks the storefront key and whose plan has no loyalty program - render
@@ -10138,7 +10138,7 @@ nothing rather than an empty bordered box with only a heading in it.
 
 ## line-components-settings-system-settings-tsx-L26
 
-`client/components/settings/system-settings.tsx:26`
+`client/components/settings/system-settings.tsx:28`
 
 The System tab itself is manage_device_settings; this card is only a
 shortcut into the Billing tab, so it carries that tab's own key rather
@@ -10173,7 +10173,7 @@ ledger's hundreds of number inputs.
 
 ## block-components-stock-batch-audit-derivations-ts-L34
 
-`client/components/stock-batch/audit-derivations.ts:34`
+`client/components/stock-batch/audit-derivations.ts:33`
 
 A row differs from the values the count opened with. A row whose
 countedQty is undefined has not been entered at all, so it is never a
@@ -10181,7 +10181,7 @@ difference - submitting one would post `undefined` as a quantity.
 
 ## block-components-stock-batch-audit-derivations-ts-L47
 
-`client/components/stock-batch/audit-derivations.ts:47`
+`client/components/stock-batch/audit-derivations.ts:45`
 
 Whether someone has actually been to the shelf for this row. Counted Qty
 opens empty, so an entered quantity IS the record of a count - including
@@ -10197,7 +10197,7 @@ carrying such a draft - i.e. one release after 2026-10-13.
 
 ## block-components-stock-batch-audit-derivations-ts-L70
 
-`client/components/stock-batch/audit-derivations.ts:70`
+`client/components/stock-batch/audit-derivations.ts:59`
 
 Whether the sheet may be rebuilt from a fresh products query. Anything
 typed, ticked or corrected makes it unsafe; an empty sheet is always safe.
@@ -10207,7 +10207,7 @@ stale cache first and then refuses the fresh data when it lands.
 
 ## block-components-stock-batch-audit-derivations-ts-L81
 
-`client/components/stock-batch/audit-derivations.ts:81`
+`client/components/stock-batch/audit-derivations.ts:88`
 
 The ledger's count-progress lens: what's left to count, what's been
 done, and which rows disagreed with the system badly enough to be worth
@@ -10215,7 +10215,7 @@ a recount.
 
 ## block-components-stock-batch-audit-derivations-ts-L118
 
-`client/components/stock-batch/audit-derivations.ts:118`
+`client/components/stock-batch/audit-derivations.ts:200`
 
 What submitStockAudit() receives for the rows being posted.
 
@@ -10233,7 +10233,7 @@ re-reads. See client/AGENTS.md.
 
 ## block-components-stock-batch-audit-derivations-ts-L160
 
-`client/components/stock-batch/audit-derivations.ts:160`
+`client/components/stock-batch/audit-derivations.ts:230`
 
 The row as it stands once the live read lands: `live` becomes both the
 displayed system figure and the baseline the submit measures against. A
@@ -10242,7 +10242,7 @@ what "counted, and it matched" means.
 
 ## block-components-stock-batch-audit-derivations-ts-L183
 
-`client/components/stock-batch/audit-derivations.ts:183`
+`client/components/stock-batch/audit-derivations.ts:251`
 
 Keeps a row's live re-read from being overtaken by its own history.
 
@@ -10320,7 +10320,7 @@ triggers.
 
 ## block-components-stock-batch-stock-audits-tsx-L69
 
-`client/components/stock-batch/stock-audits.tsx:69`
+`client/components/stock-batch/stock-audits.tsx:42`
 
 Set once someone has actually been to the shelf for this row - by any
 edit, or by ticking the row by hand when the count matched. See
@@ -10328,7 +10328,7 @@ isAuditItemCounted.
 
 ## block-components-stock-batch-stock-audits-tsx-L73
 
-`client/components/stock-batch/stock-audits.tsx:73`
+`client/components/stock-batch/stock-audits.tsx:45`
 
 Live stock as re-read at the moment this row's count was entered, and
 the only figure the submit may measure the count against. Absent on a
@@ -10337,7 +10337,7 @@ build - which must fall back to re-reading at submit. See A-263.
 
 ## block-components-stock-batch-stock-audits-tsx-L78
 
-`client/components/stock-batch/stock-audits.tsx:78`
+`client/components/stock-batch/stock-audits.tsx:48`
 
 When this product was last reconciled by a submitted count
 (products.last_audited_at), so a counter can see what has gone longest
@@ -10497,7 +10497,7 @@ so the product list) changes.
 
 ## line-components-stock-batch-transfer-product-picker-tsx-L56
 
-`client/components/stock-batch/transfer-product-picker.tsx:56`
+`client/components/stock-batch/transfer-product-picker.tsx:40`
 
 Product names are always stored lowercase — same display convention as
 everywhere else product names render (stock-movement-desktop-row.tsx,
@@ -10505,7 +10505,7 @@ catalog-list.tsx, pos-product-list.tsx, ...).
 
 ## line-components-stock-batch-transfer-product-picker-tsx-L63
 
-`client/components/stock-batch/transfer-product-picker.tsx:63`
+`client/components/stock-batch/transfer-product-picker.tsx:44`
 
 Shows the selected product's name while closed/not being typed into;
 reverts to it (or blank) on close without a pick, same as
@@ -10513,7 +10513,7 @@ SearchableInput's value<->inputValue sync.
 
 ## line-components-stock-batch-transfer-stock-dialog-tsx-L43
 
-`client/components/stock-batch/transfer-stock-dialog.tsx:43`
+`client/components/stock-batch/transfer-stock-dialog.tsx:46`
 
 A cashier can only PULL stock into their own active store, not push it
 out to an arbitrary store - the button that opens this dialog is
@@ -10524,7 +10524,7 @@ full from/to picker via manualDestStoreId.
 
 ## line-components-stock-batch-transfer-stock-dialog-tsx-L73
 
-`client/components/stock-batch/transfer-stock-dialog.tsx:73`
+`client/components/stock-batch/transfer-stock-dialog.tsx:72`
 
 Reload the transferable-product list (with live available quantities)
 whenever the source store changes, and drop any previously selected
@@ -10548,7 +10548,7 @@ mutation) below so the buttons stay disabled for the whole round trip.
 
 ## line-components-suppliers-add-supplier-dialog-tsx-L93
 
-`client/components/suppliers/add-supplier-dialog.tsx:93`
+`client/components/suppliers/add-supplier-dialog.tsx:96`
 
 onAddSupplier is fire-and-forget from here (the parent awaits its own
 async create call and closes this dialog on success) — without this
@@ -10574,7 +10574,7 @@ open. Not real crashes; don't log them as ones.
 
 ## line-components-tauri-global-error-listener-tsx-L24
 
-`client/components/tauri/global-error-listener.tsx:24`
+`client/components/tauri/global-error-listener.tsx:23`
 
 Most real stale-chunk failures never reach ErrorBoundary's
 componentDidCatch at all: a route-level dynamic import() rejecting
@@ -10585,7 +10585,7 @@ shouldReloadForChunkError() for why the reload is capped per build.
 
 ## line-components-tauri-global-error-listener-tsx-L38
 
-`client/components/tauri/global-error-listener.tsx:38`
+`client/components/tauri/global-error-listener.tsx:33`
 
 Reload first, report only if that didn't handle it. A stale chunk is
 recoverable and the reload fixes it, so reporting before reloading
@@ -10643,7 +10643,7 @@ the fast path should be "continue", not "cancel".
 
 ## line-components-ui-confirm-dialog-tsx-L53
 
-`client/components/ui/confirm-dialog.tsx:53`
+`client/components/ui/confirm-dialog.tsx:52`
 
 Previously closed the dialog synchronously right after firing
 onConfirm, before an async handler (e.g. a delete) had actually
@@ -10666,7 +10666,7 @@ whole entry.
 
 ## block-components-ui-date-picker-input-tsx-L57
 
-`client/components/ui/date-picker-input.tsx:57`
+`client/components/ui/date-picker-input.tsx:51`
 
 Extra classes applied to the text input itself, not the wrapper —
 needed to strip its border/shadow/ring when it's nested inside another
@@ -10674,7 +10674,7 @@ bordered container (e.g. the Daily Close date filter).
 
 ## block-components-ui-date-picker-input-tsx-L62
 
-`client/components/ui/date-picker-input.tsx:62`
+`client/components/ui/date-picker-input.tsx:55`
 
 Accessible name for the text input, for the dense ledger tables where
 the visible column header is not programmatically associated with each
@@ -10682,7 +10682,7 @@ row's field.
 
 ## line-components-ui-date-picker-input-tsx-L67
 
-`client/components/ui/date-picker-input.tsx:67`
+`client/components/ui/date-picker-input.tsx:59`
 
 Bounds for the calendar's quick month/year dropdown jump: pick years
 that make sense for what's being entered (e.g. a birthdate needs the
@@ -10691,7 +10691,7 @@ past; a batch expiry needs the future). Defaults span 100 years back to
 
 ## line-components-ui-date-picker-input-tsx-L116
 
-`client/components/ui/date-picker-input.tsx:116`
+`client/components/ui/date-picker-input.tsx:107`
 
 Work from digits only: a slash can only ever come from the mask
 itself, never from what the user types, so there's no way to end up
@@ -10699,7 +10699,7 @@ with a stray or doubled "/" no matter where they type or paste.
 
 ## line-components-ui-date-picker-input-tsx-L120
 
-`client/components/ui/date-picker-input.tsx:120`
+`client/components/ui/date-picker-input.tsx:110`
 
 Reject (don't just clamp) any digit that would make the day or month
 segment impossible to complete validly, e.g. typing "9" as the first
@@ -10753,7 +10753,7 @@ product catalog quick-edit) rather than reimplemented per table.
 
 ## block-components-ui-editable-number-cell-tsx-L13
 
-`client/components/ui/editable-number-cell.tsx:13`
+`client/components/ui/editable-number-cell.tsx:6`
 
 `undefined` renders as an empty field (and shows `placeholder`), which is
 distinct from 0 - a cycle-count row nobody has reached yet is not a count
@@ -10761,7 +10761,7 @@ of zero.
 
 ## block-components-ui-editable-number-cell-tsx-L51
 
-`client/components/ui/editable-number-cell.tsx:51`
+`client/components/ui/editable-number-cell.tsx:43`
 
 Fired after the built-in revert-if-invalid blur logic, and also on
 Enter (which just blurs the input) — lets a caller treat blur as
@@ -10769,7 +10769,7 @@ Enter (which just blurs the input) — lets a caller treat blur as
 
 ## block-components-ui-editable-number-cell-tsx-L55
 
-`client/components/ui/editable-number-cell.tsx:55`
+`client/components/ui/editable-number-cell.tsx:46`
 
 Fired on Escape, instead of blurring: lets a caller close the edit
 without treating it as a commit (blurring would run the normal
@@ -10777,7 +10777,7 @@ onBlur/save path, which Escape should explicitly bypass).
 
 ## block-components-ui-editable-number-cell-tsx-L59
 
-`client/components/ui/editable-number-cell.tsx:59`
+`client/components/ui/editable-number-cell.tsx:49`
 
 Accessible name for the input. These cells live in dense ledger tables
 where the only label is a column header that is not programmatically
@@ -10786,7 +10786,7 @@ and for any test that wants to address one row's field.
 
 ## block-components-ui-editable-number-cell-tsx-L64
 
-`client/components/ui/editable-number-cell.tsx:64`
+`client/components/ui/editable-number-cell.tsx:52`
 
 Shown while the field is empty - e.g. the system figure a cycle count
 is being compared against, so a blank cell still says what it is
@@ -10794,7 +10794,7 @@ blank against.
 
 ## block-components-ui-editable-number-cell-tsx-L68
 
-`client/components/ui/editable-number-cell.tsx:68`
+`client/components/ui/editable-number-cell.tsx:55`
 
 When provided, blurring an empty field reports the value as cleared
 instead of reverting to the last committed number. Only a caller whose
@@ -10803,7 +10803,7 @@ this; without it, blur-while-empty keeps its original revert behaviour.
 
 ## line-components-ui-editable-number-cell-tsx-L78
 
-`client/components/ui/editable-number-cell.tsx:78`
+`client/components/ui/editable-number-cell.tsx:65`
 
 Skipped while focused: this effect exists to pick up an external
 (non-user-typed) change to `value` — e.g. another row's edit
@@ -10842,7 +10842,7 @@ expected, not a bug.
 
 ## block-components-ui-loading-overlay-tsx-L12
 
-`client/components/ui/loading-overlay.tsx:12`
+`client/components/ui/loading-overlay.tsx:10`
 
 Shows a Cancel button when provided. Only wire this up for steps that
 can actually be aborted cleanly (e.g. terminating a Web Worker) - for a
@@ -10850,7 +10850,7 @@ synchronous main-thread step there's nothing to cancel into.
 
 ## block-components-ui-loading-overlay-tsx-L18
 
-`client/components/ui/loading-overlay.tsx:18`
+`client/components/ui/loading-overlay.tsx:15`
 
 Full-viewport overlay for work that runs long enough to look like the app
 hung with no feedback at all - whether that's genuinely blocking the main
@@ -10877,7 +10877,7 @@ update, so the `value` closure here would still be one digit behind.
 
 ## block-components-ui-product-combobox-tsx-L31
 
-`client/components/ui/product-combobox.tsx:31`
+`client/components/ui/product-combobox.tsx:36`
 
 Called only when the value is cleared via the explicit clear (X)
 button, not when the user backspaces the field to empty. Lets
@@ -10886,7 +10886,7 @@ without wiping them out on incidental retyping.
 
 ## block-components-ui-product-combobox-tsx-L39
 
-`client/components/ui/product-combobox.tsx:39`
+`client/components/ui/product-combobox.tsx:42`
 
 When false, the dropdown only shows real catalog matches and the
 "create new" fallback — never the static reference-list ("Suggested")
@@ -10897,7 +10897,7 @@ suggesting non-catalog names is exactly the point).
 
 ## block-components-ui-product-combobox-tsx-L46
 
-`client/components/ui/product-combobox.tsx:46`
+`client/components/ui/product-combobox.tsx:45`
 
 Fired only when the user explicitly clicks "Add "X" as new product",
 not on every keystroke. Optional — callers that don't pass it keep the
@@ -10905,7 +10905,7 @@ existing onChange({ source: "new" }) behavior for that click.
 
 ## block-components-ui-product-combobox-tsx-L50
 
-`client/components/ui/product-combobox.tsx:50`
+`client/components/ui/product-combobox.tsx:48`
 
 When false, never renders the pinned "Create ... as new product" row.
 Used where this combobox names a product that's already being created
@@ -10916,7 +10916,7 @@ add a product that isn't in the catalog yet).
 
 ## block-components-ui-product-combobox-tsx-L57
 
-`client/components/ui/product-combobox.tsx:57`
+`client/components/ui/product-combobox.tsx:51`
 
 Shows a leading search icon, matching the shared SearchInput
 component's look used on other list pages. Hidden below the `sm`
@@ -10927,7 +10927,7 @@ bar).
 
 ## block-components-ui-product-combobox-tsx-L64
 
-`client/components/ui/product-combobox.tsx:64`
+`client/components/ui/product-combobox.tsx:54`
 
 Forwarded straight to the underlying input - lets a caller (e.g. the
 PO item search bar) focus it programmatically, on mount or from an
@@ -10935,7 +10935,7 @@ empty-state action button.
 
 ## block-components-ui-product-combobox-tsx-L68
 
-`client/components/ui/product-combobox.tsx:68`
+`client/components/ui/product-combobox.tsx:57`
 
 Catalog to search, when the caller already holds one. Every instance
 otherwise runs its own useProductList query for the same full catalog,
@@ -10945,7 +10945,7 @@ before, so no other caller changes.
 
 ## line-components-ui-product-combobox-tsx-L131
 
-`client/components/ui/product-combobox.tsx:131`
+`client/components/ui/product-combobox-options.tsx:63`
 
 The input keeps DOM focus and drives this list via
 aria-activedescendant, so options are not themselves tabbable.
@@ -10954,7 +10954,7 @@ onMouseDown (not onClick) + preventDefault so the input never blurs
 
 ## line-components-ui-product-combobox-tsx-L216
 
-`client/components/ui/product-combobox.tsx:216`
+`client/components/ui/product-combobox.tsx:80`
 
 Stable per-instance id prefix so the input's aria-activedescendant can
 point at the active option, and so two comboboxes on one page never
@@ -10979,7 +10979,7 @@ client/AGENTS.md.
 
 ## line-components-ui-product-name-tsx-L42
 
-`client/components/ui/product-name.tsx:42`
+`client/components/ui/product-name.tsx:31`
 
 Measured into a ref at the moment the tooltip is asked to open, not
 into state: whether the name is clamped depends on the rendered column
@@ -10988,7 +10988,7 @@ render too late - i.e. never on the first hover.
 
 ## line-components-ui-responsive-modal-tsx-L52
 
-`client/components/ui/responsive-modal.tsx:52`
+`client/components/ui/responsive-modal.tsx:54`
 
 useMediaQuery reads `false` during hydration (SSR/static-export safe) and
 reports the real value in the re-render right after. Rendering
@@ -11072,7 +11072,7 @@ calls onValueChange and this in the same synchronous handler.
 
 ## line-components-ui-searchable-input-tsx-L56
 
-`client/components/ui/searchable-input.tsx:56`
+`client/components/ui/searchable-input.tsx:54`
 
 The portaled menu (see below) lives outside containerRef's own DOM
 subtree, so the click-outside check below needs its own ref to still
@@ -11081,7 +11081,7 @@ out from under it before the click can land.
 
 ## line-components-ui-searchable-input-tsx-L62
 
-`client/components/ui/searchable-input.tsx:62`
+`client/components/ui/searchable-input.tsx:58`
 
 Rendered via a portal (see below) instead of a plain absolutely
 positioned child, since every caller so far embeds this inside a
@@ -11096,7 +11096,7 @@ context, the same way Radix's Popover/DropdownMenu do internally.
 
 ## line-components-ui-searchable-input-tsx-L73
 
-`client/components/ui/searchable-input.tsx:73`
+`client/components/ui/searchable-input.tsx:61`
 
 Stable per-instance ids: the input keeps DOM focus and points at the
 highlighted option through aria-activedescendant, so each option needs
@@ -11137,7 +11137,7 @@ visible focus ring instead of removing it from the tab order.
 
 ## block-components-ui-tooltip-tsx-L25
 
-`client/components/ui/tooltip.tsx:25`
+`client/components/ui/tooltip.tsx:19`
 
 Radix's hover/focus-based trigger doesn't respond to touch, so on
 touch devices this manages its own controlled `open` state and lets
@@ -11145,7 +11145,7 @@ TooltipTrigger toggle it on tap instead.
 
 ## line-components-ui-tooltip-tsx-L67
 
-`client/components/ui/tooltip.tsx:67`
+`client/components/ui/tooltip.tsx:60`
 
 Toggle the touch-controlled open state alongside whatever this
 trigger's own click does (navigate, submit, etc.) — never
@@ -11189,7 +11189,7 @@ live in Chrome.
 
 ## line-e2e-auth-spec-ts-L37
 
-`client/e2e/auth.spec.ts:37`
+`client/e2e/auth.spec.ts:32`
 
 This test only needs to get logged in and check the result - it
 doesn't need to inspect the login form's own fields (that's covered
@@ -11227,7 +11227,7 @@ instead of each spec guessing its own copy that can drift out of sync.
 
 ## line-e2e-fixtures-ts-L11
 
-`client/e2e/fixtures.ts:11`
+`client/e2e/fixtures.ts:10`
 
 Skip the first-login onboarding tour (components/dashboard/dashboard-tour.tsx):
 its react-joyride overlay otherwise intercepts pointer events on the
@@ -11235,7 +11235,7 @@ sidebar/header for every fresh test-store session and blocks clicks.
 
 ## line-e2e-fixtures-ts-L18
 
-`client/e2e/fixtures.ts:18`
+`client/e2e/fixtures.ts:16`
 
 PIN field is an InputOTP (components/auth/traditional-login-form.tsx), not a
 placeholder-based text input - '••••' hasn't matched anything since that
@@ -11244,7 +11244,7 @@ for the analogous OTP field on /setup.
 
 ## block-e2e-fixtures-ts-L27
 
-`client/e2e/fixtures.ts:27`
+`client/e2e/fixtures.ts:23`
 
 Logs in, then elevates the current per-test copy of the local DB to a
 paid tier via the dev-only `window.__e2eSetSubscriptionTier` hook
@@ -11329,7 +11329,7 @@ Prescriptions at all.
 
 ## line-e2e-prescriptions-spec-ts-L21
 
-`client/e2e/prescriptions.spec.ts:21`
+`client/e2e/prescriptions.spec.ts:11`
 
 The seeded test store's Business Vertical defaults to "General", which
 hides the Prescriptions nav link entirely (dashboard-sidebar.tsx only
@@ -11355,7 +11355,7 @@ overlay-mount race root cause also applied here.
 
 ## line-e2e-procurement-spec-ts-L29
 
-`client/e2e/procurement.spec.ts:29`
+`client/e2e/procurement.spec.ts:22`
 
 Only the viewport's own create view is mounted now (the pages render
 one or the other rather than hiding one with CSS), but keep the
@@ -11363,7 +11363,7 @@ visible-instance match so this holds either way.
 
 ## line-e2e-procurement-spec-ts-L34
 
-`client/e2e/procurement.spec.ts:34`
+`client/e2e/procurement.spec.ts:26`
 
 4b. Continue to the item-entry step (components/procurement/po-item-builder.tsx,
 introduced in commit 113a368c, replaced the old "Add Items to Order"
@@ -11371,7 +11371,7 @@ section/separate-Add-button flow this test used to assert on).
 
 ## line-e2e-procurement-spec-ts-L43
 
-`client/e2e/procurement.spec.ts:43`
+`client/e2e/procurement.spec.ts:34`
 
 5. Test Quick Add Product flow trigger
 Type a product name that doesn't exist (components/procurement/po-item-builder.tsx
@@ -11379,7 +11379,7 @@ Type a product name that doesn't exist (components/procurement/po-item-builder.t
 
 ## line-e2e-procurement-spec-ts-L57
 
-`client/e2e/procurement.spec.ts:57`
+`client/e2e/procurement.spec.ts:47`
 
 Click the pinned "Create ... as new product" row — selecting a product
 combobox option now adds/opens directly, there is no separate "Add"
@@ -11387,7 +11387,7 @@ button anymore (product-combobox.tsx's AddNewProductOption).
 
 ## line-e2e-procurement-spec-ts-L77
 
-`client/e2e/procurement.spec.ts:77`
+`client/e2e/procurement.spec.ts:66`
 
 Closes the exact gap flagged in docs/features/procurement.md: the
 pre-existing test above only opens the Quick Add Product dialog and
@@ -11410,7 +11410,7 @@ the test store's database.
 
 ## line-e2e-product-import-spec-ts-L23
 
-`client/e2e/product-import.spec.ts:23`
+`client/e2e/product-import.spec.ts:18`
 
 Sheet picker: the fixture has 3 sheets (Sheet1: 3 rows, Sheet2: 2 rows,
 Sheet3: 0 rows), mirroring the shape of the real 3-sheet QuickBooks
@@ -11418,7 +11418,7 @@ export that originally triggered these bugs.
 
 ## line-e2e-product-import-spec-ts-L34
 
-`client/e2e/product-import.spec.ts:34`
+`client/e2e/product-import.spec.ts:28`
 
 Column-mapping step: auto-mapping should match all 6 QuickBooks-shaped
 columns (Item Number, Item Name, Average Unit Cost, Regular Price,
@@ -11426,7 +11426,7 @@ Department Name, Qty 1) and report Sheet1's 3 data rows.
 
 ## line-e2e-product-import-spec-ts-L41
 
-`client/e2e/product-import.spec.ts:41`
+`client/e2e/product-import.spec.ts:34`
 
 Close without importing - this spec only verifies the dialog's own
 UI/state machine, not the write path (covered separately by the
@@ -11455,7 +11455,7 @@ Store Owner, so no elevateToPaidTier-style workaround is needed here
 
 ## line-e2e-reports-spec-ts-L20
 
-`client/e2e/reports.spec.ts:20`
+`client/e2e/reports.spec.ts:13`
 
 Default tab (no ?tab= param) is Operational Reports for admins
 (isAdmin ? "reports" : "daily_close" in app/(dashboard)/reports/page.tsx) -
@@ -11464,7 +11464,7 @@ Export/Print actions, not an error/blank state.
 
 ## line-e2e-reports-spec-ts-L32
 
-`client/e2e/reports.spec.ts:32`
+`client/e2e/reports.spec.ts:23`
 
 Exact, because "Net Cash Expected" (cash sales less the day's cash
 expenses) now sits below the payment-method row and a loose /Cash
@@ -11568,7 +11568,7 @@ DashboardLayout requires a staff user and would bounce it.
 
 ## line-hooks-use-login-ts-L42
 
-`client/hooks/use-login.ts:42`
+`client/hooks/use-login.ts:39`
 
 Surfaces the real failure (e.g. a lockout countdown from
 login-lockout.ts) instead of always claiming the database isn't
@@ -11595,7 +11595,7 @@ value on its first render. Consumers that branch their whole tree on it
 
 ## block-hooks-use-media-query-ts-L31
 
-`client/hooks/use-media-query.ts:31`
+`client/hooks/use-media-query.ts:24`
 
 useMediaQuery plus the `resolved` flag a consumer needs before it may
 branch its render on the answer. Because the raw hook deliberately reads
@@ -11618,7 +11618,7 @@ Extracted from use-settings.ts, which was at the 350-line limit.
 
 ## line-hooks-use-settings-tab-resolution-ts-L69
 
-`client/hooks/use-settings-tab-resolution.ts:69`
+`client/hooks/use-settings-tab-resolution.ts:65`
 
 openCloudLink is a useState setter (referentially stable); depending on
 the whole sync-state object reran this on every render and reopened the
@@ -11638,7 +11638,7 @@ a StoreContext render harness.
 
 ## line-hooks-use-settings-ts-L58
 
-`client/hooks/use-settings.ts:58`
+`client/hooks/use-settings.ts:53`
 
 "/settings" (root, isIndex) and "/settings/[tab]" are separate route
 chunks even though they render the same SettingsClient — the sidebar's
@@ -11661,7 +11661,7 @@ directions is forgiving of that naming drift without being a full fuzzy-match.
 
 ## line-hooks-use-smart-suggestions-ts-L53
 
-`client/hooks/use-smart-suggestions.ts:53`
+`client/hooks/use-smart-suggestions.ts:52`
 
 Symptom/condition clusters: any category in the cluster suggests every
 other category in the same cluster (bidirectional co-purchase, not a
@@ -11669,7 +11669,7 @@ one-way pairing).
 
 ## line-hooks-use-smart-suggestions-ts-L89
 
-`client/hooks/use-smart-suggestions.ts:89`
+`client/hooks/use-smart-suggestions.ts:87`
 
 Fallback: no curated rule fired (small/uncatalogued store). Suggest other
 in-stock products from the same category as what's already in the cart,
@@ -11687,7 +11687,7 @@ sentry.edge.config.ts / instrumentation.ts.
 
 ## line-instrumentation-client-ts-L12
 
-`client/instrumentation-client.ts:12`
+`client/instrumentation-client.ts:10`
 
 Off on a developer's machine, sampled on the deployed dev build, full rate
 in production. The per-environment table and why dev is sampled rather
@@ -11695,7 +11695,7 @@ than silenced: client/AGENTS.md, "What reaches Sentry".
 
 ## line-instrumentation-client-ts-L33
 
-`client/instrumentation-client.ts:33`
+`client/instrumentation-client.ts:30`
 
 The app already has a single deliberate crash choke point
 (logCrash() in lib/utils/error-logger.ts) that logs locally first
@@ -11733,7 +11733,7 @@ of a specific build, which is exactly the problem a manifest avoids.
 
 ## line-scripts-generate-precache-manifest-ts-L61
 
-`client/scripts/generate-precache-manifest.ts:61`
+`client/scripts/generate-precache-manifest.ts:42`
 
 Also include every page's un-suffixed route form (e.g. "/dashboard" as
 well as "/dashboard.html", "/" as well as "/index.html"): out/.htaccess
@@ -11745,7 +11745,7 @@ navigable cache key.
 
 ## line-scripts-generate-precache-manifest-ts-L109
 
-`client/scripts/generate-precache-manifest.ts:109`
+`client/scripts/generate-precache-manifest.ts:85`
 
 `urls` includes the extensionless route aliases added above (e.g.
 "/dashboard" alongside "/dashboard.html") which have no file of their
@@ -11783,7 +11783,7 @@ the wrong table entirely. Keep this in step with getModelForTable().
 
 ## line-scripts-verify-schema-sync-ts-L64
 
-`client/scripts/verify-schema-sync.ts:64`
+`client/scripts/verify-schema-sync.ts:62`
 
 Inline `-- ...` comments contain commas of their own ("-- 'earned',
 'redeemed'"), so splitting the raw block on commas both invented
@@ -11791,7 +11791,7 @@ phantom columns and swallowed the real column after the comment.
 
 ## line-scripts-verify-schema-sync-ts-L88
 
-`client/scripts/verify-schema-sync.ts:88`
+`client/scripts/verify-schema-sync.ts:85`
 
 Find the STORE_SCOPED_TABLES block (the canonical list of synced,
 store-scoped tables - moved here from core.ts's old inline syncColumns
@@ -11818,7 +11818,7 @@ must be used, with a `RETURNING` clause
 
 ## block-src-tauri-vendor-tauri-plugin-sql-guest-js-index-ts-L21
 
-`client/src-tauri/vendor/tauri-plugin-sql/guest-js/index.ts:21`
+`client/src-tauri/vendor/tauri-plugin-sql/guest-js/index.ts:15`
 
 **Database**
 
@@ -11827,7 +11827,7 @@ communicating with the rust side of the sql plugin.
 
 ## block-src-tauri-vendor-tauri-plugin-sql-guest-js-index-ts-L33
 
-`client/src-tauri/vendor/tauri-plugin-sql/guest-js/index.ts:33`
+`client/src-tauri/vendor/tauri-plugin-sql/guest-js/index.ts:23`
 
 **load**
 
@@ -11845,7 +11845,7 @@ const db = await Database.load("sqlite:test.db");
 
 ## block-src-tauri-vendor-tauri-plugin-sql-guest-js-index-ts-L56
 
-`client/src-tauri/vendor/tauri-plugin-sql/guest-js/index.ts:56`
+`client/src-tauri/vendor/tauri-plugin-sql/guest-js/index.ts:33`
 
 **get**
 
@@ -11864,7 +11864,7 @@ const db = Database.get("sqlite:test.db");
 
 ## block-src-tauri-vendor-tauri-plugin-sql-guest-js-index-ts-L76
 
-`client/src-tauri/vendor/tauri-plugin-sql/guest-js/index.ts:76`
+`client/src-tauri/vendor/tauri-plugin-sql/guest-js/index.ts:39`
 
 **execute**
 
@@ -11899,7 +11899,7 @@ const result = await db.execute(
 
 ## block-src-tauri-vendor-tauri-plugin-sql-guest-js-index-ts-L123
 
-`client/src-tauri/vendor/tauri-plugin-sql/guest-js/index.ts:123`
+`client/src-tauri/vendor/tauri-plugin-sql/guest-js/index.ts:56`
 
 **select**
 
@@ -11920,7 +11920,7 @@ const result = await db.select(
 
 ## block-src-tauri-vendor-tauri-plugin-sql-guest-js-index-ts-L151
 
-`client/src-tauri/vendor/tauri-plugin-sql/guest-js/index.ts:151`
+`client/src-tauri/vendor/tauri-plugin-sql/guest-js/index.ts:68`
 
 **close**
 
@@ -11943,7 +11943,7 @@ client/AGENTS.md, "Console noise is suppressed in CI".
 
 ## block-test-support-console-noise-ts-L33
 
-`client/test-support/console-noise.ts:33`
+`client/test-support/console-noise.ts:30`
 
 Wraps `log` and `warn` so a suppressible line is never written. `info` and
 `error` are deliberately untouched: five test files assert on them, and
@@ -12086,7 +12086,7 @@ discarded. Computing it is a full scan of the device's largest table
 
 ## block-__tests__-use-fulfill-online-order-mutation-test-ts-L254
 
-`client/__tests__/use-fulfill-online-order-mutation.test.ts:254`
+`client/__tests__/use-fulfill-online-order-mutation.test.ts:252`
 
 A-57: a product whose only batch is expired was fulfilled silently —
 full revenue, cost_price 0, no stock_movements row, no sale_item_batches
@@ -12094,7 +12094,7 @@ row, and the expired units still counted as on hand.
 
 ## block-__tests__-use-fulfill-online-order-mutation-test-ts-L207
 
-`client/__tests__/use-fulfill-online-order-mutation.test.ts:207`
+`client/__tests__/use-fulfill-online-order-mutation.test.ts:206`
 
 Second attempt (the user pressing Fulfill again): the server call now
 succeeds. Without recognizing the first attempt's local write, this

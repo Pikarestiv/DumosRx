@@ -2012,7 +2012,7 @@ some of her devices and not others for exactly this reason.
 
 **No client change was needed**, and that was checked rather than assumed: an
 old bundle reads "accepted" as `markSynced()`
-(`client/lib/db/base-helpers.ts:571-592`), which deletes the queue row and sets
+(`markSynced()` in `client/lib/db/sync-queue.ts`), which deletes the queue row and sets
 `_synced = 1` on the source row — which is what finally drains the orphan pool
 producing the re-sends, since `requeueOrphanedRows()` selects on
 `_synced = 0`. No new response field, so nothing to retire (§11).

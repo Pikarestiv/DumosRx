@@ -57,7 +57,7 @@ the device from cloud sync. See docs/FIXED_BUGS.md.
 
 ## constants-settings-tabs-L49
 
-`client/lib/constants/settings-tabs.ts:49`
+`client/lib/constants/settings-tabs.ts:46`
 
 The Store & Settings permission key each settings tab requires, replacing
 the one coarse `isAdmin` gate that used to cover all of them. The map is
@@ -72,7 +72,7 @@ enforces `factory_reset` inside the panel itself.
 
 ## context-auth-context-tsx-L659
 
-`client/lib/context/auth-context.tsx:659`
+`client/lib/context/auth-context.tsx:145`
 
 Bootstraps a local session for a user who authenticated on the cloud side
 and arrived here via the one-time handoff code (/auth/callback); most
@@ -112,7 +112,7 @@ on anything being mounted to do its job.)
 
 ## db-audit-actions-L23
 
-`client/lib/db/audit-actions.ts:23`
+`client/lib/db/audit-actions.ts:20`
 
 Actions eligible for logAction()'s occurrence-count coalescing (see
 core.ts): a REPEATED, machine-generated event for the same (action,
@@ -131,7 +131,7 @@ re-happening," not a real distinct event that happens to repeat.
 
 ## db-base-helpers-L62
 
-`client/lib/db/base-helpers.ts:62`
+`client/lib/db/base-helpers.ts:48`
 
 Enforces per-row store ownership before update()/softDelete()/remove()
 mutate a STORE_SCOPED_TABLES row, closing the cross-tenant write gap
@@ -190,7 +190,7 @@ not a general bypass callers reach for out of convenience.
 
 ## db-base-helpers-L622
 
-`client/lib/db/base-helpers.ts:622`
+`client/lib/db/sync-queue.ts:127`
 
 Handles a stuck `feedback` item without writing another `feedback` row.
 
@@ -206,7 +206,7 @@ Genuine user-submitted feedback keeps its normal retry behaviour.
 
 ## db-base-helpers-L667
 
-`client/lib/db/base-helpers.ts:667`
+`client/lib/db/sync-queue.ts:161`
 
 Records a sync failure with exponential backoff so a permanently-bad item
 stops being retried every cycle and blocking the rest of the queue. Once
@@ -222,7 +222,7 @@ delaying remote visibility by up to ~waiting through 5 backoff cycles.
 
 ## db-batch-quantity-L43
 
-`client/lib/db/batch-quantity.ts:43`
+`client/lib/db/batch-quantity.ts:37`
 
 What a batch's `quantity` should hold now that its log has changed, read
 from the log this device already has. `incrementalDelta` is only consulted
@@ -237,7 +237,7 @@ when the batch arrives picks the movements up.
 
 ## db-batch-quantity-L114
 
-`client/lib/db/batch-quantity.ts:114`
+`client/lib/db/batch-quantity.ts:93`
 
 Batches whose movement log sums below zero — more went out than the log can
 account for going in. The deficit is what the next inbound movement pays off
@@ -255,7 +255,7 @@ exactly the set `resolveBatchQuantity()` would rebuild to 0.
 
 ## db-core-L599
 
-`client/lib/db/core.ts:599`
+`client/lib/db/core.ts:571`
 
 Runs `fn` inside a real SQL transaction so a multi-statement operation
 either fully applies or fully rolls back. Every write inside `fn` must go
@@ -269,7 +269,7 @@ both, including the vendored Tauri plugin's `.max_connections(1)` cap.
 
 ## db-core-L696
 
-`client/lib/db/core.ts:696`
+`client/lib/db/core.ts:656`
 
 Overwrites the current database with provided binary data: sql.js (web)
 only — on desktop/mobile use restoreDatabaseFromFile(), or `db` is
@@ -325,7 +325,7 @@ transaction.
 
 ## db-deterministic-id-L57
 
-`client/lib/db/deterministic-id.ts:57`
+`client/lib/db/deterministic-id.ts:34`
 
 The stock batch a receipt against one purchase-order line creates.
 
@@ -364,7 +364,7 @@ one atomic step).
 
 ## db-procurement-L156
 
-`client/lib/db/procurement.ts:156`
+`client/lib/db/procurement.ts:142`
 
 Loads every purchase order, not a page of them: the caller runs search/filter
 over the result, and this data set is small enough (dozens to low hundreds per
@@ -400,7 +400,7 @@ to fail closed instead of silently picking one on a genuine collision
 
 ## db-queries-auth-L99
 
-`client/lib/db/queries/auth.ts:99`
+`client/lib/db/queries/auth.ts:65`
 
 The lazy half of the plaintext-PIN migration: called right after a
 successful login that matched a LEGACY plaintext `users.pin`, it rewrites
@@ -431,7 +431,7 @@ pre-fix history, not from an ongoing gap.
 
 ## db-queries-customers-L53
 
-`client/lib/db/queries/customers.ts:53`
+`client/lib/db/queries/customers.ts:48`
 
 Combined feed of every customer's transactions store-wide: grows the same way
 stock_movements does (a row per sale), so `sinceDays` bounds the default recent
@@ -444,7 +444,7 @@ an explicit date-range pick from the UI overrides the relative window.
 
 ## db-queries-customers-L270
 
-`client/lib/db/queries/customers.ts:270`
+`client/lib/db/queries/customers.ts:224`
 
 Purchase-engagement metrics over the trailing 30 days, restricted to sales
 that carry a customer_id (walk-in/anonymous sales are excluded from every
@@ -467,7 +467,7 @@ The returned field names are historical; what they actually measure is:
 
 ## db-queries-finance-L63
 
-`client/lib/db/queries/finance.ts:63`
+`client/lib/db/queries/finance.ts:60`
 
 Cost value of the stock written off as damaged or lost in a [from, to]
 window: SUM(|quantity| * unit_cost) over the `adjustment` movements whose
@@ -483,7 +483,7 @@ docs/STOCK_LOSS_METRIC.md.
 
 ## db-queries-finance-L105
 
-`client/lib/db/queries/finance.ts:105`
+`client/lib/db/queries/finance.ts:91`
 
 How much of a single expense counts toward a [windowStart, windowEnd)
 period. A plain expense counts in full if its date falls in the window.
@@ -583,7 +583,7 @@ source of truth for selling price, unlike cost).
 
 ## db-queries-loyalty-L129
 
-`client/lib/db/queries/loyalty.ts:129`
+`client/lib/db/queries/loyalty.ts:126`
 
 Seeds the app's default tiers/redemption options as real, editable rows the
 first time settings are opened on a store that has never customized them;
@@ -601,7 +601,7 @@ present just sets the flag) — an accepted, one-time transition edge case.
 
 ## db-queries-permission-groups-L10
 
-`client/lib/db/queries/permission-groups.ts:10`
+`client/lib/db/queries/permission-groups.ts:12`
 
 Deterministic, UUID-shaped id derived from (storeId, role) - NOT random,
 unlike generateId(). Two devices seeding the same store's default groups
@@ -622,7 +622,7 @@ has (one store, 5 roles).
 
 ## db-queries-permission-groups-L42
 
-`client/lib/db/queries/permission-groups.ts:42`
+`client/lib/db/queries/permission-groups.ts:28`
 
 Seeds the 5 default permission groups (Manager, Specialist, Sales Staff,
 Auditor, Admin) the first time this feature touches a store, exactly
@@ -638,7 +638,7 @@ shipped, since they'd have no group assigned at all.
 
 ## db-queries-permission-groups-L139
 
-`client/lib/db/queries/permission-groups.ts:139`
+`client/lib/db/queries/permission-groups.ts:107`
 
 Brings an ALREADY-seeded store's groups forward to the current catalog:
 default groups get their role's delta, and every group (custom ones too)
@@ -675,7 +675,7 @@ exact/case-sensitive (only trimmed) to match findExistingProductId()'s
 
 ## db-queries-product-import-L139
 
-`client/lib/db/queries/product-import.ts:139`
+`client/lib/db/queries/product-import.ts:131`
 
 Upserts every row inside a single transaction. Matched products only have
 their fields updated — existing stock_batches are never touched by
@@ -746,7 +746,7 @@ revenue while the expense side (getSmoothedExpensesTotal) excludes them.
 
 ## db-queries-stock-transfers-L11
 
-`client/lib/db/queries/stock-transfers.ts:11`
+`client/lib/db/queries/stock-transfers.ts:24`
 
 Data-model decision (see docs/superpowers or PR description for the
 fuller writeup): transfers are NOT given a dedicated `stock_transfers`
@@ -780,7 +780,7 @@ mechanism rather than a gate-before-it-lands approval queue.
 
 ## db-queries-stock-transfers-L106
 
-`client/lib/db/queries/stock-transfers.ts:106`
+`client/lib/db/queries/stock-transfers.ts:62`
 
 Available (positive-quantity, active, non-deleted, non-expired) batches
 for a product, FEFO-ordered — the exact same "soonest-expiring first"
@@ -807,7 +807,7 @@ whatever the source branch happened to have it set to).
 
 ## db-queries-stock-transfers-L259
 
-`client/lib/db/queries/stock-transfers.ts:259`
+`client/lib/db/queries/stock-transfers.ts:77`
 
 Moves `quantity` units of one product from `sourceStoreId` to
 `destStoreId`, deducting FEFO from the source's batches, auto-creating (or
@@ -839,7 +839,7 @@ normal app flow.
 
 ## db-reconcile-identity-L71
 
-`client/lib/db/reconcile-identity.ts:71`
+`client/lib/db/reconcile-identity.ts:52`
 
 Separate, narrower repair for a related symptom found on the same device:
 some rows created during the same pre-cloud-link period are marked
@@ -863,7 +863,7 @@ into one lock+saveDatabase() cycle instead of N).
 
 ## db-reconcile-identity-L196
 
-`client/lib/db/reconcile-identity.ts:196`
+`client/lib/db/reconcile-identity.ts:151`
 
 Rewrites every reference to `oldId` (across the given table/column pairs)
 to `newId`, including any already-queued `_sync_queue` payload that still
@@ -910,7 +910,7 @@ window.
 
 ## db-retention-L58
 
-`client/lib/db/retention.ts:58`
+`client/lib/db/retention.ts:49`
 
 Drops `audit_logs` rows this device has already pushed and that are older
 than the local retention window. The server keeps the full trail, so this
@@ -923,7 +923,7 @@ sees a delete for these rows.
 
 ## db-schema-migrations-L662
 
-`client/lib/db/schema-migrations.ts:662`
+`client/lib/db/schema-migrations.ts:601`
 
 `_sync_state` was keyed by `table_name` alone, so one watermark served every
 store a device held — and nothing reset it on a store switch. A device that
@@ -941,7 +941,7 @@ watermark whose store cannot be known.
 
 ## db-sync-engine-conflict-log-L9
 
-`client/lib/db/sync-engine/conflict-log.ts:9`
+`client/lib/db/sync-engine/conflict-log.ts:7`
 
 Every table is logged now, not just `purchase_order_items`. A terminal drop
 (`version_conflict`, `stale_timestamp`) left no local trace for any other
@@ -954,7 +954,7 @@ purchase-order panel still filters to its own table and record ids.
 
 ## db-sync-engine-deferred-stock-deltas-L57
 
-`client/lib/db/sync-engine/deferred-stock-deltas.ts:57`
+`client/lib/db/sync-engine/deferred-stock-deltas.ts:51`
 
 Settles every deferred delta whose batch has since arrived by rebuilding
 that batch from its own movement log, deleting the rows in the same
@@ -988,7 +988,7 @@ Those are what the on-till inspection session is for.
 
 ## db-sync-engine-health-check-L59
 
-`client/lib/db/sync-engine/health-check.ts:59`
+`client/lib/db/sync-engine/health-check.ts:54`
 
 Periodic (once per CHECK_INTERVAL_MS per device) verification that this
 device's local row counts actually match the server's, independent of
@@ -1020,7 +1020,7 @@ in Sentry.
 
 ## db-sync-engine-pull-L115
 
-`client/lib/db/sync-engine/pull.ts:115`
+`client/lib/db/sync-engine/pull.ts:31`
 
 Pull changes from server.
 
@@ -1034,7 +1034,7 @@ client/AGENTS.md, "Pull details (sync-engine/pull.ts)".
 
 ## db-sync-engine-push-L215
 
-`client/lib/db/sync-engine/push.ts:215`
+`client/lib/db/sync-engine/push-reports-only.ts:15`
 
 A push with no changes, sent only to exchange command outcomes and reports.
 
@@ -1063,7 +1063,7 @@ be in transit and in any future request log.
 
 ## db-sync-engine-reconcile-quantities-L62
 
-`client/lib/db/sync-engine/reconcile-quantities.ts:62`
+`client/lib/db/sync-engine/reconcile-quantities.ts:56`
 
 Hands the server this device's own stock_batches quantities so it can
 adopt any it never derived from a movement delta. The server decides what
@@ -1090,7 +1090,7 @@ the whole store.
 
 ## db-sync-engine-stock-integrity-L215
 
-`client/lib/db/sync-engine/stock-integrity.ts:215`
+`client/lib/db/sync-engine/stock-integrity.ts:203`
 
 Rebuilds each diverged batch's `quantity` from its own movement log.
 
@@ -1109,7 +1109,7 @@ writes no `sync_reconciliation` movement.
 
 ## db-sync-engine-sync-outcome-L45
 
-`client/lib/db/sync-engine/sync-outcome.ts:45`
+`client/lib/db/sync-engine/sync-outcome.ts:37`
 
 The last sync ATTEMPT, not the last success. `last_sync_time` is stamped
 only when a round succeeds, so a device failing every round for two days
@@ -1122,7 +1122,7 @@ quoting the attempted statement, which the diagnostics report must not carry.
 
 ## db-sync-engine-table-fingerprint-L72
 
-`client/lib/db/sync-engine/table-fingerprint.ts:72`
+`client/lib/db/sync-engine/table-fingerprint.ts:62`
 
 What this device holds, per synced table: how many rows and the sum of
 their `_version`. The server compares each against the rows a pull would
@@ -1158,7 +1158,7 @@ concurrency story and isn't affected by this in-memory-per-tab problem.
 
 ## db-tab-lock-L165
 
-`client/lib/db/tab-lock.ts:165`
+`client/lib/db/tab-lock.ts:128`
 
 Asks the current writer (over the handoff BroadcastChannel) to force a
 save and voluntarily release the lock, rather than waiting for it to
@@ -1173,7 +1173,7 @@ Resolves "unsupported" if this browser has no BroadcastChannel at all.
 
 ## db-tab-lock-L208
 
-`client/lib/db/tab-lock.ts:208`
+`client/lib/db/tab-lock.ts:161`
 
 Fallback for when requestWriterTakeover() times out - forcibly takes the
 Web Lock via the {steal: true} option (breaking whatever unresponsive
@@ -1189,7 +1189,7 @@ writer.
 
 ## db-tab-lock-L248
 
-`client/lib/db/tab-lock.ts:248`
+`client/lib/db/tab-lock.ts:187`
 
 Call once, right after this tab's local database is first loaded from
 IndexedDB. Decides whether this tab is the writer (no contending tab holds
@@ -1277,7 +1277,7 @@ for on plenty of screens. It stays out of the way when:
 
 ## hooks-use-auto-lock-L135
 
-`client/lib/hooks/use-auto-lock.ts:135`
+`client/lib/hooks/use-auto-lock.ts:116`
 
 Makes the auto-lock duration follow the ACCOUNT rather than just this
 browser/device: whenever the authenticated user changes (fresh device,
@@ -1294,7 +1294,7 @@ updateUserAutoLockDuration() directly when the user changes the Select.
 
 ## hooks-use-auto-lock-L197
 
-`client/lib/hooks/use-auto-lock.ts:197`
+`client/lib/hooks/use-auto-lock.ts:163`
 
 Forces the lock screen whenever the app is freshly landed on with an
 existing saved account: otherwise a device that was left unlocked (isLocked
@@ -1319,7 +1319,7 @@ unlocking as whoever used it last.
 
 ## hooks-use-feature-gate-L26
 
-`client/lib/hooks/use-feature-gate.ts:26`
+`client/lib/hooks/use-feature-gate.ts:20`
 
 The POS cart's "Reseller sale" row (both the reseller-commission and
 store-markup sub-types) is gated on BOTH the plan-tier entitlement
@@ -1332,7 +1332,7 @@ unit-testability reason as isLoyaltyProgramEnabled.
 
 ## hooks-use-fulfill-online-order-mutation-L53
 
-`client/lib/hooks/use-fulfill-online-order-mutation.ts:53`
+`client/lib/hooks/use-fulfill-online-order-mutation.ts:52`
 
 Local-leg-first, and the local leg is one transaction. The server call used
 to come first, so any failure writing the sale or deducting stock left the
@@ -1421,7 +1421,7 @@ callback.
 
 ## hooks-use-permissions-L95
 
-`client/lib/hooks/use-permissions.ts:95`
+`client/lib/hooks/use-permissions.ts:79`
 
 React hook: checks the acting session's permission group via
 hasPermission(). Returns false while loading/logged out, matching how the
@@ -1559,7 +1559,7 @@ near the app root, alongside useWidgetSnapshotSync.
 
 ## hooks-use-widget-pin-prompt-L10
 
-`client/lib/hooks/use-widget-pin-prompt.ts:10`
+`client/lib/hooks/use-widget-pin-prompt.ts:12`
 
 Drives the Action Center "Add Widget" card: only relevant on the Android
 Tauri build (the only platform with a home-screen widget to pin), and
@@ -1572,7 +1572,7 @@ explicit dismissal does.
 
 ## licensing-licensing-manager-L147
 
-`client/lib/licensing/licensing-manager.ts:147`
+`client/lib/licensing/licensing-manager.ts:144`
 
 The admin-present version of reconcileClockWithServer(): still requires an
 authoritative server reading, so a tampered device cannot talk its way out —
@@ -1586,7 +1586,7 @@ docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md.
 
 ## licensing-licensing-manager-L191
 
-`client/lib/licensing/licensing-manager.ts:191`
+`client/lib/licensing/licensing-manager.ts:177`
 
 Clears a clock lock, but only against authoritative server time.
 
@@ -1640,7 +1640,7 @@ to the old cache slot to begin with. Appending it here, once, means the
 
 ## types-global-d-ts-L36
 
-`client/lib/types/global.d.ts:36`
+`client/lib/types/global.d.ts:31`
 
 Recovery tool for a device whose pull cursor has drifted ahead of
 content it never actually received (e.g. after a mid-round crash) —
@@ -1655,7 +1655,7 @@ lib/db/sync-engine/index.ts.
 
 ## utils-chunk-error-L43
 
-`client/lib/utils/chunk-error.ts:43`
+`client/lib/utils/chunk-error.ts:15`
 
 One reload per deployed build, not per tab session. The old
 CHUNK_RELOAD_GUARD_KEY lived in sessionStorage and was cleared on every
@@ -1768,7 +1768,7 @@ regardless of how large the underlying error is.
 
 ## utils-error-truncation-L26
 
-`client/lib/utils/error-truncation.ts:26`
+`client/lib/utils/error-truncation.ts:14`
 
 Bounds on the crash `content` the local `feedback` row carries. The server
 column is MySQL TEXT: 65,535 **bytes**, not characters. A character can
@@ -1825,7 +1825,7 @@ resolved user id or the whole device, so:
 
 ## utils-loyalty-calculator-L99
 
-`client/lib/utils/loyalty-calculator.ts:99`
+`client/lib/utils/loyalty-calculator.ts:86`
 
 EXPIRY SEMANTICS — read this before changing anything here.
 
@@ -1905,7 +1905,7 @@ state - this is not meant to duplicate that as a persistent nag).
 
 ## utils-post-restore-notice-L33
 
-`client/lib/utils/post-restore-notice.ts:33`
+`client/lib/utils/post-restore-notice.ts:19`
 
 Call once on mount of a page that can be the landing spot right after a
 post-restore reload (currently /login and the dashboard shell).
@@ -1939,7 +1939,7 @@ mid-render anyway.
 
 ## utils-search-L95
 
-`client/lib/utils/search.ts:95`
+`client/lib/utils/search.ts:31`
 
 Per-array cache of the lowercased searchable fields.
 
@@ -2009,7 +2009,7 @@ in with theirs must stay local and offline.
 
 ### api-admin-till-session-ts-L49
 
-`client/lib/api/admin-till-session.ts:49`
+`client/lib/api/admin-till-session.ts:46`
 
 Deliberately a plain fetch rather than apiClient: base-client treats a 401
 on a non-auth endpoint as an expired token, silently refreshes the till's
@@ -2019,7 +2019,7 @@ the till's bearer, which this endpoint neither needs nor should see.
 
 ### api-admin-till-session-ts-L101
 
-`client/lib/api/admin-till-session.ts:101`
+`client/lib/api/admin-till-session.ts:91`
 
 Server time, served only while the session row is live. The clock override
 uses this rather than the public /health endpoint so the server — not a
@@ -2027,7 +2027,7 @@ forgeable sessionStorage flag — is what authorises it.
 
 ### api-admin-till-session-ts-L144
 
-`client/lib/api/admin-till-session.ts:144`
+`client/lib/api/admin-till-session.ts:131`
 
 Exit on tab close or app quit, where an awaited fetch is cancelled with the
 page. Closing the app is the most common exit on a desktop till, and without
@@ -2092,7 +2092,7 @@ write action here either).
 
 ### constants-dashboard-page-routes-ts-L21
 
-`client/lib/constants/dashboard-page-routes.ts:21`
+`client/lib/constants/dashboard-page-routes.ts:19`
 
 On top of actionAdminOnly's canManageStockBatch baseline, `action` is
 only shown to isAdmin — for a primary action that should be limited the
@@ -2102,7 +2102,7 @@ not-isAdmin account (specialist) falls through to fallbackAction.
 
 ### constants-dashboard-page-routes-ts-L27
 
-`client/lib/constants/dashboard-page-routes.ts:27`
+`client/lib/constants/dashboard-page-routes.ts:22`
 
 On top of actionAdminOnly, `action` additionally requires a multi-
 store-capable account (plan entitlement AND this device actually having
@@ -2112,7 +2112,7 @@ fallbackAction.
 
 ### constants-dashboard-page-routes-ts-L33
 
-`client/lib/constants/dashboard-page-routes.ts:33`
+`client/lib/constants/dashboard-page-routes.ts:25`
 
 Shown instead of `action` when the account passes actionAdminOnly's
 baseline but not actionRequiresIsAdmin/actionRequiresMultiStore — e.g.
@@ -2121,7 +2121,7 @@ account that isn't multi-store-qualified, rather than showing nothing.
 
 ### constants-dashboard-page-routes-ts-L38
 
-`client/lib/constants/dashboard-page-routes.ts:38`
+`client/lib/constants/dashboard-page-routes.ts:28`
 
 A specific permission key `action` additionally requires, on top of
 actionAdminOnly's coarse canManageStockBatch baseline — the per-key
@@ -2130,7 +2130,7 @@ gates (see client/AGENTS.md's "Enforced permissions").
 
 ### constants-dashboard-page-routes-ts-L43
 
-`client/lib/constants/dashboard-page-routes.ts:43`
+`client/lib/constants/dashboard-page-routes.ts:31`
 
 An outline button shown before the primary action, desktop only (see
 DashboardHeader) — for a page's other common action that isn't worth a
@@ -2141,7 +2141,7 @@ dedicated route the page's own effect already redirects out of).
 
 ### constants-dashboard-page-routes-ts-L53
 
-`client/lib/constants/dashboard-page-routes.ts:53`
+`client/lib/constants/dashboard-page-routes.ts:37`
 
 Drives DashboardHeader's title/description/action button per route.
 Matched by prefix (see getPageRoute), so list more specific paths (e.g.
@@ -2149,7 +2149,7 @@ Matched by prefix (see getPageRoute), so list more specific paths (e.g.
 
 ### constants-dashboard-page-routes-ts-L199
 
-`client/lib/constants/dashboard-page-routes.ts:199`
+`client/lib/constants/dashboard-page-routes.ts:177`
 
 Null on the dashboard home route, which uses the time-of-day greeting
 instead of a page title. Falls back to a bare app-name/no-desc/no-action
@@ -2157,7 +2157,7 @@ shell for any route not listed above.
 
 ### constants-dashboard-page-routes-ts-L210
 
-`client/lib/constants/dashboard-page-routes.ts:210`
+`client/lib/constants/dashboard-page-routes.ts:187`
 
 Resolves the header's "+ Add X" action for the current route, honoring
 actionAdminOnly's canManageStockBatch baseline first, then narrowing via
@@ -2169,7 +2169,7 @@ so this re-looks-up the route rather than relying solely on pageInfo.
 
 ### constants-dashboard-page-routes-ts-L248
 
-`client/lib/constants/dashboard-page-routes.ts:248`
+`client/lib/constants/dashboard-page-routes.ts:220`
 
 Same resolution as resolveHeaderAction, for the outline button shown
 before it (desktop only — see DashboardHeader). `hasAccess` is whatever
@@ -2196,7 +2196,7 @@ key instead; the rest still fall back to this list.
 
 ### constants-settings-tabs-ts-L62
 
-`client/lib/constants/settings-tabs.ts:62`
+`client/lib/constants/settings-tabs.ts:66`
 
 Pure so the whole tab-visibility rule is unit-testable without an auth
 render harness. `hasKey` is the caller's own permission check
@@ -2204,7 +2204,7 @@ render harness. `hasKey` is the caller's own permission check
 
 ### constants-settings-tabs-ts-L67
 
-`client/lib/constants/settings-tabs.ts:67`
+`client/lib/constants/settings-tabs.ts:59`
 
 The two support sessions that can see the diagnostics console. They differ:
 an on-till inspection is read-only and must be denied every other tab,
@@ -2232,7 +2232,7 @@ appear in the Adjustments ledger - see client/AGENTS.md.
 
 ### constants-stock-adjustments-ts-L9
 
-`client/lib/constants/stock-adjustments.ts:9`
+`client/lib/constants/stock-adjustments.ts:7`
 
 Bulk CSV/XLSX import also corrects a product's quantity via
 submitStockAudit, but tagged with this reference_type instead of
@@ -2243,7 +2243,7 @@ movement, rather than a second near-synonym. See client/AGENTS.md.
 
 ### constants-stock-adjustments-ts-L17
 
-`client/lib/constants/stock-adjustments.ts:17`
+`client/lib/constants/stock-adjustments.ts:11`
 
 Rows written by product-import.ts before commit 3b7ce8b8 still carry
 AUDIT_REFERENCE_TYPE instead of PRODUCT_IMPORT_REFERENCE_TYPE - a raw
@@ -2253,7 +2253,7 @@ so the ledger also matches this legacy reason as a heal-on-read fallback
 
 ### constants-stock-adjustments-ts-L24
 
-`client/lib/constants/stock-adjustments.ts:24`
+`client/lib/constants/stock-adjustments.ts:15`
 
 stock_movements has no note column, so an adjustment's optional note rides
 along inside `reason` behind this separator - see buildAdjustmentReason and
@@ -2261,7 +2261,7 @@ parseAdjustmentReason in components/stock-batch/adjustment-derivations.ts.
 
 ### constants-stock-adjustments-ts-L29
 
-`client/lib/constants/stock-adjustments.ts:29`
+`client/lib/constants/stock-adjustments.ts:19`
 
 The ADJUSTMENT_REASONS entries whose direction is "decrease", i.e. the ones
 that mean stock is gone rather than sold - these are what the Stock Loss
@@ -2283,7 +2283,7 @@ resolves to the more specific tier first.
 
 ### context-auth-context-tsx-L133
 
-`client/lib/context/auth-context.tsx:133`
+`client/lib/context/auth-context.tsx:56`
 
 True once the mount-time localStorage read has completed, regardless
 of whether a saved user was found. See its declaration in
@@ -2292,7 +2292,7 @@ AuthProvider for why `user !== null` alone can't distinguish
 
 ### context-auth-context-tsx-L139
 
-`client/lib/context/auth-context.tsx:139`
+`client/lib/context/auth-context.tsx:60`
 
 Establishes a local session directly from a cross-origin handoff
 (impersonation / dashboard → app), bypassing PIN entry. See the
@@ -2300,7 +2300,7 @@ implementation for why it deliberately does less than login().
 
 ### context-auth-context-tsx-L149
 
-`client/lib/context/auth-context.tsx:149`
+`client/lib/context/auth-context.tsx:69`
 
 The acting session's resolved permission group, or null when they have
 none yet (pre-sync gap, or a store_owner/super_admin, who are never
@@ -2311,7 +2311,7 @@ disagree with each other or with the booleans computed just below.
 
 ### context-auth-context-tsx-L160
 
-`client/lib/context/auth-context.tsx:160`
+`client/lib/context/auth-context.tsx:77`
 
 True while this session came from a superadmin impersonation handoff
 (see loginFromHandoff). Read by any consumer that must behave
@@ -2322,7 +2322,7 @@ the same check the sync engine itself uses.
 
 ### context-auth-context-tsx-L170
 
-`client/lib/context/auth-context.tsx:170`
+`client/lib/context/auth-context.tsx:83`
 
 Plain role-tier utility, NOT a permission gate - kept only for the two
 call sites that inspect a role belonging to someone OTHER than the
@@ -2334,7 +2334,7 @@ instead - do not call this from new gating code.
 
 ### context-auth-context-tsx-L189
 
-`client/lib/context/auth-context.tsx:189`
+`client/lib/context/auth-context.tsx:93`
 
 Plain role-tier utility, NOT a permission gate - kept only for
 cloud-danger-zone.tsx, whose `role` comes from the cloud-authenticated
@@ -2414,7 +2414,7 @@ parsing the details blob. Pass one of these to insert()/update()/remove()'s
 
 ### db-base-helpers-ts-L52
 
-`client/lib/db/base-helpers.ts:52`
+`client/lib/db/base-helpers.ts:42`
 
 Return type of assertStoreOwnership() — see its doc comment. A
 discriminated union (rather than an optional `activeStoreId`) so
@@ -2423,7 +2423,7 @@ to claim it for.
 
 ### db-base-helpers-ts-L121
 
-`client/lib/db/base-helpers.ts:121`
+`client/lib/db/base-helpers.ts:100`
 
 Every local writer of a `stock_movements` row passes through insert() or
 softDelete(), so rebuilding the batch here covers all ten of them — and any
@@ -2432,7 +2432,7 @@ run inside the caller's transaction, after the movement row.
 
 ### db-base-helpers-ts-L428
 
-`client/lib/db/base-helpers.ts:428`
+`client/lib/db/sync-queue.ts:7`
 
 The record's pending UPDATE, if it has exactly one and nothing else queued.
 Narrow on purpose: an INSERT must stay an INSERT, a DELETE must not be
@@ -2442,7 +2442,7 @@ client/AGENTS.md, "Queue collapsing", and docs/FIXED_BUGS.md A-203.
 
 ### db-base-helpers-ts-L495
 
-`client/lib/db/base-helpers.ts:495`
+`client/lib/db/sync-queue.ts:69`
 
 `ignoreBackoff` lets an explicit, user-clicked "Sync Now" attempt the
 whole queue immediately: a background auto-sync should respect each
@@ -2453,7 +2453,7 @@ failure's backoff window hasn't elapsed yet.
 
 ### db-base-helpers-ts-L547
 
-`client/lib/db/base-helpers.ts:547`
+`client/lib/db/sync-queue.ts:109`
 
 Flags a source row as settled after the server terminally rejected its
 push (version_conflict/stale_timestamp) and the queue row was dropped.
@@ -2473,7 +2473,7 @@ docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md.
 
 ### db-batch-quantity-ts-L9
 
-`client/lib/db/batch-quantity.ts:9`
+`client/lib/db/batch-quantity.ts:7`
 
 What a change did to a batch's log, so the carve-out can be judged against
 the log as it stood *before* it: `inbound` grows with the very movement
@@ -2482,7 +2482,7 @@ stored quantity sales have worn down below it.
 
 ### db-batch-quantity-ts-L75
 
-`client/lib/db/batch-quantity.ts:75`
+`client/lib/db/batch-quantity.ts:69`
 
 Rebuilds each touched batch from its log, keyed by batch id with the net
 delta of the movements that touched it — used only for the deltas the pull
@@ -2501,7 +2501,7 @@ to read-only. Callers should offer `forceWriterTakeover()` on "timeout"
 
 ### db-core-ts-L45
 
-`client/lib/db/core.ts:45`
+`client/lib/db/core.ts:42`
 
 Fallback for `requestWriterHandoff()` timing out or being unsupported:
 steals the Web Lock, rehydrating first. The outgoing holder's unsaved
@@ -2509,7 +2509,7 @@ changes are lost here, unlike the graceful path — see `stealWriterLock()`.
 
 ### db-core-ts-L95
 
-`client/lib/db/core.ts:95`
+`client/lib/db/core.ts:89`
 
 Test-only: injects a bare database instance directly, bypassing
 initDatabase()'s IndexedDB persistence and schema-migration machinery, so
@@ -2519,7 +2519,7 @@ called from production code paths.
 
 ### db-core-ts-L121
 
-`client/lib/db/core.ts:121`
+`client/lib/db/core.ts:112`
 
 A short, human-scannable unique id for display fields people read
 (receipt/transaction numbers). 48 random bits: short enough to print,
@@ -2527,7 +2527,7 @@ with enough headroom that collisions need tens of millions of rows.
 
 ### db-core-ts-L246
 
-`client/lib/db/core.ts:246`
+`client/lib/db/core.ts:235`
 
 Re-reads the shared IndexedDB snapshot into `db`. Called by tab-lock.ts
 once per tab, at promotion to writer. Returns `true` after a successful
@@ -2538,7 +2538,7 @@ one writer".
 
 ### db-core-ts-L376
 
-`client/lib/db/core.ts:376`
+`client/lib/db/core.ts:359`
 
 Bumped by every write, so a query() suspended at a yield point can tell
 its read may have been torn. See client/AGENTS.md, "One connection, one
@@ -2546,7 +2546,7 @@ writer".
 
 ### db-core-ts-L574
 
-`client/lib/db/core.ts:574`
+`client/lib/db/core.ts:554`
 
 Reserves the next slot in the shared connection-wide FIFO queue and
 returns this caller's `previous`/`release` pair. Used by transaction(),
@@ -2555,7 +2555,7 @@ anything. See client/AGENTS.md, "One connection, one writer".
 
 ### db-core-ts-L589
 
-`client/lib/db/core.ts:589`
+`client/lib/db/core.ts:565`
 
 Waits for every transaction() reserved so far to commit or roll back.
 Await this before a bare query() whose rows leave the device (see
@@ -2564,7 +2564,7 @@ See client/AGENTS.md, "One connection, one writer".
 
 ### db-core-ts-L673
 
-`client/lib/db/core.ts:673`
+`client/lib/db/core.ts:645`
 
 Returns the raw database binary for export: sql.js (web) only. `db` is a
 real Tauri SQL plugin connection on desktop/mobile, which has no
@@ -2572,7 +2572,7 @@ real Tauri SQL plugin connection on desktop/mobile, which has no
 
 ### db-core-ts-L763
 
-`client/lib/db/core.ts:763`
+`client/lib/db/core.ts:724`
 
 Recovers the database as it stood immediately before the most recent
 restoreDatabase() call (web only) — the one-generation-deep safety net
@@ -2581,7 +2581,7 @@ that restoreDatabase() snapshots into on every restore. Returns false
 
 ### db-core-ts-L776
 
-`client/lib/db/core.ts:776`
+`client/lib/db/core.ts:733`
 
 Last-resort recovery for a local database that cannot be opened at all
 (web/PWA only): snapshots the blob to `dumosrx_db_pre_reset_backup`, then
@@ -2590,7 +2590,7 @@ Deliberately does not touch `db` — it runs on the init-failure screen.
 
 ### db-core-ts-L839
 
-`client/lib/db/core.ts:839`
+`client/lib/db/core.ts:792`
 
 Desktop/mobile-only restore: native open dialog, header validation,
 snapshot of the live file, close, then overwrite `dumosrx.db`. The caller
@@ -2599,7 +2599,7 @@ client/AGENTS.md, "Backup, restore, wipes and diagnostics".
 
 ### db-core-ts-L904
 
-`client/lib/db/core.ts:904`
+`client/lib/db/core.ts:853`
 
 Read-only audit of legacy schema artifacts on this device. Run as
 `await window.diagnoseLegacySchema()` from the console; safe anywhere,
@@ -2610,7 +2610,7 @@ and diagnostics", and docs/KNOWN_BUGS.md's deferred-work entry.
 
 ### db-core-ts-L1164
 
-`client/lib/db/core.ts:1164`
+`client/lib/db/core.ts:1107`
 
 Caches describing this device's relationship with the account/store being
 replaced, as opposed to the device itself. Device-level keys (deviceId,
@@ -2628,7 +2628,7 @@ occurrence_count, never type/fingerprint) and a DELETE's holds only the id.
 
 ### db-crash-report-sync-ts-L21
 
-`client/lib/db/crash-report-sync.ts:21`
+`client/lib/db/crash-report-sync.ts:18`
 
 Whether the pending `feedback` queue holds anything a user deliberately
 submitted, as opposed to crash telemetry alone. A crash-only batch must not
@@ -2644,7 +2644,7 @@ four salted lanes).
 
 ### db-deterministic-id-ts-L42
 
-`client/lib/db/deterministic-id.ts:42`
+`client/lib/db/deterministic-id.ts:40`
 
 The stock movement accompanying that batch — same key, so it collapses
 with it. This is the one that actually matters for on-hand quantity: the
@@ -2670,7 +2670,7 @@ re-exporting core logic and specialized helpers.
 
 ### db-local-database-ts-L104
 
-`client/lib/db/local-database.ts:104`
+`client/lib/db/local-database.ts:101`
 
 The category a product names is created on demand when it doesn't exist
 yet, so this is a two-row write and belongs in one transaction() (same
@@ -2680,7 +2680,7 @@ for sync, that nothing will ever fill.
 
 ### db-local-database-ts-L291
 
-`client/lib/db/local-database.ts:291`
+`client/lib/db/local-database.ts:268`
 
 Stock movements log a row per sale/receive/adjustment, so it's the fastest-growing
 table in the schema; unlike other lists, we can't just load the full table forever.
@@ -2708,7 +2708,7 @@ Immediate Purchase flow's "New Cost".
 
 ### db-procurement-receiving-ts-L32
 
-`client/lib/db/procurement-receiving.ts:32`
+`client/lib/db/procurement-receiving.ts:31`
 
 When set, updates the product's global selling price; lets a price
 change discovered while receiving stock be applied immediately instead
@@ -2716,7 +2716,7 @@ of requiring a separate trip to the product's edit screen.
 
 ### db-procurement-receiving-ts-L36
 
-`client/lib/db/procurement-receiving.ts:36`
+`client/lib/db/procurement-receiving.ts:34`
 
 The product's live selling_price when the receive panel was opened -
 not written anywhere, just carried through so a caller can tell
@@ -2724,7 +2724,7 @@ whether `selling_price` above is a real change.
 
 ### db-procurement-receiving-ts-L208
 
-`client/lib/db/procurement-receiving.ts:208`
+`client/lib/db/procurement-receiving.ts:182`
 
 What the line costs on the ORDER - the figure the owner is invoiced for -
 not item.subtotal, which is only set when the row is first added. Priced
@@ -2734,7 +2734,7 @@ per-unit cost for valuation. See client/AGENTS.md.
 
 ### db-procurement-receiving-ts-L217
 
-`client/lib/db/procurement-receiving.ts:217`
+`client/lib/db/procurement-receiving.ts:188`
 
 Immediate Purchase: order and receipt happen in one transaction. Unlike
 createPurchaseOrder() + receivePurchaseOrder(), this never leaves the PO
@@ -2744,7 +2744,7 @@ expiry math receivePurchaseOrder() uses for Standard POs.
 
 ### db-procurement-ts-L11
 
-`client/lib/db/procurement.ts:11`
+`client/lib/db/procurement.ts:15`
 
 Line-item form fields (selling_price, cost_price_override) come in as
 `number | string | undefined` from raw form inputs - blank/undefined
@@ -2758,7 +2758,7 @@ silently turn "no override" into a literal, permanent 0 override.
 
 ### db-procurement-ts-L30
 
-`client/lib/db/procurement.ts:30`
+`client/lib/db/procurement.ts:27`
 
 `partially_received` sits between `sent` and `received`: at least one
 line has some stock in, but at least one line still has an outstanding
@@ -2766,7 +2766,7 @@ balance, so the order stays receivable.
 
 ### db-procurement-ts-L74
 
-`client/lib/db/procurement.ts:74`
+`client/lib/db/procurement.ts:70`
 
 Cumulative quantity received so far against this line, in the same
 unit as bulk_quantity. A line is outstanding while it's below
@@ -2774,7 +2774,7 @@ bulk_quantity, which is what keeps a short-delivered PO receivable.
 
 ### db-procurement-ts-L87
 
-`client/lib/db/procurement.ts:87`
+`client/lib/db/procurement.ts:82`
 
 The product's live selling_price at read time (not the value stored on
 this line item, which is whatever was submitted with the PO) - lets a
@@ -2783,7 +2783,7 @@ right now, rather than assuming any override differs from it.
 
 ### db-procurement-ts-L98
 
-`client/lib/db/procurement.ts:98`
+`client/lib/db/procurement.ts:91`
 
 Weighted-average cost across the product's active batches right now -
 the same figure the catalog shows, and the scale ("per base unit") the
@@ -2791,7 +2791,7 @@ receive panel's Cost Price input is read at.
 
 ### db-procurement-ts-L102
 
-`client/lib/db/procurement.ts:102`
+`client/lib/db/procurement.ts:94`
 
 The cost of the most recent real (non-adjustment) batch, so the
 receive panel can show what was actually last paid rather than only the
@@ -2799,7 +2799,7 @@ blended average.
 
 ### db-procurement-ts-L108
 
-`client/lib/db/procurement.ts:108`
+`client/lib/db/procurement.ts:99`
 
 A line item as it exists in the create/edit PO form before submission:
 not yet persisted, so it has no `id`/`po_id` (those are assigned by
@@ -2820,7 +2820,7 @@ matching the pattern used by getCustomers()/getPurchaseOrders() etc.
 
 ### db-queries-activity-log-ts-L35
 
-`client/lib/db/queries/activity-log.ts:35`
+`client/lib/db/queries/activity-log.ts:34`
 
 The general-purpose, paginated version of what getProductHistory() does
 for a single product: every audit_logs row, across every table, with
@@ -2842,7 +2842,7 @@ login().
 
 ### db-queries-auth-ts-L74
 
-`client/lib/db/queries/auth.ts:74`
+`client/lib/db/queries/auth.ts:59`
 
 Stores a PIN hashed, never raw - see lib/utils/pin-hash.ts. Goes through
 update() so it queues for sync push like any other local write, which is
@@ -2850,7 +2850,7 @@ also how a hash reaches the server and, from there, every other device.
 
 ### db-queries-auth-ts-L93
 
-`client/lib/db/queries/auth.ts:93`
+`client/lib/db/queries/auth.ts:77`
 
 Null means "no row" or "column not yet backfilled on this device" -
 callers should treat that the same as "use the local default", not as
@@ -2871,7 +2871,7 @@ alone doesn't rule those out at the SQL level.
 
 ### db-queries-customers-ts-L135
 
-`client/lib/db/queries/customers.ts:135`
+`client/lib/db/queries/customers.ts:127`
 
 Applies a credit payment to a customer's oldest outstanding credit sales
 first (FIFO): a sale is marked "completed" once its cumulative amount_paid
@@ -2880,7 +2880,7 @@ outstanding_balance; the caller (recordCustomerPayment) does that.
 
 ### db-queries-customers-ts-L205
 
-`client/lib/db/queries/customers.ts:205`
+`client/lib/db/queries/customers.ts:175`
 
 Single source of truth for recording a customer debt payment: used by
 both the Customer Directory and the Record Payment button on a specific
@@ -2901,7 +2901,7 @@ Every query here is a SELECT.
 
 ### db-queries-diagnostics-detail-ts-L82
 
-`client/lib/db/queries/diagnostics-detail.ts:82`
+`client/lib/db/queries/diagnostics-detail.ts:77`
 
 Terminal drops, grouped. Every table writes to the ledger now, so this is
 the first view of a change the server refused outright — the "50 changes
@@ -2909,7 +2909,7 @@ could not be saved" shape, previously invisible once the push finished.
 
 ### db-queries-diagnostics-detail-ts-L96
 
-`client/lib/db/queries/diagnostics-detail.ts:96`
+`client/lib/db/queries/diagnostics-detail.ts:90`
 
 Unlike unresolvedConflicts(), this keeps the resolved rows: a sale on the
 same batch marks a dropped cost edit resolved seconds later without the cost
@@ -2917,7 +2917,7 @@ ever reaching the server (A-268), so the resolved ones are the evidence.
 
 ### db-queries-diagnostics-detail-ts-L109
 
-`client/lib/db/queries/diagnostics-detail.ts:109`
+`client/lib/db/queries/diagnostics-detail.ts:102`
 
 Costs for the batches a device can disagree with the server about: the ones
 the pull skips (pending queue row or unsynced), plus the highest-value rows,
@@ -2926,7 +2926,7 @@ Capped so the report stays well inside the support endpoint's size limit.
 
 ### db-queries-diagnostics-detail-ts-L136
 
-`client/lib/db/queries/diagnostics-detail.ts:136`
+`client/lib/db/queries/diagnostics-detail.ts:127`
 
 A-162/A-165/A-167: the one datum nobody had was the `store_id` INSIDE the
 frozen payloads. `last_error` is deliberately reduced to a class — its first
@@ -2934,7 +2934,7 @@ frozen payloads. `last_error` is deliberately reduced to a class — its first
 
 ### db-queries-diagnostics-detail-ts-L171
 
-`client/lib/db/queries/diagnostics-detail.ts:171`
+`client/lib/db/queries/diagnostics-detail.ts:161`
 
 Rows this device will silently re-queue on its next boot: `_synced = 0`
 with no queue entry. The shape behind the "50 changes could not be saved"
@@ -2950,7 +2950,7 @@ for why this exists and what it is allowed to do.
 
 ### db-queries-finance-ts-L26
 
-`client/lib/db/queries/finance.ts:26`
+`client/lib/db/queries/finance.ts:28`
 
 Net Sales for a [from, to) window: total_amount already excludes discounts
 (see pos-calculations.ts), so this only needs to also back out tax
@@ -2962,7 +2962,7 @@ report, which is windowed the same way.
 
 ### db-queries-finance-ts-L139
 
-`client/lib/db/queries/finance.ts:139`
+`client/lib/db/queries/finance.ts:128`
 
 Sums expenses for a [from, to) window using {@link getSmoothedAmountInWindow}
 for each row.
@@ -2973,7 +2973,7 @@ i.e. checkCanViewAllActivity(role) === true).
 
 ### db-queries-finance-ts-L210
 
-`client/lib/db/queries/finance.ts:210`
+`client/lib/db/queries/finance.ts:173`
 
 Per-category breakdown for a [from, to) window, smoothed the same way as
 {@link getSmoothedExpensesTotal} so the two agree — the breakdown summing
@@ -2982,7 +2982,7 @@ read as a report bug, not the intentional design it's meant to be.
 
 ### db-queries-finance-ts-L272
 
-`client/lib/db/queries/finance.ts:272`
+`client/lib/db/queries/finance.ts:232`
 
 One page of the expense ledger, newest first. Follows the rows/total shape
 getActivityLog() uses.
@@ -2994,7 +2994,7 @@ getCurrentMonthExpensesByCategory, which all aggregate over everything.
 
 ### db-queries-finance-ts-L289
 
-`client/lib/db/queries/finance.ts:289`
+`client/lib/db/queries/finance.ts:244`
 
 Matched against the description, the same field the Expenses page's search
 box has always filtered on - in SQL rather than client-side, so searching
@@ -3002,7 +3002,7 @@ reaches the whole ledger and not just the loaded page.
 
 ### db-queries-finance-ts-L335
 
-`client/lib/db/queries/finance.ts:335`
+`client/lib/db/queries/finance.ts:296`
 
 The lifetime expense figure, summed in SQL.
 
@@ -3014,7 +3014,7 @@ list can't change the number on screen.
 
 ### db-queries-finance-ts-L360
 
-`client/lib/db/queries/finance.ts:360`
+`client/lib/db/queries/finance.ts:314`
 
 Cash that physically left the drawer on `reportDate` ("YYYY-MM-DD"), for
 till reconciliation. Deliberately NOT smoothed the way
@@ -3103,7 +3103,7 @@ one is available.
 
 ### db-queries-loyalty-ts-L101
 
-`client/lib/db/queries/loyalty.ts:101`
+`client/lib/db/queries/loyalty.ts:99`
 
 The customer's dated points ledger, oldest first — the input to FIFO
 points-expiry math (see calculateExpiredPoints). Not store-scoped: the
@@ -3111,7 +3111,7 @@ table has no store_id column, and customer_id is already store-unique.
 
 ### db-queries-permission-groups-ts-L100
 
-`client/lib/db/queries/permission-groups.ts:100`
+`client/lib/db/queries/permission-groups.ts:93`
 
 The keys a group for `role` is owed by every catalog version newer than
 `fromVersion`, in catalog order: the role's default-group delta when
@@ -3137,7 +3137,7 @@ due.
 
 ### db-queries-prescriptions-ts-L171
 
-`client/lib/db/queries/prescriptions.ts:171`
+`client/lib/db/queries/prescriptions.ts:167`
 
 Items for a known set of prescriptions.
 
@@ -3147,7 +3147,7 @@ lines belonging to the prescriptions it actually loaded.
 
 ### db-queries-prescriptions-ts-L211
 
-`client/lib/db/queries/prescriptions.ts:211`
+`client/lib/db/queries/prescriptions.ts:202`
 
 Records a refill dispense on an already-completed/dispensed prescription:
 bumps refills_used and pushes next_refill_date forward for every item that
@@ -3165,7 +3165,7 @@ combobox would silently lose generic-name matching.
 
 ### db-queries-procurement-ts-L59
 
-`client/lib/db/queries/procurement.ts:59`
+`client/lib/db/queries/procurement.ts:58`
 
 Promotes any leftover "draft" purchase orders to "pending" - a status
 this app no longer creates, but old local rows (or rows from a device that
@@ -3175,7 +3175,7 @@ the change actually syncs to the cloud and isn't silently local-only.
 
 ### db-queries-procurement-ts-L99
 
-`client/lib/db/queries/procurement.ts:99`
+`client/lib/db/queries/procurement.ts:95`
 
 A-26: a stale device's legitimate second partial receipt derives the same
 deterministic ids as the first, so the server collapses its stock rows into
@@ -3207,7 +3207,7 @@ that was actually typed.
 
 ### db-queries-products-ts-L141
 
-`client/lib/db/queries/products.ts:141`
+`client/lib/db/queries/products.ts:138`
 
 Earliest audit_logs entry for this product, for the Details tab's
 "Created by / Date created" line; the fuller trail lives in the
@@ -3215,7 +3215,7 @@ History tab via getProductHistory() below.
 
 ### db-queries-products-ts-L159
 
-`client/lib/db/queries/products.ts:159`
+`client/lib/db/queries/products.ts:155`
 
 @param viewerId - when provided, restricts results to entries performed by this
 user (pass undefined for viewers allowed to see everyone's activity, i.e.
@@ -3232,7 +3232,7 @@ FROM sales with no alias, or "s." for queries that join it as `s`.
 
 ### db-queries-reports-ts-L117
 
-`client/lib/db/queries/reports.ts:117`
+`client/lib/db/queries/dashboard-overview.ts:14`
 
 @param viewerId - when provided, restricts the recent-activity feed (sales,
 stock movements, purchase orders, expenses, prescriptions) to entries
@@ -3246,7 +3246,7 @@ additions.
 
 ### db-queries-reports-ts-L396
 
-`client/lib/db/queries/reports.ts:396`
+`client/lib/db/queries/reports.ts:77`
 
 Ranked by revenue, not quantity: a product that sells a lot of cheap
 units and one that sells fewer expensive units both matter to the
@@ -3267,7 +3267,7 @@ and restores the old (buggy on a second partial return) behavior.
 
 ### db-queries-returns-ts-L22
 
-`client/lib/db/queries/returns.ts:22`
+`client/lib/db/queries/returns.ts:20`
 
 How much of each of this sale_item's original per-batch split has
 already been restored by an *earlier* return of the same product within
@@ -3280,7 +3280,7 @@ line, so at most one sale_item per product exists within a given sale.
 
 ### db-queries-returns-ts-L80
 
-`client/lib/db/queries/returns.ts:80`
+`client/lib/db/queries/returns.ts:69`
 
 Restores stock for a returned sale line to the exact batches it was drawn
 from, in the proportions recorded at sale time (FEFO splits may span >1
@@ -3289,7 +3289,7 @@ before sale_item_batches existed.
 
 ### db-queries-sales-ts-L245
 
-`client/lib/db/queries/sales.ts:245`
+`client/lib/db/queries/sales.ts:235`
 
 With no dateRange, returns the 100 most recent sales (the default POS
 Recent Sales view). Once a dateRange is picked, the query is bounded by
@@ -3311,7 +3311,7 @@ the next sync run; see docs/SYNC_CRASH_REPORT_POLICY.md.
 
 ### db-queries-setup-ts-L35
 
-`client/lib/db/queries/setup.ts:35`
+`client/lib/db/queries/setup.ts:31`
 
 Per-table/operation breakdown of what's actually sitting in `_sync_queue`,
 for the sync indicator's "what's pending" detail view — the plain count
@@ -3320,7 +3320,7 @@ which matters for judging whether a slow sync is expected or stuck.
 
 ### db-queries-stock-transfers-ts-L26
 
-`client/lib/db/queries/stock-transfers.ts:26`
+`client/lib/db/queries/stock-transfers.ts:39`
 
 The initiating user's role. When not admin-tier (e.g. a cashier
 requesting stock from another store, no owner immediately available),
@@ -3339,7 +3339,7 @@ very often NOT the store currently active in the UI.
 
 ### db-queries-stock-transfers-ts-L381
 
-`client/lib/db/queries/stock-transfers.ts:381`
+`client/lib/db/queries/stock-transfers.ts:239`
 
 Clears the `needs_review` flag on every leg of one transfer, marking it
 `reviewed` rather than blanking it so the record still shows the transfer
@@ -3380,7 +3380,7 @@ delta-pull reconciliation and push.ts's immediate id_map-based fixup
 
 ### db-reconcile-identity-ts-L122
 
-`client/lib/db/reconcile-identity.ts:122`
+`client/lib/db/reconcile-identity.ts:113`
 
 Runs requeueOrphanedRows() once per install. Returns null when skipped.
 Why it takes no re-arming trigger: client/AGENTS.md, "The boot-time orphan
@@ -3388,7 +3388,7 @@ scan".
 
 ### db-reconcile-identity-ts-L207
 
-`client/lib/db/reconcile-identity.ts:207`
+`client/lib/db/reconcile-identity.ts:195`
 
 Remaps every local row referencing `oldStoreId`/`oldUserId` to the real
 server ids, marks touched rows unsynced so they get re-pushed with valid
@@ -3414,7 +3414,7 @@ durable trace instead of only a transient toast. See client/AGENTS.md,
 
 ### db-sync-engine-conflict-log-ts-L63
 
-`client/lib/db/sync-engine/conflict-log.ts:63`
+`client/lib/db/sync-engine/conflict-log.ts:61`
 
 Keeps the ledger bounded now that every table writes to it. Resolved rows
 go first and oldest-first within that, so an unresolved drop survives until
@@ -3422,7 +3422,7 @@ something settles it — the whole point of the ledger.
 
 ### db-sync-engine-conflict-log-ts-L85
 
-`client/lib/db/sync-engine/conflict-log.ts:85`
+`client/lib/db/sync-engine/conflict-log.ts:80`
 
 A later change to the same record reaching the server means whatever the
 dropped one carried has been superseded by something the store did since,
@@ -3438,7 +3438,7 @@ memory so an interrupted pull round cannot lose one. See client/AGENTS.md,
 
 ### db-sync-engine-deferred-stock-deltas-ts-L12
 
-`client/lib/db/sync-engine/deferred-stock-deltas.ts:12`
+`client/lib/db/sync-engine/deferred-stock-deltas.ts:10`
 
 A delta whose batch never arrives never resolves, so reporting it once and
 falling silent reads as "it fixed itself". It is re-reported on this
@@ -3447,7 +3447,7 @@ rarely enough that it doesn't drown the issue it belongs to.
 
 ### db-sync-engine-deferred-stock-deltas-ts-L120
 
-`client/lib/db/sync-engine/deferred-stock-deltas.ts:120`
+`client/lib/db/sync-engine/deferred-stock-deltas.ts:110`
 
 Drops deltas for movements the server has voided. The drain already does
 this from the local row, but a mid-round drain runs before that page's own
@@ -3463,7 +3463,7 @@ admin panel sees.
 
 ### db-sync-engine-delivery-age-ts-L61
 
-`client/lib/db/sync-engine/delivery-age.ts:61`
+`client/lib/db/sync-engine/delivery-age.ts:59`
 
 How long each just-accepted edit waited between being queued and being
 delivered. Counted here because the queue row is deleted moments later and
@@ -3472,7 +3472,7 @@ tell a push that worked from one that has been failing for a day.
 
 ### db-sync-engine-delivery-age-ts-L88
 
-`client/lib/db/sync-engine/delivery-age.ts:88`
+`client/lib/db/sync-engine/delivery-age.ts:82`
 
 Reads and clears, so each report describes the interval since the last one
 rather than a cumulative total that only ever grows. Null when nothing was
@@ -3499,7 +3499,7 @@ per-device uniqueness within one short run window matters.
 
 ### db-sync-engine-index-ts-L49
 
-`client/lib/db/sync-engine/index.ts:49`
+`client/lib/db/sync-engine/index.ts:48`
 
 Escape hatch for a device whose pull cursor has drifted ahead of rows it
 never received: clears `_sync_state` only, forcing a full re-fetch. The
@@ -3509,7 +3509,7 @@ started (A-243). See client/AGENTS.md, "`sync()` and friends".
 
 ### db-sync-engine-index-ts-L73
 
-`client/lib/db/sync-engine/index.ts:73`
+`client/lib/db/sync-engine/index.ts:67`
 
 See reconcile-quantities.ts for the implementation; re-exported here so
 every other sync-engine entry point (including the `window.*` DevTools
@@ -3517,7 +3517,7 @@ hooks below) lives in one place.
 
 ### db-sync-engine-index-ts-L87
 
-`client/lib/db/sync-engine/index.ts:87`
+`client/lib/db/sync-engine/index.ts:80`
 
 Records every attempt's outcome, then returns it. A wrapper rather than a
 line at each `return` so an exit path added later cannot forget — see
@@ -3525,7 +3525,7 @@ sync-outcome.ts for why the last ATTEMPT is the number that was missing.
 
 ### db-sync-engine-index-ts-L264
 
-`client/lib/db/sync-engine/index.ts:264`
+`client/lib/db/sync-engine/index.ts:254`
 
 Privileged Subscription Status Sync
 
@@ -3554,7 +3554,7 @@ the A-218/A-229 failure paths: client/AGENTS.md, "Pull window rewinds".
 
 ### db-sync-engine-pull-window-ts-L13
 
-`client/lib/db/sync-engine/pull-window.ts:13`
+`client/lib/db/sync-engine/pull-window.ts:9`
 
 Tables the server never sends, so a pull window for them is meaningless.
 `feedback` is the crash log: write-only telemetry, absent from pull()'s
@@ -3566,7 +3566,7 @@ docs/FIXED_BUGS.md A-256.
 
 ### db-sync-engine-pull-window-ts-L40
 
-`client/lib/db/sync-engine/pull-window.ts:40`
+`client/lib/db/sync-engine/pull-window.ts:29`
 
 The only way a caller outside this module may advance a pull window. It
 names the one column it owns — an INSERT OR REPLACE reverted the rewind
@@ -3575,7 +3575,7 @@ rewind in flight, because a newer stamp cancels the re-pull.
 
 ### db-sync-engine-pull-window-ts-L67
 
-`client/lib/db/sync-engine/pull-window.ts:67`
+`client/lib/db/sync-engine/pull-window.ts:52`
 
 Runs at the start of every pull round, unconditionally: the budget is spent
 by live faults, but the fault may never fire again, and until this ran only
@@ -3584,7 +3584,7 @@ client/AGENTS.md, "Pull window rewinds".
 
 ### db-sync-engine-pull-window-ts-L121
 
-`client/lib/db/sync-engine/pull-window.ts:121`
+`client/lib/db/sync-engine/pull-window.ts:110`
 
 Restores a stash, but only while `_sync_state` is still empty: any row means
 the resync committed a page, so its fresh positions must win. Returns
@@ -3592,7 +3592,7 @@ whether it restored anything.
 
 ### db-sync-engine-pull-window-ts-L156
 
-`client/lib/db/sync-engine/pull-window.ts:156`
+`client/lib/db/sync-engine/pull-window.ts:142`
 
 shortcut: rewinds the whole table's window rather than re-requesting the
 one row, because the sync API has no by-id re-send endpoint. Upgrade to a
@@ -3601,7 +3601,7 @@ would remove the need for this budget entirely.
 
 ### db-sync-engine-pull-ts-L48
 
-`client/lib/db/sync-engine/pull.ts:48`
+`client/lib/db/sync-engine/pull-state.ts:33`
 
 Whether this pull's `stores` response can be read as a snapshot of every
 store the ACCOUNT owns — the premise the prune below rests on. It cannot
@@ -3610,7 +3610,7 @@ store disappears".
 
 ### db-sync-engine-pull-ts-L70
 
-`client/lib/db/sync-engine/pull.ts:70`
+`client/lib/db/sync-engine/pull-state.ts:51`
 
 Columns each device owns privately: written locally, never pushed, so the
 server's copy is meaningless and must never be written back. See
@@ -3628,7 +3628,7 @@ client/AGENTS.md, "Push details", and docs/FIXED_BUGS.md A-205.
 
 ### db-sync-engine-push-ts-L66
 
-`client/lib/db/sync-engine/push.ts:66`
+`client/lib/db/sync-engine/push-queue-prep.ts:5`
 
 Sorts categories to the front of the queue, leaving every other row's
 relative order untouched. Must stay a *consistent* comparator — see
@@ -3636,7 +3636,7 @@ client/AGENTS.md, "Push details (sync-engine/push.ts)".
 
 ### db-sync-engine-push-ts-L109
 
-`client/lib/db/sync-engine/push.ts:109`
+`client/lib/db/sync-engine/push-queue-prep.ts:27`
 
 Folds every pending UPDATE for the same (table_name, record_id) into one
 merged change: later fields win, the merged payload keeps the EARLIEST
@@ -3647,7 +3647,7 @@ before batch slicing: client/AGENTS.md, "Push details".
 
 ### db-sync-engine-push-ts-L168
 
-`client/lib/db/sync-engine/push.ts:168`
+`client/lib/db/sync-engine/push-queue-prep.ts:80`
 
 Removes every currently-due UPDATE from `pending` whose record has ANY
 sibling UPDATE still backed off in `_sync_queue`; INSERT/DELETE are never
@@ -3690,7 +3690,7 @@ docs/superpowers/specs/2026-10-08-stock-integrity-fold-design.md, "Phase 3".
 
 ### db-sync-engine-stock-auto-heal-ts-L19
 
-`client/lib/db/sync-engine/stock-auto-heal.ts:19`
+`client/lib/db/sync-engine/stock-auto-heal.ts:17`
 
 Whether this device holds the whole movement log up to a server timestamp:
 a stamped window with no mid-window cursor left over. Mid-window, the log
@@ -3699,7 +3699,7 @@ the window is about to correct anyway.
 
 ### db-sync-engine-stock-auto-heal-ts-L67
 
-`client/lib/db/sync-engine/stock-auto-heal.ts:67`
+`client/lib/db/sync-engine/stock-auto-heal.ts:61`
 
 Verifies, repairs what the log can rebuild, re-verifies, and reports once.
 Silent to the owner by design; the Sentry report and the audit row the fold
@@ -3726,7 +3726,7 @@ docs/superpowers/specs/2026-10-08-stock-integrity-fold-design.md.
 
 ### db-sync-engine-stock-integrity-ts-L22
 
-`client/lib/db/sync-engine/stock-integrity.ts:22`
+`client/lib/db/sync-engine/stock-integrity.ts:20`
 
 Disagrees with the log, but has a delta still queued to apply — so the
 disagreement may be the queued work, and folding it would let the drain
@@ -3734,7 +3734,7 @@ apply the same delta twice. Reported, never folded.
 
 ### db-sync-engine-stock-integrity-ts-L26
 
-`client/lib/db/sync-engine/stock-integrity.ts:26`
+`client/lib/db/sync-engine/stock-integrity.ts:23`
 
 Holds more units than its inbound movements can account for, so part of
 its stock was never logged (A-148); folding one would write that part off.
@@ -3742,7 +3742,7 @@ Reported, never folded.
 
 ### db-sync-engine-stock-integrity-ts-L203
 
-`client/lib/db/sync-engine/stock-integrity.ts:203`
+`client/lib/db/sync-engine/stock-integrity.ts:192`
 
 An automatic heal is audited under its own action: an admin-attributed
 repair row for a run no admin triggered would misname who changed the
@@ -3760,7 +3760,7 @@ one, because a client must never rely on a server check it cannot see.
 
 ### db-sync-engine-sync-commands-ts-L29
 
-`client/lib/db/sync-engine/sync-commands.ts:29`
+`client/lib/db/sync-engine/sync-commands.ts:25`
 
 Applies operator commands to `_sync_queue` and nothing else. The vocabulary
 is a closed switch rather than a lookup: an unrecognised action is refused,
@@ -3768,7 +3768,7 @@ never dispatched.
 
 ### db-sync-engine-sync-commands-ts-L54
 
-`client/lib/db/sync-engine/sync-commands.ts:54`
+`client/lib/db/sync-engine/sync-commands.ts:47`
 
 Outcomes are persisted rather than held in memory. A push run is usually a
 single batch, so an in-memory buffer was discarded before it could ever be
@@ -3797,7 +3797,7 @@ key with the writer tab.
 
 ### db-sync-engine-sync-outcome-ts-L27
 
-`client/lib/db/sync-engine/sync-outcome.ts:27`
+`client/lib/db/sync-engine/sync-outcome.ts:22`
 
 `canonicaliseReason` knows the SERVER's refusal vocabulary, so every
 sync-level failure collapsed to "other" — including the stuck-push case this
@@ -3813,7 +3813,7 @@ each request or report is built: docs/KNOWN_BUGS.md A-304.
 
 ### db-sync-engine-sync-run-ts-L20
 
-`client/lib/db/sync-engine/sync-run.ts:20`
+`client/lib/db/sync-engine/sync-run.ts:18`
 
 The one place in the sync engine that reads the ambient active store —
 pinned by `__tests__/sync-engine-store-identity.test.ts`. Everything else
@@ -3830,7 +3830,7 @@ and 26 tables of long keys is most of a kilobyte of nothing.
 
 ### db-sync-engine-table-fingerprint-ts-L21
 
-`client/lib/db/sync-engine/table-fingerprint.ts:21`
+`client/lib/db/sync-engine/table-fingerprint.ts:18`
 
 Tables the server does not compare, so computing a digest for them is a
 scan with no reader. `audit_logs` is the only one: the server's allowlist
@@ -3861,7 +3861,7 @@ instead of depending on a future pull to ever surface the collision
 
 ### db-sync-engine-types-ts-L24
 
-`client/lib/db/sync-engine/types.ts:24`
+`client/lib/db/sync-engine/types.ts:20`
 
 Record id -> server-assigned new `_version`, grouped by table_name, for
 UPDATE changes accepted via SyncController::push's strict version-
@@ -3872,7 +3872,7 @@ docs/features/_known-bugs.md #11.
 
 ### db-tab-lock-ts-L36
 
-`client/lib/db/tab-lock.ts:36`
+`client/lib/db/tab-lock.ts:33`
 
 Fires when this tab won the lock on promotion but refused to become
 writer because rehydrating from IndexedDB failed (see initWriterLock's
@@ -3883,7 +3883,7 @@ silently-still-read-only tab with no explanation.
 
 ### db-tab-lock-ts-L91
 
-`client/lib/db/tab-lock.ts:91`
+`client/lib/db/tab-lock.ts:77`
 
 Holds a granted writer lock open (like holdForever()) but also listens
 for a takeover request from another tab. On request: force-saves via
@@ -3894,7 +3894,7 @@ callback that's holding this open, releasing the lock for real.
 
 ### db-tab-lock-ts-L121
 
-`client/lib/db/tab-lock.ts:121`
+`client/lib/db/tab-lock.ts:103`
 
 Idempotent promotion shared by the natural (queued-lock) promotion path
 and stealWriterLock() - guards against a tab getting promoted twice (once
@@ -3914,7 +3914,7 @@ re-checked inside `runDemoSeed` itself as defense-in-depth.
 
 ### demo-loader-ts-L71
 
-`client/lib/demo/loader.ts:71`
+`client/lib/demo/loader.ts:64`
 
 Re-checks the active store is actually flagged `is_demo` in the database,
 rather than trusting the caller to have replicated the UI's own
@@ -3925,7 +3925,7 @@ script) seeding fabricated data into a real paying customer's store.
 
 ### demo-loader-ts-L85
 
-`client/lib/demo/loader.ts:85`
+`client/lib/demo/loader.ts:74`
 
 Cheap guard against accidentally double-seeding a store that already has
 real/seeded data; the caller should surface this as a confirm dialog and
@@ -3963,7 +3963,7 @@ gated on a 4-digit length.
 
 ### hooks-use-auto-lock-ts-L164
 
-`client/lib/hooks/use-auto-lock.ts:164`
+`client/lib/hooks/use-auto-lock.ts:145`
 
 Ctrl+L (Cmd+L on Mac) manually locks the app on demand: deliberately not
 Win+L, which is the OS's own lock-the-whole-machine shortcut on Windows and
@@ -4012,7 +4012,7 @@ same mechanism/shape as buildFallbackTiers() above for loyalty tiers.
 
 ### hooks-use-customer-management-ts-L124
 
-`client/lib/hooks/use-customer-management.ts:124`
+`client/lib/hooks/use-customer-management.ts:119`
 
 All business logic for the Customer Management page: data fetching, tab/URL
 sync, search/filter derivation, and modal/selection state, so the component
@@ -4032,7 +4032,7 @@ a refetch.
 
 ### hooks-use-customer-mutations-ts-L86
 
-`client/lib/hooks/use-customer-mutations.ts:86`
+`client/lib/hooks/use-customer-mutations.ts:85`
 
 Shared by every "Record Payment" call site (Customer Management, POS
 transaction details) so they go through one mutation instead of separate
@@ -4072,7 +4072,7 @@ StoreContext/useSystemConfigStore render harness.
 
 ### hooks-use-feature-gate-ts-L35
 
-`client/lib/hooks/use-feature-gate.ts:35`
+`client/lib/hooks/use-feature-gate.ts:29`
 
 Fallback used only when the server's subscription_plans config has no
 explicit `limits.sync_interval` for the current tier (see getLimit()
@@ -4082,7 +4082,7 @@ unit-testable without a StoreContext/useSystemConfigStore render harness.
 
 ### hooks-use-feature-gate-ts-L50
 
-`client/lib/hooks/use-feature-gate.ts:50`
+`client/lib/hooks/use-feature-gate.ts:39`
 
 A store limit of 1 can never support more than one store; anything above
 that always can. Extracted as a pure function (same reasoning as
@@ -4091,7 +4091,7 @@ derivation is unit-testable without a render harness.
 
 ### hooks-use-finance-data-ts-L70
 
-`client/lib/hooks/use-finance-data.ts:70`
+`client/lib/hooks/use-finance-data.ts:73`
 
 The expense ledger, newest first, read a page at a time with the search and
 category filters applied in SQL so they reach the whole ledger rather than
@@ -4111,7 +4111,7 @@ comment in the mutation body).
 
 ### hooks-use-fulfill-online-order-mutation-ts-L29
 
-`client/lib/hooks/use-fulfill-online-order-mutation.ts:29`
+`client/lib/hooks/use-fulfill-online-order-mutation.ts:33`
 
 Lines the store cannot actually dispense: the product's sellable (active,
 unexpired, positive-quantity) batches don't cover the ordered quantity.
@@ -4160,7 +4160,7 @@ back to their own role tier - see docs/FIXED_BUGS.md (A-55).
 
 ### hooks-use-permissions-ts-L21
 
-`client/lib/hooks/use-permissions.ts:21`
+`client/lib/hooks/use-permissions.ts:19`
 
 Fallback used whenever a user has no synced permission_groups row yet
 (brand-new device before first sync, or a store that predates this
@@ -4170,7 +4170,7 @@ group data exists locally, hasPermission() uses it instead (see below).
 
 ### hooks-use-permissions-ts-L40
 
-`client/lib/hooks/use-permissions.ts:40`
+`client/lib/hooks/use-permissions.ts:33`
 
 Pure, usable outside React (sync engine, plain query files) - same
 shape checkIsAdmin etc. already had. store_owner/super_admin always
@@ -4179,7 +4179,7 @@ lock themselves out.
 
 ### hooks-use-permissions-ts-L60
 
-`client/lib/hooks/use-permissions.ts:60`
+`client/lib/hooks/use-permissions.ts:51`
 
 The acting session's own permission group id, or null when they have
 none (store_owner/super_admin are never group-assigned, and so is a user
@@ -4189,7 +4189,7 @@ belongs to - see its self-lockout guard.
 
 ### hooks-use-permissions-ts-L76
 
-`client/lib/hooks/use-permissions.ts:76`
+`client/lib/hooks/use-permissions.ts:64`
 
 What the acting session is allowed to GRANT to a permission group, as
 opposed to what it is allowed to do. The two differ: the sync server lets
@@ -4239,7 +4239,7 @@ message and clear the stale redemption instead of a bare failure toast.
 
 ### hooks-use-pos-payment-helpers-ts-L38
 
-`client/lib/hooks/use-pos-payment-helpers.ts:38`
+`client/lib/hooks/use-pos-payment-helpers.ts:36`
 
 Thrown when a redemption is below LOYALTY_RULES.MIN_REDEMPTION_POINTS.
 Distinct from InsufficientLoyaltyPointsError because the fix is different:
@@ -4249,7 +4249,7 @@ to accrue.
 
 ### hooks-use-pos-payment-helpers-ts-L56
 
-`client/lib/hooks/use-pos-payment-helpers.ts:56`
+`client/lib/hooks/use-pos-payment-helpers.ts:51`
 
 Returns an error message if checkout isn't ready to proceed, or null when
 every method-specific requirement (notes, amount covered, destination
@@ -4257,7 +4257,7 @@ account) is satisfied.
 
 ### hooks-use-pos-payment-helpers-ts-L130
 
-`client/lib/hooks/use-pos-payment-helpers.ts:130`
+`client/lib/hooks/use-pos-payment-helpers.ts:121`
 
 Defense-in-depth: when the Loyalty Program gate (plan tier AND the
 store's own on/off toggle) is closed, no points are earned at all. Tier is
@@ -4267,7 +4267,7 @@ itself.
 
 ### hooks-use-pos-payment-helpers-ts-L153
 
-`client/lib/hooks/use-pos-payment-helpers.ts:153`
+`client/lib/hooks/use-pos-payment-helpers.ts:141`
 
 Commission is on the sale's net markup: cuts offset markups across
 lines and the total is floored at 0 (updateUnitPrice allows cuts since
@@ -4276,7 +4276,7 @@ were computed per line, with cuts counted as 0.
 
 ### hooks-use-pos-payment-helpers-ts-L186
 
-`client/lib/hooks/use-pos-payment-helpers.ts:186`
+`client/lib/hooks/use-pos-payment-helpers.ts:174`
 
 Writes the customer's new points balance plus one loyalty_transactions
 row per earn/redeem event on this sale. No-ops entirely (no writes at all)
@@ -4284,7 +4284,7 @@ when the loyalty gate is closed or nothing was earned/redeemed.
 
 ### hooks-use-pos-payment-ts-L49
 
-`client/lib/hooks/use-pos-payment.ts:49`
+`client/lib/hooks/use-pos-payment.ts:44`
 
 Defense-in-depth: even if the POS UI's Redeem Reward control is somehow
 bypassed (stale tab, plan downgrade mid-session), no loyalty_transactions
@@ -4295,7 +4295,7 @@ loyalty writes rather than silently bypassing the gate.
 
 ### hooks-use-pos-payment-ts-L57
 
-`client/lib/hooks/use-pos-payment.ts:57`
+`client/lib/hooks/use-pos-payment.ts:48`
 
 "reseller" (commission owed, goes through the redeem/store-claim
 flow) or "store" (markup kept by the store, pre-settled at checkout -
@@ -4305,7 +4305,7 @@ checkout otherwise.
 
 ### hooks-use-pos-payment-ts-L69
 
-`client/lib/hooks/use-pos-payment.ts:69`
+`client/lib/hooks/use-pos-payment.ts:57`
 
 Called when the sale is rejected because the customer's real current
 points balance can't cover the redemption picked earlier in checkout
@@ -4394,7 +4394,7 @@ ledger consistent.
 
 ### hooks-use-pull-to-refresh-ts-L20
 
-`client/lib/hooks/use-pull-to-refresh.ts:20`
+`client/lib/hooks/use-pull-to-refresh.ts:18`
 
 Gated to pointerType === "touch": this is the mobile-only signal we want
 (unlike viewport-width checks, it also correctly fires under Chrome's
@@ -4422,7 +4422,7 @@ above its call site.
 
 ### hooks-use-purchase-orders-ts-L95
 
-`client/lib/hooks/use-purchase-orders.ts:95`
+`client/lib/hooks/use-purchase-orders.ts:89`
 
 Resolves true only when the write actually landed, so the caller can
 keep the receiving panel (and its spinner) on screen until then and
@@ -4431,7 +4431,7 @@ was never received.
 
 ### hooks-use-receipt-paper-size-ts-L8
 
-`client/lib/hooks/use-receipt-paper-size.ts:8`
+`client/lib/hooks/use-receipt-paper-size.ts:20`
 
 Which physical paper the receipt prints to. Defaults to thermal (58/80mm
 roll) since that's what a POS terminal is printing to day-to-day; a store
@@ -4452,7 +4452,7 @@ intending to pay anyone a commission on it.
 
 ### hooks-use-redeem-reseller-commission-mutation-ts-L23
 
-`client/lib/hooks/use-redeem-reseller-commission-mutation.ts:23`
+`client/lib/hooks/use-redeem-reseller-commission-mutation.ts:20`
 
 Settles a reseller sale's commission - either paid out to the reseller, or
 kept by the store. Not a payout/ledger mutation - there is no till/cash-
@@ -4479,7 +4479,7 @@ config both the exports and the on-screen view already run on.
 
 ### hooks-use-report-export-ts-L116
 
-`client/lib/hooks/use-report-export.ts:116`
+`client/lib/hooks/use-report-export.ts:115`
 
 The column holding the reference a row drills down on, or undefined for
 a report whose rows stand for no single openable record (see
@@ -4487,7 +4487,7 @@ client/AGENTS.md, "Report row drill-down").
 
 ### hooks-use-report-export-ts-L133
 
-`client/lib/hooks/use-report-export.ts:133`
+`client/lib/hooks/use-report-export.ts:128`
 
 A filtered Profit & Loss reports 0 expenses on purpose - an expense carries
 no staff/payment-method attribution that means the same thing as the sales
@@ -4498,7 +4498,7 @@ banner so all three read the same.
 
 ### hooks-use-report-export-ts-L144
 
-`client/lib/hooks/use-report-export.ts:144`
+`client/lib/hooks/use-report-export.ts:133`
 
 The note a report carries for the filters it was run with, if any.
 Returns undefined when nothing needs saying (every report but a filtered
@@ -4535,7 +4535,7 @@ see __tests__/save-product-no-category.test.ts, a regression test for the
 
 ### hooks-use-sidebar-peek-preference-ts-L6
 
-`client/lib/hooks/use-sidebar-peek-preference.ts:6`
+`client/lib/hooks/use-sidebar-peek-preference.ts:16`
 
 Whether the collapsed sidebar expands on hover ("peek"), or stays fully
 collapsed. Independent from the collapsed/expanded state itself: combined,
@@ -4600,7 +4600,7 @@ hook only owns the actual createSupplier() call and its pending state.
 
 ### hooks-use-supplier-mutations-ts-L49
 
-`client/lib/hooks/use-supplier-mutations.ts:49`
+`client/lib/hooks/use-supplier-mutations.ts:46`
 
 The Supplier Directory table's inline "quick edit rating" affordance only
 ever patches this one field — a separate, narrower mutation than the full
@@ -4618,7 +4618,7 @@ touched the setting yet sees the same uppercase look this shipped with.
 
 ### hooks-use-uppercase-display-ts-L14
 
-`client/lib/hooks/use-uppercase-display.ts:14`
+`client/lib/hooks/use-uppercase-display.ts:12`
 
 Convenience for JSX className props: the Tailwind `uppercase` utility, or
 `capitalize` when the store has turned the setting off — raw lowercase
@@ -4627,7 +4627,7 @@ sentence-style capitalization, not literally untouched storage casing.
 
 ### hooks-use-uppercase-display-ts-L22
 
-`client/lib/hooks/use-uppercase-display.ts:22`
+`client/lib/hooks/use-uppercase-display.ts:18`
 
 String-level equivalent of the `capitalize` CSS utility, for the plain-
 text export paths (CSV, PDF, printed labels) that have no CSS layer to
@@ -4636,7 +4636,7 @@ purchase-order-details.tsx.
 
 ### hooks-use-uppercase-display-ts-L30
 
-`client/lib/hooks/use-uppercase-display.ts:30`
+`client/lib/hooks/use-uppercase-display.ts:24`
 
 Capitalizes only the first letter of a string, leaving the rest
 unchanged — sentence-style casing, not the per-word title casing of
@@ -4644,7 +4644,7 @@ capitalizeWords() above.
 
 ### hooks-use-uppercase-display-ts-L37
 
-`client/lib/hooks/use-uppercase-display.ts:37`
+`client/lib/hooks/use-uppercase-display.ts:30`
 
 String-level equivalent of useUppercaseDisplayClass(), for text that goes
 somewhere CSS cannot reach it — a toast body, a printed line, an aria
@@ -4672,7 +4672,7 @@ that don't exist.
 
 ### licensing-licensing-manager-ts-L34
 
-`client/lib/licensing/licensing-manager.ts:34`
+`client/lib/licensing/licensing-manager.ts:33`
 
 True only when the store account itself was suspended (stores.status ===
 "Suspended"), as opposed to an expired/absent subscription. Branch on
@@ -4692,7 +4692,7 @@ docs/superpowers/specs/2026-10-08-license-clock-recovery-design.md §2.
 
 ### licensing-monotonic-clock-ts-L36
 
-`client/lib/licensing/monotonic-clock.ts:36`
+`client/lib/licensing/monotonic-clock.ts:31`
 
 The highest wall-clock value worth recording, given what the monotonic
 clock can actually justify. A clock that leaps forward is clamped to the
@@ -4712,7 +4712,7 @@ capable of poisoning the monotonic watermark.
 
 ### licensing-server-clock-ts-L20
 
-`client/lib/licensing/server-clock.ts:20`
+`client/lib/licensing/server-clock.ts:18`
 
 Authoritative time from the public `/health` endpoint, which is
 unauthenticated and returns `{status, timestamp}` — reachable even when a
@@ -4742,7 +4742,7 @@ would say, before the edit is made.
 
 ### permissions-grant-scope-ts-L11
 
-`client/lib/permissions/grant-scope.ts:11`
+`client/lib/permissions/grant-scope.ts:5`
 
 The roles the server lets through before it ever compares payload keys
 against the caller's own grants. `admin` is in the server's list next to
@@ -4751,7 +4751,7 @@ it, and this list follows the server, not hasPermission().
 
 ### permissions-grant-scope-ts-L30
 
-`client/lib/permissions/grant-scope.ts:30`
+`client/lib/permissions/grant-scope.ts:22`
 
 The server reads the caller's own keys from their permission group row
 alone - it has no role-based fallback - so a caller with no group can
@@ -4760,7 +4760,7 @@ fallbackPermissions().
 
 ### permissions-grant-scope-ts-L48
 
-`client/lib/permissions/grant-scope.ts:48`
+`client/lib/permissions/grant-scope.ts:38`
 
 The keys a group already holds that this caller could not grant. The
 server checks the WHOLE resulting `permissions` array, not just the key
@@ -4769,7 +4769,7 @@ why a non-empty result locks the group's entire column, not one cell.
 
 ### query-keys-ts-L130
 
-`client/lib/query-keys.ts:130`
+`client/lib/query-keys.ts:129`
 
 One page of the ledger. Keyed on the loaded row count as well as the
 filters, so "load older" widens the window rather than replacing a
@@ -4786,7 +4786,7 @@ class A-23 exists to prevent (see `auth-context.tsx`).
 
 ### storage-keys-ts-L165
 
-`client/lib/storage-keys.ts:165`
+`client/lib/storage-keys.ts:162`
 
 Whether anything is stored under the last-sync key, readable or not. The
 difference matters: `getLastSyncTime()` returns null both for a device that
@@ -4822,7 +4822,7 @@ mutating the shared free-tier e2e fixture. See lib/db/core.ts.
 
 ### types-global-d-ts-L23
 
-`client/lib/types/global.d.ts:23`
+`client/lib/types/global.d.ts:22`
 
 Read-only audit of which legacy migration artifacts (old table/column
 names, unmigrated stock_quantity, missing store_id backfill, etc.)
@@ -4833,7 +4833,7 @@ blocks deleting it (all active devices must report ok).
 
 ### types-global-d-ts-L39
 
-`client/lib/types/global.d.ts:39`
+`client/lib/types/global.d.ts:34`
 
 Repair tool for a batch whose server-side quantity was never derived
 from a movement delta (a pre-`a36b00e7` bulk import): posts this
@@ -4845,7 +4845,7 @@ lib/db/sync-engine/index.ts.
 
 ### types-global-d-ts-L50
 
-`client/lib/types/global.d.ts:50`
+`client/lib/types/global.d.ts:40`
 
 Read-only audit of every active batch against its own movement log.
 Safe anywhere, including production: it never writes. Exposed for a
@@ -4853,7 +4853,7 @@ support session; see lib/db/sync-engine/stock-integrity.ts.
 
 ### types-global-d-ts-L54
 
-`client/lib/types/global.d.ts:54`
+`client/lib/types/global.d.ts:43`
 
 Rebuilds each diverged batch's quantity from its own movement log,
 refusing any batch the log cannot account for. Local-only; nothing is
@@ -4861,7 +4861,7 @@ pushed. See lib/db/sync-engine/stock-integrity.ts.
 
 ### types-global-d-ts-L63
 
-`client/lib/types/global.d.ts:63`
+`client/lib/types/global.d.ts:51`
 
 Non-standard Safari property: true when running as an installed PWA
 launched from the Home Screen (iOS has no `display-mode: standalone`
@@ -4912,7 +4912,7 @@ is_reseller_sale is set.
 
 ### types-sale-ts-L35
 
-`client/lib/types/sale.ts:35`
+`client/lib/types/sale.ts:33`
 
 The amount that actually left the store at settlement time: either
 reseller_commission_amount (paid to the reseller), or 0 when the store
@@ -4949,7 +4949,7 @@ hidden behind a cast.
 
 ### types-store-ts-L15
 
-`client/lib/types/store.ts:15`
+`client/lib/types/store.ts:13`
 
 Fields returned/accepted by the fleet-management (Settings > Store Profile)
 store CRUD endpoints — matches the server's Store model validation in
@@ -4982,7 +4982,7 @@ login flow that verifies the PIN should see this shape.
 
 ### types-user-ts-L50
 
-`client/lib/types/user.ts:50`
+`client/lib/types/user.ts:48`
 
 Staff directory row: UserDbRow without the PIN hash, since the staff
 list/edit-form never needs it (edits always start with a blank PIN field) —
@@ -4991,7 +4991,7 @@ actually has a PIN rather than assuming every account does.
 
 ### types-user-ts-L56
 
-`client/lib/types/user.ts:56`
+`client/lib/types/user.ts:52`
 
 The cloud Sanctum-authenticated account (store owner/admin), distinct
 from the auth-context `User`, which represents the local, PIN-authenticated
@@ -5018,7 +5018,7 @@ whitespace/punctuation, not to reject case.
 
 ### utils-ts-L28
 
-`client/lib/utils.ts:28`
+`client/lib/utils.ts:25`
 
 True for currencies whose symbol is placed after the amount (see
 CFA_SUFFIX_CODES) — for callers building their own "symbol + value"
@@ -5026,7 +5026,7 @@ strings (e.g. compact chart-axis labels) that need to flip the order.
 
 ### utils-ts-L72
 
-`client/lib/utils.ts:72`
+`client/lib/utils.ts:63`
 
 Same as formatCurrency, but always rounds to whole units for currencies
 where sub-unit precision is no longer practically used (Naira, since kobo
@@ -5037,7 +5037,7 @@ formatCurrency() so accounting precision isn't lost there.
 
 ### utils-ts-L101
 
-`client/lib/utils.ts:101`
+`client/lib/utils.ts:88`
 
 Just the currency symbol/prefix (e.g. "₦", "$"), for compact chart-axis
 labels ("₦12k") where the full formatCurrency() output would be too wide.
@@ -5046,7 +5046,7 @@ disagree on which currency a store is actually using.
 
 ### utils-ts-L164
 
-`client/lib/utils.ts:164`
+`client/lib/utils.ts:149`
 
 True only for a genuine Tauri-built binary running on a mobile OS —
 i.e. the real native mobile app, not a phone browser tab or an installed
@@ -5069,7 +5069,7 @@ here AND sending `use_credits: true` would double-count them. Use
 
 ### utils-billing-pricing-ts-L51
 
-`client/lib/utils/billing-pricing.ts:51`
+`client/lib/utils/billing-pricing.ts:45`
 
 Amount to actually charge via `pay()`. Only the coupon discount reduces
 this figure client-side; referral credits are intentionally NOT
@@ -5117,7 +5117,7 @@ DD-MM-YYYY but still shouldn't read as the US month-first convention.
 
 ### utils-date-utils-ts-L103
 
-`client/lib/utils/date-utils.ts:103`
+`client/lib/utils/date-utils.ts:101`
 
 Format a date string with an arbitrary date-fns pattern, falling back to
 `fallback` instead of throwing/rendering "Invalid Date" for a null,
@@ -5125,7 +5125,7 @@ unparseable, or invalid value.
 
 ### utils-date-utils-ts-L123
 
-`client/lib/utils/date-utils.ts:123`
+`client/lib/utils/date-utils.ts:118`
 
 Relative ("3 hours ago") counterpart to formatDateSafe: date-fns throws a
 RangeError on an invalid date, which takes down the whole render tree
@@ -5171,7 +5171,7 @@ only ever wanted to hand the browser a Blob.
 
 ### utils-download-blob-ts-L20
 
-`client/lib/utils/download-blob.ts:20`
+`client/lib/utils/download-blob.ts:16`
 
 Opens a PDF in a new tab so the user can print from the browser's native
 PDF viewer: same document as the download, so "Print" and "Download PDF"
@@ -5206,7 +5206,7 @@ the server rejects forever with SQLSTATE[22001].
 
 ### utils-error-truncation-ts-L34
 
-`client/lib/utils/error-truncation.ts:34`
+`client/lib/utils/error-truncation.ts:31`
 
 Unlike truncateForLog, the result never exceeds `maxLength` — the marker is
 accounted for inside the budget rather than appended past it, so the output
@@ -5257,7 +5257,7 @@ run) so earning behaves exactly as it did before tiers existed.
 
 ### utils-loyalty-calculator-ts-L33
 
-`client/lib/utils/loyalty-calculator.ts:33`
+`client/lib/utils/loyalty-calculator.ts:30`
 
 A sale can both earn and redeem points in the same checkout, and both
 updates land in a single `customers.loyalty_points` write (rather than two
@@ -5268,7 +5268,7 @@ spend of the same points.
 
 ### utils-loyalty-calculator-ts-L47
 
-`client/lib/utils/loyalty-calculator.ts:47`
+`client/lib/utils/loyalty-calculator.ts:40`
 
 A return must undo its proportional share of whatever the original sale
 did to points — points earned on returned merchandise get clawed back,
@@ -5279,7 +5279,7 @@ one), so a partial return only undoes its matching partial share.
 
 ### utils-loyalty-calculator-ts-L67
 
-`client/lib/utils/loyalty-calculator.ts:67`
+`client/lib/utils/loyalty-calculator.ts:56`
 
 One `loyalty_transactions` row, as far as expiry math cares: positive
 `points` for an earn, negative for a redemption or a previously-materialized
@@ -5287,7 +5287,7 @@ expiry.
 
 ### utils-loyalty-calculator-ts-L76
 
-`client/lib/utils/loyalty-calculator.ts:76`
+`client/lib/utils/loyalty-calculator.ts:64`
 
 Shifts a date back/forward by whole months, clamping to the last day of the
 target month (so a cutoff computed from the 31st doesn't roll into the next
@@ -5295,7 +5295,7 @@ month on a 30-day month).
 
 ### utils-loyalty-calculator-ts-L151
 
-`client/lib/utils/loyalty-calculator.ts:151`
+`client/lib/utils/loyalty-calculator.ts:138`
 
 The balance a customer can actually spend right now: their stored balance
 less whatever FIFO expiry (see calculateExpiredPoints) has voided but no
@@ -5303,7 +5303,7 @@ checkout has materialized into the balance yet.
 
 ### utils-loyalty-calculator-ts-L165
 
-`client/lib/utils/loyalty-calculator.ts:165`
+`client/lib/utils/loyalty-calculator.ts:151`
 
 Returns an error message when a redemption can't go through, or null when
 it can. Enforces LOYALTY_RULES.MIN_REDEMPTION_POINTS as a hard floor on the
@@ -5321,7 +5321,7 @@ a device still running an older build).
 
 ### utils-pin-hash-ts-L26
 
-`client/lib/utils/pin-hash.ts:26`
+`client/lib/utils/pin-hash.ts:24`
 
 Verifies a typed PIN against whatever is stored, hashed or legacy
 plaintext. Synchronous on purpose: the call sites filter a handful of
@@ -5331,7 +5331,7 @@ few tens of milliseconds, against at most a couple of rows.
 
 ### utils-pin-hash-ts-L52
 
-`client/lib/utils/pin-hash.ts:52`
+`client/lib/utils/pin-hash.ts:45`
 
 True when a stored value matched but is still plaintext - i.e. this
 successful login is the moment to rewrite it as a hash. See
@@ -5339,7 +5339,7 @@ migrateLegacyPinToHash() in lib/db/queries/auth.ts.
 
 ### utils-pos-calculations-ts-L62
 
-`client/lib/utils/pos-calculations.ts:62`
+`client/lib/utils/pos-calculations.ts:52`
 
 How much is still owed on a cash tender, 0 once it covers the total.
 Mirrors calculateChangeDue for the other direction so the payment dialog
@@ -5347,7 +5347,7 @@ can report a shortfall inline while typing instead of only after submit.
 
 ### utils-pos-calculations-ts-L139
 
-`client/lib/utils/pos-calculations.ts:139`
+`client/lib/utils/pos-calculations.ts:127`
 
 How much of a mixed-payment sale was actually collected at sale time —
 excludes any credit split, since that portion is owed, not paid. Using
@@ -5357,7 +5357,7 @@ amounts are floored to 0: no tender can subtract from what was collected.
 
 ### utils-pos-calculations-ts-L153
 
-`client/lib/utils/pos-calculations.ts:153`
+`client/lib/utils/pos-calculations.ts:138`
 
 Change due for a mixed-payment sale, computed against non-credit tender
 only. A credit split is money the customer still owes, not money they
@@ -5368,7 +5368,7 @@ that was never actually tendered.
 
 ### utils-pos-calculations-ts-L163
 
-`client/lib/utils/pos-calculations.ts:163`
+`client/lib/utils/pos-calculations.ts:144`
 
 The largest credit split a mixed sale can carry: whatever the sale still
 owes once every non-credit tender is counted. applyCreditPaymentFIFO() can
@@ -5377,7 +5377,7 @@ credit beyond this is debt with no sale behind it.
 
 ### utils-pos-calculations-ts-L187
 
-`client/lib/utils/pos-calculations.ts:187`
+`client/lib/utils/pos-calculations.ts:166`
 
 A mixed sale with a nonzero credit split still owes that amount, so it
 must be "partial" — the same status recordCustomerPayment()/
@@ -5417,7 +5417,7 @@ bleeding into the printed output or needing a print:hidden escape hatch.
 
 ### utils-print-node-ts-L11
 
-`client/lib/utils/print-node.ts:11`
+`client/lib/utils/print-node.ts:6`
 
 Resolves once every external stylesheet in `doc` has either loaded or
 failed, or after the timeout — whichever comes first. Doesn't depend on
@@ -5427,7 +5427,7 @@ may never fire at all in some browsers for a document written this way.
 
 ### utils-print-node-ts-L41
 
-`client/lib/utils/print-node.ts:41`
+`client/lib/utils/print-node.ts:33`
 
 Returns once the print dialog has been invoked, or rejects if the node
 couldn't be printed (no iframe document/window access). Always removes the
@@ -5445,7 +5445,7 @@ header not listed here falls back to "ignore" and the user maps it by hand.
 
 ### utils-product-import-export-ts-L82
 
-`client/lib/utils/product-import-export.ts:82`
+`client/lib/utils/product-import-export.ts:78`
 
 Strips bracket suffixes like " [Main branch]" (Moniebook's per-branch
 columns) and "( % )" (Moniebook's margin columns) before matching, since
@@ -5453,7 +5453,7 @@ DumosRx is single-store and doesn't need the branch qualifier.
 
 ### utils-product-import-export-ts-L98
 
-`client/lib/utils/product-import-export.ts:98`
+`client/lib/utils/product-import-export.ts:91`
 
 Auto-maps a file's header row to internal fields. Fields that can
 legitimately repeat across columns (e.g. Moniebook's "Stock [Branch]" per
@@ -5463,7 +5463,7 @@ would map to an already-claimed field falls back to "ignore".
 
 ### utils-product-import-export-ts-L137
 
-`client/lib/utils/product-import-export.ts:137`
+`client/lib/utils/product-import-export.ts:125`
 
 Accepts the spellings a store owner actually types in a spreadsheet
 ("Yes"/"TRUE"/1/"online"), and returns undefined rather than guessing for
@@ -5472,7 +5472,7 @@ the public storefront.
 
 ### utils-product-import-export-ts-L151
 
-`client/lib/utils/product-import-export.ts:151`
+`client/lib/utils/product-import-export.ts:137`
 
 Accepts "1500", 1500, "1,500.00", "₦1,500.00"; rejects blank/non-numeric/
 negative. Every field this feeds (cost/selling price, quantity, reorder
@@ -5483,7 +5483,7 @@ silently wrote negative money/stock with no validation at all.
 
 ### utils-product-import-export-ts-L244
 
-`client/lib/utils/product-import-export.ts:244`
+`client/lib/utils/product-import-export.ts:226`
 
 Printable physical stock-count sheet: system quantity plus blank columns
 for a staff member to write the counted quantity and any notes while
@@ -5521,7 +5521,7 @@ maximum the caller is filtering on.
 
 ### utils-search-ts-L128
 
-`client/lib/utils/search.ts:128`
+`client/lib/utils/search.ts:64`
 
 Strips everything that isn't a letter or digit, so the spellings a
 cashier types interchangeably — "M&B", "M B", "M & B", "MB" — collapse to
@@ -5538,7 +5538,7 @@ what rate. Rationale and the per-environment table: client/AGENTS.md,
 
 ### utils-spreadsheet-io-ts-L7
 
-`client/lib/utils/spreadsheet-io.ts:7`
+`client/lib/utils/spreadsheet-io.ts:6`
 
 CSV/XLSX plumbing, split out of product-import-export.ts (which had grown
 past the 350-line limit in .agents/AGENTS.md §4) and re-exported from there
@@ -5547,7 +5547,7 @@ nothing here knows what a product is.
 
 ### utils-spreadsheet-io-ts-L18
 
-`client/lib/utils/spreadsheet-io.ts:18`
+`client/lib/utils/spreadsheet-io.ts:13`
 
 Opaque handle returned by readWorkbookFile() and consumed by
 parseWorkbookSheet(). Deliberately doesn't leak exceljs's own Workbook
@@ -5559,7 +5559,7 @@ every call site.
 
 ### utils-spreadsheet-io-ts-L33
 
-`client/lib/utils/spreadsheet-io.ts:33`
+`client/lib/utils/spreadsheet-io.ts:21`
 
 Minimal RFC 4180 CSV parser (quoted fields, doubled-quote escaping,
 CRLF/LF line endings). Written directly rather than pulling in a CSV
@@ -5570,7 +5570,7 @@ to reach for a third library for a format this simple.
 
 ### utils-spreadsheet-io-ts-L135
 
-`client/lib/utils/spreadsheet-io.ts:135`
+`client/lib/utils/spreadsheet-io.ts:120`
 
 Plain JS value out of an exceljs cell — mirrors what sheet_to_json used
 to hand back (raw numbers/strings), not exceljs's own richer cell-value
@@ -5578,7 +5578,7 @@ shapes (formula results, rich text runs, hyperlink objects, Dates).
 
 ### utils-spreadsheet-io-ts-L192
 
-`client/lib/utils/spreadsheet-io.ts:192`
+`client/lib/utils/spreadsheet-io.ts:172`
 
 Reads a CSV/XLSX File (from an <input type="file">) for sheet selection.
 Legacy .xls (the pre-2007 binary Excel format) is deliberately not
@@ -5590,7 +5590,7 @@ parse failure - the caller (ImportMappingDialog) surfaces it as a toast.
 
 ### utils-spreadsheet-io-ts-L246
 
-`client/lib/utils/spreadsheet-io.ts:246`
+`client/lib/utils/spreadsheet-io.ts:219`
 
 Shared by buildExportBlob (product columns) and any other flat
 headers/rows export (e.g. the Stock Audit sheet) that isn't shaped like
@@ -5642,7 +5642,7 @@ often than the token was actually invalid.
 
 ### line-api-base-client-ts-L204
 
-`client/lib/api/base-client.ts:204`
+`client/lib/api/base-client.ts:201`
 
 Trusts refreshTokenSilently()'s own outcome instead of
 inferring it from whether the token changed. The previous
@@ -5665,7 +5665,7 @@ confirm it first.
 
 ### line-api-base-client-ts-L262
 
-`client/lib/api/base-client.ts:262`
+`client/lib/api/base-client.ts:243`
 
 status/code let callers (e.g. sync-engine's logCrash calls)
 distinguish an expected, server-enforced plan restriction
@@ -5683,7 +5683,7 @@ as the goods are handed over and the money is taken.
 
 ### line-api-client-ts-L109
 
-`client/lib/api/client.ts:109`
+`client/lib/api/client.ts:129`
 
 The request body's `token` is the sole credential here; the endpoint
 does not read the Authorization header at all (see AuthHandoffController),
@@ -5691,7 +5691,7 @@ so no explicit header override is set.
 
 ### line-api-client-ts-L155
 
-`client/lib/api/client.ts:155`
+`client/lib/api/client.ts:174`
 
 One token per sync() call, repeated on every batch of that run. The
 server measures the plan's sync-interval throttle per RUN rather than
@@ -5700,7 +5700,7 @@ own first batch — see SyncGate::validateSync.
 
 ### line-api-client-ts-L193
 
-`client/lib/api/client.ts:193`
+`client/lib/api/client.ts:210`
 
 Authoritative row counts, per table, for the caller's store - not a
 pull, just COUNT(*)s a device periodically checks itself against. See
@@ -5708,7 +5708,7 @@ lib/db/sync-engine/health-check.ts for why this exists.
 
 ### line-api-client-ts-L202
 
-`client/lib/api/client.ts:202`
+`client/lib/api/client.ts:218`
 
 Hands the server this device's own stock_batches.quantity snapshot so it
 can adopt any value it never derived from a movement delta. See
@@ -5727,7 +5727,7 @@ handler, just left open here.
 
 ### line-api-token-manager-ts-L90
 
-`client/lib/api/token-manager.ts:90`
+`client/lib/api/token-manager.ts:87`
 
 Only a 401 should unlink the store from cloud sync. A 403 is not a
 dead token: `/refresh` sits behind the account-status and
@@ -5742,7 +5742,7 @@ dropped the device out of sync (sync() then returns
 
 ### line-api-token-manager-ts-L103
 
-`client/lib/api/token-manager.ts:103`
+`client/lib/api/token-manager.ts:96`
 
 Network errors (offline, timeout/abort above, DNS failure, etc.)
 are not evidence the token is invalid either - same reasoning as
@@ -5761,7 +5761,7 @@ rotation or, worse, a fuzzy-matched icon from an unrelated domain
 
 ### line-constants-category-icons-tsx-L223
 
-`client/lib/constants/category-icons.tsx:223`
+`client/lib/constants/category-icons.tsx:221`
 
 Catches misspellings/import noise that share no substring with a canonical
 keyword (e.g. "BUSICUIT" for "biscuit") by allowing a few edits, scaled to
@@ -5786,7 +5786,7 @@ same-ballpark-length words that just happen to share a stem.
 
 ### line-constants-category-icons-tsx-L257
 
-`client/lib/constants/category-icons.tsx:257`
+`client/lib/constants/category-icons.tsx:237`
 
 Checked longest-keyword-first rather than in KEYWORD_ICONS' declared
 order: a short keyword that happens to be a substring of a longer,
@@ -5815,7 +5815,7 @@ above `md`, where the ledger's own button is hidden.
 
 ### line-constants-dashboard-page-routes-ts-L83
 
-`client/lib/constants/dashboard-page-routes.ts:83`
+`client/lib/constants/dashboard-page-routes.ts:81`
 
 Unlike every other action.path here, this doesn't navigate anywhere —
 stock-movements.tsx reads ?action=transfer on this same page (same
@@ -5823,7 +5823,7 @@ pattern as Add Product's ?action=add) and opens the transfer dialog.
 
 ### line-constants-dashboard-page-routes-ts-L144
 
-`client/lib/constants/dashboard-page-routes.ts:144`
+`client/lib/constants/dashboard-page-routes.ts:141`
 
 No header action: the page itself already has a back button, title,
 and item count in its own panel header (desktop), and this header is
@@ -5867,7 +5867,7 @@ GENERAL GROCERY & RETAIL RULES
 
 ### line-context-auth-context-tsx-L67
 
-`client/lib/context/auth-context.tsx:67`
+`client/lib/context/auth-login.ts:50`
 
 Polls until any in-flight sync finishes, so a caller that just triggered
 (or piggybacked on) a sync can safely read fresh local data afterward.
@@ -5876,7 +5876,7 @@ runs, so this only ever waits out the current run; it never itself starts one.
 
 ### line-context-auth-context-tsx-L78
 
-`client/lib/context/auth-context.tsx:78`
+`client/lib/context/auth-login.ts:59`
 
 Throttles the PIN-mismatch recovery sync below (module-scope, not per
 component instance, since a locked screen can remount). Without this, a
@@ -5885,7 +5885,7 @@ single attempt.
 
 ### line-context-auth-context-tsx-L85
 
-`client/lib/context/auth-context.tsx:85`
+`client/lib/context/auth-login.ts:64`
 
 The documented default PIN for the zero-users bootstrap admin (see
 login()'s fallback branch below). Requiring the typed PIN match this,
@@ -5894,7 +5894,7 @@ as a PIN-less login even in the one case it's allowed to fire.
 
 ### line-context-auth-context-tsx-L91
 
-`client/lib/context/auth-context.tsx:91`
+`client/lib/context/auth-context.tsx:27`
 
 Re-exported from lib/utils/impersonation.ts (the React-free single source
 of truth, so the sync engine, this context and the UI all agree on what an
@@ -5914,7 +5914,7 @@ defeating the separation loginFromHandoff's own doc comment describes.
 
 ### line-context-auth-context-tsx-L164
 
-`client/lib/context/auth-context.tsx:164`
+`client/lib/context/auth-context.tsx:88`
 
 super_admin must stay included: it's the platform's own top role (see
 checkCanFactoryReset below, which also lists it explicitly), and a
@@ -5925,7 +5925,7 @@ revert that fix.
 
 ### line-context-auth-context-tsx-L183
 
-`client/lib/context/auth-context.tsx:183`
+`client/lib/context/auth-context.tsx:107`
 
 Distinguishes "user is null because nobody's logged in" from "user is
 null because the saved session isn't exposed yet" - consumers that need
@@ -5940,7 +5940,7 @@ the provider's mount effect via `applySavedSessionSideEffects`.
 
 ### line-context-auth-context-tsx-L190
 
-`client/lib/context/auth-context.tsx:190`
+`client/lib/context/auth-context.tsx:110`
 
 The saved session is read in the initializer but hidden (user null,
 flags false) until `useHydrated()` is true: this renders on the
@@ -5950,7 +5950,7 @@ HTML. login/loginFromHandoff/logout keep the underlying state current.
 
 ### line-context-auth-context-tsx-L204
 
-`client/lib/context/auth-context.tsx:204`
+`client/lib/context/auth-session-restore.ts:69`
 
 Backfill: anyone already logged in when the widget feature ships has
 their token sitting in localStorage with nothing to trigger a mirror
@@ -5963,7 +5963,7 @@ widget snapshot with linked:false. Only meaningful under Tauri.
 
 ### line-context-auth-context-tsx-L219
 
-`client/lib/context/auth-context.tsx:219`
+`client/lib/context/auth-session-restore.ts:38`
 
 Checked BEFORE the normal savedUser branch below: an impersonated
 session (see loginFromHandoff / IMPERSONATED_USER_STORAGE_KEY's doc
@@ -5971,7 +5971,7 @@ comment) restores into React state only, never through setDbUser().
 
 ### line-context-auth-context-tsx-L235
 
-`client/lib/context/auth-context.tsx:235`
+`client/lib/context/auth-session-restore.ts:80`
 
 Corrupted/partial write (e.g. interrupted by a connection drop
 mid-save) - getStoredUser() returned null for a key that is set.
@@ -5979,7 +5979,7 @@ Clear it so the next reload doesn't repeat the same failure.
 
 ### line-context-auth-context-tsx-L242
 
-`client/lib/context/auth-context.tsx:242`
+`client/lib/context/auth-session-restore.ts:61`
 
 Evaluated after the branch above (not inside it) so a session that
 holds only the impersonator return code — e.g. the profile key was
@@ -5988,7 +5988,7 @@ impersonated, exactly as the sync engine's own gate sees it.
 
 ### line-context-auth-context-tsx-L269
 
-`client/lib/context/auth-context.tsx:269`
+`client/lib/context/auth-context.tsx:134`
 
 Captured before any state changes below: distinguishes the ordinary
 "same cashier unlocks with their own PIN after auto-lock/idle timeout"
@@ -6000,7 +6000,7 @@ latter should wipe the in-progress POS cart below.
 
 ### line-context-auth-context-tsx-L278
 
-`client/lib/context/auth-context.tsx:278`
+`client/lib/context/auth-login.ts:94`
 
 Only a genuine PIN-based attempt is throttled - login(email) with no
 pin (the post-cloud-sync auto-login in app/setup/use-onboarding.ts)
@@ -6010,7 +6010,7 @@ can't extend their own lockout just by retrying while still locked.
 
 ### line-context-auth-context-tsx-L294
 
-`client/lib/context/auth-context.tsx:294`
+`client/lib/context/auth-login.ts:107`
 
 An email that matches no user on this device is the on-till admin path.
 Deliberately AFTER the local lookup, so a store owner signing in with
@@ -6022,7 +6022,7 @@ docs/superpowers/specs/2026-10-09-on-till-admin-inspection-design.md.
 
 ### line-context-auth-context-tsx-L325
 
-`client/lib/context/auth-context.tsx:325`
+`client/lib/context/auth-login.ts:133`
 
 Deliberately does NOT unlock() or set dumos_session_authenticated.
 /inspect sits outside the dashboard and needs neither, and setting
@@ -6033,7 +6033,7 @@ as it was, which means still locked.
 
 ### line-context-auth-context-tsx-L333
 
-`client/lib/context/auth-context.tsx:333`
+`client/lib/context/auth-login.ts:137`
 
 Usernames are unique per store, not globally (UNIQUE(store_id,
 username)) — on a multi-store device, more than one row can share this
@@ -6045,7 +6045,7 @@ makes the lazy migration below possible without locking anyone out.
 
 ### line-context-auth-context-tsx-L346
 
-`client/lib/context/auth-context.tsx:346`
+`client/lib/context/auth-login.ts:145`
 
 A PIN reset via the web dashboard writes straight to the cloud
 DB; this device only sees it once it next syncs down, which
@@ -6056,7 +6056,7 @@ before actually failing the login.
 
 ### line-context-auth-context-tsx-L362
 
-`client/lib/context/auth-context.tsx:362`
+`client/lib/context/auth-login.ts:157`
 
 If a background/setup sync was already in flight, our call above
 was a no-op; the pull we're relying on may still be running.
@@ -6064,7 +6064,7 @@ Wait for it instead of rechecking against data it hasn't written yet.
 
 ### line-context-auth-context-tsx-L374
 
-`client/lib/context/auth-context.tsx:374`
+`client/lib/context/auth-login.ts:168`
 
 More than one of this device's stores has a user with this exact
 identifier AND this exact PIN — a genuine collision (plausible with
@@ -6075,7 +6075,7 @@ first (which could be a different store's staff member entirely).
 
 ### line-context-auth-context-tsx-L393
 
-`client/lib/context/auth-context.tsx:393`
+`client/lib/context/auth-login.ts:183`
 
 The acting user_id on this row will be whoever was previously
 logged in on this device (or null), not the failed identifier:
@@ -6087,7 +6087,7 @@ where the recovery sync above made the user row disappear.
 
 ### line-context-auth-context-tsx-L408
 
-`client/lib/context/auth-context.tsx:408`
+`client/lib/context/auth-login.ts:193`
 
 The PIN just verified against a LEGACY plaintext value: this
 successful login is where it becomes a hash. Fire-and-forget (the
@@ -6098,7 +6098,7 @@ Nothing is user-visible: no reset, no prompt.
 
 ### line-context-auth-context-tsx-L427
 
-`client/lib/context/auth-context.tsx:427`
+`client/lib/context/auth-login.ts:208`
 
 A store-pinned account (staff whose users.store_id is set, as
 opposed to an owner/admin with access to every store on this device)
@@ -6132,7 +6132,7 @@ persists on their behalf.
 
 ### line-context-auth-context-tsx-L461
 
-`client/lib/context/auth-context.tsx:461`
+`client/lib/context/auth-login.ts:215`
 
 Covers the "switch user" lock-screen flow (selecting a different
 recent user and unlocking with their PIN), which calls login()
@@ -6148,7 +6148,7 @@ means they refetch, unlike the POS cart clear below.
 
 ### line-context-auth-context-tsx-L474
 
-`client/lib/context/auth-context.tsx:474`
+`client/lib/context/auth-login.ts:219`
 
 Same shared-terminal risk as logout(): the "switch user" path never
 goes through logout(), so without this the outgoing cashier's
@@ -6166,7 +6166,7 @@ whoever was previously logged in.
 
 ### line-context-auth-context-tsx-L495
 
-`client/lib/context/auth-context.tsx:495`
+`client/lib/context/auth-login.ts:229`
 
 Marks this tab as already having gone through a real auth/unlock this
 session. DashboardLayout's fresh-load lock check reads this so it
@@ -6176,7 +6176,7 @@ close, so a genuinely new tab/session still locks correctly.
 
 ### line-context-auth-context-tsx-L501
 
-`client/lib/context/auth-context.tsx:501`
+`client/lib/context/auth-login.ts:232`
 
 Any successful login means "not locked", full stop, regardless of
 which screen triggered it. Without this, a stale isLocked=true left
@@ -6186,7 +6186,7 @@ dashboard's lock overlay right after login just succeeded.
 
 ### line-context-auth-context-tsx-L507
 
-`client/lib/context/auth-context.tsx:507`
+`client/lib/context/auth-login.ts:235`
 
 Same idea for a stale impersonation banner: the return-code flag
 (see ImpersonationBanner) is only ever meant to mean "this exact
@@ -6206,7 +6206,7 @@ the engine refuses to run while either is present.
 
 ### line-context-auth-context-tsx-L537
 
-`client/lib/context/auth-context.tsx:537`
+`client/lib/context/auth-login.ts:68`
 
 Dedupe by username, not id: if this device's local DB was ever
 rebuilt/restored, the same real-world person can come back with a
@@ -6217,7 +6217,7 @@ the old id permanently stuck in this cache, showing as duplicate
 
 ### line-context-auth-context-tsx-L559
 
-`client/lib/context/auth-context.tsx:559`
+`client/lib/context/auth-login.ts:250`
 
 Fallback: bootstrap a default admin, but ONLY on a genuinely fresh
 device with zero local users - previously this fired for ANY typed PIN
@@ -6228,7 +6228,7 @@ anything, so this can't double as a PIN-less login.
 
 ### line-context-auth-context-tsx-L650
 
-`client/lib/context/auth-context.tsx:650`
+`client/lib/context/auth-context.tsx:158`
 
 Same reasoning as login(): whoever was on this device before must not
 have their cached queries served to the incoming session. cancelQueries()
@@ -6236,7 +6236,7 @@ first since clear() alone doesn't abort an in-flight fetch.
 
 ### line-context-auth-context-tsx-L676
 
-`client/lib/context/auth-context.tsx:676`
+`client/lib/context/auth-context.tsx:183`
 
 Fire-and-forget so the server closes the row and records a duration;
 without this any logout mid-inspection left an open session with no
@@ -6244,7 +6244,7 @@ exit audit entry at all.
 
 ### line-context-auth-context-tsx-L689
 
-`client/lib/context/auth-context.tsx:689`
+`client/lib/context/auth-context.tsx:195`
 
 Without this, a shared terminal's POS cart (items, discount, redeemed
 reward, reseller flag — all persisted under this one global key by
@@ -6253,7 +6253,7 @@ whichever cashier signs in next.
 
 ### line-context-auth-context-tsx-L694
 
-`client/lib/context/auth-context.tsx:694`
+`client/lib/context/auth-context.tsx:198`
 
 See the matching comment in login(): an impersonated session that
 ends via the ordinary "Sign Out" button instead of the banner's "End
@@ -6261,7 +6261,7 @@ Session" button would otherwise leave these flags behind forever.
 
 ### line-context-auth-context-tsx-L699
 
-`client/lib/context/auth-context.tsx:699`
+`client/lib/context/auth-context.tsx:202`
 
 Without this, cached query results (dashboard metrics, BI, etc.) from
 the outgoing account stay in memory and get served to whichever
@@ -6285,7 +6285,7 @@ impersonated session that was never ended properly.
 
 ### line-context-auth-context-tsx-L789
 
-`client/lib/context/auth-context.tsx:789`
+`client/lib/context/auth-context.tsx:252`
 
 Seeds the active store's 5 default permission groups (idempotent, see
 ensurePermissionGroupsSeeded) the moment a session is established -
@@ -6294,7 +6294,7 @@ uniformly, since all three end in setUser(...).
 
 ### line-context-auth-context-tsx-L805
 
-`client/lib/context/auth-context.tsx:805`
+`client/lib/context/auth-context.tsx:264`
 
 A user-to-user switch (the lock screen's "switch account", which never
 goes through logout()) must not leave the outgoing user's group in
@@ -6302,7 +6302,7 @@ state while the incoming user's read is in flight - see A-55.
 
 ### line-context-auth-context-tsx-L815
 
-`client/lib/context/auth-context.tsx:815`
+`client/lib/context/auth-context.tsx:277`
 
 A pull can bring down a permission_groups edit made from another
 device (or another admin) affecting this user's own group - without
@@ -6311,7 +6311,7 @@ back in, since the effect otherwise only re-runs on user id change.
 
 ### line-context-auth-context-tsx-L826
 
-`client/lib/context/auth-context.tsx:826`
+`client/lib/context/auth-context.tsx:286`
 
 Deliberate, spec-sanctioned change from the deleted checkIsAdmin/
 checkCanManageStockBatch/checkCanViewAllActivity helpers, which never
@@ -6331,7 +6331,7 @@ would invalidate every consumer on any re-render of that layout.
 
 ### line-context-store-context-tsx-L117
 
-`client/lib/context/store-context.tsx:117`
+`client/lib/context/store-context.tsx:32`
 
 Upper bound on how long a store switch may hold the transition splash.
 Purely a stuck-state guard, not a tuned delay - the local-first query
@@ -6339,7 +6339,7 @@ layer normally settles far inside it.
 
 ### line-context-store-context-tsx-L159
 
-`client/lib/context/store-context.tsx:159`
+`client/lib/context/store-context.tsx:42`
 
 Lazy-initialized (not a useEffect) so the saved choice is already in
 state on the very first render, before `user` has even hydrated from
@@ -6354,7 +6354,7 @@ synchronously here closes that window instead of racing it.
 
 ### line-context-store-context-tsx-L177
 
-`client/lib/context/store-context.tsx:177`
+`client/lib/context/store-context.tsx:52`
 
 Mirror this same precedence into the query layer's module-scope resolver
 (lib/db/core.ts): plain async query functions have no React context, so
@@ -6372,7 +6372,7 @@ AuthProvider's mount effect runs, so this costs no perceptible delay.
 
 ### line-context-store-context-tsx-L203
 
-`client/lib/context/store-context.tsx:203`
+`client/lib/context/store-context.tsx:67`
 
 The active/fixed store no longer exists locally, most likely
 pruned by the sync-engine's reconciliation step because the
@@ -6393,7 +6393,7 @@ on a confirmed result instead.
 
 ### line-context-store-context-tsx-L228
 
-`client/lib/context/store-context.tsx:228`
+`client/lib/context/store-context.tsx:78`
 
 Not just isStoreProfileLoading: with `enabled: isAuthHydrated`, React
 Query's own isLoading (isPending && isFetching) reads false while
@@ -6404,7 +6404,7 @@ store" rather than "still resolving."
 
 ### line-context-store-context-tsx-L247
 
-`client/lib/context/store-context.tsx:247`
+`client/lib/context/store-context.tsx:91`
 
 Set once on mount: distinguishes which physical device/terminal at a
 multi-device store a remote log came from, since store_id/user_id alone
@@ -6412,7 +6412,7 @@ are shared across every device tied to that store.
 
 ### line-context-store-context-tsx-L270
 
-`client/lib/context/store-context.tsx:270`
+`client/lib/context/store-context.tsx:111`
 
 Sync activeStoreId back whenever the resolved profile doesn't match
 targetId, for an owner/admin with no fixed store_id - covers both
@@ -6437,7 +6437,7 @@ just persisted. Covered by store-context-logout-keeps-persisted-store.test.tsx.
 
 ### line-context-store-context-tsx-L304
 
-`client/lib/context/store-context.tsx:304`
+`client/lib/context/store-context.tsx:132`
 
 Every store-scoped query reads the active store from lib/db/core.ts's
 module-scope resolver at call time, not from its React Query key
@@ -6456,7 +6456,7 @@ data under the same query keys, and never refetch again: the exact
 
 ### line-context-store-context-tsx-L319
 
-`client/lib/context/store-context.tsx:319`
+`client/lib/context/store-context.tsx:135`
 
 Cancels in-flight fetches from the outgoing store before clearing:
 clear() alone doesn't abort a request already in flight, and every
@@ -6491,7 +6491,7 @@ already uses via auth-context.tsx's login()/logout().
 
 ### line-context-store-context-tsx-L357
 
-`client/lib/context/store-context.tsx:357`
+`client/lib/context/store-context.tsx:145`
 
 A POS cart staged against the outgoing store's product ids must
 not survive into the newly-active store — it isn't scoped by
@@ -6500,7 +6500,7 @@ product ids/prices that belong to a different store entirely.
 
 ### line-context-store-context-tsx-L367
 
-`client/lib/context/store-context.tsx:367`
+`client/lib/context/store-context.tsx:153`
 
 Pulls this store's data down if this device has never synced it
 before (X-Store-Id now points at the newly-selected store; see
@@ -6523,7 +6523,7 @@ are reflected locally even when full cloud sync is gated off.
 
 ### line-context-store-context-tsx-L489
 
-`client/lib/context/store-context.tsx:489`
+`client/lib/context/store-context.tsx:181`
 
 Every real caller of this is a settings write against an ALREADY
 onboarded store (theme toggle, loyalty settings, payment config, ...)
@@ -6538,7 +6538,7 @@ deserves to be surfaced, not papered over.
 
 ### line-context-store-context-tsx-L511
 
-`client/lib/context/store-context.tsx:511`
+`client/lib/context/store-context.tsx:195`
 
 Fire-and-forget by design (the UI applies the theme immediately,
 optimistically) — but a failed write must not fail silently, or the
@@ -6547,7 +6547,7 @@ signal to the user.
 
 ### line-db-DatabaseProvider-tsx-L69
 
-`client/lib/db/DatabaseProvider.tsx:69`
+`client/lib/db/DatabaseProvider.tsx:92`
 
 Drives the read-only banner's "Use this window" flow (see
 requestWriterHandoff()/forceWriterTakeover() in core.ts): "idle" (not
@@ -6558,7 +6558,7 @@ has no BroadcastChannel - offer the steal fallback instead), "forcing"
 
 ### line-db-DatabaseProvider-tsx-L99
 
-`client/lib/db/DatabaseProvider.tsx:99`
+`client/lib/db/DatabaseProvider.tsx:118`
 
 On "acked" this tab's own queued lock request still has to actually
 get granted and rehydrate (asynchronously, via onWriterTabChange
@@ -6568,7 +6568,7 @@ its initial label for the brief gap before that happens.
 
 ### line-db-DatabaseProvider-tsx-L126
 
-`client/lib/db/DatabaseProvider.tsx:126`
+`client/lib/db/DatabaseProvider.tsx:142`
 
 Reflects tab-lock.ts's single-writer election (see C1 in
 docs/KNOWN_BUGS.md) - initDatabase() has already registered this
@@ -6578,7 +6578,7 @@ initial state and any later promotion.
 
 ### line-db-DatabaseProvider-tsx-L181
 
-`client/lib/db/DatabaseProvider.tsx:181`
+`client/lib/db/DatabaseProvider.tsx:169`
 
 Tracks this tab's writer/read-only role (see tab-lock.ts / C1 in
 docs/KNOWN_BUGS.md) for as long as the provider is mounted, so a
@@ -6587,7 +6587,7 @@ needing a reload.
 
 ### line-db-DatabaseProvider-tsx-L195
 
-`client/lib/db/DatabaseProvider.tsx:195`
+`client/lib/db/DatabaseProvider.tsx:181`
 
 Fires only when this tab won the writer-lock queue but then refused to
 actually take over, because rehydrating its local database from
@@ -6600,7 +6600,7 @@ tab open).
 
 ### line-db-DatabaseProvider-tsx-L215
 
-`client/lib/db/DatabaseProvider.tsx:215`
+`client/lib/db/DatabaseProvider.tsx:195`
 
 Every write attempt from a read-only tab throws (core.ts's
 assertWritable()) so nothing is silently dropped, but a thrown error
@@ -6610,7 +6610,7 @@ action doesn't spam toasts.
 
 ### line-db-DatabaseProvider-tsx-L235
 
-`client/lib/db/DatabaseProvider.tsx:235`
+`client/lib/db/DatabaseProvider.tsx:212`
 
 core.ts's saveDatabase() previously only console.error'd a failed local
 persist (most plausibly a full IndexedDB quota, on the same per-origin
@@ -6622,7 +6622,7 @@ lost on next launch.
 
 ### line-db-DatabaseProvider-tsx-L313
 
-`client/lib/db/DatabaseProvider.tsx:313`
+`client/lib/db/DatabaseProvider.tsx:285`
 
 z-[9500]: must render above every other full-screen overlay this
 app can show while a tab is read-only - SplashScreen's z-[100]
@@ -6637,7 +6637,7 @@ z-[9500]) - TauriTitleBar's z-[9999] doesn't need to be beaten.
 
 ### line-db-base-helpers-ts-L29
 
-`client/lib/db/base-helpers.ts:29`
+`client/lib/db/base-helpers.ts:26`
 
 Invalidates exactly the queries that could be affected by a mutation on
 `table`, matched via each query's `meta.tables` (see lib/query-keys.ts),
@@ -6651,7 +6651,7 @@ factory anywhere is strictly an improvement, never a regression.
 
 ### line-db-base-helpers-ts-L90
 
-`client/lib/db/base-helpers.ts:90`
+`client/lib/db/base-helpers.ts:78`
 
 Every products.name / categories.name write funnels through insert()/
 update() below (local-database.ts just re-exports these), so normalizing
@@ -6663,7 +6663,7 @@ Canonical storage is lowercase; the UI renders it uppercase via CSS
 
 ### line-db-base-helpers-ts-L128
 
-`client/lib/db/base-helpers.ts:128`
+`client/lib/db/base-helpers.ts:111`
 
 A batch created holding its first movement's quantity (a receipt, an
 import row, a transfer-in) is already right, and writing it again costs a
@@ -6671,7 +6671,7 @@ push row and an audit row per batch.
 
 ### line-db-base-helpers-ts-L133
 
-`client/lib/db/base-helpers.ts:133`
+`client/lib/db/base-helpers.ts:115`
 
 The movement's own options are forwarded: a cross-store transfer writes
 each leg under its own store_id, and the batch must be claimed under the
@@ -6679,7 +6679,7 @@ same one or assertStoreOwnership rejects it.
 
 ### line-db-base-helpers-ts-L157
 
-`client/lib/db/base-helpers.ts:157`
+`client/lib/db/base-helpers.ts:138`
 
 Auto-scope to the active store unless the caller already set one
 explicitly (e.g. an owner creating a user/product for a store other
@@ -6691,7 +6691,7 @@ docs/FIXED_BUGS.md, SF-P2-6).
 
 ### line-db-base-helpers-ts-L178
 
-`client/lib/db/base-helpers.ts:178`
+`client/lib/db/base-helpers.ts:154`
 
 The row write, its sync-queue entry, and its audit-log entry must land
 together: outside a transaction, execute() persists (saveDatabase()) after
@@ -6707,7 +6707,7 @@ is just as atomic.
 
 ### line-db-base-helpers-ts-L196
 
-`client/lib/db/base-helpers.ts:196`
+`client/lib/db/base-helpers.ts:163`
 
 "feedback" holds background crash/error telemetry (see error-logger.ts),
 not a user action; logging it here would surface every silent crash
@@ -6715,7 +6715,7 @@ report as a "Created feedback" entry in the Activity Log.
 
 ### line-db-base-helpers-ts-L235
 
-`client/lib/db/base-helpers.ts:235`
+`client/lib/db/base-helpers.ts:201`
 
 _version is deliberately NOT incremented here. This is a local-edit
 counter that must stay in lockstep with the value sent to the server for
@@ -6735,7 +6735,7 @@ silently.
 
 ### line-db-base-helpers-ts-L261
 
-`client/lib/db/base-helpers.ts:261`
+`client/lib/db/base-helpers.ts:214`
 
 Folded into the same record as the rest of the edit (rather than a
 separate UPDATE statement) so the claim is included in BOTH the
@@ -6750,7 +6750,7 @@ store, not a caller-supplied value.
 
 ### line-db-base-helpers-ts-L284
 
-`client/lib/db/base-helpers.ts:284`
+`client/lib/db/base-helpers.ts:229`
 
 See insert()'s comment above: the row write, its sync-queue entry, and
 its audit-log entry must land together, or a kill between them can leave
@@ -6762,7 +6762,7 @@ edit does.
 
 ### line-db-base-helpers-ts-L295
 
-`client/lib/db/base-helpers.ts:295`
+`client/lib/db/base-helpers.ts:235`
 
 See insert()'s matching exclusion above - "feedback" is background
 crash/error telemetry, not a user action. Previously unguarded here
@@ -6773,7 +6773,7 @@ would surface as an "Updated feedback" Activity Log entry.
 
 ### line-db-base-helpers-ts-L332
 
-`client/lib/db/base-helpers.ts:332`
+`client/lib/db/base-helpers.ts:268`
 
 Claim column/value folded into the same statement (rather than a
 separate UPDATE) so it's included in the DELETE sync payload below too
@@ -6782,7 +6782,7 @@ un-synced claim statement left the server never learning about it.
 
 ### line-db-base-helpers-ts-L384
 
-`client/lib/db/base-helpers.ts:384`
+`client/lib/db/base-helpers.ts:318`
 
 Ignores the returned needsClaim (if the row is a legacy row) — this is
 a hard, unrecoverable DELETE, so claiming it first only to destroy it
@@ -6790,7 +6790,7 @@ in the very next statement protects nothing.
 
 ### line-db-base-helpers-ts-L389
 
-`client/lib/db/base-helpers.ts:389`
+`client/lib/db/base-helpers.ts:322`
 
 Fetched before the delete so the audit trail still has a record of what
 was destroyed. This is a hard, unrecoverable delete (unlike softDelete),
@@ -6799,7 +6799,7 @@ spot in the audit log.
 
 ### line-db-base-helpers-ts-L402
 
-`client/lib/db/base-helpers.ts:402`
+`client/lib/db/base-helpers.ts:333`
 
 Also remove any pending (not-yet-synced) queue entries for this record
 before queueing our own DELETE below, so a still-pending INSERT/UPDATE
@@ -6807,7 +6807,7 @@ doesn't race the DELETE to the server.
 
 ### line-db-base-helpers-ts-L485
 
-`client/lib/db/base-helpers.ts:485`
+`client/lib/db/sync-queue.ts:72`
 
 See awaitSettledTransactions()'s doc comment: without this, a
 background auto-sync tick that lands mid-transaction (e.g. a bulk
@@ -6816,7 +6816,7 @@ orphaning them on the server if the transaction later rolls back.
 
 ### line-db-base-helpers-ts-L513
 
-`client/lib/db/base-helpers.ts:513`
+`client/lib/db/sync-queue.ts:98`
 
 insert()/update() always set _synced = 0 at write time; nothing else
 ever flipped it back once the queue row above is deleted. Left unfixed,
@@ -6827,7 +6827,7 @@ mass-requeuing a device's entire already-synced history on every boot.
 
 ### line-db-base-helpers-ts-L603
 
-`client/lib/db/base-helpers.ts:603`
+`client/lib/db/sync-queue.ts:184`
 
 Preserve the "[REPORTED]" marker once it's set: writing the bare
 errorMessage here unconditionally used to clobber it on every later
@@ -6839,7 +6839,7 @@ statement, i.e. a verbatim copy of the row being pushed.
 
 ### line-db-base-helpers-ts-L624
 
-`client/lib/db/base-helpers.ts:624`
+`client/lib/db/sync-queue.ts:200`
 
 Checked before BOTH paths below. logCrash() already filters these,
 but reportStuckCrashLog() calls Sentry.captureException directly and
@@ -6866,7 +6866,7 @@ pass below has finished.
 
 ### line-db-core-ts-L715
 
-`client/lib/db/core.ts:715`
+`client/lib/db/core.ts:712`
 
 A backup taken on an older app version carries that version's schema,
 which leaves the live process running against a database missing
@@ -6887,7 +6887,7 @@ second production sale-recording path that needs fixing to match it.
 
 ### line-db-local-database-ts-L141
 
-`client/lib/db/local-database.ts:141`
+`client/lib/db/local-database.ts:140`
 
 stock_movements.performed_by is a required foreign key on the cloud
 DB (no default); reading it here the same way receivePurchaseOrder()
@@ -6896,7 +6896,7 @@ movement row was silently failing to sync as a result.
 
 ### line-db-local-database-ts-L194
 
-`client/lib/db/local-database.ts:194`
+`client/lib/db/local-database.ts:191`
 
 One transaction, like createSale/receivePurchaseOrder: a prescription
 header committed without its medications is a clinically empty record
@@ -6905,7 +6905,7 @@ every other device and can never be reconstructed from what survived.
 
 ### line-db-local-database-ts-L211
 
-`client/lib/db/local-database.ts:211`
+`client/lib/db/local-database.ts:206`
 
 insert("prescriptions", ...) above already invalidated the prescriptions
 query and refetched, but that refetch can race the prescription_items
@@ -6914,7 +6914,7 @@ Invalidate again now that all items exist.
 
 ### line-db-local-database-ts-L225
 
-`client/lib/db/local-database.ts:225`
+`client/lib/db/local-database.ts:218`
 
 `has_pin` is derived, never the hash itself: the staff list needs to know
 whether a PIN exists (a newly created account may have none) and nothing
@@ -6922,7 +6922,7 @@ more. See lib/types/user.ts's StaffListItem.
 
 ### line-db-local-database-ts-L233
 
-`client/lib/db/local-database.ts:233`
+`client/lib/db/local-database.ts:225`
 
 Only fall back to the module-scope resolver when the caller omits the
 argument entirely. An explicit `null` means "no filter, all stores" and
@@ -6930,7 +6930,7 @@ must not be coerced back into the active store id.
 
 ### line-db-local-database-ts-L238
 
-`client/lib/db/local-database.ts:238`
+`client/lib/db/local-database.ts:229`
 
 `role = 'store_owner'` is deliberately business-wide: it's the fleet
 account owner (assigned at signup, one per account, see
@@ -6943,7 +6943,7 @@ not intended fleet visibility (see docs/KNOWN_BUGS.md history).
 
 ### line-db-local-database-ts-L259
 
-`client/lib/db/local-database.ts:259`
+`client/lib/db/local-database.ts:244`
 
 Staff created here are created LOCALLY and pushed up by the sync
 engine, so this is a real PIN write site: hash it, never store the
@@ -6963,7 +6963,7 @@ submitStockAudit's system-quantity re-read.
 
 ### line-db-procurement-receiving-ts-L80
 
-`client/lib/db/procurement-receiving.ts:80`
+`client/lib/db/procurement-receiving.ts:76`
 
 Default to the whole outstanding balance if not provided in payload.
 A submitted quantity is floored at 0 (the form clamps too, but a negative
@@ -6973,7 +6973,7 @@ than was ever ordered.
 
 ### line-db-procurement-receiving-ts-L102
 
-`client/lib/db/procurement-receiving.ts:102`
+`client/lib/db/procurement-receiving.ts:95`
 
 Same helper the Immediate Purchase flow uses, so the two paths can't
 drift on what "cost" means: a typed override is per base unit, an
@@ -6981,7 +6981,7 @@ absent one falls back to the line's per-bulk unit_cost divided down.
 
 ### line-db-procurement-receiving-ts-L111
 
-`client/lib/db/procurement-receiving.ts:111`
+`client/lib/db/procurement-receiving.ts:103`
 
 Deterministic, not random: two devices booking the same delivery
 derive the same pair of ids (this PO line, this already-received
@@ -6998,7 +6998,7 @@ ids. See lib/db/deterministic-id.ts.
 
 ### line-db-procurement-receiving-ts-L166
 
-`client/lib/db/procurement-receiving.ts:166`
+`client/lib/db/procurement-receiving.ts:148`
 
 bulk_quantity/units_per_bulk are re-sent unchanged so the sync
 push's purchase_order_items mapping (SyncController::push) can scale
@@ -7008,7 +7008,7 @@ payload, and a sync-queue UPDATE payload carries changed fields only.
 
 ### line-db-procurement-receiving-ts-L178
 
-`client/lib/db/procurement-receiving.ts:178`
+`client/lib/db/procurement-receiving.ts:157`
 
 A submit with every line left at 0 against a PO that has nothing
 received yet isn't a partial receipt, it's a no-op — the order stays
@@ -7016,7 +7016,7 @@ exactly where it was rather than moving into the partial state.
 
 ### line-db-procurement-ts-L216
 
-`client/lib/db/procurement.ts:216`
+`client/lib/db/procurement.ts:220`
 
 Via immediateLineAmount, not a bare bulk_quantity * unit_cost: an
 Immediate Purchase parked as a draft carries per-base-unit overrides that
@@ -7049,7 +7049,7 @@ would only happen from a genuine double-submit race, not routine use.
 
 ### line-db-queries-auth-ts-L51
 
-`client/lib/db/queries/auth.ts:51`
+`client/lib/db/queries/auth.ts:44`
 
 Hashed like every other stored PIN, even though the bootstrap
 value itself is a documented constant (DEFAULT_ADMIN_PIN) - once
@@ -7057,7 +7057,7 @@ this row exists, ordinary login verifies against this column.
 
 ### line-db-queries-auth-ts-L102
 
-`client/lib/db/queries/auth.ts:102`
+`client/lib/db/queries/auth.ts:94`
 
 Excludes the store owner's own row (role = 'store_owner') so a plan's
 advertised staff limit means "N employees you can add," not "you +
@@ -7085,7 +7085,7 @@ applyCreditPaymentFIFO).
 
 ### line-db-queries-customers-ts-L133
 
-`client/lib/db/queries/customers.ts:133`
+`client/lib/db/queries/customers.ts:131`
 
 Includes 'refunded'/'partially_refunded': a return against a credit sale
 overwrites payment_status with one of those (see
@@ -7107,7 +7107,7 @@ place.
 
 ### line-db-queries-customers-ts-L173
 
-`client/lib/db/queries/customers.ts:173`
+`client/lib/db/queries/customers.ts:156`
 
 A sale already marked 'refunded'/'partially_refunded' carries
 information the Refunded tab/badge (pos-transaction-history.tsx,
@@ -7119,7 +7119,7 @@ sales get the normal completed/partial transition.
 
 ### line-db-queries-customers-ts-L205
 
-`client/lib/db/queries/customers.ts:205`
+`client/lib/db/queries/customers.ts:183`
 
 The payment receipt, the balance reduction, and the FIFO settlement of
 individual sales must land together: without a transaction, a throw
@@ -7131,7 +7131,7 @@ and the next payment re-settles sales that were already paid for.
 
 ### line-db-queries-finance-ts-L96
 
-`client/lib/db/queries/finance.ts:96`
+`client/lib/db/queries/finance.ts:98`
 
 expense.date is a bare "YYYY-MM-DD" column; parsing it with `new Date()`
 reads it as UTC midnight while windowStart/windowEnd and the
@@ -7141,7 +7141,7 @@ fixed for expiry dates in date-utils.ts).
 
 ### line-db-queries-finance-ts-L118
 
-`client/lib/db/queries/finance.ts:118`
+`client/lib/db/queries/finance.ts:117`
 
 Prorate by the fraction of this installment's month that actually
 falls inside the window, rather than counting the full monthly amount
@@ -7153,7 +7153,7 @@ double-counts by claiming the full installment from both months.
 
 ### line-db-queries-finance-ts-L148
 
-`client/lib/db/queries/finance.ts:148`
+`client/lib/db/queries/finance.ts:142`
 
 date() on both sides: expenses.date is a date-only "YYYY-MM-DD" column,
 but from/to here are full UTC ISO instants representing LOCAL midnight/
@@ -7177,7 +7177,7 @@ matter how far into the day it was logged.
 
 ### line-db-queries-finance-ts-L174
 
-`client/lib/db/queries/finance.ts:174`
+`client/lib/db/queries/finance.ts:151`
 
 Fetched unconditionally by date, not windowed: a prepaid expense
 logged well before this window can still have unrecognized months
@@ -7185,7 +7185,7 @@ falling inside it.
 
 ### line-db-queries-finance-ts-L185
 
-`client/lib/db/queries/finance.ts:185`
+`client/lib/db/queries/finance.ts:161`
 
 getSmoothedAmountInWindow treats windowEnd as EXCLUSIVE; +1ms turns the
 inclusive `to` above into that exclusive bound, so an amortized
@@ -7194,7 +7194,7 @@ matching the plain-expense query's now-inclusive semantics above.
 
 ### line-db-queries-finance-ts-L213
 
-`client/lib/db/queries/finance.ts:213`
+`client/lib/db/queries/finance.ts:187`
 
 See the matching comment in getSmoothedExpensesTotal above - `to` is
 inclusive here too, and 'localtime' is needed for the same reason
@@ -7443,7 +7443,7 @@ is_active value (NULL), which is neither active nor inactive to SQLite.
 
 ### line-db-queries-permission-groups-ts-L39
 
-`client/lib/db/queries/permission-groups.ts:39`
+`client/lib/db/queries/permission-groups.ts:41`
 
 Second guard, matching ensureLoyaltyDefaultsSeeded's own double-check
 (tiers.length === 0 in addition to the timestamp): a device that
@@ -7454,7 +7454,7 @@ set on top of rows that already exist for this store.
 
 ### line-db-queries-permission-groups-ts-L74
 
-`client/lib/db/queries/permission-groups.ts:74`
+`client/lib/db/queries/permission-groups.ts:72`
 
 Backfill: every existing staff member with no group yet gets the
 default group matching their current `role` string. Never touches a
@@ -7466,7 +7466,7 @@ it too, not just this device's local copy.
 
 ### line-db-queries-permission-groups-ts-L170
 
-`client/lib/db/queries/permission-groups.ts:170`
+`client/lib/db/queries/permission-groups.ts:166`
 
 A present-but-corrupt row denies, rather than returning null and letting
 hasPermission's `?? fallbackPermissions(role)` silently restore the whole
@@ -7478,7 +7478,7 @@ short-circuits for those roles before any group is consulted.
 
 ### line-db-queries-permission-groups-ts-L198
 
-`client/lib/db/queries/permission-groups.ts:198`
+`client/lib/db/queries/permission-groups.ts:189`
 
 One malformed/legacy row must degrade to "grants nothing" rather
 than take out the whole matrix/staff-form dropdown for every
@@ -7528,7 +7528,7 @@ collision rather than just one key at a time.
 
 ### line-db-queries-product-import-ts-L128
 
-`client/lib/db/queries/product-import.ts:128`
+`client/lib/db/queries/product-import.ts:127`
 
 How often (in rows) to yield to the event loop during a bulk import. Each
 query on the web (sql.js/WASM) path resolves synchronously, so without an
@@ -7539,7 +7539,7 @@ responsive, without adding per-row overhead from yielding every iteration.
 
 ### line-db-queries-product-import-ts-L143
 
-`client/lib/db/queries/product-import.ts:143`
+`client/lib/db/queries/product-import.ts:138`
 
 The matched-stock branch below reconciles through submitStockAudit(),
 whose stock_audits.user_id is a constrained foreign key server-side —
@@ -7552,7 +7552,7 @@ useAuth().user.id.
 
 ### line-db-queries-product-import-ts-L158
 
-`client/lib/db/queries/product-import.ts:158`
+`client/lib/db/queries/product-import.ts:147`
 
 Collected during the main transaction, applied after it commits: submitStockAudit()
 opens its own transaction, and this codebase's transaction() serializes
@@ -7571,7 +7571,7 @@ difference and silently driving real stock negative.
 
 ### line-db-queries-product-import-ts-L198
 
-`client/lib/db/queries/product-import.ts:198`
+`client/lib/db/queries/product-import.ts:175`
 
 cost_price lives on stock_batches, not products - there's no
 column here to include in the update() above. Re-importing a
@@ -7585,7 +7585,7 @@ now-fixed returned-COGS averaging bug did.
 
 ### line-db-queries-product-import-ts-L239
 
-`client/lib/db/queries/product-import.ts:239`
+`client/lib/db/queries/product-import.ts:209`
 
 The server never trusts stock_batches.quantity from a client
 payload (INSERT or UPDATE) — it's forced to 0 and re-derived by
@@ -7625,7 +7625,7 @@ window can still have unrecognised installments falling inside it.
 
 ### line-db-queries-reports-ts-L125
 
-`client/lib/db/queries/reports.ts:125`
+`client/lib/db/queries/dashboard-overview.ts:24`
 
 None of the reads below depend on each other's results, so they go out
 together rather than one await at a time - the same shape as
@@ -7633,7 +7633,7 @@ getCurrentMonthRevenue in finance.ts.
 
 ### line-db-queries-reports-ts-L186
 
-`client/lib/db/queries/reports.ts:186`
+`client/lib/db/queries/dashboard-overview.ts:84`
 
 Excludes movements already represented by their own richer feed entry
 below (a sale's stock deduction, a PO's receipt, a return's restock);
@@ -7645,7 +7645,7 @@ representation, so they still show up here.
 
 ### line-db-queries-reports-ts-L248
 
-`client/lib/db/queries/reports.ts:248`
+`client/lib/db/queries/dashboard-overview.ts:141`
 
 Products have no creator/user column, so unlike every other feed source
 above, this can't be scoped to the viewer's own actions - skip it
@@ -7654,7 +7654,7 @@ catalog additions (e.g. a cashier seeing products the store owner added).
 
 ### line-db-queries-reports-ts-L279
 
-`client/lib/db/queries/reports.ts:279`
+`client/lib/db/queries/dashboard-overview.ts:170`
 
 Yesterday's refunds, so the dashboard's "x% vs yesterday" comparison
 divides a net-of-refunds today by a net-of-refunds yesterday. Today's
@@ -7886,7 +7886,7 @@ within the selected range (or has even happened yet).
 
 ### line-db-queries-reports-ts-L766
 
-`client/lib/db/queries/reports.ts:766`
+`client/lib/db/queries/reports.ts:112`
 
 Permissive (OR IS NULL), matching retWhere below: a strict "= 0" here
 paired with the permissive returns clause meant a sale row with a NULL
@@ -7895,7 +7895,7 @@ subtracted, producing a negative-revenue month out of nothing.
 
 ### line-db-queries-reports-ts-L778
 
-`client/lib/db/queries/reports.ts:778`
+`client/lib/db/queries/reports.ts:122`
 
 Revenue and COGS are aggregated in separate queries rather than one
 query joined to sale_items: a LEFT JOIN fans each sale out once per line
@@ -7911,7 +7911,7 @@ dashboard for the same period.
 
 ### line-db-queries-reports-ts-L809
 
-`client/lib/db/queries/reports.ts:809`
+`client/lib/db/queries/reports.ts:144`
 
 Returns/refunds, netted out of Revenue and COGS the same way every other
 revenue surface in this codebase does (useBIData's netSales/totalCogs,
@@ -7926,7 +7926,7 @@ returned line item.
 
 ### line-db-queries-reports-ts-L824
 
-`client/lib/db/queries/reports.ts:824`
+`client/lib/db/queries/reports.ts:151`
 
 Same staff/payment-method filter as the revenue side, applied through the
 return's ORIGINAL SALE: `returns` has no payment_method of its own, and
@@ -7937,7 +7937,7 @@ refunds.
 
 ### line-db-queries-reports-ts-L832
 
-`client/lib/db/queries/reports.ts:832`
+`client/lib/db/queries/reports.ts:155`
 
 r.total_refunded is VAT-INCLUSIVE (calculateProportionalRefund in
 pos-calculations.ts bakes the refunded line's tax share into it), while
@@ -7953,7 +7953,7 @@ only in that edge case.
 
 ### line-db-queries-reports-ts-L857
 
-`client/lib/db/queries/reports.ts:857`
+`client/lib/db/queries/reports.ts:171`
 
 See returnedCogsData in getBIMetrics: sale-time cost_price, pre-aggregated
 per (sale_id, product_id) so a sale with >1 line for the same product
@@ -7961,7 +7961,7 @@ doesn't fan the return_items row out.
 
 ### line-db-queries-reports-ts-L873
 
-`client/lib/db/queries/reports.ts:873`
+`client/lib/db/queries/reports.ts:186`
 
 Expenses, amortized (see getSmoothedExpensesByMonth) rather than a raw
 SUM(amount), so this agrees with the BI dashboard's expense figure.
@@ -7980,7 +7980,7 @@ Run the report unfiltered for a true bottom line.
 
 ### line-db-queries-reports-ts-L892
 
-`client/lib/db/queries/reports.ts:892`
+`client/lib/db/queries/reports.ts:193`
 
 Every month with ANY financial activity gets a row - revenue, refunds, or
 expenses. Mapping over revenue months alone silently dropped a month that
@@ -7989,7 +7989,7 @@ owner most wants to see.
 
 ### line-db-queries-reports-ts-L963
 
-`client/lib/db/queries/reports.ts:963`
+`client/lib/db/queries/reports.ts:262`
 
 See getSmoothedExpensesByMonth's comment above for why 'localtime' is
 needed here, not just bare date(?): dateFrom/dateTo are UTC instants
@@ -8007,7 +8007,7 @@ to a sale's cost-of-goods value on the dashboard activity feed.
 
 ### line-db-queries-returns-ts-L76
 
-`client/lib/db/queries/returns.ts:76`
+`client/lib/db/queries/returns.ts:74`
 
 A second (or third) partial return of the same sale line must not
 restore batches from scratch — without this, every partial return
@@ -8020,7 +8020,7 @@ no visible symptom on any stock screen.
 
 ### line-db-queries-returns-ts-L104
 
-`client/lib/db/queries/returns.ts:104`
+`client/lib/db/queries/returns.ts:96`
 
 No specific batch to credit (no sale_item_batches rows and no
 legacy stock_batch_id) — previously this logged a stock_movements
@@ -8035,7 +8035,7 @@ on-hand total agree.
 
 ### line-db-queries-sales-ts-L37
 
-`client/lib/db/queries/sales.ts:37`
+`client/lib/db/queries/sales.ts:39`
 
 The query above has no sale_item_id to join return_items against
 (that column doesn't exist), so it gives every sale_item row for a
@@ -8055,7 +8055,7 @@ instead of once per row.
 
 ### line-db-queries-sales-ts-L256
 
-`client/lib/db/queries/sales.ts:256`
+`client/lib/db/queries/sales.ts:246`
 
 `dateRange` carries plain yyyy-MM-dd calendar dates on the STORE's local
 wall clock (see use-my-today-sales.ts's getLocalTodayDate() and the
@@ -8069,7 +8069,7 @@ getTopStaffByDate above and toQueryRange() in lib/utils/date-range.ts do.
 
 ### line-db-queries-sales-ts-L300
 
-`client/lib/db/queries/sales.ts:300`
+`client/lib/db/queries/sales.ts:284`
 
 `SELECT DISTINCT product_id ... ORDER BY created_at` orders a column
 that isn't part of the DISTINCT result set, so SQLite is free to pick an
@@ -8081,7 +8081,7 @@ set (still one row per product_id).
 
 ### line-db-queries-sales-ts-L354
 
-`client/lib/db/queries/sales.ts:354`
+`client/lib/db/queries/sales.ts:333`
 
 Uses the sale-time cost_price (pre-aggregated per (sale_id, product_id)
 to stay correct when a sale has >1 sale_items row for the same
@@ -8093,7 +8093,7 @@ actually recorded at sale time.
 
 ### line-db-queries-stock-transfers-ts-L284
 
-`client/lib/db/queries/stock-transfers.ts:284`
+`client/lib/db/queries/stock-transfers.ts:155`
 
 No quantity write here: the transfer_out movement below rebuilds this
 batch from its own log (see lib/db/batch-quantity.ts), and a pre-write
@@ -8101,7 +8101,7 @@ would be counted twice for an A-148 carve-out batch.
 
 ### line-db-queries-stock-transfers-ts-L296
 
-`client/lib/db/queries/stock-transfers.ts:296`
+`client/lib/db/queries/stock-transfers.ts:166`
 
 Always opens a fresh batch on the destination rather than merging
 into an existing one: the source draw can span multiple batches
@@ -8124,7 +8124,7 @@ trips down to one.
 
 ### line-db-reconcile-identity-ts-L240
 
-`client/lib/db/reconcile-identity.ts:240`
+`client/lib/db/reconcile-identity.ts:237`
 
 Rename the local user's own id in place (not soft-delete); this row
 holds the only local username/PIN credential for this device's login,
@@ -8134,7 +8134,7 @@ the server, not just the rows that referenced it.
 
 ### line-db-reconcile-identity-ts-L252
 
-`client/lib/db/reconcile-identity.ts:252`
+`client/lib/db/reconcile-identity.ts:246`
 
 Marking table rows _synced = 0 above does NOT requeue them: push.ts
 reads straight from `_sync_queue.payload`, a JSON snapshot frozen at
@@ -8174,7 +8174,7 @@ construction, so there's exactly one store to backfill to.
 
 ### line-db-schema-migrations-ts-L45
 
-`client/lib/db/schema-migrations.ts:45`
+`client/lib/db/schema-migrations.ts:43`
 
 Thin adapter over the two incompatible database handles so the migration
 steps below (identical logic on both platforms, just different execute
@@ -8185,7 +8185,7 @@ get normalized into.
 
 ### line-db-schema-migrations-ts-L87
 
-`client/lib/db/schema-migrations.ts:87`
+`client/lib/db/schema-migrations.ts:81`
 
 Runs one statement, silently ignoring failure (e.g. "column already
 exists" on a re-run) — the same tolerant, idempotent-by-retry pattern
@@ -8193,7 +8193,7 @@ every migration step here has always used.
 
 ### line-db-schema-migrations-ts-L98
 
-`client/lib/db/schema-migrations.ts:98`
+`client/lib/db/schema-migrations.ts:91`
 
 renameLegacyTablesAndColumns (medicines/vendors/store_profile/stock_batch
 renames, owner->store_owner, shipped 2026-06-27/06-28) and
@@ -8212,7 +8212,7 @@ after 2026-06-28.
 
 ### line-db-schema-migrations-ts-L113
 
-`client/lib/db/schema-migrations.ts:113`
+`client/lib/db/schema-migrations.ts:94`
 
 Declarative table -> columns-to-ensure-exist list, consumed by
 runSyncColumnMigrations() below. Hoisted out of initDatabase() itself
@@ -8222,7 +8222,7 @@ complex than the actual branching logic it contains.
 
 ### line-db-schema-migrations-ts-L209
 
-`client/lib/db/schema-migrations.ts:209`
+`client/lib/db/schema-migrations.ts:187`
 
 Reseller-commission fields (see ResellerCommissionPanel / use-pos-payment.ts):
 every checkout writes all three below (0-valued when the reseller
@@ -8231,7 +8231,7 @@ once ResellerCommissionPanel marks a sale's commission paid out.
 
 ### line-db-schema-migrations-ts-L222
 
-`client/lib/db/schema-migrations.ts:222`
+`client/lib/db/schema-migrations.ts:198`
 
 Distinguishes a real reseller/agent sale (commission owed, subject
 to the redeem/store-claim decision above) from a store staff
@@ -8242,7 +8242,7 @@ current pending-redemption behavior unchanged.
 
 ### line-db-schema-migrations-ts-L329
 
-`client/lib/db/schema-migrations.ts:329`
+`client/lib/db/schema-migrations.ts:303`
 
 Ties every audit_logs row written inside one multi-step operation
 (e.g. all ~10-15 rows a single sale writes across sales,
@@ -8252,7 +8252,7 @@ them into one entry instead of showing each as a separate action.
 
 ### line-db-schema-migrations-ts-L335
 
-`client/lib/db/schema-migrations.ts:335`
+`client/lib/db/schema-migrations.ts:306`
 
 Coalesces a repeated dedupable action (see audit-actions.ts's
 DEDUPABLE_AUDIT_ACTIONS) into one row instead of a fresh row per
@@ -8261,7 +8261,7 @@ than inserting again.
 
 ### line-db-schema-migrations-ts-L391
 
-`client/lib/db/schema-migrations.ts:391`
+`client/lib/db/schema-migrations.ts:360`
 
 Immediate-purchase per-line-item overrides (selling price, cost
 override, lot/expiry) - previously only ever consumed transiently
@@ -8270,7 +8270,7 @@ Immediate Purchase as a draft silently discarded them.
 
 ### line-db-schema-migrations-ts-L399
 
-`client/lib/db/schema-migrations.ts:399`
+`client/lib/db/schema-migrations.ts:366`
 
 Cumulative quantity actually received against this line, in the same
 unit as bulk_quantity. Receiving used to be all-or-nothing: any
@@ -8279,7 +8279,7 @@ forfeiting the undelivered balance.
 
 ### line-db-schema-migrations-ts-L499
 
-`client/lib/db/schema-migrations.ts:499`
+`client/lib/db/schema-migrations.ts:464`
 
 DEFAULT 1 (ON) so existing Pro/Enterprise stores already using the
 loyalty program see zero behavior change - only a store that
@@ -8287,7 +8287,7 @@ explicitly flips this off in Settings gets paused.
 
 ### line-db-schema-migrations-ts-L503
 
-`client/lib/db/schema-migrations.ts:503`
+`client/lib/db/schema-migrations.ts:467`
 
 The rate calculateEarnedPoints() multiplies a sale's total by - 0.01
 preserves the previously-hardcoded 1-point-per-100-currency rate for
@@ -8295,7 +8295,7 @@ every existing store until they change it in Loyalty Settings.
 
 ### line-db-schema-migrations-ts-L507
 
-`client/lib/db/schema-migrations.ts:507`
+`client/lib/db/schema-migrations.ts:470`
 
 DEFAULT 1 (ON): product/category names are always stored lowercase
 now, so without this every store would see an abrupt all-lowercase
@@ -8304,7 +8304,7 @@ display they're used to.
 
 ### line-db-schema-migrations-ts-L512
 
-`client/lib/db/schema-migrations.ts:512`
+`client/lib/db/schema-migrations.ts:473`
 
 For the Tax Invoice receipt print variant's header (see ReceiptView) -
 a store's formal tax/VAT registration ID, distinct from
@@ -8312,7 +8312,7 @@ pcn_license/registration_number.
 
 ### line-db-schema-migrations-ts-L519
 
-`client/lib/db/schema-migrations.ts:519`
+`client/lib/db/schema-migrations.ts:479`
 
 One-time gate for ensureLoyaltyDefaultsSeeded() (loyalty.ts) - set
 the first time default tiers/redemption options are ever seeded for
@@ -8323,7 +8323,7 @@ post-upgrade seed decision.
 
 ### line-db-schema-migrations-ts-L529
 
-`client/lib/db/schema-migrations.ts:529`
+`client/lib/db/schema-migrations.ts:485`
 
 Which revision of DEFAULT_GROUP_PERMISSIONS this store's default
 groups have been brought up to. NULL on every store seeded before
@@ -8332,7 +8332,7 @@ this column existed, which backfillDefaultGroupPermissions()
 
 ### line-db-schema-migrations-ts-L534
 
-`client/lib/db/schema-migrations.ts:534`
+`client/lib/db/schema-migrations.ts:488`
 
 Whether the receipt header shows the store logo above the store
 name (default, matches every existing store's current receipt) or
@@ -8340,7 +8340,7 @@ beside it. See ReceiptView / receipt-customization-card.tsx.
 
 ### line-db-schema-migrations-ts-L541
 
-`client/lib/db/schema-migrations.ts:541`
+`client/lib/db/schema-migrations.ts:494`
 
 Server-managed bookkeeping for the storefront rebuild pipeline -
 mirrored here only so pull sync's dynamic column list doesn't fail
@@ -8348,7 +8348,7 @@ with "no such column"; nothing in this app writes to them.
 
 ### line-db-schema-migrations-ts-L546
 
-`client/lib/db/schema-migrations.ts:546`
+`client/lib/db/schema-migrations.ts:498`
 
 Off by default: a cashier-initiated transfer request still moves
 stock immediately (just flagged needs_review - see
@@ -8357,7 +8357,7 @@ granting every existing store's staff that ability on upgrade.
 
 ### line-db-schema-migrations-ts-L551
 
-`client/lib/db/schema-migrations.ts:551`
+`client/lib/db/schema-migrations.ts:501`
 
 Off by default: gates the POS cart's entire "Reseller sale" row
 (both the reseller-commission and store-markup sub-types) behind
@@ -8366,7 +8366,7 @@ see isMarkupSalesEnabled in use-feature-gate.ts.
 
 ### line-db-schema-migrations-ts-L589
 
-`client/lib/db/schema-migrations.ts:589`
+`client/lib/db/schema-migrations.ts:537`
 
 Set to "needs_review" on a cross-store transfer's two rows
 (transfer_out/transfer_in) when the initiating user isn't
@@ -8375,7 +8375,7 @@ immediately, just flagged for the owner to check afterward.
 
 ### line-db-schema-migrations-ts-L637
 
-`client/lib/db/schema-migrations.ts:637`
+`client/lib/db/schema-migrations.ts:583`
 
 Backfills store_id on pre-existing rows of newly store-scoped tables to the
 device's one pre-migration store. WHERE store_id IS NULL makes it naturally
@@ -8384,7 +8384,7 @@ A-250's neighbour A-248 in docs/FIXED_BUGS.md.
 
 ### line-db-schema-migrations-ts-L667
 
-`client/lib/db/schema-migrations.ts:667`
+`client/lib/db/schema-migrations.ts:611`
 
 Every partial state must be retryable from the still-intact old table:
 without this, an interrupted first boot leaves a populated
@@ -8393,7 +8393,7 @@ later boot, and the device never pulls again. Silent and permanent.
 
 ### line-db-schema-migrations-ts-L697
 
-`client/lib/db/schema-migrations.ts:697`
+`client/lib/db/schema-migrations.ts:639`
 
 show_contact_on_receipt (a combined phone+address toggle) was split into
 show_phone_on_receipt/show_address_on_receipt. Both new columns default to
@@ -8405,7 +8405,7 @@ backfill once the new columns already reflect it).
 
 ### line-db-schema-migrations-ts-L715
 
-`client/lib/db/schema-migrations.ts:715`
+`client/lib/db/schema-migrations.ts:652`
 
 products.name/categories.name are now written lowercase (see
 withNormalizedName in base-helpers.ts) so the UI can render them uppercase
@@ -8417,7 +8417,7 @@ above, so it doesn't need a one-time-run flag.
 
 ### line-db-schema-migrations-ts-L735
 
-`client/lib/db/schema-migrations.ts:735`
+`client/lib/db/schema-migrations.ts:667`
 
 deleteCategory only ever soft-deletes the categories row; it never touches
 products.category_id pointing at it, and (until the sync push fix landed
@@ -8436,7 +8436,7 @@ would reject. Idempotent, so no one-time-run flag — see FIXED_BUGS A-128.
 
 ### line-db-schema-migrations-ts-L757
 
-`client/lib/db/schema-migrations.ts:757`
+`client/lib/db/schema-migrations.ts:677`
 
 Matches getCategoryList()'s own visibility rule (store_id = mine, or
 NULL for pre-multi-tenancy rows) — a category_id pointing at a row that
@@ -8450,7 +8450,7 @@ generated UUID (see getActiveStoreId), never raw user input.
 
 ### line-db-schema-migrations-ts-L778
 
-`client/lib/db/schema-migrations.ts:778`
+`client/lib/db/schema-migrations.ts:691`
 
 rebuildUsersTableForStoreScopedUsername (the users table rebuild that
 scoped username uniqueness to store_id, shipped 2026-08-01 — the same day
@@ -8460,7 +8460,7 @@ UNIQUE(store_id, username).
 
 ### line-db-schema-migrations-ts-L784
 
-`client/lib/db/schema-migrations.ts:784`
+`client/lib/db/schema-migrations.ts:694`
 
 Relaxes purchase_orders.supplier_id to nullable, so an Immediate Purchase
 can be recorded without a real vendor (self/walk-in purchase) the same way
@@ -8471,7 +8471,7 @@ carry over.
 
 ### line-db-schema-migrations-ts-L833
 
-`client/lib/db/schema-migrations.ts:833`
+`client/lib/db/schema-migrations.ts:739`
 
 One-off data clear for legacy transactions (retaining products, batches,
 users, and settings), gated on a localStorage flag so it only ever runs
@@ -8480,7 +8480,7 @@ once per device. `onCleared` lets the web caller persist the change
 
 ### line-db-schema-migrations-ts-L873
 
-`client/lib/db/schema-migrations.ts:873`
+`client/lib/db/schema-migrations.ts:777`
 
 Every index the local read paths depend on (see docs/LOCAL_DB_INDEXES.md
 for which query each one serves). SCHEMA_SQL carries the subset whose
@@ -8502,7 +8502,7 @@ whole catalog), so it only ever appears as a composite's leading column.
 
 ### line-db-schema-migrations-ts-L910
 
-`client/lib/db/schema-migrations.ts:910`
+`client/lib/db/schema-migrations.ts:799`
 
 How far `sales` may outgrow the row count the last ANALYZE recorded before
 the stats are rebuilt. Generous on purpose: a full ANALYZE is ~94 ms on the
@@ -8511,7 +8511,7 @@ device's life, not on every launch.
 
 ### line-db-schema-migrations-ts-L917
 
-`client/lib/db/schema-migrations.ts:917`
+`client/lib/db/schema-migrations.ts:804`
 
 The indexes alone are not enough, and shipping them without this step is
 worse than shipping nothing: with no sqlite_stat1 the planner falls back to
@@ -8528,7 +8528,7 @@ covers the fresh install that ANALYZEd an empty database.
 
 ### line-db-schema-migrations-ts-L964
 
-`client/lib/db/schema-migrations.ts:964`
+`client/lib/db/schema-migrations.ts:841`
 
 The full, ordered migration sequence initDatabase() applies to an existing
 local database, identical on both backends. `persist` is only supplied on
@@ -8577,7 +8577,7 @@ it didn't shrink, running it again won't either.
 
 ### line-db-sync-engine-health-check-ts-L70
 
-`client/lib/db/sync-engine/health-check.ts:70`
+`client/lib/db/sync-engine/health-check.ts:65`
 
 A device that has never completed a sync round at all (last_sync_time
 unset - see sync-engine/index.ts, only stamped after a full push+pull
@@ -8588,7 +8588,7 @@ ordinary sync() calls already handle catching it up.
 
 ### line-db-sync-engine-health-check-ts-L89
 
-`client/lib/db/sync-engine/health-check.ts:89`
+`client/lib/db/sync-engine/health-check.ts:80`
 
 Only stamped on a successful fetch - a failed attempt (offline,
 server error) should retry on the next app open, not sit dormant
@@ -8596,7 +8596,7 @@ for the rest of the interval just because this one try failed.
 
 ### line-db-sync-engine-health-check-ts-L117
 
-`client/lib/db/sync-engine/health-check.ts:117`
+`client/lib/db/sync-engine/health-check.ts:107`
 
 "Improved" means at least one previously-gapped table's gap actually
 shrank - not just that the SET of gapped tables changed, since a
@@ -8605,7 +8605,7 @@ real progress worth another resync attempt.
 
 ### line-db-sync-engine-health-check-ts-L153
 
-`client/lib/db/sync-engine/health-check.ts:153`
+`client/lib/db/sync-engine/health-check.ts:141`
 
 Best-effort: a failed health check just means the timestamp above
 wasn't stamped (already handled per-branch), so it naturally retries
@@ -8622,7 +8622,7 @@ heals a device already stuck in that loop.
 
 ### line-db-sync-engine-pull-ts-L182
 
-`client/lib/db/sync-engine/pull.ts:182`
+`client/lib/db/sync-engine/pull.ts:73`
 
 Deltas whose stock_batches row hadn't arrived yet live in
 `_pending_stock_deltas`, written with the movement row itself and
@@ -8631,7 +8631,7 @@ with the drain. See client/AGENTS.md, "Deferred movement deltas".
 
 ### line-db-sync-engine-pull-ts-L199
 
-`client/lib/db/sync-engine/pull.ts:199`
+`client/lib/db/sync-engine/pull.ts:88`
 
 The window a drained table is stamped with covers only what the round
 actually queried, so it is the FIRST page's instant, never the last
@@ -8639,7 +8639,7 @@ page's (client/AGENTS.md, "Pull details").
 
 ### line-db-sync-engine-pull-ts-L203
 
-`client/lib/db/sync-engine/pull.ts:203`
+`client/lib/db/sync-engine/pull.ts:91`
 
 Survives the page boundary: a page can carry batches and no movements,
 and the drain still owes those batches' deferred deltas priority over
@@ -8647,7 +8647,7 @@ the next page's movements (A-197).
 
 ### line-db-sync-engine-pull-ts-L239
 
-`client/lib/db/sync-engine/pull.ts:239`
+`client/lib/db/sync-engine/pull.ts:130`
 
 Every batch whose log this page changed, against the net delta of the
 movements that changed it. Rebuilt once at the end of the page rather
@@ -8656,7 +8656,7 @@ of the order the pages arrive in (A-197).
 
 ### line-db-sync-engine-pull-ts-L256
 
-`client/lib/db/sync-engine/pull.ts:256`
+`client/lib/db/sync-engine/pull.ts:152`
 
 Settles deltas an arriving batch has resolved while their rows
 are still in the table. Ordering no longer matters — the drain
@@ -8690,7 +8690,7 @@ batch that never arrives has to stay visible (A-176).
 
 ### line-db-sync-engine-pull-ts-L672
 
-`client/lib/db/sync-engine/pull.ts:672`
+`client/lib/db/sync-engine/pull.ts:289`
 
 In `finally`, so a round with no stores/users changes — or a thrown
 pull — can never leave a caller awaiting this callback forever. The
@@ -8718,7 +8718,7 @@ server's winning value down (A-205); the drop alone does not.
 
 ### line-db-sync-engine-push-ts-L588
 
-`client/lib/db/sync-engine/push.ts:588`
+`client/lib/db/sync-engine/push.ts:209`
 
 After this batch's bookkeeping, never before: a `retry` applied
 first would have its reset undone by recordSyncFailure() if the
@@ -8735,7 +8735,7 @@ which cannot see it, would fold the batch down past it.
 
 ### line-db-sync-engine-stock-integrity-ts-L105
 
-`client/lib/db/sync-engine/stock-integrity.ts:105`
+`client/lib/db/sync-engine/stock-integrity.ts:104`
 
 Ordered by rowid — local insert order — because that is the order THIS
 device applied the deltas in, and so the order that produced the stored
@@ -8746,7 +8746,7 @@ floor event and makes a correct batch look diverged.
 
 ### line-db-sync-engine-stock-integrity-ts-L131
 
-`client/lib/db/sync-engine/stock-integrity.ts:131`
+`client/lib/db/sync-engine/stock-integrity.ts:126`
 
 A delta that has not been applied yet is not a disagreement, it is work
 in progress — and folding it in would let the pending drain apply it a
@@ -8754,7 +8754,7 @@ second time.
 
 ### line-db-sync-engine-stock-integrity-ts-L214
 
-`client/lib/db/sync-engine/stock-integrity.ts:214`
+`client/lib/db/sync-engine/stock-integrity.ts:208`
 
 Without an active store the audit widens to every store on the device.
 Harmless for a read; for a write it would rewrite another branch's
@@ -8762,7 +8762,7 @@ quantities (A-189 established at least one owner runs two).
 
 ### line-db-sync-engine-stock-integrity-ts-L242
 
-`client/lib/db/sync-engine/stock-integrity.ts:242`
+`client/lib/db/sync-engine/stock-integrity.ts:235`
 
 Inside the transaction, not before it: query() releases its queue slot
 before returning, so a report taken outside could be invalidated by a
@@ -8791,7 +8791,7 @@ initWriterLock() itself, when a real contending tab is detected.
 
 ### line-db-tab-lock-ts-L43
 
-`client/lib/db/tab-lock.ts:43`
+`client/lib/db/tab-lock.ts:40`
 
 Holds the lock (or the queued request) open for as long as this tab lives.
 The browser releases a Web Lock automatically when the holding document is
@@ -8800,7 +8800,7 @@ resolve on its own, so no beforeunload plumbing is needed to release it.
 
 ### line-db-tab-lock-ts-L56
 
-`client/lib/db/tab-lock.ts:56`
+`client/lib/db/tab-lock.ts:51`
 
 Cross-tab channel used only for the graceful writer handoff below - never
 for the election itself, which stays entirely on the Web Locks API. Lazily
@@ -8809,7 +8809,7 @@ just fall back to "requestWriterTakeover always times out", not a throw.
 
 ### line-db-tab-lock-ts-L65
 
-`client/lib/db/tab-lock.ts:65`
+`client/lib/db/tab-lock.ts:58`
 
 navigator.locks' {steal: true} revokes a lock without notifying its
 holder - this is the only way a merely-slow (not dead) old writer
@@ -8817,7 +8817,7 @@ finds out it lost the election before its next write.
 
 ### line-db-tab-lock-ts-L81
 
-`client/lib/db/tab-lock.ts:81`
+`client/lib/db/tab-lock.ts:73`
 
 Set once per tab by initWriterLock() - whatever it is, both the natural
 writer-hold path and stealWriterLock()'s steal path reuse the same
@@ -8826,7 +8826,7 @@ forces the same save function regardless of which path granted the lock.
 
 ### line-db-tab-lock-ts-L134
 
-`client/lib/db/tab-lock.ts:134`
+`client/lib/db/tab-lock.ts:124`
 
 Lets stealWriterLock() cancel this tab's own still-queued natural-
 promotion request before it forces one through via {steal: true} -
@@ -8837,7 +8837,7 @@ steal-acquired lock this tab now holds).
 
 ### line-db-tab-lock-ts-L184
 
-`client/lib/db/tab-lock.ts:184`
+`client/lib/db/tab-lock.ts:170`
 
 Resolves as soon as the promotion decision is made, same as
 initWriterLock's resolveInitialRole() - the granted request's callback
@@ -8847,7 +8847,7 @@ whole navigator.locks.request() call itself would never return.
 
 ### line-db-tab-lock-ts-L213
 
-`client/lib/db/tab-lock.ts:213`
+`client/lib/db/tab-lock.ts:196`
 
 Web Locks API unsupported (very old browser - it's shipped in every
 major browser since early 2022). Can't coordinate across tabs at all,
@@ -8856,7 +8856,7 @@ wrongly locking every tab but one out of an app they can't coordinate.
 
 ### line-db-tab-lock-ts-L234
 
-`client/lib/db/tab-lock.ts:234`
+`client/lib/db/tab-lock.ts:215`
 
 Scoped to its own try/catch (not the outer .catch() below) so
 that queuedPromotionController.abort() - used by
@@ -8876,7 +8876,7 @@ with `undefined` if that invariant is ever broken by a template edit.
 
 ### line-demo-loader-ts-L271
 
-`client/lib/demo/loader.ts:271`
+`client/lib/demo/loader.ts:270`
 
 createSale() doesn't record which batch(es) funded each sale_item;
 the POS UI does that separately. Fill it in here so returns (below)
@@ -8884,7 +8884,7 @@ can restore stock to the right batch via restoreReturnedStock().
 
 ### line-demo-loader-ts-L333
 
-`client/lib/demo/loader.ts:333`
+`client/lib/demo/loader.ts:331`
 
 8. Expenses (recurring costs use covers_months so a lump-sum payment
 like annual rent is smoothed across the months it actually covers,
@@ -8912,7 +8912,7 @@ implementation here means that specific drift can't happen again.
 
 ### line-hooks-use-account-actions-ts-L57
 
-`client/lib/hooks/use-account-actions.ts:57`
+`client/lib/hooks/use-account-actions.ts:53`
 
 Not destructive: the local session/data stays intact, this just shows
 the same lock screen used for idle re-auth, forced to account-selection
@@ -8931,7 +8931,7 @@ ever needs to survive within the current live session.
 
 ### line-hooks-use-auto-lock-ts-L25
 
-`client/lib/hooks/use-auto-lock.ts:25`
+`client/lib/hooks/use-auto-lock.ts:23`
 
 zustand's persist middleware writes this tab's entire state to localStorage
 synchronously on every set(). updateActivity() is wired to mousemove/
@@ -8943,7 +8943,7 @@ every event.
 
 ### line-hooks-use-auto-lock-ts-L69
 
-`client/lib/hooks/use-auto-lock.ts:69`
+`client/lib/hooks/use-auto-lock.ts:62`
 
 persist's `set()` always writes this tab's *entire* in-memory state back
 to localStorage, not just the changed field. Without this listener, a
@@ -8956,7 +8956,7 @@ in-memory state caught up with whichever tab wrote most recently.
 
 ### line-hooks-use-auto-lock-ts-L86
 
-`client/lib/hooks/use-auto-lock.ts:86`
+`client/lib/hooks/use-auto-lock.ts:73`
 
 Selectors, not a destructured whole-store call: this hook runs inside
 DashboardLayout, which wraps the entire app, so subscribing to the whole
@@ -8980,7 +8980,7 @@ ISO timestamp, which toQueryRange's yyyy-MM-dd parser can't read.
 
 ### line-hooks-use-bi-data-ts-L57
 
-`client/lib/hooks/use-bi-data.ts:57`
+`client/lib/hooks/use-bi-data.ts:54`
 
 toFilter is appended to the factory's key rather than added to the
 factory itself (lib/query-keys.ts is owned elsewhere) - without it two
@@ -8988,7 +8988,7 @@ ranges sharing a `from` would read each other's cached metrics.
 
 ### line-hooks-use-bi-data-ts-L75
 
-`client/lib/hooks/use-bi-data.ts:75`
+`client/lib/hooks/use-bi-data.ts:71`
 
 Already netted to its EX-VAT share by getBIMetrics (total_refunded is
 VAT-inclusive; see the comment on totalRefundsData in reports.ts), so the
@@ -8997,7 +8997,7 @@ instead of twice. Nothing extra to adjust here.
 
 ### line-hooks-use-bi-data-ts-L80
 
-`client/lib/hooks/use-bi-data.ts:80`
+`client/lib/hooks/use-bi-data.ts:74`
 
 Net Sales: what the business actually keeps after discounts (already
 baked into total_amount), tax collected on the government's behalf
@@ -9005,7 +9005,7 @@ baked into total_amount), tax collected on the government's behalf
 
 ### line-hooks-use-bi-data-ts-L84
 
-`client/lib/hooks/use-bi-data.ts:84`
+`client/lib/hooks/use-bi-data.ts:77`
 
 totalRevenue kept as an alias for netSales, not a separate tax-inclusive
 figure: every consumer of this hook (BIKeyMetrics' "Total Revenue" card,
@@ -9014,7 +9014,7 @@ tax-excluded number now, not the old tax-inclusive one.
 
 ### line-hooks-use-bi-data-ts-L109
 
-`client/lib/hooks/use-bi-data.ts:109`
+`client/lib/hooks/use-bi-data.ts:100`
 
 Previous-period Net Sales, defined exactly like netSales above (gross
 total_amount minus tax minus refunds) so revenueChange/
@@ -9022,7 +9022,7 @@ avgTransactionChange divide a net figure by a net figure.
 
 ### line-hooks-use-bi-data-ts-L180
 
-`client/lib/hooks/use-bi-data.ts:180`
+`client/lib/hooks/use-bi-data.ts:170`
 
 Gated on their own tab: neither is displayed on the default Sales tab, so
 together they were four extra reads on every mount of the dashboard. Radix
@@ -9031,7 +9031,7 @@ and the result stays cached from there on.
 
 ### line-hooks-use-bi-data-ts-L222
 
-`client/lib/hooks/use-bi-data.ts:222`
+`client/lib/hooks/use-bi-data.ts:210`
 
 Labelled for what the number actually is: the share of the
 customers who bought *inside this period* that bought more than
@@ -9079,7 +9079,7 @@ customer row.
 
 ### line-hooks-use-customer-management-ts-L255
 
-`client/lib/hooks/use-customer-management.ts:255`
+`client/lib/hooks/use-customer-management.ts:261`
 
 Debounced and memoized: unmemoized this re-ran the whole fuzzy search
 (including its Levenshtein fallback tier) on every render of
@@ -9095,7 +9095,7 @@ local state — the caller gets it back directly for immediate use.
 
 ### line-hooks-use-daily-close-data-ts-L31
 
-`client/lib/hooks/use-daily-close-data.ts:31`
+`client/lib/hooks/use-daily-close-data.ts:34`
 
 itemsToday already has every line item for the day (product_name
 included) - reuse it to attach a "||"-joined item_names string per sale,
@@ -9116,7 +9116,7 @@ Total Sales - see docs/KNOWN_BUGS.md's report-audit entry.
 
 ### line-hooks-use-daily-close-data-ts-L129
 
-`client/lib/hooks/use-daily-close-data.ts:129`
+`client/lib/hooks/use-daily-close-data.ts:128`
 
 Sales keyed by id so a refund can find the sale it belongs to - used
 below for the VAT netting (see totalTaxToday). Only covers sales made
@@ -9124,7 +9124,7 @@ TODAY; a refund against an earlier day's sale has no row here.
 
 ### line-hooks-use-daily-close-data-ts-L140
 
-`client/lib/hooks/use-daily-close-data.ts:140`
+`client/lib/hooks/use-daily-close-data.ts:138`
 
 The VAT share already backed out of totals.total by this refund.
 calculateProportionalRefund (pos-calculations.ts) builds a refund as
@@ -9136,7 +9136,7 @@ without needing the return's line items at all.
 
 ### line-hooks-use-daily-close-data-ts-L161
 
-`client/lib/hooks/use-daily-close-data.ts:161`
+`client/lib/hooks/use-daily-close-data.ts:154`
 
 The return flow has no way to record which specific method(s) a
 refund actually came back out of (no payment-method picker on a
@@ -9151,7 +9151,7 @@ writing that credit back off, the same as the non-mixed case.
 
 ### line-hooks-use-daily-close-data-ts-L181
 
-`client/lib/hooks/use-daily-close-data.ts:181`
+`client/lib/hooks/use-daily-close-data.ts:166`
 
 Decrement the specific sub-account line too, not just the
 parent card/transfer total - otherwise a card's itemized
@@ -9161,7 +9161,7 @@ sales loop's addAccountTotal call, with a negative amount.
 
 ### line-hooks-use-daily-close-data-ts-L191
 
-`client/lib/hooks/use-daily-close-data.ts:191`
+`client/lib/hooks/use-daily-close-data.ts:173`
 
 The original sale has no usable splits.accountId/amount data to
 prorate against (legacy row, missing/corrupt payment_details) -
@@ -9171,7 +9171,7 @@ Credit silently stops reconciling to Total Sales.
 
 ### line-hooks-use-daily-close-data-ts-L243
 
-`client/lib/hooks/use-daily-close-data.ts:243`
+`client/lib/hooks/use-daily-close-data.ts:222`
 
 Revenue already includes any reseller markup (it's part of the sale's
 selling price), so once that commission/markup has actually been paid
@@ -9181,7 +9181,7 @@ settled yet.
 
 ### line-hooks-use-daily-close-data-ts-L257
 
-`client/lib/hooks/use-daily-close-data.ts:257`
+`client/lib/hooks/use-daily-close-data.ts:233`
 
 VAT/tax collected on the government's behalf is a liability, not
 profit, so it's backed out of the day's revenue. It has to be backed
@@ -9227,7 +9227,7 @@ net-today against gross-yesterday made any refund look like a sales drop.
 
 ### line-hooks-use-dashboard-overview-ts-L82
 
-`client/lib/hooks/use-dashboard-overview.ts:82`
+`client/lib/hooks/use-dashboard-overview.ts:81`
 
 Memoized, like getActivityColor below, because both are handed to the
 activity feed's rows. The feed is capped at 5 items so the compute itself is
@@ -9235,7 +9235,7 @@ small; a fresh array/closure per render is what invalidates them.
 
 ### line-hooks-use-dashboard-overview-ts-L138
 
-`client/lib/hooks/use-dashboard-overview.ts:138`
+`client/lib/hooks/use-dashboard-overview.ts:136`
 
 Distinguishes a prescription-dispensed sale from a walk-in sale for
 icon/color purposes only; `type` stays "sale" so the transaction
@@ -9272,7 +9272,7 @@ the limit doesn't already say.
 
 ### line-hooks-use-feature-gate-ts-L164
 
-`client/lib/hooks/use-feature-gate.ts:164`
+`client/lib/hooks/use-feature-gate.ts:160`
 
 Advanced E-commerce — Enterprise-only: a real per-tenant storefront
 needs its own domain + SSL, which the current shared-hosting setup
@@ -9280,7 +9280,7 @@ needs its own domain + SSL, which the current shared-hosting setup
 
 ### line-hooks-use-feature-gate-ts-L169
 
-`client/lib/hooks/use-feature-gate.ts:169`
+`client/lib/hooks/use-feature-gate.ts:164`
 
 Core POS/checkout access. Every tier's `smart_pos` config value is
 `true` today (no tier currently loses this), but it's wired as a
@@ -9291,7 +9291,7 @@ entirely for that tier — treat changes to it with real caution.
 
 ### line-hooks-use-feature-gate-ts-L198
 
-`client/lib/hooks/use-feature-gate.ts:198`
+`client/lib/hooks/use-feature-gate.ts:189`
 
 Plan-tier entitlement only (Pro/Enterprise), independent of the
 store's own on/off toggle. Settings UI uses this (not
@@ -9302,7 +9302,7 @@ impossible to turn back on.
 
 ### line-hooks-use-feature-gate-ts-L211
 
-`client/lib/hooks/use-feature-gate.ts:211`
+`client/lib/hooks/use-feature-gate.ts:198`
 
 Report Center's non-daily-close reports (other report types, cross-
 report filtering) plus the BI/analytics dashboard and their CSV/PDF
@@ -9310,7 +9310,7 @@ exports.
 
 ### line-hooks-use-feature-gate-ts-L216
 
-`client/lib/hooks/use-feature-gate.ts:216`
+`client/lib/hooks/use-feature-gate.ts:202`
 
 Plan-tier entitlement only, independent of the store's own toggle -
 same reasoning as canAccessLoyaltyProgramPlan above. The Register
@@ -9319,7 +9319,7 @@ visible/toggleable even while off.
 
 ### line-hooks-use-feature-gate-ts-L229
 
-`client/lib/hooks/use-feature-gate.ts:229`
+`client/lib/hooks/use-feature-gate.ts:213`
 
 The End-of-Day / Daily Close report tab, including its own export —
 deliberately Starter+ (not Pro-only), matching expenses/procurement/
@@ -9327,7 +9327,7 @@ prescriptions: core day-to-day ops stay available at Starter.
 
 ### line-hooks-use-finance-data-ts-L111
 
-`client/lib/hooks/use-finance-data.ts:111`
+`client/lib/hooks/use-finance-data.ts:124`
 
 endOfMonth, not the start of next month: getSmoothedExpensesTotal and
 getCurrentMonthExpensesByCategory both treat `to` as INCLUSIVE (see their
@@ -9356,7 +9356,7 @@ mutation. Fits transaction_number's plain string column; no schema change.
 
 ### line-hooks-use-fulfill-online-order-mutation-ts-L76
 
-`client/lib/hooks/use-fulfill-online-order-mutation.ts:76`
+`client/lib/hooks/use-fulfill-online-order-mutation.ts:80`
 
 Written via the standard insert()/update() helpers, not raw execute(), so
 this gets audit logging and cache invalidation like every other mutation.
@@ -9374,7 +9374,7 @@ notes instead so it's still visible on the transaction.
 
 ### line-hooks-use-fulfill-online-order-mutation-ts-L93
 
-`client/lib/hooks/use-fulfill-online-order-mutation.ts:93`
+`client/lib/hooks/use-fulfill-online-order-mutation.ts:86`
 
 NOT NULL with no schema default (unlike tax_amount/discount_total,
 which default to 0) - online orders carry no separate tax/discount
@@ -9383,7 +9383,7 @@ total as the whole of it.
 
 ### line-hooks-use-fulfill-online-order-mutation-ts-L107
 
-`client/lib/hooks/use-fulfill-online-order-mutation.ts:107`
+`client/lib/hooks/use-fulfill-online-order-mutation.ts:98`
 
 Insert each sale_items row and deduct/log the stock it consumed via
 the same recordSaleItemStock() used by POS checkout (see
@@ -9398,7 +9398,7 @@ through the shared helper closes both gaps in one place.
 
 ### line-hooks-use-fulfill-online-order-mutation-ts-L118
 
-`client/lib/hooks/use-fulfill-online-order-mutation.ts:118`
+`client/lib/hooks/use-fulfill-online-order-mutation.ts:101`
 
 Online orders don't carry a per-item cost_price (unlike POS cart
 items, which resolve it from batches when added to cart), so
@@ -9419,7 +9419,7 @@ that's still wider than this after the fix below.
 
 ### line-hooks-use-monthly-sales-data-ts-L32
 
-`client/lib/hooks/use-monthly-sales-data.ts:32`
+`client/lib/hooks/use-monthly-sales-data.ts:29`
 
 Renders the months actually covered by the SELECTED range
 (dateFilter..toFilter), not a fixed "last 6 calendar months from
@@ -9444,7 +9444,7 @@ a cart staged against the outgoing session.
 
 ### line-hooks-use-pos-cart-ts-L170
 
-`client/lib/hooks/use-pos-cart.ts:170`
+`client/lib/hooks/use-pos-cart.ts:54`
 
 A manual discount edit and a loyalty redemption share the same discount
 slot (by design, to keep a single source of truth for "the" discount) —
@@ -9453,7 +9453,7 @@ that reward, since the point cost no longer corresponds to what's typed.
 
 ### line-hooks-use-pos-cart-ts-L212
 
-`client/lib/hooks/use-pos-cart.ts:212`
+`client/lib/hooks/use-pos-cart.ts:90`
 
 Re-price against the catalog rather than at checkout: every figure the
 cashier and the customer see (line subtotal, cart subtotal, VAT, total,
@@ -9466,7 +9466,7 @@ so re-running it on every cart change costs one pass and settles.
 
 ### line-hooks-use-pos-cart-ts-L232
 
-`client/lib/hooks/use-pos-cart.ts:232`
+`client/lib/hooks/use-pos-cart.ts:104`
 
 A redemption already staged in cart state can outlive the gate that
 allowed it — a plan downgrade, or an admin flipping the store's on/off
@@ -9477,7 +9477,7 @@ discount it applied is cleared along with it via clearRedemption().
 
 ### line-hooks-use-pos-cart-ts-L250
 
-`client/lib/hooks/use-pos-cart.ts:250`
+`client/lib/hooks/use-pos-cart.ts:118`
 
 VAT must be charged on the net-of-discount amount (this covers loyalty
 redemptions too, since they share this same discount slot — see
@@ -9486,7 +9486,7 @@ overcharged VAT on money the customer was never actually charged.
 
 ### line-hooks-use-pos-cart-ts-L362
 
-`client/lib/hooks/use-pos-cart.ts:362`
+`client/lib/hooks/use-pos-cart.ts:225`
 
 Turning reseller mode off with marked-up prices still in the cart
 would silently keep charging the marked-up amount with no
@@ -9494,7 +9494,7 @@ commission tracked for it - revert every line back to normal.
 
 ### line-hooks-use-pos-cart-ts-L393
 
-`client/lib/hooks/use-pos-cart.ts:393`
+`client/lib/hooks/use-pos-cart.ts:255`
 
 A held transaction never persisted a redemption (only its resulting
 discount amount), so any redemption tag from before this restore is
@@ -9502,7 +9502,7 @@ now stale and must not carry over.
 
 ### line-hooks-use-pos-cart-ts-L399
 
-`client/lib/hooks/use-pos-cart.ts:399`
+`client/lib/hooks/use-pos-cart.ts:260`
 
 The raw store setter, not setIsResellerSale: that wrapper reverts every
 line to original_unit_price when switching the flag off, which would
@@ -9510,7 +9510,7 @@ undo the markup this restore is carrying.
 
 ### line-hooks-use-pos-held-transactions-ts-L54
 
-`client/lib/hooks/use-pos-held-transactions.ts:54`
+`client/lib/hooks/use-pos-held-transactions.ts:65`
 
 Date.now() as an explicit primary key collides across two terminals
 holding a sale in the same millisecond - the losing cart silently
@@ -9518,7 +9518,7 @@ overwrites the other on sync. generateId() is collision-safe.
 
 ### line-hooks-use-pos-held-transactions-ts-L66
 
-`client/lib/hooks/use-pos-held-transactions.ts:66`
+`client/lib/hooks/use-pos-held-transactions.ts:76`
 
 Persist the discount alongside the total: clearCart() (called
 right below) resets live discount state to 0, so without this the
@@ -9526,7 +9526,7 @@ total the customer was quoted couldn't be reconstructed on recall.
 
 ### line-hooks-use-pos-held-transactions-ts-L92
 
-`client/lib/hooks/use-pos-held-transactions.ts:92`
+`client/lib/hooks/use-pos-held-transactions.ts:101`
 
 1. Parse items first. The current cart is deliberately left
 untouched until the parse/lookup work below has succeeded — clearing
@@ -9537,7 +9537,7 @@ Discarding a non-empty cart is confirmed by the caller
 
 ### line-hooks-use-pos-held-transactions-ts-L109
 
-`client/lib/hooks/use-pos-held-transactions.ts:109`
+`client/lib/hooks/use-pos-held-transactions.ts:114`
 
 Prices are rebuilt from the current catalog; a held reseller sale keeps
 its agreed markup or cut relative to it (recalledUnitPrice) instead of
@@ -9562,7 +9562,7 @@ restored reseller markup as a price change.
 
 ### line-hooks-use-pos-held-transactions-ts-L141
 
-`client/lib/hooks/use-pos-held-transactions.ts:141`
+`client/lib/hooks/use-pos-held-transactions.ts:139`
 
 2. Delete the held row BEFORE touching cart state. remove() can fail
 for reasons unrelated to the recall (a read-only second tab, an
@@ -9580,7 +9580,7 @@ kept the markup.
 
 ### line-hooks-use-pos-payment-helpers-ts-L93
 
-`client/lib/hooks/use-pos-payment-helpers.ts:93`
+`client/lib/hooks/use-pos-payment-helpers.ts:92`
 
 Checked before coverage: the shortage math floors negatives, so a
 negative split would otherwise pass silently as "covered" while
@@ -9596,7 +9596,7 @@ reseller is actually paid out.
 
 ### line-hooks-use-pos-payment-helpers-ts-L196
 
-`client/lib/hooks/use-pos-payment-helpers.ts:196`
+`client/lib/hooks/use-pos-payment-helpers.ts:195`
 
 Re-read the current points balance rather than trusting selectedCustomer
 (captured when the cashier picked the customer, possibly stale by the
@@ -9605,7 +9605,7 @@ balance write in use-pos-payment.ts.
 
 ### line-hooks-use-pos-payment-helpers-ts-L206
 
-`client/lib/hooks/use-pos-payment-helpers.ts:206`
+`client/lib/hooks/use-pos-payment-helpers.ts:203`
 
 POINTS EXPIRY (LOYALTY_RULES.POINTS_EXPIRY_MONTHS) is materialized here,
 at the only place a sale already touches a customer's points balance, so
@@ -9625,7 +9625,7 @@ same batches twice.
 
 ### line-hooks-use-pos-payment-helpers-ts-L224
 
-`client/lib/hooks/use-pos-payment-helpers.ts:224`
+`client/lib/hooks/use-pos-payment-helpers.ts:208`
 
 Reject rather than clamp: calculateLoyaltyPointsAfterSale floors the
 resulting balance at 0, which used to mean a customer who no longer
@@ -9637,7 +9637,7 @@ whole sale rather than leaving a half-applied discount.
 
 ### line-hooks-use-pos-payment-ts-L99
 
-`client/lib/hooks/use-pos-payment.ts:99`
+`client/lib/hooks/use-pos-payment.ts:94`
 
 Synchronous re-entrancy guard: the Process Payment button's own
 `disabled={processingPayment}` prop only takes effect after React
@@ -9655,7 +9655,7 @@ not (both calls would still read the same pre-render value).
 
 ### line-hooks-use-pos-payment-ts-L154
 
-`client/lib/hooks/use-pos-payment.ts:154`
+`client/lib/hooks/use-pos-payment.ts:141`
 
 Date.now() collides across two terminals checking out in the same
 millisecond (or with clock skew) - transaction_number is UNIQUE NOT
@@ -9753,7 +9753,7 @@ display:none input doesn't pop the on-screen keyboard.
 
 ### line-hooks-use-pos-system-ts-L89
 
-`client/lib/hooks/use-pos-system.ts:89`
+`client/lib/hooks/use-pos-system.ts:84`
 
 POS doesn't use the shared DashboardLayout scroll container (its routes opt out
 of that entirely), so each tab wires pull-to-refresh directly onto its own
@@ -9761,7 +9761,7 @@ scrollable region instead of registering through the global context.
 
 ### line-hooks-use-pos-system-ts-L219
 
-`client/lib/hooks/use-pos-system.ts:219`
+`client/lib/hooks/use-pos-system.ts:213`
 
 Clears the search after a search-driven add so the next scan/search
 starts clean, instead of leaving the previous query (and its now-stale
@@ -9802,7 +9802,7 @@ marks the prescription "completed" itself once payment succeeds
 
 ### line-hooks-use-prescription-management-ts-L54
 
-`client/lib/hooks/use-prescription-management.ts:54`
+`client/lib/hooks/use-prescription-management.ts:53`
 
 A prescription-linked sale is the actual source of truth for stock/
 payment: "cancelling" a prescription used to just relabel its status
@@ -9828,7 +9828,7 @@ instead of the detail panel showing whatever was selected at click-time.
 
 ### line-hooks-use-prescription-queue-ts-L166
 
-`client/lib/hooks/use-prescription-queue.ts:166`
+`client/lib/hooks/use-prescription-queue.ts:165`
 
 update() already invalidates queryKey: ["prescriptions"], triggering a
 refetch. selectedPrescription is derived from that data, so it picks up
@@ -9836,7 +9836,7 @@ the new status automatically once the refetch lands.
 
 ### line-hooks-use-process-return-mutation-ts-L40
 
-`client/lib/hooks/use-process-return-mutation.ts:40`
+`client/lib/hooks/use-process-return-mutation.ts:42`
 
 returns.user_id is a constrained foreign key server-side, so a
 sentinel written here only fails much later and somewhere else: the
@@ -9847,7 +9847,7 @@ null, which is a caller bug worth surfacing here and now.
 
 ### line-hooks-use-process-return-mutation-ts-L87
 
-`client/lib/hooks/use-process-return-mutation.ts:87`
+`client/lib/hooks/use-process-return-mutation.ts:85`
 
 3. Mark sale as returned once every line item's full remaining
 balance has been returned (across this and any prior returns),
@@ -9855,7 +9855,7 @@ not just when every original line item is touched in this one.
 
 ### line-hooks-use-process-return-mutation-ts-L98
 
-`client/lib/hooks/use-process-return-mutation.ts:98`
+`client/lib/hooks/use-process-return-mutation.ts:102`
 
 A full return of a prescription-linked sale undoes the dispense.
 Send it back to "ready" so it re-enters the dispense queue instead
@@ -9864,7 +9864,7 @@ of staying "completed" with no sale to show for it. Partial returns
 
 ### line-hooks-use-process-return-mutation-ts-L106
 
-`client/lib/hooks/use-process-return-mutation.ts:106`
+`client/lib/hooks/use-process-return-mutation.ts:108`
 
 If any part of this sale was paid on credit, returning goods must also
 reduce what the customer owes, otherwise they're still on the hook
@@ -9887,7 +9887,7 @@ nothing left to correctly apply it against.
 
 ### line-hooks-use-process-return-mutation-ts-L147
 
-`client/lib/hooks/use-process-return-mutation.ts:147`
+`client/lib/hooks/use-process-return-mutation.ts:140`
 
 Cap the debt forgiveness at what this sale actually still owes -
 crediting the customer's outstanding_balance by the full
@@ -9897,7 +9897,7 @@ partially paid, silently eating into their other sales' debt.
 
 ### line-hooks-use-process-return-mutation-ts-L167
 
-`client/lib/hooks/use-process-return-mutation.ts:167`
+`client/lib/hooks/use-process-return-mutation.ts:157`
 
 A return must also undo its proportional share of whatever this
 sale did to the customer's points balance — otherwise a customer
@@ -9934,7 +9934,7 @@ still turn out to be a tap.
 
 ### line-hooks-use-pull-to-refresh-ts-L78
 
-`client/lib/hooks/use-pull-to-refresh.ts:78`
+`client/lib/hooks/use-pull-to-refresh.ts:71`
 
 Now that there's real vertical travel to compare against, a
 horizontal component that still dominates it means this is a
@@ -9960,7 +9960,7 @@ no reason, since the underlying data never changed).
 
 ### line-hooks-use-purchase-orders-ts-L106
 
-`client/lib/hooks/use-purchase-orders.ts:106`
+`client/lib/hooks/use-purchase-orders.ts:104`
 
 receivePurchaseOrder() writes products.selling_price synchronously
 for any line with a real override, same as createAndReceivePurchaseOrder -
@@ -9979,7 +9979,7 @@ transform over every report's differently-shaped rows.
 
 ### line-hooks-use-report-export-ts-L211
 
-`client/lib/hooks/use-report-export.ts:211`
+`client/lib/hooks/use-report-export.ts:209`
 
 The DB stores these as raw date/datetime strings; format them
 consistently (dd/mm/yyyy) instead of leaking whatever precision
@@ -9988,7 +9988,7 @@ into the exported CSV/PDF.
 
 ### line-hooks-use-report-export-ts-L256
 
-`client/lib/hooks/use-report-export.ts:256`
+`client/lib/hooks/use-report-export.ts:252`
 
 Reports configured takesDateRange: false (stock_batches, customers)
 are always all-time - they never actually filter by dateFrom/dateTo
@@ -9998,7 +9998,7 @@ range it was never filtered by.
 
 ### line-hooks-use-report-export-ts-L269
 
-`client/lib/hooks/use-report-export.ts:269`
+`client/lib/hooks/use-report-export.ts:262`
 
 Sits under the subtitle in the PDF's header block - same mechanism,
 a second line, so a caveat about the figures travels with the
@@ -10031,7 +10031,7 @@ update() for every product saved without one, surfacing as a silent
 
 ### line-hooks-use-sortable-data-ts-L23
 
-`client/lib/hooks/use-sortable-data.ts:23`
+`client/lib/hooks/use-sortable-data.ts:20` (comment and back-link removed from code)
 
 The accessor is captured into state on every `toggleSort` (it used to be
 read through a ref) instead of putting `accessors` in the memo's dependency
@@ -10059,7 +10059,7 @@ inventory-audit-context.tsx.
 
 ### line-hooks-use-stock-batch-management-ts-L30
 
-`client/lib/hooks/use-stock-batch-management.ts:30`
+`client/lib/hooks/use-stock-batch-management.ts:28`
 
 /inventory/batches is a generateStaticParams route with no <TabsContent>
 behind it, so it rendered a blank panel. The Catalog tab is the
@@ -10067,7 +10067,7 @@ all-products view its three callers actually meant.
 
 ### line-hooks-use-stock-batch-management-ts-L36
 
-`client/lib/hooks/use-stock-batch-management.ts:36`
+`client/lib/hooks/use-stock-batch-management.ts:33`
 
 The "Movements" tab UI is hidden entirely for roles without stock-management
 access, but the /inventory/ledger route itself is still directly reachable
@@ -10075,7 +10075,7 @@ access, but the /inventory/ledger route itself is still directly reachable
 
 ### line-hooks-use-stock-batch-management-ts-L53
 
-`client/lib/hooks/use-stock-batch-management.ts:53`
+`client/lib/hooks/use-stock-batch-management.ts:49`
 
 The sidebar's own <Link> only ever prefetches "/inventory" (wherever it
 points), never the *other* tabs reachable once you're already on this
@@ -10103,7 +10103,7 @@ and the lists it cross-references, said 90.
 
 ### line-hooks-use-stock-batch-stats-ts-L44
 
-`client/lib/hooks/use-stock-batch-stats.ts:44`
+`client/lib/hooks/use-stock-batch-stats.ts:41`
 
 "Needs reordering": at or below reorder level, INCLUDING the ones that
 have sold out entirely. getStockBatchStats's low_stock_count
@@ -10124,7 +10124,7 @@ touch devices (iPad).
 
 ### line-hooks-use-swipe-navigation-ts-L32
 
-`client/lib/hooks/use-swipe-navigation.ts:32`
+`client/lib/hooks/use-swipe-navigation.ts:31`
 
 Clear the direction once the new route has mounted with it, so a later
 navigation triggered another way (e.g. a sidebar click) doesn't replay
@@ -10167,7 +10167,7 @@ to touch stock_batches.
 
 ### line-query-keys-ts-L220
 
-`client/lib/query-keys.ts:220`
+`client/lib/query-keys.ts:223`
 
 Today's local date is part of the key because getDashboardOverviewData
 computes "today" internally (getLocalTodayDate(), same call as here):
@@ -10177,7 +10177,7 @@ helper means key and query function can never disagree about the day.
 
 ### line-query-keys-ts-L275
 
-`client/lib/query-keys.ts:275`
+`client/lib/query-keys.ts:277`
 
 tableName distinguishes the full Activity Log page's cache slot (no
 arg) from a scoped tab's (e.g. Staff Activities passing "users") —
@@ -10239,7 +10239,7 @@ the other three patterns already auto-reload for).
 
 ### line-utils-chunk-error-ts-L28
 
-`client/lib/utils/chunk-error.ts:28`
+`client/lib/utils/chunk-error.ts:11`
 
 "Unexpected token '<'" isn't unique to a script tag being handed HTML -
 V8's JSON.parse() throws the exact same wording ("Unexpected token '<',
@@ -10278,7 +10278,7 @@ Sentry".
 
 ### line-utils-error-logger-ts-L98
 
-`client/lib/utils/error-logger.ts:98`
+`client/lib/utils/error-logger.ts:97`
 
 base-client.ts attaches `code` to the thrown Error; the message-substring
 fallback covers call sites (e.g. recordSyncFailure) that only have the
@@ -10287,7 +10287,7 @@ check, and why they differ: client/AGENTS.md, "Expected sync noise".
 
 ### line-utils-error-logger-ts-L227
 
-`client/lib/utils/error-logger.ts:227`
+`client/lib/utils/error-logger.ts:224`
 
 Ship directly to our own server too, independent of the local SQLite
 sync queue below: when the crash IS a sync failure, waiting on that same
@@ -10296,7 +10296,7 @@ arrives. keepalive fetch survives the tab closing right after a crash.
 
 ### line-utils-error-logger-ts-L256
 
-`client/lib/utils/error-logger.ts:256`
+`client/lib/utils/error-logger.ts:251`
 
 Coalesces a repeat of the SAME crash (matched by fingerprint) into the
 most recent still-unsynced row, same reasoning as logAction()'s
@@ -10304,7 +10304,7 @@ audit_logs dedup (core.ts). See client/AGENTS.md, "What reaches Sentry".
 
 ### line-utils-error-logger-ts-L329
 
-`client/lib/utils/error-logger.ts:329`
+`client/lib/utils/error-logger.ts:323`
 
 type='bug' + a fingerprint is what marks a row as automatic crash
 telemetry rather than feedback a user typed — see
@@ -10330,7 +10330,7 @@ tie out to the sum of displayed line values.
 
 ### line-utils-pos-calculations-ts-L20
 
-`client/lib/utils/pos-calculations.ts:20`
+`client/lib/utils/pos-calculations.ts:18`
 
 VAT is charged on the net-of-discount amount, not the raw subtotal — a
 discount is a reduction in the price charged, so tax should never be
@@ -10340,7 +10340,7 @@ raw subtotal, or the customer is overcharged VAT on the discounted portion.
 
 ### line-utils-pos-calculations-ts-L42
 
-`client/lib/utils/pos-calculations.ts:42`
+`client/lib/utils/pos-calculations.ts:37`
 
 NOTE: this still subtracts discountAmount from the raw subtotal even
 though tax should be computed net-of-discount (see calculateTax above).
@@ -10352,7 +10352,7 @@ old, buggy call pattern) would overcharge VAT; see use-pos-cart.ts.
 
 ### line-utils-pos-calculations-ts-L118
 
-`client/lib/utils/pos-calculations.ts:118`
+`client/lib/utils/pos-calculations.ts:108`
 
 Negative splits are floored here too, not just at the input: a negative
 amount would otherwise offset a larger positive one and make an
@@ -10379,7 +10379,7 @@ huge swaths of unrelated short words/codes, so it used to return noisy
 
 ### line-utils-search-ts-L63
 
-`client/lib/utils/search.ts:63`
+`client/lib/utils/search.ts:16`
 
 A squashed term shorter than this matches too much mid-string once spaces
 are gone ("nc" hits "zinc" and "vitamin c" alike), so below it only
@@ -10396,7 +10396,7 @@ reason short terms produced arbitrary matches.
 
 ### line-utils-search-ts-L183
 
-`client/lib/utils/search.ts:183`
+`client/lib/utils/search.ts:125`
 
 Tier 3.5: punctuation-insensitive match, graded. Every band sits
 below tier 3's 20, so this only ever adds results and never reorders
@@ -10407,7 +10407,7 @@ outrank a real "vitamin b-12" on a till.
 
 ### line-utils-search-ts-L280
 
-`client/lib/utils/search.ts:280`
+`client/lib/utils/search.ts:218`
 
 A scanned barcode with no exact match previously fell straight
 through to fuzzy-matching against product NAMES, with barcode never
@@ -10425,7 +10425,7 @@ it in the Inventory > Catalog route chunk for everyone.
 
 ### line-utils-spreadsheet-io-ts-L149
 
-`client/lib/utils/spreadsheet-io.ts:149`
+`client/lib/utils/spreadsheet-io.ts:151`
 
 worksheet.actualRowCount is the count of NON-EMPTY rows, not the last
 row's index - a sheet with any blank row (common in real QuickBooks/

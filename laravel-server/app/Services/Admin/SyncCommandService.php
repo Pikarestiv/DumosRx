@@ -133,7 +133,7 @@ class SyncCommandService
         ])->all();
     }
 
-    /** @param  array<int, array<string, mixed>>  $outcomes */
+    /** @param  array<mixed>  $outcomes  as the device sent them, unvalidated */
     public function recordOutcome(string $storeId, string $deviceId, array $outcomes): void
     {
         foreach ($outcomes as $outcome) {
@@ -173,7 +173,7 @@ class SyncCommandService
                 'record_id' => $c->record_id,
                 'status' => $c->status,
                 'result' => $c->result,
-                'issued_at' => $c->issued_at?->toIso8601String(),
+                'issued_at' => $c->issued_at->toIso8601String(),
                 'acted_at' => $c->acted_at?->toIso8601String(),
             ])->all();
     }

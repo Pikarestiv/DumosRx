@@ -155,11 +155,9 @@ class AdminStoreDetailService
             'plan' => $subscription->plan_name,
             'status' => $subscription->status,
             'is_trial' => (bool) $subscription->is_trial,
-            'start_date' => $subscription->start_date?->format('M d, Y'),
-            'end_date' => $subscription->end_date?->format('M d, Y'),
-            'days_remaining' => $subscription->end_date
-                ? (int) max(0, ceil(now()->diffInDays($subscription->end_date, false)))
-                : null,
+            'start_date' => $subscription->start_date->format('M d, Y'),
+            'end_date' => $subscription->end_date->format('M d, Y'),
+            'days_remaining' => (int) max(0, ceil(now()->diffInDays($subscription->end_date, false))),
         ];
     }
 
@@ -190,11 +188,11 @@ class AdminStoreDetailService
             ->orderByDesc('created_at')
             ->limit(self::RECENT_ACTIVITY_LIMIT)
             ->get()
-            ->map(fn ($log) => [
+            ->map(fn (ActivityLog $log) => [
                 'id' => $log->id,
                 'action' => $log->action,
                 'description' => $log->description,
-                'status' => $log->status,
+                'status' => null,
                 'actor' => $log->user ? trim("{$log->user->first_name} {$log->user->last_name}") : null,
                 'at' => $log->created_at?->diffForHumans(),
             ]);

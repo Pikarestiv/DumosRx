@@ -149,7 +149,7 @@ class StorefrontPaymentReconciler
         $this->alert('Storefront payment mismatch: '.$intent->reference, [
             'A storefront payment was confirmed by the provider for an amount or currency that does not match the cart it was minted for. No order was created.',
             'Reference: '.$intent->reference,
-            'Store: '.($intent->store?->name ?? $intent->store_id),
+            'Store: '.($intent->store->name ?? $intent->store_id),
             'Customer email: '.($intent->customer_email ?: 'unknown'),
             'Expected: '.number_format((float) $intent->amount, 2).' '.$intent->currency,
             'Reported: '.number_format($reportedAmount, 2).' '.($reportedCurrency ?: 'unknown'),
@@ -170,7 +170,7 @@ class StorefrontPaymentReconciler
         $this->alert('Storefront payment with no order: '.$intent->reference, [
             'A storefront customer paid but never returned to place the order, so the payment is settled with no order against it. Either contact the customer to complete it or refund the reference.',
             'Reference: '.$intent->reference,
-            'Store: '.($intent->store?->name ?? $intent->store_id),
+            'Store: '.($intent->store->name ?? $intent->store_id),
             'Customer email: '.($intent->customer_email ?: 'unknown'),
             'Amount: '.number_format((float) $intent->amount, 2).' '.$intent->currency,
             'Paid for: '.$this->describeItems($intent),

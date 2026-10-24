@@ -198,7 +198,7 @@ class AdminStoreDeletionService
         );
         $this->cascades->cascadeChildren('users', $userIds, $removed, ['stores', ...$storeScopedTables]);
 
-        $removed['users'] = User::withTrashed()->whereIn('id', $userIds)->forceDelete();
+        $removed['users'] = (int) User::withTrashed()->whereIn('id', $userIds)->forceDelete();
     }
 
     private function assertRestoreAllowed(Store $store): void

@@ -65,7 +65,7 @@ class StockMovementController extends Controller
             return [
                 'id' => $m->id,
                 'created_at' => $m->created_at ? $m->created_at->toIso8601String() : null,
-                'date' => $m->movement_date ? $m->movement_date->toIso8601String() : null,
+                'date' => $m->movement_date->toIso8601String(),
                 'medicine_name' => $m->product ? $m->product->name : 'Unknown',
                 'medicine' => $m->product,
                 'type' => $m->movement_type === 'adjustment' ? 'adjustment' : ($m->quantity > 0 ? 'in' : 'out'),
@@ -120,7 +120,7 @@ class StockMovementController extends Controller
             return [
                 'id' => $a->id,
                 'created_at' => $a->created_at ? $a->created_at->toIso8601String() : null,
-                'date' => $a->movement_date ? $a->movement_date->toIso8601String() : null,
+                'date' => $a->movement_date->toIso8601String(),
                 'medicine_name' => $a->product ? $a->product->name : 'Unknown',
                 'medicine' => $a->product,
                 'adjustment_type' => $a->quantity > 0 ? 'increase' : 'decrease',

@@ -107,6 +107,7 @@ class AdminSyncHealthService
             ->groupBy('reason')
             ->orderByDesc('total')
             ->limit(self::REASON_GROUPS)
+            ->toBase()
             ->get()
             ->mapWithKeys(fn ($row) => [$row->reason => (int) $row->total])
             ->all();
@@ -120,6 +121,7 @@ class AdminSyncHealthService
             ->groupBy('store_id')
             ->orderByDesc('refused')
             ->limit(self::WORST_STORES)
+            ->toBase()
             ->get();
 
         $names = Store::withTrashed()

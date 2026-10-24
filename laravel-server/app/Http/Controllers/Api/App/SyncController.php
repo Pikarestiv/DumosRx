@@ -23,6 +23,7 @@ use App\Services\Sync\LegacyStockQuantitiesGrant;
 use App\Services\Sync\PeerSyncFreshnessService;
 use App\Services\Web\SyncPayloadMapper;
 use App\Services\Web\UserDeviceTracker;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -426,25 +427,25 @@ class SyncController extends Controller
 
                             // Force missing required fields for users
                             if ($change['table_name'] === 'users') {
-                                if (empty($model->password)) {
+                                if (empty($model->getAttribute('password'))) {
                                     // Offline-created users are PIN-only; never
                                     // derive one. "Staff credentials" in AGENTS.md.
-                                    $model->password = null;
+                                    $model->setAttribute('password', null);
                                 }
-                                if (empty($model->first_name)) {
-                                    $model->first_name = $payload['first_name'] ?? 'User';
+                                if (empty($model->getAttribute('first_name'))) {
+                                    $model->setAttribute('first_name', $payload['first_name'] ?? 'User');
                                 }
-                                if (empty($model->last_name) && ! isset($payload['last_name'])) {
-                                    $model->last_name = '';
+                                if (empty($model->getAttribute('last_name')) && ! isset($payload['last_name'])) {
+                                    $model->setAttribute('last_name', '');
                                 }
                             }
 
                             if ($change['table_name'] === 'audit_logs') {
                                 if (isset($payload['created_at'])) {
-                                    $model->created_at = $payload['created_at'];
+                                    $model->setAttribute('created_at', $payload['created_at']);
                                 }
                             } else {
-                                $model->id = $recordId;
+                                $model->setAttribute('id', $recordId);
                             }
 
                             $isDeleted = null;
@@ -472,7 +473,7 @@ class SyncController extends Controller
                             // a matching opening-balance movement in the same sync, so this
                             // is reconstructed correctly below.
                             if ($change['table_name'] === 'stock_batches') {
-                                $model->quantity = 0;
+                                $model->setAttribute('quantity', 0);
                             }
 
                             $model->save();
@@ -742,7 +743,7 @@ class SyncController extends Controller
 
                             // Handle _deleted flag for soft deletes on update
                             if ($isDeleted !== null) {
-                                if (\method_exists($model, 'trashed')) {
+                                if ($model instanceof Model && \method_exists($model, 'trashed') && \method_exists($model, 'restore')) {
                                     if ($isDeleted && ! $model->trashed()) {
                                         $model->delete();
                                     } elseif (! $isDeleted && $model->trashed()) {
@@ -1612,8 +1613,10 @@ class SyncController extends Controller
      * properties->client_id. Scoped to the pushing store because a client id
      * is only unique on the device that generated it (see the INSERT
      * existence probe in push() for the cross-store case that proved it).
+     *
+     * @param  class-string<Model>  $modelClass
      */
-    private function findAuditLogByClientId(string $modelClass, $recordId, $currentStoreId, bool $lock = false)
+    private function findAuditLogByClientId(string $modelClass, $recordId, $currentStoreId, bool $lock = false): ?Model
     {
         // A null store id (super-admin push, or no active store) has no store
         // to scope to, and `where('store_id', null)` would silently become
@@ -2002,7 +2005,7 @@ class SyncController extends Controller
         if ($change['table_name'] === 'users') {
             if (isset($payload['name']) && ! isset($payload['first_name'])) {
                 $parts = explode(' ', $payload['name'], 2);
-                $payload['first_name'] = $parts[0] ?? 'User';
+                $payload['first_name'] = $parts[0];
                 $payload['last_name'] = $parts[1] ?? '';
             }
             // users has no `name` column (only first_name/last_name) - leaving
@@ -2958,6 +2961,9 @@ class SyncController extends Controller
         }
     }
 
+    /**
+     * @return class-string<Model>|null
+     */
     public function getModelForTable($tableName)
     {
         $map = [
@@ -3137,10 +3143,8 @@ class SyncController extends Controller
                 // this gate — never actually got the bypass it asked for,
                 // and was rejected with SYNC_DISABLED for exactly the
                 // free/lapsed/suspended tiers that call exists to correct).
-                : (! $isPush && (
-                    (empty($request->input('last_synced', [])) && ! ($store && $store->last_sync_at))
-                    || $this->isStoresOnlySetupOverridePull($request, $request->input('last_synced', []))
-                ));
+                : ((empty($request->input('last_synced', [])) && ! ($store && $store->last_sync_at))
+                    || $this->isStoresOnlySetupOverridePull($request, $request->input('last_synced', [])));
 
             if (! $isSetup) {
                 if (! $canSync) {

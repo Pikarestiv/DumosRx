@@ -106,7 +106,7 @@ class SubscriptionService
         $effective = $this->resolveEffectiveSubscription($owner);
 
         if ($effective) {
-            $state = $effective->end_date && $effective->end_date->isPast()
+            $state = $effective->end_date->isPast()
                 ? 'in_grace'
                 : ($effective->is_trial ? 'trialing' : 'active');
 

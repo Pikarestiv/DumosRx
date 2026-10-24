@@ -211,7 +211,7 @@ class StorePaymentAccountController extends Controller
             'bank_code' => $validated['bank_code'],
             'account_number_last4' => substr($validated['account_number'], -4),
             'country' => $validated['country'],
-            'error' => $lastError?->getMessage(),
+            'error' => $lastError->getMessage(),
         ]);
 
         try {
@@ -223,7 +223,7 @@ class StorePaymentAccountController extends Controller
                     "Paystack subaccount code: {$code}",
                     "Bank code: {$validated['bank_code']}, account ending {$columns['paystack_account_number_last4']}",
                     'Set stores.paystack_subaccount_code to this code by hand rather than letting the owner retry, which would create a second subaccount.',
-                    'Last error: '.($lastError?->getMessage() ?? 'unknown'),
+                    'Last error: '.$lastError->getMessage(),
                 ]
             );
         } catch (\Throwable $e) {

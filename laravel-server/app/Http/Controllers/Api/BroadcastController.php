@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Broadcast;
+use App\Models\User;
 use App\Services\Admin\BroadcastEmailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -34,7 +35,7 @@ class BroadcastController extends Controller
 
         $query = Broadcast::active()->orderBy('created_at', 'desc');
 
-        if ($user) {
+        if ($user instanceof User) {
             $query->where(function ($q) use ($user) {
                 // Show to all users
                 $q->where('target_type', 'all');

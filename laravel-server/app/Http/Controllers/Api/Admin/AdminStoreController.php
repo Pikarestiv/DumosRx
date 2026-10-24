@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Concerns\ManagesAdminSessionCookie;
 use App\Models\ActivityLog;
+use App\Models\User;
 use App\Services\Admin\AdminFleetMetricsService;
 use App\Services\Admin\AdminStoreDetailService;
 use App\Services\Admin\AdminStoreReferrerService;
@@ -521,7 +522,7 @@ class AdminStoreController extends AdminBaseController
 
         $admin = FullAccessToken::find($validated['token'])?->tokenable;
 
-        if (! $admin || ! $admin->hasRole('super_admin')) {
+        if (! $admin instanceof User || ! $admin->hasRole('super_admin')) {
             return response()->json(['error' => 'Invalid restore token.'], 403);
         }
 

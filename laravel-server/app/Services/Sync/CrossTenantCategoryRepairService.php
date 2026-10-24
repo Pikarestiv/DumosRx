@@ -154,6 +154,7 @@ class CrossTenantCategoryRepairService
         return $category->id;
     }
 
+    /** @return \Illuminate\Database\Eloquent\Builder<Category> */
     private function ownedCategoryQuery(string $storeId, string $name): \Illuminate\Database\Eloquent\Builder
     {
         return Category::withTrashed()

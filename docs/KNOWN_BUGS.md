@@ -450,6 +450,13 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
+#### A-330. both — the admin store detail's `recent_activity[].status` is always `null`
+- **Found:** 2026-10-24, by Larastan during the level-5 baseline cleanup.
+- **Location:** `laravel-server/app/Services/Admin/AdminStoreDetailService.php` `recentActivity()`; typed as `status: string | null` in `web/lib/types/admin-store-detail.ts` (`AdminStoreDetailActivity`).
+- **What's wrong:** the field read `$log->status`, but `activity_logs` has no `status` column in any migration and `ActivityLog::$fillable` has none, so it was always `null`. Tests that pass `'status' => 'success'` to `ActivityLog::create()` have it silently dropped. The service now writes `'status' => null` explicitly; the response is byte-identical.
+- **Consequence:** none today: `StoreRecentActivityCard` never renders it, and nothing in `client/` reads `recent_activity`.
+- **Fix:** drop `status` from `AdminStoreDetailActivity` in `web/`, then from the response once no deployed web bundle carries the old type (§11; the web panel is not a long-lived PWA, so one deploy is enough). Remove the dead `'status' => 'success'` from the `ActivityLog::create()` calls in `AdminStoreDetailTest` and `ActivityLogActorRoleFilterTest` at the same time.
+
 #### A-329. `laravel-server/` — `online_orders` and `online_order_items` have none of the foreign keys their migrations appear to declare
 - **Found:** 2026-10-24, by Larastan during the level-5 baseline cleanup.
 - **Location:** `database/migrations/2026_07_05_171215_create_online_orders_table.php` (`store_id`) and `2026_07_05_171215_create_online_order_items_table.php` (`online_order_id`, `product_id`).

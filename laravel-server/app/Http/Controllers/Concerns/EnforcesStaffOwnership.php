@@ -75,7 +75,7 @@ trait EnforcesStaffOwnership
             ? $targetRole->permissions()->pluck('slug')->all()
             : [];
 
-        $callerRoleSlug = $currentUser->userRole?->slug ?? $currentUser->role;
+        $callerRoleSlug = $currentUser->userRole->slug ?? $currentUser->role;
         $callerRole = $callerRoleSlug ? Role::where('slug', $normalize($callerRoleSlug))->first() : null;
         $callerPermissions = $callerRole
             ? $callerRole->permissions()->pluck('slug')->all()

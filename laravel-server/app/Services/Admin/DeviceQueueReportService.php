@@ -86,7 +86,7 @@ class DeviceQueueReportService
             'stuck_count' => $report->stuck_count,
             'stuck_items' => $report->stuck_items ?? [],
             'truncated' => $report->stuck_count > count($report->stuck_items ?? []),
-            'reported_at' => $report->reported_at?->toIso8601String(),
+            'reported_at' => $report->reported_at->toIso8601String(),
         ])->values()->all();
 
         return [

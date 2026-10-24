@@ -34,7 +34,7 @@ class SessionController extends Controller
         $currentProvider = $user->currentAccessToken();
 
         $sessions = $tokens->map(function ($token) use ($currentProvider) {
-            $isCurrent = $currentProvider && $currentProvider->id === $token->id;
+            $isCurrent = $currentProvider->id === $token->id;
 
             return [
                 'id' => $token->id,

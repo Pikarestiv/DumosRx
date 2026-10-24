@@ -25,7 +25,7 @@ class PaymentMismatchHandler
     {
         // A concurrent observer may already have activated this transaction
         // legitimately; never refund a charge that bought a live subscription.
-        if (($txn->fresh()?->status ?? null) !== 'pending') {
+        if (($txn->fresh()->status ?? null) !== 'pending') {
             return;
         }
 

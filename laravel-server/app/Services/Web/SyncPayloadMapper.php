@@ -28,7 +28,7 @@ class SyncPayloadMapper
         // 2. Purchase Orders
         if ($tableName === 'purchase_orders') {
             if (empty($payload['order_number'])) {
-                $payload['order_number'] = 'PO-'.substr(time(), -6).'-'.rand(100, 999);
+                $payload['order_number'] = 'PO-'.substr((string) time(), -6).'-'.rand(100, 999);
             }
             if (empty($payload['ordered_by'])) {
                 // If a fallback is needed; ideally the client provides it, but if not, use the authenticated user

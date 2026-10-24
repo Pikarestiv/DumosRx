@@ -4202,16 +4202,17 @@ reaches Sentry" — they apply to both halves.
 
 `composer analyse` runs PHPStan with Larastan at level 5 over `app`, `config`,
 `database` and `routes`. `composer format` runs `pint --test`; drop `--test`
-to fix. Both pass on a clean tree.
+to fix. Both pass on a clean tree with no baseline, so any error is new and
+must be fixed, not ignored.
 
-`phpstan-baseline.neon` holds the errors that existed when PHPStan was
-introduced, so only new ones fail. It only shrinks: fix a baselined error, then
-regenerate with `vendor/bin/phpstan analyse --generate-baseline
-phpstan-baseline.neon` and commit the smaller file. Never regenerate it to
-absorb a new error. Most baselined errors are Eloquent models missing
-`@property` docblocks or relation generics, so fixing a model clears many at
-once. Neither tool runs in `.github/workflows/checks.yml` yet, and that
-workflow gates the deploys.
+Larastan can only see what is typed. A relation method needs a native return
+type plus a `@return BelongsTo<Model, $this>` docblock, a column added inside a
+migration loop needs a model `@property` (as `store_id`/`user_id` have), and a
+helper that takes or returns a query builder needs a `Builder<Model>` generic.
+Prefer `getAttribute()` over a magic property on a bare `Model`, and
+`->toBase()->get()` for `selectRaw` aggregates. Do not add `@phpstan-ignore`.
+Neither tool runs in `.github/workflows/checks.yml` yet, and that workflow
+gates the deploys.
 
 ## Running artisan on the production box (Namecheap shared hosting)
 

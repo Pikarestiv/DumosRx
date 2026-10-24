@@ -35,6 +35,12 @@ class AdminActivityFeedSources
      * these sources are second-granular and one bulk action writes many rows
      * in the same second, so a page boundary falling inside that second left
      * the remaining rows unreachable however many pages were requested.
+     *
+     * @template TModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  Builder<TModel>  $query
+     * @param  array{0: string, 1: string}|null  $after
+     * @return Builder<TModel>
      */
     private function applyCursor(Builder $query, string $column, string $prefix, ?array $after): Builder
     {

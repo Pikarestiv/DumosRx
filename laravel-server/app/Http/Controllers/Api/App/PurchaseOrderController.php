@@ -58,7 +58,7 @@ class PurchaseOrderController extends Controller
                 'ordered_by_name' => $po->orderedBy ? $po->orderedBy->name : 'System',
                 'ordered_by' => $po->orderedBy,
                 'status' => $po->status,
-                'order_date' => $po->order_date ? $po->order_date->toDateString() : null,
+                'order_date' => $po->order_date->toDateString(),
                 'expected_delivery_date' => $po->expected_delivery_date ? $po->expected_delivery_date->toDateString() : null,
                 'actual_delivery_date' => $po->actual_delivery_date ? $po->actual_delivery_date->toDateString() : null,
                 'subtotal' => $po->subtotal,

@@ -21,7 +21,7 @@ class TillRelinkController extends Controller
         $store = Store::where('id', $validated['store_id'])->first();
         $isOwner = $store && $store->user_id === $user->id;
 
-        if (! $isOwner || $user->currentAccessToken()?->name === 'Impersonation Token') {
+        if (! $isOwner || $user->currentAccessToken()->name === 'Impersonation Token') {
             return response()->json(['message' => 'Only the store owner can generate a re-link code.'], 403);
         }
 

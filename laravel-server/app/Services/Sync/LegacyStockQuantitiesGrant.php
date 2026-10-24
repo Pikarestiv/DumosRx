@@ -49,7 +49,7 @@ final class LegacyStockQuantitiesGrant
 
         $ownGroup = $caller->permission_group_id ? PermissionGroup::find($caller->permission_group_id) : null;
 
-        return in_array(self::KEY, $ownGroup?->permissions ?? [], true);
+        return in_array(self::KEY, $ownGroup->permissions ?? [], true);
     }
 
     private static function isOwed(?string $recordId, string $operation): bool

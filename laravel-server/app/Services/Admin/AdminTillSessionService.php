@@ -97,7 +97,7 @@ class AdminTillSessionService
             'id' => $row->id,
             'label' => $row->label,
             'admin_email' => $row->admin?->email,
-            'admin_name' => trim(($row->admin?->first_name ?? '').' '.($row->admin?->last_name ?? '')),
+            'admin_name' => trim(($row->admin->first_name ?? '').' '.($row->admin->last_name ?? '')),
             'created_at' => $row->created_at?->toIso8601String(),
             'last_used_at' => $row->last_used_at?->toIso8601String(),
             'code' => $this->decryptCode($row),

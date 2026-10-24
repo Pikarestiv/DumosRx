@@ -196,7 +196,7 @@ class SubscriptionController extends Controller
                     'id' => $txn->id,
                     'date' => $txn->created_at->format('M j, Y'),
                     'desc' => ($txn->metadata['plan_name'] ?? 'Subscription').' Plan',
-                    'amount' => '₦'.number_format($txn->amount, 0),
+                    'amount' => '₦'.number_format((float) $txn->amount, 0),
                     'status' => ucfirst($txn->status),
                     'reference' => $txn->provider_reference,
                     'receipt_url' => $txn->metadata['verification_data']['receipt_url'] ?? null,

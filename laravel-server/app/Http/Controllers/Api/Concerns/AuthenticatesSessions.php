@@ -206,7 +206,7 @@ trait AuthenticatesSessions
         }
 
         $user = $refreshToken->tokenable;
-        if (! $user || ! $user->is_active) {
+        if (! $user instanceof User || ! $user->is_active) {
             $refreshToken->delete();
 
             return response()->json(['message' => 'Session expired.'], 401)

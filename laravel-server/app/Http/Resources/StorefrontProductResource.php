@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Product;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
@@ -29,20 +30,27 @@ class StorefrontProductResource extends JsonResource
      */
     public function toArray($request): array
     {
+        $product = $this->product();
+
         return [
-            'id' => $this->id,
-            'name' => $this->name,
-            'generic_name' => $this->generic_name,
-            'description' => $this->description,
-            'dosage_form' => $this->dosage_form,
-            'strength' => $this->strength,
-            'pack_size' => $this->pack_size,
-            'unit_of_measure' => $this->unit_of_measure,
-            'selling_price' => $this->selling_price,
-            'requires_prescription' => (bool) $this->requires_prescription,
-            'category' => $this->whenLoaded('category', fn () => $this->category
-                ? ['id' => $this->category->id, 'name' => $this->category->name]
+            'id' => $product->id,
+            'name' => $product->name,
+            'generic_name' => $product->generic_name,
+            'description' => $product->description,
+            'dosage_form' => $product->dosage_form,
+            'strength' => $product->strength,
+            'pack_size' => $product->pack_size,
+            'unit_of_measure' => $product->unit_of_measure,
+            'selling_price' => $product->selling_price,
+            'requires_prescription' => (bool) $product->requires_prescription,
+            'category' => $this->whenLoaded('category', fn () => $product->category
+                ? ['id' => $product->category->id, 'name' => $product->category->name]
                 : null),
         ];
+    }
+
+    private function product(): Product
+    {
+        return $this->resource;
     }
 }

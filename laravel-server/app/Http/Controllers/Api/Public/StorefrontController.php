@@ -51,6 +51,8 @@ class StorefrontController extends Controller
      * not list each other's catalogue. Rows predating the store_id backfill
      * (2026_08_14_164310_add_store_id_to_domain_tables) are tolerated via the
      * NULL branch; drop it once a backfill is confirmed.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<Product>
      */
     private function storeProducts(Store $store): \Illuminate\Database\Eloquent\Builder
     {

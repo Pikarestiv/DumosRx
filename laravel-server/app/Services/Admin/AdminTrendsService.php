@@ -48,6 +48,10 @@ class AdminTrendsService
         $found = [];
 
         foreach ($rows as $row) {
+            if (! $row->created_at) {
+                continue;
+            }
+
             $label = TimeSeries::labelFor($window, $row->created_at);
             $currency = $row->currency ?: 'UNKNOWN';
             $found[$label][$currency] = ($found[$label][$currency] ?? 0.0) + (float) $row->amount;
@@ -88,6 +92,10 @@ class AdminTrendsService
         $found = [];
 
         foreach ($rows as $row) {
+            if (! $row->created_at) {
+                continue;
+            }
+
             $label = TimeSeries::labelFor($window, $row->created_at);
             $found[$label]['count'] = ($found[$label]['count'] ?? 0) + 1;
         }

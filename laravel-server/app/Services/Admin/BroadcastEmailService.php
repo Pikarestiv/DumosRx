@@ -55,6 +55,7 @@ class BroadcastEmailService
         return Broadcast::active()->whereKey($broadcast->getKey())->exists();
     }
 
+    /** @return Builder<User> */
     private function recipientQuery(Broadcast $broadcast): Builder
     {
         $query = User::query()

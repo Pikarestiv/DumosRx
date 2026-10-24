@@ -43,7 +43,7 @@ class PaymentService
             return $this->initializePaystack($amount, $email, $metadata, $callbackUrl, $subaccount, $currency);
         }
 
-        if (! $paystackEnabled && $flutterwaveEnabled) {
+        if (! $paystackEnabled) {
             // Only Flutterwave is enabled
             return $this->initializeFlutterwave($amount, $email, $metadata, $callbackUrl);
         }

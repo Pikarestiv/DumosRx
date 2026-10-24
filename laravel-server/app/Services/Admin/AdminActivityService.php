@@ -101,7 +101,7 @@ class AdminActivityService
 
         return [
             'data' => collect($paginator->items())->map(function (ActivityLog $log) {
-                $store = $log->user?->displayStore ?? $log->user?->stores?->first();
+                $store = $log->user->displayStore ?? $log->user?->stores?->first();
 
                 return [
                     'id' => $log->id,

@@ -27,8 +27,8 @@ class StorelessProductAttributor
     {
         [$productId, $store] = match ($table) {
             'products' => [$row->getKey(), null],
-            'stock_batches' => [$row->product_id, $row->store_id],
-            'stock_movements' => [$row->product_id, $storeIsTheClients ? $row->store_id : null],
+            'stock_batches' => [$row->getAttribute('product_id'), $row->getAttribute('store_id')],
+            'stock_movements' => [$row->getAttribute('product_id'), $storeIsTheClients ? $row->getAttribute('store_id') : null],
             default => [null, null],
         };
 

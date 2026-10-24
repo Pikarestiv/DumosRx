@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Mail;
 
 class SendFunnelReminders extends Command
 {
+    private const MAX_EMAILS_PER_RUN = 100;
+
     /**
      * The name and signature of the console command.
      *
@@ -43,6 +45,10 @@ class SendFunnelReminders extends Command
 
         foreach ($users as $user) {
             /** @var \App\Models\User $user */
+            if ($emailsSent >= self::MAX_EMAILS_PER_RUN) {
+                break;
+            }
+
             if ($this->isReminderDue($user, $now)) {
                 try {
                     Mail::to($user->email)->send(new FunnelSetupReminderEmail($user));

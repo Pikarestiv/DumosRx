@@ -13,11 +13,13 @@ class SendFunnelRemindersCommandTest extends TestCase
 {
     use RefreshDatabase;
 
+    private static ?string $passwordHash = null;
+
     private function userAtLevel(int $level, ?string $lastSentAt): User
     {
         $user = User::create([
             'first_name' => 'Funnel', 'last_name' => 'User',
-            'email' => 'funnel-'.uniqid().'@dumosrx.test', 'password' => bcrypt('password'),
+            'email' => 'funnel-'.uniqid().'@dumosrx.test', 'password' => self::$passwordHash ??= bcrypt('password'),
             'role' => 'store_owner', 'is_active' => true,
         ]);
 
@@ -80,5 +82,19 @@ class SendFunnelRemindersCommandTest extends TestCase
 
         Mail::assertSent(FunnelSetupReminderEmail::class, 1);
         $this->assertSame(1, $this->levelOf($fresh));
+    }
+
+    public function test_one_run_sends_at_most_one_hundred_reminders_and_the_rest_wait_for_the_next(): void
+    {
+        Mail::fake();
+        $lastSentAt = now()->subHours(73)->toDateTimeString();
+        $users = collect(range(1, 102))->map(fn () => $this->userAtLevel(1, $lastSentAt));
+
+        $this->artisan('funnel:remind')->assertSuccessful();
+        Mail::assertSent(FunnelSetupReminderEmail::class, 100);
+
+        $this->artisan('funnel:remind')->assertSuccessful();
+        Mail::assertSent(FunnelSetupReminderEmail::class, 102);
+        $this->assertSame(0, $users->filter(fn (User $user) => $this->levelOf($user) !== 2)->count());
     }
 }

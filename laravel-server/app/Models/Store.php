@@ -5,13 +5,12 @@ namespace App\Models;
 use App\Casts\JsonList;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-/**
- * @mixin IdeHelperStore
- */
 class Store extends Model
 {
     use HasFactory;
@@ -232,7 +231,10 @@ class Store extends Model
         return $query->whereRaw('LOWER(COALESCE(status, ?)) != ?', ['', strtolower(self::STATUS_SUSPENDED)]);
     }
 
-    public function user()
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
@@ -253,8 +255,10 @@ class Store extends Model
      * reporting that needs to be correct across that boundary (see
      * AdminService::getStores()) falls back to the legacy cashier-based
      * match for those rows rather than relying on this relation alone.
+     *
+     * @return HasMany<Sale, $this>
      */
-    public function sales()
+    public function sales(): HasMany
     {
         return $this->hasMany(Sale::class);
     }

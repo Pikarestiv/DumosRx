@@ -7,9 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-/**
- * @mixin IdeHelperPaymentAccount
- */
 class PaymentAccount extends Model
 {
     use HasFactory, SoftDeletes;

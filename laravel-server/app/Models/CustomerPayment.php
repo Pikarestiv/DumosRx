@@ -5,10 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/**
- * @mixin IdeHelperCustomerPayment
- */
 class CustomerPayment extends Model
 {
     use HasFactory, HasUuids;
@@ -34,7 +32,10 @@ class CustomerPayment extends Model
         'payment_date' => 'datetime',
     ];
 
-    public function customer()
+    /**
+     * @return BelongsTo<Customer, $this>
+     */
+    public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
     }

@@ -5,11 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 
 /**
- * @mixin IdeHelperProduct
+ * @property string|null $store_id
+ * @property string|null $user_id
  */
 class Product extends Model
 {
@@ -89,12 +92,18 @@ class Product extends Model
         $stores->update(['storefront_dirty_at' => now()]);
     }
 
-    public function category()
+    /**
+     * @return BelongsTo<Category, $this>
+     */
+    public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
     }
 
-    public function stockBatches()
+    /**
+     * @return HasMany<StockBatch, $this>
+     */
+    public function stockBatches(): HasMany
     {
         return $this->hasMany(StockBatch::class);
     }

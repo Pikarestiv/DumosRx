@@ -5,6 +5,10 @@ namespace App\Models;
 use Exception;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -12,9 +16,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
-/**
- * @mixin IdeHelperUser
- */
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, HasUuids, Notifiable, SoftDeletes;
@@ -50,7 +51,7 @@ class User extends Authenticatable
     /**
      * The attributes that are mass assignable.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $fillable = [
         'first_name',
@@ -77,14 +78,14 @@ class User extends Authenticatable
     /**
      * The accessors to append to the model's array form.
      *
-     * @var array
+     * @var list<string>
      */
     protected $appends = ['name', 'require_email_verification'];
 
     /**
      * The attributes that should be hidden for serialization.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $hidden = [
         'password',
@@ -152,7 +153,10 @@ class User extends Authenticatable
         return \Illuminate\Support\Facades\Hash::make($pin);
     }
 
-    public function userRole()
+    /**
+     * @return BelongsTo<Role, $this>
+     */
+    public function userRole(): BelongsTo
     {
         return $this->belongsTo(Role::class, 'role_id');
     }
@@ -179,12 +183,18 @@ class User extends Authenticatable
         ));
     }
 
-    public function store()
+    /**
+     * @return HasOne<Store, $this>
+     */
+    public function store(): HasOne
     {
         return $this->hasOne(Store::class);
     }
 
-    public function stores()
+    /**
+     * @return HasMany<Store, $this>
+     */
+    public function stores(): HasMany
     {
         return $this->hasMany(Store::class, 'user_id');
     }
@@ -198,8 +208,10 @@ class User extends Authenticatable
      * for owners — but accounts created before 2026-09-22 carry a stale
      * value, so it must never be treated as proof that a user is staff.
      * See docs/FIXED_BUGS.md A-127.
+     *
+     * @return BelongsTo<Store, $this>
      */
-    public function employerStore()
+    public function employerStore(): BelongsTo
     {
         return $this->belongsTo(Store::class, 'store_id');
     }
@@ -218,12 +230,18 @@ class User extends Authenticatable
         return $this->store ?? $this->employerStore;
     }
 
-    public function subscriptions()
+    /**
+     * @return HasMany<Subscription, $this>
+     */
+    public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
     }
 
-    public function permissions()
+    /**
+     * @return BelongsToMany<Permission, $this>
+     */
+    public function permissions(): BelongsToMany
     {
         return $this->belongsToMany(Permission::class)->withPivot('granted');
     }
@@ -262,7 +280,7 @@ class User extends Authenticatable
         // Check direct permission first
         $directGrant = $this->permissions()->where('slug', $permissionSlug)->first();
         if ($directGrant) {
-            return (bool) $directGrant->pivot->granted;
+            return (bool) $directGrant->pivot->getAttribute('granted');
         }
 
         // Check through role relation
@@ -346,12 +364,18 @@ class User extends Authenticatable
         return $code;
     }
 
-    public function referredBy()
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function referredBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'referred_by_id');
     }
 
-    public function referrals()
+    /**
+     * @return HasMany<User, $this>
+     */
+    public function referrals(): HasMany
     {
         return $this->hasMany(User::class, 'referred_by_id');
     }
@@ -368,15 +392,21 @@ class User extends Authenticatable
     /** The platform staff member (super_admin/platform_admin/agent) who
      * registered this account, either directly via the admin "Register
      * Store" tool, or via this user signing up themselves using that
-     * platform user's referral link. */
-    public function registeredBy()
+     * platform user's referral link.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function registeredBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'registered_by_id');
     }
 
     /** Accounts this platform user has registered or been credited for via
-     * their referral link. */
-    public function registeredAccounts()
+     * their referral link.
+     *
+     * @return HasMany<User, $this>
+     */
+    public function registeredAccounts(): HasMany
     {
         return $this->hasMany(User::class, 'registered_by_id');
     }
@@ -387,13 +417,19 @@ class User extends Authenticatable
      * never rewrite registered_by_id, since that also drives referral
      * attribution reporting. Resolution order (see
      * AccountManagerController::resolveFor()) is account_manager_id ->
-     * registered_by_id -> the default_account_manager_id system config. */
-    public function accountManager()
+     * registered_by_id -> the default_account_manager_id system config.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function accountManager(): BelongsTo
     {
         return $this->belongsTo(User::class, 'account_manager_id');
     }
 
-    public function creditTransactions()
+    /**
+     * @return HasMany<ReferralCreditTransaction, $this>
+     */
+    public function creditTransactions(): HasMany
     {
         return $this->hasMany(ReferralCreditTransaction::class);
     }

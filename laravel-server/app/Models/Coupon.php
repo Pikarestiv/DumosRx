@@ -5,11 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-/**
- * @mixin IdeHelperCoupon
- */
 class Coupon extends Model
 {
     use HasFactory, HasUuids, SoftDeletes;
@@ -40,16 +39,20 @@ class Coupon extends Model
 
     /**
      * Get the user this coupon is specifically assigned to (if any).
+     *
+     * @return BelongsTo<User, $this>
      */
-    public function assignedUser()
+    public function assignedUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to_user_id');
     }
 
     /**
      * Get the usages of this coupon.
+     *
+     * @return HasMany<CouponUsage, $this>
      */
-    public function usages()
+    public function usages(): HasMany
     {
         return $this->hasMany(CouponUsage::class);
     }

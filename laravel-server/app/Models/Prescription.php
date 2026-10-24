@@ -5,10 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * @mixin IdeHelperPrescription
+ * @property string|null $store_id
+ * @property string|null $user_id
  */
 class Prescription extends Model
 {
@@ -32,12 +35,18 @@ class Prescription extends Model
         });
     }
 
-    public function customer()
+    /**
+     * @return BelongsTo<Customer, $this>
+     */
+    public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
     }
 
-    public function items()
+    /**
+     * @return HasMany<PrescriptionItem, $this>
+     */
+    public function items(): HasMany
     {
         return $this->hasMany(PrescriptionItem::class);
     }

@@ -5,11 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-/**
- * @mixin IdeHelperLoyaltyTransaction
- */
 class LoyaltyTransaction extends Model
 {
     use HasFactory, HasUuids, SoftDeletes;
@@ -34,7 +32,10 @@ class LoyaltyTransaction extends Model
         '_synced_at' => 'datetime',
     ];
 
-    public function customer()
+    /**
+     * @return BelongsTo<Customer, $this>
+     */
+    public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
     }

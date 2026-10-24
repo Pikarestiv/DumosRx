@@ -5,9 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * @mixin IdeHelperStockBatch
+ * @property string|null $store_id
+ * @property string|null $user_id
  */
 class StockBatch extends Model
 {
@@ -23,12 +25,18 @@ class StockBatch extends Model
         'cost_price' => 'decimal:2',
     ];
 
-    public function product()
+    /**
+     * @return BelongsTo<Product, $this>
+     */
+    public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
 
-    public function supplier()
+    /**
+     * @return BelongsTo<Supplier, $this>
+     */
+    public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
     }

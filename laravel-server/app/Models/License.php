@@ -5,10 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/**
- * @mixin IdeHelperLicense
- */
 class License extends Model
 {
     use HasFactory, HasUuids;
@@ -23,7 +21,10 @@ class License extends Model
         'is_active' => 'boolean',
     ];
 
-    public function subscription()
+    /**
+     * @return BelongsTo<Subscription, $this>
+     */
+    public function subscription(): BelongsTo
     {
         return $this->belongsTo(Subscription::class);
     }

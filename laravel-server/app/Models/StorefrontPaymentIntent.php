@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * "Payment reference R is reserved for cart C on store S."
@@ -13,8 +14,6 @@ use Illuminate\Database\Eloquent\Model;
  * is redirected to the provider, and consumed (exactly once) by
  * StorefrontController::checkout(). See the table's migration for why this
  * isn't a `payment_transactions` row.
- *
- * @mixin IdeHelperStorefrontPaymentIntent
  */
 class StorefrontPaymentIntent extends Model
 {
@@ -40,7 +39,10 @@ class StorefrontPaymentIntent extends Model
      */
     public const CLAIMABLE_STATUSES = ['pending', 'paid'];
 
-    public function store()
+    /**
+     * @return BelongsTo<Store, $this>
+     */
+    public function store(): BelongsTo
     {
         return $this->belongsTo(Store::class);
     }

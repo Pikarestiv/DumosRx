@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AdminTillSession extends Model
 {
@@ -30,7 +31,10 @@ class AdminTillSession extends Model
         return $query->whereNull('ended_at');
     }
 
-    public function admin()
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function admin(): BelongsTo
     {
         return $this->belongsTo(User::class, 'admin_id');
     }

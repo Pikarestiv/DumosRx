@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * @mixin IdeHelperPurchaseOrderItem
+ * @property string|null $store_id
  */
 class PurchaseOrderItem extends Model
 {
@@ -20,12 +21,18 @@ class PurchaseOrderItem extends Model
         'expiry_date' => 'date',
     ];
 
-    public function purchaseOrder()
+    /**
+     * @return BelongsTo<PurchaseOrder, $this>
+     */
+    public function purchaseOrder(): BelongsTo
     {
         return $this->belongsTo(PurchaseOrder::class);
     }
 
-    public function product()
+    /**
+     * @return BelongsTo<Product, $this>
+     */
+    public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }

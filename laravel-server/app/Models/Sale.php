@@ -5,11 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 /**
- * @mixin IdeHelperSale
+ * @property string|null $store_id
+ * @property string|null $user_id
  */
 class Sale extends Model
 {
@@ -60,17 +63,26 @@ class Sale extends Model
         });
     }
 
-    public function items()
+    /**
+     * @return HasMany<SaleItem, $this>
+     */
+    public function items(): HasMany
     {
         return $this->hasMany(SaleItem::class);
     }
 
-    public function customer()
+    /**
+     * @return BelongsTo<Customer, $this>
+     */
+    public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
     }
 
-    public function cashier()
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function cashier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cashier_id');
     }

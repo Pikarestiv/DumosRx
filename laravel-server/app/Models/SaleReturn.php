@@ -5,10 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * @mixin IdeHelperSaleReturn
+ * @property string|null $store_id
  */
 class SaleReturn extends Model
 {
@@ -28,17 +30,26 @@ class SaleReturn extends Model
         'total_refunded' => 'decimal:2',
     ];
 
-    public function items()
+    /**
+     * @return HasMany<SaleReturnItem, $this>
+     */
+    public function items(): HasMany
     {
         return $this->hasMany(SaleReturnItem::class, 'return_id');
     }
 
-    public function sale()
+    /**
+     * @return BelongsTo<Sale, $this>
+     */
+    public function sale(): BelongsTo
     {
         return $this->belongsTo(Sale::class);
     }
 
-    public function user()
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }

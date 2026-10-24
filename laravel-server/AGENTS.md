@@ -1109,8 +1109,10 @@ migration here **and** the corresponding update on the `client/` side
       the push response rewrites a local `store_id`, and a pull for the wrong
       store does not include the row, so that device holds the wrong copy
       until it next pulls the row's real store.
-    - **How a store-less server row gets a store:** only a staff session or a
-      single-store owner's push can attribute it. For an owner with two or
+    - **How a store-less server row gets a store:** a `products` row is also
+      attributed from its stock by `StorelessProductAttributor` (below), but
+      only for a product of the session's own tenant. Every other table needs
+      a staff session or a single-store owner's push. For an owner with two or
       more stores, or a super admin, the remedy is
       `php artisan sync:backfill-store-ids` (A-288); until it runs the row is
       invisible to every other till, because `NULL` never matches `whereIn`
@@ -1135,8 +1137,9 @@ migration here **and** the corresponding update on the `client/` side
     movement's stored store is not evidence: the server backfills it from the
     session. Only committed changes count: a change that rolls back is not
     evidence. Evidence naming two stores, or a store outside the session's
-    scope (a super admin's scope is every store), leaves the product
-    unattributed and logged; so does no evidence at all, which is the
+    scope (a super admin's scope is every store), or a product whose
+    `user_id` resolves to another tenant than the evidence store's owner,
+    leaves the product unattributed and logged; so does no evidence at all, which is the
     deliberate cost of not guessing (A-327). It stays `NULL` across requests,
     so stock arriving in a later push still attributes it, and the repair
     command attributes the rest. Stamping runs in its own savepoint, bumps

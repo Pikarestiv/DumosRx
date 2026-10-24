@@ -69,11 +69,15 @@ class StorelessProductAttributor
             if ($evidence === []) {
                 continue;
             }
-            if (count($evidence) !== 1 || ($allowedStoreIds !== null && !in_array($evidence[0], $allowedStoreIds, true))) {
-                Log::info('Sync push: left a store-less product unattributed (A-248)', [
-                    'product_id' => $product->id,
-                    'reason' => count($evidence) !== 1 ? 'stock names more than one store' : 'stock names a store outside the session',
-                ]);
+            $reason = match (true) {
+                count($evidence) !== 1 => 'stock names more than one store',
+                $allowedStoreIds === null => null,
+                !in_array($evidence[0], $allowedStoreIds, true) => 'stock names a store outside the session',
+                $this->authoredByAnotherTenant($product, $evidence[0]) => 'product was authored by another tenant',
+                default => null,
+            };
+            if ($reason !== null) {
+                Log::info('Sync push: left a store-less product unattributed (A-248)', ['product_id' => $product->id, 'reason' => $reason]);
 
                 continue;
             }
@@ -119,6 +123,23 @@ class StorelessProductAttributor
                 Log::warning('Sync push: could not restamp an attributed product\'s batches (A-248)', ['error' => $e->getMessage()]);
             }
         }
+    }
+
+    /** The author's tenant is the author if they own stores, else their store's owner; an unknown author is not a stranger. */
+    private function authoredByAnotherTenant(Product $product, string $storeId): bool
+    {
+        if ($product->user_id === null) {
+            return false;
+        }
+
+        $author = DB::table('users')->where('id', $product->user_id)->first(['id', 'store_id']);
+        $tenant = match (true) {
+            $author === null => null,
+            DB::table('stores')->where('user_id', $author->id)->exists() => (string) $author->id,
+            default => DB::table('stores')->where('id', $author->store_id)->value('user_id'),
+        };
+
+        return $tenant !== null && (string) $tenant !== (string) DB::table('stores')->where('id', $storeId)->value('user_id');
     }
 
     /** Batch stores are set by the client and never backfilled, unlike a movement's, so they are evidence. */

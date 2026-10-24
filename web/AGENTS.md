@@ -1121,7 +1121,7 @@ disable rule above. Three things to know before changing it:
   `STOREFRONT_PUBLISHED_FIELDS`), and the scheduled `storefront:rebuild-if-dirty`
   command picks it up. The card already surfaces that as "Pending Rebuild".
 - **The owner's device is the other writer of this column.** It is not in
-  `SyncController::STORE_SYNC_FORBIDDEN_FIELDS`, deliberately — the owner
+  `PushPayloadNormalizer::STORE_SYNC_FORBIDDEN_FIELDS`, deliberately — the owner
   toggles the same flag in the POS app's store settings. An admin toggle bumps
   `stores.updated_at`, so a device converges on the next pull; a device holding
   an unsynced local change to the same field still wins when it pushes. Don't

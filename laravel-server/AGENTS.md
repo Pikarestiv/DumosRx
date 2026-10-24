@@ -3581,7 +3581,7 @@ down till-code generation on dev on 2026-10-10.
 being absent**, degrading to whatever the pre-migration rows already do.
 
 The worked example is the sync engine. `PullPager::applyPullCursor()`
-(`:975`) and `stampSyncedAt()` (`:1540`) probe `Schema::hasColumn()` before
+and `PushRowWriter::stampSyncedAt()` probe `Schema::hasColumn()` before
 touching `_synced_at`, each behind its own array cache, because the probe is a
 real INFORMATION_SCHEMA round trip Laravel does not memoize. Follow that
 idiom, not a new one. `AdminTillSessionService::newCodeAttributes()` is the

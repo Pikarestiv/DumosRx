@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Store;
 use App\Models\User;
 use App\Services\Admin\DeviceQueueReportService;
+use App\Services\Sync\PullPager;
+use App\Services\Sync\SyncWriteAuthorizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
@@ -115,5 +117,11 @@ class SyncControllerSeamCharacterizationTest extends TestCase
         Log::shouldHaveReceived('warning')
             ->withArgs(fn ($message) => str_contains($message, 'A-254'))
             ->once();
+    }
+
+    public function test_services_holding_per_request_memos_are_never_shared_between_resolutions(): void
+    {
+        $this->assertNotSame(app(SyncWriteAuthorizer::class), app(SyncWriteAuthorizer::class));
+        $this->assertNotSame(app(PullPager::class), app(PullPager::class));
     }
 }

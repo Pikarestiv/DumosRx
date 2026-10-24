@@ -17,12 +17,6 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 1 — cross-tenant writes, security, silent data loss
 
-#### A-331. `laravel-server/` — a `users` INSERT with no email and no username is silently dropped and remapped onto another tenant's user
-- **Found:** 2026-10-24, while moving `findDuplicateInsertConflict()` out of `SyncController` (not fixed there: the move was verbatim). Reproduced with a throwaway feature test, then deleted.
-- **What's wrong:** `PushConflictResolver::findDuplicateInsertConflict()` builds `where(fn => email = ?)->orWhere(username = ? AND store_id = ?)`. With no email the first group is empty and dropped; with no `username` and no `store_id`, Laravel turns `where('username', null)` into `whereNull`, so the query matches the first user platform-wide whose `username` and `store_id` are both NULL, which includes store owners of other tenants. `store_id` is only backfilled for non-owner/admin roles, so an `admin`-role staff INSERT without username or email hits it.
-- **Consequence:** the INSERT is counted `processed` and never written (silent loss, the client drops it from its queue), and `$idMap` remaps that id onto the other tenant's user for every later change in the same push (e.g. a sale's `user_id`).
-- **Fix:** only match on a non-empty email or a non-empty username, never on NULLs, and scope the match to the caller's tenant; add a regression test. No contract change (§11): a genuine duplicate still remaps.
-
 #### A-326. `laravel-server/` — a store-less INSERT of a non-product row from a multi-store session still takes the active store
 - **Found:** 2026-10-23, closing A-248, whose part (c) stopped this guess for `products` only.
 - **What's wrong:** `normalizePushPayload()` backfills a missing `store_id` from the session on INSERT for every `STORE_ID_BACKFILL_TABLES` table. On a multi-store session that is the active store, i.e. a guess, so a legacy customer, category, supplier, expense and so on, queued under one store and first pushed under another, lands in the wrong one.
@@ -245,6 +239,12 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** derive the three figures (ideally `payment_status` too) from `sale_items` + `return_items` instead of storing a patch, either on the client whenever a pulled `return_items` row lands for a local sale or on the server when a `returns` row is inserted. Needs the §11 plan: old bundles keep sending patches.
 
 ### Tier 3 — sync reliability, observability, latent hazards
+
+#### A-331. `laravel-server/` — a crafted `users` INSERT with no email and no username is silently dropped and a foreign user id lands in the caller's own FKs
+- **Found:** 2026-10-24, while moving `findDuplicateInsertConflict()` out of `SyncController` (not fixed there: the move was verbatim). Reproduced with a throwaway feature test, then deleted.
+- **What's wrong:** `PushConflictResolver::findDuplicateInsertConflict()` builds `where(fn => email = ?)->orWhere(username = ? AND store_id = ?)`. With no email the first group is empty and dropped; with no `username` and no `store_id`, Laravel turns `where('username', null)` into `whereNull`, so the query matches the first user platform-wide whose `username` and `store_id` are both NULL, which includes store owners of other tenants. `store_id` is only backfilled for non-owner/admin roles, so an `admin`-role staff INSERT without username or email hits it.
+- **Consequence:** the caller's own INSERT is counted `processed` and never written (silent loss, the client drops it from its queue), and `$idMap` remaps that id onto the other tenant's user id for every later change in the same push (e.g. a sale's `user_id`). It is **not a cross-tenant write**: `User` uses `SoftDeletes`, so the matched foreign user is never revived or written, and a later UPDATE on the remapped id is refused by `authorizeChangeTarget('users')`. Reaching it takes a `users` INSERT with no `email`, no `username` and `role` = `admin` (the one assignable role the normalizer skips the `store_id` backfill for), and no shipped client sends that: the staff form refuses an empty username and onboarding always writes one. Only a hand-built request from an authenticated `manage_staff` user triggers it.
+- **Fix:** only match on a non-empty email or a non-empty username, never on NULLs, and scope the match to the caller's tenant; add a regression test. No contract change (§11): a genuine duplicate still remaps.
 
 #### A-204. `laravel-server/` — a sync command is marked `sent` the moment it is handed out, is never re-offered, and has no timeout, so a device that does not answer loses it permanently
 - **Found:** 2026-10-10. A `send_device_report` issued against `DRX-ZKI5K81UG` sat at `status = 'sent'`, `acted_at = NULL`, `result = NULL` while that device went on syncing normally. No report, no refusal, no error — and no way to ask again.

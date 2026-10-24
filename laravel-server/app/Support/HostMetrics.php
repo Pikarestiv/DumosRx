@@ -11,13 +11,9 @@ class HostMetrics
             return null;
         }
 
-        try {
-            $load = @sys_getloadavg();
-        } catch (\Throwable $e) {
-            return null;
-        }
+        $load = @sys_getloadavg();
 
-        if (! is_array($load) || ! isset($load[0], $load[1], $load[2])) {
+        if (! is_array($load)) {
             return null;
         }
 

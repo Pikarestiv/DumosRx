@@ -24,7 +24,7 @@ class SuperAdminAlertMail extends Mailable
     public function __construct($alertTitle, $messageLines)
     {
         $this->alertTitle = $alertTitle;
-        $this->messageLines = is_array($messageLines) ? $messageLines : [$messageLines];
+        $this->messageLines = (array) $messageLines;
     }
 
     /**

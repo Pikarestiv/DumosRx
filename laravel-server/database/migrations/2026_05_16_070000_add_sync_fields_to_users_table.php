@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('users', function (Blueprint $table) {
             $table->string('username')->nullable()->unique()->after('email');
             $table->string('pin', 4)->nullable()->after('password');
-            $table->foreignUuid('store_id')->nullable()->constrained()->onDelete('set null')->after('id');
+            $table->foreignUuid('store_id')->nullable()->constrained()->onDelete('set null');
         });
     }
 

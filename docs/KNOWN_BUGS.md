@@ -450,6 +450,13 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
+#### A-329. `laravel-server/` — `online_orders` and `online_order_items` have none of the foreign keys their migrations appear to declare
+- **Found:** 2026-10-24, by Larastan during the level-5 baseline cleanup.
+- **Location:** `database/migrations/2026_07_05_171215_create_online_orders_table.php` (`store_id`) and `2026_07_05_171215_create_online_order_items_table.php` (`online_order_id`, `product_id`).
+- **What's wrong:** the columns were declared as `$table->uuid(...)->constrained(...)`. `constrained()` exists only on `foreignUuid()`'s definition; on a plain `uuid()` column it is a silent no-op on Laravel's `Fluent`, as was the `->cascadeOnDelete()` on `online_order_id`. No foreign key was ever created on any database. The no-op calls were removed on 2026-10-24 so the migrations stop claiming constraints that do not exist; the schema is unchanged.
+- **Consequence:** low today. `OnlineOrder` soft-deletes and nothing hard-deletes one, so the missing cascade has not orphaned items; but nothing stops an item naming a missing order or product, or an order naming a missing store.
+- **Fix:** a new migration adding the three constraints (`online_order_id` cascading), preceded by a count of orphans on production, since an existing orphan makes the `ALTER` fail. `products` rows soft-delete, so `product_id` should not cascade.
+
 #### A-317. `laravel-server/` — `GET /stock-movements` and `GET /stock-adjustments` have no caller and hand any staff member the tenant-wide stock ledger
 - **Found:** 2026-10-23, while mapping every surface that shows stock quantities for the hide-quantities-by-role work.
 - **Issue:** #259

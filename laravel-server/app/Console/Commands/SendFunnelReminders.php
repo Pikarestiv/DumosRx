@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Mail\FunnelSetupReminderEmail;
 use App\Models\User;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -31,11 +32,9 @@ class SendFunnelReminders extends Command
     {
         $now = now();
 
-        // Find users who are active, but haven't logged in from a desktop app
         $users = User::query()->where('is_active', true)
-            ->where('setup_reminder_level', '<', 3) // Stop after 3 reminders
+            ->where('setup_reminder_level', '<', 3)
             ->whereDoesntHave('tokens', function ($query) {
-                // If they have any token that isn't 'web', they've logged in from the desktop app
                 $query->where('name', '!=', 'web');
             })
             ->get();
@@ -44,26 +43,7 @@ class SendFunnelReminders extends Command
 
         foreach ($users as $user) {
             /** @var \App\Models\User $user */
-            $shouldSend = false;
-
-            if ($user->setup_reminder_level === 0) {
-                // First reminder: 24 hours after registration
-                if ($user->created_at->diffInHours($now) >= 24) {
-                    $shouldSend = true;
-                }
-            } elseif ($user->setup_reminder_level === 1) {
-                // Second reminder: 72 hours (3 days) after first reminder
-                if ($user->setup_reminder_last_sent_at && clone $user->setup_reminder_last_sent_at->addHours(72) <= $now) {
-                    $shouldSend = true;
-                }
-            } elseif ($user->setup_reminder_level === 2) {
-                // Third reminder: 7 days (168 hours) after second reminder
-                if ($user->setup_reminder_last_sent_at && clone $user->setup_reminder_last_sent_at->addDays(7) <= $now) {
-                    $shouldSend = true;
-                }
-            }
-
-            if ($shouldSend) {
+            if ($this->isReminderDue($user, $now)) {
                 try {
                     Mail::to($user->email)->send(new FunnelSetupReminderEmail($user));
 
@@ -80,5 +60,24 @@ class SendFunnelReminders extends Command
         }
 
         $this->info("Funnel reminder job completed. Sent {$emailsSent} emails.");
+    }
+
+    private function isReminderDue(User $user, Carbon $now): bool
+    {
+        if ($user->setup_reminder_level === 0) {
+            return $user->created_at->diffInHours($now) >= 24;
+        }
+
+        if (! $user->setup_reminder_last_sent_at) {
+            return false;
+        }
+
+        $lastSentAt = Carbon::parse($user->setup_reminder_last_sent_at);
+
+        return match ($user->setup_reminder_level) {
+            1 => $lastSentAt->addHours(72) <= $now,
+            2 => $lastSentAt->addDays(7) <= $now,
+            default => false,
+        };
     }
 }

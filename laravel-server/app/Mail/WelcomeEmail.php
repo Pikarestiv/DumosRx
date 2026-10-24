@@ -28,9 +28,8 @@ class WelcomeEmail extends Mailable implements ShouldQueue
     {
         $this->user = $user;
         $this->storeName = $storeName;
-        $this->loginUrl = config('app.frontend_url', env('NEXT_PUBLIC_API_URL', 'https://dumosrx.com')).'/login';
+        $this->loginUrl = config('app.frontend_url').'/login';
 
-        // Check if user has an active trial
         $trial = $user->subscriptions()->where('is_trial', true)->where('status', 'active')->latest()->first();
         if ($trial && $trial->end_date) {
             $this->trialEndDate = \Carbon\Carbon::parse($trial->end_date)->format('F j, Y');

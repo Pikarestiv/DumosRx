@@ -35,7 +35,7 @@ class EmailVerificationMail extends Mailable
                 ->html('<p>Please verify your email using this link: <a href="'.$this->verificationUrl.'">'.$this->verificationUrl.'</a></p>');
         }
 
-        if ($this->template && $this->template->content) {
+        if ($this->template->content) {
             $html = \Illuminate\Support\Facades\Blade::render($this->template->content, [
                 'user' => $this->user,
                 'verificationUrl' => $this->verificationUrl,

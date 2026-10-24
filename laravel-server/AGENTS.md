@@ -3585,9 +3585,11 @@ then `PutenvAdapter` — the first adapter that holds the name wins. Loading a
 `.env` that declares a key writes it into all three, so a test that sets only
 `putenv()` and `$_ENV` is silently overridden by the `$_SERVER` copy and
 `env()` keeps returning the `.env` value. Always set (and clear)
-`putenv()`, `$_ENV[...]` and `$_SERVER[...]` together —
-`DatabaseSeederTest`'s `setSeedSuperAdminPassword()` /
-`clearSeedSuperAdminPassword()` helpers are the pattern to copy.
+`putenv()`, `$_ENV[...]` and `$_SERVER[...]` together. Better still, read
+the value through a `config()` key outside `config/` (Larastan refuses `env()`
+there anyway) and set that key in the test: `DatabaseSeederTest` moved to
+`config(['app.seed_super_admin_password' => ...])` on 2026-10-24 for this
+reason.
 
 **This is also the shape of the local-vs-CI split to check first when a test
 passes locally and fails in CI.** The Checks workflow runs
@@ -3667,6 +3669,16 @@ query string) — do not reintroduce it or a variant.
   `ROLES_PERMISSIONS_SYNCED`). **If you add a permission to that seeder, say
   so in your handoff** — someone has to press that button for it to exist in
   production.
+- **The seeded super admin's password.** `DatabaseSeeder` creates
+  `admin@dumosrx.com` whenever that row is missing (a fresh DB, a restore
+  predating it, the account renamed), so its password is a real credential,
+  not a dev convenience. It is `config('app.seed_super_admin_password')`
+  (`SEED_SUPER_ADMIN_PASSWORD`) when set; otherwise `local`/`testing` get the
+  README's `Admin123#` and every other environment a random one-time password,
+  printed to the command output and `Log::warning`. The discriminator is
+  `! environment(['local', 'testing'])`, not `environment('production')`:
+  `deploy-dev.yml` ships this seeder to an internet-facing host whose
+  `APP_ENV` is not literally `production`.
 - **Still true, and still the thing that bites:** a written migration is not
   a live one. Verify with `php artisan migrate --pretend` against local
   first, and tell the user production needs the deploy **and** the

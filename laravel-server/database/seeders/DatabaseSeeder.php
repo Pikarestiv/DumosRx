@@ -13,42 +13,14 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Seed Roles and Permissions
         $this->call(RolesAndPermissionsSeeder::class);
 
-        // 2. Create Super Admin User
         $adminEmail = 'admin@dumosrx.com';
 
         if (! User::where('email', $adminEmail)->exists()) {
             $superAdminRole = Role::where('slug', 'super_admin')->first();
 
-            // This seeder isn't first-install-only: until Phase 5, production's
-            // migration path ran `artisan migrate --seed --force` on every
-            // deploy, so this block re-ran — and would re-create this
-            // account — any time
-            // that one row happens to be missing (a fresh DB, a
-            // disaster-recovery restore predating this row, the account
-            // having been deleted/renamed). A hardcoded password here was
-            // therefore a real, git-history-visible production credential,
-            // not just a local-dev convenience. `SEED_SUPER_ADMIN_PASSWORD`
-            // lets an operator pin a real password via .env; with nothing
-            // set, production gets a random one-time password (surfaced
-            // below)
-            // instead of a predictable committed string. Local/dev keeps
-            // the documented default (README's Quick Start) for onboarding
-            // convenience, since a local DB is not a real credential.
-            //
-            // Discriminator is `!environment(['local', 'testing'])`, NOT
-            // `environment('production')` — an exact-match-only production
-            // check left any other deployed environment string (`staging`,
-            // `development`, `dev`, `demo`, ...) falling through to the
-            // hardcoded default. `deploy-dev.yml` FTPs this exact seeder to
-            // a real, internet-facing host (api.dev.dumosrx.com) behind the
-            // same deliberate operator-run path production uses —
-            // whatever APP_ENV that host happens to be set to, it must not
-            // land in the "local convenience" branch just because it isn't
-            // literally "production".
-            $password = env('SEED_SUPER_ADMIN_PASSWORD');
+            $password = config('app.seed_super_admin_password');
             $generatedPassword = null;
 
             if (! $password) {
@@ -73,7 +45,7 @@ class DatabaseSeeder extends Seeder
 
             if ($generatedPassword) {
                 $message = "Generated a one-time super_admin password for {$adminEmail}: {$generatedPassword} — log in and rotate it immediately, then set SEED_SUPER_ADMIN_PASSWORD so future re-seeds don't generate a new one unexpectedly.";
-                $this->command?->warn($message);
+                optional($this->command)->warn($message);
                 Log::warning($message);
             }
         }

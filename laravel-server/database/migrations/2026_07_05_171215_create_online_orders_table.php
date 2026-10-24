@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('online_orders', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->uuid('store_id')->constrained('stores');
+            $table->uuid('store_id');
             $table->string('customer_name');
             $table->string('customer_phone');
             $table->text('customer_address')->nullable();

@@ -18,34 +18,14 @@ class DatabaseSeederTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const SEED_PASSWORD_VAR = 'SEED_SUPER_ADMIN_PASSWORD';
-
-    /**
-     * `env()` reads through phpdotenv's default adapter chain, and
-     * `ServerConstAdapter` ($_SERVER) is consulted BEFORE `EnvConstAdapter`
-     * ($_ENV) and `PutenvAdapter` — the first adapter holding the name wins.
-     * Loading a `.env` that declares the key writes it to all three, so a
-     * test that sets only `putenv()` + `$_ENV` is silently overridden by the
-     * stale `$_SERVER` copy and `env()` returns the `.env` value.
-     *
-     * That is exactly the local/CI split this file hit: the repo's own `.env`
-     * has no `SEED_SUPER_ADMIN_PASSWORD` line at all, while CI runs against a
-     * copy of `.env.example`, which declares it empty (`SEED_SUPER_ADMIN_PASSWORD=`).
-     * So the seeder read `''`, fell through to the random-password branch, and
-     * the assertion failed in CI only. Always write and clear all three
-     * channels together.
-     */
     private function setSeedSuperAdminPassword(string $password): void
     {
-        putenv(self::SEED_PASSWORD_VAR.'='.$password);
-        $_ENV[self::SEED_PASSWORD_VAR] = $password;
-        $_SERVER[self::SEED_PASSWORD_VAR] = $password;
+        config(['app.seed_super_admin_password' => $password]);
     }
 
     private function clearSeedSuperAdminPassword(): void
     {
-        putenv(self::SEED_PASSWORD_VAR);
-        unset($_ENV[self::SEED_PASSWORD_VAR], $_SERVER[self::SEED_PASSWORD_VAR]);
+        config(['app.seed_super_admin_password' => null]);
     }
 
     public function test_local_env_uses_the_documented_default_password_when_unset()

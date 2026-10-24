@@ -56,7 +56,7 @@ class CheckAccountStatus
 
     /**
      * The store this request is acting on, resolved the same way
-     * SyncController::resolvePushStoreId() does so that enforcement and
+     * SyncOwnershipResolver::resolvePushStoreId() does so that enforcement and
      * scoping never disagree: X-Store-Id (or a store_id input) when the
      * caller's tenant owns it, else the caller's own store_id. Returns null
      * for an owner who named no store — that case is decided by

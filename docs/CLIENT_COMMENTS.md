@@ -5908,7 +5908,7 @@ that premise, and both end with a store vanishing from the switcher on a
 device that had it:
 
  - The snapshot is scoped to the authenticated identity, not the account:
-   `SyncController::resolvePullTenantScope()` narrows `$ownedStoreIds` to
+   `PullTenantScope::resolvePullTenantScope()` narrows `$ownedStoreIds` to
    `[$user->store_id]` for any user carrying a store_id (every staff
    account). A pull on a staff session therefore legitimately returns one
    store, and pruning against it deletes the owner's other stores.
@@ -6498,7 +6498,7 @@ insert a store the device doesn't have, or that it stamps the pull cursor.
 `client/__tests__/sync-throttle-not-reported-as-crash.test.ts:15`
 
 Regression coverage for a real Sentry report: a plan's sync-interval
-throttle (SyncController::validateSync's SYNC_THROTTLED response, "Sync
+throttle (SyncGate::validateSync's SYNC_THROTTLED response, "Sync
 limit reached... Please upgrade your plan for faster sync") reached the
 user during a completely normal navigation to /inventory, not a bug -
 base-client.ts throws it the same way as any other failed request, and

@@ -277,10 +277,7 @@ class SyncReconcileQuantitiesTest extends TestCase
         $batchId = $this->makeBatch($this->store->id, 8);
         $batch = \App\Models\StockBatch::find($batchId);
 
-        $method = new \ReflectionMethod(SyncController::class, 'writeQuantityReconciliation');
-        $method->setAccessible(true);
-        $result = $method->invoke(
-            app(SyncController::class),
+        $result = app(\App\Services\Sync\QuantityReconciliationService::class)->writeQuantityReconciliation(
             $batch,
             $this->store->id,
             10, // stale: the row actually holds 8, not 10

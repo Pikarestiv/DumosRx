@@ -5,10 +5,10 @@ namespace Tests\Feature;
 use App\Http\Controllers\Api\App\SyncController;
 use App\Models\ActivityLog;
 use App\Services\Admin\Concerns\CountsSyncedTableRows;
+use App\Services\Sync\PullPager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use ReflectionClass;
-use ReflectionMethod;
 use Tests\TestCase;
 
 /**
@@ -25,9 +25,7 @@ class SyncPullCursorPhysicalTableTest extends TestCase
 
     private function applyPullCursor($query, string $table, string $lastSynced): void
     {
-        $method = new ReflectionMethod(SyncController::class, 'applyPullCursor');
-        $method->setAccessible(true);
-        $method->invoke(new SyncController, $query, $table, $lastSynced);
+        (new PullPager)->applyPullCursor($query, $table, $lastSynced);
     }
 
     public function test_the_pull_cursor_probes_the_model_s_physical_table_not_the_sync_name(): void

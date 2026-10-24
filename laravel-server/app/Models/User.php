@@ -96,7 +96,7 @@ class User extends Authenticatable
         //
         // The ONE consumer that legitimately needs it is the sync pull,
         // which ships the hash down to each device so local (fully offline)
-        // PIN login can verify against it; SyncController::mapPullRowForClient
+        // PIN login can verify against it; PullRowMapper::mapPullRowForClient
         // re-exposes it for the 'users' table only.
         'pin',
         'remember_token',

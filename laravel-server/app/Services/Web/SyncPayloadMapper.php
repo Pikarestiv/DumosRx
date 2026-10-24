@@ -54,7 +54,7 @@ class SyncPayloadMapper
                 $payload['quantity_ordered'] = $payload['bulk_quantity'] * ($payload['units_per_bulk'] ?? 1);
             }
             // quantity_received's own base-unit scaling happens once, in
-            // SyncController::normalizePushPayload()'s bulk_quantity/units_per_bulk
+            // PushPayloadNormalizer::normalizePushPayload()'s bulk_quantity/units_per_bulk
             // branch (which runs after this mapper and unsets both source
             // fields) — scaling it here too would double-apply units_per_bulk
             // when both are present in the same payload.

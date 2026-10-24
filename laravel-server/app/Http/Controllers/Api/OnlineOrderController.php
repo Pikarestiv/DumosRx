@@ -26,7 +26,7 @@ class OnlineOrderController extends Controller
      * `User::employerStore()`'s doc block) — gating on `$user->store_id`
      * directly, as both endpoints below used to, always failed with "No
      * store associated" for an owner, who is exactly who this endpoint is
-     * for. Resolves the same way `SyncController::resolvePushStoreId` does:
+     * for. Resolves the same way `SyncOwnershipResolver::resolvePushStoreId` does:
      * `X-Store-Id` when present and owned by the caller's tenant (letting a
      * multi-store owner pick which store's orders they're viewing/
      * fulfilling), else the caller's own `store_id` (staff), else their

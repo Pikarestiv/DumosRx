@@ -266,8 +266,7 @@ class SyncPushStockMovementBatchScopeTest extends TestCase
         $this->seedBatch($this->victimStore->id, $this->victimOwner->id, 'victim-product', 'victim-batch', 40);
         $failed = [];
 
-        $apply = new \ReflectionMethod(\App\Http\Controllers\Api\App\SyncController::class, 'applyStockBatchDeltas');
-        $apply->invokeArgs(app(\App\Http\Controllers\Api\App\SyncController::class), [['victim-batch' => -25], &$failed, [$this->attackerStore->id]]);
+        app(\App\Services\Sync\StockBatchDeltaApplier::class)->applyStockBatchDeltas(['victim-batch' => -25], $failed, [$this->attackerStore->id]);
 
         $this->assertSame('permission_denied', $failed[0]['reason'] ?? null);
         $this->assertSame(40.0, (float) DB::table('stock_batches')->where('id', 'victim-batch')->value('quantity'));

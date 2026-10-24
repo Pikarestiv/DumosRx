@@ -10,7 +10,7 @@ use Tests\TestCase;
 
 /**
  * Regression coverage for A-164: the two loyalty-config tables were absent
- * from SyncController::normalizePushPayload()'s store_id backfill list, so a
+ * from PushPayloadNormalizer::normalizePushPayload()'s store_id backfill list, so a
  * client INSERT that omitted store_id was stored with store_id NULL and then
  * stayed invisible to pull()'s store scoping forever — plus the correction
  * that followed, gating that backfill to genuine INSERTs so an UPDATE pushed

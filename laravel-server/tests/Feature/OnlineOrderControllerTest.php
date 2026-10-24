@@ -16,7 +16,7 @@ use Tests\TestCase;
  * always null for a store owner (see User::employerStore()'s doc block) —
  * so an owner (exactly who this endpoint is for) always got "No store
  * associated" and could never see or fulfil their own storefront orders.
- * Fixed to resolve the store the same way SyncController::resolvePushStoreId
+ * Fixed to resolve the store the same way SyncOwnershipResolver::resolvePushStoreId
  * does: X-Store-Id when present/owned, else the caller's own store_id
  * (staff), else their first owned store.
  */

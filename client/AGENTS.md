@@ -416,7 +416,7 @@ and `synchronous = NORMAL`.
     refuses and writes no audit row: claiming a report was sent when none was
     is worse than no record.
     - **The command rides the PUSH response**
-      (`SyncController::exchangeSyncCommands`, applied in `push.ts`), not the
+      (`SyncActivityRecorder::exchangeSyncCommands`, applied in `push.ts`), not the
       pull. So a device whose rows fail *individually* — the "50 changes could
       not be saved" shape, where the request succeeds and `failed[]` is
       populated — does receive it, which is the field case. A device whose push
@@ -2454,7 +2454,7 @@ tracked as A-165 in `docs/KNOWN_BUGS.md`.
 
 A-167 then asked whether `permission_denied`'s own settle has the same hole,
 and the answer was yes — but the fix is server-side, so nothing in this file
-changes. `SyncController::normalizePushPayload()`'s explicit-`store_id` guard
+changes. `PushPayloadNormalizer::normalizePushPayload()`'s explicit-`store_id` guard
 now reports `forbidden` when the named store is another *live* store of the
 same tenant owner (a refusal only this narrower session makes, which the
 owner's session would accept) and keeps `permission_denied` only when no
@@ -5208,7 +5208,7 @@ same tab session still gets its own fresh one-time retry.
     row left holding `""` would return printing nothing. It sets `updated_at`
     from PHP, never MySQL's `NOW()` (root `AGENTS.md` §7) — but that is
     bookkeeping, not the propagation mechanism: `stores` is **exempt from the
-    pull cursor** (`SyncController::applyPullCursor`), so every pull returns
+    pull cursor** (`PullPager::applyPullCursor`), so every pull returns
     every owned store row regardless of its timestamp.
   - **One window the backfill cannot close**: a device holding an *unpushed*
     `stores` edit across the deploy pushes its old `""` afterwards and, since

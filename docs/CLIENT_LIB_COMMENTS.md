@@ -979,7 +979,7 @@ whose push is jammed stops reporting at the moment it has most to say. The
 report instead goes out over a plain POST that never touches the queue,
 which lands as a support ticket and is the only channel that delivers it.
 
-The command rides the PUSH response (SyncController::exchangeSyncCommands),
+The command rides the PUSH response (SyncActivityRecorder::exchangeSyncCommands),
 not the pull. So a device whose rows fail individually — the "50 changes
 could not be saved" shape, where the request succeeds and `failed[]` is
 populated — does receive it. A device whose push REQUEST fails outright
@@ -4732,7 +4732,7 @@ A-31, A-42) must fall back the same way rather than throwing mid-render.
 `client/lib/permissions/grant-scope.ts:1`
 
 Who may grant which permission keys, mirroring the server's own rule in
-SyncController::sanitizePermissionGroupSyncPayload() so the Roles &
+SyncPayloadSanitizer::sanitizePermissionGroupSyncPayload() so the Roles &
 Permissions matrix can show the truth up front instead of letting a push
 be rejected as `permission_denied` and silently reverted by the next pull.
 
@@ -5670,7 +5670,7 @@ confirm it first.
 status/code let callers (e.g. sync-engine's logCrash calls)
 distinguish an expected, server-enforced plan restriction
 (SYNC_THROTTLED, SYNC_DISABLED, STORE_LIMIT_EXCEEDED - see
-SyncController::validateSync) from an actual bug, without
+SyncGate::validateSync) from an actual bug, without
 resorting to matching on the human-readable message text.
 
 ### line-api-client-fleet-billing-ts-L147
@@ -5696,7 +5696,7 @@ so no explicit header override is set.
 One token per sync() call, repeated on every batch of that run. The
 server measures the plan's sync-interval throttle per RUN rather than
 per request, so a backlog spanning many batches isn't rejected by its
-own first batch — see SyncController::validateSync.
+own first batch — see SyncGate::validateSync.
 
 ### line-api-client-ts-L193
 

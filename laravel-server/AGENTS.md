@@ -120,7 +120,7 @@ without updating that.
   silently narrows a multi-store owner to one store. Resolve ownership by
   asking whether the user owns any `Store` **first**, and only consult
   `users.store_id` for a user who owns none —
-  `SyncController::resolveOwnershipIdentity()` is the reference
+  `SyncOwnershipResolver::resolveOwnershipIdentity()` is the reference
   implementation, and the migration
   `2026_10_01_000000_clear_store_id_on_store_owners` clears the historical
   poisoning. Use
@@ -811,10 +811,51 @@ at it. `App\Http\Controllers\Api\App\TillRelinkController` (thin) over
 
 ## Sync engine (server side)
 
-`app/Http/Controllers/Api/App/SyncController.php` (~1000 lines — the
-delta push/pull endpoint `client/`'s sync engine talks to) and
+`app/Http/Controllers/Api/App/SyncController.php` (the delta push/pull
+endpoint `client/`'s sync engine talks to) and
 `app/Services/Web/SyncPayloadMapper.php`. See `tests/Feature/SyncEndpointTest.php`
-for the expected push/pull contract. Any new syncable table/column needs a
+for the expected push/pull contract.
+
+### Where the sync server code lives (split 2026-10-24)
+
+The controller keeps the HTTP actions (`push()`, `pull()`, `counts()`,
+`peerFreshness()`, `reconcileQuantities()`) and the public
+`getModelForTable()`. Everything else moved verbatim into `app/Services/Sync/`:
+
+| Class | Members |
+|---|---|
+| `SyncOwnershipResolver` | `resolveOwnershipIdentity()`, `resolvePushStoreId()`, `resolveAllowedOwnershipScope()`, `storeBelongsToTenantOwner()` |
+| `SyncGate` | `validateSync()` (plan gate, run throttle, store limit), `isStoresOnlySetupOverridePull()`, `syncRunId()`, `SYNC_RUN_MAX_MINUTES` |
+| `SyncActivityRecorder` | stock/table fingerprints, queue state, sync-command exchange, `recordRejectedPush()`, `touchStoreLastSyncAt()`, `sendFirstSyncAlert()` |
+| `PullPager` | `applyPullCursor()`, `fetchPullPage()`, `normalizePageCursor()` and the per-pull `_synced_at` probe memo |
+| `PullTenantScope` | `resolvePullTenantScope()`, `applyPullTenantScope()`, `PULL_TABLES_INDEPENDENT_OF_STORE_HEADER`, `logRefusedPullStore()` |
+| `PullRowMapper` | `mapPullRowForClient()` |
+| `PushPayloadNormalizer` | `normalizePushPayload()`, `STORE_ID_BACKFILL_TABLES`, `STORE_SYNC_FORBIDDEN_FIELDS` |
+| `SyncPayloadSanitizer` | `sanitizeUserSyncPayload()`, `sanitizePermissionGroupSyncPayload()`, the `USER_SYNC_*` lists |
+| `SyncWriteAuthorizer` | `authorizeChangeTarget()`, `authorizeInsertTarget()`, `resolveChangeStoreId()`, `withoutStoreReassignment()`, `claimIsEvidence()`, `isBatchOutsideScope()`, `namesForeignBatch()`, `guardedRowStoreId()` |
+| `PushConflictResolver` | `resolveUpdateConflict()`, `isQuantityOnlyStockBatchUpdate()`, `findDuplicateInsertConflict()`, `findAuditLogByClientId()` |
+| `PushRowWriter` | `stampSyncedAt()`, `reviveConflictTarget()`, `reopenPullWindow()`, `applyNotNullColumnDefaults()` |
+| `StockBatchDeltaApplier` | `applyStockBatchDeltas()` |
+| `QuantityReconciliationService` | `reconcileQuantities()`'s loop, `writeQuantityReconciliation()`, the `RECONCILIATION_*` constants |
+
+- **The `push()` per-change loop stays in the controller on purpose.** It
+  shares about fifteen mutable locals (`$idMap`, `$idMapByTable`, `$failed`,
+  `$versions`, `$processed`, the resent-insert counters, `$changes` itself,
+  `$pendingStockBatchDelta`) and leaves each change through
+  `DB::commit(); continue;`. Splitting it would mean replacing those exits with
+  return flags, which is a logic change, not a move.
+- **Per-request memos stay per request.** `SyncWriteAuthorizer` (the batch
+  store memo) and `PullPager` (the `_synced_at` probe) are resolved with
+  `app()` at the top of `push()`/`pull()`, so each request gets a fresh
+  instance. That replaces the old reset-at-entry of a controller property.
+  Never bind either as a singleton.
+- **No contract changed in the split**: same routes, request validation,
+  response shapes, status codes, messages, queries and side-effect order, so
+  no backward-compatibility shim was needed (§11).
+- **Why the code has almost no comments:** the rationale that used to sit in
+  these files is in `docs/SYNC_SERVER_RATIONALE.md`, one section per class
+  and member, with the original A-NN references intact. Read that section
+  before changing a method. Any new syncable table/column needs a
 migration here **and** the corresponding update on the `client/` side
 (`client/lib/db/schema.ts` + sync engine coverage) — see `.agents/AGENTS.md`
 §4 and `client/AGENTS.md` for the client-side half of this.
@@ -1297,7 +1338,7 @@ this way, and A-168 for the two sites deliberately left terminal.
 ## `LegacyStockQuantitiesGrant`: old bundles must not strip `view_stock_quantities`
 
 `app/Services/Sync/LegacyStockQuantitiesGrant.php`, called from
-`SyncController::normalizePushPayload()` for every `permission_groups`
+`PushPayloadNormalizer::normalizePushPayload()` for every `permission_groups`
 change, before the sanitizer. A bundle older than the key cannot express
 "untick it", but two of its actions drop it anyway: "Revert to Default"
 writes that bundle's `DEFAULT_GROUP_PERMISSIONS`, and "New group" starts at
@@ -1429,9 +1470,9 @@ reads that assembled array **once**, after the outer `DB::commit()`, beside
   the push still returns 200.
 - **The recorder is resolved from the container at the hook, not injected.**
   `SyncController` has no constructor on purpose: `SyncSchemaParityTest` does
-  `new SyncController()` directly, and adding one broke it. Leaving the public
-  signature untouched meant no existing test had to be edited to accommodate the
-  change.
+  `new SyncController()` directly, and adding one broke it. The services the
+  controller uses are resolved with `app()` inside each action for the same
+  reason.
 - **Store attribution uses `resolvePushStoreId()`**, the same resolver
   `touchStoreLastSyncAt()` uses. Any other lookup mis-attributes a multi-store
   owner's failures to the wrong branch — the exact bug that resolver exists to
@@ -1464,7 +1505,7 @@ reads that assembled array **once**, after the outer `DB::commit()`, beside
   wrapped separately, because losing the tally is worse than losing the rows:
   it removes the store from the denominator entirely.
 - **Conflicts are not refusals.** `version_conflict` and `stale_timestamp` are,
-  in `push()`'s own words, "a routine, expected occurrence in multi-device
+  in `push()`'s rationale (`docs/SYNC_SERVER_RATIONALE.md`), "a routine, expected occurrence in multi-device
   sync". They are recorded in `sync_failures` for forensics but counted in
   `changes_conflicted`, not `changes_refused`, so a healthy three-terminal store
   can still read 100%. A success rate that no working store can ever reach is
@@ -1831,7 +1872,7 @@ history is as clean, and it costs nothing.
 apply path never trusts from a client. `stock_batches.quantity` is the only
 current example — it is stripped from every payload and always derived from
 `stock_movements` deltas — which is why `HealthSyncReconciliationRepairService`
-and `SyncController`'s reconcile path are safe writing it bare. A column merely
+and `QuantityReconciliationService` (the reconcile path) are safe writing it bare. A column merely
 *absent* from the usual payload is not exempt: `forceFill` only sets keys the
 payload carries, so that is safe for now but turns into this bug the day a
 client starts sending it. A column in a `*_SYNC_FORBIDDEN_FIELDS` list is
@@ -2055,7 +2096,7 @@ removed.
 device and the cloud, and it only ever compared stock — so every other synced
 table could diverge on every till while the panel read "Agrees".
 `TableAgreementService` is its sibling for the other 26 tables, recorded from
-`SyncController::recordTableFingerprint()` after the commit (same reason as
+`SyncActivityRecorder::recordTableFingerprint()` after the commit (same reason as
 the stock one: taken earlier, the server's side excludes the very batch in
 flight) and read by `/stores/{id}/table-agreement`.
 
@@ -2624,9 +2665,10 @@ or it will silently assert against a filtered set.
 `active`, `in_grace`, `lapsed` or `none`, and is the **only** definition of an
 account's lifecycle state. It is built *on top of*
 `resolveEffectiveSubscription()` — the same method `CheckSubscription`,
-`hasFeature()`, `checkLimit()`, `enforceStaffLimits()` and `SyncController` gate
+`hasFeature()`, `checkLimit()` and `enforceStaffLimits()` gate
 live traffic on — so the admin panel and the application can never disagree
-about who is subscribed.
+about who is subscribed. (`SyncGate::validateSync()` does not use it: it reads
+the owner's latest `active` subscription with a future `end_date` directly.)
 
 - **Never re-derive the grace window.** `subscriptionState()` reads `end_date`
   only to *classify* the row `resolveEffectiveSubscription()` already chose. If
@@ -2675,7 +2717,7 @@ reported 7 for a single account.
 
 - **Why nothing broke:** every access-control and billing reader already pairs
   the status check with `end_date` — `CheckSubscription`, `SubscriptionService::resolveEffectiveSubscription()`,
-  `SyncController`, `SubscriptionController`, `StorefrontController`,
+  `SyncGate`, `SubscriptionController`, `StorefrontController`,
   `AdminStoreService`'s plan filter. Only code that read `status` alone (a
   count, a group-by) was wrong. **Keep it that way: never gate access on
   `status` by itself.**
@@ -2876,7 +2918,7 @@ The rule that replaces it:
 Multi-store is a supported, plan-gated state, so "is this account blocked?"
 has no single answer for an owner: one store can be suspended while another
 trades normally. The middleware therefore resolves **which store this request
-is acting on** exactly the way `SyncController::resolvePushStoreId()` does —
+is acting on** exactly the way `SyncOwnershipResolver::resolvePushStoreId()` does —
 `X-Store-Id` (or a `store_id` input) when the caller's tenant owns it, else
 the caller's own `users.store_id` — and blocks only on that store. It used to
 take `Store::where('user_id', …)->first()` with no `orderBy`, so which store
@@ -3312,7 +3354,7 @@ production config.
 **Corollary — never `->send()` inside an open transaction.** Because the send
 is synchronous, a slow or unreachable SMTP server holds the transaction (and
 every `lockForUpdate()` row lock it took) open for the full mail timeout. This
-is what A-110 was: `SyncController::touchStoreLastSyncAt()` fired the
+is what A-110 was: `SyncActivityRecorder::touchStoreLastSyncAt()` fired the
 first-sync admin alert before push()'s outer `DB::commit()`, so the client's
 batch timed out and retried against still-locked rows. The method now returns
 the first-synced `Store` and `push()` calls `sendFirstSyncAlert()` *after* the
@@ -3538,7 +3580,7 @@ down till-code generation on dev on 2026-10-10.
 **So: any change that adds a column and writes to it must tolerate the column
 being absent**, degrading to whatever the pre-migration rows already do.
 
-The worked example is the sync engine. `SyncController::applyPullCursor()`
+The worked example is the sync engine. `PullPager::applyPullCursor()`
 (`:975`) and `stampSyncedAt()` (`:1540`) probe `Schema::hasColumn()` before
 touching `_synced_at`, each behind its own array cache, because the probe is a
 real INFORMATION_SCHEMA round trip Laravel does not memoize. Follow that
@@ -3953,7 +3995,7 @@ php artisan sync:repair-health-sync-reconciliation --store=<id> --apply
   conditional update* — `lockForUpdate()` on the `stock_batches` row and on that
   batch's movements (so the figures are the latest committed ones and a
   concurrent push waits), then `where('quantity', $justRead)->update(...)`,
-  mirroring `SyncController::writeQuantityReconciliation()`. Wrapping the run in
+  mirroring `QuantityReconciliationService::writeQuantityReconciliation()`. Wrapping the run in
   `DB::transaction` alone would **not** have been enough: the bulk report reads
   are non-locking snapshot reads, so a till's push could commit underneath them
   and an absolute `save()` would overwrite its quantity while its movement row
@@ -4115,7 +4157,7 @@ On production use the 8.2 binary (next section):
   differs from the current store's is refused as `ANOTHER TENANT`: moving a
   product between two *different* owners is not a mis-stamp, it is an incident.
 - **Batches are the authoritative side, by construction.** `stock_batches` is
-  absent from `SyncController::STORE_ID_BACKFILL_TABLES`, so the server has
+  absent from `PushPayloadNormalizer::STORE_ID_BACKFILL_TABLES`, so the server has
   never stamped a store onto one — the client set it. `products` and
   `stock_movements` are both on that list. A-248's production check settled the
   direction independently: both known products were created in the same second

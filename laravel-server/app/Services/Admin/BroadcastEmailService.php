@@ -29,7 +29,7 @@ class BroadcastEmailService
                     Mail::to($recipient->email)->send(new AdminCustomMail($broadcast->title, $broadcast->message));
                     $sent++;
                 } catch (\Exception $e) {
-                    Log::error("Broadcast email failed for user {$recipient->id}: " . $e->getMessage());
+                    Log::error("Broadcast email failed for user {$recipient->id}: ".$e->getMessage());
                 }
             }
         });
@@ -60,7 +60,7 @@ class BroadcastEmailService
         $query = User::query()
             ->whereHas('stores')
             ->whereNotNull('email')
-            ->where('email', 'not like', '%' . self::PLACEHOLDER_EMAIL_DOMAIN);
+            ->where('email', 'not like', '%'.self::PLACEHOLDER_EMAIL_DOMAIN);
 
         if ($broadcast->target_type === 'specific') {
             $query->whereIn('id', $broadcast->user_ids ?: []);

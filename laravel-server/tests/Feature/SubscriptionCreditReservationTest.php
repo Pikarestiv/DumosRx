@@ -55,7 +55,7 @@ class SubscriptionCreditReservationTest extends TestCase
                 ->andReturn([
                     'provider' => 'paystack',
                     'reference' => $reference,
-                    'checkout_url' => 'https://paystack.test/' . $reference,
+                    'checkout_url' => 'https://paystack.test/'.$reference,
                 ]);
         });
 

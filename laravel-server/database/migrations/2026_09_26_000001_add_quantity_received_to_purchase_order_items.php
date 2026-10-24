@@ -28,7 +28,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('purchase_order_items', function (Blueprint $table) {
-            if (!Schema::hasColumn('purchase_order_items', 'quantity_received')) {
+            if (! Schema::hasColumn('purchase_order_items', 'quantity_received')) {
                 $table->integer('quantity_received')->default(0);
             }
         });

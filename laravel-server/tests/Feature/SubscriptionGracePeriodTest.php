@@ -27,7 +27,9 @@ class SubscriptionGracePeriodTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $store;
+
     protected SubscriptionService $service;
 
     protected function setUp(): void
@@ -62,7 +64,7 @@ class SubscriptionGracePeriodTest extends TestCase
             'start_date' => now()->subMonth(),
             'end_date' => now()->subDays($daysExpiredAgo),
             'status' => 'active',
-            'license_key' => 'DRX-' . strtoupper(Str::random(8)),
+            'license_key' => 'DRX-'.strtoupper(Str::random(8)),
         ]);
     }
 
@@ -71,7 +73,7 @@ class SubscriptionGracePeriodTest extends TestCase
         for ($i = 0; $i < $count; $i++) {
             User::create([
                 'first_name' => 'Staff', 'last_name' => (string) $i,
-                'email' => "grace-staff-{$i}-" . Str::random(4) . '@dumosrx.com',
+                'email' => "grace-staff-{$i}-".Str::random(4).'@dumosrx.com',
                 'password' => bcrypt('password'),
                 'role' => 'sales_staff',
                 'store_id' => $this->store->id,
@@ -168,7 +170,7 @@ class SubscriptionGracePeriodTest extends TestCase
             'start_date' => now(),
             'end_date' => now()->addMonth(),
             'status' => 'active',
-            'license_key' => 'DRX-' . strtoupper(Str::random(8)),
+            'license_key' => 'DRX-'.strtoupper(Str::random(8)),
         ]);
 
         $this->assertTrue($this->service->hasFeature($this->owner, 'daily_summary_email'));

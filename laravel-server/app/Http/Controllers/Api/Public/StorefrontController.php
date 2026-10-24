@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Api\Public;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\StorefrontProductResource;
-use App\Models\Store;
 use App\Models\Product;
 use App\Models\StockBatch;
+use App\Models\Store;
 use App\Models\User;
 use App\Services\Payment\PaymentService;
 use App\Services\SubscriptionService;
@@ -90,7 +90,7 @@ class StorefrontController extends Controller
      */
     private function refundUnfulfillableCheckout(Store $store, ?string $reference, array $submittedItems, PaymentService $paymentService): ?\Illuminate\Http\JsonResponse
     {
-        if (!$reference) {
+        if (! $reference) {
             return null;
         }
 
@@ -99,7 +99,7 @@ class StorefrontController extends Controller
             ->whereIn('status', \App\Models\StorefrontPaymentIntent::CLAIMABLE_STATUSES)
             ->first();
 
-        if (!$intent) {
+        if (! $intent) {
             return null;
         }
 
@@ -111,13 +111,13 @@ class StorefrontController extends Controller
         }
 
         $verification = $paymentService->verifyTransaction($reference, $intent->provider);
-        if (!($verification['success'] ?? false)) {
+        if (! ($verification['success'] ?? false)) {
             return null;
         }
 
         $refund = $paymentService->refundTransaction($reference, $intent->provider);
 
-        if (!($refund['success'] ?? false)) {
+        if (! ($refund['success'] ?? false)) {
             Log::error('Storefront refund failed for an unfulfillable paid checkout', [
                 'store_id' => $store->id,
                 'reference' => $reference,
@@ -293,7 +293,7 @@ class StorefrontController extends Controller
      * the amount the resulting order is created for.
      *
      * @return array{0: float, 1: array, 2: ?\Illuminate\Http\JsonResponse, 3: array<string,string>}
-     *         [$totalAmount, $orderItems, $errorResponse, $productNamesById]
+     *                                                                                               [$totalAmount, $orderItems, $errorResponse, $productNamesById]
      */
     private function priceCart(Store $store, array $items): array
     {
@@ -404,7 +404,7 @@ class StorefrontController extends Controller
             ], 422);
         }
 
-        if (!$store->paystack_subaccount_code) {
+        if (! $store->paystack_subaccount_code) {
             return response()->json([
                 'success' => false,
                 'message' => 'This store cannot accept online payments yet.',
@@ -427,7 +427,7 @@ class StorefrontController extends Controller
                 // succeeding. The storefront frontend's checkout page reads
                 // Paystack's own appended ?reference=/&trxref= query params
                 // from this URL to drive the confirm call.
-                config('app.frontend_url') . "/store/{$store->store_slug}/checkout",
+                config('app.frontend_url')."/store/{$store->store_slug}/checkout",
                 $store->paystack_subaccount_code,
                 $this->storeCurrency($store),
             );
@@ -458,7 +458,8 @@ class StorefrontController extends Controller
             // provider response body (see initializePaystack/Flutterwave's
             // "Paystack Error: " . $response->body()), which is fine to log
             // but not to hand to an anonymous caller.
-            Log::error('Storefront checkout initialize failed: ' . $e->getMessage());
+            Log::error('Storefront checkout initialize failed: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
                 'message' => 'Unable to start checkout. Please try again later.',
@@ -557,7 +558,7 @@ class StorefrontController extends Controller
         // reference column is shared and unique across all orders, so a
         // transfer/in_store order could otherwise consume a reference a
         // genuine Paystack checkout needs later.
-        if (!empty($validated['paystack_reference'])) {
+        if (! empty($validated['paystack_reference'])) {
             // withTrashed(): OnlineOrder soft-deletes, so a cancelled/deleted
             // order still has permanently consumed its reference - without
             // this the same reference could be replayed by first getting the
@@ -570,7 +571,7 @@ class StorefrontController extends Controller
             // online_orders, so without this check a reference already
             // consumed to activate somebody's plan could be replayed here to
             // get storefront goods for free (and vice-versa).
-            if (!$alreadyUsed) {
+            if (! $alreadyUsed) {
                 $alreadyUsed = \App\Models\PaymentTransaction::where('provider_reference', $validated['paystack_reference'])
                     ->exists();
             }
@@ -599,13 +600,13 @@ class StorefrontController extends Controller
                 ->where('store_id', $store->id)
                 ->first();
 
-            if (!$intent) {
+            if (! $intent) {
                 return response()->json([
                     'message' => 'Payment could not be verified for this order.',
                 ], 422);
             }
 
-            if (!in_array($intent->status, \App\Models\StorefrontPaymentIntent::CLAIMABLE_STATUSES, true)) {
+            if (! in_array($intent->status, \App\Models\StorefrontPaymentIntent::CLAIMABLE_STATUSES, true)) {
                 return response()->json([
                     'message' => 'This payment reference has already been used for another order.',
                 ], 422);
@@ -644,7 +645,7 @@ class StorefrontController extends Controller
             $verifiedCurrency = strtoupper((string) ($verification['currency'] ?? ''));
             $expectedCurrency = strtoupper((string) ($intent->currency ?: $this->storeCurrency($store)));
 
-            if (!($verification['success'] ?? false)
+            if (! ($verification['success'] ?? false)
                 || $verifiedCurrency !== $expectedCurrency
                 || (float) ($verification['amount'] ?? 0) < $totalAmount
             ) {
@@ -683,8 +684,8 @@ class StorefrontController extends Controller
                         ->lockForUpdate()
                         ->first();
 
-                    if (!$locked || !in_array($locked->status, \App\Models\StorefrontPaymentIntent::CLAIMABLE_STATUSES, true)) {
-                        throw new \App\Exceptions\PaymentReferenceAlreadyUsedException();
+                    if (! $locked || ! in_array($locked->status, \App\Models\StorefrontPaymentIntent::CLAIMABLE_STATUSES, true)) {
+                        throw new \App\Exceptions\PaymentReferenceAlreadyUsedException;
                     }
                 }
 
@@ -724,7 +725,7 @@ class StorefrontController extends Controller
             // Belt-and-braces against the check-then-create race: the
             // unique index on paystack_reference is the actual source of
             // truth if two requests for the same reference land concurrently.
-            if (!empty($validated['paystack_reference']) && str_contains($e->getMessage(), 'paystack_reference')) {
+            if (! empty($validated['paystack_reference']) && str_contains($e->getMessage(), 'paystack_reference')) {
                 return response()->json([
                     'message' => 'This payment reference has already been used for another order.',
                 ], 422);
@@ -746,7 +747,7 @@ class StorefrontController extends Controller
 
         return response()->json([
             'message' => 'Order placed successfully',
-            'order' => $order->load('items')
+            'order' => $order->load('items'),
         ], 201);
     }
 }

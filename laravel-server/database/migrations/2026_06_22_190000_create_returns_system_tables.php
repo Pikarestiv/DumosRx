@@ -19,7 +19,7 @@ return new class extends Migration
             $table->decimal('total_refunded', 10, 2)->default(0.00);
             $table->timestamps();
             $table->softDeletes();
-            
+
             // Sync tracking columns
             $table->integer('_version')->default(1);
             $table->boolean('_synced')->default(0);
@@ -36,7 +36,7 @@ return new class extends Migration
             $table->decimal('subtotal', 10, 2);
             $table->timestamps();
             $table->softDeletes();
-            
+
             // Sync tracking columns
             $table->integer('_version')->default(1);
             $table->boolean('_synced')->default(0);

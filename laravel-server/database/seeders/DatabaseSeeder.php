@@ -2,13 +2,12 @@
 
 namespace Database\Seeders;
 
+use App\Models\Role;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use App\Models\User;
-use App\Models\Role;
-use App\Models\Permission;
 
 class DatabaseSeeder extends Seeder
 {
@@ -20,7 +19,7 @@ class DatabaseSeeder extends Seeder
         // 2. Create Super Admin User
         $adminEmail = 'admin@dumosrx.com';
 
-        if (!User::where('email', $adminEmail)->exists()) {
+        if (! User::where('email', $adminEmail)->exists()) {
             $superAdminRole = Role::where('slug', 'super_admin')->first();
 
             // This seeder isn't first-install-only: until Phase 5, production's
@@ -34,7 +33,7 @@ class DatabaseSeeder extends Seeder
             // not just a local-dev convenience. `SEED_SUPER_ADMIN_PASSWORD`
             // lets an operator pin a real password via .env; with nothing
             // set, production gets a random one-time password (surfaced
-            // below) 
+            // below)
             // instead of a predictable committed string. Local/dev keeps
             // the documented default (README's Quick Start) for onboarding
             // convenience, since a local DB is not a real credential.
@@ -52,7 +51,7 @@ class DatabaseSeeder extends Seeder
             $password = env('SEED_SUPER_ADMIN_PASSWORD');
             $generatedPassword = null;
 
-            if (!$password) {
+            if (! $password) {
                 if (app()->environment(['local', 'testing'])) {
                     $password = 'Admin123#';
                 } else {
@@ -69,7 +68,7 @@ class DatabaseSeeder extends Seeder
                 'role' => 'super_admin',
                 'role_id' => $superAdminRole ? $superAdminRole->id : null,
                 'is_active' => true,
-                'phone' => '08000000000'
+                'phone' => '08000000000',
             ]);
 
             if ($generatedPassword) {
@@ -78,8 +77,6 @@ class DatabaseSeeder extends Seeder
                 Log::warning($message);
             }
         }
-
-
 
         $this->call(EmailTemplateSeeder::class);
         $this->call(SystemConfigSeeder::class);

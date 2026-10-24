@@ -15,7 +15,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasColumn('permission_groups', 'deleted_at')) {
+        if (! Schema::hasColumn('permission_groups', 'deleted_at')) {
             Schema::table('permission_groups', function (Blueprint $table) {
                 $table->softDeletes();
             });

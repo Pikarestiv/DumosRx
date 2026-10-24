@@ -60,5 +60,4 @@ class ActivityLog extends Model
                 ->orWhereHas('userRole', fn ($rq) => $rq->where('slug', 'super_admin'));
         });
     }
-
 }

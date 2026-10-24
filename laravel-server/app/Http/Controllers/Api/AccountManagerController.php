@@ -32,7 +32,7 @@ class AccountManagerController extends Controller
 
         $manager = static::resolveFor($owner);
 
-        if (!$manager) {
+        if (! $manager) {
             return response()->json(['data' => null]);
         }
 
@@ -48,7 +48,7 @@ class AccountManagerController extends Controller
 
     public static function resolveFor(?User $owner): ?User
     {
-        if (!$owner) {
+        if (! $owner) {
             return null;
         }
 

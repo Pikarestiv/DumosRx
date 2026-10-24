@@ -20,13 +20,13 @@ return new class extends Migration
 
     public function up(): void
     {
-        if (DB::getDriverName() !== 'sqlite' || !Schema::hasTable('coupon_usages')) {
+        if (DB::getDriverName() !== 'sqlite' || ! Schema::hasTable('coupon_usages')) {
             return;
         }
 
         $row = DB::selectOne("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'coupon_usages'");
 
-        if (!$row || !str_contains($row->sql, self::STALE)) {
+        if (! $row || ! str_contains($row->sql, self::STALE)) {
             return;
         }
 
@@ -50,7 +50,5 @@ return new class extends Migration
         }
     }
 
-    public function down(): void
-    {
-    }
+    public function down(): void {}
 };

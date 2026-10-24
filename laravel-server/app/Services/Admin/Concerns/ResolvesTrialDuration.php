@@ -32,6 +32,7 @@ trait ResolvesTrialDuration
         ];
 
         $days = $daysByDuration[$durationString] ?? 14; // Default
+
         return now()->addDays($days);
     }
 }

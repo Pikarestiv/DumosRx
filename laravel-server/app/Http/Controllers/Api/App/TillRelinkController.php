@@ -11,9 +11,7 @@ class TillRelinkController extends Controller
 {
     public const REJECTION = ['message' => 'Invalid or expired code.'];
 
-    public function __construct(private TillRelinkService $relinks)
-    {
-    }
+    public function __construct(private TillRelinkService $relinks) {}
 
     public function create(Request $request)
     {
@@ -23,7 +21,7 @@ class TillRelinkController extends Controller
         $store = Store::where('id', $validated['store_id'])->first();
         $isOwner = $store && $store->user_id === $user->id;
 
-        if (!$isOwner || $user->currentAccessToken()?->name === 'Impersonation Token') {
+        if (! $isOwner || $user->currentAccessToken()?->name === 'Impersonation Token') {
             return response()->json(['message' => 'Only the store owner can generate a re-link code.'], 403);
         }
 
@@ -38,7 +36,7 @@ class TillRelinkController extends Controller
         $code = $request->input('code');
         $storeId = $request->header('X-Store-Id');
 
-        if (!is_string($code) || strlen($code) > 32 || !is_string($storeId) || $storeId === '') {
+        if (! is_string($code) || strlen($code) > 32 || ! is_string($storeId) || $storeId === '') {
             return response()->json(self::REJECTION, 422);
         }
 

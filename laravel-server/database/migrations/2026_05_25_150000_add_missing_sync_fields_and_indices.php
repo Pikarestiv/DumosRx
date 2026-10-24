@@ -15,7 +15,7 @@ return new class extends Migration
         $missingSyncTables = ['inventories', 'activity_logs', 'categories'];
 
         foreach ($missingSyncTables as $table) {
-            if (Schema::hasTable($table) && !Schema::hasColumn($table, '_synced_at')) {
+            if (Schema::hasTable($table) && ! Schema::hasColumn($table, '_synced_at')) {
                 Schema::table($table, function (Blueprint $table) {
                     $table->timestamp('_synced_at')->nullable()->index();
                 });
@@ -32,7 +32,7 @@ return new class extends Migration
             'users',
             'inventories',
             'activity_logs',
-            'categories'
+            'categories',
         ];
 
         foreach ($syncedTables as $table) {
@@ -41,7 +41,7 @@ return new class extends Migration
                 $indexName = "{$table}_updated_at_index";
                 $hasIndex = collect($indexes)->contains(fn ($index) => $index['name'] === $indexName);
 
-                if (!$hasIndex) {
+                if (! $hasIndex) {
                     Schema::table($table, function (Blueprint $table) use ($indexName) {
                         $table->index('updated_at', $indexName);
                     });
@@ -75,7 +75,7 @@ return new class extends Migration
             'users',
             'inventories',
             'activity_logs',
-            'categories'
+            'categories',
         ];
 
         foreach ($syncedTables as $table) {

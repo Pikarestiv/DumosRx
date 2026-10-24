@@ -24,8 +24,11 @@ class SyncPushOwnershipTest extends TestCase
     use RefreshDatabase;
 
     protected User $victimOwner;
+
     protected Store $victimStore;
+
     protected User $attackerOwner;
+
     protected Store $attackerStore;
 
     protected function setUp(): void

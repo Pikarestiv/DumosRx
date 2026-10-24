@@ -2,7 +2,6 @@
 
 namespace App\Services\Admin;
 
-use App\Support\TokenLifetime;
 use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Models\PaymentTransaction;
@@ -14,6 +13,7 @@ use App\Services\Admin\Concerns\ResolvesDeviceLabels;
 use App\Services\Admin\Concerns\ResolvesTrialDuration;
 use App\Services\Admin\Filters\StoreListFilters;
 use App\Services\Admin\Support\ListSortResolver;
+use App\Support\TokenLifetime;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -48,7 +48,7 @@ class AdminStoreService
     public function getBillingHistoryForStore(string $storeId): ?array
     {
         $store = Store::find($storeId);
-        if (!$store) {
+        if (! $store) {
             return null;
         }
 
@@ -64,8 +64,8 @@ class AdminStoreService
                 return [
                     'id' => $txn->id,
                     'date' => $txn->created_at->format('M j, Y'),
-                    'desc' => ($txn->metadata['plan_name'] ?? 'Subscription') . ' Plan',
-                    'amount' => '₦' . number_format($txn->amount, 0),
+                    'desc' => ($txn->metadata['plan_name'] ?? 'Subscription').' Plan',
+                    'amount' => '₦'.number_format($txn->amount, 0),
                     'status' => ucfirst($txn->status),
                     'reference' => $txn->provider_reference,
                     'receipt_url' => $txn->metadata['verification_data']['receipt_url'] ?? null,
@@ -334,7 +334,7 @@ class AdminStoreService
                 'device_id' => 'WEB-'.strtoupper(Str::random(8)),
                 'status' => 'Active',
                 'auto_sync_enabled' => true,
-                'is_demo' => !empty($data['is_demo']),
+                'is_demo' => ! empty($data['is_demo']),
             ]);
 
             // Create trial subscription
@@ -551,7 +551,7 @@ class AdminStoreService
             Notification::create([
                 'user_id' => $user->id,
                 'title' => 'Subscription Activated',
-                'message' => "Your ".ucfirst($plan)." plan has been activated, valid until {$endDate->format('d/m/Y')}.",
+                'message' => 'Your '.ucfirst($plan)." plan has been activated, valid until {$endDate->format('d/m/Y')}.",
                 'type' => 'success',
                 'is_read' => false,
             ]);

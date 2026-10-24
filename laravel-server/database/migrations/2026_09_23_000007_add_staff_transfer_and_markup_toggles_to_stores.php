@@ -24,10 +24,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('stores', function (Blueprint $table) {
-            if (!Schema::hasColumn('stores', 'staff_can_request_transfers')) {
+            if (! Schema::hasColumn('stores', 'staff_can_request_transfers')) {
                 $table->boolean('staff_can_request_transfers')->default(false);
             }
-            if (!Schema::hasColumn('stores', 'markup_sales_enabled')) {
+            if (! Schema::hasColumn('stores', 'markup_sales_enabled')) {
                 $table->boolean('markup_sales_enabled')->default(false);
             }
         });

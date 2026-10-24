@@ -21,6 +21,7 @@ class SyncValidationTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $store;
 
     protected function setUp(): void

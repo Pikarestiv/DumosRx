@@ -57,7 +57,7 @@ trait UpdatesUserProfiles
         $changes = [];
 
         foreach (self::EDITABLE_PROFILE_FIELDS as $field) {
-            if (!array_key_exists($field, $data)) {
+            if (! array_key_exists($field, $data)) {
                 continue;
             }
 

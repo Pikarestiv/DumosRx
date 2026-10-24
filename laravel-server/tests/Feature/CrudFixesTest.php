@@ -20,7 +20,9 @@ class CrudFixesTest extends TestCase
     use RefreshDatabase;
 
     protected User $ownerA;
+
     protected Store $storeA;
+
     protected User $ownerB;
 
     protected function setUp(): void

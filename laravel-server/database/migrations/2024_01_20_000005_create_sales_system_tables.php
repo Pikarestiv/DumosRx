@@ -62,7 +62,7 @@ return new class extends Migration
             $table->foreignUuid('customer_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignUuid('cashier_id')->constrained('users'); // Validated by backend
             $table->foreignUuid('prescription_id')->nullable()->constrained()->nullOnDelete();
-            
+
             // Financials
             $table->decimal('subtotal', 10, 2)->default(0.00);
             $table->decimal('discount_amount', 10, 2)->default(0.00);
@@ -70,17 +70,17 @@ return new class extends Migration
             $table->decimal('tax_amount', 10, 2)->default(0.00);
             $table->decimal('tax_percentage', 5, 2)->default(7.5);
             $table->decimal('total_amount', 10, 2);
-            
+
             // Payment
             $table->enum('payment_method', ['cash', 'card', 'transfer', 'mobile_money', 'insurance']);
             $table->enum('payment_status', ['pending', 'completed', 'failed', 'refunded'])->default('completed');
             $table->decimal('amount_paid', 10, 2);
             $table->decimal('change_given', 10, 2)->default(0.00);
-            
+
             // Loyalty
             $table->integer('points_earned')->default(0);
             $table->integer('points_redeemed')->default(0);
-            
+
             $table->timestamp('transaction_date')->useCurrent();
             $table->text('notes')->nullable();
             $table->boolean('receipt_printed')->default(false);
@@ -98,7 +98,7 @@ return new class extends Migration
             $table->decimal('discount_amount', 10, 2)->default(0.00);
             $table->decimal('total_price', 10, 2);
             $table->decimal('cost_price', 10, 2); // Snapshot ensuring profit calculation doesn't change
-            // Profit is calculated in code or generated column if DB supports it. 
+            // Profit is calculated in code or generated column if DB supports it.
             // Postgres had GEN ALWAYS AS. MySQL 5.7+ supports generated columns but simpler to keep generic for now.
             $table->timestamps();
         });

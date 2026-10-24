@@ -27,7 +27,7 @@ class SyncPullCursorPhysicalTableTest extends TestCase
     {
         $method = new ReflectionMethod(SyncController::class, 'applyPullCursor');
         $method->setAccessible(true);
-        $method->invoke(new SyncController(), $query, $table, $lastSynced);
+        $method->invoke(new SyncController, $query, $table, $lastSynced);
     }
 
     public function test_the_pull_cursor_probes_the_model_s_physical_table_not_the_sync_name(): void
@@ -55,7 +55,7 @@ class SyncPullCursorPhysicalTableTest extends TestCase
 
     public function test_every_agreement_table_name_is_also_its_own_physical_table(): void
     {
-        $controller = new SyncController();
+        $controller = new SyncController;
         $tables = (new ReflectionClass(CountsSyncedTableRows::class))
             ->getConstant('AGREEMENT_TABLES');
 
@@ -68,10 +68,11 @@ class SyncPullCursorPhysicalTableTest extends TestCase
 
             if (! $modelClass) {
                 $mismatched[] = "{$table}: getModelForTable() resolves nothing, so the cloud side counts a table the pull never delivers";
+
                 continue;
             }
 
-            $physical = (new $modelClass())->getTable();
+            $physical = (new $modelClass)->getTable();
 
             if ($physical !== $table) {
                 $mismatched[] = "{$table} -> {$physical}: counted via DB::table('{$table}') but delivered from '{$physical}'";

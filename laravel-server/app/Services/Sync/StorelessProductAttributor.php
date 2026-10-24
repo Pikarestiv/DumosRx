@@ -32,7 +32,7 @@ class StorelessProductAttributor
             default => [null, null],
         };
 
-        if (!$productId) {
+        if (! $productId) {
             return;
         }
 
@@ -72,7 +72,7 @@ class StorelessProductAttributor
             $reason = match (true) {
                 count($evidence) !== 1 => 'stock names more than one store',
                 $allowedStoreIds === null => null,
-                !in_array($evidence[0], $allowedStoreIds, true) => 'stock names a store outside the session',
+                ! in_array($evidence[0], $allowedStoreIds, true) => 'stock names a store outside the session',
                 $this->authoredByAnotherTenant($product, $evidence[0]) => 'product was authored by another tenant',
                 default => null,
             };
@@ -112,7 +112,7 @@ class StorelessProductAttributor
     /** A batch is pulled through its product but filtered by its own stamp, so it must move with the product. */
     private function restampBatches(\DateTimeInterface $at): void
     {
-        if ($this->attributed === [] || !Schema::hasColumn('stock_batches', '_synced_at')) {
+        if ($this->attributed === [] || ! Schema::hasColumn('stock_batches', '_synced_at')) {
             return;
         }
 

@@ -20,10 +20,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('activity_logs', function (Blueprint $table) {
-            if (!Schema::hasColumn('activity_logs', 'occurrence_count')) {
+            if (! Schema::hasColumn('activity_logs', 'occurrence_count')) {
                 $table->unsignedInteger('occurrence_count')->default(1);
             }
-            if (!Schema::hasColumn('activity_logs', 'last_occurred_at')) {
+            if (! Schema::hasColumn('activity_logs', 'last_occurred_at')) {
                 $table->timestamp('last_occurred_at')->nullable();
             }
         });

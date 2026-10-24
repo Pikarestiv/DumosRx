@@ -2,10 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -18,7 +17,7 @@ class OnlineOrder extends Model
     protected $fillable = [
         'store_id', 'customer_name', 'customer_phone', 'customer_address',
         'total_amount', 'payment_method', 'payment_status', 'order_status',
-        'paystack_reference', 'synced_at'
+        'paystack_reference', 'synced_at',
     ];
 
     protected $casts = [

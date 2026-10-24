@@ -35,7 +35,7 @@ class PermissionCatalogParityTest extends TestCase
 
     private static function blockAfter(string $source, string $name): string
     {
-        $start = preg_match('/\b' . preg_quote($name, '/') . '\b[\s\S]*?=\s*[\[{]/', $source, $m, PREG_OFFSET_CAPTURE)
+        $start = preg_match('/\b'.preg_quote($name, '/').'\b[\s\S]*?=\s*[\[{]/', $source, $m, PREG_OFFSET_CAPTURE)
             ? $m[0][1] + strlen($m[0][0])
             : null;
         static::assertNotNull($start, "could not locate {$name} in the client constants");
@@ -51,7 +51,7 @@ class PermissionCatalogParityTest extends TestCase
     {
         $offsets = [];
         foreach (self::ROLES as $role) {
-            if (preg_match('/\b' . $role . '\s*:/', $block, $m, PREG_OFFSET_CAPTURE)) {
+            if (preg_match('/\b'.$role.'\s*:/', $block, $m, PREG_OFFSET_CAPTURE)) {
                 $offsets[$role] = $m[0][1];
             }
         }

@@ -22,6 +22,7 @@ class SyncPushStoreIdBackfillTransactionalTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $store;
 
     public static function transactionalTables(): array

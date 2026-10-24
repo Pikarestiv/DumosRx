@@ -15,7 +15,7 @@ return new class extends Migration
         // 'type'" (SQLSTATE 42S22), confirmed via a real sync failure log
         // predating this fix.
         Schema::table('purchase_orders', function (Blueprint $table) {
-            if (!Schema::hasColumn('purchase_orders', 'type')) {
+            if (! Schema::hasColumn('purchase_orders', 'type')) {
                 $table->string('type')->default('standard')->after('status');
             }
         });

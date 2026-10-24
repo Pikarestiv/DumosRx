@@ -20,6 +20,7 @@ class BackupControllerTest extends TestCase
     use RefreshDatabase;
 
     protected User $ownerA;
+
     protected User $ownerB;
 
     protected function setUp(): void
@@ -106,7 +107,7 @@ class BackupControllerTest extends TestCase
     public function test_download_rejects_path_traversal_in_filename()
     {
         $response = $this->actingAs($this->ownerA)
-            ->getJson('/api/v1/backups/' . urlencode('../' . $this->ownerB->id . '/secret.zip') . '/download');
+            ->getJson('/api/v1/backups/'.urlencode('../'.$this->ownerB->id.'/secret.zip').'/download');
 
         $response->assertStatus(404);
     }
@@ -132,6 +133,7 @@ class BackupControllerTest extends TestCase
         $response->assertStatus(200);
         $this->assertCount(1, $response->json());
     }
+
     public function test_an_oversized_backup_upload_is_rejected()
     {
         $this->actingAs($this->ownerA)

@@ -37,7 +37,7 @@ class DatabaseSeederTest extends TestCase
      */
     private function setSeedSuperAdminPassword(string $password): void
     {
-        putenv(self::SEED_PASSWORD_VAR . '=' . $password);
+        putenv(self::SEED_PASSWORD_VAR.'='.$password);
         $_ENV[self::SEED_PASSWORD_VAR] = $password;
         $_SERVER[self::SEED_PASSWORD_VAR] = $password;
     }
@@ -55,7 +55,7 @@ class DatabaseSeederTest extends TestCase
         // documented default password.
         $this->clearSeedSuperAdminPassword();
 
-        (new DatabaseSeeder())->run();
+        (new DatabaseSeeder)->run();
 
         $admin = User::where('email', 'admin@dumosrx.com')->firstOrFail();
         $this->assertTrue(Hash::check('Admin123#', $admin->password));
@@ -68,7 +68,7 @@ class DatabaseSeederTest extends TestCase
         app()->instance('env', 'production');
 
         try {
-            (new DatabaseSeeder())->run();
+            (new DatabaseSeeder)->run();
         } finally {
             app()->instance('env', 'testing');
         }
@@ -98,7 +98,7 @@ class DatabaseSeederTest extends TestCase
         app()->instance('env', 'staging');
 
         try {
-            (new DatabaseSeeder())->run();
+            (new DatabaseSeeder)->run();
         } finally {
             app()->instance('env', 'testing');
         }
@@ -117,7 +117,7 @@ class DatabaseSeederTest extends TestCase
         app()->instance('env', 'production');
 
         try {
-            (new DatabaseSeeder())->run();
+            (new DatabaseSeeder)->run();
         } finally {
             app()->instance('env', 'testing');
             $this->clearSeedSuperAdminPassword();
@@ -129,12 +129,12 @@ class DatabaseSeederTest extends TestCase
 
     public function test_seeder_does_not_recreate_admin_if_already_present()
     {
-        (new DatabaseSeeder())->run();
+        (new DatabaseSeeder)->run();
         $originalHash = User::where('email', 'admin@dumosrx.com')->value('password');
 
         // A second run (e.g. an operator re-running the seeder) must
         // not touch the existing row.
-        (new DatabaseSeeder())->run();
+        (new DatabaseSeeder)->run();
 
         $this->assertSame($originalHash, User::where('email', 'admin@dumosrx.com')->value('password'));
         $this->assertSame(1, User::where('email', 'admin@dumosrx.com')->count());

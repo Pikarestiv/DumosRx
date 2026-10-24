@@ -45,6 +45,7 @@ class PaystackSubaccountService
     }
 
     private const REQUEST_TIMEOUT_SECONDS = 10;
+
     private const CONNECT_TIMEOUT_SECONDS = 5;
 
     public function __construct()
@@ -61,7 +62,7 @@ class PaystackSubaccountService
 
     public function listBanks(string $countryCode): array
     {
-        if (!in_array($countryCode, self::BANK_LIST_COUNTRIES, true)) {
+        if (! in_array($countryCode, self::BANK_LIST_COUNTRIES, true)) {
             return [];
         }
 
@@ -69,11 +70,12 @@ class PaystackSubaccountService
             $response = $this->client()
                 ->get('https://api.paystack.co/bank', ['country' => $countryCode]);
         } catch (\Throwable $e) {
-            Log::warning('Paystack listBanks failed: ' . $e->getMessage());
+            Log::warning('Paystack listBanks failed: '.$e->getMessage());
+
             return [];
         }
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             return [];
         }
 
@@ -82,7 +84,7 @@ class PaystackSubaccountService
 
     public function resolveAccount(string $accountNumber, string $bankCode, string $countryCode): ?array
     {
-        if (!self::supportsAccountResolution($countryCode)) {
+        if (! self::supportsAccountResolution($countryCode)) {
             return null;
         }
 
@@ -93,16 +95,17 @@ class PaystackSubaccountService
                     'bank_code' => $bankCode,
                 ]);
         } catch (\Throwable $e) {
-            Log::warning('Paystack resolveAccount failed: ' . $e->getMessage());
+            Log::warning('Paystack resolveAccount failed: '.$e->getMessage());
+
             return null;
         }
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             return null;
         }
 
         $data = $response->json('data');
-        if (!is_array($data) || empty($data['account_name'])) {
+        if (! is_array($data) || empty($data['account_name'])) {
             return null;
         }
 
@@ -123,12 +126,12 @@ class PaystackSubaccountService
                 'percentage_charge' => $percentageCharge,
             ]);
 
-        if (!$response->successful()) {
-            throw new \Exception('Paystack subaccount creation failed: ' . $response->body());
+        if (! $response->successful()) {
+            throw new \Exception('Paystack subaccount creation failed: '.$response->body());
         }
 
         $code = $response->json('data.subaccount_code');
-        if (!$code) {
+        if (! $code) {
             throw new \Exception('Paystack subaccount creation returned no subaccount_code.');
         }
 
@@ -142,14 +145,14 @@ class PaystackSubaccountService
                 'percentage_charge' => $percentageCharge,
             ]);
 
-        if (!$response->successful()) {
-            throw new \Exception('Paystack subaccount fee update failed: ' . $response->body());
+        if (! $response->successful()) {
+            throw new \Exception('Paystack subaccount fee update failed: '.$response->body());
         }
     }
 
     /**
-     * @param ?int $amountInSubunit Omit for a full refund; Paystack refuses
-     *   an amount greater than the original transaction.
+     * @param  ?int  $amountInSubunit  Omit for a full refund; Paystack refuses
+     *                                 an amount greater than the original transaction.
      */
     public function refund(string $reference, ?int $amountInSubunit = null): array
     {
@@ -168,7 +171,7 @@ class PaystackSubaccountService
         $body = $response->json();
         $message = $body['message'] ?? ($response->successful() ? 'Refund processed' : 'Refund failed');
         $succeeded = $response->successful() && ($body['status'] ?? false);
-        $alreadyRefunded = !$succeeded && $this->messageMeansAlreadyRefunded((string) $message);
+        $alreadyRefunded = ! $succeeded && $this->messageMeansAlreadyRefunded((string) $message);
 
         return [
             'success' => $succeeded || $alreadyRefunded,

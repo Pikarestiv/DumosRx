@@ -2,11 +2,11 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use App\Models\User;
 use App\Mail\FunnelSetupReminderEmail;
-use Illuminate\Support\Facades\Mail;
+use App\Models\User;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class SendFunnelReminders extends Command
 {
@@ -66,15 +66,15 @@ class SendFunnelReminders extends Command
             if ($shouldSend) {
                 try {
                     Mail::to($user->email)->send(new FunnelSetupReminderEmail($user));
-                    
+
                     $user->setup_reminder_level += 1;
                     $user->setup_reminder_last_sent_at = $now;
                     $user->save();
-                    
+
                     $emailsSent++;
                     $this->info("Sent funnel reminder level {$user->setup_reminder_level} to {$user->email}");
                 } catch (\Exception $e) {
-                    Log::error("Failed to send funnel reminder to {$user->email}: " . $e->getMessage());
+                    Log::error("Failed to send funnel reminder to {$user->email}: ".$e->getMessage());
                 }
             }
         }

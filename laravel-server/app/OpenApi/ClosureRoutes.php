@@ -31,7 +31,5 @@ class ClosureRoutes
             ])),
         ],
     )]
-    public function health()
-    {
-    }
+    public function health() {}
 }

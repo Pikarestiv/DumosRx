@@ -37,31 +37,31 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('activity_logs', function (Blueprint $table) {
-            if (!Schema::hasColumn('activity_logs', 'store_id')) {
+            if (! Schema::hasColumn('activity_logs', 'store_id')) {
                 $table->uuid('store_id')->nullable()->index();
             }
-            if (!Schema::hasColumn('activity_logs', 'table_name')) {
+            if (! Schema::hasColumn('activity_logs', 'table_name')) {
                 $table->string('table_name')->nullable();
             }
-            if (!Schema::hasColumn('activity_logs', 'record_id')) {
+            if (! Schema::hasColumn('activity_logs', 'record_id')) {
                 $table->string('record_id')->nullable();
             }
-            if (!Schema::hasColumn('activity_logs', 'details')) {
+            if (! Schema::hasColumn('activity_logs', 'details')) {
                 $table->text('details')->nullable();
             }
-            if (!Schema::hasColumn('activity_logs', '_version')) {
+            if (! Schema::hasColumn('activity_logs', '_version')) {
                 $table->integer('_version')->default(1);
             }
         });
 
         if (DB::getDriverName() !== 'sqlite') {
-            DB::statement("
+            DB::statement('
                 UPDATE `activity_logs` t
                 JOIN `users` u ON u.id = t.user_id
                 LEFT JOIN `stores` owned ON owned.user_id = u.id
                 SET t.store_id = COALESCE(u.store_id, owned.id)
                 WHERE t.store_id IS NULL
-            ");
+            ');
         }
     }
 

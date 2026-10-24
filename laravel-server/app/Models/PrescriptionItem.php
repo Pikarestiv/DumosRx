@@ -17,6 +17,6 @@ class PrescriptionItem extends Model
     protected $fillable = [
         'prescription_id', 'product_name', 'strength', 'dosage', 'quantity',
         'instructions', 'cost',
-        'refills_authorized', 'refills_used', 'refill_interval_days', 'next_refill_date'
+        'refills_authorized', 'refills_used', 'refill_interval_days', 'next_refill_date',
     ];
 }

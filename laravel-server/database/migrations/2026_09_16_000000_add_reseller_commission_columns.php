@@ -24,28 +24,28 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('stores', function (Blueprint $table) {
-            if (!Schema::hasColumn('stores', 'reseller_commission_percentage')) {
+            if (! Schema::hasColumn('stores', 'reseller_commission_percentage')) {
                 $table->decimal('reseller_commission_percentage', 5, 2)->default(0);
             }
         });
 
         Schema::table('sales', function (Blueprint $table) {
-            if (!Schema::hasColumn('sales', 'is_reseller_sale')) {
+            if (! Schema::hasColumn('sales', 'is_reseller_sale')) {
                 $table->boolean('is_reseller_sale')->default(false);
             }
-            if (!Schema::hasColumn('sales', 'reseller_commission_percentage')) {
+            if (! Schema::hasColumn('sales', 'reseller_commission_percentage')) {
                 $table->decimal('reseller_commission_percentage', 5, 2)->default(0);
             }
-            if (!Schema::hasColumn('sales', 'reseller_commission_amount')) {
+            if (! Schema::hasColumn('sales', 'reseller_commission_amount')) {
                 $table->decimal('reseller_commission_amount', 10, 2)->default(0);
             }
-            if (!Schema::hasColumn('sales', 'reseller_commission_redeemed')) {
+            if (! Schema::hasColumn('sales', 'reseller_commission_redeemed')) {
                 $table->boolean('reseller_commission_redeemed')->default(false);
             }
-            if (!Schema::hasColumn('sales', 'reseller_commission_redeemed_at')) {
+            if (! Schema::hasColumn('sales', 'reseller_commission_redeemed_at')) {
                 $table->timestamp('reseller_commission_redeemed_at')->nullable();
             }
-            if (!Schema::hasColumn('sales', 'reseller_commission_redeemed_by')) {
+            if (! Schema::hasColumn('sales', 'reseller_commission_redeemed_by')) {
                 $table->string('reseller_commission_redeemed_by')->nullable();
             }
         });

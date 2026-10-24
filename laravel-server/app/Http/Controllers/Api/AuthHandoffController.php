@@ -21,7 +21,7 @@ class AuthHandoffController extends Controller
         $accessToken = FullAccessToken::find($validated['token']);
         $user = $accessToken?->tokenable;
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['error' => 'Invalid token.'], 403);
         }
 
@@ -39,14 +39,14 @@ class AuthHandoffController extends Controller
 
         $token = Cache::pull("auth_handoff:{$validated['code']}");
 
-        if (!$token) {
+        if (! $token) {
             return response()->json(['error' => 'Code expired or already used.'], 410);
         }
 
         $accessToken = FullAccessToken::find($token);
         $user = $accessToken?->tokenable;
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['error' => 'Token no longer valid.'], 403);
         }
 

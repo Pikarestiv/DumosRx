@@ -4,8 +4,6 @@ namespace App\Http\Controllers\Api\Web;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Jenssegers\Agent\Agent;
 use OpenApi\Attributes as OA;
 
 class SessionController extends Controller
@@ -70,7 +68,7 @@ class SessionController extends Controller
     {
         $token = $request->user()->tokens()->where('id', $id)->first();
 
-        if (!$token) {
+        if (! $token) {
             return response()->json(['message' => 'Session not found'], 404);
         }
 

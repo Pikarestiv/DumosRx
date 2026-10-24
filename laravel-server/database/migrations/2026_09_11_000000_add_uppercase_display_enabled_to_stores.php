@@ -18,7 +18,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('stores', function (Blueprint $table) {
-            if (!Schema::hasColumn('stores', 'uppercase_display_enabled')) {
+            if (! Schema::hasColumn('stores', 'uppercase_display_enabled')) {
                 $table->boolean('uppercase_display_enabled')->default(true);
             }
         });

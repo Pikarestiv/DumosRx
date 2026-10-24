@@ -18,6 +18,7 @@ class Store extends Model
     use SoftDeletes;
 
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     protected $fillable = [
@@ -135,7 +136,7 @@ class Store extends Model
         // the same request/sync push still go through normally. The
         // first-ever slug set (no prior value) is never restricted.
         static::saving(function ($model) {
-            if (!$model->isDirty('store_slug')) {
+            if (! $model->isDirty('store_slug')) {
                 return;
             }
 
@@ -146,11 +147,12 @@ class Store extends Model
             // real write arrives through the sync engine's `stores` push,
             // which has no store_slug rule at all. An unslugified value here
             // becomes a static-export output path in web/out/store/.
-            if (!empty($model->store_slug)) {
+            if (! empty($model->store_slug)) {
                 $normalized = Str::limit(Str::slug((string) $model->store_slug), 100, '');
 
                 if ($normalized === '') {
                     $model->store_slug = $previousSlug;
+
                     return;
                 }
 
@@ -173,15 +175,16 @@ class Store extends Model
             // client-side check (store-profile-section.tsx's
             // isAfter(addMonths(changed, 6), now)) exactly.
             if (
-                !$isFirstTimeSet
+                ! $isFirstTimeSet
                 && $lastChanged
                 && now()->lt(\Carbon\Carbon::parse($lastChanged)->addMonths(6))
             ) {
                 $model->store_slug = $previousSlug;
+
                 return;
             }
 
-            if (!$isFirstTimeSet) {
+            if (! $isFirstTimeSet) {
                 $model->store_slug_changed_at = now();
             }
         });

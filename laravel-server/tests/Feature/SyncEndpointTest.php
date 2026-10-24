@@ -13,6 +13,7 @@ class SyncEndpointTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected Store $store;
 
     protected function setUp(): void
@@ -48,14 +49,14 @@ class SyncEndpointTest extends TestCase
         ]);
 
         $this->user->update(['store_id' => $this->store->id]);
-        
+
         \App\Models\SystemConfig::setVal('subscription_plans', [
             'tiers' => [
                 'free' => [
                     'features' => ['cloud_sync' => true],
-                    'limits' => ['stores' => -1]
-                ]
-            ]
+                    'limits' => ['stores' => -1],
+                ],
+            ],
         ]);
 
         $this->withoutMiddleware();
@@ -77,9 +78,9 @@ class SyncEndpointTest extends TestCase
                         'name' => 'Paracetamol',
                         'is_active' => true,
                         '_synced' => 0,
-                    ]
-                ]
-            ]
+                    ],
+                ],
+            ],
         ];
 
         $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
@@ -107,7 +108,7 @@ class SyncEndpointTest extends TestCase
             'name' => 'Aspirin',
             '_version' => 1,
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
         $payload = [
@@ -128,9 +129,9 @@ class SyncEndpointTest extends TestCase
                         // version itself (asserted below).
                         '_version' => 1,
                         '_synced' => 0,
-                    ]
-                ]
-            ]
+                    ],
+                ],
+            ],
         ];
 
         $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
@@ -159,7 +160,7 @@ class SyncEndpointTest extends TestCase
             'name' => 'Online Newer Aspirin',
             '_version' => 3,
             'created_at' => now()->subDays(2),
-            'updated_at' => now() // Just updated online
+            'updated_at' => now(), // Just updated online
         ]);
 
         $payload = [
@@ -174,10 +175,10 @@ class SyncEndpointTest extends TestCase
                         'name' => 'Offline Older Aspirin',
                         '_version' => 2,
                         '_synced' => 0,
-                        'updated_at' => now()->subDay()->toDateTimeString() // Older update timestamp
-                    ]
-                ]
-            ]
+                        'updated_at' => now()->subDay()->toDateTimeString(), // Older update timestamp
+                    ],
+                ],
+            ],
         ];
 
         $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
@@ -200,7 +201,7 @@ class SyncEndpointTest extends TestCase
             'name' => 'To Be Deleted',
             '_version' => 1,
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
         $payload = [
@@ -215,10 +216,10 @@ class SyncEndpointTest extends TestCase
                         'name' => 'To Be Deleted',
                         '_deleted' => 1, // Soft delete flag
                         '_synced' => 0,
-                        'updated_at' => now()->toDateTimeString()
-                    ]
-                ]
-            ]
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                ],
+            ],
         ];
 
         $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
@@ -237,7 +238,7 @@ class SyncEndpointTest extends TestCase
             'name' => 'Paracetamol',
             '_version' => 1,
             'created_at' => now(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
         // Start with 100 on the server
@@ -252,14 +253,14 @@ class SyncEndpointTest extends TestCase
             'batch_number' => 'B001',
             '_version' => 2,
             'created_at' => now()->subDay(),
-            'updated_at' => now()
+            'updated_at' => now(),
         ]);
 
         // The offline device started with 100. It sold 10 offline, so it sends 90.
-        // It should NOT overwrite the 80 to 90. It should reconcile it: 
+        // It should NOT overwrite the 80 to 90. It should reconcile it:
         // Delta = 90 (client) - 100 (client's assumed previous stock) = -10.
         // Or if the backend correctly processes it, it should result in 70 (80 online - 10 offline).
-        
+
         $payload = [
             'setup' => true,
             'changes' => [
@@ -275,8 +276,8 @@ class SyncEndpointTest extends TestCase
                         'quantity' => -10, // The delta!
                         'performed_by' => $this->user->id,
                         'created_at' => now()->toDateTimeString(),
-                        'updated_at' => now()->toDateTimeString()
-                    ]
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
                 ],
                 [
                     'table_name' => 'stock_batches',
@@ -286,10 +287,10 @@ class SyncEndpointTest extends TestCase
                         'id' => $batchId,
                         'quantity' => 90, // Offline device sold 10 from 100
                         '_version' => 1, // Client thinks it's still version 1 before this edit
-                        'updated_at' => now()->toDateTimeString()
-                    ]
-                ]
-            ]
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                ],
+            ],
         ];
 
         $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
@@ -567,7 +568,7 @@ class SyncEndpointTest extends TestCase
                 'quantity' => 50,
                 'cost_price' => 10.00,
                 'expiry_date' => now()->addYear()->toDateString(),
-                'batch_number' => 'B-' . $id,
+                'batch_number' => 'B-'.$id,
                 '_version' => 1,
                 'created_at' => now()->subDay(),
                 'updated_at' => now(),
@@ -746,9 +747,9 @@ class SyncEndpointTest extends TestCase
                         'notes' => 'Campaign Q3',
                         'created_at' => now()->toDateTimeString(),
                         'updated_at' => now()->toDateTimeString(),
-                    ]
-                ]
-            ]
+                    ],
+                ],
+            ],
         ];
 
         $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
@@ -764,7 +765,7 @@ class SyncEndpointTest extends TestCase
             'user_id' => $this->user->id,
             'category' => 'Marketing',
             'amount' => 5000.00,
-            'notes' => 'Campaign Q3'
+            'notes' => 'Campaign Q3',
         ]);
     }
 
@@ -949,7 +950,7 @@ class SyncEndpointTest extends TestCase
         // caller's store onto the payload before the collision check, so the
         // pre-existing row has to carry the same store for this to be a real
         // duplicate rather than the cross-store merge A-189 forbids.
-        $existingCategory = new \App\Models\Category();
+        $existingCategory = new \App\Models\Category;
         $existingCategory->name = 'DRUGS';
         $existingCategory->user_id = $this->user->id;
         $existingCategory->store_id = $this->store->id;
@@ -1665,7 +1666,7 @@ class SyncEndpointTest extends TestCase
 
     public function test_push_sync_reports_id_map_for_duplicate_supplier_name()
     {
-        $existingSupplier = new \App\Models\Supplier();
+        $existingSupplier = new \App\Models\Supplier;
         $existingSupplier->name = 'MedPlus Distributors';
         $existingSupplier->user_id = $this->user->id;
         $existingSupplier->store_id = $this->store->id;

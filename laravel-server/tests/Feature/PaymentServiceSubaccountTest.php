@@ -29,7 +29,7 @@ class PaymentServiceSubaccountTest extends TestCase
             ], 200),
         ]);
 
-        (new PaymentService())->initializeTransaction(
+        (new PaymentService)->initializeTransaction(
             1000, 'customer@example.com', [], null, 'ACCT_store123', 'KES',
         );
 
@@ -50,11 +50,11 @@ class PaymentServiceSubaccountTest extends TestCase
             ], 200),
         ]);
 
-        (new PaymentService())->initializeTransaction(1000, 'customer@example.com');
+        (new PaymentService)->initializeTransaction(1000, 'customer@example.com');
 
         Http::assertSent(function ($request) {
-            return !array_key_exists('subaccount', $request->data())
-                && !array_key_exists('currency', $request->data());
+            return ! array_key_exists('subaccount', $request->data())
+                && ! array_key_exists('currency', $request->data());
         });
     }
 
@@ -64,7 +64,7 @@ class PaymentServiceSubaccountTest extends TestCase
             'api.paystack.co/refund' => Http::response(['status' => true, 'message' => 'Refunded'], 200),
         ]);
 
-        $result = (new PaymentService())->refundTransaction('ref_1', 'paystack');
+        $result = (new PaymentService)->refundTransaction('ref_1', 'paystack');
 
         $this->assertTrue($result['success']);
     }
@@ -74,7 +74,7 @@ class PaymentServiceSubaccountTest extends TestCase
         // Flutterwave refund is genuinely out of scope for this pass - this
         // pins that it fails closed (a clear failure result) rather than
         // silently doing nothing while reporting success.
-        $result = (new PaymentService())->refundTransaction('tx_ref_1', 'flutterwave');
+        $result = (new PaymentService)->refundTransaction('tx_ref_1', 'flutterwave');
 
         $this->assertFalse($result['success']);
     }

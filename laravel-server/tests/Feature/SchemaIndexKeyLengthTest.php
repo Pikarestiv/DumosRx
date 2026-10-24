@@ -209,7 +209,7 @@ class SchemaIndexKeyLengthTest extends TestCase
         $this->assertSame(
             [],
             $offenders,
-            "These indexes cannot be created on the production server (limit ".self::MAX_KEY_BYTES
+            'These indexes cannot be created on the production server (limit '.self::MAX_KEY_BYTES
             ." bytes under utf8mb4). Shorten the indexed columns or index fewer of them:\n  "
             .implode("\n  ", $offenders)
         );

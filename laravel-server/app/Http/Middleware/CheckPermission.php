@@ -22,8 +22,8 @@ class CheckPermission
             return $next($request);
         }
 
-        if (!$user || !$user->hasPermission($permission)) {
-            return response()->json(['message' => 'Forbidden. You do not have the required permission: ' . $permission], 403);
+        if (! $user || ! $user->hasPermission($permission)) {
+            return response()->json(['message' => 'Forbidden. You do not have the required permission: '.$permission], 403);
         }
 
         return $next($request);

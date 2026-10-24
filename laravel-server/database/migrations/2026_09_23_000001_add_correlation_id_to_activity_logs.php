@@ -20,7 +20,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('activity_logs', function (Blueprint $table) {
-            if (!Schema::hasColumn('activity_logs', 'correlation_id')) {
+            if (! Schema::hasColumn('activity_logs', 'correlation_id')) {
                 $table->string('correlation_id')->nullable()->index();
             }
         });

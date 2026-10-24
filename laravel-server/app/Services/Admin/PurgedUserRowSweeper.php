@@ -43,13 +43,13 @@ class PurgedUserRowSweeper
         }
 
         foreach (SchemaTables::names() as $table) {
-            if (in_array($table, $skipTables, true) || !in_array('user_id', Schema::getColumnListing($table), true)) {
+            if (in_array($table, $skipTables, true) || ! in_array('user_id', Schema::getColumnListing($table), true)) {
                 continue;
             }
 
             $isStoreScoped = in_array($table, $storeScopedTables, true);
             $isTenantData = $isStoreScoped || in_array($table, self::TENANT_TABLES_WITHOUT_STORE, true);
-            if ($isTenantData && !$wholeTenantGone) {
+            if ($isTenantData && ! $wholeTenantGone) {
                 continue;
             }
 
@@ -80,7 +80,7 @@ class PurgedUserRowSweeper
         }
 
         foreach (self::CHILDREN[$parentTable] ?? [] as $childTable => $column) {
-            if (!Schema::hasTable($childTable)) {
+            if (! Schema::hasTable($childTable)) {
                 continue;
             }
 
@@ -141,5 +141,4 @@ class PurgedUserRowSweeper
 
         return $stamp;
     }
-
 }

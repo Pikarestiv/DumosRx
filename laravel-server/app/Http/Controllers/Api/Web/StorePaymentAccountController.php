@@ -137,7 +137,7 @@ class StorePaymentAccountController extends Controller
         }
 
         $resolved = $paystack->resolveAccount($validated['account_number'], $validated['bank_code'], $validated['country']);
-        if (!$resolved && !$confirmedUnverifiable) {
+        if (! $resolved && ! $confirmedUnverifiable) {
             return response()->json([
                 'message' => $verifiable
                     ? 'Could not verify this account. Please double-check the account number and bank.'
@@ -155,7 +155,8 @@ class StorePaymentAccountController extends Controller
                 $feePercentage,
             );
         } catch (\Exception $e) {
-            Log::error('Paystack subaccount creation failed: ' . $e->getMessage());
+            Log::error('Paystack subaccount creation failed: '.$e->getMessage());
+
             return response()->json([
                 'message' => 'Could not connect this bank account. Please double-check the details and try again.',
             ], 422);
@@ -163,7 +164,7 @@ class StorePaymentAccountController extends Controller
 
         $saved = $this->linkSubaccountToStore($store, $code, $validated);
 
-        if (!$saved) {
+        if (! $saved) {
             return response()->json([
                 'message' => 'Your bank account was created with our payment provider, but we could not finish connecting it. Please contact support with your store name - do not submit these details again.',
             ], 500);
@@ -193,6 +194,7 @@ class StorePaymentAccountController extends Controller
         for ($attempt = 1; $attempt <= self::LOCAL_SAVE_ATTEMPTS; $attempt++) {
             try {
                 $store->update($columns);
+
                 return true;
             } catch (\Throwable $e) {
                 $lastError = $e;
@@ -216,16 +218,16 @@ class StorePaymentAccountController extends Controller
             \App\Services\AdminAlertService::send(
                 'Orphaned Paystack subaccount needs reconciliation',
                 [
-                    'A Paystack subaccount was created but the local link to its store could not be saved after ' . self::LOCAL_SAVE_ATTEMPTS . ' attempts.',
+                    'A Paystack subaccount was created but the local link to its store could not be saved after '.self::LOCAL_SAVE_ATTEMPTS.' attempts.',
                     "Store: {$store->name} (ID: {$store->id})",
                     "Paystack subaccount code: {$code}",
                     "Bank code: {$validated['bank_code']}, account ending {$columns['paystack_account_number_last4']}",
                     'Set stores.paystack_subaccount_code to this code by hand rather than letting the owner retry, which would create a second subaccount.',
-                    'Last error: ' . ($lastError?->getMessage() ?? 'unknown'),
+                    'Last error: '.($lastError?->getMessage() ?? 'unknown'),
                 ]
             );
         } catch (\Throwable $e) {
-            Log::error('Failed to alert admins about an orphaned Paystack subaccount: ' . $e->getMessage());
+            Log::error('Failed to alert admins about an orphaned Paystack subaccount: '.$e->getMessage());
         }
 
         return false;

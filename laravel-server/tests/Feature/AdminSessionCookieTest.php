@@ -20,7 +20,9 @@ class AdminSessionCookieTest extends TestCase
     use RefreshDatabase;
 
     protected User $superAdmin;
+
     protected User $storeOwner;
+
     protected Store $store;
 
     protected function setUp(): void

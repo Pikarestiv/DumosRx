@@ -18,7 +18,7 @@ class SaleReturnItem extends Model
 
     protected $fillable = [
         'return_id', 'product_id', 'quantity', 'unit_price', 'subtotal',
-        '_version', '_synced', '_synced_at', '_deleted'
+        '_version', '_synced', '_synced_at', '_deleted',
     ];
 
     protected $casts = [

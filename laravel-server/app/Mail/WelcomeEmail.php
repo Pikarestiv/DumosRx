@@ -5,8 +5,6 @@ namespace App\Mail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Content;
-use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 class WelcomeEmail extends Mailable implements ShouldQueue
@@ -14,9 +12,13 @@ class WelcomeEmail extends Mailable implements ShouldQueue
     use Queueable, SerializesModels;
 
     public $user;
+
     public $storeName;
+
     public $loginUrl;
+
     public $trialEndDate;
+
     public $trialDuration;
 
     /**
@@ -26,7 +28,7 @@ class WelcomeEmail extends Mailable implements ShouldQueue
     {
         $this->user = $user;
         $this->storeName = $storeName;
-        $this->loginUrl = config('app.frontend_url', env('NEXT_PUBLIC_API_URL', 'https://dumosrx.com')) . '/login';
+        $this->loginUrl = config('app.frontend_url', env('NEXT_PUBLIC_API_URL', 'https://dumosrx.com')).'/login';
 
         // Check if user has an active trial
         $trial = $user->subscriptions()->where('is_trial', true)->where('status', 'active')->latest()->first();
@@ -45,8 +47,8 @@ class WelcomeEmail extends Mailable implements ShouldQueue
     public function build()
     {
         $template = \App\Models\EmailTemplate::where('key', 'welcome')->first();
-        
-        $subject = $template ? $template->subject : ('Welcome to DumosRx - ' . $this->storeName);
+
+        $subject = $template ? $template->subject : ('Welcome to DumosRx - '.$this->storeName);
         $htmlContent = $template ? $template->content : null;
 
         if ($htmlContent) {
@@ -55,12 +57,13 @@ class WelcomeEmail extends Mailable implements ShouldQueue
                 'storeName' => $this->storeName,
                 'loginUrl' => $this->loginUrl,
                 'trialEndDate' => $this->trialEndDate,
-                'trialDuration' => $this->trialDuration
+                'trialDuration' => $this->trialDuration,
             ]);
+
             return $this->subject($subject)->html($html);
         }
 
         return $this->subject($subject)
-                    ->view('emails.welcome');
+            ->view('emails.welcome');
     }
 }

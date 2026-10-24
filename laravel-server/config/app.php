@@ -19,7 +19,6 @@ return [
 
     'client_app_url' => env('CLIENT_APP_URL', 'https://app.dumosrx.com'),
 
-
     'timezone' => 'UTC',
 
     'locale' => 'en',
@@ -53,4 +52,3 @@ return [
     ])->toArray(),
 
 ];
-

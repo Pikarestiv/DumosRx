@@ -16,6 +16,7 @@ class AdminRoleServiceTest extends TestCase
     use RefreshDatabase;
 
     private AdminRoleService $service;
+
     private User $actor;
 
     protected function setUp(): void

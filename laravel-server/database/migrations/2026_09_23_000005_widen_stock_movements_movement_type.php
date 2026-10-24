@@ -29,7 +29,7 @@ return new class extends Migration
         // ENUM/column-type distinction to migrate away from; movement_type
         // there is already effectively a free-form string.
         if (DB::getDriverName() !== 'sqlite') {
-            DB::statement("ALTER TABLE stock_movements MODIFY movement_type VARCHAR(50) NOT NULL");
+            DB::statement('ALTER TABLE stock_movements MODIFY movement_type VARCHAR(50) NOT NULL');
         }
     }
 

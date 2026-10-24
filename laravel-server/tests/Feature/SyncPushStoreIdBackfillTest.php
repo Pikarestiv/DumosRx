@@ -22,6 +22,7 @@ class SyncPushStoreIdBackfillTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $store;
 
     protected function setUp(): void
@@ -493,8 +494,16 @@ class SyncPushStoreIdBackfillTest extends TestCase
     public function test_an_attributed_product_naming_the_other_stores_category_is_re_owned()
     {
         $second = $this->createSecondStore();
-        $ownDrugs = new \App\Models\Category(); $ownDrugs->name = 'drugs'; $ownDrugs->store_id = $this->store->id; $ownDrugs->is_active = true; $ownDrugs->save();
-        $otherDrugs = new \App\Models\Category(); $otherDrugs->name = 'drugs'; $otherDrugs->store_id = $second->id; $otherDrugs->is_active = true; $otherDrugs->save();
+        $ownDrugs = new \App\Models\Category;
+        $ownDrugs->name = 'drugs';
+        $ownDrugs->store_id = $this->store->id;
+        $ownDrugs->is_active = true;
+        $ownDrugs->save();
+        $otherDrugs = new \App\Models\Category;
+        $otherDrugs->name = 'drugs';
+        $otherDrugs->store_id = $second->id;
+        $otherDrugs->is_active = true;
+        $otherDrugs->save();
 
         $this->actingAs($this->owner)->withHeaders(['X-Store-Id' => $second->id])->postJson('/api/v1/app/sync/push', ['setup' => true, 'changes' => [
             ['table_name' => 'products', 'operation' => 'INSERT', 'record_id' => 'product-cat-reown',

@@ -20,13 +20,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('sales', function (Blueprint $table) {
-            if (!Schema::hasColumn('sales', 'reseller_markup_amount')) {
+            if (! Schema::hasColumn('sales', 'reseller_markup_amount')) {
                 $table->decimal('reseller_markup_amount', 10, 2)->default(0);
             }
-            if (!Schema::hasColumn('sales', 'reseller_commission_redeemed_amount')) {
+            if (! Schema::hasColumn('sales', 'reseller_commission_redeemed_amount')) {
                 $table->decimal('reseller_commission_redeemed_amount', 10, 2)->default(0);
             }
-            if (!Schema::hasColumn('sales', 'reseller_commission_claim_type')) {
+            if (! Schema::hasColumn('sales', 'reseller_commission_claim_type')) {
                 $table->string('reseller_commission_claim_type')->nullable();
             }
         });

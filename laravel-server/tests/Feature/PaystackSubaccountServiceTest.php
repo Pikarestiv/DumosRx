@@ -29,7 +29,7 @@ class PaystackSubaccountServiceTest extends TestCase
             ], 200),
         ]);
 
-        $banks = (new PaystackSubaccountService())->listBanks('nigeria');
+        $banks = (new PaystackSubaccountService)->listBanks('nigeria');
 
         $this->assertCount(2, $banks);
         $this->assertSame('058', $banks[0]['code']);
@@ -39,7 +39,7 @@ class PaystackSubaccountServiceTest extends TestCase
     {
         Http::fake(['api.paystack.co/bank*' => Http::response([], 500)]);
 
-        $banks = (new PaystackSubaccountService())->listBanks('rwanda');
+        $banks = (new PaystackSubaccountService)->listBanks('rwanda');
 
         $this->assertSame([], $banks);
     }
@@ -53,7 +53,7 @@ class PaystackSubaccountServiceTest extends TestCase
             ], 200),
         ]);
 
-        $resolved = (new PaystackSubaccountService())->resolveAccount('0123456789', '058', 'nigeria');
+        $resolved = (new PaystackSubaccountService)->resolveAccount('0123456789', '058', 'nigeria');
 
         $this->assertSame('JANE M DOE', $resolved['account_name']);
     }
@@ -62,7 +62,7 @@ class PaystackSubaccountServiceTest extends TestCase
     {
         Http::fake(['api.paystack.co/bank/resolve*' => Http::response(['status' => false], 422)]);
 
-        $resolved = (new PaystackSubaccountService())->resolveAccount('0000000000', '058', 'nigeria');
+        $resolved = (new PaystackSubaccountService)->resolveAccount('0000000000', '058', 'nigeria');
 
         $this->assertNull($resolved);
     }
@@ -76,7 +76,7 @@ class PaystackSubaccountServiceTest extends TestCase
             ], 200),
         ]);
 
-        $code = (new PaystackSubaccountService())->createSubaccount(
+        $code = (new PaystackSubaccountService)->createSubaccount(
             'Jane\'s Pharmacy', '058', '0123456789', 2.0,
         );
 
@@ -94,14 +94,14 @@ class PaystackSubaccountServiceTest extends TestCase
 
         $this->expectException(\Exception::class);
 
-        (new PaystackSubaccountService())->createSubaccount('Bad Store', '058', '0000000000', 2.0);
+        (new PaystackSubaccountService)->createSubaccount('Bad Store', '058', '0000000000', 2.0);
     }
 
     public function test_update_subaccount_fee_sends_the_new_percentage()
     {
         Http::fake(['api.paystack.co/subaccount/ACCT_abc123' => Http::response(['status' => true], 200)]);
 
-        (new PaystackSubaccountService())->updateSubaccountFee('ACCT_abc123', 3.5);
+        (new PaystackSubaccountService)->updateSubaccountFee('ACCT_abc123', 3.5);
 
         Http::assertSent(fn ($request) => $request['percentage_charge'] === 3.5);
     }
@@ -110,7 +110,7 @@ class PaystackSubaccountServiceTest extends TestCase
     {
         Http::fake(['api.paystack.co/refund' => Http::response(['status' => true, 'message' => 'Refund has been queued for processing'], 200)]);
 
-        $result = (new PaystackSubaccountService())->refund('DRX-REF-1');
+        $result = (new PaystackSubaccountService)->refund('DRX-REF-1');
 
         $this->assertTrue($result['success']);
     }
@@ -119,7 +119,7 @@ class PaystackSubaccountServiceTest extends TestCase
     {
         Http::fake(['api.paystack.co/refund' => Http::response(['status' => false, 'message' => 'Transaction not found'], 400)]);
 
-        $result = (new PaystackSubaccountService())->refund('DRX-REF-1');
+        $result = (new PaystackSubaccountService)->refund('DRX-REF-1');
 
         $this->assertFalse($result['success']);
         $this->assertSame('Transaction not found', $result['message']);
@@ -134,7 +134,7 @@ class PaystackSubaccountServiceTest extends TestCase
     {
         Http::fake(['api.paystack.co/refund' => Http::response(['status' => false, 'message' => 'Transaction already refunded'], 400)]);
 
-        $result = (new PaystackSubaccountService())->refund('DRX-REF-1');
+        $result = (new PaystackSubaccountService)->refund('DRX-REF-1');
 
         $this->assertTrue($result['success']);
         $this->assertTrue($result['already_refunded']);

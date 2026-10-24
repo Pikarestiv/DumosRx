@@ -29,6 +29,7 @@ class SystemConfig extends Model
     {
         return \Illuminate\Support\Facades\Cache::remember("system_config_{$key}", 3600, function () use ($key, $default) {
             $config = self::where('key', $key)->first();
+
             return $config !== null ? $config->value : $default;
         });
     }
@@ -42,7 +43,7 @@ class SystemConfig extends Model
             ['key' => $key],
             [
                 'value' => $value,
-                'description' => $description
+                'description' => $description,
             ]
         );
 

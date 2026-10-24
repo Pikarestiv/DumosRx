@@ -14,7 +14,7 @@ return new class extends Migration
         $tables = ['feedback', 'activity_logs', 'categories'];
 
         foreach ($tables as $table) {
-            if (Schema::hasTable($table) && !Schema::hasColumn($table, '_synced_at')) {
+            if (Schema::hasTable($table) && ! Schema::hasColumn($table, '_synced_at')) {
                 Schema::table($table, function (Blueprint $blueprint) {
                     $blueprint->timestamp('_synced_at')->nullable()->index();
                 });

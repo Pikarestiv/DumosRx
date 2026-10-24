@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Concerns\AuthenticatesSessions;
 use App\Http\Controllers\Api\Concerns\ManagesProfile;
 use App\Http\Controllers\Api\Concerns\RecoversPasswords;
 use App\Http\Controllers\Api\Concerns\RegistersAccounts;
+use App\Http\Controllers\Controller;
 
 /**
  * Every auth endpoint still lives on THIS class: the method bodies were

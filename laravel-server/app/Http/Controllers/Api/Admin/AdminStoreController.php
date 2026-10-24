@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
-use App\Support\TokenLifetime;
 use App\Http\Controllers\Concerns\ManagesAdminSessionCookie;
 use App\Models\ActivityLog;
 use App\Services\Admin\AdminFleetMetricsService;
@@ -10,9 +9,10 @@ use App\Services\Admin\AdminStoreDetailService;
 use App\Services\Admin\AdminStoreReferrerService;
 use App\Services\Admin\AdminStoreService;
 use App\Services\Admin\Filters\StoreListFilters;
+use App\Support\FullAccessToken;
+use App\Support\TokenLifetime;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use App\Support\FullAccessToken;
 use OpenApi\Attributes as OA;
 
 class AdminStoreController extends AdminBaseController
@@ -74,7 +74,7 @@ class AdminStoreController extends AdminBaseController
 
     #[OA\Get(
         path: '/admin/stores/registered-by-me',
-        summary: "List only the stores the caller personally registered",
+        summary: 'List only the stores the caller personally registered',
         description: "Scoped alternative to GET /admin/stores (gated on permission:view_platform_data, which platform_admin/agent can also hold) for platform_admin/agent: the stores whose owner carries the caller's id in users.registered_by_id. Carries no revenue figures.",
         tags: ['Admin'],
         security: [['sanctum' => []]],
@@ -125,7 +125,7 @@ class AdminStoreController extends AdminBaseController
     )]
     public function registerStore(Request $request)
     {
-        if (!$request->user()->hasRole('super_admin') && !$request->user()->hasPermission('create_accounts')) {
+        if (! $request->user()->hasRole('super_admin') && ! $request->user()->hasPermission('create_accounts')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -143,9 +143,10 @@ class AdminStoreController extends AdminBaseController
 
         return $this->withErrorResponse('Register Store', 'Failed to register store', function () use ($request, $validated) {
             $store = $this->adminStoreService->registerStore($validated, $request->user()->id);
+
             return response()->json([
                 'message' => 'Store registered successfully',
-                'store' => $store
+                'store' => $store,
             ], 201);
         });
     }
@@ -171,6 +172,7 @@ class AdminStoreController extends AdminBaseController
             if ($data === null) {
                 return response()->json(['error' => 'Store not found'], 404);
             }
+
             return response()->json($data);
         });
     }
@@ -196,6 +198,7 @@ class AdminStoreController extends AdminBaseController
             if ($data === null) {
                 return response()->json(['error' => 'Store not found'], 404);
             }
+
             return response()->json($data);
         });
     }
@@ -223,6 +226,7 @@ class AdminStoreController extends AdminBaseController
 
         return $this->withErrorResponse('Suspend', 'Failed to suspend store', function () use ($id, $validated) {
             $this->adminStoreService->suspendStore($id, $validated['reason'] ?? null);
+
             return response()->json(['message' => 'Store suspended successfully']);
         });
     }
@@ -243,6 +247,7 @@ class AdminStoreController extends AdminBaseController
     {
         return $this->withErrorResponse('Unsuspend', 'Failed to unsuspend store', function () use ($id) {
             $this->adminStoreService->unsuspendStore($id);
+
             return response()->json(['message' => 'Store re-activated successfully']);
         });
     }
@@ -263,6 +268,7 @@ class AdminStoreController extends AdminBaseController
     {
         return $this->withErrorResponse('Mark Demo', 'Failed to mark store as demo', function () use ($id) {
             $this->adminStoreService->markStoreDemo($id);
+
             return response()->json(['message' => 'Store marked as demo']);
         });
     }
@@ -283,6 +289,7 @@ class AdminStoreController extends AdminBaseController
     {
         return $this->withErrorResponse('Unmark Demo', 'Failed to remove demo flag', function () use ($id) {
             $this->adminStoreService->unmarkStoreDemo($id);
+
             return response()->json(['message' => 'Demo flag removed']);
         });
     }
@@ -311,7 +318,7 @@ class AdminStoreController extends AdminBaseController
     )]
     public function grantTrial(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin') && !$request->user()->hasPermission('grant_trials')) {
+        if (! $request->user()->hasRole('super_admin') && ! $request->user()->hasPermission('grant_trials')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -323,10 +330,12 @@ class AdminStoreController extends AdminBaseController
 
         try {
             $this->adminStoreService->grantTrial($id, $validated['plan'], $validated['duration'] ?? null, $validated['end_date'] ?? null);
+
             return response()->json(['message' => 'Trial granted successfully']);
         } catch (\Exception $e) {
-            Log::error("Admin Grant Trial Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to grant trial: ' . $e->getMessage()], 500);
+            Log::error('Admin Grant Trial Error: '.$e->getMessage());
+
+            return response()->json(['error' => 'Failed to grant trial: '.$e->getMessage()], 500);
         }
     }
 
@@ -355,7 +364,7 @@ class AdminStoreController extends AdminBaseController
     )]
     public function activatePlan(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin') && !$request->user()->hasPermission('grant_trials')) {
+        if (! $request->user()->hasRole('super_admin') && ! $request->user()->hasPermission('grant_trials')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -368,10 +377,12 @@ class AdminStoreController extends AdminBaseController
 
         try {
             $this->adminStoreService->activatePaidPlan($id, $validated['plan'], $validated['billing_cycle'], $validated['amount'], $validated['reference'] ?? null);
+
             return response()->json(['message' => 'Plan activated successfully']);
         } catch (\Exception $e) {
-            Log::error("Admin Activate Plan Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to activate plan: ' . $e->getMessage()], 500);
+            Log::error('Admin Activate Plan Error: '.$e->getMessage());
+
+            return response()->json(['error' => 'Failed to activate plan: '.$e->getMessage()], 500);
         }
     }
 
@@ -416,7 +427,7 @@ class AdminStoreController extends AdminBaseController
 
         $store = \App\Models\Store::findOrFail($id);
         $owner = $store->user;
-        if (!$owner) {
+        if (! $owner) {
             return response()->json(['error' => 'Store owner not found.'], 404);
         }
 
@@ -479,8 +490,9 @@ class AdminStoreController extends AdminBaseController
 
             return response()->json($data);
         } catch (\Exception $e) {
-            Log::error("Admin Impersonate Error: " . $e->getMessage());
-            return response()->json(['error' => 'Impersonation failed: ' . $e->getMessage()], 500);
+            Log::error('Admin Impersonate Error: '.$e->getMessage());
+
+            return response()->json(['error' => 'Impersonation failed: '.$e->getMessage()], 500);
         }
     }
 
@@ -504,19 +516,19 @@ class AdminStoreController extends AdminBaseController
     public function restoreSession(Request $request)
     {
         $validated = $request->validate([
-            'token' => 'required|string'
+            'token' => 'required|string',
         ]);
 
         $admin = FullAccessToken::find($validated['token'])?->tokenable;
 
-        if (!$admin || !$admin->hasRole('super_admin')) {
+        if (! $admin || ! $admin->hasRole('super_admin')) {
             return response()->json(['error' => 'Invalid restore token.'], 403);
         }
 
         ActivityLog::create([
             'user_id' => $admin->id,
             'action' => 'ADMIN_IMPERSONATION_END',
-            'description' => "Admin ended impersonation session",
+            'description' => 'Admin ended impersonation session',
         ]);
 
         $refreshToken = $admin->createToken('admin-refresh', ['refresh'], TokenLifetime::admin())->plainTextToken;

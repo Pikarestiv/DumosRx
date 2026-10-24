@@ -31,8 +31,7 @@ class AdminStoreDetailService
         private AdminStoreService $adminStoreService,
         private AdminStoreMetricsService $metricsService,
         private AdminStoreOperationalMetricsService $operationalMetricsService,
-    ) {
-    }
+    ) {}
 
     public function getStoreDetail(string $storeId, bool $includeRevenue = false): ?array
     {
@@ -41,7 +40,7 @@ class AdminStoreDetailService
             ->addSelect(['total_revenue' => AdminStoreService::revenueSubquery()])
             ->find($storeId);
 
-        if (!$store) {
+        if (! $store) {
             return null;
         }
 
@@ -91,7 +90,7 @@ class AdminStoreDetailService
                 'dirty_since' => $store->storefront_dirty_at?->diffForHumans(),
             ],
             'payments' => [
-                'paystack_connected' => !empty($store->paystack_subaccount_code),
+                'paystack_connected' => ! empty($store->paystack_subaccount_code),
                 'subaccount_code' => $store->paystack_subaccount_code,
                 'bank_code' => $store->paystack_bank_code,
                 'account_number_last4' => $store->paystack_account_number_last4,
@@ -121,7 +120,7 @@ class AdminStoreDetailService
 
     private function ownerPayload(?User $owner): ?array
     {
-        if (!$owner) {
+        if (! $owner) {
             return null;
         }
 
@@ -140,7 +139,7 @@ class AdminStoreDetailService
 
     private function subscriptionPayload(?User $owner): ?array
     {
-        if (!$owner) {
+        if (! $owner) {
             return null;
         }
 
@@ -148,7 +147,7 @@ class AdminStoreDetailService
             ->orderByDesc('created_at')
             ->first();
 
-        if (!$subscription) {
+        if (! $subscription) {
             return null;
         }
 

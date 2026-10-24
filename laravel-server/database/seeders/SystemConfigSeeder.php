@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\SystemConfig;
+use Illuminate\Database\Seeder;
 
 class SystemConfigSeeder extends Seeder
 {
@@ -44,7 +44,7 @@ class SystemConfigSeeder extends Seeder
                         'ai_assistant' => false,
                         'daily_summary_email' => false,
                         'multi_store' => false,
-                    ]
+                    ],
                 ],
                 'starter' => [
                     'name' => 'Starter',
@@ -74,7 +74,7 @@ class SystemConfigSeeder extends Seeder
                         'ai_assistant' => false,
                         'daily_summary_email' => false,
                         'multi_store' => false,
-                    ]
+                    ],
                 ],
                 'pro' => [
                     'name' => 'Dumos Pro',
@@ -104,7 +104,7 @@ class SystemConfigSeeder extends Seeder
                         'ai_assistant' => true,
                         'daily_summary_email' => true,
                         'multi_store' => false,
-                    ]
+                    ],
                 ],
                 'enterprise' => [
                     'name' => 'Enterprise',
@@ -147,9 +147,9 @@ class SystemConfigSeeder extends Seeder
                         'custom_branding' => true,
                         'data_export' => true,
                         'daily_summary_email' => true,
-                    ]
-                ]
-            ]
+                    ],
+                ],
+            ],
         ];
 
         $this->seedIfMissing('subscription_plans', $subscriptionPlans, 'Configuration for the 3-tier DumosRx pricing model including features and limits');
@@ -159,7 +159,7 @@ class SystemConfigSeeder extends Seeder
             'enabled' => true,
             'reward_percentage' => 10.0,
             'reward_trigger' => 'recurring', // 'first' or 'recurring'
-            'allow_full_credit_payment' => true
+            'allow_full_credit_payment' => true,
         ];
         $this->seedIfMissing('referral_program', $referralConfig, 'Configuration for the subscription referral program and credit rewards');
 

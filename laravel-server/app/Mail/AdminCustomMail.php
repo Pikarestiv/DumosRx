@@ -14,6 +14,7 @@ class AdminCustomMail extends Mailable implements ShouldQueue
     use Queueable, SerializesModels;
 
     public $subjectLine;
+
     public $messageBody;
 
     /**
@@ -43,7 +44,7 @@ class AdminCustomMail extends Mailable implements ShouldQueue
         return new Content(
             view: 'emails.admin_custom_mail',
             with: [
-                'messageBody' => $this->messageBody
+                'messageBody' => $this->messageBody,
             ]
         );
     }

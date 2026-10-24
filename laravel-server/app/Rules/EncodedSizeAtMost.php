@@ -9,9 +9,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
  * Laravel's `max:` (an element count on arrays) cannot express. */
 class EncodedSizeAtMost implements ValidationRule
 {
-    public function __construct(private int $maxBytes)
-    {
-    }
+    public function __construct(private int $maxBytes) {}
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {

@@ -20,7 +20,7 @@ class SubscriptionPlanAiAssistantGateTest extends TestCase
 
     private function seededTiers(): array
     {
-        (new SystemConfigSeeder())->run();
+        (new SystemConfigSeeder)->run();
 
         return SystemConfig::where('key', 'subscription_plans')->value('value')['tiers'];
     }

@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -18,7 +17,7 @@ class Supplier extends Model
     protected $fillable = [
         'name', 'contact_person', 'email', 'phone', 'address',
         'city', 'state', 'country', 'tax_id', 'payment_terms',
-        'is_active', 'rating', 'user_id'
+        'is_active', 'rating', 'user_id',
     ];
 
     public function products()

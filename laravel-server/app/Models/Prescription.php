@@ -26,8 +26,8 @@ class Prescription extends Model
     {
         parent::boot();
         static::creating(function ($model) {
-            if (!$model->prescription_number) {
-                 $model->prescription_number = 'RX' . date('Ymd') . rand(1000, 9999);
+            if (! $model->prescription_number) {
+                $model->prescription_number = 'RX'.date('Ymd').rand(1000, 9999);
             }
         });
     }

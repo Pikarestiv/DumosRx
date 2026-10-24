@@ -2,11 +2,11 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Store;
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use App\Models\Store;
-use App\Models\User;
 
 class CheckAccountStatus
 {
@@ -19,7 +19,7 @@ class CheckAccountStatus
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return $next($request);
         }
 
@@ -27,7 +27,7 @@ class CheckAccountStatus
             return $next($request);
         }
 
-        if (!$user->is_active) {
+        if (! $user->is_active) {
             return $this->inactiveResponse();
         }
 
@@ -50,7 +50,7 @@ class CheckAccountStatus
         return response()->json([
             'success' => false,
             'message' => 'ACCOUNT_SUSPENDED',
-            'reason' => 'Your user account has been deactivated/suspended. Please contact administrative support.'
+            'reason' => 'Your user account has been deactivated/suspended. Please contact administrative support.',
         ], 403);
     }
 
@@ -114,7 +114,7 @@ class CheckAccountStatus
             return response()->json([
                 'success' => false,
                 'message' => 'ACCOUNT_SUSPENDED',
-                'reason' => $store->suspension_reason ?: 'Your business account has been suspended for violating our terms of usage. Please contact administrative support.'
+                'reason' => $store->suspension_reason ?: 'Your business account has been suspended for violating our terms of usage. Please contact administrative support.',
             ], 403);
         }
 
@@ -127,7 +127,7 @@ class CheckAccountStatus
                 'archived_by' => $selfArchived ? 'owner' : 'administrator',
                 'reason' => $selfArchived
                     ? 'This store was removed from your own account and can no longer sync or record data. Contact support if you need it restored.'
-                    : 'This store has been archived by an administrator and can no longer sync or record data. Please contact administrative support.'
+                    : 'This store has been archived by an administrator and can no longer sync or record data. Please contact administrative support.',
             ], 403);
         }
 
@@ -136,7 +136,7 @@ class CheckAccountStatus
 
     private function tenantOwnerId($user): ?string
     {
-        if (!$user->store_id) {
+        if (! $user->store_id) {
             return $user->id;
         }
 

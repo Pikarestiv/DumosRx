@@ -13,7 +13,7 @@ class EnsureEmailIsVerified
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
-        $isGuardedRequest = !$request->isMethod('get') || $request->is('api/sync*');
+        $isGuardedRequest = ! $request->isMethod('get') || $request->is('api/sync*');
 
         if ($user && $isGuardedRequest && $refusal = self::refusalFor($user)) {
             return $refusal;
@@ -31,13 +31,13 @@ class EnsureEmailIsVerified
 
     public static function refusalFor(User $user): ?Response
     {
-        if (!self::isRequired() || $user->hasRole('super_admin') || !is_null($user->email_verified_at)) {
+        if (! self::isRequired() || $user->hasRole('super_admin') || ! is_null($user->email_verified_at)) {
             return null;
         }
 
         return response()->json([
             'message' => 'Email verification is required to perform this action.',
-            'error' => 'email_not_verified'
+            'error' => 'email_not_verified',
         ], 403);
     }
 }

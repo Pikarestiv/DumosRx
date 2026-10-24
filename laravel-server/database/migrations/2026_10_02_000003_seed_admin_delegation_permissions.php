@@ -30,7 +30,7 @@ return new class extends Migration
 
         foreach (self::ROLE_GRANTS as $roleSlug => $permissionSlugs) {
             $role = Role::where('slug', $roleSlug)->first();
-            if (!$role) {
+            if (! $role) {
                 continue;
             }
             $permissionIds = Permission::whereIn('slug', $permissionSlugs)->pluck('id');
@@ -45,7 +45,7 @@ return new class extends Migration
     {
         foreach (self::ROLE_GRANTS as $roleSlug => $permissionSlugs) {
             $role = Role::where('slug', $roleSlug)->first();
-            if (!$role) {
+            if (! $role) {
                 continue;
             }
             $permissionIds = Permission::whereIn('slug', $permissionSlugs)->pluck('id');

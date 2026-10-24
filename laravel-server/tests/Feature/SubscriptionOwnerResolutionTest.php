@@ -23,7 +23,9 @@ class SubscriptionOwnerResolutionTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected User $staff;
+
     protected Store $store;
 
     protected function setUp(): void
@@ -50,7 +52,7 @@ class SubscriptionOwnerResolutionTest extends TestCase
             'start_date' => now()->subDay(),
             'end_date' => now()->addMonth(),
             'status' => 'active',
-            'license_key' => 'DRX-' . strtoupper(Str::random(8)),
+            'license_key' => 'DRX-'.strtoupper(Str::random(8)),
         ]);
 
         SystemConfig::setVal('subscription_plans', [
@@ -106,7 +108,7 @@ class SubscriptionOwnerResolutionTest extends TestCase
             'start_date' => now()->subMonth(),
             'end_date' => now()->subDay(), // Expired yesterday.
             'status' => 'active',
-            'license_key' => 'DRX-' . strtoupper(Str::random(8)),
+            'license_key' => 'DRX-'.strtoupper(Str::random(8)),
         ]);
         SystemConfig::setVal('subscription_plans', [
             'grace_period_days' => 3,

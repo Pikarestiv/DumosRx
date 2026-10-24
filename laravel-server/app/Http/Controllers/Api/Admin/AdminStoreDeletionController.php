@@ -21,9 +21,7 @@ class AdminStoreDeletionController extends AdminBaseController
 {
     public const PURGE_CONFIRMATION = 'DumosRx';
 
-    public function __construct(private AdminStoreDeletionService $deletionService)
-    {
-    }
+    public function __construct(private AdminStoreDeletionService $deletionService) {}
 
     #[OA\Delete(
         path: '/admin/stores/{id}',
@@ -47,7 +45,7 @@ class AdminStoreDeletionController extends AdminBaseController
         return $this->withErrorResponse('Archive Store', 'Failed to archive store', function () use ($request, $id, $validated) {
             $store = $this->deletionService->archiveStore($id, $validated['reason'] ?? null, $request->user());
 
-            if (!$store) {
+            if (! $store) {
                 return response()->json(['error' => 'Store not found or already archived'], 404);
             }
 
@@ -83,7 +81,7 @@ class AdminStoreDeletionController extends AdminBaseController
                 return response()->json(['error' => $e->getMessage()], 422);
             }
 
-            if (!$store) {
+            if (! $store) {
                 return response()->json(['error' => 'No archived store with this id'], 404);
             }
 

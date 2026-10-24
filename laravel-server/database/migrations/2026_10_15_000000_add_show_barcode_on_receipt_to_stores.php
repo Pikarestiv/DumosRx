@@ -17,7 +17,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('stores', function (Blueprint $table) {
-            if (!Schema::hasColumn('stores', 'show_barcode_on_receipt')) {
+            if (! Schema::hasColumn('stores', 'show_barcode_on_receipt')) {
                 $table->boolean('show_barcode_on_receipt')->default(true);
             }
         });

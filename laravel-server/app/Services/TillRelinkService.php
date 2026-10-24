@@ -22,8 +22,7 @@ class TillRelinkService
     public function __construct(
         private CheckAccountStatus $accountStatus,
         private SubscriptionService $subscriptions,
-    ) {
-    }
+    ) {}
 
     public function generate(User $owner, Store $store, array $device): array
     {
@@ -46,14 +45,14 @@ class TillRelinkService
     {
         $entry = Cache::pull($this->cacheKey($this->normalize($code)));
 
-        if (!is_array($entry) || !hash_equals((string) $entry['store_id'], $storeId) || !$this->claim($code)) {
+        if (! is_array($entry) || ! hash_equals((string) $entry['store_id'], $storeId) || ! $this->claim($code)) {
             return null;
         }
 
         $owner = User::find($entry['user_id']);
         $store = Store::withTrashed()->find($entry['store_id']);
 
-        if (!$owner || !$store || $store->user_id !== $owner->id) {
+        if (! $owner || ! $store || $store->user_id !== $owner->id) {
             return null;
         }
 
@@ -88,7 +87,7 @@ class TillRelinkService
 
     private function claim(string $code): bool
     {
-        return Cache::add('till_relink_used:' . hash('sha256', $this->normalize($code)), 1, self::TTL_SECONDS);
+        return Cache::add('till_relink_used:'.hash('sha256', $this->normalize($code)), 1, self::TTL_SECONDS);
     }
 
     private function auditIssued(User $owner, Store $store, \DateTimeInterface $expiresAt, array $device): void
@@ -140,6 +139,6 @@ class TillRelinkService
 
     private function cacheKey(string $code): string
     {
-        return 'till_relink:' . hash('sha256', $code);
+        return 'till_relink:'.hash('sha256', $code);
     }
 }

@@ -18,7 +18,9 @@ class ActivityLogController extends Controller
     /** Caps on the unauthenticated /logs/client-error payload, every field of
      * which reaches laravel.log. Rationale: AGENTS.md. */
     private const MAX_URL_LENGTH = 2048;
+
     private const MAX_MESSAGE_LENGTH = 2000;
+
     private const MAX_DETAILS_BYTES = 8192;
 
     #[OA\Get(
@@ -84,9 +86,9 @@ class ActivityLogController extends Controller
         // byte-size rule on `details`, which is the unbounded one.
         $request->validate([
             'method' => 'required|string|max:16',
-            'url' => 'required|string|max:' . self::MAX_URL_LENGTH,
+            'url' => 'required|string|max:'.self::MAX_URL_LENGTH,
             'status' => 'nullable',
-            'message' => 'required|string|max:' . self::MAX_MESSAGE_LENGTH,
+            'message' => 'required|string|max:'.self::MAX_MESSAGE_LENGTH,
             'details' => ['nullable', 'array', new \App\Rules\EncodedSizeAtMost(self::MAX_DETAILS_BYTES)],
             'deviceId' => 'nullable|string|max:128',
         ]);

@@ -19,7 +19,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('stores', function (Blueprint $table) {
-            if (!Schema::hasColumn('stores', 'timezone')) {
+            if (! Schema::hasColumn('stores', 'timezone')) {
                 $table->string('timezone')->default('UTC');
             }
         });

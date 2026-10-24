@@ -19,7 +19,9 @@ class SyncMultiStoreOwnerScopeTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $storeA;
+
     protected Store $storeB;
 
     protected function setUp(): void

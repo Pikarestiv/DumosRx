@@ -3,7 +3,7 @@
 return [
     'trial_days' => 7,
     'grace_period_days' => 3,
-    
+
     'tiers' => [
         'starter' => [
             'name' => 'Starter',
@@ -19,7 +19,7 @@ return [
                 'cloud_sync' => true,
                 'alerts' => false,
                 'remote_dashboard' => false,
-            ]
+            ],
         ],
         'pro' => [
             'name' => 'Professional',
@@ -36,7 +36,7 @@ return [
                 'alerts' => true,
                 'remote_dashboard' => true,
                 'broadcast_receive' => true,
-            ]
+            ],
         ],
         'enterprise' => [
             'name' => 'Enterprise',
@@ -55,7 +55,7 @@ return [
                 'broadcast_create' => true,
                 'custom_branding' => true,
                 'data_export' => true,
-            ]
-        ]
-    ]
+            ],
+        ],
+    ],
 ];

@@ -13,10 +13,10 @@ use OpenApi\Attributes as OA;
     version: '1.0.0',
     title: 'DumosRx API',
     description: 'Internal API reference for the DumosRx retail/pharmacy management system. '
-        . 'Covers the store-facing app API (`/api/v1/app/*`, `/api/v1/*` staff/store endpoints), '
-        . 'the platform admin API (`/api/v1/admin/*`), and public/unauthenticated endpoints '
-        . '(auth, storefront checkout, webhooks). Most endpoints require a Sanctum bearer token: '
-        . 'log in via `POST /login` to obtain one, then use the "Authorize" button below.',
+        .'Covers the store-facing app API (`/api/v1/app/*`, `/api/v1/*` staff/store endpoints), '
+        .'the platform admin API (`/api/v1/admin/*`), and public/unauthenticated endpoints '
+        .'(auth, storefront checkout, webhooks). Most endpoints require a Sanctum bearer token: '
+        .'log in via `POST /login` to obtain one, then use the "Authorize" button below.',
     contact: new OA\Contact(email: 'support@dumosrx.com'),
 )]
 #[OA\Server(url: 'https://api.dumosrx.com/api/v1', description: 'Production')]
@@ -59,6 +59,4 @@ use OpenApi\Attributes as OA;
 #[OA\Tag(name: 'Admin: Email Templates', description: 'Platform admin: transactional email template management.')]
 #[OA\Tag(name: 'Admin: Mail', description: 'Platform admin: one-off outbound mail.')]
 #[OA\Tag(name: 'Admin: Referrals', description: 'Platform admin: referral program settings and credit adjustments.')]
-class OpenApiSpec
-{
-}
+class OpenApiSpec {}

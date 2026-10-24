@@ -2,22 +2,22 @@
 
 namespace App\Models;
 
+use Exception;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Exception;
+use Laravel\Sanctum\HasApiTokens;
 
 /**
  * @mixin IdeHelperUser
  */
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasUuids, SoftDeletes;
+    use HasApiTokens, HasFactory, HasUuids, Notifiable, SoftDeletes;
 
     public const DELEGATABLE_PERMISSIONS = [
         'view_platform_data',
@@ -222,6 +222,7 @@ class User extends Authenticatable
     {
         return $this->hasMany(Subscription::class);
     }
+
     public function permissions()
     {
         return $this->belongsToMany(Permission::class)->withPivot('granted');
@@ -231,8 +232,9 @@ class User extends Authenticatable
     {
         if (is_string($role)) {
             $actualRole = $this->role === 'store_owner' ? 'admin' : $this->role;
+
             return ($this->userRole !== null && ($this->userRole->slug === $role || ($this->userRole->slug === 'store_owner' && $role === 'admin')))
-                || $this->role === $role 
+                || $this->role === $role
                 || $actualRole === $role;
         }
 
@@ -244,6 +246,7 @@ class User extends Authenticatable
                     break;
                 }
             }
+
             return $hasRoleMatch;
         }
 
@@ -324,10 +327,10 @@ class User extends Authenticatable
 
         static::deleting(function ($user) {
             if (! $user->isForceDeleting()) {
-                $suffix = '_del_' . time();
-                $user->email = $user->email . $suffix;
+                $suffix = '_del_'.time();
+                $user->email = $user->email.$suffix;
                 if ($user->username) {
-                    $user->username = $user->username . $suffix;
+                    $user->username = $user->username.$suffix;
                 }
                 $user->save();
             }
@@ -337,7 +340,7 @@ class User extends Authenticatable
     public static function generateUniqueReferralCode()
     {
         do {
-            $code = 'DRX-' . strtoupper(Str::random(6));
+            $code = 'DRX-'.strtoupper(Str::random(6));
         } while (self::where('referral_code', $code)->exists());
 
         return $code;
@@ -356,7 +359,7 @@ class User extends Authenticatable
     public static function generateUniquePlatformReferralCode()
     {
         do {
-            $code = 'AGT-' . strtoupper(Str::random(6));
+            $code = 'AGT-'.strtoupper(Str::random(6));
         } while (self::where('platform_referral_code', $code)->exists());
 
         return $code;

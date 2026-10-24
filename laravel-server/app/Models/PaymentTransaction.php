@@ -15,7 +15,7 @@ class PaymentTransaction extends Model
 
     protected $fillable = [
         'subscription_id', 'provider', 'provider_reference',
-        'amount', 'currency', 'status', 'metadata'
+        'amount', 'currency', 'status', 'metadata',
     ];
 
     protected $casts = [

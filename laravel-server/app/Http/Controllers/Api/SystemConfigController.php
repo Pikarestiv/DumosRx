@@ -45,7 +45,7 @@ class SystemConfigController extends Controller
         $caller = $request->user('sanctum');
         $isPrivileged = $caller && $caller->hasRole('super_admin');
 
-        if (!$isPrivileged && !in_array($key, self::PUBLIC_KEYS, true)) {
+        if (! $isPrivileged && ! in_array($key, self::PUBLIC_KEYS, true)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Configuration not found',
@@ -56,7 +56,7 @@ class SystemConfigController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $value
+            'data' => $value,
         ]);
     }
 
@@ -87,7 +87,7 @@ class SystemConfigController extends Controller
     public function update(Request $request, $key)
     {
         $validated = $request->validate([
-            'value' => 'present'
+            'value' => 'present',
         ]);
 
         // This endpoint stores arbitrary JSON for arbitrary keys, so there is
@@ -120,7 +120,7 @@ class SystemConfigController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Configuration updated successfully',
-            'data' => $config->value
+            'data' => $config->value,
         ]);
     }
 
@@ -135,8 +135,8 @@ class SystemConfigController extends Controller
         $request->validate([
             'value' => 'required|array',
             'value.tiers' => 'required|array',
-            'value.tiers.*.price_monthly' => 'required|numeric|min:0|max:' . self::MAX_PLAN_PRICE,
-            'value.tiers.*.price_yearly' => 'required|numeric|min:0|max:' . self::MAX_PLAN_PRICE,
+            'value.tiers.*.price_monthly' => 'required|numeric|min:0|max:'.self::MAX_PLAN_PRICE,
+            'value.tiers.*.price_yearly' => 'required|numeric|min:0|max:'.self::MAX_PLAN_PRICE,
             'value.trial_days' => 'sometimes|integer|min:1|max:365',
             'value.tiers.*.limits.staff' => 'sometimes|integer|min:-1',
             'value.tiers.*.limits.stores' => 'sometimes|integer|min:-1',
@@ -148,18 +148,17 @@ class SystemConfigController extends Controller
         // same bug - an *active, non-free* tier published at ₦0, which is what
         // `Number("") === 0` produced when the price field was cleared.
         foreach ((array) $request->input('value.tiers', []) as $tierKey => $tier) {
-            if ($tierKey === 'free' || !is_array($tier)) {
+            if ($tierKey === 'free' || ! is_array($tier)) {
                 continue;
             }
-            if (!($tier['active'] ?? false)) {
+            if (! ($tier['active'] ?? false)) {
                 continue;
             }
 
             foreach (['price_monthly', 'price_yearly'] as $field) {
                 if ((float) ($tier[$field] ?? 0) <= 0) {
                     throw ValidationException::withMessages([
-                        "value.tiers.{$tierKey}.{$field}" =>
-                            "The {$tierKey} plan is active, so its {$field} must be greater than 0.",
+                        "value.tiers.{$tierKey}.{$field}" => "The {$tierKey} plan is active, so its {$field} must be greater than 0.",
                     ]);
                 }
             }
@@ -173,15 +172,14 @@ class SystemConfigController extends Controller
     private function rejectZeroTierLimits(Request $request): void
     {
         foreach ((array) $request->input('value.tiers', []) as $tierKey => $tier) {
-            if (!is_array($tier) || !is_array($tier['limits'] ?? null)) {
+            if (! is_array($tier) || ! is_array($tier['limits'] ?? null)) {
                 continue;
             }
 
             foreach (['staff', 'stores'] as $field) {
                 if (array_key_exists($field, $tier['limits']) && (int) $tier['limits'][$field] === 0) {
                     throw ValidationException::withMessages([
-                        "value.tiers.{$tierKey}.limits.{$field}" =>
-                            "The {$tierKey} plan's {$field} limit must be -1 (unlimited) or at least 1.",
+                        "value.tiers.{$tierKey}.limits.{$field}" => "The {$tierKey} plan's {$field} limit must be -1 (unlimited) or at least 1.",
                     ]);
                 }
             }

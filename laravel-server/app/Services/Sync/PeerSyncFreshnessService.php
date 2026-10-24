@@ -31,7 +31,7 @@ class PeerSyncFreshnessService
             ->groupBy('device_id')
             ->map(fn ($rows) => $rows->sortByDesc('last_synced_at')->first())
             ->reject(fn ($device) => ($device->last_synced_at ?? $device->created_at)?->lt($retiredCutoff) ?? true)
-            ->filter(fn ($device) => !$device->last_synced_at || $device->last_synced_at->lt($cutoff))
+            ->filter(fn ($device) => ! $device->last_synced_at || $device->last_synced_at->lt($cutoff))
             ->map(fn ($device) => [
                 'device_id' => $device->device_id,
                 'device_label' => $device->device_label,

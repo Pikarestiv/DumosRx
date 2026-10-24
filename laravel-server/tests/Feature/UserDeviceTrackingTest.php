@@ -22,7 +22,9 @@ class UserDeviceTrackingTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $store;
+
     protected Store $outsiderStore;
 
     protected function setUp(): void

@@ -145,7 +145,7 @@ class CrossTenantCategoryRepairService
 
         // store_id is absent from Category::$fillable, so it cannot be set by
         // mass assignment and is assigned directly here.
-        $category = new Category();
+        $category = new Category;
         $category->name = $name;
         $category->store_id = $storeId;
         $category->is_active = $sourceIsActive === null ? true : (bool) $sourceIsActive;

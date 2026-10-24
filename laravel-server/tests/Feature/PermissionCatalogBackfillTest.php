@@ -63,18 +63,18 @@ class PermissionCatalogBackfillTest extends TestCase
     {
         $owner = User::create([
             'first_name' => 'Owner', 'last_name' => 'Backfill',
-            'email' => 'owner-pgbf-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'email' => 'owner-pgbf-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
             'role' => 'store_owner',
         ]);
 
         return Store::create([
             'user_id' => $owner->id,
             'name' => 'Store PG Backfill',
-            'email' => 'store-pgbf-' . uniqid() . '@dumosrx.com',
+            'email' => 'store-pgbf-'.uniqid().'@dumosrx.com',
             'phone' => '1234567890',
             'address' => '123 Test St',
-            'store_slug' => 'store-pgbf-' . uniqid(),
-            'device_id' => 'WEB-PGBF-' . uniqid(),
+            'store_slug' => 'store-pgbf-'.uniqid(),
+            'device_id' => 'WEB-PGBF-'.uniqid(),
         ]);
     }
 
@@ -84,7 +84,7 @@ class PermissionCatalogBackfillTest extends TestCase
     {
         $store = $this->makeStore();
         foreach (self::V1_DEFAULTS as $role => $permissions) {
-            $group = new PermissionGroup();
+            $group = new PermissionGroup;
             $group->forceFill([
                 'id' => PermissionGroupSeeder::deterministicDefaultGroupId($store->id, $role),
                 'store_id' => $store->id,
@@ -130,7 +130,7 @@ class PermissionCatalogBackfillTest extends TestCase
             $granted = $this->groupFor($store, $role)->permissions;
             $this->assertEmpty(
                 array_diff($expected, $granted),
-                "'{$role}' is still missing " . implode(', ', array_diff($expected, $granted)),
+                "'{$role}' is still missing ".implode(', ', array_diff($expected, $granted)),
             );
         }
     }
@@ -160,7 +160,7 @@ class PermissionCatalogBackfillTest extends TestCase
 
     private function seedCustomGroup(Store $store, array $permissions): PermissionGroup
     {
-        $custom = new PermissionGroup();
+        $custom = new PermissionGroup;
         $custom->forceFill([
             'id' => (string) Str::uuid(),
             'store_id' => $store->id,

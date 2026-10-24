@@ -22,8 +22,11 @@ class SyncCountsTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $store;
+
     protected User $otherOwner;
+
     protected Store $otherStore;
 
     protected function setUp(): void

@@ -2,12 +2,12 @@
 
 namespace App\Services;
 
-use App\Models\Subscription;
-use App\Models\User;
-use App\Models\SystemConfig;
-use App\Models\Store;
 use App\Models\Coupon;
 use App\Models\CouponUsage;
+use App\Models\Store;
+use App\Models\Subscription;
+use App\Models\SystemConfig;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -21,14 +21,14 @@ class SubscriptionService
         $config = SystemConfig::getVal('subscription_plans', []);
         $trialDays = $config['trial_days'] ?? 7;
         $trialPlan = $config['trial_plan'] ?? 'pro';
-        
+
         return Subscription::create([
             'user_id' => $user->id,
             'plan_name' => $trialPlan,
             'start_date' => now(),
             'end_date' => now()->addDays($trialDays),
             'status' => 'active',
-            'license_key' => 'DRX-TRIAL-' . strtoupper(Str::random(12)),
+            'license_key' => 'DRX-TRIAL-'.strtoupper(Str::random(12)),
             'is_trial' => true,
         ]);
     }
@@ -42,7 +42,7 @@ class SubscriptionService
         if ($user->store()->exists()) {
             return $user;
         }
-        
+
         // If the user is staff, they have a store_id
         if ($user->store_id) {
             $store = Store::find($user->store_id);
@@ -50,7 +50,7 @@ class SubscriptionService
                 return User::find($store->user_id) ?? $user;
             }
         }
-        
+
         return $user;
     }
 
@@ -76,7 +76,7 @@ class SubscriptionService
     {
         $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
 
-        if (!$sub) {
+        if (! $sub) {
             $systemConfig = SystemConfig::getVal('subscription_plans', []);
             $graceDays = $systemConfig['grace_period_days'] ?? 3;
             $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now()->subDays($graceDays))->latest()->first();
@@ -168,7 +168,9 @@ class SubscriptionService
         $systemConfig = SystemConfig::getVal('subscription_plans', []);
         $limit = $systemConfig['tiers'][$plan]['limits'][$type] ?? 0;
 
-        if ($limit === -1) return true; // unlimited
+        if ($limit === -1) {
+            return true;
+        } // unlimited
 
         $current = 0;
         switch ($type) {
@@ -199,34 +201,34 @@ class SubscriptionService
 
         $systemConfig = SystemConfig::getVal('subscription_plans', []);
         $limit = $systemConfig['tiers'][$plan]['limits']['staff'] ?? 0;
-        
+
         $storeIds = Store::where('user_id', $owner->id)->pluck('id');
-        
+
         if ($limit === -1) {
             return;
         }
-        
+
         // Find active staff (exclude the owner who has no store_id or different role)
         $activeStaff = User::whereIn('store_id', $storeIds)
             ->where('is_active', true)
             ->orderBy('created_at', 'asc') // Keep oldest staff active
             ->get();
-            
+
         if ($activeStaff->count() > $limit) {
             $excessCount = $activeStaff->count() - $limit;
-            
+
             // Deactivate excess staff
             $deactivateIds = $activeStaff->slice($limit)->pluck('id');
             User::whereIn('id', $deactivateIds)->update([
                 'is_active' => false,
                 '_version' => DB::raw('COALESCE(_version, 0) + 1'),
             ]);
-            
+
             // Create a warning notification for the owner
             \App\Models\Notification::create([
                 'user_id' => $owner->id,
                 'title' => 'Staff Accounts Suspended',
-                'message' => "Your store was transitioned to the " . ucfirst($plan) . " plan. To respect your user limit, {$excessCount} of your staff accounts have been temporarily deactivated. Upgrade to reactivate them.",
+                'message' => 'Your store was transitioned to the '.ucfirst($plan)." plan. To respect your user limit, {$excessCount} of your staff accounts have been temporarily deactivated. Upgrade to reactivate them.",
                 'type' => 'warning',
                 'is_read' => false,
             ]);
@@ -239,19 +241,19 @@ class SubscriptionService
     public function validateCoupon(User $user, string $code, ?string $planName = null, ?string $interval = null)
     {
         $coupon = Coupon::where('code', $code)->first();
-        
-        if (!$coupon) {
+
+        if (! $coupon) {
             return ['valid' => false, 'message' => 'Invalid coupon code'];
         }
 
         $owner = $this->getSubscriptionOwner($user);
 
-        if (!$coupon->isValidForUser($owner)) {
+        if (! $coupon->isValidForUser($owner)) {
             return ['valid' => false, 'message' => 'Coupon is not valid or has exceeded usage limits'];
         }
 
         if ($planName && $interval) {
-            if (!$coupon->isValidForPlan($planName, $interval)) {
+            if (! $coupon->isValidForPlan($planName, $interval)) {
                 return ['valid' => false, 'message' => 'Coupon is not valid for this plan or billing interval'];
             }
         }
@@ -276,13 +278,13 @@ class SubscriptionService
         return \Illuminate\Support\Facades\DB::transaction(function () use ($user, $code, $planName, $interval) {
             $locked = Coupon::where('code', $code)->lockForUpdate()->first();
 
-            if (!$locked) {
+            if (! $locked) {
                 return ['valid' => false, 'message' => 'Invalid coupon code'];
             }
 
             $result = $this->validateCoupon($user, $code, $planName, $interval);
 
-            if (!$result['valid']) {
+            if (! $result['valid']) {
                 return $result;
             }
 
@@ -298,7 +300,7 @@ class SubscriptionService
 
     public function attachCouponUsageToSubscription(?string $usageId, Subscription $subscription): void
     {
-        if (!$usageId) {
+        if (! $usageId) {
             return;
         }
 
@@ -307,7 +309,7 @@ class SubscriptionService
 
     public function releaseCouponUsage(?string $usageId): void
     {
-        if (!$usageId) {
+        if (! $usageId) {
             return;
         }
 
@@ -328,6 +330,4 @@ class SubscriptionService
             'used_at' => now(),
         ]);
     }
-
-
 }

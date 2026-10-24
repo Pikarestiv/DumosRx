@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasTable('loyalty_tiers')) {
+        if (! Schema::hasTable('loyalty_tiers')) {
             Schema::create('loyalty_tiers', function (Blueprint $table) {
                 $table->uuid('id')->primary();
                 $table->uuid('user_id')->nullable();
@@ -27,7 +27,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('loyalty_redemption_options')) {
+        if (! Schema::hasTable('loyalty_redemption_options')) {
             Schema::create('loyalty_redemption_options', function (Blueprint $table) {
                 $table->uuid('id')->primary();
                 $table->uuid('user_id')->nullable();

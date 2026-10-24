@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Feedback;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
 
 class FeedbackController extends Controller
@@ -44,23 +44,23 @@ class FeedbackController extends Controller
             'message' => 'required|string|max:'.self::MAX_MESSAGE_CHARS,
         ]);
 
-        $feedback = new Feedback();
+        $feedback = new Feedback;
         $feedback->id = (string) \Illuminate\Support\Str::uuid();
         $feedback->type = 'support_ticket';
         $feedback->contact_email = $request->input('email');
-        $feedback->content = "Name: " . $request->input('name') . "\nSubject: " . $request->input('subject') . "\n\n" . $request->input('message');
+        $feedback->content = 'Name: '.$request->input('name')."\nSubject: ".$request->input('subject')."\n\n".$request->input('message');
         $feedback->status = 'pending';
         $feedback->save();
 
         try {
             \App\Services\AdminAlertService::send(
-                'New Support Request: ' . $request->input('subject'),
+                'New Support Request: '.$request->input('subject'),
                 [
                     'A new support request has been submitted.',
                     '',
-                    'Name: ' . $request->input('name'),
-                    'Email: ' . $request->input('email'),
-                    'Subject: ' . $request->input('subject'),
+                    'Name: '.$request->input('name'),
+                    'Email: '.$request->input('email'),
+                    'Subject: '.$request->input('subject'),
                     '',
                     'Message:',
                     nl2br(e($request->input('message'))),
@@ -68,12 +68,12 @@ class FeedbackController extends Controller
             );
         } catch (\Exception $e) {
             // Log but don't fail the request
-            \Illuminate\Support\Facades\Log::error('Failed to send admin alert for feedback: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Failed to send admin alert for feedback: '.$e->getMessage());
         }
 
         return response()->json([
             'message' => 'Support request submitted successfully',
-            'success' => true
+            'success' => true,
         ]);
     }
 
@@ -134,7 +134,7 @@ class FeedbackController extends Controller
     public function updateStatus(Request $request, string $id): JsonResponse
     {
         $request->validate([
-            'status' => 'required|string|in:pending,resolved,dismissed'
+            'status' => 'required|string|in:pending,resolved,dismissed',
         ]);
 
         $feedback = Feedback::findOrFail($id);
@@ -143,7 +143,7 @@ class FeedbackController extends Controller
 
         return response()->json([
             'message' => 'Feedback status updated successfully',
-            'data' => $feedback
+            'data' => $feedback,
         ]);
     }
 }

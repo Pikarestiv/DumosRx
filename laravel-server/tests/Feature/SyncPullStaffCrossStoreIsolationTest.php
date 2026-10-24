@@ -25,8 +25,11 @@ class SyncPullStaffCrossStoreIsolationTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $storeA;
+
     protected Store $storeB;
+
     protected User $staffOfA;
 
     protected function setUp(): void
@@ -84,6 +87,7 @@ class SyncPullStaffCrossStoreIsolationTest extends TestCase
         if ($storeIdHeader) {
             $request = $request->withHeader('X-Store-Id', $storeIdHeader);
         }
+
         return $request->postJson('/api/v1/app/sync/pull', ['last_synced' => []]);
     }
 
@@ -232,7 +236,7 @@ class SyncPullStaffCrossStoreIsolationTest extends TestCase
             $modelClass = $controller->getModelForTable($table);
             $query = $modelClass::query();
             $apply->invoke($controller, $query, $table, $scope);
-            if ($table !== 'users' && !in_array($sentinel, $query->getBindings(), true)) {
+            if ($table !== 'users' && ! in_array($sentinel, $query->getBindings(), true)) {
                 $independent[] = $table;
             }
         }

@@ -47,7 +47,7 @@ class BackfillProductVersionsCommandTest extends TestCase
 
     private function product(string $storeId, string $updatedAt, int $version = 7): Product
     {
-        $product = new Product();
+        $product = new Product;
         $product->name = 'ITEM '.uniqid();
         $product->store_id = $storeId;
         $product->selling_price = 100;

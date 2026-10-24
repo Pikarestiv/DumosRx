@@ -68,7 +68,7 @@ class SyncPullSetupOverrideTest extends TestCase
     private function pull(array $lastSynced, bool $setup)
     {
         return $this->actingAs($this->owner)->postJson(
-            '/api/v1/app/sync/pull' . ($setup ? '?setup=1' : ''),
+            '/api/v1/app/sync/pull'.($setup ? '?setup=1' : ''),
             ['last_synced' => $lastSynced],
         );
     }

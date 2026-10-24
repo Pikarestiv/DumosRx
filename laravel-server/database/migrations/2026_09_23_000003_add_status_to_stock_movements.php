@@ -21,7 +21,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('stock_movements', function (Blueprint $table) {
-            if (!Schema::hasColumn('stock_movements', 'status')) {
+            if (! Schema::hasColumn('stock_movements', 'status')) {
                 $table->string('status')->nullable();
             }
         });

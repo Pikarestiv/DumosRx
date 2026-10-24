@@ -59,7 +59,7 @@ class Coupon extends Model
      */
     public function isGloballyValid(): bool
     {
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return false;
         }
 
@@ -80,7 +80,7 @@ class Coupon extends Model
     public function isValidForUser(User $user): bool
     {
         // Must be globally valid first
-        if (!$this->isGloballyValid()) {
+        if (! $this->isGloballyValid()) {
             return false;
         }
 

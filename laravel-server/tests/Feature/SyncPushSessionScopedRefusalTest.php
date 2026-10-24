@@ -21,8 +21,11 @@ class SyncPushSessionScopedRefusalTest extends TestCase
     use RefreshDatabase;
 
     private User $owner;
+
     private Store $storeA;
+
     private Store $storeB;
+
     private User $staff;
 
     protected function setUp(): void
@@ -71,7 +74,7 @@ class SyncPushSessionScopedRefusalTest extends TestCase
             'user_id' => $owner->id,
             'name' => $name,
             'email' => "{$slug}@dumosrx.com",
-            'phone' => '080' . substr(md5($slug), 0, 8),
+            'phone' => '080'.substr(md5($slug), 0, 8),
             'address' => "1 {$name}",
             'slug' => $slug,
             'device_id' => strtoupper($slug),

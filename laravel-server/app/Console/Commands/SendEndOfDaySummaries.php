@@ -2,13 +2,13 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
+use App\Mail\EndOfDaySummaryMail;
 use App\Models\Subscription;
 use App\Models\User;
-use App\Mail\EndOfDaySummaryMail;
 use App\Services\SubscriptionService;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Throwable;
 
 class SendEndOfDaySummaries extends Command
@@ -47,12 +47,12 @@ class SendEndOfDaySummaries extends Command
             // resolveEffectiveSubscription()) instead of a raw
             // status='active' check with no end_date filter, which never
             // stops sending once a subscription lapses.
-            if (!$subscriptionService->hasFeature($user, 'daily_summary_email')) {
+            if (! $subscriptionService->hasFeature($user, 'daily_summary_email')) {
                 continue;
             }
 
             $subscription = $subscriptionService->resolveEffectiveSubscription($user);
-            if (!$subscription) {
+            if (! $subscription) {
                 continue;
             }
 

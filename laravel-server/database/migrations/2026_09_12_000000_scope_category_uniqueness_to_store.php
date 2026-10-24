@@ -47,6 +47,7 @@ return new class extends Migration
             \Log::warning('Skipping (store_id, name) unique constraint on categories: existing duplicates found', [
                 'count' => $duplicates->count(),
             ]);
+
             return;
         }
 

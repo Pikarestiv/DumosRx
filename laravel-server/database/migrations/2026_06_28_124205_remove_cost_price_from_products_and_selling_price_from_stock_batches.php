@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // Fallback rename just in case the previous migration failed silently
-        if (Schema::hasTable('inventories') && !Schema::hasTable('stock_batches')) {
+        if (Schema::hasTable('inventories') && ! Schema::hasTable('stock_batches')) {
             Schema::rename('inventories', 'stock_batches');
         }
 

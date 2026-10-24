@@ -13,7 +13,9 @@ class Feedback extends Model
     use HasFactory;
 
     protected $table = 'feedback';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $fillable = [
@@ -28,7 +30,7 @@ class Feedback extends Model
         'last_occurred_at',
         '_deleted',
         'created_at',
-        'updated_at'
+        'updated_at',
     ];
 
     protected $casts = [

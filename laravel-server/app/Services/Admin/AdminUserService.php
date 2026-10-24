@@ -31,9 +31,7 @@ class AdminUserService
     use ResolvesTrialDuration;
     use UpdatesUserProfiles;
 
-    public function __construct(private AdminUserDeviceService $deviceService)
-    {
-    }
+    public function __construct(private AdminUserDeviceService $deviceService) {}
 
     /** Accounts a platform user (super_admin/platform_admin/agent) either
      * registered directly (AdminStoreController::registerStore) or that
@@ -50,13 +48,13 @@ class AdminUserService
         return [
             'platform_referral_code' => $user->platform_referral_code,
             'referral_link' => $user->platform_referral_code
-                ? (config('app.frontend_url') . '/register?agent_ref=' . $user->platform_referral_code)
+                ? (config('app.frontend_url').'/register?agent_ref='.$user->platform_referral_code)
                 : null,
             'total' => $referredUsers->count(),
             'accounts' => $referredUsers->map(function ($u) {
                 return [
                     'id' => $u->id,
-                    'name' => trim($u->first_name . ' ' . $u->last_name),
+                    'name' => trim($u->first_name.' '.$u->last_name),
                     'email' => $u->email,
                     'role' => $u->role,
                     'store_name' => $u->store->name ?? null,
@@ -84,7 +82,7 @@ class AdminUserService
         }
 
         return [
-            'available' => strlen($normalized) >= 3 && strlen($normalized) <= 32 && !$query->exists(),
+            'available' => strlen($normalized) >= 3 && strlen($normalized) <= 32 && ! $query->exists(),
             'code' => $normalized,
         ];
     }
@@ -95,12 +93,12 @@ class AdminUserService
     public function updateReferralCode($targetUserId, $code, $callerId)
     {
         $caller = User::findOrFail($callerId);
-        if ($targetUserId !== $callerId && !$caller->hasRole('super_admin')) {
+        if ($targetUserId !== $callerId && ! $caller->hasRole('super_admin')) {
             throw new \Exception('Only super_admin can edit another user\'s referral code.');
         }
 
         $target = User::findOrFail($targetUserId);
-        if (!in_array($target->role, ['super_admin', 'platform_admin', 'agent'])) {
+        if (! in_array($target->role, ['super_admin', 'platform_admin', 'agent'])) {
             throw new \Exception('Referral codes are only for platform-level accounts.');
         }
 
@@ -365,7 +363,7 @@ class AdminUserService
 
             $this->notifyUser(
                 $user->id,
-                "Your ".ucfirst($plan)." plan has been activated, valid until {$endDate->format('d/m/Y')}.",
+                'Your '.ucfirst($plan)." plan has been activated, valid until {$endDate->format('d/m/Y')}.",
                 'Subscription Activated'
             );
 

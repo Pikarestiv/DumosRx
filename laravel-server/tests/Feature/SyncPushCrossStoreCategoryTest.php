@@ -27,9 +27,13 @@ class SyncPushCrossStoreCategoryTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $storeA;
+
     protected Store $storeB;
+
     protected Category $categoryA;
+
     protected Category $categoryB;
 
     protected function setUp(): void
@@ -76,7 +80,7 @@ class SyncPushCrossStoreCategoryTest extends TestCase
 
     private function makeCategory(string $storeId, string $name): Category
     {
-        $category = new Category();
+        $category = new Category;
         $category->name = $name;
         $category->store_id = $storeId;
         $category->is_active = true;
@@ -246,7 +250,7 @@ class SyncPushCrossStoreCategoryTest extends TestCase
 
     public function test_a_category_with_no_store_of_its_own_is_left_untouched()
     {
-        $legacy = new Category();
+        $legacy = new Category;
         $legacy->name = 'analgesics';
         $legacy->is_active = true;
         $legacy->save();

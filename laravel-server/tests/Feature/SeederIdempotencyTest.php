@@ -26,14 +26,14 @@ class SeederIdempotencyTest extends TestCase
 
     public function test_a_re_seed_does_not_revert_admin_edited_system_configs()
     {
-        (new SystemConfigSeeder())->run();
+        (new SystemConfigSeeder)->run();
 
         SystemConfig::setVal('subscription_plans', ['tiers' => ['pro' => ['price_monthly' => 12000]]]);
         SystemConfig::setVal('global_suggestions', ['amoxicillin', 'paracetamol']);
         SystemConfig::setVal('referral_program', ['enabled' => false, 'reward_percentage' => 2.5]);
         SystemConfig::setVal('smartsupp_key', 'admin-configured-widget-key');
 
-        (new SystemConfigSeeder())->run();
+        (new SystemConfigSeeder)->run();
 
         $this->assertSame(
             12000,
@@ -58,14 +58,14 @@ class SeederIdempotencyTest extends TestCase
 
     public function test_a_re_seed_does_not_revert_admin_edited_email_templates()
     {
-        (new EmailTemplateSeeder())->run();
+        (new EmailTemplateSeeder)->run();
 
         EmailTemplate::where('key', 'welcome')->update([
             'subject' => 'Admin-edited subject',
             'content' => 'Admin-edited content',
         ]);
 
-        (new EmailTemplateSeeder())->run();
+        (new EmailTemplateSeeder)->run();
 
         $template = EmailTemplate::where('key', 'welcome')->firstOrFail();
         $this->assertSame('Admin-edited subject', $template->subject, 'A re-seed reverted an admin-edited email template subject.');
@@ -74,8 +74,8 @@ class SeederIdempotencyTest extends TestCase
 
     public function test_seeders_still_create_missing_rows_on_a_first_install()
     {
-        (new SystemConfigSeeder())->run();
-        (new EmailTemplateSeeder())->run();
+        (new SystemConfigSeeder)->run();
+        (new EmailTemplateSeeder)->run();
 
         foreach (['subscription_plans', 'global_suggestions', 'referral_program', 'smartsupp_key'] as $key) {
             $this->assertDatabaseHas('system_configs', ['key' => $key]);
@@ -93,10 +93,10 @@ class SeederIdempotencyTest extends TestCase
 
     public function test_a_re_seed_restores_a_key_that_has_been_deleted()
     {
-        (new SystemConfigSeeder())->run();
+        (new SystemConfigSeeder)->run();
         SystemConfig::where('key', 'referral_program')->delete();
 
-        (new SystemConfigSeeder())->run();
+        (new SystemConfigSeeder)->run();
 
         $this->assertTrue(SystemConfig::where('key', 'referral_program')->value('value')['enabled']);
     }

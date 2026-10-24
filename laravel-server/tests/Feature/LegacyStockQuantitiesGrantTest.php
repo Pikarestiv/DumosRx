@@ -36,17 +36,17 @@ class LegacyStockQuantitiesGrantTest extends TestCase
 
         $this->owner = User::create([
             'first_name' => 'Owner', 'last_name' => 'Legacy',
-            'email' => 'owner-legacy-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'email' => 'owner-legacy-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
             'role' => 'store_owner',
         ]);
         $this->store = Store::create([
             'user_id' => $this->owner->id,
             'name' => 'Legacy Grant Store',
-            'email' => 'store-legacy-' . uniqid() . '@dumosrx.com',
+            'email' => 'store-legacy-'.uniqid().'@dumosrx.com',
             'phone' => '1234567890',
             'address' => '1 Test St',
-            'store_slug' => 'store-legacy-' . uniqid(),
-            'device_id' => 'WEB-LEGACY-' . uniqid(),
+            'store_slug' => 'store-legacy-'.uniqid(),
+            'device_id' => 'WEB-LEGACY-'.uniqid(),
         ]);
         $this->owner->update(['store_id' => $this->store->id]);
     }
@@ -63,7 +63,7 @@ class LegacyStockQuantitiesGrantTest extends TestCase
     {
         return User::create([
             'first_name' => 'Staff', 'last_name' => 'Legacy',
-            'email' => 'staff-legacy-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'email' => 'staff-legacy-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
             'role' => 'manager', 'store_id' => $this->store->id, 'permission_group_id' => $group->id,
         ]);
     }

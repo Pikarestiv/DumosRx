@@ -19,6 +19,7 @@ class RestoreSessionTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $storeOwner;
 
     protected function setUp(): void

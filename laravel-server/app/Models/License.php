@@ -15,7 +15,7 @@ class License extends Model
 
     protected $fillable = [
         'subscription_id', 'machine_id', 'machine_name',
-        'last_check_in', 'is_active'
+        'last_check_in', 'is_active',
     ];
 
     protected $casts = [

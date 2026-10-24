@@ -25,7 +25,9 @@ class StorefrontPaystackLifecycleTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $store;
+
     protected Product $product;
 
     protected function setUp(): void

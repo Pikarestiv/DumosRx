@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
-use App\Models\Store;
 use App\Models\StockBatch;
 use App\Models\StockMovement;
+use App\Models\Store;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -22,8 +22,11 @@ class RetagBulkImportStockMovementsTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $store;
+
     protected Product $product;
+
     protected StockBatch $batch;
 
     protected function setUp(): void

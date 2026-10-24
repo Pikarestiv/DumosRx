@@ -23,6 +23,7 @@ return new class extends Migration
                 $table->dropColumn('last_name');
                 $table->string('last_name')->nullable()->after('first_name');
             });
+
             return;
         }
 
@@ -36,6 +37,7 @@ return new class extends Migration
                 $table->dropColumn('last_name');
                 $table->string('last_name')->default('')->after('first_name');
             });
+
             return;
         }
 

@@ -18,7 +18,7 @@ class SaleReturn extends Model
 
     protected $fillable = [
         'sale_id', 'user_id', 'reason', 'total_refunded',
-        '_version', '_synced', '_synced_at', '_deleted'
+        '_version', '_synced', '_synced_at', '_deleted',
     ];
 
     protected $casts = [

@@ -15,9 +15,13 @@ class SyncPushCrossStoreSupplierTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $storeA;
+
     protected Store $storeB;
+
     protected Supplier $supplierA;
+
     protected Supplier $supplierB;
 
     protected function setUp(): void
@@ -64,7 +68,7 @@ class SyncPushCrossStoreSupplierTest extends TestCase
 
     private function makeSupplier(?string $storeId, string $name): Supplier
     {
-        $supplier = new Supplier();
+        $supplier = new Supplier;
         $supplier->name = $name;
         $supplier->store_id = $storeId;
         $supplier->is_active = true;

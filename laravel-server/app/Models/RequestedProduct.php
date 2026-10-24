@@ -15,7 +15,9 @@ class RequestedProduct extends Model
     use HasFactory, SoftDeletes;
 
     protected $table = 'requested_products';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $fillable = [
@@ -30,7 +32,7 @@ class RequestedProduct extends Model
         '_synced',
         '_deleted',
         '_synced_at',
-        'store_id'
+        'store_id',
     ];
 
     protected $casts = [

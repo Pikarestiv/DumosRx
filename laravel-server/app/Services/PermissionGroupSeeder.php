@@ -6,7 +6,6 @@ use App\Models\PermissionGroup;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 /** Port of the client's permission-group seeding and catalog backfill; see
  * laravel-server/AGENTS.md's "PermissionGroupSeeder" section. */
@@ -177,7 +176,7 @@ class PermissionGroupSeeder
     public static function deterministicDefaultGroupId(string $storeId, string $role): string
     {
         $seed = "permission-group-default:{$storeId}:{$role}";
-        $seedOffsets = [0x811c9dc5, 0x9e3779b9, 0x85ebca6b, 0xc2b2ae35];
+        $seedOffsets = [0x811C9DC5, 0x9E3779B9, 0x85EBCA6B, 0xC2B2AE35];
         $lanes = [];
         foreach ($seedOffsets as $seedOffset) {
             $h = $seedOffset;
@@ -223,7 +222,7 @@ class PermissionGroupSeeder
             if (in_array($role, $existingRoles, true)) {
                 continue;
             }
-            $group = new PermissionGroup();
+            $group = new PermissionGroup;
             $group->forceFill([
                 'id' => $id,
                 'store_id' => $store->id,
@@ -255,7 +254,7 @@ class PermissionGroupSeeder
     {
         $pending = [];
         foreach (self::DEFAULT_GROUP_PERMISSION_ADDITIONS as $version => $byRole) {
-            if ($version <= $fromVersion || !$isDefault) {
+            if ($version <= $fromVersion || ! $isDefault) {
                 continue;
             }
             foreach ($byRole[$role] ?? [] as $key) {

@@ -5,9 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
-
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 /**
  * @mixin IdeHelperSale
@@ -37,11 +36,11 @@ class Sale extends Model
         'reseller_commission_redeemed' => 'boolean',
     ];
 
-     protected static function boot()
+    protected static function boot()
     {
         parent::boot();
         static::creating(function ($model) {
-            if (!$model->transaction_number) {
+            if (! $model->transaction_number) {
                 // 'TXN' . date('YmdHis') . rand(100, 999) collided whenever two
                 // sales landed in the same second (~1-in-900 odds), failing the
                 // whole insert against the UNIQUE constraint. Mirrors the
@@ -53,7 +52,7 @@ class Sale extends Model
                 // belt-and-braces on top of that already-low collision odds.
                 do {
                     $uuid = str_replace('-', '', (string) Str::uuid());
-                    $candidate = 'TXN-' . strtoupper(substr($uuid, 0, 12));
+                    $candidate = 'TXN-'.strtoupper(substr($uuid, 0, 12));
                 } while (static::withTrashed()->where('transaction_number', $candidate)->exists());
 
                 $model->transaction_number = $candidate;

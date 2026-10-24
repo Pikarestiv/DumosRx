@@ -8,9 +8,7 @@ use Illuminate\Http\Request;
 
 class AdminTillCodeController extends AdminBaseController
 {
-    public function __construct(private AdminTillSessionService $sessions)
-    {
-    }
+    public function __construct(private AdminTillSessionService $sessions) {}
 
     public function mine(Request $request)
     {

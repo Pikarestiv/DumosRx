@@ -12,19 +12,19 @@ return new class extends Migration
     public function up(): void
     {
         $tables = [
-            'sales', 
-            'customers', 
-            'medicines', 
-            'inventories', 
-            'subscriptions', 
+            'sales',
+            'customers',
+            'medicines',
+            'inventories',
+            'subscriptions',
             'payment_transactions',
             'categories',
             'suppliers',
-            'prescriptions'
+            'prescriptions',
         ];
 
         foreach ($tables as $tableName) {
-            if (Schema::hasTable($tableName) && !Schema::hasColumn($tableName, 'user_id')) {
+            if (Schema::hasTable($tableName) && ! Schema::hasColumn($tableName, 'user_id')) {
                 Schema::table($tableName, function (Blueprint $table) {
                     // Use UUID if users table uses UUID, otherwise bigInteger
                     $table->foreignUuid('user_id')->nullable()->constrained('users')->onDelete('cascade');
@@ -39,21 +39,21 @@ return new class extends Migration
     public function down(): void
     {
         $tables = [
-            'sales', 
-            'customers', 
-            'medicines', 
-            'inventories', 
-            'subscriptions', 
+            'sales',
+            'customers',
+            'medicines',
+            'inventories',
+            'subscriptions',
             'payment_transactions',
             'categories',
             'suppliers',
-            'prescriptions'
+            'prescriptions',
         ];
 
         foreach ($tables as $tableName) {
             if (Schema::hasTable($tableName) && Schema::hasColumn($tableName, 'user_id')) {
                 Schema::table($tableName, function (Blueprint $table) use ($tableName) {
-                    $table->dropForeign([$tableName . '_user_id_foreign']);
+                    $table->dropForeign([$tableName.'_user_id_foreign']);
                     $table->dropColumn('user_id');
                 });
             }

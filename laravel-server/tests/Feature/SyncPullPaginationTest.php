@@ -6,7 +6,6 @@ use App\Models\Store;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -20,6 +19,7 @@ class SyncPullPaginationTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected Store $store;
 
     protected function setUp(): void
@@ -239,7 +239,7 @@ class SyncPullPaginationTest extends TestCase
     private function queryFor(array $queries, string $table): ?array
     {
         foreach ($queries as $q) {
-            if (str_contains($q['query'], 'from "' . $table . '"')) {
+            if (str_contains($q['query'], 'from "'.$table.'"')) {
                 return $q;
             }
         }
@@ -293,7 +293,7 @@ class SyncPullPaginationTest extends TestCase
             $this->assertLessThanOrEqual(
                 20,
                 count($q['bindings']),
-                'A pull query inlined a materialised id list: ' . $q['query'],
+                'A pull query inlined a materialised id list: '.$q['query'],
             );
         }
     }

@@ -44,7 +44,7 @@ class StorefrontControllerTest extends TestCase
         StockBatch::create([
             'product_id' => $product->id,
             'user_id' => $attrs['user_id'] ?? null,
-            'batch_number' => 'B-' . $product->id,
+            'batch_number' => 'B-'.$product->id,
             'quantity' => 100,
             'cost_price' => 10,
             'expiry_date' => now()->addYear(),
@@ -74,7 +74,7 @@ class StorefrontControllerTest extends TestCase
                 ->andReturn([
                     'provider' => 'paystack',
                     'reference' => $reference,
-                    'checkout_url' => 'https://checkout.paystack.com/' . $reference,
+                    'checkout_url' => 'https://checkout.paystack.com/'.$reference,
                 ]);
         });
 
@@ -85,7 +85,9 @@ class StorefrontControllerTest extends TestCase
     }
 
     protected User $ownerA;
+
     protected Store $storeA;
+
     protected User $ownerB;
 
     protected function setUp(): void

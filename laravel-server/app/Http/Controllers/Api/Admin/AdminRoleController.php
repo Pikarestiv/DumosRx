@@ -9,9 +9,7 @@ use Illuminate\Validation\Rule;
 
 class AdminRoleController extends AdminBaseController
 {
-    public function __construct(private AdminRoleService $adminRoleService)
-    {
-    }
+    public function __construct(private AdminRoleService $adminRoleService) {}
 
     public function index()
     {
@@ -30,6 +28,7 @@ class AdminRoleController extends AdminBaseController
 
         return $this->withErrorResponse('Create Role', 'Failed to create role', function () use ($validated, $request) {
             $role = $this->adminRoleService->createRole($validated['name'], $validated['permissions'], $request->user()->id);
+
             return response()->json(['role' => $role->load('permissions')], 201);
         });
     }
@@ -43,6 +42,7 @@ class AdminRoleController extends AdminBaseController
 
         return $this->withErrorResponse('Update Role Permissions', 'Failed to update role permissions', function () use ($validated, $role, $request) {
             $updated = $this->adminRoleService->updateRolePermissions($role, $validated['permissions'], $request->user()->id);
+
             return response()->json(['role' => $updated]);
         });
     }
@@ -51,6 +51,7 @@ class AdminRoleController extends AdminBaseController
     {
         return $this->withErrorResponse('Delete Role', 'Failed to delete role', function () use ($role, $request) {
             $this->adminRoleService->deleteRole($role, $request->user()->id);
+
             return response()->json(['message' => 'Role deleted']);
         });
     }
@@ -64,11 +65,12 @@ class AdminRoleController extends AdminBaseController
 
         $unknownKeys = array_diff(array_keys($validated['overrides']), User::DELEGATABLE_PERMISSIONS);
         if ($unknownKeys) {
-            return response()->json(['message' => 'Unknown permission(s): ' . implode(', ', $unknownKeys)], 422);
+            return response()->json(['message' => 'Unknown permission(s): '.implode(', ', $unknownKeys)], 422);
         }
 
         return $this->withErrorResponse('Update User Permission Overrides', 'Failed to update permission overrides', function () use ($validated, $id, $request) {
             $target = $this->adminRoleService->setUserPermissionOverrides($id, $validated['overrides'], $request->user()->id);
+
             return response()->json(['user' => $target->append('effective_permissions')]);
         });
     }

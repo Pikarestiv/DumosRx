@@ -65,7 +65,7 @@ class CrossTenantCategoryRepairVersionBumpTest extends TestCase
 
     private function category(string $name, ?string $storeId): Category
     {
-        $category = new Category();
+        $category = new Category;
         $category->name = $name;
         $category->store_id = $storeId;
         $category->is_active = true;
@@ -76,7 +76,7 @@ class CrossTenantCategoryRepairVersionBumpTest extends TestCase
 
     private function product(?string $storeId, ?string $categoryId): Product
     {
-        $product = new Product();
+        $product = new Product;
         $product->name = 'PARACETAMOL';
         $product->store_id = $storeId;
         $product->category_id = $categoryId;

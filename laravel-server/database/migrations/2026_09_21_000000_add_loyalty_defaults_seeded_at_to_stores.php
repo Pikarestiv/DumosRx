@@ -16,7 +16,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('stores', function (Blueprint $table) {
-            if (!Schema::hasColumn('stores', 'loyalty_defaults_seeded_at')) {
+            if (! Schema::hasColumn('stores', 'loyalty_defaults_seeded_at')) {
                 $table->timestamp('loyalty_defaults_seeded_at')->nullable();
             }
         });

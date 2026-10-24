@@ -22,6 +22,7 @@ class CouponController extends Controller
     public function index()
     {
         $coupons = Coupon::with('assignedUser')->withCount('usages')->orderBy('created_at', 'desc')->get();
+
         return response()->json($coupons);
     }
 
@@ -65,7 +66,7 @@ class CouponController extends Controller
         ]);
 
         $validated['created_by'] = $request->user()->id;
-        if (!isset($validated['max_uses_per_user'])) {
+        if (! isset($validated['max_uses_per_user'])) {
             $validated['max_uses_per_user'] = 1;
         }
 
@@ -104,7 +105,7 @@ class CouponController extends Controller
     public function update(Request $request, Coupon $coupon)
     {
         $validated = $request->validate([
-            'code' => 'required|string|unique:coupons,code,' . $coupon->id,
+            'code' => 'required|string|unique:coupons,code,'.$coupon->id,
             'type' => 'required|in:discount_percent,discount_amount,trial_extension',
             'value' => $this->valueRules($request),
             'max_uses' => 'nullable|integer|min:1',
@@ -115,7 +116,7 @@ class CouponController extends Controller
             'expires_at' => 'nullable|date',
         ]);
 
-        if (!isset($validated['max_uses_per_user'])) {
+        if (! isset($validated['max_uses_per_user'])) {
             $validated['max_uses_per_user'] = 1;
         }
 
@@ -156,7 +157,8 @@ class CouponController extends Controller
     )]
     public function toggleActive(Coupon $coupon)
     {
-        $coupon->update(['is_active' => !$coupon->is_active]);
+        $coupon->update(['is_active' => ! $coupon->is_active]);
+
         return response()->json($coupon);
     }
 
@@ -175,6 +177,7 @@ class CouponController extends Controller
     public function usages(Coupon $coupon)
     {
         $usages = $coupon->usages()->with('user')->orderBy('used_at', 'desc')->get();
+
         return response()->json($usages);
     }
 
@@ -193,6 +196,7 @@ class CouponController extends Controller
     public function destroy(Coupon $coupon)
     {
         $coupon->delete();
+
         return response()->json(['message' => 'Coupon deleted']);
     }
 }

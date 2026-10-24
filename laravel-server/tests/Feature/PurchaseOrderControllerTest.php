@@ -21,7 +21,9 @@ class PurchaseOrderControllerTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected User $staff;
+
     protected Store $store;
 
     protected function setUp(): void
@@ -76,6 +78,7 @@ class PurchaseOrderControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonCount(1, 'data');
     }
+
     public function test_an_out_of_range_limit_is_rejected()
     {
         foreach (['-1', '0', '1000000', 'abc'] as $limit) {

@@ -39,6 +39,7 @@ class SyncSubaccountFeeRates extends Command
 
         if ($dirtyStores->isEmpty()) {
             $this->info('No subaccounts need a fee update.');
+
             return;
         }
 
@@ -52,7 +53,7 @@ class SyncSubaccountFeeRates extends Command
 
                 SystemConfig::setVal($failureCountKey, 0);
             } catch (\Throwable $e) {
-                Log::warning("Failed to sync Paystack fee for store {$store->id}: " . $e->getMessage());
+                Log::warning("Failed to sync Paystack fee for store {$store->id}: ".$e->getMessage());
 
                 $failures = (int) SystemConfig::getVal($failureCountKey, 0) + 1;
                 SystemConfig::setVal($failureCountKey, $failures);
@@ -60,7 +61,7 @@ class SyncSubaccountFeeRates extends Command
                 if ($failures >= self::FAILURE_ALERT_THRESHOLD) {
                     $alerts->send(
                         'Storefront subaccount fee sync repeatedly failing',
-                        ["Store {$store->id} ({$store->name}) has failed {$failures} consecutive fee-sync attempts. Last error: " . $e->getMessage()],
+                        ["Store {$store->id} ({$store->name}) has failed {$failures} consecutive fee-sync attempts. Last error: ".$e->getMessage()],
                     );
                 }
                 // Deliberately left dirty - retried next scheduled run.

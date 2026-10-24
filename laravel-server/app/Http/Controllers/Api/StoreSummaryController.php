@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Mail\EndOfDaySummaryMail;
 use App\Models\Store;
 use App\Models\Subscription;
-use App\Mail\EndOfDaySummaryMail;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use OpenApi\Attributes as OA;
 
@@ -46,9 +46,9 @@ class StoreSummaryController extends Controller
         // absent-flag-key pro/enterprise fallback) rather than duplicating
         // that logic here, so this endpoint and the nightly
         // SendEndOfDaySummaries cron always agree on who gets emailed.
-        if (!$subscriptionService->hasFeature($user, 'daily_summary_email')) {
+        if (! $subscriptionService->hasFeature($user, 'daily_summary_email')) {
             return response()->json([
-                'message' => 'This is a premium feature. Please upgrade your plan to access it.'
+                'message' => 'This is a premium feature. Please upgrade your plan to access it.',
             ], 403);
         }
 
@@ -56,7 +56,7 @@ class StoreSummaryController extends Controller
         Mail::to($user->email)->send(new EndOfDaySummaryMail($user, $subscription));
 
         return response()->json([
-            'message' => 'End of day summary generated and sent to ' . $user->email,
+            'message' => 'End of day summary generated and sent to '.$user->email,
         ]);
     }
 }

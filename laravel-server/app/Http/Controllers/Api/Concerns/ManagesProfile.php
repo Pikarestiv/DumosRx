@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Api\Concerns;
 
-use App\Models\User;
-use App\Models\Notification;
 use App\Models\ActivityLog;
+use App\Models\Notification;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use OpenApi\Attributes as OA;
 
 /**
@@ -124,7 +124,7 @@ trait ManagesProfile
             'new_password' => 'required|string|min:8|confirmed',
         ]);
 
-        if (!Hash::check($request->current_password, $user->password)) {
+        if (! Hash::check($request->current_password, $user->password)) {
             throw ValidationException::withMessages([
                 'current_password' => ['The provided password does not match your current password.'],
             ]);
@@ -166,7 +166,7 @@ trait ManagesProfile
 
         $user = $request->user();
 
-        if (!Hash::check($request->password, $user->password)) {
+        if (! Hash::check($request->password, $user->password)) {
             return response()->json([
                 'error' => 'Invalid Password',
                 'message' => 'The password you entered is incorrect.',
@@ -213,9 +213,9 @@ trait ManagesProfile
     public function cancelDeletion(Request $request)
     {
         $user = $request->user();
-        if (!$user->deletion_requested_at) {
+        if (! $user->deletion_requested_at) {
             return response()->json([
-                'message' => 'No active account deletion request found.'
+                'message' => 'No active account deletion request found.',
             ], 400);
         }
 

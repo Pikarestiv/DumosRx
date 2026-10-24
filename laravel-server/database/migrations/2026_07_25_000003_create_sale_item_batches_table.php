@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasTable('sale_item_batches')) {
+        if (! Schema::hasTable('sale_item_batches')) {
             Schema::create('sale_item_batches', function (Blueprint $table) {
                 $table->uuid('id')->primary();
                 $table->uuid('sale_item_id');

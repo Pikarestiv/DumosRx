@@ -26,35 +26,35 @@ return new class extends Migration
     {
         foreach (['stock_audits', 'held_transactions', 'loyalty_transactions', 'audit_logs', 'loyalty_tiers', 'loyalty_redemption_options'] as $table) {
             Schema::table($table, function (Blueprint $blueprint) use ($table) {
-                if (!Schema::hasColumn($table, 'store_id')) {
+                if (! Schema::hasColumn($table, 'store_id')) {
                     $blueprint->uuid('store_id')->nullable()->index();
                 }
             });
         }
 
         Schema::table('held_transactions', function (Blueprint $table) {
-            if (!Schema::hasColumn('held_transactions', 'discount')) {
+            if (! Schema::hasColumn('held_transactions', 'discount')) {
                 $table->decimal('discount', 12, 2)->default(0);
             }
-            if (!Schema::hasColumn('held_transactions', 'discount_type')) {
+            if (! Schema::hasColumn('held_transactions', 'discount_type')) {
                 $table->string('discount_type')->nullable();
             }
         });
 
         Schema::table('prescription_items', function (Blueprint $table) {
-            if (!Schema::hasColumn('prescription_items', 'unit_cost')) {
+            if (! Schema::hasColumn('prescription_items', 'unit_cost')) {
                 $table->decimal('unit_cost', 10, 2)->default(0);
             }
         });
 
         Schema::table('loyalty_redemption_options', function (Blueprint $table) {
-            if (!Schema::hasColumn('loyalty_redemption_options', 'discount_value')) {
+            if (! Schema::hasColumn('loyalty_redemption_options', 'discount_value')) {
                 $table->decimal('discount_value', 10, 2)->default(0);
             }
         });
 
         Schema::table('stores', function (Blueprint $table) {
-            if (!Schema::hasColumn('stores', 'loyalty_program_enabled')) {
+            if (! Schema::hasColumn('stores', 'loyalty_program_enabled')) {
                 $table->boolean('loyalty_program_enabled')->default(true);
             }
         });

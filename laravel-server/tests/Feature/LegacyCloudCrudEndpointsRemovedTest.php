@@ -106,7 +106,7 @@ class LegacyCloudCrudEndpointsRemovedTest extends TestCase
         $dir = app_path('Http/Controllers/Api/App');
         $offenders = [];
 
-        foreach (glob($dir . '/*.php') as $file) {
+        foreach (glob($dir.'/*.php') as $file) {
             $source = file_get_contents($file);
             if (preg_match('/\$batch->quantity\s*-=|\$batch->quantity\s*\+=/', $source)) {
                 $offenders[] = basename($file);

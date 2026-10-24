@@ -35,7 +35,7 @@ class JsonList implements CastsAttributes
                 return array_is_list($value) ? $value : [];
             }
 
-            if (!is_string($value)) {
+            if (! is_string($value)) {
                 return [];
             }
 

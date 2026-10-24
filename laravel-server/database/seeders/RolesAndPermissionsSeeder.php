@@ -2,10 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-use App\Models\Role;
 use App\Models\Permission;
+use App\Models\Role;
+use Illuminate\Database\Seeder;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
@@ -61,7 +60,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'super_admin' => [
                 'name' => 'Super Admin',
                 'description' => 'System administrator',
-                'permissions' => array_keys($permissions) // Gets all
+                'permissions' => array_keys($permissions), // Gets all
             ],
             // Platform-level (no store of their own): co-founders/partners who
             // help run the platform. Distinct from the 'admin' slug below, which
@@ -76,7 +75,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'platform_admin' => [
                 'name' => 'Platform Admin',
                 'description' => 'Platform partner/co-founder: manages accounts and trials, not platform administration itself',
-                'permissions' => ['manage_platform', 'create_accounts', 'grant_trials', 'view_platform_data', 'view_platform_health', 'view_platform_revenue', 'view_subscriptions', 'send_notifications', 'reset_user_passwords', 'manage_account_status', 'impersonate_store']
+                'permissions' => ['manage_platform', 'create_accounts', 'grant_trials', 'view_platform_data', 'view_platform_health', 'view_platform_revenue', 'view_subscriptions', 'send_notifications', 'reset_user_passwords', 'manage_account_status', 'impersonate_store'],
             ],
             // Platform-level (no store of their own): field agents recruited to
             // onboard new pharmacies. Narrower than platform_admin: can create
@@ -89,40 +88,40 @@ class RolesAndPermissionsSeeder extends Seeder
             'agent' => [
                 'name' => 'Agent',
                 'description' => 'Recruited installer/onboarding agent: registers new stores and tracks their own referrals',
-                'permissions' => ['manage_platform', 'create_accounts', 'view_platform_data', 'view_platform_health', 'send_notifications']
+                'permissions' => ['manage_platform', 'create_accounts', 'view_platform_data', 'view_platform_health', 'send_notifications'],
             ],
             'admin' => [
                 'name' => 'Store Admin',
                 'description' => 'Store owner or high-level manager',
                 // Every store-level permission, but NOT manage_platform;
                 // that one's platform-wide (super_admin only).
-                'permissions' => ['manage_staff', 'view_reports', 'manage_inventory', 'process_sales', 'dispense_prescriptions', 'view_own_sales']
+                'permissions' => ['manage_staff', 'view_reports', 'manage_inventory', 'process_sales', 'dispense_prescriptions', 'view_own_sales'],
             ],
             'store_owner' => [
                 'name' => 'Store Owner',
                 'description' => 'Store owner with full permissions',
-                'permissions' => ['manage_staff', 'view_reports', 'manage_inventory', 'process_sales', 'dispense_prescriptions', 'view_own_sales']
+                'permissions' => ['manage_staff', 'view_reports', 'manage_inventory', 'process_sales', 'dispense_prescriptions', 'view_own_sales'],
             ],
             'manager' => [
                 'name' => 'Store Manager',
                 'description' => 'Store manager with high access',
-                'permissions' => ['manage_staff', 'view_reports', 'manage_inventory', 'process_sales', 'dispense_prescriptions', 'view_own_sales']
+                'permissions' => ['manage_staff', 'view_reports', 'manage_inventory', 'process_sales', 'dispense_prescriptions', 'view_own_sales'],
             ],
             'specialist' => [
                 'name' => 'Specialist / Senior Staff',
                 'description' => 'Specialist staff or clinician',
-                'permissions' => ['manage_inventory', 'process_sales', 'dispense_prescriptions', 'view_own_sales']
+                'permissions' => ['manage_inventory', 'process_sales', 'dispense_prescriptions', 'view_own_sales'],
             ],
             'sales_staff' => [
                 'name' => 'Sales Staff / Cashier',
                 'description' => 'Cashier staff',
-                'permissions' => ['process_sales', 'view_own_sales']
+                'permissions' => ['process_sales', 'view_own_sales'],
             ],
             'auditor' => [
                 'name' => 'Auditor / Inventory Manager',
                 'description' => 'Inventory and audit staff',
-                'permissions' => ['manage_inventory', 'view_reports']
-            ]
+                'permissions' => ['manage_inventory', 'view_reports'],
+            ],
         ];
 
         foreach ($roles as $slug => $data) {

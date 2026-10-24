@@ -11,7 +11,7 @@ class ExpireLapsedSubscriptions extends Command
 {
     protected $signature = 'subscriptions:expire';
 
-    protected $description = "Mark active subscriptions whose end_date and grace window have both elapsed as expired";
+    protected $description = 'Mark active subscriptions whose end_date and grace window have both elapsed as expired';
 
     public function handle(): int
     {

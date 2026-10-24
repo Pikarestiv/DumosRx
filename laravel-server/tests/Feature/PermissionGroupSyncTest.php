@@ -12,6 +12,7 @@ class PermissionGroupSyncTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected Store $store;
 
     protected function setUp(): void

@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // A-248. `backfillStoreIdOnLegacyRows()` stamped every NULL `store_id` with `(SELECT id FROM stores LIMIT 1)` — no ORDER B…

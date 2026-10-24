@@ -26,7 +26,7 @@ trait ConnectsToRealMysql
         $envPath = base_path('.env');
         if (is_readable($envPath)) {
             foreach (file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-                if (!str_contains($line, '=') || str_starts_with(trim($line), '#')) {
+                if (! str_contains($line, '=') || str_starts_with(trim($line), '#')) {
                     continue;
                 }
                 [$key, $value] = array_map('trim', explode('=', $line, 2));

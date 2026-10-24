@@ -31,7 +31,7 @@ return new class extends Migration
             $table->dateTime('last_check_in')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
-            
+
             $table->unique(['subscription_id', 'machine_id']);
         });
 

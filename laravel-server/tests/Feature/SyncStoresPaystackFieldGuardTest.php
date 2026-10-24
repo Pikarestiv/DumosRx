@@ -20,7 +20,9 @@ class SyncStoresPaystackFieldGuardTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected User $staff;
+
     protected Store $store;
 
     protected function setUp(): void

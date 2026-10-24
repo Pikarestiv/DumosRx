@@ -46,7 +46,7 @@ class StockDivergenceValueTest extends TestCase
         $productId = (string) Str::uuid();
         DB::table('products')->insert([
             'id' => $productId,
-            'name' => 'Product ' . substr($productId, 0, 8),
+            'name' => 'Product '.substr($productId, 0, 8),
             'store_id' => $this->store->id,
             'selling_price' => 500,
             'created_at' => now(),
@@ -57,7 +57,7 @@ class StockDivergenceValueTest extends TestCase
             'id' => (string) Str::uuid(),
             'product_id' => $productId,
             'store_id' => $this->store->id,
-            'batch_number' => 'B-' . substr($productId, 0, 6),
+            'batch_number' => 'B-'.substr($productId, 0, 6),
             'quantity' => $quantity,
             'cost_price' => $costPrice,
             'created_at' => now(),

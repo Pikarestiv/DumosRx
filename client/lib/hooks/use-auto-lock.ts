@@ -122,7 +122,7 @@ export function useSyncAutoLockDurationWithAccount(userId: string | undefined) {
     if (!userId || syncedForUserId.current === userId) return;
     let cancelled = false;
 
-    (async () => {
+    void (async () => {
       try {
         const stored = await getUserAutoLockDuration(userId);
         if (!cancelled && stored !== null && stored !== undefined) {

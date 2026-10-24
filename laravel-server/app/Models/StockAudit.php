@@ -5,11 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-/**
- * @mixin IdeHelperStockAudit
- */
 class StockAudit extends Model
 {
     use HasFactory, HasUuids, SoftDeletes;
@@ -44,7 +42,10 @@ class StockAudit extends Model
         'reconciled_at' => 'datetime',
     ];
 
-    public function product()
+    /**
+     * @return BelongsTo<Product, $this>
+     */
+    public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }

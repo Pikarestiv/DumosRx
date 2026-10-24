@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -16,26 +16,28 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { getRecentUsers } from "@/lib/storage-keys";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
+
+function hasRecentUsers(): boolean {
+  try {
+    return getRecentUsers().length > 0;
+  } catch {
+    return false;
+  }
+}
 
 export default function HomePage() {
   const router = useRouter();
   // If this device has logged in before, skip straight past the marketing page to /dashboard, whose own lock overlay is the…
   // Rationale: docs/CLIENT_COMMENTS.md#line-app-page-tsx-L22
-  const [checkingAccount, setCheckingAccount] = useState(true);
+  const hydrated = useHydrated();
+  const hasAccount = hydrated && hasRecentUsers();
 
   useEffect(() => {
-    try {
-      if (getRecentUsers().length > 0) {
-        router.replace("/dashboard");
-        return;
-      }
-    } catch {
-      // localStorage unavailable or malformed; fall through to the marketing page
-    }
-    setCheckingAccount(false);
-  }, [router]);
+    if (hasAccount) router.replace("/dashboard");
+  }, [hasAccount, router]);
 
-  if (checkingAccount) {
+  if (!hydrated || hasAccount) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

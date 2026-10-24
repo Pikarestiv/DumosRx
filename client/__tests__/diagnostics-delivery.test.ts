@@ -70,7 +70,7 @@ describe("sendDiagnosticsReport", () => {
   it("files it under the inspecting admin's own address", async () => {
     startTillInspectionSession(live());
     const fetchMock = vi.fn(
-      async (_url: string, _init?: RequestInit) => new Response("{}", { status: 200 }),
+      (_url: string, _init?: RequestInit) => Promise.resolve(new Response("{}", { status: 200 })),
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -87,7 +87,7 @@ describe("sendDiagnosticsReport", () => {
     // The report goes TO support; the owner has no use for it, and putting
     // their address on it only mislabels the sender.
     const fetchMock = vi.fn(
-      async (_url: string, _init?: RequestInit) => new Response("{}", { status: 200 }),
+      (_url: string, _init?: RequestInit) => Promise.resolve(new Response("{}", { status: 200 })),
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -102,7 +102,7 @@ describe("sendDiagnosticsReport", () => {
     startTillInspectionSession(live());
     localStorage.setItem("auth_token", "till-token");
     const fetchMock = vi.fn(
-      async (_url: string, _init?: RequestInit) => new Response("{}", { status: 200 }),
+      (_url: string, _init?: RequestInit) => Promise.resolve(new Response("{}", { status: 200 })),
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -115,14 +115,14 @@ describe("sendDiagnosticsReport", () => {
 
   it("explains a throttle rather than failing silently", async () => {
     startTillInspectionSession(live());
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 429 })));
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response("{}", { status: 429 }))));
 
     await expect(send()).rejects.toThrow(/Too many reports/);
   });
 
   it("points at the download when the server cannot be reached", async () => {
     startTillInspectionSession(live());
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 500 })));
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response("{}", { status: 500 }))));
 
     await expect(send()).rejects.toThrow(/Download the report/);
   });

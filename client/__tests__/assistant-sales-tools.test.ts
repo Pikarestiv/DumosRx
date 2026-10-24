@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { assert, describe, it, expect, beforeAll, beforeEach } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 import type { ToolContext } from "@/lib/assistant/types";
 
@@ -86,7 +86,7 @@ describe("assistant sales tools", () => {
     expect(result.netTotal).toBe(120);
   });
 
-  it("reports the count and the net total in its reply", async () => {
+  it("reports the count and the net total in its reply", () => {
     const reply = mySalesTodayTool.format({ count: 2, netTotal: 120 }, {}, baseCtx);
     expect(reply.kind).toBe("answer");
     expect(reply.text).toContain("2");
@@ -135,7 +135,8 @@ describe("assistant sales tools", () => {
 
   it("carries the requested range end into the args a range utterance builds", async () => {
     const { SALES_INTENTS } = await import("@/lib/assistant/intents/sales-intents");
-    const summaryIntent = SALES_INTENTS.find((intent) => intent.id === "sales_summary")!;
+    const summaryIntent = SALES_INTENTS.find((intent) => intent.id === "sales_summary");
+    assert(summaryIntent);
 
     const ranged = summaryIntent.buildArgs({}, "total sales from 2026-09-01 to 2026-09-15", baseCtx);
     expect(ranged).toEqual({ date: "2026-09-01", requestedTo: "2026-09-15" });

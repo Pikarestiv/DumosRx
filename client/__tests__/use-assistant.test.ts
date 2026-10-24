@@ -18,7 +18,7 @@ vi.mock("@/lib/context/store-context", () => ({
 }));
 
 vi.mock("@/lib/assistant/router", () => ({
-  answer: vi.fn(async (text: string) => ({ kind: "answer", text: `echo: ${text}` })),
+  answer: vi.fn((text: string) => Promise.resolve({ kind: "answer", text: `echo: ${text}` })),
 }));
 
 describe("useAssistant", () => {

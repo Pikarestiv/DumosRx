@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ProductCombobox, type SelectedProduct } from "@/components/ui/product-combobox";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { AdjustmentItemsTable } from "./adjustment-items-table";
@@ -65,12 +65,12 @@ export function AdjustmentItemsStep({
     [products, added],
   );
 
-  // Read through refs so the callbacks handed to the memoised rows stay
-  // identical across renders, the same way POItemBuilder keeps its own stable.
   const onChangeQuantityRef = useRef(onChangeQuantity);
-  onChangeQuantityRef.current = onChangeQuantity;
   const onRemoveRef = useRef(onRemove);
-  onRemoveRef.current = onRemove;
+  useLayoutEffect(() => {
+    onChangeQuantityRef.current = onChangeQuantity;
+    onRemoveRef.current = onRemove;
+  });
 
   const handleChangeQuantity = useCallback(
     (productId: string, quantity: number) => onChangeQuantityRef.current(productId, quantity),

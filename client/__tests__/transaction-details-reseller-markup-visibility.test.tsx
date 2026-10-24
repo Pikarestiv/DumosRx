@@ -38,11 +38,11 @@ vi.mock("@/lib/context/auth-context", () => ({
 }));
 
 vi.mock("@/lib/db/queries/sales", () => ({
-  getTransactionDetails: vi.fn(async () => ({ items: [], returnsData: [] })),
+  getTransactionDetails: vi.fn(() => Promise.resolve({ items: [], returnsData: [] })),
 }));
 
 vi.mock("@/lib/db/queries/customers", () => ({
-  getCustomerById: vi.fn(async () => null),
+  getCustomerById: vi.fn(() => Promise.resolve(null)),
 }));
 
 vi.mock("@/lib/hooks/use-customer-mutations", () => ({

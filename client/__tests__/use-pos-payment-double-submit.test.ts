@@ -2,14 +2,15 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import initSqlJs, { type Database } from "sql.js";
+import type { CartItem } from "@/lib/hooks/use-pos-cart";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // React 19's `act` warns unless the environment explicitly opts in.
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Regression coverage for usePOSPayment.handlePayment() having no re-entrancy guard:
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-pos-payment-double-submit-test-ts-L14
@@ -66,7 +67,7 @@ describe("usePOSPayment double-submit guard", () => {
     cost_price: 50,
     quantity: 1,
     subtotal: 100,
-  } as any;
+  } as unknown as CartItem;
 
   it("only creates one sale when handlePayment is invoked twice before the first completes", async () => {
     const handle = renderPayment({

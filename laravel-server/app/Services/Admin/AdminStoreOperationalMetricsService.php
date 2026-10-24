@@ -23,9 +23,7 @@ class AdminStoreOperationalMetricsService
 
     private const RECENT_WINDOW_DAYS = 30;
 
-    public function __construct(private AdminStoreMetricsService $businessMetrics)
-    {
-    }
+    public function __construct(private AdminStoreMetricsService $businessMetrics) {}
 
     public function operationalMetrics(Store $store): array
     {
@@ -132,7 +130,7 @@ class AdminStoreOperationalMetricsService
      */
     private function activeSessionCount(array $userIds): int
     {
-        if ($userIds === [] || !Schema::hasTable('personal_access_tokens')) {
+        if ($userIds === [] || ! Schema::hasTable('personal_access_tokens')) {
             return 0;
         }
 
@@ -149,7 +147,7 @@ class AdminStoreOperationalMetricsService
     // and docs/KNOWN_BUGS.md A-145 for why and its remaining limits.
     private function stockValueRaw(Store $store): float
     {
-        if (!Schema::hasTable('stock_batches')) {
+        if (! Schema::hasTable('stock_batches')) {
             return 0.0;
         }
 
@@ -166,7 +164,7 @@ class AdminStoreOperationalMetricsService
 
     private function countScoped(string $table, string $storeId, ?Carbon $since = null): int
     {
-        if (!Schema::hasTable($table)) {
+        if (! Schema::hasTable($table)) {
             return 0;
         }
 
@@ -185,7 +183,7 @@ class AdminStoreOperationalMetricsService
 
     private function syncHealth(Store $store): string
     {
-        if (!$store->last_sync_at) {
+        if (! $store->last_sync_at) {
             return 'Never synced';
         }
 

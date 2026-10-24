@@ -4,8 +4,8 @@ import initSqlJs from "sql.js";
 // transaction() persists via idb-keyval when not running in Tauri; stub it out since jsdom has no real IndexedDB and we on…
 // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sync-queue-change-listeners-test-ts-L4
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 describe("addSyncQueueChangeListener", () => {
@@ -51,10 +51,11 @@ describe("addSyncQueueChangeListener", () => {
     const calls: number[] = [];
     const unsubscribe = addSyncQueueChangeListener(() => calls.push(1));
 
-    await transaction(async () => {
+    await transaction(() => {
       queueTableInvalidation("products");
       queueTableInvalidation("stock_batches");
       queueTableInvalidation("products");
+      return Promise.resolve();
     });
 
     unsubscribe();
@@ -65,10 +66,11 @@ describe("addSyncQueueChangeListener", () => {
     const calls: string[][] = [];
     const unsubscribe = addSyncQueueChangeListener((tables) => calls.push(tables));
 
-    await transaction(async () => {
+    await transaction(() => {
       queueTableInvalidation("sales");
       queueTableInvalidation("audit_logs");
       queueTableInvalidation("sales");
+      return Promise.resolve();
     });
 
     unsubscribe();

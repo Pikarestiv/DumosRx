@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Broadcast;
+use App\Models\User;
 use App\Services\Admin\BroadcastEmailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -34,7 +35,7 @@ class BroadcastController extends Controller
 
         $query = Broadcast::active()->orderBy('created_at', 'desc');
 
-        if ($user) {
+        if ($user instanceof User) {
             $query->where(function ($q) use ($user) {
                 // Show to all users
                 $q->where('target_type', 'all');
@@ -42,7 +43,7 @@ class BroadcastController extends Controller
                 // Show to specific users
                 $q->orWhere(function ($q2) use ($user) {
                     $q2->where('target_type', 'specific')
-                       ->whereJsonContains('user_ids', $user->id);
+                        ->whereJsonContains('user_ids', $user->id);
                 });
 
                 // Show to store owners (admin/store_owner)
@@ -58,7 +59,7 @@ class BroadcastController extends Controller
                 // Show to specific stores
                 $q->orWhere(function ($q2) use ($storeId) {
                     $q2->where('target_type', 'specific')
-                       ->whereJsonContains('user_ids', $storeId);
+                        ->whereJsonContains('user_ids', $storeId);
                 });
             });
         } else {
@@ -69,7 +70,7 @@ class BroadcastController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $broadcasts
+            'data' => $broadcasts,
         ]);
     }
 
@@ -92,7 +93,7 @@ class BroadcastController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $broadcasts
+            'data' => $broadcasts,
         ]);
     }
 
@@ -134,7 +135,7 @@ class BroadcastController extends Controller
             'user_ids' => 'nullable|array',
             'expires_at' => 'nullable|date',
             'is_active' => 'boolean',
-            'send_email' => 'boolean'
+            'send_email' => 'boolean',
         ]);
 
         if ($validator->fails()) {
@@ -148,7 +149,7 @@ class BroadcastController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Broadcast created successfully',
-            'data' => $broadcast
+            'data' => $broadcast,
         ]);
     }
 
@@ -240,14 +241,14 @@ class BroadcastController extends Controller
                 $request->input('email')
             );
         } catch (\Exception $e) {
-            Log::error('Broadcast test email failed: ' . $e->getMessage());
+            Log::error('Broadcast test email failed: '.$e->getMessage());
 
             return response()->json(['success' => false, 'message' => 'Failed to send the test email.'], 500);
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Test email sent to ' . $request->input('email'),
+            'message' => 'Test email sent to '.$request->input('email'),
         ]);
     }
 
@@ -285,7 +286,7 @@ class BroadcastController extends Controller
     {
         $broadcast = Broadcast::find($id);
 
-        if (!$broadcast) {
+        if (! $broadcast) {
             return response()->json(['success' => false, 'message' => 'Broadcast not found'], 404);
         }
 
@@ -297,7 +298,7 @@ class BroadcastController extends Controller
             'user_ids' => 'nullable|array',
             'expires_at' => 'nullable|date',
             'is_active' => 'boolean',
-            'send_email' => 'boolean'
+            'send_email' => 'boolean',
         ]);
 
         if ($validator->fails()) {
@@ -309,7 +310,7 @@ class BroadcastController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Broadcast updated successfully',
-            'data' => $broadcast
+            'data' => $broadcast,
         ]);
     }
 
@@ -333,17 +334,17 @@ class BroadcastController extends Controller
     {
         $broadcast = Broadcast::find($id);
 
-        if (!$broadcast) {
+        if (! $broadcast) {
             return response()->json(['success' => false, 'message' => 'Broadcast not found'], 404);
         }
 
-        $broadcast->is_active = !$broadcast->is_active;
+        $broadcast->is_active = ! $broadcast->is_active;
         $broadcast->save();
 
         return response()->json([
             'success' => true,
             'message' => 'Broadcast status toggled',
-            'data' => $broadcast
+            'data' => $broadcast,
         ]);
     }
 
@@ -366,7 +367,7 @@ class BroadcastController extends Controller
     {
         $broadcast = Broadcast::find($id);
 
-        if (!$broadcast) {
+        if (! $broadcast) {
             return response()->json(['success' => false, 'message' => 'Broadcast not found'], 404);
         }
 
@@ -374,7 +375,7 @@ class BroadcastController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Broadcast deleted successfully'
+            'message' => 'Broadcast deleted successfully',
         ]);
     }
 }

@@ -35,12 +35,14 @@ class DashboardController extends Controller
         try {
             $period = $request->query('period', '7d');
             $data = $this->dashboardService->getSummary($request->user(), $period);
+
             return response()->json($data);
         } catch (\Exception $e) {
-            Log::critical("Dashboard Controller Error: " . $e->getMessage());
+            Log::critical('Dashboard Controller Error: '.$e->getMessage());
+
             return response()->json([
                 'error' => 'Internal Server Error',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
@@ -60,12 +62,14 @@ class DashboardController extends Controller
     {
         try {
             $data = $this->dashboardService->getStats($request->user());
+
             return response()->json($data);
         } catch (\Exception $e) {
-            Log::critical("Dashboard Stats Error: " . $e->getMessage());
+            Log::critical('Dashboard Stats Error: '.$e->getMessage());
+
             return response()->json([
                 'error' => 'Internal Server Error',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
@@ -85,12 +89,14 @@ class DashboardController extends Controller
     {
         try {
             $data = $this->dashboardService->getWidgetSnapshot($request->user());
+
             return response()->json($data);
         } catch (\Exception $e) {
-            Log::critical("Dashboard Widget Snapshot Error: " . $e->getMessage());
+            Log::critical('Dashboard Widget Snapshot Error: '.$e->getMessage());
+
             return response()->json([
                 'error' => 'Internal Server Error',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
@@ -118,7 +124,7 @@ class DashboardController extends Controller
             'password' => 'required|string',
         ]);
 
-        if (!Hash::check($request->password, $request->user()->password)) {
+        if (! Hash::check($request->password, $request->user()->password)) {
             return response()->json([
                 'error' => 'Invalid Password',
                 'message' => 'The password you entered is incorrect.',
@@ -131,7 +137,7 @@ class DashboardController extends Controller
         // checkCanFactoryReset() gate (client/lib/context/auth-context.tsx),
         // which was already owner-only; this endpoint had no equivalent
         // server-side check at all.
-        if (!in_array($request->user()->role, ['admin', 'store_owner', 'super_admin'], true)) {
+        if (! in_array($request->user()->role, ['admin', 'store_owner', 'super_admin'], true)) {
             return response()->json([
                 'error' => 'Forbidden',
                 'message' => 'Only the store owner can perform this action.',
@@ -141,12 +147,14 @@ class DashboardController extends Controller
         try {
             $type = $request->input('type', 'all');
             $result = $this->dashboardService->resetData($request->user(), $type);
+
             return response()->json($result);
         } catch (\Exception $e) {
-            Log::error("Dashboard Reset Error: " . $e->getMessage());
+            Log::error('Dashboard Reset Error: '.$e->getMessage());
+
             return response()->json([
                 'error' => 'Reset Failed',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
     }

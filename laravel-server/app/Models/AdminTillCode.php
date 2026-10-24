@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AdminTillCode extends Model
 {
@@ -30,7 +31,10 @@ class AdminTillCode extends Model
         return $query->whereNull('revoked_at');
     }
 
-    public function admin()
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function admin(): BelongsTo
     {
         return $this->belongsTo(User::class, 'admin_id');
     }

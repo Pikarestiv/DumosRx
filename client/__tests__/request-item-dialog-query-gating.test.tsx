@@ -27,8 +27,8 @@ if (!globalThis.ResizeObserver) {
   } as unknown as typeof ResizeObserver;
 }
 
-const getAllCustomers = vi.fn(async () => []);
-const getProductList = vi.fn(async () => []);
+const getAllCustomers = vi.fn(() => Promise.resolve([]));
+const getProductList = vi.fn(() => Promise.resolve([]));
 
 vi.mock("@/lib/db/queries/customers", () => ({
   getAllCustomers: () => getAllCustomers(),

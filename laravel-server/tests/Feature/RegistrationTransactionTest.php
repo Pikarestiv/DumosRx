@@ -33,7 +33,8 @@ class RegistrationTransactionTest extends TestCase
     public function test_a_failure_after_user_creation_rolls_back_the_whole_registration(): void
     {
         $this->app->bind(SubscriptionService::class, function () {
-            return new class extends SubscriptionService {
+            return new class extends SubscriptionService
+            {
                 public function createTrial(User $user)
                 {
                     throw new \RuntimeException('simulated trial-creation failure');

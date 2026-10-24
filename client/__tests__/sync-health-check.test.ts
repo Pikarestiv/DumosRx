@@ -35,9 +35,9 @@ import { checkSyncHealth } from "../lib/db/sync-engine/health-check";
 const TABLES = ["products", "stock_batches", "sales", "customers", "categories"];
 
 function mockLocalCounts(counts: Record<string, number>) {
-  queryMock.mockImplementation(async (sql: string) => {
+  queryMock.mockImplementation((sql: string) => {
     const table = TABLES.find((t) => sql.includes(`FROM ${t} `));
-    return [{ count: table ? (counts[table] ?? 0) : 0 }];
+    return Promise.resolve([{ count: table ? (counts[table] ?? 0) : 0 }]);
   });
 }
 
@@ -124,9 +124,8 @@ describe("checkSyncHealth", () => {
   });
 
   describe("backoff on a non-improving deficit (a resync genuinely can't fix)", () => {
-    // Each simulated "day" clears the 24h gate so checkSyncHealth() runs
-    // again within a single test, exactly like this device checking in on
-    // consecutive days.
+    // Each simulated "day" clears the 24h gate so checkSyncHealth() runs again within a single test, exactly like this device …
+    // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-sync-health-check-test-ts-L127
     function simulateNextDay() {
       localStorage.removeItem("dumos_last_sync_health_check");
     }

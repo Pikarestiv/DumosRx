@@ -3,8 +3,8 @@ import initSqlJs from "sql.js";
 import { vi } from "vitest";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // Sanity check for diagnoseLegacySchema():

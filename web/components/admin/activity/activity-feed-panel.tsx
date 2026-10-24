@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAdminActivityFeed } from "@/lib/api/admin-hooks-activity-feed";
 import type { ActivityFeedType } from "@/lib/types/admin";
@@ -16,16 +16,10 @@ export function ActivityFeedPanel() {
   const events = pages.flatMap((page) => page.events);
   const fetched = pages[0]?.available_types;
 
-  // Held across fetches: the key changes on every filter click, so reading
-  // these straight from `data` unmounted the button the operator just
-  // pressed until the response landed.
   const [available, setAvailable] = useState<ActivityFeedType[]>([]);
-
-  useEffect(() => {
-    if (fetched) {
-      setAvailable(fetched);
-    }
-  }, [fetched]);
+  if (fetched && fetched.join() !== available.join()) {
+    setAvailable(fetched);
+  }
 
   return (
     <div>

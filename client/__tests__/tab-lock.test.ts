@@ -82,7 +82,7 @@ describe("tab-lock", () => {
   });
 
   it("becomes read-only when another tab already holds the lock, then is promoted (after rehydrating) once that tab releases it", async () => {
-    let queuedGrant: ((lock?: unknown) => Promise<void>) | null = null;
+    let queuedGrant = null as ((lock?: unknown) => Promise<void>) | null;
 
     Object.defineProperty(navigator, "locks", {
       configurable: true,
@@ -107,7 +107,7 @@ describe("tab-lock", () => {
       "@/lib/db/tab-lock"
     );
 
-    const onPromoted = vi.fn(async () => true);
+    const onPromoted = vi.fn(() => Promise.resolve(true));
     const onChange = vi.fn();
     onWriterTabChange(onChange);
 
@@ -119,7 +119,7 @@ describe("tab-lock", () => {
     // "The other tab closes" - the queued lock request is now granted.
     // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-tab-lock-test-ts-L132
     expect(queuedGrant).not.toBeNull();
-    void queuedGrant!();
+    void queuedGrant?.();
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -130,7 +130,7 @@ describe("tab-lock", () => {
   });
 
   it("refuses to promote (and notifies onPromotionFailed) when rehydrating on promotion fails, rather than writing stale data", async () => {
-    let queuedGrant: ((lock?: unknown) => Promise<void>) | null = null;
+    let queuedGrant = null as ((lock?: unknown) => Promise<void>) | null;
 
     Object.defineProperty(navigator, "locks", {
       configurable: true,
@@ -150,14 +150,14 @@ describe("tab-lock", () => {
       "@/lib/db/tab-lock"
     );
 
-    const onPromoted = vi.fn(async () => false); // simulates a failed rehydrate
+    const onPromoted = vi.fn(() => Promise.resolve(false)); // simulates a failed rehydrate
     const onFailed = vi.fn();
     onPromotionFailed(onFailed);
 
     await initWriterLock(onPromoted, vi.fn());
     expect(isWriterTab()).toBe(false);
 
-    void queuedGrant!();
+    void queuedGrant?.();
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -218,7 +218,7 @@ describe("tab-lock: writer handoff handshake", () => {
 
     const { initWriterLock, isWriterTab } = await import("@/lib/db/tab-lock");
 
-    const onPromoted = vi.fn(async () => true);
+    const onPromoted = vi.fn(() => Promise.resolve(true));
     const onTakeoverRequested = vi.fn(async () => {});
 
     await initWriterLock(onPromoted, onTakeoverRequested);
@@ -289,10 +289,10 @@ describe("tab-lock: writer handoff handshake", () => {
     });
     const { initWriterLock, stealWriterLock, isWriterTab } = await import("@/lib/db/tab-lock");
 
-    await initWriterLock(vi.fn(async () => true), vi.fn(async () => {}));
+    await initWriterLock(vi.fn(() => Promise.resolve(true)), vi.fn(() => Promise.resolve()));
     expect(isWriterTab()).toBe(false);
 
-    const onPromoted = vi.fn(async () => true);
+    const onPromoted = vi.fn(() => Promise.resolve(true));
     const result = await stealWriterLock(onPromoted);
 
     expect(result).toBe(true);
@@ -319,13 +319,13 @@ describe("tab-lock: writer handoff handshake", () => {
     const { initWriterLock, stealWriterLock, isWriterTab, onPromotionFailed } = await import(
       "@/lib/db/tab-lock"
     );
-    await initWriterLock(vi.fn(async () => true), vi.fn(async () => {}));
+    await initWriterLock(vi.fn(() => Promise.resolve(true)), vi.fn(() => Promise.resolve()));
     expect(isWriterTab()).toBe(false);
 
     const onFailed = vi.fn();
     onPromotionFailed(onFailed);
 
-    const result = await stealWriterLock(async () => false);
+    const result = await stealWriterLock(() => Promise.resolve(false));
 
     expect(result).toBe(false);
     expect(isWriterTab()).toBe(false);

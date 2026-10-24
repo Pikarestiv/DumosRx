@@ -7,13 +7,13 @@ import React from "react";
 import type { OnlineOrder } from "@/lib/types/online-order";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("@/lib/api/client", () => ({
   apiClient: {
-    fulfillOnlineOrder: vi.fn(async () => undefined),
+    fulfillOnlineOrder: vi.fn(() => Promise.resolve(undefined)),
   },
 }));
 
@@ -144,9 +144,8 @@ describe("useFulfillOnlineOrderMutation", () => {
     });
 
     expect(result.current.isError).toBe(true);
-    // The local books are correct and already queued for sync; the previous
-    // order (server first) left the order server-side fulfilled with no local
-    // sale and no stock deduction at all.
+    // The local books are correct and already queued for sync; the previous order (server first) left the order server-side fu…
+    // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-fulfill-online-order-mutation-test-ts-L147
     expect(db.exec(`SELECT COUNT(*) FROM sales`)[0].values[0][0]).toBe(1);
     expect(db.exec(`SELECT quantity FROM stock_batches WHERE product_id = 'p1'`)[0].values[0][0]).toBe(8);
   });
@@ -162,9 +161,8 @@ describe("useFulfillOnlineOrderMutation", () => {
       ...order,
       items: [
         { id: "oi1", product_id: "p1", quantity: 2, unit_price: 2500, subtotal: 5000 },
-        // sale_items.total_price is NOT NULL, so this line throws part-way
-        // through the loop - which previously left items 1..n-1 deducted for
-        // good, with the order already marked fulfilled server-side.
+        // sale_items.total_price is NOT NULL, so this line throws part-way through the loop - which previously left items 1..n-1 d…
+        // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-fulfill-online-order-mutation-test-ts-L165
         {
           id: "oi2",
           product_id: "p1",
@@ -204,9 +202,8 @@ describe("useFulfillOnlineOrderMutation", () => {
     });
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    // Second attempt (the user pressing Fulfill again): the server call now
-    // succeeds. Without recognizing the first attempt's local write, this
-    // would insert a second sales row and deduct stock a second time.
+    // Second attempt (the user pressing Fulfill again): the server call now succeeds. Without recognizing the first attempt's …
+    // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-fulfill-online-order-mutation-test-ts-L207
     await act(async () => {
       await result.current.mutateAsync({ order, storeId: "store1", cashierId: "cashier1" });
     });
@@ -251,9 +248,8 @@ describe("useFulfillOnlineOrderMutation", () => {
     expect(mine[0].transaction_number).toBe("ONL-order-1");
   });
 
-  // A-57: a product whose only batch is expired was fulfilled silently —
-  // full revenue, cost_price 0, no stock_movements row, no sale_item_batches
-  // row, and the expired units still counted as on hand.
+  // A-57: a product whose only batch is expired was fulfilled silently — full revenue, cost_price 0, no stock_movements row,…
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-fulfill-online-order-mutation-test-ts-L254
   describe("a line whose product has no sellable stock", () => {
     function seedProductWithExpiredBatch(productId: string, costPrice: number, quantity: number) {
       const expired = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);

@@ -181,7 +181,7 @@ describe("POItemBuilder list editing", () => {
     expect(options.action?.label).toBe("Undo");
 
     act(() => {
-      options.action!.onClick();
+      options.action?.onClick();
     });
     expect(seen[seen.length - 1].map((i) => i.product_name)).toEqual([
       "Aspirin",

@@ -49,8 +49,8 @@ describe("POReviewPricePopover reviewed/at-a-loss state", () => {
 
     const margin = document.body.querySelector('[data-testid="po-margin"]');
     expect(margin).not.toBeNull();
-    expect(margin!.textContent).toContain("below cost");
-    expect(margin!.className).toContain("text-destructive");
+    expect(margin?.textContent).toContain("below cost");
+    expect(margin?.className).toContain("text-destructive");
   });
 
   it("leaves a healthy margin in muted styling with no warning", () => {
@@ -69,7 +69,7 @@ describe("POReviewPricePopover reviewed/at-a-loss state", () => {
 
     const margin = document.body.querySelector('[data-testid="po-margin"]');
     expect(margin).not.toBeNull();
-    expect(margin!.textContent).not.toContain("below cost");
-    expect(margin!.className).not.toContain("text-destructive");
+    expect(margin?.textContent).not.toContain("below cost");
+    expect(margin?.className).not.toContain("text-destructive");
   });
 });

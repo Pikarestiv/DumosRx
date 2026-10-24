@@ -51,7 +51,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
   const poData = await getPurchaseOrderById(id);
   if (!poData || poData.status === "received") return;
 
-  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const now = new Date().toISOString();
 
   return transaction(async () => {
     let outstandingRemains = false;
@@ -195,7 +195,7 @@ export async function createAndReceivePurchaseOrder(
   dueDate: string | null = null
 ) {
   const poId = generateId();
-  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const now = new Date().toISOString();
   let totalAmount = 0;
   for (const item of items) {
     totalAmount += computeImmediateLineTotal(item);

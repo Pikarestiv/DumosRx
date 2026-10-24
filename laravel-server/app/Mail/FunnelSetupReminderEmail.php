@@ -14,6 +14,7 @@ class FunnelSetupReminderEmail extends Mailable
     use Queueable, SerializesModels;
 
     public $user;
+
     public $dashboardUrl;
 
     /**
@@ -26,7 +27,7 @@ class FunnelSetupReminderEmail extends Mailable
         // dashboard's downloads tab: config('app.url') is the API host
         // (api.dumosrx.com), not the marketing site, so frontend_url is the
         // correct config key here.
-        $this->dashboardUrl = config('app.frontend_url') . '/downloads';
+        $this->dashboardUrl = config('app.frontend_url').'/downloads';
     }
 
     /**

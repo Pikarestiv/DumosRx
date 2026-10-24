@@ -43,14 +43,14 @@ class SendEndOfDaySummariesTest extends TestCase
     {
         $owner = User::create([
             'first_name' => 'Owner', 'last_name' => 'User',
-            'email' => 'eod-' . Str::random(8) . '@dumosrx.com',
+            'email' => 'eod-'.Str::random(8).'@dumosrx.com',
             'password' => bcrypt('password'), 'role' => 'store_owner',
         ]);
 
         Store::create([
             'user_id' => $owner->id, 'name' => 'EOD Store',
-            'store_slug' => 'eod-store-' . Str::random(8),
-            'device_id' => 'WEB-EOD-' . Str::random(8),
+            'store_slug' => 'eod-store-'.Str::random(8),
+            'device_id' => 'WEB-EOD-'.Str::random(8),
         ]);
 
         Subscription::create(array_merge([
@@ -59,7 +59,7 @@ class SendEndOfDaySummariesTest extends TestCase
             'start_date' => now()->subMonth(),
             'end_date' => now()->addMonth(),
             'status' => 'active',
-            'license_key' => 'DRX-' . strtoupper(Str::random(8)),
+            'license_key' => 'DRX-'.strtoupper(Str::random(8)),
         ], $subscriptionOverrides));
 
         return $owner;
@@ -126,6 +126,7 @@ class SendEndOfDaySummariesTest extends TestCase
                         $sentTo[] = $address;
                     });
                 }
+
                 return $pending;
             });
 

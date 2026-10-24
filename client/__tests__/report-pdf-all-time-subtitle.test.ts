@@ -6,17 +6,17 @@ vi.mock("@/lib/context/store-context", () => ({
 }));
 
 vi.mock("@/lib/db/queries/reports", () => ({
-  fetchSalesReportData: vi.fn(async () => [{ "Transaction #": "TXN-1" }]),
-  fetchStockBatchReportData: vi.fn(async () => [{ Product: "Panadol" }]),
-  fetchProfitLossReportData: vi.fn(async () => []),
-  fetchCustomerReportData: vi.fn(async () => [{ Name: "Jane" }]),
-  fetchExpensesReportData: vi.fn(async () => []),
-  fetchTopSellersReportData: vi.fn(async () => []),
+  fetchSalesReportData: vi.fn(() => Promise.resolve([{ "Transaction #": "TXN-1" }])),
+  fetchStockBatchReportData: vi.fn(() => Promise.resolve([{ Product: "Panadol" }])),
+  fetchProfitLossReportData: vi.fn(() => Promise.resolve([])),
+  fetchCustomerReportData: vi.fn(() => Promise.resolve([{ Name: "Jane" }])),
+  fetchExpensesReportData: vi.fn(() => Promise.resolve([])),
+  fetchTopSellersReportData: vi.fn(() => Promise.resolve([])),
 }));
 
 const generateReportPdfBlobMock = vi.fn(
-  async (_input: import("@/lib/utils/report-pdf").ReportPdfInput, _signal?: AbortSignal) =>
-    new Blob(["pdf"]),
+  (_input: import("@/lib/utils/report-pdf").ReportPdfInput, _signal?: AbortSignal) =>
+    Promise.resolve(new Blob(["pdf"])),
 );
 vi.mock("@/lib/utils/report-pdf", () => ({
   generateReportPdfBlob: generateReportPdfBlobMock,

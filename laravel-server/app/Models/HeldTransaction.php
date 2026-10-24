@@ -7,9 +7,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-/**
- * @mixin IdeHelperHeldTransaction
- */
 class HeldTransaction extends Model
 {
     use HasFactory, HasUuids, SoftDeletes;

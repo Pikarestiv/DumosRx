@@ -2,22 +2,22 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Regression test (A-150):
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-onboarding-register-clears-stale-local-data-test-ts-L7
 
 const routerPushMock = vi.fn();
-const loginMock = vi.fn(async () => true);
-const logoutMock = vi.fn(async () => undefined);
-const executeMock = vi.fn(async (_sql: string, _params?: unknown[]) => undefined);
+const loginMock = vi.fn(() => Promise.resolve(true));
+const logoutMock = vi.fn(() => Promise.resolve(undefined));
+const executeMock = vi.fn((_sql: string, _params?: unknown[]) => Promise.resolve(undefined));
 const setActiveStoreIdMock = vi.fn();
-const clearDatabaseForNewStoreMock = vi.fn(async () => undefined);
+const clearDatabaseForNewStoreMock = vi.fn(() => Promise.resolve(undefined));
 
 const registerMock = vi.fn();
-const getStoresMock = vi.fn(async () => [{ id: "new-store-1", name: "New Store" }]);
+const getStoresMock = vi.fn(() => Promise.resolve([{ id: "new-store-1", name: "New Store" }]));
 const setTokenMock = vi.fn();
-const getLocalStoresMock = vi.fn(async () => [] as { id: string; name: string }[]);
+const getLocalStoresMock = vi.fn(() => Promise.resolve([] as { id: string; name: string }[]));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: routerPushMock }),
@@ -38,25 +38,25 @@ vi.mock("@/lib/db/core", () => ({
   generateId: vi.fn(() => "fake-id"),
   execute: executeMock,
   setActiveStoreId: setActiveStoreIdMock,
-  restoreDatabase: vi.fn(async () => undefined),
+  restoreDatabase: vi.fn(() => Promise.resolve(undefined)),
   clearDatabaseForNewStore: clearDatabaseForNewStoreMock,
 }));
 
 vi.mock("@/lib/db/queries/setup", () => ({
-  getTotalUserCount: vi.fn(async () => 0),
+  getTotalUserCount: vi.fn(() => Promise.resolve(0)),
   getLocalStores: () => getLocalStoresMock(),
 }));
 
 vi.mock("@/lib/db/sync-engine", () => ({
-  sync: vi.fn(async () => ({ success: true })),
-  syncSubscriptionStatus: vi.fn(async () => ({ success: true, updated: true })),
+  sync: vi.fn(() => Promise.resolve({ success: true })),
+  syncSubscriptionStatus: vi.fn(() => Promise.resolve({ success: true, updated: true })),
 }));
 
 vi.mock("@/lib/api/client", () => ({
   apiClient: {
     register: (...a: unknown[]) => registerMock(...a),
     login: vi.fn(),
-    getProfile: vi.fn(async () => ({})),
+    getProfile: vi.fn(() => Promise.resolve({})),
     getStores: () => getStoresMock(),
     setToken: (...a: unknown[]) => setTokenMock(...a),
   },

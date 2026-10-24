@@ -9,13 +9,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('stores', function (Blueprint $table) {
-            if (!Schema::hasColumn('stores', 'deleted_at')) {
+            if (! Schema::hasColumn('stores', 'deleted_at')) {
                 $table->softDeletes()->index();
             }
-            if (!Schema::hasColumn('stores', 'deleted_by_id')) {
+            if (! Schema::hasColumn('stores', 'deleted_by_id')) {
                 $table->uuid('deleted_by_id')->nullable()->after('deleted_at');
             }
-            if (!Schema::hasColumn('stores', 'deletion_reason')) {
+            if (! Schema::hasColumn('stores', 'deletion_reason')) {
                 $table->string('deletion_reason', 1000)->nullable()->after('deleted_by_id');
             }
         });

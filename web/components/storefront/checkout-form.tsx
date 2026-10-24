@@ -16,6 +16,7 @@ import {
   FailedConfirmationPanel,
   OrphanReferencePanel,
 } from "@/components/storefront/checkout-reference-panels";
+import { CheckoutPaymentMethod } from "@/components/storefront/checkout-payment-method";
 
 interface CheckoutFormProps {
   storeSlug: string;
@@ -261,50 +262,13 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
                 </div>
               </div>
 
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="font-semibold text-lg">Payment Method</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Label
-                    htmlFor="in_store"
-                    className={`flex flex-col items-center justify-between rounded-md border-2 p-4 cursor-pointer hover:bg-accent hover:text-accent-foreground ${formData.payment_method === 'in_store' ? 'border-primary' : 'border-muted bg-popover'}`}
-                    onClick={() => handleMethodChange('in_store')}
-                  >
-                    <input type="radio" id="in_store" name="payment_method" value="in_store" className="sr-only" checked={formData.payment_method === 'in_store'} onChange={() => handleMethodChange('in_store')} />
-                    Pick up & Pay
-                  </Label>
-                  <Label
-                    htmlFor="transfer"
-                    className={`flex flex-col items-center justify-between rounded-md border-2 p-4 cursor-pointer hover:bg-accent hover:text-accent-foreground ${formData.payment_method === 'transfer' ? 'border-primary' : 'border-muted bg-popover'}`}
-                    onClick={() => handleMethodChange('transfer')}
-                  >
-                    <input type="radio" id="transfer" name="payment_method" value="transfer" className="sr-only" checked={formData.payment_method === 'transfer'} onChange={() => handleMethodChange('transfer')} />
-                    Bank Transfer
-                  </Label>
-                  {onlinePaymentAvailable && (
-                    <Label
-                      htmlFor="paystack"
-                      className={`flex flex-col items-center justify-between rounded-md border-2 p-4 cursor-pointer hover:bg-accent hover:text-accent-foreground ${formData.payment_method === 'paystack' ? 'border-primary' : 'border-muted bg-popover'}`}
-                      onClick={() => handleMethodChange('paystack')}
-                    >
-                      <input type="radio" id="paystack" name="payment_method" value="paystack" className="sr-only" checked={formData.payment_method === 'paystack'} onChange={() => handleMethodChange('paystack')} />
-                      Pay Online
-                    </Label>
-                  )}
-                </div>
-                {formData.payment_method === 'paystack' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="customer_email">Email *</Label>
-                    <Input
-                      id="customer_email"
-                      name="customer_email"
-                      type="email"
-                      required
-                      value={formData.customer_email}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                )}
-              </div>
+              <CheckoutPaymentMethod
+                paymentMethod={formData.payment_method}
+                customerEmail={formData.customer_email}
+                onlinePaymentAvailable={onlinePaymentAvailable}
+                onMethodChange={handleMethodChange}
+                onInputChange={handleInputChange}
+              />
             </CardContent>
             <CardFooter className="flex-col items-stretch gap-2">
               <Button

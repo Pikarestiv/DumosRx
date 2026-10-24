@@ -5,8 +5,8 @@ import { CouponsManager } from "@/components/admin/marketing/coupons-manager";
 
 const { mockToggleMutateAsync, mockDeleteMutateAsync, mockToastError } =
   vi.hoisted(() => ({
-    mockToggleMutateAsync: vi.fn(async () => undefined),
-    mockDeleteMutateAsync: vi.fn(async () => undefined),
+    mockToggleMutateAsync: vi.fn(() => Promise.resolve(undefined)),
+    mockDeleteMutateAsync: vi.fn(() => Promise.resolve(undefined)),
     mockToastError: vi.fn(),
   }));
 

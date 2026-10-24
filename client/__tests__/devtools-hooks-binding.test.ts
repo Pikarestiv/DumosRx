@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-vi.mock("idb-keyval", () => ({ get: vi.fn(async () => undefined), set: vi.fn(async () => undefined) }));
+vi.mock("idb-keyval", () => ({ get: vi.fn(() => Promise.resolve(undefined)), set: vi.fn(() => Promise.resolve(undefined)) }));
 
 // devtools-hooks.ts imports from ./index, and index.ts imports it for its side effect — a deliberate cycle, taken so index…
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-devtools-hooks-binding-test-ts-L4

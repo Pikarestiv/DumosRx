@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { assert, describe, it, expect } from "vitest";
 import {
   ADJUSTMENT_REASONS,
   ADJUSTMENT_REFERENCE_TYPE,
@@ -287,8 +287,8 @@ describe("STOCK_LOSS_REASON_LABELS", () => {
   it("matches what buildAdjustmentReason actually persists", () => {
     for (const label of STOCK_LOSS_REASON_LABELS) {
       const reason = ADJUSTMENT_REASONS.find((entry) => entry.label === label);
-      expect(reason).toBeDefined();
-      expect(buildAdjustmentReason(reason!.value)).toBe(label);
+      assert(reason, label);
+      expect(buildAdjustmentReason(reason.value)).toBe(label);
     }
   });
 });

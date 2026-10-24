@@ -2,26 +2,28 @@
 
 namespace App\Mail;
 
+use App\Models\Expense;
+use App\Models\Prescription;
+use App\Models\Sale;
+use App\Models\StockBatch;
+use App\Models\Store;
+use App\Models\Subscription;
+use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use App\Models\User;
-use App\Models\Subscription;
-use App\Models\Sale;
-use App\Models\Expense;
-use App\Models\Prescription;
-use App\Models\StockBatch;
-use App\Models\Store;
-use Carbon\Carbon;
 
 class EndOfDaySummaryMail extends Mailable
 {
     use Queueable, SerializesModels;
 
     public $user;
+
     public $subscription;
+
     public $metrics;
 
     /**
@@ -31,7 +33,7 @@ class EndOfDaySummaryMail extends Mailable
     {
         $this->user = $user;
         $this->subscription = $subscription;
-        
+
         // Bucket by the store's own local calendar day, not the server's
         // UTC day - see Store::localDayRangeUtc().
         $store = Store::where('user_id', $user->id)->first();
@@ -52,13 +54,13 @@ class EndOfDaySummaryMail extends Mailable
         $prescriptionsCount = Prescription::where('user_id', $user->id)
             ->whereBetween('created_at', [$rangeStart, $rangeEnd])
             ->count();
-            
+
         $lowStockCount = StockBatch::where('user_id', $user->id)
             ->whereColumn('quantity', '<=', 'reorder_level')
             ->count();
 
         $grossSales = $sales->sum('total_amount');
-        
+
         $this->metrics = [
             'gross_sales' => $grossSales,
             'expenses' => $expenses,

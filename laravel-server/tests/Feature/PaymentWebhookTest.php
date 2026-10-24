@@ -27,6 +27,7 @@ class PaymentWebhookTest extends TestCase
     protected User $user;
 
     const PAYSTACK_SECRET = 'sk_test_paystack_secret';
+
     const FLUTTERWAVE_SECRET_HASH = 'flw-test-secret-hash';
 
     protected function setUp(): void

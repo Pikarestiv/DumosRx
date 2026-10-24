@@ -5,11 +5,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 const WATERMARK = "2026-10-08T22:56:40.000Z";
 
 const profile = { current: { id: "store-1", last_monotonic_time: WATERMARK } as Record<string, unknown> | null };
-const updateMonotonic = vi.fn(async (_id: string, _timeIso: string) => undefined);
+const updateMonotonic = vi.fn((_id: string, _timeIso: string) => Promise.resolve(undefined));
 const serverClock = { reading: null as unknown };
 
 vi.mock("@/lib/db/queries/setup", () => ({
-  getStoreProfile: vi.fn(async () => profile.current),
+  getStoreProfile: vi.fn(() => Promise.resolve(profile.current)),
   updateStoreMonotonicTime: (id: string, t: string) => updateMonotonic(id, t),
 }));
 
@@ -19,7 +19,7 @@ vi.mock("@/lib/licensing/server-clock", async () => {
   );
   return {
     ...actual,
-    readServerClock: vi.fn(async () => serverClock.reading),
+    readServerClock: vi.fn(() => Promise.resolve(serverClock.reading)),
   };
 });
 

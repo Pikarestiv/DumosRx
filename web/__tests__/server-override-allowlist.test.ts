@@ -65,7 +65,8 @@ describe("resolveAppOverride", () => {
   });
 
   it("honours a known app URL in a production build", () => {
-    const known = APP_ENVIRONMENTS.find((env) => env.url !== PROD)!;
+    const known = APP_ENVIRONMENTS.find((env) => env.url !== PROD);
+    if (!known) throw new Error("expected a non-production app environment");
 
     expect(resolveAppOverride(known.url, { isProduction: true, fallback: PROD })).toBe(known.url);
   });

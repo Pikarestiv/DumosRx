@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 /**
- * @mixin IdeHelperSupplierPayment
+ * @property string|null $store_id
  */
 class SupplierPayment extends Model
 {
@@ -27,7 +28,7 @@ class SupplierPayment extends Model
         '_synced_at',
         '_deleted',
     ];
-    
+
     protected $casts = [
         '_synced' => 'boolean',
         '_deleted' => 'boolean',
@@ -35,12 +36,18 @@ class SupplierPayment extends Model
         'payment_date' => 'datetime',
     ];
 
-    public function supplier()
+    /**
+     * @return BelongsTo<Supplier, $this>
+     */
+    public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
     }
 
-    public function purchaseOrder()
+    /**
+     * @return BelongsTo<PurchaseOrder, $this>
+     */
+    public function purchaseOrder(): BelongsTo
     {
         return $this->belongsTo(PurchaseOrder::class, 'po_id');
     }

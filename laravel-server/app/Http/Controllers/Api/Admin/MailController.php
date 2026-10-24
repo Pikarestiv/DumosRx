@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\User;
 use App\Mail\AdminCustomMail;
-use Illuminate\Support\Facades\Mail;
+use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use OpenApi\Attributes as OA;
 
 class MailController extends Controller
@@ -67,7 +67,8 @@ class MailController extends Controller
 
             return response()->json(['success' => true, 'message' => 'Emails have been sent.']);
         } catch (\Exception $e) {
-            Log::error('Failed to send admin emails: ' . $e->getMessage());
+            Log::error('Failed to send admin emails: '.$e->getMessage());
+
             return response()->json(['success' => false, 'message' => 'Failed to send emails.'], 500);
         }
     }

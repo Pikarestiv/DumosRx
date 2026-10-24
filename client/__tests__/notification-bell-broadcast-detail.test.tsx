@@ -49,7 +49,8 @@ vi.mock("@/lib/hooks/use-broadcasts", () => ({
 }));
 vi.mock("@/lib/api/client", () => ({
   apiClient: {
-    getNotifications: vi.fn(async () => [
+    getNotifications: vi.fn(() =>
+      Promise.resolve([
       {
         id: "n1",
         title: "Low stock alert",
@@ -60,8 +61,9 @@ vi.mock("@/lib/api/client", () => ({
         category: "system",
         link: "/inventory/overview",
       },
-    ]),
-    markNotificationRead: vi.fn(async () => undefined),
+      ]),
+    ),
+    markNotificationRead: vi.fn(() => Promise.resolve(undefined)),
   },
 }));
 

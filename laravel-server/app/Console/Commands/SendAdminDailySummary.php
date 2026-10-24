@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\DownloadLog;
+use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
 class SendAdminDailySummary extends Command
@@ -34,12 +34,12 @@ class SendAdminDailySummary extends Command
         $platforms = $logs->groupBy('platform')->map->count();
 
         $lines = [
-            "Here is the daily summary of DumosRx app downloads for " . $yesterday->format('Y-m-d') . ":",
+            'Here is the daily summary of DumosRx app downloads for '.$yesterday->format('Y-m-d').':',
             "Total Downloads: {$totalDownloads}",
         ];
 
         foreach ($platforms as $platform => $count) {
-            $lines[] = "- " . ucfirst($platform) . ": {$count}";
+            $lines[] = '- '.ucfirst($platform).": {$count}";
         }
 
         try {
@@ -47,9 +47,9 @@ class SendAdminDailySummary extends Command
                 "Daily App Downloads Summary ({$yesterday->format('Y-m-d')})",
                 $lines
             );
-            $this->info("Admin daily summary sent successfully.");
+            $this->info('Admin daily summary sent successfully.');
         } catch (\Exception $e) {
-            $this->error("Failed to send admin daily summary: " . $e->getMessage());
+            $this->error('Failed to send admin daily summary: '.$e->getMessage());
         }
     }
 }

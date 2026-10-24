@@ -63,11 +63,11 @@ vi.mock("@/lib/hooks/use-uppercase-display", () => ({
 vi.mock("@/hooks/use-media-query", () => ({ useMediaQuery: () => true }));
 
 vi.mock("@/lib/db/queries/products", () => ({
-  getProductsWithDetails: vi.fn(async () => [PRODUCT]),
-  getProductList: vi.fn(async () => [PRODUCT]),
+  getProductsWithDetails: vi.fn(() => Promise.resolve([PRODUCT])),
+  getProductList: vi.fn(() => Promise.resolve([PRODUCT])),
 }));
 vi.mock("@/lib/db/queries/categories", () => ({
-  getCategoryList: vi.fn(async () => [{ name: "Analgesics" }]),
+  getCategoryList: vi.fn(() => Promise.resolve([{ name: "Analgesics" }])),
 }));
 
 const deleteMutateAsync = vi.fn(async () => {});

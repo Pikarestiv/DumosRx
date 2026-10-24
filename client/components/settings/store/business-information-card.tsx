@@ -1,6 +1,5 @@
-import { Save, HelpCircle, Pencil, X, Upload, ImageOff, Lock } from "lucide-react";
+import { Save, Pencil, X, Upload, ImageOff, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Card,
@@ -20,6 +19,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { StoreProfileSection } from "./store-profile-section";
+import { BusinessProfileField } from "./business-profile-field";
 
 interface BusinessInformationCardProps {
   storeType: StoreType;
@@ -116,134 +116,56 @@ export function BusinessInformationCard({
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-4">
-          <div className="grid gap-2">
-            <Label htmlFor="store-name">Business Name</Label>
-            {isEditingProfile ? (
-              <Input
-                id="store-name"
-                placeholder="e.g. My Business"
-                value={localName}
-                onChange={(e) => setLocalName(e.target.value)}
-              />
-            ) : (
-              <p className="text-sm font-medium py-2">
-                {localName || "Not set"}
-              </p>
-            )}
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="address">Address</Label>
-            {isEditingProfile ? (
-              <Input
-                id="address"
-                placeholder="123 Health Avenue, Lagos"
-                value={localAddress}
-                onChange={(e) => setLocalAddress(e.target.value)}
-              />
-            ) : (
-              <p className="text-sm font-medium py-2">
-                {localAddress || "Not set"}
-              </p>
-            )}
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="phone">Phone Number</Label>
-            {isEditingProfile ? (
-              <Input
-                id="phone"
-                placeholder="+234..."
-                value={localPhone}
-                onChange={(e) => setLocalPhone(e.target.value)}
-              />
-            ) : (
-              <p className="text-sm font-medium py-2">
-                {localPhone || "Not set"}
-              </p>
-            )}
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="email">Email</Label>
-            {isEditingProfile ? (
-              <Input
-                id="email"
-                placeholder="contact@example.com"
-                value={localEmail}
-                onChange={(e) => setLocalEmail(e.target.value)}
-              />
-            ) : (
-              <p className="text-sm font-medium py-2">
-                {localEmail || "Not set"}
-              </p>
-            )}
-          </div>
-
-          <div className="grid gap-2">
-            <div className="flex items-center gap-2">
-              <Label htmlFor="registration-number">
-                Business Registration / CAC Number
-              </Label>
-              <TooltipProvider delayDuration={0}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      Your business's official registration number (e.g. CAC
-                      in Nigeria). Not the same as a per-product regulatory
-                      number like NAFDAC.
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            {isEditingProfile ? (
-              <Input
-                id="registration-number"
-                placeholder="e.g. RC1234567"
-                value={localRegistrationNumber}
-                onChange={(e) => setLocalRegistrationNumber(e.target.value)}
-              />
-            ) : (
-              <p className="text-sm font-medium py-2">
-                {localRegistrationNumber || "Not set"}
-              </p>
-            )}
-          </div>
-
-          <div className="grid gap-2">
-            <div className="flex items-center gap-2">
-              <Label htmlFor="tax-number">Tax / VAT Number</Label>
-              <TooltipProvider delayDuration={0}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      Shown on the Tax Invoice receipt variant, for
-                      customers who need a formal VAT/tax document.
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            {isEditingProfile ? (
-              <Input
-                id="tax-number"
-                placeholder="e.g. TIN 12345678-0001"
-                value={localTaxNumber}
-                onChange={(e) => setLocalTaxNumber(e.target.value)}
-              />
-            ) : (
-              <p className="text-sm font-medium py-2">
-                {localTaxNumber || "Not set"}
-              </p>
-            )}
-          </div>
+          <BusinessProfileField
+            id="store-name"
+            label="Business Name"
+            placeholder="e.g. My Business"
+            value={localName}
+            onChange={setLocalName}
+            isEditing={isEditingProfile}
+          />
+          <BusinessProfileField
+            id="address"
+            label="Address"
+            placeholder="123 Health Avenue, Lagos"
+            value={localAddress}
+            onChange={setLocalAddress}
+            isEditing={isEditingProfile}
+          />
+          <BusinessProfileField
+            id="phone"
+            label="Phone Number"
+            placeholder="+234..."
+            value={localPhone}
+            onChange={setLocalPhone}
+            isEditing={isEditingProfile}
+          />
+          <BusinessProfileField
+            id="email"
+            label="Email"
+            placeholder="contact@example.com"
+            value={localEmail}
+            onChange={setLocalEmail}
+            isEditing={isEditingProfile}
+          />
+          <BusinessProfileField
+            id="registration-number"
+            label="Business Registration / CAC Number"
+            placeholder="e.g. RC1234567"
+            value={localRegistrationNumber}
+            onChange={setLocalRegistrationNumber}
+            isEditing={isEditingProfile}
+            tooltip="Your business's official registration number (e.g. CAC in Nigeria). Not the same as a per-product regulatory number like NAFDAC."
+          />
+          <BusinessProfileField
+            id="tax-number"
+            label="Tax / VAT Number"
+            placeholder="e.g. TIN 12345678-0001"
+            value={localTaxNumber}
+            onChange={setLocalTaxNumber}
+            isEditing={isEditingProfile}
+            tooltip="Shown on the Tax Invoice receipt variant, for customers who need a formal VAT/tax document."
+          />
 
           <div className="grid gap-2">
             <Label>Business Logo</Label>

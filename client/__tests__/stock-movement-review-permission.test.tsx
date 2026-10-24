@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import type { StockMovement } from "@/components/stock-batch/stock-movement-utils";
 
 const hasPermission = vi.fn((_key: string) => true);
-const markReviewed = vi.fn(async (_transferId: string) => 2);
+const markReviewed = vi.fn((_transferId: string) => Promise.resolve(2));
 
 vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: (key: string) => hasPermission(key),
@@ -62,7 +62,7 @@ function renderModal(
 describe("approve_stock_transfers enforcement (stock-movement-detail-modal.tsx)", () => {
   beforeEach(() => {
     hasPermission.mockImplementation(() => true);
-    markReviewed.mockImplementation(async () => 2);
+    markReviewed.mockImplementation(() => Promise.resolve(2));
     vi.clearAllMocks();
   });
 
@@ -118,9 +118,7 @@ describe("approve_stock_transfers enforcement (stock-movement-detail-modal.tsx)"
 
   it("leaves the ledger alone when the review write fails", async () => {
     const onReviewed = vi.fn();
-    markReviewed.mockImplementation(async () => {
-      throw new Error("offline");
-    });
+    markReviewed.mockRejectedValue(new Error("offline"));
     renderModal(flaggedTransfer, onReviewed);
 
     fireEvent.click(screen.getByRole("button", { name: /mark reviewed/i }));

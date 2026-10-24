@@ -65,7 +65,7 @@ class PartnerRoleDefaultPermissionsTest extends TestCase
         $permissions = $this->permissionsOf('platform_admin');
 
         foreach (['manage_platform', 'create_accounts', 'grant_trials', 'send_notifications',
-                  'reset_user_passwords', 'manage_account_status', 'impersonate_store'] as $expected) {
+            'reset_user_passwords', 'manage_account_status', 'impersonate_store'] as $expected) {
             $this->assertContains($expected, $permissions, "Widening visibility must not drop $expected.");
         }
     }

@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * @mixin IdeHelperSaleItemBatch
+ * @property string|null $store_id
  */
 class SaleItemBatch extends Model
 {
@@ -25,12 +26,18 @@ class SaleItemBatch extends Model
         '_synced_at' => 'datetime',
     ];
 
-    public function saleItem()
+    /**
+     * @return BelongsTo<SaleItem, $this>
+     */
+    public function saleItem(): BelongsTo
     {
         return $this->belongsTo(SaleItem::class);
     }
 
-    public function stockBatch()
+    /**
+     * @return BelongsTo<StockBatch, $this>
+     */
+    public function stockBatch(): BelongsTo
     {
         return $this->belongsTo(StockBatch::class);
     }

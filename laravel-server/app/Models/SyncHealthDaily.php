@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SyncHealthDaily extends Model
 {
@@ -24,7 +25,10 @@ class SyncHealthDaily extends Model
         'changes_queued_peak' => 'integer',
     ];
 
-    public function store()
+    /**
+     * @return BelongsTo<Store, $this>
+     */
+    public function store(): BelongsTo
     {
         return $this->belongsTo(Store::class);
     }

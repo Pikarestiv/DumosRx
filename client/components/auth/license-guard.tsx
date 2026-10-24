@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LicenseBlockedCard } from "./license-blocked-card";
 import { MobileRestrictionGuard } from "./mobile-restriction-guard";
 import { getDeviceId } from "@/lib/utils/device-id";
@@ -18,6 +18,7 @@ import { usePathname } from "next/navigation";
 import { useTheme } from "@/components/theme-provider";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { APP_EVENTS, onAppEvent } from "@/lib/events";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 
 function ThemeRestrictor() {
   const { currentTier } = useFeatureGate();
@@ -45,7 +46,11 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [license, setLicense] = useState<LicenseInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [deviceId, setDeviceId] = useState("DUMOS-OFFLINE-772X");
+  const hydrated = useHydrated();
+  const deviceId = useMemo(
+    () => (hydrated ? getDeviceId() : "DUMOS-OFFLINE-772X"),
+    [hydrated],
+  );
   const [clockNotice, setClockNotice] = useState<string | null>(null);
   // Bumped at the start of every performCheck() run so an overlapping earlier run (e.g.
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-license-guard-tsx-L53
@@ -53,12 +58,29 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
 
   // Reads local state only: the launch sync is StoreProvider's and must
   // never gate first paint (see A-7 in docs/FIXED_BUGS.md).
-  const performCheck = useCallback(async (
-    options: { refreshFromCloud?: boolean } = {},
-  ) => {
+  const readLocalLicense = useCallback(async (generation: number) => {
+    // Re-read the local DB.
+    // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-license-guard-tsx-L92
+    let status: LicenseInfo | null = null;
+    try {
+      status = await checkLicenseStatus();
+    } catch (err) {
+      console.error("[LicenseGuard] checkLicenseStatus() threw:", err);
+    }
+    if (generation !== checkGeneration.current) return;
+    if (status) setLicense(status);
+    setLoading(false);
+  }, []);
+
+  const performCheck = useCallback(
+    () => readLocalLicense(++checkGeneration.current),
+    [readLocalLicense],
+  );
+
+  const recheckFromCloud = async () => {
     const generation = ++checkGeneration.current;
 
-    if (options.refreshFromCloud && typeof window !== "undefined" && navigator.onLine) {
+    if (typeof window !== "undefined" && navigator.onLine) {
       setLoading(true);
       // Only route out of a clock lock, and deliberately online-only:
       // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-license-guard-tsx-L69
@@ -82,18 +104,8 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Re-read the local DB.
-    // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-license-guard-tsx-L92
-    let status: LicenseInfo | null = null;
-    try {
-      status = await checkLicenseStatus();
-    } catch (err) {
-      console.error("[LicenseGuard] checkLicenseStatus() threw:", err);
-    }
-    if (generation !== checkGeneration.current) return;
-    if (status) setLicense(status);
-    setLoading(false);
-  }, []);
+    await readLocalLicense(generation);
+  };
 
   // Catches a renewal that only moved the expiry date; the storeProfile
   // effect below catches a status/tier change.
@@ -103,13 +115,6 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
       void performCheck();
     });
   }, [performCheck]);
-
-  // Generate or load device ID on mount
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setDeviceId(getDeviceId());
-    }
-  }, []);
 
   // Reactive to local SQLite store profile status changes
   useEffect(() => {
@@ -156,7 +161,7 @@ export function LicenseGuard({ children }: { children: React.ReactNode }) {
       deviceId={deviceId}
       clockNotice={clockNotice}
       isSuspended={isSuspended}
-      onRecheck={() => void performCheck({ refreshFromCloud: true })}
+      onRecheck={() => void recheckFromCloud()}
     />
   );
 }

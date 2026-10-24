@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { assert, describe, it, expect, beforeAll, beforeEach } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 import type { ToolContext } from "@/lib/assistant/types";
 
@@ -120,7 +120,8 @@ describe("assistant finance tool", () => {
 
   it("defaults the date range to today when the utterance has no date phrase", async () => {
     const { FINANCE_INTENTS } = await import("@/lib/assistant/intents/finance-intents");
-    const intent = FINANCE_INTENTS.find((i) => i.id === "profit_summary")!;
+    const intent = FINANCE_INTENTS.find((i) => i.id === "profit_summary");
+    assert(intent);
 
     const args = intent.buildArgs({}, "gross profit", ctx) as { from: string; to: string };
 
@@ -130,7 +131,8 @@ describe("assistant finance tool", () => {
 
   it("uses the utterance's date phrase when it has one", async () => {
     const { FINANCE_INTENTS } = await import("@/lib/assistant/intents/finance-intents");
-    const intent = FINANCE_INTENTS.find((i) => i.id === "profit_summary")!;
+    const intent = FINANCE_INTENTS.find((i) => i.id === "profit_summary");
+    assert(intent);
 
     const args = intent.buildArgs({}, "net profit last month", ctx) as { from: string; to: string };
 

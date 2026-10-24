@@ -197,7 +197,7 @@ class AdminRoleService
     {
         $unknown = array_diff($permissionSlugs, User::DELEGATABLE_PERMISSIONS);
         if ($unknown) {
-            throw ValidationException::withMessages(['permissions' => 'Unknown permission(s): ' . implode(', ', $unknown)]);
+            throw ValidationException::withMessages(['permissions' => 'Unknown permission(s): '.implode(', ', $unknown)]);
         }
     }
 

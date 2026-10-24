@@ -21,9 +21,7 @@ class StorefrontPaymentReconciler
 {
     private const AMOUNT_TOLERANCE = 0.01;
 
-    public function __construct(private PaymentService $paymentService)
-    {
-    }
+    public function __construct(private PaymentService $paymentService) {}
 
     /**
      * A provider says this reference was paid. Records that against the
@@ -32,7 +30,7 @@ class StorefrontPaymentReconciler
     public function recordProviderPayment(StorefrontPaymentIntent $intent, float $reportedAmount, string $reportedCurrency, array $providerData = []): string
     {
         $claimed = $this->claim($intent);
-        if (!$claimed) {
+        if (! $claimed) {
             return 'skipped';
         }
 
@@ -87,7 +85,7 @@ class StorefrontPaymentReconciler
             return 'unreachable';
         }
 
-        if (!($verification['success'] ?? false)) {
+        if (! ($verification['success'] ?? false)) {
             $this->claim($intent)?->update(['status' => 'abandoned']);
 
             return 'abandoned';
@@ -148,16 +146,16 @@ class StorefrontPaymentReconciler
             $intent->update(['status' => 'refunded']);
         }
 
-        $this->alert('Storefront payment mismatch: ' . $intent->reference, [
+        $this->alert('Storefront payment mismatch: '.$intent->reference, [
             'A storefront payment was confirmed by the provider for an amount or currency that does not match the cart it was minted for. No order was created.',
-            'Reference: ' . $intent->reference,
-            'Store: ' . ($intent->store?->name ?? $intent->store_id),
-            'Customer email: ' . ($intent->customer_email ?: 'unknown'),
-            'Expected: ' . number_format((float) $intent->amount, 2) . ' ' . $intent->currency,
-            'Reported: ' . number_format($reportedAmount, 2) . ' ' . ($reportedCurrency ?: 'unknown'),
+            'Reference: '.$intent->reference,
+            'Store: '.($intent->store->name ?? $intent->store_id),
+            'Customer email: '.($intent->customer_email ?: 'unknown'),
+            'Expected: '.number_format((float) $intent->amount, 2).' '.$intent->currency,
+            'Reported: '.number_format($reportedAmount, 2).' '.($reportedCurrency ?: 'unknown'),
             $refund['success']
                 ? 'Refund: SUCCEEDED automatically.'
-                : 'Refund: FAILED — refund this by hand. ' . ($refund['message'] ?: 'no provider message'),
+                : 'Refund: FAILED — refund this by hand. '.($refund['message'] ?: 'no provider message'),
         ], $intent);
 
         return 'refunded';
@@ -165,24 +163,24 @@ class StorefrontPaymentReconciler
 
     private function alertUnclaimed(?StorefrontPaymentIntent $intent): void
     {
-        if (!$intent) {
+        if (! $intent) {
             return;
         }
 
-        $this->alert('Storefront payment with no order: ' . $intent->reference, [
+        $this->alert('Storefront payment with no order: '.$intent->reference, [
             'A storefront customer paid but never returned to place the order, so the payment is settled with no order against it. Either contact the customer to complete it or refund the reference.',
-            'Reference: ' . $intent->reference,
-            'Store: ' . ($intent->store?->name ?? $intent->store_id),
-            'Customer email: ' . ($intent->customer_email ?: 'unknown'),
-            'Amount: ' . number_format((float) $intent->amount, 2) . ' ' . $intent->currency,
-            'Paid for: ' . $this->describeItems($intent),
+            'Reference: '.$intent->reference,
+            'Store: '.($intent->store->name ?? $intent->store_id),
+            'Customer email: '.($intent->customer_email ?: 'unknown'),
+            'Amount: '.number_format((float) $intent->amount, 2).' '.$intent->currency,
+            'Paid for: '.$this->describeItems($intent),
         ], $intent);
     }
 
     private function describeItems(StorefrontPaymentIntent $intent): string
     {
         $lines = collect($intent->items ?? [])
-            ->map(fn ($item) => ($item['product_id'] ?? '?') . ' x' . ($item['quantity'] ?? '?'))
+            ->map(fn ($item) => ($item['product_id'] ?? '?').' x'.($item['quantity'] ?? '?'))
             ->all();
 
         return $lines ? implode(', ', $lines) : 'unknown';
@@ -211,7 +209,7 @@ class StorefrontPaymentReconciler
         try {
             AdminAlertService::send($title, $lines);
         } catch (\Throwable $e) {
-            Log::error('Failed to send the storefront reconciliation alert: ' . $e->getMessage());
+            Log::error('Failed to send the storefront reconciliation alert: '.$e->getMessage());
         }
 
         $intent->forceFill(['reconciliation_alerted_at' => now()])->save();

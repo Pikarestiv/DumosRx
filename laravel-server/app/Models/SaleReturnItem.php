@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * @mixin IdeHelperSaleReturnItem
+ * @property string|null $store_id
  */
 class SaleReturnItem extends Model
 {
@@ -18,7 +19,7 @@ class SaleReturnItem extends Model
 
     protected $fillable = [
         'return_id', 'product_id', 'quantity', 'unit_price', 'subtotal',
-        '_version', '_synced', '_synced_at', '_deleted'
+        '_version', '_synced', '_synced_at', '_deleted',
     ];
 
     protected $casts = [
@@ -29,12 +30,18 @@ class SaleReturnItem extends Model
         'subtotal' => 'decimal:2',
     ];
 
-    public function saleReturn()
+    /**
+     * @return BelongsTo<SaleReturn, $this>
+     */
+    public function saleReturn(): BelongsTo
     {
         return $this->belongsTo(SaleReturn::class, 'return_id');
     }
 
-    public function product()
+    /**
+     * @return BelongsTo<Product, $this>
+     */
+    public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }

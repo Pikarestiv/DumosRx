@@ -14,11 +14,13 @@ return new class extends Migration
         if (\Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
             try {
                 \Illuminate\Support\Facades\DB::statement('ALTER TABLE prescription_items DROP FOREIGN KEY prescription_items_medicine_id_foreign');
-            } catch (\Exception $e) {}
+            } catch (\Exception $e) {
+            }
 
             try {
                 \Illuminate\Support\Facades\DB::statement('ALTER TABLE prescription_items DROP FOREIGN KEY prescription_items_product_id_foreign');
-            } catch (\Exception $e) {}
+            } catch (\Exception $e) {
+            }
         }
 
         Schema::table('prescription_items', function (Blueprint $table) {
@@ -35,19 +37,19 @@ return new class extends Migration
                 $table->dropColumn('status');
             }
 
-            if (!Schema::hasColumn('prescription_items', 'product_name')) {
+            if (! Schema::hasColumn('prescription_items', 'product_name')) {
                 $table->string('product_name')->nullable();
             }
-            if (!Schema::hasColumn('prescription_items', 'strength')) {
+            if (! Schema::hasColumn('prescription_items', 'strength')) {
                 $table->string('strength')->nullable();
             }
-            if (!Schema::hasColumn('prescription_items', 'quantity')) {
+            if (! Schema::hasColumn('prescription_items', 'quantity')) {
                 $table->integer('quantity')->default(1);
             }
-            if (!Schema::hasColumn('prescription_items', 'instructions')) {
+            if (! Schema::hasColumn('prescription_items', 'instructions')) {
                 $table->text('instructions')->nullable();
             }
-            if (!Schema::hasColumn('prescription_items', 'cost')) {
+            if (! Schema::hasColumn('prescription_items', 'cost')) {
                 $table->decimal('cost', 10, 2)->default(0);
             }
         });

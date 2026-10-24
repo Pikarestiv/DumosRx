@@ -5,19 +5,19 @@ namespace App\Models;
 use App\Casts\JsonList;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-/**
- * @mixin IdeHelperStore
- */
 class Store extends Model
 {
     use HasFactory;
     use SoftDeletes;
 
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     protected $fillable = [
@@ -135,7 +135,7 @@ class Store extends Model
         // the same request/sync push still go through normally. The
         // first-ever slug set (no prior value) is never restricted.
         static::saving(function ($model) {
-            if (!$model->isDirty('store_slug')) {
+            if (! $model->isDirty('store_slug')) {
                 return;
             }
 
@@ -146,11 +146,12 @@ class Store extends Model
             // real write arrives through the sync engine's `stores` push,
             // which has no store_slug rule at all. An unslugified value here
             // becomes a static-export output path in web/out/store/.
-            if (!empty($model->store_slug)) {
+            if (! empty($model->store_slug)) {
                 $normalized = Str::limit(Str::slug((string) $model->store_slug), 100, '');
 
                 if ($normalized === '') {
                     $model->store_slug = $previousSlug;
+
                     return;
                 }
 
@@ -173,15 +174,16 @@ class Store extends Model
             // client-side check (store-profile-section.tsx's
             // isAfter(addMonths(changed, 6), now)) exactly.
             if (
-                !$isFirstTimeSet
+                ! $isFirstTimeSet
                 && $lastChanged
                 && now()->lt(\Carbon\Carbon::parse($lastChanged)->addMonths(6))
             ) {
                 $model->store_slug = $previousSlug;
+
                 return;
             }
 
-            if (!$isFirstTimeSet) {
+            if (! $isFirstTimeSet) {
                 $model->store_slug_changed_at = now();
             }
         });
@@ -229,7 +231,10 @@ class Store extends Model
         return $query->whereRaw('LOWER(COALESCE(status, ?)) != ?', ['', strtolower(self::STATUS_SUSPENDED)]);
     }
 
-    public function user()
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
@@ -250,8 +255,10 @@ class Store extends Model
      * reporting that needs to be correct across that boundary (see
      * AdminService::getStores()) falls back to the legacy cashier-based
      * match for those rows rather than relying on this relation alone.
+     *
+     * @return HasMany<Sale, $this>
      */
-    public function sales()
+    public function sales(): HasMany
     {
         return $this->hasMany(Sale::class);
     }

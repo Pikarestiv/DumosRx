@@ -65,7 +65,7 @@ class SyncSchemaParityTest extends TestCase
 
     public function test_every_client_table_and_column_the_server_claims_to_sync_actually_exists()
     {
-        $controller = new SyncController();
+        $controller = new SyncController;
         $clientTables = $this->clientTableColumns();
         $this->assertNotEmpty($clientTables, 'Failed to parse any tables from schema.ts — check the parsing regex against the current file format.');
 
@@ -77,7 +77,7 @@ class SyncSchemaParityTest extends TestCase
             }
 
             $modelClass = $controller->getModelForTable($table);
-            if (!$modelClass) {
+            if (! $modelClass) {
                 // Not every client table is expected to sync (e.g. purely
                 // local caches) — getModelForTable() being the single
                 // source of truth for "does this table sync at all" is
@@ -86,10 +86,11 @@ class SyncSchemaParityTest extends TestCase
                 continue;
             }
 
-            $realTable = (new $modelClass())->getTable();
+            $realTable = (new $modelClass)->getTable();
 
-            if (!Schema::hasTable($realTable)) {
+            if (! Schema::hasTable($realTable)) {
                 $problems[] = "$table -> $realTable: table does not exist";
+
                 continue;
             }
 
@@ -98,7 +99,7 @@ class SyncSchemaParityTest extends TestCase
                 if (in_array($column, self::IGNORED_COLUMNS, true)) {
                     continue;
                 }
-                if (!in_array($column, $serverColumns, true)) {
+                if (! in_array($column, $serverColumns, true)) {
                     $problems[] = "$table.$column -> $realTable.$column: column does not exist";
                 }
             }
@@ -106,7 +107,7 @@ class SyncSchemaParityTest extends TestCase
 
         $this->assertEmpty(
             $problems,
-            "Client sends these but the server can't store them (resolved through getModelForTable(), not just the table-name string):\n" . implode("\n", $problems)
+            "Client sends these but the server can't store them (resolved through getModelForTable(), not just the table-name string):\n".implode("\n", $problems)
         );
     }
 }

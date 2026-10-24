@@ -8,6 +8,4 @@ namespace App\Exceptions;
  * restore whose owner no longer exists - rather than proceeding and
  * failing halfway through on a foreign key or leaving an ownerless store.
  */
-class StoreActionBlockedException extends \RuntimeException
-{
-}
+class StoreActionBlockedException extends \RuntimeException {}

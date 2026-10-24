@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // Stage 1 of docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md:

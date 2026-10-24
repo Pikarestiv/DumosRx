@@ -86,12 +86,19 @@ export function CameraScannerDialog({
     [onClose, onScanSuccess, stopScanner],
   );
 
-  useEffect(() => {
+  const [wasOpen, setWasOpen] = useState(isOpen);
+  if (wasOpen !== isOpen) {
+    setWasOpen(isOpen);
     if (!isOpen) {
-      void stopScanner();
       setState("prompt");
       setTorchOn(false);
       setTorchSupported(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!isOpen) {
+      void stopScanner();
       cameraIndexRef.current = 0;
       return;
     }

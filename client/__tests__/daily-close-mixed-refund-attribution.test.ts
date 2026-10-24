@@ -5,8 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("@/lib/context/store-context", () => ({

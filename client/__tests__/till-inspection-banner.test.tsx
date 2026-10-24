@@ -15,13 +15,14 @@ const { ended, beaconed, server } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/api/admin-till-session", () => ({
-  endAdminTillSession: vi.fn(async (_id: string, reason: string) => {
+  endAdminTillSession: vi.fn((_id: string, reason: string) => {
     ended.calls.push(reason);
+    return Promise.resolve();
   }),
   beaconAdminTillSessionEnd: vi.fn((id: string) => {
     beaconed.calls.push(id);
   }),
-  readInspectionServerClock: vi.fn(async () => server.clock),
+  readInspectionServerClock: vi.fn(() => Promise.resolve(server.clock)),
 }));
 
 vi.mock("@/lib/context/store-context", () => ({
@@ -107,7 +108,7 @@ describe("TillInspectionBanner", () => {
 
     // Several ticks, not one:
     // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-till-inspection-banner-test-tsx-L108
-    await act(async () => {
+    await act(() => {
       vi.advanceTimersByTime(5_000);
     });
 
@@ -135,7 +136,7 @@ describe("TillInspectionBanner", () => {
     }));
     render(<TillInspectionBanner />);
 
-    await act(async () => {
+    await act(() => {
       vi.advanceTimersByTime(3_000);
     });
 

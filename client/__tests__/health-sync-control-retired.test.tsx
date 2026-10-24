@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { apiClient } from "../lib/api/client";
 import { setToken, clearToken } from "../lib/api/token-manager";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // A-213: the endpoint refuses with 410 and is not coming back until the `opening_quantity` work lands, so the UI must stop…
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-health-sync-control-retired-test-tsx-L9
@@ -27,7 +27,7 @@ describe("Settings > Data no longer offers Health Sync", () => {
       "@/components/settings/data-settings-sync-maintenance"
     );
     root = createRoot(container);
-    await act(async () => {
+    act(() => {
       root.render(
         React.createElement(DataSettingsSyncMaintenance, {
           handleForceFullResync: vi.fn(),
@@ -68,18 +68,18 @@ describe("A deliberate 410 refusal is not reported as a client error", () => {
 
   beforeEach(() => {
     calls = [];
-    global.fetch = vi.fn(async (url: unknown, init?: any) => {
+    global.fetch = vi.fn((url: unknown) => {
       const href = String(url);
       calls.push(href);
       if (href.includes("/logs/client-error")) {
-        return { ok: true, status: 200, headers: { get: () => "application/json" }, json: async () => ({}) } as never;
+        return Promise.resolve({ ok: true, status: 200, headers: { get: () => "application/json" }, json: () => Promise.resolve({}) } as never);
       }
-      return {
+      return Promise.resolve({
         ok: false,
         status: href.includes("reconcile-quantities") ? 410 : 500,
         headers: { get: () => "application/json" },
-        json: async () => ({ message: "Health Sync has been retired." }),
-      } as never;
+        json: () => Promise.resolve({ message: "Health Sync has been retired." }),
+      } as never);
     }) as unknown as typeof fetch;
     setToken("tok");
     localStorage.removeItem("auth_token_issued_at");

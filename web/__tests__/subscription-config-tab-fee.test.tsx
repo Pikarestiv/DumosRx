@@ -9,7 +9,7 @@ import {
 } from "@/lib/constants/subscription-config-defaults";
 
 const { mockMutateAsync, mockToastError } = vi.hoisted(() => ({
-  mockMutateAsync: vi.fn(async () => undefined),
+  mockMutateAsync: vi.fn(() => Promise.resolve(undefined)),
   mockToastError: vi.fn(),
 }));
 

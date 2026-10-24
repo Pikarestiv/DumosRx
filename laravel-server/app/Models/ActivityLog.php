@@ -4,10 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/**
- * @mixin IdeHelperActivityLog
- */
 class ActivityLog extends Model
 {
     use HasFactory;
@@ -33,7 +31,10 @@ class ActivityLog extends Model
         'properties' => 'array',
     ];
 
-    public function user()
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
@@ -60,5 +61,4 @@ class ActivityLog extends Model
                 ->orWhereHas('userRole', fn ($rq) => $rq->where('slug', 'super_admin'));
         });
     }
-
 }

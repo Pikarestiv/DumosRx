@@ -37,8 +37,9 @@ export function PermissionMatrix() {
   const categories = useMemo(() => {
     const map = new Map<string, typeof PERMISSION_CATALOG>();
     for (const entry of PERMISSION_CATALOG) {
-      if (!map.has(entry.category)) map.set(entry.category, []);
-      map.get(entry.category)!.push(entry);
+      const entries = map.get(entry.category) ?? [];
+      entries.push(entry);
+      map.set(entry.category, entries);
     }
     return Array.from(map.entries());
   }, []);
@@ -59,9 +60,6 @@ export function PermissionMatrix() {
         groups={groups}
         onCreateGroup={createGroup}
         onCopyGroup={copyGroup}
-        onRevertToDefault={revertToDefault}
-        onRenameGroup={renameGroup}
-        onDeleteGroup={deleteGroup}
       />
       <ScrollFade containerClassName="flex-1 min-h-0" className="overflow-x-auto">
         <div role="table" aria-label="Role permissions" className="min-w-max text-sm">
@@ -178,7 +176,7 @@ export function PermissionMatrix() {
                                 checked={granted}
                                 disabled={locked}
                                 title={locked ? lockedTitle : undefined}
-                                onChange={(e) => toggle(g.id, entry.key, e.target.checked)}
+                                onChange={(e) => void toggle(g.id, entry.key, e.target.checked)}
                                 aria-label={`${entry.label} - ${g.name}`}
                               />
                               <StockQuantitiesOverlapWarning

@@ -416,7 +416,7 @@ and `synchronous = NORMAL`.
     refuses and writes no audit row: claiming a report was sent when none was
     is worse than no record.
     - **The command rides the PUSH response**
-      (`SyncController::exchangeSyncCommands`, applied in `push.ts`), not the
+      (`SyncActivityRecorder::exchangeSyncCommands`, applied in `push.ts`), not the
       pull. So a device whose rows fail *individually* — the "50 changes could
       not be saved" shape, where the request succeeds and `failed[]` is
       populated — does receive it, which is the field case. A device whose push
@@ -845,7 +845,8 @@ reach for if the call sites keep drifting.
   including the `id` tie-break and the cursor's date format, is in
   `docs/SYNC_PULL_PAGINATION.md`.
 - Sync failures use exponential backoff per queue item
-  (`recordSyncFailure` in `base-helpers.ts`), with a one-time report to
+  (`recordSyncFailure` in `lib/db/sync-queue.ts`, re-exported by
+  `base-helpers.ts`), with a one-time report to
   superadmins after `SYNC_FAILURE_REPORT_THRESHOLD` (5) consecutive
   failures on the same item.
 - **Never log a crash about the `feedback` table back into the `feedback`
@@ -941,6 +942,11 @@ that way. `audit_logs` solves the same problem its own way in `core.ts`
 (in-place payload rewrite), which carries the in-flight race described above.
 
 #### Push details (`sync-engine/push.ts`)
+
+`push.ts` owns the batch loop; per-batch request building (payload
+mapping, local validation rejects) lives in `push-request.ts`, and the
+response bookkeeping (terminal/retryable `failed` handling, the duplicate-name
+`id_map` remap, server-assigned `versions`) in `push-response.ts`.
 
 - **Terminal vs retryable rejections.** `NON_RETRYABLE_CONFLICT_REASONS`
   (`version_conflict`, `stale_timestamp`,
@@ -1316,7 +1322,7 @@ So the rewind now:
   not per day.
 
 **The budget is spent once per table per batch, not once per refused row
-(A-273).** `push.ts` keeps a `Set<string>` inside its `response.failed` loop.
+(A-273).** `settleFailedChanges()` (`push-response.ts`) keeps a `Set<string>` inside its `response.failed` loop.
 This replaces the original per-row intent, which was wrong for a reason worth
 writing down: a rewind re-opens the **whole table's** window, so the 2nd
 through 50th refusal in a batch asked for nothing the 1st had not already
@@ -1457,6 +1463,11 @@ on either predicate: widening it there would introduce an UPDATE path for a
 table the client never pulls.
 
 #### Pull details (`sync-engine/pull.ts`)
+
+`pull.ts` owns the page loop and cursor/window stamping; applying one pulled
+record (UPDATE/INSERT, batch touches, deferred deltas) lives in
+`pull-apply.ts`, and the end-of-round deferred-delta drain and skip reporting
+in `pull-round-end.ts`.
 
 - **`MAX_PULL_PAGES` (1000) is a safety bound, not a correctness ceiling.**
   It only stops one `sync()` running forever if the server ever reports
@@ -1745,6 +1756,17 @@ table the client never pulls.
   later starts from a full pull. Stamping every requested table at the end of
   a round would silently undo this. Pinned by
   `pull-refused-store-stamps-only-served-tables.test.ts`.
+- **Legacy products are attributed by evidence (A-248 part c).** At the start
+  of every push on a device holding more than one store,
+  `attributeStorelessProductsFromEvidence()` gives a store-less product the
+  one store its own `stock_batches` and `stock_movements` all name, both
+  locally and in its pending INSERT payload, in one transaction. Only products
+  with a pending INSERT are touched, so the local row never diverges from
+  what the device pushes. Evidence naming two stores, or none, leaves it
+  alone. It runs before the push's fingerprints, exits at once when no such
+  product exists, and never fails a push. The server makes
+  the same call from the stock it receives, so this is the head start, not the
+  only line. Pinned by `legacy-product-attribution.test.ts`.
 - **Duplicate-name reconciliation:** a local row absent from the response
   but name-matching a server row has its references remapped to the server's
   id and is then soft-deleted rather than left as an orphaned duplicate.
@@ -1771,7 +1793,7 @@ table the client never pulls.
     Pinned by `push-id-map-reconciliation.test.ts`.
 - **`onCriticalTablesReady` / `SETUP_CRITICAL_TABLES` (`stores`, `users`).**
   Fires once, the first time those tables have fully drained this round, so
-  a caller mid-first-sync (`startSyncProcess` in `use-onboarding.ts`) can let
+  a caller mid-first-sync (`startSyncProcess` in `app/setup/use-onboarding-sync.ts`) can let
   the user log in and reach the dashboard while the same call keeps pulling
   everything else — it decides only *when* the callback fires, never what is
   fetched. It is checked after each page's transaction commits, and fired
@@ -1821,6 +1843,12 @@ table the client never pulls.
   prefix-only keys so every store/user-scoped variant matches.
 
 #### The sync indicator (`components/dashboard/sync-indicator.tsx`)
+
+The state, `runSync` and the auto-sync daemon live in
+`lib/hooks/use-sync-indicator-state.ts`; the per-state label/icon/colour
+table is `components/dashboard/sync-indicator-status-config.tsx`. The
+component itself only renders.
+
 
 - `isUserInitiated` is the one thing that makes a sync "manual", and it
   travels all the way to `getPendingSyncItems()` and the server. The
@@ -2065,7 +2093,7 @@ on screen from having walked to the shelf.
   already on the query the audit screen runs) rendered as the ledger's
   sortable **Last Counted** column. It means "last *adjusted*": a submit
   writes no `stock_audits` row when nothing differed
-  (`lib/db/queries/inventory.ts:681`), so a count that matched leaves no
+  (`lib/db/queries/inventory-adjustments.ts`), so a count that matched leaves no
   trace. Changing that means writing zero-diff rows into a synced table —
   a contract change, not a free one.
 - **"Start over" and "leave" are two different controls.** The back-button
@@ -2102,7 +2130,7 @@ Pinned by `__tests__/clear-local-drafts.test.ts`.
 
 A draft itself is **not** the problem it looks like: `submitStockAudit`
 re-reads the live quantity inside its transaction
-(`lib/db/queries/inventory.ts:665-671`) and deltas against that, so a resumed
+(`lib/db/queries/inventory-adjustments.ts`) and deltas against that, so a resumed
 draft's frozen `systemQty` never mis-posts. What a stale draft does miss is
 catalog churn — logged as A-259.
 
@@ -2426,7 +2454,7 @@ tracked as A-165 in `docs/KNOWN_BUGS.md`.
 
 A-167 then asked whether `permission_denied`'s own settle has the same hole,
 and the answer was yes — but the fix is server-side, so nothing in this file
-changes. `SyncController::normalizePushPayload()`'s explicit-`store_id` guard
+changes. `PushPayloadNormalizer::normalizePushPayload()`'s explicit-`store_id` guard
 now reports `forbidden` when the named store is another *live* store of the
 same tenant owner (a refusal only this narrower session makes, which the
 owner's session would accept) and keeps `permission_denied` only when no
@@ -2856,7 +2884,7 @@ e2e/                       Playwright end-to-end specs
   recall" toast with the sale still listed as recallable (A-59/A-60 in
   `docs/FIXED_BUGS.md`).
 - **Every sale line leaves exactly one `stock_movements` row.**
-  `recordSaleItemStock()` (`lib/db/queries/inventory.ts`) escalates through
+  `recordSaleItemStock()` (`lib/db/queries/inventory-sale-stock.ts`) escalates through
   four lookups — FEFO over positive-stock batches, the most recently touched
   active batch, the same lookup with `includeExpired: true`, and finally
   `getOrCreateTargetBatchForProduct()` to open a `SALE-` batch — so a
@@ -2869,7 +2897,7 @@ e2e/                       Playwright end-to-end specs
   unsellable lines and `online-orders-modal.tsx` makes the owner confirm the
   oversell before fulfilling (A-57 in `docs/FIXED_BUGS.md`).
 - **Stock audits / cycle counts** (`components/stock-batch/stock-audits.tsx`,
-  `lib/db/queries/inventory.ts:submitStockAudit`): tracks three kinds of
+  `lib/db/queries/inventory-adjustments.ts:submitStockAudit`): tracks three kinds of
   deviation per product (**qty**, **cost price**, **selling price**)
   against system records. Qty diffs post FEFO-ordered adjustments to
   `stock_batches` + a `stock_movements` row; cost diffs correct all active
@@ -2880,7 +2908,7 @@ e2e/                       Playwright end-to-end specs
   `getProductsWithDetails()`), shown on the product detail panel with a
   90-day-stale warning banner.
 - **Quick stock adjustments** (`components/stock-batch/adjust-stock-flow.tsx`,
-  `lib/db/queries/inventory.ts:submitStockAdjustment`): a two-step flow —
+  `lib/db/queries/inventory-adjustments.ts:submitStockAdjustment`): a two-step flow —
   step 1 picks one of four fixed reasons (`ADJUSTMENT_REASONS` in
   `adjustment-derivations.ts`: Receive items, Damage, Inventory count, Loss)
   plus an optional note; step 2 adds items by name/SKU/barcode and shows
@@ -3656,7 +3684,7 @@ than on history.
 - `delete_suppliers` — `components/stock-batch/supplier-detail-pane.tsx`'s
   action row (a "Delete Supplier" outline button beside Edit Details and New
   Order, opening `components/suppliers/supplier-delete-dialog.tsx`), backed
-  by `deleteSupplier()` in `lib/db/procurement.ts`. The row's column count is
+  by `deleteSupplier()` in `lib/db/suppliers.ts`. The row's column count is
   now a literal-class lookup (`ACTION_GRID_COLS`, same mechanism as
   `CATALOG_GRID_COLS`/`SECONDARY_ACTION_GRID_COLS`) because it varies from
   one to three buttons with the two keys. It sits in the **detail pane, not
@@ -4245,7 +4273,8 @@ also counts negative (oversold) stock as out, matching `addToCart`'s
 
 Call sites (all read the key once, unconditionally, at the top level):
 
-- `components/pos/pos-product-list.tsx` (`POSProductCard`) — the number only
+- `components/pos/pos-product-card.tsx` (`POSProductCard`, re-exported from
+  `pos-product-list.tsx`) — the number only
   when `display_stock_levels` is on **and** the key is held; the status word
   when the store toggle is on and the key is not; no chip when the store
   toggle is off. `display_stock_levels` is unchanged: a store-wide "no
@@ -4531,7 +4560,7 @@ pre-backfill array.
   throws are a `SyncPushPermissionDeniedException`, which `push()`'s
   per-change catch reports as the stable reason **`permission_denied`**
   (the exception message still carries the specific detail into the log), and
-  `push.ts`'s `NON_RETRYABLE_CONFLICT_REASONS` lists it beside
+  `push-response.ts`'s `NON_RETRYABLE_CONFLICT_REASONS` lists it beside
   `version_conflict`: the queue row is dropped on the first response instead
   of retried forever. No window rewind for this reason, and no pull settles
   it — the source row is flagged settled instead (see "Push details"). It is
@@ -4751,7 +4780,7 @@ manager-tier user ticking a key they don't personally hold got a local
 write that applied instantly, showed as ON, pushed as `permission_denied`,
 had its queue row dropped terminally, and was reverted by the next pull —
 with **no toast at all**, because `permission_denied` is in
-`SILENT_TERMINAL_REASONS` (`lib/db/sync-engine/push.ts`). That silencing is
+`SILENT_TERMINAL_REASONS` (`lib/db/sync-engine/push-conflict-toasts.ts`). That silencing is
 correct and stays: it exists for the automatic catalog backfill's own push,
 an edit no user made and no user is waiting on. Narrowing it by "was this
 queued by machinery or by a human" would need an origin marker on the sync
@@ -5106,6 +5135,27 @@ same tab session still gets its own fresh one-time retry.
 
 ## UI conventions worth knowing before changing shared components
 
+- **React Compiler lint rules (`react-hooks/set-state-in-effect`, `refs`,
+  `purity`, `static-components`) have house fixes; reuse them** (2026-10-24).
+  A "mounted" flag or a mount-time `localStorage`/`sessionStorage`/`navigator`
+  read is `useHydrated()` (`lib/hooks/use-hydrated.ts`, `false` during the
+  prerender/hydration pass, `true` after) plus a render-time read gated on it.
+  Keeping a dialog's last target on screen through its exit animation is
+  `useLastNonNull(value)` (`lib/hooks/use-last-non-null.ts`), not a ref written
+  during render. Re-seeding a form when a dialog opens or its target changes is
+  React's "adjust state while rendering" pattern: keep the inputs it was last
+  seeded from in state and compare (see `edit-customer-modal.tsx`,
+  `add-expense-dialog.tsx`), not an effect. An intentional full document load
+  goes through `navigateWithFullReload()` (`lib/utils/full-page-navigate.ts`)
+  so Next's `no-location-assign-relative-destination` keeps catching the
+  accidental ones. `react-hooks/incompatible-library` is off in
+  `eslint.config.mjs`: it reports the compiler safely skipping components that
+  call TanStack Virtual's `useVirtualizer()`, matched by import name, so no
+  version, `"use no memo"` or wrapper avoids it (a wrapper would only make the
+  callers look safe to memoize). The compiler is not enabled in
+  `next.config.mjs`. Turn the rule back on in the same change that enables
+  `reactCompiler`, and check no virtualizer value reaches a memoized child.
+
 - **The A4 receipt fills the page; only the thermal one is a narrow column**
   (2026-10-14). `ReceiptView`'s A4 branch used `max-w-[400px] mx-auto`, so a
   receipt printed on A4 was a 400px strip centred in a sea of white — a real
@@ -5158,7 +5208,7 @@ same tab session still gets its own fresh one-time retry.
     row left holding `""` would return printing nothing. It sets `updated_at`
     from PHP, never MySQL's `NOW()` (root `AGENTS.md` §7) — but that is
     bookkeeping, not the propagation mechanism: `stores` is **exempt from the
-    pull cursor** (`SyncController::applyPullCursor`), so every pull returns
+    pull cursor** (`PullPager::applyPullCursor`), so every pull returns
     every owned store row regardless of its timestamp.
   - **One window the backfill cannot close**: a device holding an *unpushed*
     `stores` edit across the deploy pushes its old `""` afterwards and, since
@@ -6598,6 +6648,25 @@ number into local SQLite and hope it matches. Treat this exactly like the
 "server-only bookkeeping column" convention documented in
 `laravel-server/AGENTS.md` — writing one of these fields via `insert()`/
 `update()` from this client is a bug, not a shortcut.
+
+### Stored instants are real ISO instants; legacy zone-less values read as UTC (A-333, 2026-10-24)
+
+Write an instant with `new Date().toISOString()` (`2026-10-24T20:17:00.000Z`),
+never `.slice(0, 19).replace("T", " ")`. That form (`2026-10-24 20:17:00`) is
+what MySQL `DATETIME` wants, and the push already produces it:
+`normalizeDatetimeFields()` in `sync-engine/push-queue-prep.ts` rewrites every
+ISO-shaped string just before it is sent. Storing it locally, as purchase
+receipts did, drops the zone, and `new Date("2026-10-24 20:17:00")` then reads
+it as local time, one hour early in Lagos.
+
+Rows already stored that way, here and on the server, are not backfilled.
+`toUtcInstant()` in `lib/utils/date-utils.ts` turns a zone-less
+`YYYY-MM-DD HH:mm:ss` into its UTC instant and leaves anything else alone; it is
+applied where a movement's date enters a view (`mapMovement`,
+`adjustment-derivations.ts`, the movement details dialog). Remove it once no
+device still holds a zone-less `created_at` or `movement_date`, which the
+`LEGACY_PRODUCT_IMPORT_REASON` precedent handles the same way. `formatDateSafe`
+is deliberately not changed, so other callers keep parsing exactly as before.
 
 ## Current focus / recent work (update this section as work continues)
 

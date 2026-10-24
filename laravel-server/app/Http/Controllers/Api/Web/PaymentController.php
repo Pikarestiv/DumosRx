@@ -8,7 +8,6 @@ use App\Models\Subscription;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use OpenApi\Attributes as OA;
-use App\Http\Controllers\Api\Web\SubscriptionController;
 
 class PaymentController extends Controller
 {
@@ -32,19 +31,20 @@ class PaymentController extends Controller
         $secret = (string) config('payment.paystack.secret_key');
         if ($secret === '') {
             Log::error('Paystack webhook received but payment.paystack.secret_key is not configured; rejecting.');
+
             return response()->json(['message' => 'Webhook not configured'], 500);
         }
 
         // Validate signature
         $signature = $request->header('x-paystack-signature');
-        if (!$signature || !hash_equals(hash_hmac('sha512', $request->getContent(), $secret), $signature)) {
+        if (! $signature || ! hash_equals(hash_hmac('sha512', $request->getContent(), $secret), $signature)) {
             return response()->json(['message' => 'Invalid signature'], 400);
         }
 
         $event = $request->input('event');
         $data = $request->input('data');
 
-        if ($event === 'charge.success' && is_array($data) && !empty($data['reference'])) {
+        if ($event === 'charge.success' && is_array($data) && ! empty($data['reference'])) {
             $this->processSuccessfulPayment($data['reference'], 'paystack', $data);
         } else {
             $this->recordUnhandledEvent('paystack', (string) $event, is_array($data) ? $data : [], $data['reference'] ?? null);
@@ -74,24 +74,25 @@ class PaymentController extends Controller
         $secretHash = (string) config('payment.flutterwave.secret_hash');
         if ($secretHash === '') {
             Log::error('Flutterwave webhook received but payment.flutterwave.secret_hash is not configured; rejecting.');
+
             return response()->json(['message' => 'Webhook not configured'], 500);
         }
 
         // Validate signature/secret hash
         $signature = $request->header('verif-hash');
-        if (!$signature || !hash_equals($secretHash, $signature)) {
-             return response()->json(['message' => 'Invalid signature'], 400);
+        if (! $signature || ! hash_equals($secretHash, $signature)) {
+            return response()->json(['message' => 'Invalid signature'], 400);
         }
 
         $event = $request->input('event');
         $data = $request->input('data');
 
-        if (is_array($data) && ($data['status'] ?? null) === 'successful' && !empty($data['tx_ref'])) {
+        if (is_array($data) && ($data['status'] ?? null) === 'successful' && ! empty($data['tx_ref'])) {
             $this->processSuccessfulPayment($data['tx_ref'], 'flutterwave', $data);
         } else {
             $this->recordUnhandledEvent(
                 'flutterwave',
-                trim($event . ' ' . (is_array($data) ? (string) ($data['status'] ?? '') : '')),
+                trim($event.' '.(is_array($data) ? (string) ($data['status'] ?? '') : '')),
                 is_array($data) ? $data : [],
                 is_array($data) ? ($data['tx_ref'] ?? null) : null,
             );
@@ -138,8 +139,9 @@ class PaymentController extends Controller
             }
         }
 
-        if (!$notable) {
+        if (! $notable) {
             Log::info('Unhandled payment webhook event ignored.', $context);
+
             return;
         }
 
@@ -147,17 +149,17 @@ class PaymentController extends Controller
 
         try {
             \App\Services\AdminAlertService::send(
-                'Payment ' . $provider . ' webhook: refund/dispute needs attention',
+                'Payment '.$provider.' webhook: refund/dispute needs attention',
                 [
                     'A payment webhook arrived for an event this app does not process automatically.',
                     "Provider: {$provider}",
                     "Event: {$event}",
-                    'Reference: ' . ($reference ?: 'none supplied'),
+                    'Reference: '.($reference ?: 'none supplied'),
                     'Nothing was refunded, reversed or cancelled in DumosRx - reconcile this by hand in the provider dashboard and in the affected subscription or order.',
                 ]
             );
         } catch (\Exception $e) {
-            Log::error('Failed to alert admins about a refund/dispute webhook: ' . $e->getMessage());
+            Log::error('Failed to alert admins about a refund/dispute webhook: '.$e->getMessage());
         }
     }
 
@@ -179,7 +181,7 @@ class PaymentController extends Controller
 
         $txn = PaymentTransaction::where('provider_reference', $reference)->first();
 
-        if (!$txn || $txn->status === 'success') {
+        if (! $txn || $txn->status === 'success') {
             return;
         }
 
@@ -213,17 +215,17 @@ class PaymentController extends Controller
         try {
             $user = \App\Models\User::find($txn->metadata['user_id']);
             \App\Services\AdminAlertService::send(
-                'Payment Successful: ' . ($txn->metadata['plan_name'] ?? 'Unknown Plan'),
+                'Payment Successful: '.($txn->metadata['plan_name'] ?? 'Unknown Plan'),
                 [
-                    "A successful payment has been processed.",
-                    "User: " . ($user ? "{$user->first_name} {$user->last_name} ({$user->email})" : "Unknown (ID: {$txn->metadata['user_id']})"),
-                    "Amount: ₦" . number_format($txn->amount ?? 0, 2),
+                    'A successful payment has been processed.',
+                    'User: '.($user ? "{$user->first_name} {$user->last_name} ({$user->email})" : "Unknown (ID: {$txn->metadata['user_id']})"),
+                    'Amount: ₦'.number_format($txn->amount ?? 0, 2),
                     "Provider: {$provider}",
-                    "Reference: {$reference}"
+                    "Reference: {$reference}",
                 ]
             );
         } catch (\Exception $e) {
-            Log::error("Failed to send super admin alert for payment: " . $e->getMessage());
+            Log::error('Failed to send super admin alert for payment: '.$e->getMessage());
         }
     }
 }

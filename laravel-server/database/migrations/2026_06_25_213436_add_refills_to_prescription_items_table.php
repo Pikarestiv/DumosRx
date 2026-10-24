@@ -29,7 +29,7 @@ return new class extends Migration
                 'refills_authorized',
                 'refills_used',
                 'refill_interval_days',
-                'next_refill_date'
+                'next_refill_date',
             ]);
         });
     }

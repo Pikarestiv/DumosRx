@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { StoreProfile } from "@/lib/context/store-context";
 import { parseEnabledPaymentMethods } from "@/lib/payment-methods";
 import { RECEIPT_FOOTER_DEFAULT } from "@/lib/constants";
@@ -48,8 +48,17 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
   const [displayStockLevels, setDisplayStockLevels] = useState(storeProfile?.display_stock_levels !== 0);
   const [uppercaseDisplayEnabled, setUppercaseDisplayEnabled] = useState(storeProfile?.uppercase_display_enabled !== 0);
 
-  // Sync state with storeProfile
-  useEffect(() => {
+  const [syncedSource, setSyncedSource] = useState<{
+    storeProfile: StoreProfile | null;
+    minimumSyncIntervalMinutes: number;
+  } | null>(null);
+
+  if (
+    !syncedSource ||
+    syncedSource.storeProfile !== storeProfile ||
+    syncedSource.minimumSyncIntervalMinutes !== minimumSyncIntervalMinutes
+  ) {
+    setSyncedSource({ storeProfile, minimumSyncIntervalMinutes });
     if (storeProfile) {
       setLocalName(storeProfile.name || "");
       setLocalAddress(storeProfile.address || "");
@@ -95,7 +104,7 @@ export function useSettingsForm(storeProfile: StoreProfile | null, minimumSyncIn
       }
       setAutoSyncInterval(interval.toString());
     }
-  }, [storeProfile, minimumSyncIntervalMinutes]);
+  }
 
   return {
     localName, setLocalName,

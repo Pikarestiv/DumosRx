@@ -2,13 +2,12 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
-
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\RateLimiter;
+use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
-use App\Models\User;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -151,6 +150,7 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::define('manage-staff', function (User $user) {
             $role = $user->getAttribute('role');
+
             return \in_array($role, ['super_admin', 'manager', 'admin'], true);
         });
 

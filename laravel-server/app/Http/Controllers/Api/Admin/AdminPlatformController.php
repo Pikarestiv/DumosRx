@@ -89,7 +89,7 @@ class AdminPlatformController extends AdminBaseController
             'categories' => Product::select('generic_name')
                 ->whereNotNull('generic_name')
                 ->distinct()
-                ->pluck('generic_name')
+                ->pluck('generic_name'),
         ]);
     }
 
@@ -230,7 +230,9 @@ class AdminPlatformController extends AdminBaseController
     {
         return $this->withErrorResponse('Search', 'Search failed', function () use ($request) {
             $query = $request->query('query');
-            if (!$query) return response()->json([]);
+            if (! $query) {
+                return response()->json([]);
+            }
 
             return response()->json($this->activityService->globalSearch($query));
         });

@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -14,7 +14,7 @@ return new class extends Migration
             $conn = Schema::getConnection();
             $dbName = $conn->getDatabaseName();
             $exists = false;
-            
+
             if ($conn->getDriverName() !== 'sqlite') {
                 $exists = collect(DB::select("
                     SELECT CONSTRAINT_NAME 
@@ -29,10 +29,10 @@ return new class extends Migration
             if ($exists) {
                 $table->dropForeign(['user_id']);
             }
-            
+
             // Change user_id to UUID
             $table->uuid('user_id')->change();
-            
+
             // Re-add constraint
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });

@@ -17,7 +17,7 @@ vi.mock("@/lib/api/client", () => ({
 }));
 
 const syncMock = vi.fn();
-const syncSubscriptionStatusMock = vi.fn(async () => ({ updated: false }));
+const syncSubscriptionStatusMock = vi.fn(() => Promise.resolve({ updated: false }));
 vi.mock("@/lib/db/sync-engine", () => ({
   sync: (...args: unknown[]) => syncMock(...args),
   isSyncing: vi.fn(() => false),
@@ -25,11 +25,11 @@ vi.mock("@/lib/db/sync-engine", () => ({
 }));
 
 vi.mock("@/lib/db/sync-engine/health-check", () => ({
-  checkSyncHealth: vi.fn(async () => {}),
+  checkSyncHealth: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock("@/lib/query-client", () => ({
-  queryClient: { cancelQueries: vi.fn(async () => {}), clear: vi.fn() },
+  queryClient: { cancelQueries: vi.fn(() => Promise.resolve()), clear: vi.fn() },
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -41,15 +41,15 @@ vi.mock("@/lib/api/token-manager", () => ({
 }));
 
 vi.mock("@/lib/native/widget-bridge", () => ({
-  mirrorAuthToken: vi.fn(async () => {}),
-  clearMirroredAuthToken: vi.fn(async () => {}),
-  writeWidgetSnapshot: vi.fn(async () => {}),
-  requestPinWidget: vi.fn(async () => {}),
+  mirrorAuthToken: vi.fn(() => Promise.resolve()),
+  clearMirroredAuthToken: vi.fn(() => Promise.resolve()),
+  writeWidgetSnapshot: vi.fn(() => Promise.resolve()),
+  requestPinWidget: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -75,7 +75,8 @@ vi.mock("@/lib/utils/device-id", () => ({
   getDeviceId: () => "DUMOS-TEST-0001",
 }));
 
-const checkLicenseStatusMock = vi.fn(async () => ({
+const checkLicenseStatusMock = vi.fn(() =>
+  Promise.resolve({
   isValid: true,
   isClockTampered: false,
   isSuspended: false,
@@ -83,7 +84,8 @@ const checkLicenseStatusMock = vi.fn(async () => ({
   tier: "pro",
   isTrial: false,
   expiryDate: null,
-}));
+  }),
+);
 vi.mock("@/lib/licensing/licensing-manager", () => ({
   checkLicenseStatus: () => checkLicenseStatusMock(),
 }));

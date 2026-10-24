@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Regression tests for known bug #10, Part B's React wiring (lib/hooks/use-post-restore-cloud-link-notice.ts):
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-post-restore-cloud-link-notice-hook-test-ts-L7

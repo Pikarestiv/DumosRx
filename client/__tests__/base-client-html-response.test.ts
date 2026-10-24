@@ -22,10 +22,8 @@ describe("BaseApiClient non-JSON responses", () => {
     ok: true,
     status: 200,
     headers: { get: (h: string) => (h.toLowerCase() === "content-type" ? "text/html" : null) },
-    json: async () => {
-      throw new SyntaxError("Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON");
-    },
-    text: async () => body,
+    json: () => Promise.reject(new SyntaxError("Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON")),
+    text: () => Promise.resolve(body),
   });
 
   it("does not surface a bare SyntaxError for an HTML body", async () => {
@@ -72,8 +70,8 @@ describe("BaseApiClient non-JSON responses", () => {
       ok: true,
       status: 200,
       headers: { get: () => "application/json" },
-      json: async () => ({ ok: true, value: 42 }),
-      text: async () => '{"ok":true,"value":42}',
+      json: () => Promise.resolve({ ok: true, value: 42 }),
+      text: () => Promise.resolve('{"ok":true,"value":42}'),
     });
 
     await expect(apiClient.getProfile()).resolves.toMatchObject({ value: 42 });
@@ -90,10 +88,8 @@ describe("BaseApiClient non-JSON responses", () => {
         get: (h: string) =>
           h.toLowerCase() === "content-type" ? "application/json" : null,
       },
-      json: async () => {
-        throw new SyntaxError("Unexpected end of JSON input");
-      },
-      text: async () => body,
+      json: () => Promise.reject(new SyntaxError("Unexpected end of JSON input")),
+      text: () => Promise.resolve(body),
     });
 
     let message = "";
@@ -118,12 +114,8 @@ describe("BaseApiClient non-JSON responses", () => {
       ok: true,
       status: 200,
       headers: { get: () => "application/json" },
-      json: async () => {
-        throw new TypeError("Failed to fetch");
-      },
-      text: async () => {
-        throw new TypeError("body stream already read");
-      },
+      json: () => Promise.reject(new TypeError("Failed to fetch")),
+      text: () => Promise.reject(new TypeError("body stream already read")),
     });
 
     let message = "";

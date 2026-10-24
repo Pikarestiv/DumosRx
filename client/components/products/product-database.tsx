@@ -43,22 +43,25 @@ export function ProductDatabase() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  useEffect(() => {
-    if (searchParams.get("action") === "add") {
-      setShowAddDialog(true);
-      // Clean up the URL
-      const newParams = new URLSearchParams(searchParams.toString());
-      newParams.delete("action");
-      const newUrl =
-        window.location.pathname +
-        (newParams.toString() ? `?${newParams.toString()}` : "");
-      router.replace(newUrl);
-    }
-
+  const searchParamsKey = searchParams.toString();
+  const [appliedSearchParamsKey, setAppliedSearchParamsKey] = useState<
+    string | null
+  >(null);
+  if (searchParamsKey !== appliedSearchParamsKey) {
+    setAppliedSearchParamsKey(searchParamsKey);
+    if (searchParams.get("action") === "add") setShowAddDialog(true);
     const status = searchParams.get("status");
-    if (status) {
-      setStatusFilter(status);
-    }
+    if (status) setStatusFilter(status);
+  }
+
+  useEffect(() => {
+    if (searchParams.get("action") !== "add") return;
+    const newParams = new URLSearchParams(searchParams.toString());
+    newParams.delete("action");
+    const newUrl =
+      window.location.pathname +
+      (newParams.toString() ? `?${newParams.toString()}` : "");
+    router.replace(newUrl);
   }, [searchParams, router]);
 
   const isStore = storeType === "pharmacy";
@@ -73,14 +76,10 @@ export function ProductDatabase() {
     queryFn: () => getProductsWithDetails(),
   });
 
-  // Stable identity: this is a prop of CatalogList, which hands it down to the
-  // memoized CatalogRow. An inline arrow here made every row's save handler
-  // fresh on each render and defeated that memo.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-products-product-database-tsx-memo-and-layout
   const refetchProducts = useCallback(() => void refetch(), [refetch]);
 
-  // Matches CatalogDetailPanel's own delete action, which closes itself: a
-  // panel left open over a deleted product is still editable, and its Edit
-  // button reopens a form that saves against a row that no longer exists.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-products-product-database-tsx-memo-and-layout
   const handleProductDeleted = useCallback(
     (productId: string) => {
       if (selectedProduct?.id !== productId) return;
@@ -90,34 +89,35 @@ export function ProductDatabase() {
     [selectedProduct?.id],
   );
 
-  // Transform -> pre-filter -> fuzzy search all used to re-run on every
-  // render, i.e. on every keystroke in the product search, over the whole
-  // catalog. Each stage is now keyed on its real inputs.
   const products = useMemo(
     () => (rawProducts ? rawProducts.map(transformProduct) : []),
     [rawProducts],
   );
 
-  // Deep-link from Dashboard's "Product added" activity rows
-  // (dashboard-overview.tsx): opens that product's detail panel once its
-  // data has loaded, then cleans up the URL the same way `?action=add` does
-  // above.
+  const deepLinkProductId = searchParams.get("productId");
+  const [deepLinkSource, setDeepLinkSource] = useState<{
+    searchParamsKey: string;
+    rawProducts: typeof rawProducts;
+  } | null>(null);
+  if (
+    deepLinkProductId &&
+    rawProducts &&
+    (deepLinkSource?.searchParamsKey !== searchParamsKey ||
+      deepLinkSource.rawProducts !== rawProducts)
+  ) {
+    setDeepLinkSource({ searchParamsKey, rawProducts });
+    const match = products.find((p) => p.id === deepLinkProductId);
+    if (match) setSelectedProduct(match);
+  }
+
   useEffect(() => {
-    const productId = searchParams.get("productId");
-    if (!productId || !rawProducts) return;
-
-    const match = products.find((p) => p.id === productId);
-    if (match) {
-      setSelectedProduct(match);
-    }
-
+    if (!searchParams.get("productId") || !rawProducts) return;
     const newParams = new URLSearchParams(searchParams.toString());
     newParams.delete("productId");
     const newUrl =
       window.location.pathname +
       (newParams.toString() ? `?${newParams.toString()}` : "");
     router.replace(newUrl);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, rawProducts, router]);
 
   const { data: rawCategories } = useQuery({
@@ -220,9 +220,7 @@ export function ProductDatabase() {
       reorderLevel: (p: Product) => p.reorderLevel,
     });
 
-  // Debounced, not raw: this gates filteredProductIds, which is derived from
-  // the debounced search, so the raw term would claim "filtering" for a frame
-  // while filteredProducts still held the unfiltered list.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-products-product-database-tsx-memo-and-layout
   const isFiltering =
     debouncedSearchTerm.trim() !== "" ||
     categoryFilter !== "all" ||
@@ -234,12 +232,7 @@ export function ProductDatabase() {
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full gap-4">
       <div className="flex flex-col min-h-0 gap-3 lg:gap-0 h-full flex-1">
-        {/* Mobile: search bar + filter pills stand alone above the card,
-            contrasting with the page background. Conditionally rendered, not
-            just CSS-hidden: this and ProductDatabaseFilters below are bound to
-            the same searchTerm state, so leaving both mounted re-rendered two
-            full filter bars on every keystroke. The lg:hidden class stays as
-            the first-frame guard, since useMediaQuery starts at false. */}
+        {/* Rationale: docs/CLIENT_COMMENTS.md#block-components-products-product-database-tsx-memo-and-layout */}
         {!isDesktop && (
         <div className="lg:hidden space-y-3">
           <SearchInput
@@ -274,15 +267,6 @@ export function ProductDatabase() {
         </div>
         )}
 
-        {/* flex-1 already fills exactly the space left after the tabs/header
-            above (verified live) — min-h-[360px] is the only bound that
-            should normally bind, keeping the table usable on a short
-            window. max-h is a fixed px edge-case rail against an absurdly
-            tall/ultrawide monitor, not a percentage of viewport height: a
-            vh-based cap (e.g. 75vh) is *always* less than the true
-            remaining space once the header/tabs are subtracted, so it was
-            binding on every normal screen and undoing the fill instead of
-            only guarding the extreme case. */}
         <div className="border-0 sm:border sm:border-border bg-transparent sm:bg-card rounded-none sm:rounded-2xl flex flex-col flex-1 min-h-[360px] lg:max-h-[900px]">
           {isDesktop && (
           <ProductDatabaseFilters
@@ -332,7 +316,6 @@ export function ProductDatabase() {
         />
       </ResponsiveDetailPanel>
 
-      {/* Dialogs */}
       <AddProductDialog
         open={showAddDialog}
         onOpenChange={setShowAddDialog}

@@ -1,9 +1,13 @@
-import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, vi, type Mock } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
+type PushChangesMock = Mock<
+  (req: { changes: Array<{ table_name: string; payload: Record<string, unknown> }> }) => Promise<unknown>
+>;
+
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("@/lib/api/client", () => ({
@@ -27,14 +31,14 @@ describe("pushChanges coalesces multiple pending UPDATEs for the same record", (
   let insert: typeof import("@/lib/db/base-helpers").insert;
   let update: typeof import("@/lib/db/base-helpers").update;
   let pushChanges: typeof import("@/lib/db/sync-engine/push").pushChanges;
-  let apiClient: { pushChanges: ReturnType<typeof vi.fn> };
+  let apiClient: { pushChanges: PushChangesMock };
 
   beforeAll(async () => {
     core = await import("@/lib/db/core");
     ({ insert, update } = await import("@/lib/db/base-helpers"));
     ({ pushChanges } = await import("@/lib/db/sync-engine/push"));
     ({ apiClient } = (await import("@/lib/api/client")) as unknown as {
-      apiClient: { pushChanges: ReturnType<typeof vi.fn> };
+      apiClient: { pushChanges: PushChangesMock };
     });
 
     const { SCHEMA_SQL } = await import("@/lib/db/schema");
@@ -92,11 +96,9 @@ describe("pushChanges coalesces multiple pending UPDATEs for the same record", (
     // a single device at one, so this is the legacy-backlog shape.
     expect(queued[0].values.length).toBe(2);
 
-    apiClient.pushChanges.mockImplementationOnce(async (req: { changes: Array<{ payload: Record<string, unknown> }> }) => {
+    apiClient.pushChanges.mockImplementationOnce((req: { changes: Array<{ table_name: string; payload: Record<string, unknown> }> }) => {
       // Exactly ONE change reaches the server for this record, not two.
-      const customerChanges = req.changes.filter(
-        (c) => (c as unknown as { table_name: string }).table_name === "customers",
-      );
+      const customerChanges = req.changes.filter((c) => c.table_name === "customers");
       expect(customerChanges.length).toBe(1);
       // Both field values are present in the single merged payload.
       expect(customerChanges[0].payload.outstanding_balance).toBe(500);
@@ -105,12 +107,12 @@ describe("pushChanges coalesces multiple pending UPDATEs for the same record", (
       // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-push-coalesces-same-record-updates-test-ts-L128
       expect(customerChanges[0].payload._version).toBe(1);
 
-      return {
+      return Promise.resolve({
         success: true,
         processed: 1,
         failed: [],
         versions: { customers: { [customerId]: 2 } },
-      };
+      });
     });
 
     const result = await pushChanges();
@@ -173,10 +175,10 @@ describe("pushChanges coalesces multiple pending UPDATEs for the same record", (
     await update("customers", customerB, { outstanding_balance: 200 });
     clearAuditLogQueueNoise();
 
-    apiClient.pushChanges.mockImplementationOnce(async (req: { changes: Array<{ table_name: string }> }) => {
+    apiClient.pushChanges.mockImplementationOnce((req: { changes: Array<{ table_name: string }> }) => {
       const customerChanges = req.changes.filter((c) => c.table_name === "customers");
       expect(customerChanges.length).toBe(2); // NOT merged — different records.
-      return { success: true, processed: 2, failed: [] };
+      return Promise.resolve({ success: true, processed: 2, failed: [] });
     });
 
     const result = await pushChanges();

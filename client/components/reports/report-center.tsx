@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { format, subDays } from "date-fns";
 import { Card } from "@/components/ui/card";
 import {
@@ -61,9 +62,12 @@ export function ReportCenter() {
     setRecentDownloads(getRecentDownloads());
   }, [getRecentDownloads]);
 
-  useEffect(() => {
-    refreshRecent();
-  }, [refreshRecent]);
+  const isHydrated = useHydrated();
+  const [hasLoadedRecent, setHasLoadedRecent] = useState(false);
+  if (isHydrated && !hasLoadedRecent) {
+    setHasLoadedRecent(true);
+    setRecentDownloads(getRecentDownloads());
+  }
 
   const runAction = async (
     reportId: ReportId,

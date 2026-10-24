@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { apiClient } from "@/lib/api/client";
 import {
   DropdownMenu,
@@ -13,8 +13,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Server, Check, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 
-const STATIC_ENVIRONMENTS = [
+interface ServerEnvironment {
+  name: string;
+  url: string;
+}
+
+const STATIC_ENVIRONMENTS: ServerEnvironment[] = [
   {
     name: "Production Server",
     url:
@@ -44,36 +50,36 @@ const STATIC_ENVIRONMENTS = [
   },
 ];
 
+const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "tauri.localhost"]);
+
+function physicalDeviceHostEnvironments(): ServerEnvironment[] {
+  const hostname = window.location.hostname;
+  if (!hostname || LOCAL_HOSTNAMES.has(hostname)) return [];
+  return [
+    {
+      name: `Physical Device Host (${hostname})`,
+      url: `http://${hostname}:8000/api/v1`,
+    },
+  ];
+}
+
 export function ServerSelector() {
-  const [currentUrl, setCurrentUrl] = useState<string>("");
-  const [environments, setEnvironments] = useState(STATIC_ENVIRONMENTS);
-
-  useEffect(() => {
-    setCurrentUrl(apiClient.getBaseURL());
-
-    // Dynamically add the current host IP for physical device wireless debugging
-    if (typeof window !== "undefined") {
-      const hostname = window.location.hostname;
-      if (
-        hostname &&
-        hostname !== "localhost" &&
-        hostname !== "127.0.0.1" &&
-        hostname !== "tauri.localhost"
-      ) {
-        setEnvironments((prev) => [
-          ...prev,
-          {
-            name: `Physical Device Host (${hostname})`,
-            url: `http://${hostname}:8000/api/v1`,
-          },
-        ]);
-      }
-    }
-  }, []);
+  const hydrated = useHydrated();
+  const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
+  const [customEnvironments, setCustomEnvironments] = useState<
+    ServerEnvironment[]
+  >([]);
+  const currentUrl =
+    selectedUrl ?? (hydrated ? apiClient.getBaseURL() : "");
+  const environments = [
+    ...STATIC_ENVIRONMENTS,
+    ...(hydrated ? physicalDeviceHostEnvironments() : []),
+    ...customEnvironments,
+  ];
 
   const handleSelect = (url: string) => {
     apiClient.setBaseURL(url);
-    setCurrentUrl(url);
+    setSelectedUrl(url);
     toast.success("Server environment updated");
   };
 
@@ -81,7 +87,7 @@ export function ServerSelector() {
     const ip = prompt("Enter your Mac's Wi-Fi IP address (e.g. 192.168.1.191):", "192.168.1.");
     if (ip) {
       const customUrl = `http://${ip.trim()}:8000/api/v1`;
-      setEnvironments((prev) => [
+      setCustomEnvironments((prev) => [
         ...prev,
         {
           name: `Custom Wi-Fi Host (${ip.trim()})`,

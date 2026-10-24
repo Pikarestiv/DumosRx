@@ -2,21 +2,16 @@
 
 import { memo, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import {
-  ShoppingCart,
-  Trash2,
-  PauseCircle,
-  ClipboardList,
-  FileText,
-  Lock,
-} from "lucide-react";
+import { Trash2, PauseCircle, ClipboardList, FileText } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-import { Switch } from "@/components/ui/switch";
+import { EmptyCart, HeldSalesChip, PrescriptionLockBanner } from "./pos-cart-notices";
 import { RequestItemDialog } from "./request-item-dialog";
 import { ProformaPreviewDialog } from "./proforma-preview-dialog";
 import { POSCartItem } from "./pos-cart-item";
 import { useRevealChangedCartLine } from "@/lib/hooks/use-reveal-changed-cart-line";
 import { POSRedeemReward } from "./pos-redeem-reward";
+import { POSCartDiscount } from "./pos-cart-discount";
+import { POSCartMarkupPicker } from "./pos-cart-markup-picker";
 import type { CartItem, RedeemedOption, MarkupType } from "@/lib/hooks/use-pos-cart";
 import type { Customer } from "@/lib/types/customer";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
@@ -138,68 +133,19 @@ export const POSCart = memo(function POSCart({
 
   return (
     <div className="flex flex-col h-full">
-      {!!isPrescriptionLocked && (
-        <div className="mx-5 mt-3 flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-primary/20 bg-primary/5 text-primary shrink-0">
-          <span className="flex items-center gap-1.5 text-[11.5px] font-semibold">
-            <Lock className="w-3.5 h-3.5" />
-            Cart locked to this prescription
-          </span>
-          {!!onEditPrescription && (
-            <button
-              onClick={onEditPrescription}
-              className="text-[11.5px] font-bold underline underline-offset-2 shrink-0 cursor-pointer"
-            >
-              Edit prescription
-            </button>
-          )}
-        </div>
-      )}
+      {!!isPrescriptionLocked && <PrescriptionLockBanner onEditPrescription={onEditPrescription} />}
       {cart.length > 0 && canUseMarkupSales && (
-        <div
-          ref={markupPickerRef}
-          className={`mx-5 mt-3 flex flex-col gap-2 px-3 py-2 rounded-lg border bg-muted/20 shrink-0 ${
-            markupPickerAlert ? "animate-attention-shake border-destructive ring-2 ring-destructive/30" : "border-border"
-          }`}
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11.5px] font-semibold text-foreground">
-              Reseller sale
-            </span>
-            <Switch
-              checked={isResellerSale}
-              onCheckedChange={withRestriction(
-                (v: boolean) => setIsResellerSale?.(v),
-                { featureAllowed: canUseResellerCommission, featureKey: "reseller_commission" },
-              )}
-            />
-          </div>
-          {isResellerSale && (
-            <div className="flex gap-1.5">
-              <button
-                type="button"
-                onClick={() => setMarkupType?.("reseller")}
-                className={`flex-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-colors ${
-                  markupType === "reseller"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-background border border-border text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                For a Reseller Agent
-              </button>
-              <button
-                type="button"
-                onClick={() => setMarkupType?.("store")}
-                className={`flex-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-colors ${
-                  markupType === "store"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-background border border-border text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Store Markup
-              </button>
-            </div>
+        <POSCartMarkupPicker
+          pickerRef={markupPickerRef}
+          alert={markupPickerAlert}
+          isResellerSale={isResellerSale}
+          onResellerSaleChange={withRestriction(
+            (v: boolean) => setIsResellerSale?.(v),
+            { featureAllowed: canUseResellerCommission, featureKey: "reseller_commission" },
           )}
-        </div>
+          markupType={markupType}
+          setMarkupType={setMarkupType}
+        />
       )}
       <div ref={listRef} className="flex-1 overflow-y-auto px-5 py-1.5 min-h-[120px]">
         {cart.length === 0 && <EmptyCart />}
@@ -221,20 +167,7 @@ export const POSCart = memo(function POSCart({
       </div>
 
       <div className="border-t border-border px-5 pt-4 pb-5 bg-muted/10">
-        {heldSalesCount > 0 && (
-          <button
-            onClick={onOpenHeldSales}
-            className="w-1/2 flex items-center justify-between gap-1.5 px-2 py-1 mb-2.5 rounded-md border border-amber-500/20 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 transition-colors cursor-pointer"
-          >
-            <span className="flex items-center gap-1 text-[11px] font-semibold">
-              <PauseCircle className="w-3 h-3" />
-              {heldSalesCount} on hold
-            </span>
-            <span className="text-[10.5px] font-bold underline underline-offset-2">
-              View
-            </span>
-          </button>
-        )}
+        {heldSalesCount > 0 && <HeldSalesChip count={heldSalesCount} onOpen={onOpenHeldSales} />}
 
         <div className="space-y-2 mb-4">
           <div className="flex justify-between text-[12.5px] text-muted-foreground">
@@ -257,78 +190,17 @@ export const POSCart = memo(function POSCart({
             />
           )}
 
-          {!redeemedOption && !canApplyDiscounts && discount > 0 && (
-            <div className="flex justify-between text-[12.5px] text-muted-foreground">
-              <span>Discount</span>
-              <span>
-                {discountType === "percentage"
-                  ? `${discount}%`
-                  : formatCurrency(discount, currencyCode)}
-              </span>
-            </div>
-          )}
-
-          {!redeemedOption && canApplyDiscounts && (showDiscount || discount > 0) && (
-            <div className="flex justify-between text-[12.5px] items-center gap-2">
-              <span className="text-muted-foreground">Discount</span>
-              <div className="flex gap-1 items-center flex-1 max-w-[160px] justify-end">
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  max={discountType === "percentage" ? 100 : undefined}
-                  className="flex h-7 w-16 rounded-md border border-input bg-background px-2 py-1 text-xs text-right focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                  value={discount || ""}
-                  placeholder="0"
-                  onChange={(e) => {
-                    const value = parseFloat(e.target.value) || 0;
-                    setDiscount?.(
-                      discountType === "percentage"
-                        ? Math.min(100, Math.max(0, value))
-                        : Math.max(0, value),
-                    );
-                  }}
-                />
-                <select
-                  className="flex h-7 rounded-md border border-input bg-background px-1 py-1 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                  value={discountType}
-                  onChange={(e) => {
-                    // Clear the typed number on type switch instead of
-                    // silently reinterpreting it — "50" meant as a ₦50
-                    // fixed discount becomes a 50% discount otherwise, with
-                    // no warning.
-                    setDiscountType?.(e.target.value as "fixed" | "percentage");
-                    setDiscount?.(0);
-                  }}
-                >
-                  <option value="fixed">Fixed</option>
-                  <option value="percentage">%</option>
-                </select>
-                <button
-                  type="button"
-                  aria-label="Remove discount"
-                  className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
-                  onClick={() => {
-                    setShowDiscount(false);
-                    setDiscount?.(0);
-                  }}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          )}
-          {!redeemedOption && canApplyDiscounts && !(showDiscount || discount > 0) && (
-            <div className="flex justify-between text-[12.5px] text-muted-foreground">
-              <button
-                type="button"
-                className="text-primary font-semibold cursor-pointer hover:underline outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-                onClick={() => setShowDiscount(true)}
-              >
-                + Add discount
-              </button>
-              <span>{formatCurrency(0, currencyCode)}</span>
-            </div>
+          {!redeemedOption && (
+            <POSCartDiscount
+              discount={discount}
+              discountType={discountType}
+              setDiscount={setDiscount}
+              setDiscountType={setDiscountType}
+              showDiscount={showDiscount}
+              setShowDiscount={setShowDiscount}
+              canApplyDiscounts={canApplyDiscounts}
+              currencyCode={currencyCode}
+            />
           )}
 
           {!redeemedOption && !(showDiscount || discount > 0) && (
@@ -432,13 +304,3 @@ export const POSCart = memo(function POSCart({
     </div>
   );
 });
-
-function EmptyCart() {
-  return (
-    <div className="text-center py-10 text-muted-foreground h-full flex flex-col items-center justify-center">
-      <ShoppingCart className="h-8 w-8 mb-3 opacity-30" />
-      <p className="text-sm font-medium">Cart is empty</p>
-      <p className="text-xs mt-1">Tap products to add them to the cart</p>
-    </div>
-  );
-}

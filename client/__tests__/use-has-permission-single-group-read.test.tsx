@@ -3,15 +3,15 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 vi.mock("@sentry/nextjs", () => ({ setUser: vi.fn(), setTag: vi.fn() }));
 vi.mock("@/lib/api/client", () => ({
   apiClient: { login: vi.fn(), setToken: vi.fn() },
 }));
 vi.mock("@/lib/db/sync-engine", () => ({
-  sync: vi.fn(async () => ({ success: true })),
+  sync: vi.fn(() => Promise.resolve({ success: true })),
   isSyncing: vi.fn(() => false),
 }));
 vi.mock("@/lib/query-client", () => ({
@@ -29,7 +29,7 @@ vi.mock("@/lib/db/local-database", () => ({
   logAction: vi.fn(async () => {}),
 }));
 
-const getUserPermissionGroup = vi.fn(async () => ({
+const getUserPermissionGroup = vi.fn(() => Promise.resolve({
   id: "pg1",
   permissions: ["process_sales", "manage_products"],
 }));
@@ -77,7 +77,7 @@ describe("useHasPermission reads one shared permission group", () => {
     }
 
     root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(AuthProvider, null, React.createElement(ManyCallSites)));
     });
     await act(async () => {

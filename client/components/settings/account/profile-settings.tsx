@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,15 +16,15 @@ export function ProfileSettings() {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ first_name: "", last_name: "", phone: "" });
 
-  useEffect(() => {
-    if (user) {
-      setFormData({
-        first_name: user.first_name || "",
-        last_name: user.last_name || "",
-        phone: user.phone || "",
-      });
-    }
-  }, [user]);
+  const [formSourceUser, setFormSourceUser] = useState<typeof user>(undefined);
+  if (user && user !== formSourceUser) {
+    setFormSourceUser(user);
+    setFormData({
+      first_name: user.first_name || "",
+      last_name: user.last_name || "",
+      phone: user.phone || "",
+    });
+  }
 
   const handleSave = async () => {
     try {

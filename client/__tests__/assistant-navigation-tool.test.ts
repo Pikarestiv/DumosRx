@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { assert, describe, it, expect } from "vitest";
 import { navigateHelpTool } from "@/lib/assistant/tools/navigation-tools";
 import { HELP_TOPICS } from "@/lib/assistant/help-catalog";
 import type { ToolContext } from "@/lib/assistant/types";
@@ -15,7 +15,8 @@ const ctx: ToolContext = {
 
 describe("navigateHelpTool", () => {
   it("finds the make_sale topic and returns its href", async () => {
-    const topic = HELP_TOPICS.find((t) => t.id === "make_sale")!;
+    const topic = HELP_TOPICS.find((t) => t.id === "make_sale");
+    assert(topic);
     const result = await navigateHelpTool.execute({ topic: "make_sale" }, ctx);
     const reply = navigateHelpTool.format(result, { topic: "make_sale" }, ctx);
     expect(reply.kind).toBe("help");

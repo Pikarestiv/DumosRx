@@ -2,13 +2,15 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import initSqlJs, { type Database } from "sql.js";
+import type { CartItem } from "@/lib/hooks/use-pos-cart";
+import type { Customer } from "@/lib/types/customer";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Coverage for wiring loyalty_tiers.points_multiplier into actual points earning at checkout (previously configured/displa…
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-pos-payment-loyalty-tier-test-ts-L13
@@ -65,7 +67,7 @@ describe("usePOSPayment loyalty tier multiplier", () => {
     cost_price: 500,
     quantity: 1,
     subtotal: 1000,
-  } as any;
+  } as unknown as CartItem;
 
   it("earns points at 1x when the customer's prior spend qualifies for no tier above the base", async () => {
     db.run(
@@ -83,7 +85,7 @@ describe("usePOSPayment loyalty tier multiplier", () => {
       tax: 0,
       total: 1000,
       discount: 0,
-      selectedCustomer: { id: "c1", first_name: "Jane", loyalty_points: 0 } as any,
+      selectedCustomer: { id: "c1", first_name: "Jane", loyalty_points: 0 } as unknown as Customer,
       clearCart: () => {},
       refetchProducts: () => {},
       canUseLoyaltyProgram: true,
@@ -122,7 +124,7 @@ describe("usePOSPayment loyalty tier multiplier", () => {
       tax: 0,
       total: 1000,
       discount: 0,
-      selectedCustomer: { id: "c1", first_name: "Jane", loyalty_points: 0 } as any,
+      selectedCustomer: { id: "c1", first_name: "Jane", loyalty_points: 0 } as unknown as Customer,
       clearCart: () => {},
       refetchProducts: () => {},
       canUseLoyaltyProgram: true,
@@ -153,7 +155,7 @@ describe("usePOSPayment loyalty tier multiplier", () => {
       tax: 0,
       total: 1000,
       discount: 0,
-      selectedCustomer: { id: "c1", first_name: "Jane", loyalty_points: 0 } as any,
+      selectedCustomer: { id: "c1", first_name: "Jane", loyalty_points: 0 } as unknown as Customer,
       clearCart: () => {},
       refetchProducts: () => {},
       canUseLoyaltyProgram: true,

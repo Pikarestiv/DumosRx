@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { formatCurrency } from "@/lib/utils";
+import { toUtcInstant } from "@/lib/utils/date-utils";
 import { getProductBasicInfo } from "@/lib/db/queries/products";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -39,7 +40,8 @@ export function StockMovementDetailsDialog({
 
   if (!movement) return null;
 
-  const date = movement.created_at || movement.movement_date;
+  const rawDate = movement.created_at || movement.movement_date;
+  const date = rawDate ? toUtcInstant(rawDate) : rawDate;
   const isPositive = movement.quantity > 0;
   const displayType = resolveMovementDisplayType(movement);
 

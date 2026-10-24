@@ -53,8 +53,8 @@ export function usePermissionGroups() {
   }, []);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    void getStorePermissionGroups().then((rows) => setGroups(rows as PermissionGroupRow[]));
+  }, []);
 
   const toggle = useCallback(
     async (groupId: string, key: string, granted: boolean) => {

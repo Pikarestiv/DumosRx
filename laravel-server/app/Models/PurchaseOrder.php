@@ -5,10 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * @mixin IdeHelperPurchaseOrder
+ * @property string|null $store_id
  */
 class PurchaseOrder extends Model
 {
@@ -22,17 +24,26 @@ class PurchaseOrder extends Model
         'actual_delivery_date' => 'date',
     ];
 
-    public function items()
+    /**
+     * @return HasMany<PurchaseOrderItem, $this>
+     */
+    public function items(): HasMany
     {
         return $this->hasMany(PurchaseOrderItem::class);
     }
 
-    public function supplier()
+    /**
+     * @return BelongsTo<Supplier, $this>
+     */
+    public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
     }
 
-    public function orderedBy()
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function orderedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'ordered_by');
     }

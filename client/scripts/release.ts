@@ -288,7 +288,7 @@ console.log(
   `\nPushing the tag triggers the real release pipeline: builds macOS/Windows/Linux/Android and deploys to downloads.dumosrx.com.\n`,
 );
 
-(async () => {
+void (async () => {
   const proceed = await confirm("Proceed?");
   if (!proceed) {
     console.log("\nAborted. No commit, push, or tag was made.");

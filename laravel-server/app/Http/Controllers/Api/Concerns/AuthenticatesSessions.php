@@ -3,17 +3,17 @@
 namespace App\Http\Controllers\Api\Concerns;
 
 use App\Http\Controllers\Concerns\ManagesAdminSessionCookie;
+use App\Mail\NewDeviceLoginEmail;
 use App\Models\User;
 use App\Services\SubscriptionService;
 use App\Support\TokenLifetime;
-use App\Mail\NewDeviceLoginEmail;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
-use Exception;
 use OpenApi\Attributes as OA;
 
 trait AuthenticatesSessions
@@ -54,13 +54,13 @@ trait AuthenticatesSessions
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user || $user->password === null || $user->password === '' || !Hash::check($request->password, $user->password)) {
+        if (! $user || $user->password === null || $user->password === '' || ! Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['Invalid credentials.'],
             ]);
         }
 
-        if (!$user->is_active) {
+        if (! $user->is_active) {
             throw ValidationException::withMessages([
                 'email' => ['Account is deactivated.'],
             ]);
@@ -69,7 +69,7 @@ trait AuthenticatesSessions
         $user->last_login_at = now();
         $user->save();
 
-        if (!$user->hasRole('super_admin')) {
+        if (! $user->hasRole('super_admin')) {
             $subService = app(SubscriptionService::class);
             $owner = $subService->getSubscriptionOwner($user);
             $subService->enforceStaffLimits($owner);
@@ -86,11 +86,11 @@ trait AuthenticatesSessions
         $isNewDevice = false;
 
         if ($priorTokensCount > 1) {
-            $isNewDevice = !$user->tokens()
+            $isNewDevice = ! $user->tokens()
                 ->where('id', '!=', $tokenModel->id)
-                ->where(function($query) use ($ipAddress, $userAgent) {
+                ->where(function ($query) use ($ipAddress, $userAgent) {
                     $query->where('ip_address', $ipAddress)
-                          ->orWhere('user_agent', $userAgent);
+                        ->orWhere('user_agent', $userAgent);
                 })->exists();
         }
 
@@ -104,7 +104,7 @@ trait AuthenticatesSessions
                     new NewDeviceLoginEmail($user, $userAgent, $ipAddress, now()->toDateTimeString())
                 );
             } catch (Exception $e) {
-                Log::error("Failed to send new-device login email to {$user->email}: " . $e->getMessage());
+                Log::error("Failed to send new-device login email to {$user->email}: ".$e->getMessage());
             }
         }
 
@@ -169,8 +169,8 @@ trait AuthenticatesSessions
         $token = $user->createToken('web', ['*'], TokenLifetime::forUser($user))->plainTextToken;
 
         return response()->json([
-            "token" => $token,
-            "user" => $user->append('effective_permissions'),
+            'token' => $token,
+            'user' => $user->append('effective_permissions'),
         ]);
     }
 
@@ -190,24 +190,25 @@ trait AuthenticatesSessions
     public function refreshAdminSession(Request $request)
     {
         $raw = $request->cookie('drx_admin_session');
-        if (!$raw) {
+        if (! $raw) {
             return response()->json(['message' => 'No active session.'], 401);
         }
 
         $refreshToken = PersonalAccessToken::findToken($raw);
 
-        if (!$refreshToken || TokenLifetime::hasLapsed($refreshToken)) {
+        if (! $refreshToken || TokenLifetime::hasLapsed($refreshToken)) {
             return response()->json(['message' => 'Session expired.'], 401);
         }
 
-        if (!$refreshToken->can('refresh')) {
+        if (! $refreshToken->can('refresh')) {
             return response()->json(['message' => 'Session expired.'], 401)
                 ->withCookie($this->forgetAdminSessionCookie($request));
         }
 
         $user = $refreshToken->tokenable;
-        if (!$user || !$user->is_active) {
+        if (! $user instanceof User || ! $user->is_active) {
             $refreshToken->delete();
+
             return response()->json(['message' => 'Session expired.'], 401)
                 ->withCookie($this->forgetAdminSessionCookie($request));
         }

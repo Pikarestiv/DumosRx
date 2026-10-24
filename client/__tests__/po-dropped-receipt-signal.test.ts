@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // A-26: the A-9 fix deliberately keys a receipt's rows on the PO line plus its already-received balance, so a stale second…
@@ -109,8 +109,9 @@ describe("dropped-receipt signal for a purchase order", () => {
     seedOrder("po1", ["item1"]);
     await dropReceipt("item1");
     const signal = await procurement.getDroppedReceiptSignal("po1");
+    if (!signal) throw new Error("expected a dropped-receipt signal for po1");
 
-    await procurement.dismissDroppedReceiptSignal(signal!.conflictIds);
+    await procurement.dismissDroppedReceiptSignal(signal.conflictIds);
 
     expect(await procurement.getDroppedReceiptSignal("po1")).toBeNull();
   });

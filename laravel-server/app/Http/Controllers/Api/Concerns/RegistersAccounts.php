@@ -2,19 +2,19 @@
 
 namespace App\Http\Controllers\Api\Concerns;
 
-use App\Support\TokenLifetime;
-use App\Models\User;
+use App\Mail\WelcomeEmail;
 use App\Models\Role;
 use App\Models\Store;
+use App\Models\User;
 use App\Services\SubscriptionService;
-use App\Mail\WelcomeEmail;
+use App\Support\TokenLifetime;
+use Exception;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Log;
-use Exception;
 use OpenApi\Attributes as OA;
 
 /**
@@ -95,7 +95,7 @@ trait RegistersAccounts
 
         $referredById = null;
         $refCode = $request->ref ?? $request->referrer;
-        if (!empty($refCode)) {
+        if (! empty($refCode)) {
             $referrerUser = User::where('referral_code', $refCode)
                 ->orWhere('username', $refCode)
                 ->first();
@@ -110,7 +110,7 @@ trait RegistersAccounts
         // referred_by_id so it can never surface in customer-facing referral UI
         // or credit logic.
         $registeredById = null;
-        if (!empty($request->agent_ref)) {
+        if (! empty($request->agent_ref)) {
             $agentUser = User::where('platform_referral_code', $request->agent_ref)->first();
             if ($agentUser) {
                 $registeredById = $agentUser->id;
@@ -151,7 +151,7 @@ trait RegistersAccounts
                     'user_id' => $user->id,
                     'name' => $request->store_name,
                     'store_type' => $request->store_type ?? 'pharmacy',
-                    'device_id' => 'WEB-' . strtoupper(Str::random(8)),
+                    'device_id' => 'WEB-'.strtoupper(Str::random(8)),
                     'auto_sync_enabled' => true,
                 ]);
 
@@ -164,7 +164,7 @@ trait RegistersAccounts
                     ['email' => $user->email],
                     ['token' => Hash::make($verifyToken), 'created_at' => now()]
                 );
-                $verificationUrl = config('app.frontend_url', 'https://dumosrx.com') . "/verify-email?token=$verifyToken&email=" . urlencode($user->email);
+                $verificationUrl = config('app.frontend_url', 'https://dumosrx.com')."/verify-email?token=$verifyToken&email=".urlencode($user->email);
             } else {
                 $user->email_verified_at = now();
                 $user->save();
@@ -175,29 +175,29 @@ trait RegistersAccounts
 
         if ($request->filled('store_name')) {
             // Send Welcome Email if verification is NOT required
-            if (!$requireVerification) {
+            if (! $requireVerification) {
                 try {
                     Mail::to($user->email)->send(new WelcomeEmail($user, $request->store_name));
                 } catch (Exception $e) {
-                    Log::error("Failed to send welcome email: " . $e->getMessage());
+                    Log::error('Failed to send welcome email: '.$e->getMessage());
                 }
             }
 
             // Send Super Admin Alert
             try {
                 \App\Services\AdminAlertService::send(
-                    'New Registration: ' . $request->store_name,
+                    'New Registration: '.$request->store_name,
                     [
-                        "A new user has just registered on DumosRx.",
+                        'A new user has just registered on DumosRx.',
                         "Name: {$user->first_name} {$user->last_name}",
                         "Email: {$user->email}",
                         "Phone: {$user->phone}",
                         "Store Name: {$request->store_name}",
-                        "Referred By: " . ($refCode ?? 'None')
+                        'Referred By: '.($refCode ?? 'None'),
                     ]
                 );
             } catch (Exception $e) {
-                Log::error("Failed to send super admin alert: " . $e->getMessage());
+                Log::error('Failed to send super admin alert: '.$e->getMessage());
             }
         }
 
@@ -205,7 +205,7 @@ trait RegistersAccounts
             try {
                 Mail::to($user->email)->send(new \App\Mail\EmailVerificationMail($user, $verificationUrl));
             } catch (Exception $e) {
-                Log::error("Failed to send verification email: " . $e->getMessage());
+                Log::error('Failed to send verification email: '.$e->getMessage());
             }
         }
 
@@ -246,12 +246,12 @@ trait RegistersAccounts
 
         $record = DB::table('email_verification_tokens')->where('email', $request->email)->first();
 
-        if (!$record || !Hash::check($request->token, $record->token) || $this->verificationTokenExpired($record)) {
+        if (! $record || ! Hash::check($request->token, $record->token) || $this->verificationTokenExpired($record)) {
             return response()->json(['message' => 'Invalid or expired verification link.'], 400);
         }
 
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             $user = User::where('email', $request->email)->first();
         }
 
@@ -265,7 +265,7 @@ trait RegistersAccounts
                 $storeName = $user->store ? $user->store->name : 'DumosRx';
                 Mail::to($user->email)->send(new \App\Mail\WelcomeEmail($user, $storeName));
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error("Failed to send welcome email after verification: " . $e->getMessage());
+                \Illuminate\Support\Facades\Log::error('Failed to send welcome email after verification: '.$e->getMessage());
             }
 
             return response()->json(['message' => 'Email verified successfully.', 'user' => $user]);
@@ -302,12 +302,12 @@ trait RegistersAccounts
     public function resendVerification(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             $request->validate(['email' => 'required|email']);
             $user = User::where('email', $request->email)->first();
         }
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'User not found.'], 404);
         }
 
@@ -320,12 +320,14 @@ trait RegistersAccounts
             ['email' => $user->email],
             ['token' => Hash::make($verifyToken), 'created_at' => now()]
         );
-        $verificationUrl = config('app.frontend_url', 'https://dumosrx.com') . "/verify-email?token=$verifyToken&email=" . urlencode($user->email);
+        $verificationUrl = config('app.frontend_url', 'https://dumosrx.com')."/verify-email?token=$verifyToken&email=".urlencode($user->email);
         try {
             Mail::to($user->email)->send(new \App\Mail\EmailVerificationMail($user, $verificationUrl));
+
             return response()->json(['message' => 'Verification email sent.']);
         } catch (Exception $e) {
-            Log::error("Failed to send verification email: " . $e->getMessage());
+            Log::error('Failed to send verification email: '.$e->getMessage());
+
             return response()->json(['message' => 'Failed to send verification email.'], 500);
         }
     }

@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 return new class extends Migration
@@ -19,7 +19,7 @@ return new class extends Migration
                     ->where('batch_number', 'INITIAL')
                     ->first();
 
-                if (!$existingBatch) {
+                if (! $existingBatch) {
                     DB::table('stock_batches')->insert([
                         'id' => (string) Str::uuid(),
                         'product_id' => $product->id,
@@ -45,7 +45,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        if (!Schema::hasColumn('products', 'stock_quantity')) {
+        if (! Schema::hasColumn('products', 'stock_quantity')) {
             Schema::table('products', function (Blueprint $table) {
                 $table->integer('stock_quantity')->default(0)->after('markup_percentage');
             });

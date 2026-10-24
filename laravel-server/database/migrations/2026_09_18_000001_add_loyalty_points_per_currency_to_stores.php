@@ -17,7 +17,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('stores', function (Blueprint $table) {
-            if (!Schema::hasColumn('stores', 'loyalty_points_per_currency')) {
+            if (! Schema::hasColumn('stores', 'loyalty_points_per_currency')) {
                 $table->decimal('loyalty_points_per_currency', 6, 4)->default(0.01);
             }
         });

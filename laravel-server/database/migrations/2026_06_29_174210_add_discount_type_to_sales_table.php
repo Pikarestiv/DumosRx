@@ -12,10 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('sales', function (Blueprint $table) {
-            if (!Schema::hasColumn('sales', 'discount_type')) {
+            if (! Schema::hasColumn('sales', 'discount_type')) {
                 $table->string('discount_type')->default('fixed')->after('discount_amount');
             }
-            if (!Schema::hasColumn('sales', 'discount_total')) {
+            if (! Schema::hasColumn('sales', 'discount_total')) {
                 $table->decimal('discount_total', 10, 2)->default(0.00)->after('subtotal');
             }
         });

@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers\Api\Concerns;
 
-use App\Models\User;
 use App\Mail\PasswordResetEmail;
+use App\Models\User;
+use Exception;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Log;
-use Exception;
 use OpenApi\Attributes as OA;
 
 /**
@@ -48,7 +48,7 @@ trait RecoversPasswords
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user) {
+        if (! $user) {
             // We return success even if user not found to prevent email enumeration
             return response()->json(['message' => 'If your email is in our system, you will receive a reset link shortly.']);
         }
@@ -63,14 +63,15 @@ trait RecoversPasswords
             ]
         );
 
-        $resetUrl = config('app.frontend_url', 'https://dumosrx.com') . "/reset-password?token=$token&email=" . urlencode($request->email);
+        $resetUrl = config('app.frontend_url', 'https://dumosrx.com')."/reset-password?token=$token&email=".urlencode($request->email);
 
         try {
             Mail::to($user->email)->send(new PasswordResetEmail($user, $resetUrl));
         } catch (Exception $e) {
-            Log::error("Failed to send password reset email: " . $e->getMessage());
+            Log::error('Failed to send password reset email: '.$e->getMessage());
+
             return response()->json([
-                'message' => 'Unable to send password reset email. Please try again later.'
+                'message' => 'Unable to send password reset email. Please try again later.',
             ], 500);
         }
 
@@ -110,7 +111,7 @@ trait RecoversPasswords
             ->where('email', $request->email)
             ->first();
 
-        if (!$reset || !Hash::check($request->token, $reset->token)) {
+        if (! $reset || ! Hash::check($request->token, $reset->token)) {
             return response()->json(['message' => 'Invalid or expired token.'], 400);
         }
 
@@ -120,7 +121,7 @@ trait RecoversPasswords
         }
 
         $user = User::where('email', $request->email)->first();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'User not found.'], 404);
         }
 
@@ -136,7 +137,7 @@ trait RecoversPasswords
         try {
             \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\PasswordChangedEmail($user));
         } catch (Exception $e) {
-            Log::error("Failed to send password-changed confirmation email to {$user->email}: " . $e->getMessage());
+            Log::error("Failed to send password-changed confirmation email to {$user->email}: ".$e->getMessage());
         }
 
         return response()->json(['message' => 'Password has been reset successfully.']);

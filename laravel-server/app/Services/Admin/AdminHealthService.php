@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use App\Models\ActivityLog;
 use App\Support\HostMetrics;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -117,7 +118,7 @@ class AdminHealthService
             return 'Unavailable';
         }
 
-        return $firstLog ? $firstLog->created_at->diffForHumans(null, true) : 'No data';
+        return $firstLog ? $firstLog->created_at->diffForHumans(null, CarbonInterface::DIFF_ABSOLUTE) : 'No data';
     }
 
     private function cacheProbe(): string

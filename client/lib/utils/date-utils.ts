@@ -97,6 +97,11 @@ export const formatDateLong = (
   }
 };
 
+const ZONELESS_UTC_DATETIME = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?$/;
+
+export const toUtcInstant = (value: string): string =>
+  ZONELESS_UTC_DATETIME.test(value) ? `${value.replace(" ", "T")}Z` : value;
+
 // Format a date string with an arbitrary date-fns pattern, falling back to `fallback` instead of throwing/rendering "Invalid Date" for a null,…
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-date-utils-ts-L103
 export const formatDateSafe = (

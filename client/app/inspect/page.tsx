@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { TillInspectionBanner } from "@/components/dashboard/till-inspection-banner";
 import { DeviceDiagnosticsPanel } from "@/components/settings/device-diagnostics";
 import { isTillInspectionSession } from "@/lib/utils/till-inspection";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 
 // Where a read-only admin inspection session renders.
 // Rationale: docs/CLIENT_COMMENTS.md#block-app-inspect-page-tsx-L9
@@ -12,15 +13,12 @@ export default function InspectPage() {
   const router = useRouter();
   // Mounted flag: reading sessionStorage during render makes the server/ prerender pass and the first client pass disagree,…
   // Rationale: docs/CLIENT_COMMENTS.md#line-app-inspect-page-tsx-L18
-  const [mounted, setMounted] = useState(false);
-  const [hasSession, setHasSession] = useState(false);
+  const mounted = useHydrated();
+  const hasSession = mounted && isTillInspectionSession();
 
   useEffect(() => {
-    const live = isTillInspectionSession();
-    setMounted(true);
-    setHasSession(live);
-    if (!live) router.replace("/login");
-  }, [router]);
+    if (mounted && !hasSession) router.replace("/login");
+  }, [mounted, hasSession, router]);
 
   if (!mounted || !hasSession) return null;
 

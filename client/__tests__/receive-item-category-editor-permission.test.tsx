@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const hasPermission = vi.fn((_key: string) => true);
-const quickEdit = vi.fn(async () => undefined);
+const quickEdit = vi.fn(() => Promise.resolve(undefined));
 
 vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: (key: string) => hasPermission(key),
@@ -15,9 +15,9 @@ vi.mock("@/lib/hooks/use-product-quick-edit-mutation", () => ({
   }),
 }));
 vi.mock("@/lib/db/queries/categories", () => ({
-  getCategoryList: vi.fn(async () => [
+  getCategoryList: vi.fn(() => Promise.resolve([
     { id: "c1", name: "Cement", productCount: 2 },
-  ]),
+  ])),
 }));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },

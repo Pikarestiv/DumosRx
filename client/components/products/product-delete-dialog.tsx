@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
@@ -20,9 +20,9 @@ export function ProductDeleteDialog({
   const deleteProduct = useDeleteProductMutation();
   // Keeps rendering the last real target while ConfirmDialog's exit
   // animation plays out after `target` is nulled on confirm/close.
-  const lastTarget = useRef(target);
-  if (target) lastTarget.current = target;
-  const displayTarget = target ?? lastTarget.current;
+  const [lastTarget, setLastTarget] = useState(target);
+  if (target && target !== lastTarget) setLastTarget(target);
+  const displayTarget = target ?? lastTarget;
 
   const { blockers, isLoading } = useProductDeletionBlockers(target?.id ?? null);
   const blockedByStock = blockers.stockOnHand > 0;

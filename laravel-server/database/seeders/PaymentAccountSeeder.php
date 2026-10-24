@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\PaymentAccount;
+use Illuminate\Database\Seeder;
 
 class PaymentAccountSeeder extends Seeder
 {
@@ -33,7 +33,7 @@ class PaymentAccountSeeder extends Seeder
                 'account_number' => '5432198765',
                 'is_active' => true,
                 'sort_order' => 3,
-            ]
+            ],
         ];
 
         $store = \App\Models\Store::first();

@@ -38,7 +38,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
             $table->timestamp('_synced_at')->nullable();
-            
+
             // Add index for easy per-user usage lookups
             $table->index(['coupon_id', 'user_id']);
         });

@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('requested_by_customer')->nullable();
             $table->integer('request_count')->default(1);
             $table->string('status')->default('pending'); // pending, ordered
-            
+
             // Sync Engine Requirements
             $table->integer('_version')->default(1);
             $table->boolean('_synced')->default(true);

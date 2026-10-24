@@ -18,7 +18,7 @@ vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: () => true,
 }));
 vi.mock("@/lib/db/queries/categories", () => ({
-  getCategoryList: vi.fn(async () => []),
+  getCategoryList: vi.fn(() => Promise.resolve([])),
 }));
 vi.mock("@/lib/hooks/use-dropped-receipt-signal", () => ({
   useDroppedReceiptSignal: () => ({ signal, dismiss }),

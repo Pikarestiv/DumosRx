@@ -97,7 +97,7 @@ class AdminTillSessionService
             'id' => $row->id,
             'label' => $row->label,
             'admin_email' => $row->admin?->email,
-            'admin_name' => trim(($row->admin?->first_name ?? '').' '.($row->admin?->last_name ?? '')),
+            'admin_name' => trim(($row->admin->first_name ?? '').' '.($row->admin->last_name ?? '')),
             'created_at' => $row->created_at?->toIso8601String(),
             'last_used_at' => $row->last_used_at?->toIso8601String(),
             'code' => $this->decryptCode($row),
@@ -106,7 +106,7 @@ class AdminTillSessionService
 
     private function decryptCode(AdminTillCode $row): ?string
     {
-        if (!$row->code_encrypted) {
+        if (! $row->code_encrypted) {
             return null;
         }
 
@@ -126,7 +126,7 @@ class AdminTillSessionService
         // cascade to their till codes — so without this an off-boarded admin
         // kept read access to every store till, the fold and the clock
         // override until somebody separately remembered to revoke the codes.
-        if ($admin && (!$admin->is_active || !$admin->hasRole(self::ELIGIBLE_ROLES))) {
+        if ($admin && (! $admin->is_active || ! $admin->hasRole(self::ELIGIBLE_ROLES))) {
             $admin = null;
         }
 
@@ -145,12 +145,12 @@ class AdminTillSessionService
             $row = $codes[$i] ?? null;
             $hash = $row->code_hash ?? $this->equalizerHash();
 
-            if (Hash::check($code, $hash) && $row && !$matched) {
+            if (Hash::check($code, $hash) && $row && ! $matched) {
                 $matched = $row;
             }
         }
 
-        if (!$matched) {
+        if (! $matched) {
             return null;
         }
 
@@ -192,7 +192,7 @@ class AdminTillSessionService
     {
         $session = AdminTillSession::live()->where('id', $sessionId)->first();
 
-        if (!$session) {
+        if (! $session) {
             return false;
         }
 
@@ -202,7 +202,7 @@ class AdminTillSessionService
         // would otherwise make the relation null and the typed log() throw.
         $admin = $session->admin()->withTrashed()->first();
 
-        if (!$admin) {
+        if (! $admin) {
             return true;
         }
 

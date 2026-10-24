@@ -57,7 +57,7 @@ class StaffController extends Controller
 
         return User::where(function ($q) use ($storeIds, $owner) {
             $q->whereIn('store_id', $storeIds)
-              ->orWhere('id', $owner->id);
+                ->orWhere('id', $owner->id);
         });
     }
 
@@ -73,7 +73,7 @@ class StaffController extends Controller
         $user = $request->user();
         $query = $this->visibleStaffBaseQuery($request);
 
-        if (!$request->has('store_id') || $request->store_id === 'all') {
+        if (! $request->has('store_id') || $request->store_id === 'all') {
             return $query;
         }
 
@@ -113,6 +113,7 @@ class StaffController extends Controller
     public function show(Request $request, $id)
     {
         $staff = $this->visibleStaffBaseQuery($request)->findOrFail($id);
+
         return response()->json($staff);
     }
 
@@ -143,9 +144,9 @@ class StaffController extends Controller
     )]
     public function store(Request $request)
     {
-        if (!app(\App\Services\SubscriptionService::class)->checkLimit($request->user(), 'staff')) {
+        if (! app(\App\Services\SubscriptionService::class)->checkLimit($request->user(), 'staff')) {
             return response()->json([
-                'message' => 'Staff limit reached for your current plan. Please upgrade your plan to add more staff.'
+                'message' => 'Staff limit reached for your current plan. Please upgrade your plan to add more staff.',
             ], 422);
         }
 
@@ -168,7 +169,7 @@ class StaffController extends Controller
         // else only their own). See EnforcesStaffOwnership — update() below
         // uses the same check on the identical field.
         $user = $request->user();
-        if (!$this->storeIdBelongsToCaller($request->store_id, $user)) {
+        if (! $this->storeIdBelongsToCaller($request->store_id, $user)) {
             return response()->json([
                 'message' => 'The selected store id is invalid.',
                 'errors' => ['store_id' => ['The selected store id is invalid.']],
@@ -181,7 +182,7 @@ class StaffController extends Controller
         // level, the same escalation update() was fixed against. Caught by
         // an independent Opus review pass after the initial fix landed
         // update()'s check but missed this sibling.
-        if (!$user->hasRole('super_admin') && !$this->roleIsAtOrBelowCallerPrivilege($request->role, $user)) {
+        if (! $user->hasRole('super_admin') && ! $this->roleIsAtOrBelowCallerPrivilege($request->role, $user)) {
             return response()->json([
                 'message' => 'You cannot grant a role above your own privilege level.',
                 'errors' => ['role' => ['You cannot grant a role above your own privilege level.']],
@@ -190,7 +191,7 @@ class StaffController extends Controller
 
         $email = $request->email;
         if (empty($email)) {
-            $email = $request->username . '@local.dumosrx.com';
+            $email = $request->username.'@local.dumosrx.com';
         }
 
         $roleObj = \App\Models\Role::where('slug', $request->role)->first();
@@ -324,7 +325,7 @@ class StaffController extends Controller
         // otherwise silently orphan it from every tenant-scoped query
         // (see EnforcesStaffOwnership::storeIdBelongsToCaller()'s doc
         // comment).
-        if ($request->has('store_id') && !$this->storeIdBelongsToCaller($request->store_id, $request->user(), $staff->store_id)) {
+        if ($request->has('store_id') && ! $this->storeIdBelongsToCaller($request->store_id, $request->user(), $staff->store_id)) {
             return response()->json([
                 'message' => 'The selected store id is invalid.',
                 'errors' => ['store_id' => ['The selected store id is invalid.']],
@@ -337,15 +338,15 @@ class StaffController extends Controller
         // exploitable for extra permissions (admin/store_owner/manager
         // share one permission set today, see RolesAndPermissionsSeeder),
         // but must hold once those roles are ever differentiated.
-        if ($request->has('role') && !$request->user()->hasRole('super_admin')
-            && !$this->roleIsAtOrBelowCallerPrivilege($request->role, $request->user())) {
+        if ($request->has('role') && ! $request->user()->hasRole('super_admin')
+            && ! $this->roleIsAtOrBelowCallerPrivilege($request->role, $request->user())) {
             return response()->json([
                 'message' => 'You cannot grant a role above your own privilege level.',
                 'errors' => ['role' => ['You cannot grant a role above your own privilege level.']],
             ], 422);
         }
 
-        if ($request->has('is_active') && !$request->boolean('is_active')) {
+        if ($request->has('is_active') && ! $request->boolean('is_active')) {
             if ($blocked = $this->irreversibleDeactivationResponse($request, $staff)) {
                 return $blocked;
             }
@@ -360,15 +361,14 @@ class StaffController extends Controller
             $data['pin'] = User::hashPin($data['pin']);
         }
 
-
-        if (isset($data['is_active']) && $data['is_active'] == true && !$staff->is_active) {
-            if (!app(\App\Services\SubscriptionService::class)->checkLimit($request->user(), 'staff')) {
+        if (isset($data['is_active']) && $data['is_active'] == true && ! $staff->is_active) {
+            if (! app(\App\Services\SubscriptionService::class)->checkLimit($request->user(), 'staff')) {
                 return response()->json([
-                    'message' => 'Staff limit reached for your current plan. Please upgrade your plan to reactivate staff.'
+                    'message' => 'Staff limit reached for your current plan. Please upgrade your plan to reactivate staff.',
                 ], 422);
             }
         }
-        if ($request->has('password') && !empty($request->password)) {
+        if ($request->has('password') && ! empty($request->password)) {
             $data['password'] = Hash::make($request->password);
         }
 
@@ -379,7 +379,7 @@ class StaffController extends Controller
 
         if ($request->has('email') && empty($request->email)) {
             $username = $request->username ?? $staff->username;
-            $data['email'] = $username . '@local.dumosrx.com';
+            $data['email'] = $username.'@local.dumosrx.com';
         }
 
         $staff->update($data);

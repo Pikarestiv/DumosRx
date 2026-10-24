@@ -3,7 +3,6 @@
 namespace App\Services\Web;
 
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class SyncPayloadMapper
 {
@@ -13,6 +12,7 @@ class SyncPayloadMapper
      * bounds their size. This is a backstop against a bypassed/buggy client
      * pushing an unbounded blob, not the primary control. */
     private const MAX_LOGO_BYTES = 1024 * 1024;
+
     /**
      * Maps and cleans incoming payload data from the client to match the server schema.
      */
@@ -28,15 +28,15 @@ class SyncPayloadMapper
         // 2. Purchase Orders
         if ($tableName === 'purchase_orders') {
             if (empty($payload['order_number'])) {
-                $payload['order_number'] = 'PO-' . substr(time(), -6) . '-' . rand(100, 999);
+                $payload['order_number'] = 'PO-'.substr((string) time(), -6).'-'.rand(100, 999);
             }
             if (empty($payload['ordered_by'])) {
                 // If a fallback is needed; ideally the client provides it, but if not, use the authenticated user
                 $payload['ordered_by'] = $context['user_id'] ?? null;
             }
             if (empty($payload['order_date'])) {
-                $payload['order_date'] = isset($payload['created_at']) 
-                    ? explode('T', $payload['created_at'])[0] 
+                $payload['order_date'] = isset($payload['created_at'])
+                    ? explode('T', $payload['created_at'])[0]
                     : date('Y-m-d');
             }
             if (isset($payload['status'])) {
@@ -50,18 +50,18 @@ class SyncPayloadMapper
 
         // 3. Purchase Order Items
         if ($tableName === 'purchase_order_items') {
-            if (empty($payload['quantity_ordered']) && !empty($payload['bulk_quantity'])) {
+            if (empty($payload['quantity_ordered']) && ! empty($payload['bulk_quantity'])) {
                 $payload['quantity_ordered'] = $payload['bulk_quantity'] * ($payload['units_per_bulk'] ?? 1);
             }
             // quantity_received's own base-unit scaling happens once, in
-            // SyncController::normalizePushPayload()'s bulk_quantity/units_per_bulk
+            // PushPayloadNormalizer::normalizePushPayload()'s bulk_quantity/units_per_bulk
             // branch (which runs after this mapper and unsets both source
             // fields) — scaling it here too would double-apply units_per_bulk
             // when both are present in the same payload.
-            if (empty($payload['total_cost']) && !empty($payload['subtotal'])) {
+            if (empty($payload['total_cost']) && ! empty($payload['subtotal'])) {
                 $payload['total_cost'] = $payload['subtotal'];
             }
-            if (empty($payload['purchase_order_id']) && !empty($payload['po_id'])) {
+            if (empty($payload['purchase_order_id']) && ! empty($payload['po_id'])) {
                 $payload['purchase_order_id'] = $payload['po_id'];
             }
             if (empty($payload['status'])) {

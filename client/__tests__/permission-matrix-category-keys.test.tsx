@@ -39,8 +39,9 @@ describe("PermissionMatrix category rows", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root: Root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(PermissionMatrix));
+      return Promise.resolve();
     });
 
     const keyWarnings = consoleError.mock.calls.filter((args) =>

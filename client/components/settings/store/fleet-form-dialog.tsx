@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,16 @@ interface FleetFormDialogProps {
   onSuccess: () => void;
 }
 
+function buildFleetFormData(storeToEdit: FleetFormDialogProps["storeToEdit"]) {
+  return {
+    name: storeToEdit?.name || "",
+    location: storeToEdit?.location || "",
+    address: storeToEdit?.address || "",
+    phone: storeToEdit?.phone || "",
+    store_type: storeToEdit?.store_type || "pharmacy",
+  };
+}
+
 export function FleetFormDialog({
   isOpen,
   onOpenChange,
@@ -38,25 +48,15 @@ export function FleetFormDialog({
   const saveStoreMutation = useSaveFleetStoreMutation();
   const isSubmitting = saveStoreMutation.isPending;
   const isEditing = !!storeToEdit;
-  const [formData, setFormData] = useState({
-    name: "",
-    location: "",
-    address: "",
-    phone: "",
-    store_type: "pharmacy",
-  });
+  const [formData, setFormData] = useState(() =>
+    buildFleetFormData(isOpen ? storeToEdit : null),
+  );
 
-  useEffect(() => {
-    if (isOpen) {
-      setFormData({
-        name: storeToEdit?.name || "",
-        location: storeToEdit?.location || "",
-        address: storeToEdit?.address || "",
-        phone: storeToEdit?.phone || "",
-        store_type: storeToEdit?.store_type || "pharmacy",
-      });
-    }
-  }, [isOpen, storeToEdit]);
+  const [formSource, setFormSource] = useState({ isOpen, storeToEdit });
+  if (formSource.isOpen !== isOpen || formSource.storeToEdit !== storeToEdit) {
+    setFormSource({ isOpen, storeToEdit });
+    if (isOpen) setFormData(buildFleetFormData(storeToEdit));
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

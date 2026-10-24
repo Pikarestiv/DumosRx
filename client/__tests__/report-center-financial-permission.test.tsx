@@ -13,7 +13,7 @@ vi.mock("@/lib/hooks/use-report-export", () => {
   // One stable object: ReportCenter's refreshRecent useCallback depends on
   // getRecentDownloads, so a fresh identity per render loops forever.
   const api = {
-    getRows: async () => [],
+    getRows: () => Promise.resolve([]),
     exportReportCsv: async () => {},
     downloadReportPdf: async () => {},
     printReport: async () => {},

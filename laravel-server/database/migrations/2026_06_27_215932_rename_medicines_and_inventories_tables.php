@@ -15,7 +15,7 @@ return new class extends Migration
         if (Schema::hasTable('medicines')) {
             Schema::rename('medicines', 'products');
         }
-        
+
         if (Schema::hasTable('inventories')) {
             Schema::rename('inventories', 'stock_batches');
         }
@@ -120,7 +120,7 @@ return new class extends Migration
         if (Schema::hasTable('stock_batches')) {
             Schema::rename('stock_batches', 'inventories');
         }
-        
+
         if (Schema::hasTable('products')) {
             Schema::rename('products', 'medicines');
         }

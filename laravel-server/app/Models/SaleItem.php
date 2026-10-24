@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * @mixin IdeHelperSaleItem
+ * @property string|null $store_id
  */
 class SaleItem extends Model
 {

@@ -10,7 +10,7 @@ const completed: string[] = [];
 let setGate: ((key: string) => Promise<void>) | null = null;
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
   set: vi.fn(async (key: string, value: Uint8Array) => {
     setCalls.push({ key, value });
     if (setGate) await setGate(new TextDecoder().decode(value));

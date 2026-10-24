@@ -26,6 +26,11 @@ export function GroupColumnActions({ group, onRevertToDefault, onRenameGroup, on
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(group.name);
 
+  const submitRename = async () => {
+    await onRenameGroup(group.id, name.trim());
+    setRenaming(false);
+  };
+
   if (group.is_default) {
     return (
       <>
@@ -103,10 +108,9 @@ export function GroupColumnActions({ group, onRevertToDefault, onRenameGroup, on
             <Button variant="ghost" onClick={() => setRenaming(false)}>Cancel</Button>
             <Button
               data-testid="submit-rename-group"
-              onClick={async () => {
+              onClick={() => {
                 if (!name.trim()) return;
-                await onRenameGroup(group.id, name.trim());
-                setRenaming(false);
+                void submitRename();
               }}
             >
               Save

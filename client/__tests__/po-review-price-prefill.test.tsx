@@ -79,7 +79,7 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
     try {
       const trigger = findReviewPriceTrigger(container);
       act(() => {
-        trigger!.click();
+        trigger.click();
       });
 
       expect(findSellPriceInput().value).toBe("12.5");
@@ -94,7 +94,7 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
     try {
       const trigger = findReviewPriceTrigger(container);
       act(() => {
-        trigger!.click();
+        trigger.click();
       });
 
       expect(findSellPriceInput().value).toBe("20");
@@ -109,7 +109,7 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
     try {
       const trigger = findReviewPriceTrigger(container);
       act(() => {
-        trigger!.click();
+        trigger.click();
       });
 
       expect(findSellPriceInput().value).toBe("");
@@ -139,7 +139,7 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
 
       const trigger = findReviewPriceTrigger(container);
       act(() => {
-        trigger!.click();
+        trigger.click();
       });
 
       expect(onUpdateItem).not.toHaveBeenCalled();

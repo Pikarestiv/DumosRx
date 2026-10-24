@@ -99,7 +99,7 @@ class AdminTillSessionTest extends TestCase
 
     private function seedAdminWithCode(string $code = '123456789012'): User
     {
-        if (!User::where('email', 'owner@shop.com')->exists()) {
+        if (! User::where('email', 'owner@shop.com')->exists()) {
             $owner = $this->admin('store_owner', 'owner@shop.com');
             // A VALID code, so the 'not an admin' rejection below is produced
             // by the role gate and not merely by the absence of a code. With

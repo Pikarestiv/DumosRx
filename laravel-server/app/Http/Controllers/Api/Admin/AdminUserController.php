@@ -120,7 +120,7 @@ class AdminUserController extends AdminBaseController
         $targetId = $caller->id;
 
         if ($request->filled('user_id') && $request->query('user_id') !== $caller->id) {
-            if (!$caller->hasRole('super_admin')) {
+            if (! $caller->hasRole('super_admin')) {
                 return response()->json(['error' => 'Unauthorized'], 403);
             }
             $targetId = $request->query('user_id');
@@ -186,9 +186,11 @@ class AdminUserController extends AdminBaseController
 
         try {
             $code = $this->adminUserService->updateReferralCode($targetId, $request->input('code'), $caller->id);
+
             return response()->json(['platform_referral_code' => $code]);
         } catch (\Exception $e) {
             $status = str_contains($e->getMessage(), 'super_admin') ? 403 : 422;
+
             return response()->json(['error' => $e->getMessage()], $status);
         }
     }
@@ -217,7 +219,7 @@ class AdminUserController extends AdminBaseController
     )]
     public function grantUserTrial(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin') && !$request->user()->hasPermission('grant_trials')) {
+        if (! $request->user()->hasRole('super_admin') && ! $request->user()->hasPermission('grant_trials')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -229,10 +231,12 @@ class AdminUserController extends AdminBaseController
 
         try {
             $this->adminUserService->grantUserTrial($id, $validated['plan'], $validated['duration'] ?? null, $validated['end_date'] ?? null);
+
             return response()->json(['message' => 'Trial granted successfully']);
         } catch (\Exception $e) {
-            Log::error("Admin Grant User Trial Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to grant trial: ' . $e->getMessage()], 500);
+            Log::error('Admin Grant User Trial Error: '.$e->getMessage());
+
+            return response()->json(['error' => 'Failed to grant trial: '.$e->getMessage()], 500);
         }
     }
 
@@ -261,7 +265,7 @@ class AdminUserController extends AdminBaseController
     )]
     public function activateUserPlan(Request $request, $id)
     {
-        if (!$request->user()->hasRole('super_admin') && !$request->user()->hasPermission('grant_trials')) {
+        if (! $request->user()->hasRole('super_admin') && ! $request->user()->hasPermission('grant_trials')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -274,10 +278,12 @@ class AdminUserController extends AdminBaseController
 
         try {
             $this->adminUserService->activatePaidPlan($id, $validated['plan'], $validated['billing_cycle'], $validated['amount'], $validated['reference'] ?? null);
+
             return response()->json(['message' => 'Plan activated successfully']);
         } catch (\Exception $e) {
-            Log::error("Admin Activate User Plan Error: " . $e->getMessage());
-            return response()->json(['error' => 'Failed to activate plan: ' . $e->getMessage()], 500);
+            Log::error('Admin Activate User Plan Error: '.$e->getMessage());
+
+            return response()->json(['error' => 'Failed to activate plan: '.$e->getMessage()], 500);
         }
     }
 
@@ -318,9 +324,10 @@ class AdminUserController extends AdminBaseController
 
         return $this->withErrorResponse('Create Platform Admin', 'Failed to create platform account', function () use ($request, $validated) {
             $user = $this->adminUserService->createPlatformAdmin($validated, $request->user()->id);
+
             return response()->json([
                 'message' => 'Platform account created successfully',
-                'user' => $user
+                'user' => $user,
             ], 201);
         });
     }
@@ -365,6 +372,7 @@ class AdminUserController extends AdminBaseController
 
         return $this->withErrorResponse('Update User', 'Failed to update user', function () use ($request, $validated, $id) {
             $user = $this->adminUserService->updateUserProfile($id, $validated, $request->user()->id);
+
             return response()->json([
                 'message' => 'User profile updated successfully',
                 'user' => $user,
@@ -395,6 +403,7 @@ class AdminUserController extends AdminBaseController
 
         return $this->withErrorResponse('Deactivate User', 'Failed to deactivate user', function () use ($id) {
             $this->adminUserService->deactivateUser($id);
+
             return response()->json(['message' => 'User deactivated successfully']);
         });
     }
@@ -415,6 +424,7 @@ class AdminUserController extends AdminBaseController
     {
         return $this->withErrorResponse('Reactivate User', 'Failed to reactivate user', function () use ($id) {
             $this->adminUserService->reactivateUser($id);
+
             return response()->json(['message' => 'User reactivated successfully']);
         });
     }
@@ -466,9 +476,10 @@ class AdminUserController extends AdminBaseController
     {
         return $this->withErrorResponse('Force Reset', 'Failed to force password reset', function () use ($id) {
             $result = $this->adminUserService->forcePasswordReset($id);
+
             return response()->json([
                 'message' => 'Password reset forced successfully',
-                'temp_password' => $result['temp_password']
+                'temp_password' => $result['temp_password'],
             ]);
         });
     }
@@ -502,6 +513,7 @@ class AdminUserController extends AdminBaseController
 
         return $this->withErrorResponse('Notify', 'Failed to send notification', function () use ($id, $validated) {
             $this->adminUserService->notifyUser($id, $validated['message'], $validated['title']);
+
             return response()->json(['message' => 'Notification sent successfully']);
         });
     }
@@ -543,9 +555,10 @@ class AdminUserController extends AdminBaseController
         // the nested rules alone, silently dropping `role`/`search`.
         return $this->withErrorResponse('Bulk Notify', 'Failed to send bulk notifications', function () use ($request, $validated) {
             $count = $this->adminUserService->bulkNotify($request->input('filters', []), $validated['message'], $validated['title']);
+
             return response()->json([
                 'message' => "Notification sent to {$count} users successfully",
-                'count' => $count
+                'count' => $count,
             ]);
         });
     }

@@ -44,7 +44,10 @@ export function PullToRefreshProvider({
 export function usePullToRefreshHandler(fn: RefreshHandler) {
   const ctx = useContext(PullToRefreshContext);
   const fnRef = useRef(fn);
-  fnRef.current = fn;
+
+  useEffect(() => {
+    fnRef.current = fn;
+  });
 
   useEffect(() => {
     if (!ctx) return;

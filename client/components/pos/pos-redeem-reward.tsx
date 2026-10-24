@@ -39,7 +39,8 @@ export function POSRedeemReward({
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-redeem-reward-tsx-L45
   const { data: ledger = [] } = useQuery({
     ...queryKeys.loyalty.customerLedger(selectedCustomer?.id),
-    queryFn: () => getCustomerLoyaltyLedger(selectedCustomer!.id),
+    queryFn: () =>
+      selectedCustomer ? getCustomerLoyaltyLedger(selectedCustomer.id) : Promise.resolve([]),
     enabled: !!selectedCustomer,
   });
 

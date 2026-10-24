@@ -8,7 +8,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 const { postMock } = vi.hoisted(() => ({
-  postMock: vi.fn(async () => ({ data: {} })),
+  postMock: vi.fn(() => Promise.resolve({ data: {} })),
 }));
 
 vi.mock("sonner", () => ({
@@ -17,7 +17,7 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/api/base-client", () => ({
   apiClient: {
-    get: vi.fn(async () => ({ data: { products: [], online_payment_available: true } })),
+    get: vi.fn(() => Promise.resolve({ data: { products: [], online_payment_available: true } })),
     post: postMock,
   },
 }));

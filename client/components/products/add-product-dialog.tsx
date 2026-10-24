@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
@@ -10,13 +10,15 @@ import { ResponsiveModal } from "@/components/ui/responsive-modal";
 
 import { useStore } from "@/lib/context/store-context";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 import { Product } from "./types";
-import { ProductFormFields, type ProductSuggestions } from "./product-form-fields";
-import { getSupplierNames } from "@/lib/db/queries/products";
+import { ProductFormFields } from "./product-form-fields";
+import {
+  emptyProductForm,
+  productFormFromEditing,
+  useProductSuggestions,
+} from "./add-product-form-state";
 import type { NewProductPayload } from "@/lib/types/product";
 import { capitalizeWords } from "@/lib/hooks/use-uppercase-display";
-import { STORAGE_KEYS } from "@/lib/storage-keys";
 
 interface AddProductDialogProps {
   open: boolean;
@@ -49,151 +51,39 @@ export function AddProductDialog({
 }: AddProductDialogProps) {
   const { withRestriction } = useFeatureGate();
   const { t, storeType, storeProfile } = useStore();
-  const [formData, setFormData] = useState<Product>({
-    id: "",
-    name: initialData?.name || "",
-    genericName: initialData?.genericName || "",
-    category: "",
-    nafdacNumber: "",
-    strength: initialData?.strength || "",
-    dosageForm: initialData?.dosageForm || "",
-    manufacturer: initialData?.manufacturer || "",
-    sellingPrice: 0,
-    reorderLevel: 0,
-    barcode: "",
-    baseUnit: "Unit",
-    bulkUnit: "",
-    unitsPerBulk: 1,
-    status: "active",
-    showOnline: false,
-    requiresPrescription: false,
-    isControlled: false,
-    costPrice: 0,
-    stockQuantity: 0,
-    batchNumber: "",
-    expiryDate: "",
-  });
+  const [formData, setFormData] = useState<Product>(() =>
+    editingProduct && open
+      ? productFormFromEditing(editingProduct)
+      : emptyProductForm(initialData),
+  );
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [missingFieldsWarning, setMissingFieldsWarning] = useState<{
     keepOpen: boolean;
     fields: string[];
   } | null>(null);
 
-  // Load editing product data if provided
-  useEffect(() => {
-    if (editingProduct && open) {
-      setFormData({
-        id: editingProduct.id || "",
-        name: editingProduct.name || "",
-        genericName: editingProduct.genericName || "",
-        category: editingProduct.category || "",
-        nafdacNumber: editingProduct.nafdacNumber || "",
-        strength: editingProduct.strength || "",
-        dosageForm: editingProduct.dosageForm || "",
-        manufacturer: editingProduct.manufacturer || "",
-        sellingPrice: editingProduct.sellingPrice || 0,
-        reorderLevel: editingProduct.reorderLevel || 0,
-        barcode: editingProduct.barcode || "",
-        baseUnit: editingProduct.baseUnit || "Unit",
-        bulkUnit: editingProduct.bulkUnit || "",
-        unitsPerBulk: editingProduct.unitsPerBulk || 1,
-        status: editingProduct.status || "active",
-        showOnline: editingProduct.showOnline || false,
-        requiresPrescription: editingProduct.requiresPrescription || false,
-        isControlled: editingProduct.isControlled || false,
-        costPrice: editingProduct.costPrice || 0,
-        stockQuantity: editingProduct.stockQuantity || 0,
-        batchNumber: editingProduct.batchNumber || "",
-        expiryDate: editingProduct.expiryDate || "",
-      });
-    } else if (!editingProduct && open) {
-      setFormData({
-        id: "",
-        name: initialData?.name || "",
-        genericName: initialData?.genericName || "",
-        category: "",
-        nafdacNumber: "",
-        strength: initialData?.strength || "",
-        dosageForm: initialData?.dosageForm || "",
-        manufacturer: initialData?.manufacturer || "",
-        sellingPrice: 0,
-        reorderLevel: 0,
-        barcode: "",
-        baseUnit: "Unit",
-        bulkUnit: "",
-        unitsPerBulk: 1,
-        status: "active",
-        showOnline: false,
-        requiresPrescription: false,
-        isControlled: false,
-        costPrice: 0,
-        stockQuantity: 0,
-        batchNumber: "",
-        expiryDate: "",
-      });
+  const [formSource, setFormSource] = useState({ open, editingProduct, initialData });
+  if (
+    formSource.open !== open ||
+    formSource.editingProduct !== editingProduct ||
+    formSource.initialData !== initialData
+  ) {
+    setFormSource({ open, editingProduct, initialData });
+    if (open) {
+      setFormData(
+        editingProduct
+          ? productFormFromEditing(editingProduct)
+          : emptyProductForm(initialData),
+      );
     }
-  }, [editingProduct, open, initialData]);
+  }
 
   const isPharmacy = storeType === "pharmacy";
 
-  const [suggestions, setSuggestions] = useState<ProductSuggestions>(
-    isPharmacy
-      ? { ...FORM_SUGGESTIONS.store, names: [], suppliers: [] }
-      : { ...FORM_SUGGESTIONS.retail, names: [], suppliers: [] },
+  const suggestions = useProductSuggestions(
+    isPharmacy,
+    storeProfile?.show_retail_suggestions === 1,
   );
-
-  useEffect(() => {
-    let baseSuggestions = FORM_SUGGESTIONS;
-    try {
-      const cached = localStorage.getItem(STORAGE_KEYS.suggestions);
-      if (cached) {
-        baseSuggestions = JSON.parse(cached);
-      }
-    } catch (e) {
-      console.error("Failed to parse cached suggestions", e);
-    }
-
-    const pharmList = baseSuggestions.store || FORM_SUGGESTIONS.store;
-    const retailList = baseSuggestions.retail || FORM_SUGGESTIONS.retail;
-
-    if (isPharmacy) {
-      const showRetail = storeProfile?.show_retail_suggestions === 1;
-      if (showRetail) {
-        const mergeAndUnique = (arr1: string[] = [], arr2: string[] = []) => {
-          return Array.from(new Set([...arr1, ...arr2]));
-        };
-        const pharmNames = pharmList.products?.map((p) => p.name) || [];
-        const retailNames = retailList.products?.map((p) => p.name) || [];
-        setSuggestions({
-          names: mergeAndUnique(pharmNames, retailNames),
-          generics: pharmList.generics || [],
-          categories: mergeAndUnique(
-            pharmList.categories,
-            retailList.categories,
-          ),
-          manufacturers: mergeAndUnique(
-            pharmList.manufacturers,
-            retailList.manufacturers,
-          ),
-          strengths: pharmList.strengths || [],
-          dosageForms: pharmList.dosageForms || [],
-          suppliers: [],
-        });
-      } else {
-        const pharmNames = pharmList.products?.map((p) => p.name) || [];
-        setSuggestions({ ...pharmList, names: pharmNames, suppliers: [] });
-      }
-    } else {
-      const retailNames = retailList.products?.map((p) => p.name) || [];
-      setSuggestions({ ...retailList, names: retailNames, suppliers: [] });
-    }
-
-    getSupplierNames()
-      .then((names) => {
-        setSuggestions((prev) => ({ ...prev, suppliers: names }));
-      })
-      .catch(console.error);
-  }, [isPharmacy, storeProfile?.show_retail_suggestions]);
 
   const handleSubmit = (e?: React.FormEvent, keepOpen = false) => {
     if (e) e.preventDefault();
@@ -244,32 +134,7 @@ export function AddProductDialog({
 
     // Only clear the form once the caller reports the save succeeded — otherwise a failed save would wipe everything the user…
     // Rationale: docs/CLIENT_COMMENTS.md#line-components-products-add-product-dialog-tsx-L246
-    onAddProduct(payload, keepOpen, () =>
-      setFormData({
-        id: "",
-        name: "",
-        genericName: "",
-        category: "",
-        nafdacNumber: "",
-        strength: "",
-        dosageForm: "",
-        manufacturer: "",
-        sellingPrice: 0,
-        reorderLevel: 0,
-        barcode: "",
-        baseUnit: "Unit",
-        bulkUnit: "",
-        unitsPerBulk: 1,
-        status: "active",
-        showOnline: false,
-        requiresPrescription: false,
-        isControlled: false,
-        costPrice: 0,
-        stockQuantity: 0,
-        batchNumber: "",
-        expiryDate: "",
-      }),
-    );
+    onAddProduct(payload, keepOpen, () => setFormData(emptyProductForm()));
   };
 
   const handleInputChange = (field: keyof Product, value: string | number | boolean | null) => {

@@ -5,81 +5,23 @@ import type { RecentUser } from "@/lib/types/user";
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { setCurrentUser as setDbUser, logAction } from "@/lib/db/local-database";
-import {
-  shouldAttemptAdminTillLogin,
-  requestAdminTillSession,
-  endAdminTillSession,
-  TILL_CODE_LENGTH,
-  UNIFORM_REJECTION,
-  OFFLINE_MESSAGE,
-} from "@/lib/api/admin-till-session";
-import {
-  startTillInspectionSession,
-  endTillInspectionSession,
-  getTillInspectionSession,
-  isTillInspectionSession,
-} from "@/lib/utils/till-inspection";
+import { endAdminTillSession } from "@/lib/api/admin-till-session";
+import { endTillInspectionSession, getTillInspectionSession } from "@/lib/utils/till-inspection";
 import { useCloudLink, type CloudLinkResult } from "@/lib/hooks/use-cloud-link";
-import {
-  getUsersByUsernameOrEmail,
-  createDefaultAdmin,
-  getUserPin,
-  updateUserPin,
-  migrateLegacyPinToHash,
-} from "@/lib/db/queries/auth";
+import { getUserPin, updateUserPin, migrateLegacyPinToHash } from "@/lib/db/queries/auth";
 import { pinMatches, needsPinRehash } from "@/lib/utils/pin-hash";
-import { getTotalUserCount } from "@/lib/db/queries/setup";
 import { ensurePermissionGroupsSeeded, getUserPermissionGroup } from "@/lib/db/queries/permission-groups";
 import { hasPermission } from "@/lib/hooks/use-permissions";
-import {
-  checkLoginLockout,
-  recordLoginFailure,
-  recordLoginSuccess,
-  formatLockoutRemaining,
-} from "@/lib/utils/login-lockout";
 import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
-import { sync, isSyncing } from "@/lib/db/sync-engine";
 import { queryClient } from "@/lib/query-client";
 import { clearLocalDrafts } from "@/lib/utils/clear-local-drafts";
-import { isTauri } from "@/lib/db";
-import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
-import { getToken } from "@/lib/api/token-manager";
-import { mirrorAuthToken } from "@/lib/native/widget-bridge";
-import {
-  IMPERSONATED_USER_STORAGE_KEY,
-  clearImpersonatedSession,
-  isImpersonatedSession,
-} from "@/lib/utils/impersonation";
+import { IMPERSONATED_USER_STORAGE_KEY, clearImpersonatedSession } from "@/lib/utils/impersonation";
 import { APP_EVENTS, onAppEvent } from "@/lib/events";
-import {
-  STORAGE_KEYS,
-  getAuthToken,
-  getStoredUser,
-  setStoredUser,
-  clearStoredUser,
-  getRecentUsers,
-  setRecentUsers,
-  setStoredActiveStoreId,
-} from "@/lib/storage-keys";
-
-// Polls until any in-flight sync finishes, so a caller that just triggered (or piggybacked on) a sync can safely read fresh local data afterwa…
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L67
-async function waitForSyncToFinish(timeoutMs = 8000, pollMs = 150) {
-  const deadline = Date.now() + timeoutMs;
-  while (isSyncing() && Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, pollMs));
-  }
-}
-
-// Throttles the PIN-mismatch recovery sync below (module-scope, not per component instance, since a locked screen can remount).
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L78
-let lastPinRecoverySyncAt = 0;
-const PIN_RECOVERY_SYNC_COOLDOWN_MS = 10_000;
-
-// The documented default PIN for the zero-users bootstrap admin (see login()'s fallback branch below).
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L85
-const DEFAULT_ADMIN_PIN = "1234";
+import { clearStoredUser } from "@/lib/storage-keys";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
+import { performLogin } from "@/lib/context/auth-login";
+import { readSavedSession, applySavedSessionSideEffects } from "@/lib/context/auth-session-restore";
 
 // Re-exported from lib/utils/impersonation.ts (the React-free single source of truth, so the sync engine, this context and the UI all agree on…
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L91
@@ -155,331 +97,49 @@ export const checkCanFactoryReset = (role?: string) =>
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isCloudLinked, setIsCloudLinked] = useState(false);
-  // Distinguishes "user is null because nobody's logged in" from "user is null because the mount effect below hasn't read localStorage yet" - co…
+  const hydrated = useHydrated();
+  const [savedSession] = useState(readSavedSession);
+  const [sessionUser, setUser] = useState<User | null>(savedSession.user);
+  const [cloudLinked, setIsCloudLinked] = useState(savedSession.isCloudLinked);
+  const [impersonating, setIsImpersonating] = useState(savedSession.isImpersonating);
+  const [inspecting, setIsInspecting] = useState(savedSession.isInspecting);
+  // Distinguishes "user is null because nobody's logged in" from "user is null because the saved session isn't exposed yet" - co…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L183
-  const [isHydrated, setIsHydrated] = useState(false);
-  // Starts false rather than reading localStorage in the initializer:
+  const isHydrated = hydrated;
+  // Hidden until hydrated, so the first client render matches the prerendered HTML:
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L190
-  const [isImpersonating, setIsImpersonating] = useState(false);
-  const [isInspecting, setIsInspecting] = useState(false);
+  const user = hydrated ? sessionUser : null;
+  const isCloudLinked = hydrated && cloudLinked;
+  const isImpersonating = hydrated && impersonating;
+  const isInspecting = hydrated && inspecting;
 
   useEffect(() => {
-    // Check for saved user in session
-    const savedUser = getStoredUser();
-    const token = getAuthToken();
-    
-    setIsCloudLinked(!!token);
+    applySavedSessionSideEffects(savedSession);
 
-    // Backfill: anyone already logged in when the widget feature ships has their token sitting in localStorage with nothing to trigger a mirror in…
-    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L204
-    if (isTauri()) {
-      const existingToken = getToken();
-      if (existingToken) {
-        void mirrorAuthToken(existingToken);
-      }
-    }
-
-    // Checked BEFORE the normal savedUser branch below:
-    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L219
-    const savedImpersonatedUser = localStorage.getItem(IMPERSONATED_USER_STORAGE_KEY);
-    if (savedImpersonatedUser) {
-      try {
-        setUser(JSON.parse(savedImpersonatedUser));
-      } catch (err) {
-        console.error("Failed to parse saved impersonated user, clearing corrupted session", err);
-        localStorage.removeItem(IMPERSONATED_USER_STORAGE_KEY);
-      }
-    } else if (savedUser) {
-      const parsedUser = savedUser as unknown as User;
-      setUser(parsedUser);
-      setDbUser(parsedUser);
-    } else if (localStorage.getItem(STORAGE_KEYS.user)) {
-      // Corrupted/partial write (e.g.
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L235
-      console.error("Clearing a corrupted saved user session");
-      clearStoredUser();
-    }
-
-    // Evaluated after the branch above (not inside it) so a session that holds only the impersonator return code — e.g.
-    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L242
-    setIsImpersonating(isImpersonatedSession());
-    setIsInspecting(isTillInspectionSession());
-
-    setIsHydrated(true);
-
-    const handleTokenSet = () => setIsCloudLinked(true);
-    const handleTokenCleared = () => setIsCloudLinked(false);
-
-    const unsubscribeTokenSet = onAppEvent(APP_EVENTS.authTokenSet, handleTokenSet);
-    const unsubscribeTokenCleared = onAppEvent(
-      APP_EVENTS.authTokenCleared,
-      handleTokenCleared,
+    const unsubscribeTokenSet = onAppEvent(APP_EVENTS.authTokenSet, () =>
+      setIsCloudLinked(true),
+    );
+    const unsubscribeTokenCleared = onAppEvent(APP_EVENTS.authTokenCleared, () =>
+      setIsCloudLinked(false),
     );
 
     return () => {
       unsubscribeTokenSet();
       unsubscribeTokenCleared();
     };
-  }, []);
+  }, [savedSession]);
 
-  const login = useCallback(async (identifier: string, pin?: string) => {
-    // For local-first, we check both username and email
-    const cleanIdentifier = identifier.trim();
+  const login = useCallback(
     // Captured before any state changes below:
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L269
-    const previousUserId = user?.id;
-
-    // Only a genuine PIN-based attempt is throttled - login(email) with no pin (the post-cloud-sync auto-login in app/setup/use-onboarding.ts) nev…
-    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L278
-    if (pin) {
-      const lockout = checkLoginLockout(cleanIdentifier);
-      if (lockout.locked) {
-        throw new Error(
-          `Too many failed attempts. Try again in ${formatLockoutRemaining(lockout.remainingMs)}.`,
-        );
-      }
-    }
-
-    let candidates = await getUsersByUsernameOrEmail(cleanIdentifier);
-
-    // An email that matches no user on this device is the on-till admin path.
-    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L294
-    if (
-      pin?.length === TILL_CODE_LENGTH &&
-      shouldAttemptAdminTillLogin(cleanIdentifier, candidates.length)
-    ) {
-      if (!navigator.onLine) {
-        throw new Error(OFFLINE_MESSAGE);
-      }
-
-      const session = await requestAdminTillSession(cleanIdentifier, pin).catch(
-        () => null,
-      );
-
-      if (!session) {
-        recordLoginFailure(cleanIdentifier);
-        throw new Error(UNIFORM_REJECTION);
-      }
-
-      // Never both: sync-engine hard-disables sync for an impersonated
-      // session, while the inspection banner states sync keeps running.
-      clearImpersonatedSession();
-      startTillInspectionSession(session);
-      setIsInspecting(true);
-      setIsImpersonating(false);
-
-      // Deliberately does NOT unlock() or set dumos_session_authenticated.
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L325
-      return true;
-    }
-    // Usernames are unique per store, not globally (UNIQUE(store_id, username)) — on a multi-store device, more than one row can share this identi…
-    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L333
-    let matches = pin ? candidates.filter((u) => pinMatches(pin, u.pin)) : candidates;
-    let dbUser = matches[0] ?? null;
-
-    if (dbUser || candidates.length > 0) {
-      // If PIN is provided, check it
-      if (pin && !dbUser) {
-        // A PIN reset via the web dashboard writes straight to the cloud DB; this device only sees it once it next syncs down, which could otherwise b…
-        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L346
-        const now = Date.now();
-        const hasCloudLink =
-          typeof window !== "undefined" && !!getAuthToken();
-        if (
-          hasCloudLink &&
-          navigator.onLine &&
-          now - lastPinRecoverySyncAt > PIN_RECOVERY_SYNC_COOLDOWN_MS
-        ) {
-          lastPinRecoverySyncAt = now;
-          const result = await sync().catch(() => null);
-          // If a background/setup sync was already in flight, our call above was a no-op; the pull we're relying on may still be running.
-          // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L362
-          if (result?.error === "Sync already in progress") {
-            await waitForSyncToFinish();
-          }
-          candidates = await getUsersByUsernameOrEmail(cleanIdentifier);
-          matches = candidates.filter((u) => pinMatches(pin, u.pin));
-          dbUser = matches[0] ?? null;
-        }
-      }
-
-      // More than one of this device's stores has a user with this exact identifier AND this exact PIN — a genuine collision (plausible with default…
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L374
-      if (pin && matches.length > 1) {
-        logAction(AUDIT_ACTIONS.LOGIN_FAILED, "users", cleanIdentifier, {
-          username: cleanIdentifier,
-          reason: "ambiguous_multi_store_match",
-          matchedStoreIds: matches.map((u) => u.store_id).join(","),
-        }).catch(() => {});
-        recordLoginFailure(cleanIdentifier);
-        throw new Error(
-          "This username and PIN match staff at more than one store on this device. Contact your admin to use a unique username, or sign in from a device scoped to a single store.",
-        );
-      }
-
-      if (!dbUser || (pin && !pinMatches(pin, dbUser.pin))) {
-        // The acting user_id on this row will be whoever was previously logged in on this device (or null), not the failed identifier:
-        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L393
-        logAction(AUDIT_ACTIONS.LOGIN_FAILED, "users", dbUser?.id || cleanIdentifier, {
-          username: cleanIdentifier,
-          reason: "invalid_pin",
-        }).catch(() => {});
-        if (pin) recordLoginFailure(cleanIdentifier);
-        return false;
-      }
-
-      // The PIN just verified against a LEGACY plaintext value:
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L408
-      if (pin && needsPinRehash(dbUser.pin)) {
-        void migrateLegacyPinToHash(dbUser.id, pin);
-      }
-
-      const userProfile: User = {
-        id: dbUser.id,
-        first_name: dbUser.first_name || "",
-        last_name: dbUser.last_name || "",
-        username: dbUser.username || "",
-        role: dbUser.role as User["role"],
-        store_id: dbUser.store_id,
-      };
-
-      // A store-pinned account (staff whose users.store_id is set, as opposed to an owner/admin with access to every store on this device) makes the…
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L427
-      if (dbUser.store_id) {
-        setResolvedStoreId(dbUser.store_id);
-        setStoredActiveStoreId(dbUser.store_id);
-      }
-
-      // Covers the "switch user" lock-screen flow (selecting a different recent user and unlocking with their PIN), which calls login() directly wit…
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L461
-      void queryClient.cancelQueries();
-      queryClient.clear();
-      // Same shared-terminal risk as logout():
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L474
-      if (previousUserId && previousUserId !== dbUser.id) {
-        clearLocalDrafts();
-      }
-
-      setUser(userProfile);
-      setDbUser(userProfile);
-      Sentry.setUser({ id: userProfile.id, username: userProfile.username, role: userProfile.role });
-      setStoredUser(userProfile);
-      // Marks this tab as already having gone through a real auth/unlock this session.
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L495
-      sessionStorage.setItem("dumos_session_authenticated", "1");
-      // Any successful login means "not locked", full stop, regardless of which screen triggered it.
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L501
-      useAutoLockStore.getState().unlock();
-      // Same idea for a stale impersonation banner:
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L507
-      clearImpersonatedSession();
-      setIsImpersonating(false);
-
-      // Update recent users list
-      let recentUsers: RecentUser[] = getRecentUsers();
-      
-      const recentUser: RecentUser = {
-        id: userProfile.id,
-        first_name: userProfile.first_name,
-        last_name: userProfile.last_name,
-        username: userProfile.username,
-        role: userProfile.role,
-        last_login: new Date().toISOString(),
-      };
-
-      // Dedupe by username, not id:
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L537
-      recentUsers = recentUsers.filter(
-        (u) => u.username.toLowerCase() !== recentUser.username.toLowerCase(),
-      );
-      recentUsers.unshift(recentUser);
-      if (recentUsers.length > 5) recentUsers = recentUsers.slice(0, 5); // Keep last 5
-
-      setRecentUsers(recentUsers);
-
-      logAction(AUDIT_ACTIONS.LOGIN, "users", userProfile.id, {
-        username: userProfile.username,
-      }).catch(() => {});
-
-      recordLoginSuccess(cleanIdentifier);
-      return true;
-    }
-
-    // Fallback: bootstrap a default admin, but ONLY on a genuinely fresh device with zero local users - previously this fired for ANY typed PIN wh…
-    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L559
-    if (cleanIdentifier.toLowerCase() === "admin" && pin === DEFAULT_ADMIN_PIN) {
-      const totalUsers = await getTotalUserCount();
-      if (totalUsers > 0) {
-        logAction(AUDIT_ACTIONS.LOGIN_FAILED, "users", cleanIdentifier, {
-          username: cleanIdentifier,
-          reason: "default_admin_blocked_users_exist",
-        }).catch(() => {});
-        return false;
-      }
-
-      const defaultAdmin: User = {
-        id: "default-admin",
-        first_name: "Default",
-        last_name: "Admin",
-        username: "admin",
-        role: "admin",
-      };
-      
-      // Attempt to persist the default admin to DB
-      try {
-        await createDefaultAdmin({
-          id: defaultAdmin.id,
-          first_name: defaultAdmin.first_name,
-          last_name: defaultAdmin.last_name,
-          username: defaultAdmin.username,
-          pin: DEFAULT_ADMIN_PIN,
-          role: defaultAdmin.role
-        });
-      } catch (e) {
-        console.error("Failed to persist default admin", e);
-      }
-
-      setUser(defaultAdmin);
-      setDbUser(defaultAdmin);
-      setStoredUser(defaultAdmin);
-      sessionStorage.setItem("dumos_session_authenticated", "1");
-      useAutoLockStore.getState().unlock();
-      clearImpersonatedSession();
-      setIsImpersonating(false);
-
-      // Update recent users list for default admin
-      let recentUsers: RecentUser[] = getRecentUsers();
-      
-      const recentUser: RecentUser = {
-        id: defaultAdmin.id,
-        first_name: defaultAdmin.first_name,
-        last_name: defaultAdmin.last_name,
-        username: defaultAdmin.username,
-        role: defaultAdmin.role,
-        last_login: new Date().toISOString(),
-      };
-
-      recentUsers = recentUsers.filter(
-        (u) => u.username.toLowerCase() !== recentUser.username.toLowerCase(),
-      );
-      recentUsers.unshift(recentUser);
-      if (recentUsers.length > 5) recentUsers = recentUsers.slice(0, 5); // Keep last 5
-
-      setRecentUsers(recentUsers);
-
-      logAction(AUDIT_ACTIONS.LOGIN, "users", defaultAdmin.id, {
-        username: defaultAdmin.username,
-      }).catch(() => {});
-
-      recordLoginSuccess(cleanIdentifier);
-      return true;
-    }
-
-    if (pin) recordLoginFailure(cleanIdentifier);
-    return false;
-  }, [user]);
+    (identifier: string, pin?: string) =>
+      performLogin(identifier, pin, user?.id, {
+        setUser,
+        setIsInspecting,
+        setIsImpersonating,
+      }),
+    [user],
+  );
 
   // Bootstraps a local session for a user who authenticated on the cloud side and arrived here via the one-time handoff code (/auth/callback); m…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#context-auth-context-tsx-L659
@@ -590,23 +250,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Seeds the active store's 5 default permission groups (idempotent, see ensurePermissionGroupsSeeded) the moment a session is established - co…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L789
+  const userId = user?.id ?? null;
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     void ensurePermissionGroupsSeeded().catch(() => {});
-  }, [user?.id]);
+  }, [userId]);
 
   const [permissionGroup, setPermissionGroup] = useState<{ userId: string; id: string; permissions: string[] } | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    if (!user) {
-      setPermissionGroup(null);
-      return;
-    }
+  const [permissionGroupUserId, setPermissionGroupUserId] = useState(userId);
+  if (permissionGroupUserId !== userId) {
+    setPermissionGroupUserId(userId);
     // A user-to-user switch (the lock screen's "switch account", which never goes through logout()) must not leave the outgoing user's group in st…
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L805
-    setPermissionGroup((previous) => (previous?.userId === user.id ? previous : null));
+    setPermissionGroup((previous) => (previous?.userId === userId ? previous : null));
+  }
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
     const load = () => {
-      getUserPermissionGroup(user.id).then((g) => {
+      getUserPermissionGroup(userId).then((g) => {
         if (!cancelled) setPermissionGroup(g);
       }).catch(() => {});
     };
@@ -618,7 +280,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       unsubscribeSyncCompleted();
     };
-  }, [user?.id]);
+  }, [userId]);
 
   // Deliberate, spec-sanctioned change from the deleted checkIsAdmin/ checkCanManageStockBatch/checkCanViewAllActivity helpers, which never list…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L826

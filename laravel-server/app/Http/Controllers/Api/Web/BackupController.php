@@ -19,6 +19,7 @@ class BackupController extends Controller
     private function ownerId(Request $request): string
     {
         $user = $request->user();
+
         return $user->store_id
             ? Store::where('id', $user->store_id)->value('user_id')
             : $user->id;
@@ -49,12 +50,12 @@ class BackupController extends Controller
             'backup' => [
                 'required',
                 'file',
-                'max:' . config('backups.max_upload_kilobytes'),
-                'extensions:' . implode(',', config('backups.allowed_extensions')),
+                'max:'.config('backups.max_upload_kilobytes'),
+                'extensions:'.implode(',', config('backups.allowed_extensions')),
             ],
         ]);
 
-        $directory = 'backups/' . $this->ownerId($request);
+        $directory = 'backups/'.$this->ownerId($request);
 
         $this->assertWithinQuota($directory, $request->file('backup')->getSize());
 
@@ -94,7 +95,8 @@ class BackupController extends Controller
     )]
     public function list(Request $request)
     {
-        $files = Storage::files('backups/' . $this->ownerId($request));
+        $files = Storage::files('backups/'.$this->ownerId($request));
+
         return response()->json($files);
     }
 
@@ -115,9 +117,9 @@ class BackupController extends Controller
     {
         // basename() strips any directory traversal the client tries to sneak
         // into the path parameter (e.g. "../other-owner-id/file.zip").
-        $path = 'backups/' . $this->ownerId($request) . '/' . basename($backup);
+        $path = 'backups/'.$this->ownerId($request).'/'.basename($backup);
 
-        if (!Storage::exists($path)) {
+        if (! Storage::exists($path)) {
             abort(404);
         }
 

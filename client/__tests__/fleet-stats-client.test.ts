@@ -27,7 +27,7 @@ describe('fleet stats API method', () => {
     };
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => payload,
+      json: () => Promise.resolve(payload),
     });
 
     const result = await apiClient.getFleetStats();
@@ -40,7 +40,7 @@ describe('fleet stats API method', () => {
   it('sendEndOfDaySummary posts to /dashboard/send-summary with no body', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => ({ message: 'End of day summary generated and sent to owner@dumosrx.com' }),
+      json: () => Promise.resolve({ message: 'End of day summary generated and sent to owner@dumosrx.com' }),
     });
 
     const result = await apiClient.sendEndOfDaySummary();

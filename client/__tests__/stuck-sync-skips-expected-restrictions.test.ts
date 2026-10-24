@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 const captureExceptionMock = vi.fn();
@@ -37,7 +37,7 @@ describe("stuck sync reporting skips expected plan restrictions", () => {
     captureExceptionMock.mockClear();
   });
 
-  const queueRow = async (id: number) => {
+  const queueRow = (id: number) => {
     db.run(
       `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, retry_count, created_at)
        VALUES (${id}, 'feedback', 'rec-${id}', 'INSERT', '{}', 4, '2026-10-07T00:00:00.000Z')`,
@@ -45,7 +45,7 @@ describe("stuck sync reporting skips expected plan restrictions", () => {
   };
 
   it("does not report a plan-restriction refusal as a crash", async () => {
-    await queueRow(1);
+    queueRow(1);
 
     await helpers.recordSyncFailure(
       1,
@@ -56,7 +56,7 @@ describe("stuck sync reporting skips expected plan restrictions", () => {
   });
 
   it("does not report a sync-throttle refusal as a crash", async () => {
-    await queueRow(2);
+    queueRow(2);
 
     await helpers.recordSyncFailure(2, "Sync limit reached. Your current plan synchronizes once every 30 minutes.");
 
@@ -65,7 +65,7 @@ describe("stuck sync reporting skips expected plan restrictions", () => {
 
   /** A genuine failure must still be reported — the filter must not swallow real bugs. */
   it("still reports a genuine failure", async () => {
-    await queueRow(3);
+    queueRow(3);
 
     await helpers.recordSyncFailure(3, "SQLSTATE[42S22]: Column not found: 1054 Unknown column 'foo'");
 

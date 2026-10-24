@@ -13,9 +13,7 @@ class AdminTillSessionController extends Controller
 
     private const MAX_FIELD_BYTES = 64;
 
-    public function __construct(private AdminTillSessionService $sessions)
-    {
-    }
+    public function __construct(private AdminTillSessionService $sessions) {}
 
     public function create(Request $request)
     {
@@ -27,7 +25,7 @@ class AdminTillSessionController extends Controller
         // "Array to string conversion" and surface as a 500, which is itself a
         // distinguishable response.
         foreach ([$email, $code, $deviceId] as $field) {
-            if (!is_string($field) || $field === '') {
+            if (! is_string($field) || $field === '') {
                 return response()->json(self::REJECTION, 401);
             }
         }
@@ -38,7 +36,7 @@ class AdminTillSessionController extends Controller
 
         $admin = $this->sessions->verify($email, $code);
 
-        if (!$admin) {
+        if (! $admin) {
             return response()->json(self::REJECTION, 401);
         }
 
@@ -61,13 +59,13 @@ class AdminTillSessionController extends Controller
     {
         $sessionId = $request->input('session_id');
 
-        if (!is_string($sessionId) || $sessionId === '') {
+        if (! is_string($sessionId) || $sessionId === '') {
             return response()->json(['error' => 'No inspection session.'], 401);
         }
 
         $session = $this->sessions->liveSession($sessionId);
 
-        if (!$session) {
+        if (! $session) {
             return response()->json(['error' => 'No inspection session.'], 401);
         }
 

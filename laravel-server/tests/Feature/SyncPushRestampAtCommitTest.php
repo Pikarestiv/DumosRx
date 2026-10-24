@@ -206,7 +206,7 @@ class SyncPushRestampAtCommitTest extends TestCase
     {
         $this->seedCategory('cat-kept');
         $this->seedCategory('cat-dropped');
-        $restamper = new PushedRowRestamper();
+        $restamper = new PushedRowRestamper;
 
         $restamper->remember(Category::findOrFail('cat-kept'));
         $restamper->commitChange();
@@ -227,9 +227,9 @@ class SyncPushRestampAtCommitTest extends TestCase
     public function test_a_table_without_a_synced_at_column_is_skipped()
     {
         $this->assertFalse(Schema::hasColumn('sync_failures', '_synced_at'));
-        $row = new \App\Models\SyncFailure();
+        $row = new \App\Models\SyncFailure;
         $row->forceFill(['id' => 1]);
-        $restamper = new PushedRowRestamper();
+        $restamper = new PushedRowRestamper;
 
         $restamper->remember($row);
         $restamper->commitChange();

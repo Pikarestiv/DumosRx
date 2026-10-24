@@ -51,8 +51,9 @@ describe("PermissionMatrix", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root: Root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(PermissionMatrix));
+      return Promise.resolve();
     });
 
     expect(container.textContent).toContain("Manager");
@@ -70,19 +71,22 @@ describe("PermissionMatrix", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root: Root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(PermissionMatrix));
+      return Promise.resolve();
     });
 
     const revertButton = container.querySelector('[aria-label="Revert Manager to default"]') as HTMLButtonElement;
     expect(revertButton).toBeTruthy();
-    await act(async () => {
+    await act(() => {
       revertButton.click();
+      return Promise.resolve();
     });
     const confirmButton = Array.from(document.querySelectorAll("button")).find((b) => b.textContent === "Revert") as HTMLButtonElement;
     expect(confirmButton).toBeTruthy();
-    await act(async () => {
+    await act(() => {
       confirmButton.click();
+      return Promise.resolve();
     });
     expect(revertToDefault).toHaveBeenCalledWith("g1");
 
@@ -95,8 +99,9 @@ describe("PermissionMatrix", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root: Root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(PermissionMatrix));
+      return Promise.resolve();
     });
 
     expect(container.querySelector('[aria-label="Revert Supervisor to default"]')).toBeNull();
@@ -112,17 +117,20 @@ describe("PermissionMatrix", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root: Root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(PermissionMatrix));
+      return Promise.resolve();
     });
 
     const deleteButton = container.querySelector('[aria-label="Delete Supervisor"]') as HTMLButtonElement;
-    await act(async () => {
+    await act(() => {
       deleteButton.click();
+      return Promise.resolve();
     });
     const confirmButton = Array.from(document.querySelectorAll("button")).find((b) => b.textContent === "Delete") as HTMLButtonElement;
-    await act(async () => {
+    await act(() => {
       confirmButton.click();
+      return Promise.resolve();
     });
     expect(deleteGroup).toHaveBeenCalledWith("g3");
 
@@ -135,24 +143,28 @@ describe("PermissionMatrix", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root: Root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(PermissionMatrix));
+      return Promise.resolve();
     });
 
     const renameButton = container.querySelector('[aria-label="Rename Supervisor"]') as HTMLButtonElement;
-    await act(async () => {
+    await act(() => {
       renameButton.click();
+      return Promise.resolve();
     });
     const nameInput = document.querySelector('[data-testid="rename-group-input"]') as HTMLInputElement;
     expect(nameInput).toBeTruthy();
-    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")!.set!;
-    await act(async () => {
-      nativeSetter.call(nameInput, "Shift Lead");
+    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+    await act(() => {
+      nativeSetter?.call(nameInput, "Shift Lead");
       nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+      return Promise.resolve();
     });
     const submitButton = document.querySelector('[data-testid="submit-rename-group"]') as HTMLButtonElement;
-    await act(async () => {
+    await act(() => {
       submitButton.click();
+      return Promise.resolve();
     });
     expect(renameGroup).toHaveBeenCalledWith("g3", "Shift Lead");
 
@@ -165,8 +177,9 @@ describe("PermissionMatrix", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root: Root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(PermissionMatrix));
+      return Promise.resolve();
     });
 
     // Matched by iterating rather than via an attribute selector: the
@@ -193,16 +206,18 @@ describe("PermissionMatrix", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root: Root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(PermissionMatrix));
+      return Promise.resolve();
     });
 
     const box = Array.from(container.querySelectorAll('input[data-testid="category-checkbox"]')).find(
       (i) => i.getAttribute("aria-label") === "Staff & Groups - all permissions - Supervisor",
     ) as HTMLInputElement;
     expect(box).toBeTruthy();
-    await act(async () => {
+    await act(() => {
       box.click();
+      return Promise.resolve();
     });
     const [, keys] = toggleMany.mock.calls[0];
     expect(keys).not.toContain("manage_roles_permissions");
@@ -217,8 +232,9 @@ describe("PermissionMatrix", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root: Root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(PermissionMatrix));
+      return Promise.resolve();
     });
 
     const lockedByGrantScope = Array.from(container.querySelectorAll("input")).filter(
@@ -235,8 +251,9 @@ describe("PermissionMatrix", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root: Root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(PermissionMatrix));
+      return Promise.resolve();
     });
 
     // "process_sales" is enforced (pos-layout-header.tsx) - no indicator.

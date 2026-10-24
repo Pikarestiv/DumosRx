@@ -49,8 +49,18 @@ export function POSSystem() {
     customers,
     loadingCustomers,
     paymentAccounts,
-    productsPullToRefresh,
-    historyPullToRefresh,
+    productsPullToRefresh: {
+      scrollRef: productsScrollRef,
+      pullDistance: productsPullDistance,
+      isRefreshing: productsIsRefreshing,
+      threshold: productsPullThreshold,
+    },
+    historyPullToRefresh: {
+      scrollRef: historyScrollRef,
+      pullDistance: historyPullDistance,
+      isRefreshing: historyIsRefreshing,
+      threshold: historyPullThreshold,
+    },
     cart,
     updateQuantity,
     removeFromCart,
@@ -191,14 +201,14 @@ export function POSSystem() {
             </div>
             <div className="flex-1 overflow-hidden relative">
               <TabsContent
-                ref={productsPullToRefresh.scrollRef}
+                ref={productsScrollRef}
                 value="products"
                 className="absolute inset-0 overflow-y-auto mt-0 pr-1 flex flex-col gap-4"
               >
                 <PullToRefreshIndicator
-                  pullDistance={productsPullToRefresh.pullDistance}
-                  isRefreshing={productsPullToRefresh.isRefreshing}
-                  threshold={productsPullToRefresh.threshold}
+                  pullDistance={productsPullDistance}
+                  isRefreshing={productsIsRefreshing}
+                  threshold={productsPullThreshold}
                 />
                 <POSCategoryFilter
                   categories={categories}
@@ -226,7 +236,7 @@ export function POSSystem() {
                   filteredProducts={filteredProducts}
                   isFuzzyFallback={isFuzzyFallback}
                   addToCart={handleAddToCart}
-                  scrollElementRef={productsPullToRefresh.scrollRef}
+                  scrollElementRef={productsScrollRef}
                   productTerm={t("product")}
                   searchTerm={searchTerm}
                   currencyCode={storeProfile?.currency}
@@ -244,20 +254,20 @@ export function POSSystem() {
               </TabsContent>
               {canViewSalesHistory && (
                 <TabsContent
-                  ref={historyPullToRefresh.scrollRef}
+                  ref={historyScrollRef}
                   value="history"
                   className="absolute inset-0 overflow-y-auto mt-0 pr-1"
                 >
                   <PullToRefreshIndicator
-                    pullDistance={historyPullToRefresh.pullDistance}
-                    isRefreshing={historyPullToRefresh.isRefreshing}
-                    threshold={historyPullToRefresh.threshold}
+                    pullDistance={historyPullDistance}
+                    isRefreshing={historyIsRefreshing}
+                    threshold={historyPullThreshold}
                   />
                   <POSTransactionHistory
                     recentSales={recentSales}
                     onReturnClick={handleReturnClick}
                     currencyCode={storeProfile?.currency}
-                    scrollElementRef={historyPullToRefresh.scrollRef}
+                    scrollElementRef={historyScrollRef}
                   />
                 </TabsContent>
               )}

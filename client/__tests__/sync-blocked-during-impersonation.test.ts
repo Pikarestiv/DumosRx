@@ -13,15 +13,15 @@ vi.mock("@/lib/query-client", () => ({
   queryClient: { invalidateQueries: vi.fn() },
 }));
 vi.mock("@/lib/db/sync-engine/schema", () => ({
-  getValidColumns: vi.fn(async () => new Set()),
+  getValidColumns: vi.fn(() => Promise.resolve(new Set())),
 }));
 vi.mock("@/lib/db/retention", () => ({
-  pruneSyncedAuditLogs: vi.fn(async () => 0),
+  pruneSyncedAuditLogs: vi.fn(() => Promise.resolve(0)),
 }));
 vi.mock("@/lib/utils/dev-log", () => ({ devLog: vi.fn() }));
 vi.mock("@/lib/utils/error-logger", () => ({ logCrash: vi.fn() }));
 vi.mock("@/lib/api/client", () => ({
-  apiClient: { getSystemConfig: vi.fn(async () => null), pullChanges: vi.fn() },
+  apiClient: { getSystemConfig: vi.fn(() => Promise.resolve(null)), pullChanges: vi.fn() },
 }));
 
 // Impersonation (a superadmin handing off into a store's app via app/auth/callback/page.tsx) is read-only support access.

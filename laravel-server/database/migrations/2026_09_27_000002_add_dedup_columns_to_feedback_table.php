@@ -19,13 +19,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('feedback', function (Blueprint $table) {
-            if (!Schema::hasColumn('feedback', 'fingerprint')) {
+            if (! Schema::hasColumn('feedback', 'fingerprint')) {
                 $table->string('fingerprint')->nullable()->index();
             }
-            if (!Schema::hasColumn('feedback', 'occurrence_count')) {
+            if (! Schema::hasColumn('feedback', 'occurrence_count')) {
                 $table->unsignedInteger('occurrence_count')->default(1);
             }
-            if (!Schema::hasColumn('feedback', 'last_occurred_at')) {
+            if (! Schema::hasColumn('feedback', 'last_occurred_at')) {
                 $table->timestamp('last_occurred_at')->nullable();
             }
         });

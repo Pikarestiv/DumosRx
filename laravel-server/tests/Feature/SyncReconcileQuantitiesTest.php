@@ -25,9 +25,13 @@ class SyncReconcileQuantitiesTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $store;
+
     protected User $staff;
+
     protected User $outsider;
+
     protected Store $outsiderStore;
 
     protected function setUp(): void
@@ -93,7 +97,7 @@ class SyncReconcileQuantitiesTest extends TestCase
         $productId = (string) Str::uuid();
         DB::table('products')->insert([
             'id' => $productId,
-            'name' => 'Product ' . substr($productId, 0, 8),
+            'name' => 'Product '.substr($productId, 0, 8),
             'store_id' => $storeId,
             'selling_price' => 500,
             'created_at' => now(),
@@ -105,7 +109,7 @@ class SyncReconcileQuantitiesTest extends TestCase
             'id' => $batchId,
             'product_id' => $productId,
             'store_id' => $storeId,
-            'batch_number' => 'B-' . substr($batchId, 0, 6),
+            'batch_number' => 'B-'.substr($batchId, 0, 6),
             'quantity' => $quantity,
             'cost_price' => 100,
             'created_at' => now(),
@@ -273,10 +277,7 @@ class SyncReconcileQuantitiesTest extends TestCase
         $batchId = $this->makeBatch($this->store->id, 8);
         $batch = \App\Models\StockBatch::find($batchId);
 
-        $method = new \ReflectionMethod(SyncController::class, 'writeQuantityReconciliation');
-        $method->setAccessible(true);
-        $result = $method->invoke(
-            app(SyncController::class),
+        $result = app(\App\Services\Sync\QuantityReconciliationService::class)->writeQuantityReconciliation(
             $batch,
             $this->store->id,
             10, // stale: the row actually holds 8, not 10

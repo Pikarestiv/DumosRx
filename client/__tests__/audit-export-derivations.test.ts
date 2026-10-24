@@ -6,35 +6,12 @@ import {
   isAuditLensActive,
   type AuditLens,
 } from "@/components/stock-batch/audit-derivations";
-import type { AuditItem } from "@/components/stock-batch/stock-audits";
-
-function item(overrides: Partial<AuditItem> = {}): AuditItem {
-  return {
-    id: "i1",
-    name: "Panadol",
-    sku: "SKU-1",
-    category: "Analgesics",
-    systemQty: 10,
-    countedQty: undefined,
-    ...overrides,
-  };
-}
 
 const NO_LENS: AuditLens = {
   category: ALL_AUDIT_CATEGORIES,
   status: "all",
   search: "",
 };
-
-const sheet: AuditItem[] = [
-  item({ id: "a", name: "Panadol", sku: "P-1", category: "Analgesics" }),
-  item({ id: "b", name: "Amoxil", sku: "A-1", category: "Antibiotics", countedQty: 10 }),
-  item({ id: "c", name: "Amoxiclav", sku: "A-2", category: "Antibiotics", countedQty: 7 }),
-  item({ id: "d", name: "Flagyl", sku: "F-1", category: "Antibiotics" }),
-  item({ id: "e", name: "Vitamin C", sku: "V-1", category: "Vitamins", countedQty: 3 }),
-];
-
-const ids = (rows: AuditItem[]) => rows.map((r) => r.id);
 
 describe("describeAuditLens", () => {
   it("keeps today's wording when nothing is filtered", () => {

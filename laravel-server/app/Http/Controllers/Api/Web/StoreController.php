@@ -42,6 +42,7 @@ class StoreController extends Controller
     public function show(Request $request, $id)
     {
         $store = $request->user()->stores()->findOrFail($id);
+
         return response()->json($store);
     }
 
@@ -66,11 +67,11 @@ class StoreController extends Controller
     public function checkSlug(Request $request)
     {
         $request->validate([
-            'slug' => 'required|string|max:255'
+            'slug' => 'required|string|max:255',
         ]);
 
         $slug = Str::slug($request->slug);
-        
+
         // withTrashed: store_slug is DB-unique across archived rows too, so
         // an archived store's slug is not actually free to reuse.
         $query = Store::withTrashed()->where('store_slug', $slug);
@@ -81,8 +82,8 @@ class StoreController extends Controller
         $exists = $query->exists();
 
         return response()->json([
-            'available' => !$exists,
-            'slug' => $slug
+            'available' => ! $exists,
+            'slug' => $slug,
         ]);
     }
 
@@ -113,9 +114,9 @@ class StoreController extends Controller
     )]
     public function store(Request $request)
     {
-        if (!app(\App\Services\SubscriptionService::class)->checkLimit($request->user(), 'stores')) {
+        if (! app(\App\Services\SubscriptionService::class)->checkLimit($request->user(), 'stores')) {
             return response()->json([
-                'message' => 'Store/Device limit reached for your current plan. Please upgrade your plan to add more locations or devices.'
+                'message' => 'Store/Device limit reached for your current plan. Please upgrade your plan to add more locations or devices.',
             ], 422);
         }
 
@@ -135,19 +136,19 @@ class StoreController extends Controller
             'location' => $request->location,
             'address' => $request->address,
             'phone' => $request->phone,
-            'device_id' => 'WEB-' . strtoupper(Str::random(8)),
+            'device_id' => 'WEB-'.strtoupper(Str::random(8)),
             'store_type' => $request->store_type ?? 'pharmacy',
             'auto_sync_enabled' => true,
         ]);
 
         // Auto-create a trial subscription if the user doesn't have one
-        if (!$user->subscriptions()->exists()) {
+        if (! $user->subscriptions()->exists()) {
             app(\App\Services\SubscriptionService::class)->createTrial($user);
         }
 
         return response()->json([
             'message' => 'Store registered successfully',
-            'store' => $store
+            'store' => $store,
         ], 201);
     }
 
@@ -216,7 +217,7 @@ class StoreController extends Controller
 
         return response()->json([
             'message' => 'Store updated successfully',
-            'store' => $store
+            'store' => $store,
         ]);
     }
 
@@ -258,7 +259,7 @@ class StoreController extends Controller
         $store->delete();
 
         return response()->json([
-            'message' => 'Store removed successfully'
+            'message' => 'Store removed successfully',
         ]);
     }
 }

@@ -50,7 +50,7 @@ class PermissionGroupServerSeedingTest extends TestCase
                 'table_name' => 'categories',
                 'operation' => 'INSERT',
                 'record_id' => (string) \Illuminate\Support\Str::uuid(),
-                'payload' => ['name' => 'Seeding Probe ' . uniqid()],
+                'payload' => ['name' => 'Seeding Probe '.uniqid()],
             ]],
         ]);
     }
@@ -59,18 +59,18 @@ class PermissionGroupServerSeedingTest extends TestCase
     {
         $owner = User::create([
             'first_name' => 'Owner', 'last_name' => 'Seed',
-            'email' => 'owner-pgseed-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'email' => 'owner-pgseed-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
             'role' => 'store_owner',
         ]);
 
         return Store::create([
             'user_id' => $owner->id,
             'name' => 'Store PG Seed',
-            'email' => 'store-pgseed-' . uniqid() . '@dumosrx.com',
+            'email' => 'store-pgseed-'.uniqid().'@dumosrx.com',
             'phone' => '1234567890',
             'address' => '123 Test St',
-            'store_slug' => 'store-pgseed-' . uniqid(),
-            'device_id' => 'WEB-PGSEED-' . uniqid(),
+            'store_slug' => 'store-pgseed-'.uniqid(),
+            'device_id' => 'WEB-PGSEED-'.uniqid(),
         ]);
     }
 
@@ -140,7 +140,7 @@ class PermissionGroupServerSeedingTest extends TestCase
         $owner = User::where('id', $store->user_id)->first();
         $manager = User::create([
             'first_name' => 'Mgr', 'last_name' => 'Seed',
-            'email' => 'mgr-pgseed-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'email' => 'mgr-pgseed-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
             'role' => 'manager', 'store_id' => $store->id,
         ]);
 

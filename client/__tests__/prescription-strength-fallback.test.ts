@@ -15,8 +15,7 @@ import type {
   NewPrescriptionForm,
 } from "@/components/prescriptions/new-prescription/use-new-prescription";
 
-// React 19's `act` warns unless the environment explicitly opts in.
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Regression coverage for:
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-prescription-strength-fallback-test-ts-L22
@@ -36,7 +35,7 @@ describe("PrescriptionMedications strength field fallback", () => {
     patientAge: "",
     doctorName: "",
     doctorLicense: "",
-    priority: "normal" as any,
+    priority: "normal",
     insurance: "",
     medications: [],
     notes: "",

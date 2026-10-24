@@ -197,6 +197,7 @@ class PublicSurfaceHardeningTest extends TestCase
         $response->assertStatus(200);
         $response->assertJson(['status' => 'logged']);
     }
+
     public function test_the_public_announcements_feed_is_bounded()
     {
         foreach (range(1, 60) as $i) {

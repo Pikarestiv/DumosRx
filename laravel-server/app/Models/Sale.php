@@ -5,12 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-use Illuminate\Database\Eloquent\SoftDeletes;
-
 /**
- * @mixin IdeHelperSale
+ * @property string|null $store_id
+ * @property string|null $user_id
  */
 class Sale extends Model
 {
@@ -37,11 +39,11 @@ class Sale extends Model
         'reseller_commission_redeemed' => 'boolean',
     ];
 
-     protected static function boot()
+    protected static function boot()
     {
         parent::boot();
         static::creating(function ($model) {
-            if (!$model->transaction_number) {
+            if (! $model->transaction_number) {
                 // 'TXN' . date('YmdHis') . rand(100, 999) collided whenever two
                 // sales landed in the same second (~1-in-900 odds), failing the
                 // whole insert against the UNIQUE constraint. Mirrors the
@@ -53,7 +55,7 @@ class Sale extends Model
                 // belt-and-braces on top of that already-low collision odds.
                 do {
                     $uuid = str_replace('-', '', (string) Str::uuid());
-                    $candidate = 'TXN-' . strtoupper(substr($uuid, 0, 12));
+                    $candidate = 'TXN-'.strtoupper(substr($uuid, 0, 12));
                 } while (static::withTrashed()->where('transaction_number', $candidate)->exists());
 
                 $model->transaction_number = $candidate;
@@ -61,17 +63,26 @@ class Sale extends Model
         });
     }
 
-    public function items()
+    /**
+     * @return HasMany<SaleItem, $this>
+     */
+    public function items(): HasMany
     {
         return $this->hasMany(SaleItem::class);
     }
 
-    public function customer()
+    /**
+     * @return BelongsTo<Customer, $this>
+     */
+    public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
     }
 
-    public function cashier()
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function cashier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cashier_id');
     }

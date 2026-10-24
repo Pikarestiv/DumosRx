@@ -17,16 +17,16 @@ final class LegacyStockQuantitiesGrant
 
     public static function apply(array $payload, ?string $recordId, string $operation, ?string $appVersion, $caller): array
     {
-        if (!array_key_exists('permissions', $payload) || $payload['permissions'] === null) {
+        if (! array_key_exists('permissions', $payload) || $payload['permissions'] === null) {
             return $payload;
         }
 
         $payload['permissions'] = JsonList::decodeList($payload['permissions']);
 
-        if (!self::isLegacyBundle($appVersion)
+        if (! self::isLegacyBundle($appVersion)
             || in_array(self::KEY, $payload['permissions'], true)
-            || !self::callerMayGrant($caller)
-            || !self::isOwed($recordId, $operation)) {
+            || ! self::callerMayGrant($caller)
+            || ! self::isOwed($recordId, $operation)) {
             return $payload;
         }
 
@@ -37,7 +37,7 @@ final class LegacyStockQuantitiesGrant
 
     private static function isLegacyBundle(?string $appVersion): bool
     {
-        return !$appVersion || version_compare($appVersion, self::INTRODUCED_IN, '<');
+        return ! $appVersion || version_compare($appVersion, self::INTRODUCED_IN, '<');
     }
 
     private static function callerMayGrant($caller): bool
@@ -49,7 +49,7 @@ final class LegacyStockQuantitiesGrant
 
         $ownGroup = $caller->permission_group_id ? PermissionGroup::find($caller->permission_group_id) : null;
 
-        return in_array(self::KEY, $ownGroup?->permissions ?? [], true);
+        return in_array(self::KEY, $ownGroup->permissions ?? [], true);
     }
 
     private static function isOwed(?string $recordId, string $operation): bool

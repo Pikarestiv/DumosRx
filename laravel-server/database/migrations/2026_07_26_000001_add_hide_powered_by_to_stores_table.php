@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('stores', function (Blueprint $table) {
-            if (!Schema::hasColumn('stores', 'hide_powered_by')) {
+            if (! Schema::hasColumn('stores', 'hide_powered_by')) {
                 $table->boolean('hide_powered_by')->default(false);
             }
         });

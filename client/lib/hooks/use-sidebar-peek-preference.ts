@@ -1,24 +1,26 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 
 const PEEK_KEY = STORAGE_KEYS.sidebarPeekEnabled;
+
+function readStoredPeekEnabled(): boolean {
+  try {
+    return localStorage.getItem(PEEK_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
 
 // Whether the collapsed sidebar expands on hover ("peek"), or stays fully collapsed.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-sidebar-peek-preference-ts-L6
 export function useSidebarPeekPreference() {
-  const [peekEnabled, setPeekEnabledState] = useState(true);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(PEEK_KEY);
-      if (stored === "false") setPeekEnabledState(false);
-    } catch {
-      // localStorage unavailable (e.g. SSR or private mode)
-    }
-  }, []);
+  const hydrated = useHydrated();
+  const [chosen, setChosen] = useState<boolean | null>(null);
+  const peekEnabled = chosen ?? (hydrated ? readStoredPeekEnabled() : true);
 
   const setPeekEnabled = (value: boolean) => {
-    setPeekEnabledState(value);
+    setChosen(value);
     try {
       localStorage.setItem(PEEK_KEY, String(value));
     } catch {}

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { Share, SquarePlus, Smartphone } from "lucide-react";
 import {
   Card,
@@ -61,19 +62,17 @@ const steps = [
   },
 ];
 
+function detectInstallCardVisibility(): "hidden" | "safari" | "other-browser" {
+  if (isTauri() || !isIos() || isStandalonePwa()) return "hidden";
+  return isIosSafari() ? "safari" : "other-browser";
+}
+
 // Shown only on iOS Safari when not already running as an installed PWA/desktop app.
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-ios-install-card-tsx-L77
 export function IosInstallCard() {
   const [open, setOpen] = useState(false);
-  const [visibility, setVisibility] = useState<"hidden" | "safari" | "other-browser">("hidden");
-
-  useEffect(() => {
-    if (isTauri() || !isIos() || isStandalonePwa()) {
-      setVisibility("hidden");
-    } else {
-      setVisibility(isIosSafari() ? "safari" : "other-browser");
-    }
-  }, []);
+  const isHydrated = useHydrated();
+  const visibility = isHydrated ? detectInstallCardVisibility() : "hidden";
 
   if (visibility === "hidden") return null;
 

@@ -23,7 +23,6 @@ describe("service worker cache prune retention policy", () => {
       clients: { claim: () => {} },
       location: { origin: "https://app.dumosrx.test" },
     } as Record<string, unknown>;
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
     const internals = new Function(
       "self",
       `${source}\nreturn self.__swInternals;`,

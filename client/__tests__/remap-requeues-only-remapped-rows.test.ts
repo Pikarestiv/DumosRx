@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // A-295's driver. `remapForeignKey()` flips the FK of the rows it remaps and then has to backfill their queue entries, bec…

@@ -37,18 +37,20 @@ export function MultiStoreCard() {
     name: string;
   } | null>(null);
 
-  const loadStores = async () => {
+  const fetchStores = () =>
+    apiClient
+      .getStores()
+      .then(setStores)
+      .catch((error: unknown) => {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to load stores",
+        );
+      })
+      .finally(() => setIsLoading(false));
+
+  const loadStores = () => {
     setIsLoading(true);
-    try {
-      const data = await apiClient.getStores();
-      setStores(data);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to load stores",
-      );
-    } finally {
-      setIsLoading(false);
-    }
+    void fetchStores();
   };
 
   // Fleet writes go straight to the cloud API and never touch local SQLite, so React Query's own store caches never learn a…
@@ -61,13 +63,13 @@ export function MultiStoreCard() {
   };
 
   const handleMutationSuccess = () => {
-    void loadStores();
+    loadStores();
     invalidateStoreCaches();
   };
 
   useEffect(() => {
     if (canManageMultiStore) {
-      void loadStores();
+      void fetchStores();
     }
   }, [canManageMultiStore]);
 

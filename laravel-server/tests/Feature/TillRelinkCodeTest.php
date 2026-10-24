@@ -15,6 +15,7 @@ class TillRelinkCodeTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $store;
 
     protected function setUp(): void
@@ -134,7 +135,7 @@ class TillRelinkCodeTest extends TestCase
     public function test_a_code_whose_entry_is_read_twice_still_mints_only_one_token()
     {
         $code = $this->issueCode();
-        $key = 'till_relink:' . hash('sha256', $code);
+        $key = 'till_relink:'.hash('sha256', $code);
         $entry = \Illuminate\Support\Facades\Cache::get($key);
 
         $this->consume($code)->assertOk();

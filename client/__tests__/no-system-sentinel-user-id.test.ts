@@ -6,8 +6,8 @@ import type { ReactNode } from "react";
 import React from "react";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("sonner", () => ({

@@ -28,10 +28,10 @@ describe("ReportCard layout", () => {
     );
 
     const titleRow = screen.getByText("Detailed Sales Report").closest("div");
-    expect(titleRow).not.toBeNull();
-    expect(titleRow!.querySelector("svg")).not.toBeNull();
+    if (!titleRow) throw new Error("report title has no enclosing row");
+    expect(titleRow.querySelector("svg")).not.toBeNull();
 
     const viewButton = screen.getByRole("button", { name: /view/i });
-    expect(titleRow!.contains(viewButton)).toBe(false);
+    expect(titleRow.contains(viewButton)).toBe(false);
   });
 });

@@ -24,7 +24,8 @@ abstract class AdminBaseController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            Log::error("Admin {$logLabel} Error: " . $e->getMessage());
+            Log::error("Admin {$logLabel} Error: ".$e->getMessage());
+
             return response()->json(['error' => $failureMessage], 500);
         }
     }

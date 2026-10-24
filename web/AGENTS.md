@@ -296,6 +296,23 @@ all, so a 422 was indistinguishable from success (A-98). Every save handler
 on this tab surfaces `error.message`; don't pass a bare `async` function to
 `onClick`.
 
+**Plan price edits are confirmed by name.** They are the one change on
+`subscription-config-tab.tsx` that takes money-visible effect the moment it
+saves, so the tab keeps `savedConfig` (the last configuration known to be
+stored server-side) and `describePriceChanges()`
+(`views/subscription-price-changes.ts`) names every before/after price in the
+confirmation. Both config queries gate the whole tab with `ConfigLoadError`:
+the Save buttons submit the form's state, so rendering the editor off bundled
+defaults after a failed fetch is exactly what let one click reset live plan
+pricing.
+
+**The referral wallet adjust dialog picks its user by search**
+(`marketing/referrals-user-search-select.tsx`). It replaced a plain `<Select>`
+fed by `useAdminUsers()` with default args — page 1 only, ten users, no
+search — so on any real platform most wallets could not be selected and
+similarly-named users were easy to confuse. Same Command+Popover pattern as
+`components/admin/user-selector.tsx`, narrowed to a single selection.
+
 ## `platform_admin`/`agent`: "My Stores", the scoped fleet view (A-113)
 
 These two roles register stores (`create_accounts`) but must not see the
@@ -698,6 +715,11 @@ Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-6-activity-feed-desig
   event table; a row yields *started* from `start_date` and *ended* from
   `end_date` once that date has passed. Every such row carries a **Derived**
   badge. A future `end_date` is not an event.
+- **The filter buttons outlive the fetch.** `ActivityFeedPanel` keeps the last
+  `available_types` it saw in state (adjusted during render, not in an effect):
+  the query key changes on every filter click, so reading them straight from
+  `data` unmounted the button the operator had just pressed until the
+  response landed.
 - **Cursor pagination, not page numbers.** "Skip 20" means something different
   in each source, so the feed advances by timestamp and renders "Load more".
   Don't add a page-number control; it cannot be made correct here.
@@ -882,6 +904,10 @@ URL). `checkHasPermission` (from `use-admin-auth-store.ts`) already returns
   which keeps the gate testable in isolation instead of buried in
   `settings-client.tsx`. It also fetches nothing until the super_admin clicks
   Reveal, because the server audits every call.
+  Its sibling `till-codes-card.tsx` (the admin's own codes) calls
+  `issue.reset()` when the freshly issued code is dismissed: the mutation keeps
+  its result in observer state (and React Query devtools), so clearing only the
+  card's own copy would leave the code readable for the life of the page.
 
 Covered by `__tests__/admin-action-permission-gating.test.tsx` (per-action
 hidden/shown/super_admin-bypass cases across `StoreRowActions`, `StoreTable`'s
@@ -918,6 +944,23 @@ the server `prohibited`s them and they each have their own row action. See
 guards behind the endpoint. Covered by
 `__tests__/admin-user-profile-edit.test.tsx`.
 
+**The user directory's filter menu has roles only, no billing plan.**
+`AdminUserService::getGlobalUsers()` filters by search/role alone (there is
+no plan param, and a plan lives on the store, not the user), so the old
+"Billing Plan → Starter/Enterprise" items could never do anything and were
+removed rather than left as dead controls. Plan filtering belongs on the Store
+Fleet list, which supports it. Trial/plan grants from the directory live in
+`components/admin/users/use-user-plan-actions.ts`.
+
+**Creating a platform account** (`app/admin/users/new/page.tsx`, schema in
+`lib/admin/platform-admin-schema.ts`): choosing `super_admin` takes an
+explicit second confirmation, because it hands out impersonation access to
+every store on the platform and should not be one dropdown option away like
+the other roles. The password rule is deliberately modest (8+ characters, at
+least one letter and one number): these accounts can impersonate stores, so a
+purely alphabetic or numeric password is not enough, but it is not meant to be
+a full strength meter.
+
 **Per-admin permission overrides** use the same mode-toggle shape: a "Manage
 Permissions" button next to "Edit Profile" swaps the body for
 `user-permission-overrides-form.tsx`, gated on `checkIsSuperAdmin(viewer) &&
@@ -926,6 +969,11 @@ selectedUser.role_slug)` — platform roles only, so the button never appears
 for a store owner or staff account even though neither is `super_admin`.
 Each catalog permission (`PLATFORM_PERMISSION_OPTIONS`) gets a 3-state
 `Select` — Inherited/Granted/Revoked, mapping to `null`/`true`/`false`.
+The form fetches the one user's effective permissions on demand
+(`useAdminUserEffectivePermissions`) rather than having them carried on the
+paginated user list, which would re-run that N+1-prone accessor per row of
+every page (laravel-server commit `b7a39eea`). It seeds its rows once, during
+render, the first time that query stops loading.
 
 **Only the rows the operator actually touches in that session are submitted**
 (tracked in a `touchedPermissions` set) — this is not a style choice, it's
@@ -1073,7 +1121,7 @@ disable rule above. Three things to know before changing it:
   `STOREFRONT_PUBLISHED_FIELDS`), and the scheduled `storefront:rebuild-if-dirty`
   command picks it up. The card already surfaces that as "Pending Rebuild".
 - **The owner's device is the other writer of this column.** It is not in
-  `SyncController::STORE_SYNC_FORBIDDEN_FIELDS`, deliberately — the owner
+  `PushPayloadNormalizer::STORE_SYNC_FORBIDDEN_FIELDS`, deliberately — the owner
   toggles the same flag in the POS app's store settings. An admin toggle bumps
   `stores.updated_at`, so a device converges on the next pull; a device holding
   an unsynced local change to the same field still wins when it pushes. Don't
@@ -1148,6 +1196,16 @@ which create no broadcast (see `laravel-server/AGENTS.md`):
   input's Enter key is deliberately intercepted (`preventDefault`) — it sits
   inside the create `<form>`, so an unhandled Enter would dispatch the real
   broadcast instead of sending a test.
+- **State and handlers live in `broadcasts/use-broadcasts-manager.ts`**;
+  `views/broadcasts-tab.tsx` only renders. `selectedUsers` is a display-only
+  companion to `formData.user_ids`: the selector renders whole user objects,
+  but only ids are ever submitted (the backend matches recipients with
+  `whereJsonContains('user_ids', $user->id)`), and
+  `handleSelectedUsersChange` keeps the two in lockstep. Editing a broadcast
+  starts the selector empty because only ids are known there; the existing
+  ids stay in `formData` until the admin picks a new set. `expires_at` is
+  loaded through `formatDateSafe`, which tolerates both
+  `2026-01-01T00:00:00Z` and `2026-01-01 00:00:00` (and garbage).
 
 ## Storefront checkout: the three states of a Paystack return (A-95)
 

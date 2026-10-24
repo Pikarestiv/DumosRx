@@ -2,16 +2,16 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Mail;
 use App\Mail\SuperAdminAlertMail;
+use Illuminate\Support\Facades\Mail;
 
 class AdminAlertService
 {
     /**
      * Send an alert to all configured super admins.
      *
-     * @param string $title
-     * @param array|string $messageLines
+     * @param  string  $title
+     * @param  array|string  $messageLines
      * @return void
      */
     public static function send($title, $messageLines)

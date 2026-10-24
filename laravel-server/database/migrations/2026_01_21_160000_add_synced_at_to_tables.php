@@ -14,7 +14,7 @@ return new class extends Migration
         $tables = ['medicines', 'customers', 'suppliers', 'sales', 'sale_items', 'users'];
 
         foreach ($tables as $table) {
-            if (Schema::hasTable($table) && !Schema::hasColumn($table, '_synced_at')) {
+            if (Schema::hasTable($table) && ! Schema::hasColumn($table, '_synced_at')) {
                 Schema::table($table, function (Blueprint $table) {
                     $table->timestamp('_synced_at')->nullable()->index();
                 });

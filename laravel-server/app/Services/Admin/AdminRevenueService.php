@@ -108,7 +108,7 @@ class AdminRevenueService
     {
         $rows = $query
             ->leftJoin('subscriptions', 'subscriptions.id', '=', 'payment_transactions.subscription_id')
-            ->selectRaw("subscriptions.plan_name as plan_name, payment_transactions.metadata as meta, COALESCE(SUM(payment_transactions.amount), 0) as total")
+            ->selectRaw('subscriptions.plan_name as plan_name, payment_transactions.metadata as meta, COALESCE(SUM(payment_transactions.amount), 0) as total')
             ->groupBy('subscriptions.plan_name', 'payment_transactions.metadata')
             ->get();
 

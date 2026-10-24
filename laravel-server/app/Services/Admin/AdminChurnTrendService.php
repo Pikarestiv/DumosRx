@@ -5,6 +5,7 @@ namespace App\Services\Admin;
 use App\Models\Subscription;
 use App\Models\SystemConfig;
 use App\Support\TimeSeries;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -40,10 +41,6 @@ class AdminChurnTrendService
         $byBucket = [];
 
         foreach ($candidates as $candidate) {
-            if (! $candidate->end_date) {
-                continue;
-            }
-
             $lapsedAt = $candidate->end_date->copy()->addDays($graceDays);
 
             if ($this->coveredAt($byOwner->get($candidate->user_id) ?? collect(), $candidate, $lapsedAt)) {
@@ -72,7 +69,7 @@ class AdminChurnTrendService
      * March and came back in June still churned in March, and reading their
      * current state would have quietly removed them from March's number.
      */
-    private function coveredAt(Collection $owned, Subscription $candidate, Carbon $moment): bool
+    private function coveredAt(Collection $owned, Subscription $candidate, CarbonInterface $moment): bool
     {
         foreach ($owned as $other) {
             if ($other->id === $candidate->id || ! $other->start_date) {

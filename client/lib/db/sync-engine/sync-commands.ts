@@ -137,7 +137,7 @@ async function abandonQueued(command: SyncCommand): Promise<SyncCommandResult> {
 
   const rows = await matchingQueueRows(command);
 
-  if (rows.length === 0) {
+  if (rows.length === 0 || !command.record_id) {
     return { id: command.id, status: "refused", result: "no matching queue row" };
   }
 
@@ -148,7 +148,7 @@ async function abandonQueued(command: SyncCommand): Promise<SyncCommandResult> {
 
   // Dropping the queue row alone leaves the source row _synced = 0 with no queue entry, which requeueOrphanedRows() treats as an orphan and re-q…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-sync-commands-ts-L149
-  await markConflictSettled(command.table_name, command.record_id!);
+  await markConflictSettled(command.table_name, command.record_id);
 
   return { id: command.id, status: "applied", result: `discarded ${rows.length} queued row(s)` };
 }

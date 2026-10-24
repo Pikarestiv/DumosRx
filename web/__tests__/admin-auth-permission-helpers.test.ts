@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkCanAccessAdmin, checkHasPermission, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
+import { checkCanAccessAdmin, checkHasPermission } from "@/lib/store/use-admin-auth-store";
 import type { User } from "@/lib/store/use-admin-auth-store";
 
 function makeUser(overrides: Partial<User>): User {

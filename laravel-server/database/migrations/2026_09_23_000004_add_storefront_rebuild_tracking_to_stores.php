@@ -26,10 +26,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('stores', function (Blueprint $table) {
-            if (!Schema::hasColumn('stores', 'storefront_dirty_at')) {
+            if (! Schema::hasColumn('stores', 'storefront_dirty_at')) {
                 $table->timestamp('storefront_dirty_at')->nullable();
             }
-            if (!Schema::hasColumn('stores', 'store_slug_changed_at')) {
+            if (! Schema::hasColumn('stores', 'store_slug_changed_at')) {
                 $table->timestamp('store_slug_changed_at')->nullable();
             }
         });

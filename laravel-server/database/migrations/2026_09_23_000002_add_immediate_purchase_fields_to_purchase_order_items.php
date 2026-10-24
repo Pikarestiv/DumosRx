@@ -22,13 +22,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('purchase_order_items', function (Blueprint $table) {
-            if (!Schema::hasColumn('purchase_order_items', 'selling_price')) {
+            if (! Schema::hasColumn('purchase_order_items', 'selling_price')) {
                 $table->decimal('selling_price', 12, 2)->nullable();
             }
-            if (!Schema::hasColumn('purchase_order_items', 'cost_price_override')) {
+            if (! Schema::hasColumn('purchase_order_items', 'cost_price_override')) {
                 $table->decimal('cost_price_override', 12, 2)->nullable();
             }
-            if (!Schema::hasColumn('purchase_order_items', 'lot_number')) {
+            if (! Schema::hasColumn('purchase_order_items', 'lot_number')) {
                 $table->string('lot_number')->nullable();
             }
         });

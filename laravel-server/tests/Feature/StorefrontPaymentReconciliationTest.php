@@ -26,7 +26,9 @@ class StorefrontPaymentReconciliationTest extends TestCase
     const PAYSTACK_SECRET = 'sk_test_paystack_secret';
 
     protected User $owner;
+
     protected Store $store;
+
     protected Product $product;
 
     protected function setUp(): void

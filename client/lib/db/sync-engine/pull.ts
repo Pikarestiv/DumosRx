@@ -1,110 +1,31 @@
-import { query, execute, transaction, STORE_SCOPED_TABLES } from "../core";
-import { deviceHoldsSeveralStores } from "../device-stores";
+import { execute, transaction } from "../core";
 import { resolveSyncRun, type SyncRun } from "./sync-run";
 import { apiClient } from "@/lib/api/client";
 import { PullResponse } from "./types";
 import { getValidColumns } from "./schema";
-import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconcile-identity";
+import { DUPLICATE_NAME_TABLES } from "../reconcile-identity";
 import { logCrash } from "@/lib/utils/error-logger";
-import { forgetWithheldPullWindows, restoreExhaustedPullWindows, rewindPullWindow } from "./pull-window";
-import { summarizeSkippedRecords, type SkippedRecord } from "./pull-skip-report";
-import { STORAGE_KEYS, getStoredUser } from "@/lib/storage-keys";
+import { forgetWithheldPullWindows, restoreExhaustedPullWindows } from "./pull-window";
+import type { SkippedRecord } from "./pull-skip-report";
 import { recomputeBatchQuantities } from "../batch-quantity";
 import type { BatchLogChange } from "../batch-quantity";
 import {
   applyDeferredStockDeltas,
   countDeferredStockDeltas,
   discardDeferredStockDeltas,
-  recordDeferredStockDelta,
   type DeferredStockDelta,
 } from "./deferred-stock-deltas";
-
-// Safety bound only, not a correctness ceiling — every committed page
-// persists its own keyset position. See docs/SYNC_PULL_PAGINATION.md.
-const MAX_PULL_PAGES = 1000;
-
-// A UNIQUE collision isn't self-resolving, so give up eventually rather
-// than stall the table's cursor. See client/AGENTS.md, "Pull details".
-const MAX_UNIQUE_SKIP_RETRIES = 5;
-const UNIQUE_SKIP_COUNTS_KEY = STORAGE_KEYS.syncUniqueSkipCounts;
-
-function readSkipCounts(): Record<string, number> {
-  if (typeof window === "undefined") return {};
-  try {
-    return JSON.parse(localStorage.getItem(UNIQUE_SKIP_COUNTS_KEY) || "{}");
-  } catch {
-    return {};
-  }
-}
-
-function writeSkipCounts(counts: Record<string, number>): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(UNIQUE_SKIP_COUNTS_KEY, JSON.stringify(counts));
-  } catch {
-    // Best-effort; a failed write only resets this record's retry count.
-  }
-}
-
-// Whether this pull's `stores` response can be read as a snapshot of every store the ACCOUNT owns — the premise the prune below rests on.
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-pull-ts-L48
-function storesSnapshotIsAccountWide(): boolean {
-  return !getStoredUser()?.store_id;
-}
-
-function recordUniqueSkipAndCheckGiveUp(table: string, recordId: string): boolean {
-  const key = `${table}:${recordId}`;
-  const counts = readSkipCounts();
-  const nextCount = (counts[key] ?? 0) + 1;
-  counts[key] = nextCount;
-  writeSkipCounts(counts);
-  return nextCount > MAX_UNIQUE_SKIP_RETRIES;
-}
-
-// Decides only when `onCriticalTablesReady` fires, not what's fetched.
-const SETUP_CRITICAL_TABLES = ["stores", "users"];
-
-// Columns each device owns privately:
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-pull-ts-L70
-const DEVICE_LOCAL_PULL_COLUMNS: Record<string, readonly string[]> = {
-  stores: ["last_monotonic_time"],
-};
-
-interface PullPageCursor {
-  updated_at: string;
-  id: string;
-}
-
-// Upserts one column without disturbing the other; the two cursors advance
-// on different schedules (docs/SYNC_PULL_PAGINATION.md).
-const PULL_PROGRESS = {
-  savePosition:
-    `INSERT INTO _sync_state (store_id, table_name, last_synced_at, server_cursor) VALUES (?, ?, NULL, ?)
-     ON CONFLICT(store_id, table_name) DO UPDATE SET server_cursor = excluded.server_cursor`,
-  completeWindow:
-    `INSERT INTO _sync_state (store_id, table_name, last_synced_at, server_cursor) VALUES (?, ?, ?, NULL)
-     ON CONFLICT(store_id, table_name) DO UPDATE SET last_synced_at = excluded.last_synced_at, server_cursor = NULL,
-       rewind_count = 0, rewound_from = NULL`,
-} as const;
-
-function parsePullPageCursor(raw: string | null | undefined): PullPageCursor | null {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed.updated_at === "string" && typeof parsed.id === "string") {
-      return parsed;
-    }
-  } catch {
-    // A corrupt cursor just re-pages the window, which is idempotent.
-  }
-  return null;
-}
-
-function cursorForLastRecord(records: Record<string, unknown>[]): PullPageCursor | null {
-  const last = records[records.length - 1];
-  if (!last || typeof last.updated_at !== "string" || last.id == null) return null;
-  return { updated_at: last.updated_at, id: String(last.id) };
-}
+import {
+  MAX_PULL_PAGES,
+  SETUP_CRITICAL_TABLES,
+  PULL_PROGRESS,
+  cursorForLastRecord,
+  readPullStartState,
+  storesSnapshotIsAccountWide,
+} from "./pull-state";
+import { applyPulledRecord, type PullPageContext } from "./pull-apply";
+import { finishPullRound } from "./pull-round-end";
+import { pruneStoresMissingFromSnapshot, reconcileDuplicateNames } from "./pull-reconcile";
 
 // Pull changes from server.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-pull-L115
@@ -134,39 +55,7 @@ export async function pullChanges(
   try {
     await restoreExhaustedPullWindows(windowStoreId);
 
-    // Get last sync timestamp for each table
-    const syncState = await query<{
-      table_name: string;
-      last_synced_at: string;
-      server_cursor: string | null;
-    }>("SELECT table_name, last_synced_at, server_cursor FROM _sync_state WHERE store_id = ?", [
-      windowStoreId,
-    ]);
-
-    // DUPLICATE_NAME_TABLES and still-NULL windows are deliberately left
-    // out of the cursor map — see client/AGENTS.md, "Pull details".
-    const lastSyncedMap = syncState.reduce(
-      (acc, row) => {
-        if (!(row.table_name in DUPLICATE_NAME_TABLES) && row.last_synced_at) {
-          acc[row.table_name] = row.last_synced_at;
-        }
-        return acc;
-      },
-      {} as Record<string, string>
-    );
-
-    // Where the last round got to inside each table's undrained window; a
-    // drained table has none, so it starts from the window boundary.
-    const pageCursors = syncState.reduce(
-      (acc, row) => {
-        const cursor = parsePullPageCursor(row.server_cursor);
-        if (cursor && !(row.table_name in DUPLICATE_NAME_TABLES)) {
-          acc[row.table_name] = cursor;
-        }
-        return acc;
-      },
-      {} as Record<string, PullPageCursor>
-    );
+    const { lastSyncedMap, pageCursors } = await readPullStartState(windowStoreId);
 
     let pulledCount = 0;
     const updatedTables: string[] = [];
@@ -247,6 +136,13 @@ export async function pullChanges(
           inbound: seen.inbound + Math.max(0, delta),
         });
       };
+      const pageContext: PullPageContext = {
+        touchBatch,
+        skippedRecords,
+        onDeferredDelta: () => {
+          deferredThisRound++;
+        },
+      };
 
       await transaction(async () => {
         for (const [table, records] of orderedEntries) {
@@ -301,257 +197,23 @@ export async function pullChanges(
           let anySkipped = false;
 
           for (const record of records) {
-            const { id, _deleted, ...rawData } = record;
-            const recordId = id as string;
-
-            const data: Record<string, unknown> = {};
-            for (const key in rawData) {
-              if (validColumns.has(key)) {
-                data[key] = rawData[key];
-              }
+            const outcome = await applyPulledRecord(table, record, validColumns, pageContext);
+            if (outcome.skipped) {
+              anySkipped = true;
             }
-
-            // Quantity is never trusted from a pulled snapshot; it is
-            // derived from movement deltas (client/AGENTS.md, "Pull details").
-            if (table === "stock_batches") {
-              delete data.quantity;
+            if (outcome.counted) {
+              pulledCount++;
             }
-
-            for (const deviceLocalColumn of DEVICE_LOCAL_PULL_COLUMNS[table] ?? []) {
-              delete data[deviceLocalColumn];
-            }
-
-            const columns = Object.keys(data);
-            const values = columns.map((c) => {
-              const val = data[c];
-              if (typeof val === "boolean") {
-                return val ? 1 : 0;
-              }
-              // A JSON-cast server attribute arrives as a real array/object;
-              // binding it directly mis-serializes it under sql.js.
-              if (val !== null && typeof val === "object") {
-                return JSON.stringify(val);
-              }
-              return val;
-            });
-
-            // Check if record already exists to preserve local-only columns (e.g. is_initialized, theme, license_token)
-            const exists = await query<{ 1: number }>(
-              `SELECT 1 FROM ${table} WHERE id = ?`,
-              [recordId]
-            );
-
-            const version = (rawData._version as number) || 1;
-
-            if (exists.length > 0) {
-              // A row with an unpushed local edit is left alone; the next
-              // push resolves it by version comparison.
-              const pendingLocalEdit = await query<{ 1: number }>(
-                "SELECT 1 FROM _sync_queue WHERE table_name = ? AND record_id = ? LIMIT 1",
-                [table, recordId],
-              );
-              if (pendingLocalEdit.length > 0) {
-                anySkipped = true;
-                continue;
-              }
-
-              // Update only columns returned by server to preserve local columns
-              const setClause = [...columns, "_synced", "_version", "_deleted"]
-                .map((c) => `${c} = ?`)
-                .join(", ");
-              const sql = `UPDATE ${table} SET ${setClause} WHERE id = ?`;
-              const params = [
-                ...values as (string | number | null)[],
-                1,
-                version,
-                _deleted ? 1 : 0,
-                recordId,
-              ];
-
-              try {
-                await execute(sql, params);
-
-                // Delta 0 because a pulled UPDATE changes no movement quantity today; see client/AGENTS.md, "Pull details", before making one that does.
-                // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-pull-ts-L377
-                if (table === "stock_batches") {
-                  touchBatch(recordId, 0);
-                } else if (table === "stock_movements" && data.stock_batch_id) {
-                  touchBatch(data.stock_batch_id as string, 0);
-                }
-              } catch (err) {
-                const errMsg =
-                  typeof err === "string" ? err : err instanceof Error ? err.message : String(err);
-                if (errMsg.includes("UNIQUE constraint failed")) {
-                  console.warn(
-                    `[Sync] Skipped updating record in ${table} due to unique constraint:`,
-                    recordId,
-                    errMsg
-                  );
-                  skippedRecords.push({ table, recordId, reason: `update: ${errMsg}` });
-                  // Not applied: hold the cursor back until the retry cap.
-                  if (!recordUniqueSkipAndCheckGiveUp(table, recordId)) {
-                    anySkipped = true;
-                  }
-                } else {
-                  throw err;
-                }
-              }
-            } else {
-              // Insert new record
-              const allCols = [
-                "id",
-                ...columns,
-                "_synced",
-                "_version",
-                "_deleted",
-              ];
-              const allPlaceholders = allCols.map(() => "?");
-              const sql = `INSERT INTO ${table} (${allCols.join(", ")}) VALUES (${allPlaceholders.join(", ")})`;
-              const params = [
-                recordId,
-                ...values as (string | number | null)[],
-                1,
-                version,
-                _deleted ? 1 : 0,
-              ];
-
-              try {
-                await execute(sql, params);
-
-                // An arriving batch is rebuilt from the movements this device already holds, which is what makes a batch landing after its own movements a non…
-                // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-pull-ts-L425
-                if (table === "stock_batches") {
-                  touchBatch(recordId, 0);
-                }
-
-                // No movement_type special-case here; see client/AGENTS.md.
-                if (
-                  table === "stock_movements" &&
-                  !_deleted &&
-                  data.stock_batch_id &&
-                  typeof data.quantity === "number"
-                ) {
-                  // A batch that has not arrived is still recorded as pending, not because the delta is owed to it — the recompute reads the whole log whenever…
-                  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-pull-ts-L439
-                  const batchExists = await query<{ 1: number }>(
-                    "SELECT 1 FROM stock_batches WHERE id = ?",
-                    [data.stock_batch_id as string],
-                  );
-                  if (batchExists.length > 0) {
-                    touchBatch(data.stock_batch_id as string, data.quantity);
-                  } else {
-                    await recordDeferredStockDelta(
-                      recordId,
-                      data.stock_batch_id as string,
-                      data.quantity as number,
-                    );
-                    deferredThisRound++;
-                  }
-                }
-              } catch (err) {
-                const errMsg =
-                  typeof err === "string" ? err : err instanceof Error ? err.message : String(err);
-                if (errMsg.includes("UNIQUE constraint failed")) {
-                  console.warn(
-                    `[Sync] Skipped inserting record in ${table} due to unique constraint:`,
-                    recordId,
-                    errMsg
-                  );
-                  skippedRecords.push({ table, recordId, reason: `insert: ${errMsg}` });
-                  // Not applied: hold the cursor back until the retry cap.
-                  if (!recordUniqueSkipAndCheckGiveUp(table, recordId)) {
-                    anySkipped = true;
-                  }
-                } else {
-                  throw err;
-                }
-              }
-            }
-
-            pulledCount++;
           }
 
           // Only an account-wide snapshot is authoritative; both guards fail
           // closed. See client/AGENTS.md, "The `stores` prune".
           if (table === "stores" && records.length > 0 && storesSnapshotIsAccountWide()) {
-            const serverStoreIds = records.map((r) => r.id as string);
-            const placeholders = serverStoreIds.map(() => "?").join(", ");
-            // A store with an unpushed local edit is never a prune
-            // candidate — that prune could never be undone.
-            const pruneCandidates = await query<{ id: string }>(
-              `SELECT id FROM stores WHERE _deleted = 0 AND id NOT IN (${placeholders})
-                 AND id NOT IN (SELECT record_id FROM _sync_queue WHERE table_name = 'stores')`,
-              serverStoreIds,
-            );
-
-            if (pruneCandidates.length > 0) {
-              // Only genuinely empty stores are pruned, and only tables that
-              // actually have store_id yet are checked (runtime migration).
-              const scopedTablesWithStoreId: string[] = [];
-              for (const t of STORE_SCOPED_TABLES) {
-                if (await columnExists(t, "store_id")) {
-                  scopedTablesWithStoreId.push(t);
-                }
-              }
-              const noDataClauses = scopedTablesWithStoreId.map(
-                (t) => `AND id NOT IN (SELECT DISTINCT store_id FROM ${t} WHERE store_id IS NOT NULL)`,
-              ).join("\n                ");
-              const candidatePlaceholders = pruneCandidates.map(() => "?").join(", ");
-              const pruneSql = `
-                UPDATE stores SET _deleted = 1
-                WHERE id IN (${candidatePlaceholders})
-                  ${noDataClauses}
-              `;
-
-              await execute(pruneSql, pruneCandidates.map((r) => r.id));
-            }
+            await pruneStoresMissingFromSnapshot(records);
           }
 
           if (Object.hasOwn(DUPLICATE_NAME_TABLES, table) && records.length > 0) {
-            const serverIds = new Set(records.map((r) => r.id as string));
-            // Keyed by store AND name: a header-less pull returns every store
-            // the owner has, where a bare name matches the wrong one (A-301).
-            const serverIdByName = new Map<string, string>();
-            for (const r of records) {
-              const name = String(r.name ?? "").trim().toLowerCase();
-              if (name) serverIdByName.set(`${r.store_id ?? ""}|${name}`, r.id as string);
-            }
-
-            // Paired by the PAGE's store, not the active one: see A-301 in
-            // docs/FIXED_BUGS.md for what an ambient scope did here.
-            const hasStoreId = await columnExists(table, "store_id");
-            const pageStoreIds = new Set(
-              records
-                .map((r) => (r.store_id == null ? null : String(r.store_id)))
-                .filter((id): id is string => id !== null),
-            );
-            const localRows = await query<{ id: string; name: string; store_id: string | null }>(
-              `SELECT id, name${hasStoreId ? ", store_id" : ", NULL as store_id"} FROM ${table}
-                WHERE (_deleted = 0 OR _deleted IS NULL)`,
-            );
-
-            const legacyRowsAreUnattributable = await deviceHoldsSeveralStores();
-
-            for (const row of localRows) {
-              if (serverIds.has(row.id)) continue;
-              if (hasStoreId && row.store_id !== null && !pageStoreIds.has(row.store_id)) {
-                continue;
-              }
-              if (row.store_id === null && legacyRowsAreUnattributable) continue;
-              const matchedServerId = serverIdByName.get(
-                `${row.store_id ?? ""}|${String(row.name ?? "").trim().toLowerCase()}`,
-              );
-              if (!matchedServerId || matchedServerId === row.id) continue;
-
-              await remapForeignKey(
-                row.id,
-                matchedServerId,
-                DUPLICATE_NAME_TABLES[table],
-                row.store_id,
-              );
-
-              await execute(`UPDATE ${table} SET _deleted = 1 WHERE id = ?`, [row.id]);
-            }
+            await reconcileDuplicateNames(table, records);
           }
 
           pageOffsets[table] = (pageOffsets[table] ?? 0) + records.length;
@@ -608,55 +270,13 @@ export async function pullChanges(
       }
     }
 
-    // Deltas and the cursor stamp commit as one unit: no window in between
-    // for a crash to fall into.
-    if (
-      (await countDeferredStockDeltas()) > 0 ||
-      deferredMovementCursor !== null ||
-      deferredMovementPageCursor !== null
-    ) {
-      await transaction(async () => {
-        unresolvedDeltas.push(...(await applyDeferredStockDeltas()));
-        if (deferredMovementCursor !== null) {
-          await execute(PULL_PROGRESS.completeWindow, [
-            windowStoreId,
-            "stock_movements",
-            deferredMovementCursor,
-          ]);
-        } else if (deferredMovementPageCursor !== null) {
-          await execute(PULL_PROGRESS.savePosition, [
-            windowStoreId,
-            "stock_movements",
-            deferredMovementPageCursor,
-          ]);
-        }
-      });
-    }
-
-    // A stranded batch is only re-sent if it is updated again, so a chronic
-    // deferral needs the window reopened or it never resolves (A-176).
-    if (unresolvedDeltas.length > 0) {
-      await rewindPullWindow(windowStoreId, "stock_batches", "unresolved stock delta");
-    }
-
-    for (const d of unresolvedDeltas) {
-      logCrash(
-        new Error(
-          `Pull deferred stock delta unresolved: movement ${d.movement_id} still has no stock_batches row ${d.stock_batch_id}`,
-        ),
-        false,
-        {
-          area: "sync-pull",
-          table: "stock_movements",
-          recordId: d.movement_id,
-        },
-      ).catch(() => {});
-    }
-
-    const skipSummary = summarizeSkippedRecords(skippedRecords);
-    if (skipSummary) {
-      logCrash(new Error(skipSummary.message), false, skipSummary.context).catch(() => {});
-    }
+    await finishPullRound(
+      windowStoreId,
+      deferredMovementCursor,
+      deferredMovementPageCursor,
+      unresolvedDeltas,
+      skippedRecords,
+    );
 
     return { pulled: pulledCount, updatedTables };
   } catch (error) {

@@ -22,7 +22,7 @@ class OwnedSupplierResolver
             return $ownedId;
         }
 
-        $supplier = new Supplier();
+        $supplier = new Supplier;
         $supplier->name = $name;
         $supplier->store_id = $storeId;
         $supplier->user_id = $ownerId;

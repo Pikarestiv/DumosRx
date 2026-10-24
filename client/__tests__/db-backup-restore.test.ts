@@ -3,14 +3,14 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 const saveMock = vi.fn();
 const openMock = vi.fn();
 const copyFileMock = vi.fn();
-const appDataDirMock = vi.fn(async () => "/fake/appdata");
-const joinMock = vi.fn(async (...parts: string[]) => parts.join("/"));
+const appDataDirMock = vi.fn(() => Promise.resolve("/fake/appdata"));
+const joinMock = vi.fn((...parts: string[]) => Promise.resolve(parts.join("/")));
 
 // A real (minimal) SQLite file header - restoreDatabaseFromFile() rejects anything that doesn't start with these exact 16…
 // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-db-backup-restore-test-ts-L9
 const SQLITE_HEADER_BYTES = new TextEncoder().encode("SQLite format 3\0");
-const readFileMock = vi.fn(async () => SQLITE_HEADER_BYTES);
-const existsMock = vi.fn(async () => true);
+const readFileMock = vi.fn(() => Promise.resolve(SQLITE_HEADER_BYTES));
+const existsMock = vi.fn(() => Promise.resolve(true));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   save: saveMock,

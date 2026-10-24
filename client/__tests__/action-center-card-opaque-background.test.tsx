@@ -37,7 +37,6 @@ describe("ActionCenterCard background", () => {
       />,
     );
     const card = container.querySelector('[data-slot="card"]');
-    expect(card).not.toBeNull();
-    expect(card!.className).toMatch(/\bbg-card\b/);
+    expect(card?.className).toMatch(/\bbg-card\b/);
   });
 });

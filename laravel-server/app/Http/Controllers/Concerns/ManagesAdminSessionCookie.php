@@ -23,7 +23,7 @@ trait ManagesAdminSessionCookie
     {
         return $request->getHost() === 'localhost' || filter_var($request->getHost(), FILTER_VALIDATE_IP)
             ? null
-            : '.' . implode('.', array_slice(explode('.', $request->getHost()), -2));
+            : '.'.implode('.', array_slice(explode('.', $request->getHost()), -2));
     }
 
     private function buildAdminSessionCookie(Request $request, string $value)

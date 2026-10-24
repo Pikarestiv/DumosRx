@@ -27,6 +27,7 @@ class SyncPushRowLockTest extends TestCase
     use ConnectsToRealMysql;
 
     private string $table;
+
     private bool $skipped = false;
 
     protected function setUp(): void
@@ -50,12 +51,12 @@ class SyncPushRowLockTest extends TestCase
             DB::connection('mysql_lock_b')->getPdo();
         } catch (\Throwable $e) {
             $this->skipped = true;
-            $this->markTestSkipped('Real MySQL connection not reachable, skipping row-lock test: ' . $e->getMessage());
+            $this->markTestSkipped('Real MySQL connection not reachable, skipping row-lock test: '.$e->getMessage());
 
             return;
         }
 
-        $this->table = '_sync_lock_test_' . bin2hex(random_bytes(4));
+        $this->table = '_sync_lock_test_'.bin2hex(random_bytes(4));
         DB::connection('mysql_lock_a')->statement(
             "CREATE TABLE `{$this->table}` (id VARCHAR(36) PRIMARY KEY, _version INT NOT NULL DEFAULT 1) ENGINE=InnoDB"
         );
@@ -64,7 +65,7 @@ class SyncPushRowLockTest extends TestCase
 
     protected function tearDown(): void
     {
-        if (!$this->skipped && isset($this->table)) {
+        if (! $this->skipped && isset($this->table)) {
             try {
                 DB::connection('mysql_lock_a')->statement("DROP TABLE IF EXISTS `{$this->table}`");
             } catch (\Throwable $e) {
@@ -114,9 +115,9 @@ class SyncPushRowLockTest extends TestCase
 
         $this->assertTrue(
             $blocked,
-            'A second lockForUpdate() read of the same row must block (and here, time out) while ' .
-            'another transaction holds it. This is the mechanism SyncController::push() relies on ' .
-            'to prevent two concurrent pushes from both reading the same _version, both passing the ' .
+            'A second lockForUpdate() read of the same row must block (and here, time out) while '.
+            'another transaction holds it. This is the mechanism SyncController::push() relies on '.
+            'to prevent two concurrent pushes from both reading the same _version, both passing the '.
             'equality check, and both saving — the lost-update race the fix closes.'
         );
 

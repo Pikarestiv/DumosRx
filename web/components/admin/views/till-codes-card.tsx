@@ -42,9 +42,6 @@ export function TillCodesCard() {
   const codes = data?.codes ?? [];
   const atLimit = codes.length >= MAX_ACTIVE_TILL_CODES;
 
-  // issue.reset() too: the mutation keeps its result in observer state (and
-  // React Query devtools) after the dialog closes, so clearing only our own
-  // copy would leave the code readable for the life of the page.
   const dismissCode = () => {
     setIssuedCode(null);
     issue.reset();
@@ -63,6 +60,11 @@ export function TillCodesCard() {
           : "Could not generate a code. Please try again.",
       );
     }
+  };
+
+  const confirmRevoke = async () => {
+    if (revoking) await revoke.mutateAsync(revoking.id);
+    setRevoking(null);
   };
 
   return (
@@ -173,10 +175,7 @@ export function TillCodesCard() {
           revoking?.label || "This code"
         } stops working immediately. Any inspection session already open stays open until it ends on its own.`}
         confirmLabel="Revoke"
-        onConfirm={async () => {
-          if (revoking) await revoke.mutateAsync(revoking.id);
-          setRevoking(null);
-        }}
+        onConfirm={() => void confirmRevoke()}
       />
     </div>
   );

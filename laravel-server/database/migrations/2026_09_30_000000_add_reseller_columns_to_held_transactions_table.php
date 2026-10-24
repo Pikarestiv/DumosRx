@@ -19,10 +19,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('held_transactions', function (Blueprint $table) {
-            if (!Schema::hasColumn('held_transactions', 'is_reseller_sale')) {
+            if (! Schema::hasColumn('held_transactions', 'is_reseller_sale')) {
                 $table->boolean('is_reseller_sale')->default(false);
             }
-            if (!Schema::hasColumn('held_transactions', 'markup_type')) {
+            if (! Schema::hasColumn('held_transactions', 'markup_type')) {
                 $table->string('markup_type')->nullable();
             }
         });

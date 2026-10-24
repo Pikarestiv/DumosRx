@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { Label } from "@/components/ui/label";
 import {
   Card,
@@ -26,11 +27,11 @@ export function SystemSettings() {
   // The System tab itself is manage_device_settings; this card is only a shortcut into the Billing tab, so it carries that t…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-system-settings-tsx-L26
   const canManageBilling = useHasPermission("manage_billing");
-  // localStorage-backed, so read after mount rather than during render.
-  const [device, setDevice] = useState<{ id: string; label: string } | null>(null);
-  useEffect(() => {
-    setDevice({ id: getDeviceId(), label: getDeviceLabel() });
-  }, []);
+  const isHydrated = useHydrated();
+  const device = useMemo(
+    () => (isHydrated ? { id: getDeviceId(), label: getDeviceLabel() } : null),
+    [isHydrated],
+  );
 
   return (
     <div className="space-y-6">

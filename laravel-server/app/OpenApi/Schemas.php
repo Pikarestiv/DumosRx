@@ -62,6 +62,4 @@ use OpenApi\Attributes as OA;
     properties: [new OA\Property(property: 'message', type: 'string')],
     type: 'object',
 )]
-class Schemas
-{
-}
+class Schemas {}

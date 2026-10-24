@@ -14,7 +14,9 @@ class TokenLifetimeTest extends TestCase
     use RefreshDatabase;
 
     protected User $superAdmin;
+
     protected User $owner;
+
     protected Store $store;
 
     protected function setUp(): void

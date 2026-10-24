@@ -9,9 +9,7 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Save, RefreshCw, CreditCard, Loader2 } from "lucide-react";
 import {
@@ -27,11 +25,13 @@ import {
   useUpdateSystemConfigMutation,
 } from "@/lib/api/hooks";
 import { PlanTierCard } from "./plan-tier-card";
+import { PaymentGatewaySettings } from "./payment-gateway-settings";
 import { StorefrontCommissionCard } from "./storefront-commission-card";
 import { NumericConfigInput } from "@/components/admin/numeric-config-input";
 import { ConfigLoadError } from "./config-load-error";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SocialLinksConfigCard } from "./social-links-config-card";
+import { describePriceChanges } from "./subscription-price-changes";
 import {
   DEFAULT_SUBSCRIPTION_CONFIG,
   DEFAULT_SOCIAL_LINKS,
@@ -74,9 +74,6 @@ export function SubscriptionConfigTab() {
   const [prevServerConfig, setPrevServerConfig] = useState(serverConfig);
   const [prevSocialConfig, setPrevSocialConfig] = useState(socialConfig);
 
-  // The last configuration known to be stored server-side. Used to work out
-  // which plan prices this edit would actually change, so the confirmation
-  // step can name them.
   const [savedConfig, setSavedConfig] = useState<SubscriptionConfig>(
     DEFAULT_SUBSCRIPTION_CONFIG,
   );
@@ -91,36 +88,7 @@ export function SubscriptionConfigTab() {
     }
   }
 
-  const TIER_LABELS: Record<keyof SubscriptionConfig["tiers"], string> = {
-    free: "Free Plan",
-    starter: "Starter Plan",
-    pro: "Dumos Pro",
-    enterprise: "Enterprise",
-  };
-
-  const naira = (amount: number) => `₦${amount.toLocaleString()}`;
-
-  // Price edits are the one change on this tab that takes money-visible
-  // effect the moment it saves ("reflect immediately on the user dashboard"),
-  // so they get an explicit are-you-sure naming every before/after value.
-  const priceChanges = (
-    Object.keys(TIER_LABELS) as (keyof SubscriptionConfig["tiers"])[]
-  ).flatMap((tierKey) => {
-    const next = config.tiers[tierKey];
-    const prev = savedConfig.tiers[tierKey];
-    const changes: string[] = [];
-    if (next.price_monthly !== prev.price_monthly) {
-      changes.push(
-        `${TIER_LABELS[tierKey]} monthly ${naira(prev.price_monthly)} → ${naira(next.price_monthly)}`,
-      );
-    }
-    if (next.price_yearly !== prev.price_yearly) {
-      changes.push(
-        `${TIER_LABELS[tierKey]} yearly ${naira(prev.price_yearly)} → ${naira(next.price_yearly)}`,
-      );
-    }
-    return changes;
-  });
+  const priceChanges = describePriceChanges(savedConfig, config);
 
   if (socialConfig !== prevSocialConfig) {
     setPrevSocialConfig(socialConfig);
@@ -172,9 +140,6 @@ export function SubscriptionConfigTab() {
     );
   }
 
-  // Both queries gate the whole tab: the Save buttons submit this form's
-  // state, so rendering the editor off bundled defaults after a failed fetch
-  // is exactly what let one click reset live plan pricing.
   if (isError || isSocialError) {
     return (
       <ConfigLoadError
@@ -275,89 +240,7 @@ export function SubscriptionConfigTab() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-3 p-4 border rounded-lg bg-white dark:bg-slate-900">
-                <div className="flex items-center justify-between">
-                  <Label className="font-bold">Enable Paystack</Label>
-                  <Switch
-                    checked={config.enable_paystack}
-                    onCheckedChange={(c) =>
-                      setConfig({ ...config, enable_paystack: c })
-                    }
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  If disabled, checkout buttons will be hidden.
-                </p>
-              </div>
-              <div className="space-y-3 p-4 border rounded-lg bg-white dark:bg-slate-900">
-                <div className="flex items-center justify-between">
-                  <Label className="font-bold">Enable Flutterwave</Label>
-                  <Switch
-                    checked={config.enable_flutterwave}
-                    onCheckedChange={(c) =>
-                      setConfig({ ...config, enable_flutterwave: c })
-                    }
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  If disabled, checkout buttons will be hidden.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 mt-4">
-              <h4 className="font-bold pt-2">Manual Payment Configuration</h4>
-              <div className="space-y-4 p-4 border rounded-lg bg-white dark:bg-slate-900">
-                <div className="flex items-center justify-between">
-                  <Label className="font-bold">Enable Manual Payment</Label>
-                  <Switch
-                    checked={config.enable_manual_payment}
-                    onCheckedChange={(c) =>
-                      setConfig({ ...config, enable_manual_payment: c })
-                    }
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                  <div className="space-y-2">
-                    <Label>Bank Name</Label>
-                    <Input
-                      value={config.manual_payment_bank}
-                      onChange={(e) =>
-                        setConfig({
-                          ...config,
-                          manual_payment_bank: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Account Number</Label>
-                    <Input
-                      value={config.manual_payment_account_number}
-                      onChange={(e) =>
-                        setConfig({
-                          ...config,
-                          manual_payment_account_number: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Account Name</Label>
-                    <Input
-                      value={config.manual_payment_account_name}
-                      onChange={(e) =>
-                        setConfig({
-                          ...config,
-                          manual_payment_account_name: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+            <PaymentGatewaySettings config={config} setConfig={setConfig} />
           </div>
         </CardContent>
         <CardFooter className="bg-slate-50 dark:bg-slate-800/50 p-4 border-t flex justify-end">

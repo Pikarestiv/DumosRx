@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 const { sentry, delivery } = vi.hoisted(() => ({
@@ -22,9 +22,10 @@ vi.mock("@sentry/nextjs", () => ({
 }));
 
 vi.mock("@/lib/utils/diagnostics-delivery", () => ({
-  sendDiagnosticsReport: vi.fn(async () => {
+  sendDiagnosticsReport: vi.fn(() => {
     delivery.calls += 1;
-    if (delivery.throws) throw new Error("Could not reach support.");
+    if (delivery.throws) return Promise.reject(new Error("Could not reach support."));
+    return Promise.resolve();
   }),
 }));
 

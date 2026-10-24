@@ -13,7 +13,7 @@ vi.mock("@/lib/api/client", () => ({
   apiClient: { login: vi.fn(), setToken: vi.fn() },
 }));
 vi.mock("@/lib/db/sync-engine", () => ({
-  sync: vi.fn(async () => ({ success: true })),
+  sync: vi.fn(() => Promise.resolve({ success: true })),
   isSyncing: vi.fn(() => false),
 }));
 vi.mock("@/lib/query-client", () => ({
@@ -29,8 +29,8 @@ vi.mock("@/lib/native/widget-bridge", () => ({
   mirrorAuthToken: vi.fn(),
 }));
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // Confirms the migration is behavior-preserving:
@@ -48,7 +48,7 @@ describe("useAuth's permission booleans after the group-based migration", () => 
   } = {};
 
   beforeAll(async () => {
-    (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+    (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     core = await import("@/lib/db/core");
     const { SCHEMA_SQL } = await import("@/lib/db/schema");
     const SQL = await initSqlJs({ locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm") });
@@ -96,7 +96,7 @@ describe("useAuth's permission booleans after the group-based migration", () => 
     }
 
     root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(AuthProvider, null, React.createElement(Probe)));
     });
     await act(async () => {

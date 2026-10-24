@@ -9,6 +9,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useSyncExternalStore,
   ReactNode,
 } from "react";
 import {
@@ -59,9 +60,30 @@ interface DatabaseProviderProps {
   children: ReactNode;
 }
 
+function subscribeToNetworkStatus(onChange: () => void) {
+  const handleOnline = () => {
+    devLog("[DB] Network: online");
+    onChange();
+  };
+  const handleOffline = () => {
+    devLog("[DB] Network: offline");
+    onChange();
+  };
+  window.addEventListener("online", handleOnline);
+  window.addEventListener("offline", handleOffline);
+  return () => {
+    window.removeEventListener("online", handleOnline);
+    window.removeEventListener("offline", handleOffline);
+  };
+}
+
 export function DatabaseProvider({ children }: DatabaseProviderProps) {
   const [isReady, setIsReady] = useState(false);
-  const [isOffline, setIsOffline] = useState(false);
+  const isOffline = useSyncExternalStore(
+    subscribeToNetworkStatus,
+    () => !navigator.onLine,
+    () => false,
+  );
   const [isReadOnlyTab, setIsReadOnlyTab] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const isTauriApp = isTauri();
@@ -141,31 +163,6 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         console.error("[DB] Failed to initialize database:", err);
         setError(err);
       });
-  }, []);
-
-  // Online/offline detection
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const handleOnline = () => {
-      setIsOffline(false);
-      devLog("[DB] Network: online");
-    };
-
-    const handleOffline = () => {
-      setIsOffline(true);
-      devLog("[DB] Network: offline");
-    };
-
-    setIsOffline(!navigator.onLine);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
   }, []);
 
   // Tracks this tab's writer/read-only role (see tab-lock.ts / C1 in docs/KNOWN_BUGS.md) for as long as the provider is mounted, so a promotion…

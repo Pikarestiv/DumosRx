@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ChevronLeft, Search, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,18 @@ export function SupplierDetailPane({
   const canManageSuppliers = useHasPermission("manage_suppliers");
   const canDeleteSuppliers = useHasPermission("delete_suppliers");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const deleteTarget = useMemo(
+    () =>
+      isDeleteDialogOpen && selectedSupplier
+        ? {
+            id: selectedSupplier.id,
+            name: selectedSupplier.name,
+            debtAmount: selectedSupplier.debtAmount,
+            totalOrders: selectedSupplier.totalOrders,
+          }
+        : null,
+    [isDeleteDialogOpen, selectedSupplier],
+  );
 
   if (!selectedSupplier) {
     return (
@@ -206,16 +218,7 @@ export function SupplierDetailPane({
       </div>
 
       <SupplierDeleteDialog
-        target={
-          isDeleteDialogOpen
-            ? {
-                id: selectedSupplier.id,
-                name: selectedSupplier.name,
-                debtAmount: selectedSupplier.debtAmount,
-                totalOrders: selectedSupplier.totalOrders,
-              }
-            : null
-        }
+        target={deleteTarget}
         formatCurrency={formatCurrency}
         onClose={() => setIsDeleteDialogOpen(false)}
         onSuccess={() => {

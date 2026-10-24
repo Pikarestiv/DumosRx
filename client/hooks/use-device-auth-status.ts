@@ -13,32 +13,42 @@ async function readUserCount(): Promise<number> {
   return exists ? await getActiveUserCount() : 0;
 }
 
+interface DeviceAuthStatus {
+  userCount?: number;
+  recentUsers?: RecentUser[];
+}
+
+async function loadDeviceAuthStatus(): Promise<DeviceAuthStatus> {
+  const status: DeviceAuthStatus = {};
+  try {
+    status.userCount = await readUserCount();
+  } catch (e) {
+    console.error("Device auth status check failed", e);
+  }
+  try {
+    status.recentUsers = getRecentUsers();
+  } catch (e) {
+    console.error("Failed to parse recent users", e);
+  }
+  return status;
+}
+
 export function useDeviceAuthStatus() {
   const [isChecking, setIsChecking] = useState(true);
   const [userCount, setUserCount] = useState(0);
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
 
-  // Shared by the mount effect below and refetch() (see A-154 in
-  // docs/FIXED_BUGS.md), so the two can't drift out of sync with each other.
-  const readStatus = async (onCount: (count: number) => void) => {
-    try {
-      onCount(await readUserCount());
-    } catch (e) {
-      console.error("Device auth status check failed", e);
-    }
-    try {
-      setRecentUsers(getRecentUsers());
-    } catch (e) {
-      console.error("Failed to parse recent users", e);
-    }
+  const applyStatus = (status: DeviceAuthStatus) => {
+    if (status.userCount !== undefined) setUserCount(status.userCount);
+    if (status.recentUsers) setRecentUsers(status.recentUsers);
   };
 
   useEffect(() => {
     let cancelled = false;
-    readStatus((count) => {
-      if (!cancelled) setUserCount(count);
-    }).finally(() => {
-      if (!cancelled) setIsChecking(false);
+    void loadDeviceAuthStatus().then((status) => {
+      if (cancelled) return;
+      applyStatus(status);
+      setIsChecking(false);
     });
     return () => {
       cancelled = true;
@@ -47,7 +57,7 @@ export function useDeviceAuthStatus() {
 
   // See docs/FIXED_BUGS.md A-154: forces a fresh read for callers that just
   // changed this device's user data, since the mount effect above never re-runs.
-  const refetch = () => readStatus(setUserCount);
+  const refetch = async () => applyStatus(await loadDeviceAuthStatus());
 
   const removeRecentUser = (id: string) => {
     const next = recentUsers.filter((u) => u.id !== id);

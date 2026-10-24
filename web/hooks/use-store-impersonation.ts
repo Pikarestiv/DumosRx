@@ -72,7 +72,9 @@ export function useStoreImpersonation() {
       description: `Logged in as ${userName}. Redirecting...`,
     });
 
-    window.location.href = `${getAppURL()}/auth/callback#code=${encodeURIComponent(userCode)}&return_code=${encodeURIComponent(returnCode)}`;
+    window.location.href =
+      getAppURL() +
+      `/auth/callback#code=${encodeURIComponent(userCode)}&return_code=${encodeURIComponent(returnCode)}`;
   };
 
   const runImpersonation = (store: AdminStoreSummary) => {

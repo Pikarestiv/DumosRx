@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { DialogFooter } from "@/components/ui/dialog";
@@ -63,8 +63,12 @@ export function AddSupplierDialog({
   const [isCheckingName, setIsCheckingName] = useState(false);
   const isBusy = isCheckingName || isSubmittingProp;
 
-  // Reset form when opened with new initialSupplier
-  useEffect(() => {
+  const [formSource, setFormSource] = useState<{
+    open: boolean;
+    initialSupplier?: SupplierViewModel;
+  }>({ open: false });
+  if (formSource.open !== open || formSource.initialSupplier !== initialSupplier) {
+    setFormSource({ open, initialSupplier });
     if (open) {
       setFormData({
         name: initialSupplier?.name || "",
@@ -78,7 +82,7 @@ export function AddSupplierDialog({
       });
       setIsCheckingName(false);
     }
-  }, [open, initialSupplier]);
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -19,15 +19,13 @@ use Illuminate\Support\Facades\Log;
  */
 class PaymentMismatchHandler
 {
-    public function __construct(private PaymentService $paymentService)
-    {
-    }
+    public function __construct(private PaymentService $paymentService) {}
 
     public function handle(PaymentTransaction $txn, float $reportedAmount, string $reportedCurrency, array $providerData = []): void
     {
         // A concurrent observer may already have activated this transaction
         // legitimately; never refund a charge that bought a live subscription.
-        if (($txn->fresh()?->status ?? null) !== 'pending') {
+        if (($txn->fresh()->status ?? null) !== 'pending') {
             return;
         }
 
@@ -82,20 +80,20 @@ class PaymentMismatchHandler
         $user = User::find($txn->metadata['user_id'] ?? null);
         $refunded = $refund['success']
             ? 'Refund: SUCCEEDED automatically.'
-            : 'Refund: FAILED — refund this by hand. ' . ($refund['message'] ?: 'no provider message');
+            : 'Refund: FAILED — refund this by hand. '.($refund['message'] ?: 'no provider message');
 
         try {
-            AdminAlertService::send('Payment mismatch: ' . ($txn->metadata['plan_name'] ?? 'unknown plan'), [
+            AdminAlertService::send('Payment mismatch: '.($txn->metadata['plan_name'] ?? 'unknown plan'), [
                 'A payment was confirmed by the provider for an amount or currency that does not match the transaction it was created for. The subscription was NOT activated.',
-                'Reference: ' . $txn->provider_reference,
-                'Provider: ' . $txn->provider,
-                'User: ' . ($user ? "{$user->first_name} {$user->last_name} ({$user->email})" : 'unknown'),
-                'Expected: ' . number_format((float) $txn->amount, 2) . ' ' . $expectedCurrency,
-                'Reported: ' . number_format($reportedAmount, 2) . ' ' . ($reportedCurrency ?: 'unknown'),
+                'Reference: '.$txn->provider_reference,
+                'Provider: '.$txn->provider,
+                'User: '.($user ? "{$user->first_name} {$user->last_name} ({$user->email})" : 'unknown'),
+                'Expected: '.number_format((float) $txn->amount, 2).' '.$expectedCurrency,
+                'Reported: '.number_format($reportedAmount, 2).' '.($reportedCurrency ?: 'unknown'),
                 $refunded,
             ]);
         } catch (\Throwable $e) {
-            Log::error('Failed to send the payment-mismatch admin alert: ' . $e->getMessage());
+            Log::error('Failed to send the payment-mismatch admin alert: '.$e->getMessage());
         }
     }
 }

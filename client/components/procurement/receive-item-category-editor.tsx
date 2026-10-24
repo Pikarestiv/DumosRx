@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
@@ -36,9 +36,10 @@ export function ReceiveItemCategoryEditor({
   const [category, setCategory] = useState(currentCategory);
   const quickEdit = useQuickEditProductMutation();
 
-  useEffect(() => {
-    if (open) setCategory(currentCategory);
-  }, [open, currentCategory]);
+  const openEditor = () => {
+    setCategory(currentCategory);
+    setOpen(true);
+  };
 
   if (!canManageProducts) return null;
 
@@ -58,7 +59,7 @@ export function ReceiveItemCategoryEditor({
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={openEditor}
         aria-label={`Edit category for ${productName}`}
         title={currentCategory ? `Category: ${currentCategory}` : "Set category"}
         className="shrink-0 text-muted-foreground hover:text-primary transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"

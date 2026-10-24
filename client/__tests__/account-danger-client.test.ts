@@ -15,7 +15,7 @@ describe('account danger-zone API methods', () => {
   it('resetData posts type and password to /dashboard/reset', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => ({ message: 'Reset complete' }),
+      json: () => Promise.resolve({ message: 'Reset complete' }),
     });
 
     const result = await apiClient.resetData('sales', 'my-password');
@@ -29,7 +29,7 @@ describe('account danger-zone API methods', () => {
   it('requestAccountDeletion posts reason and password to /profile/request-deletion', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => ({ message: 'Account deletion requested successfully.' }),
+      json: () => Promise.resolve({ message: 'Account deletion requested successfully.' }),
     });
 
     const result = await apiClient.requestAccountDeletion({ reason: 'Closing up', password: 'my-password' });
@@ -43,7 +43,7 @@ describe('account danger-zone API methods', () => {
   it('cancelAccountDeletion posts to /profile/cancel-deletion with no body', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => ({ message: 'Account deletion request cancelled successfully.' }),
+      json: () => Promise.resolve({ message: 'Account deletion request cancelled successfully.' }),
     });
 
     const result = await apiClient.cancelAccountDeletion();

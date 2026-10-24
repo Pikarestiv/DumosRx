@@ -68,10 +68,9 @@ class AdminStorePurgeUserRowsTest extends TestCase
 
     private function withoutDeclaredForeignKeys(): void
     {
-        $this->app->instance(ForeignKeyCascadeEmulator::class, new class extends ForeignKeyCascadeEmulator {
-            public function cascadeChildren(string $parentTable, array $ids, array &$removed, array $skipTables = [], int $depth = 0): void
-            {
-            }
+        $this->app->instance(ForeignKeyCascadeEmulator::class, new class extends ForeignKeyCascadeEmulator
+        {
+            public function cascadeChildren(string $parentTable, array $ids, array &$removed, array $skipTables = [], int $depth = 0): void {}
         });
     }
 
@@ -157,7 +156,7 @@ class AdminStorePurgeUserRowsTest extends TestCase
     #[\PHPUnit\Framework\Attributes\DataProvider('foreignKeyShapes')]
     public function a_staff_members_rows_in_a_sibling_store_survive_whether_or_not_the_schema_declares_foreign_keys(bool $declared): void
     {
-        if (!$declared) {
+        if (! $declared) {
             $this->withoutDeclaredForeignKeys();
         }
         $sibling = Store::create([
@@ -296,7 +295,7 @@ class AdminStorePurgeUserRowsTest extends TestCase
     #[\PHPUnit\Framework\Attributes\DataProvider('foreignKeyShapes')]
     public function a_legacy_sales_returns_go_with_it_whether_or_not_the_schema_declares_foreign_keys(bool $declared): void
     {
-        if (!$declared) {
+        if (! $declared) {
             $this->withoutDeclaredForeignKeys();
         }
         Store::create(['user_id' => $this->owner->id, 'name' => 'Kept', 'device_id' => 'DEV-PURGE-004', 'status' => Store::STATUS_ACTIVE]);

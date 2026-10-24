@@ -7,9 +7,10 @@ import { SCHEMA_SQL } from "@/lib/db/schema";
 
 const idbStore = new Map<string, unknown>();
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async (key: string) => idbStore.get(key)),
-  set: vi.fn(async (key: string, value: unknown) => {
+  get: vi.fn((key: string) => Promise.resolve(idbStore.get(key))),
+  set: vi.fn((key: string, value: unknown) => {
     idbStore.set(key, value);
+    return Promise.resolve();
   }),
 }));
 
@@ -53,7 +54,7 @@ describe("restoreDatabase() (web) validation and pre-restore snapshot", () => {
     expect(rows).not.toBeNull();
     // The live db is still the original one - a fresh Database() constructed
     // from its export still has the original store row.
-    const check = new SQL.Database(rows!);
+    const check = new SQL.Database(rows ?? undefined);
     const result = check.exec("SELECT name FROM stores WHERE id = 'store-original'");
     expect(result[0]?.values[0]?.[0]).toBe("Original Store");
     check.close();
@@ -70,7 +71,7 @@ describe("restoreDatabase() (web) validation and pre-restore snapshot", () => {
     );
 
     const rows = core.getDatabaseBinary();
-    const check = new SQL.Database(rows!);
+    const check = new SQL.Database(rows ?? undefined);
     const result = check.exec("SELECT name FROM stores WHERE id = 'store-original'");
     expect(result[0]?.values[0]?.[0]).toBe("Original Store");
     check.close();
@@ -83,7 +84,7 @@ describe("restoreDatabase() (web) validation and pre-restore snapshot", () => {
     expect(restoreResult.snapshotSucceeded).toBe(true);
 
     const rows = core.getDatabaseBinary();
-    const check = new SQL.Database(rows!);
+    const check = new SQL.Database(rows ?? undefined);
     const queryResult = check.exec("SELECT name FROM stores WHERE id = 'store-1'");
     expect(queryResult[0]?.values[0]?.[0]).toBe("Restored Store");
     check.close();
@@ -106,7 +107,7 @@ describe("restoreDatabase() (web) validation and pre-restore snapshot", () => {
     expect(recovered).toBe(true);
 
     const rows = core.getDatabaseBinary();
-    const check = new SQL.Database(rows!);
+    const check = new SQL.Database(rows ?? undefined);
     const result = check.exec("SELECT name FROM stores WHERE id = 'store-original'");
     expect(result[0]?.values[0]?.[0]).toBe("Original Store");
     check.close();
@@ -117,7 +118,7 @@ describe("restoreDatabase() (web) validation and pre-restore snapshot", () => {
     expect(recovered).toBe(false);
 
     const rows = core.getDatabaseBinary();
-    const check = new SQL.Database(rows!);
+    const check = new SQL.Database(rows ?? undefined);
     const result = check.exec("SELECT name FROM stores WHERE id = 'store-original'");
     expect(result[0]?.values[0]?.[0]).toBe("Original Store");
     check.close();
@@ -139,7 +140,7 @@ describe("restoreDatabase() (web) validation and pre-restore snapshot", () => {
 
     await core.restoreDatabase(olderBytes);
 
-    const restored = new SQL.Database(core.getDatabaseBinary()!);
+    const restored = new SQL.Database(core.getDatabaseBinary() ?? undefined);
 
     const tables = restored.exec(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='permission_groups'",
@@ -169,7 +170,7 @@ describe("restoreDatabase() (web) validation and pre-restore snapshot", () => {
     // The restore itself still went through - only the safety-net snapshot
     // failed, which must not block the restore the user actually asked for.
     const rows = core.getDatabaseBinary();
-    const check = new SQL.Database(rows!);
+    const check = new SQL.Database(rows ?? undefined);
     const checkResult = check.exec("SELECT name FROM stores WHERE id = 'store-1'");
     expect(checkResult[0]?.values[0]?.[0]).toBe("Restored Store");
     check.close();

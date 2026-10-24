@@ -60,7 +60,7 @@ return new class extends Migration
 
         $toDrop = array_intersect($wanted, $existing);
 
-        if (!empty($toDrop)) {
+        if (! empty($toDrop)) {
             Schema::table('products', function (Blueprint $table) use ($toDrop) {
                 $table->dropColumn(array_values($toDrop));
             });

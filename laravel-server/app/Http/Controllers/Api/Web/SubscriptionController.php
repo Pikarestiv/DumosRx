@@ -3,20 +3,20 @@
 namespace App\Http\Controllers\Api\Web;
 
 use App\Http\Controllers\Controller;
-use App\Models\Subscription;
-use App\Models\PaymentTransaction;
-use App\Models\User;
-use App\Models\License;
-use App\Models\SystemConfig;
 use App\Models\Coupon;
+use App\Models\License;
+use App\Models\PaymentTransaction;
 use App\Models\ReferralCreditTransaction;
-use App\Services\SubscriptionService;
+use App\Models\Subscription;
+use App\Models\SystemConfig;
+use App\Models\User;
 use App\Services\Payment\PaymentService;
+use App\Services\SubscriptionService;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Exception;
 use OpenApi\Attributes as OA;
 
 class SubscriptionController extends Controller
@@ -64,7 +64,7 @@ class SubscriptionController extends Controller
         // granted paid-tier access for the same account.
         $sub = $subscriptionService->resolveEffectiveSubscription($owner);
 
-        if (!$sub) {
+        if (! $sub) {
             return response()->json(['status' => 'inactive', 'message' => 'No active subscription found.']);
         }
 
@@ -128,7 +128,7 @@ class SubscriptionController extends Controller
             ->where('user_id', $owner->id)
             ->first();
 
-        if (!$sub) {
+        if (! $sub) {
             return response()->json(['valid' => false, 'message' => 'Invalid license key.'], 404);
         }
 
@@ -147,7 +147,7 @@ class SubscriptionController extends Controller
             ]
         );
 
-        if (!$license->is_active) {
+        if (! $license->is_active) {
             return response()->json(['valid' => false, 'message' => 'This device has been deactivated.'], 403);
         }
 
@@ -195,8 +195,8 @@ class SubscriptionController extends Controller
                 return [
                     'id' => $txn->id,
                     'date' => $txn->created_at->format('M j, Y'),
-                    'desc' => ($txn->metadata['plan_name'] ?? 'Subscription') . ' Plan',
-                    'amount' => '₦' . number_format($txn->amount, 0),
+                    'desc' => ($txn->metadata['plan_name'] ?? 'Subscription').' Plan',
+                    'amount' => '₦'.number_format((float) $txn->amount, 0),
                     'status' => ucfirst($txn->status),
                     'reference' => $txn->provider_reference,
                     'receipt_url' => $txn->metadata['verification_data']['receipt_url'] ?? null,
@@ -249,13 +249,13 @@ class SubscriptionController extends Controller
         $user = $request->user();
 
         $result = $subscriptionService->validateCoupon(
-            $user, 
-            $request->code, 
-            $request->plan_name, 
+            $user,
+            $request->code,
+            $request->plan_name,
             $request->interval
         );
 
-        if (!$result['valid']) {
+        if (! $result['valid']) {
             return response()->json(['valid' => false, 'message' => $result['message']], 400);
         }
 
@@ -267,7 +267,7 @@ class SubscriptionController extends Controller
                 'value' => $result['coupon']->value,
                 'target_plan' => $result['coupon']->target_plan,
                 'target_interval' => $result['coupon']->target_interval,
-            ]
+            ],
         ]);
     }
 
@@ -322,7 +322,7 @@ class SubscriptionController extends Controller
         $systemConfig = SystemConfig::getVal('subscription_plans', []);
         $tier = $systemConfig['tiers'][$planName] ?? null;
 
-        if (!$tier) {
+        if (! $tier) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid plan selected.',
@@ -368,7 +368,7 @@ class SubscriptionController extends Controller
         if ($finalAmount <= 0) {
             // Deduct credits if applied
             if ($creditsApplied > 0) {
-                $user->deductCredits($creditsApplied, "Applied credits to offset subscription to " . $planName);
+                $user->deductCredits($creditsApplied, 'Applied credits to offset subscription to '.$planName);
             }
 
             $daysToAdd = ($interval === 'yearly') ? 365 : 30;
@@ -384,7 +384,7 @@ class SubscriptionController extends Controller
                     'start_date' => now(),
                     'end_date' => now()->addDays($daysToAdd),
                     'status' => 'active',
-                    'license_key' => 'DRX-' . strtoupper(bin2hex(random_bytes(8))),
+                    'license_key' => 'DRX-'.strtoupper(bin2hex(random_bytes(8))),
                 ]);
 
                 $subscriptionService->attachCouponUsageToSubscription($couponUsageId, $created);
@@ -399,7 +399,7 @@ class SubscriptionController extends Controller
                 'success' => true,
                 'message' => 'Subscription activated successfully.',
                 'subscription' => $sub,
-                'payment_url' => null // No payment needed
+                'payment_url' => null, // No payment needed
             ]);
         }
 
@@ -409,7 +409,7 @@ class SubscriptionController extends Controller
         // deductCredits() throw and roll back the whole activation of an
         // already-paid transaction. See docs/FIXED_BUGS.md, A-79.
         if ($creditsApplied > 0) {
-            $user->deductCredits($creditsApplied, "Reserved credits for subscription to " . $planName);
+            $user->deductCredits($creditsApplied, 'Reserved credits for subscription to '.$planName);
         }
 
         try {
@@ -421,7 +421,7 @@ class SubscriptionController extends Controller
                     'user_id' => $user->id,
                     'coupon_code' => $request->coupon_code,
                     'credits_applied' => $creditsApplied,
-                    'interval' => $interval
+                    'interval' => $interval,
                 ]
             );
 
@@ -439,8 +439,8 @@ class SubscriptionController extends Controller
                     'coupon_usage_id' => $couponUsageId,
                     'credits_applied' => $creditsApplied,
                     'credits_reserved' => $creditsApplied > 0,
-                    'interval' => $interval
-                ]
+                    'interval' => $interval,
+                ],
             ]);
 
             return response()->json([
@@ -451,14 +451,14 @@ class SubscriptionController extends Controller
             ]);
         } catch (Exception $e) {
             if ($creditsApplied > 0) {
-                $user->addCredits($creditsApplied, "Released reserved credits for abandoned subscription to " . $planName);
+                $user->addCredits($creditsApplied, 'Released reserved credits for abandoned subscription to '.$planName);
             }
 
             $subscriptionService->releaseCouponUsage($couponUsageId);
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
@@ -506,7 +506,7 @@ class SubscriptionController extends Controller
             ->where('metadata->user_id', $user->id)
             ->first();
 
-        if (!$txn) {
+        if (! $txn) {
             return response()->json(['success' => false, 'message' => 'Transaction not found.'], 404);
         }
 
@@ -555,7 +555,7 @@ class SubscriptionController extends Controller
         $expectedCurrency = strtoupper((string) ($txn->currency ?: 'NGN'));
         $currencyOk = $verifiedCurrency === $expectedCurrency;
 
-        if (!$verification['success'] || !$currencyOk || $verifiedAmount < (float) $txn->amount - 0.01) {
+        if (! $verification['success'] || ! $currencyOk || $verifiedAmount < (float) $txn->amount - 0.01) {
             // A mismatch on a charge the provider says SUCCEEDED is money the
             // platform is holding for nothing; a plain "not successful" answer
             // is not, so only the former is refunded and alerted.
@@ -598,8 +598,8 @@ class SubscriptionController extends Controller
      * does the real work; the other blocks on the lock, then sees
      * status === 'success' and short-circuits via $result['already'].
      *
-     * @param array $extraMetadata Merged into the transaction's metadata
-     *                             (e.g. ['webhook_data' => ...] or ['verification_data' => ...])
+     * @param  array  $extraMetadata  Merged into the transaction's metadata
+     *                                (e.g. ['webhook_data' => ...] or ['verification_data' => ...])
      * @return array{already: bool, subscription: ?Subscription}
      */
     public function activateSubscriptionFromTransaction(PaymentTransaction $txn, array $extraMetadata = []): array
@@ -628,7 +628,7 @@ class SubscriptionController extends Controller
                 'start_date' => now(),
                 'end_date' => ($interval === 'yearly') ? now()->addYear() : now()->addMonth(),
                 'status' => 'active',
-                'license_key' => 'DRX-' . strtoupper(bin2hex(random_bytes(8))),
+                'license_key' => 'DRX-'.strtoupper(bin2hex(random_bytes(8))),
             ]);
 
             $txn->update(['subscription_id' => $sub->id]);
@@ -664,7 +664,7 @@ class SubscriptionController extends Controller
                         if ($referrer && $rewardAmount > 0) {
                             $referrer->addCredits(
                                 $rewardAmount,
-                                "Referral reward from " . $user->name . " subscribing to " . $txn->metadata['plan_name'],
+                                'Referral reward from '.$user->name.' subscribing to '.$txn->metadata['plan_name'],
                                 $user->id
                             );
                         }
@@ -675,10 +675,10 @@ class SubscriptionController extends Controller
             // initiatePayment() already reserved the usage row, so activation
             // only links it; the create branch is the legacy path for a
             // transaction started before reservations existed.
-            if (!empty($txn->metadata['coupon_code'])) {
+            if (! empty($txn->metadata['coupon_code'])) {
                 $subscriptionService = app(SubscriptionService::class);
 
-                if (!empty($txn->metadata['coupon_usage_id'])) {
+                if (! empty($txn->metadata['coupon_usage_id'])) {
                     $subscriptionService->attachCouponUsageToSubscription($txn->metadata['coupon_usage_id'], $sub);
                 } else {
                     $coupon = Coupon::where('code', $txn->metadata['coupon_code'])->first();
@@ -707,7 +707,7 @@ class SubscriptionController extends Controller
     {
         $creditsApplied = (float) ($txn->metadata['credits_applied'] ?? 0);
 
-        if ($creditsApplied <= 0 || !$user) {
+        if ($creditsApplied <= 0 || ! $user) {
             return;
         }
 
@@ -727,7 +727,7 @@ class SubscriptionController extends Controller
         }
 
         if ($deductible > 0) {
-            $user->deductCredits($deductible, "Applied credits to offset subscription to " . $txn->metadata['plan_name']);
+            $user->deductCredits($deductible, 'Applied credits to offset subscription to '.$txn->metadata['plan_name']);
         }
     }
 
@@ -744,7 +744,7 @@ class SubscriptionController extends Controller
         DB::transaction(function () use ($txn, $extraMetadata) {
             $locked = PaymentTransaction::where('id', $txn->id)->lockForUpdate()->first();
 
-            if (!$locked || $locked->status !== 'pending') {
+            if (! $locked || $locked->status !== 'pending') {
                 return;
             }
 
@@ -752,17 +752,17 @@ class SubscriptionController extends Controller
             $creditsApplied = (float) ($metadata['credits_applied'] ?? 0);
             $shouldRelease = $creditsApplied > 0
                 && ($metadata['credits_reserved'] ?? false)
-                && !($metadata['credits_released'] ?? false);
+                && ! ($metadata['credits_released'] ?? false);
 
             if ($shouldRelease) {
                 $user = User::find($metadata['user_id'] ?? null);
                 if ($user) {
-                    $user->addCredits($creditsApplied, "Released reserved credits for failed subscription payment " . $locked->provider_reference);
+                    $user->addCredits($creditsApplied, 'Released reserved credits for failed subscription payment '.$locked->provider_reference);
                     $metadata['credits_released'] = true;
                 }
             }
 
-            if (!empty($metadata['coupon_usage_id']) && !($metadata['coupon_usage_released'] ?? false)) {
+            if (! empty($metadata['coupon_usage_id']) && ! ($metadata['coupon_usage_released'] ?? false)) {
                 app(SubscriptionService::class)->releaseCouponUsage($metadata['coupon_usage_id']);
                 $metadata['coupon_usage_released'] = true;
             }
@@ -802,7 +802,7 @@ class SubscriptionController extends Controller
         $user = Auth::user();
 
         // Backfill referral code for users created before auto-generation was added
-        if (!$user->referral_code) {
+        if (! $user->referral_code) {
             $user->referral_code = User::generateUniqueReferralCode();
             $user->save();
         }

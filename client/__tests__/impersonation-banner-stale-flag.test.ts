@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Regression coverage for two issues in this banner's "End Session" button:
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-impersonation-banner-stale-flag-test-ts-L7
@@ -36,11 +36,11 @@ describe("ImpersonationBanner", () => {
     originalLocation = window.location;
     // @ts-expect-error - deliberately replacing a read-only global for the test
     delete window.location;
-    (window as any).location = { href: "" };
+    (window as unknown as { location: unknown }).location = { href: "" };
   });
 
   afterEach(() => {
-    (window as any).location = originalLocation;
+    (window as unknown as { location: unknown }).location = originalLocation;
   });
 
   async function renderBanner() {
@@ -48,7 +48,7 @@ describe("ImpersonationBanner", () => {
       "@/components/dashboard/impersonation-banner"
     );
     root = createRoot(container);
-    await act(async () => {
+    act(() => {
       root.render(React.createElement(ImpersonationBanner));
     });
   }
@@ -65,7 +65,7 @@ describe("ImpersonationBanner", () => {
     expect(endSessionButton).not.toBeNull();
 
     act(() => {
-      endSessionButton!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      endSessionButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     expect(apiClient.consumeHandoffCode).not.toHaveBeenCalled();

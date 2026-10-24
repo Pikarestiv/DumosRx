@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
-use App\Models\Store;
 use App\Models\StockBatch;
 use App\Models\StockMovement;
+use App\Models\Store;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -23,8 +23,11 @@ class StockMovementControllerTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected User $staff;
+
     protected Store $store;
+
     protected Product $product;
 
     protected function setUp(): void
@@ -127,6 +130,7 @@ class StockMovementControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonCount(1, 'data');
     }
+
     /**
      * @dataProvider invalidLimits
      */

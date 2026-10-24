@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { format, isValid, parse } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 
@@ -83,9 +83,10 @@ export function DatePickerInput({
   );
   const [inputValue, setInputValue] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const [syncedValue, setSyncedValue] = useState<typeof value | null>(null);
 
-  // Sync internal state with external value
-  useEffect(() => {
+  if (syncedValue !== value) {
+    setSyncedValue(value);
     if (value) {
       const parsedDate = new Date(value);
       if (isValid(parsedDate)) {
@@ -99,7 +100,7 @@ export function DatePickerInput({
       setDate(undefined);
       setInputValue("");
     }
-  }, [value]);
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Work from digits only:

@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 
 /**
@@ -39,7 +40,7 @@ class TimeSeries
             : Carbon::parse($first.'-01')->startOfMonth();
     }
 
-    public static function labelFor(string $window, Carbon $moment): string
+    public static function labelFor(string $window, CarbonInterface $moment): string
     {
         return self::isDaily($window) ? $moment->format('Y-m-d') : $moment->format('Y-m');
     }

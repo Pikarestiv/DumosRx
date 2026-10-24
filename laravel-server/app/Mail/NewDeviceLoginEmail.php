@@ -12,8 +12,11 @@ class NewDeviceLoginEmail extends Mailable
     use Queueable, SerializesModels;
 
     public $user;
+
     public $deviceInfo;
+
     public $ipAddress;
+
     public $time;
 
     /**
@@ -33,6 +36,6 @@ class NewDeviceLoginEmail extends Mailable
     public function build()
     {
         return $this->subject('Security Alert: New Login from Unrecognized Device')
-                    ->view('emails.security.new_device');
+            ->view('emails.security.new_device');
     }
 }

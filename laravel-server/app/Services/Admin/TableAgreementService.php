@@ -45,7 +45,7 @@ class TableAgreementService
      * never recompared on read: a snapshot that changed meaning later is
      * how two devices measured days apart came to look comparable (A-274).
      *
-     * @param  array{tables?: array<int, array<string, mixed>>}  $report
+     * @param  array<mixed>  $report  as the device sent it, unvalidated
      */
     public function record(string $storeId, string $deviceId, ?string $userId, array $report): DeviceTableReport
     {
@@ -155,8 +155,7 @@ class TableAgreementService
 
         $devices = $reports->map(function (DeviceTableReport $report) use ($labels, $nicknames) {
             $tables = $this->storedVerdicts((array) ($report->tables ?? []));
-            $stale = $report->reported_at === null
-                || $report->reported_at->lt(now()->subHours(self::STALE_AFTER_HOURS));
+            $stale = $report->reported_at->lt(now()->subHours(self::STALE_AFTER_HOURS));
 
             // A device that holds nothing of this store has not disagreed
             // with it; it has never pulled it. Same rule as the stock panel.
@@ -175,7 +174,7 @@ class TableAgreementService
                 'has_local_copy' => $hasLocalCopy,
                 'stale' => $stale,
                 'diverged' => $hasLocalCopy && ! $stale && $diverged !== [],
-                'reported_at' => $report->reported_at?->toIso8601String(),
+                'reported_at' => $report->reported_at->toIso8601String(),
             ];
         })->values()->all();
 
@@ -197,7 +196,7 @@ class TableAgreementService
      * the promotion rule. A row stored before the verdict was persisted is
      * compared on the fly so an already-recorded report still renders.
      *
-     * @param  array<int, array<string, mixed>>  $rows
+     * @param  array<mixed>  $rows
      * @return array<int, array<string, mixed>>
      */
     private function storedVerdicts(array $rows): array
@@ -213,7 +212,7 @@ class TableAgreementService
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $rows
+     * @param  array<mixed>  $rows
      * @return array<int, array<string, mixed>>
      */
     private function compare(array $rows): array

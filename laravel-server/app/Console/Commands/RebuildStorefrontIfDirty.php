@@ -41,6 +41,7 @@ class RebuildStorefrontIfDirty extends Command
 
         if ($dirtyStoreIds->isEmpty()) {
             $this->info('No dirty stores - nothing to rebuild.');
+
             return;
         }
 
@@ -48,6 +49,7 @@ class RebuildStorefrontIfDirty extends Command
 
         if ($awaitsConfirmation && ($pendingSince = $this->pendingRebuildRequestedAt())) {
             $this->info('A rebuild dispatched '.$pendingSince->diffForHumans().' has not confirmed yet - not dispatching another.');
+
             return;
         }
 
@@ -56,6 +58,7 @@ class RebuildStorefrontIfDirty extends Command
 
         if (! $token || ! $repo) {
             $this->warn('GITHUB_TOKEN/GITHUB_REPO not configured - skipping rebuild trigger (flags left dirty, will retry next run).');
+
             return;
         }
 
@@ -75,11 +78,13 @@ class RebuildStorefrontIfDirty extends Command
             if (! $response->successful()) {
                 Log::error('Storefront rebuild dispatch failed: '.$response->status().' '.$response->body());
                 $this->error('Dispatch failed with status '.$response->status().' - flags left dirty, will retry next run.');
+
                 return;
             }
         } catch (\Throwable $e) {
             Log::error('Storefront rebuild dispatch threw: '.$e->getMessage());
             $this->error('Dispatch threw an exception - flags left dirty, will retry next run: '.$e->getMessage());
+
             return;
         }
 
@@ -91,6 +96,7 @@ class RebuildStorefrontIfDirty extends Command
             );
 
             $this->info('Storefront rebuild dispatched for '.$dirtyStoreIds->count().' dirty store(s) - flags stay dirty until the deploy confirms.');
+
             return;
         }
 

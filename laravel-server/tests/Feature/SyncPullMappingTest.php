@@ -21,6 +21,7 @@ class SyncPullMappingTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $store;
 
     protected function setUp(): void
@@ -63,6 +64,7 @@ class SyncPullMappingTest extends TestCase
         if ($storeIdHeader) {
             $request = $request->withHeader('X-Store-Id', $storeIdHeader);
         }
+
         return $request->postJson('/api/v1/app/sync/pull', ['last_synced' => $lastSynced]);
     }
 

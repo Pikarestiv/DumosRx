@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
-vi.mock("idb-keyval", () => ({ get: vi.fn(async () => undefined), set: vi.fn(async () => undefined) }));
+vi.mock("idb-keyval", () => ({ get: vi.fn(() => Promise.resolve(undefined)), set: vi.fn(() => Promise.resolve(undefined)) }));
 
 describe("permission group guards", () => {
   let db: Database;
@@ -32,9 +32,7 @@ describe("permission group guards", () => {
   it("revertToDefault restores a default group's original seeded permissions after it was edited", async () => {
     await core.execute(`UPDATE permission_groups SET permissions = '[]' WHERE id = 'default1'`, []);
 
-    // Simulate the hook's revertToDefault logic directly against the DB
-    // (the full React-hook test is covered by permission-matrix.test.tsx).
-    const { revertGroupToDefault } = usePermissionGroupsModule as any;
+    const { revertGroupToDefault } = usePermissionGroupsModule;
     await revertGroupToDefault("default1");
 
     const rows = await core.query<{ permissions: string }>(`SELECT permissions FROM permission_groups WHERE id = 'default1'`);
@@ -44,7 +42,7 @@ describe("permission group guards", () => {
   it("deleting a custom group with an assigned staff member is blocked", async () => {
     db.run(`INSERT INTO users (id, role, permission_group_id) VALUES ('staff1', 'manager', 'custom1')`);
 
-    const { deletePermissionGroup } = usePermissionGroupsModule as any;
+    const { deletePermissionGroup } = usePermissionGroupsModule;
     await expect(deletePermissionGroup("custom1")).rejects.toThrow(/staff.*assigned/i);
 
     const rows = await core.query(`SELECT id FROM permission_groups WHERE id = 'custom1' AND (_deleted = 0 OR _deleted IS NULL)`);
@@ -54,7 +52,7 @@ describe("permission group guards", () => {
   it("deleting a default group reports the default-group reason, not the staff-assigned one", async () => {
     db.run(`INSERT INTO users (id, role, permission_group_id) VALUES ('staff1', 'manager', 'default1')`);
 
-    const { deletePermissionGroup } = usePermissionGroupsModule as any;
+    const { deletePermissionGroup } = usePermissionGroupsModule;
     await expect(deletePermissionGroup("default1")).rejects.toThrow(/default group/i);
 
     const rows = await core.query(`SELECT id FROM permission_groups WHERE id = 'default1' AND (_deleted = 0 OR _deleted IS NULL)`);
@@ -62,7 +60,7 @@ describe("permission group guards", () => {
   });
 
   it("deleting a default group with nobody assigned still refuses, with a signal the caller can see", async () => {
-    const { deletePermissionGroup } = usePermissionGroupsModule as any;
+    const { deletePermissionGroup } = usePermissionGroupsModule;
     await expect(deletePermissionGroup("default1")).rejects.toThrow(/default group/i);
 
     const rows = await core.query(`SELECT id FROM permission_groups WHERE id = 'default1' AND (_deleted = 0 OR _deleted IS NULL)`);
@@ -72,7 +70,7 @@ describe("permission group guards", () => {
   it("counts a staff row with a NULL is_active as still assigned", async () => {
     db.run(`INSERT INTO users (id, role, permission_group_id, is_active) VALUES ('staff1', 'manager', 'custom1', NULL)`);
 
-    const { deletePermissionGroup } = usePermissionGroupsModule as any;
+    const { deletePermissionGroup } = usePermissionGroupsModule;
     await expect(deletePermissionGroup("custom1")).rejects.toThrow(/staff.*assigned/i);
 
     const rows = await core.query(`SELECT id FROM permission_groups WHERE id = 'custom1' AND (_deleted = 0 OR _deleted IS NULL)`);
@@ -80,7 +78,7 @@ describe("permission group guards", () => {
   });
 
   it("deleting a custom group with no assigned staff succeeds", async () => {
-    const { deletePermissionGroup } = usePermissionGroupsModule as any;
+    const { deletePermissionGroup } = usePermissionGroupsModule;
     await deletePermissionGroup("custom1");
 
     const rows = await core.query(`SELECT id FROM permission_groups WHERE id = 'custom1' AND (_deleted = 0 OR _deleted IS NULL)`);

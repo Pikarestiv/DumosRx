@@ -31,8 +31,7 @@ class AdminStoreDetailService
         private AdminStoreService $adminStoreService,
         private AdminStoreMetricsService $metricsService,
         private AdminStoreOperationalMetricsService $operationalMetricsService,
-    ) {
-    }
+    ) {}
 
     public function getStoreDetail(string $storeId, bool $includeRevenue = false): ?array
     {
@@ -41,7 +40,7 @@ class AdminStoreDetailService
             ->addSelect(['total_revenue' => AdminStoreService::revenueSubquery()])
             ->find($storeId);
 
-        if (!$store) {
+        if (! $store) {
             return null;
         }
 
@@ -91,7 +90,7 @@ class AdminStoreDetailService
                 'dirty_since' => $store->storefront_dirty_at?->diffForHumans(),
             ],
             'payments' => [
-                'paystack_connected' => !empty($store->paystack_subaccount_code),
+                'paystack_connected' => ! empty($store->paystack_subaccount_code),
                 'subaccount_code' => $store->paystack_subaccount_code,
                 'bank_code' => $store->paystack_bank_code,
                 'account_number_last4' => $store->paystack_account_number_last4,
@@ -121,7 +120,7 @@ class AdminStoreDetailService
 
     private function ownerPayload(?User $owner): ?array
     {
-        if (!$owner) {
+        if (! $owner) {
             return null;
         }
 
@@ -140,7 +139,7 @@ class AdminStoreDetailService
 
     private function subscriptionPayload(?User $owner): ?array
     {
-        if (!$owner) {
+        if (! $owner) {
             return null;
         }
 
@@ -148,7 +147,7 @@ class AdminStoreDetailService
             ->orderByDesc('created_at')
             ->first();
 
-        if (!$subscription) {
+        if (! $subscription) {
             return null;
         }
 
@@ -156,11 +155,9 @@ class AdminStoreDetailService
             'plan' => $subscription->plan_name,
             'status' => $subscription->status,
             'is_trial' => (bool) $subscription->is_trial,
-            'start_date' => $subscription->start_date?->format('M d, Y'),
-            'end_date' => $subscription->end_date?->format('M d, Y'),
-            'days_remaining' => $subscription->end_date
-                ? (int) max(0, ceil(now()->diffInDays($subscription->end_date, false)))
-                : null,
+            'start_date' => $subscription->start_date->format('M d, Y'),
+            'end_date' => $subscription->end_date->format('M d, Y'),
+            'days_remaining' => (int) max(0, ceil(now()->diffInDays($subscription->end_date, false))),
         ];
     }
 
@@ -191,11 +188,11 @@ class AdminStoreDetailService
             ->orderByDesc('created_at')
             ->limit(self::RECENT_ACTIVITY_LIMIT)
             ->get()
-            ->map(fn ($log) => [
+            ->map(fn (ActivityLog $log) => [
                 'id' => $log->id,
                 'action' => $log->action,
                 'description' => $log->description,
-                'status' => $log->status,
+                'status' => null,
                 'actor' => $log->user ? trim("{$log->user->first_name} {$log->user->last_name}") : null,
                 'at' => $log->created_at?->diffForHumans(),
             ]);

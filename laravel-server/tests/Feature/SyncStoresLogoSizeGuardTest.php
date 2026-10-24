@@ -19,6 +19,7 @@ class SyncStoresLogoSizeGuardTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected Store $store;
 
     protected function setUp(): void
@@ -60,7 +61,7 @@ class SyncStoresLogoSizeGuardTest extends TestCase
 
     public function test_oversized_logo_url_is_dropped_but_other_fields_still_update()
     {
-        $oversizedLogo = 'data:image/png;base64,' . str_repeat('A', 1024 * 1024 + 1);
+        $oversizedLogo = 'data:image/png;base64,'.str_repeat('A', 1024 * 1024 + 1);
 
         $payload = [
             'setup' => true,
@@ -92,7 +93,7 @@ class SyncStoresLogoSizeGuardTest extends TestCase
 
     public function test_logo_url_within_the_limit_is_accepted()
     {
-        $validLogo = 'data:image/png;base64,' . str_repeat('A', 1000);
+        $validLogo = 'data:image/png;base64,'.str_repeat('A', 1000);
 
         $payload = [
             'setup' => true,

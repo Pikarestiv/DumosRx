@@ -17,8 +17,9 @@ return [
 
     'frontend_url' => env('FRONTEND_URL', 'https://dumosrx.com'),
 
-    'client_app_url' => env('CLIENT_APP_URL', 'https://app.dumosrx.com'),
+    'seed_super_admin_password' => env('SEED_SUPER_ADMIN_PASSWORD'),
 
+    'client_app_url' => env('CLIENT_APP_URL', 'https://app.dumosrx.com'),
 
     'timezone' => 'UTC',
 
@@ -53,4 +54,3 @@ return [
     ])->toArray(),
 
 ];
-

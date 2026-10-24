@@ -6,7 +6,7 @@ import { getAppURL } from "@/lib/constants";
 
 export default function LoginPage() {
   useEffect(() => {
-    window.location.href = `${getAppURL()}/login`;
+    window.location.href = getAppURL() + "/login";
   }, []);
 
   return (

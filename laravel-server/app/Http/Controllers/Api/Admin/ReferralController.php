@@ -3,11 +3,10 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Models\ReferralCreditTransaction;
 use App\Models\SystemConfig;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use OpenApi\Attributes as OA;
 
 class ReferralController extends Controller
@@ -30,7 +29,7 @@ class ReferralController extends Controller
     public function getSummary()
     {
         $totalReferrals = User::whereNotNull('referred_by_id')->count();
-        
+
         $totalCreditsEarned = ReferralCreditTransaction::where('type', 'earned')->sum('amount');
         $totalCreditsSpent = ReferralCreditTransaction::where('type', 'spent')->sum('amount');
 
@@ -152,15 +151,15 @@ class ReferralController extends Controller
             if ($user->referral_credits < $amount) {
                 return response()->json(['message' => 'User does not have enough credits to deduct.'], 400);
             }
-            $user->deductCredits($amount, "[Admin Adjustment] " . $request->description);
+            $user->deductCredits($amount, '[Admin Adjustment] '.$request->description);
         } else {
             // Earned or general admin adjustment
-            $user->addCredits($amount, "[Admin Adjustment] " . $request->description, null, $request->type);
+            $user->addCredits($amount, '[Admin Adjustment] '.$request->description, null, $request->type);
         }
 
         return response()->json([
             'message' => 'Credits adjusted successfully.',
-            'referral_credits' => $user->referral_credits
+            'referral_credits' => $user->referral_credits,
         ]);
     }
 
@@ -185,7 +184,7 @@ class ReferralController extends Controller
             'enabled' => true,
             'reward_percentage' => 10.0,
             'reward_trigger' => 'recurring',
-            'allow_full_credit_payment' => true
+            'allow_full_credit_payment' => true,
         ]);
 
         return response()->json($config);
@@ -232,7 +231,7 @@ class ReferralController extends Controller
 
         return response()->json([
             'message' => 'Referral settings updated successfully.',
-            'settings' => $config->value
+            'settings' => $config->value,
         ]);
     }
 }

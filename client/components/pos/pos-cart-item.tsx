@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
-import { getCategoryIcon } from "@/lib/constants/category-icons";
+import { CategoryIcon } from "./category-icon";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
@@ -28,7 +28,6 @@ interface Props {
 
 /** Swipe-left-to-remove cart row: a red delete backdrop revealed as the row is dragged left. */
 export function POSCartItem({ item, currencyCode, isLast, updateQuantity, removeFromCart, isLocked = false, isResellerSale = false, updateUnitPrice, highlighted = false }: Props) {
-  const CategoryIcon = getCategoryIcon(item.category_name);
   const capsClass = useUppercaseDisplayClass();
   // Unconditional top-level const, never inlined into the JSX branch below -
   // see pos-cart.tsx's canApplyDiscounts for the hook-ordering reason.
@@ -37,14 +36,13 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
   // The price input is uncontrolled-while-typing:
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-cart-item-tsx-L37
   const [priceInput, setPriceInput] = useState(String(item.unit_price));
-
-  useEffect(() => {
-    // Re-sync when the external value changes from elsewhere (e.g.
-    // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-cart-item-tsx-L47
-    setPriceInput((prev) =>
-      Number(prev) === item.unit_price ? prev : String(item.unit_price),
-    );
-  }, [item.unit_price]);
+  // Re-sync when the external value changes from elsewhere (e.g.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-cart-item-tsx-L47
+  const [syncedUnitPrice, setSyncedUnitPrice] = useState(item.unit_price);
+  if (syncedUnitPrice !== item.unit_price) {
+    setSyncedUnitPrice(item.unit_price);
+    if (Number(priceInput) !== item.unit_price) setPriceInput(String(item.unit_price));
+  }
 
   const commitPrice = () => {
     const val = parseFloat(priceInput);
@@ -55,12 +53,11 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
   // Same uncontrolled-while-typing pattern as priceInput above:
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-cart-item-tsx-L62
   const [qtyInput, setQtyInput] = useState(String(item.quantity));
-
-  useEffect(() => {
-    setQtyInput((prev) =>
-      Number(prev) === item.quantity ? prev : String(item.quantity),
-    );
-  }, [item.quantity]);
+  const [syncedQuantity, setSyncedQuantity] = useState(item.quantity);
+  if (syncedQuantity !== item.quantity) {
+    setSyncedQuantity(item.quantity);
+    if (Number(qtyInput) !== item.quantity) setQtyInput(String(item.quantity));
+  }
 
   const commitQuantity = () => {
     const val = parseInt(qtyInput, 10);
@@ -100,7 +97,7 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
         }`}
       >
         <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-          <CategoryIcon className="w-5 h-5" />
+          <CategoryIcon categoryName={item.category_name} className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">
           <div className={`text-[12.5px] font-semibold mb-0.5 truncate leading-tight ${capsClass}`}>

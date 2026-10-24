@@ -53,8 +53,8 @@ class BroadcastEmailTest extends TestCase
         Store::create([
             'user_id' => $owner->id,
             'name' => 'Owner Store',
-            'store_slug' => 'owner-store-' . Str::random(8),
-            'device_id' => 'WEB-' . Str::random(8),
+            'store_slug' => 'owner-store-'.Str::random(8),
+            'device_id' => 'WEB-'.Str::random(8),
         ]);
 
         return $owner;
@@ -64,7 +64,7 @@ class BroadcastEmailTest extends TestCase
     {
         return User::create([
             'first_name' => 'Staff', 'last_name' => 'Member',
-            'email' => $username . '@local.dumosrx.com',
+            'email' => $username.'@local.dumosrx.com',
             'username' => $username,
             'store_id' => $owner->store->id,
             'password' => bcrypt('password'),

@@ -21,7 +21,7 @@ const gatedTool: AssistantTool = {
   parameters: {},
   requiredPermission: "view_financial_reports",
   examples: [],
-  execute: async () => ({}),
+  execute: () => Promise.resolve({}),
   format: () => ({ kind: "answer", text: "" }),
 };
 
@@ -30,7 +30,7 @@ const openTool: AssistantTool = {
   description: "d",
   parameters: {},
   examples: [],
-  execute: async () => ({}),
+  execute: () => Promise.resolve({}),
   format: () => ({ kind: "answer", text: "" }),
 };
 

@@ -15,16 +15,22 @@ function ExpensesPageContent() {
   const pathname = usePathname();
   const canRecordExpenses = useHasPermission("record_expenses");
 
+  const wantsAddAction = searchParams.get("action") === "add";
+  const [handledParams, setHandledParams] = useState<typeof searchParams | null>(null);
+  if (wantsAddAction && handledParams !== searchParams) {
+    setHandledParams(searchParams);
+    if (canRecordExpenses) setIsAddDialogOpen(true);
+  }
+
   useEffect(() => {
-    if (searchParams.get("action") === "add") {
-      if (canRecordExpenses) setIsAddDialogOpen(true);
+    if (wantsAddAction) {
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.delete("action");
       const newUrl =
         pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
       router.replace(newUrl);
     }
-  }, [searchParams, router, pathname, canRecordExpenses]);
+  }, [wantsAddAction, searchParams, router, pathname]);
 
   return (
     <>

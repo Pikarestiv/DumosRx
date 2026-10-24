@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Concerns\ScopesToTenant;
 use App\Http\Controllers\Controller;
-use App\Models\OnlineOrder;
 use App\Models\Notification;
+use App\Models\OnlineOrder;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -26,7 +26,7 @@ class OnlineOrderController extends Controller
      * `User::employerStore()`'s doc block) — gating on `$user->store_id`
      * directly, as both endpoints below used to, always failed with "No
      * store associated" for an owner, who is exactly who this endpoint is
-     * for. Resolves the same way `SyncController::resolvePushStoreId` does:
+     * for. Resolves the same way `SyncOwnershipResolver::resolvePushStoreId` does:
      * `X-Store-Id` when present and owned by the caller's tenant (letting a
      * multi-store owner pick which store's orders they're viewing/
      * fulfilling), else the caller's own `store_id` (staff), else their
@@ -69,7 +69,7 @@ class OnlineOrderController extends Controller
     public function index(Request $request)
     {
         $storeId = $this->resolveOrderStoreId($request);
-        if (!$storeId) {
+        if (! $storeId) {
             return response()->json(['error' => 'No store associated'], 400);
         }
 
@@ -126,7 +126,7 @@ class OnlineOrderController extends Controller
     {
         $user = Auth::user();
         $storeId = $this->resolveOrderStoreId($request);
-        if (!$storeId) {
+        if (! $storeId) {
             return response()->json(['error' => 'No store associated'], 400);
         }
 
@@ -139,7 +139,7 @@ class OnlineOrderController extends Controller
 
         [$order, $transitioned] = $this->commitTransition($storeId, $id, $validated);
 
-        if (!$transitioned) {
+        if (! $transitioned) {
             return response()->json([
                 'message' => "This order is already {$order->order_status} and cannot be updated again.",
                 'order' => $order,
@@ -158,7 +158,7 @@ class OnlineOrderController extends Controller
 
         return response()->json([
             'message' => 'Order updated successfully',
-            'order' => $order
+            'order' => $order,
         ]);
     }
 
@@ -215,7 +215,7 @@ class OnlineOrderController extends Controller
             if ($result['success']) {
                 \Illuminate\Support\Facades\DB::transaction(fn () => $order->update(['payment_status' => 'refunded']));
 
-                if (!($result['already_refunded'] ?? false)) {
+                if (! ($result['already_refunded'] ?? false)) {
                     $this->notifyStore($order, $storeId, 'Refunded', "Online order #{$order->id} ({$order->total_amount}) was refunded to {$order->customer_name}.");
                 }
 

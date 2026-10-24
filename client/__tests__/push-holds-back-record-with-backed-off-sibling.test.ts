@@ -1,9 +1,13 @@
-import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, vi, type Mock } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
+type PushChangesMock = Mock<
+  (req: { changes: Array<{ table_name: string; payload: Record<string, unknown> }> }) => Promise<unknown>
+>;
+
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("@/lib/api/client", () => ({
@@ -24,14 +28,14 @@ describe("pushChanges holds back a due edit when a sibling edit for the same rec
   let insert: typeof import("@/lib/db/base-helpers").insert;
   let update: typeof import("@/lib/db/base-helpers").update;
   let pushChanges: typeof import("@/lib/db/sync-engine/push").pushChanges;
-  let apiClient: { pushChanges: ReturnType<typeof vi.fn> };
+  let apiClient: { pushChanges: PushChangesMock };
 
   beforeAll(async () => {
     core = await import("@/lib/db/core");
     ({ insert, update } = await import("@/lib/db/base-helpers"));
     ({ pushChanges } = await import("@/lib/db/sync-engine/push"));
     ({ apiClient } = (await import("@/lib/api/client")) as unknown as {
-      apiClient: { pushChanges: ReturnType<typeof vi.fn> };
+      apiClient: { pushChanges: PushChangesMock };
     });
 
     const { SCHEMA_SQL } = await import("@/lib/db/schema");
@@ -116,19 +120,19 @@ describe("pushChanges holds back a due edit when a sibling edit for the same rec
     db.run(`UPDATE _sync_queue SET next_retry_at = NULL WHERE table_name = 'customers'`);
 
     apiClient.pushChanges.mockImplementationOnce(
-      async (req: { changes: Array<{ table_name: string; payload: Record<string, unknown> }> }) => {
+      (req: { changes: Array<{ table_name: string; payload: Record<string, unknown> }> }) => {
         const customerChanges = req.changes.filter((c) => c.table_name === "customers");
         // Coalesced into one change now that both are due together —
         // neither field is lost.
         expect(customerChanges.length).toBe(1);
         expect(customerChanges[0].payload.outstanding_balance).toBe(500);
         expect(customerChanges[0].payload.loyalty_points).toBe(25);
-        return {
+        return Promise.resolve({
           success: true,
           processed: 1,
           failed: [],
           versions: { customers: { [customerId]: 2 } },
-        };
+        });
       },
     );
 
@@ -158,12 +162,12 @@ describe("pushChanges holds back a due edit when a sibling edit for the same rec
     queueLegacySiblingUpdate(customerId, { loyalty_points: 25 });
 
     apiClient.pushChanges.mockImplementationOnce(
-      async (req: { changes: Array<{ table_name: string; payload: Record<string, unknown> }> }) => {
+      (req: { changes: Array<{ table_name: string; payload: Record<string, unknown> }> }) => {
         const customerChanges = req.changes.filter((c) => c.table_name === "customers");
         expect(customerChanges.length).toBe(1); // Coalesced — manual sync sees both.
         expect(customerChanges[0].payload.outstanding_balance).toBe(500);
         expect(customerChanges[0].payload.loyalty_points).toBe(25);
-        return { success: true, processed: 1, failed: [] };
+        return Promise.resolve({ success: true, processed: 1, failed: [] });
       },
     );
 

@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('online_order_items', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->uuid('online_order_id')->constrained('online_orders')->cascadeOnDelete();
-            $table->uuid('product_id')->constrained('products');
+            $table->uuid('online_order_id');
+            $table->uuid('product_id');
             $table->integer('quantity');
             $table->decimal('unit_price', 12, 2);
             $table->decimal('subtotal', 12, 2);

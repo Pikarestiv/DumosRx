@@ -13,6 +13,4 @@ use RuntimeException;
  * transaction can turn exactly this case into the same 422 the pre-checks
  * return, without swallowing unrelated runtime errors.
  */
-class PaymentReferenceAlreadyUsedException extends RuntimeException
-{
-}
+class PaymentReferenceAlreadyUsedException extends RuntimeException {}

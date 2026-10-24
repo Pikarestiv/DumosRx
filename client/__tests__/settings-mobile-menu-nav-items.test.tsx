@@ -14,8 +14,9 @@ async function renderMenu(isAdmin: boolean): Promise<HTMLElement> {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root: Root = createRoot(container);
-  await act(async () => {
+  await act(() => {
     root.render(React.createElement(SettingsMobileMenu, { isAdmin }));
+    return Promise.resolve();
   });
   return container;
 }
@@ -26,7 +27,7 @@ describe("SettingsMobileMenu nav items", () => {
 
     const link = container.querySelector('a[href="/settings/roles"]');
     expect(link).not.toBeNull();
-    expect(link!.textContent).toContain("Roles & Permissions");
+    expect(link?.textContent).toContain("Roles & Permissions");
 
     expect(container.textContent).not.toContain("Soon");
     expect(container.querySelector(".opacity-50")).toBeNull();

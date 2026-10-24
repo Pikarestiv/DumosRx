@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 export type SortDirection = "asc" | "desc";
 
@@ -8,29 +8,26 @@ export function useSortableData<T, K extends string>(
   data: T[],
   accessors: Record<K, (item: T) => string | number>,
 ) {
-  const [sortKey, setSortKey] = useState<K | null>(null);
+  const [sort, setSort] = useState<{
+    key: K;
+    accessor: (item: T) => string | number;
+  } | null>(null);
   const [direction, setDirection] = useState<SortDirection>("asc");
+  const sortKey = sort?.key ?? null;
+  const sortAccessor = sort?.accessor;
 
   const toggleSort = (key: K) => {
+    setSort({ key, accessor: accessors[key] });
     if (sortKey === key) {
       setDirection((d) => (d === "asc" ? "desc" : "asc"));
     } else {
-      setSortKey(key);
       setDirection("asc");
     }
   };
 
-  // Held in a ref instead of the memo's dependency array:
-  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-sortable-data-ts-L23
-  const accessorsRef = useRef(accessors);
-  accessorsRef.current = accessors;
-
   const sortedData = useMemo(
-    () =>
-      sortKey
-        ? sortByAccessor(data, accessorsRef.current[sortKey], direction)
-        : data,
-    [data, sortKey, direction],
+    () => (sortAccessor ? sortByAccessor(data, sortAccessor, direction) : data),
+    [data, sortAccessor, direction],
   );
 
   return { sortKey, direction, toggleSort, sortedData };

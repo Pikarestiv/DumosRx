@@ -1,8 +1,8 @@
-import { useRef } from "react";
 import { toast } from "sonner";
 import { useDeleteCustomerMutation } from "@/lib/hooks/use-customer-mutations";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatCurrency } from "@/lib/utils";
+import { useLastNonNull } from "@/lib/hooks/use-last-non-null";
 
 interface CustomerDeleteDialogProps {
   target: { id: string; name: string; outstandingBalance: number } | null;
@@ -18,11 +18,7 @@ export function CustomerDeleteDialog({
   onSuccess,
 }: CustomerDeleteDialogProps) {
   const deleteCustomer = useDeleteCustomerMutation();
-  // Keeps rendering the last real target while ConfirmDialog's exit
-  // animation plays out after `target` is nulled on confirm/close.
-  const lastTarget = useRef(target);
-  if (target) lastTarget.current = target;
-  const displayTarget = target ?? lastTarget.current;
+  const displayTarget = useLastNonNull(target);
 
   const hasDebt = (displayTarget?.outstandingBalance || 0) > 0;
 

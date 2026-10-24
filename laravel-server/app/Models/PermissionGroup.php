@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Casts\JsonList;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PermissionGroup extends Model
@@ -27,7 +28,10 @@ class PermissionGroup extends Model
         '_synced_at' => 'datetime',
     ];
 
-    public function store()
+    /**
+     * @return BelongsTo<Store, $this>
+     */
+    public function store(): BelongsTo
     {
         return $this->belongsTo(Store::class);
     }

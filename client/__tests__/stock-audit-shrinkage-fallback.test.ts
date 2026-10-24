@@ -24,8 +24,9 @@ let movements: FakeMovement[];
 
 vi.mock("@/lib/db/local-database", async () => {
   const { applyMovementToFakeBatch } = await import("./helpers/fake-batch-quantity");
+  const { asAsync } = await import("./helpers/as-async");
   return {
-  query: vi.fn(async (sql: string, params: unknown[] = []) => {
+  query: vi.fn(asAsync((sql: string, params: unknown[] = []) => {
     if (sql.includes("SELECT quantity FROM stock_batches WHERE id = ?")) {
       const b = batches[params[0] as string];
       return b ? [{ quantity: b.quantity }] : [];
@@ -44,19 +45,19 @@ vi.mock("@/lib/db/local-database", async () => {
         .sort((a, b) => (a.expiry_date || "").localeCompare(b.expiry_date || ""));
     }
     return [];
-  }),
-  insert: vi.fn(async (table: string, data: Record<string, unknown>) => {
+  })),
+  insert: vi.fn(asAsync((table: string, data: Record<string, unknown>) => {
     const id = (data.id as string) || `${table}-${Math.random()}`;
     const record = { id, ...data };
     if (table === "stock_batches") batches[id] = record as unknown as FakeBatch;
     if (table === "stock_movements") movements.push(record as FakeMovement);
     if (table === "stock_movements") applyMovementToFakeBatch(batches, movements, data);
     return id;
-  }),
-  update: vi.fn(async (table: string, id: string, data: Record<string, unknown>) => {
+  })),
+  update: vi.fn(asAsync((table: string, id: string, data: Record<string, unknown>) => {
     if (table === "stock_batches") batches[id] = { ...batches[id], ...data };
     return id;
-  }),
+  })),
   transaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
   };
 });

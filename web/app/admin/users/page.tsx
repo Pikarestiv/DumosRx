@@ -1,24 +1,8 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import {
-  Search,
-  Filter,
-  Download,
-  Bell,
-  UserPlus,
-  Loader2,
-} from "lucide-react";
+import { Download, Bell, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   useAdminUsers,
@@ -28,8 +12,6 @@ import {
   useBulkNotifyUsersMutation,
   useDeleteUserMutation,
   useReactivateUserMutation,
-  useGrantUserTrialMutation,
-  useActivateUserPlanMutation,
 } from "@/lib/api/admin-hooks";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -44,16 +26,14 @@ import { UserProfileDialog } from "@/components/admin/users/user-profile-dialog"
 import { SendNotificationDialog } from "@/components/admin/users/send-notification-dialog";
 import { DeleteUserDialog } from "@/components/admin/users/delete-user-dialog";
 import { UserTable } from "@/components/admin/users/user-table";
+import { useUserPlanActions } from "@/components/admin/users/use-user-plan-actions";
 import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-dialog";
 import { SharedActivatePlanDialog } from "@/components/admin/shared-activate-plan-dialog";
 import { UserPagination } from "@/components/admin/users/user-pagination";
 import { BulkNotifyDialog } from "@/components/admin/users/bulk-notify-dialog";
 import type { AdminAccountType, AdminUser } from "@/lib/types/admin";
-import {
-  ACCOUNT_TYPE_TABS,
-  ROLE_FILTER_SLUGS,
-  ROLE_LABELS_BY_ACCOUNT_TYPE,
-} from "@/components/admin/users/user-directory-filters";
+import { ROLE_FILTER_SLUGS } from "@/components/admin/users/user-directory-filters";
+import { UserDirectoryToolbar } from "@/components/admin/users/user-directory-toolbar";
 import { useAdminAuthStore, checkHasPermission } from "@/lib/store/use-admin-auth-store";
 
 function GlobalUsersDirectoryContent() {
@@ -84,8 +64,6 @@ function GlobalUsersDirectoryContent() {
   const [isNotifyDialogOpen, setIsNotifyDialogOpen] = useState(false);
   const [isBulkNotifyDialogOpen, setIsBulkNotifyDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isTrialDialogOpen, setIsTrialDialogOpen] = useState(false);
-  const [isActivatePlanDialogOpen, setIsActivatePlanDialogOpen] = useState(false);
 
   const debouncedSearch = useDebounce(search, 500);
 
@@ -107,15 +85,11 @@ function GlobalUsersDirectoryContent() {
     setPage(1);
   };
 
-  const availableRoleLabels = ROLE_LABELS_BY_ACCOUNT_TYPE[accountType];
-  const activeTabHint = ACCOUNT_TYPE_TABS.find((tab) => tab.value === accountType)?.hint ?? "";
   const deactivateMutation = useDeactivateUserMutation();
   const reactivateMutation = useReactivateUserMutation();
   const resetPasswordMutation = useResetUserPasswordMutation();
   const notifyMutation = useNotifyUserMutation();
   const deleteMutation = useDeleteUserMutation();
-  const grantTrialMutation = useGrantUserTrialMutation();
-  const activatePlanMutation = useActivateUserPlanMutation();
   const bulkNotifyMutation = useBulkNotifyUsersMutation();
 
   const handlePageChange = (newPage: number) => {
@@ -135,46 +109,16 @@ function GlobalUsersDirectoryContent() {
     }
   };
 
-  const handleGrantTrial = (plan: string, duration?: string, endDate?: string) => {
-    if (!selectedUser) return;
-
-    grantTrialMutation.mutate({ id: selectedUser.id, plan, duration, endDate }, {
-      onSuccess: () => {
-        const durationLabel = endDate ? `until ${endDate}` : duration;
-        toast.success("Trial Granted", {
-          description: `Granted ${durationLabel} ${plan} trial to ${selectedUser.name}.`,
-        });
-        setIsTrialDialogOpen(false);
-        setSelectedUser(null);
-        void refetch();
-      },
-      onError: (err) => {
-        toast.error("Action Failed", {
-          description: err.message || "Failed to grant trial.",
-        });
-      }
-    });
-  };
-
-  const handleActivatePlan = (plan: string, billingCycle: string, amount: number, reference?: string) => {
-    if (!selectedUser) return;
-
-    activatePlanMutation.mutate({ id: selectedUser.id, plan, billingCycle, amount, reference }, {
-      onSuccess: () => {
-        toast.success("Plan Activated", {
-          description: `Activated ${billingCycle} ${plan} plan for ${selectedUser.name}.`,
-        });
-        setIsActivatePlanDialogOpen(false);
-        setSelectedUser(null);
-        void refetch();
-      },
-      onError: (err) => {
-        toast.error("Action Failed", {
-          description: err.message || "Failed to activate plan.",
-        });
-      }
-    });
-  };
+  const {
+    isTrialDialogOpen,
+    setIsTrialDialogOpen,
+    isActivatePlanDialogOpen,
+    setIsActivatePlanDialogOpen,
+    handleGrantTrial,
+    handleActivatePlan,
+    isGrantingTrial,
+    isActivatingPlan,
+  } = useUserPlanActions(selectedUser, setSelectedUser, () => void refetch());
 
   if (isLoading && !response) {
     return <AdminSkeleton />;
@@ -228,89 +172,16 @@ function GlobalUsersDirectoryContent() {
 
       <Card className="border-none shadow-sm overflow-hidden bg-white dark:bg-slate-900">
         <CardContent className="p-0">
-          <div className="px-6 pt-6 flex flex-col gap-2">
-            <div className="inline-flex w-fit rounded-2xl bg-slate-100 dark:bg-slate-800 p-1">
-              {ACCOUNT_TYPE_TABS.map((tab) => (
-                <button
-                  key={tab.value}
-                  type="button"
-                  onClick={() => handleAccountTypeChange(tab.value)}
-                  className={`rounded-xl px-4 py-2 text-sm font-bold transition-colors ${
-                    accountType === tab.value
-                      ? "bg-white dark:bg-slate-900 text-indigo-600 shadow-sm"
-                      : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              {activeTabHint}
-            </p>
-          </div>
-          <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="relative w-full max-w-sm group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-              <Input
-                placeholder="Search by name, email or store..."
-                className="pl-10 bg-slate-50 dark:bg-slate-800 border-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              {isLoading && (
-                <Loader2 className="h-4 w-4 animate-spin text-indigo-500 mr-2" />
-              )}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="font-bold border-2"
-                  >
-                    <Filter className="h-4 w-4 mr-2" />
-                    {roleFilter || "Roles"}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-48 p-2 rounded-2xl shadow-xl"
-                >
-                  <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">
-                    System Role
-                  </DropdownMenuLabel>
-                  <DropdownMenuItem
-                    className="rounded-xl px-3 py-2 cursor-pointer font-bold"
-                    onClick={() => { setRoleFilter(null); setPage(1); }}
-                  >
-                    All Roles
-                  </DropdownMenuItem>
-                  {availableRoleLabels.map((label) => (
-                    <DropdownMenuItem
-                      key={label}
-                      className="rounded-xl px-3 py-2 cursor-pointer font-bold"
-                      onClick={() => { setRoleFilter(label); setPage(1); }}
-                    >
-                      {label}
-                    </DropdownMenuItem>
-                  ))}
-                  {/* No "Billing Plan -> Starter/Enterprise" section here:
-                      AdminUserService::getGlobalUsers() only filters by
-                      search/role (there is no plan param, and a plan lives on
-                      the store, not the user), so those two items could never
-                      do anything. Removed rather than left as dead controls -
-                      plan filtering belongs on the Store Fleet list, which
-                      already supports it. */}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                Global Directory: {userMeta?.total || 0} Users
-              </p>
-            </div>
-          </div>
+          <UserDirectoryToolbar
+            accountType={accountType}
+            onAccountTypeChange={handleAccountTypeChange}
+            search={search}
+            onSearchChange={setSearch}
+            roleFilter={roleFilter}
+            onRoleFilterChange={(label) => { setRoleFilter(label); setPage(1); }}
+            isLoading={isLoading}
+            total={userMeta?.total || 0}
+          />
 
           <div className="overflow-x-auto min-h-[400px]">
             <UserTable 
@@ -385,7 +256,7 @@ function GlobalUsersDirectoryContent() {
         onOpenChange={setIsTrialDialogOpen}
         targetName={selectedUser?.name}
         onConfirm={handleGrantTrial}
-        isPending={grantTrialMutation.isPending}
+        isPending={isGrantingTrial}
       />
 
       <SharedActivatePlanDialog
@@ -393,7 +264,7 @@ function GlobalUsersDirectoryContent() {
         onOpenChange={setIsActivatePlanDialogOpen}
         targetName={selectedUser?.name}
         onConfirm={handleActivatePlan}
-        isPending={activatePlanMutation.isPending}
+        isPending={isActivatingPlan}
       />
 
       <BulkNotifyDialog

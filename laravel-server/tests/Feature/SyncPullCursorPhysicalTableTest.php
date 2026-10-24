@@ -5,10 +5,10 @@ namespace Tests\Feature;
 use App\Http\Controllers\Api\App\SyncController;
 use App\Models\ActivityLog;
 use App\Services\Admin\Concerns\CountsSyncedTableRows;
+use App\Services\Sync\PullPager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use ReflectionClass;
-use ReflectionMethod;
 use Tests\TestCase;
 
 /**
@@ -25,9 +25,7 @@ class SyncPullCursorPhysicalTableTest extends TestCase
 
     private function applyPullCursor($query, string $table, string $lastSynced): void
     {
-        $method = new ReflectionMethod(SyncController::class, 'applyPullCursor');
-        $method->setAccessible(true);
-        $method->invoke(new SyncController(), $query, $table, $lastSynced);
+        (new PullPager)->applyPullCursor($query, $table, $lastSynced);
     }
 
     public function test_the_pull_cursor_probes_the_model_s_physical_table_not_the_sync_name(): void
@@ -55,7 +53,7 @@ class SyncPullCursorPhysicalTableTest extends TestCase
 
     public function test_every_agreement_table_name_is_also_its_own_physical_table(): void
     {
-        $controller = new SyncController();
+        $controller = new SyncController;
         $tables = (new ReflectionClass(CountsSyncedTableRows::class))
             ->getConstant('AGREEMENT_TABLES');
 
@@ -68,10 +66,11 @@ class SyncPullCursorPhysicalTableTest extends TestCase
 
             if (! $modelClass) {
                 $mismatched[] = "{$table}: getModelForTable() resolves nothing, so the cloud side counts a table the pull never delivers";
+
                 continue;
             }
 
-            $physical = (new $modelClass())->getTable();
+            $physical = (new $modelClass)->getTable();
 
             if ($physical !== $table) {
                 $mismatched[] = "{$table} -> {$physical}: counted via DB::table('{$table}') but delivered from '{$physical}'";

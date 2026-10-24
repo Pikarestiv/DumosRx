@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { ShieldAlert, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api/client";
 import { WEB_APP_URL } from "@/lib/constants";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 
 import {
   IMPERSONATED_USER_STORAGE_KEY as IMPERSONATED_USER_KEY,
@@ -12,11 +12,8 @@ import {
 } from "@/lib/utils/impersonation";
 
 export function ImpersonationBanner() {
-  const [isImpersonating, setIsImpersonating] = useState(false);
-
-  useEffect(() => {
-    setIsImpersonating(!!localStorage.getItem(RETURN_CODE_KEY));
-  }, []);
+  const hydrated = useHydrated();
+  const isImpersonating = hydrated && !!localStorage.getItem(RETURN_CODE_KEY);
 
   if (!isImpersonating) return null;
 
@@ -26,7 +23,7 @@ export function ImpersonationBanner() {
     localStorage.removeItem(RETURN_CODE_KEY);
     localStorage.removeItem(IMPERSONATED_USER_KEY);
     apiClient.clearToken();
-    window.location.href = `${WEB_APP_URL}/admin`;
+    window.location.href = WEB_APP_URL + "/admin";
   };
 
   return (

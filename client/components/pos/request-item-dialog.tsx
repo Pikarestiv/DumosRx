@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,9 +44,11 @@ export function RequestItemDialog({
 
   // Re-seed the name field whenever the dialog is (re)opened, since the caller's initialProductName (e.g.
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-request-item-dialog-tsx-L45
-  useEffect(() => {
+  const [syncedFor, setSyncedFor] = useState({ open, initialProductName });
+  if (syncedFor.open !== open || syncedFor.initialProductName !== initialProductName) {
+    setSyncedFor({ open, initialProductName });
     if (open) setProductName(initialProductName);
-  }, [open, initialProductName]);
+  }
   const [customerName, setCustomerName] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [notes, setNotes] = useState("");

@@ -45,7 +45,7 @@ export function useSettingsSync(
     toast.promise(sync(true), {
       loading: "Synchronizing data with cloud...",
       success: (data) => {
-        refetchStore();
+        void refetchStore();
         return `Sync complete! Pushed ${data.pushed}, Pulled ${data.pulled}`;
       },
       error: "Sync failed. Please check your connection.",
@@ -59,13 +59,13 @@ export function useSettingsSync(
   // on. Clears the local pull cursor and re-fetches every table from
   // scratch; never touches local data or this device's own pending
   // outbound changes. See lib/db/sync-engine/index.ts's forceFullResync.
-  const handleForceFullResync = async () => {
+  const handleForceFullResync = () => {
     if (!isCloudLinked) return;
 
     toast.promise(forceFullResync(), {
       loading: "Re-downloading all data from the cloud...",
       success: (data) => {
-        refetchStore();
+        void refetchStore();
         return `Resync complete! Pushed ${data.pushed}, Pulled ${data.pulled}`;
       },
       error: "Resync failed. Please check your connection.",
@@ -126,7 +126,7 @@ export function useSettingsSync(
     }
   };
 
-  const handleRestoreBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleRestoreBackup = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();

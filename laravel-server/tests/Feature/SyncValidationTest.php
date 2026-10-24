@@ -8,7 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Coverage for SyncController::validateSync() - the plan-gating logic shared
+ * Coverage for SyncGate::validateSync() - the plan-gating logic shared
  * by push() and pull() (cloud_sync feature flag, sync-interval throttle,
  * store-count limit). Had zero dedicated test coverage before this file;
  * SyncEndpointTest.php/SyncSchemaDriftTest.php always pass `setup: true`
@@ -21,6 +21,7 @@ class SyncValidationTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $store;
 
     protected function setUp(): void

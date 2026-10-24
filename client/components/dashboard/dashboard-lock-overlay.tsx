@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { useAuth, type RecentUser } from "@/lib/context/auth-context";
 import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
@@ -10,6 +10,16 @@ import {
   getRecentUsers,
   setRecentUsers as persistRecentUsers,
 } from "@/lib/storage-keys";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
+import { navigateWithFullReload } from "@/lib/utils/full-page-navigate";
+
+function readRecentUsers(): RecentUser[] {
+  try {
+    return getRecentUsers();
+  } catch {
+    return [];
+  }
+}
 
 export function DashboardLockOverlay() {
   const { user } = useAuth();
@@ -18,13 +28,9 @@ export function DashboardLockOverlay() {
     (s) => s.forceAccountSelection,
   );
   const unlock = useAutoLockStore((s) => s.unlock);
-  const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
-
-  useEffect(() => {
-    try {
-      setRecentUsers(getRecentUsers());
-    } catch {}
-  }, []);
+  const hydrated = useHydrated();
+  const [editedRecentUsers, setRecentUsers] = useState<RecentUser[] | null>(null);
+  const recentUsers = editedRecentUsers ?? (hydrated ? readRecentUsers() : []);
 
   const handleRemoveRecentUser = (id: string) => {
     const next = recentUsers.filter((u) => u.id !== id);
@@ -71,14 +77,10 @@ export function DashboardLockOverlay() {
                   ? { ...user, last_login: new Date().toISOString() }
                   : undefined
               }
-              onLoginAsOther={() => {
-                // Hard navigation, not router.push: a client-side push leaves
-                // the page under this overlay mounted. See docs/FIXED_BUGS.md.
-                window.location.href = "/login?mode=new";
-              }}
-              onSetUpNewDevice={() => {
-                window.location.href = "/login?tab=setup&step=cloud";
-              }}
+              onLoginAsOther={() => navigateWithFullReload("/login?mode=new")}
+              onSetUpNewDevice={() =>
+                navigateWithFullReload("/login?tab=setup&step=cloud")
+              }
               onUnlockSuccess={() => unlock()}
             />
           </div>

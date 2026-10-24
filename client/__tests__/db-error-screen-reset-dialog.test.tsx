@@ -1,15 +1,13 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { assert, describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 
 // Regression coverage for A-14 (docs/KNOWN_BUGS.md), UI half:
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-db-error-screen-reset-dialog-test-tsx-L4
 
-const discardLocalDatabaseBlob = vi.fn(async () => ({ backedUp: true }));
+const discardLocalDatabaseBlob = vi.fn(() => Promise.resolve({ backedUp: true }));
 
 vi.mock("@/lib/db/local-database", () => ({
-  initDatabase: vi.fn(async () => {
-    throw new Error("database is locked");
-  }),
+  initDatabase: vi.fn(() => Promise.reject(new Error("database is locked"))),
   isTauri: () => false,
   isWriterTab: () => true,
   onWriterTabChange: () => () => {},
@@ -45,7 +43,7 @@ describe("DatabaseProvider's init-error recovery screen", () => {
     window.confirm = confirmSpy;
 
     await renderErrorScreen();
-    await act(async () => {
+    await act(() => {
       fireEvent.click(screen.getByRole("button", { name: "Reset App Data" }));
     });
 
@@ -55,7 +53,7 @@ describe("DatabaseProvider's init-error recovery screen", () => {
 
   it("does nothing at all when the confirmation dialog is cancelled", async () => {
     await renderErrorScreen();
-    await act(async () => {
+    await act(() => {
       fireEvent.click(screen.getByRole("button", { name: "Reset App Data" }));
     });
     await act(async () => {
@@ -69,15 +67,16 @@ describe("DatabaseProvider's init-error recovery screen", () => {
 
   it("deletes the IndexedDB database, not just localStorage, once confirmed", async () => {
     await renderErrorScreen();
-    await act(async () => {
+    await act(() => {
       fireEvent.click(screen.getByRole("button", { name: "Reset App Data" }));
     });
 
     const dialog = await screen.findByRole("alertdialog");
     const confirm = Array.from(dialog.querySelectorAll("button")).find(
       (b) => b.textContent === "Reset App Data",
-    )!;
-    await act(async () => {
+    );
+    assert(confirm);
+    await act(() => {
       fireEvent.click(confirm);
     });
 
@@ -90,15 +89,16 @@ describe("DatabaseProvider's init-error recovery screen", () => {
     discardLocalDatabaseBlob.mockRejectedValueOnce(new Error("blocked"));
 
     await renderErrorScreen();
-    await act(async () => {
+    await act(() => {
       fireEvent.click(screen.getByRole("button", { name: "Reset App Data" }));
     });
 
     const dialog = await screen.findByRole("alertdialog");
     const confirm = Array.from(dialog.querySelectorAll("button")).find(
       (b) => b.textContent === "Reset App Data",
-    )!;
-    await act(async () => {
+    );
+    assert(confirm);
+    await act(() => {
       fireEvent.click(confirm);
     });
 

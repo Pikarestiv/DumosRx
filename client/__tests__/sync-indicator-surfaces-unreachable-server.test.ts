@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 if (!window.matchMedia) {
   window.matchMedia = ((query: string) => ({
@@ -17,7 +17,7 @@ if (!window.matchMedia) {
   })) as unknown as typeof window.matchMedia;
 }
 
-const mockSync = vi.fn(async (_isManual?: boolean) => ({
+const mockSync = vi.fn((_isManual?: boolean) => Promise.resolve({
   success: true,
   pushed: 0,
   pulled: 0,
@@ -29,7 +29,7 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 vi.mock("@/lib/db/queries/setup", () => ({
-  getSyncQueueCount: vi.fn(async () => 0),
+  getSyncQueueCount: vi.fn(() => Promise.resolve(0)),
 }));
 
 vi.mock("@/lib/db/sync-engine", () => ({
@@ -38,14 +38,8 @@ vi.mock("@/lib/db/sync-engine", () => ({
   SYNC_IN_PROGRESS_ERROR: "Sync already in progress",
 }));
 
-let registeredListener: ((tables: string[]) => void) | null = null;
 vi.mock("@/lib/db/core", () => ({
-  addSyncQueueChangeListener: vi.fn((fn: (tables: string[]) => void) => {
-    registeredListener = fn;
-    return () => {
-      registeredListener = null;
-    };
-  }),
+  addSyncQueueChangeListener: vi.fn(() => () => {}),
 }));
 
 vi.mock("@/components/dashboard/auth-modal", () => ({ AuthModal: () => null }));
@@ -81,7 +75,6 @@ describe("SyncIndicator surfaces an unreachable server", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     mockSync.mockReset();
-    registeredListener = null;
     container = document.createElement("div");
     document.body.appendChild(container);
     localStorage.setItem("auth_token", "test-token");
@@ -106,7 +99,7 @@ describe("SyncIndicator surfaces an unreachable server", () => {
       "@/components/dashboard/sync-indicator"
     );
     root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(SyncIndicator, { collapsed: false }));
     });
     await act(async () => {

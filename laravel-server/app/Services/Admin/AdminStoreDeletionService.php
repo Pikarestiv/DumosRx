@@ -25,14 +25,13 @@ class AdminStoreDeletionService
     public function __construct(
         private ForeignKeyCascadeEmulator $cascades,
         private PurgedUserRowSweeper $userRows,
-    ) {
-    }
+    ) {}
 
     public function archiveStore(string $storeId, ?string $reason, User $actor): ?Store
     {
         $store = Store::withTrashed()->find($storeId);
 
-        if (!$store || $store->trashed()) {
+        if (! $store || $store->trashed()) {
             return null;
         }
 
@@ -61,7 +60,7 @@ class AdminStoreDeletionService
     {
         $store = Store::onlyTrashed()->find($storeId);
 
-        if (!$store) {
+        if (! $store) {
             return null;
         }
 
@@ -90,7 +89,7 @@ class AdminStoreDeletionService
     /** @return array{was_suspended: bool, suspension_reason: string|null, warning: string|null} */
     public function restoreWarnings(Store $store): array
     {
-        if (!$store->isSuspended()) {
+        if (! $store->isSuspended()) {
             return ['was_suspended' => false, 'suspension_reason' => null, 'warning' => null];
         }
 
@@ -104,7 +103,7 @@ class AdminStoreDeletionService
 
     private function suspensionNote(Store $store): string
     {
-        if (!$store->isSuspended()) {
+        if (! $store->isSuspended()) {
             return '';
         }
 
@@ -119,7 +118,7 @@ class AdminStoreDeletionService
     {
         $store = Store::withTrashed()->find($storeId);
 
-        if (!$store) {
+        if (! $store) {
             return null;
         }
 
@@ -180,7 +179,7 @@ class AdminStoreDeletionService
         }
 
         foreach (self::OWNER_SCOPED_TABLES as $table => $column) {
-            if (!Schema::hasTable($table)) {
+            if (! Schema::hasTable($table)) {
                 continue;
             }
             $count = DB::table($table)->whereIn($column, $userIds)->delete();
@@ -199,12 +198,12 @@ class AdminStoreDeletionService
         );
         $this->cascades->cascadeChildren('users', $userIds, $removed, ['stores', ...$storeScopedTables]);
 
-        $removed['users'] = User::withTrashed()->whereIn('id', $userIds)->forceDelete();
+        $removed['users'] = (int) User::withTrashed()->whereIn('id', $userIds)->forceDelete();
     }
 
     private function assertRestoreAllowed(Store $store): void
     {
-        if (!$store->user_id) {
+        if (! $store->user_id) {
             return;
         }
 
@@ -221,7 +220,7 @@ class AdminStoreDeletionService
     {
         $owner = $store->user_id ? User::withTrashed()->find($store->user_id) : null;
 
-        if (!$owner) {
+        if (! $owner) {
             return;
         }
 
@@ -246,7 +245,7 @@ class AdminStoreDeletionService
     {
         $cashierIds = array_values(array_filter(array_merge($staffIds, [$ownerId])));
 
-        if ($cashierIds === [] || !Schema::hasTable('sales')) {
+        if ($cashierIds === [] || ! Schema::hasTable('sales')) {
             return;
         }
 
@@ -286,7 +285,7 @@ class AdminStoreDeletionService
     /** @param  list<string>  $userIds */
     private function revokeSessions(array $userIds): void
     {
-        if ($userIds === [] || !Schema::hasTable('personal_access_tokens')) {
+        if ($userIds === [] || ! Schema::hasTable('personal_access_tokens')) {
             return;
         }
 

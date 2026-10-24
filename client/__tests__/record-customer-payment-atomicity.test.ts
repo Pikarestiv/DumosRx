@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // Regression: recordCustomerPayment() wrote the customer_payments receipt, reduced customers.outstanding_balance, and sett…

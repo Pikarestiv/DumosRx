@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // Item 6A (Cynthia's feedback, 2026-09-28).
@@ -55,7 +55,8 @@ describe("receivePurchaseOrder cost price scale", () => {
       },
     ]);
     const po = await getPurchaseOrderById(poId);
-    return { poId, itemId: po!.items[0].id };
+    if (!po) throw new Error(`purchase order ${poId} was not created`);
+    return { poId, itemId: po.items[0].id };
   }
 
   function batchRow() {

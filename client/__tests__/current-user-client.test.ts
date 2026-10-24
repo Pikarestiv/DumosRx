@@ -16,7 +16,7 @@ describe('current user API methods', () => {
     const payload = { id: '1', first_name: 'Jane', last_name: 'Doe', email: 'jane@example.com', role: 'store_owner' };
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => payload,
+      json: () => Promise.resolve(payload),
     });
 
     const result = await apiClient.getProfile();
@@ -30,7 +30,7 @@ describe('current user API methods', () => {
     const response = { message: 'Profile updated successfully', user: { id: '1', first_name: 'Jane', last_name: 'Smith', email: 'jane@example.com', role: 'store_owner' } };
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => response,
+      json: () => Promise.resolve(response),
     });
 
     const result = await apiClient.updateProfile({ first_name: 'Jane', last_name: 'Smith', phone: '08012345678' });

@@ -32,12 +32,12 @@ return new class extends Migration
     {
         Schema::table('stores', function (Blueprint $table) {
             $table->dropColumn([
-                'store_type', 'address', 'phone', 'email', 'currency', 
-                'vat_percentage', 'pcn_license', 'receipt_header', 
-                'receipt_footer', 'show_logo_on_receipt', 
-                'show_contact_on_receipt', 'low_stock_warning', 
-                'expiry_warning', 'expiry_warning_days', 
-                '_version', '_synced_at'
+                'store_type', 'address', 'phone', 'email', 'currency',
+                'vat_percentage', 'pcn_license', 'receipt_header',
+                'receipt_footer', 'show_logo_on_receipt',
+                'show_contact_on_receipt', 'low_stock_warning',
+                'expiry_warning', 'expiry_warning_days',
+                '_version', '_synced_at',
             ]);
         });
     }

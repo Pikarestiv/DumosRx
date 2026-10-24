@@ -11,10 +11,10 @@ vi.mock("@/lib/context/auth-context", () => ({
   useAuth: () => ({ user: { id: "u1", role: "manager" } }),
 }));
 
-const getExpensesPage = vi.fn(async () => ({ rows: [], total: 0 }));
-const getExpensesLifetimeTotal = vi.fn(async () => 0);
-const getSmoothedExpensesTotal = vi.fn(async () => 0);
-const getCurrentMonthExpensesByCategory = vi.fn(async () => []);
+const getExpensesPage = vi.fn(() => Promise.resolve({ rows: [], total: 0 }));
+const getExpensesLifetimeTotal = vi.fn(() => Promise.resolve(0));
+const getSmoothedExpensesTotal = vi.fn(() => Promise.resolve(0));
+const getCurrentMonthExpensesByCategory = vi.fn(() => Promise.resolve([]));
 
 vi.mock("@/lib/db/queries/finance", () => ({
   getCurrentMonthRevenue: vi.fn(),

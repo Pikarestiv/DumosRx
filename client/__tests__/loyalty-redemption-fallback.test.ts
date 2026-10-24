@@ -58,12 +58,12 @@ describe("LoyaltyTab redemption options precedence", () => {
       /const redemptionOptions =\s*\n?\s*([\s\S]{0,160}?);/,
     );
     expect(precedenceMatch).not.toBeNull();
-    const expr = precedenceMatch![1];
+    const expr = precedenceMatch?.[1];
     expect(expr).toContain(".length > 0");
     expect(expr).toContain("buildFallbackRedemptionOptions(");
   });
 
-  it("use-customer-management.ts's buildFallbackRedemptionOptions is exported (consumable from loyalty-tab.tsx, mirroring how buildFallbackTiers backs the tiers prop)", async () => {
+  it("use-customer-management.ts's buildFallbackRedemptionOptions is exported (consumable from loyalty-tab.tsx, mirroring how buildFallbackTiers backs the tiers prop)", () => {
     const hookSource = fs.readFileSync(
       path.join(__dirname, "../lib/hooks/use-customer-management.ts"),
       "utf-8",

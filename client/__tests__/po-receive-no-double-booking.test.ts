@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // A-9. Receiving the same purchase order from two devices booked the delivery twice.
@@ -57,7 +57,8 @@ describe("receivePurchaseOrder cannot book one delivery twice", () => {
       },
     ]);
     const po = await getPurchaseOrderById(poId);
-    return { poId, itemId: po!.items[0].id };
+    if (!po) throw new Error(`purchase order ${poId} was not created`);
+    return { poId, itemId: po.items[0].id };
   }
 
   function scalar(sql: string): unknown {

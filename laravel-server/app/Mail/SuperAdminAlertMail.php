@@ -11,19 +11,20 @@ class SuperAdminAlertMail extends Mailable
     use Queueable, SerializesModels;
 
     public $alertTitle;
+
     public $messageLines;
 
     /**
      * Create a new message instance.
      *
-     * @param string $alertTitle
-     * @param array $messageLines
+     * @param  string  $alertTitle
+     * @param  array  $messageLines
      * @return void
      */
     public function __construct($alertTitle, $messageLines)
     {
         $this->alertTitle = $alertTitle;
-        $this->messageLines = is_array($messageLines) ? $messageLines : [$messageLines];
+        $this->messageLines = (array) $messageLines;
     }
 
     /**
@@ -33,13 +34,13 @@ class SuperAdminAlertMail extends Mailable
      */
     public function build()
     {
-        return $this->subject('🔔 DumosRx Admin Alert: ' . $this->alertTitle)
-                    ->html($this->buildHtmlContent());
+        return $this->subject('🔔 DumosRx Admin Alert: '.$this->alertTitle)
+            ->html($this->buildHtmlContent());
     }
 
     private function buildHtmlContent()
     {
-        $lines = array_map(function($line) {
+        $lines = array_map(function ($line) {
             return "<p style='margin-bottom: 15px;'>{$line}</p>";
         }, $this->messageLines);
 

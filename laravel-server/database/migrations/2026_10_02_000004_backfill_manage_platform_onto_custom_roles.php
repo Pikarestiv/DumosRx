@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         $permissionId = Permission::where('slug', 'manage_platform')->value('id');
-        if (!$permissionId) {
+        if (! $permissionId) {
             return;
         }
 
@@ -21,7 +21,7 @@ return new class extends Migration
     public function down(): void
     {
         $permissionId = Permission::where('slug', 'manage_platform')->value('id');
-        if (!$permissionId) {
+        if (! $permissionId) {
             return;
         }
 

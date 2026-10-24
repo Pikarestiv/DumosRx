@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { foldStockQuantities } from "@/lib/db/sync-engine/stock-integrity";
 import { collectDeviceDiagnostics } from "@/lib/db/queries/diagnostics";
-import type { DeviceDiagnostics } from "@/lib/db/queries/diagnostics";
 import { useStore } from "@/lib/context/store-context";
 import { getDeviceId } from "@/lib/utils/device-id";
 import { getDeviceLabel } from "@/lib/utils/device-label";

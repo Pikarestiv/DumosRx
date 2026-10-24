@@ -22,19 +22,19 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('stores', function (Blueprint $table) {
-            if (!Schema::hasColumn('stores', 'paystack_subaccount_code')) {
+            if (! Schema::hasColumn('stores', 'paystack_subaccount_code')) {
                 $table->string('paystack_subaccount_code')->nullable();
             }
-            if (!Schema::hasColumn('stores', 'paystack_subaccount_country')) {
+            if (! Schema::hasColumn('stores', 'paystack_subaccount_country')) {
                 $table->string('paystack_subaccount_country')->nullable();
             }
-            if (!Schema::hasColumn('stores', 'paystack_bank_code')) {
+            if (! Schema::hasColumn('stores', 'paystack_bank_code')) {
                 $table->string('paystack_bank_code')->nullable();
             }
-            if (!Schema::hasColumn('stores', 'paystack_account_number_last4')) {
+            if (! Schema::hasColumn('stores', 'paystack_account_number_last4')) {
                 $table->string('paystack_account_number_last4', 4)->nullable();
             }
-            if (!Schema::hasColumn('stores', 'paystack_fee_dirty_at')) {
+            if (! Schema::hasColumn('stores', 'paystack_fee_dirty_at')) {
                 $table->timestamp('paystack_fee_dirty_at')->nullable();
             }
         });

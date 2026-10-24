@@ -7,6 +7,18 @@ import {
 } from "@/lib/db/local-database";
 import { roundMoney } from "@/lib/utils/pos-calculations";
 import { checkIsAdmin } from "@/lib/context/auth-context";
+import {
+  getSourceProduct,
+  findDestProductId,
+  createDestProduct,
+} from "./stock-transfer-dest-product";
+
+export {
+  getTransferableProducts,
+  getStockTransferHistory,
+  type TransferableProductRow,
+  type StockTransferHistoryRow,
+} from "./stock-transfer-history";
 
 // Data-model decision (see docs/superpowers or PR description for the fuller writeup):
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-stock-transfers-L11
@@ -46,31 +58,6 @@ interface SourceBatchRow {
   created_at: string | null;
 }
 
-interface SourceProductRow {
-  id: string;
-  name: string;
-  generic_name: string | null;
-  category_id: string | null;
-  manufacturer: string | null;
-  nafdac_number: string | null;
-  dosage_form: string | null;
-  strength: string | null;
-  pack_size: string | null;
-  unit_of_measure: string | null;
-  description: string | null;
-  indications: string | null;
-  contraindications: string | null;
-  side_effects: string | null;
-  storage_conditions: string | null;
-  selling_price: number | null;
-  requires_prescription: number | null;
-  is_controlled: number | null;
-  barcode: string | null;
-  base_unit: string | null;
-  bulk_unit: string | null;
-  units_per_bulk: number | null;
-}
-
 // Available (positive-quantity, active, non-deleted, non-expired) batches for a product, FEFO-ordered — the exact same "soonest-expiring first…
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-stock-transfers-L106
 async function getAvailableSourceBatches(
@@ -83,123 +70,6 @@ async function getAvailableSourceBatches(
        AND (expiry_date IS NULL OR expiry_date = '' OR date(expiry_date) > date('now'))
      ORDER BY (expiry_date IS NULL) ASC, expiry_date ASC, created_at ASC`,
     [productId, storeId],
-  );
-}
-
-async function getSourceProduct(
-  productId: string,
-  sourceStoreId: string,
-): Promise<SourceProductRow | null> {
-  const rows = await query<SourceProductRow>(
-    `SELECT * FROM products WHERE id = ? AND _deleted = 0 AND store_id = ? LIMIT 1`,
-    [productId, sourceStoreId],
-  );
-  return rows[0] ?? null;
-}
-
-// Mirrors findExistingProductId's precedence in product-import.ts (barcode -> name+category -> name), just scoped to an explicit destStoreId i…
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-stock-transfers-ts-L103
-async function findDestProductId(
-  product: SourceProductRow,
-  destStoreId: string,
-): Promise<string | null> {
-  if (product.barcode) {
-    const byBarcode = await query<{ id: string }>(
-      `SELECT id FROM products WHERE barcode = ? AND _deleted = 0 AND store_id = ? LIMIT 1`,
-      [product.barcode, destStoreId],
-    );
-    if (byBarcode.length > 0) return byBarcode[0].id;
-  }
-
-  let categoryName: string | null = null;
-  if (product.category_id) {
-    const cat = await query<{ name: string }>(
-      `SELECT name FROM categories WHERE id = ?`,
-      [product.category_id],
-    );
-    categoryName = cat[0]?.name ?? null;
-  }
-
-  if (categoryName) {
-    const byNameAndCategory = await query<{ id: string }>(
-      `SELECT p.id FROM products p LEFT JOIN categories c ON c.id = p.category_id
-       WHERE p.name = ? COLLATE NOCASE AND c.name = ? COLLATE NOCASE AND p._deleted = 0 AND p.store_id = ?
-       LIMIT 1`,
-      [product.name, categoryName, destStoreId],
-    );
-    if (byNameAndCategory.length > 0) return byNameAndCategory[0].id;
-  }
-
-  const byNameOnly = await query<{ id: string }>(
-    `SELECT id FROM products WHERE name = ? COLLATE NOCASE AND _deleted = 0 AND store_id = ? LIMIT 1`,
-    [product.name, destStoreId],
-  );
-  return byNameOnly[0]?.id ?? null;
-}
-
-async function resolveDestCategoryId(
-  categoryId: string | null,
-  destStoreId: string,
-): Promise<string | null> {
-  if (!categoryId) return null;
-  const source = await query<{ name: string }>(
-    `SELECT name FROM categories WHERE id = ?`,
-    [categoryId],
-  );
-  const name = source[0]?.name;
-  if (!name) return null;
-
-  const existing = await query<{ id: string }>(
-    `SELECT id FROM categories WHERE name = ? COLLATE NOCASE AND _deleted = 0 AND (store_id = ? OR store_id IS NULL) LIMIT 1`,
-    [name, destStoreId],
-  );
-  if (existing.length > 0) return existing[0].id;
-
-  return await insert(
-    "categories",
-    { name, store_id: destStoreId },
-    { storeId: destStoreId },
-  );
-}
-
-// Creates the destination-store product row the first time a product is transferred to a store that's never carried it before.
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-stock-transfers-L210
-async function createDestProduct(
-  product: SourceProductRow,
-  destStoreId: string,
-): Promise<string> {
-  const destCategoryId = await resolveDestCategoryId(
-    product.category_id,
-    destStoreId,
-  );
-
-  return await insert(
-    "products",
-    {
-      name: product.name,
-      generic_name: product.generic_name ?? null,
-      category_id: destCategoryId,
-      manufacturer: product.manufacturer ?? null,
-      nafdac_number: product.nafdac_number ?? null,
-      dosage_form: product.dosage_form ?? null,
-      strength: product.strength ?? null,
-      pack_size: product.pack_size ?? null,
-      unit_of_measure: product.unit_of_measure ?? null,
-      description: product.description ?? null,
-      indications: product.indications ?? null,
-      contraindications: product.contraindications ?? null,
-      side_effects: product.side_effects ?? null,
-      storage_conditions: product.storage_conditions ?? null,
-      selling_price: product.selling_price ?? 0,
-      requires_prescription: product.requires_prescription ?? 0,
-      is_controlled: product.is_controlled ?? 0,
-      barcode: product.barcode ?? null,
-      base_unit: product.base_unit ?? "Unit",
-      bulk_unit: product.bulk_unit ?? null,
-      units_per_bulk: product.units_per_bulk ?? 1,
-      store_id: destStoreId,
-    },
-    { storeId: destStoreId },
   );
 }
 
@@ -395,89 +265,4 @@ export async function markStockTransferReviewed(
   }
 
   return legs.length;
-}
-
-export interface TransferableProductRow {
-  id: string;
-  name: string;
-  barcode: string | null;
-  base_unit: string | null;
-  available_quantity: number;
-}
-
-// Products with positive stock in `storeId`, for the transfer dialog's product picker — deliberately takes an explicit store id rather than re…
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-stock-transfers-ts-L428
-export async function getTransferableProducts(
-  storeId: string,
-): Promise<TransferableProductRow[]> {
-  return query<TransferableProductRow>(
-    `SELECT p.id, p.name, p.barcode, p.base_unit,
-            COALESCE(SUM(sb.quantity), 0) as available_quantity
-     FROM products p
-     JOIN stock_batches sb ON sb.product_id = p.id AND sb.store_id = p.store_id
-       AND sb._deleted = 0 AND sb.is_active = 1
-       AND (sb.expiry_date IS NULL OR sb.expiry_date = '' OR date(sb.expiry_date) > date('now'))
-     WHERE p._deleted = 0 AND p.store_id = ?
-     GROUP BY p.id
-     HAVING available_quantity > 0
-     ORDER BY p.name ASC`,
-    [storeId],
-  );
-}
-
-export interface StockTransferHistoryRow {
-  id: string;
-  movement_date: string | null;
-  quantity: number;
-  source_store_id: string | null;
-  source_store_name: string | null;
-  dest_store_id: string | null;
-  dest_store_name: string | null;
-  source_product_name: string | null;
-  dest_product_name: string | null;
-  unit_cost: number | null;
-  performed_by: string | null;
-  performed_by_name: string | null;
-  reason: string | null;
-}
-
-// Reconstructs one row per transfer by grouping the transfer_out side of stock_movements on reference_id and joining in its paired transfer_in…
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-stock-transfers-ts-L466
-export async function getStockTransferHistory(
-  limit = 100,
-): Promise<StockTransferHistoryRow[]> {
-  return query<StockTransferHistoryRow>(
-    `SELECT
-       o.reference_id as id,
-       MIN(o.movement_date) as movement_date,
-       SUM(-o.quantity) as quantity,
-       o.store_id as source_store_id,
-       so.name as source_store_name,
-       i.store_id as dest_store_id,
-       ds.name as dest_store_name,
-       po.name as source_product_name,
-       pi.name as dest_product_name,
-       i.unit_cost as unit_cost,
-       o.performed_by as performed_by,
-       TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) as performed_by_name,
-       o.reason as reason
-     FROM stock_movements o
-     JOIN (
-       SELECT reference_id, store_id, unit_cost, product_id
-       FROM stock_movements
-       WHERE movement_type = 'transfer_in' AND reference_type = ?
-     ) i ON i.reference_id = o.reference_id
-     LEFT JOIN stores so ON so.id = o.store_id
-     LEFT JOIN stores ds ON ds.id = i.store_id
-     -- Products joined unfiltered on purpose: a deleted product must still name its
-     -- transfer history (client/AGENTS.md; deleted-entity-procurement-history.test.ts).
-     LEFT JOIN products po ON po.id = o.product_id
-     LEFT JOIN products pi ON pi.id = i.product_id
-     LEFT JOIN users u ON u.id = o.performed_by
-     WHERE o.movement_type = 'transfer_out' AND o.reference_type = ? AND (o._deleted = 0 OR o._deleted IS NULL)
-     GROUP BY o.reference_id
-     ORDER BY movement_date DESC
-     LIMIT ?`,
-    [STOCK_TRANSFER_REFERENCE_TYPE, STOCK_TRANSFER_REFERENCE_TYPE, limit],
-  );
 }

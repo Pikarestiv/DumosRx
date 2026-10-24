@@ -163,7 +163,7 @@ describe("procurement builder discard guard", () => {
         .getAllByRole("button")
         .find((b) => b.textContent === "Discard");
       act(() => {
-        discard!.click();
+        discard?.click();
       });
       expect(push).toHaveBeenCalledWith("/procurement");
     });

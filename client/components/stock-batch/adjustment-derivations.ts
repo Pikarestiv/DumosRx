@@ -1,4 +1,5 @@
 import type { StockMovementDbRow } from "@/lib/types/stock-movement";
+import { toUtcInstant } from "@/lib/utils/date-utils";
 import {
   ADJUSTMENT_REASON_NOTE_SEPARATOR,
   AUDIT_REFERENCE_TYPE,
@@ -94,7 +95,7 @@ export interface AdjustmentFilters {
 }
 
 function movementDate(row: StockMovementDbRow): string {
-  return row.movement_date || row.created_at || "";
+  return toUtcInstant(row.movement_date || row.created_at || "");
 }
 
 /** One ledger row per distinct reference_id. A movement with no reference_id

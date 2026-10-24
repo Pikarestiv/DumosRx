@@ -44,18 +44,18 @@ class PermissionGroupPrivilegeEscalationTest extends TestCase
     {
         $owner = User::create([
             'first_name' => 'Owner', 'last_name' => 'PG',
-            'email' => 'owner-pgesc-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'email' => 'owner-pgesc-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
             'role' => 'store_owner',
         ]);
 
         return Store::create([
             'user_id' => $owner->id,
             'name' => 'Store PG Escalation',
-            'email' => 'store-pgesc-' . uniqid() . '@dumosrx.com',
+            'email' => 'store-pgesc-'.uniqid().'@dumosrx.com',
             'phone' => '1234567890',
             'address' => '123 Test St',
-            'store_slug' => 'store-pgesc-' . uniqid(),
-            'device_id' => 'WEB-PGESC-' . uniqid(),
+            'store_slug' => 'store-pgesc-'.uniqid(),
+            'device_id' => 'WEB-PGESC-'.uniqid(),
         ]);
     }
 
@@ -72,7 +72,7 @@ class PermissionGroupPrivilegeEscalationTest extends TestCase
         ]);
         $cashier = User::create([
             'first_name' => 'Cashier', 'last_name' => 'PG',
-            'email' => 'cashier-pgesc-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'email' => 'cashier-pgesc-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
             'role' => 'sales_staff', 'store_id' => $store->id, 'permission_group_id' => $ownGroup->id,
         ]);
 
@@ -129,7 +129,7 @@ class PermissionGroupPrivilegeEscalationTest extends TestCase
 
         $cashier = User::create([
             'first_name' => 'Cashier', 'last_name' => 'BF',
-            'email' => 'cashier-pgbf-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'email' => 'cashier-pgbf-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
             'role' => 'sales_staff', 'store_id' => $store->id,
             'permission_group_id' => $groups['sales_staff']['model']->id,
         ]);
@@ -193,7 +193,7 @@ class PermissionGroupPrivilegeEscalationTest extends TestCase
 
         $cashier = User::create([
             'first_name' => 'Cashier', 'last_name' => 'M1',
-            'email' => 'cashier-pgm1-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'email' => 'cashier-pgm1-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
             'role' => 'sales_staff', 'store_id' => $store->id, 'permission_group_id' => $ownGroup->id,
         ]);
 
@@ -230,7 +230,7 @@ class PermissionGroupPrivilegeEscalationTest extends TestCase
         ]);
         $cashier = User::create([
             'first_name' => 'Cashier', 'last_name' => 'BF2',
-            'email' => 'cashier-pgbf2-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'email' => 'cashier-pgbf2-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
             'role' => 'sales_staff', 'store_id' => $store->id, 'permission_group_id' => $ownGroup->id,
         ]);
 
@@ -267,7 +267,7 @@ class PermissionGroupPrivilegeEscalationTest extends TestCase
         ]);
         $cashier = User::create([
             'first_name' => 'Cashier', 'last_name' => 'BF3',
-            'email' => 'cashier-pgbf3-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'email' => 'cashier-pgbf3-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
             'role' => 'sales_staff', 'store_id' => $store->id, 'permission_group_id' => $ownGroup->id,
         ]);
 
@@ -317,7 +317,7 @@ class PermissionGroupPrivilegeEscalationTest extends TestCase
         ]);
         $cashier = User::create([
             'first_name' => 'Cashier', 'last_name' => 'PG2',
-            'email' => 'cashier-pgesc2-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'email' => 'cashier-pgesc2-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
             'role' => 'sales_staff', 'store_id' => $store->id, 'permission_group_id' => $group->id,
         ]);
 
@@ -348,7 +348,7 @@ class PermissionGroupPrivilegeEscalationTest extends TestCase
         ]);
         $cashier = User::create([
             'first_name' => 'Cashier', 'last_name' => 'PG3',
-            'email' => 'cashier-pgesc3-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'email' => 'cashier-pgesc3-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
             'role' => 'sales_staff', 'store_id' => $store->id, 'permission_group_id' => $salesGroup->id,
         ]);
 
@@ -383,7 +383,7 @@ class PermissionGroupPrivilegeEscalationTest extends TestCase
         ]);
         $manager = User::create([
             'first_name' => 'Manager', 'last_name' => 'PG4',
-            'email' => 'manager-pgesc4-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'email' => 'manager-pgesc4-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
             'role' => 'manager', 'store_id' => $store->id, 'permission_group_id' => $managerRoleGroup->id,
         ]);
 
@@ -442,7 +442,7 @@ class PermissionGroupPrivilegeEscalationTest extends TestCase
         ]);
         User::create([
             'first_name' => 'Staff', 'last_name' => 'PG5',
-            'email' => 'staff-pgesc5-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'email' => 'staff-pgesc5-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
             'role' => 'manager', 'store_id' => $store->id, 'permission_group_id' => $customGroup->id,
         ]);
 
@@ -506,7 +506,7 @@ class PermissionGroupPrivilegeEscalationTest extends TestCase
         ]);
         $cashier = User::create([
             'first_name' => 'Cashier', 'last_name' => 'PG6',
-            'email' => 'cashier-pgesc6-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'email' => 'cashier-pgesc6-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
             'role' => 'sales_staff', 'store_id' => $store->id, 'permission_group_id' => $ownGroup->id,
         ]);
 
@@ -543,7 +543,7 @@ class PermissionGroupPrivilegeEscalationTest extends TestCase
         $store = $this->makeStore();
         $cashier = User::create([
             'first_name' => 'Cashier', 'last_name' => 'PG7',
-            'email' => 'cashier-pgesc7-' . uniqid() . '@dumosrx.com', 'password' => bcrypt('password'),
+            'email' => 'cashier-pgesc7-'.uniqid().'@dumosrx.com', 'password' => bcrypt('password'),
             'role' => 'sales_staff', 'store_id' => $store->id,
         ]);
         // A fresh device's first user could be a cashier - a low-privilege

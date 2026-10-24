@@ -10,6 +10,12 @@ import { checkLoginLockout } from "@/lib/utils/login-lockout";
 
 const VERIFY_FEEDBACK_MS = 75;
 
+function lockoutEndFor(user: RecentUser | null): number | null {
+  if (!user) return null;
+  const status = checkLoginLockout(user.username);
+  return status.locked ? Date.now() + status.remainingMs : null;
+}
+
 import { UserSelection } from "./user-selection";
 import { PinEntry } from "./pin-entry";
 
@@ -38,27 +44,29 @@ export function LockScreen({
   const [hasError, setHasError] = useState(false);
   // Absolute timestamp (ms) the current lockout (if any) ends at, for `selectedUser`.
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-lock-screen-tsx-L39
-  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(() =>
+    lockoutEndFor(defaultUser || null),
+  );
+  const [now, setNow] = useState(() => Date.now());
   const { login } = useAuth();
   const router = useRouter();
 
   // Reflects any lockout already in effect the moment a user tile is selected (not just after they go on to fail 5 more time…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-lock-screen-tsx-L48
-  useEffect(() => {
-    if (!selectedUser) {
-      setLockedUntil(null);
-      return;
-    }
-    const status = checkLoginLockout(selectedUser.username);
-    setLockedUntil(status.locked ? Date.now() + status.remainingMs : null);
-  }, [selectedUser]);
+  const selectUser = (user: RecentUser | null) => {
+    setSelectedUser(user);
+    setLockedUntil(lockoutEndFor(user));
+    setNow(Date.now());
+  };
 
   // Live countdown: re-checks once a second so the displayed time (and the disabled state) updates on its own, and clears it…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-lock-screen-tsx-L62
   useEffect(() => {
     if (!lockedUntil) return;
     const interval = setInterval(() => {
-      if (Date.now() >= lockedUntil) {
+      const tick = Date.now();
+      setNow(tick);
+      if (tick >= lockedUntil) {
         setLockedUntil(null);
       }
     }, 1000);
@@ -66,7 +74,7 @@ export function LockScreen({
   }, [lockedUntil]);
 
   const lockoutRemainingMs =
-    lockedUntil !== null ? Math.max(0, lockedUntil - Date.now()) : null;
+    lockedUntil !== null ? Math.max(0, lockedUntil - now) : null;
 
   // Re-checks login-lockout.ts's actual state for selectedUser and applies it to `lockedUntil` if locked.
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-lock-screen-tsx-L79
@@ -74,7 +82,9 @@ export function LockScreen({
     if (!selectedUser) return false;
     const status = checkLoginLockout(selectedUser.username);
     if (status.locked) {
-      setLockedUntil(Date.now() + status.remainingMs);
+      const checkedAt = Date.now();
+      setNow(checkedAt);
+      setLockedUntil(checkedAt + status.remainingMs);
       return true;
     }
     return false;
@@ -144,7 +154,7 @@ export function LockScreen({
           <UserSelection
             key="grid"
             recentUsers={recentUsers}
-            onSelectUser={setSelectedUser}
+            onSelectUser={selectUser}
             onRemoveUser={onRemoveRecentUser}
             onLoginAsOther={onLoginAsOther}
             onSetUpNewDevice={onSetUpNewDevice}
@@ -162,7 +172,7 @@ export function LockScreen({
             handleLogin={handleLogin}
             onAutoSubmit={(p) => void attemptLogin(p)}
             onBack={() => {
-              setSelectedUser(null);
+              selectUser(null);
               setPin("");
             }}
           />

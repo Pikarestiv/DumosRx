@@ -18,7 +18,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('stores', function (Blueprint $table) {
-            if (!Schema::hasColumn('stores', 'receipt_logo_position')) {
+            if (! Schema::hasColumn('stores', 'receipt_logo_position')) {
                 $table->string('receipt_logo_position')->default('above');
             }
         });

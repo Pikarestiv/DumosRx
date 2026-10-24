@@ -1,14 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import type { POSProduct as Product } from "@/lib/types/product";
 
 vi.mock("@/lib/hooks/use-stock-visibility", () => ({
   useStockVisibility: () => ({ canSeeQuantities: true }),
 }));
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("@/lib/context/store-context", () => ({
@@ -27,7 +28,7 @@ vi.mock("sonner", () => ({
   },
 }));
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("usePOSCart reseller mode", () => {
   let usePOSCart: typeof import("@/lib/hooks/use-pos-cart").usePOSCart;
@@ -41,7 +42,7 @@ describe("usePOSCart reseller mode", () => {
     strength: "",
     unit_price: 100,
     stock: 50,
-  } as any;
+  } as unknown as Product;
 
   beforeEach(async () => {
     usePOSCart = (await import("@/lib/hooks/use-pos-cart")).usePOSCart;
@@ -63,7 +64,7 @@ describe("usePOSCart reseller mode", () => {
     return { get: () => hookResult };
   }
 
-  it("allows updateUnitPrice below the original price but never below zero", async () => {
+  it("allows updateUnitPrice below the original price but never below zero", () => {
     const handle = renderCart();
     act(() => handle.get().clearCart());
     act(() => handle.get().addToCart(product));
@@ -80,7 +81,7 @@ describe("usePOSCart reseller mode", () => {
     expect(handle.get().cart[0].unit_price).toBe(0);
   });
 
-  it("reverts all item prices to original when isResellerSale is turned off", async () => {
+  it("reverts all item prices to original when isResellerSale is turned off", () => {
     const handle = renderCart();
     act(() => handle.get().clearCart());
     act(() => handle.get().addToCart(product));
@@ -94,7 +95,7 @@ describe("usePOSCart reseller mode", () => {
     expect(handle.get().isResellerSale).toBe(false);
   });
 
-  it("resets isResellerSale on clearCart", async () => {
+  it("resets isResellerSale on clearCart", () => {
     const handle = renderCart();
     act(() => handle.get().setIsResellerSale(true));
     act(() => handle.get().clearCart());

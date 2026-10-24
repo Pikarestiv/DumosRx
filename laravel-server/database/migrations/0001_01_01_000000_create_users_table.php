@@ -18,24 +18,24 @@ return new class extends Migration
             $table->string('first_name');
             $table->string('last_name');
             $table->string('phone')->nullable();
-            
+
             // Legacy role column mirroring, nullable if we transition to pure RBAC
             // Keeping it for now to ease migration from Postgres ENUM
-            $table->string('role')->default('pharmacist'); 
+            $table->string('role')->default('pharmacist');
 
             $table->boolean('is_active')->default(true);
             $table->timestamp('last_login_at')->nullable();
-            
+
             // New foreign key for robust RBAC
-            // $table->foreignId('role_id')->nullable()->constrained(); 
-            // We will add role_id in a separate migration after roles table exists if needed, 
+            // $table->foreignId('role_id')->nullable()->constrained();
+            // We will add role_id in a separate migration after roles table exists if needed,
             // or just rely on the 'role' string if the system is simple.
-            // Plan said "Create User, Role, and Permission models". 
-            // So we should probably link them. 
+            // Plan said "Create User, Role, and Permission models".
+            // So we should probably link them.
             // Let's add role_id here assuming roles table helps manage permissions.
             // But we can't add constraint if roles table isn't created yet or if we want to defer.
             // Let's stick to mirroring first. The legacy system relied on the string.
-            
+
             $table->rememberToken();
             $table->timestamps();
         });

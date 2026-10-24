@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Clock } from "lucide-react";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
@@ -62,7 +62,18 @@ function EditOrderContent() {
   });
   const isLoading = !id || poQuery.isLoading;
 
-  const seededPoIdRef = useRef<string | null>(null);
+  const [seededPoId, setSeededPoId] = useState<string | null>(null);
+  const poData = poQuery.data;
+  if (id && !poQuery.isError && poData && seededPoId !== id) {
+    setSeededPoId(id);
+    if (poData.type === "immediate") setPoType("immediate");
+    setSelectedSupplierId(poData.supplier_id || SELF_PURCHASE_VENDOR_ID);
+    setNotes(poData.notes || "");
+    setItems(poData.items || []);
+    setPaymentStatus(poData.payment_status || "unpaid");
+    setAmountPaid(poData.amount_paid?.toString() || "");
+    setDueDate(poData.due_date || "");
+  }
 
   useEffect(() => {
     if (!id) return;
@@ -73,24 +84,10 @@ function EditOrderContent() {
       });
       return;
     }
-    if (poQuery.data === undefined) return;
     if (poQuery.data === null) {
       toast.error("Purchase order not found");
       router.push("/procurement");
-      return;
     }
-    // Only seed the form once per PO id — a background refetch (e.g.
-    // Rationale: docs/CLIENT_COMMENTS.md#line-app-(dashboard)-procurement-edit-page-tsx-L89
-    if (seededPoIdRef.current === id) return;
-    seededPoIdRef.current = id;
-    if (poQuery.data.type === "immediate") setPoType("immediate");
-    const poData = poQuery.data;
-    setSelectedSupplierId(poData.supplier_id || SELF_PURCHASE_VENDOR_ID);
-    setNotes(poData.notes || "");
-    setItems(poData.items || []);
-    setPaymentStatus(poData.payment_status || "unpaid");
-    setAmountPaid(poData.amount_paid?.toString() || "");
-    setDueDate(poData.due_date || "");
   }, [id, poQuery.data, poQuery.isError, poQuery.error, router]);
 
   const handleOpenAddProduct = (productData: Partial<ProductViewModel>) => {

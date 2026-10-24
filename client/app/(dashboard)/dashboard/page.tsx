@@ -1,19 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 import { DashboardOverview } from "@/components/dashboard/dashboard-overview";
 import { useAuth } from "@/lib/context/auth-context";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 
 export default function DashboardPage() {
   const { isAuthenticated, user: _user } = useAuth();
 
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
+  const mounted = useHydrated();
 
   if (!mounted) {
     return (

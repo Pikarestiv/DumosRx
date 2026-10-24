@@ -3,14 +3,15 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { HeldTransaction } from "@/lib/db/queries/sales";
+import type { POSProduct as Product } from "@/lib/types/product";
 
 vi.mock("@/lib/hooks/use-stock-visibility", () => ({
   useStockVisibility: () => ({ canSeeQuantities: true }),
 }));
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("@/lib/context/store-context", () => ({
@@ -21,8 +22,8 @@ vi.mock("@/lib/hooks/use-feature-gate", () => ({
   useFeatureGate: () => ({ canUseLoyaltyProgram: false }),
 }));
 
-const insertMock = vi.fn(async () => undefined);
-const removeMock = vi.fn(async () => undefined);
+const insertMock = vi.fn(() => Promise.resolve(undefined));
+const removeMock = vi.fn(() => Promise.resolve(undefined));
 vi.mock("@/lib/db/local-database", () => ({
   insert: (...args: unknown[]) => insertMock(...(args as [])),
   remove: (...args: unknown[]) => removeMock(...(args as [])),
@@ -36,7 +37,7 @@ const toastMock = {
 };
 vi.mock("sonner", () => ({ toast: toastMock }));
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // A-59: holding a reseller sale dropped `is_reseller_sale`/`markup_type` and re-quoted every line at the current catalog p…
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-pos-held-transactions-reseller-recall-test-ts-L37
@@ -53,13 +54,13 @@ describe("usePOSHeldTransactions — reseller recall and delete ordering", () =>
     strength: "",
     unit_price: 1000,
     stock: 50,
-  } as any;
+  } as unknown as Product;
 
   beforeEach(async () => {
     vi.resetModules();
     insertMock.mockClear();
     removeMock.mockReset();
-    removeMock.mockImplementation(async () => undefined);
+    removeMock.mockImplementation(() => Promise.resolve(undefined));
     Object.values(toastMock).forEach((fn) => fn.mockClear());
     usePOSCart = (await import("@/lib/hooks/use-pos-cart")).usePOSCart;
     usePOSHeldTransactions = (
@@ -199,9 +200,9 @@ describe("usePOSHeldTransactions — reseller recall and delete ordering", () =>
   it("leaves the cart untouched when deleting the held row fails", async () => {
     const handle = renderHooks();
     act(() => handle.cart().addToCart(product));
-    removeMock.mockImplementation(async () => {
-      throw new Error("Database is read-only in this tab");
-    });
+    removeMock.mockImplementation(() =>
+      Promise.reject(new Error("Database is read-only in this tab")),
+    );
 
     await act(async () => {
       await handle.held().handleRecallTransaction(resellerHeld);

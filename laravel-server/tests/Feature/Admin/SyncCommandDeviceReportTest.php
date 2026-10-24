@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Models\SyncCommand;
 use App\Models\User;
 use App\Services\Admin\SyncCommandService;
 use Illuminate\Foundation\Testing\RefreshDatabase;

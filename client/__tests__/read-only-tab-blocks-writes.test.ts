@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import initSqlJs from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // Proves core.ts's write path actually enforces the single-writer-tab election from tab-lock.ts (docs/KNOWN_BUGS.md C1):

@@ -26,7 +26,7 @@ class DashboardService
 
         // Date ranges
         $now = Carbon::now();
-        
+
         switch ($period) {
             case '30d':
                 $currentStartDate = $now->copy()->subDays(30);
@@ -65,11 +65,11 @@ class DashboardService
         $salesGrowth = 0;
         try {
             $totalSales = (float) Sale::whereIn('cashier_id', $userIds)->sum('total_amount');
-            
+
             $salesThisPeriod = (float) Sale::whereIn('cashier_id', $userIds)
                 ->where('created_at', '>=', $currentStartDate)
                 ->sum('total_amount');
-                
+
             $salesPrevPeriod = 0;
             if ($previousStartDate && $previousEndDate) {
                 $salesPrevPeriod = (float) Sale::whereIn('cashier_id', $userIds)

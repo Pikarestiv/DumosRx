@@ -21,14 +21,14 @@ beforeAll(() => {
 
 vi.mock("@/lib/api/client", () => ({
   apiClient: {
-    getPaymentBanks: vi.fn(async () => ({ banks: [{ name: "GTBank", code: "058" }] })),
-    resolvePaymentAccount: vi.fn(async () => ({ account_name: "JANE M DOE", verifiable: true })),
-    createPaymentAccount: vi.fn(async () => ({ message: "Payment account connected." })),
+    getPaymentBanks: vi.fn(() => Promise.resolve({ banks: [{ name: "GTBank", code: "058" }] })),
+    resolvePaymentAccount: vi.fn(() => Promise.resolve({ account_name: "JANE M DOE", verifiable: true })),
+    createPaymentAccount: vi.fn(() => Promise.resolve({ message: "Payment account connected." })),
   },
 }));
 
 vi.mock("@/lib/db/sync-engine", () => ({
-  sync: vi.fn(async () => ({ success: true, pushed: 0, pulled: 0 })),
+  sync: vi.fn(() => Promise.resolve({ success: true, pushed: 0, pulled: 0 })),
 }));
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -45,7 +45,7 @@ describe("OnlinePaymentsSection", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("resolves the account name before allowing the owner to confirm and connect", async () => {
-    render(<OnlinePaymentsSection storeId="store-1" storeName="Jane's Pharmacy" />, { wrapper });
+    render(<OnlinePaymentsSection storeId="store-1" />, { wrapper });
 
     await pickOption(/country/i, /nigeria/i);
     await pickOption(/bank/i, /gtbank/i);
@@ -80,7 +80,7 @@ describe("OnlinePaymentsSection", () => {
       verifiable: false,
     });
 
-    render(<OnlinePaymentsSection storeId="store-1" storeName="Jane's Pharmacy" />, { wrapper });
+    render(<OnlinePaymentsSection storeId="store-1" />, { wrapper });
 
     await pickOption(/country/i, /rwanda/i);
     fireEvent.change(await screen.findByLabelText(/bank name/i), { target: { value: "Bank of Kigali" } });
@@ -114,7 +114,7 @@ describe("OnlinePaymentsSection", () => {
       verifiable: true,
     });
 
-    render(<OnlinePaymentsSection storeId="store-1" storeName="Jane's Pharmacy" />, { wrapper });
+    render(<OnlinePaymentsSection storeId="store-1" />, { wrapper });
 
     await pickOption(/country/i, /nigeria/i);
     await pickOption(/bank/i, /gtbank/i);
@@ -132,7 +132,6 @@ describe("OnlinePaymentsSection", () => {
     render(
       <OnlinePaymentsSection
         storeId="store-1"
-        storeName="Jane's Pharmacy"
         connectedSubaccountCode="ACCT_live123"
         connectedBankCode="058"
         connectedAccountLast4="6789"

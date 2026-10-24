@@ -28,7 +28,7 @@ class StockDivergenceService
     private const STALE_AFTER_HOURS = 48;
 
     /**
-     * @param  array{batch_count: int, quantity_sum: float|int, value_sum?: float|int}  $fingerprint
+     * @param  array<mixed>  $fingerprint  as the device sent it, unvalidated
      */
     public function record(string $storeId, string $deviceId, ?string $userId, array $fingerprint): DeviceStockReport
     {
@@ -79,8 +79,7 @@ class StockDivergenceService
             $serverValue = $report->server_value_sum === null ? null : (float) $report->server_value_sum;
 
             $hasLocalCopy = $report->device_batch_count > 0 || $report->server_batch_count === 0;
-            $isStale = $report->reported_at === null
-                || $report->reported_at->lt(now()->subHours(self::STALE_AFTER_HOURS));
+            $isStale = $report->reported_at->lt(now()->subHours(self::STALE_AFTER_HOURS));
             $disagrees = abs($quantityDelta) > self::EPSILON || $batchDelta !== 0;
 
             return [
@@ -101,7 +100,7 @@ class StockDivergenceService
                 'has_local_copy' => $hasLocalCopy,
                 'stale' => $isStale,
                 'diverged' => $disagrees && $hasLocalCopy && ! $isStale,
-                'reported_at' => $report->reported_at?->toIso8601String(),
+                'reported_at' => $report->reported_at->toIso8601String(),
             ];
         })->values()->all();
 

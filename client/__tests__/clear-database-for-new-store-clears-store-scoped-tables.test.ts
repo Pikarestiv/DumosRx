@@ -7,7 +7,7 @@ import { STORE_SCOPED_TABLES } from "@/lib/db/schema-migrations";
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-clear-database-for-new-store-clears-store-scoped-tables-test-ts-L6
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
   set: vi.fn(async () => {}),
   del: vi.fn(async () => {}),
 }));

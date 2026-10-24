@@ -12,8 +12,8 @@ const {
   mockImpersonateMutate,
   environment,
 } = vi.hoisted(() => ({
-  mockDeleteMutateAsync: vi.fn(async () => undefined),
-  mockToggleMutateAsync: vi.fn(async () => undefined),
+  mockDeleteMutateAsync: vi.fn(() => Promise.resolve(undefined)),
+  mockToggleMutateAsync: vi.fn(() => Promise.resolve(undefined)),
   mockToastError: vi.fn(),
   mockImpersonateMutate: vi.fn(),
   environment: { name: "Local Server", appUrl: "https://app.dumosrx.com" },

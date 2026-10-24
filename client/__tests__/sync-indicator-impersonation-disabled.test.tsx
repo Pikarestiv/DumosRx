@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // jsdom doesn't implement matchMedia; components/ui/tooltip.tsx's touch detection needs it to exist to mount at all.
 // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sync-indicator-impersonation-disabled-test-tsx-L7
@@ -19,14 +19,14 @@ if (!window.matchMedia) {
   })) as unknown as typeof window.matchMedia;
 }
 
-const mockSync = vi.fn(async () => ({ success: true, pushed: 0, pulled: 0 }));
+const mockSync = vi.fn(() => Promise.resolve({ success: true, pushed: 0, pulled: 0 }));
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => ({ data: 0 }),
 }));
 
 vi.mock("@/lib/db/queries/setup", () => ({
-  getSyncQueueCount: vi.fn(async () => 0),
+  getSyncQueueCount: vi.fn(() => Promise.resolve(0)),
 }));
 
 vi.mock("@/lib/db/sync-engine", () => ({
@@ -99,7 +99,7 @@ describe("SyncIndicator during an impersonated session", () => {
       "@/components/dashboard/sync-indicator"
     );
     root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(SyncIndicator, { collapsed: false }));
     });
   }
@@ -115,7 +115,7 @@ describe("SyncIndicator during an impersonated session", () => {
       '[data-testid="sync-now-button"]',
     );
     expect(button).not.toBeNull();
-    expect(button!.disabled).toBe(true);
+    expect(button?.disabled).toBe(true);
   });
 
   it("never installs the auto-sync daemon, so no background sync can fire", async () => {
@@ -134,7 +134,7 @@ describe("SyncIndicator during an impersonated session", () => {
   it("explains itself (toast) rather than silently ignoring a click on the card", async () => {
     await render(true);
     const card = container.querySelector("#tour-sync-indicator") as HTMLElement;
-    await act(async () => {
+    await act(() => {
       card.click();
     });
     expect(mockSync).not.toHaveBeenCalled();
@@ -148,10 +148,10 @@ describe("SyncIndicator during an impersonated session", () => {
     const button = container.querySelector<HTMLButtonElement>(
       '[data-testid="sync-now-button"]',
     );
-    expect(button!.disabled).toBe(false);
+    expect(button?.disabled).toBe(false);
 
     expect(registeredListener).not.toBeNull();
-    await act(async () => {
+    await act(() => {
       registeredListener?.(["products"]);
     });
     await act(async () => {

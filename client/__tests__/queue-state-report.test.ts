@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 /**
@@ -41,6 +41,12 @@ describe("buildQueueStateReport", () => {
     );
   };
 
+  const requireReport = async () => {
+    const report = await buildQueueStateReport("store-1");
+    if (!report) throw new Error("expected a queue-state report");
+    return report;
+  };
+
   it("reports the whole queue depth, not just the stuck part", async () => {
     queue(1, 0);
     queue(2, 1);
@@ -64,7 +70,7 @@ describe("buildQueueStateReport", () => {
   it("carries the table, record and attempt count an operator needs", async () => {
     queue(1, 7, "sync_disabled", "stock_movements");
 
-    const [item] = (await buildQueueStateReport("store-1"))!.stuck;
+    const [item] = (await requireReport()).stuck;
 
     expect(item.table_name).toBe("stock_movements");
     expect(item.record_id).toBe("rec-1");
@@ -76,7 +82,7 @@ describe("buildQueueStateReport", () => {
   it("strips the reported marker from the reason", async () => {
     queue(1, 6, "[REPORTED] forbidden");
 
-    expect((await buildQueueStateReport("store-1"))!.stuck[0].reason).toBe("forbidden");
+    expect((await requireReport()).stuck[0].reason).toBe("forbidden");
   });
 
   /**
@@ -91,7 +97,7 @@ describe("buildQueueStateReport", () => {
       "SQLSTATE[23000]: Duplicate entry '08012345678' for key 'customers.phone_unique' (SQL: insert into customers (name, phone) values ('Ada Okonkwo', '08012345678'))",
     );
 
-    const [item] = (await buildQueueStateReport("store-1"))!.stuck;
+    const [item] = (await requireReport()).stuck;
 
     expect(item.reason).toBe("server_error");
     expect(JSON.stringify(item)).not.toContain("Ada Okonkwo");
@@ -101,7 +107,7 @@ describe("buildQueueStateReport", () => {
   it("reports an unrecognised reason as other rather than echoing it", async () => {
     queue(1, 6, "something nobody mapped yet");
 
-    expect((await buildQueueStateReport("store-1"))!.stuck[0].reason).toBe("other");
+    expect((await requireReport()).stuck[0].reason).toBe("other");
   });
 
   it("bounds the reported list", async () => {
@@ -109,10 +115,10 @@ describe("buildQueueStateReport", () => {
       queue(i, 6, "forbidden");
     }
 
-    const report = await buildQueueStateReport("store-1");
+    const report = await requireReport();
 
-    expect(report!.stuck.length).toBeLessThanOrEqual(50);
-    expect(report!.queue_depth).toBe(80);
+    expect(report.stuck.length).toBeLessThanOrEqual(50);
+    expect(report.queue_depth).toBe(80);
   });
 
   it("returns null rather than throwing without an active store", async () => {

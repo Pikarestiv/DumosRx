@@ -28,24 +28,29 @@ export function TransferProductPicker({
   emptyText: string;
   showQuantities: boolean;
 }) {
+  const selected = products.find((p) => p.id === productId) ?? null;
   const [open, setOpen] = useState(false);
-  const [term, setTerm] = useState("");
+  const [term, setTerm] = useState(selected ? selected.name : "");
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [syncedSelection, setSyncedSelection] = useState({ selected, open });
+  const [indexedSearch, setIndexedSearch] = useState({ term, open });
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   // Product names are always stored lowercase — same display convention as everywhere else product names render (stock-movem…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-stock-batch-transfer-product-picker-tsx-L56
   const capsClass = useUppercaseDisplayClass();
 
-  const selected = products.find((p) => p.id === productId) ?? null;
-
   // Shows the selected product's name while closed/not being typed into; reverts to it (or blank) on close without a pick, s…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-stock-batch-transfer-product-picker-tsx-L63
-  useEffect(() => {
+  if (syncedSelection.selected !== selected || syncedSelection.open !== open) {
+    setSyncedSelection({ selected, open });
     if (!open) setTerm(selected ? selected.name : "");
-  }, [selected, open]);
+  }
 
-  useEffect(() => setActiveIndex(-1), [term, open]);
+  if (indexedSearch.term !== term || indexedSearch.open !== open) {
+    setIndexedSearch({ term, open });
+    setActiveIndex(-1);
+  }
 
   const { results } = useMemo(() => searchProducts(term, products), [term, products]);
   const filtered = results.slice(0, 50);

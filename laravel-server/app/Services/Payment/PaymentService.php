@@ -10,9 +10,11 @@ use Illuminate\Support\Facades\Log;
 class PaymentService
 {
     protected $paystackKey;
+
     protected $flutterwaveKey;
 
     private const REQUEST_TIMEOUT_SECONDS = 10;
+
     private const CONNECT_TIMEOUT_SECONDS = 5;
 
     public function __construct()
@@ -32,16 +34,16 @@ class PaymentService
         $paystackEnabled = $systemConfig['enable_paystack'] ?? true;
         $flutterwaveEnabled = $systemConfig['enable_flutterwave'] ?? true;
 
-        if (!$paystackEnabled && !$flutterwaveEnabled) {
-            throw new \Exception("No payment gateways are currently enabled by the administrator.");
+        if (! $paystackEnabled && ! $flutterwaveEnabled) {
+            throw new \Exception('No payment gateways are currently enabled by the administrator.');
         }
 
-        if ($paystackEnabled && !$flutterwaveEnabled) {
+        if ($paystackEnabled && ! $flutterwaveEnabled) {
             // Only Paystack is enabled
             return $this->initializePaystack($amount, $email, $metadata, $callbackUrl, $subaccount, $currency);
         }
 
-        if (!$paystackEnabled && $flutterwaveEnabled) {
+        if (! $paystackEnabled) {
             // Only Flutterwave is enabled
             return $this->initializeFlutterwave($amount, $email, $metadata, $callbackUrl);
         }
@@ -50,14 +52,14 @@ class PaymentService
         try {
             return $this->initializePaystack($amount, $email, $metadata, $callbackUrl, $subaccount, $currency);
         } catch (\Exception $e) {
-            Log::warning("Paystack initialization failed, falling back to Flutterwave: " . $e->getMessage());
+            Log::warning('Paystack initialization failed, falling back to Flutterwave: '.$e->getMessage());
 
             // Fallback to Flutterwave
             try {
                 return $this->initializeFlutterwave($amount, $email, $metadata, $callbackUrl);
             } catch (\Exception $fe) {
-                Log::error("Both payment gateways failed: " . $fe->getMessage());
-                throw new \Exception("Unable to initialize payment gateway. Please try again later.");
+                Log::error('Both payment gateways failed: '.$fe->getMessage());
+                throw new \Exception('Unable to initialize payment gateway. Please try again later.');
             }
         }
     }
@@ -73,7 +75,7 @@ class PaymentService
     {
         $systemConfig = \App\Models\SystemConfig::getVal('subscription_plans', []);
 
-        if (!($systemConfig['enable_paystack'] ?? true)) {
+        if (! ($systemConfig['enable_paystack'] ?? true)) {
             throw new \Exception('Online storefront payments are currently disabled by the administrator.');
         }
 
@@ -121,7 +123,7 @@ class PaymentService
             'amount' => (int) round($amount * 100), // Paystack uses kobo
             'email' => $email,
             'metadata' => $metadata,
-            'callback_url' => $callbackUrl ?? (config('app.frontend_url') . '/dashboard/subscription/verify'),
+            'callback_url' => $callbackUrl ?? (config('app.frontend_url').'/dashboard/subscription/verify'),
         ];
 
         if ($subaccount !== null) {
@@ -134,8 +136,8 @@ class PaymentService
         $response = $this->paystackClient()
             ->post('https://api.paystack.co/transaction/initialize', $payload);
 
-        if (!$response->successful()) {
-            throw new \Exception("Paystack Error: " . $response->body());
+        if (! $response->successful()) {
+            throw new \Exception('Paystack Error: '.$response->body());
         }
 
         $data = $response->json();
@@ -143,7 +145,7 @@ class PaymentService
         return [
             'provider' => 'paystack',
             'reference' => $data['data']['reference'],
-            'checkout_url' => $data['data']['authorization_url']
+            'checkout_url' => $data['data']['authorization_url'],
         ];
     }
 
@@ -154,14 +156,14 @@ class PaymentService
         // out of the response therefore stored a NULL reference on the
         // PaymentTransaction, so no webhook or verify call could ever match
         // it again. Keep the locally generated ref and return that.
-        $txRef = 'DRX-FW-' . uniqid();
+        $txRef = 'DRX-FW-'.uniqid();
 
         $response = $this->flutterwaveClient()
             ->post('https://api.flutterwave.com/v3/payments', [
                 'tx_ref' => $txRef,
                 'amount' => $amount,
                 'currency' => 'NGN',
-                'redirect_url' => $callbackUrl ?? (config('app.frontend_url') . '/dashboard/subscription/verify'),
+                'redirect_url' => $callbackUrl ?? (config('app.frontend_url').'/dashboard/subscription/verify'),
                 'customer' => [
                     'email' => $email,
                 ],
@@ -169,11 +171,11 @@ class PaymentService
                 'customizations' => [
                     'title' => 'DumosRx Subscription',
                     'description' => 'Payment for medical inventory platform',
-                ]
+                ],
             ]);
 
-        if (!$response->successful()) {
-            throw new \Exception("Flutterwave Error: " . $response->body());
+        if (! $response->successful()) {
+            throw new \Exception('Flutterwave Error: '.$response->body());
         }
 
         $data = $response->json();
@@ -181,7 +183,7 @@ class PaymentService
         return [
             'provider' => 'flutterwave',
             'reference' => $txRef, // Note: FW uses tx_ref for tracking
-            'checkout_url' => $data['data']['link']
+            'checkout_url' => $data['data']['link'],
         ];
     }
 
@@ -206,11 +208,12 @@ class PaymentService
             return $this->unverifiableResult('paystack', $reference, $e);
         }
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             return ['success' => false, 'message' => 'Paystack verification failed'];
         }
 
         $data = $response->json();
+
         return [
             'success' => $data['data']['status'] === 'success',
             'amount' => $data['data']['amount'] / 100,
@@ -218,7 +221,7 @@ class PaymentService
             // Callers must assert it, otherwise a charge in a weaker unit
             // (e.g. 5000 of some other currency) can satisfy a naira amount.
             'currency' => $data['data']['currency'] ?? null,
-            'data' => $data['data']
+            'data' => $data['data'],
         ];
     }
 
@@ -247,16 +250,17 @@ class PaymentService
             return $this->unverifiableResult('flutterwave', $reference, $e);
         }
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             return ['success' => false, 'message' => 'Flutterwave verification failed'];
         }
 
         $data = $response->json();
+
         return [
             'success' => $data['data']['status'] === 'successful',
             'amount' => $data['data']['amount'],
             'currency' => $data['data']['currency'] ?? null,
-            'data' => $data['data']
+            'data' => $data['data'],
         ];
     }
 }

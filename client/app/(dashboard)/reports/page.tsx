@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { CalendarIcon } from "lucide-react";
 import { ReportCenter } from "@/components/reports/report-center";
@@ -23,6 +23,17 @@ const BusinessIntelligenceDashboard = dynamic(
   { ssr: false },
 );
 
+function resolveReportsTab(
+  tabParam: string,
+  canViewReports: boolean,
+  defaultTab: string,
+): string {
+  if (tabParam === "daily_close") return "daily_close";
+  if (canViewReports && tabParam === "analytics") return "analytics";
+  if (canViewReports && tabParam === "reports") return "reports";
+  return defaultTab;
+}
+
 export default function ReportsPage() {
   const { t: _t, storeType: _storeType } = useStore();
   const canViewReports = useHasPermission("view_reports");
@@ -32,23 +43,17 @@ export default function ReportsPage() {
   const tabParam = searchParams.get("tab");
   const defaultTab = canViewReports ? "reports" : "daily_close";
 
-  const [activeTab, setActiveTab] = useState(() => {
-    if (tabParam === "daily_close") return "daily_close";
-    if (canViewReports && tabParam === "analytics") return "analytics";
-    if (canViewReports && tabParam === "reports") return "reports";
-    return defaultTab;
-  });
+  const resolvedParamTab = tabParam
+    ? resolveReportsTab(tabParam, canViewReports, defaultTab)
+    : null;
+  const [activeTab, setActiveTab] = useState(resolvedParamTab ?? defaultTab);
+  const [syncedParamTab, setSyncedParamTab] = useState(resolvedParamTab);
+  if (resolvedParamTab !== syncedParamTab) {
+    setSyncedParamTab(resolvedParamTab);
+    if (resolvedParamTab) setActiveTab(resolvedParamTab);
+  }
 
   const [reportDate, setReportDate] = useState(getLocalTodayDate());
-
-  useEffect(() => {
-    if (tabParam) {
-      if (tabParam === "daily_close") setActiveTab("daily_close");
-      else if (canViewReports && tabParam === "analytics") setActiveTab("analytics");
-      else if (canViewReports && tabParam === "reports") setActiveTab("reports");
-      else setActiveTab(defaultTab);
-    }
-  }, [tabParam, canViewReports, defaultTab]);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);

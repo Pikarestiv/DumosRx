@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // U9: the staff list rendered a green "PIN set" pill unconditionally, because StaffListItem structurally omits `pin` — so…
@@ -67,9 +67,9 @@ describe("getUsers has_pin", () => {
     const users = await getUsers("store-a");
     const byId = new Map(users.map((u) => [u.id, u]));
 
-    expect(byId.get("with-pin")!.has_pin).toBe(1);
-    expect(byId.get("no-pin")!.has_pin).toBe(0);
-    expect(byId.get("empty-pin")!.has_pin).toBe(0);
+    expect(byId.get("with-pin")?.has_pin).toBe(1);
+    expect(byId.get("no-pin")?.has_pin).toBe(0);
+    expect(byId.get("empty-pin")?.has_pin).toBe(0);
     for (const user of users) {
       expect((user as Record<string, unknown>).pin).toBeUndefined();
     }

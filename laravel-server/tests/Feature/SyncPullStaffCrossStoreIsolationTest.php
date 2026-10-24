@@ -25,8 +25,11 @@ class SyncPullStaffCrossStoreIsolationTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $storeA;
+
     protected Store $storeB;
+
     protected User $staffOfA;
 
     protected function setUp(): void
@@ -84,6 +87,7 @@ class SyncPullStaffCrossStoreIsolationTest extends TestCase
         if ($storeIdHeader) {
             $request = $request->withHeader('X-Store-Id', $storeIdHeader);
         }
+
         return $request->postJson('/api/v1/app/sync/pull', ['last_synced' => []]);
     }
 
@@ -223,7 +227,7 @@ class SyncPullStaffCrossStoreIsolationTest extends TestCase
     public function the_header_independent_table_list_matches_what_the_scope_actually_ignores(): void
     {
         $controller = app(\App\Http\Controllers\Api\App\SyncController::class);
-        $apply = new \ReflectionMethod($controller, 'applyPullTenantScope');
+        $scoper = app(\App\Services\Sync\PullTenantScope::class);
         $sentinel = 'store-header-sentinel';
         $scope = ['ownerId' => 'owner', 'storeIds' => [$sentinel], 'ownedStoreIds' => ['owned'], 'storeRowIds' => ['owned'], 'userIds' => ['user']];
 
@@ -231,13 +235,13 @@ class SyncPullStaffCrossStoreIsolationTest extends TestCase
         foreach (['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'sale_items', 'sale_item_batches', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments', 'returns', 'return_items', 'prescriptions', 'prescription_items', 'loyalty_tiers', 'loyalty_redemption_options', 'stock_audits', 'held_transactions', 'loyalty_transactions', 'customer_payments', 'audit_logs', 'permission_groups'] as $table) {
             $modelClass = $controller->getModelForTable($table);
             $query = $modelClass::query();
-            $apply->invoke($controller, $query, $table, $scope);
-            if ($table !== 'users' && !in_array($sentinel, $query->getBindings(), true)) {
+            $scoper->applyPullTenantScope($query, $table, $scope);
+            if ($table !== 'users' && ! in_array($sentinel, $query->getBindings(), true)) {
                 $independent[] = $table;
             }
         }
 
-        $listed = (new \ReflectionClassConstant($controller, 'PULL_TABLES_INDEPENDENT_OF_STORE_HEADER'))->getValue();
+        $listed = \App\Services\Sync\PullTenantScope::PULL_TABLES_INDEPENDENT_OF_STORE_HEADER;
         $this->assertEqualsCanonicalizing($listed, $independent);
     }
 }

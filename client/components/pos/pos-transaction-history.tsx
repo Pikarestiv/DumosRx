@@ -38,6 +38,36 @@ const SEARCH_DEBOUNCE_MS = 200;
 // ============================================================================ Main Component ============================…
 // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-transaction-history-tsx-L40
 
+const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+function groupSalesByRecency(sales: SaleWithDetails[]) {
+  const groups: { [key: string]: SaleWithDetails[] } = {
+    TODAY: [],
+    YESTERDAY: [],
+    "THIS WEEK": [],
+    OLDER: [],
+  };
+
+  sales.forEach((sale) => {
+    if (!sale.created_at) {
+      groups["OLDER"].push(sale);
+      return;
+    }
+    const d = parseISO(sale.created_at);
+    if (isToday(d)) {
+      groups["TODAY"].push(sale);
+    } else if (isYesterday(d)) {
+      groups["YESTERDAY"].push(sale);
+    } else if (Date.now() - d.getTime() <= ONE_WEEK_MS) {
+      groups["THIS WEEK"].push(sale);
+    } else {
+      groups["OLDER"].push(sale);
+    }
+  });
+
+  return groups;
+}
+
 export function POSTransactionHistory({
   recentSales,
   onReturnClick,
@@ -169,37 +199,7 @@ export function POSTransactionHistory({
     saleTypeFilter,
   ]);
 
-  // Group by relative date
-  const groupedSales = useMemo(() => {
-    const groups: { [key: string]: SaleWithDetails[] } = {
-      TODAY: [],
-      YESTERDAY: [],
-      "THIS WEEK": [],
-      OLDER: [],
-    };
-
-    filteredSales.forEach((sale) => {
-      if (!sale.created_at) {
-        groups["OLDER"].push(sale);
-        return;
-      }
-      const d = parseISO(sale.created_at);
-      if (isToday(d)) {
-        groups["TODAY"].push(sale);
-      } else if (isYesterday(d)) {
-        groups["YESTERDAY"].push(sale);
-      } else {
-        const diff = Date.now() - d.getTime();
-        if (diff <= 7 * 24 * 60 * 60 * 1000) {
-          groups["THIS WEEK"].push(sale);
-        } else {
-          groups["OLDER"].push(sale);
-        }
-      }
-    });
-
-    return groups;
-  }, [filteredSales]);
+  const groupedSales = useMemo(() => groupSalesByRecency(filteredSales), [filteredSales]);
 
   return (
     <div className="flex flex-col gap-6">

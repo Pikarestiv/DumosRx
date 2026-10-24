@@ -17,7 +17,7 @@ vi.mock("@/lib/api/client", () => ({
 }));
 
 vi.mock("@/lib/db/sync-engine", () => ({
-  sync: vi.fn(async () => ({ success: true })),
+  sync: vi.fn(() => Promise.resolve({ success: true })),
   isSyncing: vi.fn(() => false),
 }));
 
@@ -41,8 +41,8 @@ vi.mock("@/lib/native/widget-bridge", () => ({
 }));
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -114,7 +114,7 @@ describe("StoreContext provider value identity", () => {
     expect(result.current.switchStore).toBe(first.switchStore);
   });
 
-  it("hands out the same empty array while the store list is still unresolved", async () => {
+  it("hands out the same empty array while the store list is still unresolved", () => {
     const { result, rerender } = renderHook(() => useStore(), { wrapper });
 
     const firstStores = result.current.availableStores;

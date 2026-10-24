@@ -39,7 +39,7 @@ class FeedbackFingerprintColumnWidthTest extends TestCase
         try {
             DB::connection('mysql_fingerprint_check')->getPdo();
         } catch (\Throwable $e) {
-            $this->markTestSkipped('Real MySQL connection not reachable, skipping fingerprint column width test: ' . $e->getMessage());
+            $this->markTestSkipped('Real MySQL connection not reachable, skipping fingerprint column width test: '.$e->getMessage());
         }
     }
 

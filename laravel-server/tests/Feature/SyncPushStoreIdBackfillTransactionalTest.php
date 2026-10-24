@@ -12,7 +12,7 @@ use Tests\TestCase;
 /**
  * Regression coverage for A-166, the transactional half of A-164: stock_audits,
  * held_transactions, loyalty_transactions and customer_payments were absent
- * from SyncController::STORE_ID_BACKFILL_TABLES, so an INSERT whose payload
+ * from PushPayloadNormalizer::STORE_ID_BACKFILL_TABLES, so an INSERT whose payload
  * omitted store_id was stored unscoped and stayed invisible to pull(), and an
  * UPDATE naming another tenant's store_id was forceFilled straight onto the
  * row. See docs/FIXED_BUGS.md.
@@ -22,6 +22,7 @@ class SyncPushStoreIdBackfillTransactionalTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $store;
 
     public static function transactionalTables(): array

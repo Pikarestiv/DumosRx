@@ -62,9 +62,9 @@ describe("POS cart removal undo", () => {
 
     const undoToast = toastCalls.find((c) => c.options?.action?.label === "Undo");
     expect(undoToast).toBeTruthy();
-    expect(undoToast!.message).toMatch(/panadol/i);
+    expect(undoToast?.message).toMatch(/panadol/i);
 
-    act(() => undoToast!.options!.action!.onClick());
+    act(() => undoToast?.options?.action?.onClick());
     expect(result.current.cart).toHaveLength(1);
     expect(result.current.cart[0].quantity).toBe(3);
     expect(result.current.cart[0].subtotal).toBe(300);
@@ -78,8 +78,8 @@ describe("POS cart removal undo", () => {
     act(() => result.current.removeFromCart("p1"));
 
     const undoToast = toastCalls.find((c) => c.options?.action?.label === "Undo");
-    act(() => undoToast!.options!.action!.onClick());
-    act(() => undoToast!.options!.action!.onClick());
+    act(() => undoToast?.options?.action?.onClick());
+    act(() => undoToast?.options?.action?.onClick());
 
     expect(result.current.cart).toHaveLength(1);
   });

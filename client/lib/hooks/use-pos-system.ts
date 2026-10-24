@@ -43,8 +43,6 @@ export function usePOSSystem() {
   };
 
   const [searchTerm, setSearchTerm] = useState("");
-  const searchTermRef = useRef(searchTerm);
-  searchTermRef.current = searchTerm;
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
@@ -222,9 +220,7 @@ export function usePOSSystem() {
         return;
       }
       addToCart(product);
-      if (searchTermRef.current.trim().length > 0) {
-        setSearchTerm("");
-      }
+      setSearchTerm((term) => (term.trim().length > 0 ? "" : term));
     },
     [isPrescriptionLocked, addToCart],
   );

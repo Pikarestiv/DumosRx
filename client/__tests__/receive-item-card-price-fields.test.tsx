@@ -16,7 +16,7 @@ vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: () => true,
 }));
 vi.mock("@/lib/db/queries/categories", () => ({
-  getCategoryList: vi.fn(async () => []),
+  getCategoryList: vi.fn(() => Promise.resolve([])),
 }));
 // The panel's A-26 dropped-receipt banner reads the local database; this file is about the price fields, so the signal is…
 // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-receive-item-card-price-fields-test-tsx-L21

@@ -20,7 +20,7 @@ class RestrictApiDocs
         $username = config('l5-swagger.docs_auth.username');
         $password = config('l5-swagger.docs_auth.password');
 
-        if (!$username || !$password) {
+        if (! $username || ! $password) {
             abort(404);
         }
 

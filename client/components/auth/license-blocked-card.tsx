@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Clock, Lock, AlertOctagon, RefreshCw, ExternalLink, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,8 @@ import { TillInspectionBanner } from "@/components/dashboard/till-inspection-ban
 import { overrideClockLockout } from "@/lib/licensing/licensing-manager";
 import { isTillInspectionSession } from "@/lib/utils/till-inspection";
 import type { LicenseInfo } from "@/lib/licensing/licensing-manager";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
+import { navigateWithFullReload } from "@/lib/utils/full-page-navigate";
 
 interface Props {
   license: LicenseInfo | null;
@@ -37,13 +39,9 @@ export function LicenseBlockedCard({
   onRecheck,
 }: Props) {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
-  // Read after mount, never during render: a render-time sessionStorage read
-  // disagrees with the prerender pass and React reports a hydration mismatch.
-  const [inspecting, setInspecting] = useState(false);
-
-  useEffect(() => {
-    setInspecting(isTillInspectionSession());
-  }, []);
+  const hydrated = useHydrated();
+  const [startedInspection, setStartedInspection] = useState(false);
+  const inspecting = startedInspection || (hydrated && isTillInspectionSession());
   const [isOverriding, setIsOverriding] = useState(false);
 
   const override = async () => {
@@ -140,9 +138,7 @@ export function LicenseBlockedCard({
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => {
-                  window.location.href = "/settings/billing";
-                }}
+                onClick={() => navigateWithFullReload("/settings/billing")}
               >
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Renew Subscription
@@ -174,7 +170,7 @@ export function LicenseBlockedCard({
               <div className="w-full pt-2">
                 <AdminTillLogin
                   onSuccess={() => {
-                    setInspecting(true);
+                    setStartedInspection(true);
                     setShowAdminLogin(false);
                   }}
                   onCancel={() => setShowAdminLogin(false)}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { useStore } from "@/lib/context/store-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
+import { useLastNonNull } from "@/lib/hooks/use-last-non-null";
 
 import type { HeldTransaction } from "@/lib/db/queries/sales";
 
@@ -68,13 +69,8 @@ export function HeldTransactionsDialog({
   // Discarding a held sale is irreversible, so the trash icon only opens a
   // confirmation; the mutation runs from the dialog's confirm action.
   const [deleteTarget, setDeleteTarget] = useState<HeldTransaction | null>(null);
-  // Keeps the name rendered while ConfirmDialog's exit animation plays out
-  // after the target is cleared (same pattern as CustomerDeleteDialog).
-  const lastDeleteTarget = useRef<HeldTransaction | null>(null);
-  if (deleteTarget) lastDeleteTarget.current = deleteTarget;
   const deleteTargetName =
-    (deleteTarget ?? lastDeleteTarget.current)?.customer_name ||
-    "Walk-in Customer";
+    useLastNonNull(deleteTarget)?.customer_name || "Walk-in Customer";
 
   const handleDelete = (id: string) => {
     if (deleteMutation.isPending) return;

@@ -71,7 +71,7 @@ class RepairProductStoreStampTest extends TestCase
         ]);
     }
 
-    private function insertProduct(string $storeId, string $name = 'swibetic card', int $version = 12): string
+    private function insertProduct(?string $storeId, string $name = 'swibetic card', int $version = 12): string
     {
         $id = (string) Str::uuid();
 
@@ -125,11 +125,11 @@ class RepairProductStoreStampTest extends TestCase
     }
 
     /** @return array<int, string> */
-    private function pulledBatchIds(string $storeId): array
+    private function pulledBatchIds(string $storeId, ?string $since = null): array
     {
         $changes = $this->actingAs($this->owner)
             ->withHeader('X-Store-Id', $storeId)
-            ->postJson('/api/v1/app/sync/pull', ['last_synced' => []])
+            ->postJson('/api/v1/app/sync/pull', ['last_synced' => $since === null ? [] : ['stock_batches' => $since, 'products' => $since]])
             ->assertOk()
             ->json('changes');
 
@@ -298,5 +298,72 @@ class RepairProductStoreStampTest extends TestCase
         $this->artisan('sync:repair-product-store-stamps')
             ->expectsOutputToContain('Database:')
             ->assertSuccessful();
+    }
+
+    public function test_a_store_less_product_is_attributed_to_the_store_its_stock_belongs_to(): void
+    {
+        $productId = $this->insertProduct(null, 'legacy syrup');
+        $this->insertBatchWithMovement($productId, $this->correctStore->id);
+
+        $this->artisan('sync:repair-product-store-stamps --apply')
+            ->expectsConfirmation('Write these moves?', 'yes')
+            ->expectsOutputToContain('Repairable: 1')
+            ->assertSuccessful();
+
+        $this->assertSame($this->correctStore->id, $this->productRow($productId)->store_id);
+    }
+
+    public function test_a_store_less_product_whose_evidence_names_another_tenant_is_refused(): void
+    {
+        $stranger = $this->makeOwner('stranger-legacy');
+        $strangerStore = $this->makeStore($stranger, 'Stranger Legacy Pharmacy');
+        $productId = $this->insertProduct(null, 'legacy cross tenant');
+        $this->insertBatchWithMovement($productId, $strangerStore->id);
+
+        $this->artisan('sync:repair-product-store-stamps')
+            ->expectsOutputToContain('ANOTHER TENANT')
+            ->expectsOutputToContain('Repairable: 0')
+            ->assertSuccessful();
+
+        $this->assertNull($this->productRow($productId)->store_id);
+    }
+
+    public function test_a_store_less_product_with_contradictory_evidence_is_left_alone(): void
+    {
+        $productId = $this->insertProduct(null, 'legacy contradictory');
+        $this->insertBatchWithMovement($productId, $this->correctStore->id);
+        $this->insertBatchWithMovement($productId, $this->wrongStore->id);
+
+        $this->artisan('sync:repair-product-store-stamps')
+            ->expectsOutputToContain('Contradictory: 1')
+            ->assertSuccessful();
+
+        $this->assertNull($this->productRow($productId)->store_id);
+    }
+
+    public function test_a_moved_products_batch_reaches_an_incremental_pull_not_just_a_full_one(): void
+    {
+        $productId = $this->insertProduct($this->wrongStore->id);
+        $batchId = $this->insertBatchWithMovement($productId, $this->correctStore->id);
+        $this->travel(1)->hours();
+        $watermark = now()->toIso8601String();
+        $this->travel(1)->minutes();
+
+        $this->artisan('sync:repair-product-store-stamps --apply')
+            ->expectsConfirmation('Write these moves?', 'yes')
+            ->assertSuccessful();
+
+        $this->assertContains($batchId, $this->pulledBatchIds($this->correctStore->id, $watermark));
+    }
+
+    public function test_a_store_less_product_whose_only_evidence_is_movements_is_not_a_candidate(): void
+    {
+        $productId = $this->insertProduct(null, 'movements only');
+        $batchId = $this->insertBatchWithMovement($productId, null);
+        DB::table('stock_movements')->where('stock_batch_id', $batchId)->update(['store_id' => $this->correctStore->id]);
+
+        $this->artisan('sync:repair-product-store-stamps')->assertSuccessful();
+
+        $this->assertNull($this->productRow($productId)->store_id);
     }
 }

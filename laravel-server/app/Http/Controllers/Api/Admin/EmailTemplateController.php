@@ -25,9 +25,10 @@ class EmailTemplateController extends Controller
     public function index()
     {
         $templates = EmailTemplate::select('id', 'key', 'name', 'subject', 'variables')->get();
+
         return response()->json([
             'success' => true,
-            'templates' => $templates
+            'templates' => $templates,
         ]);
     }
 
@@ -49,9 +50,10 @@ class EmailTemplateController extends Controller
     public function show($id)
     {
         $template = EmailTemplate::findOrFail($id);
+
         return response()->json([
             'success' => true,
-            'template' => $template
+            'template' => $template,
         ]);
     }
 
@@ -110,13 +112,13 @@ class EmailTemplateController extends Controller
 
         $template->update([
             'subject' => $request->input('subject'),
-            'content' => $request->input('content')
+            'content' => $request->input('content'),
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Email template updated successfully',
-            'template' => $template
+            'template' => $template,
         ]);
     }
 }

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { formatCurrency } from "@/lib/utils";
+import { useState } from "react";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, Printer, RotateCcw, Wallet } from "lucide-react";
@@ -24,11 +23,13 @@ import { queryKeys } from "@/lib/query-keys";
 import { usePrintReceipt } from "./use-print-receipt";
 import { RecordPaymentModal } from "@/components/customers/record-payment-modal";
 import { toast } from "sonner";
-import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
+import type { SaleWithDetails } from "@/lib/types/sale";
 import { saleToReceiptTransaction } from "./sale-to-receipt-transaction";
+import { TransactionSummaryGrid, computeSaleProfit } from "./transaction-summary-grid";
 import { TransactionItemsView } from "./transaction-items-view";
 import { PriceAdjustmentBadge } from "./price-adjustment-badge";
 import { sumPriceAdjustments } from "@/lib/utils/price-adjustment";
+import { ResellerMarkupPanel } from "./reseller-markup-panel";
 
 interface TransactionDetailsDialogProps {
   sale: SaleWithDetails | null;
@@ -72,16 +73,15 @@ export function TransactionDetailsDialog({
 
   // `sale` is a snapshot the caller captured in its own state (selectedSale etc.) - it's never refetched after a redeem, so…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-transaction-details-dialog-tsx-L72
-  const [redeemOverride, setRedeemOverride] = useState<Partial<
-    SaleWithDetails
-  > | null>(null);
-  useEffect(() => {
-    setRedeemOverride(null);
-  }, [sale?.id]);
+  const [redeemOverride, setRedeemOverride] = useState<{
+    saleId: string;
+    patch: Partial<SaleWithDetails>;
+  } | null>(null);
+  if (redeemOverride && redeemOverride.saleId !== sale?.id) setRedeemOverride(null);
 
   if (!sale) return null;
 
-  const effectiveSale = redeemOverride ? { ...sale, ...redeemOverride } : sale;
+  const effectiveSale = redeemOverride ? { ...sale, ...redeemOverride.patch } : sale;
   const isSaleCashier = !!user?.id && user.id === sale.user_id;
 
   const handleRedeemCommission = async (
@@ -94,8 +94,11 @@ export function TransactionDetailsDialog({
         claimType,
       });
       setRedeemOverride({
-        ...patch,
-        reseller_commission_redeemed_by: patch.reseller_commission_redeemed_by ?? undefined,
+        saleId: sale.id,
+        patch: {
+          ...patch,
+          reseller_commission_redeemed_by: patch.reseller_commission_redeemed_by ?? undefined,
+        },
       });
     } catch (error) {
       console.error("Failed to redeem reseller commission:", error);
@@ -133,28 +136,7 @@ export function TransactionDetailsDialog({
 
   const totalRefunded = returnsData?.[0]?.total_refunded || 0;
 
-  const totalCostPrice =
-    items?.reduce((acc: number, item: SaleItemDetail) => {
-      const cost =
-        item.cost_price !== null && item.cost_price !== undefined
-          ? item.cost_price
-          : item.med_cost_price || 0;
-      return acc + cost * item.quantity;
-    }, 0) || 0;
-
-  const returnedCostPrice =
-    items?.reduce((acc: number, item: SaleItemDetail) => {
-      const cost =
-        item.cost_price !== null && item.cost_price !== undefined
-          ? item.cost_price
-          : item.med_cost_price || 0;
-      return acc + cost * (item.returned_quantity || 0);
-    }, 0) || 0;
-
-  const profit =
-    (sale.total_amount ?? sale.total ?? 0) -
-    totalRefunded -
-    (totalCostPrice - returnedCostPrice);
+  const profit = computeSaleProfit(sale, items, totalRefunded);
 
   const cashierName = sale.cashier_name || sale.user_name || sale.cashier;
 
@@ -236,50 +218,13 @@ export function TransactionDetailsDialog({
   const content = (
     <div className="flex flex-col flex-1 min-h-0">
       <ScrollFade containerClassName="flex-1" className="px-4 sm:px-6 pb-4">
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-2 p-3 sm:p-4 bg-muted/30 rounded-lg">
-          <div>
-            <p className="text-xs sm:text-sm text-muted-foreground">Customer</p>
-            <p className="font-medium text-sm sm:text-base">
-              {sale.customer_name || "Walk-in"}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Payment Method
-            </p>
-            <p className="font-medium capitalize text-sm sm:text-base">
-              {sale.payment_method}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Total Sale
-            </p>
-            <p className="font-medium text-base sm:text-lg text-primary">
-              {formatCurrency(
-                sale.total_amount ?? sale.total ?? 0,
-                currencyCode,
-              )}
-            </p>
-            {totalRefunded > 0 && (
-              <p className="text-xs font-medium text-destructive mt-0.5">
-                -{formatCurrency(totalRefunded, currencyCode)} refunded
-              </p>
-            )}
-          </div>
-          {showProfit && (
-            <div>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Total Profit
-              </p>
-              <p
-                className={`font-medium text-base sm:text-lg ${profit >= 0 ? "text-emerald-600" : "text-destructive"}`}
-              >
-                {formatCurrency(profit, currencyCode)}
-              </p>
-            </div>
-          )}
-        </div>
+        <TransactionSummaryGrid
+          sale={sale}
+          totalRefunded={totalRefunded}
+          profit={profit}
+          showProfit={showProfit}
+          currencyCode={currencyCode}
+        />
 
         {(priceAdjustments.markup > 0 || priceAdjustments.cut > 0) && (
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -289,63 +234,12 @@ export function TransactionDetailsDialog({
         )}
 
         {!!effectiveSale.is_reseller_sale && (isAdmin || isSaleCashier) && (
-          <div
-            className={
-              effectiveSale.markup_type === "store"
-                ? "mt-3 p-3 sm:p-4 border border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-900 rounded-lg space-y-2"
-                : "mt-3 p-3 sm:p-4 border border-violet-200 bg-violet-50 dark:bg-violet-950/20 dark:border-violet-900 rounded-lg space-y-2"
-            }
-          >
-            <div className="flex items-center justify-between gap-2">
-              <p
-                className={
-                  effectiveSale.markup_type === "store"
-                    ? "text-sm font-medium text-blue-700 dark:text-blue-300"
-                    : "text-sm font-medium text-violet-700 dark:text-violet-300"
-                }
-              >
-                {effectiveSale.markup_type === "store" ? "Store markup" : "Reseller markup"}:{" "}
-                {formatCurrency(effectiveSale.reseller_markup_amount || 0, currencyCode)}
-              </p>
-              {effectiveSale.reseller_commission_redeemed ? (
-                <span className="text-xs font-medium text-emerald-600">
-                  {effectiveSale.reseller_commission_claim_type === "store_claim"
-                    ? "Store kept markup"
-                    : "Commission redeemed"}
-                  {effectiveSale.reseller_commission_redeemed_at &&
-                    ` on ${formatDateToDDMMYYYY(effectiveSale.reseller_commission_redeemed_at)}`}
-                  {(effectiveSale.reseller_commission_owed_back ?? 0) > 0 &&
-                    ` · ${formatCurrency(effectiveSale.reseller_commission_owed_back ?? 0, currencyCode)} owed back by the reseller`}
-                </span>
-              ) : (
-                <span className="text-xs font-medium text-amber-600">
-                  Not yet redeemed
-                </span>
-              )}
-            </div>
-            {!effectiveSale.reseller_commission_redeemed && (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => void handleRedeemCommission("commission")}
-                  disabled={redeemMutation.isPending}
-                >
-                  Redeem Commission
-                </Button>
-                {(effectiveSale.reseller_markup_amount || 0) > 0 && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void handleRedeemCommission("store_claim")}
-                    disabled={redeemMutation.isPending}
-                  >
-                    Store Claims Markup
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
+          <ResellerMarkupPanel
+            sale={effectiveSale}
+            currencyCode={currencyCode}
+            isRedeeming={redeemMutation.isPending}
+            onRedeem={(claimType) => void handleRedeemCommission(claimType)}
+          />
         )}
 
         <TransactionItemsView items={items} currencyCode={currencyCode} />

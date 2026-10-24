@@ -17,6 +17,10 @@ import {
   type TillSessionEndReason,
 } from "@/lib/api/admin-till-session";
 import { useStore } from "@/lib/context/store-context";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
+import { navigateWithFullReload } from "@/lib/utils/full-page-navigate";
+
+type InspectionSession = ReturnType<typeof getTillInspectionSession>;
 
 const EXTEND_THROTTLE_MS = 30_000;
 
@@ -28,7 +32,13 @@ function hardCapReached(session: { hardExpiresAt: string } | null): boolean {
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-dashboard-till-inspection-banner-tsx-L27
 export function TillInspectionBanner() {
   const { storeProfile } = useStore();
-  const [session, setSession] = useState<ReturnType<typeof getTillInspectionSession>>(null);
+  const hydrated = useHydrated();
+  const [captured, setCaptured] = useState<{ session: InspectionSession } | null>(null);
+  if (hydrated && captured === null) {
+    setCaptured({ session: getTillInspectionSession() });
+  }
+  const session = captured?.session ?? null;
+  const sessionId = session?.sessionId;
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const closing = useRef(false);
 
@@ -44,7 +54,7 @@ export function TillInspectionBanner() {
       const sessionId = session?.sessionId ?? getTillInspectionSession()?.sessionId;
       if (sessionId) await endAdminTillSession(sessionId, reason);
       endTillInspectionSession();
-      window.location.href = "/login";
+      navigateWithFullReload("/login");
     },
     [session],
   );
@@ -52,26 +62,20 @@ export function TillInspectionBanner() {
   // Read after mount, never during render:
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-till-inspection-banner-tsx-L58
   useEffect(() => {
-    const local = getTillInspectionSession();
-    setSession(local);
-
-    if (!local || !navigator.onLine) return;
+    if (!sessionId || !navigator.onLine) return;
 
     let cancelled = false;
-    void readInspectionServerClock(local.sessionId).then((serverNow) => {
+    void readInspectionServerClock(sessionId).then((serverNow) => {
       if (cancelled || serverNow) return;
       endTillInspectionSession();
-      setSession(null);
-      window.location.href = "/login";
+      setCaptured({ session: null });
+      navigateWithFullReload("/login");
     });
 
     return () => {
       cancelled = true;
     };
-    // Mount-only by design: this establishes `session`, so depending on it
-    // would re-run the server reconciliation on every change it makes.
-     
-  }, []);
+  }, [sessionId]);
 
   useEffect(() => {
     let lastExtend = Date.now();

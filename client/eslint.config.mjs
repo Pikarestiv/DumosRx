@@ -36,6 +36,7 @@ const eslintConfig = [
       "react-hooks/static-components": "warn",
       "react-hooks/immutability": "warn",
       "react-hooks/preserve-manual-memoization": "warn",
+      "react-hooks/incompatible-library": "off",
       "react/no-unescaped-entities": "off",
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-non-null-assertion": "warn",

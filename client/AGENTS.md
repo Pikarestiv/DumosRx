@@ -5138,10 +5138,13 @@ same tab session still gets its own fresh one-time retry.
   `add-expense-dialog.tsx`), not an effect. An intentional full document load
   goes through `navigateWithFullReload()` (`lib/utils/full-page-navigate.ts`)
   so Next's `no-location-assign-relative-destination` keeps catching the
-  accidental ones. The remaining `react-hooks/incompatible-library` warnings
-  (`useVirtualizer`, `useReactTable`) are informational: the compiler is not
-  enabled in `next.config.mjs`, and `"use no memo"` does not silence them, so
-  they stay until either library ships a compiler-compatible API.
+  accidental ones. `react-hooks/incompatible-library` is off in
+  `eslint.config.mjs`: it reports the compiler safely skipping components that
+  call TanStack Virtual's `useVirtualizer()`, matched by import name, so no
+  version, `"use no memo"` or wrapper avoids it (a wrapper would only make the
+  callers look safe to memoize). The compiler is not enabled in
+  `next.config.mjs`. Turn the rule back on in the same change that enables
+  `reactCompiler`, and check no virtualizer value reaches a memoized child.
 
 - **The A4 receipt fills the page; only the thermal one is a narrow column**
   (2026-10-14). `ReceiptView`'s A4 branch used `max-w-[400px] mx-auto`, so a

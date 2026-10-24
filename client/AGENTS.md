@@ -1750,10 +1750,10 @@ table the client never pulls.
   `attributeStorelessProductsFromEvidence()` gives a store-less product the
   one store its own `stock_batches` and `stock_movements` all name, both
   locally and in its pending INSERT payload. Evidence naming two stores, or
-  none, leaves it alone. The server no longer guesses a store for such a
-  product, so without evidence it stays unattributed until
-  `sync:repair-product-store-stamps` runs. Pinned by
-  `legacy-product-attribution.test.ts`.
+  none, leaves it alone. It runs before the push's fingerprints, exits at once
+  when no store-less product exists, and never fails a push. The server makes
+  the same call from the stock it receives, so this is the head start, not the
+  only line. Pinned by `legacy-product-attribution.test.ts`.
 - **Duplicate-name reconciliation:** a local row absent from the response
   but name-matching a server row has its references remapped to the server's
   id and is then soft-deleted rather than left as an orphaned duplicate.

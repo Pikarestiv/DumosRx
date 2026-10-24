@@ -221,6 +221,7 @@ class SyncController extends Controller
 
         $hasSyncedAtCache = [];
         $restamper = new \App\Services\Sync\PushedRowRestamper();
+        $storelessProducts = new \App\Services\Sync\StorelessProductAttributor();
         $currentUser = $request->user();
         $currentStoreId = $currentUser ? $this->resolvePushStoreId($request, $currentUser) : null;
         UserDeviceTracker::touch($request, $currentUser, $currentStoreId);
@@ -475,6 +476,7 @@ class SyncController extends Controller
 
                         $model->save();
                         $restamper->remember($model);
+                        $storelessProducts->afterWrite($change['table_name'], $model, $clientNamedStoreId, true);
 
                         // stock_batches.quantity is derived from stock_movements deltas,
                         // never trusted directly from a client payload (INSERT above, or
@@ -727,6 +729,7 @@ class SyncController extends Controller
 
                         $model->save();
                         $restamper->remember($model);
+                        $storelessProducts->afterWrite($change['table_name'], $model, $clientNamedStoreId, false);
 
                         if ($newVersion !== null) {
                             $versions[$change['table_name']][$recordId] = $newVersion;
@@ -819,6 +822,7 @@ class SyncController extends Controller
 
             $firstSyncedStore = $this->touchStoreLastSyncAt($request);
 
+            $storelessProducts->attribute($isSuperAdmin ? null : $allowedStoreIds, $currentStoreId, $restamper, now());
             $restamper->restamp(now());
 
             DB::commit();
@@ -2050,12 +2054,7 @@ class SyncController extends Controller
         if (in_array($change['table_name'], self::STORE_ID_BACKFILL_TABLES, true)) {
             if (empty($payload['store_id'])) {
                 if ($change['operation'] === 'INSERT') {
-                    if ($change['table_name'] === 'products' && ($isSuperAdmin || count($allowedStoreIds) > 1)) {
-                        Log::info('Sync push: left a store-less product unattributed rather than guess the active store (A-248)', [
-                            'record_id' => $change['record_id'] ?? null,
-                            'active_store_id' => $currentStoreId,
-                        ]);
-                    } elseif ($currentStoreId) {
+                    if ($currentStoreId && !($change['table_name'] === 'products' && ($isSuperAdmin || count($allowedStoreIds) > 1))) {
                         $payload['store_id'] = $currentStoreId;
                     }
                 } else {

@@ -125,11 +125,11 @@ class RepairProductStoreStampTest extends TestCase
     }
 
     /** @return array<int, string> */
-    private function pulledBatchIds(string $storeId): array
+    private function pulledBatchIds(string $storeId, ?string $since = null): array
     {
         $changes = $this->actingAs($this->owner)
             ->withHeader('X-Store-Id', $storeId)
-            ->postJson('/api/v1/app/sync/pull', ['last_synced' => []])
+            ->postJson('/api/v1/app/sync/pull', ['last_synced' => $since === null ? [] : ['stock_batches' => $since, 'products' => $since]])
             ->assertOk()
             ->json('changes');
 
@@ -339,5 +339,20 @@ class RepairProductStoreStampTest extends TestCase
             ->assertSuccessful();
 
         $this->assertNull($this->productRow($productId)->store_id);
+    }
+
+    public function test_a_moved_products_batch_reaches_an_incremental_pull_not_just_a_full_one(): void
+    {
+        $productId = $this->insertProduct($this->wrongStore->id);
+        $batchId = $this->insertBatchWithMovement($productId, $this->correctStore->id);
+        $this->travel(1)->hours();
+        $watermark = now()->toIso8601String();
+        $this->travel(1)->minutes();
+
+        $this->artisan('sync:repair-product-store-stamps --apply')
+            ->expectsConfirmation('Write these moves?', 'yes')
+            ->assertSuccessful();
+
+        $this->assertContains($batchId, $this->pulledBatchIds($this->correctStore->id, $watermark));
     }
 }

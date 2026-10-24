@@ -464,7 +464,7 @@ class SyncPushStoreIdBackfillTest extends TestCase
         ], 'UPDATE', ['X-Store-Id' => $second->id])->assertJsonCount(0, 'failed');
     }
 
-    public function test_a_two_store_owners_store_less_product_insert_is_not_stamped_with_the_active_store()
+    public function test_a_two_store_owners_store_less_product_with_no_stock_falls_back_to_the_active_store()
     {
         $second = $this->createSecondStore();
 
@@ -472,7 +472,16 @@ class SyncPushStoreIdBackfillTest extends TestCase
             'id' => 'product-a248-new-legacy', 'name' => 'Legacy Syrup', 'selling_price' => 500,
         ], 'INSERT', ['X-Store-Id' => $second->id])->assertJsonCount(0, 'failed');
 
-        $this->assertNull(DB::table('products')->where('id', 'product-a248-new-legacy')->value('store_id'));
+        $this->assertSame($second->id, DB::table('products')->where('id', 'product-a248-new-legacy')->value('store_id'));
+    }
+
+    public function test_the_stock_overrules_the_active_store_for_a_store_less_product()
+    {
+        $second = $this->createSecondStore();
+
+        $this->pushStorelessProductWithStock('product-ingest-overrule', $this->store->id, null, $second->id)->assertStatus(200);
+
+        $this->assertSame($this->store->id, DB::table('products')->where('id', 'product-ingest-overrule')->value('store_id'));
     }
 
     public function test_a_single_store_owners_store_less_product_insert_is_still_backfilled()
@@ -482,5 +491,43 @@ class SyncPushStoreIdBackfillTest extends TestCase
         ], 'INSERT')->assertJsonCount(0, 'failed');
 
         $this->assertSame($this->store->id, DB::table('products')->where('id', 'product-a248-single')->value('store_id'));
+    }
+
+    private function pushStorelessProductWithStock(string $productId, string $batchStoreId, ?string $movementStoreId, string $activeStoreId)
+    {
+        $changes = [
+            ['table_name' => 'products', 'operation' => 'INSERT', 'record_id' => $productId,
+                'payload' => ['id' => $productId, 'name' => 'Legacy Syrup', 'selling_price' => 500]],
+            ['table_name' => 'stock_batches', 'operation' => 'INSERT', 'record_id' => $productId.'-batch',
+                'payload' => ['id' => $productId.'-batch', 'product_id' => $productId, 'store_id' => $batchStoreId,
+                    'batch_number' => 'B-1', 'quantity' => 5, 'cost_price' => 50, '_version' => 1]],
+        ];
+        if ($movementStoreId !== null) {
+            $changes[] = ['table_name' => 'stock_movements', 'operation' => 'INSERT', 'record_id' => $productId.'-move',
+                'payload' => ['id' => $productId.'-move', 'stock_batch_id' => $productId.'-batch', 'product_id' => $productId,
+                    'store_id' => $movementStoreId, 'quantity' => -1, 'movement_type' => 'sale', 'performed_by' => $this->owner->id]];
+        }
+
+        return $this->actingAs($this->owner)->withHeaders(['X-Store-Id' => $activeStoreId])
+            ->postJson('/api/v1/app/sync/push', ['setup' => true, 'changes' => $changes]);
+    }
+
+    public function test_a_store_less_product_is_attributed_at_ingest_from_the_stock_pushed_with_it()
+    {
+        $second = $this->createSecondStore();
+
+        $this->pushStorelessProductWithStock('product-ingest', $this->store->id, $this->store->id, $second->id)->assertStatus(200);
+
+        $this->assertSame($this->store->id, DB::table('products')->where('id', 'product-ingest')->value('store_id'));
+        $this->assertNotNull(DB::table('stock_batches')->where('id', 'product-ingest-batch')->value('_synced_at'));
+    }
+
+    public function test_a_store_less_product_whose_stock_disagrees_stays_unattributed()
+    {
+        $second = $this->createSecondStore();
+
+        $this->pushStorelessProductWithStock('product-ingest-split', $this->store->id, $second->id, $second->id)->assertStatus(200);
+
+        $this->assertNull(DB::table('products')->where('id', 'product-ingest-split')->value('store_id'));
     }
 }

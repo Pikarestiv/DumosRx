@@ -7,23 +7,26 @@ import { columnExists } from "../reconcile-identity";
  * all name, locally and in its pending INSERT. Rules: client/AGENTS.md, "Legacy products are attributed by evidence".
  */
 export async function attributeStorelessProductsFromEvidence(): Promise<number> {
-  if (!(await deviceHoldsSeveralStores())) return 0;
   if (!(await columnExists("products", "store_id"))) return 0;
+  const [storeless] = await query<{ found: number }>(
+    "SELECT EXISTS (SELECT 1 FROM products WHERE store_id IS NULL) AS found",
+  );
+  if (!storeless?.found || !(await deviceHoldsSeveralStores())) return 0;
 
   const sources: string[] = [];
   for (const table of ["stock_batches", "stock_movements"]) {
     if (await columnExists(table, "store_id")) {
-      sources.push(`SELECT product_id, store_id FROM ${table} WHERE store_id IS NOT NULL`);
+      sources.push(
+        `SELECT product_id, store_id FROM ${table} WHERE store_id IS NOT NULL AND product_id IN (SELECT id FROM products WHERE store_id IS NULL)`,
+      );
     }
   }
   if (sources.length === 0) return 0;
 
   const attributable = await query<{ id: string; store_id: string }>(
-    `SELECT p.id AS id, MIN(e.store_id) AS store_id
-       FROM products p
-       JOIN (${sources.join(" UNION ")}) e ON e.product_id = p.id
-      WHERE p.store_id IS NULL
-      GROUP BY p.id
+    `SELECT e.product_id AS id, MIN(e.store_id) AS store_id
+       FROM (${sources.join(" UNION ALL ")}) e
+      GROUP BY e.product_id
      HAVING COUNT(DISTINCT e.store_id) = 1`,
   );
 
@@ -35,8 +38,8 @@ export async function attributeStorelessProductsFromEvidence(): Promise<number> 
       [id],
     );
     for (const row of pending) {
-      const payload = JSON.parse(row.payload) as Record<string, unknown>;
-      if (payload.store_id != null) continue;
+      const payload = JSON.parse(row.payload) as Record<string, unknown> | null;
+      if (!payload || typeof payload !== "object" || payload.store_id != null) continue;
       await execute("UPDATE _sync_queue SET payload = ? WHERE id = ?", [JSON.stringify({ ...payload, store_id }), row.id]);
     }
   }

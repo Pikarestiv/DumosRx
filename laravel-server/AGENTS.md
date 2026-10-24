@@ -1125,15 +1125,20 @@ migration here **and** the corresponding update on the `client/` side
     INSERT backfill put the active store back. Nothing in the client moves a
     business row between stores; the only legitimate move is
     `sync:repair-product-store-stamps`, which runs server-side.
-  - **A store-less `products` INSERT from a multi-store session is not
-    backfilled (A-248 part c).** The active store is a guess there: a legacy
-    product queued under one store and first pushed under another took the
-    wrong one. It is stored unattributed and logged instead. The client first
-    attributes it from its own batches and movements when they all name one
-    store (`legacy-product-attribution.ts`), and
-    `sync:repair-product-store-stamps` attributes it from the pushed evidence
-    otherwise. Single-store sessions are still backfilled. Other tables in the
-    list still take the guess (A-326).
+  - **A store-less product is attributed by its stock (A-248 part c).** A
+    `products` INSERT with no `store_id` from a multi-store or super-admin
+    session is not backfilled from the session, because the active store is a
+    guess there. Instead `StorelessProductAttributor` records every product a
+    push touches and, once the whole push is written (movements are processed
+    last), gives each store-less one the single store named by its stored
+    batches plus the movement stores the client itself sent in this push. A
+    movement's stored store is not evidence: the server backfills it from the
+    session. Evidence naming two stores leaves the product unattributed (the
+    repair command reports it); no evidence at all falls back to the active
+    store, but only for a product this push created. Attributed products get
+    their batches' `_synced_at` restamped, because a batch is pulled through
+    its product but filtered by its own stamp. Other tables in the list still
+    take the guess (A-326).
   - **The backfill half of that list is INSERT-only; the foreign-store
     refusal half is not.** `normalizePushPayload()` runs for every operation,
     and a client UPDATE normally carries no `store_id` (the exception is the
@@ -4136,9 +4141,14 @@ On production use the 8.2 binary (next section):
   `store_id` is `NULL` but whose batches or movements name a store is a
   candidate, attributed by the same single-store evidence rule. Its tenant
   check uses the product's author (`user_id`: the author if they own stores,
-  else their store's owner), since there is no current store to compare. This
-  is now the expected way such a product gets a store: the server no longer
-  guesses one for a multi-store session's store-less product INSERT.
+  else their store's owner), and an author that resolves to nobody is reported
+  as `NO KNOWN AUTHOR`, not as another tenant. Push-time attribution handles
+  new arrivals; this is for products stored before it, or whose evidence came
+  later.
+- **A moved product's batches are restamped** (`_synced_at`), so an
+  incremental pull delivers them: they are pulled through the product but
+  filtered by their own stamp, and a full pull was the only thing that found
+  them before.
 - **Retirement:** every path that produced a mis-stamp is closed (A-248 parts a,
   b and c). Keep the command while store-less products are still arriving from
   legacy devices; delete it once one dry run across production reports zero

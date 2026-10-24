@@ -21,6 +21,9 @@ class RepairProductStoreStamps extends Command
     /** @var array<string, array{name: string, owner: string|null}|null> */
     private array $stores = [];
 
+    /** @var array<string, string|null> */
+    private array $tenants = [];
+
     public function handle(): int
     {
         $connection = config('database.default');
@@ -189,6 +192,10 @@ class RepairProductStoreStamps extends Command
             ? $this->tenantOf($product->user_id ?? null)
             : ($this->store($case['current'])['owner'] ?? null);
 
+        if ($case['current'] === null && $currentOwner === null) {
+            return ['reason' => 'NO KNOWN AUTHOR'] + $case;
+        }
+
         if ($owner === null || $owner !== $currentOwner) {
             return ['reason' => 'ANOTHER TENANT'] + $case;
         }
@@ -203,13 +210,14 @@ class RepairProductStoreStamps extends Command
             return null;
         }
 
-        if (DB::table('stores')->where('user_id', $userId)->exists()) {
-            return $userId;
+        if (! array_key_exists($userId, $this->tenants)) {
+            $storeId = DB::table('users')->where('id', $userId)->value('store_id');
+            $this->tenants[$userId] = DB::table('stores')->where('user_id', $userId)->exists()
+                ? $userId
+                : ($storeId === null ? null : ($this->store((string) $storeId)['owner'] ?? null));
         }
 
-        $storeId = DB::table('users')->where('id', $userId)->value('store_id');
-
-        return $storeId === null ? null : ($this->store((string) $storeId)['owner'] ?? null);
+        return $this->tenants[$userId];
     }
 
     /** @param array<string, mixed> $case */
@@ -248,6 +256,7 @@ class RepairProductStoreStamps extends Command
         $this->line('Repairable: '.count($repairable));
         $this->line('Contradictory: '.($reasons['CONTRADICTORY'] ?? 0));
         $this->line('Another tenant: '.($reasons['ANOTHER TENANT'] ?? 0));
+        $this->line('No known author: '.($reasons['NO KNOWN AUTHOR'] ?? 0));
     }
 
     /** @param array<int, array<string, mixed>> $repairable */
@@ -287,6 +296,7 @@ class RepairProductStoreStamps extends Command
                     'updated_at' => $now,
                     '_version' => DB::raw('COALESCE(_version, 0) + 1'),
                 ]);
+                DB::table('stock_batches')->whereIn('product_id', $chunk)->update(['_synced_at' => $now]);
             }
         }
 

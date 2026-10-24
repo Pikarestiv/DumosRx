@@ -21,6 +21,9 @@ class RepairProductStoreStamps extends Command
     /** @var array<string, array{name: string, owner: string|null}|null> */
     private array $stores = [];
 
+    /** @var array<string, string|null> */
+    private array $tenants = [];
+
     public function handle(): int
     {
         $connection = config('database.default');
@@ -87,9 +90,8 @@ class RepairProductStoreStamps extends Command
     }
 
     /**
-     * Candidates are products holding at least one batch whose own non-NULL
-     * `store_id` differs. A NULL on either side is A-288's job, not this
-     * one: `NULL <> 'x'` is NULL, so such a row never becomes a candidate.
+     * Candidates: a product holding a batch whose own non-NULL `store_id` differs, or a store-less product whose
+     * batches name a store; its movements are not evidence, the server backfills their store from the session (A-248).
      *
      * @return array{0: array<int, array<string, mixed>>, 1: array<int, array<string, mixed>>}
      */
@@ -101,15 +103,17 @@ class RepairProductStoreStamps extends Command
 
         while (true) {
             $products = DB::table('products')
-                ->whereNotNull('store_id')
                 ->where('id', '>', $lastId)
-                ->whereExists(fn ($q) => $q->from('stock_batches')
-                    ->whereColumn('stock_batches.product_id', 'products.id')
-                    ->whereNotNull('stock_batches.store_id')
-                    ->whereColumn('stock_batches.store_id', '<>', 'products.store_id'))
+                ->where(fn ($q) => $q
+                    ->where(fn ($stamped) => $stamped->whereNotNull('store_id')->whereExists(fn ($e) => $e->from('stock_batches')
+                        ->whereColumn('stock_batches.product_id', 'products.id')
+                        ->whereNotNull('stock_batches.store_id')
+                        ->whereColumn('stock_batches.store_id', '<>', 'products.store_id')))
+                    ->orWhere(fn ($storeless) => $storeless->whereNull('store_id')
+                        ->whereExists(fn ($b) => $b->from('stock_batches')->whereColumn('stock_batches.product_id', 'products.id')->whereNotNull('stock_batches.store_id'))))
                 ->orderBy('id')
                 ->limit(self::CHUNK)
-                ->get(['id', 'name', 'store_id']);
+                ->get(['id', 'name', 'store_id', 'user_id']);
 
             if ($products->isEmpty()) {
                 break;
@@ -138,12 +142,8 @@ class RepairProductStoreStamps extends Command
     }
 
     /**
-     * The store a product actually belongs to is the single store every piece
-     * of its stock evidence agrees on — the `store_id` its batches carry
-     * (which the client sets and the server never backfills) together with
-     * the one its movements carry. Anything else is refused rather than
-     * guessed: a row handed to the wrong pharmacy is worse than one left
-     * wrong where it is already known to be wrong.
+     * The one store all its batches name, plus its movements' unless it is store-less; anything else is refused.
+     * Rules: laravel-server/AGENTS.md, "Mis-stamped product repair".
      *
      * @return array<string, mixed>
      */
@@ -163,13 +163,13 @@ class RepairProductStoreStamps extends Command
 
         $evidence = array_values(array_unique(array_merge(
             array_filter($batches->pluck('store_id')->all()),
-            $movementStores,
+            $product->store_id === null ? [] : $movementStores,
         )));
 
         $case = [
             'id' => (string) $product->id,
             'name' => (string) ($product->name ?? '(unnamed)'),
-            'current' => (string) $product->store_id,
+            'current' => $product->store_id === null ? null : (string) $product->store_id,
             'proposed' => count($evidence) === 1 ? (string) $evidence[0] : null,
             'evidence' => $evidence,
             'batches' => $batches->pluck('id')->all(),
@@ -182,12 +182,36 @@ class RepairProductStoreStamps extends Command
         }
 
         $owner = $this->store($case['proposed'])['owner'] ?? null;
+        $currentOwner = $case['current'] === null
+            ? $this->tenantOf($product->user_id ?? null)
+            : ($this->store($case['current'])['owner'] ?? null);
 
-        if ($owner === null || $owner !== ($this->store($case['current'])['owner'] ?? null)) {
+        if ($case['current'] === null && $currentOwner === null) {
+            return ['reason' => 'NO KNOWN AUTHOR'] + $case;
+        }
+
+        if ($owner === null || $owner !== $currentOwner) {
             return ['reason' => 'ANOTHER TENANT'] + $case;
         }
 
         return $case;
+    }
+
+    /** A store-less product's tenant is its author's: the author if they own stores, else their store's owner. */
+    private function tenantOf(?string $userId): ?string
+    {
+        if ($userId === null) {
+            return null;
+        }
+
+        if (! array_key_exists($userId, $this->tenants)) {
+            $storeId = DB::table('users')->where('id', $userId)->value('store_id');
+            $this->tenants[$userId] = DB::table('stores')->where('user_id', $userId)->exists()
+                ? $userId
+                : ($storeId === null ? null : ($this->store((string) $storeId)['owner'] ?? null));
+        }
+
+        return $this->tenants[$userId];
     }
 
     /** @param array<string, mixed> $case */
@@ -226,12 +250,13 @@ class RepairProductStoreStamps extends Command
         $this->line('Repairable: '.count($repairable));
         $this->line('Contradictory: '.($reasons['CONTRADICTORY'] ?? 0));
         $this->line('Another tenant: '.($reasons['ANOTHER TENANT'] ?? 0));
+        $this->line('No known author: '.($reasons['NO KNOWN AUTHOR'] ?? 0));
     }
 
     /** @param array<int, array<string, mixed>> $repairable */
     private function warnAboutTheLosingStores(array $repairable): void
     {
-        $losing = array_count_values(array_column($repairable, 'current'));
+        $losing = array_count_values(array_filter(array_column($repairable, 'current')));
 
         $this->newLine();
         $this->warn('Moving a product out of a store is a scoping change, not a delete, so no tombstone is ever sent.');
@@ -265,14 +290,19 @@ class RepairProductStoreStamps extends Command
                     'updated_at' => $now,
                     '_version' => DB::raw('COALESCE(_version, 0) + 1'),
                 ]);
+                DB::table('stock_batches')->whereIn('product_id', $chunk)->update(['_synced_at' => $now]);
             }
         }
 
         $this->info('Moved '.count($repairable).' product(s). Each one re-pulls to every device of both stores.');
     }
 
-    private function describeStore(string $id): string
+    private function describeStore(?string $id): string
     {
+        if ($id === null) {
+            return '(no store)';
+        }
+
         return $id.' '.($this->store($id)['name'] ?? '(unknown store)');
     }
 

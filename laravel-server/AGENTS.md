@@ -1125,6 +1125,27 @@ migration here **and** the corresponding update on the `client/` side
     INSERT backfill put the active store back. Nothing in the client moves a
     business row between stores; the only legitimate move is
     `sync:repair-product-store-stamps`, which runs server-side.
+  - **A store-less product is attributed by its stock (A-248 part c).** A
+    `products` INSERT with no `store_id` from a multi-store or super-admin
+    session is not backfilled from the session, because the active store is a
+    guess there. Instead `StorelessProductAttributor` records every product a
+    push touches and, once the whole push is written (movements are processed
+    last), gives each store-less one the single store named by its stored
+    batches plus the movement stores the client itself sent in this push. A
+    movement's stored store is not evidence: the server backfills it from the
+    session. Only committed changes count: a change that rolls back is not
+    evidence. Evidence naming two stores, or a store outside the session's
+    scope (a super admin's scope is every store), leaves the product
+    unattributed and logged; so does no evidence at all, which is the
+    deliberate cost of not guessing (A-327). It stays `NULL` across requests,
+    so stock arriving in a later push still attributes it, and the repair
+    command attributes the rest. Stamping runs in its own savepoint, bumps
+    `_version`, and passes the product's `category_id` through
+    `CrossStoreReferenceGuard` so a sibling store's category is re-owned.
+    Attributed products get their batches' `_synced_at` restamped, because a
+    batch is pulled through its product but filtered by its own stamp. A
+    single-store session is still backfilled: its one store is not a guess.
+    Other tables in the list still take the guess (A-326).
   - **The backfill half of that list is INSERT-only; the foreign-store
     refusal half is not.** `normalizePushPayload()` runs for every operation,
     and a client UPDATE normally carries no `store_id` (the exception is the
@@ -4123,11 +4144,22 @@ On production use the 8.2 binary (next section):
   holds, so a batch the device has never received cannot be one of them.
 - **Idempotent and chunked** (keyset paging on `products.id`, 200 at a time).
   A second `--apply` reports "No product disagrees …".
-- **Retirement:** the claim path and the UPDATE reassignment are closed (A-248
-  part a, 2026-10-23); what still produces a mis-stamp is a never-pushed legacy
-  INSERT from a multi-store device (A-248 in `docs/KNOWN_BUGS.md`). Delete the
-  command once that is closed too *and* one dry run across production reports
-  zero repairable and zero refused. Until then it stays the standing repair.
+- **Store-less products too (A-248 part c, 2026-10-23).** A product whose
+  `store_id` is `NULL` but whose batches or movements name a store is a
+  candidate, attributed by the same single-store evidence rule. Its tenant
+  check uses the product's author (`user_id`: the author if they own stores,
+  else their store's owner), and an author that resolves to nobody is reported
+  as `NO KNOWN AUTHOR`, not as another tenant. Push-time attribution handles
+  new arrivals; this is for products stored before it, or whose evidence came
+  later.
+- **A moved product's batches are restamped** (`_synced_at`), so an
+  incremental pull delivers them: they are pulled through the product but
+  filtered by their own stamp, and a full pull was the only thing that found
+  them before.
+- **Retirement:** every path that produced a mis-stamp is closed (A-248 parts a,
+  b and c). Keep the command while store-less products are still arriving from
+  legacy devices; delete it once one dry run across production reports zero
+  repairable and zero refused.
 - **Tests:** `tests/Feature/RepairProductStoreStampTest.php` — detection and
   attribution, **the batch becoming pullable for the correct store** (the
   actual goal), contradictory evidence reported and left alone, cross-tenant

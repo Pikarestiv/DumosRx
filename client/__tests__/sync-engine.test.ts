@@ -33,6 +33,10 @@ vi.mock('../lib/db/local-database', async () => {
 });
 
 // Mock the API client
+vi.mock('../lib/db/sync-engine/legacy-product-attribution', () => ({
+  attributeStorelessProductsFromEvidence: vi.fn().mockResolvedValue(0),
+}));
+
 vi.mock('../lib/api/client', () => ({
   apiClient: {
     pushChanges: vi.fn(),

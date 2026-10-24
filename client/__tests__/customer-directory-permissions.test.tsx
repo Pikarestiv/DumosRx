@@ -34,7 +34,7 @@ const customer: Customer = {
   tier: "Gold",
   points: 120,
   totalSpent: 50000,
-  lastVisit: "02/02/2026",
+  lastVisit: "2026-02-02T09:30:00.000Z",
   visitCount: 4,
   birthday: "",
   status: "active",

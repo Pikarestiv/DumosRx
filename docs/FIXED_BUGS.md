@@ -1,3 +1,10 @@
+### A-334 — the Customers directory "Last Visit" rendered a bare ISO date
+- **Fixed:** 2026-10-24, client only, TDD. Found by the local browser smoke test.
+- **Was:** `transformCustomer()` turned `last_visit` into `YYYY-MM-DD` (or `"-"`) in the view-model, and the directory row and detail panel printed it as is, against the `DD/MM/YYYY HH:mm` rule for an instant.
+- **Now:** `Customer.lastVisit` carries the raw instant (empty when the customer has never visited), and the two display sites format it with `formatDateSafe(value, "dd/MM/yyyy HH:mm", "-")`. `updateCustomer` writes `last_visit: existing.lastVisit || null` back through `transformCustomer`, so the view-model must stay parseable: formatting inside `transformCustomer` would have made that second pass throw on `new Date("24/10/2026 21:17")`.
+- **Sorting:** the directory sorts on the raw value, which is now an ISO instant, so the order is unchanged and correct.
+- **Coverage:** `client/__tests__/customer-last-visit-format.test.tsx` (row, never-visited dash, detail panel); all three fail on the old code.
+
 ### A-196 (oversized files) and PG-13 (web files) — the client and web files past the 350-line limit were split
 - **Fixed:** 2026-10-24, client and web, no behaviour change. Closes the file-size parts of both entries; what each leaves is A-196's missing CI lint step and PG-13's two PHP services (both still open in `KNOWN_BUGS.md`).
 - **Was:** `pos-cart.tsx` (429), `base-helpers.ts` (687), `push.ts` (663) and `pull.ts` (625), and `web/` `broadcasts-tab.tsx`, `users/page.tsx`, `subscription-config-tab.tsx` and `users/new/page.tsx`, plus about twenty more client files, were over `.agents/AGENTS.md` §4's limit. ESLint's `max-lines` skips blank and comment lines, so the lint pass alone left many at 350 to 716 raw lines.

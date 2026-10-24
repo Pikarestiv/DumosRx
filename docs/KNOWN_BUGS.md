@@ -468,12 +468,6 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** on a device at UTC+1 a PO received at 21:17 shows as 20:17 in the movements ledger, while sales and adjustments show correct local times. Any date-range filter that compares these rows against local-day boundaries can put a late-evening or early-morning receipt on the wrong day.
 - **Fix:** write `new Date().toISOString()` like the other movement writers. It is a stored-format change (§11): existing rows keep the zone-less form and the server and older clients still read both, so do not backfill; teach the display path to treat a zone-less value as UTC, and add a test that a receipt's movement displays at the local time it was made.
 
-#### A-334. `client/` — the Customers directory "Last Visit" renders a bare ISO date
-- **Found:** 2026-10-24, by the local browser smoke test.
-- **Location:** `client/components/customers/directory-tab.tsx:273` and `customer-detail-panel.tsx:47` show `customer.lastVisit` unformatted, e.g. `2026-10-24`.
-- **What's wrong:** `.agents/AGENTS.md` §6 requires dates as `DD/MM/YYYY` and an instant with its time (`formatDateSafe(value, "dd/MM/yyyy HH:mm", fallback)`).
-- **Fix:** format with `formatDateSafe` (the field is an instant, so with the time), in both places.
-
 #### A-330. both — the admin store detail's `recent_activity[].status` is always `null`
 - **Found:** 2026-10-24, by Larastan during the level-5 baseline cleanup.
 - **Location:** `laravel-server/app/Services/Admin/AdminStoreDetailService.php` `recentActivity()`; typed as `status: string | null` in `web/lib/types/admin-store-detail.ts` (`AdminStoreDetailActivity`).

@@ -1,6 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import { Customer } from "@/lib/hooks/use-customer-data";
 import { formatCurrency } from "@/lib/utils";
+import { formatDateSafe } from "@/lib/utils/date-utils";
 
 // Literal Tailwind class strings, not interpolated:
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-customers-customer-list-rows-tsx-L5
@@ -118,7 +119,7 @@ export function CustomerDesktopRow({
         </div>
       )}
       <div className="text-[12px] text-right text-muted-foreground">
-        {customer.lastVisit}
+        {formatDateSafe(customer.lastVisit, "dd/MM/yyyy HH:mm", "-")}
       </div>
     </div>
   );

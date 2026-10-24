@@ -1,6 +1,7 @@
 import { ChevronLeft, AlertCircle, Trash2 } from "lucide-react";
 import { Customer } from "@/lib/hooks/use-customer-data";
 import { formatCurrency } from "@/lib/utils";
+import { formatDateSafe } from "@/lib/utils/date-utils";
 
 interface CustomerDetailPanelProps {
   customer: Customer;
@@ -44,7 +45,10 @@ export function CustomerDetailPanel({
       value: `${customer.points.toLocaleString()} pts`,
       valueClassName: "text-emerald-600",
     },
-    { label: "Last Visit", value: customer.lastVisit },
+    {
+      label: "Last Visit",
+      value: formatDateSafe(customer.lastVisit, "dd/MM/yyyy HH:mm", "-"),
+    },
   ];
 
   return (

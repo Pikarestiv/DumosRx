@@ -1,7 +1,7 @@
 import { query } from "../core";
 import { drainDeliveredAges, type DeliveredAges } from "./delivery-age";
 
-/** Matches base-helpers.ts's SYNC_FAILURE_REPORT_THRESHOLD: an item at or
+/** Matches sync-queue.ts's SYNC_FAILURE_REPORT_THRESHOLD: an item at or
  *  past this has exhausted its retries and is not moving on its own. */
 const STUCK_AFTER_ATTEMPTS = 5;
 

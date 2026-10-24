@@ -1,23 +1,23 @@
-import { useState, useEffect } from "react";
+import { useCallback, useSyncExternalStore } from "react";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 
+// Reads `false` until hydration, the value baked into the static export.
+// Rationale: docs/CLIENT_COMMENTS.md#line-hooks-use-media-query-ts-L4
 export function useMediaQuery(query: string) {
-  // Always start at `false`, even on the client:
-  // Rationale: docs/CLIENT_COMMENTS.md#line-hooks-use-media-query-ts-L4
-  const [value, setValue] = useState(false);
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      const result = matchMedia(query);
+      result.addEventListener("change", onChange);
+      return () => result.removeEventListener("change", onChange);
+    },
+    [query],
+  );
 
-  useEffect(() => {
-    function onChange(event: MediaQueryListEvent) {
-      setValue(event.matches);
-    }
-
-    const result = matchMedia(query);
-    result.addEventListener("change", onChange);
-    setValue(result.matches);
-
-    return () => result.removeEventListener("change", onChange);
-  }, [query]);
-
-  return value;
+  return useSyncExternalStore(
+    subscribe,
+    () => matchMedia(query).matches,
+    () => false,
+  );
 }
 
 // useMediaQuery plus the `resolved` flag a consumer needs before it may branch its render on the answer.
@@ -27,7 +27,6 @@ export function useResolvedMediaQuery(query: string): {
   resolved: boolean;
 } {
   const matches = useMediaQuery(query);
-  const [resolved, setResolved] = useState(false);
-  useEffect(() => setResolved(true), []);
+  const resolved = useHydrated();
   return { matches, resolved };
 }

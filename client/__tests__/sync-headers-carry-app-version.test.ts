@@ -12,7 +12,7 @@ describe("syncHeaders", () => {
         ok: true,
         status: 200,
         headers: new Headers({ "content-type": "application/json" }),
-        json: async () => ({ success: true, counts: {} }),
+        json: () => Promise.resolve({ success: true, counts: {} }),
       }),
     );
   });

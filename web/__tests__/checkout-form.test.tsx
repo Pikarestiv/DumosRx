@@ -11,13 +11,14 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/api/base-client", () => ({
   apiClient: {
-    get: vi.fn(async () => ({ data: { products: [], online_payment_available: true } })),
-    post: vi.fn(async (url: string) => {
-      if (url.includes("/checkout/initialize")) {
-        return { data: { payment_url: "https://paystack.com/pay/ref_1", transaction_reference: "ref_1" } };
-      }
-      return { data: { order: { id: "order-1" } } };
-    }),
+    get: vi.fn(() => Promise.resolve({ data: { products: [], online_payment_available: true } })),
+    post: vi.fn((url: string) =>
+      Promise.resolve(
+        url.includes("/checkout/initialize")
+          ? { data: { payment_url: "https://paystack.com/pay/ref_1", transaction_reference: "ref_1" } }
+          : { data: { order: { id: "order-1" } } },
+      ),
+    ),
   },
 }));
 

@@ -37,15 +37,15 @@ vi.mock("@/lib/context/store-context", () => ({
 }));
 
 vi.mock("@/lib/db/queries/auth", () => ({
-  getStaffCount: vi.fn(async () => state.staffCount),
+  getStaffCount: vi.fn(() => Promise.resolve(state.staffCount)),
 }));
 
 vi.mock("@/lib/db/queries/setup", () => ({
-  getSyncQueueCount: vi.fn(async () => state.syncQueueCount),
+  getSyncQueueCount: vi.fn(() => Promise.resolve(state.syncQueueCount)),
 }));
 
 vi.mock("@/lib/licensing/licensing-manager", () => ({
-  checkLicenseStatus: vi.fn(async () => state.license),
+  checkLicenseStatus: vi.fn(() => Promise.resolve(state.license)),
 }));
 
 vi.mock("@/lib/db/core", async (importOriginal) => ({

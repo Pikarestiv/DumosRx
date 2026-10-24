@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -49,10 +50,9 @@ export function ResponsiveModal({
   footer,
 }: ResponsiveModalProps) {
   const isDesktop = useMediaQuery("(min-width: 768px)");
-  // useMediaQuery starts at `false` on every first render (SSR/static-export safe) and corrects itself in an effect right af…
+  // Renders nothing until hydrated so only one of Dialog/Drawer ever mounts.
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-responsive-modal-tsx-L52
-  const [mounted, setMounted] = React.useState(false);
-  React.useEffect(() => setMounted(true), []);
+  const mounted = useHydrated();
 
   if (!mounted) return null;
 

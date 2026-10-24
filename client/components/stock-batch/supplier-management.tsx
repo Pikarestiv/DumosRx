@@ -62,14 +62,20 @@ export function SupplierManagement() {
   const pathname = usePathname();
   const canManageSuppliers = useHasPermission("manage_suppliers");
 
+  const addRequested = searchParams.get("action") === "add";
+  const shouldOpenAddDialog = addRequested && canManageSuppliers;
+  const [openedFromUrl, setOpenedFromUrl] = useState(false);
+  if (openedFromUrl !== shouldOpenAddDialog) {
+    setOpenedFromUrl(shouldOpenAddDialog);
+    if (shouldOpenAddDialog) setShowAddDialog(true);
+  }
+
   useEffect(() => {
-    if (searchParams.get("action") === "add") {
-      if (canManageSuppliers) setShowAddDialog(true);
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("action");
-      router.replace(`${pathname}?${params.toString()}`);
-    }
-  }, [searchParams, router, pathname, canManageSuppliers]);
+    if (!addRequested) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("action");
+    router.replace(`${pathname}?${params.toString()}`);
+  }, [addRequested, searchParams, router, pathname]);
 
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(
     null,

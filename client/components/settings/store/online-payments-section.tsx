@@ -39,7 +39,6 @@ const SUPPORTED_COUNTRIES = [
 
 interface OnlinePaymentsSectionProps {
   storeId: string;
-  storeName: string;
   connectedSubaccountCode?: string | null;
   connectedBankCode?: string | null;
   connectedAccountLast4?: string | null;

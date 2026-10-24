@@ -26,11 +26,13 @@ vi.mock("@/lib/utils/device-id", () => ({
   getDeviceId: () => "DUMOS-TEST-0001",
 }));
 vi.mock("@/lib/licensing/licensing-manager", () => ({
-  checkLicenseStatus: vi.fn(async () => {
-    throw new Error(
-      "This tab is read-only because DumosRx is already open in another tab or window.",
-    );
-  }),
+  checkLicenseStatus: vi.fn(() =>
+    Promise.reject(
+      new Error(
+        "This tab is read-only because DumosRx is already open in another tab or window.",
+      ),
+    ),
+  ),
 }));
 
 afterEach(() => {

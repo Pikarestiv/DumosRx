@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { assert, describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
 
@@ -24,21 +24,21 @@ describe("Dashboard 'product' activity click navigation", () => {
     const clickHandlerMatch = dashboardOverviewSource.match(
       /const handleActivityClick = \(activity: ActivityFeedItem\) => \{([\s\S]*?)\n  \};/,
     );
-    expect(clickHandlerMatch).not.toBeNull();
-    const handlerBody = clickHandlerMatch![1];
+    assert(clickHandlerMatch);
+    const handlerBody = clickHandlerMatch[1];
 
     expect(handlerBody).toMatch(/activity\.type === "product"/);
 
     const routeMatch = handlerBody.match(/router\.push\(`(\/inventory\/[a-z_]+)/);
-    expect(routeMatch, "no router.push(...) found for the product-type branch").not.toBeNull();
+    assert(routeMatch, "no router.push(...) found for the product-type branch");
 
-    const [, routePath] = routeMatch!;
+    const [, routePath] = routeMatch;
     const tab = routePath.replace("/inventory/", "");
 
     const allowedTabsMatch = tabPageSource.match(/const allowedTabs = \[([^\]]*)\]/);
-    expect(allowedTabsMatch).not.toBeNull();
+    assert(allowedTabsMatch);
     const allowedTabs = JSON.parse(
-      `[${allowedTabsMatch![1]}]`.replace(/'/g, '"'),
+      `[${allowedTabsMatch[1]}]`.replace(/'/g, '"'),
     ) as string[];
     expect(allowedTabs, `"${routePath}" references unknown inventory tab "${tab}"`).toContain(tab);
   });

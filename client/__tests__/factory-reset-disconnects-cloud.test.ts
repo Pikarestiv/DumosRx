@@ -4,15 +4,15 @@ import { createRoot, type Root } from "react-dom/client";
 
 // React 19's `act` warns unless the environment explicitly opts in.
 // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-factory-reset-disconnects-cloud-test-ts-L5
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Regression test: handleResetDatabase() ("Factory Reset" in Settings > Data) used to only wipe local tables, leaving the…
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-factory-reset-disconnects-cloud-test-ts-L10
 
-const resetDatabaseMock = vi.fn(async () => undefined);
+const resetDatabaseMock = vi.fn(() => Promise.resolve(undefined));
 const clearTokenMock = vi.fn();
-const logActionMock = vi.fn(async (..._args: unknown[]) => undefined);
-const syncMock = vi.fn(async (..._args: unknown[]) => ({ success: true, pushed: 1, pulled: 0 }));
+const logActionMock = vi.fn((..._args: unknown[]) => Promise.resolve(undefined));
+const syncMock = vi.fn((..._args: unknown[]) => Promise.resolve({ success: true, pushed: 1, pulled: 0 }));
 
 vi.mock("sonner", () => ({
   toast: {
@@ -24,7 +24,7 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/db/core", () => ({
   getDatabaseBinary: vi.fn(),
-  restoreDatabase: vi.fn(async () => undefined),
+  restoreDatabase: vi.fn(() => Promise.resolve(undefined)),
   resetDatabase: () => resetDatabaseMock(),
   isTauri: () => false,
   backupDatabaseToFile: vi.fn(),
@@ -35,7 +35,7 @@ vi.mock("@/lib/db/core", () => ({
 
 vi.mock("@/lib/db/sync-engine", () => ({
   sync: (...args: unknown[]) => syncMock(...args),
-  syncSubscriptionStatus: vi.fn(async () => ({ updated: false })),
+  syncSubscriptionStatus: vi.fn(() => Promise.resolve({ updated: false })),
 }));
 
 vi.mock("@/lib/utils/post-restore-notice", () => ({
@@ -55,7 +55,7 @@ describe("useSettingsSync().handleResetDatabase", () => {
     const { useSettingsSync } = await import("@/hooks/use-settings-sync");
 
     function Harness() {
-      hookResult = useSettingsSync(isCloudLinked, async () => undefined);
+      hookResult = useSettingsSync(isCloudLinked, () => Promise.resolve());
       return null;
     }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, type ComponentProps } from "react";
+import { useState, useMemo, type ComponentProps } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import { apiClient } from "@/lib/api/client";
 import { useRouter } from "next/navigation";
 import { useOnlineOrdersModal } from "@/lib/store/use-online-orders-modal";
 import { useIsTouchDevice } from "@/lib/hooks/use-is-touch-device";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { useBroadcasts } from "@/lib/hooks/use-broadcasts";
 import { NotificationDetailModal } from "./notification-detail-modal";
 import { queryKeys } from "@/lib/query-keys";
@@ -43,6 +44,20 @@ interface NotificationItem {
   category: string;
   link?: string | null;
 }
+
+function loadReadBroadcastIds(storageKey: string | null): string[] {
+  if (!storageKey) return [];
+  try {
+    const raw = localStorage.getItem(storageKey);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+const NotificationsEmptyState = () => (
+  <EmptyState icon={Bell} title="No notifications" />
+);
 
 const NotificationItemContent = ({ notif }: { notif: NotificationItem }) => (
   <>
@@ -105,7 +120,16 @@ export function NotificationBell() {
   const readBroadcastsStorageKey = storeProfile?.id
     ? `dumosrx.readBroadcastIds.${storeProfile.id}`
     : null;
-  const [readBroadcastIds, setReadBroadcastIds] = useState<string[]>([]);
+  const hydrated = useHydrated();
+  const loadedBroadcastsKey = hydrated ? readBroadcastsStorageKey : null;
+  const [readBroadcasts, setReadBroadcasts] = useState<{ key: string | null; ids: string[] }>({
+    key: null,
+    ids: [],
+  });
+  if (readBroadcasts.key !== loadedBroadcastsKey) {
+    setReadBroadcasts({ key: loadedBroadcastsKey, ids: loadReadBroadcastIds(loadedBroadcastsKey) });
+  }
+  const readBroadcastIds = readBroadcasts.ids;
   const { onOpen } = useOnlineOrdersModal();
   // Touch capability decides Drawer vs Dropdown, not viewport width. A wide
   // touch device (like iPad landscape) still needs the Drawer. Radix's
@@ -117,19 +141,6 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [detailNotification, setDetailNotification] =
     useState<NotificationItem | null>(null);
-
-  useEffect(() => {
-    if (!readBroadcastsStorageKey) {
-      setReadBroadcastIds([]);
-      return;
-    }
-    try {
-      const raw = localStorage.getItem(readBroadcastsStorageKey);
-      setReadBroadcastIds(raw ? (JSON.parse(raw) as string[]) : []);
-    } catch {
-      setReadBroadcastIds([]);
-    }
-  }, [readBroadcastsStorageKey]);
 
   const notifications = useMemo(() => {
     const finalBroadcasts = Array.isArray(broadcastsData) ? broadcastsData : [];
@@ -150,12 +161,12 @@ export function NotificationBell() {
   const markAsRead = async (id: string) => {
     try {
       if (id.startsWith('broadcast-')) {
-        setReadBroadcastIds(prev => {
-          if (prev.includes(id)) return prev;
-          const next = [...prev, id];
+        setReadBroadcasts(prev => {
+          if (prev.ids.includes(id)) return prev;
+          const next = { ...prev, ids: [...prev.ids, id] };
           if (readBroadcastsStorageKey) {
             try {
-              localStorage.setItem(readBroadcastsStorageKey, JSON.stringify(next));
+              localStorage.setItem(readBroadcastsStorageKey, JSON.stringify(next.ids));
             } catch (e) {
               console.error("Failed to persist read broadcast id", e);
             }
@@ -187,10 +198,6 @@ export function NotificationBell() {
       setDetailNotification(notif);
     }
   };
-
-  const NotificationsEmptyState = () => (
-    <EmptyState icon={Bell} title="No notifications" />
-  );
 
   // Rendered as a sibling of the bell surface, never inside the dropdown or
   // drawer: the row click closes the bell first, so only one dismissable

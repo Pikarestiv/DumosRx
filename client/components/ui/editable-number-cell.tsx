@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 // A number input that tracks its own text while typing instead of mirroring the committed number on every keystroke.
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-editable-number-cell-tsx-L3
@@ -58,12 +58,13 @@ export function EditableNumberCell({
   const [text, setText] = useState(toText(value));
   const [isFocused, setIsFocused] = useState(false);
 
-  useEffect(() => {
+  const [syncedSource, setSyncedSource] = useState({ value, isFocused });
+  if (syncedSource.value !== value || syncedSource.isFocused !== isFocused) {
+    setSyncedSource({ value, isFocused });
     // Skipped while focused:
     // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-editable-number-cell-tsx-L78
-    if (isFocused) return;
-    setText(toText(value));
-  }, [value, isFocused]);
+    if (!isFocused) setText(toText(value));
+  }
 
   return (
     <input

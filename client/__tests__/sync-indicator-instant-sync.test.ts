@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // jsdom doesn't implement matchMedia; components/ui/tooltip.tsx's touch detection needs it to exist to mount at all.
 // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sync-indicator-instant-sync-test-ts-L7
@@ -19,17 +19,17 @@ if (!window.matchMedia) {
   })) as unknown as typeof window.matchMedia;
 }
 
-const mockSync = vi.fn(async () => ({ success: true, pushed: 0, pulled: 0 }));
+const mockSync = vi.fn(() => Promise.resolve({ success: true, pushed: 0, pulled: 0 }));
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => ({ data: 0 }),
 }));
 
 vi.mock("@/lib/db/queries/setup", () => ({
-  getSyncQueueCount: vi.fn(async () => 0),
+  getSyncQueueCount: vi.fn(() => Promise.resolve(0)),
 }));
 
-const hasPendingNonCrashFeedbackMock = vi.fn(async () => false);
+const hasPendingNonCrashFeedbackMock = vi.fn(() => Promise.resolve(false));
 vi.mock("@/lib/db/crash-report-sync", () => ({
   CRASH_REPORT_TABLE: "feedback",
   hasPendingNonCrashFeedback: () => hasPendingNonCrashFeedbackMock(),
@@ -110,7 +110,7 @@ describe("SyncIndicator instant sync (auto_sync_interval === 0)", () => {
       "@/components/dashboard/sync-indicator"
     );
     root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(SyncIndicator, { collapsed: false }));
     });
   }
@@ -123,7 +123,7 @@ describe("SyncIndicator instant sync (auto_sync_interval === 0)", () => {
   it("debounces bursts of changes into a single sync call, instead of syncing once per change", async () => {
     await render({ auto_sync_enabled: 1, auto_sync_interval: 0 });
 
-    await act(async () => {
+    await act(() => {
       registeredListener?.(["products"]);
       registeredListener?.(["sales"]);
       registeredListener?.(["products"]);
@@ -140,7 +140,7 @@ describe("SyncIndicator instant sync (auto_sync_interval === 0)", () => {
   it("does not trigger a sync for an audit_logs-only change (a PIN login/logout)", async () => {
     await render({ auto_sync_enabled: 1, auto_sync_interval: 0 });
 
-    await act(async () => {
+    await act(() => {
       registeredListener?.(["audit_logs"]);
     });
     await act(async () => {
@@ -154,7 +154,7 @@ describe("SyncIndicator instant sync (auto_sync_interval === 0)", () => {
   it("still triggers when audit_logs changes alongside a real business-data table (e.g. a sale)", async () => {
     await render({ auto_sync_enabled: 1, auto_sync_interval: 0 });
 
-    await act(async () => {
+    await act(() => {
       registeredListener?.(["sales", "audit_logs"]);
     });
     await act(async () => {
@@ -238,7 +238,7 @@ describe("SyncIndicator instant sync (auto_sync_interval === 0)", () => {
       "@/components/dashboard/sync-indicator"
     );
     mockStoreProfile = { auto_sync_enabled: 1, auto_sync_interval: 10 };
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(SyncIndicator, { collapsed: false }));
     });
 

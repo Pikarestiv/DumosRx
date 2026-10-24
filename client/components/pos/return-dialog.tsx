@@ -179,7 +179,7 @@ export function ReturnDialog({
               Cancel
             </Button>
             <Button
-              onClick={handleInitialSubmit}
+              onClick={() => void handleInitialSubmit()}
               disabled={returnMutation.isPending || loadingSaleItems}
               className="bg-accent hover:bg-accent/90"
             >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
@@ -29,7 +29,7 @@ export function CategoryFormDialog({
   editingCategory,
   existingNames,
 }: CategoryFormDialogProps) {
-  const [name, setName] = useState("");
+  const [name, setName] = useState(open ? (editingCategory?.name ?? "") : "");
   const { storeType } = useStore();
   const isPharmacy = storeType === "pharmacy";
 
@@ -37,9 +37,11 @@ export function CategoryFormDialog({
   const renameMutation = useRenameCategoryMutation();
   const isSubmitting = createMutation.isPending || renameMutation.isPending;
 
-  useEffect(() => {
+  const [nameSource, setNameSource] = useState({ open, editingCategory });
+  if (nameSource.open !== open || nameSource.editingCategory !== editingCategory) {
+    setNameSource({ open, editingCategory });
     if (open) setName(editingCategory?.name ?? "");
-  }, [open, editingCategory]);
+  }
 
   // Suggestions matching how the product form already picks a category list by business type, minus names already in use — n…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-store-category-form-dialog-tsx-L44

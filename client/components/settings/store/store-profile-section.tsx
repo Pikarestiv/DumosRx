@@ -1,4 +1,4 @@
-import { Copy, Check, HelpCircle, Edit2 } from "lucide-react";
+import { Copy, Check, Edit2 } from "lucide-react";
 import { addMonths, format, isAfter } from "date-fns";
 import { STOREFRONT_BASE_URL } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -9,12 +9,7 @@ import { StoreType } from "@/lib/context/store-context";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { HelpTooltip } from "./help-tooltip";
 
 interface StoreProfileSectionProps {
   storeType: StoreType;
@@ -121,19 +116,10 @@ export function StoreProfileSection({
         <div className="grid gap-2">
           <div className="flex items-center gap-2">
             <Label htmlFor="store-slug">Store URL Slug</Label>
-            <TooltipProvider delayDuration={0}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>
-                    Your unique web address where customers can browse your
-                    products online.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <HelpTooltip>
+              Your unique web address where customers can browse your
+              products online.
+            </HelpTooltip>
           </div>
           {isEditingProfile ? (
             <>
@@ -213,21 +199,12 @@ export function StoreProfileSection({
           <div className="space-y-0.5">
             <div className="flex items-center gap-2">
               <Label className="text-base">Enable Online Store</Label>
-              <TooltipProvider delayDuration={0}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      When off, your storefront link above is unreachable:
-                      customers see a 404 even with the correct URL. Products
-                      also need &quot;Show Online&quot; turned on individually
-                      in each product&apos;s Additional Details.
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <HelpTooltip>
+                When off, your storefront link above is unreachable:
+                customers see a 404 even with the correct URL. Products
+                also need &quot;Show Online&quot; turned on individually
+                in each product&apos;s Additional Details.
+              </HelpTooltip>
             </div>
             <p className="text-sm text-muted-foreground">
               Let customers browse and order from {STOREFRONT_BASE_URL}/
@@ -264,20 +241,11 @@ export function StoreProfileSection({
           <div className="space-y-0.5">
             <div className="flex items-center gap-2">
               <Label className="text-base">Enable Loyalty Program</Label>
-              <TooltipProvider delayDuration={0}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      When off, points stop earning and the Redeem Reward option
-                      disappears from POS checkout. Tiers and rewards stay
-                      configured for whenever you turn it back on.
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <HelpTooltip>
+                When off, points stop earning and the Redeem Reward option
+                disappears from POS checkout. Tiers and rewards stay
+                configured for whenever you turn it back on.
+              </HelpTooltip>
             </div>
             <p className="text-sm text-muted-foreground">
               Let customers earn and redeem points on purchases
@@ -332,20 +300,11 @@ export function StoreProfileSection({
                   <Label className="text-base">
                     Include Retail Items in Suggestions
                   </Label>
-                  <TooltipProvider delayDuration={0}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>
-                          When enabled, general retail products (like
-                          provisions) will appear alongside products in search
-                          suggestions during sales.
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <HelpTooltip>
+                    When enabled, general retail products (like
+                    provisions) will appear alongside products in search
+                    suggestions during sales.
+                  </HelpTooltip>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   Show retail items (provisions, cosmetics, etc.) in product

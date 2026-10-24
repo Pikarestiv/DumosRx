@@ -28,13 +28,14 @@ export function UnitSelect({ id, value, onValueChange, placeholder }: UnitSelect
   const listboxId = React.useId();
   const rowId = (index: number) => `${listboxId}-row-${index}`;
 
+  const customUnitsJson = storeProfile?.custom_units;
   const customUnits = React.useMemo<string[]>(() => {
     try {
-      return storeProfile?.custom_units ? JSON.parse(storeProfile.custom_units) : [];
+      return customUnitsJson ? JSON.parse(customUnitsJson) : [];
     } catch {
       return [];
     }
-  }, [storeProfile?.custom_units]);
+  }, [customUnitsJson]);
 
   const allOptions = React.useMemo(() => {
     const seen = new Set<string>();
@@ -49,13 +50,17 @@ export function UnitSelect({ id, value, onValueChange, placeholder }: UnitSelect
     return merged;
   }, [customUnits]);
 
-  React.useEffect(() => {
+  const [syncedValue, setSyncedValue] = React.useState(value);
+  if (syncedValue !== value) {
+    setSyncedValue(value);
     setFilter(value || "");
-  }, [value]);
+  }
 
-  React.useEffect(() => {
+  const [activeIndexScope, setActiveIndexScope] = React.useState({ filter, open });
+  if (activeIndexScope.filter !== filter || activeIndexScope.open !== open) {
+    setActiveIndexScope({ filter, open });
     setActiveIndex(-1);
-  }, [filter, open]);
+  }
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

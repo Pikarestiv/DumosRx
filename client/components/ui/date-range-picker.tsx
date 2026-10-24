@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   format,
   isValid,
@@ -114,8 +114,17 @@ export function DateRangePicker({
   );
   const [fromInput, setFromInput] = useState("");
   const [toInput, setToInput] = useState("");
+  const [syncedBounds, setSyncedBounds] = useState<{
+    from?: string;
+    to?: string;
+  } | null>(null);
 
-  useEffect(() => {
+  if (
+    !syncedBounds ||
+    syncedBounds.from !== value.from ||
+    syncedBounds.to !== value.to
+  ) {
+    setSyncedBounds({ from: value.from, to: value.to });
     if (value.from) {
       const from = new Date(value.from);
       const to = value.to ? new Date(value.to) : undefined;
@@ -127,7 +136,7 @@ export function DateRangePicker({
       setFromInput("");
       setToInput("");
     }
-  }, [value.from, value.to]);
+  }
 
   const applyRange = (next: DateRange | undefined) => {
     setRange(next);

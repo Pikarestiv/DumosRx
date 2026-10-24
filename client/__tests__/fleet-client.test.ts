@@ -16,7 +16,7 @@ describe('fleet store API methods', () => {
     const store = { id: '1', name: 'Main Branch', location: 'Lagos', address: null, phone: null, store_type: 'pharmacy' };
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => ({ message: 'Store registered successfully', store }),
+      json: () => Promise.resolve({ message: 'Store registered successfully', store }),
     });
 
     const result = await apiClient.createStore({ name: 'Main Branch', location: 'Lagos', store_type: 'pharmacy' });
@@ -32,7 +32,7 @@ describe('fleet store API methods', () => {
     const store = { id: '1', name: 'Main Branch Updated', location: 'Lagos', address: null, phone: null, store_type: 'pharmacy' };
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => ({ message: 'Store updated successfully', store }),
+      json: () => Promise.resolve({ message: 'Store updated successfully', store }),
     });
 
     const result = await apiClient.updateStore('1', { name: 'Main Branch Updated', store_type: 'pharmacy' });
@@ -47,7 +47,7 @@ describe('fleet store API methods', () => {
   it('deleteStore deletes /stores/:id', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => ({ message: 'Store removed successfully' }),
+      json: () => Promise.resolve({ message: 'Store removed successfully' }),
     });
 
     const result = await apiClient.deleteStore('1');

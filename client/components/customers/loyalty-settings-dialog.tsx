@@ -78,12 +78,14 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
 
   // Stored as points-per-currency-unit (e.g.
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-customers-loyalty-settings-dialog-tsx-L82
-  const [earnRateInput, setEarnRateInput] = useState("1");
-  useEffect(() => {
-    if (!open) return;
-    const perCurrency = storeProfile?.loyalty_points_per_currency ?? 0.01;
-    setEarnRateInput(String(perCurrency * 100));
-  }, [open, storeProfile?.loyalty_points_per_currency]);
+  const storedPointsPerCurrency = storeProfile?.loyalty_points_per_currency;
+  const earnRateFromStore = () => String((storedPointsPerCurrency ?? 0.01) * 100);
+  const [earnRateInput, setEarnRateInput] = useState(() => (open ? earnRateFromStore() : "1"));
+  const [syncedFor, setSyncedFor] = useState({ open, storedPointsPerCurrency });
+  if (syncedFor.open !== open || syncedFor.storedPointsPerCurrency !== storedPointsPerCurrency) {
+    setSyncedFor({ open, storedPointsPerCurrency });
+    if (open) setEarnRateInput(earnRateFromStore());
+  }
 
   const handleSaveEarnRate = async () => {
     const per100 = Number.parseFloat(earnRateInput);
@@ -229,7 +231,7 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
                 value={earnRateInput}
                 onChange={(e) => setEarnRateInput(e.target.value)}
               />
-              <Button size="sm" variant="outline" onClick={handleSaveEarnRate}>
+              <Button size="sm" variant="outline" onClick={() => void handleSaveEarnRate()}>
                 Save
               </Button>
             </div>

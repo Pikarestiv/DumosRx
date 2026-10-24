@@ -21,8 +21,8 @@ describe("summarizeSkippedRecords", () => {
     const summary = summarizeSkippedRecords(skipped);
 
     expect(summary).not.toBeNull();
-    expect(summary!.message).toContain("500");
-    expect(summary!.context.area).toBe("sync-pull");
+    expect(summary?.message).toContain("500");
+    expect(summary?.context.area).toBe("sync-pull");
   });
 
   it("carries only a bounded sample of the skipped records", () => {
@@ -32,7 +32,7 @@ describe("summarizeSkippedRecords", () => {
       reason: "insert: UNIQUE constraint failed",
     }));
 
-    const sample = JSON.parse(summarizeSkippedRecords(skipped)!.context.skipped as string);
+    const sample = JSON.parse(summarizeSkippedRecords(skipped)?.context.skipped as string);
 
     expect(sample).toHaveLength(MAX_REPORTED_SKIPS);
   });
@@ -45,6 +45,6 @@ describe("summarizeSkippedRecords", () => {
       { table: "products", recordId: "p-2", reason: "insert: UNIQUE constraint failed" },
     ]);
 
-    expect(first!.message).toBe(second!.message);
+    expect(first?.message).toBe(second?.message);
   });
 });

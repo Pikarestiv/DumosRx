@@ -63,8 +63,9 @@ async function renderNav(
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root: Root = createRoot(container);
-  await act(async () => {
+  await act(() => {
     root.render(React.createElement(Component, { isAdmin: true, canAccessTab }));
+    return Promise.resolve();
   });
   return container;
 }

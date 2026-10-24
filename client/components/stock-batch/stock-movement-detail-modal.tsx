@@ -124,7 +124,7 @@ export function StockMovementDetailModal({
                 <button
                   type="button"
                   disabled={reviewing}
-                  onClick={handleMarkReviewed}
+                  onClick={() => void handleMarkReviewed()}
                   className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-background px-3 py-1.5 text-[12px] font-semibold text-amber-700 outline-none transition-colors hover:bg-amber-100 focus-visible:ring-[3px] focus-visible:ring-ring disabled:opacity-60 dark:border-amber-500/40 dark:text-amber-400 dark:hover:bg-amber-500/20"
                 >
                   {reviewing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}

@@ -36,13 +36,9 @@ function CallbackHandler() {
     // Rationale: docs/CLIENT_COMMENTS.md#line-app-auth-callback-page-tsx-L45
     window.history.replaceState({}, "", window.location.pathname);
 
-    if (!code) {
-      setError("Missing handoff code.");
-      return;
-    }
-
     void (async () => {
       try {
+        if (!code) throw new Error("Missing handoff code.");
         const { token, user } = await apiClient.consumeHandoffCode(code);
         // Token first: downstream code/interceptors expect it to be in place
         // before any other session state is set.

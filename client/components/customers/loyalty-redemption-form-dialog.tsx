@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -40,24 +40,25 @@ interface Props {
   onSaved: () => void;
 }
 
-export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId, nextSortOrder, currencySymbol = "₦", onSaved }: Props) {
-  const [form, setForm] = useState(emptyForm);
+function formFromOption(option: LoyaltyRedemptionOptionRow | null) {
+  if (!option) return emptyForm;
+  return {
+    label: option.label,
+    points_cost: String(option.points_cost),
+    discount_value: String(option.discount_value || 0),
+    description: option.description || "",
+    icon_key: option.icon_key || "tag",
+    is_active: !!option.is_active,
+  };
+}
 
-  useEffect(() => {
-    if (!open) return;
-    setForm(
-      option
-        ? {
-            label: option.label,
-            points_cost: String(option.points_cost),
-            discount_value: String(option.discount_value || 0),
-            description: option.description || "",
-            icon_key: option.icon_key || "tag",
-            is_active: !!option.is_active,
-          }
-        : emptyForm
-    );
-  }, [open, option]);
+export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId, nextSortOrder, currencySymbol = "₦", onSaved }: Props) {
+  const [form, setForm] = useState(() => (open ? formFromOption(option) : emptyForm));
+  const [syncedFor, setSyncedFor] = useState({ open, option });
+  if (syncedFor.open !== open || syncedFor.option !== option) {
+    setSyncedFor({ open, option });
+    if (open) setForm(formFromOption(option));
+  }
 
   const saveMutation = useSaveLoyaltyRedemptionOptionMutation();
 

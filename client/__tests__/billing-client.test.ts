@@ -16,7 +16,7 @@ describe('billing API methods', () => {
     const payload = { status: 'active', plan: 'Pro', days_remaining: 12 };
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => payload,
+      json: () => Promise.resolve(payload),
     });
 
     const result = await apiClient.getSubscriptionStatus();
@@ -30,7 +30,7 @@ describe('billing API methods', () => {
     const response = { success: true, payment_url: 'https://pay.example/x' };
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => response,
+      json: () => Promise.resolve(response),
     });
 
     const result = await apiClient.pay({
@@ -53,7 +53,7 @@ describe('billing API methods', () => {
     const payload = { referral_code: 'ABC123', referral_credits: 500, referrals: [], transactions: [] };
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => payload,
+      json: () => Promise.resolve(payload),
     });
 
     const result = await apiClient.getReferralStats();
@@ -67,7 +67,7 @@ describe('billing API methods', () => {
     const payload = { valid: true, coupon: { code: 'SAVE10', type: 'discount_percent', value: 10, target_plan: null, target_interval: null } };
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => payload,
+      json: () => Promise.resolve(payload),
     });
 
     const result = await apiClient.validateCoupon({ code: 'SAVE10' });
@@ -81,7 +81,7 @@ describe('billing API methods', () => {
   it('verifyPayment posts the reference to /subscription/verify', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => ({ success: true }),
+      json: () => Promise.resolve({ success: true }),
     });
 
     const result = await apiClient.verifyPayment('ref-123');
@@ -96,7 +96,7 @@ describe('billing API methods', () => {
     const payload = { transactions: [{ id: '1', date: '2026-01-01', desc: 'Pro Plan', amount: 8000, status: 'Success' }] };
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => payload,
+      json: () => Promise.resolve(payload),
     });
 
     const result = await apiClient.getBillingHistory();

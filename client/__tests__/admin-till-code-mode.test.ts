@@ -6,9 +6,9 @@ const { lookup } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/db/queries/auth", () => ({
-  getUsersByUsernameOrEmail: vi.fn(async (identifier: string) => {
+  getUsersByUsernameOrEmail: vi.fn((identifier: string) => {
     lookup.calls.push(identifier);
-    return lookup.rows;
+    return Promise.resolve(lookup.rows);
   }),
 }));
 

@@ -5,8 +5,8 @@ import type { ReactNode } from "react";
 import React from "react";
 import { toast } from "sonner";
 
-const receivePurchaseOrder = vi.fn(async () => "received");
-const getPurchaseOrders = vi.fn(async () => ({ data: [] }));
+const receivePurchaseOrder = vi.fn(() => Promise.resolve("received"));
+const getPurchaseOrders = vi.fn(() => Promise.resolve({ data: [] }));
 
 vi.mock("@/lib/db/local-database", () => ({
   getPurchaseOrders: (...args: unknown[]) => (getPurchaseOrders as (...a: unknown[]) => unknown)(...args),
@@ -27,7 +27,7 @@ vi.mock("@/lib/context/store-context", () => ({
   useStore: () => ({ storeProfile: { currency: "NGN" } }),
 }));
 vi.mock("@/lib/db/queries/products", () => ({
-  getAverageCostPrice: vi.fn(async () => 5200),
+  getAverageCostPrice: vi.fn(() => Promise.resolve(5200)),
 }));
 
 // Regression coverage (final review of the procurement UX branch):

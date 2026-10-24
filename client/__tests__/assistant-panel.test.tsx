@@ -51,7 +51,7 @@ vi.mock("@/lib/context/store-context", () => ({
   }),
 }));
 
-const answer = vi.fn(async () => ({
+const answer = vi.fn(() => Promise.resolve({
   kind: "help",
   text: "Make a sale: Open POS",
   actions: [{ label: "Make a sale", href: "/pos" }],
@@ -75,7 +75,7 @@ describe("AssistantPanel", () => {
 
     const input = screen.getByLabelText("Ask the assistant");
     fireEvent.change(input, { target: { value: "how do i make a sale" } });
-    fireEvent.submit(input.closest("form")!);
+    fireEvent.submit(input);
 
     await waitFor(() => {
       expect(screen.getByText(/Make a sale: Open POS/)).toBeTruthy();
@@ -98,7 +98,7 @@ describe("AssistantPanel", () => {
 
     const input = screen.getByLabelText("Ask the assistant");
     fireEvent.change(input, { target: { value: "how do i make a sale" } });
-    fireEvent.submit(input.closest("form")!);
+    fireEvent.submit(input);
 
     expect(await screen.findByText("AB")).toBeTruthy();
   });
@@ -110,7 +110,7 @@ describe("AssistantPanel", () => {
 
     const input = screen.getByLabelText("Ask the assistant");
     fireEvent.change(input, { target: { value: "how do i make a sale" } });
-    fireEvent.submit(input.closest("form")!);
+    fireEvent.submit(input);
 
     const link = await screen.findByRole("link", { name: "Make a sale" });
     fireEvent.click(link);
@@ -127,7 +127,7 @@ describe("AssistantPanel", () => {
 
     const input = screen.getByLabelText("Ask the assistant");
     fireEvent.change(input, { target: { value: "how do i make a sale" } });
-    fireEvent.submit(input.closest("form")!);
+    fireEvent.submit(input);
 
     await waitFor(() => {
       expect(screen.getByText(/Make a sale: Open POS/)).toBeTruthy();
@@ -146,7 +146,7 @@ describe("AssistantPanel", () => {
 
     const input = screen.getByLabelText("Ask the assistant") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "boom" } });
-    fireEvent.submit(input.closest("form")!);
+    fireEvent.submit(input);
 
     await waitFor(() => {
       expect((screen.getByLabelText("Ask the assistant") as HTMLInputElement).disabled).toBe(false);

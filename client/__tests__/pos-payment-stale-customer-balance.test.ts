@@ -2,13 +2,14 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import initSqlJs, { type Database } from "sql.js";
+import type { CartItem } from "@/lib/hooks/use-pos-cart";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Regression: handlePayment() wrote outstanding_balance/loyalty_points as `(selectedCustomer.outstanding_balance || 0) + d…
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-payment-stale-customer-balance-test-ts-L13
@@ -50,7 +51,7 @@ describe("usePOSPayment does not clobber a stale customer balance/loyalty snapsh
     core.setActiveStoreId(null);
     window.localStorage.setItem("dumos_user", JSON.stringify({ id: "user-1" }));
     recordSaleItemStockMock.mockReset();
-    recordSaleItemStockMock.mockImplementation(async () => undefined);
+    recordSaleItemStockMock.mockImplementation(() => Promise.resolve(undefined));
 
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -78,7 +79,7 @@ describe("usePOSPayment does not clobber a stale customer balance/loyalty snapsh
     cost_price: 500,
     quantity: 1,
     subtotal: 1000,
-  } as any);
+  } as CartItem);
 
   it("adds a credit sale on top of the DB's current balance, not the stale in-memory snapshot", async () => {
     db.run(
@@ -107,8 +108,9 @@ describe("usePOSPayment does not clobber a stale customer balance/loyalty snapsh
       refetchProducts: () => {},
     });
 
-    await act(async () => {
-      handle.get().setPaymentMethod("credit" as any);
+    await act(() => {
+      handle.get().setPaymentMethod("credit");
+      return Promise.resolve();
     });
     await act(async () => {
       await handle.get().handlePayment();
@@ -148,12 +150,13 @@ describe("usePOSPayment does not clobber a stale customer balance/loyalty snapsh
       refetchProducts: () => {},
     });
 
-    await act(async () => {
-      handle.get().setPaymentMethod("mixed" as any);
+    await act(() => {
+      handle.get().setPaymentMethod("mixed");
       handle.get().setPaymentSplits([
         { method: "cash", amount: 2000 },
         { method: "credit", amount: 1000 },
-      ] as any);
+      ]);
+      return Promise.resolve();
     });
     await act(async () => {
       await handle.get().handlePayment();
@@ -193,12 +196,13 @@ describe("usePOSPayment does not clobber a stale customer balance/loyalty snapsh
       refetchProducts: () => {},
     });
 
-    await act(async () => {
-      handle.get().setPaymentMethod("mixed" as any);
+    await act(() => {
+      handle.get().setPaymentMethod("mixed");
       handle.get().setPaymentSplits([
         { method: "cash", amount: 2000 },
         { method: "credit", amount: 3000 },
-      ] as any);
+      ]);
+      return Promise.resolve();
     });
     await act(async () => {
       await handle.get().handlePayment();

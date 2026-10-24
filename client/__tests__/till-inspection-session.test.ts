@@ -74,10 +74,10 @@ describe("till inspection session", () => {
     extendTillInspectionSession();
 
     const extended = getTillInspectionSession();
-    expect(new Date(extended!.idleExpiresAt).getTime()).toBeGreaterThan(
+    expect(new Date(extended?.idleExpiresAt ?? "").getTime()).toBeGreaterThan(
       new Date(original.idleExpiresAt).getTime(),
     );
-    expect(extended!.hardExpiresAt).toBe(original.hardExpiresAt);
+    expect(extended?.hardExpiresAt).toBe(original.hardExpiresAt);
     vi.useRealTimers();
   });
 
@@ -99,7 +99,7 @@ describe("till inspection session", () => {
       hardExpiresAt: new Date(Date.now() + 90_000).toISOString(),
     });
 
-    const remaining = msUntilInspectionExpiry()!;
+    const remaining = msUntilInspectionExpiry();
     expect(remaining).toBeGreaterThan(25_000);
     expect(remaining).toBeLessThanOrEqual(30_000);
   });

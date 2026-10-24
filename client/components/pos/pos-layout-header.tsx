@@ -65,16 +65,14 @@ export function POSLayoutHeader({
   // Pulses until the user types something for the first time this visit — the point's made the moment they engage with it.
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-layout-header-tsx-L77
   const [hasTypedInSearch, setHasTypedInSearch] = useState(false);
-  useEffect(() => {
-    if (searchTerm !== "") setHasTypedInSearch(true);
-  }, [searchTerm]);
+  if (searchTerm !== "" && !hasTypedInSearch) setHasTypedInSearch(true);
   const showSearchGlow = !hasTypedInSearch;
 
-  useEffect(() => {
-    if (searchParams?.get("action") === "scan") {
-      setIsScannerOpen(true);
-    }
-  }, [searchParams]);
+  const [handledScanParams, setHandledScanParams] = useState<typeof searchParams | null>(null);
+  if (searchParams?.get("action") === "scan" && handledScanParams !== searchParams) {
+    setHandledScanParams(searchParams);
+    setIsScannerOpen(true);
+  }
 
   // Keeps the store (and therefore the sidebar) in sync when fullscreen is exited some way other than this button - Esc, the…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-layout-header-tsx-L94

@@ -2,13 +2,14 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import initSqlJs, { type Database } from "sql.js";
+import type { CartItem } from "@/lib/hooks/use-pos-cart";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Regression: handlePayment() used to write the sale row, then deduct stock for each cart line, then update the customer b…
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-payment-transaction-atomicity-test-ts-L13
@@ -77,16 +78,14 @@ describe("usePOSPayment transaction atomicity", () => {
     cost_price: 500,
     quantity: 1,
     subtotal: 1000,
-  } as any);
+  } as CartItem);
 
   it("rolls back the sale row when a later cart line's stock deduction throws", async () => {
     // First line succeeds, second throws - simulating an interruption
     // partway through the checkout (a lock error, quota exceeded, etc.).
     recordSaleItemStockMock
-      .mockImplementationOnce(async () => undefined)
-      .mockImplementationOnce(async () => {
-        throw new Error("simulated failure on second line item");
-      });
+      .mockImplementationOnce(() => Promise.resolve(undefined))
+      .mockImplementationOnce(() => Promise.reject(new Error("simulated failure on second line item")));
 
     const handle = renderPayment({
       cart: [cartItem("p1"), cartItem("p2")],
@@ -116,7 +115,7 @@ describe("usePOSPayment transaction atomicity", () => {
   });
 
   it("commits the sale row when every write in the sequence succeeds", async () => {
-    recordSaleItemStockMock.mockImplementation(async () => undefined);
+    recordSaleItemStockMock.mockImplementation(() => Promise.resolve(undefined));
 
     const handle = renderPayment({
       cart: [cartItem("p1"), cartItem("p2")],

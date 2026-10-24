@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -106,7 +107,7 @@ export function DashboardSidebar({
   const allItems = navigationItems;
 
   /** Shared nav link renderer; collapses to icon + tooltip when sidebar is narrow */
-  const NavItem = ({
+  const renderNavItem = ({
     href,
     icon: Icon,
     name,
@@ -243,16 +244,13 @@ export function DashboardSidebar({
             )}
           >
             {allItems.map((item) => (
-              <NavItem
-                key={item.name}
-                href={item.href}
-                icon={item.icon}
-                name={item.name}
-              />
+              <Fragment key={item.name}>
+                {renderNavItem({ href: item.href, icon: item.icon, name: item.name })}
+              </Fragment>
             ))}
 
             {(isAdmin || canManageStockBatch) && (
-              <NavItem href="/settings" icon={Settings} name="Settings" />
+              renderNavItem({ href: "/settings", icon: Settings, name: "Settings" })
             )}
 
             {/* Collapse toggle: only on desktop. Hidden on POS since the

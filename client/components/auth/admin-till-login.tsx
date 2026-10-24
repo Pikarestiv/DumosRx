@@ -54,7 +54,7 @@ export function AdminTillLogin({ onSuccess, onCancel }: Props) {
   };
 
   return (
-    <form onSubmit={submit} className="space-y-3 text-left">
+    <form onSubmit={(event) => void submit(event)} className="space-y-3 text-left">
       <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
         <ShieldAlert className="h-3 w-3" />
         Admin access

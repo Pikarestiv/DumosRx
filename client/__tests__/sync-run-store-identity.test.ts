@@ -2,15 +2,15 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 const pushChangesMock = vi.fn();
 vi.mock("@/lib/api/client", () => ({
   apiClient: {
     pushChanges: (...args: unknown[]) => pushChangesMock(...args),
-    pullChanges: vi.fn(async () => ({ success: true, changes: {}, server_timestamp: "2026-10-19T00:00:00Z" })),
+    pullChanges: vi.fn(() => Promise.resolve({ success: true, changes: {}, server_timestamp: "2026-10-19T00:00:00Z" })),
   },
 }));
 
@@ -52,12 +52,12 @@ describe("a sync run keeps one store identity", () => {
   });
 
   it("labels every request with the run's store even if the active store changes mid-run", async () => {
-    pushChangesMock.mockImplementation(async () => {
+    pushChangesMock.mockImplementation(() => {
       // The user switches store while the request is in flight — the exact
       // window switchStore() leaves open, since it does not cancel a sync.
       core.setActiveStoreId("store-b");
       setStoredActiveStoreId("store-b");
-      return { success: true, processed: 0, failed: [] };
+      return Promise.resolve({ success: true, processed: 0, failed: [] });
     });
 
     const run = resolveSyncRun();

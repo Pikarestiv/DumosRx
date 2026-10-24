@@ -26,8 +26,8 @@ vi.mock("@/lib/db/local-database", async (importOriginal) => {
 });
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 /** Lets the microtask queue drain so every already-issued query has had the

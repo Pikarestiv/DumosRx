@@ -37,7 +37,7 @@ vi.mock("@/lib/utils/device-id", () => ({
   getDeviceId: () => "DUMOS-TEST-0001",
 }));
 vi.mock("@/lib/licensing/licensing-manager", () => ({
-  checkLicenseStatus: vi.fn(async () => licenseState.current),
+  checkLicenseStatus: vi.fn(() => Promise.resolve(licenseState.current)),
 }));
 
 async function renderGuard() {

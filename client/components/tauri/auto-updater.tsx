@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { DOWNLOAD_URL, UPDATER_JSON_URL } from "@/lib/constants";
 import { logCrash } from "@/lib/utils/error-logger";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 import type { Update, DownloadEvent } from "@tauri-apps/plugin-updater";
 
 type UpdateStatus = "idle" | "checking" | "available" | "downloading" | "downloading-silent" | "ready-to-restart" | "error" | "up-to-date" | "mobile-available";
@@ -28,34 +29,8 @@ export function AutoUpdater() {
   const [status, setStatus] = useState<UpdateStatus>("idle");
   const [updateInfo, setUpdateInfo] = useState<Update | MobileUpdateInfo | null>(null);
   const [progress, setProgress] = useState(0);
-  const [isApp, setIsApp] = useState(false);
+  const isApp = useHydrated() && isTauri();
   const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    setIsApp(isTauri());
-    if (isTauri()) {
-      // Determine if we are on mobile using plugin-os
-      import("@tauri-apps/plugin-os").then(({ type }) => {
-        const osType = type();
-        const mobile = osType === 'ios' || osType === 'android';
-        setIsMobile(mobile);
-        
-        if (mobile) {
-          void checkMobileUpdate();
-        } else {
-          void checkForUpdates(true);
-        }
-      }).catch((e) => {
-        console.error("Failed to load plugin-os", e);
-        // Fallback to desktop check
-        void checkForUpdates(true);
-      });
-    }
-    // Intentionally runs once on mount only — this is the app-startup
-    // update check, not something that should re-fire as checkForUpdates'
-    // identity changes across renders.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const checkMobileUpdate = async () => {
     try {
@@ -176,6 +151,30 @@ export function AutoUpdater() {
   };
 
 
+  useEffect(() => {
+    if (isTauri()) {
+      // Determine if we are on mobile using plugin-os
+      import("@tauri-apps/plugin-os").then(({ type }) => {
+        const osType = type();
+        const mobile = osType === 'ios' || osType === 'android';
+        setIsMobile(mobile);
+        
+        if (mobile) {
+          void checkMobileUpdate();
+        } else {
+          void checkForUpdates(true);
+        }
+      }).catch((e) => {
+        console.error("Failed to load plugin-os", e);
+        // Fallback to desktop check
+        void checkForUpdates(true);
+      });
+    }
+    // Intentionally runs once on mount only — this is the app-startup
+    // update check, not something that should re-fire as checkForUpdates'
+    // identity changes across renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!isApp) return null;
 

@@ -115,7 +115,6 @@ test.describe('Sales Lifecycle (realistic data)', () => {
     await page.locator('input[type="number"]').filter({ hasText: '' }).nth(0);
     // The discount amount input is the lone number input rendered next to the
     // "Discount" label once revealed.
-    const discountRow = page.locator('div', { hasText: 'Discount' }).last();
     await page.locator('input[type="number"]').last().fill('100');
 
     await page.getByRole('button', { name: /Charge/i }).click();

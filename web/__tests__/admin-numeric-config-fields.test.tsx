@@ -12,7 +12,7 @@ import {
 import type { ReferralProgramSettings } from "@/components/admin/marketing/types";
 
 const { mockMutateAsync } = vi.hoisted(() => ({
-  mockMutateAsync: vi.fn(async () => undefined),
+  mockMutateAsync: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("@/lib/api/hooks", async () => {

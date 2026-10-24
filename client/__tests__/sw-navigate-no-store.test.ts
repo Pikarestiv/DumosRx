@@ -12,6 +12,6 @@ describe("sw.js navigate fetch bypasses the HTTP cache", () => {
     // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-sw-navigate-no-store-test-ts-L23
     const fetchCallMatch = source.match(/fetch\(request, \{[^}]*\}\)/);
     expect(fetchCallMatch).not.toBeNull();
-    expect(fetchCallMatch![0]).toMatch(/cache:\s*"no-store"/);
+    expect(fetchCallMatch?.[0]).toMatch(/cache:\s*"no-store"/);
   });
 });

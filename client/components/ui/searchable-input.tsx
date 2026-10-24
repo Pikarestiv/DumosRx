@@ -62,13 +62,17 @@ export function SearchableInput({ options, value, onValueChange, onEscapeKey, on
   const listboxId = React.useId()
   const optionId = (index: number) => `${listboxId}-opt-${index}`
 
-  React.useEffect(() => {
+  const [syncedValue, setSyncedValue] = React.useState({ value, getLabelForValue })
+  if (syncedValue.value !== value || syncedValue.getLabelForValue !== getLabelForValue) {
+    setSyncedValue({ value, getLabelForValue })
     setInputValue(getLabelForValue(value))
-  }, [value, getLabelForValue])
+  }
 
-  React.useEffect(() => {
+  const [indexedSearch, setIndexedSearch] = React.useState({ inputValue, open })
+  if (indexedSearch.inputValue !== inputValue || indexedSearch.open !== open) {
+    setIndexedSearch({ inputValue, open })
     setActiveIndex(-1)
-  }, [inputValue, open])
+  }
 
   const updateMenuRect = React.useCallback(() => {
     const el = containerRef.current

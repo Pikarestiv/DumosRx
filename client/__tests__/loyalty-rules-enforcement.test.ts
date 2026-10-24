@@ -3,8 +3,8 @@ import initSqlJs, { type Database } from "sql.js";
 import type { Customer } from "@/lib/types/customer";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // Covers the two LOYALTY_RULES constants that used to be declared and never used:

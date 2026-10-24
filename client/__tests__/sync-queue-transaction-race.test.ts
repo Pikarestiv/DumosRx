@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // Regression coverage for the orphaned-remote-row bug found while smoke- testing bulk import:
@@ -32,7 +32,7 @@ describe("getPendingSyncItems() vs. an in-flight transaction()", () => {
   });
 
   it("does not resolve until a concurrently-open transaction settles", async () => {
-    let releaseImport: () => void;
+    let releaseImport = () => {};
     const gate = new Promise<void>((resolve) => {
       releaseImport = resolve;
     });
@@ -58,7 +58,7 @@ describe("getPendingSyncItems() vs. an in-flight transaction()", () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(resolved).toBe(false);
 
-    releaseImport!();
+    releaseImport();
     await bulkImport;
     const items = await pendingItemsPromise;
 
@@ -67,7 +67,7 @@ describe("getPendingSyncItems() vs. an in-flight transaction()", () => {
   });
 
   it("never returns a row from a transaction that ends up rolling back", async () => {
-    let releaseImport: () => void;
+    let releaseImport = () => {};
     const gate = new Promise<void>((resolve) => {
       releaseImport = resolve;
     });
@@ -86,7 +86,7 @@ describe("getPendingSyncItems() vs. an in-flight transaction()", () => {
 
     const pendingItemsPromise = getPendingSyncItems();
 
-    releaseImport!();
+    releaseImport();
     await bulkImport;
     const items = await pendingItemsPromise;
 

@@ -32,6 +32,7 @@ import { NumericConfigInput } from "@/components/admin/numeric-config-input";
 import { ConfigLoadError } from "./config-load-error";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SocialLinksConfigCard } from "./social-links-config-card";
+import { describePriceChanges } from "./subscription-price-changes";
 import {
   DEFAULT_SUBSCRIPTION_CONFIG,
   DEFAULT_SOCIAL_LINKS,
@@ -74,9 +75,6 @@ export function SubscriptionConfigTab() {
   const [prevServerConfig, setPrevServerConfig] = useState(serverConfig);
   const [prevSocialConfig, setPrevSocialConfig] = useState(socialConfig);
 
-  // The last configuration known to be stored server-side. Used to work out
-  // which plan prices this edit would actually change, so the confirmation
-  // step can name them.
   const [savedConfig, setSavedConfig] = useState<SubscriptionConfig>(
     DEFAULT_SUBSCRIPTION_CONFIG,
   );
@@ -91,36 +89,7 @@ export function SubscriptionConfigTab() {
     }
   }
 
-  const TIER_LABELS: Record<keyof SubscriptionConfig["tiers"], string> = {
-    free: "Free Plan",
-    starter: "Starter Plan",
-    pro: "Dumos Pro",
-    enterprise: "Enterprise",
-  };
-
-  const naira = (amount: number) => `₦${amount.toLocaleString()}`;
-
-  // Price edits are the one change on this tab that takes money-visible
-  // effect the moment it saves ("reflect immediately on the user dashboard"),
-  // so they get an explicit are-you-sure naming every before/after value.
-  const priceChanges = (
-    Object.keys(TIER_LABELS) as (keyof SubscriptionConfig["tiers"])[]
-  ).flatMap((tierKey) => {
-    const next = config.tiers[tierKey];
-    const prev = savedConfig.tiers[tierKey];
-    const changes: string[] = [];
-    if (next.price_monthly !== prev.price_monthly) {
-      changes.push(
-        `${TIER_LABELS[tierKey]} monthly ${naira(prev.price_monthly)} → ${naira(next.price_monthly)}`,
-      );
-    }
-    if (next.price_yearly !== prev.price_yearly) {
-      changes.push(
-        `${TIER_LABELS[tierKey]} yearly ${naira(prev.price_yearly)} → ${naira(next.price_yearly)}`,
-      );
-    }
-    return changes;
-  });
+  const priceChanges = describePriceChanges(savedConfig, config);
 
   if (socialConfig !== prevSocialConfig) {
     setPrevSocialConfig(socialConfig);
@@ -172,9 +141,6 @@ export function SubscriptionConfigTab() {
     );
   }
 
-  // Both queries gate the whole tab: the Save buttons submit this form's
-  // state, so rendering the editor off bundled defaults after a failed fetch
-  // is exactly what let one click reset live plan pricing.
   if (isError || isSocialError) {
     return (
       <ConfigLoadError

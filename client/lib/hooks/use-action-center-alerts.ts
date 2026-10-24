@@ -63,16 +63,13 @@ export function useActionCenterAlerts(
     refetchInterval: 30000,
   });
 
-  const refetchPendingCountRef = React.useRef(refetchPendingCount);
-  refetchPendingCountRef.current = refetchPendingCount;
-
   React.useEffect(() => {
     return addSyncQueueChangeListener(() => {
-      void refetchPendingCountRef.current?.();
+      void refetchPendingCount();
     });
-  }, []);
+  }, [refetchPendingCount]);
 
-  const { data: licenseStatus } = useQuery({
+  const { data: licenseStatus, dataUpdatedAt: licenseCheckedAt } = useQuery({
     ...queryKeys.licensing.status(),
     queryFn: () => checkLicenseStatus(),
     refetchInterval: 5 * 60 * 1000, // 5 mins
@@ -113,7 +110,7 @@ export function useActionCenterAlerts(
           });
         } else if (licenseStatus.expiryDate) {
           const daysLeft = Math.floor(
-            (new Date(licenseStatus.expiryDate).getTime() - Date.now()) /
+            (new Date(licenseStatus.expiryDate).getTime() - licenseCheckedAt) /
               (1000 * 60 * 60 * 24),
           );
           const isTrial = licenseStatus.isTrial;
@@ -286,6 +283,7 @@ export function useActionCenterAlerts(
     oversoldCount,
     oversoldProduct,
     licenseStatus,
+    licenseCheckedAt,
     showWidgetPrompt,
     promptPinWidget,
   ]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Filter } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -52,9 +52,11 @@ export function POItemBuilder({
   const focusSearch = useCallback(() => searchInputRef.current?.focus(), []);
 
   const itemsRef = useRef(items);
-  itemsRef.current = items;
   const onItemsChangeRef = useRef(onItemsChange);
-  onItemsChangeRef.current = onItemsChange;
+  useLayoutEffect(() => {
+    itemsRef.current = items;
+    onItemsChangeRef.current = onItemsChange;
+  });
 
   // Reading the current items through a ref keeps them out of every handler's dependency list, so the callbacks handed to th…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-procurement-po-item-builder-tsx-L68
@@ -65,14 +67,13 @@ export function POItemBuilder({
     [],
   );
 
-  const addRowForProduct = useCallback(
+  const appendProductRow = useCallback(
     (product: POProduct) => {
       const { items: next, merged } = addOrMergeLineItem(
         itemsRef.current,
         product,
       );
       onItemsChangeRef.current(next);
-      setSearchValue("");
       if (merged) {
         toast.success(`Quantity increased for ${displayName(product.name)}`);
       }
@@ -84,25 +85,28 @@ export function POItemBuilder({
     if (option.source === "local" && option.localId) {
       const product = products.find((p) => p.id === option.localId);
       if (product) {
-        addRowForProduct(product);
+        appendProductRow(product);
+        setSearchValue("");
         return;
       }
     }
     setSearchValue(option.name);
   };
 
-  // Auto-add a row once the "Add as new product" -> AddProductDialog round
-  // trip resolves and the new product shows up in the catalog list.
+  const createdProduct = newlyCreatedProductId
+    ? products.find((p) => p.id === newlyCreatedProductId)
+    : undefined;
+  const [searchClearedForId, setSearchClearedForId] = useState<string | null>(null);
+  if (createdProduct && createdProduct.id !== searchClearedForId) {
+    setSearchClearedForId(createdProduct.id);
+    setSearchValue("");
+  }
+
   useEffect(() => {
-    if (newlyCreatedProductId && products.length > 0) {
-      const created = products.find((p) => p.id === newlyCreatedProductId);
-      if (created) {
-        addRowForProduct(created);
-        onNewlyCreatedProductConsumed?.();
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [products, newlyCreatedProductId, onNewlyCreatedProductConsumed]);
+    if (!createdProduct) return;
+    appendProductRow(createdProduct);
+    onNewlyCreatedProductConsumed?.();
+  }, [createdProduct, appendProductRow, onNewlyCreatedProductConsumed]);
 
   const handleUpdateItem = useCallback(
     (index: number, patch: Partial<POLineItemDraft>) => {

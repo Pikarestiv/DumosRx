@@ -28,8 +28,6 @@ import {
   useBulkNotifyUsersMutation,
   useDeleteUserMutation,
   useReactivateUserMutation,
-  useGrantUserTrialMutation,
-  useActivateUserPlanMutation,
 } from "@/lib/api/admin-hooks";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -44,6 +42,7 @@ import { UserProfileDialog } from "@/components/admin/users/user-profile-dialog"
 import { SendNotificationDialog } from "@/components/admin/users/send-notification-dialog";
 import { DeleteUserDialog } from "@/components/admin/users/delete-user-dialog";
 import { UserTable } from "@/components/admin/users/user-table";
+import { useUserPlanActions } from "@/components/admin/users/use-user-plan-actions";
 import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-dialog";
 import { SharedActivatePlanDialog } from "@/components/admin/shared-activate-plan-dialog";
 import { UserPagination } from "@/components/admin/users/user-pagination";
@@ -84,8 +83,6 @@ function GlobalUsersDirectoryContent() {
   const [isNotifyDialogOpen, setIsNotifyDialogOpen] = useState(false);
   const [isBulkNotifyDialogOpen, setIsBulkNotifyDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isTrialDialogOpen, setIsTrialDialogOpen] = useState(false);
-  const [isActivatePlanDialogOpen, setIsActivatePlanDialogOpen] = useState(false);
 
   const debouncedSearch = useDebounce(search, 500);
 
@@ -114,8 +111,6 @@ function GlobalUsersDirectoryContent() {
   const resetPasswordMutation = useResetUserPasswordMutation();
   const notifyMutation = useNotifyUserMutation();
   const deleteMutation = useDeleteUserMutation();
-  const grantTrialMutation = useGrantUserTrialMutation();
-  const activatePlanMutation = useActivateUserPlanMutation();
   const bulkNotifyMutation = useBulkNotifyUsersMutation();
 
   const handlePageChange = (newPage: number) => {
@@ -135,46 +130,16 @@ function GlobalUsersDirectoryContent() {
     }
   };
 
-  const handleGrantTrial = (plan: string, duration?: string, endDate?: string) => {
-    if (!selectedUser) return;
-
-    grantTrialMutation.mutate({ id: selectedUser.id, plan, duration, endDate }, {
-      onSuccess: () => {
-        const durationLabel = endDate ? `until ${endDate}` : duration;
-        toast.success("Trial Granted", {
-          description: `Granted ${durationLabel} ${plan} trial to ${selectedUser.name}.`,
-        });
-        setIsTrialDialogOpen(false);
-        setSelectedUser(null);
-        void refetch();
-      },
-      onError: (err) => {
-        toast.error("Action Failed", {
-          description: err.message || "Failed to grant trial.",
-        });
-      }
-    });
-  };
-
-  const handleActivatePlan = (plan: string, billingCycle: string, amount: number, reference?: string) => {
-    if (!selectedUser) return;
-
-    activatePlanMutation.mutate({ id: selectedUser.id, plan, billingCycle, amount, reference }, {
-      onSuccess: () => {
-        toast.success("Plan Activated", {
-          description: `Activated ${billingCycle} ${plan} plan for ${selectedUser.name}.`,
-        });
-        setIsActivatePlanDialogOpen(false);
-        setSelectedUser(null);
-        void refetch();
-      },
-      onError: (err) => {
-        toast.error("Action Failed", {
-          description: err.message || "Failed to activate plan.",
-        });
-      }
-    });
-  };
+  const {
+    isTrialDialogOpen,
+    setIsTrialDialogOpen,
+    isActivatePlanDialogOpen,
+    setIsActivatePlanDialogOpen,
+    handleGrantTrial,
+    handleActivatePlan,
+    isGrantingTrial,
+    isActivatingPlan,
+  } = useUserPlanActions(selectedUser, setSelectedUser, () => void refetch());
 
   if (isLoading && !response) {
     return <AdminSkeleton />;
@@ -296,13 +261,6 @@ function GlobalUsersDirectoryContent() {
                       {label}
                     </DropdownMenuItem>
                   ))}
-                  {/* No "Billing Plan -> Starter/Enterprise" section here:
-                      AdminUserService::getGlobalUsers() only filters by
-                      search/role (there is no plan param, and a plan lives on
-                      the store, not the user), so those two items could never
-                      do anything. Removed rather than left as dead controls -
-                      plan filtering belongs on the Store Fleet list, which
-                      already supports it. */}
                 </DropdownMenuContent>
               </DropdownMenu>
               <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden md:block" />
@@ -385,7 +343,7 @@ function GlobalUsersDirectoryContent() {
         onOpenChange={setIsTrialDialogOpen}
         targetName={selectedUser?.name}
         onConfirm={handleGrantTrial}
-        isPending={grantTrialMutation.isPending}
+        isPending={isGrantingTrial}
       />
 
       <SharedActivatePlanDialog
@@ -393,7 +351,7 @@ function GlobalUsersDirectoryContent() {
         onOpenChange={setIsActivatePlanDialogOpen}
         targetName={selectedUser?.name}
         onConfirm={handleActivatePlan}
-        isPending={activatePlanMutation.isPending}
+        isPending={isActivatingPlan}
       />
 
       <BulkNotifyDialog

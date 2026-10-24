@@ -1,12 +1,12 @@
-import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import { assert, describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import React from "react";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("@/lib/context/store-context", () => ({
@@ -134,7 +134,8 @@ describe("useDailyCloseData reseller commission profit adjustment", () => {
     await waitFor(() => expect(result.current.salesToday.length).toBe(1));
     result.current.exportToCSV();
 
-    const csv = await exported!.text();
+    assert(exported);
+    const csv = await exported.text();
     expect(csv).toContain("Profit before expenses (Est.),170");
     expect(csv).not.toMatch(/Net Profit/i);
   });

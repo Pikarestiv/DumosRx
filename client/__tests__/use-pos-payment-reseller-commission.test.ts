@@ -2,13 +2,14 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import initSqlJs, { type Database } from "sql.js";
+import type { CartItem } from "@/lib/hooks/use-pos-cart";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("usePOSPayment reseller commission", () => {
   let db: Database;
@@ -57,11 +58,11 @@ describe("usePOSPayment reseller commission", () => {
     const cartItem1 = {
       id: "p1", name: "Cement Bag", unit_price: 150, original_unit_price: 100,
       cost_price: 60, quantity: 1, subtotal: 150,
-    } as any;
+    } as unknown as CartItem;
     const cartItem2 = {
       id: "p2", name: "Nails", unit_price: 20, original_unit_price: 20,
       cost_price: 10, quantity: 2, subtotal: 40,
-    } as any;
+    } as unknown as CartItem;
 
     const handle = renderPayment({
       cart: [cartItem1, cartItem2],
@@ -93,7 +94,7 @@ describe("usePOSPayment reseller commission", () => {
     const cartItem = {
       id: "p1", name: "Cement Bag", unit_price: 150, original_unit_price: 100,
       cost_price: 60, quantity: 1, subtotal: 150,
-    } as any;
+    } as unknown as CartItem;
 
     const handle = renderPayment({
       cart: [cartItem],
@@ -126,7 +127,7 @@ describe("usePOSPayment reseller commission", () => {
     const cartItem = {
       id: "p1", name: "Cement Bag", unit_price: 150, original_unit_price: 100,
       cost_price: 60, quantity: 1, subtotal: 150,
-    } as any;
+    } as unknown as CartItem;
 
     const handle = renderPayment({
       cart: [cartItem],
@@ -154,7 +155,7 @@ describe("usePOSPayment reseller commission", () => {
     const cartItem = {
       id: "p1", name: "Cement Bag", unit_price: 150, original_unit_price: 100,
       cost_price: 60, quantity: 1, subtotal: 150,
-    } as any;
+    } as unknown as CartItem;
 
     const handle = renderPayment({
       cart: [cartItem],

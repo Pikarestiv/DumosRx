@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // Agreement was only ever measured for stock, so every other synced table could diverge on every till and the panel still…
@@ -86,12 +86,8 @@ describe("buildTableFingerprint", () => {
     expect(report?.tables.map((t) => t.t).sort()).toEqual(expected);
   });
 
-  /**
-   * The server compares the client's `audit_logs` against a different
-   * physical table, so it is not in its allowlist and the digest is
-   * discarded. Computing it is a full scan of the device's largest table
-   * (730-day retention) for a number with no reader.
-   */
+  // The server compares the client's `audit_logs` against a different physical table, so it is not in its allowlist and the …
+  // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-table-fingerprint-test-ts-L89
   it("does not scan audit_logs, whose digest the server discards", async () => {
     const report = await mod.buildTableFingerprint("store-1");
 

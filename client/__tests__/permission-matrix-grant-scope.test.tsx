@@ -48,8 +48,9 @@ async function renderMatrix() {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root: Root = createRoot(container);
-  await act(async () => {
+  await act(() => {
     root.render(React.createElement(PermissionMatrix));
+    return Promise.resolve();
   });
   return { container, root };
 }
@@ -96,8 +97,8 @@ describe("PermissionMatrix for a caller whose own grants are restricted", () => 
 
     const cell = cellFor(container, "Manage Staff - Cashier");
     expect(cell).toBeTruthy();
-    expect(cell!.disabled).toBe(true);
-    expect(cell!.getAttribute("title")).toBe(
+    expect(cell?.disabled).toBe(true);
+    expect(cell?.getAttribute("title")).toBe(
       "You can't grant a permission you don't hold yourself - ask the store owner to change this.",
     );
 
@@ -109,8 +110,8 @@ describe("PermissionMatrix for a caller whose own grants are restricted", () => 
     const { container, root } = await renderMatrix();
 
     const cell = cellFor(container, "Process Sales - Cashier");
-    expect(cell!.disabled).toBe(false);
-    expect(cell!.getAttribute("title")).toBeNull();
+    expect(cell?.disabled).toBe(false);
+    expect(cell?.getAttribute("title")).toBeNull();
 
     act(() => root.unmount());
     container.remove();
@@ -120,11 +121,11 @@ describe("PermissionMatrix for a caller whose own grants are restricted", () => 
     const { container, root } = await renderMatrix();
 
     const cell = cellFor(container, "Process Sales - Auditor");
-    expect(cell!.disabled).toBe(true);
-    expect(cell!.getAttribute("title")).toBe(
+    expect(cell?.disabled).toBe(true);
+    expect(cell?.getAttribute("title")).toBe(
       "This group already has permissions you don't hold yourself, so you can't change it - ask the store owner to make this change.",
     );
-    expect(cellFor(container, "Staff & Groups - all permissions - Auditor")!.disabled).toBe(true);
+    expect(cellFor(container, "Staff & Groups - all permissions - Auditor")?.disabled).toBe(true);
 
     act(() => root.unmount());
     container.remove();
@@ -134,9 +135,10 @@ describe("PermissionMatrix for a caller whose own grants are restricted", () => 
     const { container, root } = await renderMatrix();
 
     const box = cellFor(container, "Staff & Groups - all permissions - Cashier");
-    expect(box!.disabled).toBe(false);
-    await act(async () => {
-      box!.click();
+    expect(box?.disabled).toBe(false);
+    await act(() => {
+      box?.click();
+      return Promise.resolve();
     });
     const [, keys] = toggleMany.mock.calls[0];
     expect(keys).toContain("manage_roles_permissions");

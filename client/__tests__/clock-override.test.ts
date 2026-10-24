@@ -10,22 +10,23 @@ const { clock, store } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/licensing/server-clock", () => ({
-  readServerClock: vi.fn(async () => clock.reading),
+  readServerClock: vi.fn(() => Promise.resolve(clock.reading)),
   describeDrift: (ms: number) => `${ms}ms off`,
 }));
 
 vi.mock("@/lib/api/admin-till-session", () => ({
   // Mirrors the server: time is served only for a session the SERVER accepts,
   // so a forged sessionStorage flag cannot authorise an override.
-  readInspectionServerClock: vi.fn(async (sessionId: string) =>
-    clock.serverAccepts.includes(sessionId) ? clock.serverNow : null,
+  readInspectionServerClock: vi.fn((sessionId: string) =>
+    Promise.resolve(clock.serverAccepts.includes(sessionId) ? clock.serverNow : null),
   ),
 }));
 
 vi.mock("@/lib/db/queries/setup", () => ({
-  getStoreProfile: vi.fn(async () => store.profile),
-  updateStoreMonotonicTime: vi.fn(async (_id: string, iso: string) => {
+  getStoreProfile: vi.fn(() => Promise.resolve(store.profile)),
+  updateStoreMonotonicTime: vi.fn((_id: string, iso: string) => {
     store.written.push(iso);
+    return Promise.resolve();
   }),
 }));
 

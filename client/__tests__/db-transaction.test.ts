@@ -4,8 +4,8 @@ import initSqlJs from "sql.js";
 // transaction() persists via idb-keyval when not running in Tauri; stub it out since jsdom has no real IndexedDB and we on…
 // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-db-transaction-test-ts-L4
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // Exercises the real transaction()/query()/execute() implementation in lib/db/core.ts against a genuine in-memory SQLite e…
@@ -97,7 +97,7 @@ describe("transaction()", () => {
   // Regression test for a real bug found via code review:
   // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-db-transaction-test-ts-L110
   it("does not let one top-level transaction's rollback affect a separate, later-queued transaction's writes", async () => {
-    let releaseA: () => void;
+    let releaseA: () => void = () => undefined;
     const gate = new Promise<void>((resolve) => {
       releaseA = resolve;
     });
@@ -117,7 +117,7 @@ describe("transaction()", () => {
       await execute("INSERT INTO items (id, qty) VALUES (?, ?)", ["k", 11]);
     });
 
-    releaseA!();
+    releaseA();
 
     await expect(transactionA).rejects.toThrow(
       "A failed after B was already queued behind it",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -30,6 +30,30 @@ const CATEGORIES = [
 
 const PAYMENT_METHODS = ["Cash", "Bank Transfer", "Card"];
 
+function emptyExpenseForm() {
+  return {
+    category: "Rent",
+    amount: "",
+    description: "",
+    date: getLocalTodayDate(),
+    payment_method: "Cash",
+    notes: "",
+    covers_months: "",
+  };
+}
+
+function formFromExpense(expense: NonNullable<AddExpenseDialogProps["expenseToEdit"]>) {
+  return {
+    category: expense.category || "Rent",
+    amount: expense.amount?.toString() || "",
+    description: expense.description || "",
+    date: expense.date ? expense.date.slice(0, 10) : getLocalTodayDate(),
+    payment_method: expense.payment_method || "Cash",
+    notes: expense.notes || "",
+    covers_months: expense.covers_months?.toString() || "",
+  };
+}
+
 export function AddExpenseDialog({
   open,
   onOpenChange,
@@ -40,41 +64,15 @@ export function AddExpenseDialog({
   const { storeProfile } = useStore();
   const saveExpenseMutation = useSaveExpenseMutation();
   const isLoading = saveExpenseMutation.isPending;
-  const [formData, setFormData] = useState({
-    category: "Rent",
-    amount: "",
-    description: "",
-    date: getLocalTodayDate(),
-    payment_method: "Cash",
-    notes: "",
-    covers_months: "",
-  });
-
-  useEffect(() => {
-    if (expenseToEdit && open) {
-      setFormData({
-        category: expenseToEdit.category || "Rent",
-        amount: expenseToEdit.amount?.toString() || "",
-        description: expenseToEdit.description || "",
-        date: expenseToEdit.date
-          ? expenseToEdit.date.slice(0, 10)
-          : getLocalTodayDate(),
-        payment_method: expenseToEdit.payment_method || "Cash",
-        notes: expenseToEdit.notes || "",
-        covers_months: expenseToEdit.covers_months?.toString() || "",
-      });
-    } else if (!open) {
-      setFormData({
-        category: "Rent",
-        amount: "",
-        description: "",
-        date: getLocalTodayDate(),
-        payment_method: "Cash",
-        notes: "",
-        covers_months: "",
-      });
-    }
-  }, [expenseToEdit, open]);
+  const [formData, setFormData] = useState(() =>
+    expenseToEdit && open ? formFromExpense(expenseToEdit) : emptyExpenseForm(),
+  );
+  const [syncedFor, setSyncedFor] = useState({ expenseToEdit, open });
+  if (syncedFor.expenseToEdit !== expenseToEdit || syncedFor.open !== open) {
+    setSyncedFor({ expenseToEdit, open });
+    if (expenseToEdit && open) setFormData(formFromExpense(expenseToEdit));
+    else if (!open) setFormData(emptyExpenseForm());
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

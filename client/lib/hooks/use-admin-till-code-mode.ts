@@ -20,7 +20,7 @@ export function useAdminTillCodeMode(identifier: string): boolean {
     if (!looksLikeEmail) return;
 
     let cancelled = false;
-    const timer = setTimeout(async () => {
+    const lookUpCandidate = async () => {
       try {
         const matches = await getUsersByUsernameOrEmail(candidate);
         if (!cancelled) {
@@ -29,7 +29,8 @@ export function useAdminTillCodeMode(identifier: string): boolean {
       } catch {
         if (!cancelled) setUnknownLocally(false);
       }
-    }, DEBOUNCE_MS);
+    };
+    const timer = setTimeout(() => void lookUpCandidate(), DEBOUNCE_MS);
 
     return () => {
       cancelled = true;

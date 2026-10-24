@@ -70,8 +70,9 @@ async function renderMatrix() {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root: Root = createRoot(container);
-  await act(async () => {
+  await act(() => {
     root.render(React.createElement(PermissionMatrix));
+    return Promise.resolve();
   });
   return { container, root };
 }
@@ -111,8 +112,9 @@ describe("PermissionMatrix category rows", () => {
   it("grants every child key when an indeterminate category box is clicked", async () => {
     const { container, root } = await renderMatrix();
     const partial = categoryBox(container, "Sales & POS", "Partial");
-    await act(async () => {
+    await act(() => {
       partial.click();
+      return Promise.resolve();
     });
     expect(toggleMany).toHaveBeenCalledWith("g2", salesKeys, true);
 
@@ -123,8 +125,9 @@ describe("PermissionMatrix category rows", () => {
   it("clears every child key when a fully checked category box is clicked", async () => {
     const { container, root } = await renderMatrix();
     const full = categoryBox(container, "Sales & POS", "Full Sales");
-    await act(async () => {
+    await act(() => {
       full.click();
+      return Promise.resolve();
     });
     expect(toggleMany).toHaveBeenCalledWith("g1", salesKeys, false);
 
@@ -135,8 +138,9 @@ describe("PermissionMatrix category rows", () => {
   it("grants every child key when an unchecked category box is clicked", async () => {
     const { container, root } = await renderMatrix();
     const empty = categoryBox(container, "Inventory & Stock", "Empty");
-    await act(async () => {
+    await act(() => {
       empty.click();
+      return Promise.resolve();
     });
     expect(toggleMany).toHaveBeenCalledWith("g3", inventoryKeys, true);
 
@@ -154,8 +158,9 @@ describe("PermissionMatrix category rows", () => {
       (b) => b.getAttribute("aria-label") === "Collapse Sales & POS",
     ) as HTMLButtonElement;
     expect(header.getAttribute("aria-expanded")).toBe("true");
-    await act(async () => {
+    await act(() => {
       header.click();
+      return Promise.resolve();
     });
     expect(rowFor("Process Sales")).toBeUndefined();
     // The category checkbox itself survives a collapse.
@@ -165,8 +170,9 @@ describe("PermissionMatrix category rows", () => {
     const expand = Array.from(container.querySelectorAll("button")).find(
       (b) => b.getAttribute("aria-label") === "Expand Sales & POS",
     ) as HTMLButtonElement;
-    await act(async () => {
+    await act(() => {
       expand.click();
+      return Promise.resolve();
     });
     expect(rowFor("Process Sales")).toBeTruthy();
 

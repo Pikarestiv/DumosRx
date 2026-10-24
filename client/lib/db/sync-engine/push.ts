@@ -14,8 +14,16 @@ import {
   readPendingCommandResults,
   clearCommandResults,
 } from "./sync-commands";
+import {
+  coalescePendingUpdates,
+  compareCategoriesFirst,
+  normalizeDatetimeFields,
+  withheldRecordsWithBackedOffSiblingsRemoved,
+} from "./push-queue-prep";
+import { exchangeReportsOnly } from "./push-reports-only";
+import { announceTerminalConflicts, type PushConflict } from "./push-conflict-toasts";
 import { PushResponse } from "./types";
-import type { SyncChange, SyncQueueItem } from "@/lib/types/sync";
+import type { SyncChange } from "@/lib/types/sync";
 import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconcile-identity";
 import { resolveSyncRun, type SyncRun } from "./sync-run";
 import {
@@ -25,7 +33,6 @@ import {
 } from "./conflict-log";
 import { execute, query, transaction } from "../core";
 import { isExpectedSyncNoise } from "@/lib/utils/error-logger";
-import { toast } from "sonner";
 import { isUuid } from "@/lib/utils/uuid";
 import { rewindPullWindow, TABLES_NEVER_PULLED } from "./pull-window";
 
@@ -37,9 +44,6 @@ const NON_RETRYABLE_CONFLICT_REASONS = new Set([
   "quantity_received_exceeds_ordered",
   "permission_denied",
 ]);
-
-// Dropped without a toast: queued by automatic machinery, not a user action.
-const SILENT_TERMINAL_REASONS = new Set(["permission_denied"]);
 
 // No pull can ever settle these, so left unsynced they are requeued and re-refused for ever.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-push-ts-L43
@@ -55,190 +59,7 @@ const REASONS_NEEDING_REPULL = new Set(["version_conflict", "stale_timestamp"]);
 
 const SYNC_BATCH_SIZE = 50;
 
-// Sorts categories to the front of the queue, leaving every other row's relative order untouched.
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-push-ts-L66
-export function compareCategoriesFirst(
-  a: { table_name: string },
-  b: { table_name: string },
-): number {
-  return Number(b.table_name === "categories") - Number(a.table_name === "categories");
-}
-
-// MySQL DATETIME rejects the 'T'/'Z' and fractional seconds, so every
-// ISO-shaped string field is rewritten before it's sent.
-const ISO_DATETIME_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?$/;
-
-function normalizeDatetimeFields(payload: Record<string, unknown>) {
-  for (const key of Object.keys(payload)) {
-    const value = payload[key];
-    if (typeof value === "string" && ISO_DATETIME_REGEX.test(value)) {
-      payload[key] = value.slice(0, 19).replace("T", " ");
-    }
-  }
-}
-
-// Best-effort singular labels for the version-conflict toast; anything not
-// listed falls back to the raw table name.
-const RECORD_LABELS: Record<string, string> = {
-  products: "a product",
-  stock_batches: "a stock batch",
-  customers: "a customer",
-  sales: "a sale",
-  categories: "a category",
-  suppliers: "a supplier",
-  expenses: "an expense",
-  purchase_orders: "a purchase order",
-  prescriptions: "a prescription",
-  users: "a staff account",
-  stores: "a store",
-};
-
-function describeSyncedRecord(tableName: string): string {
-  return RECORD_LABELS[tableName] ?? `a ${tableName.replace(/_/g, " ")} record`;
-}
-
-// Folds every pending UPDATE for the same (table_name, record_id) into one merged change:
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-push-ts-L109
-function coalescePendingUpdates(pending: SyncQueueItem[]): {
-  items: SyncQueueItem[];
-  mergedIdsByRepId: Map<number, number[]>;
-} {
-  const indicesByKey = new Map<string, number[]>();
-  pending.forEach((item, idx) => {
-    if (item.operation !== "UPDATE") return;
-    const key = `${item.table_name}::${item.record_id}`;
-    const indices = indicesByKey.get(key) ?? [];
-    indices.push(idx);
-    indicesByKey.set(key, indices);
-  });
-
-  const foldedAway = new Set<number>();
-  const mergedPayloadByIndex = new Map<number, string>();
-  const mergedIdsByRepId = new Map<number, number[]>();
-
-  for (const indices of indicesByKey.values()) {
-    if (indices.length <= 1) continue; // Nothing to coalesce for this record.
-
-    const repIndex = indices[0];
-    const merged: Record<string, unknown> = {};
-    let baseVersion: unknown;
-
-    indices.forEach((idx, position) => {
-      const parsed = JSON.parse(pending[idx].payload) as Record<string, unknown>;
-      if (position === 0) {
-        baseVersion = parsed._version;
-      }
-      Object.assign(merged, parsed);
-    });
-    merged._version = baseVersion;
-
-    mergedPayloadByIndex.set(repIndex, JSON.stringify(merged));
-    mergedIdsByRepId.set(
-      pending[repIndex].id,
-      indices.map((idx) => pending[idx].id),
-    );
-    for (let i = 1; i < indices.length; i++) foldedAway.add(indices[i]);
-  }
-
-  const items: SyncQueueItem[] = [];
-  pending.forEach((item, idx) => {
-    if (foldedAway.has(idx)) return;
-    const mergedPayload = mergedPayloadByIndex.get(idx);
-    items.push(mergedPayload ? { ...item, payload: mergedPayload } : item);
-  });
-
-  return { items, mergedIdsByRepId };
-}
-
-// Removes every currently-due UPDATE from `pending` whose record has ANY sibling UPDATE still backed off in `_sync_queue`; INSERT/DELETE are n…
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-push-ts-L168
-async function withheldRecordsWithBackedOffSiblingsRemoved(
-  pending: SyncQueueItem[],
-): Promise<SyncQueueItem[]> {
-  const dueCountByKey = new Map<string, number>();
-  for (const item of pending) {
-    if (item.operation !== "UPDATE") continue;
-    const key = `${item.table_name}::${item.record_id}`;
-    dueCountByKey.set(key, (dueCountByKey.get(key) ?? 0) + 1);
-  }
-
-  if (dueCountByKey.size === 0) return pending;
-
-  const heldBackKeys = new Set<string>();
-  for (const [key, dueCount] of dueCountByKey) {
-    const separatorIndex = key.indexOf("::");
-    const tableName = key.slice(0, separatorIndex);
-    const recordId = key.slice(separatorIndex + 2);
-
-    const totalRows = await query<{ total: number }>(
-      `SELECT COUNT(*) as total FROM _sync_queue WHERE table_name = ? AND record_id = ? AND operation = 'UPDATE'`,
-      [tableName, recordId],
-    );
-    const totalCount = totalRows[0]?.total ?? 0;
-
-    // More rows than are due means a sibling UPDATE is still backed off.
-    if (totalCount > dueCount) {
-      heldBackKeys.add(key);
-    }
-  }
-
-  if (heldBackKeys.size === 0) return pending;
-
-  return pending.filter((item) => {
-    if (item.operation !== "UPDATE") return true;
-    return !heldBackKeys.has(`${item.table_name}::${item.record_id}`);
-  });
-}
-
-/**
- * Push local changes to server
- */
-// A push with no changes, sent only to exchange command outcomes and reports.
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-push-L215
-async function exchangeReportsOnly(
-  stockFingerprint: Awaited<ReturnType<typeof buildStockFingerprint>>,
-  tableFingerprint: Awaited<ReturnType<typeof buildTableFingerprint>>,
-  queueState: Awaited<ReturnType<typeof buildQueueStateReport>>,
-  isManual: boolean,
-  isSetup: boolean,
-  run: SyncRun,
-): Promise<void> {
-  const deliverableResults = await readPendingCommandResults();
-
-  // Read directly rather than from queueState, which is null until a store is
-  // active — a backed-off row must still be able to attract a command.
-  const queuedRows = await query<{ count: number }>(
-    "SELECT COUNT(*) AS count FROM _sync_queue",
-  );
-
-  if (deliverableResults.length === 0 && Number(queuedRows[0]?.count ?? 0) === 0) {
-    return;
-  }
-
-  try {
-    const response = (await apiClient.pushChanges(
-      {
-        changes: [],
-        stock_fingerprint: stockFingerprint,
-        table_fingerprint: tableFingerprint,
-        queue_state: queueState,
-        sync_command_results: deliverableResults,
-      },
-      isManual,
-      isSetup,
-      run.id,
-      run.storeId,
-    )) as PushResponse;
-
-    await clearCommandResults(deliverableResults.map((r) => r.id));
-
-    if (response?.sync_commands?.length) {
-      await applySyncCommands(response.sync_commands);
-    }
-  } catch (err) {
-    console.warn("[Sync] Could not deliver command outcomes", err);
-  }
-}
+export { compareCategoriesFirst };
 
 export async function pushChanges(
   isManual: boolean = false,
@@ -461,7 +282,7 @@ export async function pushChanges(
           .flatMap((id) => idsFor(id));
 
         // Collected in the transaction below, toasted after it commits.
-        const versionConflicts: { table_name: string; record_id: string; reason: string }[] = [];
+        const versionConflicts: PushConflict[] = [];
 
         // retry_count > 0 means this conflict is most likely the item's own
         // already-applied first attempt — logged, not toasted.
@@ -593,43 +414,7 @@ export async function pushChanges(
           }
         }
 
-        // Wording deliberately never blames "another device" — see
-        // client/AGENTS.md, "Push details".
-        const toastableConflicts = versionConflicts.filter((conflict) => {
-          if (SILENT_TERMINAL_REASONS.has(conflict.reason)) {
-            console.info(
-              `[Sync] ${conflict.table_name} record ${conflict.record_id} was rejected as ${conflict.reason}; queue row dropped. No pull can settle this reason, so the local row keeps the value that lost. No toast shown.`,
-            );
-            return false;
-          }
-          // Push-only telemetry the user never edits: log, don't toast.
-          if (conflict.table_name === "feedback" || conflict.table_name === "audit_logs") {
-            console.info(
-              `[Sync] ${conflict.table_name} record ${conflict.record_id} hit a version conflict; server's version kept, no toast shown.`,
-            );
-            return false;
-          }
-          return true;
-        });
-        // Sonner flushSyncs per toast(); a batch's worth in one tick trips
-        // React's "Maximum update depth exceeded" and crashes the page.
-        const CONFLICT_TOAST_THRESHOLD = 5;
-        if (toastableConflicts.length > CONFLICT_TOAST_THRESHOLD) {
-          toast.warning(
-            `${toastableConflicts.length} changes could not be saved because the records changed since those edits. The server's current versions were kept.`,
-          );
-        } else {
-          for (const conflict of toastableConflicts) {
-            toast.warning(
-              `A change to ${describeSyncedRecord(conflict.table_name)} could not be saved because the record changed since this edit. The server's current version was kept.`,
-            );
-          }
-        }
-        for (const conflict of silencedConflicts) {
-          console.info(
-            `[Sync] Retried edit to ${conflict.table_name}/${conflict.record_id} hit a version conflict, likely its own earlier attempt already applied; server's version kept, no toast shown.`,
-          );
-        }
+        announceTerminalConflicts(versionConflicts, silencedConflicts);
       } else {
         // Whole-batch rejection (request completed, server refused it):
         // keyed off `batch`, not `changes`, same as the catch block.

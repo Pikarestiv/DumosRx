@@ -3,7 +3,7 @@ import { render, screen, cleanup } from "@testing-library/react";
 import { LicenseBlockedCard } from "@/components/auth/license-blocked-card";
 
 vi.mock("@/lib/licensing/licensing-manager", () => ({
-  overrideClockLockout: vi.fn(async () => ({ ok: true, reason: "done" })),
+  overrideClockLockout: vi.fn(() => Promise.resolve({ ok: true, reason: "done" })),
 }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -13,10 +13,10 @@ vi.mock("@/lib/context/store-context", () => ({
 }));
 
 vi.mock("@/lib/api/admin-till-session", () => ({
-  endAdminTillSession: vi.fn(async () => {}),
+  endAdminTillSession: vi.fn(() => Promise.resolve()),
   beaconAdminTillSessionEnd: vi.fn(),
-  readInspectionServerClock: vi.fn(async () => new Date()),
-  requestAdminTillSession: vi.fn(async () => null),
+  readInspectionServerClock: vi.fn(() => Promise.resolve(new Date())),
+  requestAdminTillSession: vi.fn(() => Promise.resolve(null)),
   TILL_CODE_LENGTH: 12,
   UNIFORM_REJECTION: "Wrong password.",
   OFFLINE_MESSAGE: "Admin access needs an internet connection.",

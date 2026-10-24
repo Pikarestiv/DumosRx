@@ -42,8 +42,9 @@ function isExpired(b: FakeBatch): boolean {
 
 vi.mock('@/lib/db/local-database', async () => {
   const { applyMovementToFakeBatch } = await import('./helpers/fake-batch-quantity');
+  const { asAsync } = await import('./helpers/as-async');
   return {
-  query: vi.fn(async (sql: string, params: unknown[] = []) => {
+  query: vi.fn(asAsync((sql: string, params: unknown[] = []) => {
     // Whitespace-normalized so this stays robust to multi-line SQL formatting in the real queries (getBatchesForProduct / getA…
     // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-stock-audit-test-ts-L50
     const normSql = sql.replace(/\s+/g, ' ').trim();
@@ -74,8 +75,8 @@ vi.mock('@/lib/db/local-database', async () => {
         .sort((a, b) => (a.expiry_date || '').localeCompare(b.expiry_date || ''));
     }
     return [];
-  }),
-  insert: vi.fn(async (table: string, data: Record<string, unknown>) => {
+  })),
+  insert: vi.fn(asAsync((table: string, data: Record<string, unknown>) => {
     const id = (data.id as string) || `${table}-${Math.random()}`;
     const record = { id, ...data };
     if (table === 'stock_batches') batches[id] = record as unknown as FakeBatch;
@@ -83,11 +84,11 @@ vi.mock('@/lib/db/local-database', async () => {
     if (table === 'stock_movements') applyMovementToFakeBatch(batches, movements, data);
     if (table === 'stock_audits') audits.push(record as FakeAudit);
     return id;
-  }),
-  update: vi.fn(async (table: string, id: string, data: Record<string, unknown>) => {
+  })),
+  update: vi.fn(asAsync((table: string, id: string, data: Record<string, unknown>) => {
     if (table === 'stock_batches') batches[id] = { ...batches[id], ...data };
     return id;
-  }),
+  })),
   transaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
   };
 });

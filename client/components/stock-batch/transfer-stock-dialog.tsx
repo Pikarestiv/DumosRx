@@ -70,14 +70,17 @@ export function TransferStockDialog({
 
   // Reload the transferable-product list (with live available quantities) whenever the source store changes, and drop any pr…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-stock-batch-transfer-stock-dialog-tsx-L73
-  useEffect(() => {
+  const changeSourceStore = (nextStoreId: string) => {
+    if (nextStoreId === sourceStoreId) return;
+    setSourceStoreId(nextStoreId);
     setProductId("");
-    if (!sourceStoreId) {
-      setProducts([]);
-      return;
-    }
+    if (nextStoreId) setLoadingProducts(true);
+    else setProducts([]);
+  };
+
+  useEffect(() => {
+    if (!sourceStoreId) return;
     let cancelled = false;
-    setLoadingProducts(true);
     getTransferableProducts(sourceStoreId)
       .then((rows) => {
         if (!cancelled) setProducts(rows);
@@ -178,7 +181,7 @@ export function TransferStockDialog({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="transfer-source-store">From store</Label>
-            <Select value={sourceStoreId} onValueChange={setSourceStoreId}>
+            <Select value={sourceStoreId} onValueChange={changeSourceStore}>
               <SelectTrigger id="transfer-source-store" className="w-full">
                 <SelectValue placeholder="Select source store" />
               </SelectTrigger>

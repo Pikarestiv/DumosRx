@@ -2,10 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import initSqlJs from "sql.js";
 
 let storedExport: Uint8Array | undefined;
-const setSpy = vi.fn(async (_key: string, _value: unknown) => undefined);
+const setSpy = vi.fn((_key: string, _value: unknown) => Promise.resolve(undefined));
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => storedExport),
+  get: vi.fn(() => Promise.resolve(storedExport)),
   set: (key: string, value: unknown) => setSpy(key, value),
 }));
 

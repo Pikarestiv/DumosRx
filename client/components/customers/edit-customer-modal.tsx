@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
@@ -34,26 +34,33 @@ const emptyForm: EditCustomerFormData = {
   date_of_birth: "",
 };
 
+function formFromCustomer(
+  customer: NonNullable<EditCustomerModalProps["customer"]>,
+): EditCustomerFormData {
+  return {
+    first_name: customer.firstName,
+    last_name: customer.lastName,
+    email: customer.email,
+    phone: customer.phone,
+    address: customer.address,
+    date_of_birth: customer.birthday,
+  };
+}
+
 export function EditCustomerModal({
   customer,
   onClose,
   onSubmit,
 }: EditCustomerModalProps) {
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<EditCustomerFormData>(emptyForm);
-
-  useEffect(() => {
-    if (customer) {
-      setFormData({
-        first_name: customer.firstName,
-        last_name: customer.lastName,
-        email: customer.email,
-        phone: customer.phone,
-        address: customer.address,
-        date_of_birth: customer.birthday,
-      });
-    }
-  }, [customer]);
+  const [formData, setFormData] = useState<EditCustomerFormData>(() =>
+    customer ? formFromCustomer(customer) : emptyForm,
+  );
+  const [syncedCustomer, setSyncedCustomer] = useState(customer);
+  if (customer !== syncedCustomer) {
+    setSyncedCustomer(customer);
+    if (customer) setFormData(formFromCustomer(customer));
+  }
 
   const handleInputChange = (
     field: keyof EditCustomerFormData,

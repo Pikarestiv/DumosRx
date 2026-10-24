@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import {
   Loader2,
   AlertCircle,
@@ -43,48 +42,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { usePlatformRoleOptions } from "@/hooks/use-platform-role-options";
-
-const adminSchema = z
-  .object({
-    first_name: z
-      .string()
-      .min(2, { message: "First name must be at least 2 characters" }),
-    last_name: z
-      .string()
-      .min(2, { message: "Last name must be at least 2 characters" }),
-    email: z.string().email({ message: "Invalid email address" }),
-    phone: z.string().optional(),
-    role: z.string().min(2, { message: "Pick a platform role" }),
-    password: z
-      .string()
-      .min(8, { message: "Password must be at least 8 characters" })
-      // Deliberately modest: these accounts can impersonate stores, so a
-      // purely alphabetic or purely numeric 8-character password isn't good
-      // enough - but this is not meant to be a full strength meter.
-      .regex(/[A-Za-z]/, { message: "Password must contain at least one letter" })
-      .regex(/[0-9]/, { message: "Password must contain at least one number" }),
-    password_confirmation: z.string(),
-  })
-  .refine((data) => data.password === data.password_confirmation, {
-    message: "Passwords do not match",
-    path: ["password_confirmation"],
-  });
-
-type AdminFormValues = z.infer<typeof adminSchema>;
+import { adminSchema, type AdminFormValues } from "@/lib/admin/platform-admin-schema";
 
 export default function AdminNewUserPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  // Creating a super_admin hands out impersonation access to every store on
-  // the platform, so it takes an explicit second confirmation rather than
-  // being one dropdown option away like the other two roles.
   const [pendingSuperAdmin, setPendingSuperAdmin] = useState<AdminFormValues | null>(
     null,
   );
 
   const roleOptions = usePlatformRoleOptions();
 
-  const form = useForm<z.infer<typeof adminSchema>>({
+  const form = useForm<AdminFormValues>({
     resolver: zodResolver(adminSchema),
     defaultValues: {
       first_name: "",

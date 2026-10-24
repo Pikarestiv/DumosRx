@@ -150,7 +150,7 @@ describe("Immediate Purchase submit confirmation", () => {
       .find((b) => b.textContent === "Receive Purchase");
     expect(confirm).toBeTruthy();
     act(() => {
-      confirm!.click();
+      confirm?.click();
     });
 
     expect(handleSubmit).toHaveBeenCalledTimes(1);

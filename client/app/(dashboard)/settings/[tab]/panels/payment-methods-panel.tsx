@@ -23,7 +23,6 @@ export function PaymentMethodsPanel(s: SettingsState) {
       {canManageOnlineStore && s.storeProfile && (
         <OnlinePaymentsSection
           storeId={s.storeProfile.id}
-          storeName={s.storeProfile.name}
           connectedSubaccountCode={s.storeProfile.paystack_subaccount_code}
           connectedBankCode={s.storeProfile.paystack_bank_code}
           connectedAccountLast4={s.storeProfile.paystack_account_number_last4}

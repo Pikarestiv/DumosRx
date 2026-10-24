@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // jsdom doesn't implement matchMedia; components/ui/tooltip.tsx's touch
 // detection needs it to exist to mount at all.
@@ -27,11 +27,11 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 vi.mock("@/lib/db/queries/setup", () => ({
-  getSyncQueueCount: vi.fn(async () => 0),
+  getSyncQueueCount: vi.fn(() => Promise.resolve(0)),
 }));
 
 vi.mock("@/lib/db/sync-engine", () => ({
-  sync: vi.fn(async () => ({ success: true, pushed: 0, pulled: 0 })),
+  sync: vi.fn(() => Promise.resolve({ success: true, pushed: 0, pulled: 0 })),
   isSyncing: () => false,
 }));
 
@@ -80,7 +80,7 @@ describe("SyncIndicator collapsed<->expanded reveal", () => {
       "@/components/dashboard/sync-indicator"
     );
     root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(SyncIndicator, { collapsed }));
     });
   }
@@ -97,7 +97,7 @@ describe("SyncIndicator collapsed<->expanded reveal", () => {
     const { SyncIndicator } = await import(
       "@/components/dashboard/sync-indicator"
     );
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(SyncIndicator, { collapsed: false }));
     });
 

@@ -74,16 +74,18 @@ describe("SearchableInput scroll handling", () => {
 
     const input = container.querySelector("input");
     expect(input).toBeTruthy();
-    await act(async () => {
+    await act(() => {
       fireEvent.focus(input as HTMLInputElement);
+      return Promise.resolve();
     });
 
     rectSpy.mockClear();
 
-    await act(async () => {
+    await act(() => {
       for (let i = 0; i < 20; i += 1) {
         fireEvent.scroll(window);
       }
+      return Promise.resolve();
     });
 
     // Before coalescing this was one measurement per event.

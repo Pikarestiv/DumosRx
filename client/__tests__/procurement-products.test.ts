@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // Exercises getActiveProductsForPO() against a genuine in-memory SQLite engine.
@@ -45,7 +45,7 @@ describe("getActiveProductsForPO", () => {
 
     const products = await getActiveProductsForPO();
 
-    expect(products.find((p) => p.id === "prod1")!.generic_name).toBe(
+    expect(products.find((p) => p.id === "prod1")?.generic_name).toBe(
       "Paracetamol",
     );
   });
@@ -57,30 +57,30 @@ describe("getActiveProductsForPO", () => {
       ('b2', 'prod1', 50, 6, 1, 0)`);
 
     const products = await getActiveProductsForPO();
-    const panadol = products.find((p) => p.id === "prod1")!;
+    const panadol = products.find((p) => p.id === "prod1");
 
     // Weighted: (100*4 + 50*6) / 150 = 4.667 — a plain AVG(4, 6) = 5 would be
     // wrong here since it ignores that the ₦4 batch is twice the size.
-    expect(panadol.cost_price).toBeCloseTo(4.6667, 4);
-    expect(panadol.stock_quantity).toBe(150);
+    expect(panadol?.cost_price).toBeCloseTo(4.6667, 4);
+    expect(panadol?.stock_quantity).toBe(150);
   });
 
   it("returns 0 stock_quantity for a product with no batches", async () => {
     db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod2', 'New Item', 'Unit', 'Box', 1)`);
 
     const products = await getActiveProductsForPO();
-    const item = products.find((p) => p.id === "prod2")!;
+    const item = products.find((p) => p.id === "prod2");
 
-    expect(item.stock_quantity).toBe(0);
+    expect(item?.stock_quantity).toBe(0);
   });
 
   it("returns the product's current selling price, for prefilling the PO review-price popover", async () => {
     db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price) VALUES ('prod4', 'Vitamin C', 'Tablet', 'Bottle', 1, 12.5)`);
 
     const products = await getActiveProductsForPO();
-    const item = products.find((p) => p.id === "prod4")!;
+    const item = products.find((p) => p.id === "prod4");
 
-    expect(item.selling_price).toBe(12.5);
+    expect(item?.selling_price).toBe(12.5);
   });
 
   it("excludes inactive and soft-deleted batches from both cost average and stock quantity", async () => {
@@ -91,9 +91,9 @@ describe("getActiveProductsForPO", () => {
       ('b5', 'prod3', 999, 999, 1, 1)`);
 
     const products = await getActiveProductsForPO();
-    const amoxil = products.find((p) => p.id === "prod3")!;
+    const amoxil = products.find((p) => p.id === "prod3");
 
-    expect(amoxil.cost_price).toBe(4);
-    expect(amoxil.stock_quantity).toBe(100);
+    expect(amoxil?.cost_price).toBe(4);
+    expect(amoxil?.stock_quantity).toBe(100);
   });
 });

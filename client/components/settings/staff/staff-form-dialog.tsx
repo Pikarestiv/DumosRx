@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { DialogFooter } from "@/components/ui/dialog";
@@ -39,6 +39,34 @@ export function validateStaffForm(
   return null;
 }
 
+function buildStaffFormData(
+  userToEdit: StaffListItem | null | undefined,
+  activeStoreId: string | null,
+): StaffFormData {
+  if (!userToEdit) {
+    return {
+      first_name: "",
+      last_name: "",
+      username: "",
+      email: "",
+      pin: "",
+      role: "sales_staff",
+      store_id: activeStoreId || "",
+      permission_group_id: undefined,
+    };
+  }
+  return {
+    first_name: userToEdit.first_name || "",
+    last_name: userToEdit.last_name || "",
+    username: userToEdit.username || "",
+    email: userToEdit.email || "",
+    pin: "",
+    role: userToEdit.role || "sales_staff",
+    store_id: userToEdit.store_id || activeStoreId || "",
+    permission_group_id: userToEdit.permission_group_id ?? undefined,
+  };
+}
+
 interface StaffFormDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -57,46 +85,21 @@ export function StaffFormDialog({
   const { create, update } = useMutateUser();
   const isSubmitting = create.isPending || update.isPending;
   const { availableStores } = useStore();
-  const [formData, setFormData] = useState<StaffFormData>({
-    first_name: "",
-    last_name: "",
-    username: "",
-    email: "",
-    pin: "",
-    role: "sales_staff",
-    store_id: activeStoreId || "",
-    permission_group_id: undefined,
-  });
+  const [formData, setFormData] = useState<StaffFormData>(() =>
+    buildStaffFormData(isOpen ? userToEdit : null, activeStoreId),
+  );
 
   const isEditing = !!userToEdit;
 
-  useEffect(() => {
-    if (isOpen) {
-      if (userToEdit) {
-        setFormData({
-          first_name: userToEdit.first_name || "",
-          last_name: userToEdit.last_name || "",
-          username: userToEdit.username || "",
-          email: userToEdit.email || "",
-          pin: "", // Leave empty unless modifying
-          role: userToEdit.role || "sales_staff",
-          store_id: userToEdit.store_id || activeStoreId || "",
-          permission_group_id: userToEdit.permission_group_id ?? undefined,
-        });
-      } else {
-        setFormData({
-          first_name: "",
-          last_name: "",
-          username: "",
-          email: "",
-          pin: "",
-          role: "sales_staff",
-          store_id: activeStoreId || "",
-          permission_group_id: undefined,
-        });
-      }
-    }
-  }, [isOpen, userToEdit, activeStoreId]);
+  const [formSource, setFormSource] = useState({ isOpen, userToEdit, activeStoreId });
+  if (
+    formSource.isOpen !== isOpen ||
+    formSource.userToEdit !== userToEdit ||
+    formSource.activeStoreId !== activeStoreId
+  ) {
+    setFormSource({ isOpen, userToEdit, activeStoreId });
+    if (isOpen) setFormData(buildStaffFormData(userToEdit, activeStoreId));
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

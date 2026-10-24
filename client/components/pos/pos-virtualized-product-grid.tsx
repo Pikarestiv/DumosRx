@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { POSProductCard, type GroupedProduct } from "./pos-product-list";
+import { POSProductCard, type GroupedProduct } from "./pos-product-card";
 import type { POSProduct } from "@/lib/types/product";
 
 // Mirrors the grid's previous fixed classes (grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 — lg is a no-op, alr…

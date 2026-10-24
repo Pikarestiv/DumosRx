@@ -3,14 +3,15 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { HeldTransaction } from "@/lib/db/queries/sales";
+import type { POSProduct as Product } from "@/lib/types/product";
 
 vi.mock("@/lib/hooks/use-stock-visibility", () => ({
   useStockVisibility: () => ({ canSeeQuantities: true }),
 }));
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("@/lib/context/store-context", () => ({
@@ -22,8 +23,8 @@ vi.mock("@/lib/hooks/use-feature-gate", () => ({
 }));
 
 vi.mock("@/lib/db/local-database", () => ({
-  insert: vi.fn(async () => undefined),
-  remove: vi.fn(async () => undefined),
+  insert: vi.fn(() => Promise.resolve(undefined)),
+  remove: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("sonner", () => ({
@@ -34,7 +35,7 @@ vi.mock("sonner", () => ({
   },
 }));
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("usePOSHeldTransactions recall + reseller mode", () => {
   let usePOSCart: typeof import("@/lib/hooks/use-pos-cart").usePOSCart;
@@ -51,7 +52,7 @@ describe("usePOSHeldTransactions recall + reseller mode", () => {
     strength: "",
     unit_price: 120,
     stock: 50,
-  } as any;
+  } as unknown as Product;
 
   beforeEach(async () => {
     vi.resetModules();

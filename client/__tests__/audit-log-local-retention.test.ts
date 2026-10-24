@@ -6,7 +6,7 @@ import { SCHEMA_SQL } from "@/lib/db/schema";
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-audit-log-local-retention-test-ts-L5
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
   set: vi.fn(async () => {}),
   del: vi.fn(async () => {}),
 }));

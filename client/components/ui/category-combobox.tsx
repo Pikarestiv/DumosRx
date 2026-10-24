@@ -56,9 +56,11 @@ export function CategoryCombobox({
     typed.length > 0 &&
     !names.some((name) => name.toLowerCase() === typed.toLowerCase());
 
-  React.useEffect(() => {
+  const [indexedSearch, setIndexedSearch] = React.useState({ value, open });
+  if (indexedSearch.value !== value || indexedSearch.open !== open) {
+    setIndexedSearch({ value, open });
     setActiveIndex(-1);
-  }, [value, open]);
+  }
 
   React.useEffect(() => {
     if (!open) return;

@@ -58,9 +58,11 @@ export function SupplierCombobox({
     return genericFuzzySearch(searchText, suppliers, ["name"]).results;
   }, [searchText, suppliers]);
 
-  React.useEffect(() => {
+  const [activeIndexScope, setActiveIndexScope] = React.useState({ searchText, open });
+  if (activeIndexScope.searchText !== searchText || activeIndexScope.open !== open) {
+    setActiveIndexScope({ searchText, open });
     setActiveIndex(-1);
-  }, [searchText, open]);
+  }
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

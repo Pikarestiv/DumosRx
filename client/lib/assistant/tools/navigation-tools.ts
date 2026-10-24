@@ -13,7 +13,8 @@ export const navigateHelpTool: AssistantTool<{ topic: string }, HelpTopic | null
   description: "Explains how to do something in the app and links to the right screen.",
   parameters: { topic: { type: "string", description: "The help topic id", required: true } },
   examples: HELP_TOPICS.map(helpTopicExample),
-  execute: async ({ topic }) => HELP_TOPICS.find((t) => t.id === topic) ?? null,
+  execute: ({ topic }) =>
+    Promise.resolve(HELP_TOPICS.find((t) => t.id === topic) ?? null),
   format: (result, _args, ctx) => {
     if (!result) {
       return { kind: "fallback", text: "I don't have help for that yet." };

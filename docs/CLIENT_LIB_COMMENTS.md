@@ -1508,10 +1508,11 @@ tables" added later) rather than reimplemented per table. `accessors`
 maps a column key to a function pulling the comparable value off a row;
 strings sort via localeCompare, numbers via subtraction.
 
-`accessors` is read through a ref, so passing a fresh object literal (what
-every call site does) doesn't invalidate the sort memo. The trade-off: a
-changed accessor alone doesn't re-sort — they're expected to be pure
-projections of a row, not to depend on outside state.
+The sort column's accessor is captured into state on every `toggleSort`
+(from that render's `accessors`), so passing a fresh `accessors` object literal (what every call site
+does) doesn't invalidate the sort memo. The trade-off: a changed accessor
+alone doesn't re-sort — they're expected to be pure projections of a row,
+not to depend on outside state.
 
 ## hooks-use-stock-audit-draft-L13
 
@@ -5927,20 +5928,25 @@ revert that fix.
 `client/lib/context/auth-context.tsx:183`
 
 Distinguishes "user is null because nobody's logged in" from "user is
-null because the mount effect below hasn't read localStorage yet" -
-consumers that need to know a staff member's fixed store_id (see
-store-context.tsx's hydration-race fix) can't tell those two apart from
-`user` alone. Flips true once, at the end of the mount effect,
-regardless of whether a saved user was actually found.
+null because the saved session isn't exposed yet" - consumers that need
+to know a staff member's fixed store_id (see store-context.tsx's
+hydration-race fix) can't tell those two apart from `user` alone. It is
+`useHydrated()`: the saved session is read once by a pure lazy
+`useState(readSavedSession)` initializer (lib/context/auth-session-restore.ts)
+and exposed from the first post-hydration render, regardless of whether
+a saved user was actually found. The non-React side of the restore
+(corrupt-key cleanup, `setCurrentUser`, the widget token mirror) runs in
+the provider's mount effect via `applySavedSessionSideEffects`.
 
 ### line-context-auth-context-tsx-L190
 
 `client/lib/context/auth-context.tsx:190`
 
-Starts false rather than reading localStorage in the initializer: this
-renders on the server/prerender too, where localStorage doesn't exist,
-and a value derived from it would mismatch on hydration. The mount
-effect below sets it, and login/loginFromHandoff/logout keep it current.
+The saved session is read in the initializer but hidden (user null,
+flags false) until `useHydrated()` is true: this renders on the
+server/prerender too, where localStorage doesn't exist, and exposing a
+value derived from it on the hydrating render would mismatch the static
+HTML. login/loginFromHandoff/logout keep the underlying state current.
 
 ### line-context-auth-context-tsx-L204
 
@@ -10020,9 +10026,11 @@ update() for every product saved without one, surfacing as a silent
 
 `client/lib/hooks/use-sortable-data.ts:23`
 
-Held in a ref instead of the memo's dependency array: every call site
-passes a fresh object literal per render, which defeated the memo
-everywhere and re-sorted the whole table on every keystroke.
+The accessor is captured into state on every `toggleSort` (it used to be
+read through a ref) instead of putting `accessors` in the memo's dependency
+array: every call site passes a fresh object literal per render, which
+defeated the memo everywhere and re-sorted the whole table on every
+keystroke.
 
 ### line-hooks-use-stock-batch-alerts-ts-L47
 

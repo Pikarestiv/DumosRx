@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { assert, describe, it, expect, beforeAll, afterAll } from "vitest";
 
 // Regression test: toQueryRange() anchored a date-only picker value to literal UTC midnight (`${date}T00:00:00.000Z`), but…
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-date-range-local-time-test-ts-L3
@@ -34,7 +34,8 @@ describe("toQueryRange (local-time day boundaries)", () => {
     // 2026-09-20T23:30:00.000Z is local 2026-09-21T00:30 (Lagos) - genuinely "on" 2026-09-21 locally.
     // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-date-range-local-time-test-ts-L45
     const saleInstant = "2026-09-20T23:30:00.000Z";
-    expect(saleInstant >= from!).toBe(true);
+    assert(from);
+    expect(saleInstant >= from).toBe(true);
   });
 
   it("returns undefined bounds when no date is given", () => {

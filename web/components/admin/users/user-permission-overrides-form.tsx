@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ShieldCheck, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -45,21 +45,16 @@ export function UserPermissionOverridesForm({
   onSaved,
 }: UserPermissionOverridesFormProps) {
   const updateOverridesMutation = useUpdateUserPermissionOverridesMutation();
-  // Fetched on demand for this one user rather than carried on the
-  // paginated user list, which would re-run this N+1-prone accessor per
-  // row of every page (see laravel-server's b7a39eea commit).
   const { data: permissionsData, isLoading: isLoadingPermissions } =
     useAdminUserEffectivePermissions(user.id);
   const [overrides, setOverrides] = useState<Record<string, PermissionOverrideState>>({});
   const [isInitialized, setIsInitialized] = useState(false);
   const [touchedPermissions, setTouchedPermissions] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    if (!isLoadingPermissions && !isInitialized) {
-      setOverrides(buildInitialOverrides(permissionsData?.effective_permissions ?? []));
-      setIsInitialized(true);
-    }
-  }, [isLoadingPermissions, isInitialized, permissionsData]);
+  if (!isLoadingPermissions && !isInitialized) {
+    setOverrides(buildInitialOverrides(permissionsData?.effective_permissions ?? []));
+    setIsInitialized(true);
+  }
 
   const setOverride = (permissionValue: string, state: PermissionOverrideState) => {
     setOverrides((current) => ({ ...current, [permissionValue]: state }));

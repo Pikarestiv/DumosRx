@@ -4,8 +4,8 @@ import initSqlJs, { type Database } from "sql.js";
 const pullChangesApi = vi.fn();
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 vi.mock("@/lib/db/sync-engine/push", () => ({ pushChanges: vi.fn() }));
 vi.mock("@/lib/db/sync-engine/pull", () => ({ pullChanges: vi.fn() }));
@@ -16,7 +16,7 @@ vi.mock("@/lib/utils/dev-log", () => ({ devLog: vi.fn() }));
 vi.mock("@/lib/utils/error-logger", () => ({ logCrash: vi.fn() }));
 vi.mock("@/lib/api/client", () => ({
   apiClient: {
-    getSystemConfig: vi.fn(async () => null),
+    getSystemConfig: vi.fn(() => Promise.resolve(null)),
     pullChanges: (...args: unknown[]) => pullChangesApi(...args),
   },
 }));

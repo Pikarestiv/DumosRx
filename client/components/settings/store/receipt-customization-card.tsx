@@ -1,6 +1,5 @@
-import { Save, ImageOff, X, HelpCircle, Pencil } from "lucide-react";
+import { Save, ImageOff, X, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Card,
@@ -12,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { ReceiptPreview } from "./receipt-preview";
+import { ReceiptTextField, ReceiptToggleRow } from "./receipt-customization-fields";
 import {
   Tooltip,
   TooltipContent,
@@ -29,38 +29,6 @@ import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useReceiptPaperSize } from "@/lib/hooks/use-receipt-paper-size";
 import { toast } from "sonner";
 import { useState } from "react";
-
-// A simple label/description + switch row, shown as read-only Enabled/Disabled text outside edit mode.
-// Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-store-receipt-customization-card-tsx-L33
-function ReceiptToggleRow({
-  label,
-  description,
-  isEditing,
-  checked,
-  onCheckedChange,
-}: {
-  label: string;
-  description: string;
-  isEditing: boolean;
-  checked: boolean;
-  onCheckedChange: (val: boolean) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between rounded-lg border p-4">
-      <div className="space-y-0.5">
-        <Label className="text-base">{label}</Label>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
-      {isEditing ? (
-        <Switch checked={checked} onCheckedChange={onCheckedChange} />
-      ) : (
-        <p className="text-sm font-medium">
-          {checked ? "Enabled" : "Disabled"}
-        </p>
-      )}
-    </div>
-  );
-}
 
 interface ReceiptCustomizationCardProps {
   localName: string;
@@ -191,106 +159,37 @@ export function ReceiptCustomizationCard({
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="receipt-tagline">
-                  Tagline (Optional)
-                </Label>
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>
-                        A line printed under your business name, like a
-                        slogan or what you sell (e.g. "Your trusted
-                        neighborhood pharmacy").
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              {!!isEditing && (
-                <Input
-                  id="receipt-tagline"
-                  placeholder="e.g. Your trusted neighborhood pharmacy"
-                  value={localReceiptTagline}
-                  onChange={(e) => setLocalReceiptTagline(e.target.value)}
-                />
-              )}
-              {!isEditing && (
-                <p className="text-sm font-medium py-2">
-                  {localReceiptTagline || "Not set"}
-                </p>
-              )}
-            </div>
+            <ReceiptTextField
+              id="receipt-tagline"
+              label="Tagline (Optional)"
+              tooltip="A line printed under your business name, like a slogan or what you sell (e.g. &quot;Your trusted neighborhood pharmacy&quot;)."
+              placeholder="e.g. Your trusted neighborhood pharmacy"
+              isEditing={isEditing}
+              value={localReceiptTagline}
+              onChange={setLocalReceiptTagline}
+              emptyText="Not set"
+            />
 
-            <div className="grid gap-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="receipt-header">
-                  Footer Message 1 (Optional)
-                </Label>
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>
-                        Add custom text like your Tax Identification Number,
-                        return policy, or a 'Thank You' message to print on all
-                        receipts.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              {!!isEditing && (
-                <Input
-                  id="receipt-header"
-                  placeholder="e.g. Thanks for your patronage!"
-                  value={localReceiptHeader}
-                  onChange={(e) => setLocalReceiptHeader(e.target.value)}
-                />
-              )}
-              {!isEditing && (
-                <p className="text-sm font-medium py-2">
-                  {localReceiptHeader || "Not set"}
-                </p>
-              )}
-            </div>
-            <div className="grid gap-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="receipt-footer">Footer Message 2</Label>
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>
-                        Printed at the bottom of every receipt. Clear it to
-                        print no footer at all.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              {!!isEditing && (
-                <Input
-                  id="receipt-footer"
-                  placeholder="e.g. No refund after 24 hours"
-                  value={localReceiptFooter}
-                  onChange={(e) => setLocalReceiptFooter(e.target.value)}
-                />
-              )}
-              {!isEditing && (
-                <p className="text-sm font-medium py-2">
-                  {localReceiptFooter || "Not printed"}
-                </p>
-              )}
-            </div>
+            <ReceiptTextField
+              id="receipt-header"
+              label="Footer Message 1 (Optional)"
+              tooltip="Add custom text like your Tax Identification Number, return policy, or a 'Thank You' message to print on all receipts."
+              placeholder="e.g. Thanks for your patronage!"
+              isEditing={isEditing}
+              value={localReceiptHeader}
+              onChange={setLocalReceiptHeader}
+              emptyText="Not set"
+            />
+            <ReceiptTextField
+              id="receipt-footer"
+              label="Footer Message 2"
+              tooltip="Printed at the bottom of every receipt. Clear it to print no footer at all."
+              placeholder="e.g. No refund after 24 hours"
+              isEditing={isEditing}
+              value={localReceiptFooter}
+              onChange={setLocalReceiptFooter}
+              emptyText="Not printed"
+            />
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
                 <Label className="text-base">Show Logo on Receipt</Label>

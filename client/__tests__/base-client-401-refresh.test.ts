@@ -24,8 +24,8 @@ describe("BaseApiClient 401 handling", () => {
       .mockResolvedValueOnce({
         ok: false,
         status: 401,
-        json: async () => ({ message: "Unauthenticated" }),
-        text: async () => JSON.stringify({ message: "Unauthenticated" }),
+        json: () => Promise.resolve({ message: "Unauthenticated" }),
+        text: () => Promise.resolve(JSON.stringify({ message: "Unauthenticated" })),
       })
       .mockRejectedValueOnce(new Error("network error"));
 
@@ -40,14 +40,14 @@ describe("BaseApiClient 401 handling", () => {
       .mockResolvedValueOnce({
         ok: false,
         status: 401,
-        json: async () => ({ message: "Unauthenticated" }),
-        text: async () => JSON.stringify({ message: "Unauthenticated" }),
+        json: () => Promise.resolve({ message: "Unauthenticated" }),
+        text: () => Promise.resolve(JSON.stringify({ message: "Unauthenticated" })),
       })
       .mockResolvedValueOnce({
         ok: false,
         status: 502,
-        json: async () => ({ message: "Bad Gateway" }),
-        text: async () => JSON.stringify({ message: "Bad Gateway" }),
+        json: () => Promise.resolve({ message: "Bad Gateway" }),
+        text: () => Promise.resolve(JSON.stringify({ message: "Bad Gateway" })),
       });
 
     await expect(apiClient.getProfile()).rejects.toThrow();
@@ -61,14 +61,14 @@ describe("BaseApiClient 401 handling", () => {
       .mockResolvedValueOnce({
         ok: false,
         status: 401,
-        json: async () => ({ message: "Unauthenticated" }),
-        text: async () => JSON.stringify({ message: "Unauthenticated" }),
+        json: () => Promise.resolve({ message: "Unauthenticated" }),
+        text: () => Promise.resolve(JSON.stringify({ message: "Unauthenticated" })),
       })
       .mockResolvedValueOnce({
         ok: false,
         status: 403,
-        json: async () => ({ message: "ACCOUNT_SUSPENDED" }),
-        text: async () => JSON.stringify({ message: "ACCOUNT_SUSPENDED" }),
+        json: () => Promise.resolve({ message: "ACCOUNT_SUSPENDED" }),
+        text: () => Promise.resolve(JSON.stringify({ message: "ACCOUNT_SUSPENDED" })),
       });
 
     await expect(apiClient.getProfile()).rejects.toThrow();
@@ -82,14 +82,14 @@ describe("BaseApiClient 401 handling", () => {
       .mockResolvedValueOnce({
         ok: false,
         status: 401,
-        json: async () => ({ message: "Unauthenticated" }),
-        text: async () => JSON.stringify({ message: "Unauthenticated" }),
+        json: () => Promise.resolve({ message: "Unauthenticated" }),
+        text: () => Promise.resolve(JSON.stringify({ message: "Unauthenticated" })),
       })
       .mockResolvedValueOnce({
         ok: false,
         status: 401,
-        json: async () => ({ message: "Invalid refresh token" }),
-        text: async () => JSON.stringify({ message: "Invalid refresh token" }),
+        json: () => Promise.resolve({ message: "Invalid refresh token" }),
+        text: () => Promise.resolve(JSON.stringify({ message: "Invalid refresh token" })),
       });
 
     await expect(apiClient.getProfile()).rejects.toThrow();
@@ -103,18 +103,18 @@ describe("BaseApiClient 401 handling", () => {
       .mockResolvedValueOnce({
         ok: false,
         status: 401,
-        json: async () => ({ message: "Unauthenticated" }),
-        text: async () => JSON.stringify({ message: "Unauthenticated" }),
+        json: () => Promise.resolve({ message: "Unauthenticated" }),
+        text: () => Promise.resolve(JSON.stringify({ message: "Unauthenticated" })),
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ token: "fresh-token" }),
-        text: async () => JSON.stringify({ token: "fresh-token" }),
+        json: () => Promise.resolve({ token: "fresh-token" }),
+        text: () => Promise.resolve(JSON.stringify({ token: "fresh-token" })),
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ id: "u1", name: "Test User" }),
-        text: async () => JSON.stringify({ id: "u1", name: "Test User" }),
+        json: () => Promise.resolve({ id: "u1", name: "Test User" }),
+        text: () => Promise.resolve(JSON.stringify({ id: "u1", name: "Test User" })),
       });
 
     const result = await apiClient.getProfile();

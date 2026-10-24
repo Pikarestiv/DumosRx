@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useDeleteSupplierMutation } from "@/lib/hooks/use-supplier-mutations";
@@ -24,9 +24,9 @@ export function SupplierDeleteDialog({
   const deleteSupplier = useDeleteSupplierMutation();
   // Keeps rendering the last real target while ConfirmDialog's exit
   // animation plays out after `target` is nulled on confirm/close.
-  const lastTarget = useRef(target);
-  if (target) lastTarget.current = target;
-  const displayTarget = target ?? lastTarget.current;
+  const [lastTarget, setLastTarget] = useState(target);
+  if (target && target !== lastTarget) setLastTarget(target);
+  const displayTarget = target ?? lastTarget;
 
   const hasDebt = (displayTarget?.debtAmount || 0) > 0;
   const hasHistory = (displayTarget?.totalOrders || 0) > 0;

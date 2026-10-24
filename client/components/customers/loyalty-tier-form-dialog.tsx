@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -36,23 +36,24 @@ interface Props {
   onSaved: () => void;
 }
 
-export function LoyaltyTierFormDialog({ open, onOpenChange, tier, userId, nextSortOrder, onSaved }: Props) {
-  const [form, setForm] = useState(emptyForm);
+function formFromTier(tier: LoyaltyTierRow | null) {
+  if (!tier) return emptyForm;
+  return {
+    name: tier.name,
+    min_spend: String(tier.min_spend),
+    points_multiplier: String(tier.points_multiplier),
+    benefits: (JSON.parse(tier.benefits || "[]") as string[]).join(", "),
+    color: tier.color,
+  };
+}
 
-  useEffect(() => {
-    if (!open) return;
-    setForm(
-      tier
-        ? {
-            name: tier.name,
-            min_spend: String(tier.min_spend),
-            points_multiplier: String(tier.points_multiplier),
-            benefits: (JSON.parse(tier.benefits || "[]") as string[]).join(", "),
-            color: tier.color,
-          }
-        : emptyForm
-    );
-  }, [open, tier]);
+export function LoyaltyTierFormDialog({ open, onOpenChange, tier, userId, nextSortOrder, onSaved }: Props) {
+  const [form, setForm] = useState(() => (open ? formFromTier(tier) : emptyForm));
+  const [syncedFor, setSyncedFor] = useState({ open, tier });
+  if (syncedFor.open !== open || syncedFor.tier !== tier) {
+    setSyncedFor({ open, tier });
+    if (open) setForm(formFromTier(tier));
+  }
 
   const saveMutation = useSaveLoyaltyTierMutation();
 

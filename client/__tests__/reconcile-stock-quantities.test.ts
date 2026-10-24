@@ -133,8 +133,8 @@ describe("reconcileStockQuantities", () => {
     const batchCall = vi
       .mocked(query)
       .mock.calls.find(([sql]) => /FROM stock_batches/i.test(sql as string));
-    expect(batchCall, "expected a stock_batches query").toBeDefined();
-    const [sql, params] = batchCall!;
+    if (!batchCall) throw new Error("expected a stock_batches query");
+    const [sql, params] = batchCall;
     expect(sql).toMatch(/FROM stock_batches/i);
     expect(sql).toMatch(/_deleted = 0/);
     expect(sql).toMatch(/store_id = \?/);

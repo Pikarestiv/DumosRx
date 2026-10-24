@@ -17,7 +17,7 @@ describe('useSettings: cloud-link dialog effect dependencies', () => {
     );
     expect(effectMatch, 'expected to find the tab-resolution effect that opens the cloud-link dialog').not.toBeNull();
 
-    const depsList = effectMatch![1];
+    const depsList = effectMatch?.[1];
 
     // The caller must hand over the referentially stable useState setter, not
     // the whole object literal useSettingsSync() rebuilds every render.

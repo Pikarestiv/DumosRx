@@ -146,7 +146,7 @@ export function useSettings() {
         }
         finalSlug = result.slug;
         setLocalStoreSlug(result.slug);
-      } catch (err) {
+      } catch {
         toast.error("Failed to verify store URL. Please check your internet connection.");
         return;
       }

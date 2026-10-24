@@ -4,15 +4,15 @@ import { createRoot, type Root } from "react-dom/client";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 vi.mock("@sentry/nextjs", () => ({ setUser: vi.fn(), setTag: vi.fn() }));
 vi.mock("@/lib/api/client", () => ({
   apiClient: { login: vi.fn(), setToken: vi.fn() },
 }));
 vi.mock("@/lib/db/sync-engine", () => ({
-  sync: vi.fn(async () => ({ success: true })),
+  sync: vi.fn(() => Promise.resolve({ success: true })),
   isSyncing: vi.fn(() => false),
 }));
 vi.mock("@/lib/query-client", () => ({
@@ -32,7 +32,7 @@ describe("useHasPermission short-circuit composition (pos-layout-header.tsx patt
   let thrown: unknown = null;
 
   beforeAll(async () => {
-    (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+    (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     core = await import("@/lib/db/core");
     const { SCHEMA_SQL } = await import("@/lib/db/schema");
     const SQL = await initSqlJs({ locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm") });
@@ -65,11 +65,14 @@ describe("useHasPermission short-circuit composition (pos-layout-header.tsx patt
     localStorage.setItem("dumos_user", JSON.stringify({ id: userId, role: "auditor", first_name: "Test", last_name: "User", username: "test" }));
     sessionStorage.setItem("dumos_session_authenticated", "1");
 
+    const hasPermissionUnderNonHookName = useHasPermission;
+
     function BuggyShortCircuited() {
-      // Mirrors the exact pre-fix expression shape.
+      // Mirrors the exact pre-fix expression shape; the alias lets the linter
+      // accept the conditional hook call this test exists to reproduce.
       const result =
-        useHasPermission("process_sales") &&
-        (useHasPermission("manage_staff") || false);
+        hasPermissionUnderNonHookName("process_sales") &&
+        (hasPermissionUnderNonHookName("manage_staff") || false);
       return React.createElement("div", null, String(result));
     }
 
@@ -88,8 +91,9 @@ describe("useHasPermission short-circuit composition (pos-layout-header.tsx patt
 
     root = createRoot(container);
     try {
-      await act(async () => {
+      await act(() => {
         root.render(React.createElement(AuthProvider, null, React.createElement(Probe)));
+        return Promise.resolve();
       });
       // Let the async getUserPermissionGroup() resolution land and trigger
       // the re-render where the hook count would change under the buggy pattern.

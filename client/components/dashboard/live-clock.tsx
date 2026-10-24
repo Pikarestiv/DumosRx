@@ -1,19 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 
 export function LiveClock() {
-  const [currentTime, setCurrentTime] = useState<Date | null>(null);
+  const hydrated = useHydrated();
+  const [currentTime, setCurrentTime] = useState(() => new Date());
 
   useEffect(() => {
-    setCurrentTime(new Date());
     const interval = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  if (!currentTime) return null;
+  if (!hydrated) return null;
 
   return (
     <span className="text-sm text-muted-foreground hidden md:inline-flex bg-accent/10 px-3 py-1 rounded-full items-center font-mono">

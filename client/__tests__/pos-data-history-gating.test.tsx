@@ -6,13 +6,13 @@ import React from "react";
 // getRecentSales() reads 100 sales with three correlated subqueries per row and is consumed only by the POS History tab, b…
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-pos-data-history-gating-test-tsx-L6
 
-const getRecentSales = vi.fn(async () => []);
-const getProductsWithStock = vi.fn(async () => []);
+const getRecentSales = vi.fn(() => Promise.resolve([]));
+const getProductsWithStock = vi.fn(() => Promise.resolve([]));
 
 vi.mock("@/lib/db/queries/sales", () => ({
   getRecentSales: () => getRecentSales(),
-  getRecentlySoldProductIds: vi.fn(async () => []),
-  getCommonlySoldProductIds: vi.fn(async () => []),
+  getRecentlySoldProductIds: vi.fn(() => Promise.resolve([])),
+  getCommonlySoldProductIds: vi.fn(() => Promise.resolve([])),
 }));
 
 vi.mock("@/lib/db/queries/products", () => ({
@@ -20,11 +20,11 @@ vi.mock("@/lib/db/queries/products", () => ({
 }));
 
 vi.mock("@/lib/db/queries/customers", () => ({
-  getAllCustomers: vi.fn(async () => []),
+  getAllCustomers: vi.fn(() => Promise.resolve([])),
 }));
 
 vi.mock("@/lib/db/queries/setup", () => ({
-  getPaymentAccounts: vi.fn(async () => []),
+  getPaymentAccounts: vi.fn(() => Promise.resolve([])),
 }));
 
 vi.mock("@/lib/context/auth-context", () => ({

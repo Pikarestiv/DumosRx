@@ -845,7 +845,8 @@ reach for if the call sites keep drifting.
   including the `id` tie-break and the cursor's date format, is in
   `docs/SYNC_PULL_PAGINATION.md`.
 - Sync failures use exponential backoff per queue item
-  (`recordSyncFailure` in `base-helpers.ts`), with a one-time report to
+  (`recordSyncFailure` in `lib/db/sync-queue.ts`, re-exported by
+  `base-helpers.ts`), with a one-time report to
   superadmins after `SYNC_FAILURE_REPORT_THRESHOLD` (5) consecutive
   failures on the same item.
 - **Never log a crash about the `feedback` table back into the `feedback`
@@ -1782,7 +1783,7 @@ table the client never pulls.
     Pinned by `push-id-map-reconciliation.test.ts`.
 - **`onCriticalTablesReady` / `SETUP_CRITICAL_TABLES` (`stores`, `users`).**
   Fires once, the first time those tables have fully drained this round, so
-  a caller mid-first-sync (`startSyncProcess` in `use-onboarding.ts`) can let
+  a caller mid-first-sync (`startSyncProcess` in `app/setup/use-onboarding-sync.ts`) can let
   the user log in and reach the dashboard while the same call keeps pulling
   everything else — it decides only *when* the callback fires, never what is
   fetched. It is checked after each page's transaction commits, and fired
@@ -1832,6 +1833,12 @@ table the client never pulls.
   prefix-only keys so every store/user-scoped variant matches.
 
 #### The sync indicator (`components/dashboard/sync-indicator.tsx`)
+
+The state, `runSync` and the auto-sync daemon live in
+`lib/hooks/use-sync-indicator-state.ts`; the per-state label/icon/colour
+table is `components/dashboard/sync-indicator-status-config.tsx`. The
+component itself only renders.
+
 
 - `isUserInitiated` is the one thing that makes a sync "manual", and it
   travels all the way to `getPendingSyncItems()` and the server. The
@@ -4256,7 +4263,8 @@ also counts negative (oversold) stock as out, matching `addToCart`'s
 
 Call sites (all read the key once, unconditionally, at the top level):
 
-- `components/pos/pos-product-list.tsx` (`POSProductCard`) — the number only
+- `components/pos/pos-product-card.tsx` (`POSProductCard`, re-exported from
+  `pos-product-list.tsx`) — the number only
   when `display_stock_levels` is on **and** the key is held; the status word
   when the store toggle is on and the key is not; no chip when the store
   toggle is off. `display_stock_levels` is unchanged: a store-wide "no
@@ -5116,6 +5124,24 @@ the guard on every clean boot, so a *later*, unrelated chunk error in the
 same tab session still gets its own fresh one-time retry.
 
 ## UI conventions worth knowing before changing shared components
+
+- **React Compiler lint rules (`react-hooks/set-state-in-effect`, `refs`,
+  `purity`, `static-components`) have house fixes; reuse them** (2026-10-24).
+  A "mounted" flag or a mount-time `localStorage`/`sessionStorage`/`navigator`
+  read is `useHydrated()` (`lib/hooks/use-hydrated.ts`, `false` during the
+  prerender/hydration pass, `true` after) plus a render-time read gated on it.
+  Keeping a dialog's last target on screen through its exit animation is
+  `useLastNonNull(value)` (`lib/hooks/use-last-non-null.ts`), not a ref written
+  during render. Re-seeding a form when a dialog opens or its target changes is
+  React's "adjust state while rendering" pattern: keep the inputs it was last
+  seeded from in state and compare (see `edit-customer-modal.tsx`,
+  `add-expense-dialog.tsx`), not an effect. An intentional full document load
+  goes through `navigateWithFullReload()` (`lib/utils/full-page-navigate.ts`)
+  so Next's `no-location-assign-relative-destination` keeps catching the
+  accidental ones. The remaining `react-hooks/incompatible-library` warnings
+  (`useVirtualizer`, `useReactTable`) are informational: the compiler is not
+  enabled in `next.config.mjs`, and `"use no memo"` does not silence them, so
+  they stay until either library ships a compiler-compatible API.
 
 - **The A4 receipt fills the page; only the thermal one is a narrow column**
   (2026-10-14). `ReceiptView`'s A4 branch used `max-w-[400px] mx-auto`, so a

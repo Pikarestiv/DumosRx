@@ -30,8 +30,9 @@ async function renderCenter() {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root: Root = createRoot(container);
-  await act(async () => {
+  await act(() => {
     root.render(React.createElement(ReportCenter));
+    return Promise.resolve();
   });
   return { container, root };
 }

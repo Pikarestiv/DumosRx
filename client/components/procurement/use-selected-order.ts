@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { getPurchaseOrderById, type PurchaseOrder } from "@/lib/db/procurement";
@@ -16,16 +16,17 @@ export function useSelectedOrder(
     "details",
   );
 
-  useEffect(() => {
-    if (initialSelectedId) {
-      setSelectedOrderId(initialSelectedId);
-    }
-  }, [initialSelectedId]);
+  const [trackedInitialId, setTrackedInitialId] = useState(initialSelectedId);
+  if (initialSelectedId !== trackedInitialId) {
+    setTrackedInitialId(initialSelectedId);
+    if (initialSelectedId) setSelectedOrderId(initialSelectedId);
+  }
 
-  // Always land back on the details view when switching to a different order.
-  useEffect(() => {
+  const [panelOrderId, setPanelOrderId] = useState(selectedOrderId);
+  if (panelOrderId !== selectedOrderId) {
+    setPanelOrderId(selectedOrderId);
     setPanelView("details");
-  }, [selectedOrderId]);
+  }
 
   const { data: fullSelectedPO, isLoading: isLoadingDetails } = useQuery({
     ...queryKeys.purchaseOrders.detail(selectedOrderId),
@@ -35,23 +36,20 @@ export function useSelectedOrder(
 
   // Orders confirmed present in the list at some point, so a later disappearance can be trusted as a real deletion rather th…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-procurement-use-selected-order-ts-L37
-  const seenOrderIdsRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    for (const o of orders) seenOrderIdsRef.current.add(o.id);
-  }, [orders]);
+  const [seenOrderIds, setSeenOrderIds] = useState<ReadonlySet<string>>(
+    () => new Set(orders.map((o) => o.id)),
+  );
+  const unseenOrderIds = orders.map((o) => o.id).filter((id) => !seenOrderIds.has(id));
+  if (unseenOrderIds.length > 0) {
+    setSeenOrderIds(new Set([...seenOrderIds, ...unseenOrderIds]));
+  }
 
-  useEffect(() => {
-    // Close the panel if the selected order is removed from the list from
-    // under it (e.g. deleted) rather than leaving it showing stale data.
-    if (
-      selectedOrderId &&
-      orders.length > 0 &&
-      !orders.find((o) => o.id === selectedOrderId) &&
-      seenOrderIdsRef.current.has(selectedOrderId)
-    ) {
-      setSelectedOrderId(null);
-    }
-  }, [orders, selectedOrderId]);
+  const selectedOrderWasRemoved =
+    selectedOrderId !== null &&
+    orders.length > 0 &&
+    !orders.some((o) => o.id === selectedOrderId) &&
+    seenOrderIds.has(selectedOrderId);
+  if (selectedOrderWasRemoved) setSelectedOrderId(null);
 
   // Merge full details with the latest row data from the list (so status updates reflect immediately)
   const listOrder = orders.find((o) => o.id === selectedOrderId);

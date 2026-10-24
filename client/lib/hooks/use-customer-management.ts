@@ -178,16 +178,22 @@ export function useCustomerManagement() {
   const tabParam = searchParams.get("tab") || "overview";
   const [activeTab, setActiveTab] = useState(tabParam);
 
+  const addRequested = searchParams.get("action") === "add";
+  const [seenAddRequest, setSeenAddRequest] = useState(false);
+  if (addRequested !== seenAddRequest) {
+    setSeenAddRequest(addRequested);
+    if (addRequested && canManageCustomers) setIsAddCustomerOpen(true);
+  }
+
   useEffect(() => {
-    if (searchParams.get("action") === "add") {
-      if (canManageCustomers) setIsAddCustomerOpen(true);
+    if (addRequested) {
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.delete("action");
       const newUrl =
         pathname + (newParams.toString() ? `?${newParams.toString()}` : "");
       router.replace(newUrl);
     }
-  }, [searchParams, router, pathname, canManageCustomers]);
+  }, [addRequested, searchParams, router, pathname]);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);

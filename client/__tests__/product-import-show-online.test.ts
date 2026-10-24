@@ -8,8 +8,8 @@ import {
 } from "@/lib/utils/product-import-export";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // `products.show_online` defaults off and the importer handled the column not at all, so a store that imported hundreds of…

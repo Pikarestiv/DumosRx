@@ -41,7 +41,7 @@ describe("Staff form Group dropdown", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root: Root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(
         // Deliberately partial: this test only exercises the Group Select's
         // rendering, not the whole form's required-field wiring.
@@ -54,6 +54,7 @@ describe("Staff form Group dropdown", () => {
           availableStores: [],
         } as unknown as React.ComponentProps<typeof StaffFormFields>),
       );
+      return Promise.resolve();
     });
 
     expect(container.textContent).toContain("Manager");

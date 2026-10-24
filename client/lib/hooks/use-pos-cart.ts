@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useMemo, useEffect, useCallback } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ import {
 export type { POSProduct as Product } from "@/lib/types/product";
 import type { POSProduct as Product } from "@/lib/types/product";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { roundMoney } from "@/lib/utils/pos-calculations";
 
 export interface CartItem extends Product {
@@ -155,7 +156,7 @@ export function usePOSCart(products: Product[]) {
   const setStoreIsResellerSale = usePOSCartStore((state) => state.setIsResellerSale);
   const markupType = usePOSCartStore((state) => state.markupType);
   const setMarkupType = usePOSCartStore((state) => state.setMarkupType);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const isHydrated = useHydrated();
 
   // A manual discount edit and a loyalty redemption share the same discount slot (by design, to keep a single source of truth for "the" discount…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L170
@@ -192,10 +193,6 @@ export function usePOSCart(products: Product[]) {
     setStoreDiscount(0);
     setRedeemedOption(null);
   }, [setStoreDiscount, setRedeemedOption]);
-
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
 
   // Re-price against the catalog rather than at checkout:
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L212

@@ -2,11 +2,11 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
-const reconcileMock = vi.fn(async (..._args: unknown[]) => ({
+const reconcileMock = vi.fn((..._args: unknown[]) => Promise.resolve({
   reconciled: 0,
   checked: 0,
   movements: [],
@@ -25,7 +25,7 @@ describe("reconcileStockQuantities with pending deltas", () => {
   let core: typeof import("@/lib/db/core");
   let reconcile: typeof import("@/lib/db/sync-engine/reconcile-quantities").reconcileStockQuantities;
 
-  const okSync = vi.fn(async () => ({ success: true }) as never);
+  const okSync = vi.fn(() => Promise.resolve({ success: true } as never));
 
   beforeAll(async () => {
     core = await import("@/lib/db/core");
@@ -92,7 +92,7 @@ describe("reconcileStockQuantities with pending deltas", () => {
 
   /** The forced push+pull remains the real safeguard and must still run first. */
   it("refuses if the forced sync fails", async () => {
-    const failingSync = vi.fn(async () => ({ success: false, error: "offline" }) as never);
+    const failingSync = vi.fn(() => Promise.resolve({ success: false, error: "offline" } as never));
 
     await expect(reconcile(failingSync)).rejects.toThrow(/offline/i);
     expect(reconcileMock).not.toHaveBeenCalled();

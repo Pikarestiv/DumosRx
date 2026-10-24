@@ -4,13 +4,13 @@ import { createRoot, type Root } from "react-dom/client";
 
 // React 19's `act` warns unless the environment explicitly opts in.
 // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-onboarding-local-restore-reload-test-ts-L5
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Regression test for known bug #10, Part A (docs/features/_known-bugs.md):
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-onboarding-local-restore-reload-test-ts-L10
 
 const routerPushMock = vi.fn();
-const restoreDatabaseMock = vi.fn(async (_bytes: Uint8Array) => undefined);
+const restoreDatabaseMock = vi.fn((_bytes: Uint8Array) => Promise.resolve(undefined));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: routerPushMock }),
@@ -28,19 +28,19 @@ vi.mock("@/lib/context/auth-context", () => ({
 
 vi.mock("@/lib/db/core", () => ({
   generateId: vi.fn(() => "fake-id"),
-  execute: vi.fn(async () => undefined),
+  execute: vi.fn(() => Promise.resolve(undefined)),
   restoreDatabase: (arg: Uint8Array) => restoreDatabaseMock(arg),
-  clearDatabaseForNewStore: vi.fn(async () => undefined),
+  clearDatabaseForNewStore: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("@/lib/db/queries/setup", () => ({
-  getTotalUserCount: vi.fn(async () => 0),
-  getLocalStores: vi.fn(async () => []),
+  getTotalUserCount: vi.fn(() => Promise.resolve(0)),
+  getLocalStores: vi.fn(() => Promise.resolve([])),
 }));
 
 vi.mock("@/lib/db/sync-engine", () => ({
-  sync: vi.fn(async () => ({ success: true })),
-  syncSubscriptionStatus: vi.fn(async () => ({ success: true, updated: true })),
+  sync: vi.fn(() => Promise.resolve({ success: true })),
+  syncSubscriptionStatus: vi.fn(() => Promise.resolve({ success: true, updated: true })),
 }));
 
 vi.mock("@/lib/api/client", () => ({

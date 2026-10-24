@@ -25,11 +25,15 @@ export function NewGroupDialog({ mode, groups, onClose, onCreateGroup, onCopyGro
   const [basedOnRole, setBasedOnRole] = useState<string>(STAFF_ROLES[1]?.value ?? "manager"); // default: Manager tier
   const [sourceGroupId, setSourceGroupId] = useState(groups[0]?.id ?? "");
 
-  const handleSubmit = async () => {
-    if (!name.trim()) return;
+  const submitGroup = async () => {
     if (mode === "new") await onCreateGroup(name.trim(), basedOnRole);
     else if (sourceGroupId) await onCopyGroup(sourceGroupId, name.trim());
     onClose();
+  };
+
+  const handleSubmit = () => {
+    if (!name.trim()) return;
+    void submitGroup();
   };
 
   return (

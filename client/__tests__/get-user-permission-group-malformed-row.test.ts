@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // getUserPermissionGroup returned null for BOTH "no group assigned" and "malformed JSON in permissions", and hasPermission…
@@ -47,8 +47,8 @@ describe("getUserPermissionGroup with a malformed permissions column", () => {
     const group = await getUserPermissionGroup("u1");
 
     expect(group).not.toBeNull();
-    expect(group!.id).toBe("pg1");
-    expect(group!.permissions).toEqual([]);
+    expect(group?.id).toBe("pg1");
+    expect(group?.permissions).toEqual([]);
 
     // The behaviour that actually matters: a manager's role-tier defaults are
     // NOT silently restored by the corruption.
@@ -73,10 +73,10 @@ describe("getUserPermissionGroup with a malformed permissions column", () => {
 
     const group = await getUserPermissionGroup("u1");
 
-    expect(group!.permissions).toEqual(["process_sales"]);
+    expect(group?.permissions).toEqual(["process_sales"]);
     // A-55: the group carries the id of the user it was read for, so
     // hasPermission can refuse to apply it to anybody else.
-    expect(group!.userId).toBe("u1");
+    expect(group?.userId).toBe("u1");
     expect(hasPermission({ role: "manager" }, group, "process_sales")).toBe(true);
     expect(hasPermission({ role: "manager" }, group, "manage_products")).toBe(false);
   });

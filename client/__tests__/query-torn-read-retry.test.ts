@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // Regression coverage for the Product Catalog's "No products found" flash during a large sync (see docs/KNOWN_BUGS.md).
@@ -108,7 +108,7 @@ describe("query() vs. a write interleaved into its row-fetch yield", () => {
   it("never reports an open transaction's uncommitted intermediate state", async () => {
     seedProducts();
 
-    let releaseApply: () => void;
+    let releaseApply: () => void = () => undefined;
     const gate = new Promise<void>((resolve) => {
       releaseApply = resolve;
     });
@@ -132,7 +132,7 @@ describe("query() vs. a write interleaved into its row-fetch yield", () => {
     // Let the read start, hit the transaction's writes, and retry.
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
-    releaseApply!();
+    releaseApply();
     await apply;
 
     expect(await reading).toHaveLength(ROW_COUNT);

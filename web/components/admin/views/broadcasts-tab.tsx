@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { 
   Plus, 
   Loader2, 
@@ -36,14 +35,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { CreateBroadcastDialog, EditBroadcastDialog } from "@/components/admin/broadcasts/broadcast-dialogs";
-import { webApiClient } from "@/lib/api/client";
-import { toast } from "sonner";
+import { broadcastStatus, useBroadcastsManager } from "@/components/admin/broadcasts/use-broadcasts-manager";
 import { formatDateSafe } from "@/lib/utils/date-utils";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useDeleteBroadcastMutation } from "@/lib/api/admin-hooks";
 import { useAdminAuthStore, checkHasPermission } from "@/lib/store/use-admin-auth-store";
-import type { AdminBroadcast, AdminUser, BroadcastFormData } from "@/lib/types/admin";
+import type { AdminBroadcast } from "@/lib/types/admin";
 
 const TYPE_FILTERS = [
   { label: "All Types", value: "" },
@@ -60,149 +56,36 @@ const STATUS_FILTERS = [
   { label: "Expired", value: "expired" },
 ];
 
-const broadcastStatus = (broadcast: AdminBroadcast): "live" | "inactive" | "expired" => {
-  if (!broadcast.is_active) return "inactive";
-  const expiry = broadcast.expires_at ? new Date(broadcast.expires_at) : null;
-  if (expiry && !isNaN(expiry.getTime()) && expiry < new Date()) return "expired";
-  return "live";
-};
-
 export function BroadcastsTab() {
   const { user: viewerUser } = useAdminAuthStore();
   const canSendNotifications = checkHasPermission(viewerUser, "send_notifications");
-  const queryClient = useQueryClient();
-  const { data: response, isLoading } = useQuery({
-    queryKey: ["admin-broadcasts"],
-    queryFn: () => webApiClient.adminGetBroadcasts() as Promise<AdminBroadcast[] | { data: AdminBroadcast[] }>,
-  });
-  const broadcasts = response
-    ? Array.isArray(response)
-      ? response
-      : response.data
-    : [];
-  const deleteMutation = useDeleteBroadcastMutation();
-
-  const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedBroadcast, setSelectedBroadcast] = useState<AdminBroadcast | null>(null);
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-
-  // Display-only companion to formData.user_ids: the selector renders whole
-  // user objects, but only their ids are ever submitted (the backend matches
-  // recipients with whereJsonContains('user_ids', $user->id)).
-  const [selectedUsers, setSelectedUsers] = useState<AdminUser[]>([]);
-
-  // Form state
-  const [formData, setFormData] = useState<BroadcastFormData>({
-    title: "",
-    message: "",
-    type: "info",
-    target_type: "all",
-    user_ids: [],
-    expires_at: "",
-    is_active: true,
-    send_email: false
-  });
-
-  // Keeps the display list and the submitted id list in lockstep.
-  const handleSelectedUsersChange = (users: AdminUser[]) => {
-    setSelectedUsers(users);
-    setFormData((prev) => ({ ...prev, user_ids: users.map((u) => u.id) }));
-  };
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    try {
-      await webApiClient.createBroadcast(formData);
-      toast.success("Broadcast created successfully");
-      setIsCreateOpen(false);
-      setSelectedUsers([]);
-      setFormData({
-        title: "",
-        message: "",
-        type: "info",
-        target_type: "all",
-        user_ids: [],
-        expires_at: "",
-        is_active: true,
-        send_email: false
-      });
-      void queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
-      void queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to create broadcast",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedBroadcast || isSubmitting) return;
-    setIsSubmitting(true);
-    try {
-      await webApiClient.updateBroadcast(selectedBroadcast.id, formData);
-      toast.success("Broadcast updated successfully");
-      setIsEditOpen(false);
-      void queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
-      void queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update broadcast",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDelete = (id: string) => {
-    setDeleteTargetId(id);
-  };
-
-  const confirmDelete = (id: string) => {
-    deleteMutation.mutate(id, {
-      onSuccess: () => {
-        toast.success("Broadcast deleted");
-        void queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
-        setDeleteTargetId(null);
-      },
-      onError: (error) => {
-        toast.error(
-          error instanceof Error ? error.message : "Failed to delete broadcast",
-        );
-        setDeleteTargetId(null);
-      }
-    });
-  };
-
-  const handleToggle = async (id: string) => {
-    try {
-      await webApiClient.toggleBroadcast(id);
-      void queryClient.invalidateQueries({ queryKey: ["admin-broadcasts"] });
-      void queryClient.invalidateQueries({ queryKey: ["broadcasts"] });
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to toggle status",
-      );
-    }
-  };
-
-  const filteredBroadcasts = (Array.isArray(broadcasts) ? broadcasts : []).filter((b) => {
-    const matchesSearch =
-      b.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      b.message.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = !typeFilter || b.type === typeFilter;
-    const matchesStatus = !statusFilter || broadcastStatus(b) === statusFilter;
-    return matchesSearch && matchesType && matchesStatus;
-  });
+  const {
+    isLoading,
+    filteredBroadcasts,
+    searchQuery,
+    setSearchQuery,
+    typeFilter,
+    setTypeFilter,
+    statusFilter,
+    setStatusFilter,
+    isCreateOpen,
+    setIsCreateOpen,
+    isEditOpen,
+    setIsEditOpen,
+    isSubmitting,
+    deleteTargetId,
+    setDeleteTargetId,
+    selectedUsers,
+    formData,
+    setFormData,
+    handleSelectedUsersChange,
+    openCreate,
+    openEdit,
+    handleCreate,
+    handleUpdate,
+    confirmDelete,
+    handleToggle,
+  } = useBroadcastsManager();
 
   const getStatusBadge = (broadcast: AdminBroadcast) => {
     const status = broadcastStatus(broadcast);
@@ -232,20 +115,7 @@ export function BroadcastsTab() {
         {canSendNotifications && (
           <Button
             className="bg-indigo-600 hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-600/20 rounded-2xl h-12"
-            onClick={() => {
-              setSelectedUsers([]);
-              setFormData({
-                title: "",
-                message: "",
-                type: "info",
-                target_type: "all",
-                user_ids: [],
-                expires_at: "",
-                is_active: true,
-                send_email: false
-              });
-              setIsCreateOpen(true);
-            }}
+            onClick={openCreate}
           >
             <Plus className="h-4 w-4 mr-2" />
             New Broadcast
@@ -384,26 +254,7 @@ export function BroadcastsTab() {
                           <DropdownMenuContent align="end" className="w-48 rounded-xl border-slate-200 dark:border-slate-800 p-1">
                             <DropdownMenuItem
                               className="rounded-lg gap-2 font-bold cursor-pointer"
-                              onClick={() => {
-                                setSelectedBroadcast(broadcast);
-                                // The selector only has ids to work from here, so
-                                // it starts empty; the existing ids are kept in
-                                // formData until the admin picks a new set.
-                                setSelectedUsers([]);
-                                setFormData({
-                                  title: broadcast.title,
-                                  message: broadcast.message,
-                                  type: broadcast.type,
-                                  target_type: broadcast.target_type || "all",
-                                  user_ids: broadcast.user_ids || [],
-                                  // Robust to both "2026-01-01T00:00:00Z" and
-                                  // "2026-01-01 00:00:00" (and to garbage).
-                                  expires_at: formatDateSafe(broadcast.expires_at, "yyyy-MM-dd", ""),
-                                  is_active: broadcast.is_active,
-                                  send_email: broadcast.send_email ?? false
-                                });
-                                setIsEditOpen(true);
-                              }}
+                              onClick={() => openEdit(broadcast)}
                             >
                               <Edit className="h-4 w-4 text-indigo-500" />
                               Edit Broadcast
@@ -420,7 +271,7 @@ export function BroadcastsTab() {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="rounded-lg gap-2 font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
-                              onClick={() => handleDelete(broadcast.id)}
+                              onClick={() => setDeleteTargetId(broadcast.id)}
                             >
                               <Trash2 className="h-4 w-4" />
                               Delete Permanent

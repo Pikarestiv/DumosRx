@@ -30,7 +30,10 @@ export function usePullToRefresh<T extends HTMLElement>({
   const engaged = useRef(false);
   const currentPull = useRef(0);
   const onRefreshRef = useRef(onRefresh);
-  onRefreshRef.current = onRefresh;
+
+  useEffect(() => {
+    onRefreshRef.current = onRefresh;
+  }, [onRefresh]);
 
   useEffect(() => {
     const el = scrollRef.current;

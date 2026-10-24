@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { RecentUser } from "@/lib/context/auth-context";
 import { getUserInitials, cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
 import { Plus, X } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
+import { useLastNonNull } from "@/lib/hooks/use-last-non-null";
 
 interface UserSelectionProps {
   recentUsers: RecentUser[];
@@ -71,17 +73,12 @@ export function UserSelection({
   const [removingUser, setRemovingUser] = useState<RecentUser | null>(null);
   // ConfirmDialog keeps rendering through its exit animation after removingUser is nulled on confirm/close - keep the last r…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-user-selection-tsx-L75
-  const lastRemovingUser = useRef<RecentUser | null>(null);
-  if (removingUser) lastRemovingUser.current = removingUser;
-  const removingUserDisplay = removingUser ?? lastRemovingUser.current;
+  const removingUserDisplay = useLastNonNull(removingUser);
   // Determined client-side only (defaults to the Windows/Linux label on first render) to avoid a hydration mismatch:
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-user-selection-tsx-L81
-  const [lockShortcutLabel, setLockShortcutLabel] = useState("Ctrl+L");
-  useEffect(() => {
-    if (navigator.userAgent.includes("Mac")) {
-      setLockShortcutLabel("⌘L");
-    }
-  }, []);
+  const hydrated = useHydrated();
+  const lockShortcutLabel =
+    hydrated && navigator.userAgent.includes("Mac") ? "⌘L" : "Ctrl+L";
 
   const isSingle = recentUsers.length === 1;
   const avatarSize = isSingle

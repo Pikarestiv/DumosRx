@@ -2,7 +2,8 @@
 
 import type React from "react";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { isTillInspectionSession } from "@/lib/utils/till-inspection";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
@@ -52,6 +53,14 @@ interface DashboardLayoutProps {
 
 const COLLAPSED_KEY = STORAGE_KEYS.sidebarCollapsed;
 
+function readStoredSidebarCollapsed(): boolean {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
+
 const DIRECTION_ANIMATION: Record<string, string> = {
   left: "slide-in-from-right-8",
   right: "slide-in-from-left-8",
@@ -91,7 +100,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 }
 
 function DashboardLayoutInner({ children }: DashboardLayoutProps) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const hydrated = useHydrated();
+  const [sidebarCollapsedChoice, setSidebarCollapsedChoice] = useState<boolean | null>(null);
+  const sidebarCollapsed =
+    sidebarCollapsedChoice ?? (hydrated ? readStoredSidebarCollapsed() : true);
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
@@ -111,10 +123,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
     onLinkCloud: () => router.push("/settings/cloud"),
   });
 
-  const [tourEligible, setTourEligible] = useState(false);
-  useEffect(() => {
-    setTourEligible(isTourEligible());
-  }, []);
+  const tourEligible = useMemo(() => hydrated && isTourEligible(), [hydrated]);
 
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
   const { handleTouchStart, handleTouchEnd, direction } = useSwipeNavigation(
@@ -142,19 +151,6 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
     isLogicallyCollapsed && !hoverExpanded && !userNavOpen;
   const contentCollapsed = isLogicallyCollapsed;
 
-  /* Hydrate collapse preference from localStorage */
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(COLLAPSED_KEY);
-      // Only override the default if the user has an explicit stored preference
-      if (stored === "false") setSidebarCollapsed(false);
-      else if (stored === "true") setSidebarCollapsed(true);
-      // If nothing stored, the useState(true) default applies
-    } catch {
-      // localStorage unavailable (e.g. SSR or private mode)
-    }
-  }, []);
-
   const handleToggleCollapse = () => {
     if (isPosRoute) {
       toast.info(
@@ -162,13 +158,11 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
       );
       return;
     }
-    setSidebarCollapsed((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(COLLAPSED_KEY, String(next));
-      } catch {}
-      return next;
-    });
+    const next = !sidebarCollapsed;
+    try {
+      localStorage.setItem(COLLAPSED_KEY, String(next));
+    } catch {}
+    setSidebarCollapsedChoice(next);
   };
 
   useEffect(() => {

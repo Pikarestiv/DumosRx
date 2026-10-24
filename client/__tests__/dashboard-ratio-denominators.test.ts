@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, vi } 
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // Numerator/denominator population coverage for the dashboard's ratio-style tiles (the docs/KNOWN_BUGS.md "Dashboard ratio…

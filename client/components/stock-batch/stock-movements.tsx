@@ -12,19 +12,15 @@ import { queryKeys } from "@/lib/query-keys";
 const DESKTOP_ROW_HEIGHT = 52;
 import { StockMovementsSkeleton } from "./stock-movements-skeleton";
 import { useRouter, useSearchParams } from "next/navigation";
-import { StockMovement, resolveMovementDisplayType } from "./stock-movement-utils";
+import { StockMovement } from "./stock-movement-utils";
+import { mapMovement } from "./stock-movement-mapping";
 import { StockMovementTypeFilter } from "./stock-movement-type-filter";
 import { StockMovementDesktopRow } from "./stock-movement-desktop-row";
 import { StockMovementMobileGroup } from "./stock-movement-mobile-group";
 import { StockMovementDetailModal } from "./stock-movement-detail-modal";
 import { TransferStockDialog } from "./transfer-stock-dialog";
-import {
-  STOCK_TRANSFER_NEEDS_REVIEW_STATUS,
-  STOCK_TRANSFER_REVIEWED_STATUS,
-} from "@/lib/db/queries/stock-transfers";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
-import type { StockMovementDbRow } from "@/lib/types/stock-movement";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useStore } from "@/lib/context/store-context";
@@ -37,23 +33,6 @@ import { useArrowKeyScroll } from "@/lib/hooks/use-arrow-key-scroll";
 type MovementSortKey = "date" | "product" | "type" | "quantity" | "reference" | "user";
 
 const RECENT_ACTIVITY_WINDOW_DAYS = 30;
-
-function mapMovement(m: StockMovementDbRow): StockMovement {
-  return {
-    id: m.id,
-    date: m.created_at || m.movement_date || "",
-    product: m.product_name || "Unknown",
-    type: resolveMovementDisplayType(m),
-    quantity: m.quantity || 0,
-    reason: m.reason || "",
-    reference: m.reference_id || "",
-    user: m.performed_by_name?.trim() || "System",
-    supplier: m.supplier_name || undefined,
-    batchNumber: m.batch_number || undefined,
-    needsReview: m.status === STOCK_TRANSFER_NEEDS_REVIEW_STATUS,
-    reviewed: m.status === STOCK_TRANSFER_REVIEWED_STATUS,
-  };
-}
 
 function NoMovementsFound() {
   return (
@@ -112,7 +91,8 @@ export function StockMovements() {
     // that would close an in-progress DateRangePicker Popover selection.
     placeholderData: keepPreviousData,
   });
-  const movements = movementsQuery.data ?? [];
+  const movementsData = movementsQuery.data;
+  const movements = useMemo(() => movementsData ?? [], [movementsData]);
   const loading = movementsQuery.isFetching;
   const initialLoad = movementsQuery.isLoading;
 

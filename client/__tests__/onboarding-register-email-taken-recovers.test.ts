@@ -2,19 +2,19 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Regression test: if `apiClient.register()` 422s "email already taken" during brand-new account creation, that almost alw…
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-onboarding-register-email-taken-recovers-test-ts-L7
 
 const routerPushMock = vi.fn();
-const loginMock = vi.fn(async () => true);
-const executeMock = vi.fn(async () => undefined);
+const loginMock = vi.fn(() => Promise.resolve(true));
+const executeMock = vi.fn(() => Promise.resolve(undefined));
 const setActiveStoreIdMock = vi.fn();
 
 const registerMock = vi.fn();
 const loginApiMock = vi.fn();
-const getStoresMock = vi.fn(async () => [{ id: "store-1", name: "Existing Store" }]);
+const getStoresMock = vi.fn(() => Promise.resolve([{ id: "store-1", name: "Existing Store" }]));
 const setTokenMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -35,25 +35,25 @@ vi.mock("@/lib/db/core", () => ({
   generateId: vi.fn(() => "fake-id"),
   execute: executeMock,
   setActiveStoreId: setActiveStoreIdMock,
-  restoreDatabase: vi.fn(async () => undefined),
-  clearDatabaseForNewStore: vi.fn(async () => undefined),
+  restoreDatabase: vi.fn(() => Promise.resolve(undefined)),
+  clearDatabaseForNewStore: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("@/lib/db/queries/setup", () => ({
-  getTotalUserCount: vi.fn(async () => 0),
-  getLocalStores: vi.fn(async () => []),
+  getTotalUserCount: vi.fn(() => Promise.resolve(0)),
+  getLocalStores: vi.fn(() => Promise.resolve([])),
 }));
 
 vi.mock("@/lib/db/sync-engine", () => ({
-  sync: vi.fn(async () => ({ success: true })),
-  syncSubscriptionStatus: vi.fn(async () => ({ success: true, updated: true })),
+  sync: vi.fn(() => Promise.resolve({ success: true })),
+  syncSubscriptionStatus: vi.fn(() => Promise.resolve({ success: true, updated: true })),
 }));
 
 vi.mock("@/lib/api/client", () => ({
   apiClient: {
     register: (...a: unknown[]) => registerMock(...a),
     login: (...a: unknown[]) => loginApiMock(...a),
-    getProfile: vi.fn(async () => ({})),
+    getProfile: vi.fn(() => Promise.resolve({})),
     getStores: () => getStoresMock(),
     setToken: (...a: unknown[]) => setTokenMock(...a),
   },

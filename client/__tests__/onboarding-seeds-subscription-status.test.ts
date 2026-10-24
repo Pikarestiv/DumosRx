@@ -2,18 +2,18 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Regression test (A-156, docs/FIXED_BUGS.md):
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-onboarding-seeds-subscription-status-test-ts-L7
 
 const routerPushMock = vi.fn();
-const loginMock = vi.fn(async () => true);
-const executeMock = vi.fn(async (_sql: string, _params?: unknown[]) => undefined);
+const loginMock = vi.fn(() => Promise.resolve(true));
+const executeMock = vi.fn((_sql: string, _params?: unknown[]) => Promise.resolve(undefined));
 const setActiveStoreIdMock = vi.fn();
-const getLocalStoresMock = vi.fn(async () => [] as { id: string; name: string }[]);
+const getLocalStoresMock = vi.fn(() => Promise.resolve([] as { id: string; name: string }[]));
 const syncSubscriptionStatusMock = vi.fn();
-const syncMock = vi.fn(async (..._args: unknown[]) => ({ success: true }));
+const syncMock = vi.fn((..._args: unknown[]) => Promise.resolve({ success: true }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: routerPushMock }),
@@ -33,12 +33,12 @@ vi.mock("@/lib/db/core", () => ({
   generateId: vi.fn(() => "fake-id"),
   execute: executeMock,
   setActiveStoreId: setActiveStoreIdMock,
-  restoreDatabase: vi.fn(async () => undefined),
-  clearDatabaseForNewStore: vi.fn(async () => undefined),
+  restoreDatabase: vi.fn(() => Promise.resolve(undefined)),
+  clearDatabaseForNewStore: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("@/lib/db/queries/setup", () => ({
-  getTotalUserCount: vi.fn(async () => 0),
+  getTotalUserCount: vi.fn(() => Promise.resolve(0)),
   getLocalStores: () => getLocalStoresMock(),
 }));
 
@@ -49,10 +49,10 @@ vi.mock("@/lib/db/sync-engine", () => ({
 
 vi.mock("@/lib/api/client", () => ({
   apiClient: {
-    register: vi.fn(async () => ({ token: "new-token", user: { id: "new-user-id" } })),
+    register: vi.fn(() => Promise.resolve({ token: "new-token", user: { id: "new-user-id" } })),
     login: vi.fn(),
-    getProfile: vi.fn(async () => ({})),
-    getStores: vi.fn(async () => [{ id: "new-store-1", name: "New Store" }]),
+    getProfile: vi.fn(() => Promise.resolve({})),
+    getStores: vi.fn(() => Promise.resolve([{ id: "new-store-1", name: "New Store" }])),
     setToken: vi.fn(),
   },
 }));

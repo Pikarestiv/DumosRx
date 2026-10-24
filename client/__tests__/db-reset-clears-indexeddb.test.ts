@@ -6,12 +6,14 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 const idbStore = new Map<string, unknown>();
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async (key: string) => idbStore.get(key)),
-  set: vi.fn(async (key: string, value: unknown) => {
+  get: vi.fn((key: string) => Promise.resolve(idbStore.get(key))),
+  set: vi.fn((key: string, value: unknown) => {
     idbStore.set(key, value);
+    return Promise.resolve();
   }),
-  del: vi.fn(async (key: string) => {
+  del: vi.fn((key: string) => {
     idbStore.delete(key);
+    return Promise.resolve();
   }),
 }));
 

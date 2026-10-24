@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
@@ -77,15 +77,18 @@ function CreateOrderContent() {
   const { matches: isDesktop, resolved: layoutResolved } =
     useResolvedMediaQuery("(min-width: 1024px)");
 
-  useEffect(() => {
-    const defaultSupplierId = searchParams.get("supplierId");
-    if (
-      defaultSupplierId &&
-      suppliers.some((s) => s.id === defaultSupplierId)
-    ) {
-      setSelectedSupplierId(defaultSupplierId);
-    }
-  }, [searchParams, suppliers]);
+  const requestedSupplierId = searchParams.get("supplierId");
+  const validDefaultSupplierId =
+    requestedSupplierId && suppliers.some((s) => s.id === requestedSupplierId)
+      ? requestedSupplierId
+      : null;
+  const [appliedDefaultSupplierId, setAppliedDefaultSupplierId] = useState<
+    string | null
+  >(null);
+  if (validDefaultSupplierId && validDefaultSupplierId !== appliedDefaultSupplierId) {
+    setAppliedDefaultSupplierId(validDefaultSupplierId);
+    setSelectedSupplierId(validDefaultSupplierId);
+  }
 
   const handleOpenAddProduct = (productData: Partial<ProductViewModel>) => {
     setInitialProductData(productData);

@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // Regression coverage for bug #8 (docs/features/_known-bugs.md):
@@ -202,7 +202,7 @@ describe("update()/softDelete() store-ownership check", () => {
       // transaction even started, so it would have survived this failure
       // and permanently claimed the row with the edit lost.
       await expect(
-        update("categories", "c1", { nonexistent_column: "x" } as any),
+        update("categories", "c1", { nonexistent_column: "x" }),
       ).rejects.toThrow();
 
       const row = readCategory("c1");

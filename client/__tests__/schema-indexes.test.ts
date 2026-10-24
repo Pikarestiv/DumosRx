@@ -4,8 +4,8 @@ import initSqlJs from "sql.js";
 let storedExport: Uint8Array | undefined;
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => storedExport),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(storedExport)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // Guards the local read-path indexes added for audit finding A-6.

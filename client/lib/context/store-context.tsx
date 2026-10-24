@@ -23,6 +23,7 @@ import {
   setStoredActiveStoreId,
   getAuthToken,
 } from "@/lib/storage-keys";
+import { terminology } from "@/lib/context/store-terminology";
 
 export type StoreType = "pharmacy" | "grocery" | "supermarket" | "retail";
 
@@ -122,37 +123,6 @@ const SWITCH_STORE_MAX_WAIT_MS = 5000;
 // array identity instead of a fresh [] on every provider render.
 const NO_STORES: StoreProfile[] = [];
 
-const terminology: Record<StoreType, Record<string, string>> = {
-  pharmacy: {
-    product: "Product",
-    products: "Products",
-    registration_number: "NAFDAC Number",
-    category: "Therapeutic Class",
-    stock: "Stock Level",
-  },
-  grocery: {
-    product: "Item",
-    products: "Items",
-    registration_number: "Registration No.",
-    category: "Department",
-    stock: "Quantity",
-  },
-  supermarket: {
-    product: "Product",
-    products: "Products",
-    registration_number: "Reg. Number",
-    category: "Aisle/Category",
-    stock: "Stock",
-  },
-  retail: {
-    product: "Product",
-    products: "Products",
-    registration_number: "Reg. No",
-    category: "Category",
-    stock: "Stock",
-  },
-};
-
 export function StoreProvider({ children }: { children: ReactNode }) {
   const { user, isHydrated: isAuthHydrated } = useAuth();
   // Lazy-initialized (not a useEffect) so the saved choice is already in state on the very first render, before `user` has even hydrated from it…
@@ -204,8 +174,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     Sentry.setTag("store_type", storeProfile?.store_type);
   }, [storeProfile]);
 
-
-
   // Set once on mount: distinguishes which physical device/terminal at a multi-device store a remote log came from, since store_id/user_id alone…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L247
   React.useEffect(() => {
@@ -226,22 +194,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   });
 
-
-
   // Sync activeStoreId back whenever the resolved profile doesn't match targetId, for an owner/admin with no fixed store_id - covers both fallin…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L270
+  const hasFixedStore = !!user?.store_id;
+  if (storeProfile && storeProfile.id !== targetId && !hasFixedStore) {
+    setActiveStoreId(storeProfile.id);
+  }
+
   React.useEffect(() => {
-    if (
-      storeProfile &&
-      storeProfile.id !== targetId &&
-      (!user || !user.store_id)
-    ) {
-      setActiveStoreId(storeProfile.id);
-      if (typeof window !== "undefined") {
-        setStoredActiveStoreId(storeProfile.id);
-      }
-    }
-  }, [storeProfile, targetId, user]);
+    if (activeStoreId && !hasFixedStore) setStoredActiveStoreId(activeStoreId);
+  }, [activeStoreId, hasFixedStore]);
 
   const [isSwitchingStore, setIsSwitchingStore] = React.useState(false);
 

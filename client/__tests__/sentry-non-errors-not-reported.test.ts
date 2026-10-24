@@ -13,7 +13,7 @@ vi.mock("@/lib/utils/device-id", () => ({ getDeviceId: () => "test-device" }));
 vi.mock("@/lib/db/local-database", () => ({
   insert: (...args: unknown[]) => insertMock(...args),
   update: vi.fn(),
-  query: vi.fn(async () => []),
+  query: vi.fn(() => Promise.resolve([])),
 }));
 vi.mock("@/lib/api/client", () => ({
   apiClient: { getBaseURL: () => "http://localhost" },

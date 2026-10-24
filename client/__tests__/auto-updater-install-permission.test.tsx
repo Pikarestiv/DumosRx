@@ -21,8 +21,8 @@ vi.mock("@/lib/constants", () => ({
   UPDATER_JSON_URL: "https://example.com/updater.json",
 }));
 vi.mock("@tauri-apps/plugin-os", () => ({ type: () => "macos" }));
-vi.mock("@tauri-apps/plugin-updater", () => ({ check: async () => null }));
-vi.mock("@tauri-apps/api/app", () => ({ getVersion: async () => "1.0.0" }));
+vi.mock("@tauri-apps/plugin-updater", () => ({ check: () => Promise.resolve(null) }));
+vi.mock("@tauri-apps/api/app", () => ({ getVersion: () => Promise.resolve("1.0.0") }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: async () => {} }));
 
 import { AutoUpdater } from "@/components/tauri/auto-updater";

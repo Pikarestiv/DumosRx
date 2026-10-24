@@ -1838,7 +1838,7 @@ of bug that showed 0s in the suppliers table without ever throwing.
 
 ## line-__tests__-finance-reports-test-ts-L68
 
-`client/__tests__/finance-reports.test.ts:68`
+`client/__tests__/helpers/finance-reports-db.ts` (`currentMonthWindow`)
 
 getCurrentMonthRevenue/getCurrentMonthCOGS take an explicit local-timezone
 window rather than relying on SQLite's UTC-based strftime('now'), matching
@@ -1846,7 +1846,7 @@ how use-finance-data.ts derives it.
 
 ## line-__tests__-finance-reports-test-ts-L77
 
-`client/__tests__/finance-reports.test.ts:77`
+`client/__tests__/helpers/finance-reports-db.ts` (`firstDayOfMonthLocal`)
 
 The window's `from`/`to` are UTC instants representing LOCAL midnight/
 month-start (see currentMonthWindow above) - slicing the ISO string's
@@ -1856,6 +1856,23 @@ UTC+1) is the PREVIOUS day, not the local date the window actually
 starts on. expenses.date is compared against these bounds via
 date(?, 'localtime') (see finance.ts), so a fixture inserting an
 expense must use the real local calendar date, not this UTC slice.
+
+## line-__tests__-helpers-finance-reports-db-ts-todayLocal
+
+`client/__tests__/helpers/finance-reports-db.ts` (`todayLocal`)
+
+Same reasoning as firstDayOfMonthLocal, for "today": todayISO() is a UTC
+instant, so for the ~1h after local midnight in a positive-offset zone it
+names yesterday - and, on the 1st, last month (A-121).
+
+## line-__tests__-helpers-finance-reports-db-ts-todayLocalStartISO
+
+`client/__tests__/helpers/finance-reports-db.ts` (`todayLocalStartISO`)
+
+Local midnight today, as the UTC instant it really is: strftime(...,
+'localtime') buckets it into today's local month, and it is always in the
+past, so report queries that cap their upper bound at "now" still include
+it (a noon-UTC anchor would sit in the future just after local midnight).
 
 ## block-__tests__-force-full-resync-restores-baseline-test-ts-L9
 
@@ -10963,15 +10980,15 @@ render too late - i.e. never on the first hover.
 
 `client/components/ui/responsive-modal.tsx:52`
 
-useMediaQuery starts at `false` on every first render (SSR/static-export
-safe) and corrects itself in an effect right after mount. Rendering
+useMediaQuery reads `false` during hydration (SSR/static-export safe) and
+reports the real value in the re-render right after. Rendering
 Dialog or Drawer off the uncorrected value would mount the wrong one
 first when this modal happens to already be `open` at that moment, and
 swapping mid-open once the real value lands is what used to leave
 `document.body.style.pointerEvents` stuck (two scroll-lock
-implementations racing). Rendering nothing until mounted skips that
-race: React batches the `mounted` and corrected-`isDesktop` effects
-into one re-render, so the first real render already has the right
+implementations racing). Rendering nothing until `useHydrated()` is true
+skips that race: the hydrated flag and the corrected `isDesktop` land in
+the same re-render, so the first real render already has the right
 answer and only ever mounts one of the two.
 
 ## line-components-ui-scroll-fade-tsx-L20
@@ -11552,29 +11569,32 @@ already applied to lock-screen.tsx's equivalent catch block.
 
 `client/hooks/use-media-query.ts:4`
 
-Always start at `false`, even on the client: this app is statically
+Reads `false` until hydration, even on the client: this app is statically
 exported (`output: "export"`), so the build has no `window` and bakes
 `false` into the HTML. Lazy-reading the real matchMedia value here made
 the client's first render disagree with that static HTML whenever the
 real value was `true` (e.g. any desktop-width user), which React
 reports as a hydration-mismatch crash — not a caught render exception,
-so it never reached Sentry via the error boundary. Consumers that used
-to rely on the real value being available immediately (ResponsiveModal
-picking Dialog vs Drawer) should gate their first real render on a
-`mounted` flag instead, rather than reaching for the value early here.
+so it never reached Sentry via the error boundary. The hook is built on
+`useSyncExternalStore` with a server snapshot of `false`, so React uses
+`false` for the hydrating render and then re-renders with the real value;
+a component mounted after hydration (client-side navigation) gets the real
+value on its first render. Consumers that branch their whole tree on it
+(ResponsiveModal picking Dialog vs Drawer) gate on `useHydrated()` or
+`useResolvedMediaQuery` rather than reaching for the value early.
 
 ## block-hooks-use-media-query-ts-L31
 
 `client/hooks/use-media-query.ts:31`
 
 useMediaQuery plus the `resolved` flag a consumer needs before it may
-branch its render on the answer. Because the raw hook deliberately starts
-at `false` until its effect runs, choosing between a mobile and a desktop
+branch its render on the answer. Because the raw hook deliberately reads
+`false` during hydration, choosing between a mobile and a desktop
 component tree off the uncorrected value mounts the wrong one first and
 then throws it away — a wasted mount plus a visible flash of the wrong
-layout. React batches this hook's `resolved` effect with the underlying
-one's correction into a single re-render, so the first render where
-`resolved` is true already carries the real value.
+layout. `resolved` is `useHydrated()`, which flips in the same post-hydration
+re-render in which `useMediaQuery` reports the real value, so the first
+render where `resolved` is true already carries the real value.
 
 ## block-hooks-use-settings-tab-resolution-ts-L9
 
@@ -11953,3 +11973,181 @@ agreed everywhere.
 Fix: a second effect, independent of the rebuild gate, that merges fresh
 `last_audited_at` values into the existing draft by product id whenever
 `rawProducts` changes, touching nothing else on the row.
+
+## line-app-setup-use-onboarding-ts-finish-new-account-setup
+
+`client/app/setup/use-onboarding.ts` (`finishNewAccountSetup`)
+
+Shared by handleRegister()'s no-local-data path and
+confirmCloudRestoreSwitch()'s post-wipe continuation for a brand-new
+signup (see pendingNewRegistration). It owns its own error handling,
+rather than letting it bubble to a caller's catch, so a failure here
+always gets this step's own message and always clears isLoading,
+whichever caller invoked it. The subscription-status seed runs before the
+fire-and-forget sync() so the trial status is present immediately (A-156).
+
+## line-app-setup-use-onboarding-ts-cloud-first-register
+
+`client/app/setup/use-onboarding.ts` (`handleRegister`)
+
+Every local write of the PIN stores the hash, never the raw digits (see
+lib/utils/pin-hash.ts). The raw `pin` is still what's sent to the
+registration API (which hashes it server-side) and what login() is called
+with at the end.
+
+Brand-new setup (no cloud account linked yet) always creates the account
+and store in the cloud first, then seeds local SQLite with the server's
+real ids. A local-only id generated before a cloud identity exists can
+never be reconciled later: every row that references it as a foreign key
+(sales.cashier_id, stock_movements.performed_by, etc.) becomes permanently
+unsyncable. See reconcile-identity.ts for the one-time recovery this exact
+failure mode required. On a 422 "email already taken" the hook logs in
+instead, self-healing a lost-response retry (see client/AGENTS.md's "Cloud
+setup/registration network calls"). Any other failure surfaces the real
+server message rather than a generic one.
+
+The already-cloud-linked path is reached via the "sync completed but found
+no local accounts" fallback in useOnboardingSync. Generating a fresh local
+id there is safe: the cloud identity already exists, and the subsequent
+sync() push adopts this same id server-side.
+`seedOfflineStoreAndAdmin()` (app/setup/onboarding-local-writes.ts) inserts
+via raw execute() rather than the insert()/update() helpers
+(base-helpers.ts), so it queues its own _sync_queue rows the same way those
+helpers do; otherwise this store/admin would only reach the server via the
+separate "mark everything dirty" fallback (local-database.ts), and never
+sync at all if that path is missed.
+
+## line-app-setup-use-onboarding-sync-ts-identity-ready
+
+`client/app/setup/use-onboarding-sync.ts` (`startSyncProcess`)
+
+`identityReady` is set once identity data (store + users) has been pulled
+and the process has moved on to login/navigation. It guards the
+onCriticalTablesReady callback (which can in principle fire more than once
+across retries) and the outer failure handling from double-running that
+transition, and tells the failure paths whether the user is already past
+the point of no return (logged in / mid-navigation) or still safe to bounce
+back to the "cloud" step. After sign-in, the rest of the account's data
+keeps pulling in the background under the still-running sync() call, the
+same auto-sync progress the dashboard shows; a failure of that background
+portion is only logged, and the next normal sync picks up where it left off.
+
+## line-app-setup-use-onboarding-ts-local-restore-reload
+
+`client/app/setup/use-onboarding.ts` (`handleLocalRestore`)
+
+A client-side router.push resolves before /login's account detection
+(useDeviceAuthStatus) re-runs against the newly-restored database, so it
+can briefly render the pre-restore "No Local Accounts Found" screen. A full
+browser navigation (`navigateWithFullReload`, lib/utils/full-page-navigate.ts)
+is used instead, the same fix the other restore paths use
+(hooks/use-settings-sync.ts), so /login always starts fresh.
+
+## lib-utils-full-page-navigate
+
+`client/lib/utils/full-page-navigate.ts`
+
+`navigateWithFullReload(path)` is the one place the client deliberately
+leaves the Next.js router for a full document load: after a database
+restore, when exiting a lock or impersonation/inspection session, or when a
+license block must reset every in-memory store. Next's
+`no-location-assign-relative-destination` lint rule exists to catch
+*accidental* full reloads; routing the intentional ones through this named
+helper keeps that rule meaningful everywhere else. It assigns
+`window.location.href` (not `location.assign`) so tests that stub
+`window.location` with an `href` setter keep working.
+
+## block-__tests__-sync-health-check-test-ts-L127
+
+`client/__tests__/sync-health-check.test.ts:127`
+
+Each simulated "day" clears the 24h gate so checkSyncHealth() runs again
+within a single test, exactly like this device checking in on
+consecutive days.
+
+## block-__tests__-table-fingerprint-test-ts-L89
+
+`client/__tests__/table-fingerprint.test.ts:89`
+
+The server compares the client's `audit_logs` against a different
+physical table, so it is not in its allowlist and the digest is
+discarded. Computing it is a full scan of the device's largest table
+(730-day retention) for a number with no reader.
+
+## block-__tests__-use-fulfill-online-order-mutation-test-ts-L254
+
+`client/__tests__/use-fulfill-online-order-mutation.test.ts:254`
+
+A-57: a product whose only batch is expired was fulfilled silently —
+full revenue, cost_price 0, no stock_movements row, no sale_item_batches
+row, and the expired units still counted as on hand.
+
+## block-__tests__-use-fulfill-online-order-mutation-test-ts-L207
+
+`client/__tests__/use-fulfill-online-order-mutation.test.ts:207`
+
+Second attempt (the user pressing Fulfill again): the server call now
+succeeds. Without recognizing the first attempt's local write, this
+would insert a second sales row and deduct stock a second time.
+
+## block-__tests__-use-fulfill-online-order-mutation-test-ts-L165
+
+`client/__tests__/use-fulfill-online-order-mutation.test.ts:165`
+
+sale_items.total_price is NOT NULL, so this line throws part-way through
+the loop - which previously left items 1..n-1 deducted for good, with
+the order already marked fulfilled server-side.
+
+## block-__tests__-use-fulfill-online-order-mutation-test-ts-L147
+
+`client/__tests__/use-fulfill-online-order-mutation.test.ts:147`
+
+The local books are correct and already queued for sync; the previous
+order (server first) left the order server-side fulfilled with no local
+sale and no stock deduction at all.
+
+## components-dashboard-dashboard-lock-overlay-hard-navigation
+
+`client/components/dashboard/dashboard-lock-overlay.tsx` (`onLoginAsOther`, `onSetUpNewDevice`)
+
+Both use a hard navigation (`navigateWithFullReload`), not router.push: a
+client-side push leaves the page under this overlay mounted. See
+docs/FIXED_BUGS.md.
+
+## block-components-products-product-database-tsx-deep-links
+
+`client/components/products/product-database.tsx`
+
+URL actions are applied during render, keyed on the query string rather than
+the `searchParams` object (a fresh object per render would otherwise loop):
+`?action=add` opens the Add dialog and `?status=` seeds the status filter.
+`?productId=` is the deep link from the Dashboard's "Product added" activity
+rows (`dashboard-overview.tsx`): it selects that product's detail panel once
+the catalog has loaded. The URL clean-up (`router.replace` without the param)
+stays in an effect because it is a side effect, not state.
+
+## block-components-procurement-receive-po-panel-tsx-initial-items
+
+`client/components/procurement/receive-po-panel.tsx`
+
+The received-items draft is rebuilt only when the PO id changes, not when the
+`po` object does: its identity changes on every refetch, and keying off it
+would wipe in-progress edits while the underlying query revalidates.
+
+## block-components-procurement-use-selected-order-ts-panel-view
+
+`client/components/procurement/use-selected-order.ts`
+
+Switching to a different order always lands back on the details view. An
+order that disappears from the list after having been seen in it is treated
+as deleted and the panel is closed, rather than left showing stale data.
+
+## block-client-latest-callback-refs
+
+`client/components/stock-batch/adjustment-items-step.tsx`,
+`client/components/procurement/po-item-builder.tsx`
+
+Callbacks handed to memoised rows read the parent's latest handler through a
+ref so their identity never changes across renders. The ref is refreshed in a
+`useLayoutEffect` with no deps rather than assigned during render, which
+`react-hooks/refs` forbids.

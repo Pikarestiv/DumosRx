@@ -163,11 +163,11 @@ describe("admin navigation role filtering", () => {
     const { container } = render(<AdminSidebar />);
 
     const nav = container.querySelector("nav");
-    expect(nav).toBeTruthy();
-    expect(nav!.className).toContain("overflow-y-auto");
-    expect(nav!.className).toContain("min-h-0");
+    if (!nav) throw new Error("expected the sidebar to render a nav");
+    expect(nav.className).toContain("overflow-y-auto");
+    expect(nav.className).toContain("min-h-0");
 
     const signOut = screen.getByRole("button", { name: /sign out/i });
-    expect(nav!.contains(signOut)).toBe(false);
+    expect(nav.contains(signOut)).toBe(false);
   });
 });

@@ -9,8 +9,8 @@ import {
 } from "@/lib/constants/permissions";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // The exact lists the permission-groups feature shipped with on 2026-09-27 (a5f40463) - what an already-seeded store like…

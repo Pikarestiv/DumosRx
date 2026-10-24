@@ -22,7 +22,7 @@ vi.mock("@/lib/api/client", () => ({
 }));
 
 vi.mock("@/lib/db/sync-engine", () => ({
-  sync: vi.fn(async () => ({ success: true })),
+  sync: vi.fn(() => Promise.resolve({ success: true })),
   isSyncing: vi.fn(() => false),
 }));
 
@@ -46,8 +46,8 @@ vi.mock("@/lib/native/widget-bridge", () => ({
 }));
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -60,9 +60,7 @@ vi.mock("@/lib/db/local-database", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/db/local-database")>();
   return {
     ...actual,
-    update: vi.fn(async () => {
-      throw new Error("disk full");
-    }),
+    update: vi.fn(() => Promise.reject(new Error("disk full"))),
   };
 });
 

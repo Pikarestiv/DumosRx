@@ -13,14 +13,14 @@ const catalogCurrency = { value: "KES" as string | undefined };
 
 vi.mock("@/lib/api/base-client", () => ({
   apiClient: {
-    get: vi.fn(async () => ({
+    get: vi.fn(() => Promise.resolve({
       data: {
         products: [{ id: "p1", name: "Panadol", selling_price: 500 }],
         online_payment_available: true,
         store: { currency: catalogCurrency.value },
       },
     })),
-    post: vi.fn(async () => ({ data: { order: { id: "order-1" } } })),
+    post: vi.fn(() => Promise.resolve({ data: { order: { id: "order-1" } } })),
   },
 }));
 

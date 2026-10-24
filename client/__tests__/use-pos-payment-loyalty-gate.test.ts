@@ -2,14 +2,16 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import initSqlJs, { type Database } from "sql.js";
+import type { CartItem } from "@/lib/hooks/use-pos-cart";
+import type { Customer } from "@/lib/types/customer";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 // React 19's `act` warns unless the environment explicitly opts in.
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Defense-in-depth coverage for the Gap 1 backend fix:
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-use-pos-payment-loyalty-gate-test-ts-L14
@@ -61,7 +63,7 @@ describe("usePOSPayment loyalty gating", () => {
     };
   }
 
-  const customer = { id: "c1", first_name: "Jane", loyalty_points: 200 } as any;
+  const customer = { id: "c1", first_name: "Jane", loyalty_points: 200 } as unknown as Customer;
   const cartItem = {
     id: "p1",
     name: "Panadol",
@@ -69,7 +71,7 @@ describe("usePOSPayment loyalty gating", () => {
     cost_price: 50,
     quantity: 1,
     subtotal: 100,
-  } as any;
+  } as unknown as CartItem;
 
   it("writes no loyalty_transactions rows when canUseLoyaltyProgram is false, even with points earned and a redemption staged", async () => {
     db.run(

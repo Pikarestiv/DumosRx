@@ -14,7 +14,7 @@ vi.mock("@/components/ui/responsive-modal", () => ({
 }));
 
 vi.mock("@/lib/db/queries/products", () => ({
-  getProductBasicInfo: vi.fn(async () => ({ name: "Paracetamol 500mg", dosage_form: null })),
+  getProductBasicInfo: vi.fn(() => Promise.resolve({ name: "Paracetamol 500mg", dosage_form: null })),
 }));
 
 import { StockMovementDetailsDialog } from "@/components/dashboard/modals/stock-movement-details-dialog";

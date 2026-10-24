@@ -16,7 +16,6 @@ describe("sw.js navigate fetch timeout on a slow connection", () => {
       clients: { claim: () => {} },
       location: { origin: "https://app.dumosrx.test" },
     } as Record<string, unknown>;
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
     const internals = new Function(
       "self",
       `${source}\nreturn self.__swInternals;`,
@@ -40,12 +39,13 @@ describe("sw.js navigate fetch timeout on a slow connection", () => {
     ]);
     fetchCalls = [];
     (globalThis as Record<string, unknown>).caches = {
-      open: async () => ({
-        match: async (key: { url?: string } | string) =>
-          cacheEntries.get(typeof key === "string" ? key : (key.url ?? "")),
-        put: async (key: { url: string }, response: unknown) =>
-          cacheEntries.set(key.url, response),
-      }),
+      open: () =>
+        Promise.resolve({
+          match: (key: { url?: string } | string) =>
+            Promise.resolve(cacheEntries.get(typeof key === "string" ? key : (key.url ?? ""))),
+          put: (key: { url: string }, response: unknown) =>
+            Promise.resolve(cacheEntries.set(key.url, response)),
+        }),
     };
     (globalThis as Record<string, unknown>).fetch = (
       _request: unknown,
@@ -67,8 +67,10 @@ describe("sw.js navigate fetch timeout on a slow connection", () => {
   });
 
   const respondToNavigation = (listeners: Map<string, (event: unknown) => void>) => {
+    const handleFetch = listeners.get("fetch");
+    if (!handleFetch) throw new Error("sw.js registered no fetch listener");
     let responded: Promise<unknown> | undefined;
-    listeners.get("fetch")!({
+    handleFetch({
       request: {
         method: "GET",
         mode: "navigate",
@@ -78,7 +80,8 @@ describe("sw.js navigate fetch timeout on a slow connection", () => {
         responded = promise;
       },
     });
-    return responded!;
+    if (!responded) throw new Error("navigate request was never answered");
+    return responded;
   };
 
   it("exposes a navigate timeout with real headroom for a congested mobile connection", () => {
@@ -105,7 +108,8 @@ describe("sw.js navigate fetch timeout on a slow connection", () => {
     const { internals, listeners } = loadServiceWorker();
     const responded = respondToNavigation(listeners);
 
-    await vi.advanceTimersByTimeAsync(internals.NAVIGATE_NETWORK_TIMEOUT_MS!);
+    expect(internals.NAVIGATE_NETWORK_TIMEOUT_MS).toBeDefined();
+    await vi.advanceTimersByTimeAsync(internals.NAVIGATE_NETWORK_TIMEOUT_MS ?? 0);
 
     expect(fetchCalls[0].signal.aborted).toBe(true);
     await expect(responded).resolves.toMatchObject({ body: "cached-pos" });

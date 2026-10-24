@@ -62,8 +62,9 @@ function nextId(prefix: string) {
 // logic runs against it, not just mock-call assertions.
 vi.mock('@/lib/db/local-database', async () => {
   const { applyMovementToFakeBatch } = await import('./helpers/fake-batch-quantity');
+  const { asAsync } = await import('./helpers/as-async');
   return {
-  query: vi.fn(async (sql: string, params: unknown[] = []) => {
+  query: vi.fn(asAsync((sql: string, params: unknown[] = []) => {
     if (sql.includes('FROM stores WHERE id = ?')) {
       const s = stores[params[0] as string];
       return s ? [s] : [];
@@ -129,8 +130,8 @@ vi.mock('@/lib/db/local-database', async () => {
       return found ? [{ id: found.id }] : [];
     }
     return [];
-  }),
-  insert: vi.fn(async (table: string, data: Record<string, unknown>) => {
+  })),
+  insert: vi.fn(asAsync((table: string, data: Record<string, unknown>) => {
     const id = (data.id as string) || nextId(table);
     const record = { id, ...data };
     if (table === 'products') products[id] = record as unknown as FakeProduct;
@@ -141,9 +142,9 @@ vi.mock('@/lib/db/local-database', async () => {
       applyMovementToFakeBatch(batches, movements, data);
     }
     return id;
-  }),
+  })),
   update: vi.fn(
-    async (
+    asAsync((
       table: string,
       id: string,
       data: Record<string, unknown>,
@@ -152,7 +153,7 @@ vi.mock('@/lib/db/local-database', async () => {
       if (table === 'stock_batches') batches[id] = { ...batches[id], ...data };
       if (table === 'products') products[id] = { ...products[id], ...data };
       return id;
-    },
+    }),
   ),
   transaction: vi.fn(async (fn: () => Promise<unknown>) => fn()),
   generateId: vi.fn(() => nextId('transfer')),

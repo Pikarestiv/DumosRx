@@ -29,6 +29,6 @@ describe("search surfaces debounce their expensive work", () => {
 
     const searchCall = code.match(/genericFuzzySearch\(\s*([A-Za-z0-9_]+)/);
     expect(searchCall, "genericFuzzySearch call not found").not.toBeNull();
-    expect(searchCall![1]).toBe("debouncedSearchTerm");
+    expect(searchCall?.[1]).toBe("debouncedSearchTerm");
   });
 });

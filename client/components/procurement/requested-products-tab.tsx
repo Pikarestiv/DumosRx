@@ -92,14 +92,20 @@ export function RequestedProductsTab() {
   const router = useRouter();
   const pathname = usePathname();
 
+  const addActionRequested = searchParams.get("action") === "add";
+  const [handledAddAction, setHandledAddAction] = useState(false);
+  if (addActionRequested !== handledAddAction) {
+    setHandledAddAction(addActionRequested);
+    if (addActionRequested) setShowAddDialog(true);
+  }
+
   useEffect(() => {
-    if (searchParams.get("action") === "add") {
-      setShowAddDialog(true);
+    if (addActionRequested) {
       const params = new URLSearchParams(searchParams.toString());
       params.delete("action");
       router.replace(`${pathname}?${params.toString()}`);
     }
-  }, [searchParams, router, pathname]);
+  }, [addActionRequested, searchParams, router, pathname]);
 
   // Refresh requests if dialog is closed
   useEffect(() => {

@@ -29,7 +29,7 @@ vi.mock("@/lib/assistant/tools", () => {
     description: "d",
     parameters: {},
     examples: ["ok"],
-    execute: async () => ({ value: 1 }),
+    execute: () => Promise.resolve({ value: 1 }),
     format: (result) => ({ kind: "answer", text: `value is ${(result as { value: number }).value}` }),
   };
 
@@ -38,9 +38,7 @@ vi.mock("@/lib/assistant/tools", () => {
     description: "d",
     parameters: {},
     examples: ["throw"],
-    execute: async () => {
-      throw new Error("boom");
-    },
+    execute: () => Promise.reject(new Error("boom")),
     format: () => ({ kind: "answer", text: "unreachable" }),
   };
 
@@ -50,7 +48,7 @@ vi.mock("@/lib/assistant/tools", () => {
     parameters: {},
     requiredPermission: "nope_permission",
     examples: ["denied"],
-    execute: async () => ({}),
+    execute: () => Promise.resolve({}),
     format: () => ({ kind: "answer", text: "unreachable" }),
   };
 
@@ -60,7 +58,7 @@ vi.mock("@/lib/assistant/tools", () => {
     parameters: {},
     requiredPermission: "view_reports",
     examples: ["denied reroutable"],
-    execute: async () => ({}),
+    execute: () => Promise.resolve({}),
     format: () => ({ kind: "answer", text: "unreachable" }),
   };
 
@@ -70,7 +68,7 @@ vi.mock("@/lib/assistant/tools", () => {
     parameters: {},
     requiredPermission: "process_sales",
     examples: ["reroute target"],
-    execute: async () => ({}),
+    execute: () => Promise.resolve({}),
     format: () => ({ kind: "answer", text: "rerouted answer" }),
   };
 

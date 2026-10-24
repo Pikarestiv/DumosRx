@@ -3,16 +3,16 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 // React 19's `act` warns unless the environment explicitly opts in.
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Regression test: a cloud setup whose sync pull FAILED must show the real error and return to the cloud step - never the…
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-onboarding-cloud-setup-failed-pull-test-ts-L8
 
 const routerPushMock = vi.fn();
-const loginMock = vi.fn(async () => true);
-const linkCloudAccountMock = vi.fn(async () => ({ success: true, message: "" }));
-const getStoresMock = vi.fn(async () => [{ id: "store-1", name: "Store One" }]);
-const getTotalUserCountMock = vi.fn(async () => 0);
+const loginMock = vi.fn(() => Promise.resolve(true));
+const linkCloudAccountMock = vi.fn(() => Promise.resolve({ success: true, message: "" }));
+const getStoresMock = vi.fn(() => Promise.resolve([{ id: "store-1", name: "Store One" }]));
+const getTotalUserCountMock = vi.fn(() => Promise.resolve(0));
 const syncMock =
   vi.fn<
     (
@@ -38,26 +38,26 @@ vi.mock("@/lib/context/auth-context", () => ({
 
 vi.mock("@/lib/db/core", () => ({
   generateId: vi.fn(() => "fake-id"),
-  execute: vi.fn(async () => undefined),
+  execute: vi.fn(() => Promise.resolve(undefined)),
   setActiveStoreId: vi.fn(),
-  restoreDatabase: vi.fn(async () => undefined),
-  clearDatabaseForNewStore: vi.fn(async () => undefined),
+  restoreDatabase: vi.fn(() => Promise.resolve(undefined)),
+  clearDatabaseForNewStore: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("@/lib/db/queries/setup", () => ({
   getTotalUserCount: () => getTotalUserCountMock(),
-  getLocalStores: vi.fn(async () => []),
+  getLocalStores: vi.fn(() => Promise.resolve([])),
 }));
 
 vi.mock("@/lib/db/sync-engine", () => ({
-  sync: (...args: unknown[]) => (syncMock as any)(...args),
-  syncSubscriptionStatus: vi.fn(async () => ({ success: true, updated: true })),
+  sync: (...args: unknown[]) => syncMock(...(args as Parameters<typeof syncMock>)),
+  syncSubscriptionStatus: vi.fn(() => Promise.resolve({ success: true, updated: true })),
 }));
 
 vi.mock("@/lib/api/client", () => ({
   apiClient: {
     register: vi.fn(),
-    getProfile: vi.fn(async () => ({})),
+    getProfile: vi.fn(() => Promise.resolve({})),
     getStores: () => getStoresMock(),
     setToken: vi.fn(),
   },
@@ -114,9 +114,9 @@ describe("useOnboarding() cloud setup when the identity pull fails", () => {
   });
 
   it("shows the real sync error and returns to the cloud step instead of reporting 'no staff accounts'", async () => {
-    syncMock.mockImplementation(async (_isManual, _isSetup, onCriticalTablesReady) => {
+    syncMock.mockImplementation((_isManual, _isSetup, onCriticalTablesReady) => {
       onCriticalTablesReady?.(false);
-      return { success: false, error: "no such table: permission_groups" };
+      return Promise.resolve({ success: false, error: "no such table: permission_groups" });
     });
 
     await act(async () => {
@@ -134,9 +134,9 @@ describe("useOnboarding() cloud setup when the identity pull fails", () => {
   });
 
   it("still reports 'no staff accounts' and routes to registration when the pull genuinely succeeded with zero users", async () => {
-    syncMock.mockImplementation(async (_isManual, _isSetup, onCriticalTablesReady) => {
+    syncMock.mockImplementation((_isManual, _isSetup, onCriticalTablesReady) => {
       onCriticalTablesReady?.(true);
-      return { success: true };
+      return Promise.resolve({ success: true });
     });
 
     await act(async () => {
@@ -152,9 +152,9 @@ describe("useOnboarding() cloud setup when the identity pull fails", () => {
 
   it("logs the user in when the pull succeeded and staff exist", async () => {
     getTotalUserCountMock.mockResolvedValue(3);
-    syncMock.mockImplementation(async (_isManual, _isSetup, onCriticalTablesReady) => {
+    syncMock.mockImplementation((_isManual, _isSetup, onCriticalTablesReady) => {
       onCriticalTablesReady?.(true);
-      return { success: true };
+      return Promise.resolve({ success: true });
     });
 
     await act(async () => {

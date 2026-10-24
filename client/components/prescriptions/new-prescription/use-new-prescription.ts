@@ -101,9 +101,10 @@ export function useNewPrescription() {
     unitCost: "",
   });
 
+  if (editRxId && !isEditing) setIsEditing(true);
+
   useEffect(() => {
     if (editRxId) {
-      setIsEditing(true);
       const fetchPrescription = async () => {
         try {
           const prescription = await getPrescriptionById(editRxId);

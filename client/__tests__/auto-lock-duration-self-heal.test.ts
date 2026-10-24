@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 if (!window.matchMedia) {
   window.matchMedia = ((query: string) => ({
@@ -71,7 +71,7 @@ describe("Auto-Lock Screen duration self-heal", () => {
     );
 
     root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(
         React.createElement(SecuritySettings, {
           currentPin: "",
@@ -80,7 +80,7 @@ describe("Auto-Lock Screen duration self-heal", () => {
           setNewPin: () => {},
           confirmPin: "",
           setConfirmPin: () => {},
-          handleUpdateSecurity: async () => true,
+          handleUpdateSecurity: () => Promise.resolve(true),
         }),
       );
     });
@@ -110,7 +110,7 @@ describe("Auto-Lock Screen duration self-heal", () => {
     );
 
     root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(
         React.createElement(SecuritySettings, {
           currentPin: "",
@@ -119,7 +119,7 @@ describe("Auto-Lock Screen duration self-heal", () => {
           setNewPin: () => {},
           confirmPin: "",
           setConfirmPin: () => {},
-          handleUpdateSecurity: async () => true,
+          handleUpdateSecurity: () => Promise.resolve(true),
         }),
       );
     });

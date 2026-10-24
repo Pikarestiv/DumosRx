@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { assert, describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 
@@ -17,9 +17,9 @@ describe('dashboard action center routes', () => {
     );
 
     const allowedTabsMatch = tabPageSource.match(/const allowedTabs = \[([^\]]*)\]/);
-    expect(allowedTabsMatch).not.toBeNull();
+    assert(allowedTabsMatch);
     const allowedTabs = JSON.parse(
-      `[${allowedTabsMatch![1]}]`.replace(/'/g, '"'),
+      `[${allowedTabsMatch[1]}]`.replace(/'/g, '"'),
     ) as string[];
     expect(allowedTabs.length).toBeGreaterThan(0);
 
@@ -52,9 +52,9 @@ describe('dashboard action center routes', () => {
     );
 
     const allowedTabsMatch = tabPageSource.match(/const allowedTabs = \[([^\]]*)\]/);
-    expect(allowedTabsMatch).not.toBeNull();
+    assert(allowedTabsMatch);
     const allowedTabs = JSON.parse(
-      `[${allowedTabsMatch![1]}]`.replace(/'/g, '"'),
+      `[${allowedTabsMatch[1]}]`.replace(/'/g, '"'),
     ) as string[];
     expect(allowedTabs.length).toBeGreaterThan(0);
 
@@ -98,7 +98,7 @@ describe('dashboard action center routes', () => {
     const oversoldCardMatch = alertsHookSource.match(
       /id:\s*"oversold"[\s\S]{0,400}?actionRoute:\s*"([^"]+)"/,
     );
-    expect(oversoldCardMatch).not.toBeNull();
-    expect(oversoldCardMatch![1]).toBe('/inventory/catalog?status=out_of_stock');
+    assert(oversoldCardMatch);
+    expect(oversoldCardMatch[1]).toBe('/inventory/catalog?status=out_of_stock');
   });
 });

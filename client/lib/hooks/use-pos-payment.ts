@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { insert, update, transaction as runInTransaction } from "@/lib/db/local-database";
 import { generateShortId, generateId } from "@/lib/db/core";
@@ -104,15 +104,18 @@ export function usePOSPayment({
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
 
-  useEffect(() => {
-    if (cart.length === 0) {
+  const cartIsEmpty = cart.length === 0;
+  const [wasCartEmpty, setWasCartEmpty] = useState(cartIsEmpty);
+  if (cartIsEmpty !== wasCartEmpty) {
+    setWasCartEmpty(cartIsEmpty);
+    if (cartIsEmpty) {
       setPaymentMethod("cash");
       setAmountPaid("");
       setSelectedAccountId("");
       setPaymentSplits([]);
       setSaleNote("");
     }
-  }, [cart.length]);
+  }
 
   const handlePayment = async () => {
     if (processingPaymentRef.current) return;

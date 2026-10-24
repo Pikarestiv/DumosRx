@@ -67,7 +67,7 @@ describe("buildReport truncation", () => {
 
     const marker = report.match(/\[truncated: (\d+) characters omitted\]/);
     expect(marker).not.toBeNull();
-    expect(Number(marker![1])).toBeGreaterThan(0);
+    expect(Number(marker?.[1])).toBeGreaterThan(0);
   });
 
   /** Identity and the queue summary are the high-value part; the tail of a

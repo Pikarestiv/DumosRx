@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 if (!window.matchMedia) {
   window.matchMedia = ((query: string) => ({
@@ -18,7 +18,7 @@ if (!window.matchMedia) {
 }
 
 let mockSyncResult: { success: boolean; error?: string } = { success: true };
-const mockSync = vi.fn(async () => mockSyncResult);
+const mockSync = vi.fn(() => Promise.resolve(mockSyncResult));
 
 let mockPendingCount = 0;
 vi.mock("@tanstack/react-query", () => ({
@@ -26,7 +26,7 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 vi.mock("@/lib/db/queries/setup", () => ({
-  getSyncQueueCount: vi.fn(async () => mockPendingCount),
+  getSyncQueueCount: vi.fn(() => Promise.resolve(mockPendingCount)),
 }));
 
 vi.mock("@/lib/db/sync-engine", () => ({
@@ -89,7 +89,7 @@ describe("SyncIndicator pending state and concurrent-sync handling", () => {
       "@/components/dashboard/sync-indicator"
     );
     root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(SyncIndicator, { collapsed: false }));
     });
   }

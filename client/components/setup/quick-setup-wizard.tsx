@@ -1,7 +1,7 @@
 "use client";
 
 import { useRecordCounts } from "@/lib/hooks/use-setup-data";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { DialogFooter } from "@/components/ui/dialog";
@@ -36,18 +36,18 @@ export function QuickSetupWizard() {
   const [showRetailSuggestions, setShowRetailSuggestions] = useState(false);
   const [open, setOpen] = useState(true);
 
-  useEffect(() => {
-    if (storeProfile) {
-      if (storeProfile.store_type) setStoreType(storeProfile.store_type);
-      if (storeProfile.name) setStoreName(storeProfile.name);
-      if (storeProfile.location) setLocation(storeProfile.location);
-      if (storeProfile.address) setAddress(storeProfile.address);
-      if (storeProfile.phone) setPhone(storeProfile.phone);
-      if (storeProfile.show_retail_suggestions !== undefined) {
-        setShowRetailSuggestions(storeProfile.show_retail_suggestions === 1);
-      }
+  const [prefilledFrom, setPrefilledFrom] = useState<typeof storeProfile>(null);
+  if (storeProfile && storeProfile !== prefilledFrom) {
+    setPrefilledFrom(storeProfile);
+    if (storeProfile.store_type) setStoreType(storeProfile.store_type);
+    if (storeProfile.name) setStoreName(storeProfile.name);
+    if (storeProfile.location) setLocation(storeProfile.location);
+    if (storeProfile.address) setAddress(storeProfile.address);
+    if (storeProfile.phone) setPhone(storeProfile.phone);
+    if (storeProfile.show_retail_suggestions !== undefined) {
+      setShowRetailSuggestions(storeProfile.show_retail_suggestions === 1);
     }
-  }, [storeProfile]);
+  }
 
   const handleComplete = () => {
     if (!storeName) {

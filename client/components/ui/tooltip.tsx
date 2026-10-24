@@ -4,16 +4,9 @@ import * as React from "react"
 import * as TooltipPrimitive from "@radix-ui/react-tooltip"
 
 import { cn } from "@/lib/utils"
+import { useMediaQuery } from "@/hooks/use-media-query"
 
 const TooltipProvider = TooltipPrimitive.Provider
-
-function useIsTouchDevice() {
-  const [isTouch, setIsTouch] = React.useState(false)
-  React.useEffect(() => {
-    setIsTouch(window.matchMedia("(hover: none)").matches)
-  }, [])
-  return isTouch
-}
 
 interface TooltipContextValue {
   isTouch: boolean
@@ -29,7 +22,7 @@ function Tooltip({
   onOpenChange,
   ...props
 }: React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Root>) {
-  const isTouch = useIsTouchDevice()
+  const isTouch = useMediaQuery("(hover: none)")
   const [openState, setOpenState] = React.useState(false)
   const open = openProp ?? openState
 

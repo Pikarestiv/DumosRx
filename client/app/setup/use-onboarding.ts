@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
-import { generateId, execute, setActiveStoreId } from "@/lib/db/core";
-
-import { getTotalUserCount, getLocalStores } from "@/lib/db/queries/setup";
+import { generateId, setActiveStoreId } from "@/lib/db/core";
+import { getLocalStores } from "@/lib/db/queries/setup";
 import { sync, syncSubscriptionStatus } from "@/lib/db/sync-engine";
 import { restoreDatabase, clearDatabaseForNewStore } from "@/lib/db/core";
 import { apiClient } from "@/lib/api/client";
@@ -15,34 +14,30 @@ import { markRestoredForCloudLinkNotice } from "@/lib/utils/post-restore-notice"
 import type { StoreOption } from "@/lib/types/store";
 import { hashPin } from "@/lib/utils/pin-hash";
 import { setStoredActiveStoreId } from "@/lib/storage-keys";
+import { navigateWithFullReload } from "@/lib/utils/full-page-navigate";
+import { parseOnboardingStep, type OnboardingStep } from "./onboarding-step";
+import {
+  seedCloudLinkedStoreAndAdmin,
+  seedOfflineStoreAndAdmin,
+  type PendingNewRegistration,
+} from "./onboarding-local-writes";
+import { useOnboardingSync } from "./use-onboarding-sync";
 
-export type OnboardingStep = "welcome" | "register" | "cloud" | "backup" | "syncing" | "select-store";
+export type { OnboardingStep } from "./onboarding-step";
 
-export function useOnboarding(onDeviceDataChanged?: () => void) {
-  const [onboardingStep, setOnboardingStep] = useState<OnboardingStep>("welcome");
+export function useOnboarding(onDeviceDataChanged?: () => Promise<unknown> | void) {
   const [isLoading, setIsLoading] = useState(false);
-  const [syncProgress, setSyncProgress] = useState(0);
-  const [syncStatus, setSyncStatus] = useState("Initializing sync...");
-  const [existingStores, setExistingStores] = useState<StoreOption[]>([]);
+  const notifyDeviceDataChanged = () => {
+    void onDeviceDataChanged?.();
+  };
 
-  // Custom modal confirmation states
   const [showConfirmSwitch, setShowConfirmSwitch] = useState(false);
   const [pendingStoreName, setPendingStoreName] = useState("");
   // Set only when showConfirmSwitch was triggered by a brand-new signup (not the existing-account store-switch flow) finding…
   // Rationale: docs/CLIENT_COMMENTS.md#line-app-setup-use-onboarding-ts-L31
-  const [pendingNewRegistration, setPendingNewRegistration] = useState<{
-    store: { id: string; name: string };
-    userId: string;
-    firstName: string;
-    lastName: string;
-    username: string;
-    pin: string;
-    hashedPin: string;
-    storeName: string;
-  } | null>(null);
+  const [pendingNewRegistration, setPendingNewRegistration] = useState<PendingNewRegistration | null>(null);
   const [pendingEmail, setPendingEmail] = useState("");
 
-  // Store selection states
   const [cloudStores, setCloudStores] = useState<StoreOption[]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
 
@@ -55,14 +50,7 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
   const [justCloudLinkedForRegister, setJustCloudLinkedForRegister] = useState(false);
   const registerIsCloudLinked = isCloudLinked && justCloudLinkedForRegister;
 
-  useEffect(() => {
-    const step = searchParams.get("step") as OnboardingStep;
-    if (step && ["welcome", "register", "cloud", "backup", "syncing", "select-store"].includes(step)) {
-      setOnboardingStep(step);
-    } else {
-      setOnboardingStep("welcome");
-    }
-  }, [searchParams]);
+  const onboardingStep = parseOnboardingStep(searchParams.get("step"));
 
   const setStep = (step: OnboardingStep) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -77,47 +65,29 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
     router.push(`?${params.toString()}`);
   };
 
-  // Explicit entry point for "Set Up New Business" / "Create an account":
-  // always a fresh cloud account, never the already-linked local-admin-only
-  // variant, no matter what stale token this device might be holding.
+  const { syncProgress, syncStatus, existingStores, startSyncProcess } = useOnboardingSync({
+    login,
+    navigate: (path) => router.push(path),
+    setStep,
+    notifyDeviceDataChanged,
+    onNoLocalAccounts: () => setJustCloudLinkedForRegister(true),
+  });
+
   const goToRegister = () => {
     setJustCloudLinkedForRegister(false);
     setStep("register");
   };
 
-  // Shared by handleRegister()'s no-local-data path and
-  // confirmCloudRestoreSwitch()'s post-wipe continuation for a brand-new
-  // signup - see pendingNewRegistration above.
-  const finishNewAccountSetup = async (
-    store: { id: string; name: string },
-    userId: string,
-    firstName: string,
-    lastName: string,
-    username: string,
-    pin: string,
-    hashedPin: string,
-    storeName: string,
-  ) => {
+  // Owns its own error handling so either caller's failure gets this step's message and clears isLoading.
+  // Rationale: docs/CLIENT_COMMENTS.md#line-app-setup-use-onboarding-ts-finish-new-account-setup
+  const finishNewAccountSetup = async (registration: PendingNewRegistration) => {
+    const { store, username, pin, storeName } = registration;
     const now = new Date().toISOString();
 
-    // Owns its own error handling (rather than letting it bubble to a
-    // caller's catch) so a failure here always gets this step's own
-    // message and always clears isLoading, regardless of which caller -
-    // the no-local-data path or confirmCloudRestoreSwitch's post-wipe
-    // continuation - invoked it.
     try {
-      await execute(
-        "INSERT INTO stores (id, name, is_initialized, created_at, updated_at, _synced, auto_sync_enabled, auto_sync_interval) VALUES (?, ?, ?, ?, ?, ?, 1, 30)",
-        [store.id, store.name, 1, now, now, 1],
-      );
+      await seedCloudLinkedStoreAndAdmin(store, registration, now);
 
-      await execute(
-        "INSERT INTO users (id, first_name, last_name, username, pin, role, store_id, is_active, created_at, updated_at, _synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [userId, firstName, lastName, username, hashedPin, "admin", store.id, 1, now, now, 1],
-      );
-
-      // Seeds the trial status immediately rather than waiting on the
-      // fire-and-forget sync() below to pull it - see A-156, docs/FIXED_BUGS.md.
+      // Seeds the trial status before the background sync() - see A-156, docs/FIXED_BUGS.md.
       try {
         await syncSubscriptionStatus();
       } catch (err) {
@@ -130,7 +100,7 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
 
       const success = await login(username, pin);
       // Refetches /login's own stale mount snapshot - see A-154, docs/FIXED_BUGS.md.
-      onDeviceDataChanged?.();
+      notifyDeviceDataChanged();
       if (success) {
         sync(false, true).catch(console.error);
         router.push("/dashboard");
@@ -159,19 +129,10 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
     setIsLoading(true);
     try {
       const now = new Date().toISOString();
-      // Every local write of this PIN below stores the hash, never the raw
-      // digits (see lib/utils/pin-hash.ts). The raw `pin` is still what's
-      // sent to the registration API (which hashes it server-side) and what
-      // login() is called with at the end.
       const hashedPin = hashPin(pin);
 
-      // Brand-new setup (no cloud account linked yet): always create the
-      // account + store in the cloud first, then seed local SQLite with the
-      // server's real ids. A local-only id generated before a cloud identity
-      // exists can never be reconciled later: every row that references it
-      // as a foreign key (sales.cashier_id, stock_movements.performed_by,
-      // etc.) becomes permanently unsyncable. See reconcile-identity.ts for
-      // the one-time recovery this exact failure mode required.
+      // Brand-new setup creates the cloud account first so local rows carry the server's real ids.
+      // Rationale: docs/CLIENT_COMMENTS.md#line-app-setup-use-onboarding-ts-cloud-first-register
       if (!registerIsCloudLinked) {
         if (!email || !password) {
           toast.error("Email and password are required to create your account");
@@ -221,114 +182,38 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
           return;
         }
 
-        // A device that previously linked a different account/store leaves
-        // its local data behind - see client/AGENTS.md's clearDatabaseForNewStore() note.
+        const newRegistration: PendingNewRegistration = {
+          store, userId: response.user.id, firstName, lastName, username, pin, hashedPin, storeName,
+        };
+        // Leftover data from a previously linked account - see client/AGENTS.md's clearDatabaseForNewStore() note.
         const localStores = await getLocalStores();
         if (localStores.length > 0) {
           setPendingStoreName(localStores[0].name);
-          setPendingNewRegistration({
-            store, userId: response.user.id, firstName, lastName, username, pin, hashedPin, storeName,
-          });
+          setPendingNewRegistration(newRegistration);
           setShowConfirmSwitch(true);
           setIsLoading(false);
           return;
         }
 
-        await finishNewAccountSetup(store, response.user.id, firstName, lastName, username, pin, hashedPin, storeName);
+        await finishNewAccountSetup(newRegistration);
         return;
       }
 
-      // Already cloud-linked: reached via the "sync completed but found no
-      // local accounts" fallback (see startSyncProcess below). Generating a
-      // fresh local id here is safe: the cloud identity already exists, and
-      // the subsequent sync() push adopts this same id server-side.
+      // Already cloud-linked (the zero-local-users fallback): a fresh local id is adopted by the next push.
       const userId = generateId();
       const storeId = existingStoreId || generateId();
-
-      if (!existingStoreId) {
-        await execute(
-          "INSERT INTO stores (id, name, is_initialized, created_at, updated_at, _synced, auto_sync_enabled, auto_sync_interval) VALUES (?, ?, ?, ?, ?, ?, 1, 30)",
-          [storeId, storeName, 1, now, now, 0],
-        );
-        // This offline branch inserts via raw execute() rather than the
-        // normal insert() helper (base-helpers.ts), so it must queue its own
-        // _sync_queue row the same way that helper does — otherwise this
-        // store/admin only ever reaches the server via the separate "mark
-        // everything dirty" fallback (local-database.ts), and never syncs at
-        // all if that path is missed.
-        await execute(
-          `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at) VALUES (?, ?, ?, ?, ?)`,
-          [
-            "stores",
-            storeId,
-            "INSERT",
-            JSON.stringify({
-              id: storeId,
-              name: storeName,
-              is_initialized: 1,
-              created_at: now,
-              updated_at: now,
-              auto_sync_enabled: 1,
-              auto_sync_interval: 30,
-            }),
-            now,
-          ],
-        );
-      } else {
-        await execute(
-          "UPDATE stores SET name = ?, is_initialized = 1, updated_at = ? WHERE id = ?",
-          [storeName, now, storeId],
-        );
-        // Same rationale as the INSERT branch above: raw execute() bypasses
-        // the normal update() helper's automatic _sync_queue write, so this
-        // offline UPDATE must queue its own row too.
-        await execute(
-          `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at) VALUES (?, ?, ?, ?, ?)`,
-          [
-            "stores",
-            storeId,
-            "UPDATE",
-            JSON.stringify({
-              id: storeId,
-              name: storeName,
-              is_initialized: 1,
-              updated_at: now,
-            }),
-            now,
-          ],
-        );
-      }
-
-      await execute(
-        "INSERT INTO users (id, first_name, last_name, username, pin, role, store_id, is_active, created_at, updated_at, _synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [userId, firstName, lastName, username, hashedPin, "admin", storeId, 1, now, now, 0],
-      );
-      await execute(
-        `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at) VALUES (?, ?, ?, ?, ?)`,
-        [
-          "users",
-          userId,
-          "INSERT",
-          JSON.stringify({
-            id: userId,
-            first_name: firstName,
-            last_name: lastName,
-            username,
-            pin: hashedPin,
-            role: "admin",
-            store_id: storeId,
-            is_active: 1,
-            created_at: now,
-            updated_at: now,
-          }),
-          now,
-        ],
+      await seedOfflineStoreAndAdmin(
+        storeId,
+        storeName,
+        Boolean(existingStoreId),
+        { userId, firstName, lastName, username, hashedPin },
+        now,
       );
 
       toast.success(`${storeName} configured and administrator created!`);
 
       const success = await login(username, pin);
-      onDeviceDataChanged?.();
+      notifyDeviceDataChanged();
       if (success) {
         toast.info("Pushing your account to cloud...");
         sync(false, true).catch(console.error);
@@ -340,8 +225,6 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         toast.error("You're offline. Connect to the internet to create your cloud account.");
       } else if (message) {
-        // Surface the real reason (e.g. a server validation error like
-        // "email already taken") instead of a generic message that hides it.
         toast.error(message);
       } else {
         toast.error("Failed to complete setup");
@@ -356,7 +239,6 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
     try {
       const result = await linkCloudAccount(email, pass);
       if (result.success) {
-        // Fetch user profile and available stores from cloud
         await withNetworkRetry(() => apiClient.getProfile());
         const stores = await withNetworkRetry(() => apiClient.getStores());
 
@@ -369,7 +251,6 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
         const localStores = await getLocalStores();
 
         if (stores.length === 1) {
-          // Exactly one store, auto-select it
           const store = stores[0];
           setSelectedStoreId(store.id);
           setPendingEmail(email);
@@ -386,7 +267,6 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
           setStep("syncing");
           void startSyncProcess(email);
         } else {
-          // Multiple stores, transition to select-store step
           setCloudStores(stores);
           setSelectedStoreId(stores[0].id);
           setPendingEmail(email);
@@ -431,12 +311,8 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
     setShowConfirmSwitch(false);
     setIsLoading(true);
     try {
-      // Wipe the local database to prepare for a clean initial sync of the new store
       await clearDatabaseForNewStore();
-      // clearDatabaseForNewStore() can only remove the persisted key; each
-      // zustand store rehydrates once at creation, so the outgoing store's
-      // drafts survive in memory without this and the next mutation
-      // re-persists them. See use-pos-cart.ts's own note.
+      // In-memory zustand drafts survive the wipe; see use-pos-cart.ts's own note.
       try {
         const { clearLocalDrafts } = await import(
           "@/lib/utils/clear-local-drafts"
@@ -445,12 +321,12 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
       } catch (err) {
         console.warn("Failed to clear the outgoing store's drafts", err);
       }
-      onDeviceDataChanged?.();
+      notifyDeviceDataChanged();
 
       if (pendingNewRegistration) {
-        const p = pendingNewRegistration;
+        const registration = pendingNewRegistration;
         setPendingNewRegistration(null);
-        await finishNewAccountSetup(p.store, p.userId, p.firstName, p.lastName, p.username, p.pin, p.hashedPin, p.storeName);
+        await finishNewAccountSetup(registration);
         return;
       }
 
@@ -476,94 +352,6 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
     setIsLoading(false);
   };
 
-  const startSyncProcess = async (email?: string) => {
-    // Set once identity data (store + users) has been pulled and this
-    // function has moved on to login/navigation — guards the two callers
-    // below (the onCriticalTablesReady callback, which can in principle
-    // fire more than the intended once across retries, and the outer
-    // catch/failure handling) from double-running that transition, and
-    // tells the failure paths whether the user is already past the point
-    // of no return (logged in / mid-navigation) or still safe to bounce
-    // back to the "cloud" step.
-    let identityReady = false;
-
-    const proceedOnceIdentityReady = async () => {
-      if (identityReady) return;
-      identityReady = true;
-
-      setSyncProgress(80);
-      setSyncStatus("Verifying account...");
-
-      // Verify we actually have users in the synced data
-      const totalCount = await getTotalUserCount();
-      if (totalCount === 0) {
-        // If no user exists, maybe we already created one but just making sure
-        const stores = await getLocalStores();
-        setExistingStores(stores);
-
-        setSyncStatus("No account data found");
-        toast.warning("Synchronization finished, but no staff accounts were found. Let's set up your local account.");
-
-        await new Promise((r) => setTimeout(r, 1500));
-        setJustCloudLinkedForRegister(true);
-        setStep("register");
-        return;
-      }
-
-      setSyncProgress(100);
-      setSyncStatus("Signing you in...");
-      if (email) {
-        // The rest of this account's data (products, stock, sales, ...)
-        // keeps pulling in the background under the still-running sync()
-        // call below — the same auto-sync progress the dashboard already
-        // shows for any other device, not something this screen waits on.
-        toast.success("Account ready! The rest of your data will keep syncing in the background.");
-        await login(email);
-        onDeviceDataChanged?.();
-        setTimeout(() => router.push("/dashboard"), 800);
-      } else {
-        toast.success(`${totalCount} accounts recovered. Please log in.`);
-        setTimeout(() => router.push("/login"), 800);
-      }
-    };
-
-    try {
-      setSyncProgress(10);
-      setSyncStatus("Connecting to cloud storage...");
-      await new Promise((r) => setTimeout(r, 800));
-
-      setSyncProgress(30);
-      setSyncStatus("Preparing data migration...");
-
-      // A failed pull fires this callback too, having rolled back its whole
-      // page (stores and users included), so only a success means identity.
-      const result = await sync(false, true, (pullSucceeded) => {
-        if (pullSucceeded) void proceedOnceIdentityReady();
-      });
-
-      if (!result.success && !identityReady) {
-        setSyncStatus("Synchronization failed");
-        toast.error(`Sync failed: ${result.error || "Unknown error"}`);
-        setStep("cloud");
-      } else if (!result.success) {
-        // Identity was already pulled and the user is logged in/navigating
-        // away by the time the REST of this round failed — nothing to roll
-        // back to "cloud" for. The next normal sync (auto or manual, from
-        // the dashboard) picks up wherever this one left off.
-        console.warn("Background portion of setup sync failed after login:", result.error);
-      }
-    } catch (_err) {
-      console.error("Sync error:", _err);
-      if (!identityReady) {
-        setSyncStatus("Error during sync");
-        toast.error("An unexpected error occurred during sync");
-        setStep("cloud");
-      } else {
-        console.warn("Background portion of setup sync threw after login:", _err);
-      }
-    }
-  };
-
   const goBack = () => {
     if (onboardingStep === "welcome") {
       router.push("/login");
@@ -580,17 +368,10 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
       const buffer = await file.arrayBuffer();
       await restoreDatabase(new Uint8Array(buffer));
       toast.success("Database restored successfully!");
-      // A client-side router.push resolves before /login's account
-      // detection (useDeviceAuthStatus) re-runs against the newly-restored
-      // database, so it can briefly render the pre-restore "No Local
-      // Accounts Found" screen. Force a full browser navigation instead -
-      // the same fix already used by the other restore paths in this
-      // codebase (hooks/use-settings-sync.ts's handleRestoreBackup /
-      // handleRestoreBackupTauri) - so /login always starts fresh.
+      // Full browser navigation so /login's account detection re-runs against the restored database.
+      // Rationale: docs/CLIENT_COMMENTS.md#line-app-setup-use-onboarding-ts-local-restore-reload
       markRestoredForCloudLinkNotice();
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 1000);
+      setTimeout(() => navigateWithFullReload("/login"), 1000);
     } catch (err) {
       console.error("Local restore failed:", err);
       toast.error("Failed to restore from backup file. Ensure it is a valid .drx file.");
@@ -616,8 +397,6 @@ export function useOnboarding(onDeviceDataChanged?: () => void) {
     showConfirmSwitch,
     setShowConfirmSwitch,
     pendingStoreName,
-    // Only so SetupTab can tell which flow triggered showConfirmSwitch and
-    // branch the dialog copy accordingly - never read for logic here.
     isPendingNewRegistration: pendingNewRegistration !== null,
     confirmCloudRestoreSwitch,
     cancelCloudRestoreSwitch,

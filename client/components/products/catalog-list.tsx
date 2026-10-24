@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { AlertCircle, ChevronRight } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -33,6 +33,10 @@ type ProductSortKey =
   | "sellingPrice"
   | "stockQuantity"
   | "reorderLevel";
+
+function runWithErrorToast(task: () => Promise<void>, failureMessage: string) {
+  task().catch(() => toast.error(failureMessage));
+}
 
 interface CatalogListProps {
   isLoading?: boolean;
@@ -112,44 +116,35 @@ export function CatalogList({
   const { mutateAsync: submitStockAudit } = useSubmitStockAuditMutation();
 
   const saveCategory = useCallback(
-    async (product: Product, category: string) => {
-      try {
+    (product: Product, category: string) =>
+      runWithErrorToast(async () => {
         await quickEditProduct({ id: product.id, category });
         onProductUpdated();
-      } catch {
-        toast.error("Failed to update category. Please try again.");
-      }
-    },
+      }, "Failed to update category. Please try again."),
     [quickEditProduct, onProductUpdated],
   );
 
   const saveSellingPrice = useCallback(
-    async (product: Product, sellingPrice: number) => {
-      try {
+    (product: Product, sellingPrice: number) =>
+      runWithErrorToast(async () => {
         await quickEditProduct({ id: product.id, sellingPrice });
         onProductUpdated();
-      } catch {
-        toast.error("Failed to update selling price. Please try again.");
-      }
-    },
+      }, "Failed to update selling price. Please try again."),
     [quickEditProduct, onProductUpdated],
   );
 
   const saveReorderLevel = useCallback(
-    async (product: Product, reorderLevel: number) => {
-      try {
+    (product: Product, reorderLevel: number) =>
+      runWithErrorToast(async () => {
         await quickEditProduct({ id: product.id, reorderLevel });
         onProductUpdated();
-      } catch {
-        toast.error("Failed to update reorder level. Please try again.");
-      }
-    },
+      }, "Failed to update reorder level. Please try again."),
     [quickEditProduct, onProductUpdated],
   );
 
   const saveStockQuantity = useCallback(
-    async (product: Product, stockQuantity: number) => {
-      try {
+    (product: Product, stockQuantity: number) =>
+      runWithErrorToast(async () => {
         await submitStockAudit({
           items: [
             {
@@ -162,10 +157,7 @@ export function CatalogList({
           performedBy: user?.id || null,
         });
         onProductUpdated();
-      } catch {
-        toast.error("Failed to update stock. Please try again.");
-      }
-    },
+      }, "Failed to update stock. Please try again."),
     [submitStockAudit, user?.id, onProductUpdated],
   );
 

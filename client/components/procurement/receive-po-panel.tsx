@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { ArrowLeft, Loader2, Package, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -46,6 +46,25 @@ interface ReceivePOPanelProps {
   isReceiving?: boolean;
 }
 
+function buildInitialReceivedItems(
+  po: PurchaseOrder,
+): Record<string, ReceivedItemPayload> {
+  const initial: Record<string, ReceivedItemPayload> = {};
+  po.items?.forEach((item: PurchaseOrderItem) => {
+    initial[item.id] = {
+      po_item_id: item.id,
+      product_id: item.product_id,
+      // Prefill with the outstanding balance, not the full ordered quantity:
+      // Rationale: docs/CLIENT_COMMENTS.md#line-components-procurement-receive-po-panel-tsx-L78
+      quantity: outstandingBulkQuantity(item),
+      lot_number: "",
+      expiry_date: "",
+      current_selling_price: item.current_selling_price ?? null,
+    };
+  });
+  return initial;
+}
+
 // Embedded, full-height replacement for the old Receive Goods modal.
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-receive-po-panel-tsx-L50
 export function ReceivePOPanel({
@@ -65,27 +84,12 @@ export function ReceivePOPanel({
   const { signal: droppedReceipt, dismiss: dismissDroppedReceipt } =
     useDroppedReceiptSignal(po?.id ?? null);
 
-  useEffect(() => {
-    if (!po) return;
-    const initial: Record<string, ReceivedItemPayload> = {};
-    po.items?.forEach((item: PurchaseOrderItem) => {
-      initial[item.id] = {
-        po_item_id: item.id,
-        product_id: item.product_id,
-        // Prefill with the outstanding balance, not the full ordered quantity:
-        // Rationale: docs/CLIENT_COMMENTS.md#line-components-procurement-receive-po-panel-tsx-L78
-        quantity: outstandingBulkQuantity(item),
-        lot_number: "",
-        // Null by default since we don't know it
-        expiry_date: "",
-        current_selling_price: item.current_selling_price ?? null,
-      };
-    });
-    setReceivedItems(initial);
-    // po object identity changes on every refetch; key off the id instead
-    // so we don't wipe in-progress edits while the underlying query revalidates.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [po?.id]);
+  const poId = po?.id ?? null;
+  const [initializedPoId, setInitializedPoId] = useState<string | null>(null);
+  if (poId !== initializedPoId) {
+    setInitializedPoId(poId);
+    if (po) setReceivedItems(buildInitialReceivedItems(po));
+  }
 
   const handleFieldChange = React.useCallback(
     (

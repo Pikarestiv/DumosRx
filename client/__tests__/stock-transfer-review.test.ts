@@ -12,8 +12,10 @@ interface FakeMovement {
 
 let movements: FakeMovement[];
 
-vi.mock('@/lib/db/local-database', () => ({
-  query: vi.fn(async (sql: string, params: unknown[] = []) => {
+vi.mock('@/lib/db/local-database', async () => {
+  const { asAsync } = await import('./helpers/as-async');
+  return {
+  query: vi.fn(asAsync((sql: string, params: unknown[] = []) => {
     if (sql.includes('FROM stock_movements') && sql.includes('status =')) {
       const [referenceId, referenceType] = params as string[];
       return movements
@@ -27,9 +29,9 @@ vi.mock('@/lib/db/local-database', () => ({
         .map((m) => ({ id: m.id, store_id: m.store_id }));
     }
     return [];
-  }),
+  })),
   update: vi.fn(
-    async (
+    asAsync((
       table: string,
       id: string,
       data: Record<string, unknown>,
@@ -38,9 +40,10 @@ vi.mock('@/lib/db/local-database', () => ({
       if (table !== 'stock_movements') return;
       const row = movements.find((m) => m.id === id);
       if (row) Object.assign(row, data);
-    },
+    }),
   ),
-}));
+  };
+});
 
 import {
   markStockTransferReviewed,

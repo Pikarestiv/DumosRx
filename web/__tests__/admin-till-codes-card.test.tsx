@@ -20,19 +20,19 @@ vi.mock("@/lib/api/admin-hooks-till-codes", async (importOriginal) => {
     ...actual,
     useMyTillCodes: () => ({ data: { codes: state.codes }, isLoading: false }),
     useIssueTillCodeMutation: () => ({
-      mutateAsync: async () => {
-        if (state.failure) throw new Error(state.failure);
-        return { id: "c-new", code: state.issued };
-      },
+      mutateAsync: () =>
+        state.failure
+          ? Promise.reject(new Error(state.failure))
+          : Promise.resolve({ id: "c-new", code: state.issued }),
       isPending: false,
       reset: () => {
         state.resets += 1;
       },
     }),
     useRevokeTillCodeMutation: () => ({
-      mutateAsync: async (id: string) => {
+      mutateAsync: (id: string) => {
         state.revoked.push(id);
-        return { ok: true };
+        return Promise.resolve({ ok: true });
       },
       isPending: false,
     }),

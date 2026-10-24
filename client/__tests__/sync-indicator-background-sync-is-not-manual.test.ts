@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 if (!window.matchMedia) {
   window.matchMedia = ((query: string) => ({
@@ -17,7 +17,7 @@ if (!window.matchMedia) {
   })) as unknown as typeof window.matchMedia;
 }
 
-const mockSync = vi.fn(async (_isManual?: boolean) => ({
+const mockSync = vi.fn((_isManual?: boolean) => Promise.resolve({
   success: true,
   pushed: 0,
   pulled: 0,
@@ -28,7 +28,7 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 vi.mock("@/lib/db/queries/setup", () => ({
-  getSyncQueueCount: vi.fn(async () => 0),
+  getSyncQueueCount: vi.fn(() => Promise.resolve(0)),
 }));
 
 vi.mock("@/lib/db/sync-engine", () => ({
@@ -100,7 +100,7 @@ describe("SyncIndicator background sync is not flagged manual", () => {
       "@/components/dashboard/sync-indicator"
     );
     root = createRoot(container);
-    await act(async () => {
+    await act(() => {
       root.render(React.createElement(SyncIndicator, { collapsed: false }));
     });
   }
@@ -108,7 +108,7 @@ describe("SyncIndicator background sync is not flagged manual", () => {
   it("the instant-mode (interval 0) daemon syncs with manual = false", async () => {
     await render({ auto_sync_enabled: 1, auto_sync_interval: 0 });
 
-    await act(async () => {
+    await act(() => {
       registeredListener?.(["products"]);
     });
     await act(async () => {
@@ -141,7 +141,7 @@ describe("SyncIndicator background sync is not flagged manual", () => {
     expect(button).not.toBeNull();
 
     await act(async () => {
-      button!.click();
+      button?.click();
       await Promise.resolve();
     });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
@@ -44,17 +44,20 @@ export function RecordPaymentModal({
   helperNote,
 }: RecordPaymentModalProps) {
   const [loading, setLoading] = useState(false);
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(() =>
+    customer ? (defaultAmount ?? customer.outstanding_balance).toString() : "",
+  );
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [notes, setNotes] = useState("");
-
-  useEffect(() => {
+  const [syncedFor, setSyncedFor] = useState({ customer, defaultAmount });
+  if (syncedFor.customer !== customer || syncedFor.defaultAmount !== defaultAmount) {
+    setSyncedFor({ customer, defaultAmount });
     if (customer) {
       setAmount((defaultAmount ?? customer.outstanding_balance).toString());
       setPaymentMethod("cash");
       setNotes("");
     }
-  }, [customer, defaultAmount]);
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

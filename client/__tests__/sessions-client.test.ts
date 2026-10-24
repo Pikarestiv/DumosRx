@@ -16,7 +16,7 @@ describe('sessions API methods', () => {
     const payload = [{ id: '1', name: 'Client App', ip_address: '1.2.3.4', user_agent: null, last_used_at: '2026-01-01', created_at: '2026-01-01', is_current: true }];
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => payload,
+      json: () => Promise.resolve(payload),
     });
 
     const result = await apiClient.getSessions();
@@ -29,7 +29,7 @@ describe('sessions API methods', () => {
   it('revokeSession deletes /sessions/:id', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => ({ message: 'Session revoked' }),
+      json: () => Promise.resolve({ message: 'Session revoked' }),
     });
 
     const result = await apiClient.revokeSession('1');
@@ -43,7 +43,7 @@ describe('sessions API methods', () => {
   it('revokeAllSessions posts to /sessions/revoke-all', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => ({ message: 'All other sessions revoked' }),
+      json: () => Promise.resolve({ message: 'All other sessions revoked' }),
     });
 
     const result = await apiClient.revokeAllSessions();

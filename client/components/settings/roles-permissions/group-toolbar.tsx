@@ -10,9 +10,6 @@ interface GroupToolbarProps {
   groups: PermissionGroupRow[];
   onCreateGroup: (name: string, basedOnRole: string) => Promise<void>;
   onCopyGroup: (sourceId: string, name: string) => Promise<void>;
-  onRevertToDefault: (groupId: string) => Promise<void>;
-  onRenameGroup: (groupId: string, name: string) => Promise<void>;
-  onDeleteGroup: (groupId: string) => Promise<void>;
 }
 
 export function GroupToolbar({ groups, onCreateGroup, onCopyGroup }: GroupToolbarProps) {

@@ -301,7 +301,7 @@ apiClient.interceptors.response.use(
         useAdminStore.getState().reset();
         if (window.location.pathname.replace(/\/$/, "") !== "/admin/login") {
           const redirectParam = `?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
-          window.location.href = `/admin/login${redirectParam}`;
+          window.location.href = new URL(`/admin/login${redirectParam}`, window.location.origin).href;
         }
       }
     }

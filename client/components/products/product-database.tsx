@@ -43,22 +43,25 @@ export function ProductDatabase() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  useEffect(() => {
-    if (searchParams.get("action") === "add") {
-      setShowAddDialog(true);
-      // Clean up the URL
-      const newParams = new URLSearchParams(searchParams.toString());
-      newParams.delete("action");
-      const newUrl =
-        window.location.pathname +
-        (newParams.toString() ? `?${newParams.toString()}` : "");
-      router.replace(newUrl);
-    }
-
+  const searchParamsKey = searchParams.toString();
+  const [appliedSearchParamsKey, setAppliedSearchParamsKey] = useState<
+    string | null
+  >(null);
+  if (searchParamsKey !== appliedSearchParamsKey) {
+    setAppliedSearchParamsKey(searchParamsKey);
+    if (searchParams.get("action") === "add") setShowAddDialog(true);
     const status = searchParams.get("status");
-    if (status) {
-      setStatusFilter(status);
-    }
+    if (status) setStatusFilter(status);
+  }
+
+  useEffect(() => {
+    if (searchParams.get("action") !== "add") return;
+    const newParams = new URLSearchParams(searchParams.toString());
+    newParams.delete("action");
+    const newUrl =
+      window.location.pathname +
+      (newParams.toString() ? `?${newParams.toString()}` : "");
+    router.replace(newUrl);
   }, [searchParams, router]);
 
   const isStore = storeType === "pharmacy";
@@ -98,26 +101,30 @@ export function ProductDatabase() {
     [rawProducts],
   );
 
-  // Deep-link from Dashboard's "Product added" activity rows
-  // (dashboard-overview.tsx): opens that product's detail panel once its
-  // data has loaded, then cleans up the URL the same way `?action=add` does
-  // above.
+  const deepLinkProductId = searchParams.get("productId");
+  const [deepLinkSource, setDeepLinkSource] = useState<{
+    searchParamsKey: string;
+    rawProducts: typeof rawProducts;
+  } | null>(null);
+  if (
+    deepLinkProductId &&
+    rawProducts &&
+    (deepLinkSource?.searchParamsKey !== searchParamsKey ||
+      deepLinkSource.rawProducts !== rawProducts)
+  ) {
+    setDeepLinkSource({ searchParamsKey, rawProducts });
+    const match = products.find((p) => p.id === deepLinkProductId);
+    if (match) setSelectedProduct(match);
+  }
+
   useEffect(() => {
-    const productId = searchParams.get("productId");
-    if (!productId || !rawProducts) return;
-
-    const match = products.find((p) => p.id === productId);
-    if (match) {
-      setSelectedProduct(match);
-    }
-
+    if (!searchParams.get("productId") || !rawProducts) return;
     const newParams = new URLSearchParams(searchParams.toString());
     newParams.delete("productId");
     const newUrl =
       window.location.pathname +
       (newParams.toString() ? `?${newParams.toString()}` : "");
     router.replace(newUrl);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, rawProducts, router]);
 
   const { data: rawCategories } = useQuery({

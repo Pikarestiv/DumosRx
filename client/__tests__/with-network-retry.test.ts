@@ -13,7 +13,7 @@ function httpError(status: number, message = "The email has already been taken."
 
 describe("withNetworkRetry", () => {
   it("returns the result immediately on first success, no retries", async () => {
-    const fn = vi.fn(async () => "ok");
+    const fn = vi.fn(() => Promise.resolve("ok"));
     const result = await withNetworkRetry(fn, { baseDelayMs: 1 });
     expect(result).toBe("ok");
     expect(fn).toHaveBeenCalledTimes(1);

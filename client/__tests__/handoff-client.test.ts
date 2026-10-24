@@ -15,7 +15,7 @@ describe('handoff code API methods', () => {
   it('createHandoffCode posts to /auth/handoff with the token in the body as the sole credential', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => ({ code: 'abc123', expires_in: 60 }),
+      json: () => Promise.resolve({ code: 'abc123', expires_in: 60 }),
     });
 
     const result = await apiClient.createHandoffCode('my-token');
@@ -36,7 +36,7 @@ describe('handoff code API methods', () => {
     };
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => payload,
+      json: () => Promise.resolve(payload),
     });
 
     const result = await apiClient.consumeHandoffCode('xyz789');

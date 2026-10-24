@@ -24,16 +24,16 @@ vi.mock("@/lib/context/store-context", () => ({
 }));
 
 vi.mock("@/lib/db/queries/auth", () => ({
-  getStaffCount: vi.fn(async () => 3),
+  getStaffCount: vi.fn(() => Promise.resolve(3)),
 }));
 
-const getSyncQueueCount = vi.fn(async () => state.syncQueueCount);
+const getSyncQueueCount = vi.fn(() => Promise.resolve(state.syncQueueCount));
 vi.mock("@/lib/db/queries/setup", () => ({
   getSyncQueueCount: () => getSyncQueueCount(),
 }));
 
 vi.mock("@/lib/licensing/licensing-manager", () => ({
-  checkLicenseStatus: vi.fn(async () => null),
+  checkLicenseStatus: vi.fn(() => Promise.resolve(null)),
 }));
 
 vi.mock("@/lib/db/core", async (importOriginal) => ({
@@ -98,7 +98,7 @@ describe("action-centre sync-queue count is event-driven, not polled every 5 s",
     const afterMount = getSyncQueueCount.mock.calls.length;
 
     state.syncQueueCount = 4;
-    await act(async () => {
+    await act(() => {
       core.queueTableInvalidation("sales");
     });
 

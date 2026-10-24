@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -35,11 +35,9 @@ export function CloudLinkDialog({ open, onOpenChange, onSuccess }: CloudLinkDial
   const { linkCloudAccount, linkWithRelinkCode } = useAuth();
   const { storeProfile } = useStore();
 
-  useEffect(() => {
-    if (open && storeProfile?.email && !email) {
-      setEmail(storeProfile.email);
-    }
-  }, [open, storeProfile?.email, email]);
+  if (open && storeProfile?.email && !email) {
+    setEmail(storeProfile.email);
+  }
 
   const submitLink = () => {
     if (useCode) {

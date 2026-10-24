@@ -89,7 +89,7 @@ is already audited server-side by AdminService::impersonateStore).
 
 ## context-store-context-tsx-L115
 
-`client/lib/context/store-context.tsx:115`
+`client/lib/context/store-types.ts` (moved from store-context.tsx:115)
 
 True for the duration of switchStore()'s async work (cancel + clear).
 Consumers (LicenseGuard) show a splash for that window so nothing ever
@@ -499,7 +499,7 @@ already-loaded in-memory `Expense`, without a second query.
 
 ## db-queries-inventory-L110
 
-`client/lib/db/queries/inventory.ts:110`
+`client/lib/db/queries/inventory-batches.ts`
 
 Same as getBatchesForProduct but without the `quantity > 0` filter — used
 where the caller needs to know "does this product have an existing,
@@ -519,7 +519,7 @@ getBatchesForProduct's filtering/ordering convention.
 
 ## db-queries-inventory-L137
 
-`client/lib/db/queries/inventory.ts:137`
+`client/lib/db/queries/inventory-batches.ts`
 
 Fallback for sale processing: getBatchesForProduct's `quantity > 0` filter
 is correct for FEFO picking, but if the product's true stock has already
@@ -536,7 +536,7 @@ today) instead of vanishing untracked.
 
 ## db-queries-inventory-L429
 
-`client/lib/db/queries/inventory.ts:429`
+`client/lib/db/queries/inventory-alerts.ts`
 
 Products carrying an oversell shortfall, biggest first, for the dashboard
 action centre and the stock-batch alerts. Derived from the movement log via
@@ -553,7 +553,7 @@ page explains sends staff to count a shelf that is fine.
 
 ## db-queries-inventory-L558
 
-`client/lib/db/queries/inventory.ts:558`
+`client/lib/db/queries/inventory-batches.ts`
 
 Finds a genuinely active, non-expired batch to land newly-found or
 restored stock into, or creates one if none exists. Shared by
@@ -568,7 +568,7 @@ happens to be active on this device.
 
 ## db-queries-inventory-L641
 
-`client/lib/db/queries/inventory.ts:641`
+`client/lib/db/queries/inventory-adjustments.ts`
 
 Persists a completed cycle count: for each product whose counted quantity
 and/or counted cost/selling price differs from what's on record, records a
@@ -706,7 +706,7 @@ queue a no-op sync push per product.
 
 ## db-queries-reports-L42
 
-`client/lib/db/queries/reports.ts:42`
+`client/lib/db/queries/report-helpers.ts`
 
 Expenses per calendar month for a report window, SMOOTHED the same way
 getSmoothedExpensesTotal/getCurrentMonthExpensesByCategory smooth them:
@@ -732,7 +732,7 @@ expense-only month.
 
 ## db-queries-reports-L454
 
-`client/lib/db/queries/reports.ts:454`
+`client/lib/db/queries/bi-metrics.ts`
 
 @param dateFilter - inclusive lower bound of the selected period.
 @param prevDateFilter - lower bound of the previous-period comparison
@@ -794,7 +794,7 @@ fetchStockBatchReportData.
 
 ## db-queries-stock-transfers-L210
 
-`client/lib/db/queries/stock-transfers.ts:210`
+`client/lib/db/queries/stock-transfer-dest-product.ts`
 
 Creates the destination-store product row the first time a product is
 transferred to a store that's never carried it before. Copies static,
@@ -1444,7 +1444,7 @@ which asserts the crash still happens.
 
 ## hooks-use-pos-cart-L116
 
-`client/lib/hooks/use-pos-cart.ts:116`
+`client/lib/hooks/use-pos-cart-store.ts:92`
 
 Re-points every cart line at the catalog's current selling price and
 average cost. The cart is a `persist`ed store, so a line otherwise keeps
@@ -2371,7 +2371,7 @@ page's refresh logic doesn't run after navigating away.
 
 ### context-store-context-tsx-L73
 
-`client/lib/context/store-context.tsx:73`
+`client/lib/context/store-types.ts` (moved from store-context.tsx:73)
 
 Server-set by the online-payment onboarding endpoint and pulled down by
 sync; read-only here (nothing in this app may write them, see
@@ -2380,7 +2380,7 @@ panel can show which account a connected store settles to.
 
 ### context-store-context-tsx-L80
 
-`client/lib/context/store-context.tsx:80`
+`client/lib/context/store-types.ts` (moved from store-context.tsx:80)
 
 Server-set the last time store_slug actually changed (not on the
 first-ever set) - drives the Settings UI's "you can change this again
@@ -2388,7 +2388,7 @@ on [date]" cooldown message. Read-only: nothing in this app writes it.
 
 ### context-store-context-tsx-L91
 
-`client/lib/context/store-context.tsx:91`
+`client/lib/context/store-types.ts` (moved from store-context.tsx:91)
 
 Off by default: whether non-admin staff (specialist, sales_staff) can
 use the POS header's "Request stock from another store" button.
@@ -2397,7 +2397,7 @@ regardless of this setting.
 
 ### context-store-context-tsx-L96
 
-`client/lib/context/store-context.tsx:96`
+`client/lib/context/store-types.ts` (moved from store-context.tsx:96)
 
 Off by default: gates the POS cart's "Reseller sale" row (both the
 reseller-commission and store-markup sub-types) - see
@@ -2811,7 +2811,7 @@ being saved as a draft.
 
 ### db-procurement-ts-L347
 
-`client/lib/db/procurement.ts:347`
+`client/lib/db/suppliers.ts`
 
 Loads every supplier, not a page of them: the caller runs search/filter over
 the result, and suppliers stay small by nature (tens, rarely hundreds), so
@@ -3026,7 +3026,7 @@ short against this figure.
 
 ### db-queries-inventory-ts-L152
 
-`client/lib/db/queries/inventory.ts:152`
+`client/lib/db/queries/inventory-sale-stock.ts`
 
 Inserts the sale_items row for one cart line and deducts/logs the stock it
 consumed. Extracted out of use-pos-payment.ts's handlePayment so the
@@ -3037,7 +3037,7 @@ when the product's real stock was already fully depleted.
 
 ### db-queries-inventory-ts-L160
 
-`client/lib/db/queries/inventory.ts:160`
+`client/lib/db/queries/inventory-sale-stock.ts`
 
 The quantity write and its `stock_movements` row must land together or a
 concurrent stock fold reads the batch as diverged and writes the pre-sale
@@ -3047,7 +3047,7 @@ this inline.
 
 ### db-queries-inventory-ts-L560
 
-`client/lib/db/queries/inventory.ts:560`
+`client/lib/db/queries/inventory-batches.ts`
 
 The product's live quantity: the SUM of its active, non-deleted batches,
 i.e. the same aggregate getProducts() derives stock_quantity from. Used
@@ -3056,7 +3056,7 @@ to stamp a row's baseline when a figure is entered (A-263).
 
 ### db-queries-inventory-ts-L578
 
-`client/lib/db/queries/inventory.ts:578`
+`client/lib/db/queries/inventory-adjustments.ts`
 
 What the system believed this product held at the moment `countedQty`
 was observed. The discrepancy is measured against this, not against
@@ -3067,7 +3067,7 @@ the re-read behaviour. See A-263.
 
 ### db-queries-inventory-ts-L719
 
-`client/lib/db/queries/inventory.ts:719`
+`client/lib/db/queries/inventory-adjustments.ts`
 
 The one implementation of "move a product's on-hand stock by `delta`,
 spread across its batches, leaving a stock_movements trail". Shared by the
@@ -3077,7 +3077,7 @@ client/AGENTS.md. Must run inside an existing transaction.
 
 ### db-queries-inventory-ts-L839
 
-`client/lib/db/queries/inventory.ts:839`
+`client/lib/db/queries/inventory-adjustments.ts`
 
 Persists a quick Adjust Stock submission: every item moves under one
 shared reference_id so the Adjustments ledger can show the whole
@@ -3223,7 +3223,7 @@ checkCanViewAllActivity(role) === true).
 
 ### db-queries-reports-ts-L24
 
-`client/lib/db/queries/reports.ts:24`
+`client/lib/db/queries/report-helpers.ts`
 
 Builds the " AND alias.user_id = ? AND alias.payment_method = ?" tail
 (plus matching params, in the same order) shared by every report/BI query
@@ -3330,7 +3330,7 @@ effect immediately either way; nothing here blocks it.
 
 ### db-queries-stock-transfers-ts-L103
 
-`client/lib/db/queries/stock-transfers.ts:103`
+`client/lib/db/queries/stock-transfer-dest-product.ts`
 
 Mirrors findExistingProductId's precedence in product-import.ts (barcode
 -> name+category -> name), just scoped to an explicit destStoreId instead
@@ -3351,7 +3351,7 @@ in two different stores by definition.
 
 ### db-queries-stock-transfers-ts-L428
 
-`client/lib/db/queries/stock-transfers.ts:428`
+`client/lib/db/queries/stock-transfer-history.ts`
 
 Products with positive stock in `storeId`, for the transfer dialog's
 product picker — deliberately takes an explicit store id rather than
@@ -3360,7 +3360,7 @@ is very often not the store currently active in the rest of the UI.
 
 ### db-queries-stock-transfers-ts-L466
 
-`client/lib/db/queries/stock-transfers.ts:466`
+`client/lib/db/queries/stock-transfer-history.ts`
 
 Reconstructs one row per transfer by grouping the transfer_out side of
 stock_movements on reference_id and joining in its paired transfer_in row
@@ -3618,7 +3618,7 @@ client/AGENTS.md, "Pull details (sync-engine/pull.ts)".
 
 ### db-sync-engine-push-ts-L55
 
-`client/lib/db/sync-engine/push.ts:55`
+`client/lib/db/sync-engine/push-response.ts:27`
 
 Reasons where the server kept a row this device now disagrees with, so the
 device has to be made to re-pull it. `permission_denied` is excluded on
@@ -4200,7 +4200,7 @@ reject - see lib/permissions/grant-scope.ts.
 
 ### hooks-use-pos-cart-ts-L42
 
-`client/lib/hooks/use-pos-cart.ts:42`
+`client/lib/hooks/use-pos-cart-store.ts:31`
 
 Which kind of markup this is: a real reseller/agent (commission owed)
 or a store-kept markup. Only meaningful while isResellerSale is true;
@@ -5510,7 +5510,7 @@ action) doesn't need to be selected to count as "done".
 
 ### utils-search-ts-L40
 
-`client/lib/utils/search.ts:40`
+`client/lib/utils/fuzzy-distance.ts:36`
 
 Levenshtein distance, skipped entirely when the two lengths are already
 further apart than the caller can accept. Distance is never less than the
@@ -6428,6 +6428,13 @@ to land on the real value). Naturally runs at most once per mismatch:
 once synced, storeProfile.id === targetId and this can't fire again
 until a new mismatch appears.
 
+The correction is also the only thing that persists the id to
+localStorage (through the `fallbackCorrection` state and its effect).
+Persisting on every `activeStoreId`/`hasFixedStore` change instead
+let a store-pinned staff logout (hasFixedStore true -> false) write the
+owner's stale in-memory id over the store_id that performLogin had
+just persisted. Covered by store-context-logout-keeps-persisted-store.test.tsx.
+
 ### line-context-store-context-tsx-L304
 
 `client/lib/context/store-context.tsx:304`
@@ -6508,7 +6515,7 @@ what is, correctly, just this being an offline-first app.
 
 ### line-context-store-context-tsx-L447
 
-`client/lib/context/store-context.tsx:447`
+`client/lib/context/use-store-background-sync.ts` (moved from store-context.tsx:447)
 
 Privileged subscription status sync: always runs regardless of tier,
 so plan downgrades, suspensions, and renewals written on the server
@@ -7195,7 +7202,7 @@ inclusive here too, and 'localtime' is needed for the same reason
 
 ### line-db-queries-inventory-ts-L97
 
-`client/lib/db/queries/inventory.ts:97`
+`client/lib/db/queries/inventory-batches.ts`
 
 Excludes deactivated batches and already-expired stock outright (FEFO
 prioritizes near-expiry stock, it doesn't dispense already-expired stock);
@@ -7203,7 +7210,7 @@ NULL-expiry batches sort last, not first (SQLite's default for ASC).
 
 ### line-db-queries-inventory-ts-L171
 
-`client/lib/db/queries/inventory.ts:171`
+`client/lib/db/queries/inventory-sale-stock.ts`
 
 Prefer FEFO picking among batches that still show positive stock; if the
 product's true stock is already fully depleted, fall back to whatever
@@ -7212,7 +7219,7 @@ stock_batches/stock_movements instead of silently untracked shrinkage.
 
 ### line-db-queries-inventory-ts-L179
 
-`client/lib/db/queries/inventory.ts:179`
+`client/lib/db/queries/inventory-sale-stock.ts`
 
 Last resort, in order: an expired batch, then a batch opened here.
 Without it, a product whose only batches are expired (or which has none
@@ -7221,7 +7228,7 @@ trace whatsoever — see docs/FIXED_BUGS.md (A-57).
 
 ### line-db-queries-inventory-ts-L198
 
-`client/lib/db/queries/inventory.ts:198`
+`client/lib/db/queries/inventory-sale-stock.ts`
 
 Primary/first batch consumed; retained for backward-compat display
 only. Accurate per-batch accounting (for FEFO splits) lives in
@@ -7229,7 +7236,7 @@ sale_item_batches below.
 
 ### line-db-queries-inventory-ts-L210
 
-`client/lib/db/queries/inventory.ts:210`
+`client/lib/db/queries/inventory-sale-stock.ts`
 
 Accumulates the total quantity deducted per unique batch id across BOTH
 the main positive-stock loop below and the partial-shortfall fallback
@@ -7245,7 +7252,7 @@ exactly one row per unique batch with the correctly summed quantity.
 
 ### line-db-queries-inventory-ts-L223
 
-`client/lib/db/queries/inventory.ts:223`
+`client/lib/db/queries/inventory-sale-stock.ts`
 
 Batches touched by a deduction that exceeded what they actually had
 available (deduction > batch.quantity at the time it was applied) —
@@ -7256,7 +7263,7 @@ the batch's summed stock_movements row.
 
 ### line-db-queries-inventory-ts-L231
 
-`client/lib/db/queries/inventory.ts:231`
+`client/lib/db/queries/inventory-sale-stock.ts`
 
 What each touched batch has left as this call proceeds. The fallback loop
 below re-reads the batches from the database, where the quantity is not
@@ -7266,7 +7273,7 @@ and absorb the remainder twice.
 
 ### line-db-queries-inventory-ts-L238
 
-`client/lib/db/queries/inventory.ts:238`
+`client/lib/db/queries/inventory-sale-stock.ts`
 
 batch.quantity can be <= 0 when this batch only turned up via the
 getAnyActiveBatchForProduct fallback (nothing with positive stock left
@@ -7282,7 +7289,7 @@ surfaced via the oversoldBatchIds tag below and getOversoldAlerts().
 
 ### line-db-queries-inventory-ts-L273
 
-`client/lib/db/queries/inventory.ts:273`
+`client/lib/db/queries/inventory-sale-stock.ts`
 
 Partial shortfall: the positive-stock batches above didn't cover the
 whole quantity — e.g. a stale on-screen stock count let the cashier sell
@@ -7294,7 +7301,7 @@ touched active batch instead of leaving it undeducted and unlogged.
 
 ### line-db-queries-inventory-ts-L430
 
-`client/lib/db/queries/inventory.ts:430`
+`client/lib/db/queries/inventory-stats.ts`
 
 Default 90, matching `expiry_warning_days INTEGER DEFAULT 90` in the schema
 and every UI caption/fallback. A 30 here silently re-introduced the
@@ -7302,7 +7309,7 @@ count-vs-caption mismatch for any caller that omits the argument.
 
 ### line-db-queries-inventory-ts-L517
 
-`client/lib/db/queries/inventory.ts:517`
+`client/lib/db/queries/inventory-batches.ts`
 
 store_id is added to `products` via a schema migration rather than the
 base CREATE TABLE, so a device/test harness that hasn't (or doesn't
@@ -7313,7 +7320,7 @@ restock.
 
 ### line-db-queries-inventory-ts-L539
 
-`client/lib/db/queries/inventory.ts:539`
+`client/lib/db/queries/inventory-batches.ts`
 
 Only set explicitly when known — an explicit `store_id: undefined`
 key would still make it into the INSERT's column list and fail
@@ -7323,7 +7330,7 @@ active-store auto-scoping (or a legacy NULL) apply normally.
 
 ### line-db-queries-inventory-ts-L582
 
-`client/lib/db/queries/inventory.ts:582`
+`client/lib/db/queries/inventory-adjustments.ts`
 
 stock_audits.user_id is a constrained foreign key server-side. Writing a
 "system" sentinel here saved fine locally and then failed every push on
@@ -7334,7 +7341,7 @@ route-guarded screen, so there is no legitimate performer-less audit.
 
 ### line-db-queries-inventory-ts-L594
 
-`client/lib/db/queries/inventory.ts:594`
+`client/lib/db/queries/inventory-adjustments.ts`
 
 Re-read the product's ACTUAL current system quantity inside the
 transaction rather than trusting item.systemQty as-is: that value
@@ -7348,7 +7355,7 @@ balance check. Matches getProducts()' own stock_quantity aggregate
 
 ### line-db-queries-inventory-ts-L609
 
-`client/lib/db/queries/inventory.ts:609`
+`client/lib/db/queries/inventory-adjustments.ts`
 
 The baseline only applies to a row that was actually counted: a
 price-only row has no observation, so measuring its (absent) count
@@ -7356,7 +7363,7 @@ against a stale baseline would post a phantom adjustment.
 
 ### line-db-queries-inventory-ts-L648
 
-`client/lib/db/queries/inventory.ts:648`
+`client/lib/db/queries/inventory-adjustments.ts`
 
 A cost-price audit correction is a master-data fix, not a new
 purchase at a new cost; apply it to every active batch of this
@@ -7364,7 +7371,7 @@ product rather than trying to attribute it to one batch.
 
 ### line-db-queries-inventory-ts-L667
 
-`client/lib/db/queries/inventory.ts:667`
+`client/lib/db/queries/inventory-adjustments.ts`
 
 Without unit_cost/total_cost, a cycle-count adjustment's real value
 impact was invisible to getStockMoM()'s 30-day added/removed-value
@@ -7373,7 +7380,7 @@ write-off as ₦0 regardless of the stock actually lost.
 
 ### line-db-queries-inventory-ts-L721
 
-`client/lib/db/queries/inventory.ts:721`
+`client/lib/db/queries/inventory-adjustments.ts`
 
 Found more stock than recorded: add it to the soonest-expiring,
 genuinely active/non-expired *existing* batch (regardless of its
@@ -7390,7 +7397,7 @@ active on this device.
 
 ### line-db-queries-inventory-ts-L776
 
-`client/lib/db/queries/inventory.ts:776`
+`client/lib/db/queries/inventory-adjustments.ts`
 
 The removal was larger than every active batch's summed quantity could
 cover (system quantity was already spread thinner across batches than
@@ -7404,7 +7411,7 @@ trace of where the rest of it went.
 
 ### line-db-queries-inventory-ts-L786
 
-`client/lib/db/queries/inventory.ts:786`
+`client/lib/db/queries/inventory-adjustments.ts`
 
 includeExpired: true - unlike the sale-dispensing fallback (which
 correctly excludes expired stock), a correction needs to be able to
@@ -7415,7 +7422,7 @@ silently skipped.
 
 ### line-db-queries-inventory-ts-L914
 
-`client/lib/db/queries/inventory.ts:914`
+`client/lib/db/queries/inventory-stats.ts`
 
 previous_period deliberately carries no store filter of its own: it is
 only ever reached through the LEFT JOIN on current_period's already
@@ -7424,7 +7431,7 @@ same population (every sale of that product within each window).
 
 ### line-db-queries-inventory-ts-L964
 
-`client/lib/db/queries/inventory.ts:964`
+`client/lib/db/queries/inventory-stats.ts`
 
 Same population as getStockBatchStats's total_stock_batch_value (every
 non-deleted batch, no is_active filter): this value is the baseline the
@@ -7594,7 +7601,7 @@ seed data) logs this movement; import must too.
 
 ### line-db-queries-reports-ts-L48
 
-`client/lib/db/queries/reports.ts:48`
+`client/lib/db/queries/report-helpers.ts`
 
 date() on both sides: expenses.date is a date-only "YYYY-MM-DD" column,
 but dateFrom/dateTo (toQueryRange()) are full UTC ISO timestamps like
@@ -7610,7 +7617,7 @@ back out.
 
 ### line-db-queries-reports-ts-L71
 
-`client/lib/db/queries/reports.ts:71`
+`client/lib/db/queries/report-helpers.ts`
 
 Fetched unconditionally by date, not windowed - same rationale as
 getSmoothedExpensesTotal: a prepaid expense logged well before this
@@ -7660,7 +7667,7 @@ refunds against sales made yesterday.
 
 ### line-db-queries-reports-ts-L431
 
-`client/lib/db/queries/reports.ts:431`
+`client/lib/db/queries/bi-metrics.ts`
 
 Bare-table queries (FROM sales, no alias) vs. joined queries (FROM
 sale_items si JOIN sales s) need the filter clause/params on different
@@ -7670,7 +7677,7 @@ they land in the WHERE text.
 
 ### line-db-queries-reports-ts-L439
 
-`client/lib/db/queries/reports.ts:439`
+`client/lib/db/queries/bi-metrics.ts`
 
 Refunds/returned-COGS are filtered through the return's ORIGINAL SALE
 (returns has no payment_method of its own, and its user_id is whoever
@@ -7681,7 +7688,7 @@ counts. Same alias as the other joined queries.
 
 ### line-db-queries-reports-ts-L447
 
-`client/lib/db/queries/reports.ts:447`
+`client/lib/db/queries/bi-metrics.ts`
 
 Upper bound of the current period: the caller's selected range end when
 given, otherwise "now" - and never later than "now" (see the @param
@@ -7690,7 +7697,7 @@ so revenue and expenses always cover the same window.
 
 ### line-db-queries-reports-ts-L462
 
-`client/lib/db/queries/reports.ts:462`
+`client/lib/db/queries/bi-metrics.ts`
 
 Every read below is independent of the others, so they all go out at
 once rather than one await at a time - same shape as
@@ -7698,7 +7705,7 @@ getCurrentMonthRevenue in finance.ts.
 
 ### line-db-queries-reports-ts-L493
 
-`client/lib/db/queries/reports.ts:493`
+`client/lib/db/queries/bi-metrics.ts`
 
 Gross Sales: list-price total before any discount, tax, or refund -
 subtotal is captured pre-discount at sale time (see pos-calculations.ts:
@@ -7706,7 +7713,7 @@ total_amount = subtotal + tax_amount - discount_total).
 
 ### line-db-queries-reports-ts-L498
 
-`client/lib/db/queries/reports.ts:498`
+`client/lib/db/queries/bi-metrics.ts`
 
 Tax collected is pass-through, not real business revenue - subtracted
 out of total_amount to get Net Sales (see getBIMetrics's totalRevenue
@@ -7714,7 +7721,7 @@ caller, use-bi-data.ts).
 
 ### line-db-queries-reports-ts-L503
 
-`client/lib/db/queries/reports.ts:503`
+`client/lib/db/queries/bi-metrics.ts`
 
 EX-VAT refunds. r.total_refunded is VAT-INCLUSIVE (calculateProportionalRefund
 in pos-calculations.ts bakes the refunded line's tax share into it), but
@@ -7731,7 +7738,7 @@ SUM(total_refunded) alongside a return_items join fans out per item.
 
 ### line-db-queries-reports-ts-L519
 
-`client/lib/db/queries/reports.ts:519`
+`client/lib/db/queries/bi-metrics.ts`
 
 Uses the cost_price recorded on the original sale_items row, not a
 recomputed current-stock average - the product's cost basis can change
@@ -7749,7 +7756,7 @@ across every matching sale_items row and overcounting the total.
 
 ### line-db-queries-reports-ts-L534
 
-`client/lib/db/queries/reports.ts:534`
+`client/lib/db/queries/bi-metrics.ts`
 
 Smoothed, not a raw SUM: a prepaid expense (covers_months set) is split
 into equal calendar-month installments instead of hitting this whole
@@ -7758,7 +7765,7 @@ getSmoothedExpensesTotal for the "why".
 
 ### line-db-queries-reports-ts-L543
 
-`client/lib/db/queries/reports.ts:543`
+`client/lib/db/queries/bi-metrics.ts`
 
 Not staff/payment-method filterable for the same reason expenses aren't
 (see the JUDGEMENT CALL note on fetchProfitLossReportData): a write-off
@@ -7766,7 +7773,7 @@ carries no attribution meaning the same thing as the sales filter.
 
 ### line-db-queries-reports-ts-L566
 
-`client/lib/db/queries/reports.ts:566`
+`client/lib/db/queries/bi-metrics.ts`
 
 The previous period's tax and refunds, so the revenue-change and
 avg-transaction-change percentages compare like with like. The current
@@ -7777,7 +7784,7 @@ growth number by roughly the tax rate plus the refund rate.
 
 ### line-db-queries-reports-ts-L580
 
-`client/lib/db/queries/reports.ts:580`
+`client/lib/db/queries/bi-metrics.ts`
 
 The customer base as it stood at the start of the current period (i.e.
 every customer created before it), NOT just the customers created during
@@ -7788,7 +7795,7 @@ one window's new signups - routinely several hundred percent).
 
 ### line-db-queries-reports-ts-L596
 
-`client/lib/db/queries/reports.ts:596`
+`client/lib/db/queries/bi-metrics.ts`
 
 Full product performance (not top-N): revenue/units/cost per product so
 the UI can sort by any column and compute margin. Doesn't net returns
@@ -7798,7 +7805,7 @@ above already cover the aggregate P&L correction.
 
 ### line-db-queries-reports-ts-L624
 
-`client/lib/db/queries/reports.ts:624`
+`client/lib/db/queries/bi-metrics.ts`
 
 Per-cashier performance: mirrors productPerformance's shape/scope
 (no refund netting, same as the rest of this dashboard's per-entity
@@ -7807,7 +7814,7 @@ to a single row - no separate UI change needed in the Staff tab.
 
 ### line-db-queries-reports-ts-L660
 
-`client/lib/db/queries/reports.ts:660`
+`client/lib/db/queries/report-trends.ts`
 
 Upper bound of the range, capped at "now" like every other report query
 (getBIMetrics's `to`) - without this the chart ignored the selected
@@ -7816,7 +7823,7 @@ including months after a range the user deliberately narrowed to.
 
 ### line-db-queries-reports-ts-L670
 
-`client/lib/db/queries/reports.ts:670`
+`client/lib/db/queries/report-trends.ts`
 
 Note: SUM(si.cost_price * si.quantity) alongside SUM(s.total_amount) in
 one query double-counts total_amount/tax_amount once per sale_items row
@@ -7826,7 +7833,7 @@ already keep sales-level and sale_items-level aggregates separate.
 
 ### line-db-queries-reports-ts-L686
 
-`client/lib/db/queries/reports.ts:686`
+`client/lib/db/queries/report-trends.ts`
 
 SPLIT IN TWO, for exactly the reason rawMonthlySales/rawMonthlyCogs above
 are: SUM(r.total_refunded) (a returns-level figure) in the same query as
@@ -7842,7 +7849,7 @@ only the refund's ex-VAT share.
 
 ### line-db-queries-reports-ts-L700
 
-`client/lib/db/queries/reports.ts:700`
+`client/lib/db/queries/report-trends.ts`
 
 See the matching comment on returnedCogsData in getBIMetrics above: uses
 the sale-time cost_price (pre-aggregated per (sale_id, product_id) to
@@ -7851,7 +7858,7 @@ not a recomputed current-stock average.
 
 ### line-db-queries-reports-ts-L707
 
-`client/lib/db/queries/reports.ts:707`
+`client/lib/db/queries/report-trends.ts`
 
 Merged by month in JS, the same way rawMonthlyData merges its two halves.
 Months are unioned: a month with a refund but no returned line items (or
@@ -7859,7 +7866,7 @@ vice versa) still gets a row, with 0 for the missing side.
 
 ### line-db-queries-reports-ts-L722
 
-`client/lib/db/queries/reports.ts:722`
+`client/lib/db/queries/report-trends.ts`
 
 Smoothed, not a raw SUM(amount) per month - see getSmoothedExpensesByMonth.
 Omitted entirely under a staff/payment-method filter, for the same reason
@@ -7869,7 +7876,7 @@ revenue with the whole store's overhead would be worse than showing none.
 
 ### line-db-queries-reports-ts-L728
 
-`client/lib/db/queries/reports.ts:728`
+`client/lib/db/queries/report-trends.ts`
 
 Capped at the same `to` as every sales/refund query above (the
 selected range's end, never later than "now"): a prepaid expense's
@@ -8658,7 +8665,7 @@ correctness fix it was.
 
 ### line-db-sync-engine-pull-ts-L377
 
-`client/lib/db/sync-engine/pull.ts:377`
+`client/lib/db/sync-engine/pull-apply.ts:65`
 
 Delta 0 because a pulled UPDATE changes no movement quantity
 today; see client/AGENTS.md, "Pull details", before making
@@ -8666,7 +8673,7 @@ one that does.
 
 ### line-db-sync-engine-pull-ts-L425
 
-`client/lib/db/sync-engine/pull.ts:425`
+`client/lib/db/sync-engine/pull-apply.ts:99`
 
 An arriving batch is rebuilt from the movements this device
 already holds, which is what makes a batch landing after its
@@ -8674,7 +8681,7 @@ own movements a non-event (A-197).
 
 ### line-db-sync-engine-pull-ts-L439
 
-`client/lib/db/sync-engine/pull.ts:439`
+`client/lib/db/sync-engine/pull-apply.ts:112`
 
 A batch that has not arrived is still recorded as pending,
 not because the delta is owed to it — the recompute reads
@@ -8692,7 +8699,7 @@ as "identity ready". See client/AGENTS.md, "Pull details".
 
 ### line-db-sync-engine-push-ts-L43
 
-`client/lib/db/sync-engine/push.ts:43`
+`client/lib/db/sync-engine/push-response.ts:19`
 
 No pull can ever settle these, so left unsynced they are requeued and
 re-refused for ever. `audit_logs` because the server row doesn't carry the
@@ -8703,7 +8710,7 @@ that reportStuckCrashLog() already applies after five attempts. A-256.
 
 ### line-db-sync-engine-push-ts-L491
 
-`client/lib/db/sync-engine/push.ts:491`
+`client/lib/db/sync-engine/push-response.ts:46`
 
 Terminal: drop every merged queue row rather than retrying.
 The watermark rewind below is what actually brings the
@@ -9422,7 +9429,7 @@ range), while the KPI cards above the chart correctly honored it.
 
 ### line-hooks-use-pos-cart-ts-L78
 
-`client/lib/hooks/use-pos-cart.ts:78`
+`client/lib/hooks/use-pos-cart-store.ts:67`
 
 Clears the persisted POS cart (cart items, discount, redeemed reward,
 reseller flag) both in memory and in localStorage. A plain
@@ -9658,7 +9665,7 @@ used everywhere else in the app.
 
 ### line-hooks-use-pos-payment-ts-L174
 
-`client/lib/hooks/use-pos-payment.ts:174`
+`client/lib/hooks/pos-sale-writer.ts:67`
 
 A store-markup sale has no reseller to pay, so there's nothing to
 redeem later - settle it right here, at checkout, instead of
@@ -9667,7 +9674,7 @@ to click Store Claims Markup in Transaction Details.
 
 ### line-hooks-use-pos-payment-ts-L180
 
-`client/lib/hooks/use-pos-payment.ts:180`
+`client/lib/hooks/pos-sale-writer.ts:71`
 
 Every write below (the sale row, its line items + stock deduction,
 any credit-balance update, loyalty points) must land together or
@@ -9679,7 +9686,7 @@ double-decrements whatever stock did get deducted the first time.
 
 ### line-hooks-use-pos-payment-ts-L188
 
-`client/lib/hooks/use-pos-payment.ts:188`
+`client/lib/hooks/pos-sale-writer.ts:74`
 
 Pre-generated (rather than letting insert() assign one) so every
 other write this sale makes - line items, stock deduction,
@@ -9690,7 +9697,7 @@ to a store owner separately.
 
 ### line-hooks-use-pos-payment-ts-L206
 
-`client/lib/hooks/use-pos-payment.ts:206`
+`client/lib/hooks/pos-sale-writer.ts:88`
 
 Derived from the actual charged amounts rather than hardcoded, so it
 always matches whatever VAT rate was really applied (the store's
@@ -9698,7 +9705,7 @@ configured rate, which may not be 7.5%, or may be 0).
 
 ### line-hooks-use-pos-payment-ts-L227
 
-`client/lib/hooks/use-pos-payment.ts:227`
+`client/lib/hooks/pos-sale-writer.ts:108`
 
 Only ever set when a customer is selected — the UI gates the
 redemption picker on that already, but guard here too in case a
@@ -9706,7 +9713,7 @@ stale redemption survives a customer being cleared mid-checkout.
 
 ### line-hooks-use-pos-payment-ts-L274
 
-`client/lib/hooks/use-pos-payment.ts:274`
+`client/lib/hooks/pos-sale-writer.ts:155`
 
 Re-read the current balance rather than trusting selectedCustomer
 (captured when the cashier picked the customer, possibly stale by
@@ -9716,7 +9723,7 @@ recordCustomerPayment's own re-read for the same reason.
 
 ### line-hooks-use-pos-payment-ts-L290
 
-`client/lib/hooks/use-pos-payment.ts:290`
+`client/lib/hooks/pos-sale-writer.ts:168`
 
 Clamped to what this sale can actually still owe: anything beyond
 it is debt applyCreditPaymentFIFO() could never settle against
@@ -9725,7 +9732,7 @@ the write-side guard). See docs/FIXED_BUGS.md (A-56).
 
 ### line-hooks-use-pos-payment-ts-L319
 
-`client/lib/hooks/use-pos-payment.ts:319`
+`client/lib/hooks/pos-sale-writer.ts:195`
 
 Committed inside the same transaction as the sale itself, not
 after it: this used to run once the transaction had already
@@ -10362,7 +10369,7 @@ whole library in every chunk that touches a report.
 
 ### line-utils-search-ts-L56
 
-`client/lib/utils/search.ts:56`
+`client/lib/utils/fuzzy-distance.ts:47`
 
 Minimum term length before the fuzzy (typo-tolerant) fallback fires at
 all. Below this, a term is too short for Levenshtein distance to be a
@@ -10380,7 +10387,7 @@ whole-name and word-start matches count.
 
 ### line-utils-search-ts-L68
 
-`client/lib/utils/search.ts:68`
+`client/lib/utils/fuzzy-distance.ts:51`
 
 Allowed Levenshtein distance scales with term length instead of a flat 3
 for every term: a fixed cap of 3 let a 4-character term match almost

@@ -1,73 +1,20 @@
-/**
- * Calculates the Levenshtein distance between two strings.
- * This measures the minimum number of single-character edits required to change one word into the other.
- */
-export function calculateLevenshteinDistance(a: string, b: string): number {
-  const matrix = [];
-  const aLen = a.length;
-  const bLen = b.length;
+import {
+  boundedLevenshteinDistance,
+  MIN_FUZZY_TERM_LENGTH,
+  maxFuzzyDistanceFor,
+} from "./fuzzy-distance";
 
-  if (aLen === 0) return bLen;
-  if (bLen === 0) return aLen;
-
-  for (let i = 0; i <= bLen; i++) {
-    matrix[i] = [i];
-  }
-
-  for (let j = 0; j <= aLen; j++) {
-    matrix[0][j] = j;
-  }
-
-  for (let i = 1; i <= bLen; i++) {
-    for (let j = 1; j <= aLen; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1, // substitution
-          Math.min(
-            matrix[i][j - 1] + 1, // insertion
-            matrix[i - 1][j] + 1, // deletion
-          ),
-        );
-      }
-    }
-  }
-
-  return matrix[bLen][aLen];
-}
-
-// Levenshtein distance, skipped entirely when the two lengths are already further apart than the caller can accept.
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-search-ts-L40
-export function boundedLevenshteinDistance(
-  a: string,
-  b: string,
-  maxDistance: number,
-): number {
-  if (Math.abs(a.length - b.length) > maxDistance) return Infinity;
-  return calculateLevenshteinDistance(a, b);
-}
+export { boundedLevenshteinDistance, calculateLevenshteinDistance } from "./fuzzy-distance";
+export { genericFuzzySearch } from "./generic-fuzzy-search";
 
 export interface SearchProductResult<T> {
   results: T[];
   isFuzzyFallback: boolean;
 }
 
-// Minimum term length before the fuzzy (typo-tolerant) fallback fires at all.
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-search-ts-L56
-const MIN_FUZZY_TERM_LENGTH = 4;
-
 // A squashed term shorter than this matches too much mid-string once spaces are gone ("nc" hits "zinc" and "vitamin c" alike), so below it onl…
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-search-ts-L63
 const MIN_SQUASHED_SUBSTRING_LENGTH = 4;
-
-// Allowed Levenshtein distance scales with term length instead of a flat 3 for every term:
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-utils-search-ts-L68
-function maxFuzzyDistanceFor(termLength: number): number {
-  if (termLength <= 5) return 1;
-  if (termLength <= 8) return 2;
-  return 3;
-}
 
 interface LowercasedProduct {
   name: string;
@@ -294,116 +241,6 @@ export function searchProducts<
     // Return top 5 fuzzy suggestions
     return {
       results: fuzzyResults.slice(0, 5).map((r) => r.med),
-      isFuzzyFallback: true,
-    };
-  }
-
-  return { results: [], isFuzzyFallback: false };
-}
-
-export function genericFuzzySearch<T>(
-  searchTerm: string,
-  items: T[],
-  searchKeys: (keyof T)[],
-): { results: T[]; isFuzzyFallback: boolean } {
-  const term = searchTerm.trim().toLowerCase();
-
-  if (!term) {
-    return { results: items, isFuzzyFallback: false };
-  }
-
-  const tokens = term.split(/\s+/).filter(Boolean);
-
-  const scoredResults = items
-    .map((item) => {
-      let score = 0;
-
-      // Extract search string from all keys
-      const values = searchKeys.map((key) => {
-        const val = item[key];
-        return val ? String(val).toLowerCase() : "";
-      });
-
-      // Tier 1: Exact Match
-      if (values.some((v) => v === term)) {
-        score += 100;
-      }
-
-      // Tier 2: Starts With
-      if (values.some((v) => v.startsWith(term))) {
-        score += 50;
-      }
-
-      // Tier 3: Multi-word Token Match
-      if (tokens.length > 0) {
-        const allTokensMatch = tokens.every((token) =>
-          values.some((v) => v.includes(token)),
-        );
-        if (allTokensMatch) {
-          score += 20;
-        }
-      }
-
-      return { item, score };
-    })
-    .filter((res) => res.score > 0);
-
-  if (scoredResults.length > 0) {
-    // Sort by score descending
-    scoredResults.sort((a, b) => b.score - a.score);
-    return {
-      results: scoredResults.map((r) => r.item),
-      isFuzzyFallback: false,
-    };
-  }
-
-  // Tier 4: Fuzzy Fallback
-  if (term.length < MIN_FUZZY_TERM_LENGTH) {
-    return { results: [], isFuzzyFallback: false };
-  }
-
-  const maxDistance = maxFuzzyDistanceFor(term.length);
-
-  const fuzzyResults = items
-    .map((item) => {
-      let minDistance = 999;
-
-      for (const key of searchKeys) {
-        const val = item[key];
-        if (val) {
-          const strVal = String(val).toLowerCase();
-          // 1. Compare with substring of similar length to term
-          const dist = boundedLevenshteinDistance(
-            term,
-            strVal.substring(0, term.length + 2),
-            maxDistance,
-          );
-          if (dist < minDistance) {
-            minDistance = dist;
-          }
-
-          // 2. Compare against individual words
-          for (const word of strVal.split(/\s+/)) {
-            const wordDist = boundedLevenshteinDistance(
-              term,
-              word.substring(0, term.length + 2),
-              maxDistance,
-            );
-            if (wordDist < minDistance) {
-              minDistance = wordDist;
-            }
-          }
-        }
-      }
-
-      return { item, distance: minDistance };
-    })
-    .filter((res) => res.distance <= maxDistance);
-
-  if (fuzzyResults.length > 0) {
-    fuzzyResults.sort((a, b) => a.distance - b.distance);
-    return {
-      results: fuzzyResults.slice(0, 5).map((r) => r.item),
       isFuzzyFallback: true,
     };
   }

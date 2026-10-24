@@ -943,6 +943,11 @@ that way. `audit_logs` solves the same problem its own way in `core.ts`
 
 #### Push details (`sync-engine/push.ts`)
 
+`push.ts` owns the batch loop; per-batch request building (payload
+mapping, local validation rejects) lives in `push-request.ts`, and the
+response bookkeeping (terminal/retryable `failed` handling, the duplicate-name
+`id_map` remap, server-assigned `versions`) in `push-response.ts`.
+
 - **Terminal vs retryable rejections.** `NON_RETRYABLE_CONFLICT_REASONS`
   (`version_conflict`, `stale_timestamp`,
   `quantity_received_exceeds_ordered`, `permission_denied`) all share one
@@ -1317,7 +1322,7 @@ So the rewind now:
   not per day.
 
 **The budget is spent once per table per batch, not once per refused row
-(A-273).** `push.ts` keeps a `Set<string>` inside its `response.failed` loop.
+(A-273).** `settleFailedChanges()` (`push-response.ts`) keeps a `Set<string>` inside its `response.failed` loop.
 This replaces the original per-row intent, which was wrong for a reason worth
 writing down: a rewind re-opens the **whole table's** window, so the 2nd
 through 50th refusal in a batch asked for nothing the 1st had not already
@@ -1458,6 +1463,11 @@ on either predicate: widening it there would introduce an UPDATE path for a
 table the client never pulls.
 
 #### Pull details (`sync-engine/pull.ts`)
+
+`pull.ts` owns the page loop and cursor/window stamping; applying one pulled
+record (UPDATE/INSERT, batch touches, deferred deltas) lives in
+`pull-apply.ts`, and the end-of-round deferred-delta drain and skip reporting
+in `pull-round-end.ts`.
 
 - **`MAX_PULL_PAGES` (1000) is a safety bound, not a correctness ceiling.**
   It only stops one `sync()` running forever if the server ever reports
@@ -2083,7 +2093,7 @@ on screen from having walked to the shelf.
   already on the query the audit screen runs) rendered as the ledger's
   sortable **Last Counted** column. It means "last *adjusted*": a submit
   writes no `stock_audits` row when nothing differed
-  (`lib/db/queries/inventory.ts:681`), so a count that matched leaves no
+  (`lib/db/queries/inventory-adjustments.ts`), so a count that matched leaves no
   trace. Changing that means writing zero-diff rows into a synced table —
   a contract change, not a free one.
 - **"Start over" and "leave" are two different controls.** The back-button
@@ -2120,7 +2130,7 @@ Pinned by `__tests__/clear-local-drafts.test.ts`.
 
 A draft itself is **not** the problem it looks like: `submitStockAudit`
 re-reads the live quantity inside its transaction
-(`lib/db/queries/inventory.ts:665-671`) and deltas against that, so a resumed
+(`lib/db/queries/inventory-adjustments.ts`) and deltas against that, so a resumed
 draft's frozen `systemQty` never mis-posts. What a stale draft does miss is
 catalog churn — logged as A-259.
 
@@ -2874,7 +2884,7 @@ e2e/                       Playwright end-to-end specs
   recall" toast with the sale still listed as recallable (A-59/A-60 in
   `docs/FIXED_BUGS.md`).
 - **Every sale line leaves exactly one `stock_movements` row.**
-  `recordSaleItemStock()` (`lib/db/queries/inventory.ts`) escalates through
+  `recordSaleItemStock()` (`lib/db/queries/inventory-sale-stock.ts`) escalates through
   four lookups — FEFO over positive-stock batches, the most recently touched
   active batch, the same lookup with `includeExpired: true`, and finally
   `getOrCreateTargetBatchForProduct()` to open a `SALE-` batch — so a
@@ -2887,7 +2897,7 @@ e2e/                       Playwright end-to-end specs
   unsellable lines and `online-orders-modal.tsx` makes the owner confirm the
   oversell before fulfilling (A-57 in `docs/FIXED_BUGS.md`).
 - **Stock audits / cycle counts** (`components/stock-batch/stock-audits.tsx`,
-  `lib/db/queries/inventory.ts:submitStockAudit`): tracks three kinds of
+  `lib/db/queries/inventory-adjustments.ts:submitStockAudit`): tracks three kinds of
   deviation per product (**qty**, **cost price**, **selling price**)
   against system records. Qty diffs post FEFO-ordered adjustments to
   `stock_batches` + a `stock_movements` row; cost diffs correct all active
@@ -2898,7 +2908,7 @@ e2e/                       Playwright end-to-end specs
   `getProductsWithDetails()`), shown on the product detail panel with a
   90-day-stale warning banner.
 - **Quick stock adjustments** (`components/stock-batch/adjust-stock-flow.tsx`,
-  `lib/db/queries/inventory.ts:submitStockAdjustment`): a two-step flow —
+  `lib/db/queries/inventory-adjustments.ts:submitStockAdjustment`): a two-step flow —
   step 1 picks one of four fixed reasons (`ADJUSTMENT_REASONS` in
   `adjustment-derivations.ts`: Receive items, Damage, Inventory count, Loss)
   plus an optional note; step 2 adds items by name/SKU/barcode and shows
@@ -3674,7 +3684,7 @@ than on history.
 - `delete_suppliers` — `components/stock-batch/supplier-detail-pane.tsx`'s
   action row (a "Delete Supplier" outline button beside Edit Details and New
   Order, opening `components/suppliers/supplier-delete-dialog.tsx`), backed
-  by `deleteSupplier()` in `lib/db/procurement.ts`. The row's column count is
+  by `deleteSupplier()` in `lib/db/suppliers.ts`. The row's column count is
   now a literal-class lookup (`ACTION_GRID_COLS`, same mechanism as
   `CATALOG_GRID_COLS`/`SECONDARY_ACTION_GRID_COLS`) because it varies from
   one to three buttons with the two keys. It sits in the **detail pane, not
@@ -4550,7 +4560,7 @@ pre-backfill array.
   throws are a `SyncPushPermissionDeniedException`, which `push()`'s
   per-change catch reports as the stable reason **`permission_denied`**
   (the exception message still carries the specific detail into the log), and
-  `push.ts`'s `NON_RETRYABLE_CONFLICT_REASONS` lists it beside
+  `push-response.ts`'s `NON_RETRYABLE_CONFLICT_REASONS` lists it beside
   `version_conflict`: the queue row is dropped on the first response instead
   of retried forever. No window rewind for this reason, and no pull settles
   it — the source row is flagged settled instead (see "Push details"). It is
@@ -4770,7 +4780,7 @@ manager-tier user ticking a key they don't personally hold got a local
 write that applied instantly, showed as ON, pushed as `permission_denied`,
 had its queue row dropped terminally, and was reverted by the next pull —
 with **no toast at all**, because `permission_denied` is in
-`SILENT_TERMINAL_REASONS` (`lib/db/sync-engine/push.ts`). That silencing is
+`SILENT_TERMINAL_REASONS` (`lib/db/sync-engine/push-conflict-toasts.ts`). That silencing is
 correct and stays: it exists for the automatic catalog backfill's own push,
 an edit no user made and no user is waiting on. Narrowing it by "was this
 queued by machinery or by a human" would need an origin marker on the sync

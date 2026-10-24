@@ -1,4 +1,4 @@
-import type { StoreType } from "@/lib/context/store-context";
+import type { StoreType } from "@/lib/context/store-types";
 
 export const terminology: Record<StoreType, Record<string, string>> = {
   pharmacy: {

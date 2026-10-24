@@ -11,8 +11,6 @@ import {
   IMPERSONATOR_RETURN_CODE_KEY as RETURN_CODE_KEY,
 } from "@/lib/utils/impersonation";
 
-const WEB_APP_ADMIN_URL = new URL("/admin", WEB_APP_URL).href;
-
 export function ImpersonationBanner() {
   const hydrated = useHydrated();
   const isImpersonating = hydrated && !!localStorage.getItem(RETURN_CODE_KEY);
@@ -25,7 +23,7 @@ export function ImpersonationBanner() {
     localStorage.removeItem(RETURN_CODE_KEY);
     localStorage.removeItem(IMPERSONATED_USER_KEY);
     apiClient.clearToken();
-    window.location.href = WEB_APP_ADMIN_URL;
+    window.location.href = WEB_APP_URL + "/admin";
   };
 
   return (

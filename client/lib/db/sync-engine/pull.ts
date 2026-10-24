@@ -1,19 +1,18 @@
-import { query, execute, transaction } from "../core";
+import { execute, transaction } from "../core";
 import { resolveSyncRun, type SyncRun } from "./sync-run";
 import { apiClient } from "@/lib/api/client";
 import { PullResponse } from "./types";
 import { getValidColumns } from "./schema";
 import { DUPLICATE_NAME_TABLES } from "../reconcile-identity";
 import { logCrash } from "@/lib/utils/error-logger";
-import { forgetWithheldPullWindows, restoreExhaustedPullWindows, rewindPullWindow } from "./pull-window";
-import { summarizeSkippedRecords, type SkippedRecord } from "./pull-skip-report";
+import { forgetWithheldPullWindows, restoreExhaustedPullWindows } from "./pull-window";
+import type { SkippedRecord } from "./pull-skip-report";
 import { recomputeBatchQuantities } from "../batch-quantity";
 import type { BatchLogChange } from "../batch-quantity";
 import {
   applyDeferredStockDeltas,
   countDeferredStockDeltas,
   discardDeferredStockDeltas,
-  recordDeferredStockDelta,
   type DeferredStockDelta,
 } from "./deferred-stock-deltas";
 import {
@@ -24,7 +23,8 @@ import {
   readPullStartState,
   storesSnapshotIsAccountWide,
 } from "./pull-state";
-import { toPulledRow, holdsCursorAfterUniqueSkip } from "./pull-records";
+import { applyPulledRecord, type PullPageContext } from "./pull-apply";
+import { finishPullRound } from "./pull-round-end";
 import { pruneStoresMissingFromSnapshot, reconcileDuplicateNames } from "./pull-reconcile";
 
 // Pull changes from server.
@@ -136,6 +136,13 @@ export async function pullChanges(
           inbound: seen.inbound + Math.max(0, delta),
         });
       };
+      const pageContext: PullPageContext = {
+        touchBatch,
+        skippedRecords,
+        onDeferredDelta: () => {
+          deferredThisRound++;
+        },
+      };
 
       await transaction(async () => {
         for (const [table, records] of orderedEntries) {
@@ -190,119 +197,13 @@ export async function pullChanges(
           let anySkipped = false;
 
           for (const record of records) {
-            const { id, _deleted, ...rawData } = record;
-            const recordId = id as string;
-
-            const { data, columns, values } = toPulledRow(table, rawData, validColumns);
-
-            // Check if record already exists to preserve local-only columns (e.g. is_initialized, theme, license_token)
-            const exists = await query<{ 1: number }>(
-              `SELECT 1 FROM ${table} WHERE id = ?`,
-              [recordId]
-            );
-
-            const version = (rawData._version as number) || 1;
-
-            if (exists.length > 0) {
-              // A row with an unpushed local edit is left alone; the next
-              // push resolves it by version comparison.
-              const pendingLocalEdit = await query<{ 1: number }>(
-                "SELECT 1 FROM _sync_queue WHERE table_name = ? AND record_id = ? LIMIT 1",
-                [table, recordId],
-              );
-              if (pendingLocalEdit.length > 0) {
-                anySkipped = true;
-                continue;
-              }
-
-              // Update only columns returned by server to preserve local columns
-              const setClause = [...columns, "_synced", "_version", "_deleted"]
-                .map((c) => `${c} = ?`)
-                .join(", ");
-              const sql = `UPDATE ${table} SET ${setClause} WHERE id = ?`;
-              const params = [
-                ...values as (string | number | null)[],
-                1,
-                version,
-                _deleted ? 1 : 0,
-                recordId,
-              ];
-
-              try {
-                await execute(sql, params);
-
-                // Delta 0 because a pulled UPDATE changes no movement quantity today; see client/AGENTS.md, "Pull details", before making one that does.
-                // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-pull-ts-L377
-                if (table === "stock_batches") {
-                  touchBatch(recordId, 0);
-                } else if (table === "stock_movements" && data.stock_batch_id) {
-                  touchBatch(data.stock_batch_id as string, 0);
-                }
-              } catch (err) {
-                if (holdsCursorAfterUniqueSkip(err, "update", table, recordId, skippedRecords)) {
-                  anySkipped = true;
-                }
-              }
-            } else {
-              // Insert new record
-              const allCols = [
-                "id",
-                ...columns,
-                "_synced",
-                "_version",
-                "_deleted",
-              ];
-              const allPlaceholders = allCols.map(() => "?");
-              const sql = `INSERT INTO ${table} (${allCols.join(", ")}) VALUES (${allPlaceholders.join(", ")})`;
-              const params = [
-                recordId,
-                ...values as (string | number | null)[],
-                1,
-                version,
-                _deleted ? 1 : 0,
-              ];
-
-              try {
-                await execute(sql, params);
-
-                // An arriving batch is rebuilt from the movements this device already holds, which is what makes a batch landing after its own movements a non…
-                // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-pull-ts-L425
-                if (table === "stock_batches") {
-                  touchBatch(recordId, 0);
-                }
-
-                // No movement_type special-case here; see client/AGENTS.md.
-                if (
-                  table === "stock_movements" &&
-                  !_deleted &&
-                  data.stock_batch_id &&
-                  typeof data.quantity === "number"
-                ) {
-                  // A batch that has not arrived is still recorded as pending, not because the delta is owed to it — the recompute reads the whole log whenever…
-                  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-pull-ts-L439
-                  const batchExists = await query<{ 1: number }>(
-                    "SELECT 1 FROM stock_batches WHERE id = ?",
-                    [data.stock_batch_id as string],
-                  );
-                  if (batchExists.length > 0) {
-                    touchBatch(data.stock_batch_id as string, data.quantity);
-                  } else {
-                    await recordDeferredStockDelta(
-                      recordId,
-                      data.stock_batch_id as string,
-                      data.quantity as number,
-                    );
-                    deferredThisRound++;
-                  }
-                }
-              } catch (err) {
-                if (holdsCursorAfterUniqueSkip(err, "insert", table, recordId, skippedRecords)) {
-                  anySkipped = true;
-                }
-              }
+            const outcome = await applyPulledRecord(table, record, validColumns, pageContext);
+            if (outcome.skipped) {
+              anySkipped = true;
             }
-
-            pulledCount++;
+            if (outcome.counted) {
+              pulledCount++;
+            }
           }
 
           // Only an account-wide snapshot is authoritative; both guards fail
@@ -369,55 +270,13 @@ export async function pullChanges(
       }
     }
 
-    // Deltas and the cursor stamp commit as one unit: no window in between
-    // for a crash to fall into.
-    if (
-      (await countDeferredStockDeltas()) > 0 ||
-      deferredMovementCursor !== null ||
-      deferredMovementPageCursor !== null
-    ) {
-      await transaction(async () => {
-        unresolvedDeltas.push(...(await applyDeferredStockDeltas()));
-        if (deferredMovementCursor !== null) {
-          await execute(PULL_PROGRESS.completeWindow, [
-            windowStoreId,
-            "stock_movements",
-            deferredMovementCursor,
-          ]);
-        } else if (deferredMovementPageCursor !== null) {
-          await execute(PULL_PROGRESS.savePosition, [
-            windowStoreId,
-            "stock_movements",
-            deferredMovementPageCursor,
-          ]);
-        }
-      });
-    }
-
-    // A stranded batch is only re-sent if it is updated again, so a chronic
-    // deferral needs the window reopened or it never resolves (A-176).
-    if (unresolvedDeltas.length > 0) {
-      await rewindPullWindow(windowStoreId, "stock_batches", "unresolved stock delta");
-    }
-
-    for (const d of unresolvedDeltas) {
-      logCrash(
-        new Error(
-          `Pull deferred stock delta unresolved: movement ${d.movement_id} still has no stock_batches row ${d.stock_batch_id}`,
-        ),
-        false,
-        {
-          area: "sync-pull",
-          table: "stock_movements",
-          recordId: d.movement_id,
-        },
-      ).catch(() => {});
-    }
-
-    const skipSummary = summarizeSkippedRecords(skippedRecords);
-    if (skipSummary) {
-      logCrash(new Error(skipSummary.message), false, skipSummary.context).catch(() => {});
-    }
+    await finishPullRound(
+      windowStoreId,
+      deferredMovementCursor,
+      deferredMovementPageCursor,
+      unresolvedDeltas,
+      skippedRecords,
+    );
 
     return { pulled: pulledCount, updatedTables };
   } catch (error) {

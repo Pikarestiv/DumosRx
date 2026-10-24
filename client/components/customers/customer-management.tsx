@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { useCustomerManagement } from "@/lib/hooks/use-customer-management";
 import { LockedModuleOverlay } from "@/components/dashboard/locked-module-overlay";
@@ -46,6 +47,18 @@ export function CustomerManagement() {
     handleRecordPayment,
     handleCustomerDeleted,
   } = useCustomerManagement();
+
+  const deleteTarget = useMemo(
+    () =>
+      deletingCustomer
+        ? {
+            id: deletingCustomer.id,
+            name: deletingCustomer.name,
+            outstandingBalance: deletingCustomer.outstanding_balance,
+          }
+        : null,
+    [deletingCustomer],
+  );
 
   return (
     <div className="flex flex-col h-full min-h-0 space-y-4 md:space-y-6">
@@ -133,15 +146,7 @@ export function CustomerManagement() {
       />
 
       <CustomerDeleteDialog
-        target={
-          deletingCustomer
-            ? {
-                id: deletingCustomer.id,
-                name: deletingCustomer.name,
-                outstandingBalance: deletingCustomer.outstanding_balance,
-              }
-            : null
-        }
+        target={deleteTarget}
         currencyCode={storeProfile?.currency || "NGN"}
         onClose={() => setDeletingCustomer(null)}
         onSuccess={handleCustomerDeleted}

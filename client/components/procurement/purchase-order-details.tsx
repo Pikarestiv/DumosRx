@@ -1,6 +1,6 @@
 import React from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Clock, CheckCircle2, Edit2, Download, Loader2, PackageOpen } from "lucide-react";
+import { ArrowLeft, Clock, Edit2, Download, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { PurchaseOrder } from "@/lib/db/procurement";
 import { useUppercaseDisplayClass, capitalizeWords } from "@/lib/hooks/use-uppercase-display";
+import { PoStatusTimeline } from "./po-status-timeline";
 
 interface PurchaseOrderDetailsProps {
   selectedPO: PurchaseOrder | null;
@@ -75,9 +76,7 @@ export function PurchaseOrderDetails({
           status={selectedPO.status}
           notes={selectedPO.notes}
           items={(selectedPO.items || []).map((item) => ({
-            // @react-pdf/renderer output isn't CSS-stylable HTML the way the
-            // on-screen list below is (capsClass), so the string itself has
-            // to be transformed here for the PDF to match.
+            // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-purchase-order-details-tsx-pdf-names
             product_name: item.product_name
               ? uppercaseNames
                 ? item.product_name.toUpperCase()
@@ -115,10 +114,6 @@ export function PurchaseOrderDetails({
   }
 
   const isPartiallyReceived = selectedPO.status === "partially_received";
-  const isSentOrLater =
-    selectedPO.status === "sent" ||
-    selectedPO.status === "received" ||
-    isPartiallyReceived;
 
   return (
     <Card className="flex flex-col h-full bg-card overflow-hidden p-0 gap-0 border-none rounded-none shadow-none">
@@ -202,56 +197,7 @@ export function PurchaseOrderDetails({
                     </div>
                   </div>
 
-                  <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mt-8 mb-4">
-                    Order Status
-                  </h4>
-                  <div className="flex flex-col gap-4 relative">
-                    <div className="absolute left-[9px] top-[14px] bottom-[14px] w-[2px] bg-border z-0"></div>
-
-                    {/* Draft Step */}
-                    <div className="flex items-center gap-3 z-10">
-                      <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center border-2 border-background">
-                        <CheckCircle2 className="w-3 h-3" />
-                      </div>
-                      <span className="text-[13.5px] font-semibold text-foreground">
-                        Draft
-                      </span>
-                    </div>
-
-                    {/* Sent Step: skipped for Immediate Purchases, which have
-                        no vendor to send anything to. */}
-                    {selectedPO.type !== "immediate" && (
-                      <div className="flex items-center gap-3 z-10">
-                        <div
-                          className={`w-5 h-5 rounded-full flex items-center justify-center border-2 border-background ${isSentOrLater ? "bg-primary text-primary-foreground" : "bg-muted border border-border"}`}
-                        >
-                          {isSentOrLater && <CheckCircle2 className="w-3 h-3" />}
-                        </div>
-                        <span
-                          className={`text-[13.5px] font-semibold ${isSentOrLater ? "text-foreground" : "text-muted-foreground"}`}
-                        >
-                          Sent
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Received Step */}
-                    <div className="flex items-center gap-3 z-10">
-                      <div
-                        className={`w-5 h-5 rounded-full flex items-center justify-center border-2 border-background ${selectedPO.status === "received" ? "bg-primary text-primary-foreground" : isPartiallyReceived ? "bg-amber-500 text-white" : "bg-muted border border-border"}`}
-                      >
-                        {selectedPO.status === "received" && (
-                          <CheckCircle2 className="w-3 h-3" />
-                        )}
-                        {isPartiallyReceived && <PackageOpen className="w-3 h-3" />}
-                      </div>
-                      <span
-                        className={`text-[13.5px] font-semibold ${selectedPO.status === "received" || isPartiallyReceived ? "text-foreground" : "text-muted-foreground"}`}
-                      >
-                        {isPartiallyReceived ? "Partially Received" : "Received"}
-                      </span>
-                    </div>
-                  </div>
+                  <PoStatusTimeline po={selectedPO} />
                 </>
               )}
             </div>

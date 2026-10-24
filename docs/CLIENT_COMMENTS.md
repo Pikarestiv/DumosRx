@@ -7073,6 +7073,16 @@ Order details (type/vendor/notes/payment/due-date) are confirmed first;
 item entry only becomes the dominant content of the screen afterward.
 Details stay editable via PODetailsDialog once confirmed.
 
+## block-app-(dashboard)-procurement-new-use-po-submit-ts-L109
+
+`client/app/(dashboard)/procurement/new/use-po-submit.ts:109`
+
+Lets an Immediate Purchase be parked as an ordinary draft (same call
+Standard POs use) instead of receiving stock right away, so entry in
+progress survives a restart. Item-level fields that only exist for the
+immediate flow (lot/expiry/price overrides) are persisted along with
+everything else, so resuming the draft shows exactly what was typed.
+
 ## line-app-(dashboard)-reports-page-tsx-L18
 
 `client/app/(dashboard)/reports/page.tsx:18`
@@ -7813,7 +7823,7 @@ which real browsers/AT can drop from the a11y tree).
 
 ## line-components-customers-activity-tab-tsx-L109
 
-`client/components/customers/activity-tab.tsx:109`
+`client/components/customers/activity-tab.tsx:59`
 
 Filtering to one customer or searching must match their entire history, not
 just the recent-activity window loaded by default, unless a custom date
@@ -7831,7 +7841,7 @@ without view_customer_balances.
 
 ## line-components-customers-loyalty-settings-dialog-tsx-L62
 
-`client/components/customers/loyalty-settings-dialog.tsx:62`
+`client/components/customers/loyalty-settings-dialog.tsx:55`
 
 Same field, same mutation mechanism as the Business Info tab's "Enable
 Loyalty Program" switch — both write stores.loyalty_program_enabled via
@@ -7840,7 +7850,7 @@ the hood), so the two toggles can never drift onto separate paths.
 
 ## line-components-customers-loyalty-settings-dialog-tsx-L75
 
-`client/components/customers/loyalty-settings-dialog.tsx:75`
+`client/components/customers/loyalty-settings-dialog.tsx:66`
 
 Defense-in-depth: the only current entry point (LoyaltyTab's "Edit
 Settings" button) is already gated, but this closes the dialog if it's
@@ -7848,7 +7858,7 @@ ever reached another way by a role lacking either right.
 
 ## line-components-customers-loyalty-settings-dialog-tsx-L82
 
-`client/components/customers/loyalty-settings-dialog.tsx:82`
+`client/components/customers/loyalty-settings-dialog.tsx:72`
 
 Stored as points-per-currency-unit (e.g. 0.01), edited here as
 "points per 100 [currency]" since that reads far more naturally than a
@@ -9251,7 +9261,7 @@ ensures it's only active while the Orders tab actually is.
 
 ## line-components-procurement-purchase-order-details-tsx-L63
 
-`client/components/procurement/purchase-order-details.tsx:63`
+`client/components/procurement/purchase-order-details.tsx:65`
 
 Both imported here rather than at module scope: @react-pdf/renderer is
 a heavy dependency that every visitor to the Orders tab was paying for,
@@ -9482,7 +9492,7 @@ active (search/category/status all at their defaults).
 
 ## line-components-products-product-database-tsx-L35
 
-`client/components/products/product-database.tsx:35`
+`client/components/products/product-database.tsx:36`
 
 The inputs below stay bound to searchTerm so typing is instant; the
 expensive work (genericFuzzySearch over the WHOLE catalog, whose Tier-4
@@ -9994,7 +10004,7 @@ on orchestration rather than markup.
 
 ## line-components-settings-store-business-information-card-tsx-L271
 
-`client/components/settings/store/business-information-card.tsx:271`
+`client/components/settings/store/business-information-card.tsx:194`
 
 Dashed border + Upload icon = an actual click target here,
 via the "Upload Logo" label right next to it - only shown
@@ -10434,7 +10444,7 @@ uppercases the first letter and leaves the underscore in place.
 
 ## line-components-stock-batch-stock-movements-tsx-L78
 
-`client/components/stock-batch/stock-movements.tsx:78`
+`client/components/stock-batch/stock-movements.tsx:59`
 
 Mirrors dashboard-header.tsx's hasMultiStoreAccess/actionRequiresIsAdmin
 gate on the Transfer Stock header action: plan entitlement AND this
@@ -10447,7 +10457,7 @@ move should be limited to.
 
 ## line-components-stock-batch-stock-movements-tsx-L88
 
-`client/components/stock-batch/stock-movements.tsx:88`
+`client/components/stock-batch/stock-movements.tsx:63`
 
 Triggered from the header's "Transfer Stock" button (see
 dashboard-header.tsx), which — like Add Product's ?action=add — just
@@ -11976,7 +11986,7 @@ Fix: a second effect, independent of the rebuild gate, that merges fresh
 
 ## line-app-setup-use-onboarding-ts-finish-new-account-setup
 
-`client/app/setup/use-onboarding.ts` (`finishNewAccountSetup`)
+`client/app/setup/use-onboarding-register.ts` (`finishNewAccountSetup`)
 
 Shared by handleRegister()'s no-local-data path and
 confirmCloudRestoreSwitch()'s post-wipe continuation for a brand-new
@@ -11988,7 +11998,7 @@ fire-and-forget sync() so the trial status is present immediately (A-156).
 
 ## line-app-setup-use-onboarding-ts-cloud-first-register
 
-`client/app/setup/use-onboarding.ts` (`handleRegister`)
+`client/app/setup/use-onboarding-register.ts` (`handleRegister`)
 
 Every local write of the PIN stores the hash, never the raw digits (see
 lib/utils/pin-hash.ts). The raw `pin` is still what's sent to the
@@ -12151,3 +12161,61 @@ Callbacks handed to memoised rows read the parent's latest handler through a
 ref so their identity never changes across renders. The ref is refreshed in a
 `useLayoutEffect` with no deps rather than assigned during render, which
 `react-hooks/refs` forbids.
+
+## block-components-stock-batch-stock-movements-tsx-loading-window
+
+`client/components/stock-batch/stock-movements.tsx`
+
+The default view is bounded to the last 30 days since this log grows with
+every sale, receive and adjustment. The query respects whichever window is
+active (30-day, custom range or full history) so a manual or pull refresh
+never drops someone back out of it; an explicit date range takes precedence
+over full-history mode because it is a bounded window the user picked.
+`keepPreviousData` keeps the old rows on screen while a new range loads
+rather than unmounting into the skeleton, which would close an in-progress
+DateRangePicker popover; for the same reason only the very first load
+shows the full-page skeleton.
+
+Searching or filtering by type upgrades to full history the first time
+either is used, so it matches the whole log, except while a custom date
+range is active (search stays scoped inside it). Filter, fuzzy search and
+date grouping are each memoised on their real inputs because after that
+upgrade they scan the whole ledger. The "Transfers" filter chip covers both
+legs (`transfer_out` and `transfer_in`) so users need not toggle two chips.
+
+The mobile date-grouped list is conditionally rendered rather than
+CSS-hidden: the desktop branch is virtualized and this one is not, so
+hiding it with CSS made desktop pay for a full unvirtualized render.
+
+## block-components-procurement-purchase-order-details-tsx-pdf-names
+
+`client/components/procurement/purchase-order-details.tsx`
+
+`@react-pdf/renderer` output is not CSS-stylable HTML the way the on-screen
+line items are (`capsClass`), so product names are uppercased or
+capitalised in the string itself for the PDF to match.
+
+## block-components-products-product-database-tsx-memo-and-layout
+
+`client/components/products/product-database.tsx`
+
+`refetchProducts` and `handleProductDeleted` have stable identities because
+CatalogList hands them to the memoised CatalogRow; an inline arrow defeated
+that memo. Deleting the product whose detail panel is open closes the panel
+and the edit dialog, matching CatalogDetailPanel's own delete action, since
+a panel left open over a deleted product would save against a missing row.
+Transform, pre-filter and fuzzy search are memoised stage by stage so typing
+does not re-scan the whole catalog.
+
+`isFiltering` reads the debounced search term, not the raw one: it gates
+`filteredProductIds`, which derives from the debounced search, so the raw
+term would claim "filtering" for a frame while the list was still unfiltered.
+
+The mobile search bar and filter pills are conditionally rendered, not just
+CSS-hidden, because they and ProductDatabaseFilters share `searchTerm`, and
+both mounted meant two full filter bars re-rendering per keystroke. The
+`lg:hidden` class remains as the first-frame guard since useMediaQuery
+starts at false. The catalog card's `flex-1` already fills the space left
+under the tabs; `min-h-[360px]` keeps it usable on short windows and
+`lg:max-h-[900px]` is a fixed-pixel rail for very tall monitors. A vh-based
+cap was always smaller than the real remaining space and undid the fill.

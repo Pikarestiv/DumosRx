@@ -417,13 +417,11 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** a pass over the nine specs to re-point the selectors, then a CI job so they cannot drift again. Worth doing as its own round, not folded into a feature batch. Until then, treat a Playwright failure as "verify against `main` before believing it".
 - **Note:** a run also rewrites the tracked fixture `client/e2e/.auth/test-db.bin` and `next dev` re-injects a `nextjs-agent-rules` block into `client/AGENTS.md`; both are artifacts to discard, not changes to commit.
 
-#### A-196. `client/` — `pos-cart.tsx` is 429 lines, over the 350-line limit
+#### A-196. `client/` + CI — no CI job runs lint, so §4's line limit and the no-unused-imports rule are unenforced
 - **Found:** 2026-10-09, lint during review of the cart-reveal change.
-- **Location:** `client/components/pos/pos-cart.tsx`.
-- **What's wrong:** root `AGENTS.md` §4 requires files strictly below 350 lines. The cart-reveal work took it to 473; extracting that logic into `lib/hooks/use-reveal-changed-cart-line.ts` cut 44 lines back to 429, which is still over. The violation predates both changes.
-- **Why it went unnoticed:** **no CI job runs lint.** `checks.yml` is `tsc` + `vitest` only, and neither deploy workflow lints either, so §4's line limit and the no-unused-imports rule are unenforced on every PR.
-- **Fix:** split the cart's totals/discount section out of the component; separately, add an eslint step to `checks.yml` so this class of violation fails a PR rather than being found by hand.
-- **It is not the only one, and `client/lib/db/` is worse:** `base-helpers.ts` (687), `push.ts` (663) and `pull.ts` (625) are all well over the limit, and all three grew again with the 2026-10-10 sync fixes. They are deliberately not split in that pass — each is one cohesive choke point whose correctness is the subject of a dozen `AGENTS.md` rules, and a mechanical split of a sync path to satisfy a line count is a worse trade than the violation. Splitting them wants its own change with its own review, and the eslint step above should land first so the number stops drifting silently.
+- **Location:** `.github/workflows/checks.yml`.
+- **What's wrong:** `checks.yml` is `tsc` + `vitest` (client) and `phpunit` (server) only, and neither deploy workflow lints either. The 350-line limit, the no-unused-imports rule and the React hooks rules therefore fail nothing on a PR, which is how `pos-cart.tsx`, `push.ts`, `pull.ts` and `base-helpers.ts` drifted to 429 to 687 lines before the 2026-10-24 cleanup split them. `eslint` is now clean (0 warnings in `client/` and `web/`), `pint --test` and `composer analyse` pass, so a lint step would start green.
+- **Fix:** add `npx eslint --max-warnings 0` for `client/` and `web/`, `composer format` and `composer analyse` for `laravel-server/` to `checks.yml`. That workflow gates every deploy, so land it in its own PR. ESLint's `max-lines` skips blank and comment lines, so it does not enforce the raw 350-line rule; `client/lib/db/core.ts`, `schema.ts`, `schema-migrations.ts`, `local-database.ts`, `constants/suggestions.ts` and `components/ui/chart.tsx` are still over it by raw count and need a decision.
 
 #### A-155. `client/` — a brand-new signup still doesn't land straight on `/dashboard`, even after the A-154 fix
 - **Location:** likely `components/dashboard/dashboard-layout.tsx`'s `if (!user) router.push("/login")` guard (`dashboard-layout.tsx:200-204`), reached right after `app/setup/use-onboarding.ts`'s `finishNewAccountSetup()`/`startSyncProcess()` call `login()` then `router.push("/dashboard")`.
@@ -611,10 +609,10 @@ suggested tackle order rather than a strict ranking.
 - **Why it matters now:** `docs/partner-sop/DumosRx-Partner-SOP.docx` (section 8) instructs partners to check in during the trial and watch for stores going quiet. They can do that per store today; they cannot yet see at a glance which ones are due.
 - **Lesson worth keeping:** the previous version of this entry asserted the Subscriptions worklists were `role:super_admin` only and that no scoped view existed. Both were true when written and neither survived the admin permission work. A stale `KNOWN_BUGS` entry sent a recommendation to the owner to build something that already shipped — §1 exists for this reason.
 
-#### PG-13. `web/` + `laravel-server/` — six admin files are past the 350-line limit
-- **Found:** admin Phase 1 line-count sweep. Not fixed there: none of them is touched by that phase, and `.agents/AGENTS.md` §4's "improve the code you're working in" does not extend to files the change never opens.
-- **Location and size:** `web/components/admin/views/broadcasts-tab.tsx` (472), `web/app/admin/users/page.tsx` (420), `web/components/admin/views/subscription-config-tab.tsx` (399), `web/app/admin/users/new/page.tsx` (394), plus `laravel-server/app/Services/Admin/AdminStoreService.php` (591) and `AdminUserService.php` (610) — the two backend admin services Phase 1 did **not** split (it split `AdminPlatformService`; these two were only touched for a docblock). `web/app/admin/activity/page.tsx` was on this list at 550 lines and is **63 lines today**, so it is struck off rather than carried.
-- **Fix:** split each the way `app/admin/stores/page.tsx` was in Phase 1 — it was 384 lines and came down to 314 by extracting its dialog-wiring block into `components/admin/stores/store-dialog-host.tsx`, which is a pattern that applies directly to `users/page.tsx` and `broadcasts-tab.tsx`. Do it opportunistically when next editing one of these, not as a standalone refactor.
+#### PG-13. `laravel-server/` — two admin services are past the 350-line limit
+- **Found:** admin Phase 1 line-count sweep. Not fixed there: neither is touched by that phase, and `.agents/AGENTS.md` §4's "improve the code you're working in" does not extend to files the change never opens.
+- **Location and size:** `laravel-server/app/Services/Admin/AdminStoreService.php` (591) and `AdminUserService.php` (610 at the sweep; re-count before starting) — the two backend admin services Phase 1 did **not** split (it split `AdminPlatformService`; these two were only touched for a docblock). The four `web/` files this entry named were split on 2026-10-24.
+- **Fix:** split each by responsibility the way `AdminPlatformService` was. Do it opportunistically when next editing one of these, not as a standalone refactor.
 
 #### P3-5. `client/` — PWA install splash screen doesn't follow dark mode
 - **Location:** `client/public/manifest.json`.

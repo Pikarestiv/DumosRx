@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { formatCurrency } from "@/lib/utils";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, Printer, RotateCcw, Wallet } from "lucide-react";
@@ -24,8 +23,9 @@ import { queryKeys } from "@/lib/query-keys";
 import { usePrintReceipt } from "./use-print-receipt";
 import { RecordPaymentModal } from "@/components/customers/record-payment-modal";
 import { toast } from "sonner";
-import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
+import type { SaleWithDetails } from "@/lib/types/sale";
 import { saleToReceiptTransaction } from "./sale-to-receipt-transaction";
+import { TransactionSummaryGrid, computeSaleProfit } from "./transaction-summary-grid";
 import { TransactionItemsView } from "./transaction-items-view";
 import { PriceAdjustmentBadge } from "./price-adjustment-badge";
 import { sumPriceAdjustments } from "@/lib/utils/price-adjustment";
@@ -136,28 +136,7 @@ export function TransactionDetailsDialog({
 
   const totalRefunded = returnsData?.[0]?.total_refunded || 0;
 
-  const totalCostPrice =
-    items?.reduce((acc: number, item: SaleItemDetail) => {
-      const cost =
-        item.cost_price !== null && item.cost_price !== undefined
-          ? item.cost_price
-          : item.med_cost_price || 0;
-      return acc + cost * item.quantity;
-    }, 0) || 0;
-
-  const returnedCostPrice =
-    items?.reduce((acc: number, item: SaleItemDetail) => {
-      const cost =
-        item.cost_price !== null && item.cost_price !== undefined
-          ? item.cost_price
-          : item.med_cost_price || 0;
-      return acc + cost * (item.returned_quantity || 0);
-    }, 0) || 0;
-
-  const profit =
-    (sale.total_amount ?? sale.total ?? 0) -
-    totalRefunded -
-    (totalCostPrice - returnedCostPrice);
+  const profit = computeSaleProfit(sale, items, totalRefunded);
 
   const cashierName = sale.cashier_name || sale.user_name || sale.cashier;
 
@@ -239,50 +218,13 @@ export function TransactionDetailsDialog({
   const content = (
     <div className="flex flex-col flex-1 min-h-0">
       <ScrollFade containerClassName="flex-1" className="px-4 sm:px-6 pb-4">
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-2 p-3 sm:p-4 bg-muted/30 rounded-lg">
-          <div>
-            <p className="text-xs sm:text-sm text-muted-foreground">Customer</p>
-            <p className="font-medium text-sm sm:text-base">
-              {sale.customer_name || "Walk-in"}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Payment Method
-            </p>
-            <p className="font-medium capitalize text-sm sm:text-base">
-              {sale.payment_method}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Total Sale
-            </p>
-            <p className="font-medium text-base sm:text-lg text-primary">
-              {formatCurrency(
-                sale.total_amount ?? sale.total ?? 0,
-                currencyCode,
-              )}
-            </p>
-            {totalRefunded > 0 && (
-              <p className="text-xs font-medium text-destructive mt-0.5">
-                -{formatCurrency(totalRefunded, currencyCode)} refunded
-              </p>
-            )}
-          </div>
-          {showProfit && (
-            <div>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Total Profit
-              </p>
-              <p
-                className={`font-medium text-base sm:text-lg ${profit >= 0 ? "text-emerald-600" : "text-destructive"}`}
-              >
-                {formatCurrency(profit, currencyCode)}
-              </p>
-            </div>
-          )}
-        </div>
+        <TransactionSummaryGrid
+          sale={sale}
+          totalRefunded={totalRefunded}
+          profit={profit}
+          showProfit={showProfit}
+          currencyCode={currencyCode}
+        />
 
         {(priceAdjustments.markup > 0 || priceAdjustments.cut > 0) && (
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

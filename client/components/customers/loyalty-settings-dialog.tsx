@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Loader2, Tag, HelpCircle } from "lucide-react";
+import { Plus, Loader2, Tag } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -13,15 +13,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/lib/context/auth-context";
 import { useStore } from "@/lib/context/store-context";
@@ -42,6 +33,7 @@ import {
 import { queryClient } from "@/lib/query-client";
 import { REDEMPTION_ICONS, REDEMPTION_ICON_BG } from "./loyalty-icons";
 import { LoyaltySettingsRow } from "./loyalty-settings-row";
+import { LoyaltyEarnRateRow, LoyaltyProgramStatusRow } from "./loyalty-program-settings-rows";
 import { LoyaltyTierFormDialog } from "./loyalty-tier-form-dialog";
 import { LoyaltyRedemptionFormDialog } from "./loyalty-redemption-form-dialog";
 import { queryKeys } from "@/lib/query-keys";
@@ -175,67 +167,17 @@ export function LoyaltySettingsDialog({ open, onOpenChange }: Props) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex items-center justify-between rounded-lg border p-4 bg-background">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <Label className="text-base">Program Status</Label>
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>When off, points stop earning and the Redeem Reward option disappears from POS checkout. Tiers and rewards below stay configured for whenever you turn it back on.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Let customers earn and redeem points on purchases
-              </p>
-            </div>
-            <Switch
-              id="loyalty-program-enabled-dialog"
-              checked={loyaltyProgramEnabled}
-              onCheckedChange={handleToggleLoyaltyProgram}
-            />
-          </div>
+          <LoyaltyProgramStatusRow
+            enabled={loyaltyProgramEnabled}
+            onToggle={handleToggleLoyaltyProgram}
+          />
 
-          <div className="flex items-center justify-between rounded-lg border p-4 bg-background gap-4">
-            <div className="space-y-0.5 flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="loyalty-earn-rate" className="text-base">Earn Rate</Label>
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Applies before any tier bonus - a customer in a 2x tier earns double this rate.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Points earned per {currencySymbol}100 spent
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Input
-                id="loyalty-earn-rate"
-                type="number"
-                inputMode="decimal"
-                min="0"
-                step="0.1"
-                className="w-20"
-                value={earnRateInput}
-                onChange={(e) => setEarnRateInput(e.target.value)}
-              />
-              <Button size="sm" variant="outline" onClick={() => void handleSaveEarnRate()}>
-                Save
-              </Button>
-            </div>
-          </div>
+          <LoyaltyEarnRateRow
+            currencySymbol={currencySymbol}
+            value={earnRateInput}
+            onChange={setEarnRateInput}
+            onSave={() => void handleSaveEarnRate()}
+          />
 
           <div className="flex gap-2 border-b pb-2">
             <button

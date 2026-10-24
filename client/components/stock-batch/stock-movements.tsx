@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { Search, Lock, ArrowLeftRight } from "lucide-react";
+import { ArrowLeftRight } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { format, isToday, isYesterday, differenceInDays } from "date-fns";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -14,14 +14,19 @@ import { StockMovementsSkeleton } from "./stock-movements-skeleton";
 import { useRouter, useSearchParams } from "next/navigation";
 import { StockMovement } from "./stock-movement-utils";
 import { mapMovement } from "./stock-movement-mapping";
-import { StockMovementTypeFilter } from "./stock-movement-type-filter";
 import { StockMovementDesktopRow } from "./stock-movement-desktop-row";
 import { StockMovementMobileGroup } from "./stock-movement-mobile-group";
 import { StockMovementDetailModal } from "./stock-movement-detail-modal";
 import { TransferStockDialog } from "./transfer-stock-dialog";
+import {
+  RECENT_ACTIVITY_WINDOW_DAYS,
+  StockMovementsDesktopFilters,
+  StockMovementsGridHeader,
+  StockMovementsMobileFilters,
+  type MovementSortKey,
+} from "./stock-movements-filters";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
-import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
-import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
+import { type DateRangeValue } from "@/components/ui/date-range-picker";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
@@ -29,10 +34,6 @@ import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { useArrowKeyScroll } from "@/lib/hooks/use-arrow-key-scroll";
-
-type MovementSortKey = "date" | "product" | "type" | "quantity" | "reference" | "user";
-
-const RECENT_ACTIVITY_WINDOW_DAYS = 30;
 
 function NoMovementsFound() {
   return (
@@ -71,10 +72,7 @@ export function StockMovements() {
     router.replace(newUrl);
   }, [searchParams, router, canTransferStock]);
 
-  // Default view is bounded to recent activity since this log grows every sale/receive/adjustment.
-  // Respects whatever window is currently active (30-day, custom range, or full history), so a
-  // manual/pull refresh doesn't quietly revert someone back out of it. An explicit date range
-  // takes precedence over full-history mode: it's a bounded window the user picked on purpose.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-movements-tsx-loading-window
   const movementsQuery = useQuery({
     ...queryKeys.stockMovements.list(dateRange, hasFullHistory),
     queryFn: async () => {
@@ -86,9 +84,6 @@ export function StockMovements() {
           : await getStockMovements({ sinceDays: RECENT_ACTIVITY_WINDOW_DAYS });
       return (res.data || []).map(mapMovement);
     },
-    // Keeps the previously loaded rows on screen while a new date range or
-    // history mode is fetched, instead of unmounting into a full skeleton —
-    // that would close an in-progress DateRangePicker Popover selection.
     placeholderData: keepPreviousData,
   });
   const movementsData = movementsQuery.data;
@@ -100,26 +95,16 @@ export function StockMovements() {
     await movementsQuery.refetch();
   });
 
-  // Searching or filtering must match the entire log, not just the recent-activity window
-  // that's loaded by default, so upgrade to full history the first time either is used.
-  // Skipped while a custom date range is active: that's a bounded window the user picked on
-  // purpose, so search/filter should stay scoped within it rather than silently discarding it.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-movements-tsx-loading-window
   useEffect(() => {
     if (dateRange.from || hasFullHistory || (!searchTerm && typeFilter === "all")) return;
     setHasFullHistory(true);
   }, [searchTerm, typeFilter, hasFullHistory, dateRange.from]);
 
-  // Filter -> fuzzy search -> date grouping all ran on every render; once the
-  // search-triggered full-history load fires, that is the whole ledger being
-  // re-scanned on every keystroke.
   const preFilteredMovements = useMemo(
     () =>
       movements.filter((movement) => {
         if (typeFilter === "all") return true;
-        // "Transfers" is one filter chip covering both legs (transfer_out on
-        // the sending store's ledger, transfer_in on the receiving store's)
-        // rather than two separate chips a user would have to know to toggle
-        // together.
         if (typeFilter === "transfer")
           return movement.type.startsWith("transfer_");
         return movement.type === typeFilter;
@@ -181,142 +166,34 @@ export function StockMovements() {
     );
   }, [filteredMovements]);
 
-  // Only the very first load shows the full-page skeleton. Later refetches
-  // (date-range picks, pull-to-refresh, search-driven full-history upgrade)
-  // must NOT swap out the whole component tree: that would unmount the
-  // DateRangePicker's open Popover mid-selection, closing it before the
-  // user can click a second date to complete the range.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-movements-tsx-loading-window
   if (loading && initialLoad) {
     return <StockMovementsSkeleton />;
   }
 
+  const filterProps = {
+    searchTerm,
+    setSearchTerm,
+    typeFilter,
+    setTypeFilter,
+    dateRange,
+    setDateRange,
+    hasFullHistory,
+  };
+
   return (
     <div className="relative flex flex-col flex-1 min-h-0">
-      {/* Mobile: search + type/date filters stand alone above the list; no outer card, immutable-log note hidden */}
-      {!isDesktop && (
-      <div className="space-y-3 mb-4">
-        <div className="flex items-center gap-2 bg-card border border-border rounded-[10px] px-3.5 py-2.5">
-          <Search className="w-4 h-4 text-muted-foreground/70 shrink-0" />
-          <input
-            type="text"
-            placeholder="Search by product, reference, or user"
-            className="border-0 outline-none text-[13px] w-full bg-transparent"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <StockMovementTypeFilter
-            typeFilter={typeFilter}
-            setTypeFilter={setTypeFilter}
-            className="flex-1 h-9 text-[13px] bg-card border-border"
-          />
-          <DateRangePicker value={dateRange} onChange={setDateRange} className="flex-1" />
-        </div>
-        {dateRange.from && (
-          <button
-            onClick={() => setDateRange({})}
-            className="text-[11.5px] text-muted-foreground hover:text-foreground underline px-0.5"
-          >
-            Clear date range
-          </button>
-        )}
-        {!hasFullHistory && !dateRange.from && (
-          <p className="text-[11.5px] text-muted-foreground/70 px-0.5">
-            Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days. Search or select
-            a date range to look further back.
-          </p>
-        )}
-      </div>
-      )}
+      {!isDesktop && <StockMovementsMobileFilters {...filterProps} />}
 
       {isDesktop && (
       <div className="flex bg-card border border-border rounded-2xl flex-col flex-1 min-h-0">
-        {/* Header & Filters */}
-        <div className="p-4 pb-3 border-b border-border">
-          <div className="flex items-center gap-2 bg-muted/30 border border-border rounded-[10px] px-3.5 py-2.5 mb-3">
-            <Search className="w-4 h-4 text-muted-foreground/70 shrink-0" />
-            <input
-              type="text"
-              placeholder="Search by product, reference, or user"
-              className="border-0 outline-none text-[13px] w-full bg-transparent"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <StockMovementTypeFilter
-                typeFilter={typeFilter}
-                setTypeFilter={setTypeFilter}
-                className="w-[150px] h-9 text-[13px] bg-muted/30 border-border"
-              />
-              <DateRangePicker value={dateRange} onChange={setDateRange} className="bg-muted/30 border-border" />
-            </div>
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground/70 whitespace-nowrap">
-                <Lock className="w-3.5 h-3.5" />
-                Immutable log, entries can&apos;t be edited
-              </div>
-            </div>
-          </div>
-          {dateRange.from && (
-            <button
-              onClick={() => setDateRange({})}
-              className="text-[11.5px] text-muted-foreground hover:text-foreground underline mt-2"
-            >
-              Clear date range
-            </button>
-          )}
-          {!hasFullHistory && !dateRange.from && (
-            <p className="text-[11.5px] text-muted-foreground/70 mt-2">
-              Showing last {RECENT_ACTIVITY_WINDOW_DAYS} days. Search or
-              select a date range to look further back.
-            </p>
-          )}
-        </div>
+        <StockMovementsDesktopFilters {...filterProps} />
+        <StockMovementsGridHeader
+          sortKey={sortKey}
+          direction={direction}
+          toggleSort={toggleSort}
+        />
 
-        {/* Desktop Grid Header */}
-        <div className="grid grid-cols-[100px_minmax(0,1fr)_130px_100px_minmax(0,1fr)_120px] gap-2 px-4 py-2.5 text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wide border-b border-border">
-          <SortableHeaderCell
-            label="Time"
-            active={sortKey === "date"}
-            direction={direction}
-            onClick={() => toggleSort("date")}
-          />
-          <SortableHeaderCell
-            label="Product"
-            active={sortKey === "product"}
-            direction={direction}
-            onClick={() => toggleSort("product")}
-          />
-          <SortableHeaderCell
-            label="Type"
-            active={sortKey === "type"}
-            direction={direction}
-            onClick={() => toggleSort("type")}
-          />
-          <SortableHeaderCell
-            label="Qty"
-            active={sortKey === "quantity"}
-            direction={direction}
-            onClick={() => toggleSort("quantity")}
-          />
-          <SortableHeaderCell
-            label="Reference / Reason"
-            active={sortKey === "reference"}
-            direction={direction}
-            onClick={() => toggleSort("reference")}
-          />
-          <SortableHeaderCell
-            label="User"
-            active={sortKey === "user"}
-            direction={direction}
-            onClick={() => toggleSort("user")}
-          />
-        </div>
-
-        {/* List */}
         <div ref={desktopScrollRef} className="flex-1 overflow-y-auto stable-scrollbar pb-6">
           {sortedMovements.length === 0 && <NoMovementsFound />}
           {sortedMovements.length > 0 && (
@@ -349,11 +226,8 @@ export function StockMovements() {
       </div>
       )}
 
-      {/* Mobile: grouped list, each group already renders its own card.
-          Conditionally rendered, not `md:hidden`: the desktop branch is
-          virtualized and this one isn't, so CSS-hiding meant desktop paid
-          for a full unvirtualized render of the whole ledger and then threw
-          it away. */}
+      {/* Mobile: grouped list, each group renders its own card. Conditionally rendered, not `md:hidden`. */}
+      {/* Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-movements-tsx-loading-window */}
       {!isDesktop && (
       <div>
         {filteredMovements.length === 0 && <NoMovementsFound />}

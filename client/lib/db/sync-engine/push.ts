@@ -1,6 +1,5 @@
 import {
   getPendingSyncItems,
-  markConflictSettled,
   markSynced,
   recordSyncFailure,
 } from "../local-database";
@@ -17,45 +16,18 @@ import {
 import {
   coalescePendingUpdates,
   compareCategoriesFirst,
-  normalizeDatetimeFields,
   withheldRecordsWithBackedOffSiblingsRemoved,
 } from "./push-queue-prep";
 import { exchangeReportsOnly } from "./push-reports-only";
 import { announceTerminalConflicts, type PushConflict } from "./push-conflict-toasts";
+import { filterPushableChanges, mapBatchPayloads, type PushRejection } from "./push-request";
+import { applyDuplicateNameIdMap, applyServerVersions, settleFailedChanges } from "./push-response";
 import { PushResponse } from "./types";
 import type { SyncChange } from "@/lib/types/sync";
-import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconcile-identity";
 import { resolveSyncRun, type SyncRun } from "./sync-run";
-import {
-  conflictFieldList,
-  recordTerminalConflict,
-  resolveConflictsForRecords,
-} from "./conflict-log";
-import { execute, query, transaction } from "../core";
+import { resolveConflictsForRecords } from "./conflict-log";
+import { transaction } from "../core";
 import { isExpectedSyncNoise } from "@/lib/utils/error-logger";
-import { isUuid } from "@/lib/utils/uuid";
-import { rewindPullWindow, TABLES_NEVER_PULLED } from "./pull-window";
-
-// Terminal: the queued payload is frozen, so resending can never change the
-// outcome. See client/AGENTS.md, "Push details (sync-engine/push.ts)".
-const NON_RETRYABLE_CONFLICT_REASONS = new Set([
-  "version_conflict",
-  "stale_timestamp",
-  "quantity_received_exceeds_ordered",
-  "permission_denied",
-]);
-
-// No pull can ever settle these, so left unsynced they are requeued and re-refused for ever.
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-push-ts-L43
-const TERMINAL_CONFLICT_SETTLES_SOURCE_ROW = new Set(["audit_logs", "feedback"]);
-
-// Unreachable by any future pull, whatever table it's on - see A-161.
-// Deliberately excludes `forbidden`; see docs/KNOWN_BUGS.md A-165.
-const REASONS_SETTLING_SOURCE_ROW = new Set(["permission_denied"]);
-
-// Reasons where the server kept a row this device now disagrees with, so the device has to be made to re-pull it.
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-push-ts-L55
-const REASONS_NEEDING_REPULL = new Set(["version_conflict", "stale_timestamp"]);
 
 const SYNC_BATCH_SIZE = 50;
 
@@ -138,95 +110,11 @@ export async function pushChanges(
     const alreadyRejectedIds = new Set<number>();
 
     try {
-      const rejected: { id: number; reason: string }[] = [];
+      const rejected: PushRejection[] = [];
 
-      const mapped: SyncChange[] = await Promise.all(
-        batch.map(async (item) => {
-          const payload = JSON.parse(item.payload);
-          delete payload._deleted;
-          // _version is intentionally kept — the server's conflict check
-          // needs it (see client/AGENTS.md, "Push details").
-          delete payload._synced;
-          delete payload._synced_at;
+      const mapped: SyncChange[] = await mapBatchPayloads(batch);
 
-          // The frozen payload's _version can already be stale; re-read the
-          // current one (client/AGENTS.md, "Push details").
-          if (item.operation === "UPDATE") {
-            // Falls back to the frozen value so one bad row can't reject the
-            // whole batch's Promise.all.
-            try {
-              const current = await query<{ _version: number }>(
-                `SELECT _version FROM ${item.table_name} WHERE id = ?`,
-                [item.record_id],
-              );
-              if (current[0]?._version !== undefined) {
-                payload._version = current[0]._version;
-              }
-            } catch (err) {
-              console.warn(
-                `[Sync] Failed to re-read current _version for ${item.table_name}/${item.record_id}, sending the frozen value instead:`,
-                err,
-              );
-            }
-          }
-
-          normalizeDatetimeFields(payload);
-
-          return {
-            ...item,
-            payload,
-          };
-        }),
-      );
-
-      const changes = mapped.filter((item) => {
-        if (item.table_name === "products") {
-          // Stale columns still present in payloads queued before the server
-          // dropped them; strip rather than reject the whole row.
-          delete item.payload.brand_name;
-          delete item.payload.supplier_id;
-
-          // Prevent bad payloads from blocking the entire sync queue
-          if (
-            item.payload.category_id &&
-            !isUuid(item.payload.category_id)
-          ) {
-            for (const id of idsFor(item.id)) {
-              rejected.push({ id, reason: "Invalid category_id (not a UUID)" });
-            }
-            return false;
-          }
-          if (
-            item.payload.supplier_id &&
-            !isUuid(item.payload.supplier_id)
-          ) {
-            for (const id of idsFor(item.id)) {
-              rejected.push({ id, reason: "Invalid supplier_id (not a UUID)" });
-            }
-            return false;
-          }
-        }
-        if (item.table_name === "stock_movements") {
-          // Laravel backend requires stock_batch_id for stock_movements. Drop if null.
-          if (!item.payload.stock_batch_id) {
-            for (const id of idsFor(item.id)) {
-              rejected.push({ id, reason: "Missing required stock_batch_id" });
-            }
-            return false;
-          }
-        }
-        if (item.table_name === "stock_batches") {
-          if (item.payload && "selling_price" in item.payload) {
-            delete item.payload.selling_price;
-          }
-          // INSERT only — never widen this to UPDATE (client/AGENTS.md,
-          // "Push details": it clobbers real batch_numbers server-side).
-          if (item.operation === "INSERT" && !item.payload.batch_number) {
-            item.payload.batch_number = "Opening Stock";
-          }
-        }
-        return true;
-      });
+      const changes = filterPushableChanges(mapped, idsFor, rejected);
 
       // Filtered-out items are never silently dropped; one transaction so
       // sql.js exports the database once, not once per item.
@@ -301,107 +189,20 @@ export async function pushChanges(
           await resolveConflictsForRecords(succeededRecords);
           pushedCount += succeededIds.length;
 
-          const rewoundTables = new Set<string>();
-
-          for (const f of response.failed ?? []) {
-            if (f.id == null) continue;
-            const underlyingIds = idsFor(f.id);
-
-            if (NON_RETRYABLE_CONFLICT_REASONS.has(f.reason)) {
-              // Terminal: drop every merged queue row rather than retrying.
-              // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-push-ts-L491
-              const placeholders = underlyingIds.map(() => "?").join(", ");
-              const priorAttempts = await query<{ retry_count: number | null }>(
-                `SELECT retry_count FROM _sync_queue WHERE id IN (${placeholders})`,
-                underlyingIds,
-              );
-              const wasRetried = priorAttempts.some((row) => (row.retry_count ?? 0) > 0);
-
-              await execute(`DELETE FROM _sync_queue WHERE id IN (${placeholders})`, underlyingIds);
-
-              if (
-                TERMINAL_CONFLICT_SETTLES_SOURCE_ROW.has(f.table_name) ||
-                REASONS_SETTLING_SOURCE_ROW.has(f.reason)
-              ) {
-                await markConflictSettled(f.table_name, f.record_id);
-              }
-
-              // Durable trace of what this drop lost, for surfaces that must
-              // outlive the toast below (A-26 — see conflict-log.ts).
-              await recordTerminalConflict({
-                table_name: f.table_name,
-                record_id: f.record_id,
-                reason: f.reason,
-                fields: conflictFieldList(
-                  changes.find((c) => c.id === f.id)?.payload as
-                    | Record<string, unknown>
-                    | undefined,
-                ),
-              });
-
-              if (
-                REASONS_NEEDING_REPULL.has(f.reason) &&
-                !TABLES_NEVER_PULLED.has(f.table_name) &&
-                !rewoundTables.has(f.table_name)
-              ) {
-                rewoundTables.add(f.table_name);
-                await rewindPullWindow(activeRun.storeId ?? "", f.table_name, f.reason);
-              }
-
-              if (wasRetried) {
-                silencedConflicts.push({ table_name: f.table_name, record_id: f.record_id });
-              } else {
-                versionConflicts.push({ table_name: f.table_name, record_id: f.record_id, reason: f.reason });
-              }
-            } else {
-              for (const id of underlyingIds) {
-                await recordSyncFailure(id, f.reason);
-              }
-            }
-          }
+          await settleFailedChanges(
+            response.failed ?? [],
+            changes,
+            idsFor,
+            activeRun.storeId,
+            versionConflicts,
+            silencedConflicts,
+          );
 
           // The duplicate-name id remap must be applied locally here; no
           // future pull will do it (client/AGENTS.md, "Push details").
-          for (const [table, mapping] of Object.entries(response.id_map ?? {})) {
-            if (!Object.hasOwn(DUPLICATE_NAME_TABLES, table)) continue;
-            const refs = DUPLICATE_NAME_TABLES[table];
-            if (!refs) continue;
-            const tableHasStoreId = await columnExists(table, "store_id");
-            for (const [oldId, newId] of Object.entries(mapping)) {
-              if (oldId === newId) continue;
-              // A real read error must roll the batch back like its
-              // neighbours, so the absent column is guarded, never caught.
-              const losing = tableHasStoreId
-                ? await query<{ store_id: string | null }>(
-                    `SELECT store_id FROM ${table} WHERE id = ?`,
-                    [oldId],
-                  )
-                : [];
-              await remapForeignKey(oldId, newId, refs, losing[0]?.store_id ?? null);
-              await execute(`UPDATE ${table} SET _deleted = 1 WHERE id = ?`, [oldId]);
-              // remapForeignKey() rewrites payload content only, never the
-              // queue row's own record_id, which the server looks up by.
-              await execute(
-                `UPDATE _sync_queue SET record_id = ? WHERE table_name = ? AND record_id = ?`,
-                [newId, table, oldId],
-              );
-            }
-          }
+          await applyDuplicateNameIdMap(response.id_map ?? {});
 
-          // Caught per row: an unrecognized `table` throwing here would roll
-          // back the whole batch, markSynced() included.
-          for (const [table, mapping] of Object.entries(response.versions ?? {})) {
-            for (const [recordId, newVersion] of Object.entries(mapping)) {
-              try {
-                await execute(`UPDATE ${table} SET _version = ? WHERE id = ?`, [newVersion, recordId]);
-              } catch (err) {
-                console.warn(
-                  `[Sync] Failed to apply server-assigned _version to ${table}/${recordId}:`,
-                  err,
-                );
-              }
-            }
-          }
+          await applyServerVersions(response.versions ?? {});
         });
 
         // After this batch's bookkeeping, never before:

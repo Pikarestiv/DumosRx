@@ -2,15 +2,9 @@
 
 import { memo, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import {
-  ShoppingCart,
-  Trash2,
-  PauseCircle,
-  ClipboardList,
-  FileText,
-  Lock,
-} from "lucide-react";
+import { Trash2, PauseCircle, ClipboardList, FileText } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { EmptyCart, HeldSalesChip, PrescriptionLockBanner } from "./pos-cart-notices";
 import { RequestItemDialog } from "./request-item-dialog";
 import { ProformaPreviewDialog } from "./proforma-preview-dialog";
 import { POSCartItem } from "./pos-cart-item";
@@ -139,22 +133,7 @@ export const POSCart = memo(function POSCart({
 
   return (
     <div className="flex flex-col h-full">
-      {!!isPrescriptionLocked && (
-        <div className="mx-5 mt-3 flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-primary/20 bg-primary/5 text-primary shrink-0">
-          <span className="flex items-center gap-1.5 text-[11.5px] font-semibold">
-            <Lock className="w-3.5 h-3.5" />
-            Cart locked to this prescription
-          </span>
-          {!!onEditPrescription && (
-            <button
-              onClick={onEditPrescription}
-              className="text-[11.5px] font-bold underline underline-offset-2 shrink-0 cursor-pointer"
-            >
-              Edit prescription
-            </button>
-          )}
-        </div>
-      )}
+      {!!isPrescriptionLocked && <PrescriptionLockBanner onEditPrescription={onEditPrescription} />}
       {cart.length > 0 && canUseMarkupSales && (
         <POSCartMarkupPicker
           pickerRef={markupPickerRef}
@@ -188,20 +167,7 @@ export const POSCart = memo(function POSCart({
       </div>
 
       <div className="border-t border-border px-5 pt-4 pb-5 bg-muted/10">
-        {heldSalesCount > 0 && (
-          <button
-            onClick={onOpenHeldSales}
-            className="w-1/2 flex items-center justify-between gap-1.5 px-2 py-1 mb-2.5 rounded-md border border-amber-500/20 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 transition-colors cursor-pointer"
-          >
-            <span className="flex items-center gap-1 text-[11px] font-semibold">
-              <PauseCircle className="w-3 h-3" />
-              {heldSalesCount} on hold
-            </span>
-            <span className="text-[10.5px] font-bold underline underline-offset-2">
-              View
-            </span>
-          </button>
-        )}
+        {heldSalesCount > 0 && <HeldSalesChip count={heldSalesCount} onOpen={onOpenHeldSales} />}
 
         <div className="space-y-2 mb-4">
           <div className="flex justify-between text-[12.5px] text-muted-foreground">
@@ -338,13 +304,3 @@ export const POSCart = memo(function POSCart({
     </div>
   );
 });
-
-function EmptyCart() {
-  return (
-    <div className="text-center py-10 text-muted-foreground h-full flex flex-col items-center justify-center">
-      <ShoppingCart className="h-8 w-8 mb-3 opacity-30" />
-      <p className="text-sm font-medium">Cart is empty</p>
-      <p className="text-xs mt-1">Tap products to add them to the cart</p>
-    </div>
-  );
-}

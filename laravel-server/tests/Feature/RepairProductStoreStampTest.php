@@ -355,4 +355,15 @@ class RepairProductStoreStampTest extends TestCase
 
         $this->assertContains($batchId, $this->pulledBatchIds($this->correctStore->id, $watermark));
     }
+
+    public function test_a_store_less_product_whose_only_evidence_is_movements_is_not_a_candidate(): void
+    {
+        $productId = $this->insertProduct(null, 'movements only');
+        $batchId = $this->insertBatchWithMovement($productId, null);
+        DB::table('stock_movements')->where('stock_batch_id', $batchId)->update(['store_id' => $this->correctStore->id]);
+
+        $this->artisan('sync:repair-product-store-stamps')->assertSuccessful();
+
+        $this->assertNull($this->productRow($productId)->store_id);
+    }
 }

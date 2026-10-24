@@ -91,7 +91,7 @@ class RepairProductStoreStamps extends Command
 
     /**
      * Candidates: a product holding a batch whose own non-NULL `store_id` differs, or a store-less product whose
-     * batches or movements name a store (A-248: the server no longer guesses one for a multi-store session).
+     * batches name a store; its movements are not evidence, the server backfills their store from the session (A-248).
      *
      * @return array{0: array<int, array<string, mixed>>, 1: array<int, array<string, mixed>>}
      */
@@ -110,9 +110,7 @@ class RepairProductStoreStamps extends Command
                         ->whereNotNull('stock_batches.store_id')
                         ->whereColumn('stock_batches.store_id', '<>', 'products.store_id')))
                     ->orWhere(fn ($storeless) => $storeless->whereNull('store_id')
-                        ->where(fn ($e) => $e
-                            ->whereExists(fn ($b) => $b->from('stock_batches')->whereColumn('stock_batches.product_id', 'products.id')->whereNotNull('stock_batches.store_id'))
-                            ->orWhereExists(fn ($m) => $m->from('stock_movements')->whereColumn('stock_movements.product_id', 'products.id')->whereNotNull('stock_movements.store_id')))))
+                        ->whereExists(fn ($b) => $b->from('stock_batches')->whereColumn('stock_batches.product_id', 'products.id')->whereNotNull('stock_batches.store_id'))))
                 ->orderBy('id')
                 ->limit(self::CHUNK)
                 ->get(['id', 'name', 'store_id', 'user_id']);
@@ -144,12 +142,8 @@ class RepairProductStoreStamps extends Command
     }
 
     /**
-     * The store a product actually belongs to is the single store every piece
-     * of its stock evidence agrees on — the `store_id` its batches carry
-     * (which the client sets and the server never backfills) together with
-     * the one its movements carry. Anything else is refused rather than
-     * guessed: a row handed to the wrong pharmacy is worse than one left
-     * wrong where it is already known to be wrong.
+     * The one store all its batches name, plus its movements' unless it is store-less; anything else is refused.
+     * Rules: laravel-server/AGENTS.md, "Mis-stamped product repair".
      *
      * @return array<string, mixed>
      */
@@ -169,7 +163,7 @@ class RepairProductStoreStamps extends Command
 
         $evidence = array_values(array_unique(array_merge(
             array_filter($batches->pluck('store_id')->all()),
-            $movementStores,
+            $product->store_id === null ? [] : $movementStores,
         )));
 
         $case = [

@@ -2,8 +2,8 @@ import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import initSqlJs, { type Database } from "sql.js";
 
 vi.mock("idb-keyval", () => ({
-  get: vi.fn(async () => undefined),
-  set: vi.fn(async () => undefined),
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
 vi.mock("@/lib/api/client", () => ({
@@ -45,11 +45,12 @@ describe("legacy product attribution before push (A-248)", () => {
     apiClient.pushChanges.mockResolvedValue({ success: true, processed: 1, failed: [] });
   });
 
-  function seedLegacyProduct(id: string, batchStores: string[]) {
+  function seedLegacyProduct(id: string, batchStores: string[], queued = true) {
     db.run(`INSERT INTO products (id, name, store_id, _deleted) VALUES (?, 'Legacy', NULL, 0)`, [id]);
     batchStores.forEach((storeId, i) => {
       db.run(`INSERT INTO stock_batches (id, product_id, store_id, quantity, _deleted) VALUES (?, ?, ?, 1, 0)`, [`${id}-b${i}`, id, storeId]);
     });
+    if (!queued) return;
     db.run(
       `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at) VALUES ('products', ?, 'INSERT', ?, '2026-08-01T00:00:00Z')`,
       [id, JSON.stringify({ id, name: "Legacy" })],
@@ -92,5 +93,14 @@ describe("legacy product attribution before push (A-248)", () => {
     await pushChanges();
 
     expect(localStore("p3")).toBeNull();
+  });
+
+  it("leaves a store-less product with no pending INSERT alone, so the device never diverges from what it pushed", async () => {
+    db.run(`INSERT INTO stores (id, name) VALUES ('store-a', 'A'), ('store-b', 'B')`);
+    seedLegacyProduct("p4", ["store-a"], false);
+
+    await pushChanges();
+
+    expect(localStore("p4")).toBeNull();
   });
 });

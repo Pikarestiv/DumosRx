@@ -464,7 +464,7 @@ class SyncPushStoreIdBackfillTest extends TestCase
         ], 'UPDATE', ['X-Store-Id' => $second->id])->assertJsonCount(0, 'failed');
     }
 
-    public function test_a_two_store_owners_store_less_product_with_no_stock_falls_back_to_the_active_store()
+    public function test_a_two_store_owners_store_less_product_with_no_stock_is_not_guessed()
     {
         $second = $this->createSecondStore();
 
@@ -472,7 +472,41 @@ class SyncPushStoreIdBackfillTest extends TestCase
             'id' => 'product-a248-new-legacy', 'name' => 'Legacy Syrup', 'selling_price' => 500,
         ], 'INSERT', ['X-Store-Id' => $second->id])->assertJsonCount(0, 'failed');
 
-        $this->assertSame($second->id, DB::table('products')->where('id', 'product-a248-new-legacy')->value('store_id'));
+        $this->assertNull(DB::table('products')->where('id', 'product-a248-new-legacy')->value('store_id'));
+    }
+
+    public function test_a_store_less_product_is_attributed_when_its_stock_arrives_in_a_later_push()
+    {
+        $second = $this->createSecondStore();
+        $this->push('products', 'product-later-stock', [
+            'id' => 'product-later-stock', 'name' => 'Legacy Syrup', 'selling_price' => 500,
+        ], 'INSERT', ['X-Store-Id' => $second->id])->assertJsonCount(0, 'failed');
+
+        $this->push('stock_batches', 'product-later-stock-batch', [
+            'id' => 'product-later-stock-batch', 'product_id' => 'product-later-stock', 'store_id' => $this->store->id,
+            'batch_number' => 'B-1', 'quantity' => 5, 'cost_price' => 50, '_version' => 1,
+        ], 'INSERT', ['X-Store-Id' => $second->id])->assertStatus(200);
+
+        $this->assertSame($this->store->id, DB::table('products')->where('id', 'product-later-stock')->value('store_id'));
+    }
+
+    public function test_an_attributed_product_naming_the_other_stores_category_is_re_owned()
+    {
+        $second = $this->createSecondStore();
+        $ownDrugs = new \App\Models\Category(); $ownDrugs->name = 'drugs'; $ownDrugs->store_id = $this->store->id; $ownDrugs->is_active = true; $ownDrugs->save();
+        $otherDrugs = new \App\Models\Category(); $otherDrugs->name = 'drugs'; $otherDrugs->store_id = $second->id; $otherDrugs->is_active = true; $otherDrugs->save();
+
+        $this->actingAs($this->owner)->withHeaders(['X-Store-Id' => $second->id])->postJson('/api/v1/app/sync/push', ['setup' => true, 'changes' => [
+            ['table_name' => 'products', 'operation' => 'INSERT', 'record_id' => 'product-cat-reown',
+                'payload' => ['id' => 'product-cat-reown', 'name' => 'Legacy Syrup', 'selling_price' => 500, 'category_id' => $otherDrugs->id]],
+            ['table_name' => 'stock_batches', 'operation' => 'INSERT', 'record_id' => 'product-cat-reown-batch',
+                'payload' => ['id' => 'product-cat-reown-batch', 'product_id' => 'product-cat-reown', 'store_id' => $this->store->id,
+                    'batch_number' => 'B-1', 'quantity' => 5, 'cost_price' => 50, '_version' => 1]],
+        ]])->assertStatus(200);
+
+        $row = DB::table('products')->where('id', 'product-cat-reown')->first();
+        $this->assertSame($this->store->id, $row->store_id);
+        $this->assertSame($ownDrugs->id, $row->category_id);
     }
 
     public function test_the_stock_overrules_the_active_store_for_a_store_less_product()

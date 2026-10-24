@@ -1133,12 +1133,19 @@ migration here **and** the corresponding update on the `client/` side
     last), gives each store-less one the single store named by its stored
     batches plus the movement stores the client itself sent in this push. A
     movement's stored store is not evidence: the server backfills it from the
-    session. Evidence naming two stores leaves the product unattributed (the
-    repair command reports it); no evidence at all falls back to the active
-    store, but only for a product this push created. Attributed products get
-    their batches' `_synced_at` restamped, because a batch is pulled through
-    its product but filtered by its own stamp. Other tables in the list still
-    take the guess (A-326).
+    session. Only committed changes count: a change that rolls back is not
+    evidence. Evidence naming two stores, or a store outside the session's
+    scope (a super admin's scope is every store), leaves the product
+    unattributed and logged; so does no evidence at all, which is the
+    deliberate cost of not guessing (A-327). It stays `NULL` across requests,
+    so stock arriving in a later push still attributes it, and the repair
+    command attributes the rest. Stamping runs in its own savepoint, bumps
+    `_version`, and passes the product's `category_id` through
+    `CrossStoreReferenceGuard` so a sibling store's category is re-owned.
+    Attributed products get their batches' `_synced_at` restamped, because a
+    batch is pulled through its product but filtered by its own stamp. A
+    single-store session is still backfilled: its one store is not a guess.
+    Other tables in the list still take the guess (A-326).
   - **The backfill half of that list is INSERT-only; the foreign-store
     refusal half is not.** `normalizePushPayload()` runs for every operation,
     and a client UPDATE normally carries no `store_id` (the exception is the

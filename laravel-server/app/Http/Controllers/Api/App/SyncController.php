@@ -307,6 +307,7 @@ class SyncController extends Controller
                 $pendingStockBatchDelta = null;
                 $restamper->discardChange();
                 $crossStoreGuard->discardChange();
+                $storelessProducts->discardChange();
 
                 // The OA doc marks payload as nullable (DELETE doesn't need one), and the
                 // request validation above allows it through as such. Default a genuinely-
@@ -476,7 +477,7 @@ class SyncController extends Controller
 
                         $model->save();
                         $restamper->remember($model);
-                        $storelessProducts->afterWrite($change['table_name'], $model, $clientNamedStoreId, true);
+                        $storelessProducts->afterWrite($change['table_name'], $model, $clientNamedStoreId);
 
                         // stock_batches.quantity is derived from stock_movements deltas,
                         // never trusted directly from a client payload (INSERT above, or
@@ -729,7 +730,7 @@ class SyncController extends Controller
 
                         $model->save();
                         $restamper->remember($model);
-                        $storelessProducts->afterWrite($change['table_name'], $model, $clientNamedStoreId, false);
+                        $storelessProducts->afterWrite($change['table_name'], $model, $clientNamedStoreId);
 
                         if ($newVersion !== null) {
                             $versions[$change['table_name']][$recordId] = $newVersion;
@@ -795,6 +796,7 @@ class SyncController extends Controller
                 }
 
                 $crossStoreGuard->commitChange($restamper);
+                $storelessProducts->commitChange();
                 $restamper->commitChange();
                 $processed++;
                 DB::commit();
@@ -802,6 +804,7 @@ class SyncController extends Controller
                     DB::rollBack();
                     $restamper->discardChange();
                     $crossStoreGuard->discardChange();
+                    $storelessProducts->discardChange();
                     Log::warning("Sync push: skipped {$change['table_name']} " . ($change['record_id'] ?? '?') . ": " . $e->getMessage());
                     $failed[] = [
                         'id' => $change['id'] ?? null,
@@ -822,7 +825,7 @@ class SyncController extends Controller
 
             $firstSyncedStore = $this->touchStoreLastSyncAt($request);
 
-            $storelessProducts->attribute($isSuperAdmin ? null : $allowedStoreIds, $currentStoreId, $restamper, now());
+            $storelessProducts->attribute($isSuperAdmin ? null : $allowedStoreIds, $crossStoreGuard, $restamper, now());
             $restamper->restamp(now());
 
             DB::commit();

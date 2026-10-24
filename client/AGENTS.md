@@ -1749,9 +1749,11 @@ table the client never pulls.
   of every push on a device holding more than one store,
   `attributeStorelessProductsFromEvidence()` gives a store-less product the
   one store its own `stock_batches` and `stock_movements` all name, both
-  locally and in its pending INSERT payload. Evidence naming two stores, or
-  none, leaves it alone. It runs before the push's fingerprints, exits at once
-  when no store-less product exists, and never fails a push. The server makes
+  locally and in its pending INSERT payload, in one transaction. Only products
+  with a pending INSERT are touched, so the local row never diverges from
+  what the device pushes. Evidence naming two stores, or none, leaves it
+  alone. It runs before the push's fingerprints, exits at once when no such
+  product exists, and never fails a push. The server makes
   the same call from the stock it receives, so this is the head start, not the
   only line. Pinned by `legacy-product-attribution.test.ts`.
 - **Duplicate-name reconciliation:** a local row absent from the response

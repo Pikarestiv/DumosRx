@@ -6649,6 +6649,25 @@ number into local SQLite and hope it matches. Treat this exactly like the
 `laravel-server/AGENTS.md` — writing one of these fields via `insert()`/
 `update()` from this client is a bug, not a shortcut.
 
+### Stored instants are real ISO instants; legacy zone-less values read as UTC (A-333, 2026-10-24)
+
+Write an instant with `new Date().toISOString()` (`2026-10-24T20:17:00.000Z`),
+never `.slice(0, 19).replace("T", " ")`. That form (`2026-10-24 20:17:00`) is
+what MySQL `DATETIME` wants, and the push already produces it:
+`normalizeDatetimeFields()` in `sync-engine/push-queue-prep.ts` rewrites every
+ISO-shaped string just before it is sent. Storing it locally, as purchase
+receipts did, drops the zone, and `new Date("2026-10-24 20:17:00")` then reads
+it as local time, one hour early in Lagos.
+
+Rows already stored that way, here and on the server, are not backfilled.
+`toUtcInstant()` in `lib/utils/date-utils.ts` turns a zone-less
+`YYYY-MM-DD HH:mm:ss` into its UTC instant and leaves anything else alone; it is
+applied where a movement's date enters a view (`mapMovement`,
+`adjustment-derivations.ts`, the movement details dialog). Remove it once no
+device still holds a zone-less `created_at` or `movement_date`, which the
+`LEGACY_PRODUCT_IMPORT_REASON` precedent handles the same way. `formatDateSafe`
+is deliberately not changed, so other callers keep parsing exactly as before.
+
 ## Current focus / recent work (update this section as work continues)
 
 Most recent work (2026-09-29, latest) shipped the **in-app assistant**

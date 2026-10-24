@@ -3,12 +3,13 @@ import {
   STOCK_TRANSFER_REVIEWED_STATUS,
 } from "@/lib/db/queries/stock-transfers";
 import type { StockMovementDbRow } from "@/lib/types/stock-movement";
+import { toUtcInstant } from "@/lib/utils/date-utils";
 import { type StockMovement, resolveMovementDisplayType } from "./stock-movement-utils";
 
 export function mapMovement(m: StockMovementDbRow): StockMovement {
   return {
     id: m.id,
-    date: m.created_at || m.movement_date || "",
+    date: toUtcInstant(m.created_at || m.movement_date || ""),
     product: m.product_name || "Unknown",
     type: resolveMovementDisplayType(m),
     quantity: m.quantity || 0,

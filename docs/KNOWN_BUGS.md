@@ -462,12 +462,6 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
-#### A-333. `client/` — a purchase receipt's stock movement shows one hour early (a zone-less UTC string read as local time)
-- **Found:** 2026-10-24, by the local browser smoke test of the lint and refactor change set (not a regression: the file is unchanged since the base commit).
-- **Location:** `client/lib/db/procurement-receiving.ts:54` and `:198` set `now = new Date().toISOString().slice(0, 19).replace('T', ' ')`, a UTC wall-clock string with no zone, and write it to `created_at` on the movement, batch and related rows. Other writers store a full `toISOString()` with `Z`. `components/stock-batch/stock-movements.tsx:151` does `new Date(movement.date)`, which parses a zone-less string as local time.
-- **What's wrong:** on a device at UTC+1 a PO received at 21:17 shows as 20:17 in the movements ledger, while sales and adjustments show correct local times. Any date-range filter that compares these rows against local-day boundaries can put a late-evening or early-morning receipt on the wrong day.
-- **Fix:** write `new Date().toISOString()` like the other movement writers. It is a stored-format change (§11): existing rows keep the zone-less form and the server and older clients still read both, so do not backfill; teach the display path to treat a zone-less value as UTC, and add a test that a receipt's movement displays at the local time it was made.
-
 #### A-330. both — the admin store detail's `recent_activity[].status` is always `null`
 - **Found:** 2026-10-24, by Larastan during the level-5 baseline cleanup.
 - **Location:** `laravel-server/app/Services/Admin/AdminStoreDetailService.php` `recentActivity()`; typed as `status: string | null` in `web/lib/types/admin-store-detail.ts` (`AdminStoreDetailActivity`).

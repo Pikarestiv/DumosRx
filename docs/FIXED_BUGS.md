@@ -1,3 +1,11 @@
+### A-333 — a purchase receipt's stock movement showed one hour early
+- **Fixed:** 2026-10-24, client only, TDD. Found by the local browser smoke test (not a regression: the writer predates the base commit).
+- **Was:** `receivePurchaseOrder()` and `createAndReceivePurchaseOrder()` stamped the movement, batch and order with `new Date().toISOString().slice(0, 19).replace('T', ' ')`, a UTC wall clock with the zone stripped. The movements ledger does `new Date(...)` on it, which reads a zone-less string as local time, so a receipt at 21:17 in Lagos showed 20:17 while sales and adjustments (full ISO) showed the real time. Day grouping and any date-range comparison could put a late or early receipt on the wrong day.
+- **Now:** the receipt writers (`procurement-receiving.ts` x2, `received_at` in `procurement.ts`) store `toISOString()`. Existing zone-less rows are read as UTC through `toUtcInstant()`, applied in `mapMovement`, `adjustment-derivations.ts` and the movement details dialog. The server and older clients are unaffected: the push still rewrites ISO strings to the zone-less form MySQL needs (`normalizeDatetimeFields`), so the wire format is unchanged.
+- **Backward compatibility (§11):** no contract change and no backfill; the reader accepts both forms. The shim can go once no device holds a zone-less `created_at` or `movement_date`; see `client/AGENTS.md`, "Stored instants are real ISO instants".
+- **Not done:** `formatDateSafe` and other readers still parse a zone-less string as local; nothing else is known to write one. The adjustments ledger groups by the UTC day of the stored instant, which is a separate display question.
+- **Coverage:** `client/__tests__/procurement-receipt-timestamps.test.ts` (both receipt paths write UTC instants; fails on the old writer) and `stock-movement-zoneless-date.test.ts` (`toUtcInstant`, and `mapMovement` reads a legacy receipt as its UTC instant).
+
 ### A-334 — the Customers directory "Last Visit" rendered a bare ISO date
 - **Fixed:** 2026-10-24, client only, TDD. Found by the local browser smoke test.
 - **Was:** `transformCustomer()` turned `last_visit` into `YYYY-MM-DD` (or `"-"`) in the view-model, and the directory row and detail panel printed it as is, against the `DD/MM/YYYY HH:mm` rule for an instant.

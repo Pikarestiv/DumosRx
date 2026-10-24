@@ -322,7 +322,7 @@ export async function updatePurchaseOrder(
 export async function updatePurchaseOrderStatus(id: string, status: string) {
   const updateData: { status: string; received_at?: string } = { status };
   if (status === "received") {
-    updateData.received_at = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    updateData.received_at = new Date().toISOString();
   }
   await update("purchase_orders", id, updateData);
 }

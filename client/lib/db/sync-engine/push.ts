@@ -4,6 +4,7 @@ import {
   markSynced,
   recordSyncFailure,
 } from "../local-database";
+import { attributeStorelessProductsFromEvidence } from "./legacy-product-attribution";
 import { apiClient } from "@/lib/api/client";
 import { buildStockFingerprint } from "./stock-fingerprint";
 import { buildTableFingerprint } from "./table-fingerprint";
@@ -247,6 +248,8 @@ export async function pushChanges(
   run?: SyncRun,
 ): Promise<{ pushed: number; failedBatches: number }> {
   const activeRun = resolveSyncRun(run);
+  // Before the fingerprints, so they describe what this push sends; best effort, never blocks a push.
+  await attributeStorelessProductsFromEvidence().catch((err) => console.warn("[Sync] Legacy product attribution skipped", err));
   // Computed once per run, not per batch: neither value needs batch
   // granularity and both scan the whole queue / batch table.
   const stockFingerprint = await buildStockFingerprint(activeRun.storeId);

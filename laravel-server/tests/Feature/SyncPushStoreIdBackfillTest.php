@@ -463,4 +463,105 @@ class SyncPushStoreIdBackfillTest extends TestCase
             'id' => 'batch-qty-claim', 'store_id' => $second->id, 'quantity' => 7, '_version' => 1,
         ], 'UPDATE', ['X-Store-Id' => $second->id])->assertJsonCount(0, 'failed');
     }
+
+    public function test_a_two_store_owners_store_less_product_with_no_stock_is_not_guessed()
+    {
+        $second = $this->createSecondStore();
+
+        $this->push('products', 'product-a248-new-legacy', [
+            'id' => 'product-a248-new-legacy', 'name' => 'Legacy Syrup', 'selling_price' => 500,
+        ], 'INSERT', ['X-Store-Id' => $second->id])->assertJsonCount(0, 'failed');
+
+        $this->assertNull(DB::table('products')->where('id', 'product-a248-new-legacy')->value('store_id'));
+    }
+
+    public function test_a_store_less_product_is_attributed_when_its_stock_arrives_in_a_later_push()
+    {
+        $second = $this->createSecondStore();
+        $this->push('products', 'product-later-stock', [
+            'id' => 'product-later-stock', 'name' => 'Legacy Syrup', 'selling_price' => 500,
+        ], 'INSERT', ['X-Store-Id' => $second->id])->assertJsonCount(0, 'failed');
+
+        $this->push('stock_batches', 'product-later-stock-batch', [
+            'id' => 'product-later-stock-batch', 'product_id' => 'product-later-stock', 'store_id' => $this->store->id,
+            'batch_number' => 'B-1', 'quantity' => 5, 'cost_price' => 50, '_version' => 1,
+        ], 'INSERT', ['X-Store-Id' => $second->id])->assertStatus(200);
+
+        $this->assertSame($this->store->id, DB::table('products')->where('id', 'product-later-stock')->value('store_id'));
+    }
+
+    public function test_an_attributed_product_naming_the_other_stores_category_is_re_owned()
+    {
+        $second = $this->createSecondStore();
+        $ownDrugs = new \App\Models\Category(); $ownDrugs->name = 'drugs'; $ownDrugs->store_id = $this->store->id; $ownDrugs->is_active = true; $ownDrugs->save();
+        $otherDrugs = new \App\Models\Category(); $otherDrugs->name = 'drugs'; $otherDrugs->store_id = $second->id; $otherDrugs->is_active = true; $otherDrugs->save();
+
+        $this->actingAs($this->owner)->withHeaders(['X-Store-Id' => $second->id])->postJson('/api/v1/app/sync/push', ['setup' => true, 'changes' => [
+            ['table_name' => 'products', 'operation' => 'INSERT', 'record_id' => 'product-cat-reown',
+                'payload' => ['id' => 'product-cat-reown', 'name' => 'Legacy Syrup', 'selling_price' => 500, 'category_id' => $otherDrugs->id]],
+            ['table_name' => 'stock_batches', 'operation' => 'INSERT', 'record_id' => 'product-cat-reown-batch',
+                'payload' => ['id' => 'product-cat-reown-batch', 'product_id' => 'product-cat-reown', 'store_id' => $this->store->id,
+                    'batch_number' => 'B-1', 'quantity' => 5, 'cost_price' => 50, '_version' => 1]],
+        ]])->assertStatus(200);
+
+        $row = DB::table('products')->where('id', 'product-cat-reown')->first();
+        $this->assertSame($this->store->id, $row->store_id);
+        $this->assertSame($ownDrugs->id, $row->category_id);
+    }
+
+    public function test_the_stock_overrules_the_active_store_for_a_store_less_product()
+    {
+        $second = $this->createSecondStore();
+
+        $this->pushStorelessProductWithStock('product-ingest-overrule', $this->store->id, null, $second->id)->assertStatus(200);
+
+        $this->assertSame($this->store->id, DB::table('products')->where('id', 'product-ingest-overrule')->value('store_id'));
+    }
+
+    public function test_a_single_store_owners_store_less_product_insert_is_still_backfilled()
+    {
+        $this->push('products', 'product-a248-single', [
+            'id' => 'product-a248-single', 'name' => 'Single Syrup', 'selling_price' => 500,
+        ], 'INSERT')->assertJsonCount(0, 'failed');
+
+        $this->assertSame($this->store->id, DB::table('products')->where('id', 'product-a248-single')->value('store_id'));
+    }
+
+    private function pushStorelessProductWithStock(string $productId, string $batchStoreId, ?string $movementStoreId, string $activeStoreId)
+    {
+        $changes = [
+            ['table_name' => 'products', 'operation' => 'INSERT', 'record_id' => $productId,
+                'payload' => ['id' => $productId, 'name' => 'Legacy Syrup', 'selling_price' => 500]],
+            ['table_name' => 'stock_batches', 'operation' => 'INSERT', 'record_id' => $productId.'-batch',
+                'payload' => ['id' => $productId.'-batch', 'product_id' => $productId, 'store_id' => $batchStoreId,
+                    'batch_number' => 'B-1', 'quantity' => 5, 'cost_price' => 50, '_version' => 1]],
+        ];
+        if ($movementStoreId !== null) {
+            $changes[] = ['table_name' => 'stock_movements', 'operation' => 'INSERT', 'record_id' => $productId.'-move',
+                'payload' => ['id' => $productId.'-move', 'stock_batch_id' => $productId.'-batch', 'product_id' => $productId,
+                    'store_id' => $movementStoreId, 'quantity' => -1, 'movement_type' => 'sale', 'performed_by' => $this->owner->id]];
+        }
+
+        return $this->actingAs($this->owner)->withHeaders(['X-Store-Id' => $activeStoreId])
+            ->postJson('/api/v1/app/sync/push', ['setup' => true, 'changes' => $changes]);
+    }
+
+    public function test_a_store_less_product_is_attributed_at_ingest_from_the_stock_pushed_with_it()
+    {
+        $second = $this->createSecondStore();
+
+        $this->pushStorelessProductWithStock('product-ingest', $this->store->id, $this->store->id, $second->id)->assertStatus(200);
+
+        $this->assertSame($this->store->id, DB::table('products')->where('id', 'product-ingest')->value('store_id'));
+        $this->assertNotNull(DB::table('stock_batches')->where('id', 'product-ingest-batch')->value('_synced_at'));
+    }
+
+    public function test_a_store_less_product_whose_stock_disagrees_stays_unattributed()
+    {
+        $second = $this->createSecondStore();
+
+        $this->pushStorelessProductWithStock('product-ingest-split', $this->store->id, $second->id, $second->id)->assertStatus(200);
+
+        $this->assertNull(DB::table('products')->where('id', 'product-ingest-split')->value('store_id'));
+    }
 }

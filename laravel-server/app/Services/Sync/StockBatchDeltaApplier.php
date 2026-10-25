@@ -4,13 +4,25 @@ namespace App\Services\Sync;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 /** Design notes: docs/SYNC_SERVER_RATIONALE.md#stockbatchdeltaapplier */
 class StockBatchDeltaApplier
 {
+    private ?bool $movementsSoftDelete = null;
+
     public function __construct(private SyncWriteAuthorizer $authorizer) {}
 
-    public function applyStockBatchDeltas(array $stockBatchDeltas, array &$failed, ?array $allowedStoreIds = null): void
+    /** Held from a movement's insert to the push's commit, so the recompute below reads a log no other push is mid-way through. */
+    public function lockBatch(?string $stockBatchId): void
+    {
+        if ($stockBatchId) {
+            DB::table('stock_batches')->where('id', $stockBatchId)->lockForUpdate()->value('id');
+        }
+    }
+
+    /** @param array<string, float|int> $pushInbound each batch's positive movement quantity in this push */
+    public function applyStockBatchDeltas(array $stockBatchDeltas, array &$failed, ?array $allowedStoreIds = null, array $pushInbound = []): void
     {
         foreach ($stockBatchDeltas as $stockBatchId => $delta) {
             if ($this->authorizer->isBatchOutsideScope($stockBatchId, $allowedStoreIds)) {
@@ -27,13 +39,12 @@ class StockBatchDeltaApplier
 
             DB::beginTransaction();
             try {
-                $affected = DB::update(
-                    'UPDATE stock_batches SET quantity = CASE WHEN quantity + ? < 0 THEN 0 ELSE quantity + ? END WHERE id = ?',
-                    [$delta, $delta, $stockBatchId],
-                );
+                $quantity = $this->resolveQuantity((string) $stockBatchId, (float) $delta, (float) ($pushInbound[$stockBatchId] ?? max(0, $delta)));
 
-                if (! $affected) {
+                if ($quantity === null) {
                     Log::warning("Sync push: stock_movements delta of {$delta} referenced unknown stock_batch_id {$stockBatchId}, no batch to apply it to.");
+                } else {
+                    DB::table('stock_batches')->where('id', $stockBatchId)->update(['quantity' => $quantity]);
                 }
                 DB::commit();
             } catch (\Exception $e) {
@@ -47,5 +58,25 @@ class StockBatchDeltaApplier
                 ];
             }
         }
+    }
+
+    /** A-217: the client's resolveBatchQuantity(), so both replicas compute MAX(0, Σlog) outside the A-148 carve-out. */
+    private function resolveQuantity(string $stockBatchId, float $pushDelta, float $pushInbound): ?int
+    {
+        $stored = DB::table('stock_batches')->where('id', $stockBatchId)->lockForUpdate()->value('quantity');
+        if ($stored === null) {
+            return null;
+        }
+
+        $log = DB::table('stock_movements')
+            ->where('stock_batch_id', $stockBatchId)
+            ->when($this->movementsSoftDelete ??= Schema::hasColumn('stock_movements', 'deleted_at'), fn ($q) => $q->whereNull('deleted_at'))
+            ->sharedLock()
+            ->selectRaw('COALESCE(SUM(quantity), 0) AS total, COALESCE(SUM(CASE WHEN quantity > 0 THEN quantity ELSE 0 END), 0) AS inbound')
+            ->first();
+
+        $carveOut = (float) $stored > (float) $log->inbound - $pushInbound;
+
+        return (int) max(0, $carveOut ? (float) $stored + $pushDelta : (float) $log->total);
     }
 }

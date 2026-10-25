@@ -163,6 +163,14 @@ class SyncController extends Controller
 
                     $payload = is_array($change['payload']) ? $change['payload'] : (json_decode($change['payload'], true) ?? []);
 
+                    if ($authorizer->hasMiscasedKey($payload)) {
+                        DB::commit();
+                        Log::warning('Sync push: refused a payload with a miscased key (A-325)', ['table' => $change['table_name'], 'record_id' => $change['record_id'] ?? null]);
+                        $failed[] = ['id' => $change['id'] ?? null, 'table_name' => $change['table_name'], 'record_id' => $change['record_id'] ?? null, 'reason' => 'forbidden'];
+
+                        continue;
+                    }
+
                     if (isset($payload['_synced'])) {
                         unset($payload['_synced']);
                     }

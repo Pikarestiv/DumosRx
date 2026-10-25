@@ -668,7 +668,7 @@ These describe the current state of known architectural tradeoffs and performanc
 
 ### Files over 350 lines touched by a fix
 Logged per the 2026-10-25 rule: each file a fix edits that was already over the 350-line limit, or that it pushes over, with its size after the change. None of these were split inside a bug fix.
-- `laravel-server/app/Http/Controllers/Api/App/SyncController.php`: 815 lines, already over (A-325 added one condition). What is left in it is listed under Architecture below.
+- `laravel-server/app/Http/Controllers/Api/App/SyncController.php`: 823 lines, already over (A-325 added the miscased-key refusal and one condition). What is left in it is listed under Architecture below.
 
 ### Architecture
 - **One hand-rolled tenant-resolution copy remains:** `DashboardService` still hand-rolls the staff→owner lookup instead of a shared `Request`-free helper; `TenantScopingArchitectureTest` only scans controllers, not services.

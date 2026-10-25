@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 /** Design notes: docs/SYNC_SERVER_RATIONALE.md#syncwriteauthorizer */
 class SyncWriteAuthorizer
 {
-    public const PARENT_KEYS = [
+    private const PARENT_KEYS = [
         'stock_batches' => 'product_id',
         'sale_items' => 'sale_id',
         'sale_item_batches' => 'sale_item_id',
@@ -82,6 +82,18 @@ class SyncWriteAuthorizer
             && ! empty($payload['stock_batch_id'])
             && $payload['stock_batch_id'] !== $model?->stock_batch_id
             && $this->isBatchOutsideScope($payload['stock_batch_id'], $allowedStoreIds, true);
+    }
+
+    /** Column names are case-insensitive in MySQL and SQLite, so a miscased key would slip past every guard (A-325). */
+    public function hasMiscasedKey(array $payload): bool
+    {
+        foreach (array_keys($payload) as $key) {
+            if ((string) $key !== strtolower((string) $key)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function repointsToForeignParent(string $tableName, array $payload, $model, array $allowedStoreIds): bool

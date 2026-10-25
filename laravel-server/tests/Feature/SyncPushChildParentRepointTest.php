@@ -198,6 +198,79 @@ class SyncPushChildParentRepointTest extends TestCase
         $this->assertNotSame($victimVoidedSale, DB::table('sale_items')->where('id', $line)->value('sale_id'));
     }
 
+    /** @return array<string, array{0: string}> */
+    public static function miscasedOperations(): array
+    {
+        return ['update' => ['UPDATE'], 'resent insert' => ['INSERT']];
+    }
+
+    /** @dataProvider miscasedOperations */
+    public function test_a_miscased_parent_key_cannot_repoint_a_batch(string $operation): void
+    {
+        $victimProduct = $this->seedProduct($this->victimStore, $this->victimOwner);
+        $batch = $this->seedBatch($this->seedProduct($this->attackerStore, $this->attackerOwner), $this->attackerStore->id);
+
+        $response = $this->pushUpdate($this->attackerOwner, 'stock_batches', $batch, ['PRODUCT_ID' => $victimProduct], $operation);
+
+        $this->assertRefusedAsForbidden($response, 'stock_batches', $batch);
+        $this->assertNotSame($victimProduct, DB::table('stock_batches')->where('id', $batch)->value('product_id'));
+    }
+
+    public function test_a_miscased_parent_key_cannot_insert_a_batch_under_another_tenants_product(): void
+    {
+        $victimProduct = $this->seedProduct($this->victimStore, $this->victimOwner);
+        $batch = (string) Str::uuid();
+
+        $response = $this->pushUpdate($this->attackerOwner, 'stock_batches', $batch, [
+            'PRODUCT_ID' => $victimProduct, 'batch_number' => 'B-X', 'quantity' => 999, 'cost_price' => 1,
+        ], 'INSERT');
+
+        $this->assertRefusedAsForbidden($response, 'stock_batches', $batch);
+        $this->assertFalse(DB::table('stock_batches')->where('id', $batch)->exists());
+    }
+
+    public function test_a_miscased_store_key_cannot_move_a_product_into_another_tenants_store(): void
+    {
+        $product = $this->seedProduct($this->attackerStore, $this->attackerOwner);
+
+        $response = $this->pushUpdate($this->attackerOwner, 'products', $product, ['STORE_ID' => $this->victimStore->id]);
+
+        $this->assertRefusedAsForbidden($response, 'products', $product);
+        $this->assertSame($this->attackerStore->id, DB::table('products')->where('id', $product)->value('store_id'));
+    }
+
+    public function test_a_sale_item_batch_repointed_at_another_tenants_sale_line_is_refused(): void
+    {
+        $product = $this->seedProduct($this->attackerStore, $this->attackerOwner);
+        $ownLine = $this->seedSaleItem($this->seedSale($this->attackerStore, $this->attackerOwner), $product);
+        $victimLine = $this->seedSaleItem($this->seedSale($this->victimStore, $this->victimOwner), $this->seedProduct($this->victimStore, $this->victimOwner));
+        $allocation = (string) Str::uuid();
+        DB::table('sale_item_batches')->insert([
+            'id' => $allocation, 'sale_item_id' => $ownLine, 'stock_batch_id' => $this->seedBatch($product, $this->attackerStore->id),
+            'quantity' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $response = $this->pushUpdate($this->attackerOwner, 'sale_item_batches', $allocation, ['sale_item_id' => $victimLine]);
+
+        $this->assertRefusedAsForbidden($response, 'sale_item_batches', $allocation);
+        $this->assertSame($ownLine, DB::table('sale_item_batches')->where('id', $allocation)->value('sale_item_id'));
+    }
+
+    public function test_a_sale_line_inserted_under_another_tenants_voided_sale_is_refused(): void
+    {
+        $victimVoidedSale = $this->seedSale($this->victimStore, $this->victimOwner, true);
+        $line = (string) Str::uuid();
+
+        $response = $this->pushUpdate($this->attackerOwner, 'sale_items', $line, [
+            'sale_id' => $victimVoidedSale, 'product_id' => $this->seedProduct($this->attackerStore, $this->attackerOwner),
+            'quantity' => 1, 'unit_price' => 100, 'total_price' => 100, 'cost_price' => 50,
+            'store_id' => $this->attackerStore->id, 'created_at' => now()->toDateTimeString(),
+        ], 'INSERT');
+
+        $this->assertRefusedAsForbidden($response, 'sale_items', $line);
+        $this->assertFalse(DB::table('sale_items')->where('id', $line)->exists());
+    }
+
     public function test_a_batch_moved_to_another_product_of_the_same_tenant_is_accepted(): void
     {
         $batch = $this->seedBatch($this->seedProduct($this->attackerStore, $this->attackerOwner), $this->attackerStore->id);

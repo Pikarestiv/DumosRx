@@ -1848,6 +1848,15 @@ as on INSERT: the row then belongs to no store's pull (A-335). Secondary
 references (`sale_items.stock_batch_id`, `purchase_order_items.product_id` and
 the like) do not decide a row's store and are not checked.
 
+**A payload key that is not lowercase is refused before anything reads it.**
+MySQL and SQLite match column names case-insensitively, so `PRODUCT_ID` or
+`STORE_ID` reaches `forceFill()` and writes `product_id`/`store_id` while every
+guard, all of which look for the lowercase key, sees nothing. `push()` refuses
+such a change `forbidden` as soon as the payload is decoded
+(`SyncWriteAuthorizer::hasMiscasedKey()`). No column on either side has an
+uppercase letter and no client sends one, so this costs legitimate traffic
+nothing (§11).
+
 **A product legitimately moved between stores parks too, on staff tills.** A
 till of the losing store still holds the product (A-291's phantom) and can sell
 from it; each such sale's movement is now refused `forbidden`, where before the

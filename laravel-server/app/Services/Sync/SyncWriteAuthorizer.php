@@ -84,11 +84,15 @@ class SyncWriteAuthorizer
             && $this->isBatchOutsideScope($payload['stock_batch_id'], $allowedStoreIds, true);
     }
 
-    /** Column names are case-insensitive in MySQL and SQLite, so a miscased key would slip past every guard (A-325). */
-    public function hasMiscasedKey(array $payload): bool
+    /** A-325: `PRODUCT_ID` or `stock_batches.product_id` still names the column, past every guard reading `product_id`. */
+    public function hasNonColumnKey(mixed $payload): bool
     {
+        if (! is_array($payload)) {
+            return false;
+        }
+
         foreach (array_keys($payload) as $key) {
-            if ((string) $key !== strtolower((string) $key)) {
+            if (! preg_match('/^[a-z0-9_]+$/D', (string) $key)) {
                 return true;
             }
         }

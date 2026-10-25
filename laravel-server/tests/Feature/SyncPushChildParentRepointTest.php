@@ -2,154 +2,13 @@
 
 namespace Tests\Feature;
 
-use App\Models\Store;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use Tests\TestCase;
 
 /** A-325: an UPDATE may not repoint a child row at a parent outside the session's scope. Rules: laravel-server/AGENTS.md, "A child UPDATE's new parent must be in scope". */
-class SyncPushChildParentRepointTest extends TestCase
+class SyncPushChildParentRepointTest extends SyncPushTwoTenantTestCase
 {
-    use RefreshDatabase;
-
-    private User $victimOwner;
-
-    private Store $victimStore;
-
-    private User $attackerOwner;
-
-    private Store $attackerStore;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        Schema::disableForeignKeyConstraints();
-
-        [$this->victimOwner, $this->victimStore] = $this->makeTenant('victim');
-        [$this->attackerOwner, $this->attackerStore] = $this->makeTenant('attacker');
-
-        \App\Models\SystemConfig::setVal('subscription_plans', [
-            'tiers' => ['free' => ['features' => ['cloud_sync' => true], 'limits' => ['stores' => -1]]],
-        ]);
-
-        $this->withoutMiddleware();
-    }
-
-    private function makeTenant(string $slug): array
-    {
-        $owner = User::create([
-            'first_name' => ucfirst($slug),
-            'last_name' => 'Owner',
-            'email' => $slug.'@dumosrx.com',
-            'password' => bcrypt('password'),
-            'role' => 'admin',
-        ]);
-        $store = Store::create([
-            'user_id' => $owner->id,
-            'name' => ucfirst($slug).' Store',
-            'slug' => $slug.'-store',
-            'device_id' => 'WEB-'.strtoupper($slug),
-            'currency' => 'NGN',
-        ]);
-        $owner->update(['store_id' => $store->id]);
-
-        return [$owner, $store];
-    }
-
-    private function seedProduct(Store $store, User $owner): string
-    {
-        $id = (string) Str::uuid();
-        DB::table('products')->insert([
-            'id' => $id, 'store_id' => $store->id, 'user_id' => $owner->id, 'name' => 'Painkillers',
-            'selling_price' => 500, '_version' => 1, 'created_at' => now(), 'updated_at' => now(),
-        ]);
-
-        return $id;
-    }
-
-    private function seedBatch(string $productId, ?string $storeId): string
-    {
-        $id = (string) Str::uuid();
-        DB::table('stock_batches')->insert([
-            'id' => $id, 'product_id' => $productId, 'store_id' => $storeId, 'batch_number' => 'B-'.substr($id, 0, 6),
-            'quantity' => 10, 'cost_price' => 100, '_version' => 1, 'created_at' => now(), 'updated_at' => now(),
-        ]);
-
-        return $id;
-    }
-
-    private function seedPurchaseOrder(Store $store, User $owner): string
-    {
-        $id = (string) Str::uuid();
-        DB::table('purchase_orders')->insert([
-            'id' => $id, 'store_id' => $store->id, 'ordered_by' => $owner->id, 'order_number' => 'PO-'.substr($id, 0, 6), 'status' => 'pending',
-            'total_amount' => 0, '_version' => 1, 'created_at' => now(), 'updated_at' => now(),
-        ]);
-
-        return $id;
-    }
-
-    private function seedPurchaseOrderItem(string $purchaseOrderId, string $productId): string
-    {
-        $id = (string) Str::uuid();
-        DB::table('purchase_order_items')->insert([
-            'id' => $id, 'purchase_order_id' => $purchaseOrderId, 'product_id' => $productId,
-            'quantity_ordered' => 5, 'unit_cost' => 100, 'total_cost' => 500, '_version' => 1, 'created_at' => now(), 'updated_at' => now(),
-        ]);
-
-        return $id;
-    }
-
-    private function seedSale(Store $store, User $owner, bool $deleted = false): string
-    {
-        $id = (string) Str::uuid();
-        DB::table('sales')->insert([
-            'id' => $id, 'store_id' => $store->id, 'transaction_number' => 'TXN-'.substr($id, 0, 6), 'cashier_id' => $owner->id,
-            'total_amount' => 100, 'amount_paid' => 100, 'payment_method' => 'cash',
-            'created_at' => now(), 'updated_at' => now(), 'deleted_at' => $deleted ? now() : null,
-        ]);
-
-        return $id;
-    }
-
-    private function seedSaleItem(string $saleId, string $productId): string
-    {
-        $id = (string) Str::uuid();
-        DB::table('sale_items')->insert([
-            'id' => $id, 'sale_id' => $saleId, 'product_id' => $productId, 'quantity' => 1,
-            'unit_price' => 100, 'total_price' => 100, 'cost_price' => 50, 'created_at' => now(), 'updated_at' => now(),
-        ]);
-
-        return $id;
-    }
-
-    private function pushUpdate(User $as, string $table, string $recordId, array $payload, string $operation = 'UPDATE')
-    {
-        return $this->actingAs($as)->postJson('/api/v1/app/sync/push', [
-            'setup' => true,
-            'changes' => [[
-                'id' => 11,
-                'table_name' => $table,
-                'operation' => $operation,
-                'record_id' => $recordId,
-                'payload' => ['id' => $recordId, '_version' => 1, 'updated_at' => now()->toDateTimeString()] + $payload,
-            ]],
-        ]);
-    }
-
-    private function assertRefusedAsForbidden($response, string $table, string $recordId): void
-    {
-        $response->assertStatus(200);
-        $this->assertContains(
-            ['id' => 11, 'table_name' => $table, 'record_id' => $recordId, 'reason' => 'forbidden'],
-            array_map(fn ($f) => array_intersect_key($f, array_flip(['id', 'table_name', 'record_id', 'reason'])), $response->json('failed') ?? []),
-        );
-    }
-
     public function test_a_batch_update_repointing_its_product_at_another_tenants_product_is_refused(): void
     {
         $victimProduct = $this->seedProduct($this->victimStore, $this->victimOwner);
@@ -196,47 +55,6 @@ class SyncPushChildParentRepointTest extends TestCase
 
         $this->assertRefusedAsForbidden($response, 'sale_items', $line);
         $this->assertNotSame($victimVoidedSale, DB::table('sale_items')->where('id', $line)->value('sale_id'));
-    }
-
-    /** @return array<string, array{0: string}> */
-    public static function miscasedOperations(): array
-    {
-        return ['update' => ['UPDATE'], 'resent insert' => ['INSERT']];
-    }
-
-    /** @dataProvider miscasedOperations */
-    public function test_a_miscased_parent_key_cannot_repoint_a_batch(string $operation): void
-    {
-        $victimProduct = $this->seedProduct($this->victimStore, $this->victimOwner);
-        $batch = $this->seedBatch($this->seedProduct($this->attackerStore, $this->attackerOwner), $this->attackerStore->id);
-
-        $response = $this->pushUpdate($this->attackerOwner, 'stock_batches', $batch, ['PRODUCT_ID' => $victimProduct], $operation);
-
-        $this->assertRefusedAsForbidden($response, 'stock_batches', $batch);
-        $this->assertNotSame($victimProduct, DB::table('stock_batches')->where('id', $batch)->value('product_id'));
-    }
-
-    public function test_a_miscased_parent_key_cannot_insert_a_batch_under_another_tenants_product(): void
-    {
-        $victimProduct = $this->seedProduct($this->victimStore, $this->victimOwner);
-        $batch = (string) Str::uuid();
-
-        $response = $this->pushUpdate($this->attackerOwner, 'stock_batches', $batch, [
-            'PRODUCT_ID' => $victimProduct, 'batch_number' => 'B-X', 'quantity' => 999, 'cost_price' => 1,
-        ], 'INSERT');
-
-        $this->assertRefusedAsForbidden($response, 'stock_batches', $batch);
-        $this->assertFalse(DB::table('stock_batches')->where('id', $batch)->exists());
-    }
-
-    public function test_a_miscased_store_key_cannot_move_a_product_into_another_tenants_store(): void
-    {
-        $product = $this->seedProduct($this->attackerStore, $this->attackerOwner);
-
-        $response = $this->pushUpdate($this->attackerOwner, 'products', $product, ['STORE_ID' => $this->victimStore->id]);
-
-        $this->assertRefusedAsForbidden($response, 'products', $product);
-        $this->assertSame($this->attackerStore->id, DB::table('products')->where('id', $product)->value('store_id'));
     }
 
     public function test_a_sale_item_batch_repointed_at_another_tenants_sale_line_is_refused(): void

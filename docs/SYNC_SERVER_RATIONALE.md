@@ -1107,10 +1107,10 @@ Above `'performed_by' => $currentUser->id,`:
 
 > A movement may not name, or be repointed at, a batch outside the session's scope (A-287).
 
-### `hasMiscasedKey`
+### `hasNonColumnKey`
 
-> A-325: column names match case-insensitively, so a miscased key would reach `forceFill()` past every
-> lowercase-keyed guard; see laravel-server/AGENTS.md, "A payload key that is not lowercase is refused".
+> A-325: a miscased or table-qualified key still names the column, so it would reach `forceFill()` past every
+> guard reading the bare key; see laravel-server/AGENTS.md, "A payload key that is not a bare column name is refused".
 
 ### `repointsToForeignParent`
 

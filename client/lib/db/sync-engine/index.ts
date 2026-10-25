@@ -214,7 +214,7 @@ async function runSync(
       });
     }
 
-    if (pullResult.refusal) return refusedRound(pushResult.pushed, pullResult.pulled, pullResult.refusal);
+    if (pullResult.refusal) return await refusedRound(pushResult.pushed, pullResult.pulled, pullResult.refusal);
 
     // pushChanges() swallows a bad batch so the rest can proceed; without
     // this the indicator would toast success when nothing pushed.

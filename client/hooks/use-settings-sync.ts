@@ -18,6 +18,7 @@ import {
   syncSubscriptionStatus,
   forceFullResync,
 } from "@/lib/db/sync-engine";
+import { failUnlessSucceeded } from "@/lib/db/sync-engine/sync-outcome";
 import { markRestoredForCloudLinkNotice } from "@/lib/utils/post-restore-notice";
 import { clearToken } from "@/lib/api/token-manager";
 
@@ -42,33 +43,28 @@ export function useSettingsSync(
       // Non-fatal
     }
 
-    toast.promise(sync(true), {
+    toast.promise(failUnlessSucceeded(sync(true)), {
       loading: "Synchronizing data with cloud...",
       success: (data) => {
         void refetchStore();
         return `Sync complete! Pushed ${data.pushed}, Pulled ${data.pulled}`;
       },
-      error: "Sync failed. Please check your connection.",
+      error: (err: Error) => err.message || "Sync failed. Please check your connection.",
     });
   };
 
-  // Recovery path for a device whose pull cursor has drifted ahead of
-  // content it never actually received (e.g. a mid-round crash) — every
-  // ordinary sync since then has "succeeded" while silently never re-
-  // fetching the missed rows, since a stuck cursor gives no error to act
-  // on. Clears the local pull cursor and re-fetches every table from
-  // scratch; never touches local data or this device's own pending
-  // outbound changes. See lib/db/sync-engine/index.ts's forceFullResync.
+  // Clears the pull cursor and re-fetches every table; never touches local data or pending outbound changes.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-hooks-use-settings-sync-ts-L55
   const handleForceFullResync = () => {
     if (!isCloudLinked) return;
 
-    toast.promise(forceFullResync(), {
+    toast.promise(failUnlessSucceeded(forceFullResync()), {
       loading: "Re-downloading all data from the cloud...",
       success: (data) => {
         void refetchStore();
         return `Resync complete! Pushed ${data.pushed}, Pulled ${data.pulled}`;
       },
-      error: "Resync failed. Please check your connection.",
+      error: (err: Error) => err.message || "Resync failed. Please check your connection.",
     });
   };
 
@@ -147,9 +143,8 @@ export function useSettingsSync(
           markRestoredForCloudLinkNotice();
           setTimeout(() => window.location.reload(), 1500);
         } catch (err) {
-          // Surfaces restoreDatabase()'s actual validation message (e.g.
-          // "missing tables: ...") instead of a generic one, so a rejected
-          // restore tells the user WHY rather than just "invalid file".
+          // Surfaces restoreDatabase()'s own validation message rather than a generic one.
+          // Rationale: docs/CLIENT_COMMENTS.md#block-hooks-use-settings-sync-ts-L150
           toast.error(err instanceof Error ? err.message : "Failed to restore database. Invalid file?");
         }
       }
@@ -157,10 +152,8 @@ export function useSettingsSync(
     reader.readAsArrayBuffer(file);
   };
 
-  // Undoes the most recent restoreDatabase() call (web only) by recovering
-  // the snapshot it took of the outgoing database right before overwriting
-  // it. Exists so that safety net is actually reachable from the UI, not
-  // just present in the code - see restorePreRestoreSnapshot()'s doc comment.
+  // Undoes the last restoreDatabase() (web only) from the snapshot it took first.
+  // Rationale: docs/CLIENT_COMMENTS.md#block-hooks-use-settings-sync-ts-L160
   const handleUndoLastRestore = async () => {
     try {
       const recovered = await restorePreRestoreSnapshot();
@@ -176,16 +169,8 @@ export function useSettingsSync(
   };
 
   const handleResetDatabase = async () => {
-    // Record who did this before anything else: resetDatabase() wipes
-    // audit_logs itself, so this is the only chance for the action to leave
-    // a trace anywhere. logAction() also enqueues it into _sync_queue, so
-    // if this device is cloud-linked, force an immediate sync to push it
-    // (and anything else pending) to the server right now - waiting for the
-    // next scheduled auto-sync isn't an option, since clearToken() below
-    // disconnects this device from sync entirely. Best-effort: if the push
-    // fails (e.g. offline), the reset still proceeds - the confirming PIN
-    // entry already established who authorized it, this is belt-and-braces
-    // durability for that record, not a precondition for the reset itself.
+    // Recorded and pushed first: resetDatabase() wipes audit_logs and clearToken() below ends sync.
+    // Rationale: docs/CLIENT_COMMENTS.md#block-hooks-use-settings-sync-ts-L179
     try {
       await logAction(AUDIT_ACTIONS.FACTORY_RESET, "stores", getActiveStoreId() || "unknown", {
         cloud_linked: isCloudLinked,
@@ -197,18 +182,11 @@ export function useSettingsSync(
       console.error("Failed to record factory reset audit log:", err);
     }
 
-    // Disconnect cloud sync before wiping local tables, not after: resetDatabase()
-    // ends in a window.location.reload(), and this device's mount-time auto-sync
-    // effect (store-context.tsx) would otherwise immediately re-pull every
-    // just-cleared table straight back down from the server, undoing the reset
-    // within a second of it finishing. Clearing the token here means that
-    // effect finds no auth_token and skips, same as any other signed-out device.
-    // The user can re-link (Settings > Data > "Link & Sync") whenever they want
-    // this device syncing again - their cloud account itself is untouched.
+    // Unlinked before the wipe, or the reload's auto-sync would re-pull every cleared table.
+    // Rationale: docs/CLIENT_COMMENTS.md#block-hooks-use-settings-sync-ts-L200
     clearToken();
-    // Imported here rather than at the top: this hook is loaded by every
-    // settings screen, and the draft stores pull in the whole POS cart
-    // module graph with them.
+    // Lazy import: the draft stores pull in the whole POS cart module graph.
+    // Rationale: docs/CLIENT_COMMENTS.md#block-hooks-use-settings-sync-ts-L209
     try {
       const { clearLocalDrafts } = await import(
         "@/lib/utils/clear-local-drafts"

@@ -77,3 +77,10 @@ export function readSyncOutcome(): SyncOutcome | null {
     return null;
   }
 }
+
+// sync() resolves on failure too, which toast.promise would show as success.
+export function failUnlessSucceeded(run: Promise<SyncResult>): Promise<SyncResult> {
+  return run.then((result) =>
+    result.success ? result : Promise.reject(new Error(typeof result.error === "string" ? result.error : "")),
+  );
+}

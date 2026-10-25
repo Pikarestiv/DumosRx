@@ -118,7 +118,11 @@ describe("pull.ts against a refused X-Store-Id (A-254)", () => {
 
     try {
       const result = await pullChanges();
-      expect(result.refusal).toEqual({ storeId: "revoked-store", accessibleStores: [{ id: "owned-store", name: "Owned" }] });
+      expect(result.refusal).toEqual({
+        storeId: "revoked-store",
+        accessibleStores: [{ id: "owned-store", name: "Owned" }],
+        storeDeleted: true,
+      });
     } finally {
       core.setActiveStoreId(null);
     }

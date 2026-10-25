@@ -40,9 +40,28 @@ describe("storeRefusalRemedy (A-323)", () => {
     });
   });
 
-  it("tells a staff member with a fixed store to sign in again, since switching cannot move them", () => {
+  it("tells a staff member the server has moved to sign in again, naming the new store", () => {
+    const moved = { ...refusal("b", ["C"]), reassignedStore: { id: "id-C", name: "C" } };
+    expect(storeRefusalRemedy(moved, true)).toEqual({
+      message: "Sign out and sign in again to move this till to C.",
+      switchTo: null,
+    });
+  });
+
+  it("does not promise a sign-in fix to a fixed-store staff member the server has not moved", () => {
     expect(storeRefusalRemedy(refusal("b", ["C"]), true)).toEqual({
-      message: "Sign out and sign in again to load the store you now work at.",
+      message: "Ask the store owner which store this till should use.",
+      switchTo: null,
+    });
+  });
+
+  it("asks a fixed-store staff member removed from every store for access, not to sign in", () => {
+    expect(storeRefusalRemedy(refusal("b", []), true).message).toMatch(/restore your access/);
+  });
+
+  it("offers no switch for a deleted store, since the device has already fallen back to another", () => {
+    expect(storeRefusalRemedy({ ...refusal("b", ["C"]), storeDeleted: true }, false)).toEqual({
+      message: "This store was deleted. Check the store menu for the store this device now uses.",
       switchTo: null,
     });
   });
@@ -60,6 +79,7 @@ describe("useStoreRefusalAnnouncer (A-323)", () => {
     await act(() => {
       createRoot(document.createElement("div")).render(<Probe />);
     });
+    announcer.reset();
   }
 
   beforeEach(() => {
@@ -90,6 +110,17 @@ describe("useStoreRefusalAnnouncer (A-323)", () => {
     announcer.announce(refusal("b", ["C"]), MESSAGE, false);
 
     expect(toastError).toHaveBeenCalledTimes(3);
+  });
+
+  it("toasts once per refused store across every mounted indicator", async () => {
+    await mount();
+    const first = announcer;
+    await mount();
+
+    first.announce(refusal("b", ["C"]), MESSAGE, false);
+    announcer.announce(refusal("b", ["C"]), MESSAGE, false);
+
+    expect(toastError).toHaveBeenCalledTimes(1);
   });
 
   it("offers no switch to a staff member with a fixed store", async () => {

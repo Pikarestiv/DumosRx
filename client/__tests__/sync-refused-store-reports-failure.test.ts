@@ -49,7 +49,13 @@ describe("sync() on a round whose active store the server refused (A-323)", () =
 
     const result = await sync();
 
-    expect(result).toEqual({ success: false, pushed: 2, pulled: 1, error: STORE_REFUSED_MESSAGE, refusal });
+    expect(result).toEqual({
+      success: false,
+      pushed: 2,
+      pulled: 1,
+      error: STORE_REFUSED_MESSAGE,
+      refusal: { ...refusal, reassignedStore: null },
+    });
   });
 
   it("does not record the round as a completed sync, and records why it failed", async () => {

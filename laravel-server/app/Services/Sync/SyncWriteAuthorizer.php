@@ -13,6 +13,15 @@ use Illuminate\Support\Facades\Log;
 /** Design notes: docs/SYNC_SERVER_RATIONALE.md#syncwriteauthorizer */
 class SyncWriteAuthorizer
 {
+    private const PARENT_KEYS = [
+        'stock_batches' => 'product_id',
+        'sale_items' => 'sale_id',
+        'sale_item_batches' => 'sale_item_id',
+        'return_items' => 'return_id',
+        'prescription_items' => 'prescription_id',
+        'purchase_order_items' => 'purchase_order_id',
+    ];
+
     /** @var array<string, string> */
     private array $batchStoreIds = [];
 
@@ -73,6 +82,34 @@ class SyncWriteAuthorizer
             && ! empty($payload['stock_batch_id'])
             && $payload['stock_batch_id'] !== $model?->stock_batch_id
             && $this->isBatchOutsideScope($payload['stock_batch_id'], $allowedStoreIds, true);
+    }
+
+    /** A-325: `PRODUCT_ID` or `stock_batches.product_id` still names the column, past every guard reading `product_id`. */
+    public function hasNonColumnKey(mixed $payload): bool
+    {
+        if (! is_array($payload)) {
+            return false;
+        }
+
+        foreach (array_keys($payload) as $key) {
+            if (! preg_match('/^[a-z0-9_]+$/D', (string) $key)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function repointsToForeignParent(string $tableName, array $payload, $model, array $allowedStoreIds): bool
+    {
+        $parentKey = self::PARENT_KEYS[$tableName] ?? null;
+        if ($parentKey === null || empty($payload[$parentKey]) || (string) $payload[$parentKey] === (string) $model->{$parentKey}) {
+            return false;
+        }
+
+        $newParentStoreId = $this->resolveParentStoreId($tableName, (object) [$parentKey => $payload[$parentKey]]);
+
+        return $newParentStoreId !== null && ! in_array($newParentStoreId, $allowedStoreIds, true);
     }
 
     public function authorizeChangeTarget(string $tableName, $model, array $allowedStoreIds, array $allowedUserIds): bool
@@ -154,10 +191,10 @@ class SyncWriteAuthorizer
         }
 
         if ($tableName === 'sale_items') {
-            return isset($model->sale_id) ? Sale::where('id', $model->sale_id)->value('store_id') : null;
+            return isset($model->sale_id) ? Sale::withTrashed()->where('id', $model->sale_id)->value('store_id') : null;
         }
         if ($tableName === 'return_items') {
-            return isset($model->return_id) ? \App\Models\SaleReturn::where('id', $model->return_id)->value('store_id') : null;
+            return isset($model->return_id) ? \App\Models\SaleReturn::withTrashed()->where('id', $model->return_id)->value('store_id') : null;
         }
         if ($tableName === 'prescription_items') {
             return isset($model->prescription_id) ? \App\Models\Prescription::withTrashed()->where('id', $model->prescription_id)->value('store_id') : null;
@@ -172,9 +209,9 @@ class SyncWriteAuthorizer
             if (! isset($model->sale_item_id)) {
                 return null;
             }
-            $saleId = SaleItem::where('id', $model->sale_item_id)->value('sale_id');
+            $saleId = SaleItem::withTrashed()->where('id', $model->sale_item_id)->value('sale_id');
 
-            return $saleId ? Sale::where('id', $saleId)->value('store_id') : null;
+            return $saleId ? Sale::withTrashed()->where('id', $saleId)->value('store_id') : null;
         }
 
         return null;

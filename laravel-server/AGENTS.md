@@ -1830,8 +1830,36 @@ looks the batch up fresh. `push()` sorts every `stock_movements` change to the
 end, so every batch write of a push lands before any movement is authorized,
 and a batch INSERT under a foreign product, live or soft-deleted, is itself
 refused (`resolveParentStoreId('stock_batches')` uses `withTrashed()`). It is
-pinned by a direct test so it cannot rot unnoticed. A batch UPDATE that
-repoints `product_id` is not checked at all: that is A-325.
+pinned by a direct test so it cannot rot unnoticed.
+
+**A child UPDATE's new parent must be in scope (A-325).** A child of a
+parent-FK table is owned through its parent (`SyncWriteAuthorizer::PARENT_KEYS`:
+`stock_batches.product_id`, `sale_items.sale_id`, `sale_item_batches.sale_item_id`,
+`return_items.return_id`, `prescription_items.prescription_id`,
+`purchase_order_items.purchase_order_id`). `authorizeChangeTarget()` judges the
+stored row, i.e. its current parent, so `repointsToForeignParent()` also judges
+the parent the payload names: when it differs from the stored one and resolves
+to a store outside the session, the change is refused `forbidden`, which
+parks. A resent INSERT runs as an UPDATE and gets the same check; a super admin
+is exempt; restating the stored parent costs no lookup. Parent lookups include
+soft-deleted parents, because the pull serves a voided parent's line items. A
+new parent with no store (legacy `NULL`) or that does not exist is let through,
+as on INSERT: the row then belongs to no store's pull (A-335). Secondary
+references (`sale_items.stock_batch_id`, `purchase_order_items.product_id` and
+the like) do not decide a row's store and are not checked.
+
+**A payload key that is not a bare column name is refused before anything
+reads it.** Every guard reads the bare lowercase key, but a key can still name
+that column other ways: MySQL and SQLite match column names case-insensitively
+(`PRODUCT_ID`), and the query grammar resolves a table-qualified key
+(`stock_batches.product_id`; SQLite drops the qualifier, MySQL accepts it in a
+single-table UPDATE). `push()` refuses a change `forbidden` as soon as its
+payload is decoded if any key falls outside `^[a-z0-9_]+$`
+(`SyncWriteAuthorizer::hasNonColumnKey()`), which also excludes non-ASCII
+look-alikes MySQL's Unicode folding might match. No column on either side
+falls outside it, and the client builds every payload from table rows; `web/`
+does not use this endpoint (§11). A payload that is not an object is left to
+fail its own change as before.
 
 **A product legitimately moved between stores parks too, on staff tills.** A
 till of the losing store still holds the product (A-291's phantom) and can sell

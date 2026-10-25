@@ -41,12 +41,6 @@ suggested tackle order rather than a strict ranking.
 - **Consequence:** inert residue: unreachable by any tenant scope, counted by nothing an owner reads. The same class as A-288's leftovers.
 - **Fix:** attribute per table through the column that does name an owner (`ordered_by`, `performed_by`, the parent FK), only on a whole-tenant purge, and add those parents to `PurgedUserRowSweeper::CHILDREN`. Measure first: none of the 50 rows measured on 2026-10-19 is in these tables.
 
-#### A-325. `laravel-server/` — an UPDATE can repoint a tenant's own child row at another tenant's parent, moving it into that tenant
-- **Found:** 2026-10-23, by the second review of A-287's fix; reproduced in a throwaway test: a `stock_batches` UPDATE from one owner, on its own batch, with `product_id` set to another tenant's product, was **accepted**, and the stored batch then named the victim's product.
-- **Location:** `SyncController::push()`'s UPDATE branch. `authorizeChangeTarget()` resolves ownership from the **stored** row (its current parent), and `forceFill($payload)` then writes whatever parent FK the payload names. INSERT checks the payload's parent (`authorizeInsertTarget()`); UPDATE never does.
-- **Consequence:** cross-tenant write. A batch's store is its product's, so the repointed batch, with a quantity and cost the attacker chose, is pulled onto every device of the victim store and counted in its stock. The same shape applies to every parent-FK child table (`sale_items.sale_id`, `return_items.return_id`, `prescription_items.prescription_id`, `purchase_order_items.purchase_order_id`, `sale_item_batches.sale_item_id`). It needs a uuid of the victim's parent, which the public storefront exposes for products (A-77).
-- **Fix:** in the UPDATE branch, when the payload changes a parent FK, run `authorizeInsertTarget($table, $payload + $model->toArray(), $allowedStoreIds)` (the payload's new parent must be in scope) and refuse `forbidden` otherwise. Same family as A-314 (a child UPDATE writing a foreign `store_id`); fix both together. §11: a legitimate client never repoints a child at another parent.
-
 #### A-327. `laravel-server/` — what A-248 left behind: unreconstructed stock deltas, and a store-less product with no stock staying unattributed
 - **Found:** 2026-10-23, closing A-248 (parts a to c in `docs/FIXED_BUGS.md`). Recorded so they are not lost with that entry.
 - **Unreconstructed deltas:** the cloud `stock_batches.quantity` changes A-280 refused while a product was mis-stamped are gone; the repair moves the product but does not replay them. The device's own log is the only record; a per-device "re-send this batch's movements" sync command would rebuild it.
@@ -290,6 +284,7 @@ suggested tackle order rather than a strict ranking.
 - **Location:** `normalizePushPayload()` validates a payload's `store_id` against `$allowedStoreIds` only for `STORE_ID_BACKFILL_TABLES`. The six parent-FK child tables (`stock_batches`, `sale_items`, `sale_item_batches`, `return_items`, `prescription_items`, `purchase_order_items`) are not on it, yet carry a `store_id` column, so the UPDATE branch's `forceFill($payload)` writes any value.
 - **Reproduced:** the attacker's own `purchase_order_items` line under its own PO, pushed as an UPDATE with `store_id = <victim store>`: accepted, and the row now carries the victim's store id.
 - **Consequence:** the child's own `store_id` is non-authoritative for pull scoping (A-288), so this does not move the row between tenants on any device. But it is the second ownership opinion `resolveChangeStoreId()` consults when the parent has none (A-297), so a line whose parent later becomes unattributable resolves to the store its payload named. Stock fingerprints count batches by `stock_batches.store_id` (A-246), so a wrong value there skews the agreement panel for both stores.
+- **Its sibling A-325 (a child UPDATE repointing its parent FK at another tenant's parent) was fixed on 2026-10-25** in `SyncWriteAuthorizer::repointsToForeignParent()`; this entry is the remaining half, the child's own `store_id` column.
 - **Fix:** extend `normalizePushPayload()`'s foreign-`store_id` refusal to every synced table that has a `store_id` column, not just the backfill list; A-298's per-branch claim check in DELETE can then go. **§11 first:** this also refuses child-table INSERTs naming a store outside the session, which today are accepted; a staff device with a queued row from a store it has since left would see it refused, and `permission_denied` is terminal where `forbidden` parks (A-165). Measure the population before choosing the reason.
 
 #### A-299. `laravel-server/` — a resent INSERT is recorded as an UPDATE, so the refusal breakdown will undercount resends from here on
@@ -461,6 +456,12 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** set `LOG_STACK=daily` and `LOG_DAILY_DAYS=14` in the production `.env`, set `LOG_LEVEL` to `warning` or `info`, archive then truncate the existing file. `.env.example` already carries the safe values (`LOG_STACK=daily`, `LOG_DAILY_DAYS=14`, `LOG_LEVEL=warning`); the production and dev `.env` files are not deployed and still need the same edit by hand. Nothing in `app/` reads `laravel.log` back; the only references write to it.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
+
+#### A-335. `laravel-server/` — a child row can still be pointed at another tenant's store-less legacy parent
+- **Found:** 2026-10-25, fixing A-325.
+- **What's wrong:** `authorizeInsertTarget()` and A-325's `repointsToForeignParent()` resolve a child's store through its parent; a parent with `store_id = NULL` resolves to none, so the check falls back to the row's own `store_id` (INSERT) or lets it through (UPDATE). A batch can therefore be attached to another tenant's pre-backfill `NULL`-store product.
+- **Consequence:** small. The row joins no store's pull, so nothing crosses tenants on any device, and the A-248 attributor and repair command both refuse to attribute another tenant's product (4431114). But the attacker's batch becomes contradictory evidence on the victim's product, so that product can no longer be attributed from its stock. It needs the uuid of a store-less product.
+- **Fix:** when the parent resolves to no store, judge it by its author the way `authorizeChangeTarget()` judges a legacy row (`user_id` in `$allowedUserIds`, or no live author), on INSERT and UPDATE alike.
 
 #### A-330. both — the admin store detail's `recent_activity[].status` is always `null`
 - **Found:** 2026-10-24, by Larastan during the level-5 baseline cleanup.
@@ -664,6 +665,10 @@ These describe the current state of known architectural tradeoffs and performanc
 ### Offline / sync
 - **Server-side row-lock duration:** `SyncController::push()` holds `lockForUpdate()` locks for the whole outer transaction. Bounded with the current ~50-change batch size, but the first place to look if "Lock wait timeout" shows up in server logs.
 - **Tab-lock residual notes:** `resetDatabase()`/`clearDatabaseForNewStore()` call `db.run()` directly rather than through `reserveDbSlot()`, so they can interleave with an in-flight yielding `query()`. A stolen-from tab only learns it lost the lock via the `steal-notice` broadcast, which a frozen tab receives only on thaw — `writerTab` stays `true` until that notice arrives.
+
+### Files over 350 lines touched by a fix
+Logged per the 2026-10-25 rule: each file a fix edits that was already over the 350-line limit, or that it pushes over, with its size after the change. None of these were split inside a bug fix.
+- `laravel-server/app/Http/Controllers/Api/App/SyncController.php`: 823 lines, already over (A-325 added the payload-key refusal and one condition). What is left in it is listed under Architecture below.
 
 ### Architecture
 - **One hand-rolled tenant-resolution copy remains:** `DashboardService` still hand-rolls the staff→owner lookup instead of a shared `Request`-free helper; `TenantScopingArchitectureTest` only scans controllers, not services.

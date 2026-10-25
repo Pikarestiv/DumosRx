@@ -1107,6 +1107,16 @@ Above `'performed_by' => $currentUser->id,`:
 
 > A movement may not name, or be repointed at, a batch outside the session's scope (A-287).
 
+### `hasNonColumnKey`
+
+> A-325: a miscased or table-qualified key still names the column, so it would reach `forceFill()` past every
+> guard reading the bare key; see laravel-server/AGENTS.md, "A payload key that is not a bare column name is refused".
+
+### `repointsToForeignParent`
+
+> A-325: an UPDATE may not move a child onto a parent outside the session's scope; see
+> laravel-server/AGENTS.md, "A child UPDATE's new parent must be in scope".
+
 ### `authorizeChangeTarget`
 
 > Whether $model (an already-loaded row for $tableName) belongs to one

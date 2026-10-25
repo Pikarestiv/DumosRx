@@ -1555,16 +1555,26 @@ in `pull-round-end.ts`.
   has to be remembered in the meantime, so nothing can be forgotten).
   - **The one floor is over the sum, not per movement.** `+80, −100, +20` is
     `0`, not the `20` a per-movement floor used to leave: an oversell's deficit
-    is carried forward, not forgiven. That is a deliberate behaviour change,
-    and the alternative (an explicit compensating **inbound** movement at
-    oversell time — not the `shrinkage` the 2026-10-10 spec called it, which
-    would double the deficit) is designed in
+    would be carried forward, so since A-265 a sale never lets it form.
+  - **An oversell writes two rows (A-265).** When `writeSaleItemStock()`
+    deducts more from a batch than it holds, it writes the sale row as before
+    (still tagged "oversold" in its `reason`, so old bundles' alerts keep
+    working) and then an inbound `adjustment` of `+N` against the same batch
+    for the units the ledger did not hold: `reference_type =
+    OVERSELL_REFERENCE_TYPE` (`"oversell"`), `reference_id` the sale,
+    `OVERSELL_COMPENSATION_REASON`, the sale's cost and `correlationId`. The
+    log therefore never sums below zero, a later count is an ordinary
+    `counted − system`, and a Stage-0 server lands on the same figure when
+    both rows arrive in one push. It is inbound, never `shrinkage`: an
+    oversell means receipts went unrecorded, and a negative row would double
+    the deficit and read as a loss. Readers: the Stock Adjustments ledger lists
+    it as "Oversell" (`adjustmentSourceLabel()`); `getStockLossTotal()` never
+    matches it (its reason is no loss label); `getStockMoM()` counts it as value
+    added, because the stock was there. A legacy carve-out batch can never be
+    oversold, since a sale clamps to its stored figure. Deficits already in the
+    log, or written by bundles older than this, are what the server's
+    `stock:compensate-oversells` backfills. Design:
     `docs/superpowers/specs/2026-10-14-oversell-compensating-movement-design.md`.
-    Oversells themselves are read off the log, never off `quantity`. **What the
-    carry-forward costs at the counting screen is `docs/KNOWN_BUGS.md` A-265:**
-    the next inbound movement pays the deficit off before it adds anything, so
-    the first cycle count on an oversold batch reads as having done nothing. One
-    live batch has this shape today (`gluformin` on store `571582a9`).
   - **`getBatchDeficits()` (`lib/db/batch-quantity.ts`) is the one place a
     shortfall is measured**, and it reports exactly the set
     `resolveBatchQuantity()` would rebuild to 0: a non-deleted, active batch in

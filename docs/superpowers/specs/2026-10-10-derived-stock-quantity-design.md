@@ -483,7 +483,8 @@ items, neither required:
   in two places.** An oversell means the ledger was short of inbound — six units
   left a batch that logged four — so a negative row doubles the deficit instead
   of clearing it, and `shrinkage` would read as a loss in `getStockLosses()`.
-  Promoted from optional by `docs/KNOWN_BUGS.md` A-265.
+  Promoted from optional by `docs/KNOWN_BUGS.md` A-265, and shipped 2026-10-25
+  (`docs/FIXED_BUGS.md`, A-265).
 - *`opening_quantity`*, a nullable column holding the unexplained residue of an
   A-148 batch, backfilled server-side as `MAX(0, quantity − SUM(log))` for
   batches with no inbound movement, pulled down as immutable server-authoritative

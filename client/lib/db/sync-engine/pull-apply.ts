@@ -18,11 +18,14 @@ function isQuantityOnlyBatchEdit(operation: string, payload: string | null): boo
 }
 
 async function hasShieldingLocalEdit(table: string, recordId: string): Promise<boolean> {
+  if (table !== "stock_batches") {
+    const pending = await query<{ 1: number }>("SELECT 1 FROM _sync_queue WHERE table_name = ? AND record_id = ? LIMIT 1", [table, recordId]);
+    return pending.length > 0;
+  }
   const pending = await query<{ operation: string; payload: string | null }>(
     "SELECT operation, payload FROM _sync_queue WHERE table_name = ? AND record_id = ?",
     [table, recordId],
   );
-  if (table !== "stock_batches") return pending.length > 0;
   return pending.some((row) => !isQuantityOnlyBatchEdit(row.operation, row.payload));
 }
 
@@ -59,8 +62,8 @@ export async function applyPulledRecord(
     const version = (rawData._version as number) || 1;
 
     if (exists.length > 0) {
-      // A row with an unpushed local edit is left alone; the next
-      // push resolves it by version comparison.
+      // A row with an unpushed local edit is left alone (bar a quantity-only batch edit, A-271);
+      // the next push resolves it by version comparison.
       if (await hasShieldingLocalEdit(table, recordId)) {
         return { counted: false, skipped: true };
       }

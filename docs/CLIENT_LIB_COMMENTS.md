@@ -2920,7 +2920,9 @@ ever reaching the server (A-268), so the resolved ones are the evidence.
 `client/lib/db/queries/diagnostics-detail.ts:102`
 
 Costs for the batches a device can disagree with the server about: the ones
-the pull skips (pending queue row or unsynced), plus the highest-value rows,
+the pull skips (a pending queue row it honours, by pull-apply.ts's rule) or
+orphans a crash-flagged boot will re-queue (unsynced, no queue row; A-337),
+plus the highest-value rows,
 since a valuation gap the owner notices is dominated by a few of those.
 Capped so the report stays well inside the support endpoint's size limit.
 

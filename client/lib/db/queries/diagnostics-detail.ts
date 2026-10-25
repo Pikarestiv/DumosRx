@@ -116,7 +116,8 @@ export async function batchCostSnapshot(): Promise<BatchCostRow[]> {
               CASE WHEN EXISTS (
                 SELECT 1 FROM _sync_queue q
                  WHERE q.table_name = 'stock_batches' AND q.record_id = sb.id
-                   AND (q.operation <> 'UPDATE' OR NOT json_valid(q.payload)
+                   AND (q.operation <> 'UPDATE'
+                        OR COALESCE(CASE WHEN json_valid(q.payload) THEN json_type(q.payload) END, '') <> 'object'
                         OR EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(q.payload) THEN q.payload ELSE '{}' END)
                                     WHERE key NOT IN (${QUANTITY_ONLY_SQL})))
               ) THEN 1 ELSE 0 END

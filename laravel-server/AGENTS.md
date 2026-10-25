@@ -1565,9 +1565,13 @@ may still hold a stale `cost_price` until it pulls. Old clients in the field sen
 behave identically (§11) — no shim, nothing to retire.
 
 What this does **not** fix, and what the device report was extended to find:
-a cost edit can also sit in `_sync_queue` indefinitely (the pull skips any row
-with a pending queue entry), which keeps a device's own cost alive while its
-quantities keep reconciling through movements. See `docs/KNOWN_BUGS.md` A-271.
+a cost edit can also sit in `_sync_queue` indefinitely, which keeps a device's
+own cost alive while its quantities keep reconciling through movements. Since
+A-271 (2026-10-25) a queued *sale* no longer shields a batch from the pull, and
+`stock_batches.cost_price`, `stock_movements.unit_cost`/`total_cost` and
+`sale_items.cost_price` are `decimal(15,2)`, so a cost of 100,000,000 or more no
+longer fails on every retry. The orphaned-row path is still open: see
+`docs/KNOWN_BUGS.md` A-337.
 
 ## The pull watermark lags (A-282, 2026-10-18)
 

@@ -191,11 +191,13 @@ describe("diagnostics detail queries", () => {
        VALUES ('b-queued', 'p1', 4, 11.5, 1, 0, 7, '${STORE_ID}'),
               ('b-unsynced', 'p1', 2, 9.25, 0, 0, 3, '${STORE_ID}'),
               ('b-valuable', 'p1', 100, 50, 1, 0, 1, '${STORE_ID}'),
+              ('b-selling', 'p1', 3, 10, 0, 0, 2, '${STORE_ID}'),
               ('b-other-store', 'p1', 80, 80, 1, 0, 1, 'store-2')`,
     );
     db.run(
       `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
-       VALUES ('stock_batches', 'b-queued', 'UPDATE', '{}', '2026-10-14T09:00:00Z')`,
+       VALUES ('stock_batches', 'b-queued', 'UPDATE', '{"cost_price":12}', '2026-10-14T09:00:00Z'),
+              ('stock_batches', 'b-selling', 'UPDATE', '{"quantity":3,"_version":2,"_synced":0}', '2026-10-14T09:00:00Z')`,
     );
 
     const rows = await detail.batchCostSnapshot();
@@ -207,5 +209,7 @@ describe("diagnostics detail queries", () => {
     expect(ids).not.toContain("b-other-store");
     expect(rows.find((row) => row.id === "b-queued")?.shielded).toBe(true);
     expect(rows.find((row) => row.id === "b-valuable")?.shielded).toBe(false);
+    expect(rows.find((row) => row.id === "b-unsynced")?.shielded).toBe(true);
+    expect(rows.find((row) => row.id === "b-selling")?.shielded, "a queued sale no longer shields the batch (A-271)").toBe(false);
   });
 });

@@ -373,7 +373,8 @@ and `synchronous = NORMAL`.
     cost edit resolved seconds later without the cost ever reaching the server
     (A-268), so the resolved rows are the evidence rather than noise. And
     `batchCostSnapshot()` lists up to 100 batches: every one the pull cannot
-    reach (`_synced = 0` or a pending `_sync_queue` row, flagged `shielded`)
+    reach (flagged `shielded`: a pending queue row the pull honours, by the
+    same rule as `pull-apply.ts`, or `_synced = 0` with no queue row at all)
     plus the highest-value rows, since a valuation gap big enough to notice is
     dominated by a few of those. Batch ids, costs, quantities and versions
     only — no product names. `buildReport` truncates the whole report at
@@ -1508,7 +1509,13 @@ in `pull-round-end.ts`.
   escape hatch.
 - **Skips hold the window cursor back, never the page cursor.** A record
   with a pending `_sync_queue` entry is left alone (the next push resolves
-  it by version); a record that hit a UNIQUE collision was not applied. In
+  it by version), **except a `stock_batches` row whose every pending entry is
+  a quantity-only UPDATE** (keys within `QUANTITY_ONLY_BATCH_KEYS`: `id`,
+  `quantity`, `updated_at`, `_version`, `_synced`). Every sale queues one of
+  those, and the pull drops `quantity` anyway, so the shield protected
+  nothing and kept another device's cost off a busy till (A-271); a
+  `store_id` claim, a cost edit or an INSERT still shields. A record that
+  hit a UNIQUE collision was not applied. In
   both cases the per-table window cursor must not advance past it, or the
   server never re-offers it and the local row is stuck on stale data
   forever. Re-fetching and re-applying an already-applied page is a harmless

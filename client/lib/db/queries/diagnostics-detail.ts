@@ -2,6 +2,9 @@ import { query, getActiveStoreId } from "@/lib/db/core";
 import { CRASH_REPORT_QUEUE_ROW_SQL } from "@/lib/db/crash-report-sync";
 import { canonicaliseReason } from "@/lib/db/sync-engine/queue-state";
 import { STORE_SCOPED_TABLES } from "@/lib/db/schema-migrations";
+import { QUANTITY_ONLY_BATCH_KEYS } from "@/lib/db/sync-engine/pull-apply";
+
+const QUANTITY_ONLY_SQL = QUANTITY_ONLY_BATCH_KEYS.map((key) => `'${key}'`).join(", ");
 
 // The half of a device's state the server cannot see:
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-diagnostics-detail-ts-L6
@@ -107,10 +110,16 @@ export async function batchCostSnapshot(): Promise<BatchCostRow[]> {
   const rows = await query<Omit<BatchCostRow, "shielded"> & { shielded: number }>(
     `SELECT sb.id, sb.cost_price, sb.quantity, sb._version, sb.updated_at,
             MAX(
-              CASE WHEN sb._synced = 0 THEN 1 ELSE 0 END,
+              CASE WHEN sb._synced = 0 AND NOT EXISTS (
+                SELECT 1 FROM _sync_queue q WHERE q.table_name = 'stock_batches' AND q.record_id = sb.id
+              ) THEN 1 ELSE 0 END,
               CASE WHEN EXISTS (
                 SELECT 1 FROM _sync_queue q
                  WHERE q.table_name = 'stock_batches' AND q.record_id = sb.id
+                   AND (q.operation <> 'UPDATE'
+                        OR COALESCE(CASE WHEN json_valid(q.payload) THEN json_type(q.payload) END, '') <> 'object'
+                        OR EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(q.payload) THEN q.payload ELSE '{}' END)
+                                    WHERE key NOT IN (${QUANTITY_ONLY_SQL})))
               ) THEN 1 ELSE 0 END
             ) AS shielded
        FROM stock_batches sb

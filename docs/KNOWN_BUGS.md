@@ -23,12 +23,6 @@ suggested tackle order rather than a strict ranking.
 - **Why it was left:** products have stock evidence (`stock_batches`) to attribute them by, which the server now does at ingest. These tables mostly have none, so not guessing would leave the row invisible to every other device with nothing to repair it from. Wrong-but-visible versus right-but-invisible is an owner's call, not a bug fix.
 - **Fix, if wanted:** per table, find the evidence (a customer's sales, a category's products, a supplier's purchase orders) and apply the A-248 part (c) pattern: the client attributes before pushing, the server stops guessing, and a repair command attributes the rest.
 
-#### A-323. `client/` — a device whose active store the server refuses reports every sync as successful and never re-resolves its store
-- **Found:** 2026-10-23, by the second review of A-254's fix.
-- **What's wrong:** since A-254 the server answers a pull for a store outside the caller's scope with `stores` and `payment_accounts` only, plus `refused_store_id`. The client clears that store key's windows, but otherwise treats the round as a success: no diagnostic, no sync-status error, and the active store is never changed. A staff member moved from store B to store C keeps a till on B, syncing nothing of either store, with the indicator reading "synced".
-- **Consequence:** silent loss of sync on exactly the device that needs attention; only the server's once-a-day log line records it.
-- **Fix:** when `refused_store_id` equals the run's store, report the round as failed with a message naming the problem, and if the pulled `stores` rows show the active store deleted or no longer owned, offer to switch to one that is (the store switcher already has the list). §11: additive client behaviour, no contract change.
-
 #### A-322. `client/` — a device whose windows an unowned-store pull stamped before A-254, and which has since regained that store, still misses the store's older rows
 - **Found:** 2026-10-23, by the review of A-254's fix.
 - **What's wrong:** before A-254, a pull with an `X-Store-Id` outside the caller's scope returned empty tables and the client stamped every window for that store key. A-254 clears those windows when the refusal is seen, but a device that was refused, then regained access (a staff member moved back, a store restored) before running a fixed bundle, still holds the stamps and is now served normally, so nothing tells it to clear them. Rows of that store older than the stamp never arrive.
@@ -461,6 +455,12 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** set `LOG_STACK=daily` and `LOG_DAILY_DAYS=14` in the production `.env`, set `LOG_LEVEL` to `warning` or `info`, archive then truncate the existing file. `.env.example` already carries the safe values (`LOG_STACK=daily`, `LOG_DAILY_DAYS=14`, `LOG_LEVEL=warning`); the production and dev `.env` files are not deployed and still need the same edit by hand. Nothing in `app/` reads `laravel.log` back; the only references write to it.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
+
+#### A-336. `client/` — small A-323 follow-ups: Settings shows a refusal without its remedy, an in-progress sync reads as an error, repeated `/user` calls
+- **Found:** 2026-10-25, by the second review of A-323's fix.
+- **Settings toast:** Settings > Data's Sync now shows `STORE_REFUSED_MESSAGE` alone, without the remedy the sync indicator appends (`storeRefusalRemedy()`); pass `result.refusal` through `failUnlessSucceeded()` and append it.
+- **In-progress sync:** `failUnlessSucceeded()` rejects `SYNC_IN_PROGRESS_ERROR` too, so pressing Sync while one runs shows an error toast. Before A-323 it showed a false "Sync complete!"; a `toast.info` would fit better.
+- **`/user` per refused round:** when the server's `store_id` for the user is not among the stores the round offered (null, or a store outside it), `adoptReassignedStore()` calls `/user` on every refused round, i.e. after every change in instant-sync mode, until the refusal ends. Remember the profile's answer per refused store for the session.
 
 #### A-330. both — the admin store detail's `recent_activity[].status` is always `null`
 - **Found:** 2026-10-24, by Larastan during the level-5 baseline cleanup.

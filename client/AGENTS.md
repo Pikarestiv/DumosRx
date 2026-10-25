@@ -1756,6 +1756,40 @@ in `pull-round-end.ts`.
   later starts from a full pull. Stamping every requested table at the end of
   a round would silently undo this. Pinned by
   `pull-refused-store-stamps-only-served-tables.test.ts`.
+- **A refused round is a failed sync, never "synced" (A-323).** `pull.ts`
+  returns the refusal (`readStoreRefusal()` in `store-refusal.ts`) with the
+  live stores the same response served, i.e. the ones this account can still
+  reach, and whether the refused store came back as a tombstone. `sync()`
+  then returns `success: false` with `STORE_REFUSED_MESSAGE` and the refusal,
+  does not set the last-sync time, and the recorded outcome's reason is
+  `store_refused`. Settings > Data's Sync and Force full resync wrap their
+  `toast.promise` in `failUnlessSucceeded()`, because `sync()` resolves on
+  failure and sonner would otherwise show "Sync complete".
+- **A fixed-store staff till is moved by sign-in, so the move has to reach the
+  local `users` row first.** Sign-in (`performLogin()`) builds the user from
+  the local row, and a refused round never serves `users` (serving the
+  caller's own row would stamp a partial `users` window under the refused
+  store's key, the A-254 trap). So on a refusal `adoptReassignedStore()` asks
+  `/user`; if it is the signed-in user, their local row still names the
+  refused store, and the server now has them at a store this round offered,
+  it rewrites the local `store_id` with a raw `execute`, never queued (the
+  server, not the device, decides a user's store). The result carries it
+  as `refusal.reassignedStore`. `/user` answers for the token's account,
+  which on a device linked by the owner is not the staff member, so then
+  nothing changes.
+- **The remedy** (`storeRefusalRemedy()`), toasted once per refused store
+  across every mounted indicator (module scope in
+  `useStoreRefusalAnnouncer()`), or on every manual sync:
+  - no store left: ask for access back;
+  - fixed-store staff: sign out and in again to move to the store
+    `adoptReassignedStore()` found, else ask the owner which store to use;
+  - the refused store was deleted: point at the store menu, because
+    `store-context.tsx` has already fallen back to the first local store;
+  - several stores: point at the store menu;
+  - one store: a "Switch to …" action calling `switchStore()`.
+  Apart from that deleted-store fallback, nothing switches on its own: the
+  device may hold unpushed changes for the refused store, and moving the till
+  is the user's call.
 - **Legacy products are attributed by evidence (A-248 part c).** At the start
   of every push on a device holding more than one store,
   `attributeStorelessProductsFromEvidence()` gives a store-less product the

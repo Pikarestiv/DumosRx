@@ -22,6 +22,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { APP_EVENTS, onAppEvent } from "@/lib/events";
 import { getAuthToken, getLastSyncTime } from "@/lib/storage-keys";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
+import { useStoreRefusalAnnouncer } from "@/lib/hooks/use-store-refusal-announcer";
 
 const INSTANT_SYNC_DEBOUNCE_MS = 2000;
 const SYNC_OVERDUE_MS = 30 * 60 * 1000;
@@ -59,6 +60,7 @@ export function useSyncIndicatorState() {
   const { isImpersonating } = useAuth();
   const { isReadOnlyTab } = useDatabase();
   const pendingCount = useSyncQueueCount();
+  const storeRefusal = useStoreRefusalAnnouncer();
 
   const status: SyncConnectionStatus =
     observedStatus ?? (hydrated && !navigator.onLine ? "offline" : "online");
@@ -117,6 +119,7 @@ export function useSyncIndicatorState() {
         setStatus("online");
         setLastSync(new Date().toISOString());
         setErrorMessage(null);
+        storeRefusal.reset();
         if (isUserInitiated) toast.success("Sync completed successfully");
       } else {
         const errorMsg = typeof result.error === 'string' ? result.error : "Sync failed";
@@ -127,7 +130,7 @@ export function useSyncIndicatorState() {
           return;
         }
         setStatus("error");
-        setErrorMessage(errorMsg);
+        setErrorMessage(result.refusal ? storeRefusal.announce(result.refusal, errorMsg, isUserInitiated) : errorMsg);
         if (errorMsg.includes("Unauthenticated") || errorMsg.includes("401")) {
           setShowAuthModal(true);
         }
@@ -150,7 +153,7 @@ export function useSyncIndicatorState() {
     } finally {
       setIsSyncInProgress(false);
     }
-  }, [isSyncInProgress, isImpersonating, isReadOnlyTab]);
+  }, [isSyncInProgress, isImpersonating, isReadOnlyTab, storeRefusal]);
 
   const handleManualSync = useCallback(() => runSync(true), [runSync]);
 

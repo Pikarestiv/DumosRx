@@ -1890,7 +1890,24 @@ place on most models, because `_version` is not in their `$fillable` and `fill()
 drops it without a word. Use `Model::whereKey($id)->update([...])` (or
 `increment('_version', 1, $extra)`) when you have the instance in hand.
 
-Known outstanding instances are filed as `docs/KNOWN_BUGS.md` A-278.
+**Use `App\Support\SyncRowStamp::for($table)`** for the bump: it returns the
+`_version` increment plus `updated_at`/`_synced_at` for whichever of those the
+table has, which is what moves the row into the next pull. Spread it into the
+update array beside the columns being written. `PurgedUserRowSweeper`, the
+admin catalogue backfill and `ForeignKeyCascadeEmulator`'s `SET NULL` use it.
+
+A server-owned watermark no client should write belongs in the table's
+`*_SYNC_FORBIDDEN_FIELDS` and is then written bare: `stores.storefront_dirty_at`
+and `paystack_fee_dirty_at` are the examples (A-278). Bumping the store's
+version on every storefront rebuild would re-push the store row to every
+device for nothing.
+
+The A-278 sweep (2026-10-18) closed every live instance it found. Migrations
+that already ran (`2026_10_15_000001_backfill_receipt_footer_default`,
+`2026_10_01_000000_clear_store_id_on_store_owners`,
+`2026_09_29_000003_retag_bulk_import_stock_movements`,
+`2026_09_28_100000_make_users_password_nullable`) cannot be fixed
+retroactively; the rule applies to new ones.
 
 ### Why `users.is_active` stays pushable (A-277, 2026-10-18)
 

@@ -175,7 +175,7 @@ class PushPayloadNormalizer
     private const STORE_SYNC_FORBIDDEN_FIELDS = [
         'paystack_subaccount_code', 'paystack_subaccount_country',
         'paystack_bank_code', 'paystack_account_number_last4',
-        'paystack_fee_dirty_at',
+        'paystack_fee_dirty_at', 'storefront_dirty_at',
         'status', 'suspension_reason', 'is_demo',
         'loyalty_defaults_seeded_at', 'permission_groups_seeded_at',
         'last_sync_run_id', 'last_sync_run_started_at',

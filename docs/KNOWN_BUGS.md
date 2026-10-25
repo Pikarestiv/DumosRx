@@ -456,6 +456,12 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
+#### A-336. `client/` — small A-323 follow-ups: Settings shows a refusal without its remedy, an in-progress sync reads as an error, repeated `/user` calls
+- **Found:** 2026-10-25, by the second review of A-323's fix.
+- **Settings toast:** Settings > Data's Sync now shows `STORE_REFUSED_MESSAGE` alone, without the remedy the sync indicator appends (`storeRefusalRemedy()`); pass `result.refusal` through `failUnlessSucceeded()` and append it.
+- **In-progress sync:** `failUnlessSucceeded()` rejects `SYNC_IN_PROGRESS_ERROR` too, so pressing Sync while one runs shows an error toast. Before A-323 it showed a false "Sync complete!"; a `toast.info` would fit better.
+- **`/user` per refused round:** when the server's `store_id` for the user is not among the stores the round offered (null, or a store outside it), `adoptReassignedStore()` calls `/user` on every refused round, i.e. after every change in instant-sync mode, until the refusal ends. Remember the profile's answer per refused store for the session.
+
 #### A-330. both — the admin store detail's `recent_activity[].status` is always `null`
 - **Found:** 2026-10-24, by Larastan during the level-5 baseline cleanup.
 - **Location:** `laravel-server/app/Services/Admin/AdminStoreDetailService.php` `recentActivity()`; typed as `status: string | null` in `web/lib/types/admin-store-detail.ts` (`AdminStoreDetailActivity`).

@@ -1756,6 +1756,21 @@ in `pull-round-end.ts`.
   later starts from a full pull. Stamping every requested table at the end of
   a round would silently undo this. Pinned by
   `pull-refused-store-stamps-only-served-tables.test.ts`.
+- **A refused round is a failed sync, never "synced" (A-323).** `pull.ts`
+  returns the refusal (`readStoreRefusal()` in `store-refusal.ts`) with the
+  live stores the same response served, i.e. the ones this account can still
+  reach. `sync()` then returns `success: false` with `STORE_REFUSED_MESSAGE`
+  and the refusal, does not set the last-sync time, and the recorded outcome's
+  reason is `store_refused`. The indicator shows the error with a remedy
+  (`storeRefusalRemedy()`) and toasts once per refused store, or on every
+  manual sync, through `useStoreRefusalAnnouncer()`:
+  - one store left: a "Switch to …" action calling `switchStore()`;
+  - several: points at the store menu;
+  - none: asks for access back;
+  - a staff member with a fixed `store_id`: sign out and in again, since a
+    switch cannot override a fixed store and only sign-in refreshes it.
+  Nothing switches on its own: the device may hold unpushed changes for the
+  refused store, and moving the till is the user's call.
 - **Legacy products are attributed by evidence (A-248 part c).** At the start
   of every push on a device holding more than one store,
   `attributeStorelessProductsFromEvidence()` gives a store-less product the

@@ -3792,9 +3792,11 @@ regain of access never pulled that store's older rows. Now:
 - **§11:** additive. Every bundle since at least 2026-09-26 stamps only tables
   present in `changes` (checked against that version of `pull.ts`), so an old
   bundle that ignores `refused_store_id` still stamps nothing it did not get.
-- **Not done:** the client neither surfaces a refusal nor re-resolves its
-  active store (A-323), and a device poisoned before this fix that has since
-  regained access cannot be detected (A-322).
+- Since A-323 the client reports a refused round as a failed sync and offers
+  a way back to a store the account can reach (`client/AGENTS.md`, "A refused
+  round is a failed sync").
+- **Not done:** a device poisoned before this fix that has since regained
+  access cannot be detected (A-322).
 - Coverage: `tests/Feature/SyncPullStaffCrossStoreIsolationTest.php`; client side
   `client/__tests__/pull-refused-store-stamps-only-served-tables.test.ts`.
 

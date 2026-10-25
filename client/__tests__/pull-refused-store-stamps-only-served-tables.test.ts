@@ -99,4 +99,39 @@ describe("pull.ts against a refused X-Store-Id (A-254)", () => {
       core.setActiveStoreId(null);
     }
   });
+
+  it("reports the refusal with the live stores the server still serves, so the device can offer a way back (A-323)", async () => {
+    core.setActiveStoreId("revoked-store");
+    apiClient.pullChanges.mockResolvedValueOnce({
+      success: true,
+      changes: {
+        stores: [
+          { id: "revoked-store", name: "Revoked", _version: 2, deleted_at: "2026-10-20T00:00:00Z" },
+          { id: "owned-store", name: "Owned", _version: 1 },
+          { id: "closed-store", name: "Closed", _version: 3, _deleted: true },
+        ],
+      },
+      has_more: { stores: false },
+      server_timestamp: "2026-10-23T00:00:00Z",
+      refused_store_id: "revoked-store",
+    });
+
+    try {
+      const result = await pullChanges();
+      expect(result.refusal).toEqual({ storeId: "revoked-store", accessibleStores: [{ id: "owned-store", name: "Owned" }] });
+    } finally {
+      core.setActiveStoreId(null);
+    }
+  });
+
+  it("reports no refusal when the refused store is not the one this run asked for", async () => {
+    core.setActiveStoreId("active-store");
+    apiClient.pullChanges.mockResolvedValueOnce(refusedPage("some-other-store"));
+
+    try {
+      expect((await pullChanges()).refusal).toBeUndefined();
+    } finally {
+      core.setActiveStoreId(null);
+    }
+  });
 });

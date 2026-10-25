@@ -26,6 +26,7 @@ import {
 import { applyPulledRecord, type PullPageContext } from "./pull-apply";
 import { finishPullRound } from "./pull-round-end";
 import { pruneStoresMissingFromSnapshot, reconcileDuplicateNames } from "./pull-reconcile";
+import { readStoreRefusal, type StoreRefusal } from "./store-refusal";
 
 // Pull changes from server.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-pull-L115
@@ -38,6 +39,7 @@ export async function pullChanges(
 ): Promise<{
   pulled: number;
   updatedTables?: string[];
+  refusal?: StoreRefusal;
   error?: unknown;
 }> {
   const activeRun = resolveSyncRun(run);
@@ -90,6 +92,7 @@ export async function pullChanges(
     // Survives the page boundary:
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-pull-ts-L203
     let batchesArrivedSinceDrain = false;
+    let refusal: StoreRefusal | null = null;
 
     while (hasMoreAny && page < MAX_PULL_PAGES) {
       page++;
@@ -109,8 +112,9 @@ export async function pullChanges(
       const { changes, server_timestamp, has_more } = response;
       roundTimestamp ??= server_timestamp;
 
-      if (page === 1 && response.refused_store_id && response.refused_store_id === activeRun.storeId) {
-        await forgetWithheldPullWindows(windowStoreId, Object.keys(changes ?? {}));
+      if (page === 1) {
+        refusal = readStoreRefusal(response, activeRun.storeId);
+        if (refusal) await forgetWithheldPullWindows(windowStoreId, Object.keys(changes ?? {}));
       }
 
       if (!changes || Object.keys(changes).length === 0) {
@@ -278,7 +282,7 @@ export async function pullChanges(
       skippedRecords,
     );
 
-    return { pulled: pulledCount, updatedTables };
+    return refusal ? { pulled: pulledCount, updatedTables, refusal } : { pulled: pulledCount, updatedTables };
   } catch (error) {
     pullFailed = true;
     console.error("Pull sync failed:", error);

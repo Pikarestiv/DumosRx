@@ -1,7 +1,7 @@
 # Oversell compensation: making the log never sum below zero — design
 
 **Date:** 2026-10-14
-**Status:** Proposed. Nothing ships until the owner answers §"The product decision".
+**Status:** Stage 1 shipped 2026-10-14; Stages 2 and 3 shipped 2026-10-25 (`docs/FIXED_BUGS.md`, A-265) after the owner's go-ahead, with the defaults below: the compensation counts as value added, a mis-keyed oversell is corrected by the next count, and the backfill command exists but is run by hand. Deviations: `--revert` writes counter-rows (`StockMovement` cannot be soft-deleted on the server), and the row stays in `groupAdjustmentMovements()` as an "Oversell" ledger entry rather than being skipped, since that grouping *is* the ledger.
 **Scope:** `client/` write path and readers; one read-only server command. No
 schema change on either side, no new `movement_type`.
 **Related:** `docs/KNOWN_BUGS.md` A-265 (the defect), A-212 (the alert that
@@ -328,9 +328,13 @@ total by N while the log sum rises from `−N` to 0 and `stored` stays 0.
 after. The classification is unaffected for ordinary batches.
 
 For a *legacy* batch inside the carve-out (`stored` holds unlogged units) an
-oversell cannot occur: `deductFromBatch()` clamps to the stored figure, which
-is the shelf. So compensation rows never land on carve-out batches and cannot
-change what the test reads for them.
+oversell was claimed impossible here because `deductFromBatch()` clamps to the
+stored figure. **That is wrong (review, 2026-10-25):** the partial-shortfall
+fallback deducts past it, and the compensation covers the part past zero. The
+figure stays right; see `client/AGENTS.md`, "A legacy carve-out batch can be
+oversold too". A compensation row on such a batch
+lands only after its stored figure has reached zero, so it cannot change what
+the carve-out test reads while the batch is still inside it.
 
 What changes is A-264's **detection**, not its hole. A-264's exposure query
 counts `quantity = 0 AND Σlog < 0` as its upper bound, and names `gluformin`

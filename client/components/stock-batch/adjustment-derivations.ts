@@ -4,6 +4,7 @@ import {
   ADJUSTMENT_REASON_NOTE_SEPARATOR,
   AUDIT_REFERENCE_TYPE,
   LEGACY_PRODUCT_IMPORT_REASON,
+  OVERSELL_REFERENCE_TYPE,
   PRODUCT_IMPORT_REFERENCE_TYPE,
 } from "@/lib/constants/stock-adjustments";
 
@@ -66,6 +67,12 @@ export function isCountedQuantityReason(value: AdjustmentReasonValue): boolean {
 
 export function adjustmentQuantityLabel(value: AdjustmentReasonValue): string {
   return isCountedQuantityReason(value) ? "Counted" : "Quantity";
+}
+
+export function adjustmentSourceLabel(source: string): string {
+  if (source === AUDIT_REFERENCE_TYPE) return "Cycle count";
+  if (source === OVERSELL_REFERENCE_TYPE) return "Oversell";
+  return "Quick adjustment";
 }
 
 export function computeStockAfter(currentStock: number, delta: number): number {

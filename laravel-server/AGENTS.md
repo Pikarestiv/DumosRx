@@ -871,8 +871,9 @@ migration here **and** the corresponding update on the `client/` side
 - **`quantity` is derived, never accepted — except through
   `reconcileQuantities()`.** `push()` forces `stock_batches.quantity = 0` on
   INSERT and strips it from every UPDATE; the column only ever moves via
-  `applyStockBatchDeltas()` replaying `stock_movements`. That invariant is
-  what makes concurrent multi-device writes commute, and it stays. The one
+  `applyStockBatchDeltas()`, which since A-217 rebuilds it from the batch's
+  `stock_movements` log. That invariant is what makes concurrent multi-device
+  writes commute, and it stays. The one
   sanctioned exception is `POST /app/sync/reconcile-quantities`
   (`reconcileQuantities()`, A-148): an explicit, client-triggered repair for
   a batch whose opening stock never produced a movement row (a bulk import
@@ -1776,6 +1777,51 @@ pull's `_deleted` field and `TABLES_NEVER_PULLED` are unchanged), and the
 client drops the extra `deleted_at` key the response now carries for these
 tables because `pull.ts` filters every pulled column through its own
 `validColumns`. No shim, nothing to retire.
+
+## A batch's quantity is derived from its log (A-217, 2026-10-25)
+
+Stage 2 of `docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`.
+For every batch a push wrote a movement for, `StockBatchDeltaApplier` sets
+`quantity = MAX(0, Σ quantity)` over the batch's movements, the definition the
+client has used since Stage 1 (`resolveBatchQuantity()`). The old statement
+added the push's net delta and floored it, which is a floor over *one push*:
+an oversell in one push and a count in the next read 2 where the log says 0,
+and the two replicas disagreed for ever.
+
+- **The A-148 carve-out is the client's rule:** a batch whose stored quantity
+  exceeds its logged inbound total *before this push* holds unlogged opening
+  stock, so it is patched with the push's delta instead of rebuilt (rebuilding
+  would write that stock off). The push's own inbound is tracked beside its
+  deltas (`$stockBatchInbound`) for exactly this subtraction.
+- **A log holding another store's movements is patched, not rebuilt.** Rows
+  accepted between A-280 and A-287 name another store's batch, and their deltas
+  were refused; a mis-stamped product (A-248) has real rows under another
+  store's id. Rebuilding would add the first back (a cross-tenant write the
+  batch's own tills never see) and filtering would drop the second, so a batch
+  whose log has any row whose `store_id` differs from its product's keeps the
+  old `stored + delta`, floored.
+- **Concurrency.** The sum is a locking read (`sharedLock()`), because a plain
+  read inside the push's transaction would see only its MySQL snapshot and
+  miss movements another push committed meanwhile; the old atomic `quantity +
+  Δ` never had that problem. So that read cannot deadlock against another
+  push, the first `stock_movements` change of a push locks every batch the
+  push's movements reference, payload ids and the stored rows of any movement
+  it updates or deletes, in id order (`lockMovementBatches()`), before any
+  movement row lock, held to commit. Two pushes therefore take batch locks in
+  one order and serialise. The old code could deadlock on a single batch,
+  since a movement insert's foreign-key check took a shared lock that the
+  increment then upgraded. Writers outside the push are not covered:
+  `QuantityReconciliationService` locks the batch row first and is safe;
+  `DashboardService`'s wipe and the hand-run repair and backfill commands are
+  not, and a deadlock there rolls back the push, which the device retries.
+- **Cost:** a touched batch now costs a locked scan of its movements (indexed
+  by `stock_batch_id`) instead of a one-row UPDATE. Not measured on the shared
+  host; if a long-lived batch makes it slow, a covering index on
+  `(stock_batch_id, deleted_at, quantity)` is the first step.
+- **What it does not do:** a movement UPDATE or DELETE still moves no batch, as
+  before; a drift *above* a batch's inbound total is treated as carve-out and
+  kept, as on the client.
+- Coverage: `tests/Feature/SyncPushBatchQuantityDerivedTest.php`.
 
 ## Stock batch deltas are store-scoped (A-280, 2026-10-18)
 

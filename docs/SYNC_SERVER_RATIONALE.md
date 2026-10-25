@@ -1217,9 +1217,12 @@ Above `return ! User::withTrashed()->whereKey($model->user_id)->exists();`:
 
 ### `applyStockBatchDeltas`
 
-> Applies every accumulated stock_movements delta. See push()'s own
-> comments (preserved verbatim below) for why this runs after the main
-> loop, per-delta-savepointed, as a single atomic floored UPDATE.
+> Rebuilds every batch a push wrote a movement for from its own log
+> (A-217): `MAX(0, Σ quantity)`, or the stored figure plus the push's delta
+> for an A-148 carve-out batch. See laravel-server/AGENTS.md, "A batch's
+> quantity is derived from its log". The notes below predate A-217: the
+> savepoint and after-the-loop reasoning still hold; the statement is no
+> longer a floored increment.
 
 Above `foreach ($stockBatchDeltas as $stockBatchId => $delta) {`:
 

@@ -150,4 +150,34 @@ class SyncPushBatchQuantityDerivedTest extends TestCase
 
         $this->assertSame(0, $this->stored($batch));
     }
+
+    public function test_a_log_holding_another_stores_movements_is_patched_not_rebuilt(): void
+    {
+        $batch = $this->seedBatch(0);
+        $this->push($this->movement($batch, 40));
+        DB::table('stock_movements')->insert([
+            'id' => (string) Str::uuid(), 'product_id' => $this->productId, 'stock_batch_id' => $batch, 'store_id' => (string) Str::uuid(),
+            'movement_type' => 'sale', 'quantity' => -25, 'performed_by' => $this->owner->id, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->push($this->movement($batch, -1));
+
+        $this->assertSame(39, $this->stored($batch), 'A movement A-280 refused to apply must not be rebuilt back in.');
+    }
+
+    public function test_a_push_locks_every_batch_its_movements_touch_once_in_id_order(): void
+    {
+        $first = $this->seedBatch(0);
+        $second = $this->seedBatch(0);
+        DB::enableQueryLog();
+
+        $this->push($this->movement($second, 3), $this->movement($first, 2));
+
+        $locks = collect(DB::getQueryLog())->filter(fn ($q) => str_contains($q['query'], 'from "stock_batches" where "id" in'))->values();
+        DB::disableQueryLog();
+        $this->assertCount(1, $locks);
+        $expected = [$first, $second];
+        sort($expected);
+        $this->assertSame($expected, $locks[0]['bindings']);
+    }
 }

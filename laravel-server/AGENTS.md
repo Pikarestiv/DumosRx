@@ -1793,18 +1793,34 @@ and the two replicas disagreed for ever.
   stock, so it is patched with the push's delta instead of rebuilt (rebuilding
   would write that stock off). The push's own inbound is tracked beside its
   deltas (`$stockBatchInbound`) for exactly this subtraction.
+- **A log holding another store's movements is patched, not rebuilt.** Rows
+  accepted between A-280 and A-287 name another store's batch, and their deltas
+  were refused; a mis-stamped product (A-248) has real rows under another
+  store's id. Rebuilding would add the first back (a cross-tenant write the
+  batch's own tills never see) and filtering would drop the second, so a batch
+  whose log has any row whose `store_id` differs from its product's keeps the
+  old `stored + delta`, floored.
 - **Concurrency.** The sum is a locking read (`sharedLock()`), because a plain
   read inside the push's transaction would see only its MySQL snapshot and
-  miss movements another push committed meanwhile. The old atomic `quantity +
-  Δ` never had that problem. To keep that locking read from deadlocking against
-  a second push writing to the same batch, every movement INSERT first takes
-  its batch row's lock (`lockBatch()`), held to commit, so two pushes touching
-  one batch serialise instead of interleaving. Other server writers of
-  movements (the repair and backfill commands) do not take it; they are run by
-  hand.
-- **What it does not do:** a movement UPDATE (a changed quantity or batch)
-  still moves no batch, as before; a drift *above* a batch's inbound total is
-  treated as carve-out and kept, as on the client.
+  miss movements another push committed meanwhile; the old atomic `quantity +
+  Δ` never had that problem. So that read cannot deadlock against another
+  push, the first `stock_movements` change of a push locks every batch the
+  push's movements reference, payload ids and the stored rows of any movement
+  it updates or deletes, in id order (`lockMovementBatches()`), before any
+  movement row lock, held to commit. Two pushes therefore take batch locks in
+  one order and serialise. The old code could deadlock on a single batch,
+  since a movement insert's foreign-key check took a shared lock that the
+  increment then upgraded. Writers outside the push are not covered:
+  `QuantityReconciliationService` locks the batch row first and is safe;
+  `DashboardService`'s wipe and the hand-run repair and backfill commands are
+  not, and a deadlock there rolls back the push, which the device retries.
+- **Cost:** a touched batch now costs a locked scan of its movements (indexed
+  by `stock_batch_id`) instead of a one-row UPDATE. Not measured on the shared
+  host; if a long-lived batch makes it slow, a covering index on
+  `(stock_batch_id, deleted_at, quantity)` is the first step.
+- **What it does not do:** a movement UPDATE or DELETE still moves no batch, as
+  before; a drift *above* a batch's inbound total is treated as carve-out and
+  kept, as on the client.
 - Coverage: `tests/Feature/SyncPushBatchQuantityDerivedTest.php`.
 
 ## Stock batch deltas are store-scoped (A-280, 2026-10-18)

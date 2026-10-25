@@ -44,7 +44,7 @@ class SyncController extends Controller
     #[OA\Post(
         path: '/app/sync/push',
         summary: 'Push offline-first client changes to the server',
-        description: 'Applies a batch of INSERT/UPDATE/DELETE changes from the client\'s local SQLite database. Conflict resolution on UPDATE uses strict-equality optimistic concurrency on `_version` (falling back to `updated_at` only for legacy rows with no version tracking): the payload\'s `_version` must exactly equal the server\'s current version for the edit to be accepted (not merely "not older" — an equal version means two devices edited from the same ancestor, a real conflict, not a free pass); on acceptance the server assigns the new version itself, never trusting whatever `_version` value the payload carries. A rejected UPDATE (real conflict, in either the version or timestamp fallback path) is reported in `failed`, never silently dropped. EXCEPT for a `stock_batches` UPDATE whose payload is provably quantity-only (nothing left after stripping `quantity` and the usual bookkeeping fields): `quantity` is never trusted from the client at all (INSERT or UPDATE) and is always derived from the batch\'s own `stock_movements` log, `MAX(0, sum)` (A-217), since concurrent quantity changes from multiple devices/terminals are commutative and both should apply rather than one winning by version — but any OTHER `stock_batches` field (`cost_price`, `expiry_date`, `batch_number`, etc.) still goes through the normal strict-equality check, since those are genuinely overwritten by this path and a real two-manager conflict on them must still be caught. May reject the whole request (403/429) if the store\'s plan disables cloud sync or the sync-interval throttle hasn\'t elapsed yet.',
+        description: 'Applies a batch of INSERT/UPDATE/DELETE changes from the client\'s local SQLite database. Conflict resolution on UPDATE uses strict-equality optimistic concurrency on `_version` (falling back to `updated_at` only for legacy rows with no version tracking): the payload\'s `_version` must exactly equal the server\'s current version for the edit to be accepted (not merely "not older" — an equal version means two devices edited from the same ancestor, a real conflict, not a free pass); on acceptance the server assigns the new version itself, never trusting whatever `_version` value the payload carries. A rejected UPDATE (real conflict, in either the version or timestamp fallback path) is reported in `failed`, never silently dropped. EXCEPT for a `stock_batches` UPDATE whose payload is provably quantity-only (nothing left after stripping `quantity` and the usual bookkeeping fields): `quantity` is never trusted from the client at all (INSERT or UPDATE) and is always derived from the batch\'s own `stock_movements` log, `MAX(0, sum)` (A-217), except a legacy batch holding unlogged stock or a log with another store\'s rows, which is patched with the push\'s net delta, since concurrent quantity changes from multiple devices/terminals are commutative and both should apply rather than one winning by version — but any OTHER `stock_batches` field (`cost_price`, `expiry_date`, `batch_number`, etc.) still goes through the normal strict-equality check, since those are genuinely overwritten by this path and a real two-manager conflict on them must still be caught. May reject the whole request (403/429) if the store\'s plan disables cloud sync or the sync-interval throttle hasn\'t elapsed yet.',
         tags: ['Sync'],
         security: [['sanctum' => []]],
         parameters: [new OA\HeaderParameter(name: 'X-Store-Id', description: 'Which of the caller\'s stores to sync (defaults to their primary store)', schema: new OA\Schema(type: 'string'))],
@@ -141,6 +141,7 @@ class SyncController extends Controller
             $stockBatchDeltas = [];
             $stockBatchInbound = [];
             $deltaApplier = app(StockBatchDeltaApplier::class);
+            $movementBatchesLocked = false;
             $failed = [];
             $versions = [];
 
@@ -154,6 +155,11 @@ class SyncController extends Controller
                     Log::warning('Sync push ignored unknown table: '.$change['table_name']);
 
                     continue;
+                }
+
+                if ($change['table_name'] === 'stock_movements' && ! $movementBatchesLocked) {
+                    $deltaApplier->lockMovementBatches($changes);
+                    $movementBatchesLocked = true;
                 }
 
                 DB::beginTransaction();
@@ -280,9 +286,6 @@ class SyncController extends Controller
 
                             if ($change['table_name'] === 'stock_batches') {
                                 $model->setAttribute('quantity', 0);
-                            }
-                            if ($change['table_name'] === 'stock_movements') {
-                                $deltaApplier->lockBatch($payload['stock_batch_id'] ?? null);
                             }
 
                             $model->save();

@@ -459,10 +459,11 @@ the revert leaves behind.
 
 **Stage 2 — server recompute. Shipped 2026-10-25** (`docs/FIXED_BUGS.md`,
 A-217). Two things the design did not anticipate: the sum must be a locking
-read, or MySQL's snapshot misses a concurrent push's movements, and each
-movement insert therefore takes its batch's row lock first so two pushes on one
-batch cannot deadlock; and the carve-out needs the push's own inbound tracked
-beside its deltas. The one statement in `applyStockBatchDeltas()`.
+read, or MySQL's snapshot misses a concurrent push's movements, so a push
+locks every batch its movements touch, in id order, before any movement row,
+and two pushes serialise instead of deadlocking on that read; the carve-out
+needs the push's own inbound tracked beside its deltas; and a batch whose log
+holds another store's movements is patched rather than rebuilt. The one statement in `applyStockBatchDeltas()`.
 *Field signal:* `quantity_delta` → 0 for every device of both customers, and
 `StockDivergenceService`'s `diverged` flag stays false through a week of
 trading.

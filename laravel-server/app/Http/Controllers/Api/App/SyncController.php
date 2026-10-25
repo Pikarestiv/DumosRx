@@ -309,6 +309,7 @@ class SyncController extends Controller
                         if ($model && $currentUser && ! $isSuperAdmin && (
                             ! $authorizer->authorizeChangeTarget($change['table_name'], $model, $allowedStoreIds, $allowedUserIds)
                             || $authorizer->namesForeignBatch($change['table_name'], $payload, $allowedStoreIds, $model)
+                            || $authorizer->repointsToForeignParent($change['table_name'], $payload, $model, $allowedStoreIds)
                         )) {
                             DB::commit();
                             $failed[] = [

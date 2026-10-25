@@ -1107,6 +1107,11 @@ Above `'performed_by' => $currentUser->id,`:
 
 > A movement may not name, or be repointed at, a batch outside the session's scope (A-287).
 
+### `repointsToForeignParent`
+
+> A-325: an UPDATE may not move a child onto a parent outside the session's scope; see
+> laravel-server/AGENTS.md, "A child UPDATE's new parent must be in scope".
+
 ### `authorizeChangeTarget`
 
 > Whether $model (an already-loaded row for $tableName) belongs to one

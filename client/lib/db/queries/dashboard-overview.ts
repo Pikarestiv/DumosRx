@@ -87,7 +87,7 @@ export async function getDashboardOverviewData(viewerId?: string) {
        FROM stock_movements sm
        LEFT JOIN users u ON u.id = sm.performed_by
        WHERE sm._deleted = 0
-         AND (sm.reference_type IS NULL OR sm.reference_type NOT IN ('sale', 'purchase_order', 'return'))
+         AND (sm.reference_type IS NULL OR sm.reference_type NOT IN ('sale', 'purchase_order', 'return', 'oversell'))
          AND sm.movement_type NOT IN ${HIDDEN_MOVEMENT_TYPES_SQL}
          ${viewerId ? " AND sm.performed_by = ?" : ""}${storeId ? " AND sm.store_id = ?" : ""}
        ORDER BY sm.created_at DESC LIMIT 5`,

@@ -51,6 +51,10 @@ describe("an oversell writes an inbound compensation so the log never sums below
        DELETE FROM products; DELETE FROM _sync_queue; DELETE FROM audit_logs;`,
     );
     db.run(`INSERT INTO products (id, name, _deleted, store_id) VALUES ('gluformin', 'Gluformin', 0, '${STORE_ID}')`);
+    db.run(`DELETE FROM _sync_state`);
+    db.run(
+      `INSERT INTO _sync_state (store_id, table_name, last_synced_at) VALUES ('${STORE_ID}', 'stock_movements', '2026-10-25T00:00:00Z')`,
+    );
   });
 
   function seedBatch(id: string, received: number, expiry = "2099-01-01") {
@@ -110,6 +114,16 @@ describe("an oversell writes an inbound compensation so the log never sums below
 
     await count("b1", 2);
     expect(stored("b1")).toBe(2);
+  });
+
+  it("writes no compensation on a device whose movement log is incomplete, since the units may be in a row it has not pulled", async () => {
+    db.run(`UPDATE _sync_state SET server_cursor = '{"id":"x"}' WHERE table_name = 'stock_movements'`);
+    seedBatch("b1", 4);
+
+    await sell(6);
+
+    expect(compensations()).toEqual([]);
+    expect(stored("b1")).toBe(0);
   });
 
   it("writes no compensation for a sale within stock", async () => {
@@ -206,5 +220,17 @@ describe("an oversell writes an inbound compensation so the log never sums below
 
     expect(serverAfterSale).toBe(0);
     expect(applyPush(serverAfterSale, [2])).toBe(stored("b1"));
+  });
+
+  it("stays out of the dashboard's recent-activity feed, where the sale already has its own entry", async () => {
+    seedBatch("b1", 4);
+    await sell(6);
+    const { getDashboardOverviewData } = await import("@/lib/db/queries/dashboard-overview");
+
+    core.setActiveStoreId(null);
+    const { recentActivities } = await getDashboardOverviewData().finally(() => core.setActiveStoreId(STORE_ID));
+
+    expect(JSON.stringify(recentActivities)).not.toContain(OVERSELL_REFERENCE_TYPE);
+    expect(db.exec(`SELECT COUNT(*) FROM stock_movements WHERE reference_type = 'oversell'`)[0].values[0][0]).toBe(1);
   });
 });

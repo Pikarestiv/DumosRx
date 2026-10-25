@@ -1567,13 +1567,29 @@ in `pull-round-end.ts`.
     `counted − system`, and a Stage-0 server lands on the same figure when
     both rows arrive in one push. It is inbound, never `shrinkage`: an
     oversell means receipts went unrecorded, and a negative row would double
-    the deficit and read as a loss. Readers: the Stock Adjustments ledger lists
-    it as "Oversell" (`adjustmentSourceLabel()`); `getStockLossTotal()` never
-    matches it (its reason is no loss label); `getStockMoM()` counts it as value
-    added, because the stock was there. A legacy carve-out batch can never be
-    oversold, since a sale clamps to its stored figure. Deficits already in the
-    log, or written by bundles older than this, are what the server's
-    `stock:compensate-oversells` backfills. Design:
+    the deficit and read as a loss.
+  - **Only on a device whose movement log is complete**
+    (`movementLogIsComplete()`). N is judged against this device's copy of
+    the log, but the row joins the shared one: a till that has not pulled
+    another till's count on the same batch would book units that count
+    already holds, as phantom stock on every replica. Such a sale leaves the
+    deficit, as before, for the server backfill. The gate cannot see an
+    inbound another till wrote since this device's last pull; that window is
+    bounded by the sync interval, and the next count corrects it.
+  - **Readers:** the Stock Adjustments ledger lists it as "Oversell"
+    (`adjustmentSourceLabel()`); product history and the movement list still
+    label it a plain adjustment, its reason naming the oversell;
+    `getStockLossTotal()` never matches it (its reason is no loss label);
+    `getStockMoM()` counts it as value added, because the stock was there; the
+    dashboard's recent-activity feed leaves it out, as it does the sale it
+    belongs to. A return now restores the full quantity the sale took, since
+    the compensation says those units existed.
+  - **A legacy carve-out batch can be oversold too**: the partial-shortfall
+    fallback deducts past its stored figure, and the compensation covers only
+    the part past zero. Deficits already in the log, those written by older
+    bundles or a device behind on its log, and a decayed carve-out's unlogged
+    opening stock are what the server's `stock:compensate-oversells`
+    backfills. Design:
     `docs/superpowers/specs/2026-10-14-oversell-compensating-movement-design.md`.
   - **`getBatchDeficits()` (`lib/db/batch-quantity.ts`) is the one place a
     shortfall is measured**, and it reports exactly the set

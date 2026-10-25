@@ -3917,11 +3917,19 @@ php artisan stock:compensate-oversells --write --run=<label> # one +N row per de
 php artisan stock:compensate-oversells --revert=<label>      # a matching -N row per row that run wrote
 ```
 
-- **A deficit** is a batch whose non-deleted log sums below zero and whose
-  stored quantity is no more than its logged inbound total, the client's
+- **A deficit** is an active batch whose non-deleted log sums below zero and
+  whose stored quantity is no more than its logged inbound total, the client's
   `getBatchDeficits()` rule. The second condition leaves out an A-148 legacy
-  batch, whose sales outrun its log only because its opening stock was never
-  logged; nothing is owed there.
+  batch while it still holds unlogged stock; once one has sold down to zero it
+  is indistinguishable from an oversell (A-264), and its row is labelled an
+  oversell compensation although the units were unlogged opening stock. The
+  figure it produces is right either way.
+- **The row's `store_id` is the product's**, because a batch is pulled through
+  its product's store. A batch whose product has no store is skipped and
+  reported: no device would ever pull its row.
+- **A batch with a movement newer than `--settle-days` (default 7) is skipped**:
+  a till may have pushed an oversold sale and not yet its own compensation,
+  and compensating it here as well would book the units twice.
 - **It asserts no stored number.** It reads the server's own log and writes a
   row every replica rebuilds from, so it can only raise a sum from below zero
   to zero, never zero anything (the A-213/A-214 failure). It writes through
@@ -3935,8 +3943,8 @@ php artisan stock:compensate-oversells --revert=<label>      # a matching -N row
   "Location: `app/Models/StockMovement.php`"). A run label is single-use, and
   a revert runs once.
 - Refuses while `dumos.health_sync_enabled` is on, so the two repairs are never
-  both live. Run it once Stage 2 (the client write) has been live for a sync
-  round on every device.
+  both live. Run it once the client write has been live for a sync round on
+  every device; the settle window is the backstop, not the plan.
 - Coverage: `tests/Feature/CompensateOversellsTest.php`.
 
 ## Health Sync zeroing repair: `sync:repair-health-sync-reconciliation` (2026-10-10)

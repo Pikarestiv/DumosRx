@@ -328,8 +328,11 @@ total by N while the log sum rises from `−N` to 0 and `stored` stays 0.
 after. The classification is unaffected for ordinary batches.
 
 For a *legacy* batch inside the carve-out (`stored` holds unlogged units) an
-oversell cannot occur: `deductFromBatch()` clamps to the stored figure, which
-is the shelf. So compensation rows never land on carve-out batches and cannot
+oversell was claimed impossible here because `deductFromBatch()` clamps to the
+stored figure. **That is wrong (review, 2026-10-25):** the partial-shortfall
+fallback deducts past it, and the compensation covers the part past zero. The
+figure stays right; see `client/AGENTS.md`, "A legacy carve-out batch can be
+oversold too". So compensation rows never land on carve-out batches and cannot
 change what the test reads for them.
 
 What changes is A-264's **detection**, not its hole. A-264's exposure query

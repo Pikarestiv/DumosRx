@@ -2,6 +2,7 @@ import { insert, transaction, isInTransaction } from "@/lib/db/local-database";
 import type { StockBatch } from "@/lib/types/stock-batch";
 import { roundMoney } from "@/lib/utils/pos-calculations";
 import { OVERSELL_COMPENSATION_REASON, OVERSELL_REFERENCE_TYPE } from "@/lib/constants/stock-adjustments";
+import { movementLogIsComplete } from "@/lib/db/sync-engine/stock-auto-heal";
 import {
   getBatchesForProduct,
   getAnyActiveBatchForProduct,
@@ -133,6 +134,8 @@ async function writeSaleItemStock({
   }
 
   const movementDate = new Date().toISOString();
+  // A device behind on the log cannot tell an oversell from stock it has not pulled; the server backfill takes those.
+  const compensate = oversoldByBatchId.size > 0 && (await movementLogIsComplete());
   for (const [batchId, deduction] of deductionByBatchId) {
     await insert("sale_item_batches", {
       sale_item_id: saleItemId,
@@ -157,7 +160,7 @@ async function writeSaleItemStock({
     }, { correlationId });
 
     const unheld = oversoldByBatchId.get(batchId) ?? 0;
-    if (unheld > 0) {
+    if (compensate && unheld > 0) {
       await insert("stock_movements", {
         product_id: productId,
         stock_batch_id: batchId,

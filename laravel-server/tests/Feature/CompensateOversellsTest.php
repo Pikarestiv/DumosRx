@@ -42,23 +42,24 @@ class CompensateOversellsTest extends TestCase
     }
 
     /** A batch with the given stored quantity and movement log; returns its id. */
-    private function batch(Store $store, int $stored, array $log): string
+    private function batch(?Store $store, int $stored, array $log, int $arrivedDaysAgo = 30, bool $active = true): string
     {
         $productId = (string) Str::uuid();
         $batchId = (string) Str::uuid();
         DB::table('products')->insert([
-            'id' => $productId, 'user_id' => $this->cashier->id, 'store_id' => $store->id, 'name' => 'Gluformin '.substr($productId, 0, 4),
+            'id' => $productId, 'user_id' => $this->cashier->id, 'store_id' => $store?->id, 'name' => 'Gluformin '.substr($productId, 0, 4),
             'created_at' => now(), 'updated_at' => now(),
         ]);
         DB::table('stock_batches')->insert([
-            'id' => $batchId, 'product_id' => $productId, 'store_id' => $store->id, 'batch_number' => 'Opening Stock',
-            'quantity' => $stored, 'cost_price' => 50, 'created_at' => now(), 'updated_at' => now(),
+            'id' => $batchId, 'product_id' => $productId, 'store_id' => $store?->id, 'batch_number' => 'Opening Stock',
+            'quantity' => $stored, 'cost_price' => 50, 'is_active' => $active, 'created_at' => now(), 'updated_at' => now(),
         ]);
         foreach ($log as $i => $quantity) {
             DB::table('stock_movements')->insert([
-                'id' => (string) Str::uuid(), 'product_id' => $productId, 'stock_batch_id' => $batchId, 'store_id' => $store->id,
+                'id' => (string) Str::uuid(), 'product_id' => $productId, 'stock_batch_id' => $batchId, 'store_id' => $store?->id,
                 'movement_type' => $quantity > 0 ? 'purchase' : 'sale', 'quantity' => $quantity, 'performed_by' => $this->cashier->id,
-                'movement_date' => now()->subMinutes(10 - $i), 'created_at' => now(), 'updated_at' => now(),
+                'movement_date' => now()->subDays($arrivedDaysAgo)->subMinutes(10 - $i),
+                'created_at' => now()->subDays($arrivedDaysAgo), 'updated_at' => now()->subDays($arrivedDaysAgo),
             ]);
         }
 
@@ -121,6 +122,39 @@ class CompensateOversellsTest extends TestCase
         $this->artisan('stock:compensate-oversells', ['--write' => true, '--run' => 'r1'])->assertSuccessful();
 
         $this->assertCount(0, $this->compensations($legacy));
+    }
+
+    public function test_a_batch_that_moved_recently_is_left_for_its_own_compensation_to_arrive(): void
+    {
+        $recent = $this->batch($this->store, 0, [4, -6], 2);
+
+        $this->artisan('stock:compensate-oversells', ['--write' => true, '--run' => 'r1'])
+            ->expectsOutputToContain('its own compensation may still be unpushed')
+            ->assertSuccessful();
+        $this->assertCount(0, $this->compensations($recent));
+
+        $this->artisan('stock:compensate-oversells', ['--write' => true, '--run' => 'r2', '--settle-days' => 1])->assertSuccessful();
+        $this->assertCount(1, $this->compensations($recent));
+    }
+
+    public function test_a_batch_whose_product_has_no_store_is_left_alone(): void
+    {
+        $storeless = $this->batch(null, 0, [4, -6]);
+
+        $this->artisan('stock:compensate-oversells', ['--write' => true, '--run' => 'r1'])
+            ->expectsOutputToContain('its product has no store')
+            ->assertSuccessful();
+
+        $this->assertCount(0, $this->compensations($storeless));
+    }
+
+    public function test_an_inactive_batch_is_not_a_deficit(): void
+    {
+        $inactive = $this->batch($this->store, 0, [4, -6], 30, false);
+
+        $this->artisan('stock:compensate-oversells', ['--write' => true, '--run' => 'r1'])->assertSuccessful();
+
+        $this->assertCount(0, $this->compensations($inactive));
     }
 
     public function test_store_limits_the_run_to_one_store(): void

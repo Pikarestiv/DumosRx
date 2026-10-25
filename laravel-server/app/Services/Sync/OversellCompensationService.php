@@ -22,7 +22,7 @@ class OversellCompensationService
         return "Reverts oversell compensation (stock:compensate-oversells {$run})";
     }
 
-    /** @return Collection<int, object{batch_id: string, product_id: string, product: string, store_id: ?string, cost_price: mixed, inbound: mixed, outbound: mixed, deficit: int}> */
+    /** @return Collection<int, object{batch_id: string, product_id: string, product: string, store_id: ?string, cost_price: mixed, inbound: mixed, outbound: mixed, deficit: int, last_arrival: ?string}> */
     public function deficits(?string $storeId): Collection
     {
         $inbound = 'SUM(CASE WHEN m.quantity > 0 THEN m.quantity ELSE 0 END)';
@@ -33,23 +33,34 @@ class OversellCompensationService
             ->when(Schema::hasColumn('stock_movements', 'deleted_at'), fn ($q) => $q->whereNull('m.deleted_at'))
             ->when(Schema::hasColumn('stock_batches', 'deleted_at'), fn ($q) => $q->whereNull('b.deleted_at'))
             ->whereNull('p.deleted_at')
+            ->where('b.is_active', true)
             ->when($storeId, fn ($q) => $q->where('p.store_id', $storeId))
             ->groupBy('b.id', 'b.product_id', 'b.quantity', 'b.cost_price', 'p.name', 'p.store_id')
             ->havingRaw('SUM(m.quantity) < 0')
             ->havingRaw("b.quantity <= {$inbound}")
-            ->orderBy('p.store_id')
             ->orderBy('p.name')
             ->get([
                 'b.id as batch_id', 'b.product_id', 'p.name as product', 'p.store_id', 'b.cost_price',
                 DB::raw("{$inbound} as inbound"),
                 DB::raw('SUM(CASE WHEN m.quantity < 0 THEN -m.quantity ELSE 0 END) as outbound'),
                 DB::raw('-SUM(m.quantity) as deficit'),
+                DB::raw('MAX(m.created_at) as last_arrival'),
             ])
             ->map(function ($row) {
                 $row->deficit = (int) $row->deficit;
 
                 return $row;
             });
+    }
+
+    /** Why a deficit is left alone, or null to write it; a recent arrival may still have its own compensation in flight. */
+    public function skipReason(object $row, \DateTimeInterface $settledBefore): ?string
+    {
+        return match (true) {
+            $row->store_id === null => 'its product has no store, so no device pulls the batch',
+            $row->last_arrival !== null && $row->last_arrival > $settledBefore->format('Y-m-d H:i:s') => 'moved recently; its own compensation may still be unpushed',
+            default => null,
+        };
     }
 
     /** @return int rows written */

@@ -12,6 +12,7 @@ class CompensateOversells extends Command
                             {--store= : Only batches of this store id.}
                             {--write : Write the compensations. Without this flag the command only reports.}
                             {--run= : Label for this run, written into each row\'s reason. Defaults to now (UTC).}
+                            {--settle-days=7 : Leave a batch alone if any of its movements reached the server more recently than this.}
                             {--revert= : Reverse the rows the named run wrote, with matching negative adjustments.}';
 
     protected $description = 'Write the inbound adjustment an oversell needed for every batch whose movement log sums below zero (A-265).';
@@ -28,10 +29,20 @@ class CompensateOversells extends Command
             return $this->revert($service, (string) $run);
         }
 
-        $deficits = $service->deficits($this->option('store') ?: null);
-        if ($deficits->isEmpty()) {
+        $found = $service->deficits($this->option('store') ?: null);
+        if ($found->isEmpty()) {
             $this->info('No batch has a movement log that sums below zero.');
 
+            return self::SUCCESS;
+        }
+
+        $settledBefore = now()->subDays(max(0, (int) $this->option('settle-days')));
+        [$skipped, $deficits] = $found->partition(fn ($row) => $service->skipReason($row, $settledBefore) !== null);
+        if ($skipped->isNotEmpty()) {
+            $this->warn("Leaving {$skipped->count()} batch(es) alone:");
+            $this->table(['Batch', 'Product', 'Reason'], $skipped->map(fn ($row) => [$row->batch_id, $row->product, $service->skipReason($row, $settledBefore)])->all());
+        }
+        if ($deficits->isEmpty()) {
             return self::SUCCESS;
         }
 
@@ -54,12 +65,12 @@ class CompensateOversells extends Command
         }
 
         $written = $service->compensate($deficits, $run);
-        $skipped = $deficits->count() - $written;
+        $unattributed = $deficits->count() - $written;
         $this->info("Wrote {$written} compensation row(s) as run \"{$run}\". Revert with --revert=\"{$run}\".");
-        if ($skipped > 0) {
-            $this->warn("{$skipped} batch(es) skipped: no outbound movement names who performed it.");
+        if ($unattributed > 0) {
+            $this->warn("{$unattributed} batch(es) skipped: no outbound movement names who performed it.");
         }
-        Log::info('stock:compensate-oversells written', ['run' => $run, 'written' => $written, 'skipped' => $skipped]);
+        Log::info('stock:compensate-oversells written', ['run' => $run, 'written' => $written, 'skipped' => $skipped->count() + $unattributed]);
 
         return self::SUCCESS;
     }

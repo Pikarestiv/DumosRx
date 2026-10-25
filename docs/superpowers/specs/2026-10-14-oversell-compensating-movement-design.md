@@ -332,8 +332,9 @@ oversell was claimed impossible here because `deductFromBatch()` clamps to the
 stored figure. **That is wrong (review, 2026-10-25):** the partial-shortfall
 fallback deducts past it, and the compensation covers the part past zero. The
 figure stays right; see `client/AGENTS.md`, "A legacy carve-out batch can be
-oversold too". So compensation rows never land on carve-out batches and cannot
-change what the test reads for them.
+oversold too". A compensation row on such a batch
+lands only after its stored figure has reached zero, so it cannot change what
+the carve-out test reads while the batch is still inside it.
 
 What changes is A-264's **detection**, not its hole. A-264's exposure query
 counts `quantity = 0 AND Σlog < 0` as its upper bound, and names `gluformin`

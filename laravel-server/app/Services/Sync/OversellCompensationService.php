@@ -26,6 +26,7 @@ class OversellCompensationService
     public function deficits(?string $storeId): Collection
     {
         $inbound = 'SUM(CASE WHEN m.quantity > 0 THEN m.quantity ELSE 0 END)';
+        $arrival = Schema::hasColumn('stock_movements', '_synced_at') ? 'COALESCE(m._synced_at, m.created_at)' : 'm.created_at';
 
         return DB::table('stock_movements as m')
             ->join('stock_batches as b', 'b.id', '=', 'm.stock_batch_id')
@@ -44,7 +45,7 @@ class OversellCompensationService
                 DB::raw("{$inbound} as inbound"),
                 DB::raw('SUM(CASE WHEN m.quantity < 0 THEN -m.quantity ELSE 0 END) as outbound'),
                 DB::raw('-SUM(m.quantity) as deficit'),
-                DB::raw('MAX(m.created_at) as last_arrival'),
+                DB::raw("MAX({$arrival}) as last_arrival"),
             ])
             ->map(function ($row) {
                 $row->deficit = (int) $row->deficit;

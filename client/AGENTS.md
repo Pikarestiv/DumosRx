@@ -1574,8 +1574,11 @@ in `pull-round-end.ts`.
     another till's count on the same batch would book units that count
     already holds, as phantom stock on every replica. Such a sale leaves the
     deficit, as before, for the server backfill. The gate cannot see an
-    inbound another till wrote since this device's last pull; that window is
-    bounded by the sync interval, and the next count corrects it.
+    inbound another till wrote since this device's last completed pull, a
+    window that grows for as long as the device is offline; the next count
+    corrects it. A device that has never completed a pull, or is mid-page,
+    never compensates; its deficits stay on screen with the count warning and
+    go to the backfill once pushed.
   - **Readers:** the Stock Adjustments ledger lists it as "Oversell"
     (`adjustmentSourceLabel()`); product history and the movement list still
     label it a plain adjustment, its reason naming the oversell;

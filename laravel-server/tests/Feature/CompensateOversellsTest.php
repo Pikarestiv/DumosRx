@@ -137,6 +137,18 @@ class CompensateOversellsTest extends TestCase
         $this->assertCount(1, $this->compensations($recent));
     }
 
+    public function test_the_settle_window_reads_when_a_row_reached_the_server_not_the_tills_own_timestamp(): void
+    {
+        $backlog = $this->batch($this->store, 0, [4, -6]);
+        DB::table('stock_movements')->where('stock_batch_id', $backlog)->update(['_synced_at' => now()->subHour()]);
+
+        $this->artisan('stock:compensate-oversells', ['--write' => true, '--run' => 'r1'])
+            ->expectsOutputToContain('its own compensation may still be unpushed')
+            ->assertSuccessful();
+
+        $this->assertCount(0, $this->compensations($backlog));
+    }
+
     public function test_a_batch_whose_product_has_no_store_is_left_alone(): void
     {
         $storeless = $this->batch(null, 0, [4, -6]);

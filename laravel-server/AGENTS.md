@@ -3927,7 +3927,9 @@ php artisan stock:compensate-oversells --revert=<label>      # a matching -N row
 - **The row's `store_id` is the product's**, because a batch is pulled through
   its product's store. A batch whose product has no store is skipped and
   reported: no device would ever pull its row.
-- **A batch with a movement newer than `--settle-days` (default 7) is skipped**:
+- **A batch with a movement that reached the server within `--settle-days`
+  (default 7) is skipped**, judged by `_synced_at`, never `created_at`, which a
+  push keeps from the till:
   a till may have pushed an oversold sale and not yet its own compensation,
   and compensating it here as well would book the units twice.
 - **It asserts no stored number.** It reads the server's own log and writes a

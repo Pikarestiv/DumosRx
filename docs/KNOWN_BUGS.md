@@ -67,6 +67,12 @@ suggested tackle order rather than a strict ranking.
 - **Decide before fixing:** it changes what the stock ledger says happened, so it is the owner's call, not a correctness fix to be applied quietly. The interim mitigation is to tell staff that a shortfall-carrying batch needs the deficit counting through — which nobody should have to know.
 - **Scale:** one batch across all five stores today (the A-264 query finds it with `quantity = 0 AND log_sum < 0`). It grows by one every time a stale on-screen count lets a cashier oversell, so it is a slow accumulation rather than a one-off.
 
+#### A-342. `laravel-server/`+`client/` — an owed row pushed apart from its sale leaves the server N units high (worsens A-217)
+- **Found:** 2026-10-26, third independent review of `feat/sell-at-zero-stock`.
+- **Issue:** a sale at zero stock writes `sale −Q` and, on the same batch, `backorder +N`. The server's Stage-0 `applyStockBatchDeltas()` floors a batch per push. If the two rows go in different pushes (`push.ts` sends 50 queue rows a request), the first floors at 0 and the second adds N, so the server keeps N phantom units where the client reads 0. `laravel-server/tests/Feature/SellAtZeroStockServerParityTest.php::test_a_chunk_split_gives_the_bounded_a217_shape` pins that shape. It is A-217's disagreement, and this feature creates new occasions for it on every intended oversell.
+- **Mitigated 2026-10-26, not fixed:** `chunkPushQueue()` (`client/lib/db/sync-engine/push-queue-prep.ts`) moves a chunk boundary up to 10 rows later when that keeps a `backorder` row in the same push as a `sale` movement with the same `reference_id` (`client/__tests__/push-keeps-owed-row-with-its-sale.test.ts`). Judged small and safe: it only ever lengthens a chunk by a few rows, and the server takes any number of changes. It does not cover a sale row that failed and is retried on a later push while its owed row went earlier, an owed row more than 10 rows away, or bundles without it.
+- **Fix:** the derived-quantity Stage 2 server recompute (`docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`), which makes the server `MAX(0, Σlog)` per batch and removes the per-push floor. Same fix as A-217.
+
 #### A-217. `laravel-server/`+`client/` — a clamped batch's stored quantity is clamped over the whole log on the client and over one push on the server, so the two can still disagree
 - **Found:** 2026-10-10, in the review that produced A-215/A-216.
 - **Half fixed, 2026-10-13 (Stage 1).** The client no longer replays per movement: it holds `MAX(0, Σ log)` (`docs/FIXED_BUGS.md`, "Derived stock quantity, Stage 1"). The server still accumulates each push's deltas and applies one floored UPDATE to the stored value, which is a floor over *that push* rather than over the log, so a batch whose log ever went negative can still differ — and during Stage 1 the client is now the **lower** of the two, where it used to be the higher. Stage 2 is the one statement in `applyStockBatchDeltas()` that closes this; the rest of this entry is the original analysis and still describes the server side correctly.
@@ -621,6 +627,9 @@ suggested tackle order rather than a strict ranking.
 - **Found:** 2026-10-26, second independent review of `feat/sell-at-zero-stock`.
 - **Issue:** since settlements name the sale they pay off (`reference_id` = sale id), the PO id survives only as text after `ADJUSTMENT_REASON_NOTE_SEPARATOR` in `stock_movements.reason` (`client/lib/db/queries/backorders.ts`, `settleBackordersOnReceipt()`). Nothing parses it, so the Stock Movements list cannot link a settlement to its delivery, and the reason shows a bare UUID.
 - **Fix:** either parse it with `parseAdjustmentReason()` and render a PO link, or add a nullable `stock_movements` column for a secondary reference, mirrored in `schema.ts`, `schema-migrations.ts`, the Laravel migration and `$fillable`, with `npm run test:schema` run after.
+
+#### A-343. `client/` — the cart's owed-units warning overstates the shortfall when only expired stock is left
+- **Found:** 2026-10-26, third independent review of `feat/sell-at-zero-stock`; deferred. `formatBackorderWarning()` uses `product.stock`, which excludes expired batches, but `writeSaleItemStock()` falls back to an expired batch and may sell from it, so the toast can say more units are owed than the sale actually records.
 
 ---
 

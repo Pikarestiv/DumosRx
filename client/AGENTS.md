@@ -2234,7 +2234,9 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   `BACKORDER_REASON`. N is the deduction minus what the batch held. The log
   therefore never sums below zero, the batch reads its true shelf figure (0),
   and the server's per-push floor (Stage 0) lands on the same number when the
-  pair shares a push. Constants live in `lib/constants/stock-adjustments.ts`.
+  pair shares a push. `pushChanges()` chunks with `chunkPushQueue()`, which
+  pushes a boundary up to 10 rows later so an owed row shares its sale row's
+  push; what that misses is A-342. Constants live in `lib/constants/stock-adjustments.ts`.
   With the flag off the write is byte-for-byte today's.
 - **Who passes the flag.** `writeSaleTransaction()` (from `usePOSPayment`,
   fed by `usePOSSystem`) and `useFulfillOnlineOrderMutation` (fed by

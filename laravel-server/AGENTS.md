@@ -1401,7 +1401,8 @@ and re-costing is an ordinary `sale_items` UPDATE.
 `tests/Feature/SellAtZeroStockServerParityTest.php` pins that a sale and its
 backorder pushed together land the Stage-0 batch on 0 like the client, that a
 chunk split gives the bounded A-217 shape (the server reads N), and that the
-re-cost UPDATE is accepted.
+re-cost UPDATE is accepted. The client keeps an owed row in the same push as its
+sale where it can (`chunkPushQueue()`); the residual cases are A-342.
 
 ## Known gotcha: MySQL timezone vs. Laravel's UTC clock
 

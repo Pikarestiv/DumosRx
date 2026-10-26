@@ -115,3 +115,46 @@ export async function withheldRecordsWithBackedOffSiblingsRemoved(
     return !heldBackKeys.has(`${item.table_name}::${item.record_id}`);
   });
 }
+
+const OWED_ROW_LOOKAHEAD = 10;
+
+function owedRowSaleId(item: SyncQueueItem): string | null {
+  if (item.table_name !== "stock_movements") return null;
+  try {
+    const payload = JSON.parse(item.payload) as { reference_type?: string; reference_id?: string };
+    return payload.reference_type === "backorder" ? payload.reference_id ?? null : null;
+  } catch {
+    return null;
+  }
+}
+
+function saleRowIds(items: SyncQueueItem[]): Set<string> {
+  const ids = new Set<string>();
+  for (const item of items) {
+    if (item.table_name !== "stock_movements") continue;
+    try {
+      const payload = JSON.parse(item.payload) as { reference_type?: string; reference_id?: string };
+      if (payload.reference_type === "sale" && payload.reference_id) ids.add(payload.reference_id);
+    } catch {
+      continue;
+    }
+  }
+  return ids;
+}
+
+// The server floors a batch's quantity per push, so a sale's −Q and its owed +N must share a push (A-342).
+export function chunkPushQueue(items: SyncQueueItem[], size: number): SyncQueueItem[][] {
+  const chunks: SyncQueueItem[][] = [];
+  let start = 0;
+  while (start < items.length) {
+    let end = Math.min(start + size, items.length);
+    const sales = saleRowIds(items.slice(start, end));
+    for (let j = end; j < Math.min(end + OWED_ROW_LOOKAHEAD, items.length); j++) {
+      const saleId = owedRowSaleId(items[j]);
+      if (saleId && sales.has(saleId)) end = j + 1;
+    }
+    chunks.push(items.slice(start, end));
+    start = end;
+  }
+  return chunks;
+}

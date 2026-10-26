@@ -18,6 +18,7 @@ import { formatCurrency } from "@/lib/utils";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import type { POLineItemDraft } from "./po-item-ledger-table";
 import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
+import { OwedSettlementNotice } from "./owed-settlement-notice";
 
 interface POImmediateConfirmDialogProps {
   open: boolean;
@@ -68,6 +69,12 @@ export function POImmediateConfirmDialog({
               ) : (
                 <p>No selling price will change.</p>
               )}
+              <OwedSettlementNotice
+                lines={items.map((item) => ({
+                  productId: item.product_id,
+                  baseUnits: Number(item.bulk_quantity) * (Number(item.units_per_bulk) || 1),
+                }))}
+              />
               <p>This cannot be undone.</p>
             </div>
           </AlertDialogDescription>

@@ -29,6 +29,8 @@ if (!window.matchMedia) {
   })) as unknown as typeof window.matchMedia;
 }
 
+vi.mock("@/components/procurement/owed-settlement-notice", () => ({ OwedSettlementNotice: () => null }));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
 }));

@@ -12,38 +12,6 @@ export interface OutstandingBackorder {
   productName: string;
   /** Units sold before stock was received and not yet paid off by a delivery. */
   outstanding: number;
-  /** Units settled beyond what was owed (two tills settling at once). */
-  overSettled: number;
-}
-
-export async function getOutstandingBackorders(productIds?: string[]): Promise<OutstandingBackorder[]> {
-  const storeId = getActiveStoreId();
-  const productFilter = productIds?.length ? ` AND sm.product_id IN (${productIds.map(() => "?").join(", ")})` : "";
-  const rows = await query<{ product_id: string; product_name: string; owed: number; settled: number }>(
-    `SELECT sm.product_id, p.name AS product_name,
-            SUM(CASE WHEN sm.reference_type = ? THEN sm.quantity ELSE 0 END) AS owed,
-            SUM(CASE WHEN sm.reference_type = ? THEN ABS(sm.quantity) ELSE 0 END) AS settled
-       FROM stock_movements sm
-       JOIN products p ON p.id = sm.product_id
-      WHERE sm._deleted = 0 AND p._deleted = 0 AND sm.reference_type IN (?, ?)${storeId ? " AND p.store_id = ?" : ""}${productFilter}
-      GROUP BY sm.product_id
-     HAVING owed <> settled
-      ORDER BY p.name`,
-    [
-      BACKORDER_REFERENCE_TYPE, BACKORDER_SETTLEMENT_REFERENCE_TYPE,
-      BACKORDER_REFERENCE_TYPE, BACKORDER_SETTLEMENT_REFERENCE_TYPE,
-      ...(storeId ? [storeId] : []), ...(productIds ?? []),
-    ],
-  );
-  return rows.map((r) => {
-    const balance = Number(r.owed) - Number(r.settled);
-    return {
-      productId: r.product_id,
-      productName: r.product_name,
-      outstanding: Math.max(0, balance),
-      overSettled: Math.max(0, -balance),
-    };
-  });
 }
 
 export interface UnsettledSale {
@@ -52,20 +20,27 @@ export interface UnsettledSale {
   estimatedUnitCost: number;
 }
 
-export async function getUnsettledSales(productId: string): Promise<UnsettledSale[]> {
-  const rows = await query<{ reference_id: string; quantity: number; unit_cost: number | null; reference_type: string }>(
-    `SELECT reference_id, quantity, unit_cost, reference_type FROM stock_movements
-      WHERE product_id = ? AND _deleted = 0 AND reference_type IN (?, ?)
-      ORDER BY movement_date, created_at, rowid`,
-    [productId, BACKORDER_REFERENCE_TYPE, BACKORDER_SETTLEMENT_REFERENCE_TYPE],
-  );
+interface LedgerRow {
+  product_id: string;
+  product_name?: string;
+  reference_id: string;
+  reference_type: string;
+  quantity: number;
+  unit_cost: number | null;
+}
 
+function unsettledFromLedger(rows: LedgerRow[]): UnsettledSale[] {
   const bySale = new Map<string, { units: number; owedUnits: number; costSum: number }>();
-  let settled = 0;
   for (const r of rows) {
     const quantity = Number(r.quantity);
     if (r.reference_type === BACKORDER_SETTLEMENT_REFERENCE_TYPE) {
-      settled += Math.abs(quantity);
+      let pays = Math.abs(quantity);
+      for (const sale of bySale.values()) {
+        if (pays <= 0) break;
+        const paid = Math.min(Math.max(0, sale.units), pays);
+        sale.units -= paid;
+        pays -= paid;
+      }
       continue;
     }
     const sale = bySale.get(r.reference_id) ?? { units: 0, owedUnits: 0, costSum: 0 };
@@ -76,16 +51,49 @@ export async function getUnsettledSales(productId: string): Promise<UnsettledSal
     }
     bySale.set(r.reference_id, sale);
   }
+  return [...bySale]
+    .filter(([, sale]) => sale.units > 0)
+    .map(([saleId, sale]) => ({
+      saleId,
+      units: sale.units,
+      estimatedUnitCost: sale.owedUnits ? sale.costSum / sale.owedUnits : 0,
+    }));
+}
 
-  const unsettled: UnsettledSale[] = [];
-  for (const [saleId, sale] of bySale) {
-    const paidOff = Math.min(Math.max(0, sale.units), settled);
-    settled -= paidOff;
-    const units = sale.units - paidOff;
-    if (units <= 0) continue;
-    unsettled.push({ saleId, units, estimatedUnitCost: sale.owedUnits ? sale.costSum / sale.owedUnits : 0 });
+const LEDGER_ORDER = "ORDER BY sm.movement_date, sm.created_at, sm.rowid";
+
+export async function getOutstandingBackorders(productIds?: string[]): Promise<OutstandingBackorder[]> {
+  const storeId = getActiveStoreId();
+  const productFilter = productIds?.length ? ` AND sm.product_id IN (${productIds.map(() => "?").join(", ")})` : "";
+  const rows = await query<LedgerRow>(
+    `SELECT sm.product_id, p.name AS product_name, sm.reference_id, sm.reference_type, sm.quantity, sm.unit_cost
+       FROM stock_movements sm
+       JOIN products p ON p.id = sm.product_id
+      WHERE sm._deleted = 0 AND p._deleted = 0 AND sm.reference_type IN (?, ?)${storeId ? " AND p.store_id = ?" : ""}${productFilter}
+      ${LEDGER_ORDER}`,
+    [BACKORDER_REFERENCE_TYPE, BACKORDER_SETTLEMENT_REFERENCE_TYPE, ...(storeId ? [storeId] : []), ...(productIds ?? [])],
+  );
+
+  const byProduct = new Map<string, LedgerRow[]>();
+  for (const r of rows) byProduct.set(r.product_id, [...(byProduct.get(r.product_id) ?? []), r]);
+
+  const result: OutstandingBackorder[] = [];
+  for (const [productId, ledger] of byProduct) {
+    const outstanding = unsettledFromLedger(ledger).reduce((sum, s) => sum + s.units, 0);
+    if (outstanding > 0) result.push({ productId, productName: ledger[0].product_name ?? "", outstanding });
   }
-  return unsettled;
+  return result.sort((a, b) => a.productName.localeCompare(b.productName));
+}
+
+export async function getUnsettledSales(productId: string): Promise<UnsettledSale[]> {
+  const rows = await query<LedgerRow>(
+    `SELECT sm.product_id, sm.reference_id, sm.reference_type, sm.quantity, sm.unit_cost
+       FROM stock_movements sm
+      WHERE sm.product_id = ? AND sm._deleted = 0 AND sm.reference_type IN (?, ?)
+      ${LEDGER_ORDER}`,
+    [productId, BACKORDER_REFERENCE_TYPE, BACKORDER_SETTLEMENT_REFERENCE_TYPE],
+  );
+  return unsettledFromLedger(rows);
 }
 
 async function recostSettledSales(productId: string, sales: UnsettledSale[], settle: number, actualUnitCost: number) {

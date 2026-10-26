@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { formatDateLong } from "@/lib/utils/date-utils";
 import {
+  BACKORDER_REFERENCE_TYPE,
+  BACKORDER_SETTLEMENT_REFERENCE_TYPE,
   LEGACY_PRODUCT_IMPORT_REASON,
   PRODUCT_IMPORT_REFERENCE_TYPE,
 } from "@/lib/constants/stock-adjustments";
@@ -52,6 +54,8 @@ export function resolveMovementDisplayType(row: {
   if (movementType !== "adjustment") return movementType;
 
   if (row.reference_type === PRODUCT_IMPORT_REFERENCE_TYPE) return "import";
+  if (row.reference_type === BACKORDER_REFERENCE_TYPE) return "backorder";
+  if (row.reference_type === BACKORDER_SETTLEMENT_REFERENCE_TYPE) return "backorder_settlement";
   if (parseAdjustmentReason(row.reason ?? undefined).reason === LEGACY_PRODUCT_IMPORT_REASON) {
     return "import";
   }
@@ -61,6 +65,8 @@ export function resolveMovementDisplayType(row: {
 export const getTypeColor = (type: string) => {
   switch (type.toLowerCase()) {
     case "adjustment":
+    case "backorder":
+    case "backorder_settlement":
       return "bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30";
     case "purchase":
     case "restock":
@@ -93,6 +99,10 @@ export const getTypeLabel = (type: string) => {
       return "Transfer Out";
     case "import":
       return "Bulk Import";
+    case "backorder":
+      return "Sold before received";
+    case "backorder_settlement":
+      return "Settled on delivery";
     default:
       return type;
   }
@@ -101,6 +111,8 @@ export const getTypeLabel = (type: string) => {
 export const getTypeIcon = (type: string) => {
   switch (type.toLowerCase()) {
     case "adjustment":
+    case "backorder":
+    case "backorder_settlement":
       return <Shield className="w-4 h-4 text-amber-600 dark:text-amber-400" />;
     case "purchase":
     case "restock":
@@ -134,6 +146,8 @@ export const getTypeIcon = (type: string) => {
 export const getTypeIconBg = (type: string) => {
   switch (type.toLowerCase()) {
     case "adjustment":
+    case "backorder":
+    case "backorder_settlement":
       return "bg-amber-50 dark:bg-amber-500/10";
     case "purchase":
     case "restock":

@@ -37,3 +37,10 @@ export function formatBackorderWarning(onHand: number, requested: number, canSee
   const head = inStock > 0 ? `Only ${inStock} in stock.` : "Nothing in stock.";
   return `${head} ${requested - inStock} will be recorded as owed until stock is received.`;
 }
+
+export function describeOwedSettlement(owed: number, receiving: number, canSeeQuantities: boolean): string {
+  if (!canSeeQuantities) return "Some of this was already sold before the delivery and is taken off what goes on the shelf.";
+  const head = `${owed} already sold before this delivery.`;
+  if (receiving <= owed) return `${head} All ${receiving} go to those sales; none go on the shelf.`;
+  return `${head} ${receiving - owed} will go on the shelf.`;
+}

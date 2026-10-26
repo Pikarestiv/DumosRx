@@ -28,7 +28,7 @@ describe("assistant inventory tools", () => {
 
   beforeEach(() => {
     core.setActiveStoreId(null);
-    db.run(`DELETE FROM stock_batches; DELETE FROM products;`);
+    db.run(`DELETE FROM stock_batches; DELETE FROM products; DELETE FROM stock_movements;`);
     db.run(`INSERT INTO products (id, name, generic_name, reorder_level, selling_price, created_at, updated_at)
             VALUES ('p1', 'Paracetamol 500mg', 'Paracetamol', 10, 250, '2026-01-01', '2026-01-01')`);
     db.run(`INSERT INTO stock_batches (id, product_id, quantity, created_at, updated_at)
@@ -151,5 +151,16 @@ describe("assistant inventory tools", () => {
     expect(result.lowStockItems).toEqual([{ product: "Amoxicillin 250mg" }]);
     expect(reply.text).not.toMatch(/Amoxicillin 250mg[^,.]*\d/);
     expect(reply.text).not.toMatch(/\b3\b/);
+  });
+
+  it("says how many are owed to customers only to a role that can see quantities", async () => {
+    db.run(`INSERT INTO stock_movements (id, product_id, stock_batch_id, movement_type, quantity, reference_type, reference_id, _deleted)
+            VALUES ('m1', 'p1', 'b1', 'adjustment', 4, 'backorder', 'sale-1', 0)`);
+
+    const result = await productStockTool.execute({ product: "Paracetamol 500mg" }, ctx);
+    expect(productStockTool.format(result, { product: "Paracetamol 500mg" }, ctx).text).toContain("4 owed to customers");
+
+    const hidden = await productStockTool.execute({ product: "Paracetamol 500mg" }, unprivilegedCtx);
+    expect(productStockTool.format(hidden, { product: "Paracetamol 500mg" }, unprivilegedCtx).text).not.toContain("owed");
   });
 });

@@ -5,6 +5,8 @@ import {
   AUDIT_REFERENCE_TYPE,
   LEGACY_PRODUCT_IMPORT_REASON,
   PRODUCT_IMPORT_REFERENCE_TYPE,
+  BACKORDER_REFERENCE_TYPE,
+  BACKORDER_SETTLEMENT_REFERENCE_TYPE,
 } from "@/lib/constants/stock-adjustments";
 
 export {
@@ -109,6 +111,8 @@ export function groupAdjustmentMovements(
   for (const row of rows) {
     if (row.movement_type !== "adjustment") continue;
     if (row.reference_type === PRODUCT_IMPORT_REFERENCE_TYPE) continue;
+    if (row.reference_type === BACKORDER_REFERENCE_TYPE) continue;
+    if (row.reference_type === BACKORDER_SETTLEMENT_REFERENCE_TYPE) continue;
     if (
       row.reference_type === AUDIT_REFERENCE_TYPE &&
       parseAdjustmentReason(row.reason).reason === LEGACY_PRODUCT_IMPORT_REASON

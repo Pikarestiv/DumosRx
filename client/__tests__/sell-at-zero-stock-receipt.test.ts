@@ -160,4 +160,26 @@ describe("a receipt pays owed units off before anything goes on the shelf", () =
 
     expect(lineCost("s1")).toBe(5000);
   });
+
+  it("drops a settlement beyond what was owed at the time, so later owed units still settle", async () => {
+    await sellOwed("s1", 2);
+    await core.execute(
+      `INSERT INTO stock_movements (id, product_id, stock_batch_id, movement_type, quantity, reference_type, reference_id, movement_date, _deleted, store_id)
+       VALUES ('over', 'p1', 'x', 'adjustment', -5, 'backorder_settlement', 'po-x', '2999-01-01T00:00:00Z', 0, '${STORE_ID}')`,
+    );
+    expect(await outstanding()).toBe(0);
+    db.run(`UPDATE stock_movements SET movement_date = '2000-01-01T00:00:00Z' WHERE id = 'over'`);
+    db.run(`UPDATE stock_movements SET movement_date = '1999-01-01T00:00:00Z' WHERE reference_id = 's1'`);
+    await sellOwed("s2", 2);
+
+    expect(await outstanding()).toBe(2);
+  });
+
+  it("never books owed or settled units as a stock loss", async () => {
+    const { getStockLossTotal } = await import("@/lib/db/queries/finance");
+    await sellOwed("s1", 5);
+    await receiving.createAndReceivePurchaseOrder(null, "", [line(20)]);
+
+    expect(await getStockLossTotal({ from: "2000-01-01T00:00:00Z", to: "2999-01-01T00:00:00Z" })).toBe(0);
+  });
 });

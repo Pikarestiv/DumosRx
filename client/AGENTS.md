@@ -2274,6 +2274,34 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   `pos-product-card.tsx` reads the setting through `useStore()` and drops
   `aria-disabled`/greyscale for an out-of-stock tile, still saying "Out of
   stock". With the setting off both paths refuse exactly as before.
+- **Readers.** `resolveMovementDisplayType()` returns `"backorder"` /
+  `"backorder_settlement"` ("Sold before received" / "Settled on delivery")
+  in the Stock Movements list and dashboard feed. `groupAdjustmentMovements()`
+  skips both reference types the way it skips imports, so they never appear
+  in the Stock Adjustments (count) ledger and a count derivation never reads
+  them. `BACKORDER_*_REASON` never equals or prefixes a
+  `STOCK_LOSS_REASON_LABELS` entry, so `getStockLossTotal()` never counts them
+  (pinned). COGS reads `sale_items` and sees the re-cost, nothing else.
+- **Persistent warning (owner decision 6, no cap).** `useOutstandingBackorders()`
+  (`lib/hooks/`, key `stockBatches.outstandingBackorders`) feeds: the
+  dashboard Action Center's `owed-units` warning (admin-only like every
+  action-centre card, product count only, routes to `/procurement`); the
+  Analytics stock alert list ("Owed to customers", high); the count screen
+  (`useCountFreshness().owed`, warn-and-acknowledge, never block, owner
+  decision 4); and the assistant's `product_stock` reply ("N owed to
+  customers", only when `view_stock_quantities` holds).
+- **Receive screens.** `OwedSettlementNotice` (`components/procurement/`)
+  sits above the lines in `ReceivePOPanel` (both the card and ledger layouts)
+  and inside `POImmediateConfirmDialog`: per product, "5 already sold before
+  this delivery. 15 will go on the shelf." (`describeOwedSettlement()`), the
+  quantity-free wording for a stock-hidden role, and the line saying those
+  sales are re-costed so reported profit for those days will change.
+- **Over-settlement.** Two tills settling the same units offline would both
+  write a settlement. The balance is a chronological walk, not a sum: a
+  settlement pays off only units owed at that point and the excess is dropped,
+  so it cannot swallow units owed later. The shelf then reads low by the
+  overlap until the next count. There is no over-settled alert: nothing could
+  ever clear it.
 
 ### Stock quantity reconciliation and the `sync_reconciliation` movement type (2026-10-02)
 

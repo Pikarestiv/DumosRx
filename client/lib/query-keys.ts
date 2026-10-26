@@ -55,6 +55,8 @@ export const queryKeys = {
       resource(["oversoldAlerts"] as const, ["stock_movements", "products"]),
     batchDeficits: () =>
       resource(["batchDeficits"] as const, ["stock_movements", "stock_batches", "products"]),
+    outstandingBackorders: (productIds?: string[]) =>
+      resource(["outstandingBackorders", productIds?.join(",") ?? "all"] as const, ["stock_movements", "products"]),
   },
   stockAudits: {
     all: () => resource(["stock_audits"] as const, ["stock_audits"]),

@@ -11,6 +11,7 @@ const fresh: CountFreshness = {
   stalePeers: [],
   thresholdMinutes: 30,
   deficits: [],
+  owed: [],
   shouldWarn: false,
 };
 
@@ -84,5 +85,19 @@ describe("CountFreshnessWarning: the shortfall notice", () => {
     );
 
     expect(screen.queryByText(/short/)).toBeNull();
+  });
+
+  it("warns, without blocking, that counting before receiving counts the delivery twice", () => {
+    render(
+      <CountFreshnessWarning
+        freshness={{ ...fresh, owed: [{ productName: "Cement 50kg", owed: 5 }], shouldWarn: true }}
+        acknowledged={false}
+        onAcknowledgedChange={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Some of these products were sold before their stock was received")).toBeTruthy();
+    expect(screen.getByText(/5 units were sold before stock was received/)).toBeTruthy();
+    expect(screen.getByText(/or the delivery will be counted twice/)).toBeTruthy();
   });
 });

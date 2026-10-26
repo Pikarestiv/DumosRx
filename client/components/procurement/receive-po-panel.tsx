@@ -23,6 +23,7 @@ import {
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { outstandingBulkQuantity } from "./po-line-item-math";
 import { useDroppedReceiptSignal } from "@/lib/hooks/use-dropped-receipt-signal";
+import { OwedSettlementNotice } from "./owed-settlement-notice";
 
 export interface ReceivedItemPayload {
   po_item_id: string;
@@ -185,6 +186,15 @@ export function ReceivePOPanel({
             Confirm the quantities received and provide the batch/lot numbers
             and expiry dates for each item.
           </p>
+
+          <OwedSettlementNotice
+            lines={(po.items ?? []).map((item) => ({
+              productId: item.product_id,
+              baseUnits:
+                (Number(receivedItems[item.id]?.quantity) || 0) *
+                (Number(item.product_units_per_bulk) || Number(item.units_per_bulk) || 1),
+            }))}
+          />
 
           {mode === "standard" && (
             <div className="border rounded-lg divide-y">

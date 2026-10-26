@@ -1,7 +1,7 @@
 # Sell at zero stock, settle on receipt — design
 
 **Date:** 2026-10-26
-**Status:** Proposed. Scoping only; nothing built. Owner answers in §"Open questions" gate step 3 onward.
+**Status:** Built on `feat/sell-at-zero-stock` (2026-10-26). See §"Build notes" at the end for where the build departs from the text above.
 **Requested by:** Favour Mbonu, Divamax Quincallerie (Cameroon, construction materials; referred by Cynthia/Ada of Nest Pharmacies) — sell a product that shows 0, or less than asked for, and have the system square it up when the purchase order arrives.
 **Scope:** `client/` (cart, sale write, receiving, readers), `laravel-server/` (one `stores` column). No `web/` change required.
 **Related:** `docs/KNOWN_BUGS.md` A-265, A-217 · `docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md` · `docs/superpowers/specs/2026-10-14-oversell-compensating-movement-design.md`
@@ -280,3 +280,14 @@ About **7.5 days** in total. Steps 1 and 2 can ship ahead of the rest. Step 3 mu
 7. **Plan gating:** none.
 
 Step 1 (the zero-cost fix) shipped as A-335 in `docs/FIXED_BUGS.md`.
+
+## Build notes (2026-10-26)
+
+Where the code departs from the design above, and why:
+
+- **Step 6, ledger vs. derivation.** §Receiving says both rows appear in the Stock Adjustments ledger, and §"Interaction with A-265" says `groupAdjustmentMovements()` must skip them. That function *is* the Stock Adjustments ledger (`stock-adjustments-ledger.tsx`), so both cannot hold. The build follows the import precedent: the rows are skipped from the adjustments (count) ledger and shown in the Stock Movements list with their own labels.
+- **Step 6, receive notice placement.** One `OwedSettlementNotice` above the lines covers both the phone card layout and the tablet ledger table, instead of a line under each quantity input. Same wording, per product.
+- **Step 6, over-settlement.** §"Outstanding backorders" defines outstanding as a sum and reports a negative balance as over-settled. A sum lets an over-settlement silently absorb units owed later, and an over-settled alert could never clear. The build walks the rows in date order: a settlement pays off only what is owed at that moment and the excess is dropped. No over-settled alert.
+- **Owner decision 2 (re-cost) placement.** Re-costing runs inside `settleBackordersOnReceipt()`, oldest sale first, as an incremental shift `units × (actual − estimate) / line units` per `sale_items` line, so two partial receipts at different costs compose.
+- **Online orders (step 3).** The online-order path costs its own lines and was not covered by A-335; it now uses `getLastPurchaseCost()`. Logged as a follow-up on A-335 in `docs/FIXED_BUGS.md`.
+

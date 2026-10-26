@@ -600,6 +600,12 @@ suggested tackle order rather than a strict ranking.
 - **File size:** `transaction-details-dialog.tsx` is 407 lines, over the 350 limit (`.agents/AGENTS.md` §4); split it.
 - **Fix:** shrink the list-price figure by returned quantity (or label it as the original sale), re-read at the second confirm and catch the failure with a toast, and extract the reseller block into its own component.
 
+#### A-336. `client/` — the count screen's owed-units warning is store-wide, not scoped to what is being counted
+- **Found:** 2026-10-26, independent review of `feat/sell-at-zero-stock`.
+- **Issue:** `useCountFreshness()` (`client/lib/hooks/use-count-freshness.ts`) sets `owed` from `useOutstandingBackorders()` with no product filter, and `shouldWarn` then includes `owed.length > 0`. So while any product in the store has owed units, **every** count has to tick the acknowledgement, and `count-freshness-warning.tsx` lists owed products that are not in the count at all. The deficit list beside it already has the same store-wide shape, which is where this copied it from.
+- **Unconfirmed:** `count-freshness-warning.tsx` prints the owed quantity ("5 units were sold…") with no `canSeeQuantities` check. Whether a role without `view_stock_quantities` can reach the count review step is not established; if it can, this leaks a stock number (`client/AGENTS.md`, "`view_stock_quantities`").
+- **Fix:** pass the counted product ids into `useCountFreshness()` and filter both `owed` and `deficits` to them; gate the quantity wording on `useStockVisibility().canSeeQuantities` the way `describeOwedSettlement()` does.
+
 ---
 
 ## Accepted tradeoffs (no fix planned)

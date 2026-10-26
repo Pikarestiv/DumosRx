@@ -5,6 +5,7 @@ namespace App\Services\Admin;
 use App\Exceptions\StoreActionBlockedException;
 use App\Models\ActivityLog;
 use App\Models\Store;
+use App\Support\SyncRowStamp;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -41,6 +42,7 @@ class AdminStoreStorefrontService
 
             $store->online_store_enabled = $enabled;
             $store->save();
+            SyncRowStamp::bump($store);
 
             ActivityLog::create([
                 'user_id' => Auth::id(),
@@ -90,6 +92,7 @@ class AdminStoreStorefrontService
 
         $store->store_slug = $slug;
         $store->save();
+        SyncRowStamp::bump($store);
 
         if ($store->refresh()->store_slug !== $slug) {
             throw new StoreActionBlockedException(

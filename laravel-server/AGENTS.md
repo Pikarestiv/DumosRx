@@ -1894,15 +1894,26 @@ drops it without a word. Use `Model::whereKey($id)->update([...])` (or
 `_version` increment plus `updated_at`/`_synced_at` for whichever of those the
 table has, which is what moves the row into the next pull. Spread it into the
 update array beside the columns being written. `PurgedUserRowSweeper`, the
-admin catalogue backfill and `ForeignKeyCascadeEmulator`'s `SET NULL` use it.
+admin catalogue backfill and `ForeignKeyCascadeEmulator`'s `SET NULL` use it
+(the emulator only runs on a schema that declares foreign keys, which
+production does not). **After a model `save()` or `$model->update($data)`, call
+`SyncRowStamp::bump($model)`**: it stamps that row by key, only if the save
+changed something, and puts the new `_version` back on the model. The admin
+user deactivate/reactivate, a store suspension's owner toggle, the admin
+storefront publish and slug, the web staff and store edits, and both profile
+edits use it.
 
 A server-owned watermark no client should write belongs in the table's
 `*_SYNC_FORBIDDEN_FIELDS` and is then written bare: `stores.storefront_dirty_at`
-and `paystack_fee_dirty_at` are the examples (A-278). Bumping the store's
+and `paystack_fee_dirty_at` are the examples (A-278). `storefront_dirty_at` is in
+the client's local schema, and the dev-only `forceSyncAllData()` re-queues
+whole store rows, so stripping it matters. Bumping the store's
 version on every storefront rebuild would re-push the store row to every
 device for nothing.
 
-The A-278 sweep (2026-10-18) closed every live instance it found. Migrations
+The 2026-10-18 sweep only matched literal `->update([...])`/`increment` calls;
+the A-278 review (2026-10-25) re-swept model `save()`/`$model->update($var)`
+writes and fixed the seven it found on client-pushable columns. Migrations
 that already ran (`2026_10_15_000001_backfill_receipt_footer_default`,
 `2026_10_01_000000_clear_store_id_on_store_owners`,
 `2026_09_29_000003_retag_bulk_import_stock_movements`,

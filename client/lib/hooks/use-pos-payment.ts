@@ -56,6 +56,7 @@ interface UsePOSPaymentProps {
   // Called when the sale is rejected because the customer's real current points balance can't cover the redemption picked earlier in checkout (s…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-payment-ts-L69
   onInsufficientLoyaltyPoints?: () => void;
+  recordShortfallAsOwed?: boolean;
 }
 
 export function usePOSPayment({
@@ -83,6 +84,7 @@ export function usePOSPayment({
   resellerCommissionPercentage = 0,
   loyaltyPointsPerCurrency = 0.01,
   onInsufficientLoyaltyPoints,
+  recordShortfallAsOwed = false,
 }: UsePOSPaymentProps) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [amountPaid, setAmountPaid] = useState("");
@@ -180,6 +182,7 @@ export function usePOSPayment({
         cashierId,
         transactionNumber,
         earnedPoints,
+        recordShortfallAsOwed,
       });
 
       refetchProducts();

@@ -2219,6 +2219,30 @@ range in place of the lifetime and this-month ones. Both dates are in
 from `?from=YYYY-MM-DD&to=YYYY-MM-DD` (malformed values are ignored); Daily
 Close's "View in Expenses" link sets both to the report day.
 
+### Selling past recorded stock: owed units and their settlement (2026-10-26)
+
+Spec: `docs/superpowers/specs/2026-10-26-sell-at-zero-stock-design.md` (read its
+"Owner decisions" section; it overrides the earlier proposals in that file).
+`stores.allow_sale_without_stock` (off by default, no plan gate, no role
+permission) is read through `useFeatureGate().canSellWithoutStock`.
+
+- **The sale write.** `recordSaleItemStock({ recordShortfallAsOwed })` still
+  writes the `sale −Q` row exactly as before. When the flag is on and a batch
+  went short, it then writes, on that same batch, an `adjustment +N` with
+  `reference_type = BACKORDER_REFERENCE_TYPE` (`"backorder"`),
+  `reference_id = saleId`, `unit_cost` = the line's cost, reason
+  `BACKORDER_REASON`. N is the deduction minus what the batch held. The log
+  therefore never sums below zero, the batch reads its true shelf figure (0),
+  and the server's per-push floor (Stage 0) lands on the same number when the
+  pair shares a push. Constants live in `lib/constants/stock-adjustments.ts`.
+  With the flag off the write is byte-for-byte today's.
+- **Who passes the flag.** `writeSaleTransaction()` (from `usePOSPayment`,
+  fed by `usePOSSystem`) and `useFulfillOnlineOrderMutation` (fed by
+  `online-orders-modal.tsx`; owner decision 3: an online-order oversell the
+  owner confirms counts as owed when the setting is on). Nothing else sells.
+- **No new `movement_type`.** Same reasoning as the A-265 spec: `adjustment`
+  plus a distinguishing `reference_type` is readable by every bundle.
+
 ### Stock quantity reconciliation and the `sync_reconciliation` movement type (2026-10-02)
 
 **Health Sync is OFF as of 2026-10-10 and the section below is history, not

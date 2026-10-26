@@ -18,3 +18,9 @@ export const ADJUSTMENT_REASON_NOTE_SEPARATOR = " — ";
 // The ADJUSTMENT_REASONS entries whose direction is "decrease", i.e.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-stock-adjustments-ts-L29
 export const STOCK_LOSS_REASON_LABELS = ["Damage", "Loss"] as const;
+
+// Sell at zero stock (docs/superpowers/specs/2026-10-26-sell-at-zero-stock-design.md): owed units and what pays them off.
+export const BACKORDER_REFERENCE_TYPE = "backorder";
+export const BACKORDER_SETTLEMENT_REFERENCE_TYPE = "backorder_settlement";
+export const BACKORDER_REASON = "Sold before stock was received";
+export const BACKORDER_SETTLEMENT_REASON = "Already sold before this delivery";

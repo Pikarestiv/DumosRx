@@ -6,7 +6,12 @@ import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
 import { HIDDEN_MOVEMENT_TYPES, HIDDEN_MOVEMENT_TYPES_SQL } from "@/lib/db/movement-types";
 
 const lastBoughtPriceSql = (productIdRef: string) =>
-  `(SELECT cost_price FROM stock_batches WHERE product_id = ${productIdRef} AND _deleted = 0 AND cost_price > 0 AND batch_number NOT LIKE 'ADJ-%' ORDER BY created_at DESC LIMIT 1)`;
+  `(SELECT cost_price FROM stock_batches WHERE product_id = ${productIdRef} AND _deleted = 0 AND cost_price > 0 AND COALESCE(batch_number, '') NOT LIKE 'ADJ-%' ORDER BY created_at DESC LIMIT 1)`;
+
+export async function getLastPurchaseCost(productId: string): Promise<number> {
+  const rows = await query<{ cost: number | null }>(`SELECT ${lastBoughtPriceSql("?")} AS cost`, [productId]);
+  return Number(rows[0]?.cost ?? 0);
+}
 
 export async function getProductsWithDetails() {
   const storeId = getActiveStoreId();

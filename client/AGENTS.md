@@ -2287,17 +2287,23 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   settle time, but that alone does not converge: the server accepts a
   `sale_items` UPDATE only at its exact `_version`, so when two tills re-cost
   the same sale the second is refused and the pull reverts it, and a line not
-  yet local at settle time is skipped. So `pullChanges()` calls
-  `recostSalesTouchedByPull(changes, activeRun.storeId)` after each page's
-  `recomputeBatchQuantities()`, inside the page transaction: every sale named
-  by a pulled `backorder_settlement` row, and every pulled `sale_items` line
-  whose sale already has settlements, is re-costed from the local ledger.
-  The figure is absolute, so devices converge.
+  yet local at settle time is skipped. So `pullChanges()` collects, page by
+  page (`keepPulledRecostRows()`), the sales named by pulled
+  `backorder_settlement` rows and the pulled `sale_items` lines, and calls
+  `recostSalesTouchedByPull(rows, activeRun.storeId)` **once, after the
+  round's last page**, in its own transaction. Each of those sales that has
+  settlements is re-costed from the local ledger. Running per page let a line
+  be re-derived (and queued) from a ledger whose settlement rows were still
+  paging; an interrupted or thrown round now re-costs nothing, and its pulled
+  rows are re-offered by the next round. A round that stops at
+  `MAX_PULL_PAGES` (1000) with more to fetch also re-costs nothing, and those
+  sales wait for a later pull that names them. The figure is absolute, so
+  devices converge.
   - **It can never abort a pull.** It returns at once during an on-till
     inspection session (`update()` would refuse the write); it writes against
     the run's pinned store, not the ambient one; and any error is sent to
-    `logCrash()` and swallowed, so the page's settlement and sale rows still
-    commit. A skipped re-cost needs no catch-up on that till: an inspected
+    `logCrash()` and swallowed, so the round's settlement and sale rows stay
+    committed. A skipped re-cost needs no catch-up on that till: an inspected
     till settles nothing, and every *other* till re-derives from the full
     ledger when it pulls the settlement, then pushes that figure, which the
     inspected till later pulls.
@@ -2317,8 +2323,9 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   - **When it does not loop.** A re-cost writes a `sale_items` UPDATE, never
     a settlement. A line already at the derived cost is not written, so no
     `_version` bump and no queue entry. A line that differs is written and
-    queued once per pull that names it, and stops once the server holds the
-    derived figure. Pinned by `__tests__/sell-at-zero-stock-pull-recost.test.ts`. That is an `update()` on a historical
+    queued once per completed pull round that names it, and stops once the
+    server holds the derived figure. Until then the server keeps the last
+    pushed figure, which is the window another till's report can see. Pinned by `__tests__/sell-at-zero-stock-pull-recost.test.ts`. That is an `update()` on a historical
   `sale_items` row, so it syncs, and **COGS for a closed period changes when
   the goods arrive**. The receive screens say so (step 6).
 - **The cart.** With `canSellWithoutStock` on, `usePOSCart`'s `addToCart()`

@@ -1,3 +1,9 @@
+### A-344 — a pull could re-cost a sale from an incomplete ledger
+- **Fixed:** 2026-10-26, client only, TDD, before `feat/sell-at-zero-stock` merged. Found by the fourth and fifth independent reviews.
+- **Was:** `recostSalesTouchedByPull()` ran after each pull page. A sale line could arrive before the settlement rows that set its cost (a Force Full Resync, or any multi-page round), be re-derived from the partial ledger and queued, and be pushed if the round was then interrupted, overwriting the server's correct cost until another till re-derived it.
+- **Now:** `pullChanges()` collects the sales each page names (`keepPulledRecostRows()`) and re-costs once, after the round's last page. A thrown or interrupted round re-costs nothing. A round stopped at `MAX_PULL_PAGES` (1000) also re-costs nothing, and those sales wait for a later pull that names them.
+- **Coverage:** `client/__tests__/sell-at-zero-stock-pull-recost.test.ts` ("the re-cost waits for the round's last page"): a sale line pulled before its settlement rows is not overwritten, and an interrupted round queues nothing. Both fail on the per-page hook.
+
 ### A-335 — a sale line for a product with no stock on hand was costed at 0, so its whole price booked as profit
 - **Fixed:** 2026-10-26, client only, TDD. Found by the sell-at-zero scoping pass (`docs/superpowers/specs/2026-10-26-sell-at-zero-stock-design.md`).
 - **Was:** `getProductsWithStock()` derived `cost_price` only from the weighted average over batches holding stock. When every batch was empty that average is NULL and became `0`, which `writeSaleTransaction()` wrote to `sale_items.cost_price`, so COGS (`SUM(si.cost_price * si.quantity)`) counted the whole selling price as profit. It hit every sale of an out-of-stock product, including each online-order oversell.

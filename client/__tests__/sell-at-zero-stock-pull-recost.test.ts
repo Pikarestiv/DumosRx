@@ -175,4 +175,38 @@ describe("a pull re-costs the sales its settlement and sale-line rows name", () 
     expect(line()).toEqual([11.2, 2]);
     expect(queuedLineUpdates()).toBe(0);
   });
+
+  describe("the re-cost waits for the round's last page", () => {
+    const serverLine = { id: "line-S", sale_id: "S", product_id: "p1", quantity: 5, unit_price: 20, total_price: 100,
+      cost_price: 13.2, _version: 2, updated_at: "2026-10-26T11:00:00.000000Z" };
+
+    beforeEach(() => {
+      seedLocalSettlement("settle-A", 3, 12);
+      db.run(`UPDATE sale_items SET cost_price = 11.2 WHERE id = 'line-S'`);
+    });
+
+    it("does not overwrite a pulled line from a ledger whose settlements are still paging", async () => {
+      apiClient.pullChanges
+        .mockResolvedValueOnce({ success: true, changes: { sale_items: [serverLine] }, has_more: { stock_movements: true },
+          server_timestamp: "2026-10-26T12:00:00Z" })
+        .mockResolvedValueOnce({ success: true, changes: { stock_movements: [settlementRow("settle-B", 2, 15)] },
+          server_timestamp: "2026-10-26T12:00:00Z" });
+      await pullChanges();
+
+      expect(line()).toEqual([13.2, 2]);
+      expect(queuedLineUpdates()).toBe(0);
+    });
+
+    it("queues nothing from a partial ledger when the round is interrupted", async () => {
+      apiClient.pullChanges
+        .mockResolvedValueOnce({ success: true, changes: { sale_items: [serverLine] }, has_more: { stock_movements: true },
+          server_timestamp: "2026-10-26T12:00:00Z" })
+        .mockRejectedValueOnce(new Error("offline"));
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      await pullChanges().catch(() => {});
+
+      expect(line()).toEqual([13.2, 2]);
+      expect(queuedLineUpdates()).toBe(0);
+    });
+  });
 });

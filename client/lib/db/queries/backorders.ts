@@ -155,7 +155,7 @@ async function settledSalesAmong(saleIds: string[]): Promise<Set<string>> {
   return settled;
 }
 
-async function recostPulledSales(changes: Record<string, unknown>, storeId?: string): Promise<void> {
+async function recostPulledSales(changes: PulledRecostRows, storeId?: string): Promise<void> {
   const pairs = new Map<string, { saleId: string; productId: string }>();
   for (const r of rowsOf(changes.stock_movements)) {
     if (r.reference_type !== BACKORDER_SETTLEMENT_REFERENCE_TYPE || !r.reference_id || !r.product_id) continue;
@@ -172,7 +172,21 @@ async function recostPulledSales(changes: Record<string, unknown>, storeId?: str
   for (const { saleId, productId } of pairs.values()) await recostSale(productId, saleId, storeId);
 }
 
-export async function recostSalesTouchedByPull(changes: Record<string, unknown>, storeId?: string | null): Promise<void> {
+export interface PulledRecostRows {
+  stock_movements: PulledRow[];
+  sale_items: PulledRow[];
+}
+
+export function keepPulledRecostRows(changes: Record<string, unknown>, into: PulledRecostRows): void {
+  for (const r of rowsOf(changes.stock_movements)) {
+    if (r.reference_type === BACKORDER_SETTLEMENT_REFERENCE_TYPE) {
+      into.stock_movements.push({ reference_type: r.reference_type, reference_id: r.reference_id, product_id: r.product_id });
+    }
+  }
+  for (const r of rowsOf(changes.sale_items)) into.sale_items.push({ sale_id: r.sale_id, product_id: r.product_id });
+}
+
+export async function recostSalesTouchedByPull(changes: PulledRecostRows, storeId?: string | null): Promise<void> {
   if (isTillInspectionSession()) return;
   try {
     await recostPulledSales(changes, storeId ?? undefined);

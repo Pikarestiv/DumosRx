@@ -631,11 +631,6 @@ suggested tackle order rather than a strict ranking.
 #### A-343. `client/` — the cart's owed-units warning overstates the shortfall when only expired stock is left
 - **Found:** 2026-10-26, third independent review of `feat/sell-at-zero-stock`; deferred. `formatBackorderWarning()` uses `product.stock`, which excludes expired batches, but `writeSaleItemStock()` falls back to an expired batch and may sell from it, so the toast can say more units are owed than the sale actually records.
 
-#### A-344. `client/` — a Force Full Resync can re-cost a sale from an incomplete ledger
-- **Found:** 2026-10-26, fourth independent review of `feat/sell-at-zero-stock`. Not reproduced.
-- **Issue:** `recostSalesTouchedByPull()` runs on pulled `backorder_settlement` rows and pulled `sale_items` lines, not on pulled `backorder` (owed) rows. On a full resync, if a sale's owed row arrives on a later page than its settlement, the settlement's page re-costs from a ledger with no owed units (the sale is unknown, so nothing is written), and no later page triggers again. The line then keeps whatever the server sent. Owed rows are normally older than their settlements and arrive first, which is why it was not seen.
-- **Fix:** also collect the sales named by pulled `backorder` rows that already have local settlements, or run the hook once after the last page of a round.
-
 ---
 
 ## Accepted tradeoffs (no fix planned)

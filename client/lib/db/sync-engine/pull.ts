@@ -8,7 +8,7 @@ import { logCrash } from "@/lib/utils/error-logger";
 import { forgetWithheldPullWindows, restoreExhaustedPullWindows } from "./pull-window";
 import type { SkippedRecord } from "./pull-skip-report";
 import { recomputeBatchQuantities } from "../batch-quantity";
-import { recostSalesTouchedByPull } from "../queries/backorders";
+import { keepPulledRecostRows, recostSalesTouchedByPull, type PulledRecostRows } from "../queries/backorders";
 import type { BatchLogChange } from "../batch-quantity";
 import {
   applyDeferredStockDeltas,
@@ -91,6 +91,8 @@ export async function pullChanges(
     // Survives the page boundary:
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-pull-ts-L203
     let batchesArrivedSinceDrain = false;
+    const recostRows: PulledRecostRows = { stock_movements: [], sale_items: [] };
+    let roundDrained = false;
 
     while (hasMoreAny && page < MAX_PULL_PAGES) {
       page++;
@@ -115,8 +117,10 @@ export async function pullChanges(
       }
 
       if (!changes || Object.keys(changes).length === 0) {
+        roundDrained = true;
         break;
       }
+      keepPulledRecostRows(changes, recostRows);
 
       // stock_batches must be applied before stock_movements; the server's
       // own table order happens to match, but that isn't a contract.
@@ -257,7 +261,6 @@ export async function pullChanges(
           }
         }
         await recomputeBatchQuantities(touchedBatches);
-        await recostSalesTouchedByPull(changes, activeRun.storeId);
       }).catch((err) => {
         // Rethrown so the outer catch reports it once, not twice.
         console.error("Failed to apply pull changes:", err);
@@ -270,6 +273,10 @@ export async function pullChanges(
       if (criticalTablesPending.size === 0) {
         fireCriticalReadyOnce(true);
       }
+    }
+
+    if (roundDrained || !hasMoreAny) {
+      await transaction(() => recostSalesTouchedByPull(recostRows, activeRun.storeId));
     }
 
     await finishPullRound(

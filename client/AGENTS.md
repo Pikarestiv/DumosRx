@@ -2246,7 +2246,9 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   `getOutstandingBackorders(productIds?)` sums, per product and store-scoped,
   each sale's owed units less the settlement rows naming that sale, each sale
   floored at 0. A settlement whose `reference_id` names no local sale pays
-  nothing. `getUnsettledSales(productId)` says which sales still owe units, oldest
+  nothing. Owed-minus-settled is rounded to 1e-6 (`roundUnits()`) before
+  any comparison with zero, so fractional receipts (0.9 owed, then 0.2 and 1
+  received) clear instead of leaving `1.1e-16` owed forever. `getUnsettledSales(productId)` says which sales still owe units, oldest
   first. Balances are per sale and matched by id, never replayed in
   timestamp order: a sale's owed units minus the settlement rows whose
   `reference_id` names that sale. Tills' clocks disagree, so an order-based

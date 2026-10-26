@@ -55,6 +55,7 @@ function ledgerBySale(rows: LedgerRow[]): Map<string, SaleBalance> {
   return bySale;
 }
 
+const roundUnits = (units: number) => Math.round(units * 1e6) / 1e6;
 const estimateOf = (sale: SaleBalance) => (sale.owedUnits ? sale.costSum / sale.owedUnits : 0);
 const settledUnitsOf = (sale: SaleBalance) => sale.settlements.reduce((sum, s) => sum + s.units, 0);
 
@@ -62,7 +63,7 @@ function unsettledFromLedger(rows: LedgerRow[]): UnsettledSale[] {
   return [...ledgerBySale(rows)]
     .map(([saleId, sale]) => ({
       saleId,
-      units: sale.owedUnits - settledUnitsOf(sale),
+      units: roundUnits(sale.owedUnits - settledUnitsOf(sale)),
       estimatedUnitCost: estimateOf(sale),
     }))
     .filter((sale) => sale.units > 0);
@@ -99,7 +100,7 @@ export async function getOutstandingBackorders(productIds?: string[]): Promise<O
 
   const result: OutstandingBackorder[] = [];
   for (const [productId, ledger] of byProduct) {
-    const outstanding = unsettledFromLedger(ledger).reduce((sum, s) => sum + s.units, 0);
+    const outstanding = roundUnits(unsettledFromLedger(ledger).reduce((sum, s) => sum + s.units, 0));
     if (outstanding > 0) result.push({ productId, productName: ledger[0].product_name ?? "", outstanding });
   }
   return result.sort((a, b) => a.productName.localeCompare(b.productName));
@@ -151,7 +152,7 @@ export async function settleBackordersOnReceipt(r: ReceiptSettlement): Promise<n
   for (const sale of await getUnsettledSales(r.productId)) {
     if (left <= 0) break;
     const units = Math.min(sale.units, left);
-    left -= units;
+    left = roundUnits(left - units);
     await insert("stock_movements", {
       id: receiptSettlementMovementId(r.poItemId, r.alreadyReceived, sale.saleId),
       product_id: r.productId,
@@ -168,5 +169,5 @@ export async function settleBackordersOnReceipt(r: ReceiptSettlement): Promise<n
     });
     await recostSale(r.productId, sale.saleId);
   }
-  return r.receivedUnits - left;
+  return roundUnits(r.receivedUnits - left);
 }

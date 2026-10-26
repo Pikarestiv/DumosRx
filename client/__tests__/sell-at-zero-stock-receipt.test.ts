@@ -309,4 +309,12 @@ describe("a receipt pays owed units off before anything goes on the shelf", () =
       expect(lineCost("s1")).toBe(5500);
     });
   });
+
+  it("clears a product once fractional receipts pay it off, despite float leftovers", async () => {
+    await sellOwed("s1", 0.9);
+    await receiving.createAndReceivePurchaseOrder(null, "", [line(0.2)]);
+    await receiving.createAndReceivePurchaseOrder(null, "", [line(1)]);
+
+    expect(await getOutstandingBackorders()).toEqual([]);
+  });
 });

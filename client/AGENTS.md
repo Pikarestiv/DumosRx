@@ -2265,6 +2265,15 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   `backorder` row's `unit_cost`. That is an `update()` on a historical
   `sale_items` row, so it syncs, and **COGS for a closed period changes when
   the goods arrive**. The receive screens say so (step 6).
+- **The cart.** With `canSellWithoutStock` on, `usePOSCart`'s `addToCart()`
+  and `updateQuantity()` stop refusing past `product.stock` and instead raise
+  one `toast.warning(formatBackorderWarning(onHand, requested,
+  canSeeQuantities))` when a line first crosses stock (not on every later
+  `+`). The hidden-quantity wording carries no number. `CartItem` gets no
+  field: the shortfall is worked out at write time from live batches.
+  `pos-product-card.tsx` reads the setting through `useStore()` and drops
+  `aria-disabled`/greyscale for an out-of-stock tile, still saying "Out of
+  stock". With the setting off both paths refuse exactly as before.
 
 ### Stock quantity reconciliation and the `sync_reconciliation` movement type (2026-10-02)
 

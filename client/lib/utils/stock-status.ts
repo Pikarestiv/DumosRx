@@ -30,3 +30,10 @@ export function formatInsufficientStock(available: number, canSeeQuantities: boo
   if (!canSeeQuantities) return "Not enough stock for that quantity";
   return `Insufficient stock — only ${available} unit${available === 1 ? "" : "s"} available`;
 }
+
+export function formatBackorderWarning(onHand: number, requested: number, canSeeQuantities: boolean): string {
+  if (!canSeeQuantities) return "More than the recorded stock. The extra will be recorded as owed.";
+  const inStock = Math.max(0, onHand);
+  const head = inStock > 0 ? `Only ${inStock} in stock.` : "Nothing in stock.";
+  return `${head} ${requested - inStock} will be recorded as owed until stock is received.`;
+}

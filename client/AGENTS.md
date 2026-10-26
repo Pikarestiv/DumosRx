@@ -2277,7 +2277,20 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   sale is settled again, and receipts give the same answer in any order. A
   receipt costed at 0 or blank settles the units but contributes nothing to
   the cost: re-costing to 0 would book the whole price as profit again
-  (A-335). That is an `update()` on a historical
+  (A-335).
+- **Re-cost converges across devices.** The settling device re-costs at
+  settle time, but that alone does not converge: the server accepts a
+  `sale_items` UPDATE only at its exact `_version`, so when two tills re-cost
+  the same sale the second is refused and the pull reverts it, and a line not
+  yet local at settle time is skipped. So `pullChanges()` calls
+  `recostSalesTouchedByPull(changes)` after each page's
+  `recomputeBatchQuantities()`, inside the page transaction: every sale named
+  by a pulled `backorder_settlement` row, and every pulled `sale_items` line
+  whose sale already has settlements, is re-costed from the local ledger.
+  The figure is absolute, so devices converge. It cannot loop: a re-cost
+  writes a `sale_items` UPDATE, never a settlement, and a line already at the
+  derived cost is not written, so no `_version` bump and no queue entry
+  (pinned by `__tests__/sell-at-zero-stock-pull-recost.test.ts`). That is an `update()` on a historical
   `sale_items` row, so it syncs, and **COGS for a closed period changes when
   the goods arrive**. The receive screens say so (step 6).
 - **The cart.** With `canSellWithoutStock` on, `usePOSCart`'s `addToCart()`

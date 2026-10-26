@@ -8,6 +8,7 @@ import { logCrash } from "@/lib/utils/error-logger";
 import { forgetWithheldPullWindows, restoreExhaustedPullWindows } from "./pull-window";
 import type { SkippedRecord } from "./pull-skip-report";
 import { recomputeBatchQuantities } from "../batch-quantity";
+import { recostSalesTouchedByPull } from "../queries/backorders";
 import type { BatchLogChange } from "../batch-quantity";
 import {
   applyDeferredStockDeltas,
@@ -256,6 +257,7 @@ export async function pullChanges(
           }
         }
         await recomputeBatchQuantities(touchedBatches);
+        await recostSalesTouchedByPull(changes);
       }).catch((err) => {
         // Rethrown so the outer catch reports it once, not twice.
         console.error("Failed to apply pull changes:", err);

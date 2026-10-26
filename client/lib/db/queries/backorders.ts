@@ -135,6 +135,41 @@ async function recostSale(productId: string, saleId: string) {
   }
 }
 
+type PulledRow = Record<string, unknown>;
+
+const rowsOf = (records: unknown): PulledRow[] => (Array.isArray(records) ? (records as PulledRow[]) : []);
+
+async function settledSalesAmong(saleIds: string[]): Promise<Set<string>> {
+  const settled = new Set<string>();
+  for (let i = 0; i < saleIds.length; i += 500) {
+    const chunk = saleIds.slice(i, i + 500);
+    const rows = await query<{ reference_id: string; product_id: string }>(
+      `SELECT DISTINCT reference_id, product_id FROM stock_movements
+        WHERE reference_type = ? AND _deleted = 0 AND reference_id IN (${chunk.map(() => "?").join(", ")})`,
+      [BACKORDER_SETTLEMENT_REFERENCE_TYPE, ...chunk],
+    );
+    for (const r of rows) settled.add(`${r.reference_id}\0${r.product_id}`);
+  }
+  return settled;
+}
+
+export async function recostSalesTouchedByPull(changes: Record<string, unknown>): Promise<void> {
+  const pairs = new Map<string, { saleId: string; productId: string }>();
+  for (const r of rowsOf(changes.stock_movements)) {
+    if (r.reference_type !== BACKORDER_SETTLEMENT_REFERENCE_TYPE || !r.reference_id || !r.product_id) continue;
+    pairs.set(`${r.reference_id}\0${r.product_id}`, { saleId: String(r.reference_id), productId: String(r.product_id) });
+  }
+  const lines = rowsOf(changes.sale_items).filter((r) => r.sale_id && r.product_id);
+  if (lines.length > 0) {
+    const settled = await settledSalesAmong([...new Set(lines.map((r) => String(r.sale_id)))]);
+    for (const r of lines) {
+      const key = `${r.sale_id}\0${r.product_id}`;
+      if (settled.has(key)) pairs.set(key, { saleId: String(r.sale_id), productId: String(r.product_id) });
+    }
+  }
+  for (const { saleId, productId } of pairs.values()) await recostSale(productId, saleId);
+}
+
 export interface ReceiptSettlement {
   poItemId: string;
   alreadyReceived: number;

@@ -107,8 +107,8 @@ Cost: `writeSaleTransaction()` passes `item.cost_price`. Fix finding 4 at the so
 ### Outstanding backorders (new, `client/lib/db/queries/backorders.ts`)
 `getOutstandingBackorders(productIds?)` returns per product
 `Σ quantity WHERE reference_type='backorder' − Σ |quantity| WHERE reference_type='backorder_settlement'`.
-It is scoped to the active store and `_deleted = 0`, and floored at 0. A product that comes out negative is reported
-as over-settled (see Risks). It is derived from the log alone, so it syncs and rebuilds with no state of its own.
+It is scoped to the active store and `_deleted = 0`, and floored at 0. (Superseded: see §"Build notes"; the build
+matches settlements to sales by id and has no over-settled report.) It is derived from the log alone, so it syncs and rebuilds with no state of its own.
 
 ### Receiving (`procurement-receiving.ts`)
 In both receive functions, after the `purchase` movement for a line:
@@ -262,8 +262,8 @@ About **7.5 days** in total. Steps 1 and 2 can ship ahead of the rest. Step 3 mu
 ## Risks
 
 - **Two tills receiving the same product offline at the same time** both settle the full outstanding amount, and the shelf
-  reads low by the overlap. The query reports it as over-settled (outstanding < 0) in the alert list, and the next count
-  corrects it. Receipts normally happen on one device.
+  reads low by the overlap. Each sale's balance floors at 0, so the excess pays no other sale; nothing reports it, and the
+  next count corrects the shelf. Receipts normally happen on one device.
 - **Chunk split** between the sale and its compensation in a backlogged push gives the bounded A-217 shape until Stage 2,
   exactly as the A-265 spec states.
 - **A mis-keyed sale** (rang up 6, handed over 4) becomes 2 owed units and takes 2 off the next delivery's shelf figure.
@@ -287,9 +287,9 @@ Where the code departs from the design above, and why:
 
 - **Step 6, ledger vs. derivation.** §Receiving says both rows appear in the Stock Adjustments ledger, and §"Interaction with A-265" says `groupAdjustmentMovements()` must skip them. That function *is* the Stock Adjustments ledger (`stock-adjustments-ledger.tsx`), so both cannot hold. The build follows the import precedent: the rows are skipped from the adjustments (count) ledger and shown in the Stock Movements list with their own labels.
 - **Step 6, receive notice placement.** One `OwedSettlementNotice` above the lines covers both the phone card layout and the tablet ledger table, instead of a line under each quantity input. Same wording, per product.
-- **Settlement names its sale (review fix).** §Receiving writes one settlement per receipt line with `reference_id` = PO id, and outstanding as a sum. A sum lets an over-settlement absorb units owed later. The first build replaced the sum with a timestamp-ordered replay, and review showed that is clock-dependent: a till whose clock is behind settles a sale and stamps the settlement before it, the replay then pays nothing and the next delivery settles and re-costs the same units again. The build now writes one settlement row per sale paid off, `reference_id` = the sale id, PO id in `reason` behind the note separator, id `receiptSettlementMovementId(poItemId, alreadyReceived, saleId)`. Outstanding is per sale, matched by id. Order only chooses which unsettled sale is paid first. Rows written in the older PO-named shape are read with the old date-ordered rule (pre-merge dev data only; retire once merged). No over-settled alert.
+- **Settlement names its sale (review fix).** §Receiving writes one settlement per receipt line with `reference_id` = PO id, and outstanding as a sum. A sum lets an over-settlement absorb units owed later. The first build replaced the sum with a timestamp-ordered replay, and review showed that is clock-dependent: a till whose clock is behind settles a sale and stamps the settlement before it, the replay then pays nothing and the next delivery settles and re-costs the same units again. The build now writes one settlement row per sale paid off, `reference_id` = the sale id, PO id in `reason` behind the note separator, id `receiptSettlementMovementId(poItemId, alreadyReceived, saleId)`. Outstanding is per sale, matched by id. Order only chooses which unsettled sale is paid first. A settlement naming no local sale pays nothing; no PO-named row exists outside this branch's own earlier commits, so there is no compatibility reader. No over-settled alert.
 - **Zero-cost receipt (review fix).** A receipt line costed at 0 or blank settles the units but does not re-cost the sales, otherwise it would revive A-335.
-- **Owner decision 2 (re-cost) placement.** Re-costing runs inside `settleBackordersOnReceipt()`, oldest sale first, as an incremental shift `units × (actual − estimate) / line units` per `sale_items` line, so two partial receipts at different costs compose.
+- **Owner decision 2 (re-cost) placement.** Re-costing runs inside `settleBackordersOnReceipt()`, after each settlement row, and writes an absolute cost derived from the ledger, `estimate + Σ settled_i × (actual_i − estimate) / line units` (settled units capped at what the sale owed, zero-cost receipts contributing nothing, rounded to the cent). The first build added a shift to the current cost, and review showed that compounds when a pulled re-cost arrives without its settlement and the sale is settled again.
 - **Step 7, returns: no write.** §"Interaction with A-265" has a return write `−min(outstanding, Q)` as a settlement. That is right only when the owed units were never handed over. Owner decision 5 says the customer takes the goods on the day, so the owed units stand for stock that was on the yard. The yard holds 20 unrecorded, 5 are sold (owed 5, shelf 0), 2 come back (shelf 2), then the receipt of 20 settles 5 and the shelf reads 17, which is right. Cutting the owed count on the return would read 19. So `returns.ts` is unchanged, and `client/__tests__/sell-at-zero-stock-receipt.test.ts` pins the arithmetic. Test 9 above is superseded.
 - **Online orders (step 3).** The online-order path costs its own lines and was not covered by A-335; it now uses `getLastPurchaseCost()`. Logged as a follow-up on A-335 in `docs/FIXED_BUGS.md`.
 

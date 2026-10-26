@@ -2243,10 +2243,10 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
 - **No new `movement_type`.** Same reasoning as the A-265 spec: `adjustment`
   plus a distinguishing `reference_type` is readable by every bundle.
 - **Outstanding is derived, never stored.** `lib/db/queries/backorders.ts`:
-  `getOutstandingBackorders(productIds?)` is `Σ backorder quantity −
-  Σ |backorder_settlement quantity|` per product, store-scoped, floored at 0,
-  with any excess reported as `overSettled` (two tills settling at once).
-  `getUnsettledSales(productId)` says which sales still owe units, oldest
+  `getOutstandingBackorders(productIds?)` sums, per product and store-scoped,
+  each sale's owed units less the settlement rows naming that sale, each sale
+  floored at 0. A settlement whose `reference_id` names no local sale pays
+  nothing. `getUnsettledSales(productId)` says which sales still owe units, oldest
   first. Balances are per sale and matched by id, never replayed in
   timestamp order: a sale's owed units minus the settlement rows whose
   `reference_id` names that sale. Tills' clocks disagree, so an order-based
@@ -2264,13 +2264,18 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   `receiptSettlementMovementId(poItemId, alreadyReceived, saleId)` so a
   retry or a second device receiving the same line collapses onto it. Settlement does **not**
   depend on the setting: a store that switched it off still settles.
-- **Past sales are re-costed (owner decision 2).** Before the settlement row
-  is written, `recostSettledSales()` takes the settled units oldest sale first
-  and shifts each of that sale's `sale_items.cost_price` lines for the product
-  by `units × (actual − estimate) / line units`, where the estimate is the
-  `backorder` row's `unit_cost`. A receipt costed at 0 or blank settles the
-  units but **does not re-cost**: re-costing to 0 would book the whole price
-  as profit again (A-335). That is an `update()` on a historical
+- **Past sales are re-costed (owner decision 2).** After each settlement row
+  is written, `recostSale()` sets that sale's `sale_items.cost_price` lines
+  for the product to an **absolute** figure derived from the ledger:
+  `estimate + Σ settled_i × (actual_i − estimate) / line units`, rounded to
+  the cent, where the estimate is the `backorder` rows' `unit_cost` and the
+  settled units are capped at what the sale owed. It never adds to the
+  current cost, so a pulled re-cost that arrives without its settlement (a
+  chunk split, `push.ts` sends 50 rows a request) cannot compound when the
+  sale is settled again, and receipts give the same answer in any order. A
+  receipt costed at 0 or blank settles the units but contributes nothing to
+  the cost: re-costing to 0 would book the whole price as profit again
+  (A-335). That is an `update()` on a historical
   `sale_items` row, so it syncs, and **COGS for a closed period changes when
   the goods arrive**. The receive screens say so (step 6).
 - **The cart.** With `canSellWithoutStock` on, `usePOSCart`'s `addToCart()`
@@ -2308,19 +2313,15 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   the goods, so owed units are stock that was on the yard. A return restores
   `+Q` to the shelf as usual, and the later receipt still settles the full
   owed amount. Reducing owed on the return would double-count the returned
-  units. `getUnsettledSales()` still honours a negative `backorder` row
-  should a future flow need one.
+  units.
 - **Over-settlement.** Two tills settling the same sale on different receipts
   write two rows naming that sale; its balance floors at 0 and the excess
   cannot pay any other sale. The shelf reads low by the overlap until the next
-  count. No over-settled alert: nothing could ever clear it.
-- **Legacy pooled settlements (§11).** Settlement rows written before
-  per-sale settlement named the PO, not a sale. They exist only on
-  pre-merge dev data (the feature never reached `main`). A settlement whose
-  `reference_id` matches no owed sale is read the old way: it pays sales
-  first owed at or before its own timestamp, oldest first, and any excess is
-  dropped. Retire `payLegacyPooledSettlement()` once this ships, since no
-  released bundle ever wrote one.
+  count. No over-settled alert: nothing could ever clear it. This is a
+  documented limit, not prevented.
+- **No compatibility shim (§11).** Only earlier commits on this feature
+  branch ever wrote a settlement naming a PO; no such row exists on `dev` or
+  `main`, so none is read specially.
 
 ### Stock quantity reconciliation and the `sync_reconciliation` movement type (2026-10-02)
 

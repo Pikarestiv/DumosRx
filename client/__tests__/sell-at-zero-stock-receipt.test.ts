@@ -163,16 +163,12 @@ describe("a receipt pays owed units off before anything goes on the shelf", () =
     expect(lineCost("s1")).toBe(5000);
   });
 
-  it("reads a legacy settlement that names its PO: pays only what was owed at the time", async () => {
+  it("ignores a settlement that names no local sale, rather than paying some other sale with it", async () => {
     await sellOwed("s1", 2);
     await core.execute(
       `INSERT INTO stock_movements (id, product_id, stock_batch_id, movement_type, quantity, reference_type, reference_id, movement_date, _deleted, store_id)
-       VALUES ('over', 'p1', 'x', 'adjustment', -5, 'backorder_settlement', 'po-x', '2999-01-01T00:00:00Z', 0, '${STORE_ID}')`,
+       VALUES ('stray', 'p1', 'x', 'adjustment', -5, 'backorder_settlement', 'po-x', '2999-01-01T00:00:00Z', 0, '${STORE_ID}')`,
     );
-    expect(await outstanding()).toBe(0);
-    db.run(`UPDATE stock_movements SET movement_date = '2000-01-01T00:00:00Z' WHERE id = 'over'`);
-    db.run(`UPDATE stock_movements SET movement_date = '1999-01-01T00:00:00Z' WHERE reference_id = 's1'`);
-    await sellOwed("s2", 2);
 
     expect(await outstanding()).toBe(2);
   });
@@ -292,6 +288,25 @@ describe("a receipt pays owed units off before anything goes on the shelf", () =
 
       expect(await outstanding()).toBe(0);
       expect(lineCost("s1")).toBe(4000);
+    });
+  });
+
+  describe("re-costing is derived from the ledger, not added to the current cost", () => {
+    it("does not compound when a pulled re-cost arrives without its settlement and the sale is settled again", async () => {
+      await sellOwed("s1", 5);
+      db.run(`UPDATE sale_items SET cost_price = 4500 WHERE sale_id = 's1'`);
+      await receiving.createAndReceivePurchaseOrder(null, "", [line(20, 4500)]);
+
+      expect(lineCost("s1")).toBe(4500);
+    });
+
+    it("gives the same cost however the receipts at different costs arrive", async () => {
+      await sellOwed("s1", 4);
+      await receiving.createAndReceivePurchaseOrder(null, "", [line(2, 5000)]);
+      expect(lineCost("s1")).toBe(4500);
+      db.run(`UPDATE sale_items SET cost_price = 9999 WHERE sale_id = 's1'`);
+      await receiving.createAndReceivePurchaseOrder(null, "", [line(2, 6000)]);
+      expect(lineCost("s1")).toBe(5500);
     });
   });
 });

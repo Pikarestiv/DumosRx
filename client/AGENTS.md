@@ -2242,6 +2242,29 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   owner confirms counts as owed when the setting is on). Nothing else sells.
 - **No new `movement_type`.** Same reasoning as the A-265 spec: `adjustment`
   plus a distinguishing `reference_type` is readable by every bundle.
+- **Outstanding is derived, never stored.** `lib/db/queries/backorders.ts`:
+  `getOutstandingBackorders(productIds?)` is `Σ backorder quantity −
+  Σ |backorder_settlement quantity|` per product, store-scoped, floored at 0,
+  with any excess reported as `overSettled` (two tills settling at once).
+  `getUnsettledSales(productId)` walks the same rows oldest-first and says
+  which sales still owe units; a negative `backorder` row (a return, see below)
+  reduces its own sale's owed units directly.
+- **Settlement at receipt.** Both `receivePurchaseOrder()` and
+  `createAndReceivePurchaseOrder()` call `settleBackordersOnReceipt()` right
+  after each line's `purchase` movement: `settle = min(owed, received base
+  units)` written as `adjustment −settle` on the **receipt batch**,
+  `reference_type = "backorder_settlement"`, `reference_id` = the PO id,
+  `unit_cost` = the actual receipt cost. Its id is
+  `receiptSettlementMovementId(poItemId, alreadyReceived)` so it collapses
+  across devices the way `receiptMovementId` does. Settlement does **not**
+  depend on the setting: a store that switched it off still settles.
+- **Past sales are re-costed (owner decision 2).** Before the settlement row
+  is written, `recostSettledSales()` takes the settled units oldest sale first
+  and shifts each of that sale's `sale_items.cost_price` lines for the product
+  by `units × (actual − estimate) / line units`, where the estimate is the
+  `backorder` row's `unit_cost`. That is an `update()` on a historical
+  `sale_items` row, so it syncs, and **COGS for a closed period changes when
+  the goods arrive**. The receive screens say so (step 6).
 
 ### Stock quantity reconciliation and the `sync_reconciliation` movement type (2026-10-02)
 

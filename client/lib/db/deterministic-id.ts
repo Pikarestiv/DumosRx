@@ -41,3 +41,7 @@ export function receiptBatchId(poItemId: string, alreadyReceived: number): strin
 export function receiptMovementId(poItemId: string, alreadyReceived: number): string {
   return deterministicId("po_receipt_movement", poItemId, alreadyReceived);
 }
+
+export function receiptSettlementMovementId(poItemId: string, alreadyReceived: number): string {
+  return deterministicId("po_receipt_backorder_settlement", poItemId, alreadyReceived);
+}

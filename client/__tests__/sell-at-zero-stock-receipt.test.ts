@@ -1,0 +1,163 @@
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import initSqlJs, { type Database } from "sql.js";
+
+vi.mock("idb-keyval", () => ({
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
+}));
+
+const STORE_ID = "store-1";
+
+describe("a receipt pays owed units off before anything goes on the shelf", () => {
+  let db: Database;
+  let core: typeof import("@/lib/db/core");
+  let recordSaleItemStock: typeof import("@/lib/db/queries/inventory").recordSaleItemStock;
+  let getOutstandingBackorders: typeof import("@/lib/db/queries/backorders").getOutstandingBackorders;
+  let createPurchaseOrder: typeof import("@/lib/db/procurement").createPurchaseOrder;
+  let getPurchaseOrderById: typeof import("@/lib/db/procurement").getPurchaseOrderById;
+  let receiving: typeof import("@/lib/db/procurement-receiving");
+  let receiptSettlementMovementId: typeof import("@/lib/db/deterministic-id").receiptSettlementMovementId;
+
+  beforeAll(async () => {
+    core = await import("@/lib/db/core");
+    ({ recordSaleItemStock } = await import("@/lib/db/queries/inventory"));
+    ({ getOutstandingBackorders } = await import("@/lib/db/queries/backorders"));
+    ({ createPurchaseOrder, getPurchaseOrderById } = await import("@/lib/db/procurement"));
+    receiving = await import("@/lib/db/procurement-receiving");
+    ({ receiptSettlementMovementId } = await import("@/lib/db/deterministic-id"));
+
+    const { SCHEMA_SQL } = await import("@/lib/db/schema");
+    const SQL = await initSqlJs({ locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm") });
+    db = new SQL.Database();
+    db.run(SCHEMA_SQL);
+    const { runSchemaMigrations, makeSqlJsAdapter } = await import("@/lib/db/schema-migrations");
+    await runSchemaMigrations(makeSqlJsAdapter(db));
+    core.__setDatabaseForTesting(db);
+    core.setActiveStoreId(STORE_ID);
+  });
+
+  beforeEach(() => {
+    db.run(
+      `DELETE FROM stock_movements; DELETE FROM stock_batches; DELETE FROM products; DELETE FROM sale_items;
+       DELETE FROM sale_item_batches; DELETE FROM purchase_orders; DELETE FROM purchase_order_items;
+       DELETE FROM _sync_queue; DELETE FROM audit_logs;`,
+    );
+    db.run(
+      `INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, _deleted, store_id)
+       VALUES ('p1', 'Cement 50kg', 'Bag', 'Bag', 1, 0, '${STORE_ID}')`,
+    );
+  });
+
+  const sellOwed = (saleId: string, quantity: number, costPrice = 4000) =>
+    recordSaleItemStock({
+      saleId, productId: "p1", quantity, unitPrice: 5000, costPrice, subtotal: quantity * 5000,
+      cashierId: "u1", recordShortfallAsOwed: true,
+    });
+
+  const line = (bulk_quantity: number, unit_cost = 4500) => ({
+    product_id: "p1", product_name: "Cement 50kg", bulk_unit: "Bag",
+    bulk_quantity, units_per_bulk: 1, unit_cost, subtotal: bulk_quantity * unit_cost,
+  });
+
+  async function seedPO(...lines: ReturnType<typeof line>[]) {
+    const poId = await createPurchaseOrder(null, "", lines);
+    const po = await getPurchaseOrderById(poId);
+    if (!po) throw new Error("PO not created");
+    return { poId, itemIds: po.items.map((i) => i.id) };
+  }
+
+  const scalar = (sql: string) => db.exec(sql)[0]?.values?.[0]?.[0];
+  const onHand = () => Number(scalar(`SELECT COALESCE(SUM(quantity), 0) FROM stock_batches WHERE product_id = 'p1'`));
+  const outstanding = async () => (await getOutstandingBackorders(["p1"]))[0]?.outstanding ?? 0;
+  const lineCost = (saleId: string) => Number(scalar(`SELECT cost_price FROM sale_items WHERE sale_id = '${saleId}'`));
+
+  it("settles 5 owed out of a receipt of 20: 15 on the shelf, nothing outstanding", async () => {
+    await sellOwed("s1", 5);
+    expect(await outstanding()).toBe(5);
+
+    const { poId, itemIds } = await seedPO(line(20));
+    await receiving.receivePurchaseOrder(poId, [{ po_item_id: itemIds[0], quantity: 20 }]);
+
+    expect(onHand()).toBe(15);
+    expect(await outstanding()).toBe(0);
+    expect(scalar(`SELECT id FROM stock_movements WHERE reference_type = 'backorder_settlement'`)).toBe(
+      receiptSettlementMovementId(itemIds[0], 0),
+    );
+    expect(scalar(`SELECT quantity FROM stock_movements WHERE reference_type = 'backorder_settlement'`)).toBe(-5);
+    expect(Number(scalar(`SELECT SUM(quantity * cost_price) FROM stock_batches WHERE product_id = 'p1'`))).toBe(15 * 4500);
+  });
+
+  it("settles only what a partial receipt brings in", async () => {
+    await sellOwed("s1", 5);
+    const { poId, itemIds } = await seedPO(line(20));
+    await receiving.receivePurchaseOrder(poId, [{ po_item_id: itemIds[0], quantity: 3 }]);
+
+    expect(onHand()).toBe(0);
+    expect(await outstanding()).toBe(2);
+  });
+
+  it("does not over-settle across two lines for the same product in one PO", async () => {
+    await sellOwed("s1", 5);
+    const { poId, itemIds } = await seedPO(line(3), line(10));
+    await receiving.receivePurchaseOrder(poId, itemIds.map((id) => ({ po_item_id: id })));
+
+    expect(onHand()).toBe(8);
+    expect(await outstanding()).toBe(0);
+    expect(Number(scalar(`SELECT SUM(quantity) FROM stock_movements WHERE reference_type = 'backorder_settlement'`))).toBe(-5);
+  });
+
+  it("books one settlement when two receipts of the same line race", async () => {
+    await sellOwed("s1", 5);
+    const { poId, itemIds } = await seedPO(line(20));
+    await Promise.all([
+      receiving.receivePurchaseOrder(poId, [{ po_item_id: itemIds[0], quantity: 20 }]),
+      receiving.receivePurchaseOrder(poId, [{ po_item_id: itemIds[0], quantity: 20 }]),
+    ]);
+
+    expect(Number(scalar(`SELECT COUNT(*) FROM stock_movements WHERE reference_type = 'backorder_settlement'`))).toBe(1);
+    expect(onHand()).toBe(15);
+  });
+
+  it("settles an Immediate Purchase the same way", async () => {
+    await sellOwed("s1", 5);
+    await receiving.createAndReceivePurchaseOrder(null, "", [line(20)]);
+
+    expect(onHand()).toBe(15);
+    expect(await outstanding()).toBe(0);
+  });
+
+  it("settles nothing and changes nothing when nothing is owed", async () => {
+    const { poId, itemIds } = await seedPO(line(20));
+    await receiving.receivePurchaseOrder(poId, [{ po_item_id: itemIds[0] }]);
+
+    expect(onHand()).toBe(20);
+    expect(scalar(`SELECT COUNT(*) FROM stock_movements WHERE reference_type = 'backorder_settlement'`)).toBe(0);
+  });
+
+  it("re-costs the owed part of past sales at the received cost, oldest sale first", async () => {
+    await sellOwed("s1", 4);
+    await sellOwed("s2", 2);
+    const { poId, itemIds } = await seedPO(line(5, 5000));
+    await receiving.receivePurchaseOrder(poId, [{ po_item_id: itemIds[0] }]);
+
+    expect(lineCost("s1")).toBe(5000);
+    expect(lineCost("s2")).toBe(4500);
+    expect(await outstanding()).toBe(1);
+  });
+
+  it("re-weights a line that was only partly owed", async () => {
+    db.run(
+      `INSERT INTO stock_batches (id, product_id, batch_number, quantity, cost_price, is_active, _deleted, store_id)
+       VALUES ('b0', 'p1', 'B0', 0, 4000, 1, 0, '${STORE_ID}')`,
+    );
+    await core.execute(
+      `INSERT INTO stock_movements (id, product_id, stock_batch_id, movement_type, quantity, _deleted, store_id)
+       VALUES ('m0', 'p1', 'b0', 'purchase', 2, 0, '${STORE_ID}')`,
+    );
+    db.run(`UPDATE stock_batches SET quantity = 2 WHERE id = 'b0'`);
+    await sellOwed("s1", 4);
+    await receiving.createAndReceivePurchaseOrder(null, "", [line(10, 6000)]);
+
+    expect(lineCost("s1")).toBe(5000);
+  });
+});

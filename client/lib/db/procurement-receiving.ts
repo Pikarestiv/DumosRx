@@ -2,7 +2,8 @@
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-receiving-L1
 
 import { generateId, logAction, query, transaction } from "./core";
-import { receiptBatchId, receiptMovementId } from "./deterministic-id";
+import { receiptBatchId, receiptMovementId, receiptSettlementMovementId } from "./deterministic-id";
+import { settleBackordersOnReceipt } from "./queries/backorders";
 import { insert, update } from "./base-helpers";
 import {
   getPurchaseOrderById,
@@ -136,6 +137,17 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
         _version: 1,
         _synced: 0,
         _deleted: 0
+      });
+
+      await settleBackordersOnReceipt({
+        movementId: receiptSettlementMovementId(item.id, alreadyReceived),
+        productId: item.product_id,
+        batchId: invId,
+        receivedUnits: totalBaseUnits,
+        unitCost: baseUnitCost,
+        purchaseOrderId: poData.id,
+        performedBy: dumosUser?.id || null,
+        movementDate: now,
       });
 
       if (receivedItem?.selling_price !== undefined && receivedItem.selling_price !== "") {
@@ -272,6 +284,17 @@ export async function createAndReceivePurchaseOrder(
         _version: 1,
         _synced: 0,
         _deleted: 0
+      });
+
+      await settleBackordersOnReceipt({
+        movementId: receiptSettlementMovementId(poItemId, 0),
+        productId: item.product_id,
+        batchId: invId,
+        receivedUnits: totalBaseUnits,
+        unitCost: baseUnitCost,
+        purchaseOrderId: poId,
+        performedBy: dumosUser?.id || null,
+        movementDate: now,
       });
 
       if (item.selling_price !== undefined && item.selling_price !== "") {

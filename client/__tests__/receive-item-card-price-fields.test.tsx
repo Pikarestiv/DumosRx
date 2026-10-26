@@ -20,6 +20,8 @@ vi.mock("@/lib/db/queries/categories", () => ({
 }));
 // The panel's A-26 dropped-receipt banner reads the local database; this file is about the price fields, so the signal is…
 // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-receive-item-card-price-fields-test-tsx-L21
+vi.mock("@/lib/db/queries/backorders", () => ({ getOutstandingBackorders: () => Promise.resolve([]) }));
+
 vi.mock("@/lib/hooks/use-dropped-receipt-signal", () => ({
   useDroppedReceiptSignal: () => ({ signal: null, dismiss: vi.fn() }),
 }));

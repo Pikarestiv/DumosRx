@@ -3,12 +3,13 @@ import { renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
-// useStockBatchAlerts (3 reads) and usePurchasePatterns feed only the Analytics dashboard's stock_batches and customers ta…
+// useStockBatchAlerts (4 reads) and usePurchasePatterns feed only the Analytics dashboard's stock_batches and customers ta…
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-bi-tab-query-gating-test-tsx-L6
 
 const getLowStockAlerts = vi.fn(() => Promise.resolve([]));
 const getExpiryAlerts = vi.fn(() => Promise.resolve([]));
 const getOversoldAlerts = vi.fn(() => Promise.resolve([]));
+const getOutstandingBackorders = vi.fn(() => Promise.resolve([]));
 const getPurchasePatterns = vi.fn(() => Promise.resolve({
   timeSlotData: [],
   slotCategoryData: [],
@@ -18,6 +19,10 @@ vi.mock("@/lib/db/queries/inventory", () => ({
   getLowStockAlerts: () => getLowStockAlerts(),
   getExpiryAlerts: () => getExpiryAlerts(),
   getOversoldAlerts: () => getOversoldAlerts(),
+}));
+
+vi.mock("@/lib/db/queries/backorders", () => ({
+  getOutstandingBackorders: () => getOutstandingBackorders(),
 }));
 
 vi.mock("@/lib/db/queries/reports", () => ({
@@ -43,6 +48,7 @@ describe("Analytics tab query gating", () => {
     getLowStockAlerts.mockClear();
     getExpiryAlerts.mockClear();
     getOversoldAlerts.mockClear();
+    getOutstandingBackorders.mockClear();
     getPurchasePatterns.mockClear();
   });
 
@@ -53,15 +59,17 @@ describe("Analytics tab query gating", () => {
     expect(getLowStockAlerts).not.toHaveBeenCalled();
     expect(getExpiryAlerts).not.toHaveBeenCalled();
     expect(getOversoldAlerts).not.toHaveBeenCalled();
+    expect(getOutstandingBackorders).not.toHaveBeenCalled();
   });
 
-  it("reads all three stock-batch alert sources once its tab is active", async () => {
+  it("reads all four stock-batch alert sources once its tab is active", async () => {
     renderHook(() => useStockBatchAlerts(true), { wrapper });
     await flush();
 
     expect(getLowStockAlerts).toHaveBeenCalled();
     expect(getExpiryAlerts).toHaveBeenCalled();
     expect(getOversoldAlerts).toHaveBeenCalled();
+    expect(getOutstandingBackorders).toHaveBeenCalled();
   });
 
   it("reads no purchase patterns while its tab is inactive", async () => {

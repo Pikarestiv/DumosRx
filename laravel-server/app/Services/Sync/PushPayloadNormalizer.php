@@ -33,6 +33,7 @@ class PushPayloadNormalizer
             foreach (self::STORE_SYNC_FORBIDDEN_FIELDS as $field) {
                 unset($payload[$field]);
             }
+            $payload = LegacySaleWithoutStockGate::apply($payload, $request->header('X-App-Version'));
         }
 
         if ($change['table_name'] === 'users' && $currentStoreId && $change['operation'] === 'INSERT') {

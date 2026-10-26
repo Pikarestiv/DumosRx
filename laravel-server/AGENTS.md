@@ -1368,6 +1368,33 @@ owner's untick is put back on every push.
 decode (`JsonList::decodeList()`) when you do, because the escalation check
 depends on it. Pinned by `tests/Feature/LegacyStockQuantitiesGrantTest.php`.
 
+## `LegacySaleWithoutStockGate`: only a current bundle may switch selling at zero stock on
+
+`stores.allow_sale_without_stock` (migration `2026_10_26_000001`, boolean,
+default off; spec `docs/superpowers/specs/2026-10-26-sell-at-zero-stock-design.md`)
+lets a till sell past recorded stock and record the shortfall as owed. Only a
+bundle that also *settles* owed units on receipt may run a store with it on, so
+`app/Services/Sync/LegacySaleWithoutStockGate.php`, called from
+`PushPayloadNormalizer` on every `stores` change, drops a truthy
+`allow_sale_without_stock` from a push whose `X-App-Version` is missing or
+below `INTRODUCED_IN` (`0.0.41`). Turning it **off** is always accepted, and
+the rest of the row still applies.
+
+`INTRODUCED_IN` is `0.0.41` without a version bump because 0.0.41 is not yet
+tagged or on `main`: every production bundle reports `0.0.40` or less, and a
+pre-feature 0.0.41 dev bundle has no such column to send. If 0.0.41 is tagged
+before this branch merges, bump the version and this constant together.
+
+This gate does not stop an old till already in the field from *selling* on a
+store with the setting on (it never reads the column, so it keeps blocking at
+zero, which is safe) or from *receiving* without settling (shelf reads R
+instead of R − owed). The settings switch tells the owner to update every till
+first; that is the mitigation for the second case.
+
+**Retire it** once no active device reports an `X-App-Version` below
+`0.0.41`: delete the class, its call in `normalizePushPayload()` and
+`tests/Feature/SaleWithoutStockVersionGateTest.php`.
+
 ## Known gotcha: MySQL timezone vs. Laravel's UTC clock
 
 See `.agents/AGENTS.md` §6 for the full writeup (Namecheap shared hosting's

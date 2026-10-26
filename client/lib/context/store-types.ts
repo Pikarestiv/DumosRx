@@ -65,6 +65,7 @@ export interface StoreProfile {
   // Off by default: gates the POS cart's "Reseller sale" row (both the reseller-commission and store-markup sub-types) - see isMarkupSalesEnable…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#context-store-context-tsx-L96
   markup_sales_enabled?: number;
+  allow_sale_without_stock?: number;
 }
 
 export interface StoreContextType {

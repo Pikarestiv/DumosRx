@@ -33,7 +33,7 @@ describe("getProductsWithStock cost_price", () => {
       );
       CREATE TABLE stock_batches (
         id TEXT PRIMARY KEY, product_id TEXT, quantity INTEGER, cost_price REAL,
-        batch_number TEXT, expiry_date TEXT, is_active INTEGER DEFAULT 1, _deleted INTEGER DEFAULT 0
+        batch_number TEXT, expiry_date TEXT, is_active INTEGER DEFAULT 1, _deleted INTEGER DEFAULT 0, created_at TEXT
       );
     `);
     core.__setDatabaseForTesting(db);
@@ -66,5 +66,28 @@ describe("getProductsWithStock cost_price", () => {
 
     expect(item.cost_price).toBe(0);
     expect(item.stock).toBe(0);
+  });
+
+  it("falls back to the last purchase cost when every batch is empty", async () => {
+    db.run(`INSERT INTO products (id, name, selling_price) VALUES ('prod3', 'Cement', 5000)`);
+    db.run(`INSERT INTO stock_batches (id, product_id, quantity, cost_price, batch_number, created_at) VALUES
+      ('old', 'prod3', 0, 3000, 'B-1', '2026-01-01'),
+      ('new', 'prod3', 0, 3500, 'B-2', '2026-02-01'),
+      ('adj', 'prod3', 0, 1, 'ADJ-9', '2026-03-01')`);
+
+    const [item] = await getProductsWithStock();
+
+    expect(item.cost_price).toBe(3500);
+  });
+
+  it("prefers the weighted average over the last purchase cost when stock is on hand", async () => {
+    db.run(`INSERT INTO products (id, name, selling_price) VALUES ('prod4', 'Nails', 100)`);
+    db.run(`INSERT INTO stock_batches (id, product_id, quantity, cost_price, batch_number, created_at) VALUES
+      ('a', 'prod4', 10, 20, 'B-1', '2026-01-01'),
+      ('b', 'prod4', 0, 90, 'B-2', '2026-02-01')`);
+
+    const [item] = await getProductsWithStock();
+
+    expect(item.cost_price).toBe(20);
   });
 });

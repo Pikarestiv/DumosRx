@@ -1,3 +1,10 @@
+### A-335 — a sale line for a product with no stock on hand was costed at 0, so its whole price booked as profit
+- **Fixed:** 2026-10-26, client only, TDD. Found by the sell-at-zero scoping pass (`docs/superpowers/specs/2026-10-26-sell-at-zero-stock-design.md`).
+- **Was:** `getProductsWithStock()` derived `cost_price` only from the weighted average over batches holding stock. When every batch was empty that average is NULL and became `0`, which `writeSaleTransaction()` wrote to `sale_items.cost_price`, so COGS (`SUM(si.cost_price * si.quantity)`) counted the whole selling price as profit. It hit every sale of an out-of-stock product, including each online-order oversell.
+- **Now:** `cost_price` falls back to the last purchase cost (the newest non-`ADJ-` batch with a cost, the same subquery `getProductsWithDetails()` uses for `last_bought_price`, now shared as `lastBoughtPriceSql`), then to 0 for a product that has never been bought. A product with stock on hand still uses the weighted average.
+- **Backward compatibility (§11):** no contract change. Past `sale_items` rows keep the cost they were written with; they are not backfilled.
+- **Coverage:** `client/__tests__/products-cost-price.test.ts` (empty batches use the newest purchase cost and skip `ADJ-` batches; stock on hand still prefers the average). The first fails on the old query.
+
 ### A-333 — a purchase receipt's stock movement showed one hour early
 - **Fixed:** 2026-10-24, client only, TDD. Found by the local browser smoke test (not a regression: the writer predates the base commit).
 - **Was:** `receivePurchaseOrder()` and `createAndReceivePurchaseOrder()` stamped the movement, batch and order with `new Date().toISOString().slice(0, 19).replace('T', ' ')`, a UTC wall clock with the zone stripped. The movements ledger does `new Date(...)` on it, which reads a zone-less string as local time, so a receipt at 21:17 in Lagos showed 20:17 while sales and adjustments (full ISO) showed the real time. Day grouping and any date-range comparison could put a late or early receipt on the wrong day.

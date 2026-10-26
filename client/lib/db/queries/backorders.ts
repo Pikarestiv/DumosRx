@@ -1,7 +1,9 @@
 import { query, getActiveStoreId } from "@/lib/db/core";
 import { insert, update } from "@/lib/db/base-helpers";
 import { roundMoney } from "@/lib/utils/pos-calculations";
+import { receiptSettlementMovementId } from "@/lib/db/deterministic-id";
 import {
+  ADJUSTMENT_REASON_NOTE_SEPARATOR,
   BACKORDER_REFERENCE_TYPE,
   BACKORDER_SETTLEMENT_REASON,
   BACKORDER_SETTLEMENT_REFERENCE_TYPE,
@@ -27,29 +29,50 @@ interface LedgerRow {
   reference_type: string;
   quantity: number;
   unit_cost: number | null;
+  movement_date: string | null;
 }
 
-function unsettledFromLedger(rows: LedgerRow[]): UnsettledSale[] {
-  const bySale = new Map<string, { units: number; owedUnits: number; costSum: number }>();
+interface SaleBalance {
+  units: number;
+  owedUnits: number;
+  costSum: number;
+  firstOwedAt: string;
+}
+
+function owedBySale(rows: LedgerRow[]): Map<string, SaleBalance> {
+  const bySale = new Map<string, SaleBalance>();
   for (const r of rows) {
+    if (r.reference_type !== BACKORDER_REFERENCE_TYPE) continue;
     const quantity = Number(r.quantity);
-    if (r.reference_type === BACKORDER_SETTLEMENT_REFERENCE_TYPE) {
-      let pays = Math.abs(quantity);
-      for (const sale of bySale.values()) {
-        if (pays <= 0) break;
-        const paid = Math.min(Math.max(0, sale.units), pays);
-        sale.units -= paid;
-        pays -= paid;
-      }
-      continue;
-    }
-    const sale = bySale.get(r.reference_id) ?? { units: 0, owedUnits: 0, costSum: 0 };
+    const sale = bySale.get(r.reference_id) ?? { units: 0, owedUnits: 0, costSum: 0, firstOwedAt: r.movement_date ?? "" };
     sale.units += quantity;
     if (quantity > 0) {
       sale.owedUnits += quantity;
       sale.costSum += quantity * Number(r.unit_cost ?? 0);
     }
     bySale.set(r.reference_id, sale);
+  }
+  return bySale;
+}
+
+function payLegacyPooledSettlement(bySale: Map<string, SaleBalance>, units: number, settledAt: string) {
+  let pays = units;
+  for (const sale of bySale.values()) {
+    if (pays <= 0) break;
+    if (sale.firstOwedAt > settledAt) continue;
+    const paid = Math.min(Math.max(0, sale.units), pays);
+    sale.units -= paid;
+    pays -= paid;
+  }
+}
+
+function unsettledFromLedger(rows: LedgerRow[]): UnsettledSale[] {
+  const bySale = owedBySale(rows);
+  for (const r of rows) {
+    if (r.reference_type !== BACKORDER_SETTLEMENT_REFERENCE_TYPE) continue;
+    const named = bySale.get(r.reference_id);
+    if (named) named.units -= Math.abs(Number(r.quantity));
+    else payLegacyPooledSettlement(bySale, Math.abs(Number(r.quantity)), r.movement_date ?? "");
   }
   return [...bySale]
     .filter(([, sale]) => sale.units > 0)
@@ -66,7 +89,7 @@ export async function getOutstandingBackorders(productIds?: string[]): Promise<O
   const storeId = getActiveStoreId();
   const productFilter = productIds?.length ? ` AND sm.product_id IN (${productIds.map(() => "?").join(", ")})` : "";
   const rows = await query<LedgerRow>(
-    `SELECT sm.product_id, p.name AS product_name, sm.reference_id, sm.reference_type, sm.quantity, sm.unit_cost
+    `SELECT sm.product_id, p.name AS product_name, sm.reference_id, sm.reference_type, sm.quantity, sm.unit_cost, sm.movement_date
        FROM stock_movements sm
        JOIN products p ON p.id = sm.product_id
       WHERE sm._deleted = 0 AND p._deleted = 0 AND sm.reference_type IN (?, ?)${storeId ? " AND p.store_id = ?" : ""}${productFilter}
@@ -87,7 +110,7 @@ export async function getOutstandingBackorders(productIds?: string[]): Promise<O
 
 export async function getUnsettledSales(productId: string): Promise<UnsettledSale[]> {
   const rows = await query<LedgerRow>(
-    `SELECT sm.product_id, sm.reference_id, sm.reference_type, sm.quantity, sm.unit_cost
+    `SELECT sm.product_id, sm.reference_id, sm.reference_type, sm.quantity, sm.unit_cost, sm.movement_date
        FROM stock_movements sm
       WHERE sm.product_id = ? AND sm._deleted = 0 AND sm.reference_type IN (?, ?)
       ${LEDGER_ORDER}`,
@@ -96,29 +119,23 @@ export async function getUnsettledSales(productId: string): Promise<UnsettledSal
   return unsettledFromLedger(rows);
 }
 
-async function recostSettledSales(productId: string, sales: UnsettledSale[], settle: number, actualUnitCost: number) {
-  let left = settle;
-  for (const sale of sales) {
-    if (left <= 0) break;
-    const units = Math.min(sale.units, left);
-    left -= units;
-    if (actualUnitCost === sale.estimatedUnitCost) continue;
-
-    const lines = await query<{ id: string; quantity: number; cost_price: number | null }>(
-      "SELECT id, quantity, cost_price FROM sale_items WHERE sale_id = ? AND product_id = ? AND _deleted = 0",
-      [sale.saleId, productId],
-    );
-    const lineUnits = lines.reduce((sum, l) => sum + Number(l.quantity), 0);
-    if (lineUnits <= 0) continue;
-    const shift = (units * (actualUnitCost - sale.estimatedUnitCost)) / lineUnits;
-    for (const l of lines) {
-      await update("sale_items", l.id, { cost_price: roundMoney(Number(l.cost_price ?? 0) + shift) });
-    }
+async function recostSale(productId: string, sale: UnsettledSale, units: number, actualUnitCost: number) {
+  if (actualUnitCost <= 0 || actualUnitCost === sale.estimatedUnitCost) return;
+  const lines = await query<{ id: string; quantity: number; cost_price: number | null }>(
+    "SELECT id, quantity, cost_price FROM sale_items WHERE sale_id = ? AND product_id = ? AND _deleted = 0",
+    [sale.saleId, productId],
+  );
+  const lineUnits = lines.reduce((sum, l) => sum + Number(l.quantity), 0);
+  if (lineUnits <= 0) return;
+  const shift = (units * (actualUnitCost - sale.estimatedUnitCost)) / lineUnits;
+  for (const l of lines) {
+    await update("sale_items", l.id, { cost_price: roundMoney(Number(l.cost_price ?? 0) + shift) });
   }
 }
 
 export interface ReceiptSettlement {
-  movementId: string;
+  poItemId: string;
+  alreadyReceived: number;
   productId: string;
   batchId: string;
   receivedUnits: number;
@@ -129,25 +146,26 @@ export interface ReceiptSettlement {
 }
 
 export async function settleBackordersOnReceipt(r: ReceiptSettlement): Promise<number> {
-  const sales = await getUnsettledSales(r.productId);
-  const owed = sales.reduce((sum, s) => sum + s.units, 0);
-  const settle = Math.min(owed, r.receivedUnits);
-  if (settle <= 0) return 0;
-
-  await recostSettledSales(r.productId, sales, settle, r.unitCost);
-  await insert("stock_movements", {
-    id: r.movementId,
-    product_id: r.productId,
-    stock_batch_id: r.batchId,
-    movement_type: "adjustment",
-    quantity: -settle,
-    unit_cost: r.unitCost,
-    total_cost: roundMoney(r.unitCost * settle),
-    reference_id: r.purchaseOrderId,
-    reference_type: BACKORDER_SETTLEMENT_REFERENCE_TYPE,
-    reason: BACKORDER_SETTLEMENT_REASON,
-    performed_by: r.performedBy,
-    movement_date: r.movementDate,
-  });
-  return settle;
+  let left = r.receivedUnits;
+  for (const sale of await getUnsettledSales(r.productId)) {
+    if (left <= 0) break;
+    const units = Math.min(sale.units, left);
+    left -= units;
+    await recostSale(r.productId, sale, units, r.unitCost);
+    await insert("stock_movements", {
+      id: receiptSettlementMovementId(r.poItemId, r.alreadyReceived, sale.saleId),
+      product_id: r.productId,
+      stock_batch_id: r.batchId,
+      movement_type: "adjustment",
+      quantity: -units,
+      unit_cost: r.unitCost,
+      total_cost: roundMoney(r.unitCost * units),
+      reference_id: sale.saleId,
+      reference_type: BACKORDER_SETTLEMENT_REFERENCE_TYPE,
+      reason: `${BACKORDER_SETTLEMENT_REASON}${ADJUSTMENT_REASON_NOTE_SEPARATOR}${r.purchaseOrderId}`,
+      performed_by: r.performedBy,
+      movement_date: r.movementDate,
+    });
+  }
+  return r.receivedUnits - left;
 }

@@ -2,7 +2,7 @@
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-receiving-L1
 
 import { generateId, logAction, query, transaction } from "./core";
-import { receiptBatchId, receiptMovementId, receiptSettlementMovementId } from "./deterministic-id";
+import { receiptBatchId, receiptMovementId } from "./deterministic-id";
 import { settleBackordersOnReceipt } from "./queries/backorders";
 import { insert, update } from "./base-helpers";
 import {
@@ -140,7 +140,8 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
       });
 
       await settleBackordersOnReceipt({
-        movementId: receiptSettlementMovementId(item.id, alreadyReceived),
+        poItemId: item.id,
+        alreadyReceived,
         productId: item.product_id,
         batchId: invId,
         receivedUnits: totalBaseUnits,
@@ -287,7 +288,8 @@ export async function createAndReceivePurchaseOrder(
       });
 
       await settleBackordersOnReceipt({
-        movementId: receiptSettlementMovementId(poItemId, 0),
+        poItemId,
+        alreadyReceived: 0,
         productId: item.product_id,
         batchId: invId,
         receivedUnits: totalBaseUnits,

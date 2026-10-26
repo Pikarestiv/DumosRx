@@ -81,8 +81,10 @@ describe("a receipt pays owed units off before anything goes on the shelf", () =
     expect(onHand()).toBe(15);
     expect(await outstanding()).toBe(0);
     expect(scalar(`SELECT id FROM stock_movements WHERE reference_type = 'backorder_settlement'`)).toBe(
-      receiptSettlementMovementId(itemIds[0], 0),
+      receiptSettlementMovementId(itemIds[0], 0, "s1"),
     );
+    expect(scalar(`SELECT reference_id FROM stock_movements WHERE reference_type = 'backorder_settlement'`)).toBe("s1");
+    expect(String(scalar(`SELECT reason FROM stock_movements WHERE reference_type = 'backorder_settlement'`))).toContain(poId);
     expect(scalar(`SELECT quantity FROM stock_movements WHERE reference_type = 'backorder_settlement'`)).toBe(-5);
     expect(Number(scalar(`SELECT SUM(quantity * cost_price) FROM stock_batches WHERE product_id = 'p1'`))).toBe(15 * 4500);
   });
@@ -161,7 +163,7 @@ describe("a receipt pays owed units off before anything goes on the shelf", () =
     expect(lineCost("s1")).toBe(5000);
   });
 
-  it("drops a settlement beyond what was owed at the time, so later owed units still settle", async () => {
+  it("reads a legacy settlement that names its PO: pays only what was owed at the time", async () => {
     await sellOwed("s1", 2);
     await core.execute(
       `INSERT INTO stock_movements (id, product_id, stock_batch_id, movement_type, quantity, reference_type, reference_id, movement_date, _deleted, store_id)
@@ -218,5 +220,78 @@ describe("a receipt pays owed units off before anything goes on the shelf", () =
     await receiving.createAndReceivePurchaseOrder(null, "", [line(10)]);
     expect({ onHand: onHand(), owed: await outstanding() }).toEqual({ onHand: 8, owed: 0 });
     expect(await rebuildFromLog()).toEqual({ onHand: 8, owed: 0 });
+  });
+
+  describe("each settlement names the sale it pays off", () => {
+    const settlementRows = () =>
+      db.exec(`SELECT reference_id, quantity FROM stock_movements WHERE reference_type = 'backorder_settlement' ORDER BY reference_id`)[0]?.values ?? [];
+
+    it("stays settled when the settling till's clock is behind the selling till's", async () => {
+      await sellOwed("s1", 5);
+      await receiving.createAndReceivePurchaseOrder(null, "", [line(20, 4500)]);
+      db.run(`UPDATE stock_movements SET movement_date = '2000-01-01T00:00:00Z' WHERE reference_type = 'backorder_settlement'`);
+
+      expect(await outstanding()).toBe(0);
+      await receiving.createAndReceivePurchaseOrder(null, "", [line(20, 6000)]);
+      expect(onHand()).toBe(35);
+      expect(settlementRows()).toEqual([["s1", -5]]);
+      expect(lineCost("s1")).toBe(4500);
+    });
+
+    it("does not move an earlier-stamped sale that syncs after a later one was settled", async () => {
+      await sellOwed("s2", 3);
+      await receiving.createAndReceivePurchaseOrder(null, "", [line(3, 4600)]);
+      await sellOwed("s1", 2);
+      db.run(`UPDATE stock_movements SET movement_date = '2000-01-01T00:00:00Z' WHERE reference_id = 's1'`);
+
+      expect(await outstanding()).toBe(2);
+      await receiving.createAndReceivePurchaseOrder(null, "", [line(2, 5000)]);
+      expect(await outstanding()).toBe(0);
+      expect(lineCost("s2")).toBe(4600);
+      expect(lineCost("s1")).toBe(5000);
+      expect(settlementRows()).toEqual([["s1", -2], ["s2", -3]]);
+    });
+
+    it("is idempotent on a retried settle and never lets one sale's double settlement pay another", async () => {
+      const { settleBackordersOnReceipt } = await import("@/lib/db/queries/backorders");
+      await sellOwed("s1", 5);
+      await sellOwed("s2", 3);
+      const receipt = {
+        poItemId: "po-item-1", alreadyReceived: 0, productId: "p1", batchId: "b-r", receivedUnits: 10, unitCost: 4500,
+        purchaseOrderId: "po-1", performedBy: null, movementDate: new Date().toISOString(),
+      };
+      expect(await settleBackordersOnReceipt(receipt)).toBe(8);
+      expect(await settleBackordersOnReceipt(receipt)).toBe(0);
+      expect(lineCost("s1")).toBe(4500);
+      expect(lineCost("s2")).toBe(4500);
+      const ids = db.exec(`SELECT id FROM stock_movements WHERE reference_type = 'backorder_settlement' ORDER BY reference_id`)[0].values.flat();
+      expect(ids).toEqual([receiptSettlementMovementId("po-item-1", 0, "s1"), receiptSettlementMovementId("po-item-1", 0, "s2")]);
+
+      await core.execute(
+        `INSERT INTO stock_movements (id, product_id, stock_batch_id, movement_type, quantity, reference_type, reference_id, movement_date, _deleted, store_id)
+         VALUES ('dup', 'p1', 'b-other', 'adjustment', -5, 'backorder_settlement', 's1', '2026-10-26T10:00:00Z', 0, '${STORE_ID}')`,
+      );
+      db.run(`DELETE FROM stock_movements WHERE reference_type = 'backorder_settlement' AND reference_id = 's2'`);
+      expect(await outstanding()).toBe(3);
+    });
+  });
+
+  describe("a receipt with no cost", () => {
+    it("settles but does not re-cost a purchase-order line costed at 0", async () => {
+      await sellOwed("s1", 5);
+      const { poId, itemIds } = await seedPO(line(20, 0));
+      await receiving.receivePurchaseOrder(poId, [{ po_item_id: itemIds[0] }]);
+
+      expect(await outstanding()).toBe(0);
+      expect(lineCost("s1")).toBe(4000);
+    });
+
+    it("settles but does not re-cost an Immediate Purchase costed at 0", async () => {
+      await sellOwed("s1", 5);
+      await receiving.createAndReceivePurchaseOrder(null, "", [line(20, 0)]);
+
+      expect(await outstanding()).toBe(0);
+      expect(lineCost("s1")).toBe(4000);
+    });
   });
 });

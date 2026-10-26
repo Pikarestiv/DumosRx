@@ -42,6 +42,6 @@ export function receiptMovementId(poItemId: string, alreadyReceived: number): st
   return deterministicId("po_receipt_movement", poItemId, alreadyReceived);
 }
 
-export function receiptSettlementMovementId(poItemId: string, alreadyReceived: number): string {
-  return deterministicId("po_receipt_backorder_settlement", poItemId, alreadyReceived);
+export function receiptSettlementMovementId(poItemId: string, alreadyReceived: number, saleId: string): string {
+  return deterministicId("po_receipt_backorder_settlement", poItemId, alreadyReceived, saleId);
 }

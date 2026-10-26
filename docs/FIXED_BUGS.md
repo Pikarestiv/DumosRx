@@ -4,6 +4,7 @@
 - **Now:** `cost_price` falls back to the last purchase cost (the newest non-`ADJ-` batch with a cost, the same subquery `getProductsWithDetails()` uses for `last_bought_price`, now shared as `lastBoughtPriceSql`), then to 0 for a product that has never been bought. A product with stock on hand still uses the weighted average.
 - **Backward compatibility (§11):** no contract change. Past `sale_items` rows keep the cost they were written with; they are not backfilled.
 - **Coverage:** `client/__tests__/products-cost-price.test.ts` (empty batches use the newest purchase cost and skip `ADJ-` batches; stock on hand still prefers the average). The first fails on the old query.
+- **Not a regression (2026-10-26):** this changes COGS for zero-stock lines with the sell-at-zero setting **off** too, by design. A report comparing this branch with `dev` will show lower profit on out-of-stock sales. That is this fix, not a sell-at-zero side effect.
 - **Follow-up (2026-10-26, sell-at-zero step 3):** the online-order fulfilment path costs its own lines and still wrote `batches[0]?.cost_price ?? 0` over *positive* batches, so a zero-stock online order kept costing 0. It now calls `getLastPurchaseCost()` (`products.ts`, the same shared subquery). That subquery also skipped a batch with a NULL `batch_number` (`NULL NOT LIKE 'ADJ-%'` is NULL); it now reads `COALESCE(batch_number, '')`. Pinned by `client/__tests__/use-fulfill-online-order-mutation.test.ts`.
 
 ### A-333 — a purchase receipt's stock movement showed one hour early

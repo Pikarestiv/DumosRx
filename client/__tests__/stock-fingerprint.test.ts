@@ -26,26 +26,30 @@ describe("buildStockFingerprint", () => {
     // runSchemaMigrations() adds store_id to every STORE_SCOPED_TABLES entry on a real device; SCHEMA_SQL alone does not, and…
     // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-stock-fingerprint-test-ts-L29
     db.run("ALTER TABLE stock_batches ADD COLUMN store_id TEXT");
+    db.run("ALTER TABLE products ADD COLUMN store_id TEXT");
     core.__setDatabaseForTesting(db);
   });
 
   beforeEach(() => {
-    db.run("DELETE FROM stock_batches;");
+    db.run("DELETE FROM stock_batches; DELETE FROM products;");
+    db.run(
+      `INSERT INTO products (id, name, store_id, _deleted) VALUES ('p-store-1', 'Gluformin', 'store-1', 0), ('p-store-2', 'Other', 'store-2', 0)`,
+    );
     core.setActiveStoreId("store-1");
   });
 
   const insertBatch = (
     id: string,
-    storeId: string,
+    storeId: string | null,
     quantity: number,
     deleted = 0,
     costPrice: number | null = 0,
+    productId = `p-${storeId}`,
   ) => {
     db.run(
       `INSERT INTO stock_batches (id, product_id, store_id, quantity, batch_number, cost_price, _deleted)
-       VALUES ('${id}', 'p1', '${storeId}', ${quantity}, 'B', ${
-         costPrice === null ? "NULL" : costPrice
-       }, ${deleted})`,
+       VALUES (?, ?, ?, ?, 'B', ?, ?)`,
+      [id, productId, storeId, quantity, costPrice, deleted],
     );
   };
 
@@ -114,6 +118,27 @@ describe("buildStockFingerprint", () => {
       quantity_sum: 12,
       value_sum: 6,
     });
+  });
+
+  it("counts a batch by its product's store, as the server and the pull do, even when its own store_id is empty (A-246)", async () => {
+    insertBatch("b1", "store-1", 10);
+    insertBatch("legacy", null, 7, 0, 0, "p-store-1");
+
+    expect((await buildStockFingerprint("store-1"))?.batch_count).toBe(2);
+  });
+
+  it("leaves out a batch stamped with this store whose product belongs to another (A-246)", async () => {
+    insertBatch("b1", "store-1", 10);
+    insertBatch("stray", "store-1", 5, 0, 0, "p-store-2");
+
+    expect(await buildStockFingerprint("store-1")).toEqual({ batch_count: 1, quantity_sum: 10, value_sum: 0 });
+  });
+
+  it("still counts a batch of a discontinued product, as the server's withTrashed() does", async () => {
+    db.run("UPDATE products SET _deleted = 1 WHERE id = 'p-store-1'");
+    insertBatch("b1", "store-1", 10);
+
+    expect((await buildStockFingerprint("store-1"))?.batch_count).toBe(1);
   });
 
   /** Reporting must never be able to fail a sync. */

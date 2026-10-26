@@ -3716,6 +3716,13 @@ derives itself, so a divergence between two devices of one store is visible
 without anyone counting shelves. See docs/superpowers/specs/2026-10-07-stuck-data-and-
 divergence-visibility-design.md, Phase 1.
 
+Batches are counted through their product's store (`JOIN products`), not their
+own `store_id`, because that is how `StockDivergenceService` counts and how the
+pull decides which batches a device holds (A-246). A batch's own `store_id` was
+never backfilled server-side, so on a legacy batch it can be empty or wrong; the
+product's is the one both sides share. A discontinued product's batches still
+count, as the server's `withTrashed()` does.
+
 ### db-sync-engine-stock-integrity-ts-L14
 
 `client/lib/db/sync-engine/stock-integrity.ts:14`

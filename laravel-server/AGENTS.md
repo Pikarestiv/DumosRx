@@ -2575,11 +2575,15 @@ and A-176 raised and nothing could answer.
   2026-10-25). The server always has
   (`stock_batches.product_id IN products of the store`, trashed included); the
   client used to count `stock_batches.store_id`, a column never backfilled
-  server-side, and two batches stamped with one store but owned by a product of
-  another gave every device of a store the same fixed `+18`. Since A-246 the
-  client joins `products` the same way, so a gap between a device and the cloud
-  is a real one. A bundle older than that still reports the old predicate; its
-  rows can show that arithmetic gap until it updates, as before.
+  server-side, so a device whose own batch and product rows disagreed about
+  the store showed a gap no sync could clear. Since A-246 the client joins
+  `products` the same way. Both sides still differ wherever the device's copy
+  of `products.store_id` is stale: a product that left the store's scope stays
+  on the device (A-291; store `571582a9`'s 2026-10-12 `+18` is that, real stock
+  on those devices, cleared by `sync:repair-product-store-stamps`), and
+  `sync:backfill-store-ids` does not move `updated_at`, so its attributions
+  never reach devices. A bundle older than A-246 still reports the old
+  predicate.
 
 **Client side:** `client/lib/db/sync-engine/stock-fingerprint.ts`. Note that
 `stock_batches.store_id` and `products.store_id` exist only because

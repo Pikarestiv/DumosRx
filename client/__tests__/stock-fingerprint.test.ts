@@ -141,6 +141,13 @@ describe("buildStockFingerprint", () => {
     expect((await buildStockFingerprint("store-1"))?.batch_count).toBe(1);
   });
 
+  it("leaves out a batch whose product row this device does not hold yet", async () => {
+    insertBatch("b1", "store-1", 10);
+    insertBatch("orphan", "store-1", 4, 0, 0, "p-not-pulled");
+
+    expect((await buildStockFingerprint("store-1"))?.batch_count).toBe(1);
+  });
+
   /** Reporting must never be able to fail a sync. */
   it("returns null instead of throwing when there is no active store", async () => {
     core.setActiveStoreId(null);

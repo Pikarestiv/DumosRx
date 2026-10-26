@@ -2303,7 +2303,11 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
     inspection session (`update()` would refuse the write); it writes against
     the run's pinned store, not the ambient one; and any error is sent to
     `logCrash()` and swallowed, so the round's settlement and sale rows stay
-    committed. A skipped re-cost needs no catch-up on that till: an inspected
+    committed. The re-cost runs in its own `transaction()` with the catch
+    **outside** it (there are no savepoints), so a failure part-way, such as
+    the queue write throwing after a line's UPDATE, rolls back every re-cost
+    write of that round together and never leaves a line changed at
+    `_synced = 0` with no queue row. A skipped re-cost needs no catch-up on that till: an inspected
     till settles nothing, and every *other* till re-derives from the full
     ledger when it pulls the settlement, then pushes that figure, which the
     inspected till later pulls.

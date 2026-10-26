@@ -140,6 +140,18 @@ describe("a pull re-costs the sales its settlement and sale-line rows name", () 
       expect(line()[0]).toBe(11.2);
     });
 
+    it("leaves no half-written line when the queue write fails after the cost update", async () => {
+      db.run(`ALTER TABLE _sync_queue RENAME TO _sync_queue_away`);
+      try {
+        await pull({ stock_movements: [settlementRow("settle-A", 3, 12)] });
+      } finally {
+        db.run(`ALTER TABLE _sync_queue_away RENAME TO _sync_queue`);
+      }
+
+      expect(settlementLanded()).toBe(1);
+      expect(line()).toEqual([10, 1]);
+    });
+
     it("logs and swallows a re-cost failure so the page still commits", async () => {
       db.run(`ALTER TABLE sale_items RENAME TO sale_items_away`);
       try {

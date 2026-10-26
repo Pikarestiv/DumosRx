@@ -1,4 +1,4 @@
-import { query, getActiveStoreId } from "@/lib/db/core";
+import { query, getActiveStoreId, transaction } from "@/lib/db/core";
 import { insert, update } from "@/lib/db/base-helpers";
 import { roundMoney } from "@/lib/utils/pos-calculations";
 import { receiptSettlementMovementId } from "@/lib/db/deterministic-id";
@@ -189,7 +189,7 @@ export function keepPulledRecostRows(changes: Record<string, unknown>, into: Pul
 export async function recostSalesTouchedByPull(changes: PulledRecostRows, storeId?: string | null): Promise<void> {
   if (isTillInspectionSession()) return;
   try {
-    await recostPulledSales(changes, storeId ?? undefined);
+    await transaction(() => recostPulledSales(changes, storeId ?? undefined));
   } catch (error) {
     logCrash(error, false, { area: "sync-pull-recost" }).catch(() => {});
   }

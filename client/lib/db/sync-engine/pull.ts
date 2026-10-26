@@ -276,7 +276,7 @@ export async function pullChanges(
     }
 
     if (roundDrained || !hasMoreAny) {
-      await transaction(() => recostSalesTouchedByPull(recostRows, activeRun.storeId));
+      await recostSalesTouchedByPull(recostRows, activeRun.storeId);
     }
 
     await finishPullRound(

@@ -1395,6 +1395,14 @@ first; that is the mitigation for the second case.
 `0.0.41`: delete the class, its call in `normalizePushPayload()` and
 `tests/Feature/SaleWithoutStockVersionGateTest.php`.
 
+The feature needs no other server code. Owed and settled units are ordinary
+`adjustment` rows with `reference_type` `backorder` / `backorder_settlement`,
+and re-costing is an ordinary `sale_items` UPDATE.
+`tests/Feature/SellAtZeroStockServerParityTest.php` pins that a sale and its
+backorder pushed together land the Stage-0 batch on 0 like the client, that a
+chunk split gives the bounded A-217 shape (the server reads N), and that the
+re-cost UPDATE is accepted.
+
 ## Known gotcha: MySQL timezone vs. Laravel's UTC clock
 
 See `.agents/AGENTS.md` §6 for the full writeup (Namecheap shared hosting's

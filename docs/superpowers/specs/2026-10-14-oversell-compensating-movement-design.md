@@ -4,6 +4,7 @@
 **Status:** Proposed. Nothing ships until the owner answers §"The product decision".
 **Scope:** `client/` write path and readers; one read-only server command. No
 schema change on either side, no new `movement_type`.
+**Sibling (2026-10-26):** `docs/superpowers/specs/2026-10-26-sell-at-zero-stock-design.md` ships the same compensating write for intended oversells (`reference_type = "backorder"`) through `writeShortfallCompensation()`; Stage 2 here should reuse that helper.
 **Related:** `docs/KNOWN_BUGS.md` A-265 (the defect), A-212 (the alert that
 cannot see it), A-211 (the count-freshness guard), A-217 (client/server
 disagreement until Stage 2), A-264 (the carve-out's blind spot), A-213/A-214

@@ -195,4 +195,28 @@ describe("a receipt pays owed units off before anything goes on the shelf", () =
     expect(onHand()).toBe(17);
     expect(await outstanding()).toBe(0);
   });
+
+  it("rebuilds the same shelf figure and the same owed balance from the pulled log alone", async () => {
+    const { recomputeBatchQuantities } = await import("@/lib/db/batch-quantity");
+    const rebuildFromLog = async () => {
+      db.run(`UPDATE stock_batches SET quantity = 0`);
+      const rows = db.exec(
+        `SELECT stock_batch_id, SUM(quantity), SUM(MAX(quantity, 0)) FROM stock_movements GROUP BY stock_batch_id`,
+      )[0]?.values ?? [];
+      await recomputeBatchQuantities(
+        new Map(rows.map(([id, delta, inbound]) => [String(id), { delta: Number(delta), inbound: Number(inbound) }])),
+      );
+      return { onHand: onHand(), owed: await outstanding() };
+    };
+    await sellOwed("s1", 5);
+    await sellOwed("s2", 3);
+
+    await receiving.createAndReceivePurchaseOrder(null, "", [line(6)]);
+    expect({ onHand: onHand(), owed: await outstanding() }).toEqual({ onHand: 0, owed: 2 });
+    expect(await rebuildFromLog()).toEqual({ onHand: 0, owed: 2 });
+
+    await receiving.createAndReceivePurchaseOrder(null, "", [line(10)]);
+    expect({ onHand: onHand(), owed: await outstanding() }).toEqual({ onHand: 8, owed: 0 });
+    expect(await rebuildFromLog()).toEqual({ onHand: 8, owed: 0 });
+  });
 });

@@ -2,6 +2,8 @@ import { query, getActiveStoreId } from "@/lib/db/core";
 import { insert, update } from "@/lib/db/base-helpers";
 import { roundMoney } from "@/lib/utils/pos-calculations";
 import { receiptSettlementMovementId } from "@/lib/db/deterministic-id";
+import { isTillInspectionSession } from "@/lib/utils/till-inspection";
+import { logCrash } from "@/lib/utils/error-logger";
 import {
   ADJUSTMENT_REASON_NOTE_SEPARATOR,
   BACKORDER_REFERENCE_TYPE,
@@ -120,7 +122,7 @@ export async function getUnsettledSales(productId: string): Promise<UnsettledSal
   return unsettledFromLedger(await ledgerRowsFor(productId));
 }
 
-async function recostSale(productId: string, saleId: string) {
+async function recostSale(productId: string, saleId: string, storeId?: string) {
   const sale = ledgerBySale(await ledgerRowsFor(productId)).get(saleId);
   if (!sale) return;
   const lines = await query<{ id: string; quantity: number; cost_price: number | null }>(
@@ -131,7 +133,7 @@ async function recostSale(productId: string, saleId: string) {
   if (lineUnits <= 0) return;
   const cost = lineCostFromLedger(sale, lineUnits);
   for (const l of lines) {
-    if (Number(l.cost_price ?? 0) !== cost) await update("sale_items", l.id, { cost_price: cost });
+    if (Number(l.cost_price ?? 0) !== cost) await update("sale_items", l.id, { cost_price: cost }, { storeId });
   }
 }
 
@@ -153,7 +155,7 @@ async function settledSalesAmong(saleIds: string[]): Promise<Set<string>> {
   return settled;
 }
 
-export async function recostSalesTouchedByPull(changes: Record<string, unknown>): Promise<void> {
+async function recostPulledSales(changes: Record<string, unknown>, storeId?: string): Promise<void> {
   const pairs = new Map<string, { saleId: string; productId: string }>();
   for (const r of rowsOf(changes.stock_movements)) {
     if (r.reference_type !== BACKORDER_SETTLEMENT_REFERENCE_TYPE || !r.reference_id || !r.product_id) continue;
@@ -167,7 +169,16 @@ export async function recostSalesTouchedByPull(changes: Record<string, unknown>)
       if (settled.has(key)) pairs.set(key, { saleId: String(r.sale_id), productId: String(r.product_id) });
     }
   }
-  for (const { saleId, productId } of pairs.values()) await recostSale(productId, saleId);
+  for (const { saleId, productId } of pairs.values()) await recostSale(productId, saleId, storeId);
+}
+
+export async function recostSalesTouchedByPull(changes: Record<string, unknown>, storeId?: string | null): Promise<void> {
+  if (isTillInspectionSession()) return;
+  try {
+    await recostPulledSales(changes, storeId ?? undefined);
+  } catch (error) {
+    logCrash(error, false, { area: "sync-pull-recost" }).catch(() => {});
+  }
 }
 
 export interface ReceiptSettlement {

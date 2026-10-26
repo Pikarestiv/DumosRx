@@ -257,7 +257,7 @@ export async function pullChanges(
           }
         }
         await recomputeBatchQuantities(touchedBatches);
-        await recostSalesTouchedByPull(changes);
+        await recostSalesTouchedByPull(changes, activeRun.storeId);
       }).catch((err) => {
         // Rethrown so the outer catch reports it once, not twice.
         console.error("Failed to apply pull changes:", err);

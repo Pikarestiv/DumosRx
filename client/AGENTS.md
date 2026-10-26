@@ -279,7 +279,10 @@ and `synchronous = NORMAL`.
   - **Read-only is enforced in `insert`/`update`/`softDelete`/`remove`**
     (`base-helpers.ts`), not by hiding buttons. `remove()` matters: it hard
     deletes. The fold, the clock override and sync's pull all write via raw
-    `execute`, which is why they are unaffected and need no exception.
+    `execute`, which is why they are unaffected and need no exception. The
+    one pull-side step that goes through `update()` is the sell-at-zero
+    re-cost (`recostSalesTouchedByPull()`), so it returns early during a
+    session and never throws into the pull.
   - **Two deadlines, both local.** A 20-minute idle timer extended by real
     interaction, and a 4-hour cap derived from the server's `expires_in`
     **duration** — never its absolute `expires_at`, which on a till whose
@@ -2285,14 +2288,33 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   `sale_items` UPDATE only at its exact `_version`, so when two tills re-cost
   the same sale the second is refused and the pull reverts it, and a line not
   yet local at settle time is skipped. So `pullChanges()` calls
-  `recostSalesTouchedByPull(changes)` after each page's
+  `recostSalesTouchedByPull(changes, activeRun.storeId)` after each page's
   `recomputeBatchQuantities()`, inside the page transaction: every sale named
   by a pulled `backorder_settlement` row, and every pulled `sale_items` line
   whose sale already has settlements, is re-costed from the local ledger.
-  The figure is absolute, so devices converge. It cannot loop: a re-cost
-  writes a `sale_items` UPDATE, never a settlement, and a line already at the
-  derived cost is not written, so no `_version` bump and no queue entry
-  (pinned by `__tests__/sell-at-zero-stock-pull-recost.test.ts`). That is an `update()` on a historical
+  The figure is absolute, so devices converge.
+  - **It can never abort a pull.** It returns at once during an on-till
+    inspection session (`update()` would refuse the write); it writes against
+    the run's pinned store, not the ambient one; and any error is sent to
+    `logCrash()` and swallowed, so the page's settlement and sale rows still
+    commit. A skipped re-cost needs no catch-up on that till: an inspected
+    till settles nothing, and every *other* till re-derives from the full
+    ledger when it pulls the settlement, then pushes that figure, which the
+    inspected till later pulls.
+  - **A stale base is dropped silently.** A till can pull a settlement before
+    the server's re-costed line and so queue its re-cost on an old
+    `_version`. The server refuses it (`version_conflict`), the queue row is
+    dropped and the window rewound as for any conflict, the server row is
+    pulled, and the hook re-derives on the current version. That conflict is
+    not toasted (`push-conflict-toasts.ts`): the re-cost is the only client
+    code that UPDATEs `sale_items`, so the user never made that write. If a
+    user-facing `sale_items` edit is ever added, that silence must become
+    narrower.
+  - **When it does not loop.** A re-cost writes a `sale_items` UPDATE, never
+    a settlement. A line already at the derived cost is not written, so no
+    `_version` bump and no queue entry. A line that differs is written and
+    queued once per pull that names it, and stops once the server holds the
+    derived figure. Pinned by `__tests__/sell-at-zero-stock-pull-recost.test.ts`. That is an `update()` on a historical
   `sale_items` row, so it syncs, and **COGS for a closed period changes when
   the goods arrive**. The receive screens say so (step 6).
 - **The cart.** With `canSellWithoutStock` on, `usePOSCart`'s `addToCart()`

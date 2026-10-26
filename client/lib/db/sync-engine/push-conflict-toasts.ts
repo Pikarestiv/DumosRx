@@ -42,8 +42,8 @@ export function announceTerminalConflicts(
       );
       return false;
     }
-    // Push-only telemetry the user never edits: log, don't toast.
-    if (conflict.table_name === "feedback" || conflict.table_name === "audit_logs") {
+    // Push-only telemetry, or the automatic re-cost (the only sale_items UPDATE): log, don't toast.
+    if (conflict.table_name === "feedback" || conflict.table_name === "audit_logs" || conflict.table_name === "sale_items") {
       console.info(
         `[Sync] ${conflict.table_name} record ${conflict.record_id} hit a version conflict; server's version kept, no toast shown.`,
       );

@@ -2571,11 +2571,25 @@ and A-176 raised and nothing could answer.
   whatever they were written with — an audit log is immutable and backfilling
   its prose would be worse than a bare id.
 
+- **Both sides count a batch through its product's store** (A-246,
+  2026-10-25). The server always has
+  (`stock_batches.product_id IN products of the store`, trashed included); the
+  client used to count `stock_batches.store_id`, a column never backfilled
+  server-side, so a device whose own batch and product rows disagreed about
+  the store showed a gap no sync could clear. Since A-246 the client joins
+  `products` the same way. Both sides still differ wherever the device's copy
+  of `products.store_id` is stale: a product that left the store's scope stays
+  on the device (A-291; store `571582a9`'s 2026-10-12 `+18` is that, real stock
+  on those devices, cleared by `sync:repair-product-store-stamps`), and
+  `sync:backfill-store-ids` does not move `updated_at`, so its attributions
+  never reach devices. A bundle older than A-246 still reports the old
+  predicate.
+
 **Client side:** `client/lib/db/sync-engine/stock-fingerprint.ts`. Note that
-`stock_batches.store_id` exists only because `runSchemaMigrations()` adds it
-to every `STORE_SCOPED_TABLES` entry — it is NOT in `SCHEMA_SQL`, so a test
-that seeds from `SCHEMA_SQL` alone must add the column or the query silently
-returns nothing.
+`stock_batches.store_id` and `products.store_id` exist only because
+`runSchemaMigrations()` adds them to every `STORE_SCOPED_TABLES` entry — they
+are NOT in `SCHEMA_SQL`, so a test that seeds from `SCHEMA_SQL` alone must add
+the columns or the query silently returns nothing.
 
 ## What may be delegated, and what must never be
 

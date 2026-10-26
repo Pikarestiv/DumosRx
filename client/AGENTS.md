@@ -2306,8 +2306,12 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
     `_version`. The server refuses it (`version_conflict`), the queue row is
     dropped and the window rewound as for any conflict, the server row is
     pulled, and the hook re-derives on the current version. That conflict is
-    not toasted (`push-conflict-toasts.ts`): the re-cost is the only client
-    code that UPDATEs `sale_items`, so the user never made that write. If a
+    not toasted (`push-conflict-toasts.ts`, `isRefusedAutomaticRecost()`):
+    only a `sale_items` **UPDATE** refused as **`version_conflict`** is
+    silent, because the re-cost is the only client code that UPDATEs
+    `sale_items`. A refused `sale_items` INSERT or any other reason still
+    toasts. `PushConflict.operation` carries the queued change's operation for
+    this. If a
     user-facing `sale_items` edit is ever added, that silence must become
     narrower.
   - **When it does not loop.** A re-cost writes a `sale_items` UPDATE, never

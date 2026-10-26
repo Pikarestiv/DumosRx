@@ -86,7 +86,12 @@ export async function settleFailedChanges(
       if (wasRetried) {
         silencedConflicts.push({ table_name: f.table_name, record_id: f.record_id });
       } else {
-        versionConflicts.push({ table_name: f.table_name, record_id: f.record_id, reason: f.reason });
+        versionConflicts.push({
+          table_name: f.table_name,
+          record_id: f.record_id,
+          reason: f.reason,
+          operation: changes.find((c) => c.id === f.id)?.operation,
+        });
       }
     } else {
       for (const id of underlyingIds) {

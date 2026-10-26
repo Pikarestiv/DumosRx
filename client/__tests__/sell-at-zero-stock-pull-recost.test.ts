@@ -158,13 +158,12 @@ describe("a pull re-costs the sales its settlement and sale-line rows name", () 
     const queued = db.exec(`SELECT id, record_id FROM _sync_queue WHERE table_name = 'sale_items'`)[0].values;
     expect(queued).toHaveLength(1);
 
-    apiClient.pushChanges.mockImplementation(async (body: { changes: { id: number; table_name: string; record_id: string }[] }) => ({
+    const [[queueId, recordId]] = queued;
+    apiClient.pushChanges.mockResolvedValue({
       success: true,
-      processed: body.changes.length - 1,
-      failed: body.changes
-        .filter((c) => c.table_name === "sale_items")
-        .map((c) => ({ id: c.id, table_name: c.table_name, record_id: c.record_id, reason: "version_conflict" })),
-    }));
+      processed: 0,
+      failed: [{ id: Number(queueId), table_name: "sale_items", record_id: String(recordId), reason: "version_conflict" }],
+    });
     await pushChanges();
     apiClient.pushChanges.mockReset();
 

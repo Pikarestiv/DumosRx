@@ -201,4 +201,30 @@ class AdminCatalogStandardizeTest extends TestCase
 
         $this->assertNull($product->fresh()->generic_name);
     }
+
+    #[Test]
+    public function a_real_run_moves_each_backfilled_products_version_so_devices_cannot_write_the_blank_back(): void
+    {
+        $product = $this->makeBlankProduct($this->storeA, 'Paracetamol');
+        \Illuminate\Support\Facades\DB::table('products')->where('id', $product->id)->update(['_version' => 4]);
+
+        $this->actingAs($this->superAdmin)
+            ->postJson('/api/v1/admin/products/standardize', ['dry_run' => false])
+            ->assertOk();
+
+        $this->assertSame(6, (int) $product->fresh()->_version, 'Both blank fields were backfilled, so the version moves twice.');
+    }
+
+    #[Test]
+    public function a_dry_run_leaves_the_version_alone(): void
+    {
+        $product = $this->makeBlankProduct($this->storeA, 'Paracetamol');
+        \Illuminate\Support\Facades\DB::table('products')->where('id', $product->id)->update(['_version' => 4]);
+
+        $this->actingAs($this->superAdmin)
+            ->postJson('/api/v1/admin/products/standardize', ['dry_run' => true])
+            ->assertOk();
+
+        $this->assertSame(4, (int) $product->fresh()->_version);
+    }
 }

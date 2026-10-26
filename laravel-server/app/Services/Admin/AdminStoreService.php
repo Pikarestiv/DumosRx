@@ -13,6 +13,7 @@ use App\Services\Admin\Concerns\ResolvesDeviceLabels;
 use App\Services\Admin\Concerns\ResolvesTrialDuration;
 use App\Services\Admin\Filters\StoreListFilters;
 use App\Services\Admin\Support\ListSortResolver;
+use App\Support\SyncRowStamp;
 use App\Support\TokenLifetime;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -370,6 +371,7 @@ class AdminStoreService
             if ($store->user) {
                 $store->user->is_active = ! $suspend;
                 $store->user->save();
+                SyncRowStamp::bump($store->user);
             }
 
             ActivityLog::create([

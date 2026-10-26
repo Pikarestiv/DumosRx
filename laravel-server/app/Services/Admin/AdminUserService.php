@@ -11,6 +11,7 @@ use App\Services\Admin\Concerns\ResolvesTrialDuration;
 use App\Services\Admin\Concerns\UpdatesUserProfiles;
 use App\Services\Admin\Filters\UserListFilters;
 use App\Services\Admin\Support\ListSortResolver;
+use App\Support\SyncRowStamp;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -404,6 +405,7 @@ class AdminUserService
         $user = User::findOrFail($id);
         $user->is_active = false;
         $user->save();
+        SyncRowStamp::bump($user);
 
         ActivityLog::create([
             'user_id' => Auth::id(),
@@ -419,6 +421,7 @@ class AdminUserService
         $user = User::findOrFail($id);
         $user->is_active = true;
         $user->save();
+        SyncRowStamp::bump($user);
 
         ActivityLog::create([
             'user_id' => Auth::id(),

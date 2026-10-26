@@ -5,6 +5,7 @@ namespace App\Services\Admin\Concerns;
 use App\Models\ActivityLog;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\SyncRowStamp;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -110,6 +111,7 @@ trait UpdatesUserProfiles
         }
 
         $user->save();
+        SyncRowStamp::bump($user);
     }
 
     private function logProfileUpdate(User $user, array $changes, $actorId): void

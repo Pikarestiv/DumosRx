@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Concerns;
 use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Models\User;
+use App\Support\SyncRowStamp;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -58,6 +59,7 @@ trait ManagesProfile
         ]);
 
         $user->update($request->only('first_name', 'last_name', 'phone'));
+        SyncRowStamp::bump($user);
 
         return response()->json([
             'message' => 'Profile updated successfully',

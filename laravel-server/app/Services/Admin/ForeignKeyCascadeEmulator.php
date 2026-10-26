@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Support\SchemaTables;
+use App\Support\SyncRowStamp;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -40,7 +41,7 @@ class ForeignKeyCascadeEmulator
             if ($reference['action'] === 'set null') {
                 DB::table($reference['table'])
                     ->whereIn($reference['column'], $ids)
-                    ->update([$reference['column'] => null]);
+                    ->update([$reference['column'] => null, ...SyncRowStamp::for($reference['table'])]);
 
                 continue;
             }

@@ -24,4 +24,3 @@ export const BACKORDER_REFERENCE_TYPE = "backorder";
 export const BACKORDER_SETTLEMENT_REFERENCE_TYPE = "backorder_settlement";
 export const BACKORDER_REASON = "Sold before stock was received";
 export const BACKORDER_SETTLEMENT_REASON = "Already sold before this delivery";
-export const BACKORDER_RETURN_REASON = "Returned before stock was received";

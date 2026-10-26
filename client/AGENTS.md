@@ -2296,6 +2296,12 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   this delivery. 15 will go on the shelf." (`describeOwedSettlement()`), the
   quantity-free wording for a stock-hidden role, and the line saying those
   sales are re-costed so reported profit for those days will change.
+- **Returns do not touch owed units.** Owner decision 5: the customer took
+  the goods, so owed units are stock that was on the yard. A return restores
+  `+Q` to the shelf as usual, and the later receipt still settles the full
+  owed amount. Reducing owed on the return would double-count the returned
+  units. `getUnsettledSales()` still honours a negative `backorder` row
+  should a future flow need one.
 - **Over-settlement.** Two tills settling the same units offline would both
   write a settlement. The balance is a chronological walk, not a sum: a
   settlement pays off only units owed at that point and the excess is dropped,

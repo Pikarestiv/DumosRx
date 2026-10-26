@@ -182,4 +182,17 @@ describe("a receipt pays owed units off before anything goes on the shelf", () =
 
     expect(await getStockLossTotal({ from: "2000-01-01T00:00:00Z", to: "2999-01-01T00:00:00Z" })).toBe(0);
   });
+
+  it("leaves owed units alone on a return, because the customer had the goods (owner decision 5)", async () => {
+    const { restoreReturnedStock } = await import("@/lib/db/queries/returns");
+    const saleItemId = await sellOwed("s1", 5);
+    await restoreReturnedStock({ saleItemId, productId: "p1", costPrice: 4000, returnQuantity: 2, returnId: "r1" });
+
+    expect(onHand()).toBe(2);
+    expect(await outstanding()).toBe(5);
+
+    await receiving.createAndReceivePurchaseOrder(null, "", [line(20)]);
+    expect(onHand()).toBe(17);
+    expect(await outstanding()).toBe(0);
+  });
 });

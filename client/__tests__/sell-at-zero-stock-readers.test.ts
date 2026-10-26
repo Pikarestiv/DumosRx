@@ -8,7 +8,6 @@ import {
   ADJUSTMENT_REASON_NOTE_SEPARATOR,
   BACKORDER_REASON,
   BACKORDER_REFERENCE_TYPE,
-  BACKORDER_RETURN_REASON,
   BACKORDER_SETTLEMENT_REASON,
   BACKORDER_SETTLEMENT_REFERENCE_TYPE,
   STOCK_LOSS_REASON_LABELS,
@@ -39,7 +38,7 @@ describe("readers of owed and settled rows", () => {
   });
 
   it("never matches a stock-loss reason, so losses never count them", () => {
-    for (const reason of [BACKORDER_REASON, BACKORDER_SETTLEMENT_REASON, BACKORDER_RETURN_REASON]) {
+    for (const reason of [BACKORDER_REASON, BACKORDER_SETTLEMENT_REASON]) {
       for (const label of STOCK_LOSS_REASON_LABELS) {
         expect(reason).not.toBe(label);
         expect(reason.startsWith(`${label}${ADJUSTMENT_REASON_NOTE_SEPARATOR}`)).toBe(false);

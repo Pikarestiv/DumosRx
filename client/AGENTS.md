@@ -7022,3 +7022,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Procurement price handling: selling price hits the catalog on save, cost stays per batch
+
+`createPurchaseOrder` and `updatePurchaseOrder` write a line's `selling_price` to `products` as soon as the PO is saved (`applyChangedSellingPrices`, `lib/db/procurement-selling-price.ts`), matching Immediate Purchase. On edit only prices that differ from the previously saved line are written, because the edit form reloads every stored price and re-sending an untouched one would revert a newer catalog edit. Cost never goes to the catalog; it lives on `stock_batches`. `ReceivePOPanel` seeds `cost_price` (from `cost_price_override`, per base unit), `lot_number` and `expiry_date` from the saved line because `receivePurchaseOrder` reads only the panel payload. It deliberately does not seed `selling_price`: the catalog already has it, and re-sending a stale PO price would overwrite a later catalog edit. Any new per-line field the PO form saves must be added to `buildInitialReceivedItems` too.

@@ -1,5 +1,8 @@
 import { query, generateId, transaction, getActiveStoreId } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
+import { applyChangedSellingPrices, coerceOptionalNumber } from "./procurement-selling-price";
+
+export { coerceOptionalNumber };
 import { roundMoney } from "@/lib/utils/pos-calculations";
 import { immediateLineAmount } from "@/components/procurement/po-line-item-math";
 
@@ -10,18 +13,6 @@ export {
   getSupplierOutstandingBalance,
   deleteSupplier,
 } from "./suppliers";
-
-// Line-item form fields (selling_price, cost_price_override) come in as `number | string | undefined` from raw form inputs - blank/undefined m…
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-ts-L11
-export function coerceOptionalNumber(
-  value: number | string | null | undefined,
-): number | null {
-  if (value === undefined || value === null || String(value).trim() === "") {
-    return null;
-  }
-  const num = Number(value);
-  return Number.isFinite(num) ? num : null;
-}
 
 // `partially_received` sits between `sent` and `received`:
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-ts-L30
@@ -254,6 +245,8 @@ export async function createPurchaseOrder(
       });
     }
 
+    await applyChangedSellingPrices(items);
+
     return poId;
   });
 }
@@ -276,10 +269,11 @@ export async function updatePurchaseOrder(
 
   return transaction(async () => {
     // Soft delete existing items
-    const existingItems = await query<{ id: string }>(
-      "SELECT id FROM purchase_order_items WHERE po_id = ? AND _deleted = 0",
+    const existingItems = await query<{ id: string; product_id: string; selling_price: number | null }>(
+      "SELECT id, product_id, selling_price FROM purchase_order_items WHERE po_id = ? AND _deleted = 0",
       [poId]
     );
+    const previousPrices = new Map(existingItems.map((row) => [row.product_id, row.selling_price ?? null]));
 
     for (const item of existingItems) {
       await softDelete("purchase_order_items", item.id);
@@ -314,6 +308,8 @@ export async function updatePurchaseOrder(
         created_at: now
       });
     }
+
+    await applyChangedSellingPrices(items, previousPrices);
 
     return poId;
   });

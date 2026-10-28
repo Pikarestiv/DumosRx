@@ -57,8 +57,9 @@ function buildInitialReceivedItems(
       // Prefill with the outstanding balance, not the full ordered quantity:
       // Rationale: docs/CLIENT_COMMENTS.md#line-components-procurement-receive-po-panel-tsx-L78
       quantity: outstandingBulkQuantity(item),
-      lot_number: "",
-      expiry_date: "",
+      lot_number: item.lot_number ?? "",
+      expiry_date: item.expiry_date ?? "",
+      cost_price: item.cost_price_override ?? undefined,
       current_selling_price: item.current_selling_price ?? null,
     };
   });

@@ -24,7 +24,8 @@ const PROCUREMENT_SCHEMA = `
   );
   CREATE TABLE products (
     id TEXT PRIMARY KEY, name TEXT, base_unit TEXT, bulk_unit TEXT, units_per_bulk INTEGER,
-    selling_price REAL, category_id TEXT
+    selling_price REAL, category_id TEXT, updated_at TEXT,
+    _version INTEGER DEFAULT 1, _synced INTEGER DEFAULT 0, _deleted INTEGER DEFAULT 0
   );
   CREATE TABLE categories (
     id TEXT PRIMARY KEY, name TEXT

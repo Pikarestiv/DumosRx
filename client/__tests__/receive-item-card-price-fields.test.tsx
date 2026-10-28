@@ -125,4 +125,41 @@ describe("ReceiveItemCard price fields", () => {
     expect(payload[0].cost_price).toBe("450");
     expect(payload[0].selling_price).toBe("0");
   });
+  it("prefills the cost, lot and expiry that were saved on the order line", () => {
+    const onConfirm = vi.fn();
+    const savedPo = {
+      ...po,
+      items: [
+        {
+          ...(po.items ?? [])[0],
+          selling_price: 15,
+          cost_price_override: 4.5,
+          lot_number: "LOT-9",
+          expiry_date: "2027-03-01",
+        },
+      ],
+    } as unknown as PurchaseOrder;
+    render(
+      withQueryClient(
+        <ReceivePOPanel po={savedPo} onBack={vi.fn()} onConfirm={onConfirm} />,
+      ),
+    );
+
+    expect(
+      (screen.getByLabelText("New Selling Price for Panadol") as HTMLInputElement).value,
+    ).toBe("");
+    expect(
+      (screen.getByLabelText("Cost Price per Tablet for Panadol") as HTMLInputElement).value,
+    ).toBe("4.5");
+
+    act(() => {
+      screen.getByRole("button", { name: "Confirm & Receive" }).click();
+    });
+    const [, payload] = onConfirm.mock.calls[0];
+    expect(payload[0]).toMatchObject({
+      cost_price: 4.5,
+      lot_number: "LOT-9",
+      expiry_date: "2027-03-01",
+    });
+  });
 });

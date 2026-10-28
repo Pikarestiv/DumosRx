@@ -22,6 +22,33 @@ describe("procurement.ts order writes", () => {
     clearProcurementTables(db);
   });
 
+  describe("selling price on save", () => {
+    const line = (selling_price?: number) => [{ product_id: "prodSp", product_name: "Zyrtec", bulk_unit: "Carton", bulk_quantity: 1, units_per_bulk: 10, unit_cost: 500, subtotal: 500, selling_price }];
+    const price = () => db.exec(`SELECT selling_price FROM products WHERE id = 'prodSp'`)[0].values[0][0];
+
+    it("updates the catalog price when a PO is created or edited, but not when the line has none", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price) VALUES ('prodSp', 'Zyrtec', 'Tablet', 'Carton', 10, 10)`);
+
+      const poId = await createPurchaseOrder(null, "", line());
+      expect(price()).toBe(10);
+
+      await createPurchaseOrder(null, "", line(25));
+      expect(price()).toBe(25);
+
+      await updatePurchaseOrder(poId, null, "", line(30));
+      expect(price()).toBe(30);
+    });
+
+    it("does not push a stale PO price back over a newer catalog price when an edit leaves the price untouched", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price) VALUES ('prodSp', 'Zyrtec', 'Tablet', 'Carton', 10, 10)`);
+      const poId = await createPurchaseOrder(null, "", line(15));
+
+      db.run(`UPDATE products SET selling_price = 20 WHERE id = 'prodSp'`);
+      await updatePurchaseOrder(poId, null, "edited note", line(15));
+      expect(price()).toBe(20);
+    });
+  });
+
   describe("createPurchaseOrder", () => {
     it("defaults type to 'standard' when none is passed", async () => {
       db.run(`INSERT INTO suppliers (id, name) VALUES ('sup1', 'Emzor')`);

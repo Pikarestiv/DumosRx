@@ -95,7 +95,7 @@ describe("ReceiveItemCard price fields", () => {
       "New Selling Price for Panadol",
     ) as HTMLInputElement;
     expect(input.getAttribute("type")).toBe("number");
-    expect(input.getAttribute("placeholder")).toBe("Unchanged");
+    expect(input.getAttribute("placeholder")).toBe("₦12.5 now");
   });
 
   it("carries what is typed into the new price fields through to the receive payload, clamping a negative to zero", () => {

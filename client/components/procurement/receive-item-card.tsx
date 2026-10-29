@@ -19,6 +19,7 @@ import {
   clampReceivedQuantity,
   outstandingBulkQuantity,
   resolveBaseUnitCost,
+  sellingPricePlaceholder,
 } from "./po-line-item-math";
 import { ReceiveItemCategoryEditor } from "./receive-item-category-editor";
 import { ProductName } from "@/components/ui/product-name";
@@ -147,7 +148,7 @@ export const ReceiveItemCard = React.memo(
                 min="0"
                 step="0.01"
                 aria-label={`New Selling Price for ${item.product_name}`}
-                placeholder="Unchanged"
+                placeholder={sellingPricePlaceholder(item.current_selling_price)}
                 value={state.selling_price ?? ""}
                 onChange={(e) =>
                   onFieldChange(

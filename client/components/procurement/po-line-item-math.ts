@@ -1,4 +1,5 @@
 import { roundMoney } from "@/lib/utils/pos-calculations";
+import { formatCurrency } from "@/lib/utils";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import type { POLineItemDraft } from "./po-item-ledger-table";
 
@@ -172,4 +173,8 @@ export function costOverriddenLines(
     .filter((item) => item.cost_price != null && item.cost_price !== "")
     .filter((item): item is { product_id: string; cost_price: number | string } => !!item.product_id)
     .map((item) => ({ productId: item.product_id, cost: Number(item.cost_price) }));
+}
+
+export function sellingPricePlaceholder(currentSellingPrice?: number | null): string {
+  return currentSellingPrice == null ? "Unchanged" : `${formatCurrency(currentSellingPrice)}`;
 }

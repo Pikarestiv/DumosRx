@@ -10,6 +10,7 @@ import {
   clampReceivedQuantity,
   outstandingBulkQuantity,
   resolveBaseUnitCost,
+  sellingPricePlaceholder,
 } from "./po-line-item-math";
 import { ReceiveItemCategoryEditor } from "./receive-item-category-editor";
 import { formatCurrency } from "@/lib/utils";
@@ -170,7 +171,7 @@ export function ReceiveLedgerTable({
                     step="0.01"
                     className="w-full min-w-20 text-right"
                     aria-label={`New Selling Price for ${item.product_name}`}
-                    placeholder="Unchanged"
+                    placeholder={sellingPricePlaceholder(item.current_selling_price)}
                     value={state.selling_price ?? ""}
                     onChange={(e) =>
                       onFieldChange(

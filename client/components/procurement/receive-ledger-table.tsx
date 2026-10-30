@@ -105,7 +105,7 @@ export function ReceiveLedgerTable({
                 </div>
                 <div
                   role="cell"
-                  className="px-3 py-2 text-right text-muted-foreground flex items-center justify-end"
+                  className="px-3 py-2 text-right text-muted-foreground flex items-start justify-end"
                 >
                   {item.bulk_quantity}
                   {alreadyReceived > 0 && (
@@ -116,7 +116,7 @@ export function ReceiveLedgerTable({
                 </div>
                 <div
                   role="cell"
-                  className="px-3 py-2 text-right flex items-center"
+                  className="px-3 py-2 text-right flex items-start"
                 >
                   <Input
                     type="number"
@@ -163,7 +163,7 @@ export function ReceiveLedgerTable({
                 </div>
                 <div
                   role="cell"
-                  className="px-3 py-2 text-right flex items-center"
+                  className="px-3 py-2 text-right flex items-start"
                 >
                   <Input
                     type="number"
@@ -182,7 +182,7 @@ export function ReceiveLedgerTable({
                     }
                   />
                 </div>
-                <div role="cell" className="px-3 py-2 flex items-center">
+                <div role="cell" className="px-3 py-2 flex items-start">
                   <Input
                     className="w-full min-w-24"
                     aria-label={`Lot or batch number for ${item.product_name}`}
@@ -193,7 +193,7 @@ export function ReceiveLedgerTable({
                     }
                   />
                 </div>
-                <div role="cell" className="px-3 py-2 flex items-center">
+                <div role="cell" className="px-3 py-2 flex items-start">
                   <DatePickerInput
                     value={state.expiry_date}
                     onChange={(val) =>

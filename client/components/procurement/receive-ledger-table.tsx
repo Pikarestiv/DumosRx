@@ -14,6 +14,7 @@ import {
 } from "./po-line-item-math";
 import { ReceiveItemCategoryEditor } from "./receive-item-category-editor";
 import { formatCurrency } from "@/lib/utils";
+import { useStore } from "@/lib/context/store-context";
 import { ProductName } from "@/components/ui/product-name";
 
 interface ReceiveLedgerTableProps {
@@ -35,6 +36,8 @@ export function ReceiveLedgerTable({
   receivedItems,
   onFieldChange,
 }: ReceiveLedgerTableProps) {
+  const { storeProfile } = useStore();
+  const currency = storeProfile?.currency;
   return (
     <div className="border border-border rounded-xl overflow-x-auto">
       <div
@@ -144,7 +147,7 @@ export function ReceiveLedgerTable({
                     step="0.01"
                     className="w-full min-w-20 text-right"
                     aria-label={`Cost Price per ${item.base_unit} for ${item.product_name}`}
-                    placeholder={formatCurrency(orderedBaseUnitCost)}
+                    placeholder={formatCurrency(orderedBaseUnitCost, currency)}
                     value={state.cost_price ?? ""}
                     onChange={(e) =>
                       onFieldChange(
@@ -157,7 +160,7 @@ export function ReceiveLedgerTable({
                   <span className="text-[10px] text-muted-foreground/80 leading-none">
                     per {item.base_unit}
                     {item.last_bought_price
-                      ? ` · last ${formatCurrency(item.last_bought_price)}`
+                      ? ` · last ${formatCurrency(item.last_bought_price, currency)}`
                       : ""}
                   </span>
                 </div>
@@ -171,7 +174,7 @@ export function ReceiveLedgerTable({
                     step="0.01"
                     className="w-full min-w-20 text-right"
                     aria-label={`New Selling Price for ${item.product_name}`}
-                    placeholder={sellingPricePlaceholder(item.current_selling_price)}
+                    placeholder={sellingPricePlaceholder(item.current_selling_price, currency)}
                     value={state.selling_price ?? ""}
                     onChange={(e) =>
                       onFieldChange(

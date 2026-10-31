@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/tooltip";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { formatCurrency } from "@/lib/utils";
+import { useStore } from "@/lib/context/store-context";
 import type { PurchaseOrderItem } from "@/lib/db/local-database";
 import type { ReceivedItemPayload } from "./receive-po-panel";
 import {
@@ -40,6 +41,8 @@ export const ReceiveItemCard = React.memo(
       value: string | number,
     ) => void;
   }) => {
+    const { storeProfile } = useStore();
+    const currency = storeProfile?.currency;
     const outstanding = outstandingBulkQuantity(item);
     const alreadyReceived = Number(item.quantity_received) || 0;
     const unitsPerBulk = item.product_units_per_bulk || item.units_per_bulk || 1;
@@ -64,7 +67,7 @@ export const ReceiveItemCard = React.memo(
             </div>
             <p className="text-sm text-muted-foreground">
               Ordered: {item.bulk_quantity} {item.bulk_unit}(s) @{" "}
-              {formatCurrency(item.unit_cost)}/{item.bulk_unit}
+              {formatCurrency(item.unit_cost, currency)}/{item.bulk_unit}
             </p>
             {alreadyReceived > 0 && (
               <p className="text-sm text-amber-600 font-medium">
@@ -124,7 +127,7 @@ export const ReceiveItemCard = React.memo(
                 min="0"
                 step="0.01"
                 aria-label={`Cost Price per ${item.base_unit} for ${item.product_name}`}
-                placeholder={formatCurrency(orderedBaseUnitCost)}
+                placeholder={formatCurrency(orderedBaseUnitCost, currency)}
                 value={state.cost_price ?? ""}
                 onChange={(e) =>
                   onFieldChange(
@@ -136,7 +139,7 @@ export const ReceiveItemCard = React.memo(
               />
               {!!item.last_bought_price && (
                 <p className="text-[10.5px] text-muted-foreground">
-                  Last bought at {formatCurrency(item.last_bought_price)} per{" "}
+                  Last bought at {formatCurrency(item.last_bought_price, currency)} per{" "}
                   {item.base_unit}
                 </p>
               )}
@@ -148,7 +151,7 @@ export const ReceiveItemCard = React.memo(
                 min="0"
                 step="0.01"
                 aria-label={`New Selling Price for ${item.product_name}`}
-                placeholder={sellingPricePlaceholder(item.current_selling_price)}
+                placeholder={sellingPricePlaceholder(item.current_selling_price, currency)}
                 value={state.selling_price ?? ""}
                 onChange={(e) =>
                   onFieldChange(

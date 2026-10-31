@@ -8,8 +8,12 @@ import type { PurchaseOrder } from "@/lib/db/local-database";
 
 // Product names now render through ProductName, which reads the store's
 // casing setting; these specs mount their component without a provider.
+const storeProfile = vi.hoisted(() => ({
+  uppercase_display_enabled: 1,
+  currency: undefined as string | undefined,
+}));
 vi.mock("@/lib/context/store-context", () => ({
-  useStore: () => ({ storeProfile: { uppercase_display_enabled: 1 } }),
+  useStore: () => ({ storeProfile }),
 }));
 
 vi.mock("@/lib/hooks/use-permissions", () => ({
@@ -96,6 +100,20 @@ describe("ReceiveItemCard price fields", () => {
     ) as HTMLInputElement;
     expect(input.getAttribute("type")).toBe("number");
     expect(input.getAttribute("placeholder")).toBe("₦12.5");
+  });
+
+  it("formats the receive placeholders in the store's currency, not the default naira", () => {
+    storeProfile.currency = "XAF";
+    try {
+      renderPanel();
+      const price = screen.getByLabelText("New Selling Price for Panadol") as HTMLInputElement;
+      const cost = screen.getByLabelText("Cost Price per Tablet for Panadol") as HTMLInputElement;
+      expect(price.getAttribute("placeholder")).not.toContain("₦");
+      expect(price.getAttribute("placeholder")).toMatch(/13|12/);
+      expect(cost.getAttribute("placeholder")).not.toContain("₦");
+    } finally {
+      storeProfile.currency = undefined;
+    }
   });
 
   it("carries what is typed into the new price fields through to the receive payload, clamping a negative to zero", () => {

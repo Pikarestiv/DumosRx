@@ -175,6 +175,6 @@ export function costOverriddenLines(
     .map((item) => ({ productId: item.product_id, cost: Number(item.cost_price) }));
 }
 
-export function sellingPricePlaceholder(currentSellingPrice?: number | null): string {
-  return currentSellingPrice == null ? "Unchanged" : `${formatCurrency(currentSellingPrice)}`;
+export function sellingPricePlaceholder(currentSellingPrice?: number | null, currencyCode?: string): string {
+  return currentSellingPrice == null ? "Unchanged" : formatCurrency(currentSellingPrice, currencyCode);
 }

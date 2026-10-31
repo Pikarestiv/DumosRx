@@ -147,6 +147,22 @@ describe("procurement-receiving.ts", () => {
       expect(batchRows[0].values[0][0]).toBe(1000);
     });
 
+    it("applies a typed selling price even on a line received at quantity zero", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price) VALUES ('pA', 'A', 'Tablet', 'Carton', 10, 10), ('pB', 'B', 'Tablet', 'Carton', 10, 10)`);
+      const line = (product_id: string) => ({ product_id, product_name: product_id, bulk_unit: "Carton", bulk_quantity: 5, units_per_bulk: 10, unit_cost: 1000, subtotal: 5000 });
+      const poId = await createPurchaseOrder(null, "", [line("pA"), line("pB")]);
+      const items = (await getPurchaseOrderById(poId))?.items ?? [];
+      const byProduct = (id: string) => items.find((i) => i.product_id === id);
+
+      await receivePurchaseOrder(poId, [
+        { po_item_id: byProduct("pA")?.id ?? "", quantity: 5 },
+        { po_item_id: byProduct("pB")?.id ?? "", quantity: 0, selling_price: 77 },
+      ]);
+
+      const rows = db.exec(`SELECT selling_price FROM products WHERE id = 'pB'`);
+      expect(rows[0].values[0][0]).toBe(77);
+    });
+
     it("caps a submitted quantity at the outstanding balance instead of overbooking stock", async () => {
       const poId = await seedStandardPO();
       const item = await lineItem(poId);

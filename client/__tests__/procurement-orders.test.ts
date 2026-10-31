@@ -39,13 +39,20 @@ describe("procurement.ts order writes", () => {
       expect(price()).toBe(30);
     });
 
-    it("does not push a stale PO price back over a newer catalog price when an edit leaves the price untouched", async () => {
-      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price) VALUES ('prodSp', 'Zyrtec', 'Tablet', 'Carton', 10, 10)`);
-      const poId = await createPurchaseOrder(null, "", line(15));
+    it("leaves the catalog alone when the line price already equals it, and writes a deliberate different one", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price) VALUES ('prodSp', 'Zyrtec', 'Tablet', 'Carton', 10, 20)`);
+      db.run(`UPDATE products SET _synced = 1 WHERE id = 'prodSp'`);
+      const synced = () => db.exec(`SELECT _synced FROM products WHERE id = 'prodSp'`)[0].values[0][0];
 
-      db.run(`UPDATE products SET selling_price = 20 WHERE id = 'prodSp'`);
-      await updatePurchaseOrder(poId, null, "edited note", line(15));
+      const poId = await createPurchaseOrder(null, "", line(20));
+      expect(synced()).toBe(1);
+
+      await updatePurchaseOrder(poId, null, "edited note", line(20));
       expect(price()).toBe(20);
+      expect(synced()).toBe(1);
+
+      await updatePurchaseOrder(poId, null, "", line(15));
+      expect(price()).toBe(15);
     });
   });
 

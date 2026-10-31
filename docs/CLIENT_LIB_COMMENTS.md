@@ -2744,7 +2744,7 @@ expiry math receivePurchaseOrder() uses for Standard POs.
 
 ### db-procurement-ts-L11
 
-`client/lib/db/procurement.ts:15`
+`client/lib/db/procurement-selling-price.ts:5`
 
 Line-item form fields (selling_price, cost_price_override) come in as
 `number | string | undefined` from raw form inputs - blank/undefined

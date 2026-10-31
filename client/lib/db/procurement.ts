@@ -1,8 +1,6 @@
 import { query, generateId, transaction, getActiveStoreId } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 import { applyChangedSellingPrices, coerceOptionalNumber } from "./procurement-selling-price";
-
-export { coerceOptionalNumber };
 import { roundMoney } from "@/lib/utils/pos-calculations";
 import { immediateLineAmount } from "@/components/procurement/po-line-item-math";
 
@@ -269,11 +267,10 @@ export async function updatePurchaseOrder(
 
   return transaction(async () => {
     // Soft delete existing items
-    const existingItems = await query<{ id: string; product_id: string; selling_price: number | null }>(
-      "SELECT id, product_id, selling_price FROM purchase_order_items WHERE po_id = ? AND _deleted = 0",
+    const existingItems = await query<{ id: string }>(
+      "SELECT id FROM purchase_order_items WHERE po_id = ? AND _deleted = 0",
       [poId]
     );
-    const previousPrices = new Map(existingItems.map((row) => [row.product_id, row.selling_price ?? null]));
 
     for (const item of existingItems) {
       await softDelete("purchase_order_items", item.id);
@@ -309,7 +306,7 @@ export async function updatePurchaseOrder(
       });
     }
 
-    await applyChangedSellingPrices(items, previousPrices);
+    await applyChangedSellingPrices(items);
 
     return poId;
   });

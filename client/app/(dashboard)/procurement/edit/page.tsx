@@ -22,7 +22,8 @@ import { RequireRole } from "@/components/auth/require-role";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
-import { getOrderTotal, getValidatedAmountPaid } from "@/components/procurement/po-line-item-math";
+import { countSellingPriceOverrides, getOrderTotal, getValidatedAmountPaid } from "@/components/procurement/po-line-item-math";
+import { notifySellingPriceUpdates } from "@/components/procurement/notify-selling-price-updates";
 import type { NewProductPayload, ProductViewModel } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
 
@@ -69,7 +70,12 @@ function EditOrderContent() {
     if (poData.type === "immediate") setPoType("immediate");
     setSelectedSupplierId(poData.supplier_id || SELF_PURCHASE_VENDOR_ID);
     setNotes(poData.notes || "");
-    setItems(poData.items || []);
+    setItems(
+      (poData.items || []).map((item) => ({
+        ...item,
+        selling_price: item.current_selling_price ?? item.selling_price,
+      })),
+    );
     setPaymentStatus(poData.payment_status || "unpaid");
     setAmountPaid(poData.amount_paid?.toString() || "");
     setDueDate(poData.due_date || "");
@@ -162,6 +168,7 @@ function EditOrderContent() {
     }
     if (isSubmitting) return;
 
+    const priceOverrideCount = countSellingPriceOverrides(items, products);
     updatePurchaseOrderMutation.mutate(
       {
         poId: id,
@@ -180,6 +187,7 @@ function EditOrderContent() {
       {
         onSuccess: () => {
           toast.success("Purchase Order updated successfully");
+          notifySellingPriceUpdates(priceOverrideCount);
           router.push(`/procurement?selected=${id}`);
         },
         onError: (error) => {

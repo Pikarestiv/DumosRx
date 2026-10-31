@@ -105,7 +105,7 @@ export function ReceiveLedgerTable({
                 </div>
                 <div
                   role="cell"
-                  className="px-3 py-2 text-right text-muted-foreground flex items-start justify-end"
+                  className="px-3 py-2 text-right text-muted-foreground flex items-start justify-end leading-9"
                 >
                   {item.bulk_quantity}
                   {alreadyReceived > 0 && (
@@ -136,7 +136,7 @@ export function ReceiveLedgerTable({
                 </div>
                 <div
                   role="cell"
-                  className="px-3 py-2 text-right flex flex-col justify-center gap-0.5"
+                  className="px-3 py-2 text-right flex flex-col justify-start gap-0.5"
                 >
                   <Input
                     type="number"

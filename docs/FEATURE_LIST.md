@@ -53,7 +53,7 @@ tracks current behavior.
 - Vendors & Suppliers directory with aggregated per-supplier stats (total orders, total value, outstanding debt, last order date), a quick-fill combobox of common distributors that still accepts free text
 - Purchase Orders: **Standard** (draft → sent → receive, no stock effect until received) or **Immediate** (order and receipt happen atomically, for walk-in/self purchases)
 - Receiving: supports a partial receive (less than ordered arrived), per-line cost/expiry entry, an optional selling-price update applied immediately, and additive stock via new batch rows (never a single mutable running total, so receiving can't double-apply or clobber existing stock)
-- Saving or editing a PO with a selling price updates the catalog product immediately (only a changed price on edit); cost stays per stock batch and never touches the catalog
+- Saving or editing a PO with a selling price updates the catalog product immediately (only when it differs from the current catalog price, and the edit form shows the live price), and a toast says how many were repriced; cost stays per stock batch and never touches the catalog
 - Requested Products queue, fed by POS's "Request Item" flow — de-dupes by product name while a request is still pending, "Mark as Ordered" is a manual acknowledgement (it does not create or link a purchase order)
 
 ## Expenses

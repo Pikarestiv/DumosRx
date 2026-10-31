@@ -7,9 +7,9 @@ import { insert, update } from "./base-helpers";
 import {
   getPurchaseOrderById,
   updatePurchaseOrderStatus,
-  coerceOptionalNumber,
   type DraftPOLineItem,
 } from "./procurement";
+import { coerceOptionalNumber } from "./procurement-selling-price";
 import { getStoredUser } from "@/lib/storage-keys";
 import {
   immediateLineAmount,
@@ -81,6 +81,12 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
       if (bulkQty < outstanding) outstandingRemains = true;
       if (alreadyReceived + bulkQty > 0) anyQuantityReceived = true;
 
+      if (receivedItem?.selling_price !== undefined && receivedItem.selling_price !== "") {
+        await update("products", item.product_id, {
+          selling_price: Math.max(0, Number(receivedItem.selling_price)),
+        });
+      }
+
       if (bulkQty === 0) continue;
 
       // Always use the product's current conversion factor, not the snapshot stored on the
@@ -137,12 +143,6 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
         _synced: 0,
         _deleted: 0
       });
-
-      if (receivedItem?.selling_price !== undefined && receivedItem.selling_price !== "") {
-        await update("products", item.product_id, {
-          selling_price: Math.max(0, Number(receivedItem.selling_price)),
-        });
-      }
 
       // bulk_quantity/units_per_bulk are re-sent unchanged so the sync push's purchase_order_items mapping (SyncController::push) can scale quantity…
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-procurement-receiving-ts-L166

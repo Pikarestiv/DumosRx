@@ -3,6 +3,8 @@ import { Separator } from "@/components/ui/separator";
 import { DollarSign } from "lucide-react";
 import type { Product } from "./use-product-details";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
+import { HintTooltip } from "@/components/ui/hint-tooltip";
+import { AVG_COST_HINT } from "@/lib/constants/cost-hints";
 
 interface ProductPricingInfoProps {
   product: Product;
@@ -33,7 +35,9 @@ export function ProductPricingInfo({
         <div className={`grid gap-4 ${canViewCostFields ? "grid-cols-2" : "grid-cols-1"}`}>
           {canViewCostFields && (
             <div>
-              <p className="text-sm text-muted-foreground">Avg. Cost Price</p>
+              <HintTooltip text={AVG_COST_HINT}>
+                <p className="text-sm text-muted-foreground w-fit">Avg. Cost Price</p>
+              </HintTooltip>
               <p className="font-bold text-lg">
                 {formatPrice(product.costPrice)}
               </p>
@@ -68,7 +72,9 @@ export function ProductPricingInfo({
               <p className="font-bold text-lg text-primary">
                 {profitMargin !== null ? `${profitMargin}%` : "-"}
               </p>
-              <p className="text-xs text-muted-foreground">Based on avg. cost</p>
+              <HintTooltip text={AVG_COST_HINT}>
+                <p className="text-xs text-muted-foreground w-fit">Based on avg. cost</p>
+              </HintTooltip>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Profit per {unit}</p>

@@ -1,5 +1,7 @@
 "use client";
 
+import { HintTooltip } from "@/components/ui/hint-tooltip";
+import { CURRENT_COST_HINT } from "@/lib/constants/cost-hints";
 import React, { useMemo } from "react";
 import { Trash2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -234,13 +236,11 @@ export function POItemLedgerTable({
               {poType === "immediate" ? "Received" : "Qty"}
             </div>
             {poType === "immediate" && (
-              <div
-                role="columnheader"
-                className="text-right px-3 py-2"
-                title="The product's cost price on file before this order - for comparison only, not editable here"
-              >
-                Current Cost
-              </div>
+              <HintTooltip text={CURRENT_COST_HINT}>
+                <div role="columnheader" className="text-right px-3 py-2">
+                  Current Cost
+                </div>
+              </HintTooltip>
             )}
             <div
               role="columnheader"

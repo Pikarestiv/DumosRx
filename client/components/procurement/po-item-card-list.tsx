@@ -14,6 +14,8 @@ import { formatCurrency } from "@/lib/utils";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import { useProductMap, type POItemRow, type POLineItemDraft } from "./po-item-ledger-table";
 import { ProductName } from "@/components/ui/product-name";
+import { HintTooltip } from "@/components/ui/hint-tooltip";
+import { CURRENT_COST_HINT } from "@/lib/constants/cost-hints";
 
 interface POItemCardListProps {
   poType: "standard" | "immediate";
@@ -57,7 +59,11 @@ const POItemCard = React.memo(function POItemCard({
           />
           {poType === "immediate" && (
             <p className="text-[12px] text-muted-foreground">
-              Stock: {stock} · Current Cost: {formatCurrency(currentCost)}
+              Stock: {stock} ·{" "}
+              <HintTooltip text={CURRENT_COST_HINT}>
+                <span>Current Cost</span>
+              </HintTooltip>
+              : {formatCurrency(currentCost)}
             </p>
           )}
         </div>

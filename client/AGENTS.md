@@ -7026,3 +7026,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Procurement price handling: selling price hits the catalog on save, cost stays per batch
 
 `createPurchaseOrder` and `updatePurchaseOrder` write a line's `selling_price` to `products` as soon as the PO is saved (`applyChangedSellingPrices`, `lib/db/procurement-selling-price.ts`), matching Immediate Purchase. On edit only prices that differ from the previously saved line are written, because the edit form reloads every stored price and re-sending an untouched one would revert a newer catalog edit. Cost never goes to the catalog; it lives on `stock_batches`. `ReceivePOPanel` seeds `cost_price` (from `cost_price_override`, per base unit), `lot_number` and `expiry_date` from the saved line because `receivePurchaseOrder` reads only the panel payload. It deliberately does not seed `selling_price`: the catalog already has it, and re-sending a stale PO price would overwrite a later catalog edit. Any new per-line field the PO form saves must be added to `buildInitialReceivedItems` too.
+
+## "Average cost" always carries a tooltip
+
+Average cost is a quantity-weighted blend across stock batches, and clients read a single number as "the cost". Wherever it is shown (catalog Avg Cost header, product pricing card, PO "Current Cost" header and phone card) wrap the label in `HintTooltip` with `AVG_COST_HINT` / `CURRENT_COST_HINT` from `lib/constants/cost-hints.ts`. `SortableHeaderCell` takes a `tooltip` prop for sortable headers.

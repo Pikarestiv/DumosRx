@@ -648,6 +648,13 @@ suggested tackle order rather than a strict ranking.
 - **Why it's not just fixed:** reads as an intentional product choice (store owners need to see their own account number), not an oversight — flagged here for an explicit decision, not a code change.
 - **Confidence:** Medium.
 
+#### PG-21. `laravel-server/` + `client/` — controlled products are listed on the public storefront like any other
+- **Found:** 2026-11-02, while flipping `products.show_online` to default on (storefront Phase 1).
+- **Location:** `StorefrontController::storeProducts()` filters on `is_active` and `show_online` only; `is_controlled` is never consulted, and neither the add-product form nor the importer special-cases it.
+- **Problem:** `products:backfill-show-online` skips controlled products, but a controlled product **created** after this release defaults to shown, as does one an owner switches on by hand, so it appears on the public page and can be ordered.
+- **Why it's not just fixed:** whether a controlled item may be listed (shown but not orderable, shown with a notice, or never shown) is a regulatory/product call, not a code one. If the answer is "never", the fix is one `->where('is_controlled', false)` in `storeProducts()` (which the catalogue and the checkout paths share) plus a matching client form default.
+- **Confidence:** High that it happens; the product answer is open.
+
 ---
 
 ## Engineering notes (tech debt / ongoing risk, not bugs)

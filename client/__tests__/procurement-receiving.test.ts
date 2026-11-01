@@ -76,6 +76,16 @@ describe("procurement-receiving.ts", () => {
     });
   });
 
+  describe("createAndReceivePurchaseOrder selling price", () => {
+    it("leaves the product untouched when the typed price equals the live catalog price", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price, _synced) VALUES ('pI', 'I', 'Tablet', 'Carton', 10, 40, 1)`);
+      await createAndReceivePurchaseOrder(null, "", [
+        { product_id: "pI", product_name: "I", bulk_unit: "Carton", bulk_quantity: 1, units_per_bulk: 10, unit_cost: 1000, subtotal: 1000, selling_price: 40 },
+      ]);
+      expect(db.exec(`SELECT _synced FROM products WHERE id = 'pI'`)[0].values[0][0]).toBe(1);
+    });
+  });
+
   describe("receivePurchaseOrder partial receipts", () => {
     const seedStandardPO = async () => {
       db.run(

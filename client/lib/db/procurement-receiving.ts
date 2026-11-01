@@ -270,11 +270,7 @@ export async function createAndReceivePurchaseOrder(
         _deleted: 0
       });
 
-      if (item.selling_price !== undefined && item.selling_price !== "") {
-        await update("products", item.product_id, {
-          selling_price: Math.max(0, Number(item.selling_price)),
-        });
-      }
+      await applyChangedSellingPrices([item]);
     }
 
     await logAction("RECEIVE_PO", "purchase_orders", poId, { total_items: items.length });

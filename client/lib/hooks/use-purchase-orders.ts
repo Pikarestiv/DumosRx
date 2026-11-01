@@ -18,6 +18,7 @@ import {
 import { getAverageCostPrice } from "@/lib/db/queries/products";
 import { formatCurrency } from "@/lib/utils";
 import { useStore } from "@/lib/context/store-context";
+import { notifySellingPriceUpdates } from "@/components/procurement/notify-selling-price-updates";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
@@ -108,13 +109,7 @@ export function usePurchaseOrders() {
         receivedItems.map((item) => ({ product_id: item.product_id ?? "", selling_price: item.selling_price })),
         receivedItems.map((item) => ({ id: item.product_id ?? "", selling_price: item.current_selling_price ?? null })),
       );
-      if (priceOverrideCount > 0) {
-        toast.success(
-          priceOverrideCount === 1
-            ? "Selling price updated for 1 item"
-            : `Selling price updated for ${priceOverrideCount} items`,
-        );
-      }
+      notifySellingPriceUpdates(priceOverrideCount);
       await notifyCostRecorded(receivedItems, storeProfile?.currency);
       void fetchPurchaseOrders();
       return true;

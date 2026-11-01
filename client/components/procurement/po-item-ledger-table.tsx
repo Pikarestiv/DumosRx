@@ -16,6 +16,7 @@ import type { POProduct } from "@/lib/db/queries/procurement";
 import { ProductName } from "@/components/ui/product-name";
 
 export interface POLineItemDraft {
+  id?: string;
   product_id: string;
   product_name: string;
   bulk_unit: string;

@@ -167,9 +167,10 @@ export function countSellingPriceOverrides(
 // The lines on a receipt that carried a real cost override, with the cost that was typed.
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-line-item-math-ts-L232
 export function costOverriddenLines(
-  items: { product_id?: string; cost_price?: number | string }[],
+  items: { product_id?: string; cost_price?: number | string; quantity?: number | string }[],
 ): { productId: string; cost: number }[] {
   return items
+    .filter((item) => item.quantity === undefined || Number(item.quantity) > 0)
     .filter((item) => item.cost_price != null && item.cost_price !== "")
     .filter((item): item is { product_id: string; cost_price: number | string } => !!item.product_id)
     .map((item) => ({ productId: item.product_id, cost: Number(item.cost_price) }));
@@ -179,12 +180,12 @@ export function sellingPricePlaceholder(currentSellingPrice?: number | null, cur
   return currentSellingPrice == null ? "Unchanged" : formatCurrency(currentSellingPrice, currencyCode);
 }
 
-export function markRepricedLines<T extends { product_id: string; selling_price?: number | string }>(
+export function markRepricedLines<T extends { id?: string; selling_price?: number | string }>(
   items: T[],
   seededPrices: Map<string, number | string | undefined>,
 ): (T & { reprice: boolean })[] {
   return items.map((item) => ({
     ...item,
-    reprice: String(item.selling_price ?? "") !== String(seededPrices.get(item.product_id) ?? ""),
+    reprice: String(item.selling_price ?? "") !== String((item.id ? seededPrices.get(item.id) : undefined) ?? ""),
   }));
 }

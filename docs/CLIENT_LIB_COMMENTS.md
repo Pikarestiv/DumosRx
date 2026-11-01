@@ -9963,9 +9963,10 @@ no reason, since the underlying data never changed).
 `client/lib/hooks/use-purchase-orders.ts:104`
 
 receivePurchaseOrder() writes products.selling_price synchronously
-for any line with a real override, same as createAndReceivePurchaseOrder -
-this is the other of the two paths that actually change the live
-price immediately, so it gets the same confirmation toast.
+for any line with a real override that differs from the live price, the
+same as createPurchaseOrder, updatePurchaseOrder and
+createAndReceivePurchaseOrder (all via applyChangedSellingPrices) - so it
+gets the same confirmation toast.
 
 ### line-hooks-use-report-export-ts-L120
 

@@ -76,7 +76,7 @@ function EditOrderContent() {
       selling_price:
         poData.type === "immediate" ? (item.current_selling_price ?? item.selling_price) : item.selling_price,
     }));
-    setSeededPrices(new Map(seededItems.map((item) => [item.product_id, item.selling_price])));
+    setSeededPrices(new Map(seededItems.map((item) => [item.id, item.selling_price])));
     setItems(seededItems);
     setPaymentStatus(poData.payment_status || "unpaid");
     setAmountPaid(poData.amount_paid?.toString() || "");
@@ -149,10 +149,6 @@ function EditOrderContent() {
     });
   };
 
-  // getLineTotal, not item.subtotal directly: subtotal only gets refreshed
-  // when unit cost changes (po-item-ledger-table.tsx), so editing just the
-  // quantity leaves it stale - same reason lib/db/procurement.ts recomputes
-  // total_amount itself at save time rather than trusting this field.
   const totalAmount = getOrderTotal(items, poType);
 
   const updatePurchaseOrderMutation = useUpdatePurchaseOrderMutation();

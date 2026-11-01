@@ -23,7 +23,7 @@ export async function applyChangedSellingPrices(
       "SELECT selling_price FROM products WHERE id = ?",
       [line.product_id],
     );
-    if (product && Number(product.selling_price) === sellingPrice) continue;
+    if (product?.selling_price != null && Number(product.selling_price) === sellingPrice) continue;
     await update("products", line.product_id, {
       selling_price: Math.max(0, sellingPrice),
     });

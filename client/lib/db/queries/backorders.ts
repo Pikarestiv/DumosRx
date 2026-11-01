@@ -83,7 +83,7 @@ function lineCostFromLedger(sale: SaleBalance, lineUnits: number): number {
   return roundMoney(estimate + shift / lineUnits);
 }
 
-const LEDGER_ORDER = "ORDER BY sm.movement_date, sm.created_at, sm.rowid";
+const LEDGER_ORDER = "ORDER BY sm.movement_date, sm.created_at, sm.id";
 
 export async function getOutstandingBackorders(productIds?: string[]): Promise<OutstandingBackorder[]> {
   const storeId = getActiveStoreId();

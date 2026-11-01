@@ -221,4 +221,16 @@ describe("a pull re-costs the sales its settlement and sale-line rows name", () 
       expect(queuedLineUpdates()).toBe(0);
     });
   });
+
+  it("caps a double settlement in the same order on every till, by id when the timestamps tie", async () => {
+    seedLocalSettlement("settle-zzz", 5, 12);
+    seedLocalSettlement("settle-aaa", 5, 14);
+
+    await pull({
+      sale_items: [{ id: "line-S", sale_id: "S", product_id: "p1", quantity: 5, unit_price: 20, total_price: 100,
+        cost_price: 10, _version: 1, updated_at: "2026-10-26T11:00:00.000000Z" }],
+    });
+
+    expect(line()[0]).toBe(14);
+  });
 });

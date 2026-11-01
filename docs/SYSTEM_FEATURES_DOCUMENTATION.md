@@ -126,6 +126,12 @@ Your Cloud Dashboard is your management hub. Log in from any web browser to get 
 
 **Remote Logout:** Instantly sign out devices remotely if a computer is lost or a staff member leaves the company.
 
+### 🌐 Online Storefront
+
+**Products Show Online By Default:** New products are listed on your online store automatically, whether you add them one by one or import them. Untick "Show Online" on any product, or use the bulk toggle, to hide it. Products you already had are listed too once DumosRx runs the one-time update on your account (prescription-controlled items are left unlisted).
+
+**Your Own Store Page:** Your storefront has its own header, contact details (address, phone, email) and footer, with just a small "Powered by DumosRx" link, and product names read cleanly in title case.
+
 ### 💳 Billing & Subscriptions
 
 **Easy Renewals:** Manage your DumosRx subscription easily through secure, automated payments.

@@ -497,6 +497,23 @@ The Gemini/LLM approach below remains a **possible future phase**, not a superse
 
 ---
 
+## 🌐 Multi-Page Owner Storefront (Enterprise) — Phase 1 done 2026-11-02
+
+Goal: one storefront URL per store **owner** (not per branch), a themed multi-page company-style site, sold as an Enterprise feature. Phase 1 (products shown by default, `products:backfill-show-online`, storefront header/footer/contact block) shipped and is documented in `SYSTEM_FEATURES_DOCUMENTATION.md`, `client/AGENTS.md` and `laravel-server/AGENTS.md`.
+
+Decisions (2026-11-02): Enterprise-only; carts are per branch (the customer picks a branch, shown as `?branch=<id>`, switching clears the cart, one order = one branch = that branch's Paystack subaccount and staff); no merged cross-branch catalog.
+
+Remaining phases:
+
+2. **Paginated catalog:** public `GET /storefront/{slug}/products?branch_id&q&category&page` (pages of 50, own throttle group), a `/catalog/` page fetching in the browser, static pages embed the first 50 for SEO, lift `MAX_STOREFRONT_PRODUCTS = 300`. Split `StorefrontController` (755 lines) into services as it is touched.
+3. **Owner-level storefront:** server-only `storefronts` table (owner slug, theme, content JSON, primary branch; not synced to the client), shared slug namespace with `stores.store_slug`, old branch slugs kept as alias redirect pages that forward `?reference=`, `branch_id` on checkout with fallback to the legacy store slug, owner "Online Store" settings page.
+4. **Themes, content pages, gating:** about, locations, FAQ/policies pages; about four token-based theme presets; owner-editable content; `storefront_site` feature key (Enterprise only, needs a data migration into the stored `subscription_plans` config). Open: grandfather or switch off existing Pro storefronts, and downgrade behaviour for multi-branch owners.
+5. **Prescription upload and order tracking.**
+
+Open product decisions: whether controlled products may ever be listed (PG-21 in `KNOWN_BUGS.md`), prescription-only products shown with a "pickup with prescription" badge, out-of-stock items shown but not purchasable.
+
+---
+
 ## ⏸️ Blocked / Open Question
 
 ### Roles & Permissions UI (Deferred 2026-08-14)

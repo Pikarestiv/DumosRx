@@ -5,13 +5,12 @@ import { useSearchParams } from "next/navigation";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
 import { AddSupplierDialog } from "@/components/suppliers/add-supplier-dialog";
 import { SELF_PURCHASE_VENDOR_ID } from "@/components/procurement/po-details-fields";
-import { POSwitchToStandardDialog } from "@/components/procurement/po-switch-to-standard-dialog";
 import { PODetailsDialog } from "@/components/procurement/po-details-dialog";
 import { POMobileCreateView } from "@/components/procurement/po-mobile-create-view";
 import { PODesktopCreateView } from "@/components/procurement/po-desktop-create-view";
 import { POFormSkeleton } from "@/components/procurement/po-form-skeleton";
 import { useResolvedMediaQuery } from "@/hooks/use-media-query";
-import { clearImmediateOnlyFields, getOrderTotal, hasImmediateOnlyFields } from "@/components/procurement/po-line-item-math";
+import { getOrderTotal } from "@/components/procurement/po-line-item-math";
 import { RequireRole } from "@/components/auth/require-role";
 import { toast } from "sonner";
 import { errorDescription } from "@/lib/utils/error-description";
@@ -48,20 +47,11 @@ function CreateOrderContent() {
 
   // An immediate purchase is money already handed over at the counter, so it opens on Fully Paid; a standard PO is raised be…
   // Rationale: docs/CLIENT_COMMENTS.md#line-app-(dashboard)-procurement-new-page-tsx-L52
-  const applyPoType = (type: "standard" | "immediate") => {
+  const setPoType = (type: "standard" | "immediate") => {
     setPoTypeState(type);
-    if (type === "standard") setItems((current) => clearImmediateOnlyFields(current));
     if (!isPaymentStatusTouched) {
       setPaymentStatusState(type === "immediate" ? "paid" : "unpaid");
     }
-  };
-  const [isConfirmStandardOpen, setIsConfirmStandardOpen] = useState(false);
-  const setPoType = (type: "standard" | "immediate") => {
-    if (type === "standard" && hasImmediateOnlyFields(items)) {
-      setIsConfirmStandardOpen(true);
-      return;
-    }
-    applyPoType(type);
   };
   const [amountPaid, setAmountPaid] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -217,15 +207,6 @@ function CreateOrderContent() {
       ) : (
         <POMobileCreateView {...createViewProps} />
       )}
-
-      <POSwitchToStandardDialog
-        open={isConfirmStandardOpen}
-        onCancel={() => setIsConfirmStandardOpen(false)}
-        onConfirm={() => {
-          setIsConfirmStandardOpen(false);
-          applyPoType("standard");
-        }}
-      />
 
       <PODetailsDialog
         open={isEditDetailsOpen}

@@ -105,7 +105,8 @@ export function usePurchaseOrders() {
         toast.error("Couldn't find this order", {
           description: "It may have been deleted on another device.",
         });
-        return false;
+        void fetchPurchaseOrders();
+        return true;
       }
       const priceOverrideCount = countSellingPriceOverrides(
         receivedItems.map((item) => ({ product_id: item.product_id ?? "", selling_price: item.selling_price })),

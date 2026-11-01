@@ -198,16 +198,3 @@ export function clearImmediateOnlyFields<
     return rest as unknown as T;
   });
 }
-
-export function hasImmediateOnlyFields<
-  T extends { product_id?: string; selling_price?: unknown; cost_price_override?: unknown; lot_number?: unknown; expiry_date?: unknown },
->(items: T[]): boolean {
-  const isFilled = (value: unknown) => value != null && value !== "";
-  return items.some(
-    (item) =>
-      isFilled(item.selling_price) ||
-      isFilled(item.cost_price_override) ||
-      isFilled(item.lot_number) ||
-      isFilled(item.expiry_date),
-  );
-}

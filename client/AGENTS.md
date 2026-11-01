@@ -7036,7 +7036,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Draft save and edit toast "Selling price updated for N items" (`notifySellingPriceUpdates`), counting only changed lines.
 
 **Standard vs Immediate**
-- A Standard PO has no price, cost, lot or expiry inputs; those are entered when receiving. Switching to Standard asks first (`POSwitchToStandardDialog`) and then clears them (`clearImmediateOnlyFields`); `createPurchaseOrder`/`updatePurchaseOrder` strip them again for any non-immediate PO, so a hidden value can neither reach the catalog nor change the stored total.
+- A Standard PO has no price, cost, lot or expiry inputs; those are entered when receiving. The order type is chosen on the details step before any item exists and is locked afterwards, so a Standard line cannot normally carry them; `createPurchaseOrder`/`updatePurchaseOrder` still strip them (`clearImmediateOnlyFields`) for any non-immediate PO, so a hidden value can neither reach the catalog nor change the stored total.
 
 **Receive panel prefill**
 - `ReceivePOPanel` seeds from the saved line only for Immediate POs: `cost_price` (the order's `cost_price_override`, per base unit) on every receipt, and `lot_number` / `expiry_date` on the first receipt only, since those belong to one delivery. Without the cost seed, a follow-up batch falls back to the line's order-time `unit_cost`, not the catalog average.

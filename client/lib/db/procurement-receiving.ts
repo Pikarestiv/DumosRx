@@ -56,7 +56,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
 
   return transaction(async () => {
     let outstandingRemains = false;
-    let anyQuantityReceived = false;
+    let receivedThisSubmit = false;
 
     for (const item of poData.items) {
       const receivedItem = receivedItems?.find(ri => ri.po_item_id === item.id);
@@ -80,7 +80,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
         : outstanding;
 
       if (bulkQty < outstanding) outstandingRemains = true;
-      if (alreadyReceived + bulkQty > 0) anyQuantityReceived = true;
+      if (bulkQty > 0) receivedThisSubmit = true;
 
       await applyChangedSellingPrices([{ product_id: item.product_id, selling_price: receivedItem?.selling_price }]);
 
@@ -152,7 +152,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
 
     // A submit with every line left at 0 against a PO that has nothing received yet isn't a partial receipt, it's a no-op — the order stays exactl…
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-procurement-receiving-ts-L178
-    if (outstandingRemains && !anyQuantityReceived) return;
+    if (!receivedThisSubmit) return;
 
     const status = outstandingRemains ? "partially_received" : "received";
     await updatePurchaseOrderStatus(id, status);

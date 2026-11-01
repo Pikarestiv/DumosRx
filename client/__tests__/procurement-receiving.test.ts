@@ -212,6 +212,19 @@ describe("procurement-receiving.ts", () => {
       expect(batchRows[0].values[0][0]).toBe(1000);
     });
 
+    it("treats a submit that receives nothing as a no-op even when earlier receipts exist, while still applying a typed price", async () => {
+      db.run(`UPDATE products SET selling_price = 10 WHERE id = 'prod1'`);
+      const poId = await seedStandardPO();
+      const item = await lineItem(poId);
+      await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 60 }]);
+
+      const second = await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 0, selling_price: 77 }]);
+
+      expect(second).toBeUndefined();
+      expect(db.exec(`SELECT status FROM purchase_orders WHERE id = '${poId}'`)[0].values[0][0]).toBe("partially_received");
+      expect(db.exec(`SELECT selling_price FROM products WHERE id = 'prod1'`)[0].values[0][0]).toBe(77);
+    });
+
     it("reports a missing order instead of silently returning", async () => {
       expect(await receivePurchaseOrder("does-not-exist", [])).toBe("not_found");
     });

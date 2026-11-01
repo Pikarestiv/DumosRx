@@ -135,8 +135,10 @@ describe("usePurchaseOrders handleReceivePO selling-price toast", () => {
     expect(toast.success).not.toHaveBeenCalled();
   });
 
-  it("reports a missing order as an error and writes no price toast", async () => {
-    expect(await receiveWith("not_found", 25)).toBe(false);
+  it("reports a missing order as an error, writes no price toast, and refreshes the list so the dead order disappears", async () => {
+    getPurchaseOrders.mockClear();
+    expect(await receiveWith("not_found", 25)).toBe(true);
+    expect(getPurchaseOrders).toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith("Couldn't find this order", expect.anything());
     expect(toast.success).not.toHaveBeenCalled();
   });

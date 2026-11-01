@@ -7010,9 +7010,9 @@ payload, and a sync-queue UPDATE payload carries changed fields only.
 
 `client/lib/db/procurement-receiving.ts:157`
 
-A submit with every line left at 0 against a PO that has nothing
-received yet isn't a partial receipt, it's a no-op — the order stays
-exactly where it was rather than moving into the partial state.
+A submit that receives nothing this time (every line left at 0) isn't
+a receipt, it's a no-op, whether or not earlier receipts exist: the order
+stays exactly where it was and no status change or audit entry is written.
 
 ### line-db-procurement-ts-L216
 

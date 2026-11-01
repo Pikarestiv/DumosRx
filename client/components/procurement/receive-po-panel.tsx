@@ -51,7 +51,8 @@ function buildInitialReceivedItems(
 ): Record<string, ReceivedItemPayload> {
   const initial: Record<string, ReceivedItemPayload> = {};
   po.items?.forEach((item: PurchaseOrderItem) => {
-    const isFirstReceipt = !(Number(item.quantity_received) > 0);
+    const seedsLine = po.type === "immediate";
+    const isFirstReceipt = seedsLine && !(Number(item.quantity_received) > 0);
     initial[item.id] = {
       po_item_id: item.id,
       product_id: item.product_id,
@@ -60,7 +61,7 @@ function buildInitialReceivedItems(
       quantity: outstandingBulkQuantity(item),
       lot_number: isFirstReceipt ? (item.lot_number ?? "") : "",
       expiry_date: isFirstReceipt ? (item.expiry_date ?? "") : "",
-      cost_price: isFirstReceipt ? (item.cost_price_override ?? undefined) : undefined,
+      cost_price: seedsLine ? (item.cost_price_override ?? undefined) : undefined,
       current_selling_price: item.current_selling_price ?? null,
     };
   });

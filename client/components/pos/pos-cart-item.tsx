@@ -110,7 +110,7 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
                 aria-label="Override unit price"
                 inputMode="decimal"
                 min={0}
-                step="1"
+                step="any"
                 value={priceInput}
                 onChange={(e) => setPriceInput(e.target.value)}
                 onBlur={commitPrice}

@@ -144,7 +144,7 @@ export function ReceiveLedgerTable({
                   <Input
                     type="number"
                     min="0"
-                    step="1"
+                    step="any"
                     className="w-full min-w-20 text-right"
                     aria-label={`Cost Price per ${item.base_unit} for ${item.product_name}`}
                     placeholder={formatCurrency(orderedBaseUnitCost, currency)}
@@ -171,7 +171,7 @@ export function ReceiveLedgerTable({
                   <Input
                     type="number"
                     min="0"
-                    step="1"
+                    step="any"
                     className="w-full min-w-20 text-right"
                     aria-label={`New Selling Price for ${item.product_name}`}
                     placeholder={sellingPricePlaceholder(item.current_selling_price, currency)}

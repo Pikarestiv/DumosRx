@@ -101,19 +101,32 @@ export function usePurchaseOrders() {
         void fetchPurchaseOrders();
         return true;
       }
-      toast.success(
-        status === undefined
-          ? "Nothing was received, the order is unchanged."
-          : status === "partially_received"
-            ? "Partial receipt recorded, the outstanding balance is still open."
-            : "Order received and stock updated!",
-      );
-      // receivePurchaseOrder() writes products.selling_price synchronously for any line with a real override, same as createAndReceivePurchaseOrder…
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-purchase-orders-ts-L106
+      if (status === "not_found") {
+        toast.error("Couldn't find this order", {
+          description: "It may have been deleted on another device.",
+        });
+        return false;
+      }
       const priceOverrideCount = countSellingPriceOverrides(
         receivedItems.map((item) => ({ product_id: item.product_id ?? "", selling_price: item.selling_price })),
         receivedItems.map((item) => ({ id: item.product_id ?? "", selling_price: item.current_selling_price ?? null })),
       );
+      if (status === undefined) {
+        toast.success(
+          priceOverrideCount > 0
+            ? `No stock was received, but the selling price was updated for ${priceOverrideCount === 1 ? "1 item" : `${priceOverrideCount} items`}.`
+            : "Nothing was received, the order is unchanged.",
+        );
+        void fetchPurchaseOrders();
+        return true;
+      }
+      toast.success(
+        status === "partially_received"
+          ? "Partial receipt recorded, the outstanding balance is still open."
+          : "Order received and stock updated!",
+      );
+      // receivePurchaseOrder() writes products.selling_price synchronously for any line with a real override, same as createAndReceivePurchaseOrder…
+      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-purchase-orders-ts-L106
       notifySellingPriceUpdates(priceOverrideCount);
       await notifyCostRecorded(receivedItems, storeProfile?.currency);
       void fetchPurchaseOrders();

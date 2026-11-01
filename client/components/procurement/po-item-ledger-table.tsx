@@ -121,7 +121,7 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
           <Input
             type="number"
             min={0}
-            step="1"
+            step="any"
             className="w-24 text-right"
             aria-label={`New Cost for ${item.product_name}`}
             placeholder={formatCurrency(currentCost)}
@@ -138,7 +138,7 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
             onCommit={(val) => onUpdateItem(index, { unit_cost: val, subtotal: item.bulk_quantity * val })}
             parse={parseFloat}
             min={0}
-            step="1"
+            step="any"
             widthClassName="w-24"
             ariaLabel={`Unit Cost for ${item.product_name}`}
           />

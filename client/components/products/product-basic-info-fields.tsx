@@ -132,7 +132,7 @@ export function ProductBasicInfoFields({
             type="number"
             inputMode="decimal"
             min="0"
-            step="1"
+            step="any"
             value={formData.sellingPrice || ""}
             onChange={(e) =>
               onInputChange("sellingPrice", parseFloat(e.target.value) || 0)

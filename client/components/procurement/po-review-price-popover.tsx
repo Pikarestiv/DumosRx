@@ -75,7 +75,7 @@ export function POReviewPricePopover({
           <Input
             type="number"
             min={0}
-            step="1"
+            step="any"
             value={sellingPrice}
             onChange={(e) => onSellingPriceChange(clampMoneyInput(e.target.value))}
             onFocus={(e) => e.target.select()}

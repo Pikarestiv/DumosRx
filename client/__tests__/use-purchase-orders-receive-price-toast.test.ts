@@ -21,7 +21,7 @@ vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: () => true,
 }));
 vi.mock("sonner", () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 vi.mock("@/lib/context/store-context", () => ({
   useStore: () => ({ storeProfile: { currency: "NGN" } }),
@@ -114,5 +114,42 @@ describe("usePurchaseOrders handleReceivePO selling-price toast", () => {
     });
 
     expect(toast.success).not.toHaveBeenCalledWith(expect.stringContaining("Selling price updated"));
+  });
+
+  const receiveWith = async (status: string | undefined, selling_price?: number) => {
+    receivePurchaseOrder.mockResolvedValue(status as never);
+    const { usePurchaseOrders } = await import("@/lib/hooks/use-purchase-orders");
+    const { result } = renderHook(() => usePurchaseOrders(), { wrapper });
+    let outcome: boolean | undefined;
+    await act(async () => {
+      outcome = await result.current.handleReceivePO("po1", [
+        { po_item_id: "i1", product_id: "prod1", quantity: 0, selling_price, current_selling_price: 20 },
+      ]);
+    });
+    return outcome;
+  };
+
+  it("says an already-received order changed nothing, and never claims a price update", async () => {
+    expect(await receiveWith("already_received", 25)).toBe(true);
+    expect(toast.info).toHaveBeenCalledWith("This order was already received, so nothing changed.");
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("reports a missing order as an error and writes no price toast", async () => {
+    expect(await receiveWith("not_found", 25)).toBe(false);
+    expect(toast.error).toHaveBeenCalledWith("Couldn't find this order", expect.anything());
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("folds a price written on an all-zero receive into one message instead of two contradictory toasts", async () => {
+    expect(await receiveWith(undefined, 25)).toBe(true);
+    expect(toast.success).toHaveBeenCalledTimes(1);
+    expect(toast.success).toHaveBeenCalledWith("No stock was received, but the selling price was updated for 1 item.");
+  });
+
+  it("says nothing was received when an all-zero receive carries no price change", async () => {
+    await receiveWith(undefined);
+    expect(toast.success).toHaveBeenCalledTimes(1);
+    expect(toast.success).toHaveBeenCalledWith("Nothing was received, the order is unchanged.");
   });
 });

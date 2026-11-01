@@ -130,7 +130,7 @@ export function RecordPaymentModal({
               inputMode="decimal"
               min={0}
               max={customer.outstanding_balance}
-              step="1"
+              step="any"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"

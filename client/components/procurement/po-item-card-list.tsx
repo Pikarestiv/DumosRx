@@ -102,7 +102,7 @@ const POItemCard = React.memo(function POItemCard({
             <Input
               type="number"
               min={0}
-              step="1"
+              step="any"
               aria-label={`New Cost for ${item.product_name}`}
               placeholder={formatCurrency(currentCost)}
               value={item.cost_price_override ?? ""}
@@ -118,7 +118,7 @@ const POItemCard = React.memo(function POItemCard({
               onCommit={(val) => onUpdateItem(index, { unit_cost: val, subtotal: item.bulk_quantity * val })}
               parse={parseFloat}
               min={0}
-              step="1"
+              step="any"
               widthClassName="w-full"
               ariaLabel={`Unit Cost for ${item.product_name}`}
             />

@@ -212,6 +212,10 @@ describe("procurement-receiving.ts", () => {
       expect(batchRows[0].values[0][0]).toBe(1000);
     });
 
+    it("reports a missing order instead of silently returning", async () => {
+      expect(await receivePurchaseOrder("does-not-exist", [])).toBe("not_found");
+    });
+
     it("is a no-op on an already-received order", async () => {
       const poId = await seedStandardPO();
       const item = await lineItem(poId);

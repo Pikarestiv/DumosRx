@@ -49,7 +49,7 @@ export interface ImmediateLineItemDraft extends DraftPOLineItem {
 
 export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedItem[]) {
   const poData = await getPurchaseOrderById(id);
-  if (!poData) return;
+  if (!poData) return "not_found";
   if (poData.status === "received") return "already_received";
 
   const now = new Date().toISOString();

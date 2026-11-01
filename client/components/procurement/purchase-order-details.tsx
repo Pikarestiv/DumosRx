@@ -71,6 +71,7 @@ export function PurchaseOrderDetails({
       const blob = await pdf(
         <PurchaseOrderPdf
           storeName={storeProfile?.name || "Store"}
+          currencyCode={storeProfile?.currency}
           poNumber={`PO-${selectedPO.id.split("-")[0].toUpperCase()}`}
           vendorName={selectedPO.vendor_name || "Unknown Vendor"}
           createdAt={formatDateToDDMMYYYY(selectedPO.created_at)}

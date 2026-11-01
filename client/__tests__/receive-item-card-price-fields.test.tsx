@@ -116,9 +116,10 @@ describe("ReceiveItemCard price fields", () => {
     }
   });
 
-  it("does not reuse the saved cost, lot and expiry on a follow-up receipt, which is a different delivery", () => {
+  it("keeps the order's cost on a follow-up receipt but not its lot or expiry, which belong to one delivery", () => {
     const partialPo = {
       ...po,
+      type: "immediate",
       status: "partially_received",
       items: [
         {
@@ -131,6 +132,20 @@ describe("ReceiveItemCard price fields", () => {
       ],
     } as unknown as PurchaseOrder;
     render(withQueryClient(<ReceivePOPanel po={partialPo} onBack={vi.fn()} onConfirm={vi.fn()} />));
+
+    expect((screen.getByLabelText("Cost Price per Tablet for Panadol") as HTMLInputElement).value).toBe("4.5");
+    expect((screen.getByLabelText("Lot or batch number for Panadol") as HTMLInputElement).value).toBe("");
+  });
+
+  it("seeds nothing for a Standard order, whose lines never had those inputs", () => {
+    const standardPo = {
+      ...po,
+      type: "standard",
+      items: [
+        { ...(po.items ?? [])[0], cost_price_override: 4.5, lot_number: "LOT-9", expiry_date: "2027-03-01" },
+      ],
+    } as unknown as PurchaseOrder;
+    render(withQueryClient(<ReceivePOPanel po={standardPo} onBack={vi.fn()} onConfirm={vi.fn()} />));
 
     expect((screen.getByLabelText("Cost Price per Tablet for Panadol") as HTMLInputElement).value).toBe("");
     expect((screen.getByLabelText("Lot or batch number for Panadol") as HTMLInputElement).value).toBe("");
@@ -167,6 +182,7 @@ describe("ReceiveItemCard price fields", () => {
     const onConfirm = vi.fn();
     const savedPo = {
       ...po,
+      type: "immediate",
       items: [
         {
           ...(po.items ?? [])[0],

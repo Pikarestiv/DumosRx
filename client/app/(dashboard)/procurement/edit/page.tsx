@@ -22,7 +22,7 @@ import { RequireRole } from "@/components/auth/require-role";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
-import { countSellingPriceOverrides, getOrderTotal, getValidatedAmountPaid } from "@/components/procurement/po-line-item-math";
+import { countSellingPriceOverrides, getOrderTotal, markRepricedLines, getValidatedAmountPaid } from "@/components/procurement/po-line-item-math";
 import { notifySellingPriceUpdates } from "@/components/procurement/notify-selling-price-updates";
 import type { NewProductPayload, ProductViewModel } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
@@ -36,6 +36,7 @@ function EditOrderContent() {
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<POLineItemDraft[]>([]);
+  const [seededPrices, setSeededPrices] = useState<Map<string, number | string | undefined>>(new Map());
   const [paymentStatus, setPaymentStatus] = useState("unpaid");
   const [amountPaid, setAmountPaid] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -70,12 +71,13 @@ function EditOrderContent() {
     if (poData.type === "immediate") setPoType("immediate");
     setSelectedSupplierId(poData.supplier_id || SELF_PURCHASE_VENDOR_ID);
     setNotes(poData.notes || "");
-    setItems(
-      (poData.items || []).map((item) => ({
-        ...item,
-        selling_price: item.current_selling_price ?? item.selling_price,
-      })),
-    );
+    const seededItems = (poData.items || []).map((item) => ({
+      ...item,
+      selling_price:
+        poData.type === "immediate" ? (item.current_selling_price ?? item.selling_price) : item.selling_price,
+    }));
+    setSeededPrices(new Map(seededItems.map((item) => [item.product_id, item.selling_price])));
+    setItems(seededItems);
     setPaymentStatus(poData.payment_status || "unpaid");
     setAmountPaid(poData.amount_paid?.toString() || "");
     setDueDate(poData.due_date || "");
@@ -168,13 +170,14 @@ function EditOrderContent() {
     }
     if (isSubmitting) return;
 
-    const priceOverrideCount = countSellingPriceOverrides(items, products);
+    const markedItems = markRepricedLines(items, seededPrices);
+    const priceOverrideCount = countSellingPriceOverrides(markedItems.filter((item) => item.reprice), products);
     updatePurchaseOrderMutation.mutate(
       {
         poId: id,
         supplierId: selectedSupplierId === SELF_PURCHASE_VENDOR_ID ? null : selectedSupplierId,
         notes,
-        items,
+        items: markedItems,
         paymentStatus,
         amountPaid:
           paymentStatus === "unpaid"

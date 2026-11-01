@@ -7,7 +7,7 @@ import { PODetailsFields } from "./po-details-fields";
 import { PODetailsSummaryBar } from "./po-details-summary-bar";
 import { POItemBuilder } from "./po-item-builder";
 import { POImmediateConfirmDialog } from "./po-immediate-confirm-dialog";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import type { ProductViewModel } from "@/lib/types/product";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import type { POLineItemDraft } from "./po-item-ledger-table";
@@ -56,6 +56,7 @@ interface PODesktopCreateViewProps {
 // Desktop full-screen takeover for creating a purchase order, same as the Cycle Count session in stock-batch/stock-audits.…
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-desktop-create-view-tsx-L56
 export function PODesktopCreateView(props: PODesktopCreateViewProps) {
+  const formatCurrency = useFormatCurrency();
   const {
     poType,
     setPoType,

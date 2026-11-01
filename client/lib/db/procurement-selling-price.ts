@@ -14,11 +14,11 @@ export function coerceOptionalNumber(
 }
 
 export async function applyChangedSellingPrices(
-  lines: { product_id: string; selling_price?: number | string }[],
+  lines: { product_id: string; selling_price?: number | string; reprice?: boolean }[],
 ) {
   for (const line of lines) {
     const sellingPrice = coerceOptionalNumber(line.selling_price);
-    if (sellingPrice == null) continue;
+    if (sellingPrice == null || line.reprice === false) continue;
     const [product] = await query<{ selling_price: number | null }>(
       "SELECT selling_price FROM products WHERE id = ?",
       [line.product_id],

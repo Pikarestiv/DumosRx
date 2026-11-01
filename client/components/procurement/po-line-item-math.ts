@@ -178,3 +178,13 @@ export function costOverriddenLines(
 export function sellingPricePlaceholder(currentSellingPrice?: number | null, currencyCode?: string): string {
   return currentSellingPrice == null ? "Unchanged" : formatCurrency(currentSellingPrice, currencyCode);
 }
+
+export function markRepricedLines<T extends { product_id: string; selling_price?: number | string }>(
+  items: T[],
+  seededPrices: Map<string, number | string | undefined>,
+): (T & { reprice: boolean })[] {
+  return items.map((item) => ({
+    ...item,
+    reprice: String(item.selling_price ?? "") !== String(seededPrices.get(item.product_id) ?? ""),
+  }));
+}

@@ -11,7 +11,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { clampMoneyInput } from "./po-line-item-math";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 
 interface POReviewPricePopoverProps {
   costPrice: number;
@@ -34,6 +34,7 @@ export function POReviewPricePopover({
   onSellingPriceChange,
   productName,
 }: POReviewPricePopoverProps) {
+  const formatCurrency = useFormatCurrency();
   const margin = useMemo(() => {
     const sell = Number(sellingPrice);
     if (!sell || sell <= 0) return null;

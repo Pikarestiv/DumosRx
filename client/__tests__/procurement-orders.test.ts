@@ -39,6 +39,17 @@ describe("procurement.ts order writes", () => {
       expect(price()).toBe(30);
     });
 
+    it("never writes a line the edit form marked as not repriced, even when its price differs from the catalog", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price) VALUES ('prodSp', 'Zyrtec', 'Tablet', 'Carton', 10, 20)`);
+      const poId = await createPurchaseOrder(null, "", line(20));
+
+      await updatePurchaseOrder(poId, null, "", [{ ...line(15)[0], reprice: false }]);
+      expect(price()).toBe(20);
+
+      await updatePurchaseOrder(poId, null, "", [{ ...line(15)[0], reprice: true }]);
+      expect(price()).toBe(15);
+    });
+
     it("leaves the catalog alone when the line price already equals it, and writes a deliberate different one", async () => {
       db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price) VALUES ('prodSp', 'Zyrtec', 'Tablet', 'Carton', 10, 20)`);
       db.run(`UPDATE products SET _synced = 1 WHERE id = 'prodSp'`);

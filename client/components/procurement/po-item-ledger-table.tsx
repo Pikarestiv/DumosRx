@@ -11,7 +11,7 @@ import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { POReviewPricePopover } from "./po-review-price-popover";
 import { clampMoneyInput, getImmediateUnitCost, getLineTotal } from "./po-line-item-math";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import { ProductName } from "@/components/ui/product-name";
 
@@ -27,6 +27,7 @@ export interface POLineItemDraft {
   lot_number?: string;
   expiry_date?: string;
   selling_price?: number | string;
+  reprice?: boolean;
 }
 
 // A line paired with its index in the order's real item array.
@@ -74,6 +75,7 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
   onUpdateItem: (index: number, patch: Partial<POLineItemDraft>) => void;
   onRemoveItem: (index: number) => void;
 }) {
+  const formatCurrency = useFormatCurrency();
   const currentCost = product?.cost_price ?? 0;
   const stock = product?.stock_quantity ?? 0;
   const effectiveUnitCost = getImmediateUnitCost(item);

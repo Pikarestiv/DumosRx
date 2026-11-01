@@ -98,6 +98,7 @@ export interface DraftPOLineItem {
   lot_number?: string;
   expiry_date?: string;
   selling_price?: number | string;
+  reprice?: boolean;
 }
 
 export interface PODetailItem {

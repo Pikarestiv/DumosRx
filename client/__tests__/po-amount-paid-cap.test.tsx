@@ -2,6 +2,10 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { PODetailsFields } from "@/components/procurement/po-details-fields";
 
+vi.mock("@/lib/context/store-context", () => ({
+  useStore: () => ({ storeProfile: { currency: undefined } }),
+}));
+
 if (!window.matchMedia) {
   window.matchMedia = ((query: string) => ({
     matches: false,

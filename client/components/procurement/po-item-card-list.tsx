@@ -10,7 +10,7 @@ import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { POReviewPricePopover } from "./po-review-price-popover";
 import { clampMoneyInput, getImmediateUnitCost, getLineTotal } from "./po-line-item-math";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import { useProductMap, type POItemRow, type POLineItemDraft } from "./po-item-ledger-table";
 import { ProductName } from "@/components/ui/product-name";
@@ -44,6 +44,7 @@ const POItemCard = React.memo(function POItemCard({
   onUpdateItem: (index: number, patch: Partial<POLineItemDraft>) => void;
   onRemoveItem: (index: number) => void;
 }) {
+  const formatCurrency = useFormatCurrency();
   const currentCost = product?.cost_price ?? 0;
   const stock = product?.stock_quantity ?? 0;
   const effectiveUnitCost = getImmediateUnitCost(item);

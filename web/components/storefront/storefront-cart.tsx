@@ -12,12 +12,14 @@ import {
 import { useCart } from "@/lib/store/use-cart-store";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { formatMoney } from "@/lib/utils/currency";
 
 interface StorefrontCartProps {
   storeSlug: string;
+  currency?: string | null;
 }
 
-export function StorefrontCart({ storeSlug }: StorefrontCartProps) {
+export function StorefrontCart({ storeSlug, currency }: StorefrontCartProps) {
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const cart = useCart(storeSlug);
@@ -68,7 +70,7 @@ export function StorefrontCart({ storeSlug }: StorefrontCartProps) {
                 <div key={item.id} className="flex justify-between items-center border-b pb-4">
                   <div className="flex-1">
                     <p className="font-semibold line-clamp-1">{item.name}</p>
-                    <p className="text-sm text-emerald-600">₦{item.price.toLocaleString()}</p>
+                    <p className="text-sm text-emerald-600">{formatMoney(item.price, currency)}</p>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Button 
@@ -113,7 +115,7 @@ export function StorefrontCart({ storeSlug }: StorefrontCartProps) {
           <div className="border-t pt-4">
             <div className="flex justify-between text-lg font-bold mb-4">
               <span>Total</span>
-              <span>₦{cart.getTotal().toLocaleString()}</span>
+              <span>{formatMoney(cart.getTotal(), currency)}</span>
             </div>
             <Button className="w-full" size="lg" onClick={handleCheckout}>
               Proceed to Checkout

@@ -24,15 +24,16 @@ describe("procurement.ts order writes", () => {
 
   describe("selling price on save", () => {
     const line = (selling_price?: number) => [{ product_id: "prodSp", product_name: "Zyrtec", bulk_unit: "Carton", bulk_quantity: 1, units_per_bulk: 10, unit_cost: 500, subtotal: 500, selling_price }];
+    const createImmediate = (items: ReturnType<typeof line>) => createPurchaseOrder(null, "", items, "unpaid", 0, null, "immediate");
     const price = () => db.exec(`SELECT selling_price FROM products WHERE id = 'prodSp'`)[0].values[0][0];
 
     it("updates the catalog price when a PO is created or edited, but not when the line has none", async () => {
       db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price) VALUES ('prodSp', 'Zyrtec', 'Tablet', 'Carton', 10, 10)`);
 
-      const poId = await createPurchaseOrder(null, "", line());
+      const poId = await createImmediate(line());
       expect(price()).toBe(10);
 
-      await createPurchaseOrder(null, "", line(25));
+      await createImmediate(line(25));
       expect(price()).toBe(25);
 
       await updatePurchaseOrder(poId, null, "", line(30));
@@ -41,7 +42,7 @@ describe("procurement.ts order writes", () => {
 
     it("never writes a line the edit form marked as not repriced, even when its price differs from the catalog", async () => {
       db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price) VALUES ('prodSp', 'Zyrtec', 'Tablet', 'Carton', 10, 20)`);
-      const poId = await createPurchaseOrder(null, "", line(20));
+      const poId = await createImmediate(line(20));
 
       await updatePurchaseOrder(poId, null, "", [{ ...line(15)[0], reprice: false }]);
       expect(price()).toBe(20);
@@ -55,7 +56,7 @@ describe("procurement.ts order writes", () => {
       db.run(`UPDATE products SET _synced = 1 WHERE id = 'prodSp'`);
       const synced = () => db.exec(`SELECT _synced FROM products WHERE id = 'prodSp'`)[0].values[0][0];
 
-      const poId = await createPurchaseOrder(null, "", line(20));
+      const poId = await createImmediate(line(20));
       expect(synced()).toBe(1);
 
       await updatePurchaseOrder(poId, null, "edited note", line(20));
@@ -64,6 +65,17 @@ describe("procurement.ts order writes", () => {
 
       await updatePurchaseOrder(poId, null, "", line(15));
       expect(price()).toBe(15);
+    });
+  
+    it("ignores and does not store Immediate-only fields on a Standard PO, which has no price, cost, lot or expiry inputs", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price) VALUES ('prodSp', 'Zyrtec', 'Tablet', 'Carton', 10, 20)`);
+      const hidden = { ...line(99)[0], cost_price_override: 5, lot_number: "L1", expiry_date: "2027-01-01" };
+
+      const poId = await createPurchaseOrder(null, "", [hidden], "unpaid", 0, null, "standard");
+
+      expect(price()).toBe(20);
+      const row = db.exec(`SELECT selling_price, cost_price_override, lot_number, expiry_date FROM purchase_order_items WHERE po_id = '${poId}'`)[0].values[0];
+      expect(row).toEqual([null, null, null, null]);
     });
   });
 

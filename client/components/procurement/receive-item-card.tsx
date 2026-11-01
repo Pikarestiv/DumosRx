@@ -125,7 +125,7 @@ export const ReceiveItemCard = React.memo(
               <Input
                 type="number"
                 min="0"
-                step="0.01"
+                step="1"
                 aria-label={`Cost Price per ${item.base_unit} for ${item.product_name}`}
                 placeholder={formatCurrency(orderedBaseUnitCost, currency)}
                 value={state.cost_price ?? ""}
@@ -149,7 +149,7 @@ export const ReceiveItemCard = React.memo(
               <Input
                 type="number"
                 min="0"
-                step="0.01"
+                step="1"
                 aria-label={`New Selling Price for ${item.product_name}`}
                 placeholder={sellingPricePlaceholder(item.current_selling_price, currency)}
                 value={state.selling_price ?? ""}

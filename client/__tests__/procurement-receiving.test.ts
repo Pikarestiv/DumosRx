@@ -217,8 +217,9 @@ describe("procurement-receiving.ts", () => {
       const item = await lineItem(poId);
 
       await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 100 }]);
-      await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 100 }]);
+      const second = await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 100, selling_price: 77 }]);
 
+      expect(second).toBe("already_received");
       const batchRows = db.exec(
         `SELECT SUM(quantity) FROM stock_batches WHERE product_id = 'prod1'`,
       );

@@ -185,6 +185,8 @@ admin/subscription ones are genuinely naira (platform billing is NGN); the two
 storefront ones are the same bug as PG-4 and should move to `formatMoney` when
 the storefront product/cart views next get touched.
 
+The product cards and the cart drawer (`components/storefront/product-card.tsx`, `storefront-cart.tsx`) take `currency` from `store.currency` on the storefront page and format through the same `formatMoney`; they used to print a hardcoded naira sign.
+
 ## Download and site URLs come from `lib/constants.ts` (A-104)
 
 `DOWNLOAD_URL` and `WEB_APP_URL` are env-overridable

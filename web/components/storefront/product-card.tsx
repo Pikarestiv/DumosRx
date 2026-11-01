@@ -7,14 +7,16 @@ import { Button } from "@/components/ui/button";
 import { useCart } from "@/lib/store/use-cart-store";
 import { toast } from "sonner";
 import type { StorefrontProduct } from "@/lib/types/storefront";
+import { formatMoney } from "@/lib/utils/currency";
 
 interface ProductCardProps {
   product: StorefrontProduct;
   /** Carts are partitioned per storefront - see lib/store/use-cart-store.ts. */
   storeSlug: string;
+  currency?: string | null;
 }
 
-export function ProductCard({ product, storeSlug }: ProductCardProps) {
+export function ProductCard({ product, storeSlug, currency }: ProductCardProps) {
   const cart = useCart(storeSlug);
 
   const handleAddToCart = () => {
@@ -42,7 +44,7 @@ export function ProductCard({ product, storeSlug }: ProductCardProps) {
       </CardHeader>
       <CardContent className="flex-1">
         <p className="text-2xl font-bold text-emerald-600 mt-2">
-          ₦{parseFloat(String(product.selling_price)).toLocaleString()}
+          {formatMoney(parseFloat(String(product.selling_price)), currency)}
         </p>
         {product.category && (
           <Badge variant="outline" className="mt-4">{product.category.name}</Badge>

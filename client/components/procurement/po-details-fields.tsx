@@ -216,7 +216,7 @@ export function PODetailsFields({
               type="number"
               inputMode="decimal"
               min={0}
-              step="0.01"
+              step="1"
               max={hasOrderTotal ? totalAmount : undefined}
               aria-label="Amount Paid (Initial Payment)"
               placeholder="0.00"

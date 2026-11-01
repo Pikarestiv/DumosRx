@@ -10,7 +10,7 @@ import { POMobileCreateView } from "@/components/procurement/po-mobile-create-vi
 import { PODesktopCreateView } from "@/components/procurement/po-desktop-create-view";
 import { POFormSkeleton } from "@/components/procurement/po-form-skeleton";
 import { useResolvedMediaQuery } from "@/hooks/use-media-query";
-import { getOrderTotal } from "@/components/procurement/po-line-item-math";
+import { clearImmediateOnlyFields, getOrderTotal } from "@/components/procurement/po-line-item-math";
 import { RequireRole } from "@/components/auth/require-role";
 import { toast } from "sonner";
 import { errorDescription } from "@/lib/utils/error-description";
@@ -49,6 +49,7 @@ function CreateOrderContent() {
   // Rationale: docs/CLIENT_COMMENTS.md#line-app-(dashboard)-procurement-new-page-tsx-L52
   const setPoType = (type: "standard" | "immediate") => {
     setPoTypeState(type);
+    if (type === "standard") setItems((current) => clearImmediateOnlyFields(current));
     if (!isPaymentStatusTouched) {
       setPaymentStatusState(type === "immediate" ? "paid" : "unpaid");
     }

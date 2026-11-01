@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { costOverriddenLines, markRepricedLines } from "@/components/procurement/po-line-item-math";
+import { clearImmediateOnlyFields, costOverriddenLines, markRepricedLines } from "@/components/procurement/po-line-item-math";
 
 const line = (product_id: string, selling_price?: number | string, id?: string) => ({ id, product_id, selling_price });
 
@@ -36,5 +36,14 @@ describe("costOverriddenLines", () => {
       { product_id: "c", cost_price: 9 },
     ]);
     expect(lines.map((l) => l.productId)).toEqual(["a", "c"]);
+  });
+});
+
+describe("clearImmediateOnlyFields", () => {
+  it("drops the price, cost, lot and expiry a Standard PO has no inputs for, keeping the rest of the line", () => {
+    const [cleared] = clearImmediateOnlyFields([
+      { product_id: "a", bulk_quantity: 3, selling_price: 9, cost_price_override: 4, lot_number: "L", expiry_date: "2027-01-01" },
+    ]);
+    expect(cleared).toEqual({ product_id: "a", bulk_quantity: 3 });
   });
 });

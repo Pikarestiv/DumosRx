@@ -2,7 +2,7 @@ import { query, generateId, transaction, getActiveStoreId } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 import { applyChangedSellingPrices, coerceOptionalNumber } from "./procurement-selling-price";
 import { roundMoney } from "@/lib/utils/pos-calculations";
-import { immediateLineAmount } from "@/components/procurement/po-line-item-math";
+import { clearImmediateOnlyFields, immediateLineAmount } from "@/components/procurement/po-line-item-math";
 
 export {
   getSuppliers,
@@ -202,13 +202,14 @@ export async function createPurchaseOrder(
   dueDate: string | null = null,
   type: "standard" | "immediate" = "standard"
 ) {
+  const lines = type === "immediate" ? items : clearImmediateOnlyFields(items);
   const poId = generateId();
   const now = new Date().toISOString();
   let totalAmount = 0;
 
   // Via immediateLineAmount, not a bare bulk_quantity * unit_cost:
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-procurement-ts-L216
-  for (const item of items) {
+  for (const item of lines) {
     totalAmount += roundMoney(immediateLineAmount(item));
   }
 
@@ -226,7 +227,7 @@ export async function createPurchaseOrder(
       created_at: now
     });
 
-    for (const item of items) {
+    for (const item of lines) {
       await insert("purchase_order_items", {
         id: generateId(),
         po_id: poId,
@@ -244,7 +245,7 @@ export async function createPurchaseOrder(
       });
     }
 
-    await applyChangedSellingPrices(items);
+    await applyChangedSellingPrices(lines);
 
     return poId;
   });
@@ -262,7 +263,13 @@ export async function updatePurchaseOrder(
   const now = new Date().toISOString();
   let totalAmount = 0;
 
-  for (const item of items) {
+  const [{ type } = { type: "standard" }] = await query<{ type: string | null }>(
+    "SELECT type FROM purchase_orders WHERE id = ?",
+    [poId],
+  );
+  const lines = type === "immediate" ? items : clearImmediateOnlyFields(items);
+
+  for (const item of lines) {
     totalAmount += roundMoney(immediateLineAmount(item));
   }
 
@@ -289,7 +296,7 @@ export async function updatePurchaseOrder(
     });
 
     // Insert new items
-    for (const item of items) {
+    for (const item of lines) {
       await insert("purchase_order_items", {
         id: generateId(),
         po_id: poId,
@@ -307,7 +314,7 @@ export async function updatePurchaseOrder(
       });
     }
 
-    await applyChangedSellingPrices(items);
+    await applyChangedSellingPrices(lines);
 
     return poId;
   });

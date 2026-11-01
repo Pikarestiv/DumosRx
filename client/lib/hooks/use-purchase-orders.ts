@@ -96,6 +96,11 @@ export function usePurchaseOrders() {
     setIsReceivingPO(true);
     try {
       const status = await receivePurchaseOrder(id, receivedItems);
+      if (status === "already_received") {
+        toast.info("This order was already received, so nothing changed.");
+        void fetchPurchaseOrders();
+        return true;
+      }
       toast.success(
         status === undefined
           ? "Nothing was received, the order is unchanged."

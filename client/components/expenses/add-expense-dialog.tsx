@@ -204,7 +204,7 @@ export function AddExpenseDialog({
                 type="number"
                 inputMode="decimal"
                 min="0"
-                step="0.01"
+                step="1"
                 required
                 placeholder="0.00"
                 className="w-full h-11 border border-border rounded-[10px] px-3.5 text-[13px] outline-none focus:border-primary bg-background text-foreground placeholder:text-muted-foreground"

@@ -110,7 +110,7 @@ export function ExpenseDesktopRow({
             value={draft.amount}
             onCommit={(val) => onDraftChange({ ...draft, amount: val })}
             parse={parseFloat}
-            step="0.01"
+            step="1"
             widthClassName="w-24"
             autoFocus
           />

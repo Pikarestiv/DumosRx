@@ -189,3 +189,12 @@ export function markRepricedLines<T extends { id?: string; selling_price?: numbe
     reprice: String(item.selling_price ?? "") !== String((item.id ? seededPrices.get(item.id) : undefined) ?? ""),
   }));
 }
+
+export function clearImmediateOnlyFields<
+  T extends { selling_price?: unknown; cost_price_override?: unknown; lot_number?: unknown; expiry_date?: unknown },
+>(items: T[]): T[] {
+  return items.map(({ selling_price, cost_price_override, lot_number, expiry_date, ...rest }) => {
+    void selling_price; void cost_price_override; void lot_number; void expiry_date;
+    return rest as unknown as T;
+  });
+}

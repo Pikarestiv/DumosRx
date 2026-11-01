@@ -6576,16 +6576,42 @@ needs a real paginated view.
 
 ## Publishing products to the online storefront
 
-`products.show_online` defaults off. Three ways to change it, in increasing
-bulk:
+`products.show_online` defaults **on** since storefront Phase 1 (2026-11-02);
+it used to default off, which left a newly enabled online store empty. Every
+client creation path now writes the field explicitly rather than leaning on
+the column default, because `schema.ts`'s `DEFAULT 1` only reaches **new
+installs** (SQLite cannot change an existing column's default) and `insert()`
+pushes only the keys it was given, so an omitted field would land as `0`
+locally on an old install and `1` on the server:
+
+- the add-product form (`emptyProductForm()` → `showOnline: true`);
+- the importer — a new row uses `row.showOnline ?? true`; a matched row still
+  leaves the field alone when the column is absent or blank;
+- `createDestProduct()` (stock transfer into a store that has never carried
+  the product) writes `show_online: 1`.
+
+`lib/demo/loader.ts` is the one path that still omits it, so demo products
+follow the column default locally and the server's `true` once pulled.
+
+**Known limit, server side:** tills older than this release send an explicit
+`show_online: 0` on every product they create (their form defaulted to
+`false`), and the server cannot tell that from an owner deliberately hiding
+the product, so new products from an old till stay hidden. No shim exists for
+it; the condition for dropping this note is that clients older than this
+release stop reporting in. Existing hidden products are switched on once by
+`php artisan products:backfill-show-online` (see `laravel-server/AGENTS.md`,
+"Products are shown online by default", including why it does not bump
+`_version`).
+
+Three ways to change it, in increasing bulk:
 
 1. The per-product switch in `add-product-dialog.tsx`.
 2. The **CSV/XLSX importer** (`lib/utils/product-import-export.ts`), which
    handles a `show_online` column with the header spellings owners actually
    type and `parseBooleanValue()`'s accepted values. An unrecognised or blank
-   cell returns `undefined` and the product keeps whatever it has — never
-   guess, or an ambiguous spreadsheet silently publishes a catalog to a public
-   page. The exporter emits `Yes`/`No` under "Show in Online Store", the same
+   cell returns `undefined`: an existing product keeps whatever it has and a
+   new one takes the default (shown). Never guess a value from an ambiguous
+   cell. The exporter emits `Yes`/`No` under "Show in Online Store", the same
    spelling the importer reads, so export → edit → re-import is itself a bulk
    path.
 3. The **"Online" dropdown** on the catalog toolbar

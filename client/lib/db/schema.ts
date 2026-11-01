@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS products (
   requires_prescription INTEGER DEFAULT 0,
   is_controlled INTEGER DEFAULT 0,
   is_active INTEGER DEFAULT 1,
-  show_online INTEGER DEFAULT 0,
+  show_online INTEGER DEFAULT 1,
   barcode TEXT,
   base_unit TEXT DEFAULT 'Unit',
   bulk_unit TEXT,

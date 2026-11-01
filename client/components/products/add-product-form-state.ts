@@ -22,7 +22,7 @@ export function emptyProductForm(initialData?: Partial<Product>): Product {
     bulkUnit: "",
     unitsPerBulk: 1,
     status: "active",
-    showOnline: false,
+    showOnline: true,
     requiresPrescription: false,
     isControlled: false,
     costPrice: 0,

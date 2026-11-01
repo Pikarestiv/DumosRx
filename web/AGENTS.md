@@ -187,6 +187,39 @@ the storefront product/cart views next get touched.
 
 The product cards and the cart drawer (`components/storefront/product-card.tsx`, `storefront-cart.tsx`) take `currency` from `store.currency` on the storefront page and format through the same `formatMoney`; they used to print a hardcoded naira sign.
 
+## Storefront chrome and display conventions (storefront Phase 1, 2026-11-02)
+
+- **A storefront never renders the DumosRx marketing footer.** Both
+  `[store_slug]` routes use `components/storefront/storefront-header.tsx`
+  (logo + store name, the only place the name is printed, linking back to the
+  catalogue, plus the cart) and `storefront-footer.tsx` (the store's name and a
+  single small "Powered by DumosRx" link to `WEB_APP_URL`). The checkout page
+  now fetches the store too, so its header shows the store and its cart
+  formats in the store's currency; `getStorefrontData()` is memoized per
+  render, so this is not a second request beside `generateMetadata`.
+- **Contact details are one labelled block**, `store-contact-block.tsx`
+  (Address / Phone / Email, `tel:`/`mailto:` links), rendered only when the
+  store has at least one. `lib/storefront-display.ts`'s `storeAddressLine()`
+  joins `address` and `location` and drops a case-insensitive duplicate.
+- **Product names are title-cased at display time only**, through
+  `toDisplayTitle()` — card, toast, cart drawer and checkout summary. The cart
+  and the checkout payload keep the raw catalogue name. A word containing a
+  digit is left as typed (`500MG`, `B12`), because guessing unit casing is
+  worse than leaving it.
+- **Colours are semantic theme classes** (`text-primary`,
+  `text-muted-foreground`, `bg-muted/40`, `text-destructive`, ...), never
+  palette literals such as `text-emerald-600`/`bg-gray-50`, so the per-store
+  theming planned for a later phase only has to swap variables.
+- Carts are partitioned per storefront by `storeSlug`
+  (`lib/store/use-cart-store.ts`), which is why every storefront component
+  takes the slug.
+- Both routes must `await params`: under Next 16 it is a plain Promise in a
+  production build, and reading `params.store_slug` synchronously yields
+  `undefined` (see "Running things" below). `CheckoutForm` reads
+  `useSearchParams()` for the Paystack return, so it stays inside a
+  `<Suspense>` boundary or the static export's prerender of the checkout page
+  fails.
+
 ## Download and site URLs come from `lib/constants.ts` (A-104)
 
 `DOWNLOAD_URL` and `WEB_APP_URL` are env-overridable

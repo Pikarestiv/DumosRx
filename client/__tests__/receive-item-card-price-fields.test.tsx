@@ -116,6 +116,26 @@ describe("ReceiveItemCard price fields", () => {
     }
   });
 
+  it("does not reuse the saved cost, lot and expiry on a follow-up receipt, which is a different delivery", () => {
+    const partialPo = {
+      ...po,
+      status: "partially_received",
+      items: [
+        {
+          ...(po.items ?? [])[0],
+          quantity_received: 1,
+          cost_price_override: 4.5,
+          lot_number: "LOT-9",
+          expiry_date: "2027-03-01",
+        },
+      ],
+    } as unknown as PurchaseOrder;
+    render(withQueryClient(<ReceivePOPanel po={partialPo} onBack={vi.fn()} onConfirm={vi.fn()} />));
+
+    expect((screen.getByLabelText("Cost Price per Tablet for Panadol") as HTMLInputElement).value).toBe("");
+    expect((screen.getByLabelText("Lot or batch number for Panadol") as HTMLInputElement).value).toBe("");
+  });
+
   it("carries what is typed into the new price fields through to the receive payload, clamping a negative to zero", () => {
     const onConfirm = vi.fn();
     render(

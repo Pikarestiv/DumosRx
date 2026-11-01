@@ -51,15 +51,16 @@ function buildInitialReceivedItems(
 ): Record<string, ReceivedItemPayload> {
   const initial: Record<string, ReceivedItemPayload> = {};
   po.items?.forEach((item: PurchaseOrderItem) => {
+    const isFirstReceipt = !(Number(item.quantity_received) > 0);
     initial[item.id] = {
       po_item_id: item.id,
       product_id: item.product_id,
       // Prefill with the outstanding balance, not the full ordered quantity:
       // Rationale: docs/CLIENT_COMMENTS.md#line-components-procurement-receive-po-panel-tsx-L78
       quantity: outstandingBulkQuantity(item),
-      lot_number: item.lot_number ?? "",
-      expiry_date: item.expiry_date ?? "",
-      cost_price: item.cost_price_override ?? undefined,
+      lot_number: isFirstReceipt ? (item.lot_number ?? "") : "",
+      expiry_date: isFirstReceipt ? (item.expiry_date ?? "") : "",
+      cost_price: isFirstReceipt ? (item.cost_price_override ?? undefined) : undefined,
       current_selling_price: item.current_selling_price ?? null,
     };
   });

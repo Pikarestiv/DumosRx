@@ -2744,7 +2744,7 @@ expiry math receivePurchaseOrder() uses for Standard POs.
 
 ### db-procurement-ts-L11
 
-`client/lib/db/procurement.ts:15`
+`client/lib/db/procurement-selling-price.ts:5`
 
 Line-item form fields (selling_price, cost_price_override) come in as
 `number | string | undefined` from raw form inputs - blank/undefined
@@ -7010,9 +7010,9 @@ payload, and a sync-queue UPDATE payload carries changed fields only.
 
 `client/lib/db/procurement-receiving.ts:157`
 
-A submit with every line left at 0 against a PO that has nothing
-received yet isn't a partial receipt, it's a no-op — the order stays
-exactly where it was rather than moving into the partial state.
+A submit that receives nothing this time (every line left at 0) isn't
+a receipt, it's a no-op, whether or not earlier receipts exist: the order
+stays exactly where it was and no status change or audit entry is written.
 
 ### line-db-procurement-ts-L216
 
@@ -9963,9 +9963,10 @@ no reason, since the underlying data never changed).
 `client/lib/hooks/use-purchase-orders.ts:104`
 
 receivePurchaseOrder() writes products.selling_price synchronously
-for any line with a real override, same as createAndReceivePurchaseOrder -
-this is the other of the two paths that actually change the live
-price immediately, so it gets the same confirmation toast.
+for any line with a real override that differs from the live price, the
+same as createPurchaseOrder, updatePurchaseOrder and
+createAndReceivePurchaseOrder (all via applyChangedSellingPrices) - so it
+gets the same confirmation toast.
 
 ### line-hooks-use-report-export-ts-L120
 

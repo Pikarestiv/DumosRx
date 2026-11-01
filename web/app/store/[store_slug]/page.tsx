@@ -58,7 +58,7 @@ export default async function StorefrontPage({ params }: StorefrontProps) {
             <div className="font-bold text-xl text-emerald-700">{store.name}</div>
           </div>
           <div className="flex items-center space-x-4">
-            <StorefrontCart storeSlug={store_slug} />
+            <StorefrontCart storeSlug={store_slug} currency={store.currency} />
           </div>
         </div>
       </header>
@@ -101,6 +101,7 @@ export default async function StorefrontPage({ params }: StorefrontProps) {
                 key={product.id}
                 product={product}
                 storeSlug={store_slug}
+                currency={store.currency}
               />
             ))
           )}

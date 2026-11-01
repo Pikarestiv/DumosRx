@@ -10,10 +10,12 @@ import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { POReviewPricePopover } from "./po-review-price-popover";
 import { clampMoneyInput, getImmediateUnitCost, getLineTotal } from "./po-line-item-math";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import { useProductMap, type POItemRow, type POLineItemDraft } from "./po-item-ledger-table";
 import { ProductName } from "@/components/ui/product-name";
+import { HintTooltip } from "@/components/ui/hint-tooltip";
+import { CURRENT_COST_HINT } from "@/lib/constants/cost-hints";
 
 interface POItemCardListProps {
   poType: "standard" | "immediate";
@@ -42,6 +44,7 @@ const POItemCard = React.memo(function POItemCard({
   onUpdateItem: (index: number, patch: Partial<POLineItemDraft>) => void;
   onRemoveItem: (index: number) => void;
 }) {
+  const formatCurrency = useFormatCurrency();
   const currentCost = product?.cost_price ?? 0;
   const stock = product?.stock_quantity ?? 0;
   const effectiveUnitCost = getImmediateUnitCost(item);
@@ -57,7 +60,11 @@ const POItemCard = React.memo(function POItemCard({
           />
           {poType === "immediate" && (
             <p className="text-[12px] text-muted-foreground">
-              Stock: {stock} · Current Cost: {formatCurrency(currentCost)}
+              Stock: {stock} ·{" "}
+              <HintTooltip text={CURRENT_COST_HINT}>
+                <span tabIndex={0}>Current Cost</span>
+              </HintTooltip>
+              : {formatCurrency(currentCost)}
             </p>
           )}
         </div>
@@ -95,7 +102,7 @@ const POItemCard = React.memo(function POItemCard({
             <Input
               type="number"
               min={0}
-              step="0.01"
+              step="any"
               aria-label={`New Cost for ${item.product_name}`}
               placeholder={formatCurrency(currentCost)}
               value={item.cost_price_override ?? ""}
@@ -111,7 +118,7 @@ const POItemCard = React.memo(function POItemCard({
               onCommit={(val) => onUpdateItem(index, { unit_cost: val, subtotal: item.bulk_quantity * val })}
               parse={parseFloat}
               min={0}
-              step="0.01"
+              step="any"
               widthClassName="w-full"
               ariaLabel={`Unit Cost for ${item.product_name}`}
             />

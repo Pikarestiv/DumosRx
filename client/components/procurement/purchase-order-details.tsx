@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Clock, Edit2, Download, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import { errorDescription } from "@/lib/utils/error-description";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { downloadBlob } from "@/lib/utils/download-blob";
@@ -51,6 +51,7 @@ export function PurchaseOrderDetails({
 }: PurchaseOrderDetailsProps) {
   const router = useRouter();
   const { storeProfile } = useStore();
+  const formatCurrency = useFormatCurrency();
   const canManagePurchaseOrders = useHasPermission("manage_purchase_orders");
   const canReceivePurchaseOrders = useHasPermission("receive_purchase_orders");
   const capsClass = useUppercaseDisplayClass();
@@ -70,6 +71,7 @@ export function PurchaseOrderDetails({
       const blob = await pdf(
         <PurchaseOrderPdf
           storeName={storeProfile?.name || "Store"}
+          currencyCode={storeProfile?.currency}
           poNumber={`PO-${selectedPO.id.split("-")[0].toUpperCase()}`}
           vendorName={selectedPO.vendor_name || "Unknown Vendor"}
           createdAt={formatDateToDDMMYYYY(selectedPO.created_at)}

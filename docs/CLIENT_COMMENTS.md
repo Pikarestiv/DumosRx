@@ -12219,3 +12219,10 @@ starts at false. The catalog card's `flex-1` already fills the space left
 under the tabs; `min-h-[360px]` keeps it usable on short windows and
 `lg:max-h-[900px]` is a fixed-pixel rail for very tall monitors. A vh-based
 cap was always smaller than the real remaining space and undid the fill.
+
+### app/(dashboard)/procurement/edit/page.tsx - getOrderTotal
+
+The total uses `getOrderTotal`/`getLineTotal`, not `item.subtotal`: subtotal
+only gets refreshed when unit cost changes (`po-item-ledger-table.tsx`), so
+editing just the quantity leaves it stale. `lib/db/procurement.ts`
+recomputes `total_amount` itself at save time for the same reason.

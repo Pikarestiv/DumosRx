@@ -217,7 +217,7 @@ export function ReferralsAdjustDialog({
                 id="amount"
                 type="number"
                 min={0.01}
-                step="0.01"
+                step="any"
                 placeholder="e.g. 5000"
                 value={adjustAmount}
                 onChange={(e) => setAdjustAmount(e.target.value)}

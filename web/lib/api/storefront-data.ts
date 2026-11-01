@@ -8,6 +8,7 @@ export interface StorefrontStore {
   phone?: string | null;
   email?: string | null;
   logo_url?: string | null;
+  currency?: string | null;
 }
 
 export interface StorefrontData {

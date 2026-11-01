@@ -101,6 +101,7 @@ export function CouponDialog({
             </Label>
             <Input
               type="number"
+              step={newCoupon.type === "discount_amount" ? "any" : undefined}
               min={0}
               // A percentage has a ceiling; a naira amount and a number of
               // trial days do not. Without this the "(0-100)" in the label

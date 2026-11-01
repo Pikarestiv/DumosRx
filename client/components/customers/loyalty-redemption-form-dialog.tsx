@@ -110,6 +110,7 @@ export function LoyaltyRedemptionFormDialog({ open, onOpenChange, option, userId
               <Label>Discount Value ({currencySymbol})</Label>
               <Input
                 type="number"
+                step="any"
                 inputMode="decimal"
                 min={0}
                 placeholder="0 for non-monetary perks"

@@ -7022,3 +7022,35 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Procurement price handling: selling price hits the catalog on save, cost stays per batch
+
+**Writing a price**
+- `createPurchaseOrder`, `updatePurchaseOrder`, `createAndReceivePurchaseOrder` and `receivePurchaseOrder` all write a line's `selling_price` to `products` through `applyChangedSellingPrices` (`lib/db/procurement-selling-price.ts`). Cost never goes to the catalog; it lives on `stock_batches`, so Avg/Last cost move only when goods are received.
+- A price is written only when it differs from the product's live catalog price, so re-saving an untouched line never bumps or re-syncs the product.
+- `receivePurchaseOrder` applies a typed price before its zero-quantity skip, so a line received at 0 still takes its new price. It returns `"already_received"` or `"not_found"` for those orders, and the hook reports them instead of toasting a price update.
+
+**Never write a price the user did not touch**
+- The edit page seeds an Immediate PO's line prices from the live catalog (`current_selling_price`) and records the seeded values per PO line id. On save, `markRepricedLines` sets `reprice` only on lines whose price differs from the seed, and `applyChangedSellingPrices` skips `reprice: false` lines.
+- The seed comes from a cached query that a catalog edit or sync pull does not invalidate, so an untouched price must never be written.
+- Draft save and edit toast "Selling price updated for N items" (`notifySellingPriceUpdates`), counting only changed lines.
+
+**Standard vs Immediate**
+- A Standard PO has no price, cost, lot or expiry inputs; those are entered when receiving. The order type is chosen on the details step before any item exists and is locked afterwards, so a Standard line cannot normally carry them; `createPurchaseOrder`/`updatePurchaseOrder` still strip them (`clearImmediateOnlyFields`) for any non-immediate PO, so a hidden value can neither reach the catalog nor change the stored total.
+
+**Receive panel prefill**
+- `ReceivePOPanel` seeds from the saved line only for Immediate POs: `cost_price` (the order's `cost_price_override`, per base unit) on every receipt, and `lot_number` / `expiry_date` on the first receipt only, since those belong to one delivery. Without the cost seed, a follow-up batch falls back to the line's order-time `unit_cost`, not the catalog average.
+- It never seeds `selling_price`: the catalog already has it, and re-sending a stale PO price would overwrite a later catalog edit.
+- Any new per-line field the PO form saves must be added to `buildInitialReceivedItems` too.
+
+**Backward compatibility (§11)**
+- A price typed on a draft saved before this release was never applied to the catalog and still is not: a Standard draft's price is never flagged as changed, and an Immediate draft's stored price is replaced by the live one when opened for edit. Re-applying a months-old price could overwrite a newer one, so a user who wants it applied re-types it.
+- Editing a Standard PO erases any stored cost, lot or expiry it carries (only reachable by switching type with values typed, before this release). Nothing in production relied on them. This note can go once no pre-release draft is open.
+
+## "Average cost" always carries a tooltip
+
+Average cost is a quantity-weighted blend across stock batches, and clients read a single number as "the cost". Wherever it is shown (catalog Avg Cost header, product pricing card, PO "Current Cost" header and phone card) wrap the label in `HintTooltip` with `AVG_COST_HINT` / `CURRENT_COST_HINT` from `lib/constants/cost-hints.ts`. `SortableHeaderCell` takes a `tooltip` prop for sortable headers.
+
+## Money inputs use `step="any"`
+
+Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundredth of a unit is meaningless for most African currencies), but nothing is ever a step mismatch, so a decimal amount can be typed and submitted in a native `<form>`. A fixed `step="1"` (or the browser default of 1, when no step is set) makes the browser refuse to submit a value like 12.5, and jsdom does not enforce that, so no test catches it. Percentages and multipliers (VAT, loyalty, commission) keep their own steps.

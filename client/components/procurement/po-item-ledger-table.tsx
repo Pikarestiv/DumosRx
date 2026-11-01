@@ -239,7 +239,7 @@ export function POItemLedgerTable({
             </div>
             {poType === "immediate" && (
               <HintTooltip text={CURRENT_COST_HINT}>
-                <div role="columnheader" className="text-right px-3 py-2">
+                <div role="columnheader" tabIndex={0} className="text-right px-3 py-2">
                   Current Cost
                 </div>
               </HintTooltip>

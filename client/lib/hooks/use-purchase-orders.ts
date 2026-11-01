@@ -96,9 +96,11 @@ export function usePurchaseOrders() {
     try {
       const status = await receivePurchaseOrder(id, receivedItems);
       toast.success(
-        status === "partially_received"
-          ? "Partial receipt recorded, the outstanding balance is still open."
-          : "Order received and stock updated!",
+        status === undefined
+          ? "Nothing was received, the order is unchanged."
+          : status === "partially_received"
+            ? "Partial receipt recorded, the outstanding balance is still open."
+            : "Order received and stock updated!",
       );
       // receivePurchaseOrder() writes products.selling_price synchronously for any line with a real override, same as createAndReceivePurchaseOrder…
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-purchase-orders-ts-L106

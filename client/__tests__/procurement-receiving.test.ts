@@ -163,6 +163,16 @@ describe("procurement-receiving.ts", () => {
       expect(rows[0].values[0][0]).toBe(77);
     });
 
+    it("leaves the product untouched when the typed selling price equals the live catalog price", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price, _synced) VALUES ('pS', 'S', 'Tablet', 'Carton', 10, 40, 1)`);
+      const poId = await createPurchaseOrder(null, "", [{ product_id: "pS", product_name: "S", bulk_unit: "Carton", bulk_quantity: 5, units_per_bulk: 10, unit_cost: 1000, subtotal: 5000 }]);
+      const item = (await getPurchaseOrderById(poId))?.items[0];
+
+      await receivePurchaseOrder(poId, [{ po_item_id: item?.id ?? "", quantity: 5, selling_price: 40 }]);
+
+      expect(db.exec(`SELECT _synced FROM products WHERE id = 'pS'`)[0].values[0][0]).toBe(1);
+    });
+
     it("caps a submitted quantity at the outstanding balance instead of overbooking stock", async () => {
       const poId = await seedStandardPO();
       const item = await lineItem(poId);

@@ -36,7 +36,7 @@ export function ProductPricingInfo({
           {canViewCostFields && (
             <div>
               <HintTooltip text={AVG_COST_HINT}>
-                <p className="text-sm text-muted-foreground w-fit">Avg. Cost Price</p>
+                <p tabIndex={0} className="text-sm text-muted-foreground w-fit">Avg. Cost Price</p>
               </HintTooltip>
               <p className="font-bold text-lg">
                 {formatPrice(product.costPrice)}
@@ -73,7 +73,7 @@ export function ProductPricingInfo({
                 {profitMargin !== null ? `${profitMargin}%` : "-"}
               </p>
               <HintTooltip text={AVG_COST_HINT}>
-                <p className="text-xs text-muted-foreground w-fit">Based on avg. cost</p>
+                <p tabIndex={0} className="text-xs text-muted-foreground w-fit">Based on avg. cost</p>
               </HintTooltip>
             </div>
             <div>

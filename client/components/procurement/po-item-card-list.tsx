@@ -62,7 +62,7 @@ const POItemCard = React.memo(function POItemCard({
             <p className="text-[12px] text-muted-foreground">
               Stock: {stock} ·{" "}
               <HintTooltip text={CURRENT_COST_HINT}>
-                <span>Current Cost</span>
+                <span tabIndex={0}>Current Cost</span>
               </HintTooltip>
               : {formatCurrency(currentCost)}
             </p>

@@ -9,7 +9,7 @@ import {
   updatePurchaseOrderStatus,
   type DraftPOLineItem,
 } from "./procurement";
-import { coerceOptionalNumber } from "./procurement-selling-price";
+import { applyChangedSellingPrices, coerceOptionalNumber } from "./procurement-selling-price";
 import { getStoredUser } from "@/lib/storage-keys";
 import {
   immediateLineAmount,
@@ -81,11 +81,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
       if (bulkQty < outstanding) outstandingRemains = true;
       if (alreadyReceived + bulkQty > 0) anyQuantityReceived = true;
 
-      if (receivedItem?.selling_price !== undefined && receivedItem.selling_price !== "") {
-        await update("products", item.product_id, {
-          selling_price: Math.max(0, Number(receivedItem.selling_price)),
-        });
-      }
+      await applyChangedSellingPrices([{ product_id: item.product_id, selling_price: receivedItem?.selling_price }]);
 
       if (bulkQty === 0) continue;
 

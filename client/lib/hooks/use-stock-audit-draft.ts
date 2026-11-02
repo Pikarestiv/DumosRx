@@ -65,10 +65,27 @@ export const useStockAuditDraftStore = create<StockAuditDraftState>()(
       setActiveStoreId: (newStoreId) => {
         set((state) => {
           if (state.activeStoreId === newStoreId) return state;
+
+          const isInitialMount = state.activeStoreId === null;
+          const hasLegacyItems =
+            isInitialMount &&
+            state.items.length > 0 &&
+            Object.keys(state.drafts).length === 0;
+
           const updatedDrafts = state.activeStoreId
             ? { ...state.drafts, [state.activeStoreId]: state.items }
-            : state.drafts;
-          const nextItems = newStoreId ? (updatedDrafts[newStoreId] ?? []) : [];
+            : hasLegacyItems && newStoreId
+              ? { ...state.drafts, [newStoreId]: state.items }
+              : state.drafts;
+
+          const nextItems = newStoreId
+            ? (updatedDrafts[newStoreId] ?? (hasLegacyItems ? state.items : []))
+            : [];
+
+          if (newStoreId && hasLegacyItems && state.items.length > 0) {
+            scheduleSave(newStoreId, state.items);
+          }
+
           return {
             activeStoreId: newStoreId,
             drafts: updatedDrafts,

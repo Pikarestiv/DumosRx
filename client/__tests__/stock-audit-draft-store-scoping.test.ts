@@ -71,4 +71,39 @@ describe("stock audit draft store scoping", () => {
     expect(useStockAuditDraftStore.getState().items[0].name).toBe("Amoxil 500mg");
     expect(useStockAuditDraftStore.getState().items[0].countedQty).toBe(18);
   });
+
+  it("recovers unpartitioned legacy v1 drafts and adopts them for the active store", async () => {
+    const { useStockAuditDraftStore } = await import(
+      "@/lib/hooks/use-stock-audit-draft"
+    );
+
+    // Simulate Zustand rehydrating an un-scoped legacy v1 draft where items exist but drafts is empty
+    useStockAuditDraftStore.setState({
+      activeStoreId: null,
+      drafts: {},
+      items: [
+        {
+          id: "prod-legacy",
+          name: "Legacy Syrup",
+          sku: "LEG-1",
+          category: "Syrups",
+          systemQty: 10,
+          countedQty: 8,
+          counted: true,
+        },
+      ],
+    });
+
+    // When the app initializes Store Context and calls setActiveStoreId("store-main")
+    useStockAuditDraftStore.getState().setActiveStoreId("store-main");
+
+    // The legacy items are preserved in active items AND adopted into drafts["store-main"]
+    const state = useStockAuditDraftStore.getState();
+    expect(state.items).toHaveLength(1);
+    expect(state.items[0].name).toBe("Legacy Syrup");
+    expect(state.drafts["store-main"]).toBeDefined();
+    expect(state.drafts["store-main"]).toHaveLength(1);
+    expect(state.drafts["store-main"][0].countedQty).toBe(8);
+  });
 });
+

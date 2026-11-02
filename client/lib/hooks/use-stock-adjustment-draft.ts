@@ -39,13 +39,27 @@ const EMPTY_DRAFT: StockAdjustmentDraftData = {
   items: [],
 };
 
-let saveTimer: ReturnType<typeof setTimeout> | null = null;
+const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
 function scheduleSave(storeId: string, draft: StockAdjustmentDraftData) {
   if (!storeId) return;
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
+  const existing = saveTimers.get(storeId);
+  if (existing) clearTimeout(existing);
+  const timer = setTimeout(() => {
     saveLocalStockAdjustmentDraft(storeId, draft).catch(() => {});
+    saveTimers.delete(storeId);
   }, 400);
+  saveTimers.set(storeId, timer);
+}
+
+function flushSave(storeId: string, draft: StockAdjustmentDraftData) {
+  if (!storeId) return;
+  const existing = saveTimers.get(storeId);
+  if (existing) {
+    clearTimeout(existing);
+    saveTimers.delete(storeId);
+  }
+  saveLocalStockAdjustmentDraft(storeId, draft).catch(() => {});
 }
 
 export function migrateStockAdjustmentDraft(
@@ -80,6 +94,16 @@ export const useStockAdjustmentDraftStore = create<StockAdjustmentDraftState>()(
       activeStoreId: null,
 
       setActiveStoreId: (newStoreId) => {
+        const outgoingStoreId = get().activeStoreId;
+        const currentData: StockAdjustmentDraftData = {
+          reason: get().reason,
+          note: get().note,
+          items: get().items,
+        };
+        if (outgoingStoreId && (currentData.items.length > 0 || currentData.note.trim().length > 0)) {
+          flushSave(outgoingStoreId, currentData);
+        }
+
         set((state) => {
           if (state.activeStoreId === newStoreId) return state;
 
@@ -91,7 +115,7 @@ export const useStockAdjustmentDraftStore = create<StockAdjustmentDraftState>()(
           };
           const hasLegacyItems =
             isInitialMount &&
-            state.items.length > 0 &&
+            (state.items.length > 0 || state.note.trim().length > 0) &&
             Object.keys(state.drafts).length === 0;
 
           const updatedDrafts = state.activeStoreId
@@ -104,7 +128,7 @@ export const useStockAdjustmentDraftStore = create<StockAdjustmentDraftState>()(
             ? (updatedDrafts[newStoreId] ?? (hasLegacyItems ? currentDraftData : EMPTY_DRAFT))
             : EMPTY_DRAFT;
 
-          if (newStoreId && hasLegacyItems && state.items.length > 0) {
+          if (newStoreId && hasLegacyItems && (state.items.length > 0 || state.note.trim().length > 0)) {
             scheduleSave(newStoreId, currentDraftData);
           }
 
@@ -127,6 +151,17 @@ export const useStockAdjustmentDraftStore = create<StockAdjustmentDraftState>()(
         const sqliteDraft = await getLocalStockAdjustmentDraft(storeId);
         if (sqliteDraft && (sqliteDraft.items.length > 0 || sqliteDraft.note)) {
           set((state) => {
+            const currentInMemory =
+              state.drafts[storeId] ??
+              (state.activeStoreId === storeId
+                ? { reason: state.reason, note: state.note, items: state.items }
+                : null);
+            if (
+              currentInMemory &&
+              (currentInMemory.items.length > 0 || currentInMemory.note.trim().length > 0)
+            ) {
+              return state;
+            }
             if (state.activeStoreId !== storeId && state.activeStoreId !== null) {
               return {
                 drafts: { ...state.drafts, [storeId]: sqliteDraft },
@@ -279,6 +314,10 @@ export const useStockAdjustmentDraftStore = create<StockAdjustmentDraftState>()(
 
 export function clearStockAdjustmentDraft(storeId?: string) {
   useStockAdjustmentDraftStore.getState().clearDraft(storeId);
+}
+
+export function clearAllStockAdjustmentDrafts() {
+  useStockAdjustmentDraftStore.getState().clearAllDrafts();
 }
 
 export function hasActiveStockAdjustmentDraft(storeId?: string | null): boolean {

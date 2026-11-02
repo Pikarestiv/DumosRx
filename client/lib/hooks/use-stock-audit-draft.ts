@@ -23,13 +23,27 @@ interface StockAuditDraftState {
   hasActiveCount: (storeId?: string | null) => boolean;
 }
 
-let saveTimer: ReturnType<typeof setTimeout> | null = null;
+const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
 function scheduleSave(storeId: string, items: AuditItem[]) {
   if (!storeId) return;
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
+  const existing = saveTimers.get(storeId);
+  if (existing) clearTimeout(existing);
+  const timer = setTimeout(() => {
     saveLocalStockAuditDraft(storeId, items).catch(() => {});
+    saveTimers.delete(storeId);
   }, 400);
+  saveTimers.set(storeId, timer);
+}
+
+function flushSave(storeId: string, items: AuditItem[]) {
+  if (!storeId) return;
+  const existing = saveTimers.get(storeId);
+  if (existing) {
+    clearTimeout(existing);
+    saveTimers.delete(storeId);
+  }
+  saveLocalStockAuditDraft(storeId, items).catch(() => {});
 }
 
 export function migrateStockAuditDraft(
@@ -63,6 +77,12 @@ export const useStockAuditDraftStore = create<StockAuditDraftState>()(
       activeStoreId: null,
 
       setActiveStoreId: (newStoreId) => {
+        const outgoingStoreId = get().activeStoreId;
+        const outgoingItems = get().items;
+        if (outgoingStoreId && outgoingItems.length > 0) {
+          flushSave(outgoingStoreId, outgoingItems);
+        }
+
         set((state) => {
           if (state.activeStoreId === newStoreId) return state;
 
@@ -103,6 +123,12 @@ export const useStockAuditDraftStore = create<StockAuditDraftState>()(
         const sqliteItems = await getLocalStockAuditDraft(storeId);
         if (sqliteItems && sqliteItems.length > 0) {
           set((state) => {
+            const currentInMemory =
+              state.drafts[storeId] ??
+              (state.activeStoreId === storeId ? state.items : []);
+            if (currentInMemory.length > 0) {
+              return state;
+            }
             if (state.activeStoreId !== storeId && state.activeStoreId !== null) {
               return {
                 drafts: { ...state.drafts, [storeId]: sqliteItems },
@@ -180,6 +206,10 @@ export const useStockAuditDraftStore = create<StockAuditDraftState>()(
 
 export function clearStockAuditDraft(storeId?: string) {
   useStockAuditDraftStore.getState().clearDraft(storeId);
+}
+
+export function clearAllStockAuditDrafts() {
+  useStockAuditDraftStore.getState().clearAllDrafts();
 }
 
 export function hasActiveStockAuditCount(storeId?: string | null): boolean {

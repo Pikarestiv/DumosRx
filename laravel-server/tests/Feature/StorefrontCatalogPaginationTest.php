@@ -170,3 +170,4 @@ class StorefrontCatalogPaginationTest extends TestCase
         $this->assertSame('Safe Paracetamol', $res->json('data.0.name'));
     }
 }
+

@@ -218,3 +218,4 @@ class StorefrontPaymentService
         return [null, $intent];
     }
 }
+

@@ -96,3 +96,4 @@ describe("StorefrontCatalogView", () => {
     expect(screen.getByText("No products found")).toBeTruthy();
   });
 });
+

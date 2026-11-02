@@ -143,3 +143,4 @@ class StorefrontCatalogService
             ->all();
     }
 }
+

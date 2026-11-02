@@ -105,6 +105,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware('throttle:storefront-read')->group(function () {
         Route::get('/storefront-slugs', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'slugs']);
         Route::get('/storefront/{store_slug}', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'show']);
+        Route::get('/storefront/{store_slug}/products', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'products']);
     });
     // Step 1 of the online-payment flow: mints the payment reference
     // server-side and reserves it for this cart/store. Throttled on its own

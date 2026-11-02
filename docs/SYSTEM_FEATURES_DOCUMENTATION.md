@@ -132,6 +132,8 @@ Your Cloud Dashboard is your management hub. Log in from any web browser to get 
 
 **Your Own Store Page:** Your storefront has its own header, contact details (address, phone, email) and footer, with just a small "Powered by DumosRx" link, and product names read cleanly in title case.
 
+**Dedicated Product Catalog Page:** Customers can browse your complete product catalog at `/store/[slug]/catalog` with instant keyword search, category filter badges, and responsive pagination. Available in-stock products automatically rank first before out-of-stock items.
+
 ### 💳 Billing & Subscriptions
 
 **Easy Renewals:** Manage your DumosRx subscription easily through secure, automated payments.

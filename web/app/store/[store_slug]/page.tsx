@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ProductCard } from "@/components/storefront/product-card";
@@ -45,21 +46,35 @@ export default async function StorefrontPage({ params }: StorefrontProps) {
       <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-8">
         <StoreContactBlock store={store} />
 
-        <section aria-label="Products" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <section aria-label="Products" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
+              Featured Products
+            </h2>
+            <Link
+              href={`/store/${store_slug}/catalog`}
+              className="text-sm font-semibold text-primary hover:underline flex items-center gap-1"
+            >
+              View Full Catalog &rarr;
+            </Link>
+          </div>
+
           {products.length === 0 ? (
             <p className="col-span-full text-center py-12 text-muted-foreground">
               No products are currently available online. Please check back
               later.
             </p>
           ) : (
-            products.map((product: StorefrontProduct) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                storeSlug={store_slug}
-                currency={store.currency}
-              />
-            ))
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {products.map((product: StorefrontProduct) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  storeSlug={store_slug}
+                  currency={store.currency}
+                />
+              ))}
+            </div>
           )}
         </section>
       </main>

@@ -187,9 +187,24 @@ the storefront product/cart views next get touched.
 
 The product cards and the cart drawer (`components/storefront/product-card.tsx`, `storefront-cart.tsx`) take `currency` from `store.currency` on the storefront page and format through the same `formatMoney`; they used to print a hardcoded naira sign.
 
-## Storefront chrome and display conventions (storefront Phase 1, 2026-11-02)
+## Storefront chrome and display conventions (storefront Phase 1 & 2, 2026-11-02)
 
-- **A storefront never renders the DumosRx marketing footer.** Both
+- **Multi-page company storefront layout:**
+  - Landing page (`app/store/[store_slug]/page.tsx`): Header, StoreContactBlock,
+    "Featured Products" preview section with a "View Full Catalog →" link, Footer.
+  - Dedicated Catalog page (`app/store/[store_slug]/catalog/page.tsx`): Breadcrumbs,
+    interactive search filter (`q`), category pill selectors (`category`), product grid,
+    and responsive pagination powered by `StorefrontCatalogView`.
+  - Checkout page (`app/store/[store_slug]/checkout/page.tsx`): Order confirmation and
+    Paystack online payment.
+- **Storefront Header Navigation:** `components/storefront/storefront-header.tsx`
+  renders navigation links ("Home" and "Catalog") between the store brand and cart drawer.
+- **Offline / Sandbox Builds:** When `STOREFRONT_ALLOW_EMPTY=1` is set in offline or
+  sandbox environments without a live backend, `lib/api/storefront-data.ts` supplies
+  `DEMO_STOREFRONT_DATA` and `DEMO_PAGINATED_PRODUCTS` placeholders so static export
+  prerendering (`/store/demo`, `/store/demo/catalog`, `/store/demo/checkout`) succeeds
+  without crashing or requiring a mock server.
+- **A storefront never renders the DumosRx marketing footer.** All
   `[store_slug]` routes use `components/storefront/storefront-header.tsx`
   (logo + store name, the only place the name is printed, linking back to the
   catalogue, plus the cart) and `storefront-footer.tsx` (the store's name and a

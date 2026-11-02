@@ -25,6 +25,35 @@ export interface StorefrontData {
  */
 export class StorefrontFetchError extends Error {}
 
+const DEMO_STOREFRONT_DATA: StorefrontData = {
+  store: {
+    id: "demo",
+    name: "Demo Pharmacy",
+    location: "Demo Location",
+    address: "123 Demo Street",
+    phone: "08000000000",
+    email: "demo@example.com",
+    currency: "NGN",
+  },
+  products: [],
+};
+
+const DEMO_PAGINATED_PRODUCTS: PaginatedStorefrontProducts = {
+  data: [],
+  links: { first: null, last: null, prev: null, next: null },
+  meta: {
+    current_page: 1,
+    from: null,
+    last_page: 1,
+    path: "/storefront/demo/products",
+    per_page: 50,
+    to: null,
+    total: 0,
+  },
+  categories: [],
+  store: { id: "demo", name: "Demo Pharmacy", currency: "NGN" },
+};
+
 /**
  * Build-time fetch of one storefront. `null` means "this store is genuinely
  * not published" (gone, suspended, plan lapsed) and the caller should
@@ -33,6 +62,10 @@ export class StorefrontFetchError extends Error {}
 export async function getStorefrontData(
   store_slug: string,
 ): Promise<StorefrontData | null> {
+  if (process.env.STOREFRONT_ALLOW_EMPTY === "1" && store_slug === "demo") {
+    return DEMO_STOREFRONT_DATA;
+  }
+
   const apiUrl =
     process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
 
@@ -68,6 +101,82 @@ export async function getStorefrontData(
   } catch (error) {
     throw new StorefrontFetchError(
       `API returned unparseable JSON for /store/${store_slug}: ` +
+        (error instanceof Error ? error.message : "parse error"),
+    );
+  }
+}
+
+export interface StorefrontCategory {
+  id: string;
+  name: string;
+  count: number;
+}
+
+export interface PaginatedStorefrontProducts {
+  data: StorefrontProduct[];
+  links: {
+    first: string | null;
+    last: string | null;
+    prev: string | null;
+    next: string | null;
+  };
+  meta: {
+    current_page: number;
+    from: number | null;
+    last_page: number;
+    path: string;
+    per_page: number;
+    to: number | null;
+    total: number;
+  };
+  categories?: StorefrontCategory[];
+  store?: { id: string; name: string; currency?: string | null };
+}
+
+export async function getStorefrontProducts(
+  store_slug: string,
+  options?: { page?: number; q?: string; category?: string; per_page?: number },
+): Promise<PaginatedStorefrontProducts | null> {
+  if (process.env.STOREFRONT_ALLOW_EMPTY === "1" && store_slug === "demo") {
+    return DEMO_PAGINATED_PRODUCTS;
+  }
+
+  const apiUrl =
+    process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
+
+  const params = new URLSearchParams();
+  if (options?.page) params.set("page", String(options.page));
+  if (options?.q) params.set("q", options.q);
+  if (options?.category) params.set("category", options.category);
+  if (options?.per_page) params.set("per_page", String(options.per_page));
+
+  const queryStr = params.toString() ? `?${params.toString()}` : "";
+
+  let res: Response;
+  try {
+    res = await fetch(`${apiUrl}/storefront/${store_slug}/products${queryStr}`);
+  } catch (error) {
+    throw new StorefrontFetchError(
+      `Could not reach the API for /store/${store_slug}/products: ` +
+        (error instanceof Error ? error.message : "network error"),
+    );
+  }
+
+  if (res.status === 404 || res.status === 403) {
+    return null;
+  }
+
+  if (!res.ok) {
+    throw new StorefrontFetchError(
+      `API returned HTTP ${res.status} for /store/${store_slug}/products.`,
+    );
+  }
+
+  try {
+    return (await res.json()) as PaginatedStorefrontProducts;
+  } catch (error) {
+    throw new StorefrontFetchError(
+      `API returned unparseable JSON for /store/${store_slug}/products: ` +
         (error instanceof Error ? error.message : "parse error"),
     );
   }

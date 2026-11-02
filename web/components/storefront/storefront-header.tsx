@@ -25,7 +25,23 @@ export function StorefrontHeader({ storeSlug, store }: StorefrontHeaderProps) {
             {store?.name ?? "Store"}
           </span>
         </Link>
-        <StorefrontCart storeSlug={storeSlug} currency={store?.currency} />
+        <div className="flex items-center gap-4 sm:gap-6">
+          <nav className="flex items-center gap-3 sm:gap-5 text-sm font-medium">
+            <Link
+              href={`/store/${storeSlug}`}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Home
+            </Link>
+            <Link
+              href={`/store/${storeSlug}/catalog`}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Catalog
+            </Link>
+          </nav>
+          <StorefrontCart storeSlug={storeSlug} currency={store?.currency} />
+        </div>
       </div>
     </header>
   );

@@ -3300,7 +3300,29 @@ lives in `config/backups.php` rather than in the controller:
 ## Public storefront endpoints
 
 `Api/Public/StorefrontController` is the only unauthenticated tenant-data
-surface in the app. Three things about it are easy to undo by accident:
+surface in the app. It is kept strictly below 350 lines by delegating to
+specialized storefront services:
+- **`StorefrontCatalogService`**: encapsulates product querying (`storeProducts`),
+  excluding controlled substances, sorting in-stock first (`scopeInStockFirstAt`),
+  landing page product slicing, paginated catalog searching with category counts,
+  and slug resolution.
+- **`StorefrontPaymentService`**: encapsulates Paystack transaction initialization,
+  payment intent creation, idempotency/reference verification, and unfulfillable
+  order refunds.
+- **`StorefrontCheckoutService`**: encapsulates live stock availability calculations,
+  atomic cart pricing, and transactional order placement.
+
+Public endpoints:
+- `GET /storefront-slugs`: lists all published slugs for static site generation.
+- `GET /storefront/{store_slug}`: returns landing page storefront data (store profile,
+  featured products capped at 300, payment availability).
+- `GET /storefront/{store_slug}/products`: paginated catalog endpoint supporting
+  search (`?q=`), category filtering (`?category=`), page numbers (`?page=`), and
+  facet counts (`categories`). Throttled under `storefront-read`.
+- `POST /storefront/{store_slug}/checkout/initialize`: initiates Paystack online payment.
+- `POST /storefront/{store_slug}/checkout`: completes order placement.
+
+Three things about it are easy to undo by accident:
 
 - **Every route carries its own named limiter.** Laravel 11 dropped
   `throttle:api` from the default `api` group and `bootstrap/app.php`

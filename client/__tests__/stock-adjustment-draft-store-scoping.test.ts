@@ -23,8 +23,8 @@ describe("stock adjustment draft store scoping", () => {
 
     // 1. User starts adjustment in Store A
     useStockAdjustmentDraftStore.getState().setActiveStoreId("store-a");
-    useStockAdjustmentDraftStore.getState().setReason("expired");
-    useStockAdjustmentDraftStore.getState().setNote("Expired syrup batch");
+    useStockAdjustmentDraftStore.getState().setReason("loss");
+    useStockAdjustmentDraftStore.getState().setNote("Lost syrup batch");
     useStockAdjustmentDraftStore.getState().addItem({
       productId: "prod-1",
       name: "Cough Syrup",
@@ -34,8 +34,8 @@ describe("stock adjustment draft store scoping", () => {
     });
 
     expect(useStockAdjustmentDraftStore.getState().items).toHaveLength(1);
-    expect(useStockAdjustmentDraftStore.getState().reason).toBe("expired");
-    expect(useStockAdjustmentDraftStore.getState().note).toBe("Expired syrup batch");
+    expect(useStockAdjustmentDraftStore.getState().reason).toBe("loss");
+    expect(useStockAdjustmentDraftStore.getState().note).toBe("Lost syrup batch");
     expect(hasActiveStockAdjustmentDraft("store-a")).toBe(true);
 
     // 2. User switches to Store B
@@ -67,8 +67,8 @@ describe("stock adjustment draft store scoping", () => {
     // Store A's draft is completely restored!
     expect(useStockAdjustmentDraftStore.getState().items).toHaveLength(1);
     expect(useStockAdjustmentDraftStore.getState().items[0].name).toBe("Cough Syrup");
-    expect(useStockAdjustmentDraftStore.getState().reason).toBe("expired");
-    expect(useStockAdjustmentDraftStore.getState().note).toBe("Expired syrup batch");
+    expect(useStockAdjustmentDraftStore.getState().reason).toBe("loss");
+    expect(useStockAdjustmentDraftStore.getState().note).toBe("Lost syrup batch");
   });
 
   it("recovers unpartitioned legacy v1 adjustment drafts and adopts them for the active store", async () => {

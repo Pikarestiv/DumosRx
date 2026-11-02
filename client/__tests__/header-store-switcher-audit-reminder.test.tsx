@@ -52,9 +52,11 @@ vi.mock("@/lib/hooks/use-stock-audit-draft", () => ({
     mockHasActiveStockAuditCount(storeId),
 }));
 
-const sampleStores = [
-  { id: "store-1", name: "Main Pharmacy", store_type: "pharmacy" as const },
-  { id: "store-2", name: "Branch Pharmacy", store_type: "pharmacy" as const },
+import type { StoreProfile } from "@/lib/context/store-context";
+
+const sampleStores: StoreProfile[] = [
+  { id: "store-1", name: "Main Pharmacy", store_type: "pharmacy" } as StoreProfile,
+  { id: "store-2", name: "Branch Pharmacy", store_type: "pharmacy" } as StoreProfile,
 ];
 
 describe("HeaderStoreSwitcher with active audit", () => {

@@ -35,6 +35,16 @@ A-286 — restamp `_synced_at` at commit — is done, see `docs/FIXED_BUGS.md`):
 
 ## ✅ Recently Completed
 
+### Stock audit draft persistence & non-destructive store switching (Phase 1): DONE (2026-11-02)
+
+- **Status:** Shipped in `client/`. Solves the incident where an in-progress stock audit was wiped upon switching stores with no warning.
+- **Store-scoped drafts:** The stock audit draft store (`useStockAuditDraftStore`) now partitions drafts by store ID (`drafts[storeId]`).
+- **SQLite local persistence:** Backed by local SQLite table `stock_audit_drafts (store_id PRIMARY KEY, user_id, items_json, updated_at)`. Device-local only, no cloud push/pull, passes schema parity.
+- **Non-destructive store switching:** `store-context.tsx` passes `{ preserveStoreAudit: true }` to `clearLocalDrafts()`, ensuring an unfinished count is preserved when switching stores and restored upon return. Full teardowns (user change, logout, unlink, factory reset) still clear all drafts.
+- **Auditor reminder dialog:** When switching stores via the header dropdown while unsubmitted counts exist, a `ConfirmDialog` informs the user that their counted rows are safely saved on this device.
+- **Backward compatibility:** Automatic migration from legacy un-scoped single-draft format (v1 -> v2).
+- **Docs:** `client/AGENTS.md`, `docs/SYSTEM_FEATURES_DOCUMENTATION.md`, `docs/CLIENT_LIB_COMMENTS.md`.
+
 ### Per-device, per-table sync agreement and delivery timing: DONE (2026-10-18/19)
 
 - **Status:** Shipped in #169/#170. Every synced table is now compared between each device and the cloud by row count and version sum, with a per-device, per-table verdict (`agrees` / `syncing` / `behind` / `diverged`) and the non-verdict states that matter — `No local copy of this store`, `Stopped reporting`, and `Not measured`, because silence is not agreement. Push health is now measured as *eventual delivery per edit* (the age of the oldest unsent edit, plus a histogram of what was delivered) rather than per HTTP attempt. Mechanism, cost, the four verdicts and the digest's documented blind spots: **`docs/DEVICE_TABLE_AGREEMENT.md`** — not restated here.
@@ -366,6 +376,19 @@ architectural notes this entry doesn't repeat.
 ---
 
 ## 🟠 Medium (3–5 days)
+
+### Cloud-Backed Multi-Till Stock Audit Sessions (Phase 2)
+
+- **Context & Motivation:** Phase 1 safely localizes and persists cycle count drafts in SQLite across store switches on a single device. However, pharmacies with multiple tills or multiple staff need cross-device visibility (e.g. manager monitoring progress, resuming an unfinished audit if a physical till malfunctions or battery dies) without introducing data corruption from concurrent editing.
+- **Architecture & Operational Rules (Local-First, Cloud-Backed, Single-Editor Lease):**
+  1. **Local count persistence:** Device continues to save counts instantly to local SQLite (zero offline latency).
+  2. **Audit session registration:** Starting a count registers an `audit_sessions` record in the cloud with status `in_progress`, assigned to the initiating till/user.
+  3. **Single-editor lease / lock:** Only one till holds active write lease for a store's audit session at any given time.
+  4. **Controlled handover / recovery:** If Till 1 dies or Cynthia steps away, Till 2 can request an explicit "Take Over Audit Session", invalidating Till 1's write lease while preserving all saved progress.
+  5. **Read-only progress inspection:** Store managers or other tills can view audit progress in real time without acquiring the write lock.
+  6. **Reconciliation at submission:** When the active holder submits, the audit reconciles inventory and transitions the cloud session to `completed`.
+- **Effort:** ~3–4 days (Laravel `audit_sessions` + `audit_session_items` schema, lease lock endpoints, client lease acquisition/handover UI, and sync integration).
+- **Cost:** Low (minimal payload size, batched progress updates).
 
 ### Migration System — real client blocker, existing build doesn't cover her actual file (Flagged urgent, 2026-08-27)
 

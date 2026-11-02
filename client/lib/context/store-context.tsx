@@ -8,6 +8,7 @@ import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query-client";
 import { clearLocalDrafts } from "@/lib/utils/clear-local-drafts";
+import { useStockAuditDraftStore } from "@/lib/hooks/use-stock-audit-draft";
 import { setActiveCurrency } from "@/lib/active-currency";
 import { getStoreById, getFirstStore, getAllStores } from "@/lib/db/queries/setup";
 import { useAuth } from "@/lib/context/auth-context";
@@ -53,6 +54,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   React.useEffect(() => {
     if (!isAuthHydrated) return;
     setResolvedStoreId(targetId);
+    useStockAuditDraftStore.getState().setActiveStoreId(targetId);
   }, [targetId, isAuthHydrated]);
 
   const { data: storeProfile, isLoading: isStoreProfileLoading, refetch } = useQuery({
@@ -143,7 +145,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         queryClient.clear();
         // A POS cart staged against the outgoing store's product ids must not survive into the newly-active store — it isn't scoped by store, and chec…
         // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L357
-        clearLocalDrafts();
+        clearLocalDrafts({ preserveStoreAudit: true });
       } finally {
         setIsSwitchingStore(false);
       }

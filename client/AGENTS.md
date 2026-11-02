@@ -2105,28 +2105,33 @@ on screen from having walked to the shelf.
   counted"; the review step's submit button is now disabled while
   `countedItems.length === 0`.
 
-### Device-local drafts: clear all of them, from one function (2026-10-13)
+### Device-local drafts: clear all of them, from one function (2026-10-13, updated 2026-11-02)
 
-Three drafts are persisted per device under their own single global
-localStorage keys, with no store or user in them: the POS cart
-(`pos-cart-storage`), the cycle count (`stock-audit-draft`) and the stock
-adjustment (`stock-adjustment-draft`). Every path that tears down one
-store/account's context must drop all three, and `clearLocalDrafts()`
-(`lib/utils/clear-local-drafts.ts`) is the only way it should be done — the
-list grew to three while two of the five transition paths were still
-clearing only the cart.
+Three drafts are persisted per device: POS cart (`pos-cart-storage`), cycle
+count (`stock-audit-draft`), and stock adjustment (`stock-adjustment-draft`).
+Previously, all three were un-scoped and wiped on every store switch.
 
-The five paths: store switch (`store-context.tsx`), a different user logging
-in (`auth-context.tsx`, gated on `previousUserId !== dbUser.id` so a same-user
-unlock keeps the work), logout (`auth-context.tsx`), linking a new cloud store
-(`app/setup/use-onboarding.ts`) and the factory reset
-(`hooks/use-settings-sync.ts`). The last two were missed until 2026-10-13: a
-count started against the outgoing store's product ids survived into the new
-store and could be submitted against foreign ids. Both import the helper
-**dynamically** — `use-settings-sync.ts` is loaded by every settings screen and
-a static import pulls the whole POS-cart module graph into it, which breaks
-`__tests__/factory-reset-disconnects-cloud.test.ts`'s partial `core` mock.
-Pinned by `__tests__/clear-local-drafts.test.ts`.
+As of 2026-11-02 (Cynthia's incident):
+1. **Stock audit drafts are store-scoped**: State in `useStockAuditDraftStore`
+   is keyed by store id (`drafts[storeId]`), and backed by local SQLite table
+   `stock_audit_drafts (store_id TEXT PRIMARY KEY, user_id TEXT, items_json TEXT NOT NULL, updated_at TEXT)`.
+   This table is device-local (no server migration, not synced).
+2. **Store switching preserves stock audit drafts**: `store-context.tsx` calls
+   `clearLocalDrafts({ preserveStoreAudit: true })`, which clears the POS cart
+   and stock adjustment draft while leaving the store's audit draft intact.
+   Switching back to the store restores the draft seamlessly.
+3. **Audit in-progress reminder**: `HeaderStoreSwitcher` checks
+   `hasActiveStockAuditCount(activeStoreId)` before switching; if active counts
+   exist, it displays an informative `ConfirmDialog` reassuring the user that
+   counts are safely saved locally on this device before proceeding.
+4. **Full context teardowns still clear everything**: `clearLocalDrafts()` without
+   options drops all drafts across the board. The four full teardown paths: a
+   different user logging in (`auth-context.tsx`, gated on `previousUserId !== dbUser.id`),
+   logout (`auth-context.tsx`), linking a new cloud store (`app/setup/use-onboarding.ts`),
+   and factory reset (`hooks/use-settings-sync.ts`).
+5. **Successful audit submission**: Once an audit is submitted or discarded in
+   the UI, `clearStockAuditDraft(storeId)` cleans up that specific store's draft
+   from SQLite and memory.
 
 A draft itself is **not** the problem it looks like: `submitStockAudit`
 re-reads the live quantity inside its transaction

@@ -542,6 +542,12 @@ CREATE TABLE IF NOT EXISTS stock_audits (
   _synced_at TEXT,
   _deleted INTEGER DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS stock_audit_drafts (
+  store_id TEXT PRIMARY KEY,
+  user_id TEXT,
+  items_json TEXT NOT NULL,
+  updated_at TEXT
+);
 CREATE TABLE IF NOT EXISTS held_transactions (
   id TEXT PRIMARY KEY,
   customer_id TEXT,

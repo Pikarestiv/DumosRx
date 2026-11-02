@@ -16,6 +16,8 @@ import {
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { FleetFormDialog } from "@/components/settings/store/fleet-form-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { hasActiveStockAuditCount } from "@/lib/hooks/use-stock-audit-draft";
 import type { StoreProfile } from "@/lib/context/store-context";
 
 interface HeaderStoreSwitcherProps {
@@ -40,6 +42,8 @@ export function HeaderStoreSwitcher({
   const queryClient = useQueryClient();
   const { canManageMultiStore, getUpgradeMessage } = useFeatureGate();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [pendingStoreId, setPendingStoreId] = useState<string | null>(null);
+  const [showAuditReminder, setShowAuditReminder] = useState(false);
 
   // availableStores is empty for plenty of legitimate single-store admins (see store-context.tsx's `allStores` query - it on…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-header-store-switcher-tsx-L50
@@ -100,6 +104,27 @@ export function HeaderStoreSwitcher({
     }
   };
 
+  const handleStoreClick = (targetStoreId: string) => {
+    if (targetStoreId === (activeStoreId ?? storeProfile?.id)) return;
+
+    const currentStoreId = activeStoreId ?? storeProfile?.id;
+    if (hasActiveStockAuditCount(currentStoreId)) {
+      setPendingStoreId(targetStoreId);
+      setShowAuditReminder(true);
+      return;
+    }
+
+    onSwitchStore(targetStoreId);
+  };
+
+  const handleConfirmSwitch = () => {
+    if (pendingStoreId) {
+      onSwitchStore(pendingStoreId);
+      setPendingStoreId(null);
+    }
+    setShowAuditReminder(false);
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -121,7 +146,7 @@ export function HeaderStoreSwitcher({
           {storesToList.map((store) => (
             <DropdownMenuItem
               key={store.id}
-              onClick={() => onSwitchStore(store.id)}
+              onClick={() => handleStoreClick(store.id)}
               className="flex items-center justify-between gap-2"
             >
               <span className="truncate">{store.name}</span>
@@ -141,6 +166,17 @@ export function HeaderStoreSwitcher({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <ConfirmDialog
+        open={showAuditReminder}
+        onOpenChange={setShowAuditReminder}
+        title="Stock Audit in Progress"
+        description={`You have an active stock count in progress for ${storeProfile?.name || "this store"}. Your counted rows stay saved locally on this device and will be waiting when you return.`}
+        confirmLabel="Switch Store"
+        cancelLabel="Stay Here"
+        variant="default"
+        onConfirm={handleConfirmSwitch}
+      />
 
       <FleetFormDialog
         isOpen={isCreateOpen}

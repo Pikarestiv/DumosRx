@@ -35,14 +35,14 @@ A-286 — restamp `_synced_at` at commit — is done, see `docs/FIXED_BUGS.md`):
 
 ## ✅ Recently Completed
 
-### Stock audit draft persistence & non-destructive store switching (Phase 1): DONE (2026-11-02)
+### Stock audit & adjustment draft persistence & non-destructive store switching: DONE (2026-11-02)
 
-- **Status:** Shipped in `client/`. Solves the incident where an in-progress stock audit was wiped upon switching stores with no warning.
-- **Store-scoped drafts:** The stock audit draft store (`useStockAuditDraftStore`) now partitions drafts by store ID (`drafts[storeId]`).
-- **SQLite local persistence:** Backed by local SQLite table `stock_audit_drafts (store_id PRIMARY KEY, user_id, items_json, updated_at)`. Device-local only, no cloud push/pull, passes schema parity.
-- **Non-destructive store switching:** `store-context.tsx` passes `{ preserveStoreAudit: true }` to `clearLocalDrafts()`, ensuring an unfinished count is preserved when switching stores and restored upon return. Full teardowns (user change, logout, unlink, factory reset) still clear all drafts.
-- **Auditor reminder dialog:** When switching stores via the header dropdown while unsubmitted counts exist, a `ConfirmDialog` informs the user that their counted rows are safely saved on this device.
-- **Backward compatibility:** Automatic migration from legacy un-scoped single-draft format (v1 -> v2).
+- **Status:** Shipped in `client/`. Solves the incident where in-progress cycle counts and stock adjustments were wiped upon switching stores with no warning.
+- **Store-scoped drafts:** The stock audit and adjustment draft stores (`useStockAuditDraftStore`, `useStockAdjustmentDraftStore`) now partition drafts by store ID (`drafts[storeId]`).
+- **SQLite local persistence:** Backed by local SQLite tables `stock_audit_drafts` and `stock_adjustment_drafts` (`(store_id PRIMARY KEY, user_id, draft_json/items_json, updated_at)`). Device-local only, no cloud push/pull, passes schema parity.
+- **Non-destructive store switching:** `store-context.tsx` passes `{ preserveStoreAudit: true, preserveStoreAdjustment: true }` to `clearLocalDrafts()`, ensuring an unfinished count or adjustment is preserved when switching stores and restored upon return. Full teardowns (user change, logout, unlink, factory reset) still clear all drafts unconditionally.
+- **Work in-progress reminder dialog:** When switching stores via the header dropdown while unsubmitted counts or adjustments exist, a `ConfirmDialog` informs the user that their in-progress work is safely saved on this device.
+- **Backward compatibility:** Automatic migration from legacy un-scoped single-draft format (v1 -> v2) with active store adoption.
 - **Docs:** `client/AGENTS.md`, `docs/SYSTEM_FEATURES_DOCUMENTATION.md`, `docs/CLIENT_LIB_COMMENTS.md`.
 
 ### Per-device, per-table sync agreement and delivery timing: DONE (2026-10-18/19)

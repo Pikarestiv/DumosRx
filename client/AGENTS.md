@@ -2111,27 +2111,28 @@ Three drafts are persisted per device: POS cart (`pos-cart-storage`), cycle
 count (`stock-audit-draft`), and stock adjustment (`stock-adjustment-draft`).
 Previously, all three were un-scoped and wiped on every store switch.
 
-As of 2026-11-02 (Cynthia's incident):
-1. **Stock audit drafts are store-scoped**: State in `useStockAuditDraftStore`
-   is keyed by store id (`drafts[storeId]`), and backed by local SQLite table
-   `stock_audit_drafts (store_id TEXT PRIMARY KEY, user_id TEXT, items_json TEXT NOT NULL, updated_at TEXT)`.
-   This table is device-local (no server migration, not synced).
-2. **Store switching preserves stock audit drafts**: `store-context.tsx` calls
-   `clearLocalDrafts({ preserveStoreAudit: true })`, which clears the POS cart
-   and stock adjustment draft while leaving the store's audit draft intact.
+As of 2026-11-02 (Cynthia's incident & draft store-scoping):
+1. **Stock audit & adjustment drafts are store-scoped**: State in `useStockAuditDraftStore`
+   and `useStockAdjustmentDraftStore` is keyed by store id (`drafts[storeId]`), and backed
+   by local SQLite tables `stock_audit_drafts` and `stock_adjustment_drafts`
+   (`(store_id TEXT PRIMARY KEY, user_id TEXT, draft_json/items_json TEXT NOT NULL, updated_at TEXT)`).
+   These tables are device-local (no server migration, not synced).
+2. **Store switching preserves audit and adjustment drafts**: `store-context.tsx` calls
+   `clearLocalDrafts({ preserveStoreAudit: true, preserveStoreAdjustment: true })`, which clears
+   the POS cart while leaving the store's audit and adjustment drafts intact.
    Switching back to the store restores the draft seamlessly.
-3. **Audit in-progress reminder**: `HeaderStoreSwitcher` checks
-   `hasActiveStockAuditCount(activeStoreId)` before switching; if active counts
-   exist, it displays an informative `ConfirmDialog` reassuring the user that
-   counts are safely saved locally on this device before proceeding.
+3. **Work in-progress reminder**: `HeaderStoreSwitcher` checks
+   `hasActiveStockAuditCount(activeStoreId)` and `hasActiveStockAdjustmentDraft(activeStoreId)`
+   before switching; if active work exists, it displays an informative `ConfirmDialog` reassuring
+   the user that counts and items are safely saved locally on this device before proceeding.
 4. **Full context teardowns still clear everything**: `clearLocalDrafts()` without
    options drops all drafts across the board. The four full teardown paths: a
    different user logging in (`auth-context.tsx`, gated on `previousUserId !== dbUser.id`),
    logout (`auth-context.tsx`), linking a new cloud store (`app/setup/use-onboarding.ts`),
    and factory reset (`hooks/use-settings-sync.ts`).
-5. **Successful audit submission**: Once an audit is submitted or discarded in
-   the UI, `clearStockAuditDraft(storeId)` cleans up that specific store's draft
-   from SQLite and memory.
+5. **Successful submission**: Once an audit or adjustment is submitted or discarded in
+   the UI, `clearStockAuditDraft(storeId)` or `clearStockAdjustmentDraft(storeId)` cleans up
+   that specific store's draft from SQLite and memory.
 
 A draft itself is **not** the problem it looks like: `submitStockAudit`
 re-reads the live quantity inside its transaction

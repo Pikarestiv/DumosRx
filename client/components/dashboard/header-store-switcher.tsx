@@ -18,6 +18,7 @@ import { FleetFormDialog } from "@/components/settings/store/fleet-form-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { hasActiveStockAuditCount } from "@/lib/hooks/use-stock-audit-draft";
+import { hasActiveStockAdjustmentDraft } from "@/lib/hooks/use-stock-adjustment-draft";
 import type { StoreProfile } from "@/lib/context/store-context";
 
 interface HeaderStoreSwitcherProps {
@@ -104,11 +105,28 @@ export function HeaderStoreSwitcher({
     }
   };
 
-  const handleStoreClick = (targetStoreId: string) => {
-    if (targetStoreId === (activeStoreId ?? storeProfile?.id)) return;
+  const currentStoreId = activeStoreId ?? storeProfile?.id;
+  const hasActiveAudit = hasActiveStockAuditCount(currentStoreId);
+  const hasActiveAdjustment = hasActiveStockAdjustmentDraft(currentStoreId);
 
-    const currentStoreId = activeStoreId ?? storeProfile?.id;
-    if (hasActiveStockAuditCount(currentStoreId)) {
+  const reminderTitle =
+    hasActiveAudit && hasActiveAdjustment
+      ? "Work in Progress"
+      : hasActiveAdjustment
+        ? "Stock Adjustment in Progress"
+        : "Stock Audit in Progress";
+
+  const reminderDescription =
+    hasActiveAudit && hasActiveAdjustment
+      ? `You have an unfinished stock audit and adjustment in progress for ${storeProfile?.name || "this store"}. Your in-progress work stays saved locally on this device and will be waiting when you return.`
+      : hasActiveAdjustment
+        ? `You have an unfinished stock adjustment in progress for ${storeProfile?.name || "this store"}. Your in-progress items stay saved locally on this device and will be waiting when you return.`
+        : `You have an active stock count in progress for ${storeProfile?.name || "this store"}. Your counted rows stay saved locally on this device and will be waiting when you return.`;
+
+  const handleStoreClick = (targetStoreId: string) => {
+    if (targetStoreId === currentStoreId) return;
+
+    if (hasActiveAudit || hasActiveAdjustment) {
       setPendingStoreId(targetStoreId);
       setShowAuditReminder(true);
       return;
@@ -170,8 +188,8 @@ export function HeaderStoreSwitcher({
       <ConfirmDialog
         open={showAuditReminder}
         onOpenChange={setShowAuditReminder}
-        title="Stock Audit in Progress"
-        description={`You have an active stock count in progress for ${storeProfile?.name || "this store"}. Your counted rows stay saved locally on this device and will be waiting when you return.`}
+        title={reminderTitle}
+        description={reminderDescription}
         confirmLabel="Switch Store"
         cancelLabel="Stay Here"
         variant="default"

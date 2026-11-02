@@ -49,4 +49,33 @@ describe("clearLocalDrafts", () => {
     expect(useStockAdjustmentDraftStore.getState().items).toEqual([]);
     expect(useStockAdjustmentDraftStore.getState().note).toBe("");
   });
+
+  it("preserves audit and adjustment drafts when preserve options are specified", async () => {
+    const { useStockAuditDraftStore } = await import(
+      "@/lib/hooks/use-stock-audit-draft"
+    );
+    const { useStockAdjustmentDraftStore } = await import(
+      "@/lib/hooks/use-stock-adjustment-draft"
+    );
+    const { clearLocalDrafts } = await import("@/lib/utils/clear-local-drafts");
+
+    useStockAuditDraftStore.getState().setItems([
+      {
+        id: "p1",
+        name: "Panadol",
+        sku: "SKU-1",
+        category: "Analgesics",
+        systemQty: 10,
+        countedQty: 8,
+        counted: true,
+      },
+    ]);
+    useStockAdjustmentDraftStore.getState().setNote("counted short");
+
+    clearLocalDrafts({ preserveStoreAudit: true, preserveStoreAdjustment: true });
+
+    expect(clearPOSCartStorageMock).toHaveBeenCalledTimes(1);
+    expect(useStockAuditDraftStore.getState().items).toHaveLength(1);
+    expect(useStockAdjustmentDraftStore.getState().note).toBe("counted short");
+  });
 });

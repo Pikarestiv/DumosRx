@@ -548,6 +548,12 @@ CREATE TABLE IF NOT EXISTS stock_audit_drafts (
   items_json TEXT NOT NULL,
   updated_at TEXT
 );
+CREATE TABLE IF NOT EXISTS stock_adjustment_drafts (
+  store_id TEXT PRIMARY KEY,
+  user_id TEXT,
+  draft_json TEXT NOT NULL,
+  updated_at TEXT
+);
 CREATE TABLE IF NOT EXISTS held_transactions (
   id TEXT PRIMARY KEY,
   customer_id TEXT,

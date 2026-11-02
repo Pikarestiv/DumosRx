@@ -4,10 +4,15 @@ import { clearStockAdjustmentDraft } from "@/lib/hooks/use-stock-adjustment-draf
 
 // Every device-local, in-progress draft staged against the store/account being left behind.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#utils-clear-local-drafts-ts-L5
-export function clearLocalDrafts(opts?: { preserveStoreAudit?: boolean }): void {
+export function clearLocalDrafts(opts?: {
+  preserveStoreAudit?: boolean;
+  preserveStoreAdjustment?: boolean;
+}): void {
   clearPOSCartStorage();
   if (!opts?.preserveStoreAudit) {
     clearStockAuditDraft();
   }
-  clearStockAdjustmentDraft();
+  if (!opts?.preserveStoreAdjustment) {
+    clearStockAdjustmentDraft();
+  }
 }

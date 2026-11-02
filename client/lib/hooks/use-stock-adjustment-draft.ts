@@ -62,6 +62,20 @@ function flushSave(storeId: string, draft: StockAdjustmentDraftData) {
   saveLocalStockAdjustmentDraft(storeId, draft).catch(() => {});
 }
 
+function cancelSave(storeId: string) {
+  if (!storeId) return;
+  const existing = saveTimers.get(storeId);
+  if (existing) {
+    clearTimeout(existing);
+    saveTimers.delete(storeId);
+  }
+}
+
+function cancelAllSaves() {
+  saveTimers.forEach((timer) => clearTimeout(timer));
+  saveTimers.clear();
+}
+
 export function migrateStockAdjustmentDraft(
   persisted: unknown,
   version: number,
@@ -266,10 +280,11 @@ export const useStockAdjustmentDraftStore = create<StockAdjustmentDraftState>()(
         }),
 
       clearDraft: (targetStoreId) => {
+        const storeKey =
+          targetStoreId || get().activeStoreId || getActiveStoreId() || "default";
+        cancelSave(storeKey);
+        deleteLocalStockAdjustmentDraft(storeKey).catch(() => {});
         set((state) => {
-          const storeKey =
-            targetStoreId || state.activeStoreId || getActiveStoreId() || "default";
-          deleteLocalStockAdjustmentDraft(storeKey).catch(() => {});
           const nextDrafts = { ...state.drafts };
           delete nextDrafts[storeKey];
           const isTargetActive =
@@ -284,6 +299,7 @@ export const useStockAdjustmentDraftStore = create<StockAdjustmentDraftState>()(
       },
 
       clearAllDrafts: () => {
+        cancelAllSaves();
         clearAllLocalStockAdjustmentDrafts().catch(() => {});
         set({ drafts: {}, ...EMPTY_DRAFT });
       },

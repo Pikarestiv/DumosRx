@@ -46,6 +46,20 @@ function flushSave(storeId: string, items: AuditItem[]) {
   saveLocalStockAuditDraft(storeId, items).catch(() => {});
 }
 
+function cancelSave(storeId: string) {
+  if (!storeId) return;
+  const existing = saveTimers.get(storeId);
+  if (existing) {
+    clearTimeout(existing);
+    saveTimers.delete(storeId);
+  }
+}
+
+function cancelAllSaves() {
+  saveTimers.forEach((timer) => clearTimeout(timer));
+  saveTimers.clear();
+}
+
 export function migrateStockAuditDraft(
   persisted: unknown,
   version: number,
@@ -160,10 +174,11 @@ export const useStockAuditDraftStore = create<StockAuditDraftState>()(
       },
 
       clearDraft: (targetStoreId) => {
+        const storeKey =
+          targetStoreId || get().activeStoreId || getActiveStoreId() || "default";
+        cancelSave(storeKey);
+        deleteLocalStockAuditDraft(storeKey).catch(() => {});
         set((state) => {
-          const storeKey =
-            targetStoreId || state.activeStoreId || getActiveStoreId() || "default";
-          deleteLocalStockAuditDraft(storeKey).catch(() => {});
           const nextDrafts = { ...state.drafts };
           delete nextDrafts[storeKey];
           return {
@@ -177,6 +192,7 @@ export const useStockAuditDraftStore = create<StockAuditDraftState>()(
       },
 
       clearAllDrafts: () => {
+        cancelAllSaves();
         clearAllLocalStockAuditDrafts().catch(() => {});
         set({ drafts: {}, items: [] });
       },

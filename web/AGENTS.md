@@ -187,22 +187,32 @@ the storefront product/cart views next get touched.
 
 The product cards and the cart drawer (`components/storefront/product-card.tsx`, `storefront-cart.tsx`) take `currency` from `store.currency` on the storefront page and format through the same `formatMoney`; they used to print a hardcoded naira sign.
 
-## Storefront chrome and display conventions (storefront Phase 1 & 2, 2026-11-02)
+## Storefront chrome and display conventions (storefront Phases 1–5, 2026-11-02)
 
 - **Multi-page company storefront layout:**
   - Landing page (`app/store/[store_slug]/page.tsx`): Header, StoreContactBlock,
-    "Featured Products" preview section with a "View Full Catalog →" link, Footer.
+    "Featured Products" preview section with a "Browse Catalog →" link, Footer.
   - Dedicated Catalog page (`app/store/[store_slug]/catalog/page.tsx`): Breadcrumbs,
     interactive search filter (`q`), category pill selectors (`category`), product grid,
     and responsive pagination powered by `StorefrontCatalogView`.
+  - Company pages:
+    - `/store/[store_slug]/about`: Brand story, care standards, licensed pharmacists commitment.
+    - `/store/[store_slug]/locations`: Multi-branch directory, addresses, phone links, and "Shop this branch" deep links.
+    - `/store/[store_slug]/faq`: Plain-language policies on pharmacy delivery, payments, returns, and prescription verification.
+  - Interactive services:
+    - `/store/[store_slug]/track`: Live order status lookup by reference or Paystack transaction code (`StoreOrderTracker`).
+    - `/store/[store_slug]/prescription`: Scanned prescription and PDF upload form with dosage notes (`StorePrescriptionForm`).
   - Checkout page (`app/store/[store_slug]/checkout/page.tsx`): Order confirmation and
     Paystack online payment.
-- **Storefront Header Navigation:** `components/storefront/storefront-header.tsx`
-  renders navigation links ("Home" and "Catalog") between the store brand and cart drawer.
+- **Storefront Header Navigation & Branch Selector:** `components/storefront/storefront-header.tsx`
+  renders navigation links ("Home", "Catalog", "Upload Rx", "Track Order") and the branch selector
+  pill (`StoreBranchSelector`, wrapped in `<Suspense fallback={null}>`). When multiple branches
+  exist under the owner, users can switch branches seamlessly (`?branch=<id>`), with a confirmation
+  modal clearing the cart if items were staged.
 - **Offline / Sandbox Builds:** When `STOREFRONT_ALLOW_EMPTY=1` is set in offline or
   sandbox environments without a live backend, `lib/api/storefront-data.ts` supplies
   `DEMO_STOREFRONT_DATA` and `DEMO_PAGINATED_PRODUCTS` placeholders so static export
-  prerendering (`/store/demo`, `/store/demo/catalog`, `/store/demo/checkout`) succeeds
+  prerendering (`/store/demo`, `/about`, `/locations`, `/faq`, `/catalog`, `/track`, `/prescription`, `/checkout`) succeeds
   without crashing or requiring a mock server.
 - **A storefront never renders the DumosRx marketing footer.** All
   `[store_slug]` routes use `components/storefront/storefront-header.tsx`

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
 import { Search, Loader2, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,9 @@ export function StorefrontCatalogView({
   currency,
   initialData,
 }: StorefrontCatalogViewProps) {
+  const searchParams = useSearchParams();
+  const branch = searchParams?.get("branch") || undefined;
+
   const [data, setData] = useState<PaginatedStorefrontProducts | null>(initialData);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -41,6 +45,7 @@ export function StorefrontCatalogView({
           page: newPage,
           q: newSearch.trim() || undefined,
           category: newCategory || undefined,
+          branch,
         });
         if (res) {
           setData(res);
@@ -51,6 +56,12 @@ export function StorefrontCatalogView({
       }
     });
   };
+
+  useEffect(() => {
+    if (branch) {
+      fetchCatalog(1, search, selectedCategory);
+    }
+  }, [branch]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();

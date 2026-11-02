@@ -497,21 +497,14 @@ The Gemini/LLM approach below remains a **possible future phase**, not a superse
 
 ---
 
-## 🌐 Multi-Page Owner Storefront (Enterprise) — Phases 1 & 2 done 2026-11-02
+## 🌐 Multi-Page Owner Storefront (Enterprise) — Completed 2026-11-02
 
-Goal: one storefront URL per store **owner** (not per branch), a themed multi-page company-style site, sold as an Enterprise feature.
-- **Phase 1 (shipped 2026-11-02):** products shown by default, `products:backfill-show-online`, storefront header/footer/contact block, PG-21 controlled product exclusion, in-stock ranking.
-- **Phase 2 (shipped 2026-11-02):** paginated catalog endpoint `GET /storefront/{slug}/products` with search & category filters, dedicated `/store/[slug]/catalog` page (`StorefrontCatalogView`), header navigation links, and modular decomposition of `StorefrontController` into `StorefrontCatalogService`, `StorefrontPaymentService`, and `StorefrontCheckoutService` (< 350 lines each).
-
-Decisions (2026-11-02): Enterprise-only; carts are per branch (the customer picks a branch, shown as `?branch=<id>`, switching clears the cart, one order = one branch = that branch's Paystack subaccount and staff); no merged cross-branch catalog.
-
-Remaining phases:
-
-3. **Owner-level storefront:** server-only `storefronts` table (owner slug, theme, content JSON, primary branch; not synced to the client), shared slug namespace with `stores.store_slug`, old branch slugs kept as alias redirect pages that forward `?reference=`, `branch_id` on checkout with fallback to the legacy store slug, owner "Online Store" settings page.
-4. **Themes, content pages, gating:** about, locations, FAQ/policies pages; about four token-based theme presets; owner-editable content; `storefront_site` feature key (Enterprise only, needs a data migration into the stored `subscription_plans` config). Open: grandfather or switch off existing Pro storefronts, and downgrade behaviour for multi-branch owners.
-5. **Prescription upload and order tracking.**
-
-Open product decisions: whether controlled products may ever be listed (PG-21 in `KNOWN_BUGS.md`), prescription-only products shown with a "pickup with prescription" badge, out-of-stock items shown but not purchasable.
+Shipped and documented in `SYSTEM_FEATURES_DOCUMENTATION.md`, `client/AGENTS.md`, `laravel-server/AGENTS.md`, and `web/AGENTS.md`:
+- Phase 1: Products show online by default, `products:backfill-show-online` command, house card aesthetics, PG-21 controlled product exclusion.
+- Phase 2: Paginated catalog API (`GET /storefront/{slug}/products`), dedicated catalog page (`/catalog`), controller decomposed into catalog/payment/checkout services.
+- Phase 3: Owner-level storefront (`storefronts` table), multi-branch picker with cart clearing dialog, branch stock and subaccount isolation, legacy store slug alias compatibility.
+- Phase 4: Full company pages (`/about`, `/locations`, `/faq`), responsive directory with branch deep links.
+- Phase 5: Digital prescription upload (`/prescription` + `storefront_prescriptions` table) and public order tracking (`/track`).
 
 ---
 

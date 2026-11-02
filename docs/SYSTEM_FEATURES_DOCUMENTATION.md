@@ -130,9 +130,18 @@ Your Cloud Dashboard is your management hub. Log in from any web browser to get 
 
 **Products Show Online By Default:** New products are listed on your online store automatically, whether you add them one by one or import them. Untick "Show Online" on any product, or use the bulk toggle, to hide it. Products you already had are listed too once DumosRx runs the one-time update on your account (prescription-controlled items are left unlisted).
 
-**Your Own Store Page:** Your storefront has its own header, contact details (address, phone, email) and footer, with just a small "Powered by DumosRx" link, and product names read cleanly in title case.
+**Multi-Branch Webstore (One Storefront Per Owner):** Pharmacy owners with multiple branches get a single cohesive webstore under their brand name. Customers can switch between branches using the branch selector (`?branch=...`), which automatically loads that branch's real-time inventory and routes payments directly to that branch's Paystack subaccount. Carts are isolated per branch with an explicit confirmation dialog before switching.
 
 **Dedicated Product Catalog Page:** Customers can browse your complete product catalog at `/store/[slug]/catalog` with instant keyword search, category filter badges, and responsive pagination. Available in-stock products automatically rank first before out-of-stock items.
+
+**Company Profile, Locations & FAQ Pages:** Showcase your brand with dedicated company pages:
+- `/store/[slug]/about`: Pharmacy mission, qualified clinical care commitments, and patient support values.
+- `/store/[slug]/locations`: Interactive branch directory with street addresses, telephone click-to-call, and "Shop this branch" deep links.
+- `/store/[slug]/faq`: Plain-language pharmacy policies, order fulfillment steps, prescription verification, and return procedures.
+
+**Order Tracking:** Customers can check the live fulfillment status of their orders at `/store/[slug]/track` using their order reference code or Paystack payment reference. For customer privacy, names are masked (e.g. `J*** D***`).
+
+**Digital Prescription Upload:** Patients can securely upload doctor prescriptions (scanned photos or PDFs up to 5MB) along with contact details and medication notes at `/store/[slug]/prescription`. The receiving branch pharmacists are immediately notified to verify the prescription and prepare fulfillment.
 
 ### 💳 Billing & Subscriptions
 

@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api\Public;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StorefrontCheckoutRequest;
 use App\Http\Resources\StorefrontProductResource;
 use App\Models\Store;
 use App\Services\Payment\PaymentService;
 use App\Services\Storefront\StorefrontCatalogService;
 use App\Services\Storefront\StorefrontCheckoutService;
+use App\Services\Storefront\StorefrontInteractionService;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
 
@@ -18,11 +20,12 @@ class StorefrontController extends Controller
     public function __construct(
         private readonly StorefrontCatalogService $catalogService,
         private readonly StorefrontCheckoutService $checkoutService,
+        private readonly StorefrontInteractionService $interactionService,
     ) {}
 
     #[OA\Get(
         path: '/storefront-slugs',
-        summary: 'List published storefront slugs for static site generation',
+        summary: 'List published storefront slugs for static export prerendering',
         tags: ['Storefront'],
         responses: [
             new OA\Response(response: 200, description: 'Slug list', content: new OA\JsonContent(properties: [
@@ -44,6 +47,9 @@ class StorefrontController extends Controller
         parameters: [new OA\Parameter(name: 'store_slug', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [
             new OA\Response(response: 200, description: 'Storefront details', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'storefront', type: 'object'),
+                new OA\Property(property: 'branches', type: 'array', items: new OA\Items(type: 'object')),
+                new OA\Property(property: 'selected_branch', type: 'object'),
                 new OA\Property(property: 'store', type: 'object'),
                 new OA\Property(property: 'products', type: 'array', items: new OA\Items(ref: '#/components/schemas/StorefrontProduct')),
                 new OA\Property(property: 'online_payment_available', type: 'boolean'),
@@ -52,34 +58,70 @@ class StorefrontController extends Controller
             new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
         ],
     )]
-    public function show($store_slug)
+    public function show($store_slug, Request $request)
     {
-        $store = Store::where('store_slug', $store_slug)->firstOrFail();
-
-        if ($store->isSuspended()) {
-            return response()->json(['error' => 'Store unavailable'], 403);
-        }
-
-        if (! $this->catalogService->storefrontEnabled($store)) {
+        $storefront = $this->catalogService->resolveStorefront($store_slug);
+        if (! $storefront) {
             return response()->json(['error' => 'Store unavailable'], 404);
         }
 
-        $products = $this->catalogService->getLandingProducts($store);
+        $branches = $this->catalogService->getStorefrontBranches($storefront);
+        $branch = $this->catalogService->resolveBranch(
+            $storefront,
+            $request->input('branch') ?? $request->input('branch_id'),
+            $store_slug,
+        );
+
+        if (! $branch) {
+            return response()->json(['error' => 'Store unavailable'], 404);
+        }
+
+        if ($branch->isSuspended()) {
+            return response()->json(['error' => 'Store unavailable'], 403);
+        }
+
+        if (! $this->catalogService->storefrontEnabled($branch)) {
+            return response()->json(['error' => 'Store unavailable'], 404);
+        }
+
+        $products = $this->catalogService->getLandingProducts($branch);
+        $currency = $this->catalogService->storeCurrency($branch);
+
+        $branchData = [
+            'id' => $branch->id,
+            'name' => $branch->name,
+            'store_slug' => $branch->store_slug,
+            'location' => $branch->location,
+            'address' => $branch->address,
+            'phone' => $branch->phone,
+            'email' => $branch->email,
+            'currency' => $currency,
+            'online_payment_available' => (bool) $branch->paystack_subaccount_code,
+        ];
 
         return response()->json([
-            'store' => [
-                'id' => $store->id,
-                'name' => $store->name,
-                'store_slug' => $store->store_slug,
-                'location' => $store->location,
-                'address' => $store->address,
-                'phone' => $store->phone,
-                'email' => $store->email,
-                'logo_url' => $store->logo_url,
-                'currency' => $this->catalogService->storeCurrency($store),
+            'storefront' => [
+                'id' => $storefront->id,
+                'slug' => $storefront->slug,
+                'name' => $storefront->name,
+                'headline' => $storefront->headline,
+                'about' => $storefront->about,
+                'theme' => $storefront->theme ?? 'emerald',
+                'logo_url' => $storefront->logo_url ?? $branch->logo_url,
+                'banner_url' => $storefront->banner_url,
             ],
+            'branches' => $branches->map(fn (Store $b) => [
+                'id' => $b->id,
+                'name' => $b->name,
+                'location' => $b->location,
+                'address' => $b->address,
+                'phone' => $b->phone,
+                'is_primary' => $b->id === $storefront->primary_store_id,
+            ])->values()->all(),
+            'selected_branch' => $branchData,
+            'store' => $branchData,
             'products' => StorefrontProductResource::collection($products),
-            'online_payment_available' => (bool) $store->paystack_subaccount_code,
+            'online_payment_available' => (bool) $branch->paystack_subaccount_code,
         ]);
     }
 
@@ -91,106 +133,186 @@ class StorefrontController extends Controller
             new OA\Parameter(name: 'store_slug', in: 'path', required: true, schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'q', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'category', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'branch', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer')),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'Paginated products'),
-            new OA\Response(response: 403, description: 'Store is suspended'),
+            new OA\Response(response: 200, description: 'Paginated product list with category facets'),
             new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
         ],
     )]
-    public function products(Request $request, $store_slug)
+    public function products($store_slug, Request $request)
     {
-        $store = Store::where('store_slug', $store_slug)->firstOrFail();
-
-        if ($store->isSuspended()) {
-            return response()->json(['error' => 'Store unavailable'], 403);
-        }
-
-        if (! $this->catalogService->storefrontEnabled($store)) {
+        $storefront = $this->catalogService->resolveStorefront($store_slug);
+        if (! $storefront) {
             return response()->json(['error' => 'Store unavailable'], 404);
         }
 
-        $search = $request->query('q');
-        $categoryId = $request->query('category');
-        $perPage = (int) $request->query('per_page', StorefrontCatalogService::PER_PAGE);
+        $branches = $this->catalogService->getStorefrontBranches($storefront);
+        $branch = $this->catalogService->resolveBranch(
+            $storefront,
+            $request->input('branch') ?? $request->input('branch_id'),
+            $store_slug,
+        );
 
-        $paginated = $this->catalogService->paginateProducts($store, $search, $categoryId, $perPage);
-        $categories = $this->catalogService->getStoreCategories($store);
+        if (! $branch) {
+            return response()->json(['error' => 'Store unavailable'], 404);
+        }
 
-        $response = StorefrontProductResource::collection($paginated)->response()->getData(true);
-        $response['categories'] = $categories;
-        $response['store'] = [
-            'id' => $store->id,
-            'name' => $store->name,
-            'currency' => $this->catalogService->storeCurrency($store),
+        if ($branch->isSuspended()) {
+            return response()->json(['error' => 'Store unavailable'], 403);
+        }
+
+        if (! $this->catalogService->storefrontEnabled($branch)) {
+            return response()->json(['error' => 'Store unavailable'], 404);
+        }
+
+        $search = $request->input('q');
+        $category = $request->input('category');
+        $perPage = (int) $request->input('per_page', StorefrontCatalogService::PER_PAGE);
+
+        $paginated = $this->catalogService->paginateProducts($branch, $search, $category, $perPage);
+        $categories = $this->catalogService->getStoreCategories($branch);
+        $currency = $this->catalogService->storeCurrency($branch);
+
+        $branchData = [
+            'id' => $branch->id,
+            'name' => $branch->name,
+            'currency' => $currency,
+            'online_payment_available' => (bool) $branch->paystack_subaccount_code,
         ];
 
-        return response()->json($response);
+        return StorefrontProductResource::collection($paginated)->additional([
+            'categories' => $categories,
+            'store' => $branchData,
+            'selected_branch' => $branchData,
+            'branches' => $branches->map(fn (Store $b) => [
+                'id' => $b->id,
+                'name' => $b->name,
+                'location' => $b->location,
+                'is_primary' => $b->id === $storefront->primary_store_id,
+            ])->values()->all(),
+        ]);
     }
 
     #[OA\Post(
         path: '/storefront/{store_slug}/checkout/initialize',
-        summary: 'Start an online (Paystack) storefront payment',
+        summary: 'Initialize Paystack online payment for storefront order',
         tags: ['Storefront'],
         parameters: [new OA\Parameter(name: 'store_slug', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
+            new OA\Property(property: 'customer_email', type: 'string'),
+            new OA\Property(property: 'branch_id', type: 'string', nullable: true),
+            new OA\Property(property: 'items', type: 'array', items: new OA\Items(properties: [
+                new OA\Property(property: 'product_id', type: 'string'),
+                new OA\Property(property: 'quantity', type: 'integer'),
+            ])),
+        ])),
         responses: [
-            new OA\Response(response: 200, description: 'Payment session created'),
-            new OA\Response(response: 403, description: 'Store is suspended'),
+            new OA\Response(response: 200, description: 'Payment transaction initialized'),
+            new OA\Response(response: 422, description: 'Store unable to take online payments or item out of stock'),
             new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
-            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
         ],
     )]
-    public function initializeCheckout(Request $request, $store_slug, PaymentService $paymentService)
-    {
-        $store = Store::where('store_slug', $store_slug)->firstOrFail();
+    public function initializeCheckout(
+        Request $request,
+        $store_slug,
+        PaymentService $paymentService,
+    ) {
+        $storefront = $this->catalogService->resolveStorefront($store_slug);
+        if (! $storefront) {
+            return response()->json(['error' => 'Store unavailable'], 404);
+        }
 
-        if ($store->isSuspended()) {
+        $branch = $this->catalogService->resolveBranch(
+            $storefront,
+            $request->input('branch_id') ?? $request->input('branch'),
+            $store_slug,
+        );
+
+        if (! $branch) {
+            return response()->json(['error' => 'Store unavailable'], 404);
+        }
+
+        if ($branch->isSuspended()) {
             return response()->json(['error' => 'Store unavailable'], 403);
         }
 
-        if (! $this->catalogService->storefrontEnabled($store)) {
+        if (! $this->catalogService->storefrontEnabled($branch)) {
             return response()->json(['error' => 'Store unavailable'], 404);
         }
 
         $validated = $request->validate([
             'customer_email' => 'required|email|max:255',
+            'branch_id' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|uuid|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
         ]);
 
-        return $this->checkoutService->initializePayment($store, $validated, $paymentService);
+        return $this->checkoutService->initializePayment(
+            $branch,
+            $validated,
+            $paymentService,
+        );
     }
 
     #[OA\Post(
         path: '/storefront/{store_slug}/checkout',
-        summary: 'Place a public storefront order',
+        summary: 'Place storefront order (in_store, transfer, or paystack confirm)',
         tags: ['Storefront'],
         parameters: [new OA\Parameter(name: 'store_slug', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
+            new OA\Property(property: 'customer_name', type: 'string'),
+            new OA\Property(property: 'customer_phone', type: 'string'),
+            new OA\Property(property: 'customer_address', type: 'string', nullable: true),
+            new OA\Property(property: 'payment_method', type: 'string', enum: ['in_store', 'transfer', 'paystack']),
+            new OA\Property(property: 'paystack_reference', type: 'string', nullable: true),
+            new OA\Property(property: 'branch_id', type: 'string', nullable: true),
+            new OA\Property(property: 'items', type: 'array', items: new OA\Items(properties: [
+                new OA\Property(property: 'product_id', type: 'string'),
+                new OA\Property(property: 'quantity', type: 'integer'),
+            ])),
+        ])),
         responses: [
-            new OA\Response(response: 201, description: 'Order placed'),
-            new OA\Response(response: 403, description: 'Store is suspended'),
+            new OA\Response(response: 201, description: 'Order placed successfully'),
+            new OA\Response(response: 422, description: 'Validation or payment error'),
+            new OA\Response(response: 503, description: 'Payment verification unreachable'),
             new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
-            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
         ],
     )]
-    public function checkout(Request $request, $store_slug, PaymentService $paymentService)
-    {
-        $store = Store::where('store_slug', $store_slug)->firstOrFail();
+    public function checkout(
+        Request $request,
+        $store_slug,
+        PaymentService $paymentService,
+    ) {
+        $storefront = $this->catalogService->resolveStorefront($store_slug);
+        if (! $storefront) {
+            return response()->json(['error' => 'Store unavailable'], 404);
+        }
 
-        if ($store->isSuspended()) {
+        $branch = $this->catalogService->resolveBranch(
+            $storefront,
+            $request->input('branch_id') ?? $request->input('branch'),
+            $store_slug,
+        );
+
+        if (! $branch) {
+            return response()->json(['error' => 'Store unavailable'], 404);
+        }
+
+        if ($branch->isSuspended()) {
             return response()->json(['error' => 'Store unavailable'], 403);
         }
 
-        if (! $this->catalogService->storefrontEnabled($store)) {
+        if (! $this->catalogService->storefrontEnabled($branch)) {
             return response()->json(['error' => 'Store unavailable'], 404);
         }
 
         $validated = $request->validate([
             'customer_name' => 'required|string|max:255',
-            'customer_phone' => 'required|string|max:20',
+            'customer_phone' => 'required|string|max:50',
             'customer_address' => 'nullable|string|max:1000',
             'payment_method' => 'required|in:paystack,transfer,in_store',
             'paystack_reference' => [
@@ -199,11 +321,26 @@ class StorefrontController extends Controller
                 'string',
                 'prohibited_unless:payment_method,paystack',
             ],
+            'branch_id' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|uuid|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
         ]);
 
-        return $this->checkoutService->placeOrder($store, $validated, $paymentService);
+        return $this->checkoutService->placeOrder(
+            $branch,
+            $validated,
+            $paymentService,
+        );
+    }
+
+    public function trackOrder($store_slug, $identifier)
+    {
+        return $this->interactionService->trackOrder($store_slug, $identifier);
+    }
+
+    public function uploadPrescription($store_slug, Request $request)
+    {
+        return $this->interactionService->uploadPrescription($store_slug, $request);
     }
 }

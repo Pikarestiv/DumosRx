@@ -9,11 +9,36 @@ export interface StorefrontStore {
   email?: string | null;
   logo_url?: string | null;
   currency?: string | null;
+  is_primary?: boolean;
+}
+
+export interface StorefrontBranch {
+  id: string;
+  name: string;
+  location?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  is_primary?: boolean;
+}
+
+export interface StorefrontProfile {
+  id: string;
+  slug: string;
+  name: string;
+  headline?: string | null;
+  about?: string | null;
+  theme?: string;
+  logo_url?: string | null;
+  banner_url?: string | null;
 }
 
 export interface StorefrontData {
   store: StorefrontStore;
+  storefront?: StorefrontProfile;
+  branches?: StorefrontBranch[];
+  selected_branch?: StorefrontStore;
   products: StorefrontProduct[];
+  online_payment_available?: boolean;
 }
 
 /**
@@ -61,6 +86,7 @@ const DEMO_PAGINATED_PRODUCTS: PaginatedStorefrontProducts = {
  */
 export async function getStorefrontData(
   store_slug: string,
+  branchId?: string,
 ): Promise<StorefrontData | null> {
   if (process.env.STOREFRONT_ALLOW_EMPTY === "1" && store_slug === "demo") {
     return DEMO_STOREFRONT_DATA;
@@ -69,9 +95,11 @@ export async function getStorefrontData(
   const apiUrl =
     process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
 
+  const queryStr = branchId ? `?branch=${encodeURIComponent(branchId)}` : "";
+
   let res: Response;
   try {
-    res = await fetch(`${apiUrl}/storefront/${store_slug}`);
+    res = await fetch(`${apiUrl}/storefront/${store_slug}${queryStr}`);
   } catch (error) {
     throw new StorefrontFetchError(
       `Could not reach the API for /store/${store_slug}: ` +
@@ -135,7 +163,7 @@ export interface PaginatedStorefrontProducts {
 
 export async function getStorefrontProducts(
   store_slug: string,
-  options?: { page?: number; q?: string; category?: string; per_page?: number },
+  options?: { page?: number; q?: string; category?: string; per_page?: number; branch?: string },
 ): Promise<PaginatedStorefrontProducts | null> {
   if (process.env.STOREFRONT_ALLOW_EMPTY === "1" && store_slug === "demo") {
     return DEMO_PAGINATED_PRODUCTS;
@@ -149,6 +177,7 @@ export async function getStorefrontProducts(
   if (options?.q) params.set("q", options.q);
   if (options?.category) params.set("category", options.category);
   if (options?.per_page) params.set("per_page", String(options.per_page));
+  if (options?.branch) params.set("branch", options.branch);
 
   const queryStr = params.toString() ? `?${params.toString()}` : "";
 

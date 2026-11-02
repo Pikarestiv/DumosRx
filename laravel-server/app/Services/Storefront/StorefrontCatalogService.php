@@ -5,6 +5,7 @@ namespace App\Services\Storefront;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Store;
+use App\Models\Storefront;
 use App\Models\User;
 use App\Services\SubscriptionService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -37,6 +38,74 @@ class StorefrontCatalogService
     public function storeCurrency(Store $store): string
     {
         return strtoupper((string) ($store->currency ?: config('payment.currency', 'NGN')));
+    }
+
+    public function resolveStorefront(string $slug): ?Storefront
+    {
+        $storefront = Storefront::where('slug', $slug)->first();
+        if ($storefront) {
+            return $storefront;
+        }
+
+        $store = Store::where('store_slug', $slug)->first();
+        if (! $store) {
+            return null;
+        }
+
+        return Storefront::firstOrCreate(
+            ['user_id' => $store->user_id],
+            [
+                'slug' => $store->store_slug,
+                'name' => $store->name,
+                'primary_store_id' => $store->id,
+                'theme' => 'emerald',
+                'is_active' => true,
+            ]
+        );
+    }
+
+    /**
+     * @return Collection<int, Store>
+     */
+    public function getStorefrontBranches(Storefront $storefront): Collection
+    {
+        return Store::where('user_id', $storefront->user_id)
+            ->where('online_store_enabled', true)
+            ->get();
+    }
+
+    public function resolveBranch(
+        Storefront $storefront,
+        ?string $branchId = null,
+        ?string $requestedSlug = null,
+    ): ?Store {
+        $branches = $this->getStorefrontBranches($storefront);
+        if ($branches->isEmpty()) {
+            return null;
+        }
+
+        if ($branchId) {
+            $matched = $branches->firstWhere('id', $branchId);
+            if ($matched) {
+                return $matched;
+            }
+        }
+
+        if ($requestedSlug) {
+            $matched = $branches->firstWhere('store_slug', $requestedSlug);
+            if ($matched) {
+                return $matched;
+            }
+        }
+
+        if ($storefront->primary_store_id) {
+            $matched = $branches->firstWhere('id', $storefront->primary_store_id);
+            if ($matched) {
+                return $matched;
+            }
+        }
+
+        return $branches->first();
     }
 
     /**
@@ -136,11 +205,27 @@ class StorefrontCatalogService
             ->pluck('id')
             ->flip();
 
-        return $candidateStores
+        $storeSlugs = $candidateStores
             ->filter(fn (Store $store) => ! $store->isSuspended() && isset($validUserIds[$store->user_id]))
             ->pluck('store_slug')
             ->values()
             ->all();
+
+        $storefrontSlugs = Storefront::where('is_active', true)
+            ->get()
+            ->filter(function (Storefront $sf) use ($validUserIds) {
+                if (! isset($validUserIds[$sf->user_id])) {
+                    return false;
+                }
+
+                return Store::where('user_id', $sf->user_id)
+                    ->where('online_store_enabled', true)
+                    ->get()
+                    ->contains(fn (Store $s) => ! $s->isSuspended());
+            })
+            ->pluck('slug')
+            ->all();
+
+        return array_values(array_unique(array_merge($storefrontSlugs, $storeSlugs)));
     }
 }
-

@@ -33,8 +33,11 @@ export async function generateMetadata({
   };
 }
 
-export default async function StorefrontCatalogPage({ params }: CatalogPageProps) {
+export default async function StorefrontCatalogPage({
+  params,
+}: CatalogPageProps) {
   const { store_slug } = await params;
+
   const [data, initialCatalog] = await Promise.all([
     getStorefrontData(store_slug),
     getStorefrontProducts(store_slug, { page: 1 }),
@@ -44,16 +47,23 @@ export default async function StorefrontCatalogPage({ params }: CatalogPageProps
     notFound();
   }
 
-  const { store } = data;
+  const { store, storefront, branches } = data;
+  const selectedBranchId = store.id;
 
   return (
     <div className="min-h-screen bg-muted/40 flex flex-col">
-      <StorefrontHeader storeSlug={store_slug} store={store} />
+      <StorefrontHeader
+        storeSlug={store_slug}
+        store={store}
+        storefront={storefront}
+        branches={branches}
+        selectedBranchId={selectedBranchId}
+      />
 
       <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-6">
         <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Link href={`/store/${store_slug}`} className="hover:text-foreground transition-colors">
-            {store.name}
+            {storefront?.name || store.name}
           </Link>
           <ChevronRight className="h-3 w-3" />
           <span className="text-foreground font-medium">Catalog</span>
@@ -78,4 +88,3 @@ export default async function StorefrontCatalogPage({ params }: CatalogPageProps
     </div>
   );
 }
-

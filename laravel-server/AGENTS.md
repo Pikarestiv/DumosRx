@@ -3305,20 +3305,27 @@ specialized storefront services:
 - **`StorefrontCatalogService`**: encapsulates product querying (`storeProducts`),
   excluding controlled substances, sorting in-stock first (`scopeInStockFirstAt`),
   landing page product slicing, paginated catalog searching with category counts,
-  and slug resolution.
+  and owner storefront / multi-branch resolution (`resolveStorefront`, `resolveBranch`).
 - **`StorefrontPaymentService`**: encapsulates Paystack transaction initialization,
   payment intent creation, idempotency/reference verification, and unfulfillable
   order refunds.
 - **`StorefrontCheckoutService`**: encapsulates live stock availability calculations,
   atomic cart pricing, and transactional order placement.
+- **`StorefrontInteractionService`**: encapsulates order status tracking (`trackOrder`,
+  with customer name masking) and customer prescription document upload (`uploadPrescription`).
 
 Public endpoints:
 - `GET /storefront-slugs`: lists all published slugs for static site generation.
-- `GET /storefront/{store_slug}`: returns landing page storefront data (store profile,
-  featured products capped at 300, payment availability).
+- `GET /storefront/{store_slug}`: returns landing page storefront data (brand profile,
+  branches list, selected branch data, featured products capped at 300, payment availability).
+  Supports `?branch=<id>` query parameter.
 - `GET /storefront/{store_slug}/products`: paginated catalog endpoint supporting
-  search (`?q=`), category filtering (`?category=`), page numbers (`?page=`), and
-  facet counts (`categories`). Throttled under `storefront-read`.
+  search (`?q=`), category filtering (`?category=`), branch scoping (`?branch=`),
+  page numbers (`?page=`), and facet counts (`categories`). Throttled under `storefront-read`.
+- `GET /storefront/{store_slug}/orders/{identifier}`: public order tracking endpoint returning
+  fulfillment status and order summary with masked customer name. Throttled under `storefront-read`.
+- `POST /storefront/{store_slug}/prescriptions`: public prescription upload endpoint storing
+  document and medication notes, triggering staff notification. Throttled under `storefront-order`.
 - `POST /storefront/{store_slug}/checkout/initialize`: initiates Paystack online payment.
 - `POST /storefront/{store_slug}/checkout`: completes order placement.
 
@@ -3329,9 +3336,10 @@ Three things about it are easy to undo by accident:
   deliberately does not call `throttleApi()` (a platform-wide floor would
   change every other route as a side effect), so a new public storefront route
   with no `throttle:` group is completely unmetered. Current groups:
-  `storefront-read` (120/min/IP, both GETs), `storefront-order` (5/min/IP,
-  order placement), `storefront-checkout` (15/min/IP, the Paystack initialize
-  step). `tests/Feature/StorefrontThrottleTest.php` asserts all four routes and
+  `storefront-read` (120/min/IP, GETs including products and order tracking),
+  `storefront-order` (5/min/IP, order placement and prescription uploads),
+  `storefront-checkout` (15/min/IP, the Paystack initialize step).
+  `tests/Feature/StorefrontThrottleTest.php` asserts all public routes and
   deliberately does **not** disable `ThrottleRequests` — `StorefrontControllerTest`
   does, which is exactly why this gap was invisible for so long, so add
   limiter coverage there, not here.

@@ -1503,6 +1503,17 @@ it has pulled the backfill pushes the form's `show_online: 0` at an equal
 made by the owner looking at a form that said "hidden", so it is treated as
 theirs. Coverage: `tests/Feature/BackfillShowOnlineCommandTest.php`.
 
+### Which products a storefront lists (PG-21 stopgap and ranking)
+
+- **Controlled products are strictly excluded from the online storefront:**
+  `StorefrontController::storeProducts()` enforces `where('is_controlled', false)`
+  across `show()` and `checkout()`. Even if `show_online` is true, controlled
+  substances (narcotics/regulated meds) cannot be listed or ordered.
+- **In-stock inventory ranks first:** `Product::scopeInStockFirstAt($store->id)`
+  sorts products having `SUM(stock_batches.quantity) > 0` before zero-stock rows,
+  so the 300-item storefront response prioritizes available items over sold-out ones.
+  Coverage: `tests/Feature/StorefrontListingTest.php`.
+
 ## Sync push refusals are recorded once, from `$failed`, after the outer commit
 
 `push()` refuses changes from **eight** separate sites, every one of which

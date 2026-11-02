@@ -32,6 +32,16 @@ export function emptyProductForm(initialData?: Partial<Product>): Product {
   };
 }
 
+export function applyProductFormChange(
+  prev: Product,
+  field: keyof Product,
+  value: string | number | boolean | null,
+): Product {
+  const next = { ...prev, [field]: value };
+  if (field === "isControlled" && value === true) next.showOnline = false;
+  return next;
+}
+
 export function productFormFromEditing(editingProduct: Product): Product {
   return {
     id: editingProduct.id || "",

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -108,5 +109,19 @@ class Product extends Model
     public function stockBatches(): HasMany
     {
         return $this->hasMany(StockBatch::class);
+    }
+
+    /**
+     * @param  Builder<Product>  $query
+     * @return Builder<Product>
+     */
+    public function scopeInStockFirstAt(Builder $query, string $storeId): Builder
+    {
+        return $query->orderByDesc(
+            DB::table('stock_batches')
+                ->selectRaw('CASE WHEN COALESCE(SUM(quantity), 0) > 0 THEN 1 ELSE 0 END')
+                ->whereColumn('stock_batches.product_id', 'products.id')
+                ->where(fn ($q) => $q->where('stock_batches.store_id', $storeId)->orWhereNull('stock_batches.store_id'))
+        );
     }
 }

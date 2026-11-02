@@ -5,10 +5,21 @@ describe("toDisplayTitle", () => {
   it.each([
     ["PARACETAMOL", "Paracetamol"],
     ["amoxicillin capsules", "Amoxicillin Capsules"],
-    ["vitamin c  SYRUP", "Vitamin C  Syrup"],
     ["co-codamol (generic)", "Co-Codamol (Generic)"],
     ["PARACETAMOL 500MG", "Paracetamol 500MG"],
+    ["COARTEM DS", "Coartem DS"],
+    ["ORS SACHET", "ORS Sachet"],
+    ["HIV TEST KIT", "HIV Test Kit"],
+    ["hiv test kit", "HIV Test Kit"],
+    ["AMOXIL CAP", "Amoxil Cap"],
+    ["ORS (SACHET)", "ORS (Sachet)"],
+    ["MILK OF MAGNESIA", "Milk of Magnesia"],
+    ["milk of magnesia", "Milk of Magnesia"],
+    ["OF MICE", "OF Mice"],
     ["Vitamin B12", "Vitamin B12"],
+    ["vitamin c  SYRUP", "vitamin c  SYRUP"],
+    ["GlaxoSmithKline Panadol", "GlaxoSmithKline Panadol"],
+    ["Augmentin BD", "Augmentin BD"],
     ["", ""],
   ])("renders %j as %j", (raw, expected) => {
     expect(toDisplayTitle(raw)).toBe(expected);

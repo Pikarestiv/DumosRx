@@ -6590,6 +6590,11 @@ locally on an old install and `1` on the server:
 - `createDestProduct()` (stock transfer into a store that has never carried
   the product) writes `show_online: 1`.
 
+- **Controlled substance interlock (PG-21):** Marking a product as a Controlled
+  Substance (`isControlled = true`) automatically sets `showOnline: false` via
+  `applyProductFormChange()` (`client/components/products/add-product-form-state.ts`).
+  Controlled items are also blocked at the server API layer from being listed or purchased.
+
 `lib/demo/loader.ts` is the one path that still omits it, so demo products
 follow the column default locally and the server's `true` once pulled.
 

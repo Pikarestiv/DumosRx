@@ -11,7 +11,7 @@ export function StoreContactBlock({ store }: { store: StorefrontStore }) {
   }
 
   return (
-    <address className="not-italic grid gap-3 sm:grid-cols-3 rounded-2xl border border-border bg-background p-4 text-sm">
+    <address className="not-italic grid gap-3 sm:grid-cols-3 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 text-sm">
       {address && (
         <ContactRow icon={<MapPin className="h-4 w-4" />} label="Address">
           {address}

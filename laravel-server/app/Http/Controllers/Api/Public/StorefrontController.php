@@ -36,21 +36,11 @@ class StorefrontController extends Controller
         return $subscriptionService->hasFeature($owner, 'store_url');
     }
 
-    /**
-     * Upper bound on how many products one storefront response returns.
-     * Well above any real catalog's online selection, so no existing store is
-     * truncated; it exists so an unauthenticated GET can never be asked to
-     * serialise an unbounded result set. True pagination is a separate,
-     * client-visible change (see docs/STOREFRONT_REVIEW.md, SF-P3-3).
-     */
+    /** Rationale: laravel-server/AGENTS.md, "Which products a storefront lists". */
     private const MAX_STOREFRONT_PRODUCTS = 300;
 
     /**
-     * Products this store publishes. Scoped by store_id, not just the owner's
-     * user_id: a multi-store owner's storefronts are separate shops and must
-     * not list each other's catalogue. Rows predating the store_id backfill
-     * (2026_08_14_164310_add_store_id_to_domain_tables) are tolerated via the
-     * NULL branch; drop it once a backfill is confirmed.
+     * Rationale: laravel-server/AGENTS.md, "Which products a storefront lists".
      *
      * @return \Illuminate\Database\Eloquent\Builder<Product>
      */
@@ -59,7 +49,8 @@ class StorefrontController extends Controller
         return Product::where('user_id', $store->user_id)
             ->where(fn ($q) => $q->where('store_id', $store->id)->orWhereNull('store_id'))
             ->where('is_active', true)
-            ->where('show_online', true);
+            ->where('show_online', true)
+            ->where('is_controlled', false);
     }
 
     /**
@@ -261,6 +252,7 @@ class StorefrontController extends Controller
 
         $products = $this->storeProducts($store)
             ->with('category')
+            ->inStockFirstAt($store->id)
             ->orderBy('name')
             ->limit(self::MAX_STOREFRONT_PRODUCTS)
             ->get();

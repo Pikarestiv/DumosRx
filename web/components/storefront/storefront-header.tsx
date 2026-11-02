@@ -114,11 +114,13 @@ export function StorefrontHeader({
           <span className="text-xs text-muted-foreground font-medium">
             Branch:
           </span>
-          <StoreBranchSelector
-            branches={branches}
-            selectedBranchId={selectedBranchId || store?.id || ""}
-            storeSlug={storeSlug}
-          />
+          <Suspense fallback={null}>
+            <StoreBranchSelector
+              branches={branches}
+              selectedBranchId={selectedBranchId || store?.id || ""}
+              storeSlug={storeSlug}
+            />
+          </Suspense>
         </div>
       )}
     </header>

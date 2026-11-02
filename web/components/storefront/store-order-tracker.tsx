@@ -6,6 +6,7 @@ import { CheckCircle2, Clock, Package, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatMoney } from "@/lib/utils/currency";
+import { formatDateSafe } from "@/lib/utils/date-utils";
 
 interface TrackedOrder {
   id: string;
@@ -166,7 +167,7 @@ export function StoreOrderTracker({ storeSlug }: StoreOrderTrackerProps) {
             <div className="space-y-1">
               <span className="text-xs text-muted-foreground">Order Date</span>
               <p className="font-semibold text-foreground text-xs">
-                {order.created_at ? new Date(order.created_at).toLocaleDateString() : "Recent"}
+                {formatDateSafe(order.created_at, "dd/MM/yyyy HH:mm", "Recent")}
               </p>
             </div>
           </div>

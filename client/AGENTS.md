@@ -1555,16 +1555,45 @@ in `pull-round-end.ts`.
   has to be remembered in the meantime, so nothing can be forgotten).
   - **The one floor is over the sum, not per movement.** `+80, −100, +20` is
     `0`, not the `20` a per-movement floor used to leave: an oversell's deficit
-    is carried forward, not forgiven. That is a deliberate behaviour change,
-    and the alternative (an explicit compensating **inbound** movement at
-    oversell time — not the `shrinkage` the 2026-10-10 spec called it, which
-    would double the deficit) is designed in
+    would be carried forward, so since A-265 a sale never lets it form.
+  - **An oversell writes two rows (A-265).** When `writeSaleItemStock()`
+    deducts more from a batch than it holds, it writes the sale row as before
+    (still tagged "oversold" in its `reason`, so old bundles' alerts keep
+    working) and then an inbound `adjustment` of `+N` against the same batch
+    for the units the ledger did not hold: `reference_type =
+    OVERSELL_REFERENCE_TYPE` (`"oversell"`), `reference_id` the sale,
+    `OVERSELL_COMPENSATION_REASON`, the sale's cost and `correlationId`. The
+    log therefore never sums below zero, a later count is an ordinary
+    `counted − system`, and a Stage-0 server lands on the same figure when
+    both rows arrive in one push. It is inbound, never `shrinkage`: an
+    oversell means receipts went unrecorded, and a negative row would double
+    the deficit and read as a loss.
+  - **Only on a device whose movement log is complete**
+    (`movementLogIsComplete()`). N is judged against this device's copy of
+    the log, but the row joins the shared one: a till that has not pulled
+    another till's count on the same batch would book units that count
+    already holds, as phantom stock on every replica. Such a sale leaves the
+    deficit, as before, for the server backfill. The gate cannot see an
+    inbound another till wrote since this device's last completed pull, a
+    window that grows for as long as the device is offline; the next count
+    corrects it. A device that has never completed a pull, or is mid-page,
+    never compensates; its deficits stay on screen with the count warning and
+    go to the backfill once pushed.
+  - **Readers:** the Stock Adjustments ledger lists it as "Oversell"
+    (`adjustmentSourceLabel()`); product history and the movement list still
+    label it a plain adjustment, its reason naming the oversell;
+    `getStockLossTotal()` never matches it (its reason is no loss label);
+    `getStockMoM()` counts it as value added, because the stock was there; the
+    dashboard's recent-activity feed leaves it out, as it does the sale it
+    belongs to. A return now restores the full quantity the sale took, since
+    the compensation says those units existed.
+  - **A legacy carve-out batch can be oversold too**: the partial-shortfall
+    fallback deducts past its stored figure, and the compensation covers only
+    the part past zero. Deficits already in the log, those written by older
+    bundles or a device behind on its log, and a decayed carve-out's unlogged
+    opening stock are what the server's `stock:compensate-oversells`
+    backfills. Design:
     `docs/superpowers/specs/2026-10-14-oversell-compensating-movement-design.md`.
-    Oversells themselves are read off the log, never off `quantity`. **What the
-    carry-forward costs at the counting screen is `docs/KNOWN_BUGS.md` A-265:**
-    the next inbound movement pays the deficit off before it adds anything, so
-    the first cycle count on an oversold batch reads as having done nothing. One
-    live batch has this shape today (`gluformin` on store `571582a9`).
   - **`getBatchDeficits()` (`lib/db/batch-quantity.ts`) is the one place a
     shortfall is measured**, and it reports exactly the set
     `resolveBatchQuantity()` would rebuild to 0: a non-deleted, active batch in

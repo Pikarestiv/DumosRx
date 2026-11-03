@@ -930,7 +930,9 @@ big payload, so the slowest thing to flush.
 Stage 1 of docs/superpowers/specs/2026-10-14-oversell-compensating-movement-design.md:
 a counter standing in front of a shelf has no way to know the ledger owes
 units, so their count pays the shortfall off and the figure does not move
-(A-265). Until the compensating write lands, saying so is the fix.
+(A-265). Since the compensating write shipped (2026-10-25) a new oversell
+leaves no shortfall, so this warning only covers deficits an older bundle or a
+device behind on its log wrote, until `stock:compensate-oversells` runs.
 
 ## block-__tests__-crash-report-dedup-test-ts-L23
 

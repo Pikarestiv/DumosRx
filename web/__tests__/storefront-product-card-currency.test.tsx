@@ -21,3 +21,10 @@ describe("storefront ProductCard currency", () => {
     expect(screen.getByText(/1,500/).textContent).toContain("₦");
   });
 });
+
+describe("storefront ProductCard name", () => {
+  it("title-cases an all-caps catalogue name for display", () => {
+    render(<ProductCard product={{ ...product, name: "PARACETAMOL 500MG" }} storeSlug="s" />);
+    expect(screen.getByText("Paracetamol 500MG")).toBeTruthy();
+  });
+});

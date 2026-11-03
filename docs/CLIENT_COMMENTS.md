@@ -3462,10 +3462,12 @@ second production code path just for this test.
 
 `client/__tests__/product-import-show-online.test.ts:15`
 
-`products.show_online` defaults off and the importer handled the column not
-at all, so a store that imported hundreds of products and enabled its online
-store got an empty storefront with no bulk way out (docs/STOREFRONT_REVIEW.md,
-feature #7).
+`products.show_online` used to default off and the importer handled the column
+not at all, so a store that imported hundreds of products and enabled its
+online store got an empty storefront with no bulk way out
+(docs/STOREFRONT_REVIEW.md, feature #7). Since 2026-11-02 a new product
+defaults to shown; see client/AGENTS.md, "Publishing products to the online
+storefront".
 
 ## line-__tests__-product-import-upsert-test-ts-L137
 

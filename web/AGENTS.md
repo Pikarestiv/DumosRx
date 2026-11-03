@@ -187,6 +187,64 @@ the storefront product/cart views next get touched.
 
 The product cards and the cart drawer (`components/storefront/product-card.tsx`, `storefront-cart.tsx`) take `currency` from `store.currency` on the storefront page and format through the same `formatMoney`; they used to print a hardcoded naira sign.
 
+## Storefront chrome and display conventions (storefront Phases 1–5, 2026-11-02)
+
+- **Multi-page company storefront layout:**
+  - Landing page (`app/store/[store_slug]/page.tsx`): Header, StoreContactBlock,
+    "Featured Products" preview section with a "Browse Catalog →" link, Footer.
+  - Dedicated Catalog page (`app/store/[store_slug]/catalog/page.tsx`): Breadcrumbs,
+    interactive search filter (`q`), category pill selectors (`category`), product grid,
+    and responsive pagination powered by `StorefrontCatalogView`.
+  - Company pages:
+    - `/store/[store_slug]/about`: Brand story, care standards, licensed pharmacists commitment.
+    - `/store/[store_slug]/locations`: Multi-branch directory, addresses, phone links, and "Shop this branch" deep links.
+    - `/store/[store_slug]/faq`: Plain-language policies on pharmacy delivery, payments, returns, and prescription verification.
+  - Interactive services:
+    - `/store/[store_slug]/track`: Live order status lookup by reference or Paystack transaction code (`StoreOrderTracker`).
+    - `/store/[store_slug]/prescription`: Scanned prescription and PDF upload form with dosage notes (`StorePrescriptionForm`).
+  - Checkout page (`app/store/[store_slug]/checkout/page.tsx`): Order confirmation and
+    Paystack online payment.
+- **Storefront Header Navigation & Branch Selector:** `components/storefront/storefront-header.tsx`
+  renders navigation links ("Home", "Catalog", "Upload Rx", "Track Order") and the branch selector
+  pill (`StoreBranchSelector`, wrapped in `<Suspense fallback={null}>`). When multiple branches
+  exist under the owner, users can switch branches seamlessly (`?branch=<id>`), with a confirmation
+  modal clearing the cart if items were staged.
+- **Offline / Sandbox Builds:** When `STOREFRONT_ALLOW_EMPTY=1` is set in offline or
+  sandbox environments without a live backend, `lib/api/storefront-data.ts` supplies
+  `DEMO_STOREFRONT_DATA` and `DEMO_PAGINATED_PRODUCTS` placeholders so static export
+  prerendering (`/store/demo`, `/about`, `/locations`, `/faq`, `/catalog`, `/track`, `/prescription`, `/checkout`) succeeds
+  without crashing or requiring a mock server.
+- **A storefront never renders the DumosRx marketing footer.** All
+  `[store_slug]` routes use `components/storefront/storefront-header.tsx`
+  (logo + store name, the only place the name is printed, linking back to the
+  catalogue, plus the cart) and `storefront-footer.tsx` (the store's name and a
+  single small "Powered by DumosRx" link to `WEB_APP_URL`). The checkout page
+  now fetches the store too, so its header shows the store and its cart
+  formats in the store's currency; `getStorefrontData()` is memoized per
+  render, so this is not a second request beside `generateMetadata`.
+- **Contact details are one labelled block**, `store-contact-block.tsx`
+  (Address / Phone / Email, `tel:`/`mailto:` links), rendered only when the
+  store has at least one. `lib/storefront-display.ts`'s `storeAddressLine()`
+  joins `address` and `location` and drops a case-insensitive duplicate.
+- **Product names are title-cased at display time only**, through
+  `toDisplayTitle()` — card, toast, cart drawer and checkout summary. The cart
+  and the checkout payload keep the raw catalogue name. A word containing a
+  digit is left as typed (`500MG`, `B12`), because guessing unit casing is
+  worse than leaving it.
+- **Colours are semantic theme classes** (`text-primary`,
+  `text-muted-foreground`, `bg-muted/40`, `text-destructive`, ...), never
+  palette literals such as `text-emerald-600`/`bg-gray-50`, so the per-store
+  theming planned for a later phase only has to swap variables.
+- Carts are partitioned per storefront by `storeSlug`
+  (`lib/store/use-cart-store.ts`), which is why every storefront component
+  takes the slug.
+- Both routes must `await params`: under Next 16 it is a plain Promise in a
+  production build, and reading `params.store_slug` synchronously yields
+  `undefined` (see "Running things" below). `CheckoutForm` reads
+  `useSearchParams()` for the Paystack return, so it stays inside a
+  `<Suspense>` boundary or the static export's prerender of the checkout page
+  fails.
+
 ## Download and site URLs come from `lib/constants.ts` (A-104)
 
 `DOWNLOAD_URL` and `WEB_APP_URL` are env-overridable

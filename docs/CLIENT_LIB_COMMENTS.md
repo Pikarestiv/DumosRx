@@ -5092,12 +5092,13 @@ rejection path), so the two never drift apart on when to reload.
 `client/lib/utils/clear-local-drafts.ts:5`
 
 Every device-local, in-progress draft staged against the store/account
-being left behind. Each lives under its own single global localStorage key
-(no store or user in it), so all of them must be dropped together on a
-store switch, a logout, a different user signing in, a new-store link and
-a factory reset. Called as one function because the list kept growing and
-two of the five transition paths had been left clearing only the cart -
-see client/AGENTS.md.
+being left behind. POS cart (`pos-cart-storage`) is un-scoped and cleared across
+store transitions. Stock audit and adjustment drafts are store-scoped in memory
+and persisted to local SQLite (`stock_audit_drafts`, `stock_adjustment_drafts`),
+so store switching passes `{ preserveStoreAudit: true, preserveStoreAdjustment: true }`
+to keep in-progress counts and adjustments safe when leaving and returning to a store.
+Full context teardowns (different user login, logout, new store link, factory reset)
+clear all drafts unconditionally.
 
 ### utils-count-freshness-ts-L1
 

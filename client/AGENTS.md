@@ -2105,28 +2105,34 @@ on screen from having walked to the shelf.
   counted"; the review step's submit button is now disabled while
   `countedItems.length === 0`.
 
-### Device-local drafts: clear all of them, from one function (2026-10-13)
+### Device-local drafts: clear all of them, from one function (2026-10-13, updated 2026-11-02)
 
-Three drafts are persisted per device under their own single global
-localStorage keys, with no store or user in them: the POS cart
-(`pos-cart-storage`), the cycle count (`stock-audit-draft`) and the stock
-adjustment (`stock-adjustment-draft`). Every path that tears down one
-store/account's context must drop all three, and `clearLocalDrafts()`
-(`lib/utils/clear-local-drafts.ts`) is the only way it should be done — the
-list grew to three while two of the five transition paths were still
-clearing only the cart.
+Three drafts are persisted per device: POS cart (`pos-cart-storage`), cycle
+count (`stock-audit-draft`), and stock adjustment (`stock-adjustment-draft`).
+Previously, all three were un-scoped and wiped on every store switch.
 
-The five paths: store switch (`store-context.tsx`), a different user logging
-in (`auth-context.tsx`, gated on `previousUserId !== dbUser.id` so a same-user
-unlock keeps the work), logout (`auth-context.tsx`), linking a new cloud store
-(`app/setup/use-onboarding.ts`) and the factory reset
-(`hooks/use-settings-sync.ts`). The last two were missed until 2026-10-13: a
-count started against the outgoing store's product ids survived into the new
-store and could be submitted against foreign ids. Both import the helper
-**dynamically** — `use-settings-sync.ts` is loaded by every settings screen and
-a static import pulls the whole POS-cart module graph into it, which breaks
-`__tests__/factory-reset-disconnects-cloud.test.ts`'s partial `core` mock.
-Pinned by `__tests__/clear-local-drafts.test.ts`.
+As of 2026-11-02 (Cynthia's incident & draft store-scoping):
+1. **Stock audit & adjustment drafts are store-scoped**: State in `useStockAuditDraftStore`
+   and `useStockAdjustmentDraftStore` is keyed by store id (`drafts[storeId]`), and backed
+   by local SQLite tables `stock_audit_drafts` and `stock_adjustment_drafts`
+   (`(store_id TEXT PRIMARY KEY, user_id TEXT, draft_json/items_json TEXT NOT NULL, updated_at TEXT)`).
+   These tables are device-local (no server migration, not synced).
+2. **Store switching preserves audit and adjustment drafts**: `store-context.tsx` calls
+   `clearLocalDrafts({ preserveStoreAudit: true, preserveStoreAdjustment: true })`, which clears
+   the POS cart while leaving the store's audit and adjustment drafts intact.
+   Switching back to the store restores the draft seamlessly.
+3. **Work in-progress reminder**: `HeaderStoreSwitcher` checks
+   `hasActiveStockAuditCount(activeStoreId)` and `hasActiveStockAdjustmentDraft(activeStoreId)`
+   before switching; if active work exists, it displays an informative `ConfirmDialog` reassuring
+   the user that counts and items are safely saved locally on this device before proceeding.
+4. **Full context teardowns still clear everything**: `clearLocalDrafts()` without
+   options drops all drafts across the board. The four full teardown paths: a
+   different user logging in (`auth-context.tsx`, gated on `previousUserId !== dbUser.id`),
+   logout (`auth-context.tsx`), linking a new cloud store (`app/setup/use-onboarding.ts`),
+   and factory reset (`hooks/use-settings-sync.ts`).
+5. **Successful submission**: Once an audit or adjustment is submitted or discarded in
+   the UI, `clearStockAuditDraft(storeId)` or `clearStockAdjustmentDraft(storeId)` cleans up
+   that specific store's draft from SQLite and memory.
 
 A draft itself is **not** the problem it looks like: `submitStockAudit`
 re-reads the live quantity inside its transaction
@@ -6576,16 +6582,47 @@ needs a real paginated view.
 
 ## Publishing products to the online storefront
 
-`products.show_online` defaults off. Three ways to change it, in increasing
-bulk:
+`products.show_online` defaults **on** since storefront Phase 1 (2026-11-02);
+it used to default off, which left a newly enabled online store empty. Every
+client creation path now writes the field explicitly rather than leaning on
+the column default, because `schema.ts`'s `DEFAULT 1` only reaches **new
+installs** (SQLite cannot change an existing column's default) and `insert()`
+pushes only the keys it was given, so an omitted field would land as `0`
+locally on an old install and `1` on the server:
+
+- the add-product form (`emptyProductForm()` → `showOnline: true`);
+- the importer — a new row uses `row.showOnline ?? true`; a matched row still
+  leaves the field alone when the column is absent or blank;
+- `createDestProduct()` (stock transfer into a store that has never carried
+  the product) writes `show_online: 1`.
+
+- **Controlled substance interlock (PG-21):** Marking a product as a Controlled
+  Substance (`isControlled = true`) automatically sets `showOnline: false` via
+  `applyProductFormChange()` (`client/components/products/add-product-form-state.ts`).
+  Controlled items are also blocked at the server API layer from being listed or purchased.
+
+`lib/demo/loader.ts` is the one path that still omits it, so demo products
+follow the column default locally and the server's `true` once pulled.
+
+**Known limit, server side:** tills older than this release send an explicit
+`show_online: 0` on every product they create (their form defaulted to
+`false`), and the server cannot tell that from an owner deliberately hiding
+the product, so new products from an old till stay hidden. No shim exists for
+it; the condition for dropping this note is that clients older than this
+release stop reporting in. Existing hidden products are switched on once by
+`php artisan products:backfill-show-online` (see `laravel-server/AGENTS.md`,
+"Products are shown online by default", including why it does not bump
+`_version`).
+
+Three ways to change it, in increasing bulk:
 
 1. The per-product switch in `add-product-dialog.tsx`.
 2. The **CSV/XLSX importer** (`lib/utils/product-import-export.ts`), which
    handles a `show_online` column with the header spellings owners actually
    type and `parseBooleanValue()`'s accepted values. An unrecognised or blank
-   cell returns `undefined` and the product keeps whatever it has — never
-   guess, or an ambiguous spreadsheet silently publishes a catalog to a public
-   page. The exporter emits `Yes`/`No` under "Show in Online Store", the same
+   cell returns `undefined`: an existing product keeps whatever it has and a
+   new one takes the default (shown). Never guess a value from an ambiguous
+   cell. The exporter emits `Yes`/`No` under "Show in Online Store", the same
    spelling the importer reads, so export → edit → re-import is itself a bulk
    path.
 3. The **"Online" dropdown** on the catalog toolbar

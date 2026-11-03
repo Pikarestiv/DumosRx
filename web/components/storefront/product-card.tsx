@@ -8,16 +8,17 @@ import { useCart } from "@/lib/store/use-cart-store";
 import { toast } from "sonner";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 import { formatMoney } from "@/lib/utils/currency";
+import { toDisplayTitle } from "@/lib/storefront-display";
 
 interface ProductCardProps {
   product: StorefrontProduct;
-  /** Carts are partitioned per storefront - see lib/store/use-cart-store.ts. */
   storeSlug: string;
   currency?: string | null;
 }
 
 export function ProductCard({ product, storeSlug, currency }: ProductCardProps) {
   const cart = useCart(storeSlug);
+  const displayName = toDisplayTitle(product.name);
 
   const handleAddToCart = () => {
     cart.addItem({
@@ -26,14 +27,14 @@ export function ProductCard({ product, storeSlug, currency }: ProductCardProps) 
       price: parseFloat(String(product.selling_price)),
       quantity: 1,
     });
-    toast.success(`${product.name} added to cart`);
+    toast.success(`${displayName} added to cart`);
   };
 
   return (
     <Card className="flex flex-col h-full hover:shadow-lg transition-shadow">
       <CardHeader>
         <div className="flex justify-between items-start">
-          <CardTitle className="text-lg line-clamp-2">{product.name}</CardTitle>
+          <CardTitle className="text-lg line-clamp-2">{displayName}</CardTitle>
           {product.requires_prescription && (
             <Badge variant="destructive" className="ml-2 whitespace-nowrap text-[10px]">Rx</Badge>
           )}
@@ -43,7 +44,7 @@ export function ProductCard({ product, storeSlug, currency }: ProductCardProps) 
         )}
       </CardHeader>
       <CardContent className="flex-1">
-        <p className="text-2xl font-bold text-emerald-600 mt-2">
+        <p className="text-2xl font-bold text-primary mt-2">
           {formatMoney(parseFloat(String(product.selling_price)), currency)}
         </p>
         {product.category && (

@@ -35,6 +35,16 @@ A-286 — restamp `_synced_at` at commit — is done, see `docs/FIXED_BUGS.md`):
 
 ## ✅ Recently Completed
 
+### Stock audit & adjustment draft persistence & non-destructive store switching: DONE (2026-11-02)
+
+- **Status:** Shipped in `client/`. Solves the incident where in-progress cycle counts and stock adjustments were wiped upon switching stores with no warning.
+- **Store-scoped drafts:** The stock audit and adjustment draft stores (`useStockAuditDraftStore`, `useStockAdjustmentDraftStore`) now partition drafts by store ID (`drafts[storeId]`).
+- **SQLite local persistence:** Backed by local SQLite tables `stock_audit_drafts` and `stock_adjustment_drafts` (`(store_id PRIMARY KEY, user_id, draft_json/items_json, updated_at)`). Device-local only, no cloud push/pull, passes schema parity.
+- **Non-destructive store switching:** `store-context.tsx` passes `{ preserveStoreAudit: true, preserveStoreAdjustment: true }` to `clearLocalDrafts()`, ensuring an unfinished count or adjustment is preserved when switching stores and restored upon return. Full teardowns (user change, logout, unlink, factory reset) still clear all drafts unconditionally.
+- **Work in-progress reminder dialog:** When switching stores via the header dropdown while unsubmitted counts or adjustments exist, a `ConfirmDialog` informs the user that their in-progress work is safely saved on this device.
+- **Backward compatibility:** Automatic migration from legacy un-scoped single-draft format (v1 -> v2) with active store adoption.
+- **Docs:** `client/AGENTS.md`, `docs/SYSTEM_FEATURES_DOCUMENTATION.md`, `docs/CLIENT_LIB_COMMENTS.md`.
+
 ### Per-device, per-table sync agreement and delivery timing: DONE (2026-10-18/19)
 
 - **Status:** Shipped in #169/#170. Every synced table is now compared between each device and the cloud by row count and version sum, with a per-device, per-table verdict (`agrees` / `syncing` / `behind` / `diverged`) and the non-verdict states that matter — `No local copy of this store`, `Stopped reporting`, and `Not measured`, because silence is not agreement. Push health is now measured as *eventual delivery per edit* (the age of the oldest unsent edit, plus a histogram of what was delivered) rather than per HTTP attempt. Mechanism, cost, the four verdicts and the digest's documented blind spots: **`docs/DEVICE_TABLE_AGREEMENT.md`** — not restated here.
@@ -367,6 +377,19 @@ architectural notes this entry doesn't repeat.
 
 ## 🟠 Medium (3–5 days)
 
+### Cloud-Backed Multi-Till Stock Audit Sessions (Phase 2)
+
+- **Context & Motivation:** Phase 1 safely localizes and persists cycle count drafts in SQLite across store switches on a single device. However, pharmacies with multiple tills or multiple staff need cross-device visibility (e.g. manager monitoring progress, resuming an unfinished audit if a physical till malfunctions or battery dies) without introducing data corruption from concurrent editing.
+- **Architecture & Operational Rules (Local-First, Cloud-Backed, Single-Editor Lease):**
+  1. **Local count persistence:** Device continues to save counts instantly to local SQLite (zero offline latency).
+  2. **Audit session registration:** Starting a count registers an `audit_sessions` record in the cloud with status `in_progress`, assigned to the initiating till/user.
+  3. **Single-editor lease / lock:** Only one till holds active write lease for a store's audit session at any given time.
+  4. **Controlled handover / recovery:** If Till 1 dies or Cynthia steps away, Till 2 can request an explicit "Take Over Audit Session", invalidating Till 1's write lease while preserving all saved progress.
+  5. **Read-only progress inspection:** Store managers or other tills can view audit progress in real time without acquiring the write lock.
+  6. **Reconciliation at submission:** When the active holder submits, the audit reconciles inventory and transitions the cloud session to `completed`.
+- **Effort:** ~3–4 days (Laravel `audit_sessions` + `audit_session_items` schema, lease lock endpoints, client lease acquisition/handover UI, and sync integration).
+- **Cost:** Low (minimal payload size, batched progress updates).
+
 ### Migration System — real client blocker, existing build doesn't cover her actual file (Flagged urgent, 2026-08-27)
 
 - **Current state, confirmed via code trace:** a "QuickBooks import" already exists (`client/components/settings/quickbooks-import-dialog.tsx` + `client/lib/utils/iif-parser.ts`) but only parses the old tab-delimited **`.IIF`** export format with fixed `!INVITEM`/`!CUST` headers. It has never actually been tested against a real client file.
@@ -494,6 +517,17 @@ The Gemini/LLM approach below remains a **possible future phase**, not a superse
 - **Description:** Integrate with a Nigerian bulk SMS aggregator (like Termii or BulkSMSNigeria, rather than MTN's direct high-cost API) to power transactional SMS.
 - **Value:** Store owners can "top up" their SMS wallet directly within DumosRx using Paystack to send receipts or refill reminders. This creates an additional passive revenue stream for the platform.
 - **Effort:** Unestimated: payment integration (Paystack) + wallet balance/ledger logic + aggregator API, realistically ~1 week.
+
+---
+
+## 🌐 Multi-Page Owner Storefront (Enterprise) — Completed 2026-11-02
+
+Shipped and documented in `SYSTEM_FEATURES_DOCUMENTATION.md`, `client/AGENTS.md`, `laravel-server/AGENTS.md`, and `web/AGENTS.md`:
+- Phase 1: Products show online by default, `products:backfill-show-online` command, house card aesthetics, PG-21 controlled product exclusion.
+- Phase 2: Paginated catalog API (`GET /storefront/{slug}/products`), dedicated catalog page (`/catalog`), controller decomposed into catalog/payment/checkout services.
+- Phase 3: Owner-level storefront (`storefronts` table), multi-branch picker with cart clearing dialog, branch stock and subaccount isolation, legacy store slug alias compatibility.
+- Phase 4: Full company pages (`/about`, `/locations`, `/faq`), responsive directory with branch deep links.
+- Phase 5: Digital prescription upload (`/prescription` + `storefront_prescriptions` table) and public order tracking (`/track`).
 
 ---
 

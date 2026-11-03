@@ -1412,9 +1412,13 @@ extending or relying on any of this):
   `show_online`. Keep those two field lists in step with
   `web/app/store/[store_slug]/page.tsx` and `StorefrontProductResource` — a
   column the page renders but neither list names is a silently-stale page.
-  Both write via raw `DB::table()->update()`, never `->save()`, and
-  `Product`'s is narrowed to stores with `online_store_enabled` so a bulk
-  product sync writes nothing for the accounts that publish no storefront.
+  Both write via raw `DB::table()->update()`, never `->save()` (a save would
+  re-fire model events), and `Product`'s is narrowed to stores with
+  `online_store_enabled` so a bulk product sync writes nothing for the
+  accounts that publish no storefront. `Product::markStorefrontsDirty($storeIds, $ownerIds)`
+  is the public form of that write, for bulk writers such as
+  `products:backfill-show-online`; a store-less legacy product dirties every
+  publishing store of its owner, since it cannot be narrowed further.
 - **The stamp is always refreshed, not only set when null.** That is
   load-bearing, not sloppiness: the confirmation callback below clears flags
   stamped at or before the dispatch moment, so a change landing mid-build has
@@ -1449,6 +1453,66 @@ Note also that the storefront's online-payment flow (`initializeCheckout`/
 per-store Paystack subaccounts — see the dedicated section below for the
 onboarding flow, fee semantics, propagation cadence, and the refund decision.
 Full design: `docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`.
+
+## Products are shown online by default (storefront Phase 1, 2026-11-02)
+
+`products.show_online` used to default to `false`, so a store that switched its
+online store on published an empty page. It now defaults to `true` in three
+places that must stay in step:
+
+- **MySQL column default** — `2026_11_02_000001_default_products_show_online_to_true`
+  (`->default(true)->change()`; works on the SQLite test DB too, same as
+  `2026_08_01_000002_default_vat_percentage_to_zero`). Covers raw inserts.
+- **`Product::$attributes = ['show_online' => true]`** — needed as well as the
+  column default, because `Product::booted()`'s `created` hook reads
+  `$product->show_online` off the in-memory model. With only a column default
+  a `Product::create()` that omits the field writes a shown row but leaves the
+  attribute `null`, so the storefront is never marked dirty and the new
+  product does not appear until something unrelated triggers a rebuild.
+- **Client** — `client/lib/db/schema.ts` and every client creation path; see
+  `client/AGENTS.md`, "Publishing products to the online storefront", which
+  also records the old-client limit (an older till sends an explicit
+  `show_online: 0` on every create, indistinguishable here from a deliberate
+  hide).
+
+**Existing rows: `php artisan products:backfill-show-online [--dry-run]`.** Sets
+`show_online = true` on every product with `show_online = false`,
+`is_active = true`, `is_controlled = false` and `deleted_at IS NULL`
+(`is_controlled` is the real column on `products`, from the original
+`medicines` table). It walks by `id` in chunks of `--chunk` (default 500),
+writes through the query builder, stamps `updated_at` from PHP
+`now()->utc()` (§7: never MySQL `NOW()`), and after the last chunk calls
+`Product::markStorefrontsDirty()` once for every affected store (store-less
+legacy rows dirty their owner's publishing stores — the same rule the model
+hook uses). `--dry-run` prints the count and writes nothing. It prints the
+database it is connected to first, like the other repair commands; run the
+dry run first, and only against a database the user has named (root
+`.agents/AGENTS.md` §12).
+
+**It deliberately does not bump `_version`** — the one documented exception to
+"A raw `update()` on a synced table must move `_version`" below. A bump turns
+every un-pushed local edit to any of those products (a price change made
+offline, say) into a `version_conflict`, which the client handles by dropping
+the queue row and re-pulling (`client/lib/db/sync-engine/push-response.ts`):
+across a whole catalogue that would silently discard real owner edits to fix
+a default. Moving `updated_at` is enough for every device to pull the new
+value (`PullPager` filters on `updated_at`/`_synced_at`). The cost, accepted:
+a device that edits one of these products in the full product form *before*
+it has pulled the backfill pushes the form's `show_online: 0` at an equal
+`_version`, which is accepted and re-hides that one product. That edit was
+made by the owner looking at a form that said "hidden", so it is treated as
+theirs. Coverage: `tests/Feature/BackfillShowOnlineCommandTest.php`.
+
+### Which products a storefront lists (PG-21 stopgap and ranking)
+
+- **Controlled products are strictly excluded from the online storefront:**
+  `StorefrontController::storeProducts()` enforces `where('is_controlled', false)`
+  across `show()` and `checkout()`. Even if `show_online` is true, controlled
+  substances (narcotics/regulated meds) cannot be listed or ordered.
+- **In-stock inventory ranks first:** `Product::scopeInStockFirstAt($store->id)`
+  sorts products having `SUM(stock_batches.quantity) > 0` before zero-stock rows,
+  so the 300-item storefront response prioritizes available items over sold-out ones.
+  Coverage: `tests/Feature/StorefrontListingTest.php`.
 
 ## Sync push refusals are recorded once, from `$failed`, after the outer commit
 
@@ -1830,8 +1894,36 @@ looks the batch up fresh. `push()` sorts every `stock_movements` change to the
 end, so every batch write of a push lands before any movement is authorized,
 and a batch INSERT under a foreign product, live or soft-deleted, is itself
 refused (`resolveParentStoreId('stock_batches')` uses `withTrashed()`). It is
-pinned by a direct test so it cannot rot unnoticed. A batch UPDATE that
-repoints `product_id` is not checked at all: that is A-325.
+pinned by a direct test so it cannot rot unnoticed.
+
+**A child UPDATE's new parent must be in scope (A-325).** A child of a
+parent-FK table is owned through its parent (`SyncWriteAuthorizer::PARENT_KEYS`:
+`stock_batches.product_id`, `sale_items.sale_id`, `sale_item_batches.sale_item_id`,
+`return_items.return_id`, `prescription_items.prescription_id`,
+`purchase_order_items.purchase_order_id`). `authorizeChangeTarget()` judges the
+stored row, i.e. its current parent, so `repointsToForeignParent()` also judges
+the parent the payload names: when it differs from the stored one and resolves
+to a store outside the session, the change is refused `forbidden`, which
+parks. A resent INSERT runs as an UPDATE and gets the same check; a super admin
+is exempt; restating the stored parent costs no lookup. Parent lookups include
+soft-deleted parents, because the pull serves a voided parent's line items. A
+new parent with no store (legacy `NULL`) or that does not exist is let through,
+as on INSERT: the row then belongs to no store's pull (A-335). Secondary
+references (`sale_items.stock_batch_id`, `purchase_order_items.product_id` and
+the like) do not decide a row's store and are not checked.
+
+**A payload key that is not a bare column name is refused before anything
+reads it.** Every guard reads the bare lowercase key, but a key can still name
+that column other ways: MySQL and SQLite match column names case-insensitively
+(`PRODUCT_ID`), and the query grammar resolves a table-qualified key
+(`stock_batches.product_id`; SQLite drops the qualifier, MySQL accepts it in a
+single-table UPDATE). `push()` refuses a change `forbidden` as soon as its
+payload is decoded if any key falls outside `^[a-z0-9_]+$`
+(`SyncWriteAuthorizer::hasNonColumnKey()`), which also excludes non-ASCII
+look-alikes MySQL's Unicode folding might match. No column on either side
+falls outside it, and the client builds every payload from table rows; `web/`
+does not use this endpoint (§11). A payload that is not an object is left to
+fail its own change as before.
 
 **A product legitimately moved between stores parks too, on staff tills.** A
 till of the losing store still holds the product (A-291's phantom) and can sell
@@ -1877,6 +1969,11 @@ and `QuantityReconciliationService` (the reconcile path) are safe writing it bar
 payload carries, so that is safe for now but turns into this bug the day a
 client starts sending it. A column in a `*_SYNC_FORBIDDEN_FIELDS` list is
 genuinely exempt, because it is stripped before `forceFill`.
+
+One deliberate, documented exception to the rule (not to the exemption above):
+`products:backfill-show-online` writes `show_online` without a bump, and why
+is in "Products are shown online by default" above. Do not copy it for a
+column whose stale value being pushed back would be a correctness bug.
 
 Expect a version bump to cost a re-pull of every row it touches, and say so
 wherever the write is a bulk repair. That traffic is the point: those rows were
@@ -3231,16 +3328,46 @@ lives in `config/backups.php` rather than in the controller:
 ## Public storefront endpoints
 
 `Api/Public/StorefrontController` is the only unauthenticated tenant-data
-surface in the app. Three things about it are easy to undo by accident:
+surface in the app. It is kept strictly below 350 lines by delegating to
+specialized storefront services:
+- **`StorefrontCatalogService`**: encapsulates product querying (`storeProducts`),
+  excluding controlled substances, sorting in-stock first (`scopeInStockFirstAt`),
+  landing page product slicing, paginated catalog searching with category counts,
+  and owner storefront / multi-branch resolution (`resolveStorefront`, `resolveBranch`).
+- **`StorefrontPaymentService`**: encapsulates Paystack transaction initialization,
+  payment intent creation, idempotency/reference verification, and unfulfillable
+  order refunds.
+- **`StorefrontCheckoutService`**: encapsulates live stock availability calculations,
+  atomic cart pricing, and transactional order placement.
+- **`StorefrontInteractionService`**: encapsulates order status tracking (`trackOrder`,
+  with customer name masking) and customer prescription document upload (`uploadPrescription`).
+
+Public endpoints:
+- `GET /storefront-slugs`: lists all published slugs for static site generation.
+- `GET /storefront/{store_slug}`: returns landing page storefront data (brand profile,
+  branches list, selected branch data, featured products capped at 300, payment availability).
+  Supports `?branch=<id>` query parameter.
+- `GET /storefront/{store_slug}/products`: paginated catalog endpoint supporting
+  search (`?q=`), category filtering (`?category=`), branch scoping (`?branch=`),
+  page numbers (`?page=`), and facet counts (`categories`). Throttled under `storefront-read`.
+- `GET /storefront/{store_slug}/orders/{identifier}`: public order tracking endpoint returning
+  fulfillment status and order summary with masked customer name. Throttled under `storefront-read`.
+- `POST /storefront/{store_slug}/prescriptions`: public prescription upload endpoint storing
+  document and medication notes, triggering staff notification. Throttled under `storefront-order`.
+- `POST /storefront/{store_slug}/checkout/initialize`: initiates Paystack online payment.
+- `POST /storefront/{store_slug}/checkout`: completes order placement.
+
+Three things about it are easy to undo by accident:
 
 - **Every route carries its own named limiter.** Laravel 11 dropped
   `throttle:api` from the default `api` group and `bootstrap/app.php`
   deliberately does not call `throttleApi()` (a platform-wide floor would
   change every other route as a side effect), so a new public storefront route
   with no `throttle:` group is completely unmetered. Current groups:
-  `storefront-read` (120/min/IP, both GETs), `storefront-order` (5/min/IP,
-  order placement), `storefront-checkout` (15/min/IP, the Paystack initialize
-  step). `tests/Feature/StorefrontThrottleTest.php` asserts all four routes and
+  `storefront-read` (120/min/IP, GETs including products and order tracking),
+  `storefront-order` (5/min/IP, order placement and prescription uploads),
+  `storefront-checkout` (15/min/IP, the Paystack initialize step).
+  `tests/Feature/StorefrontThrottleTest.php` asserts all public routes and
   deliberately does **not** disable `ThrottleRequests` — `StorefrontControllerTest`
   does, which is exactly why this gap was invisible for so long, so add
   limiter coverage there, not here.

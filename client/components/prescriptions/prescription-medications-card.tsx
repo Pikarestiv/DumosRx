@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Pill } from "lucide-react";
 import { Prescription } from "@/lib/hooks/use-prescription-queue";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import { ProductName } from "@/components/ui/product-name";
 
 interface PrescriptionMedicationsCardProps {
@@ -14,6 +14,7 @@ export function PrescriptionMedicationsCard({
   medications,
   totalCost,
 }: PrescriptionMedicationsCardProps) {
+  const formatCurrency = useFormatCurrency();
   return (
     <Card className="shadow-none border-border py-0 gap-0">
       <CardHeader className="p-4 pb-2">

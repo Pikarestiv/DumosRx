@@ -91,6 +91,7 @@ export function SharedActivatePlanDialog({
             <Label>Amount Paid (₦)</Label>
             <Input
               type="number"
+              step="any"
               min={0}
               inputMode="decimal"
               className="h-12 rounded-xl"

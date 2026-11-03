@@ -1,5 +1,7 @@
 "use client";
 
+import { HintTooltip } from "@/components/ui/hint-tooltip";
+import { CURRENT_COST_HINT } from "@/lib/constants/cost-hints";
 import React, { useMemo } from "react";
 import { Trash2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -9,11 +11,12 @@ import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { POReviewPricePopover } from "./po-review-price-popover";
 import { clampMoneyInput, getImmediateUnitCost, getLineTotal } from "./po-line-item-math";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import { ProductName } from "@/components/ui/product-name";
 
 export interface POLineItemDraft {
+  id?: string;
   product_id: string;
   product_name: string;
   bulk_unit: string;
@@ -25,6 +28,7 @@ export interface POLineItemDraft {
   lot_number?: string;
   expiry_date?: string;
   selling_price?: number | string;
+  reprice?: boolean;
 }
 
 // A line paired with its index in the order's real item array.
@@ -72,6 +76,7 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
   onUpdateItem: (index: number, patch: Partial<POLineItemDraft>) => void;
   onRemoveItem: (index: number) => void;
 }) {
+  const formatCurrency = useFormatCurrency();
   const currentCost = product?.cost_price ?? 0;
   const stock = product?.stock_quantity ?? 0;
   const effectiveUnitCost = getImmediateUnitCost(item);
@@ -116,7 +121,7 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
           <Input
             type="number"
             min={0}
-            step="0.01"
+            step="any"
             className="w-24 text-right"
             aria-label={`New Cost for ${item.product_name}`}
             placeholder={formatCurrency(currentCost)}
@@ -133,7 +138,7 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
             onCommit={(val) => onUpdateItem(index, { unit_cost: val, subtotal: item.bulk_quantity * val })}
             parse={parseFloat}
             min={0}
-            step="0.01"
+            step="any"
             widthClassName="w-24"
             ariaLabel={`Unit Cost for ${item.product_name}`}
           />
@@ -234,13 +239,11 @@ export function POItemLedgerTable({
               {poType === "immediate" ? "Received" : "Qty"}
             </div>
             {poType === "immediate" && (
-              <div
-                role="columnheader"
-                className="text-right px-3 py-2"
-                title="The product's cost price on file before this order - for comparison only, not editable here"
-              >
-                Current Cost
-              </div>
+              <HintTooltip text={CURRENT_COST_HINT}>
+                <div role="columnheader" tabIndex={0} className="text-right px-3 py-2">
+                  Current Cost
+                </div>
+              </HintTooltip>
             )}
             <div
               role="columnheader"

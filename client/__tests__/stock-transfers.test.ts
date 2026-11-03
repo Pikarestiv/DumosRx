@@ -194,7 +194,7 @@ describe('transferStock', () => {
     expect(result.averageCostPrice).toBe(100);
 
     const destProduct = products[result.destProductId];
-    expect(destProduct).toMatchObject({ name: 'Paracetamol 500mg', store_id: 's2', selling_price: 500 });
+    expect(destProduct).toMatchObject({ name: 'Paracetamol 500mg', store_id: 's2', selling_price: 500, show_online: 1 });
 
     const destBatch = Object.values(batches).find((b) => b.product_id === result.destProductId);
     expect(destBatch).toMatchObject({ quantity: 20, cost_price: 100, store_id: 's2' });

@@ -1,4 +1,5 @@
 import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { HintTooltip } from "@/components/ui/hint-tooltip";
 
 interface SortableHeaderCellProps {
   label: string;
@@ -6,6 +7,7 @@ interface SortableHeaderCellProps {
   direction: "asc" | "desc";
   onClick: () => void;
   className?: string;
+  tooltip?: string;
 }
 
 // Shared "click to sort, click again to flip direction" header cell - reused across every sortable table (see lib/hooks/us…
@@ -16,10 +18,11 @@ export function SortableHeaderCell({
   direction,
   onClick,
   className = "",
+  tooltip,
 }: SortableHeaderCellProps) {
   const Icon = active ? (direction === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
 
-  return (
+  const button = (
     <button
       type="button"
       onClick={onClick}
@@ -29,4 +32,6 @@ export function SortableHeaderCell({
       <Icon className={`h-3 w-3 shrink-0 ${active ? "" : "opacity-40"}`} />
     </button>
   );
+
+  return tooltip ? <HintTooltip text={tooltip}>{button}</HintTooltip> : button;
 }

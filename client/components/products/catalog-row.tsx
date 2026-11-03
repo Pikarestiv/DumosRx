@@ -185,7 +185,7 @@ function CatalogRowInner({
             displayValue={formatCurrency(product.sellingPrice)}
             value={product.sellingPrice}
             parse={parseFloat}
-            step="0.01"
+            step="any"
             widthClassName="w-20"
             canEdit={canEdit && canEditSellingPrice}
             hasTouchCapability={hasTouchCapability}

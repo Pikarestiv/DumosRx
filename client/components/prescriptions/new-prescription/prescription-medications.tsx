@@ -164,6 +164,7 @@ export function PrescriptionMedications({
               <Label>Unit Cost ({currencySymbol})</Label>
               <Input
                 type="number"
+                step="any"
                 inputMode="decimal"
                 value={newMedication.unitCost}
                 onChange={(e) => {
@@ -182,6 +183,7 @@ export function PrescriptionMedications({
               <Label>Total Cost ({currencySymbol})</Label>
               <Input
                 type="number"
+                step="any"
                 inputMode="decimal"
                 value={
                   newMedication.unitCost !== "" && newMedication.quantity !== ""

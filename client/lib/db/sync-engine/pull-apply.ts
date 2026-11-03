@@ -3,6 +3,32 @@ import { recordDeferredStockDelta } from "./deferred-stock-deltas";
 import { toPulledRow, holdsCursorAfterUniqueSkip } from "./pull-records";
 import type { SkippedRecord } from "./pull-skip-report";
 
+// A-271: a stock_batches edit that only moved quantity has nothing a pulled row could overwrite, since the pull drops quantity.
+export const QUANTITY_ONLY_BATCH_KEYS = ["id", "quantity", "updated_at", "_version", "_synced"] as const;
+const quantityOnlyKeys = new Set<string>(QUANTITY_ONLY_BATCH_KEYS);
+
+function isQuantityOnlyBatchEdit(operation: string, payload: string | null): boolean {
+  if (operation !== "UPDATE") return false;
+  try {
+    const parsed: unknown = JSON.parse(payload ?? "");
+    return !!parsed && typeof parsed === "object" && Object.keys(parsed).every((key) => quantityOnlyKeys.has(key));
+  } catch {
+    return false;
+  }
+}
+
+async function hasShieldingLocalEdit(table: string, recordId: string): Promise<boolean> {
+  if (table !== "stock_batches") {
+    const pending = await query<{ 1: number }>("SELECT 1 FROM _sync_queue WHERE table_name = ? AND record_id = ? LIMIT 1", [table, recordId]);
+    return pending.length > 0;
+  }
+  const pending = await query<{ operation: string; payload: string | null }>(
+    "SELECT operation, payload FROM _sync_queue WHERE table_name = ? AND record_id = ?",
+    [table, recordId],
+  );
+  return pending.some((row) => !isQuantityOnlyBatchEdit(row.operation, row.payload));
+}
+
 export interface PullPageContext {
   touchBatch: (batchId: string, delta: number) => void;
   skippedRecords: SkippedRecord[];
@@ -36,13 +62,9 @@ export async function applyPulledRecord(
     const version = (rawData._version as number) || 1;
 
     if (exists.length > 0) {
-      // A row with an unpushed local edit is left alone; the next
-      // push resolves it by version comparison.
-      const pendingLocalEdit = await query<{ 1: number }>(
-        "SELECT 1 FROM _sync_queue WHERE table_name = ? AND record_id = ? LIMIT 1",
-        [table, recordId],
-      );
-      if (pendingLocalEdit.length > 0) {
+      // A row with an unpushed local edit is left alone (bar a quantity-only batch edit, A-271);
+      // the next push resolves it by version comparison.
+      if (await hasShieldingLocalEdit(table, recordId)) {
         return { counted: false, skipped: true };
       }
 

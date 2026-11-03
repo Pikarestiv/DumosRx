@@ -20,7 +20,7 @@ import {
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SupplierCombobox } from "./supplier-combobox";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 
 interface Supplier {
   id: string;
@@ -76,6 +76,7 @@ export function PODetailsFields({
   onOpenAddSupplier,
   hideTypeToggle,
 }: PODetailsFieldsProps) {
+  const formatCurrency = useFormatCurrency();
   const hasOrderTotal = totalAmount > 0;
   const exceedsOrderTotal =
     hasOrderTotal && Number(amountPaid) > totalAmount;
@@ -215,7 +216,7 @@ export function PODetailsFields({
               type="number"
               inputMode="decimal"
               min={0}
-              step="0.01"
+              step="any"
               max={hasOrderTotal ? totalAmount : undefined}
               aria-label="Amount Paid (Initial Payment)"
               placeholder="0.00"

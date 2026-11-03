@@ -8,6 +8,7 @@ import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { useStockVisibility } from "@/lib/hooks/use-stock-visibility";
+import { AVG_COST_HINT } from "@/lib/constants/cost-hints";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { RequestItemDialog } from "@/components/pos/request-item-dialog";
 import { BarcodePrintDialog } from "@/components/stock-batch/barcode-print-dialog";
@@ -205,6 +206,7 @@ export function CatalogList({
         {showCostColumn && (
           <SortableHeaderCell
             label="Avg Cost"
+            tooltip={AVG_COST_HINT}
             active={sortKey === "costPrice"}
             direction={sortDirection}
             onClick={() => onToggleSort("costPrice")}

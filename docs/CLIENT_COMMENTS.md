@@ -930,7 +930,9 @@ big payload, so the slowest thing to flush.
 Stage 1 of docs/superpowers/specs/2026-10-14-oversell-compensating-movement-design.md:
 a counter standing in front of a shelf has no way to know the ledger owes
 units, so their count pays the shortfall off and the figure does not move
-(A-265). Until the compensating write lands, saying so is the fix.
+(A-265). Since the compensating write shipped (2026-10-25) a new oversell
+leaves no shortfall, so this warning only covers deficits an older bundle or a
+device behind on its log wrote, until `stock:compensate-oversells` runs.
 
 ## block-__tests__-crash-report-dedup-test-ts-L23
 
@@ -3462,10 +3464,12 @@ second production code path just for this test.
 
 `client/__tests__/product-import-show-online.test.ts:15`
 
-`products.show_online` defaults off and the importer handled the column not
-at all, so a store that imported hundreds of products and enabled its online
-store got an empty storefront with no bulk way out (docs/STOREFRONT_REVIEW.md,
-feature #7).
+`products.show_online` used to default off and the importer handled the column
+not at all, so a store that imported hundreds of products and enabled its
+online store got an empty storefront with no bulk way out
+(docs/STOREFRONT_REVIEW.md, feature #7). Since 2026-11-02 a new product
+defaults to shown; see client/AGENTS.md, "Publishing products to the online
+storefront".
 
 ## line-__tests__-product-import-upsert-test-ts-L137
 
@@ -12219,3 +12223,75 @@ starts at false. The catalog card's `flex-1` already fills the space left
 under the tabs; `min-h-[360px]` keeps it usable on short windows and
 `lg:max-h-[900px]` is a fixed-pixel rail for very tall monitors. A vh-based
 cap was always smaller than the real remaining space and undid the fill.
+
+## block-hooks-use-settings-sync-ts-L55
+
+`client/hooks/use-settings-sync.ts:55`
+
+Recovery path for a device whose pull cursor has drifted ahead of
+content it never actually received (e.g. a mid-round crash) — every
+ordinary sync since then has "succeeded" while silently never re-
+fetching the missed rows, since a stuck cursor gives no error to act
+on. Clears the local pull cursor and re-fetches every table from
+scratch; never touches local data or this device's own pending
+outbound changes. See lib/db/sync-engine/index.ts's forceFullResync.
+
+## block-hooks-use-settings-sync-ts-L150
+
+`client/hooks/use-settings-sync.ts:150`
+
+Surfaces restoreDatabase()'s actual validation message (e.g.
+"missing tables: ...") instead of a generic one, so a rejected
+restore tells the user WHY rather than just "invalid file".
+
+## block-hooks-use-settings-sync-ts-L160
+
+`client/hooks/use-settings-sync.ts:160`
+
+Undoes the most recent restoreDatabase() call (web only) by recovering
+the snapshot it took of the outgoing database right before overwriting
+it. Exists so that safety net is actually reachable from the UI, not
+just present in the code - see restorePreRestoreSnapshot()'s doc comment.
+
+## block-hooks-use-settings-sync-ts-L179
+
+`client/hooks/use-settings-sync.ts:179`
+
+Record who did this before anything else: resetDatabase() wipes
+audit_logs itself, so this is the only chance for the action to leave
+a trace anywhere. logAction() also enqueues it into _sync_queue, so
+if this device is cloud-linked, force an immediate sync to push it
+(and anything else pending) to the server right now - waiting for the
+next scheduled auto-sync isn't an option, since clearToken() below
+disconnects this device from sync entirely. Best-effort: if the push
+fails (e.g. offline), the reset still proceeds - the confirming PIN
+entry already established who authorized it, this is belt-and-braces
+durability for that record, not a precondition for the reset itself.
+
+## block-hooks-use-settings-sync-ts-L200
+
+`client/hooks/use-settings-sync.ts:200`
+
+Disconnect cloud sync before wiping local tables, not after: resetDatabase()
+ends in a window.location.reload(), and this device's mount-time auto-sync
+effect (store-context.tsx) would otherwise immediately re-pull every
+just-cleared table straight back down from the server, undoing the reset
+within a second of it finishing. Clearing the token here means that
+effect finds no auth_token and skips, same as any other signed-out device.
+The user can re-link (Settings > Data > "Link & Sync") whenever they want
+this device syncing again - their cloud account itself is untouched.
+
+## block-hooks-use-settings-sync-ts-L209
+
+`client/hooks/use-settings-sync.ts:209`
+
+Imported here rather than at the top: this hook is loaded by every
+settings screen, and the draft stores pull in the whole POS cart
+module graph with them.
+
+### app/(dashboard)/procurement/edit/page.tsx - getOrderTotal
+
+The total uses `getOrderTotal`/`getLineTotal`, not `item.subtotal`: subtotal
+only gets refreshed when unit cost changes (`po-item-ledger-table.tsx`), so
+editing just the quantity leaves it stale. `lib/db/procurement.ts`
+recomputes `total_amount` itself at save time for the same reason.

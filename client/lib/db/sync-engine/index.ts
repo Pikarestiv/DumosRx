@@ -12,6 +12,7 @@ import {
   SYNC_IN_PROGRESS_ERROR,
 } from "./sync-outcome";
 import { resolveSyncRun } from "./sync-run";
+import { refusedRound } from "./store-refusal";
 import { apiClient } from "@/lib/api/client";
 import { queryClient } from "@/lib/query-client";
 import { query, execute, isTauri, isWriterTab } from "../core";
@@ -184,7 +185,7 @@ async function runSync(
       console.error("Failed to sync autocomplete suggestions:", err);
     }
 
-    setLastSyncTime(new Date().toISOString());
+    if (!pullResult.refusal) setLastSyncTime(new Date().toISOString());
 
     if (isWriterTab()) {
       await pruneSyncedAuditLogs().catch((err) =>
@@ -212,6 +213,8 @@ async function runSync(
         updatedTables: pullResult.updatedTables || [],
       });
     }
+
+    if (pullResult.refusal) return await refusedRound(pushResult.pushed, pullResult.pulled, pullResult.refusal);
 
     // pushChanges() swallows a bad batch so the rest can proceed; without
     // this the indicator would toast success when nothing pushed.

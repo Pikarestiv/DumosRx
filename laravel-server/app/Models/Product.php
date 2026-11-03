@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +20,10 @@ class Product extends Model
     use HasFactory, HasUuids, SoftDeletes;
 
     protected $guarded = [];
+
+    protected $attributes = [
+        'show_online' => true,
+    ];
 
     protected $casts = [
         'requires_prescription' => 'boolean',
@@ -40,19 +45,7 @@ class Product extends Model
         'is_active',
     ];
 
-    /**
-     * Mirrors Store::boot()'s dirty-flag hook for the other half of what a
-     * customer sees: prices and listings live on products, so without this a
-     * price change stays frozen in the static export until something
-     * unrelated triggers a rebuild. Raw DB::table() update, not a ->save(),
-     * for the same reason it is over there (re-firing model events), and
-     * narrowed to stores that actually publish a storefront so a bulk product
-     * sync doesn't write flags for the accounts that have none. The stamp is
-     * always refreshed rather than only set when currently null: the rebuild
-     * confirmation callback clears flags stamped at or before the moment the
-     * rebuild was dispatched, so a change that lands mid-build has to move the
-     * timestamp past that cutoff or it would be cleared without ever shipping.
-     */
+    /** Rationale: laravel-server/AGENTS.md, "What dirties a storefront" and "The stamp is always refreshed". */
     protected static function booted(): void
     {
         static::created(function (Product $product) {
@@ -76,20 +69,30 @@ class Product extends Model
 
     private function markStorefrontDirty(): void
     {
-        $stores = DB::table('stores')->where('online_store_enabled', true);
-
         if ($this->store_id) {
-            $stores->where('id', $this->store_id);
+            self::markStorefrontsDirty([$this->store_id], []);
         } elseif ($this->user_id) {
-            // Legacy rows predating the store_id backfill belong to whichever
-            // of the owner's stores publishes them, which can't be narrowed
-            // further from here.
-            $stores->where('user_id', $this->user_id);
-        } else {
+            self::markStorefrontsDirty([], [$this->user_id]);
+        }
+    }
+
+    /**
+     * A store-less legacy row (predating the store_id backfill) belongs to whichever of its owner's stores
+     * publishes it, so it dirties every publishing store of `$ownerIds`.
+     *
+     * @param  array<int, string>  $storeIds
+     * @param  array<int, string>  $ownerIds
+     */
+    public static function markStorefrontsDirty(array $storeIds, array $ownerIds): void
+    {
+        if ($storeIds === [] && $ownerIds === []) {
             return;
         }
 
-        $stores->update(['storefront_dirty_at' => now()]);
+        DB::table('stores')
+            ->where('online_store_enabled', true)
+            ->where(fn ($q) => $q->whereIn('id', $storeIds)->orWhereIn('user_id', $ownerIds))
+            ->update(['storefront_dirty_at' => now()]);
     }
 
     /**
@@ -106,5 +109,19 @@ class Product extends Model
     public function stockBatches(): HasMany
     {
         return $this->hasMany(StockBatch::class);
+    }
+
+    /**
+     * @param  Builder<Product>  $query
+     * @return Builder<Product>
+     */
+    public function scopeInStockFirstAt(Builder $query, string $storeId): Builder
+    {
+        return $query->orderByDesc(
+            DB::table('stock_batches')
+                ->selectRaw('CASE WHEN COALESCE(SUM(quantity), 0) > 0 THEN 1 ELSE 0 END')
+                ->whereColumn('stock_batches.product_id', 'products.id')
+                ->where(fn ($q) => $q->where('stock_batches.store_id', $storeId)->orWhereNull('stock_batches.store_id'))
+        );
     }
 }

@@ -76,6 +76,16 @@ describe("procurement-receiving.ts", () => {
     });
   });
 
+  describe("createAndReceivePurchaseOrder selling price", () => {
+    it("leaves the product untouched when the typed price equals the live catalog price", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price, _synced) VALUES ('pI', 'I', 'Tablet', 'Carton', 10, 40, 1)`);
+      await createAndReceivePurchaseOrder(null, "", [
+        { product_id: "pI", product_name: "I", bulk_unit: "Carton", bulk_quantity: 1, units_per_bulk: 10, unit_cost: 1000, subtotal: 1000, selling_price: 40 },
+      ]);
+      expect(db.exec(`SELECT _synced FROM products WHERE id = 'pI'`)[0].values[0][0]).toBe(1);
+    });
+  });
+
   describe("receivePurchaseOrder partial receipts", () => {
     const seedStandardPO = async () => {
       db.run(
@@ -147,6 +157,32 @@ describe("procurement-receiving.ts", () => {
       expect(batchRows[0].values[0][0]).toBe(1000);
     });
 
+    it("applies a typed selling price even on a line received at quantity zero", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price) VALUES ('pA', 'A', 'Tablet', 'Carton', 10, 10), ('pB', 'B', 'Tablet', 'Carton', 10, 10)`);
+      const line = (product_id: string) => ({ product_id, product_name: product_id, bulk_unit: "Carton", bulk_quantity: 5, units_per_bulk: 10, unit_cost: 1000, subtotal: 5000 });
+      const poId = await createPurchaseOrder(null, "", [line("pA"), line("pB")]);
+      const items = (await getPurchaseOrderById(poId))?.items ?? [];
+      const byProduct = (id: string) => items.find((i) => i.product_id === id);
+
+      await receivePurchaseOrder(poId, [
+        { po_item_id: byProduct("pA")?.id ?? "", quantity: 5 },
+        { po_item_id: byProduct("pB")?.id ?? "", quantity: 0, selling_price: 77 },
+      ]);
+
+      const rows = db.exec(`SELECT selling_price FROM products WHERE id = 'pB'`);
+      expect(rows[0].values[0][0]).toBe(77);
+    });
+
+    it("leaves the product untouched when the typed selling price equals the live catalog price", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price, _synced) VALUES ('pS', 'S', 'Tablet', 'Carton', 10, 40, 1)`);
+      const poId = await createPurchaseOrder(null, "", [{ product_id: "pS", product_name: "S", bulk_unit: "Carton", bulk_quantity: 5, units_per_bulk: 10, unit_cost: 1000, subtotal: 5000 }]);
+      const item = (await getPurchaseOrderById(poId))?.items[0];
+
+      await receivePurchaseOrder(poId, [{ po_item_id: item?.id ?? "", quantity: 5, selling_price: 40 }]);
+
+      expect(db.exec(`SELECT _synced FROM products WHERE id = 'pS'`)[0].values[0][0]).toBe(1);
+    });
+
     it("caps a submitted quantity at the outstanding balance instead of overbooking stock", async () => {
       const poId = await seedStandardPO();
       const item = await lineItem(poId);
@@ -176,13 +212,31 @@ describe("procurement-receiving.ts", () => {
       expect(batchRows[0].values[0][0]).toBe(1000);
     });
 
+    it("treats a submit that receives nothing as a no-op even when earlier receipts exist, while still applying a typed price", async () => {
+      db.run(`UPDATE products SET selling_price = 10 WHERE id = 'prod1'`);
+      const poId = await seedStandardPO();
+      const item = await lineItem(poId);
+      await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 60 }]);
+
+      const second = await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 0, selling_price: 77 }]);
+
+      expect(second).toBeUndefined();
+      expect(db.exec(`SELECT status FROM purchase_orders WHERE id = '${poId}'`)[0].values[0][0]).toBe("partially_received");
+      expect(db.exec(`SELECT selling_price FROM products WHERE id = 'prod1'`)[0].values[0][0]).toBe(77);
+    });
+
+    it("reports a missing order instead of silently returning", async () => {
+      expect(await receivePurchaseOrder("does-not-exist", [])).toBe("not_found");
+    });
+
     it("is a no-op on an already-received order", async () => {
       const poId = await seedStandardPO();
       const item = await lineItem(poId);
 
       await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 100 }]);
-      await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 100 }]);
+      const second = await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 100, selling_price: 77 }]);
 
+      expect(second).toBe("already_received");
       const batchRows = db.exec(
         `SELECT SUM(quantity) FROM stock_batches WHERE product_id = 'prod1'`,
       );

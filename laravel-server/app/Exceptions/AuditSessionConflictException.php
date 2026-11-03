@@ -30,3 +30,4 @@ class AuditSessionConflictException extends \RuntimeException
         ], 409);
     }
 }
+

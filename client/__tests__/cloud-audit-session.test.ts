@@ -251,3 +251,4 @@ describe("Cloud Audit Session API Client", () => {
     expect(res.session.status).toBe("completion_pending_sync");
   });
 });
+

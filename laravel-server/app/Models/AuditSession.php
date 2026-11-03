@@ -88,3 +88,4 @@ class AuditSession extends Model
         return ! $this->isLeaseExpired();
     }
 }
+

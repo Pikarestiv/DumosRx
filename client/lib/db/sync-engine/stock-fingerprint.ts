@@ -21,10 +21,11 @@ export async function buildStockFingerprint(storeId: string | null): Promise<Sto
       value_sum: number | null;
     }>(
       `SELECT COUNT(*) AS batch_count,
-              COALESCE(SUM(quantity), 0) AS quantity_sum,
-              COALESCE(SUM(quantity * COALESCE(cost_price, 0)), 0) AS value_sum
-       FROM stock_batches
-       WHERE store_id = ? AND (_deleted = 0 OR _deleted IS NULL)`,
+              COALESCE(SUM(sb.quantity), 0) AS quantity_sum,
+              COALESCE(SUM(sb.quantity * COALESCE(sb.cost_price, 0)), 0) AS value_sum
+       FROM stock_batches sb
+       JOIN products p ON p.id = sb.product_id
+       WHERE p.store_id = ? AND (sb._deleted = 0 OR sb._deleted IS NULL)`,
       [storeId],
     );
 

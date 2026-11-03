@@ -5,7 +5,7 @@ import { POBackButton } from "./po-back-button";
 import { PODetailsSummaryBar } from "./po-details-summary-bar";
 import { POItemBuilder } from "./po-item-builder";
 import { getOrderTotal } from "./po-line-item-math";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import type { POLineItemDraft } from "./po-item-ledger-table";
 import type { ProductViewModel } from "@/lib/types/product";
@@ -47,6 +47,7 @@ export function PODesktopEditView({
   dueDate,
   amountPaid,
 }: PODesktopEditViewProps) {
+  const formatCurrency = useFormatCurrency();
   const totalAmount = getOrderTotal(items, poType);
 
   return (

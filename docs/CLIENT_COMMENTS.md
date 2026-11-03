@@ -3462,10 +3462,12 @@ second production code path just for this test.
 
 `client/__tests__/product-import-show-online.test.ts:15`
 
-`products.show_online` defaults off and the importer handled the column not
-at all, so a store that imported hundreds of products and enabled its online
-store got an empty storefront with no bulk way out (docs/STOREFRONT_REVIEW.md,
-feature #7).
+`products.show_online` used to default off and the importer handled the column
+not at all, so a store that imported hundreds of products and enabled its
+online store got an empty storefront with no bulk way out
+(docs/STOREFRONT_REVIEW.md, feature #7). Since 2026-11-02 a new product
+defaults to shown; see client/AGENTS.md, "Publishing products to the online
+storefront".
 
 ## line-__tests__-product-import-upsert-test-ts-L137
 
@@ -12219,3 +12221,10 @@ starts at false. The catalog card's `flex-1` already fills the space left
 under the tabs; `min-h-[360px]` keeps it usable on short windows and
 `lg:max-h-[900px]` is a fixed-pixel rail for very tall monitors. A vh-based
 cap was always smaller than the real remaining space and undid the fill.
+
+### app/(dashboard)/procurement/edit/page.tsx - getOrderTotal
+
+The total uses `getOrderTotal`/`getLineTotal`, not `item.subtotal`: subtotal
+only gets refreshed when unit cost changes (`po-item-ledger-table.tsx`), so
+editing just the quantity leaves it stale. `lib/db/procurement.ts`
+recomputes `total_amount` itself at save time for the same reason.

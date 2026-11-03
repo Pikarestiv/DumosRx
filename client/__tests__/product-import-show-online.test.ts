@@ -12,7 +12,6 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
-// `products.show_online` defaults off and the importer handled the column not at all, so a store that imported hundreds of…
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-product-import-show-online-test-ts-L15
 describe("show_online column mapping", () => {
   it("auto-detects the spellings a store owner's own export uses", () => {
@@ -91,14 +90,20 @@ describe("importProductRows show_online handling", () => {
     expect(showOnlineFor("published")).toBe(1);
   });
 
-  it("leaves a new product unpublished when the column is absent", async () => {
+  it("publishes a new product when the column is absent", async () => {
     await importProductRows([{ name: "Quiet", sellingPrice: 100 }]);
 
-    expect(showOnlineFor("quiet")).toBe(0);
+    expect(showOnlineFor("quiet")).toBe(1);
+  });
+
+  it("hides a new product when the file says to", async () => {
+    await importProductRows([{ name: "Hidden", sellingPrice: 100, showOnline: false }]);
+
+    expect(showOnlineFor("hidden")).toBe(0);
   });
 
   it("updates an existing product's visibility", async () => {
-    await importProductRows([{ name: "Togglable", sellingPrice: 100 }]);
+    await importProductRows([{ name: "Togglable", sellingPrice: 100, showOnline: false }]);
     expect(showOnlineFor("togglable")).toBe(0);
 
     const result = await importProductRows([
@@ -110,11 +115,11 @@ describe("importProductRows show_online handling", () => {
   });
 
   it("leaves an existing product's visibility alone when the column is absent", async () => {
-    await importProductRows([{ name: "Keeper", sellingPrice: 100, showOnline: true }]);
+    await importProductRows([{ name: "Keeper", sellingPrice: 100, showOnline: false }]);
 
     await importProductRows([{ name: "Keeper", sellingPrice: 250 }]);
 
-    expect(showOnlineFor("keeper")).toBe(1);
+    expect(showOnlineFor("keeper")).toBe(0);
   });
 });
 

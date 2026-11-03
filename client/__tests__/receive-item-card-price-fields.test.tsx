@@ -8,8 +8,12 @@ import type { PurchaseOrder } from "@/lib/db/local-database";
 
 // Product names now render through ProductName, which reads the store's
 // casing setting; these specs mount their component without a provider.
+const storeProfile = vi.hoisted(() => ({
+  uppercase_display_enabled: 1,
+  currency: undefined as string | undefined,
+}));
 vi.mock("@/lib/context/store-context", () => ({
-  useStore: () => ({ storeProfile: { uppercase_display_enabled: 1 } }),
+  useStore: () => ({ storeProfile }),
 }));
 
 vi.mock("@/lib/hooks/use-permissions", () => ({
@@ -95,7 +99,56 @@ describe("ReceiveItemCard price fields", () => {
       "New Selling Price for Panadol",
     ) as HTMLInputElement;
     expect(input.getAttribute("type")).toBe("number");
-    expect(input.getAttribute("placeholder")).toBe("Unchanged");
+    expect(input.getAttribute("placeholder")).toBe("₦12.5");
+  });
+
+  it("formats the receive placeholders in the store's currency, not the default naira", () => {
+    storeProfile.currency = "XAF";
+    try {
+      renderPanel();
+      const price = screen.getByLabelText("New Selling Price for Panadol") as HTMLInputElement;
+      const cost = screen.getByLabelText("Cost Price per Tablet for Panadol") as HTMLInputElement;
+      expect(price.getAttribute("placeholder")).not.toContain("₦");
+      expect(price.getAttribute("placeholder")).toMatch(/13|12/);
+      expect(cost.getAttribute("placeholder")).not.toContain("₦");
+    } finally {
+      storeProfile.currency = undefined;
+    }
+  });
+
+  it("keeps the order's cost on a follow-up receipt but not its lot or expiry, which belong to one delivery", () => {
+    const partialPo = {
+      ...po,
+      type: "immediate",
+      status: "partially_received",
+      items: [
+        {
+          ...(po.items ?? [])[0],
+          quantity_received: 1,
+          cost_price_override: 4.5,
+          lot_number: "LOT-9",
+          expiry_date: "2027-03-01",
+        },
+      ],
+    } as unknown as PurchaseOrder;
+    render(withQueryClient(<ReceivePOPanel po={partialPo} onBack={vi.fn()} onConfirm={vi.fn()} />));
+
+    expect((screen.getByLabelText("Cost Price per Tablet for Panadol") as HTMLInputElement).value).toBe("4.5");
+    expect((screen.getByLabelText("Lot or batch number for Panadol") as HTMLInputElement).value).toBe("");
+  });
+
+  it("seeds nothing for a Standard order, whose lines never had those inputs", () => {
+    const standardPo = {
+      ...po,
+      type: "standard",
+      items: [
+        { ...(po.items ?? [])[0], cost_price_override: 4.5, lot_number: "LOT-9", expiry_date: "2027-03-01" },
+      ],
+    } as unknown as PurchaseOrder;
+    render(withQueryClient(<ReceivePOPanel po={standardPo} onBack={vi.fn()} onConfirm={vi.fn()} />));
+
+    expect((screen.getByLabelText("Cost Price per Tablet for Panadol") as HTMLInputElement).value).toBe("");
+    expect((screen.getByLabelText("Lot or batch number for Panadol") as HTMLInputElement).value).toBe("");
   });
 
   it("carries what is typed into the new price fields through to the receive payload, clamping a negative to zero", () => {
@@ -124,5 +177,43 @@ describe("ReceiveItemCard price fields", () => {
     const [, payload] = onConfirm.mock.calls[0];
     expect(payload[0].cost_price).toBe("450");
     expect(payload[0].selling_price).toBe("0");
+  });
+  it("prefills the cost, lot and expiry that were saved on the order line", () => {
+    const onConfirm = vi.fn();
+    const savedPo = {
+      ...po,
+      type: "immediate",
+      items: [
+        {
+          ...(po.items ?? [])[0],
+          selling_price: 15,
+          cost_price_override: 4.5,
+          lot_number: "LOT-9",
+          expiry_date: "2027-03-01",
+        },
+      ],
+    } as unknown as PurchaseOrder;
+    render(
+      withQueryClient(
+        <ReceivePOPanel po={savedPo} onBack={vi.fn()} onConfirm={onConfirm} />,
+      ),
+    );
+
+    expect(
+      (screen.getByLabelText("New Selling Price for Panadol") as HTMLInputElement).value,
+    ).toBe("");
+    expect(
+      (screen.getByLabelText("Cost Price per Tablet for Panadol") as HTMLInputElement).value,
+    ).toBe("4.5");
+
+    act(() => {
+      screen.getByRole("button", { name: "Confirm & Receive" }).click();
+    });
+    const [, payload] = onConfirm.mock.calls[0];
+    expect(payload[0]).toMatchObject({
+      cost_price: 4.5,
+      lot_number: "LOT-9",
+      expiry_date: "2027-03-01",
+    });
   });
 });

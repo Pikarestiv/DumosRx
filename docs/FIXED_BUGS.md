@@ -9,6 +9,17 @@
 - **Coverage:** 16 cases over a shared `SyncPushTwoTenantTestCase`; every refusal case but the scalar one is RED against `dev` (12). `SyncPushChildParentRepointTest.php`: a batch UPDATE and a resent batch INSERT repointed at another tenant's product; a purchase-order line repointed at another tenant's order; a sale line repointed at, and one inserted under, another tenant's voided sale; a sale-item allocation repointed at another tenant's sale line; then a batch moved to another product of the same tenant accepted, restating the stored parent adds no product lookup, and a super admin unaffected. `SyncPushNonColumnKeyTest.php`: `PRODUCT_ID` on a batch UPDATE, resent INSERT and fresh INSERT; `STORE_ID` on a product UPDATE; `stock_batches.product_id` and `products.store_id`, all refused; a scalar payload fails only its own change (RED against the first version of the key check).
 - **Full suite:** backend 1,629 passed, 5 skipped.
 
+### PG-21 — controlled products were listed on the public storefront and orderable
+- **Fixed:** 2026-11-02, server, client, web, TDD.
+- **Was:** `StorefrontController::storeProducts()` filtered only on `is_active` and `show_online`. When `show_online` was changed to default to `true` (Phase 1), newly created or imported controlled substances (`is_controlled = true`) defaulted to shown online, appeared in the public storefront listing, and could be ordered and paid for at checkout.
+- **Now:**
+  - **Server:** `StorefrontController::storeProducts()` enforces `->where('is_controlled', false)` across the storefront catalogue, cart pricing, and checkout verification paths.
+  - **Client:** `AddProductDialog`'s `applyProductFormChange()` automatically unticks `showOnline` whenever "Controlled Substance" is enabled in the add/edit product form.
+  - **Catalog Quality:** `StorefrontController::show()` orders products with `inStockFirstAt($store->id)` so available inventory appears first before out-of-stock items within the 300-product storefront limit.
+  - **Display:** `toDisplayTitle()` in `web/lib/storefront-display.ts` preserves uppercase acronyms (e.g. "ORS", "HIV", "DS", "BD") and title-cases all-caps or all-lowercase drug names cleanly.
+  - **House styling:** `web/components/storefront/store-contact-block.tsx` matches the house card style (`bg-white dark:bg-slate-900 rounded-3xl border-slate-200 dark:border-slate-800 shadow-sm`).
+- **Coverage:** `laravel-server/tests/Feature/StorefrontListingTest.php` (controlled product excluded from public listing and rejected at checkout; in-stock products ordered first), `client/__tests__/add-product-form-controlled.test.ts` (controlled toggle unchecks showOnline), `web/__tests__/storefront-display.test.ts` (acronyms and connectors preserved).
+
 ### A-333 — a purchase receipt's stock movement showed one hour early
 - **Fixed:** 2026-10-24, client only, TDD. Found by the local browser smoke test (not a regression: the writer predates the base commit).
 - **Was:** `receivePurchaseOrder()` and `createAndReceivePurchaseOrder()` stamped the movement, batch and order with `new Date().toISOString().slice(0, 19).replace('T', ' ')`, a UTC wall clock with the zone stripped. The movements ledger does `new Date(...)` on it, which reads a zone-less string as local time, so a receipt at 21:17 in Lagos showed 20:17 while sales and adjustments (full ISO) showed the real time. Day grouping and any date-range comparison could put a late or early receipt on the wrong day.

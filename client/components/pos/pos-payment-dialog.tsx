@@ -176,6 +176,7 @@ export function POSPaymentDialog({
             <label className="text-sm font-medium">Amount Paid (Cash)</label>
             <Input
               type="number"
+              step="any"
               inputMode="decimal"
               placeholder="0.00"
               value={amountPaid}

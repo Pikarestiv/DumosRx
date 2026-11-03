@@ -75,7 +75,10 @@ class StorefrontThrottleTest extends TestCase
         $expected = [
             ['api/v1/storefront-slugs', 'GET', 'throttle:storefront-read'],
             ['api/v1/storefront/{store_slug}', 'GET', 'throttle:storefront-read'],
+            ['api/v1/storefront/{store_slug}/products', 'GET', 'throttle:storefront-read'],
+            ['api/v1/storefront/{store_slug}/orders/{identifier}', 'GET', 'throttle:storefront-read'],
             ['api/v1/storefront/{store_slug}/checkout', 'POST', 'throttle:storefront-order'],
+            ['api/v1/storefront/{store_slug}/prescriptions', 'POST', 'throttle:storefront-order'],
             ['api/v1/storefront/{store_slug}/checkout/initialize', 'POST', 'throttle:storefront-checkout'],
         ];
 

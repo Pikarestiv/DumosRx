@@ -1,3 +1,4 @@
+
 # DumosRx — Known Bugs & Engineering Notes
 
 This file holds **open** items only. A fixed entry moves to `docs/FIXED_BUGS.md`
@@ -18,30 +19,35 @@ suggested tackle order rather than a strict ranking.
 ### Tier 1 — cross-tenant writes, security, silent data loss
 
 #### A-326. `laravel-server/` — a store-less INSERT of a non-product row from a multi-store session still takes the active store
+
 - **Found:** 2026-10-23, closing A-248, whose part (c) stopped this guess for `products` only.
 - **What's wrong:** `normalizePushPayload()` backfills a missing `store_id` from the session on INSERT for every `STORE_ID_BACKFILL_TABLES` table. On a multi-store session that is the active store, i.e. a guess, so a legacy customer, category, supplier, expense and so on, queued under one store and first pushed under another, lands in the wrong one.
 - **Why it was left:** products have stock evidence (`stock_batches`) to attribute them by, which the server now does at ingest. These tables mostly have none, so not guessing would leave the row invisible to every other device with nothing to repair it from. Wrong-but-visible versus right-but-invisible is an owner's call, not a bug fix.
 - **Fix, if wanted:** per table, find the evidence (a customer's sales, a category's products, a supplier's purchase orders) and apply the A-248 part (c) pattern: the client attributes before pushing, the server stops guessing, and a repair command attributes the rest.
 
 #### A-323. `client/` — a device whose active store the server refuses reports every sync as successful and never re-resolves its store
+
 - **Found:** 2026-10-23, by the second review of A-254's fix.
 - **What's wrong:** since A-254 the server answers a pull for a store outside the caller's scope with `stores` and `payment_accounts` only, plus `refused_store_id`. The client clears that store key's windows, but otherwise treats the round as a success: no diagnostic, no sync-status error, and the active store is never changed. A staff member moved from store B to store C keeps a till on B, syncing nothing of either store, with the indicator reading "synced".
 - **Consequence:** silent loss of sync on exactly the device that needs attention; only the server's once-a-day log line records it.
 - **Fix:** when `refused_store_id` equals the run's store, report the round as failed with a message naming the problem, and if the pulled `stores` rows show the active store deleted or no longer owned, offer to switch to one that is (the store switcher already has the list). §11: additive client behaviour, no contract change.
 
 #### A-322. `client/` — a device whose windows an unowned-store pull stamped before A-254, and which has since regained that store, still misses the store's older rows
+
 - **Found:** 2026-10-23, by the review of A-254's fix.
 - **What's wrong:** before A-254, a pull with an `X-Store-Id` outside the caller's scope returned empty tables and the client stamped every window for that store key. A-254 clears those windows when the refusal is seen, but a device that was refused, then regained access (a staff member moved back, a store restored) before running a fixed bundle, still holds the stamps and is now served normally, so nothing tells it to clear them. Rows of that store older than the stamp never arrive.
 - **Consequence:** silent, permanent gaps on exactly those devices. Population unknown and probably small: it needs a refusal, then a regained scope, both before the fixed bundle ran.
 - **Fix, if worth it:** the agreement panel's per-table counts (`TableAgreementService`) already detect a device behind the cloud for a store; a "force full resync of this store" sync command for a flagged device is the targeted repair. Not worth a blind fleet-wide window reset.
 
 #### A-324. `laravel-server/` — a whole-tenant purge leaves `NULL`-store rows in tables that carry no `user_id`
+
 - **Found:** 2026-10-23, by the second review of A-292's fix.
 - **What's wrong:** A-292's sweeper removes a purged tenant's pre-backfill `NULL`-store rows through `user_id`. Tables without one (`purchase_orders` keyed by `ordered_by`, `stock_movements` by `performed_by`, `customer_payments` and `loyalty_transactions` through their customer, `held_transactions`, `supplier_payments`, `requested_products`) keep theirs, and so do the children of a swept customer, product or supplier.
 - **Consequence:** inert residue: unreachable by any tenant scope, counted by nothing an owner reads. The same class as A-288's leftovers.
 - **Fix:** attribute per table through the column that does name an owner (`ordered_by`, `performed_by`, the parent FK), only on a whole-tenant purge, and add those parents to `PurgedUserRowSweeper::CHILDREN`. Measure first: none of the 50 rows measured on 2026-10-19 is in these tables.
 
 #### A-327. `laravel-server/` — what A-248 left behind: unreconstructed stock deltas, and a store-less product with no stock staying unattributed
+
 - **Found:** 2026-10-23, closing A-248 (parts a to c in `docs/FIXED_BUGS.md`). Recorded so they are not lost with that entry.
 - **Unreconstructed deltas:** the cloud `stock_batches.quantity` changes A-280 refused while a product was mis-stamped are gone; the repair moves the product but does not replay them. The device's own log is the only record; a per-device "re-send this batch's movements" sync command would rebuild it.
 - **A store-less product with no stock, pushed from a multi-store session,** now stays `store_id = NULL` (A-248 part c chose not to guess), so no device pulls it until stock for it arrives in a later push or the repair command attributes it. The pushing device still has it locally. The same holds when its stock names a store outside the pushing session's scope, such as a store since soft-deleted (outside every scope, A-167) or a sibling store a staff session cannot write. A product with no stock and no evidence anywhere can only be attributed by a person; an admin "assign store" action would close it.
@@ -50,6 +56,7 @@ suggested tackle order rather than a strict ranking.
 ### Tier 2 — stock and money figures wrong
 
 #### A-265. `client/` — a cycle count on a batch carrying an oversell deficit silently does nothing the first time, and the ledger ends up double-counting the correction
+
 - **Found:** 2026-10-14, while reading the one production row the A-264 exposure query returned. Confirmed by running the real `insert()` hook against the live shape.
 - **The live case:** batch `868a8d17` ("Opening Stock" for `gluformin`, store `571582a9`, created 2026-09-25) has 4 units of inbound movements and a log summing to **−2** — 6 units went out where 4 ever arrived. Stored quantity 0, which is correct under the derived definition.
 - **What happens:** a staff member who finds 2 units on the shelf and counts them writes a `+2` adjustment. The log then sums to 0, so the rebuilt quantity is **still 0** — the count appears to have done nothing. Counting again writes a second `+2`, the log reaches +2, and the figure finally reads 2. The number is now right and the stock ledger records **+4 of found stock for 2 real units**, with no indication that the first adjustment was absorbed.
@@ -61,6 +68,7 @@ suggested tackle order rather than a strict ranking.
 - **Scale:** one batch across all five stores today (the A-264 query finds it with `quantity = 0 AND log_sum < 0`). It grows by one every time a stale on-screen count lets a cashier oversell, so it is a slow accumulation rather than a one-off.
 
 #### A-217. `laravel-server/`+`client/` — a clamped batch's stored quantity is clamped over the whole log on the client and over one push on the server, so the two can still disagree
+
 - **Found:** 2026-10-10, in the review that produced A-215/A-216.
 - **Half fixed, 2026-10-13 (Stage 1).** The client no longer replays per movement: it holds `MAX(0, Σ log)` (`docs/FIXED_BUGS.md`, "Derived stock quantity, Stage 1"). The server still accumulates each push's deltas and applies one floored UPDATE to the stored value, which is a floor over *that push* rather than over the log, so a batch whose log ever went negative can still differ — and during Stage 1 the client is now the **lower** of the two, where it used to be the higher. Stage 2 is the one statement in `applyStockBatchDeltas()` that closes this; the rest of this entry is the original analysis and still describes the server side correctly.
 - **What's wrong:** where a batch's log sums below zero, the server stores `max(0, SUM(quantity))` (`HealthSyncReconciliationRepairService`, `QuantityReconciliationService::writeQuantityReconciliation()`) while the client's `replayMovements()` applies `max(0, running + delta)` **after every movement**. The per-movement floor is always ≥ the floored sum, so for any batch that ever went negative mid-log the two figures differ permanently, by construction. Neither side is drifting; they are computing different functions.
@@ -69,6 +77,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** make one definition authoritative. The server should replay the log in order with the per-movement floor exactly as the client does (the ordering problem `client/AGENTS.md` describes for `created_at` has to be solved first — `rowid` is local-only), or the clamped shortfall should be recorded explicitly instead of being lost in a `max()`. Out of scope for A-215/A-216, which deliberately changed neither formula.
 
 #### A-271. `client/` — a cost edit the pull cannot reach keeps one device's stock value permanently apart from another's
+
 - **Found:** 2026-10-15, from the owner's report that two of Cynthia's tills **agree with the server on quantity** and still disagree with each other on total stock value. Quantities agreeing is what makes this a cost problem: quantity is stripped from the pull and rebuilt from `stock_movements`, so it reconciles independently of anything in the row.
 - **Half of it is fixed** — see `docs/FIXED_BUGS.md` "A-271 (part)". A sale no longer bumps a batch's `_version`, so her cost corrections stop being refused as conflicts and silently reverted. That path loses edits; it does not by itself hold two devices apart.
 - **What stays open:** `pull.ts:352-360` skips any pulled row that has **any** pending `_sync_queue` entry, with no time limit. While a `stock_batches` edit sits in that queue — a non-terminal failure, `retry_count >= 5`, or merely parked behind a backed-off sibling — the device keeps its own `cost_price` and the server's never lands on it, while its quantities keep agreeing through movements. That is a value-only divergence that persists for as long as the row is stuck. One concrete trigger: a `cost_price` at or above 100,000,000 overflows the server's `decimal(10,2)` and errors on every retry for ever, which is reachable in CFA and naira.
@@ -78,6 +87,7 @@ suggested tackle order rather than a strict ranking.
 - **Not yet asked of the owner**, and it would narrow this in one answer: whether Cynthia sees a conflict toast when she saves a cost price, and whether the old price comes back when she reopens the product. The second is the signature of the lost-edit path that is now fixed; a value gap with neither symptom points at the stuck queue.
 
 #### A-278. `laravel-server/` — the rest of the raw-`update()`-without-`_version` family, after A-277 closed the `users` half
+
 - **Found:** 2026-10-18, the full sweep A-277's brief asked for: every `->update([...])` / `->increment()` / `->decrement()` in `app/` and `database/`, filtered to the 31 tables `SyncController::getModelForTable()` versions. Reported rather than fixed because none of them is `users.is_active` — A-277's reason for being fixed immediately was that it is an access-control value, and none of these is.
 - **`_version` is only ever moved by `SyncController::push()`'s accepted-push path.** Nothing else in the codebase bumps it — no model event, no observer. So an **Eloquent model-instance** `$model->update([...])` is just as exposed as a query-builder one, which is wider than the A-245/A-276 write-up implied. `_version` is also not in most models' `$fillable`, so an instance `update()` cannot bump it even if asked; these need the query-builder form (`Model::whereKey($id)->update([...])`) or `increment('_version', 1, $extra)`.
 - **Real instance — `app/Services/Admin/AdminCatalogService.php:133-134`.** `Product::query()->...->update(['generic_name' => 'General'])` and the `manufacturer` one beside it. Both columns are freely client-pushable (the product edit form sends them), `products` is versioned, and this is an admin-triggered bulk backfill over a whole store — exactly A-245's shape, on exactly A-245's table. A device holding the pre-backfill copy of any touched product writes its blank value back at an equal version. **Fix:** the documented `'_version' => DB::raw('COALESCE(_version, 0) + 1')`; it already has a `$dryRun` branch, which must keep leaving the version alone.
@@ -88,12 +98,14 @@ suggested tackle order rather than a strict ranking.
 - **The general rule** is in `laravel-server/AGENTS.md`, "A raw `update()` on a synced table must move `_version`".
 
 #### A-211. `client/` — a stock count still records the difference it saw, not the number counted; a device behind sync is now warned, not prevented
+
 - **Found:** 2026-10-10, in review of the derived-stock-quantity design (`docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`).
 - **Shipped so far (the cheap guard):** the cycle-count review step warns when this device has not completed a successful sync in the last 60 minutes, and when the server reports another till in the same store that has not synced in that window, and the submit button is held until the counter acknowledges it. See `docs/FIXED_BUGS.md` A-211. It is deliberately not a block — a till with no connectivity for two days must still be able to count.
 - **What is still open:** `submitStockAudit()` (`client/lib/db/queries/inventory.ts:659`) still writes `countedQty - currentSystemQty`, a delta against this device's belief. A warned-and-acknowledged count on a stale device is still wrong by exactly the amount that has not arrived. The correct fix is to record the count as an **absolute observation** ("at this moment a human counted 8") and derive the correction from it; the honest difficulty, which must not be hand-waved, is that a count taken offline and a sale that arrives afterwards but is dated earlier are genuinely ambiguous, and this codebase already knows not to trust `created_at` for ordering (commit `24257592`). That belongs in its own design.
 - **Also still unwarned:** the other two callers of `submitStockAudit()` — the catalog quick edit (`components/products/catalog-list.tsx`) and the CSV product import (`lib/db/queries/product-import.ts`) — reconcile stock through the same delta with no freshness check at all.
 
 #### A-239. `client/` — the device that asserted the A-214 zeros will double those 144 products when it pulls the repair's reversals
+
 - **Found:** 2026-10-11, vetting what the A-214 repair does to each device. The biggest risk in this incident's tail and previously unlogged anywhere.
 - **Location:** `client/lib/db/sync-engine/reconcile-quantities.ts:28-56` (`storeReconciliationMovementLocally`) against `pull.ts:403-423`.
 - **What's wrong:** the asserting device seeded its own 144 `sync_reconciliation` rows locally with `_synced = 1` and **never applied their deltas** — correctly, since its own quantity was already the number it had asserted. Once its interrupted rebuild finished it therefore holds the true quantity against a movement log whose sum is zero. The repair's `sync_reconciliation_reversal` rows are new to that device, so they take the INSERT branch, which has no `movement_type` special-case, and their positive deltas land **on top of** a quantity that was never reduced.
@@ -104,6 +116,7 @@ suggested tackle order rather than a strict ranking.
 - **What the derived-quantity Stage 1 fold does to this device, corrected 2026-10-14.** A first reading claimed the reversal movements put the shape "inside the carve-out boundary", so one fold would cure the whole +13,788. That is a non-sequitur: with stored `S = T + X` and device inbound `I = I0 + X`, the reversal `X` appears on both sides and cancels, so the batch is foldable exactly when `T <= I0` — which is what this entry already said on 10-11. The fold therefore cures every one of the 144 whose logged opening covers its current true quantity and **refuses the rest**, and only that device's own log can say which. A batch at `T = I0` also self-corrects on its very next sale, without waiting for the daily heal.
 
 #### A-246. `laravel-server/` + `client/` — the Device Stock Agreement panel compares two differently-scoped counts, so a permanent small delta is arithmetic rather than drift
+
 - **Found:** 2026-10-12, after the owner synced four devices on store `571582a9` and all of them resolved to the *same* `+18`. Three devices (`DRX-OCGGTOPX2`, `DRX-8DY6G5XH8`, `DRX-HO4QM3TWU`) reported identical fingerprints — 50998 units across **2628** batches against cloud 50980 across **2626**. Devices agreeing to the unit while the cloud differs by a fixed amount is the signature of a yardstick mismatch, not of drift.
 - **Location:** `client/lib/db/sync-engine/stock-fingerprint.ts:24-27` counts `FROM stock_batches WHERE store_id = ? AND (_deleted = 0 OR _deleted IS NULL)`. `app/Services/Admin/StockDivergenceService.php:83-85` counts `whereIn('product_id', Product::withTrashed()->where('store_id', $storeId))->whereNull('deleted_at')`.
 - **What's wrong:** one scopes on `stock_batches.store_id`, the other on the owning product's `store_id`. They are the same set only when every batch's product row exists and agrees. They differ for a batch whose product row is absent server-side, whose product belongs to another store, or which is soft-deleted server-side without `_deleted` having reached the device. `withTrashed()` means a *discontinued* product is correctly included (that was A-173's fix), so the surviving candidates are a missing/cross-store product row and an unpropagated server-side delete.
@@ -114,6 +127,7 @@ suggested tackle order rather than a strict ranking.
 - **Next step to settle this one instance:** read-only, the two extra batch ids are `SELECT b.id, b.product_id, b.quantity, p.id AS product_exists, p.store_id, p.deleted_at FROM stock_batches b LEFT JOIN products p ON p.id = b.product_id WHERE b.store_id = '571582a9-bc11-43e2-81e9-57999db50294' AND (p.id IS NULL OR p.store_id <> b.store_id)`.
 
 #### A-291. both — a product moved between stores leaves a permanent, sellable phantom on the losing store's devices
+
 - **Found:** 2026-10-19, working out what `sync:repair-product-store-stamps` does to the store a mis-stamped product is moved *out* of (A-248). Not a defect in the repair: it is the §11 consequence of `store_id` being a scoping column, and the repair only exposes it.
 - **Location:** `PullTenantScope::applyPullTenantScope()` (every `whereIn('store_id', $storeIds)`) against `client/lib/db/sync-engine/pull.ts` — there is no "row left your scope" signal in the pull payload at all.
 - **What's wrong:** a pull delivers rows; it never says which rows are *gone*. A delete is a tombstone (`_deleted`), a **scoping** change is nothing. So when a row's `store_id` moves, every device of the losing store keeps its local copy for ever and cannot tell "excluded" from "still mine". For a product that means a catalogue row that is searchable and **sellable on that till**: a sale against it writes `sale_items` and `stock_movements` stamped with the losing store's session, which recreates the A-248 asymmetry in the opposite direction and, since A-287, on a staff till has its whole movement refused `forbidden` and parked on the device (retried with backoff, visible under Settings → Device diagnostics "Stuck changes" and in Sentry) until an owner session pushes from that device or this entry is fixed, per A-165's documented transient `forbidden`; the sale rows still sync (before, the movement landed under the wrong store and only its delta was refused). The agreement panel also reads a permanent positive `row_delta` for that store.
@@ -122,6 +136,7 @@ suggested tackle order rather than a strict ranking.
 - **How often it can happen:** only when a product legitimately changes store, which today means an A-248 repair. The blast radius per occurrence is one product plus its batches, on the devices of one store.
 
 #### A-293. both — a device row the cloud never accepted leaves a tombstone the agreement panel reads as a permanent `diverged`, and nothing can clear it
+
 - **Found:** 2026-10-19, explaining Nest Amawbia's `categories 15 vs 13 (+2)` on device `DRX-BDTWSI4KM`. Pre-existing; surfaced by the agreement panel, not caused by it. Confirmed against production, read-only.
 - **Location:** `client/lib/db/base-helpers.ts`'s `softDelete()` (sets `_deleted = 1`, never removes the row) and the `id_map` branch of `client/lib/db/sync-engine/push.ts:566-580` (same again in `pull.ts:525-546`), measured by `CountsSyncedTableRows::serverTableFingerprint()` against `client/lib/db/sync-engine/table-fingerprint.ts`.
 - **What's wrong:** the digest counts soft-deleted rows on both sides on purpose — that is how it detects a server that hard-deletes where the device soft-deletes. So a local row whose INSERT the cloud never accepted, deleted later on the till, leaves a tombstone with no cloud counterpart: `+1` row and `+1` version sum (`_version DEFAULT 1`), permanently. Because `row_delta > 0` the verdict is `diverged`, not `behind`, and `forceFullResync()` cannot clear it — it clears `_sync_state` and re-pulls, it never deletes a local row.
@@ -132,6 +147,7 @@ suggested tackle order rather than a strict ranking.
 - **Two reasoning traps this investigation hit, both now written into `docs/DEVICE_TABLE_AGREEMENT.md`:** `activity_logs` rows are mostly the *device's* pushed audit entries, so an "INSERT on categories" row is the till's claim and not evidence the server accepted anything; and `sync_failures` only exists from `2026_10_07_000001`, so an empty result for an earlier date means the instrument was absent, not that the push succeeded.
 
 #### A-294. `laravel-server/` — a push naming a category that exists nowhere in the cloud is accepted, so one production product is permanently uncategorised cloud-side
+
 - **Found:** 2026-10-19, tracing Nest Amawbia's `categories +2` (A-293). Measured on production, read-only.
 - **Location:** `SyncController::push()`'s INSERT/UPDATE path for `products` — `normalizePushPayload()` and `authorizeInsertTarget()` check the row's *own* `store_id`, and nothing checks that `category_id` resolves. Production declares **zero foreign keys** (A-292's measurement), so the database does not catch it either.
 - **Measured blast radius — exactly one row, whole database:** `products.id = 03976371-fad4-48fc-a7a6-ee50bbff433f` ("sensodyne toothpaste", store `571582a9-…`) points at `category_id = bf32d2f4-7890-49da-a1fc-6b109f195cc8`, which `SELECT COUNT(*) FROM categories WHERE id = …` returns 0 for. The same `LEFT JOIN` across every store returns that one row and nothing else; the equivalent check on `suppliers` (`stock_batches`, `purchase_orders`, `supplier_payments`) returns nothing at all.
@@ -142,6 +158,7 @@ suggested tackle order rather than a strict ranking.
 - **The one production row:** do not repair it with SQL. Setting the product's category on the till pushes a normal UPDATE that fixes the cloud through the ordinary path, and the owner is the only one who knows which category `t` was meant to be.
 
 #### A-296. both — a purchase order deleted before its INSERT synced leaves its lines in the cloud with no parent at all; 22 such rows on production (the cascade half is fixed)
+
 - **Found:** 2026-10-19, explaining `DRX-ZKI5K81UG`'s `purchase_order_items 244 vs 212 (+32)` on store `68e4c0e5` (Nest Pharmacy A2 / Enugu Agidi). Measured on production, read-only.
 - **Measured: 22 orphaned `purchase_order_items` rows in three groups**, each one the same story in the device's own audit trail — a PO and its lines created in one second, the PO deleted seconds later:
   - `5a64c920-…` — 19 lines, created 14/10 10:34:19, PO deleted **10:34:27** (8 seconds)
@@ -161,6 +178,7 @@ suggested tackle order rather than a strict ranking.
 - **A-294 is the same class** (production declares no foreign keys, so nothing catches a row whose referent is absent); the detector proposed there would have surfaced all 22 of these on the day they happened.
 
 #### A-227. `laravel-server/` — a sale floored against the zeroed stock is lost from the batch, so the repair restores a figure that is too high and nothing flags it
+
 - **Found:** 2026-10-10, raised by the agent that fixed A-226 while deriving the repair's arithmetic. Not introduced by that fix — it is inherent to both the old and the new formula.
 - **Location:** `app/Services/Sync/HealthSyncReconciliationRepairService.php` — the repair restores `stored - incidentDelta`, which is exact only when every post-incident movement actually landed in `stock_batches.quantity`.
 - **What's wrong:** the 2026-10-10 Health Sync set 144 batches to zero. Any sale rung against one of those batches afterwards was applied to a quantity of 0 and **floored** — `MAX(0, 0 - n)` — so those units never came out of `stored`. Reversing the incident restores the pre-incident figure, but the floored sale's units are not subtracted from it, because as far as `stored` is concerned they never left. The restored number is therefore high by exactly the quantity that was floored away, and the `stock_movements` row for that sale does exist, so the books and the batch disagree.
@@ -170,6 +188,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** add that detection to the repair's report before the next time it is run, and resolve the affected batches with a stock count. The derived-quantity design (`docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`) removes the class outright by making the floor a projection rather than a destructive write.
 
 #### A-241. `client/` — 29 batches on one till diverged from their movement log by 90 units and the auto-healer wrote them down, with no established cause
+
 - **Found:** 2026-10-12, triaging Sentry `DUMOSRX-CLIENT-25` (`DRX-BKDBKL4Q5`, Chrome on Android, store `571582a9`, 07:47:27Z, build `03e00f9e`): `diverged: 29` of `checked: 2628`, `netUnitDelta: 90`, `divergedAfter: 0`, `unreconstructable: 0`. The first `stock-autoheal` event ever produced in production.
 - **Direction, since it is easy to invert:** `delta = batchQuantity - replayed` (`stock-integrity.ts:96`) and `netUnitDelta` sums those deltas (`:182`), so `+90` means the stored quantities were **90 above** what the log replays, and the fold (`quantity = movementQuantity`, `:265`) wrote them **down**. The till was overstated and is now corrected, not the reverse.
 - **What is not the cause:** this entry first blamed the health check's ordering — `healStockIntegrity()` runs at `health-check.ts:119`, before `deficits` is computed at `:125-133`, and the same run found the device 30 sales short (`DUMOSRX-CLIENT-21`). That mechanism does not work and the claim was withdrawn after review: a pull never writes `stock_batches.quantity` at all (`pull.ts:307-310` deletes it; quantity is only ever derived from movement deltas), so a sale whose row has not arrived decrements neither the stored quantity nor the replay and cannot make them disagree. Had it been able to, a missing *outbound* movement would raise the replay and give a **negative** delta — the opposite sign to what was observed.
@@ -179,6 +198,7 @@ suggested tackle order rather than a strict ranking.
 - **Consequence:** bounded either way. The fold uses raw `execute()`, so nothing enters `_sync_queue` and no corrected figure is pushed to the server. But `unitsCorrected` is not a drift metric until the cause above is known, and the Sentry event reads as a clean repair.
 
 #### A-264. `client/` — a legacy batch whose stock has reached zero cannot get its unlogged units back, because nothing distinguishes it from an ordinary empty batch
+
 - **Found:** 2026-10-14, in the adversarial vet of the derived-quantity Stage 1 change (`docs/FIXED_BUGS.md`, "Derived stock quantity, Stage 1"). Not a regression from it — the pre-Stage-1 incremental write had the same blind spot from the other direction — but Stage 1 is what makes the boundary exact, so it is worth stating.
 - **What's wrong:** the A-148 carve-out is judged as `stored > the log's inbound total before this change`. That is the best test available from data the device holds, but it expires, and **this entry twice stated the boundary wrongly — corrected 2026-10-14 by an independent review.** Write `stored = U + Σlog` where `U` is the unlogged residue and `Σlog = inbound − outbound`; the test `stored > inbound` reduces to **`U > cumulative outbound`**. The inbound cancels. So the batch leaves the carve-out the moment its outbound total overtakes the residue, and on a batch that has since had a *logged* delivery that happens **while stock is still on the shelf** — not "once `stored` reaches 0", which is only true for a batch with no logged inbound at all.
 - **Worked example, pinned in `client/__tests__/batch-quantity-recompute.test.ts`:** a legacy batch holding 100 unlogged units receives a logged delivery of 200 (reads 300, correct) and sells 150 (reads 150, correct). The next sale of 10 takes cumulative outbound to 160, past the residue of 100: the batch rebuilds to **40** where the shelf holds **140**. One hundred units written off, propagating to every device as the movement arrives. The same shape ends A-264's own repair case: 100 → sell 95 → find 10 reads 15 correctly, then three more sales take it to **0** where 8 units remain.
@@ -207,9 +227,11 @@ suggested tackle order rather than a strict ranking.
    WHERE sb.deleted_at IS NULL
    GROUP BY p.store_id;
   ```
+
   Scoping mirrors `StockDivergenceService::serverFingerprint()` (batches through `products.store_id`, `deleted_at IS NULL`, no `is_active` filter) so the figures are comparable with the admin panel's own.
 
 #### A-283. both — a `stock_movements` or `stock_batches` delete is a hard delete, and making it soft needs the quantity accumulator first
+
 - **Found:** 2026-10-18, audited alongside A-281 and deliberately excluded from it.
 - **Location:** `app/Models/StockMovement.php`, `app/Models/StockBatch.php` (no `SoftDeletes`, both tables have `deleted_at`); `SyncController::push()`'s DELETE branch; `applyStockBatchDeltas()`.
 - **What's wrong:** both are in `pull()`'s table list and neither uses the trait, so a pushed DELETE destroys the row — for `stock_movements` that is the log entry a batch's quantity is derived from. Nothing queues either delete today (verified: no client caller `softDelete`s these two; `batch-quantity.ts` and `retention.ts` both say so in their own comments), so this is a latent capability rather than a live defect, which is why it is filed rather than fixed.
@@ -217,6 +239,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** do it with the derived-quantity design (`docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`), where quantity is a projection over the log and a soft-deleted movement simply drops out of the sum — at which point the trait is the whole fix. Until then, `client/AGENTS.md`'s movement-delete note is the warning to read first.
 
 #### A-275. both — money is a binary float on the device and an exact decimal on the server, with no decimal library anywhere
+
 - **Found:** 2026-10-17, from the owner asking whether a third-party package should have been handling money arithmetic. Not from a reported symptom; nothing is known to have mis-totalled yet.
 - **What's wrong:** `cost_price` is `decimal(10,2)` server-side (`2024_01_20_000004_create_inventory_system_tables.php:64,83`) and `REAL` — IEEE 754 double — in the local SQLite schema (`client/lib/db/schema.ts:48,158`, and `cost_price_override` at `:490`). The same money value is therefore exact on one side of the sync and binary-approximate on the other, and every total the device computes (`SUM(cost_price * quantity)`) accumulates binary error that the server's decimal arithmetic does not. There is **no decimal library in the project at all**: nothing in `client/package.json`, `web/package.json` or `composer.json` — no `decimal.js`, `big.js`, `dinero`, `brick/math`. Money is raw JS numbers client-side throughout.
 - **Where it does NOT matter, so this is not urgent:** the weighted-average cost (`getAverageCostPrice`, `client/lib/db/queries/products.ts:75-83`) is derived on read for display only and never stored — margin, COGS and FEFO deduction each read a batch's own `cost_price`, so there is no re-averaging loop compounding an error into stored data. An earlier reading of this entry's author assumed there was; there is not. Quantities are integers and are rebuilt from `stock_movements`, so stock figures are unaffected.
@@ -225,6 +248,7 @@ suggested tackle order rather than a strict ranking.
 - **Do not fold this into A-271.** That entry's `decimal(10,2)` overflow at values ≥ 100,000,000 is a separate, already-documented failure of the same column; this entry is about the representation on either side of it.
 
 #### A-309. `client/` — two tills returning different lines of the same sale offline leave the reseller commission figures computed from only one of them
+
 - **Found:** 2026-10-23, in the independent review of A-307. Reasoned from the code, not reproduced with two devices.
 - **Issue:** #252
 - **Location:** `client/lib/db/base-helpers.ts` (`update()` queues a partial patch carrying the base `_version`), `SyncController.php` (`version_conflict` on the second push), `client/lib/db/sync-engine/push.ts` (`version_conflict` is non-retryable, so the patch is dropped from the queue).
@@ -235,6 +259,7 @@ suggested tackle order rather than a strict ranking.
 ### Tier 3 — sync reliability, observability, latent hazards
 
 #### A-332. `client/` — ten Playwright e2e specs fail on `dev` and on the base commit, so the e2e suite is not a regression gate
+
 - **Found:** 2026-10-24, by the overall vet of the lint and refactor change set. All ten fail identically at `2f626dac`, before any of that work.
 - **Location:** `client/e2e/`: `customers.spec.ts:21`, `pos-held-transaction.spec.ts:6`, `prescriptions.spec.ts:6`, `procurement.spec.ts:7` and `:61`, `products.spec.ts:4` and `:18`, `sales-lifecycle.spec.ts:6`, `sales.spec.ts:16`, `settings.spec.ts:85`. 24 other specs pass (login, dashboard, POS, reports, staff/security/roles, product import, stock transfer).
 - **What's wrong:** the specs are stale, not the app. Five fill `dialog.getByRole('textbox').first()` as the product name, but the Name field is a `ProductCombobox` with `role="combobox"`, so the first textbox is Barcode and the dialog answers "Please enter a name". `products.spec` expects a `/inventory` to `/inventory/overview` redirect that does not exist (the page renders the overview in place) and a "Stock Ledger" header. `settings.spec:85` expects a bare `switch`, but the Auto-Sync card is a read-only "Enabled / Every 30 Minutes" layout. `customers.spec:21` queries the Directory tab while the desktop detail panel (a Radix dialog, `aria-modal`) is open and hides it.
@@ -243,12 +268,14 @@ suggested tackle order rather than a strict ranking.
 - **Side effect to know:** `global.setup.ts` rewrites the tracked `client/e2e/.auth/test-db.bin` on every run, so a dirty tree after running Playwright is expected; restore it with `git checkout -- client/e2e/.auth/test-db.bin`.
 
 #### A-331. `laravel-server/` — a crafted `users` INSERT with no email and no username is silently dropped and a foreign user id lands in the caller's own FKs
+
 - **Found:** 2026-10-24, while moving `findDuplicateInsertConflict()` out of `SyncController` (not fixed there: the move was verbatim). Reproduced with a throwaway feature test, then deleted.
 - **What's wrong:** `PushConflictResolver::findDuplicateInsertConflict()` builds `where(fn => email = ?)->orWhere(username = ? AND store_id = ?)`. With no email the first group is empty and dropped; with no `username` and no `store_id`, Laravel turns `where('username', null)` into `whereNull`, so the query matches the first user platform-wide whose `username` and `store_id` are both NULL, which includes store owners of other tenants. `store_id` is only backfilled for non-owner/admin roles, so an `admin`-role staff INSERT without username or email hits it.
 - **Consequence:** the caller's own INSERT is counted `processed` and never written (silent loss, the client drops it from its queue), and `$idMap` remaps that id onto the other tenant's user id for every later change in the same push (e.g. a sale's `user_id`). It is **not a cross-tenant write**: `User` uses `SoftDeletes`, so the matched foreign user is never revived or written, and a later UPDATE on the remapped id is refused by `authorizeChangeTarget('users')`. Reaching it takes a `users` INSERT with no `email`, no `username` and `role` = `admin` (the one assignable role the normalizer skips the `store_id` backfill for), and no shipped client sends that: the staff form refuses an empty username and onboarding always writes one. Only a hand-built request from an authenticated `manage_staff` user triggers it.
 - **Fix:** only match on a non-empty email or a non-empty username, never on NULLs, and scope the match to the caller's tenant; add a regression test. No contract change (§11): a genuine duplicate still remaps.
 
 #### A-204. `laravel-server/` — a sync command is marked `sent` the moment it is handed out, is never re-offered, and has no timeout, so a device that does not answer loses it permanently
+
 - **Found:** 2026-10-10. A `send_device_report` issued against `DRX-ZKI5K81UG` sat at `status = 'sent'`, `acted_at = NULL`, `result = NULL` while that device went on syncing normally. No report, no refusal, no error — and no way to ask again.
 - **Location:** `app/Services/Admin/SyncCommandService.php:92-126` (`pendingFor()` claims by `UPDATE ... SET status = 'sent'`), `recordOutcome()` at `:129`.
 - **What's wrong:** claiming on handout is correct — it stops a device that syncs twice applying a command twice. But `sent` is **terminal**: `pendingFor()` only ever selects `pending`, nothing moves a `sent` row back, and no timeout exists. So every way a device can fail to answer — a build old enough to ignore the `sync_commands` key entirely, a closed tab, a crashed round, a throw before `recordOutcome()` — ends with the command silently consumed. The admin panel then shows neither "queued" nor an outcome, and the operator's only tell is a report that never arrives.
@@ -258,6 +285,7 @@ suggested tackle order rather than a strict ranking.
 - **Related:** the immediate trigger was a device running a bundle that predates sync commands. A PWA keeps its cached shell until the service worker is replaced, so "deploy the fix" and "the field has the fix" are not the same event — any remote-support feature has to assume a mixed fleet (root `AGENTS.md` §11).
 
 #### A-165. `client/` — a `forbidden` push refusal parks its queue row forever, but making it terminal (as first proposed) would destroy real data — the retry classification is correct, the unbounded parking is the bug
+
 - **Location:** `NON_RETRYABLE_CONFLICT_REASONS` / `REASONS_SETTLING_SOURCE_ROW` in `client/lib/db/sync-engine/push.ts:22-41`; the reason is emitted in `SyncController::push()` after `SyncWriteAuthorizer::authorizeInsertTarget()` (INSERT) and `authorizeChangeTarget()` (UPDATE and DELETE).
 - **Investigated 2026-10-06; the originally-logged fix was attempted and deliberately reverted.** A-165 was first written up as "the same bug class as A-161, just add `forbidden` to both sets." That is **wrong**, and the reason is now verified in code rather than assumed: `forbidden` is genuinely transient in one real shape, so dropping and settling on it would silently destroy a legitimate row. `resolveOwnershipIdentity()` (`SyncOwnershipResolver`) gives a **staff** session only `[$currentUser->store_id]`, while an **owner** gets every store they own — a strictly narrower envelope. `_sync_queue` is device-global and carries no identity (deliberately — see A-162), and `clearDatabaseForNewStore()` only runs when the selected store *differs* from the local one (`app/setup/use-onboarding.ts:426`), so a staff member signing in onto the owner's **current** store triggers no wipe and drains the owner's **other** stores' queued rows under the narrower scope. Those are refused `forbidden`, and the same frozen payload succeeds the moment the owner signs back in. This is exactly the case `client/AGENTS.md` already called out ("Still open, same incident, not fixed here" — a push rejected `forbidden` is retryable *and correctly so*), which the original A-165 writeup did not account for. A-163's fix narrows this path but does not close it, because it only wipes on a store *change*.
 - **What is therefore still genuinely wrong:** the row is never abandoned. `recordSyncFailure()`'s backoff is capped, not bounded, so the row retries hourly forever and re-raises `Sync item stuck after 5 attempts` on every pass — and via pull's pending-local-edit skip, that parked row stops its record being pulled at all for as long as it sits there. That is the real defect, and it is the general "a permanently-parked queue row silently freezes its record's pulls" problem `client/AGENTS.md` records as unaddressed — not a missing set membership.
@@ -267,12 +295,14 @@ suggested tackle order rather than a strict ranking.
 - **And the priority sits upstream of abandonment:** fix the causes. Every stuck row that never happens is one nobody has to adjudicate. Known culprits so far: A-168 (a session-relative refusal classified as terminal), PG-18 (refusals that record nothing at all), and the plan-gated queues that never drain (noted in the A-172 fix). A-176b and A-205, both causes of a permanently stranded row, are fixed — see `docs/FIXED_BUGS.md`.
 
 #### A-168. `laravel-server/` — the two `permission_groups` privilege refusals are session-relative too, but are still reported as terminal `permission_denied`
+
 - **Location:** `SyncPayloadSanitizer::sanitizePermissionGroupSyncPayload()` — the "attempted to grant a permission the caller does not hold" throw and the "caller lacks `manage_roles_permissions`" throw, both `SyncPushPermissionDeniedException`.
 - **Problem:** found and deliberately left alone while fixing A-167, which split the *store-scope* refusal into an absolute `permission_denied` and a session-relative `forbidden`. These two throws have the same shape and were not split: the function returns early for a `store_owner`/`admin`/`super_admin` caller, so **every** throw from either check is by definition a non-owner session, and the owner's own session would always have passed. A permission group the owner creates on a shared device, queued and then drained by a staff session signed in afterwards, is therefore refused `permission_denied`, dropped from `_sync_queue` and flagged `_synced = 1` — it never reaches the cloud and no requeue can recover it, even though the owner signing back in would have pushed it cleanly. Unlike A-167's case this needs no second store; one store and one shared device is enough.
 - **Why not fixed with A-167:** the blast radius is materially smaller and the fix is materially riskier. It is one table (`permission_groups`), holding role configuration rather than transactional data, and the local row survives — the loss is "this group never reaches the cloud or the owner's other devices", recoverable by the owner re-saving it. Against that, the terminal classification here predates A-161 and is load-bearing in the other direction: `ensurePermissionGroupsSeeded()` makes a client seed five default groups locally, and on a staff device whose store the server has already seeded, `$isFirstTimeDefaultSeed` is false and the permissions diff refuses them — making that refusal retryable would reproduce A-161's `Sync item stuck after 5 attempts` loop for every staff device instead of the one owner device it was fixed for. Resolving it properly means distinguishing a client-seeded default group from an owner-authored custom one at this throw site, which needs its own scoping, and is best done together with A-165's bounded-abandonment work.
 - **Locked meanwhile:** `laravel-server/tests/Feature/SyncPushSessionScopedRefusalTest.php::test_permission_group_privilege_refusals_stay_terminal_permission_denied` pins the current behaviour, so the decision is explicit rather than accidental.
 
 #### A-313. `laravel-server/` — a legacy NULL-store row authored by a user outside the session's allowed users cannot be updated or deleted by its own store
+
 - **Found:** 2026-10-23, vetting A-298's fix. Confirmed with a throwaway test against both versions of `push()`: the pre-fix DELETE was accepted, the fixed one returns `forbidden`.
 - **Location:** `SyncOwnershipResolver::resolveAllowedOwnershipScope()` builds `$allowedUserIds` from `User::whereIn('store_id', $allowedStoreIds)`, whose `SoftDeletes` scope drops removed staff; `authorizeChangeTarget()`'s `user_id` fallback then finds the author outside the scope, sees the user still exists (`withTrashed()`), and denies.
 - **What's wrong:** a server row with `store_id` NULL whose `user_id` is not in `$allowedUserIds` is treated as another tenant's. Three legitimate shapes reach it: the author was soft-deleted; the author was moved to a sibling store (for a staff session, whose allowed stores are its own one store); or the author's `users.store_id` was cleared. An owner session covers the sibling-store case, since its allowed users span all its stores. UPDATE has always behaved this way; DELETE used to pass only because the payload's store claim authorized it, which was the A-298 hole, so closing that brought DELETE in line.
@@ -280,6 +310,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix, if it ever matters:** on the reject path only (like the dangling-id check), accept a soft-deleted author whose `users.store_id` is in `$allowedStoreIds`, via `withTrashed()`, so it covers UPDATE and DELETE alike. Leave the other two shapes refused: an author now in a sibling store or with no store gives no evidence which store the NULL row belongs to, and a staff session's narrower scope is exactly what `forbidden` (retryable, A-165) exists for. Do **not** reintroduce the payload claim as an authorizer. Pin it with a removed-staff case for both operations.
 
 #### A-314. `laravel-server/` — an UPDATE to a child-table row writes whatever `store_id` its payload names, another tenant's included
+
 - **Found:** 2026-10-23, by the independent review of A-298's fix; confirmed with a throwaway test on both the pre- and post-fix code (pre-existing, not introduced by A-298).
 - **Location:** `normalizePushPayload()` validates a payload's `store_id` against `$allowedStoreIds` only for `STORE_ID_BACKFILL_TABLES`. The six parent-FK child tables (`stock_batches`, `sale_items`, `sale_item_batches`, `return_items`, `prescription_items`, `purchase_order_items`) are not on it, yet carry a `store_id` column, so the UPDATE branch's `forceFill($payload)` writes any value.
 - **Reproduced:** the attacker's own `purchase_order_items` line under its own PO, pushed as an UPDATE with `store_id = <victim store>`: accepted, and the row now carries the victim's store id.
@@ -288,6 +319,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** extend `normalizePushPayload()`'s foreign-`store_id` refusal to every synced table that has a `store_id` column, not just the backfill list; A-298's per-branch claim check in DELETE can then go. **§11 first:** this also refuses child-table INSERTs naming a store outside the session, which today are accepted; a staff device with a queued row from a store it has since left would see it refused, and `permission_denied` is terminal where `forbidden` parks (A-165). Measure the population before choosing the reason.
 
 #### A-299. `laravel-server/` — a resent INSERT is recorded as an UPDATE, so the refusal breakdown will undercount resends from here on
+
 - **Found:** 2026-10-19, in the review of the sync-throughput decisions. Cosmetic as data, misleading as an instrument, which is the kind of thing this file exists for.
 - **Location:** `SyncController::push()` rewrites `$changes[$i]['operation'] = 'UPDATE'` for a resent INSERT (the existence probe), before `recordPushOutcome()` reads the change array after the outer commit.
 - **What's wrong:** the rewrite is correct for *processing* — a resent INSERT genuinely is an UPDATE — but it happens before the failure recorder sees it. So if such a change later fails for some other reason, `sync_failures.operation` says `UPDATE`. The `products · version_conflict · INSERT` shape that identified A-295 (9,181 rows, measured 08/10–16/10) cannot be measured the same way again: an equivalent loop would now be filed as `UPDATE` and be indistinguishable from an ordinary two-device edit conflict.
@@ -296,12 +328,14 @@ suggested tackle order rather than a strict ranking.
 - **While here:** the per-user throttle is worth knowing and was not written down anywhere. `routes/api.php:132` applies `throttle:60,1` to the whole authenticated group, and Laravel keys it by **user id**, not store or device — so every till logged in as the same owner account shares one 60/min bucket, and that bucket also counts pull pages, `/user`, `getSystemConfig` and peer-freshness. Tills with their own staff logins each get their own 60/min. `push.ts`'s pacing comment said "shared" without saying shared by what; corrected in the same change as this entry.
 
 #### A-244. `laravel-server/` — `sync_failures` records no device, so the admin store view cannot tell which till is refusing
+
 - **Found:** 2026-10-12. Triaging the `products`/`version_conflict` burst, the device could only be guessed at; the store has at least six devices reporting to Sentry.
 - **Location:** the `sync_failures` migration (`store_id`, `user_id`, `table_name`, `record_id`, `operation`, `reason`, `created_at`) and `AdminSyncHealthService::storeHealth()` (`:58`), which filters on `store_id` alone. `SyncFailureRecorder::recordFailures()` has the request in scope and already reads `X-Device-Id` elsewhere in the same push.
 - **Consequence:** the one view used to judge a store's sync health cannot attribute a refusal to a till, which is the first question anyone asks of it — and per §6 of `.agents/AGENTS.md` the id would have to be rendered with its `device_label` anyway, which `ResolvesDeviceLabels` already does for the queue report.
 - **Fix:** add a nullable `device_id` column, populate it in `recordFailures()`, and join the label through `ResolvesDeviceLabels` like `DeviceQueueReportService` does.
 
 #### A-238. `client/` — a skipped auto-heal burns the whole 24-hour window, so a device returning from a break may need two days to repair
+
 - **Found:** 2026-10-11, working out whether a device that had been off over a weekend would heal on its first use.
 - **Location:** `client/lib/db/sync-engine/health-check.ts:117-119` — `localStorage.setItem(LAST_CHECK_KEY, …)` is stamped **before** `await healStockIntegrity()`.
 - **What's wrong:** `healStockIntegrity()` refuses while the movement log is mid-window (`movementLogIsComplete()` requires `last_synced_at` set **and** `server_cursor` null). A device back after days off pulls a large backlog, and a large pull spans several rounds (`pull-resumes-across-rounds.test.ts`) — so a `sync()` that *succeeded* can still leave the window mid-stream, which is exactly the A-214 condition the refusal exists for. The 24-hour clock has already been stamped by then, so the skip costs the entire interval instead of retrying on the next round.
@@ -310,6 +344,7 @@ suggested tackle order rather than a strict ranking.
 - **Note:** the sibling of A-236. A skipped heal *does* log (`healSkipped`), so the two together mean the only unobservable state is "ran and was clean".
 
 #### A-236. `client/` — the stock auto-healer is silent when it finds nothing, so "working" and "never ran" look identical in Sentry
+
 - **Found:** 2026-10-11, checking on the healer's production record for the first time since it shipped.
 - **Location:** `client/lib/db/sync-engine/stock-auto-heal.ts:71-72` — `healStockIntegrity()` returns before logging when `before.diverged === 0 && before.unreconstructable === 0`.
 - **What's wrong:** there is no heartbeat. The only `area: stock-autoheal` evidence a healthy run produces is nothing at all, which is byte-identical to the healer never having been reached — and the health check that calls it is gated on a 24-hour interval, `isTauri() || isWriterTab()`, `navigator.onLine`, a successful `getSyncCounts()` and a non-null active store, so "never reached" is a live possibility on any given device.
@@ -317,6 +352,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** log the clean case too, at a low level and no more than once per interval — `checked`, `diverged: 0`, the device and release — so the absence of a repair becomes evidence instead of silence. The existing `logCrash` path already carries exactly those tags.
 
 #### A-235. `client/` — `isInTransaction()` is not a reliable proxy for "this call holds a queue slot", and A-219 newly depends on it
+
 - **Found:** 2026-10-10, second adversarial review. Pre-existing shape, newly load-bearing.
 - **Location:** `client/lib/db/core.ts:617-623` and `:639-641`.
 - **What's wrong:** when `db` is still null after `initDatabase()`, or when `BEGIN` throws, `transaction()` runs `fn()` with its queue slot **reserved** but never sets `inTransaction = true`. `recordSaleItemStock()` (A-219) now uses `isInTransaction()` to decide whether to open a nested `transaction()`; in either degraded path it decides wrongly and the nested call deadlocks on `reserveDbSlot()` awaiting its own parent.
@@ -324,6 +360,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** set the in-transaction flag from the slot reservation rather than from `BEGIN` succeeding, so the two cannot disagree.
 
 #### A-209. `client/` — the `audit_logs` dedup rewrites a pending `_sync_queue` payload in place, which is lost if that row is already in flight
+
 - **Found:** 2026-10-10, while fixing A-203. Not a regression from it; the path is older.
 - **Location:** `lib/db/core.ts:1243-1262` (`logAction`'s dedup branch).
 - **What's wrong:** on a repeat of the same action it bumps `occurrence_count` on the local `audit_logs` row and rewrites that row's pending `_sync_queue` INSERT payload **in place**. `getPendingSyncItems()` reads queue rows, the push awaits the network, and `markSynced()` then deletes the pushed rows by id and flags the record `_synced = 1`. A bump landing inside that window is written into a row that is about to be deleted, so the server keeps the pre-bump `occurrence_count` and the local row reads `_synced = 1` with a value that was never sent.
@@ -331,12 +368,14 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** the same shape A-203 used — delete the pending row and insert a fresh one carrying the merged payload, so a row already in flight cannot swallow the bump. `addToSyncQueue()` in `base-helpers.ts` is the reference.
 
 #### A-268. `client/` — the sync conflict log marks a lost edit resolved when any later change touches the same row
+
 - **Found:** 2026-10-15, vetting the cost-price divergence between Cynthia's two tills.
 - **What's wrong:** `resolveConflictsForRecords` (`push.ts:483` → `conflict-log.ts:96-110`) resolves a record's logged conflicts when *any* subsequent change to that record is accepted. On `stock_batches` that is routine: a sale pushes a quantity-only update seconds later and marks the dropped `cost_price` conflict resolved, although the cost never reached the server. The ledger that exists to outlive the toast therefore under-reports exactly the case it was built for — a silently discarded edit — and the device-diagnostics report, which lists unresolved conflicts only (`diagnostics-detail.ts:66-75`), inherits the blind spot.
 - **Fix:** resolve a conflict only when a later accepted change carries the **same fields** as the dropped one, rather than merely the same `record_id`. The conflict row already stores a `fields` list (`conflict-log.ts:32`).
 - **Why it matters now:** it is the reason "her cost edit vanished" leaves no durable trace to find afterwards, and so the reason the divergence had to be diagnosed from the code rather than from the device's own ledger.
 
 #### A-193. `client/` — the stock-integrity Sentry report does not coalesce, so a drifted device uploads a new bug row daily
+
 - **Found:** 2026-10-08, adversarial review of the stock-integrity branch before merge.
 - **Location:** `client/lib/db/sync-engine/stock-auto-heal.ts` (the report moved there from `health-check.ts` with the 2026-10-10 auto-heal, and its `area` is now `stock-autoheal`), `client/lib/utils/error-logger.ts`.
 - **What's wrong:** `logCrash()` writes a `feedback` row and queues it for sync, and its fingerprint (`area|message|firstStackLine`) does not normalise digits while the message embeds the counts and net delta — so a device whose numbers move uploads a brand-new bug row every day instead of coalescing.
@@ -344,6 +383,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** `logCrash`'s fingerprint is `area|message|firstStackLine` with no digit normalisation, while the message embeds the counts and net delta — so a device whose numbers move uploads a new synced `feedback` row every day instead of coalescing. Either normalise digits in the fingerprint or move the counts out of the message into the context payload. (The missing `stock_movements(stock_batch_id)` index, originally logged here as the other half, was added 2026-10-09.)
 
 #### A-247. `client/` — a till whose OS clock is hours fast writes future-dated rows, and nothing detects or corrects it
+
 - **Found:** 2026-10-12. The admin store-detail Recent Activity list showed rows reading "7 hours from now" alongside correct ones. **Cause established** from `DRX-HO4QM3TWU`'s own device report: every device-generated timestamp in it is **7h59m ahead of the server's**. The report self-reports `Last sync: 2026-10-12T20:14:15Z` and crashes at `19:30:59Z`; Sentry, which timestamps server-side, recorded those same crashes at `11:32:04Z`. The offset is not a round number, so it is a mis-set/drifted OS clock, not a timezone configuration.
 - **Why it reaches the server:** client-generated `created_at`/`updated_at` ride the push payload, so a skewed clock writes future timestamps straight into MySQL. The mixed output in one activity list is simply rows from a skewed device interleaved with rows from correct ones — not two code paths, which was the first guess here and was wrong.
 - **Consequence, and it is not cosmetic:** every row that till writes is dated ~8 hours ahead, **including sales**. Anything sold after ~16:00 local is attributed to the next calendar day, so trading-day counts, daily revenue, AOV and any Z-report on that store are already wrong — silently, and in the direction nobody checks. Secondary: a future-dated `updated_at` keeps satisfying every other device's `updated_at > watermark` filter until the clock catches up, so those rows are re-pulled on every round for ~8 hours.
@@ -368,6 +408,7 @@ suggested tackle order rather than a strict ranking.
 - **If a re-stamp repair is ever written:** root `AGENTS.md` §7 — never `NOW()`. Two previous attempts to bump `updated_at` that way never propagated, because this box's MySQL runs ~4h behind UTC and the new stamp landed in the past relative to the watermark it was meant to clear.
 
 #### A-213. `laravel-server/`+`client/` — Health Sync's device-quantity path is switched off, not removed, and the A-148 class it existed for is still undissolved
+
 - **Found:** 2026-10-10, in review of the derived-stock-quantity design; it then happened in production the same day (A-214).
 - **Shipped so far:** `POST /app/sync/reconcile-quantities` refuses unconditionally (410, `config/dumos.php`'s hard-off `health_sync_enabled`, which only its own tests flip), **the UI control is gone** (the Settings → Data card and its confirm dialog, and the handler behind them — only `reconcileStockQuantities()` and the `window.__reconcileStockQuantities` DevTools hook remain), the 410 is no longer reported as a client error, and every sync call carries `X-App-Version`/`X-Build-Sha` so an asserting bundle is identifiable. See `docs/FIXED_BUGS.md` A-213.
 - **What is still open:** the code that adopts a device-reported quantity and writes the signed difference as a `sync_reconciliation` movement is still reached through `SyncController::reconcileQuantities()` behind the switch (the loop and writer now live in `QuantityReconciliationService`), so anyone who flips the config gets the A-214 behaviour back — including under the derived-quantity design, where the fabricated movement becomes permanent truth rather than a recoverable number.
@@ -375,6 +416,7 @@ suggested tackle order rather than a strict ranking.
 - **One more reason not to re-enable it, found while shipping Stage 1 (2026-10-13).** `reconcile-quantities.ts`'s `storeReconciliationMovementLocally()` is the only writer of a `stock_movements` row that bypasses `insert()`, so it is the only one that does not rebuild its batch — deliberately, because the device had just asserted that quantity. Under the derived definition that leaves the batch out of step with its own log until the next rebuild touches it, and the rebuild then *adopts* the fabricated delta (A-240's shape) rather than ignoring it. Harmless while the endpoint returns 410; it means re-enabling the path now needs the seeded movement and the rebuild reconciled, not just the config flipped.
 
 #### A-306. `client/` — `relaxPurchaseOrdersSupplierIdNullable()` cannot retry after an interrupted rebuild
+
 - **Found:** 2026-10-19, in the review of A-305, which fixed the same flaw in its own rebuild. Same shape, one statement earlier, milder consequence — filed rather than fixed because it is not this change's path and deserves its own test.
 - **Location:** `client/lib/db/schema-migrations.ts` — `relaxPurchaseOrdersSupplierIdNullable()`'s `CREATE TABLE purchase_orders_nullable_supplier` with no preceding `DROP TABLE IF EXISTS`.
 - **What's wrong:** the rebuild is CREATE / copy / DROP / RENAME with no transaction. A process death between the create and the rename leaves the scratch table behind, and the next boot's plain `CREATE TABLE` (not `IF NOT EXISTS`) throws on it, is swallowed by the function's catch, and the migration never completes. The device then keeps a `NOT NULL purchase_orders.supplier_id`, so an Immediate Purchase or walk-in order fails to insert — visible as a failing save rather than silently, which is why this is milder than A-305's version was.
@@ -382,6 +424,7 @@ suggested tackle order rather than a strict ranking.
 - **Blast radius:** needs a death inside a few milliseconds on one boot, on a device that still has the un-relaxed column (the migration shipped 2026-08-14, so any such device has not opened the app since). Probably nobody; the fix is one line and the test is copy-paste.
 
 #### A-188. `client/` — `no such table: permission_groups` on one device, **mechanism unconfirmed** (do not treat the obvious explanations as the cause; three are already ruled out)
+
 - **Found:** 2026-10-08, triaging Sentry `DUMOSRX-CLIENT-1P` — 3 events, 1 user, culprit `/inventory/:tab`. Logged deliberately as unconfirmed: the telemetry is real, but the code-side mechanism could not be established and is not worth guessing at.
 - **Location:** unknown. The query sites are `client/lib/db/queries/permission-groups.ts` and `client/lib/hooks/use-permission-groups.ts`; the table is declared in `client/lib/db/schema.ts` (`CREATE TABLE IF NOT EXISTS permission_groups`, the fourth-from-last statement in `SCHEMA_SQL`).
 - **Ruled out, so nobody re-walks these:**
@@ -393,6 +436,7 @@ suggested tackle order rather than a strict ranking.
 - **Needs a repro before any fix.** What would settle it: the device's `SELECT name FROM sqlite_master WHERE type='table'` (which other tables are missing tells you *where* in `SCHEMA_SQL` it stopped, if it stopped at all), the app version on that device, and whether it is the Tauri or the web/PWA build — the Tauri branch splits `SCHEMA_SQL` on `;` and runs each statement separately with no error swallowing, so a mid-blob abort there would have thrown out of `initDatabase()` loudly rather than leaving a half-built schema. Do not ship a defensive `CREATE TABLE IF NOT EXISTS` at the query site; that hides the mechanism without fixing it.
 
 #### A-233. `laravel-server/` — the repair's conditional update cannot fail, so `skipped: 0` does not mean what an operator would read it to mean
+
 - **Found:** 2026-10-10, second adversarial review.
 - **Location:** `app/Services/Sync/HealthSyncReconciliationRepairService.php:240-260`.
 - **What's wrong:** `$stored` is read under `lockForUpdate()` inside the transaction, so the row is held for the rest of it and nothing can change `quantity` before the `where('quantity', $stored)` update. The conditional therefore never fails in production. The lock is the real protection and it works; but commit `cdb5b50e` claims "a conditional update so a concurrent push is skipped and reported rather than clobbered", describing a mechanism that cannot fire, and `skipped` only ever counts **missing batch rows**.
@@ -400,6 +444,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** either describe the lock as the mechanism and drop the dead conditional, or keep the conditional and say in the output what `skipped` actually counts.
 
 #### A-231. `web/` — A-224 stopped the admin card rendering a server exception, but the raw text still reaches the production console and the telemetry POST
+
 - **Found:** 2026-10-10, second adversarial review of the release batch.
 - **Location:** `web/lib/api/base-client.ts:224` keeps `rawServerMessage` and feeds it to `:252`'s `console.error` (in production, not just dev), `:235`'s log buffer and `:261`'s `/logs/client-error` POST, both via `sanitizePayload()` (`web/lib/api/logger.ts:85-90`).
 - **What's wrong:** `sanitizePayload` masks **by key name**. A-224's payload was a bcrypt hash and an encrypted till code embedded in the *value* of a SQL exception's `message`; `message` is not a sensitive key, so the value passes through verbatim. A-224's commit subject is true of the card and not of the console.
@@ -407,18 +452,21 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** run the console and telemetry paths through the same gate as the rendered message, or sanitise by value shape as well as key name. Keeping the raw text for telemetry was deliberate (nothing should be lost from diagnostics), so the better answer is probably to send it to a field that is masked, not to drop it.
 
 #### A-267. `client/` — two persisted time guards outside the health check still trust this device's clock
+
 - **Found:** 2026-10-14, in the vet of A-234's fix. Neither is urgent; recorded so the next clock pass has the list rather than re-deriving it.
 - **(a) `login-lockout.ts`** persists `lockedUntil` as epoch milliseconds in `localStorage`. A clock moved **forward** clears a PIN lockout early; moved back, it extends one. It is a brute-force guard, so the direction that matters is "cleared early" — but the party with access to the OS clock is the store owner, who already has the PIN, so the exposure is close to nil. Deliberately not fixed: tightening it would lock out an honest user whose clock reset mid-lockout, which is the A-266 shape again.
 - **(b) `base-client.ts:97-101`** compares `Date.now()` against a persisted `authTokenIssuedAt` to decide a silent refresh. A clock moved back past the issue time means the refresh never fires and the user meets a 401 instead; the recovery is the ordinary re-login path, so it degrades rather than breaks.
 - **The shape both share**, and the reason they are not `isIntervalElapsed()` candidates: they are not "has an interval elapsed" guards but "is this instant past a stored deadline", where a future-reading clock is the dangerous direction rather than the safe one. The real fix for both is the same as for the trading-day work: a server-anchored clock the device can consult, rather than `Date.now()`. See A-247.
 
 #### A-258. `client/` — "Missing worker bootstrap config", unexplained, on a device that also hit a stale chunk minutes earlier
+
 - **Found:** 2026-10-13, reviewing Sentry after a deploy. `DRX-W2I6TYFLB`, build `9f937f1e`: `Uncaught Error: Missing worker bootstrap config` at 10:50:03Z, preceded at 10:35:00Z by `SyntaxError: Unexpected token '<'` on the same device — the stale-chunk signature (A-257).
 - **What's unknown:** which worker. The app has a service worker (`client/public/sw.js`) and the SQLite WASM runs off-main-thread; the message does not appear in the client source as written, so it may come from a dependency's worker bootstrap or from a worker script that was itself served `index.html` instead of JavaScript — which would make it the same root cause as the chunk error beside it rather than a separate fault.
 - **Why it is logged rather than fixed:** a single event, no stacktrace captured, and the device is not identified to a store. Worth one grep through `node_modules` for the string and a look at whether any worker asset is fetched by a hashed filename (which would make it vulnerable to the same missing-chunk problem).
 - **Do not assume it is independent of A-257** until that is checked; two errors fifteen minutes apart on one device, one of them a known HTML-served-as-JS signature, is more likely one fault than two.
 
 #### A-262. `client/` — the Playwright suite has drifted behind the UI and 10 specs fail on `main`
+
 - **Found:** 2026-10-13, running `npx playwright test` while vetting PR #160 — the first full run in a while. Confirmed **pre-existing** by checking the same specs out at `origin/main` and running them there: identical failures.
 - **Failing on `main` as well as `dev`** (10 tests across 8 files): `customers.spec` (create-from-Overview), `pos-held-transaction.spec` (recall restores the cart), `prescriptions.spec` (create), `procurement.spec` (open create-order flow; standard PO receive), `products.spec` (navigate; Add Product header action), `sales.spec` (out-of-stock product), `sales-lifecycle.spec` (count → sell → expense), `settings.spec` (sync-interval persists). They fail on element waits that never resolve, i.e. the selectors no longer match the screens — not timeouts: they reproduce serially at a 90s timeout.
 - **Why it went unnoticed:** CI runs `tsc + vitest` and the deploy jobs; **nothing runs Playwright**, so the suite rots silently while the UI it drives keeps changing. The owner confirmed the specs have not been maintained through recent UI work.
@@ -427,18 +475,20 @@ suggested tackle order rather than a strict ranking.
 - **Note:** a run also rewrites the tracked fixture `client/e2e/.auth/test-db.bin` and `next dev` re-injects a `nextjs-agent-rules` block into `client/AGENTS.md`; both are artifacts to discard, not changes to commit.
 
 #### A-196. `client/` + CI — no CI job runs lint, so §4's line limit and the no-unused-imports rule are unenforced
+
 - **Found:** 2026-10-09, lint during review of the cart-reveal change.
 - **Location:** `.github/workflows/checks.yml`.
 - **What's wrong:** `checks.yml` is `tsc` + `vitest` (client) and `phpunit` (server) only, and neither deploy workflow lints either. The 350-line limit, the no-unused-imports rule and the React hooks rules therefore fail nothing on a PR, which is how `pos-cart.tsx`, `push.ts`, `pull.ts` and `base-helpers.ts` drifted to 429 to 687 lines before the 2026-10-24 cleanup split them. `eslint` is now clean (0 warnings in `client/` and `web/`), `pint --test` and `composer analyse` pass, so a lint step would start green.
 - **Fix:** add `npx eslint --max-warnings 0` for `client/` and `web/`, `composer format` and `composer analyse` for `laravel-server/` to `checks.yml`. That workflow gates every deploy, so land it in its own PR. ESLint's `max-lines` skips blank and comment lines, so it does not enforce the raw 350-line rule; `client/lib/db/core.ts`, `schema.ts`, `schema-migrations.ts`, `local-database.ts`, `constants/suggestions.ts` and `components/ui/chart.tsx` are still over it by raw count and need a decision.
 
 #### A-155. `client/` — a brand-new signup still doesn't land straight on `/dashboard`, even after the A-154 fix
+
 - **Location:** likely `components/dashboard/dashboard-layout.tsx`'s `if (!user) router.push("/login")` guard (`dashboard-layout.tsx:200-204`), reached right after `app/setup/use-onboarding.ts`'s `finishNewAccountSetup()`/`startSyncProcess()` call `login()` then `router.push("/dashboard")`.
 - **Problem:** reported live by the user, after A-154 shipped, as still landing on the `/login` picker instead of `/dashboard` right after completing signup. A-154 fixed `useDeviceAuthStatus()` showing *stale* account data when this happens, but never confirmed *why* the bounce to `/login` happens in the first place — that part of the investigation was left open (see A-154's `docs/FIXED_BUGS.md` entry). With A-154's fix in place, the picker should now at least show the *correct*, just-created account rather than a stale one, but the underlying "should go straight to the dashboard, not back through `/login` at all" symptom is apparently still there.
 - **Why not just fixed:** root cause of the `!user` bounce itself hasn't been found — static code reading alone (the only method used so far, per earlier explicit instruction not to live-reproduce) didn't turn up an obvious race in `login()`'s synchronous `setUser`/`sessionStorage` writes vs. `DashboardLayoutInner`'s first render. Needs either live reproduction (with console/network instrumentation to catch the exact moment `user` reads as `null`) or more targeted tracing of `AuthProvider`'s mount/update timing than has been done so far.
 
-
 #### A-312. `laravel-server/`, `client/` — follow-ups from the till re-link code and token expiry review (A-311)
+
 - **Found:** 2026-10-23, in the independent review of the A-311 fix.
 - **Issue:** #254
 - **Rate limiter and proxies:** `throttle:relink` is keyed on `$request->ip()` (`AppServiceProvider.php:87-89`) and `bootstrap/app.php` has no `trustProxies()`. If `api.dumosrx.com` sits behind a proxy or CDN, every till shares one 5-a-minute bucket, so a stranger can block re-linking for the whole fleet, and re-linking is the recovery path. If proxies were ever trusted with `*`, a spoofed `X-Forwarded-For` voids the limit. `throttle:auth` is keyed the same way. Confirm the production proxy topology, then add a second limit keyed on `X-Store-Id`.
@@ -448,8 +498,8 @@ suggested tackle order rather than a strict ranking.
 - **Backfill speed:** the `2026_10_23_000001` migration issues one UPDATE per token. Correct and idempotent, but it is N queries inside the deploy's `migrate`; a set-based UPDATE would need a per-driver date expression.
 - **Fix:** as listed per item above.
 
-
 #### A-316. `laravel-server/` — production logs to one unrotated `laravel.log` at debug level and it has reached 1.9 GB
+
 - **Found:** 2026-10-23, from `ls -la ~/api.dumosrx.com/storage/logs/` on the production host (`laravel.log`, 1.9G, last written 04:21 the same day, the only file in the folder).
 - **Issue:** #257
 - **Issue:** the app has no `config/logging.php`, so the framework defaults apply: `LOG_STACK` defaults to `single` and `LOG_LEVEL` to `debug` (`vendor/laravel/framework/config/logging.php:21,57,64`), and `.env.example` sets the same values (`LOG_STACK=single`, `LOG_LEVEL=debug`). Nothing rotates the file and every debug line is kept. A file that size is slow to open when an incident needs it and can exhaust the shared-hosting disk quota, which would take the API down. The public, throttled `POST /logs/client-error` (`ActivityLogController.php:101`) writes every client API error to this file at error level, up to about 12 KB each, so it is a likely contributor; the file's real composition was not measured. The production `.env` was not read; this is what the template and the file's size imply.
@@ -464,6 +514,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** when the parent resolves to no store, judge it by its author the way `authorizeChangeTarget()` judges a legacy row (`user_id` in `$allowedUserIds`, or no live author), on INSERT and UPDATE alike.
 
 #### A-330. both — the admin store detail's `recent_activity[].status` is always `null`
+
 - **Found:** 2026-10-24, by Larastan during the level-5 baseline cleanup.
 - **Location:** `laravel-server/app/Services/Admin/AdminStoreDetailService.php` `recentActivity()`; typed as `status: string | null` in `web/lib/types/admin-store-detail.ts` (`AdminStoreDetailActivity`).
 - **What's wrong:** the field read `$log->status`, but `activity_logs` has no `status` column in any migration and `ActivityLog::$fillable` has none, so it was always `null`. Tests that pass `'status' => 'success'` to `ActivityLog::create()` have it silently dropped. The service now writes `'status' => null` explicitly; the response is byte-identical.
@@ -471,6 +522,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** drop `status` from `AdminStoreDetailActivity` in `web/`, then from the response once no deployed web bundle carries the old type (§11; the web panel is not a long-lived PWA, so one deploy is enough). Remove the dead `'status' => 'success'` from the `ActivityLog::create()` calls in `AdminStoreDetailTest` and `ActivityLogActorRoleFilterTest` at the same time.
 
 #### A-329. `laravel-server/` — `online_orders` and `online_order_items` have none of the foreign keys their migrations appear to declare
+
 - **Found:** 2026-10-24, by Larastan during the level-5 baseline cleanup.
 - **Location:** `database/migrations/2026_07_05_171215_create_online_orders_table.php` (`store_id`) and `2026_07_05_171215_create_online_order_items_table.php` (`online_order_id`, `product_id`).
 - **What's wrong:** the columns were declared as `$table->uuid(...)->constrained(...)`. `constrained()` exists only on `foreignUuid()`'s definition; on a plain `uuid()` column it is a silent no-op on Laravel's `Fluent`, as was the `->cascadeOnDelete()` on `online_order_id`. No foreign key was ever created on any database. The no-op calls were removed on 2026-10-24 so the migrations stop claiming constraints that do not exist; the schema is unchanged.
@@ -478,6 +530,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** a new migration adding the three constraints (`online_order_id` cascading), preceded by a count of orphans on production, since an existing orphan makes the `ALTER` fail. `products` rows soft-delete, so `product_id` should not cascade.
 
 #### A-317. `laravel-server/` — `GET /stock-movements` and `GET /stock-adjustments` have no caller and hand any staff member the tenant-wide stock ledger
+
 - **Found:** 2026-10-23, while mapping every surface that shows stock quantities for the hide-quantities-by-role work.
 - **Issue:** #259
 - **Location:** `routes/api.php:168-169`, `app/Http/Controllers/Api/App/StockMovementController.php` (`index()`, `adjustments()`); the only references are `tests/Feature/StockMovementControllerTest.php`.
@@ -486,6 +539,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** delete the two routes, the two controller methods and their tests. §11: no shipped client sends these requests today, but a bundle from before `a9ba1a5c` might; a 404 for those is harmless because that bundle's UI reads local data. If they are kept instead, gate them behind `view_reports` and scope them to the active store.
 
 #### A-315. `laravel-server/` — a `refresh`-only admin token is accepted as a general bearer on every `auth:sanctum` route
+
 - **Found:** 2026-10-23, fixing A-199. Confirmed with a throwaway test: a token minted with `['refresh']` sent as `Authorization: Bearer` to `GET /api/v1/user` returns 200.
 - **Location:** `routes/api.php`'s `auth:sanctum` group; no `abilities`/`ability` middleware alias is registered in `bootstrap/app.php`, and nothing else calls `tokenCan()`. The only ability check anywhere is `refreshAdminSession()`'s `can('refresh')` and, since A-199, `FullAccessToken::find()` on the three body-token endpoints.
 - **What's wrong:** `web/AGENTS.md` and the refresh endpoint's OpenAPI text described the `drx_admin_session` token as "never a general bearer credential". The ability is only a label: anyone who holds the raw value has a full session for 30 days, with no rotation, because rotation only happens on `/admin/session/refresh`.
@@ -493,12 +547,14 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** a small middleware on the `auth:sanctum` group that refuses a token without the `*` ability (`$request->user()->currentAccessToken()?->can('*')`, letting a `TransientToken` through for first-party session auth). §11: every token minted today is `['*']` or `['refresh']`, so no shipped client sends a narrow token as a bearer. Confirm that against `personal_access_tokens.abilities` on production before shipping. Pin it with the probe above as a test.
 
 #### A-319. `client/` — `/inventory` has no route guard at all
+
 - **Found:** 2026-10-23, while specifying `view_stock_quantities` (request #2). Logged as a finding, not a bug to fix now: that feature keeps the page reachable on purpose.
 - **Location:** `client/app/(dashboard)/inventory/` has no layout or page-level `RequireRole`, and `components/dashboard/dashboard-sidebar.tsx:74-79` lists Inventory for every role.
 - **What's wrong:** every signed-in role, cashiers included, can open Inventory Overview and Catalog by link or URL. Nothing on those pages is a write a cashier can make without a further key (`manage_products`, `adjust_stock_counts`, `delete_products` and the rest are checked per control), and on-hand numbers now follow `view_stock_quantities`, so today this is a visibility question rather than a hole. But it is the one dashboard area with no route-level decision recorded, so the next control added there inherits "everyone" by default.
 - **Fix:** decide explicitly. Either keep it open and say so in `dashboard-page-routes.ts` beside the other routes, or add a `RequireRole` with `allowSalesStaff` (cashiers use Catalog for price and expiry lookups, so they should keep it).
 
 #### A-208. `laravel-server/` — an admin till access code never expires, so a forgotten one stays a working credential for ever
+
 - **Found:** 2026-10-10, reviewing the super_admin code-visibility change (`docs/FIXED_BUGS.md` A-207).
 - **Location:** `app/Models/AdminTillCode.php:27` — `scopeActive()` is `whereNull('revoked_at')` and nothing else.
 - **What's wrong:** the *session* a code opens expires after four hours (`AdminTillSessionService::MAX_SESSION_HOURS`), but the *code* itself has no lifetime. It is valid from issue until someone explicitly revokes it. Nothing prompts that, nothing ages it out, and an admin who leaves the company keeps a working till credential until a human remembers the row exists.
@@ -507,6 +563,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** give a code an `expires_at` and include it in `scopeActive()`, defaulting to something short enough that a forgotten one dies on its own (90 days is a starting point, not a researched number). Existing rows have no expiry, so §11 applies: treat a null `expires_at` as "never expires" on read and backfill deliberately rather than letting the filter silently retire every live code the day it ships. Surfacing age and `last_used_at` in the reveal card — already returned by `revealAll()` — is the cheap half, and worth doing even if the expiry is deferred.
 
 #### A-177. `laravel-server/` — a sync command is addressed by `device_id`, which any device of the same store can claim
+
 - **Found:** 2026-10-07, in review of the Phase 4 command channel. Logged rather than fixed: it is a real limit, but it is not a privilege escalation and the fix needs a device-identity decision that does not exist yet.
 - **Location:** `SyncCommandService::pendingFor()` and the sync request's device header.
 - **What's wrong:** `device_id` is self-asserted by the client. A command issued for device A is claimed by whichever device presents that id. There is no device registration, so the server cannot tell two devices of one store apart except by what they claim to be.
@@ -514,6 +571,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** issue commands against a registered device identity rather than a claimed string — a per-device token minted at pairing. That is a larger change (pairing flow, token storage, rotation) and should be decided alongside `X-Device-Label`, which has the same self-asserted property.
 
 #### A-175. CI — FTP deploys are not atomic, so production serves a half-old, half-new code tree during every backend and web deploy
+
 - **Found:** 2026-10-07, while scoping the deploy pipeline for A-170. Deliberately logged rather than fixed: the owner chose to keep FTP for now and not land a pipeline rewrite on top of the migration work.
 - **Location:** `.github/workflows/deploy-backend.yml` and `deploy-web.yml`, both using `SamKirkland/FTP-Deploy-Action`.
 - **What's wrong:** the action uploads changed files one at a time into the live document root. For the duration of an upload, production is serving a mix of old and new files to real traffic. A request landing mid-deploy can execute a new controller against an old service, or load a view whose component has not arrived yet. The window scales with the number of changed files, so the largest changes — the ones most likely to be incompatible across versions — have the longest exposure.
@@ -522,6 +580,7 @@ suggested tackle order rather than a strict ranking.
 - **Related:** A-170 (migrations never run) and A-174 (the endpoint that runs them) are separate problems on the same pipeline; fixing deploy atomicity does not address either, and neither addresses this.
 
 #### A-185. `laravel-server/`+`web/` — catalog standardization still defaults to an unscoped, platform-wide write that re-pulls every touched product to every client
+
 - **Found:** 2026-10-08, implementing the dry-run/scoping mitigation for `AdminCatalogService::standardizeCatalog()` (admin panel Phase 1, §7.4).
 - **Location:** `AdminCatalogService::standardizeCatalog()` and `AdminPlatformController::standardize()` (`POST /admin/products/standardize`); the admin-panel "Standardize Catalog" button that calls it.
 - **What's wrong:** the operation backfills blank `generic_name` to `"General"` and blank `manufacturer` to `"Unknown"` via Eloquent `update()`. Eloquent bumps `updated_at` on every row it touches, and the sync engine's incremental pull filters by `updated_at`/`_synced_at`. An unscoped run therefore re-downloads every touched product to every client on its next sync — potentially every store's whole catalogue at once, not just the rows that actually changed value.
@@ -530,18 +589,21 @@ suggested tackle order rather than a strict ranking.
 - **Still open:** the admin-panel UI's "Standardize Catalog" button still calls the endpoint with no `store_id` and no dry-run step shown to the operator, so the cross-tenant, full-catalogue-resync blast radius is still the default behavior in practice. Wiring the button to a store picker and a dry-run preview is Phase 4 UI work, not done here.
 
 #### A-270. `client/` — the receipt number a customer reads out cannot be searched for
+
 - **Found:** 2026-10-15, while auditing the A4 receipt's length (see `client/AGENTS.md`, "The receipt earns every line it prints").
 - **What's wrong:** the receipt prints `RCT-<first 8 of sale.id>` (`receipt-view.tsx`'s `shortId`) and the foot barcode encodes the full `sale.id` UUID. Sales history searches `customer_name`, `transaction_number` and `item_names` (`pos-transaction-history.tsx:163-167`) — `transaction_number` is the `TXN-…` value set in `use-pos-payment.ts:169`, and it is **never printed anywhere**. So the one identifier a customer holds is the one identifier staff cannot look up, and the barcode is unscannable by design: nothing in the app has a scan path for it.
 - **Fix:** add `transaction_number` to `ReceiptTransaction`, print it as the receipt number, and barcode that instead of the UUID. That also makes the barcode worth the paper — until then `show_barcode_on_receipt` (2026-10-15) exists partly so a store can stop printing a decoration.
 - **Not urgent:** staff can find the sale by customer or item today. It is cheap and it removes a daily annoyance at the counter.
 
 #### A-269. `client/` — a part-paid sale prints "Total paid" with no balance owing
+
 - **Found:** 2026-10-15, in the same receipt audit.
 - **What's wrong:** `ReceiptView` prints `Total paid` and, when it is larger than the total, `Change`. A credit or partial payment prints a smaller `Total paid` and **nothing stating what is still owed**, so the customer's copy records neither the debt nor its amount. The reader has to subtract two numbers to learn they owe money.
 - **Fix:** a `Balance due` line whenever `amountPaid < total`, mirroring `Change`. One conditional block; it must not be toggleable (a customer needs it to dispute the debt).
 - **Noted while shortening the receipt**, which made the gap obvious: the shortening rules deliberately keep `Total paid` in exactly this case, so the line it needs beside it is the one that is missing.
 
 #### A-186. `client/` — the POS product tile shows nothing that distinguishes two similar products, so staff report "duplicate products" that do not exist
+
 - **Found:** 2026-10-08, investigating a production report of duplicate products at store `68e4c0e5-2354-4ff9-98e4-69d3b4c482fa` (Nest Pharmacy A2). No duplicate rows exist: the server holds 2,495 products against a 2,493-row QuickBooks source file whose Item Names and Item Numbers are 100% unique. What staff could not tell apart were genuinely distinct products rendering identically on the POS grid.
 - **Location:** `client/components/pos/pos-product-list.tsx`, the `POSProductCard` body (the name `div` and the subtitle `div` immediately under it); compare `client/components/products/catalog-row.tsx`, which does not have the problem.
 - **What's wrong:** the tile renders exactly four things — a category *icon*, `{product.name}` under `line-clamp-2`, the subtitle `{product.generic_name || "Generic"} • {product.strength || "-"}`, and then price plus stock. There is no barcode/SKU and no category text anywhere on the card. A bulk-imported product has neither `generic_name` nor `strength`, so on a freshly imported catalogue that subtitle line is the literal string `Generic • -` on **every** tile, carrying zero information while occupying the one slot that could have disambiguated. With a long name clamped to two lines, two products whose names differ late in the string are visually identical.
@@ -550,6 +612,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** give the tile a disambiguator. The cheapest version is to make the existing subtitle line conditional rather than placeholder-filled: show `barcode` (or `category_name`) when `generic_name`/`strength` are both absent, instead of rendering `Generic • -`. `POSProduct` already carries `barcode` and `category_name` (`client/lib/utils/search.ts` indexes both, and `usePOSProductFilter` reads `category_name`), so no new query or sync coverage is needed. Note that search already matches on `barcode`, so the SKU is a usable key the moment it is visible — today it is searchable but never displayed.
 
 #### A-187. `client/` — a product with no category is labelled "Uncategorized" everywhere but cannot be filtered to from anywhere
+
 - **Found:** 2026-10-08, during the same investigation as A-186. Verified live against the store's catalog: the Product Catalog's Category pill offers All, beverages, busicuit, cosmetics, drinks, drugs, machine, perfume, provision, soap, sweet, tea, toiletries — 12 real categories and no Uncategorized option — while a large share of that store's catalogue has `category_id IS NULL` after a partial import.
 - **Location:** `client/components/pos/pos-category-filter.tsx` and `client/lib/hooks/use-pos-product-filter.ts` (POS); `client/components/products/product-database.tsx` and `product-database-filters.tsx` (Product Catalog). The label the UI does show comes from `client/components/products/types.ts` (`category: apiData.category_name || "Uncategorized"`) and is rendered by `catalog-row.tsx`.
 - **What's wrong, and the two mechanisms are different:**
@@ -559,6 +622,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** add an explicit sentinel option to both filters (a reserved value such as `"__uncategorized__"`, matched by a `switch`/`Map` rather than a dynamic lookup per `.agents/AGENTS.md` §8) that filters to `category_name == null`. On the POS side, append the chip when any loaded product lacks a `category_name`; on the Catalog side it has to be appended to the `categories` array independently of `getCategoryList()`, and `preFilteredProducts`' `product.category === categoryFilter` test needs a branch for it — note that `types.ts` has already collapsed null into the *string* `"Uncategorized"` by that point, so a filter keyed on the display string would also match a real category a store happened to name "Uncategorized". Filter on the raw `category_name`/`category_id`, not the label.
 
 #### A-259. `client/` — a resumed cycle-count draft never notices the catalog changing under it
+
 - **Found:** 2026-10-13, while verifying the cycle-count tick/resume behaviour.
 - **Location:** `client/components/stock-batch/stock-audits.tsx:131-150` — the effect that builds `items` is gated on `items.length === 0`, deliberately, so a background refetch cannot clobber counts in progress.
 - **What's wrong:** that gate also means a draft resumed hours or days later is a frozen snapshot of the catalog as it was when the count began. A product created since is absent from the sheet (it simply cannot be counted until the draft is cleared), and a product soft-deleted since still has an editable row — `applyStockAdjustmentDelta` takes no `_deleted` guard, so submitting it writes an `AUDIT-` batch against a dead product id.
@@ -567,6 +631,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix if taken further:** reconcile the resumed draft against `rawProducts` on load — append rows for new products, mark soft-deleted ones un-submittable — rather than all-or-nothing rebuilding.
 
 #### A-182. `web/` — the site-wide PWA's `start_url` is a cross-origin bounce, so installing `dumosrx.com` yields a window that navigates out of its own scope on launch
+
 - **Found:** 2026-10-07, while fixing A-181 (see `docs/FIXED_BUGS.md`).
 - **Location:** `public/site.webmanifest` and `app/dashboard/[...view]/redirect-client.tsx`.
 - **What's wrong:** `site.webmanifest` sets `start_url: "/dashboard"` with no `scope` and no `id`. `/dashboard` is not a page — it is a client-side redirect that sets `window.location.href = getAppURL()`, i.e. `https://app.dumosrx.com`. So the installed app launches, immediately leaves its own origin, and lands outside any scope the manifest declares.
@@ -574,6 +639,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** decide what the marketing-site PWA is actually for. Three options, in order of preference: (a) drop `manifest` from the root layout entirely and let store owners install the real app from `app.dumosrx.com`, which has its own `client/public/manifest.json` with `start_url: "/"` — the app they want is served from that origin anyway; (b) keep it installable but point `start_url` at `/` with an explicit `scope: "/"`, so it is honestly a marketing-site shortcut; (c) keep `/dashboard` but make it a real page rather than a redirect. Whichever is chosen, add an explicit `id` — without one, the id defaults to `start_url`, so changing `start_url` later orphans every already-installed copy rather than updating it.
 
 #### A-183. `web/` — the root service worker registers in development and on `/admin/` pages, the two things `admin-sw.js` deliberately avoids
+
 - **Found:** 2026-10-07, while fixing A-181 (see `docs/FIXED_BUGS.md`).
 - **Location:** `components/pwa-registrar.tsx` (mounted in `app/layout.tsx`, i.e. on every route) and `public/sw.js`.
 - **What's wrong:** `PwaRegistrar` calls `navigator.serviceWorker.register("/sw.js")` with no `scope` (so `/`) and **no `NODE_ENV` guard**. `AdminPwaRegistrar` was given both precautions on purpose — see the Admin PWA section of `web/AGENTS.md` — and this one predates that reasoning. On an admin page both workers register; `/admin/` wins control by longest-scope match, so behaviour is correct but the registration is pointless.
@@ -582,6 +648,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** add the `process.env.NODE_ENV !== "production"` early return to `PwaRegistrar`, and skip registration when `location.pathname` starts with `/admin` so the two workers never both register on one page. Worth resolving together with A-182, since if the site-wide manifest goes away there may be no reason to keep `sw.js` at all — its only stated purpose is qualifying the site as installable.
 
 #### A-180. `web/` — the admin panel calls one concept three things: "Account Manager", "Contact Specialist", and a component that contradicts itself
+
 - **Found:** 2026-10-07, while writing `docs/partner-sop/DumosRx-Partner-SOP.docx`. The owner spotted it: the SOP asserted the panel labels the relationship "Account Manager", and that turned out to be only half true.
 - **The three names, all user-visible:**
   - `components/admin/stores/details/account-manager-card.tsx` renders `DetailCard title="Contact Specialist"`.
@@ -593,6 +660,7 @@ suggested tackle order rather than a strict ranking.
 - **Also update** `docs/partner-sop/DumosRx-Partner-SOP.docx` section 1, which currently explains the discrepancy and promises it will be tidied up.
 
 #### A-310. `client/` — small A-307 follow-ups: details card disagrees with itself after a return, return dialog edge cases, an oversized file
+
 - **Found:** 2026-10-23, in the independent review of A-307.
 - **Issue:** #251
 - **Details card:** `transaction-details-dialog.tsx` "Against list price" sums price adjustments over full line quantities and never shrinks after a return, while "Reseller markup" does, so "+200" can sit beside "Reseller markup: 150".
@@ -605,6 +673,7 @@ suggested tackle order rather than a strict ranking.
 ## Accepted tradeoffs (no fix planned)
 
 #### PG-14. `web/` — two more nav items are role-gated over permission-gated endpoints (same class as the Operations bug fixed in Phase 1)
+
 - **Found:** code review of admin Phase 1, by deliberately checking every item in `web/components/admin/sidebar-items.ts` against `laravel-server/routes/api.php` after the Operations mismatch was caught live in a browser.
 - **Location:** `sidebar-items.ts` — `register-store` and `my-stores`, both gated `roles: ["platform_admin", "agent"]`.
 - **What's wrong:** their endpoints gate on a *permission*, not a role. `GET /admin/stores/registered-by-me` is `permission:create_accounts` (`routes/api.php:192-193`), and `POST /admin/stores` throws 403 in `AdminStoreController` unless the caller is super_admin or holds `create_accounts`. The seeder grants `create_accounts` to both roles today, so this is **latent, not live** — but `PUT /admin/roles/{role}/permissions` lets a super_admin revoke it, after which every agent keeps both links and both pages 403.
@@ -612,11 +681,13 @@ suggested tackle order rather than a strict ranking.
 - **Rule this violates:** `web/AGENTS.md` — "a nav item's gate must match its page's narrowest endpoint gate, not the page's general area." Pre-existing; not introduced by Phase 1, and deliberately not fixed there to keep that phase's diff to its spec.
 
 #### PG-20. `web/` — a delegated session opening a bookmarked `/admin` still sees "Failed to sync platform data"
+
 - **Found:** 2026-10-20, split out of PG-15 when its logo link was fixed.
 - **Location:** `app/admin/page.tsx` fetches `GET /admin/summary` (`role:super_admin`) with no page guard; the `dashboard` nav item is super_admin-only.
 - **Fix:** add the page guard from `web/AGENTS.md` ("Subscriptions" — `checkIsSuperAdmin` before rendering or fetching), or redirect non-super_admin to `visibleSidebarItems(user)[0].href`.
 
 #### PG-19. `web/` — "My Stores" is a list, not a worklist: a partner cannot sort or filter their own stores by renewal date
+
 - **Found:** 2026-10-07, when this entry's previous wording was checked against the code and turned out to be wrong on both of its claims. **Corrected, and scope reduced** — most of what it described already exists.
 - **What already works** (do not rebuild it): `/admin/stores/mine` is shipped end to end. The nav item is in `web/components/admin/sidebar-items.ts` gated `roles: ['platform_admin', 'agent']`; `GET /admin/stores/registered-by-me` is gated `permission:create_accounts` and scoped by `whereHas('user', registered_by_id = caller)`; `AdminStoreService::getStoresRegisteredBy()` returns `plan`, `plan_status` and `plan_ends_at` per store; and `my-stores-table.tsx` renders `Renews {plan_ends_at}` in its Plan column. The subscription **lifecycle** endpoints are also no longer super_admin-only — they are `permission:view_subscriptions`, which is in `User::DELEGATABLE_PERMISSIONS`, so a partner can be granted the platform-wide worklists directly.
 - **What is actually missing:** the scoped view answers "what plan is this store on" but not "which of my stores needs attention this week". There is no expiring/lapsed bucketing, no sort by renewal date, and no default ordering by urgency — a partner with thirty stores reads thirty rows.
@@ -625,16 +696,19 @@ suggested tackle order rather than a strict ranking.
 - **Lesson worth keeping:** the previous version of this entry asserted the Subscriptions worklists were `role:super_admin` only and that no scoped view existed. Both were true when written and neither survived the admin permission work. A stale `KNOWN_BUGS` entry sent a recommendation to the owner to build something that already shipped — §1 exists for this reason.
 
 #### PG-13. `laravel-server/` — two admin services are past the 350-line limit
+
 - **Found:** admin Phase 1 line-count sweep. Not fixed there: neither is touched by that phase, and `.agents/AGENTS.md` §4's "improve the code you're working in" does not extend to files the change never opens.
 - **Location and size:** `laravel-server/app/Services/Admin/AdminStoreService.php` (591) and `AdminUserService.php` (610 at the sweep; re-count before starting) — the two backend admin services Phase 1 did **not** split (it split `AdminPlatformService`; these two were only touched for a docblock). The four `web/` files this entry named were split on 2026-10-24.
 - **Fix:** split each by responsibility the way `AdminPlatformService` was. Do it opportunistically when next editing one of these, not as a standalone refactor.
 
 #### P3-5. `client/` — PWA install splash screen doesn't follow dark mode
+
 - **Location:** `client/public/manifest.json`.
 - **Problem:** `theme_color`/`background_color` are hardcoded to white, so the one-time Android "Add to Home Screen" install splash flashes white for dark-mode users before the page paints. (The in-app browser-chrome tint is unaffected and already dark-mode-aware, via `app/layout.tsx`'s `viewport.themeColor`.)
 - **Why accepted:** the Web App Manifest spec has no conditional/media-query support for `theme_color`/`background_color` — it's a single static value, full stop. A dynamic per-request manifest would need a server, which this app's static export doesn't have. No real fix exists; the only lever is picking a different static color that trades which color scheme gets the flash, which is a product call, not a bug fix.
 
 #### P3-1. `client/` — auth bearer token kept in `localStorage` instead of an HttpOnly cookie
+
 - **Location:** `client/lib/api/token-manager.ts:17-50`.
 - **Problem:** `auth_token` (the Sanctum bearer token) is read/written via `localStorage`. Any XSS in the client app could read it and exfiltrate a long-lived session token (Sanctum expiry 30 days, client rotates after 7).
 - **Why accepted:** `setToken`/`clearToken` mirror the token to native Tauri code (`lib/native/widget-bridge.ts` → Android `TokenStore`, which does use `EncryptedSharedPreferences`) so the home-screen widget can make its own authenticated requests. A real fix needs a dual-path auth design — a real project, not a quick patch. The Tauri build's CSP (`script-src 'self' 'wasm-unsafe-eval'`, no remote or inline script) is a compensating control there, but does not cover the web/PWA build at `app.dumosrx.com`, and even in the bundled app an injected script that satisfies the policy still has same-origin `localStorage` access.
@@ -644,6 +718,7 @@ suggested tackle order rather than a strict ranking.
 ## Pending a product decision
 
 #### PG-10. `laravel-server/` — full bank account numbers stored in plaintext on the merchant-owned `payment_accounts` table
+
 - **Location:** `app/Models/PaymentAccount.php:26`; also synced to client SQLite, `client/lib/db/schema.ts:611-627`.
 - **Problem:** The store's own transfer-instructions account is stored in full server-side and on every synced device.
 - **Why it's not just fixed:** reads as an intentional product choice (store owners need to see their own account number), not an oversight — flagged here for an explicit decision, not a code change.
@@ -656,6 +731,7 @@ suggested tackle order rather than a strict ranking.
 These describe the current state of known architectural tradeoffs and performance ceilings — not defects, and not tracked toward a fix. Re-derive before relying on anything here; this isn't re-validated on every pass.
 
 ### Performance
+
 - **`db.export()` per write** (web/PWA build): every `execute()` outside a transaction re-serializes the whole local database and writes it to IndexedDB — the dominant long-term scaling risk for a large catalog. Two of its biggest inputs are bounded (`audit_logs`' 730-day local retention window, coalesced multi-image save bursts), but the per-write export itself is unchanged; fixing it properly needs a different persistence model (incremental/OPFS).
 - **First PWA install download:** `precache-manifest.json` lists ~399 URLs (~15 MB, including two 650 KB sql.js WASM binaries) fetched on first install — the single largest network cost on a metered connection.
 - **Whole-catalog in-memory search:** `getProductsWithDetails()` loads the entire catalog and `product-database.tsx` fuzzy-searches it in memory (debounced). Fine to ~10k products; beyond that the transform+filter+sort chain is O(catalog) on the main thread every filter change.
@@ -663,6 +739,7 @@ These describe the current state of known architectural tradeoffs and performanc
 - **`getStockMovements()` with no window** loads the whole table when searching/filtering — a large result set in React state at scale, independent of indexing, since nothing narrows the predicate.
 
 ### Offline / sync
+
 - **Server-side row-lock duration:** `SyncController::push()` holds `lockForUpdate()` locks for the whole outer transaction. Bounded with the current ~50-change batch size, but the first place to look if "Lock wait timeout" shows up in server logs.
 - **Tab-lock residual notes:** `resetDatabase()`/`clearDatabaseForNewStore()` call `db.run()` directly rather than through `reserveDbSlot()`, so they can interleave with an in-flight yielding `query()`. A stolen-from tab only learns it lost the lock via the `steal-notice` broadcast, which a frozen tab receives only on thaw — `writerTab` stays `true` until that notice arrives.
 
@@ -671,6 +748,7 @@ Logged per the 2026-10-25 rule: each file a fix edits that was already over the 
 - `laravel-server/app/Http/Controllers/Api/App/SyncController.php`: 823 lines, already over (A-325 added the payload-key refusal and one condition). What is left in it is listed under Architecture below.
 
 ### Architecture
+
 - **One hand-rolled tenant-resolution copy remains:** `DashboardService` still hand-rolls the staff→owner lookup instead of a shared `Request`-free helper; `TenantScopingArchitectureTest` only scans controllers, not services.
 - **File-size guideline exceeded by design in a few hot spots:** `client/lib/db/core.ts` (~1,640 lines), `laravel-server/.../SyncController.php` (~810 lines after the 2026-10-24 service split; what remains is `push()`'s per-change loop, see `laravel-server/AGENTS.md`), and `client/app/setup/use-onboarding.ts` (~640 lines, flagged by `/code-review` during the A-156 fix) are all well past the project's 350-line guideline — known, not tracked toward a split. `getProductsWithDetails()`-style "load everything, filter in React" is the deliberate norm for catalog/customer/PO lists; where that stops being fine isn't written down anywhere.
 - **The admin users/stores backend quartet was already over 350 lines before the 2026-10-08 admin-panel Phase 1 work touched it, and stayed over, not pushed over:** `AdminUserService.php` (546 → 610), `AdminStoreService.php` (565 → 584), `AdminStoreController.php` (518 → 557) and `AdminUserController.php` (549 → 552, the one of the four not called out when this phase started). None of the four were split, by design — the phase's rule was that only a file it pushed *past* 350 gets split, and all four were already past it. Every class the phase actually created (`Filters/UserListFilters.php`, `Filters/StoreListFilters.php`, `Support/ListSortResolver.php`, `Support/QueryInput.php`, `AdminStoreReferrerService.php`) is well under the limit.

@@ -22,7 +22,7 @@ export function emptyProductForm(initialData?: Partial<Product>): Product {
     bulkUnit: "",
     unitsPerBulk: 1,
     status: "active",
-    showOnline: false,
+    showOnline: true,
     requiresPrescription: false,
     isControlled: false,
     costPrice: 0,
@@ -30,6 +30,16 @@ export function emptyProductForm(initialData?: Partial<Product>): Product {
     batchNumber: "",
     expiryDate: "",
   };
+}
+
+export function applyProductFormChange(
+  prev: Product,
+  field: keyof Product,
+  value: string | number | boolean | null,
+): Product {
+  const next = { ...prev, [field]: value };
+  if (field === "isControlled" && value === true) next.showOnline = false;
+  return next;
 }
 
 export function productFormFromEditing(editingProduct: Product): Product {

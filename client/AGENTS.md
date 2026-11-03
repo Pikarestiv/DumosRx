@@ -7076,6 +7076,10 @@ Before that, work focused on the **Inventory** area:
   the local user" guard and its local-email rewrite: the server binds the code to the store in
   `X-Store-Id`, not to a login. It is also not wrapped in `withNetworkRetry`, because the code
   is single use and a retry after a lost response would only burn it.
+- **Sessions & Devices display.** Each session row in `client/components/settings/account/sessions-list.tsx`
+  renders its device name, stable monospace device ID (`(session.is_current ? getDeviceId() : null) || session.device_id`),
+  and IP/last-active timestamp. Generic token names like `"web"` fall back to UA parsing
+  (e.g. `"Chrome on macOS"`) or `"Web Browser"`, and the active device carries a "Current Device" badge.
 - The PWA precache manifest includes every file in the static export
   (every route's HTML/JS chunks, both sql.js wasm binaries) with no
   curation — fine at current app size, but worth revisiting (a smaller

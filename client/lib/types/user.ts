@@ -67,6 +67,7 @@ export interface CurrentUser {
 export interface Session {
   id: string;
   name: string;
+  device_id?: string | null;
   ip_address: string | null;
   user_agent: string | null;
   last_used_at: string | null;

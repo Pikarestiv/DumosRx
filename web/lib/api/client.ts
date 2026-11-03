@@ -1,14 +1,25 @@
 import { apiClient } from "./base-client";
+import { getDeviceId } from "@/lib/utils/device-id";
 import type { BroadcastFormData } from "@/lib/types/admin";
 
 class WebApiClient {
   async register(payload: Record<string, unknown>) {
-    const { data } = await apiClient.post("/register", { ...payload, device_name: "web" });
+    const deviceId = getDeviceId();
+    const { data } = await apiClient.post(
+      "/register",
+      { ...payload, device_name: "web", device_id: deviceId },
+      { headers: { "X-Device-Id": deviceId } },
+    );
     return data;
   }
 
   async login(payload: Record<string, unknown>) {
-    const { data } = await apiClient.post("/login", { ...payload, device_name: "web" });
+    const deviceId = getDeviceId();
+    const { data } = await apiClient.post(
+      "/login",
+      { ...payload, device_name: "web", device_id: deviceId },
+      { headers: { "X-Device-Id": deviceId } },
+    );
     return data;
   }
 

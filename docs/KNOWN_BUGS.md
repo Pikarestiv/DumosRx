@@ -262,12 +262,8 @@ suggested tackle order rather than a strict ranking.
 - **Found:** 2026-10-23, by the independent review of A-298's fix; confirmed with a throwaway test on both the pre- and post-fix code (pre-existing, not introduced by A-298).
 - **Location:** `normalizePushPayload()` validates a payload's `store_id` against `$allowedStoreIds` only for `STORE_ID_BACKFILL_TABLES`. The six parent-FK child tables (`stock_batches`, `sale_items`, `sale_item_batches`, `return_items`, `prescription_items`, `purchase_order_items`) are not on it, yet carry a `store_id` column, so the UPDATE branch's `forceFill($payload)` writes any value.
 - **Reproduced:** the attacker's own `purchase_order_items` line under its own PO, pushed as an UPDATE with `store_id = <victim store>`: accepted, and the row now carries the victim's store id.
-<<<<<<< HEAD
 - **Consequence:** the child's own `store_id` is non-authoritative for pull scoping (A-288), so this does not move the row between tenants on any device. But it is the second ownership opinion `resolveChangeStoreId()` consults when the parent has none (A-297), so a line whose parent later becomes unattributable resolves to the store its payload named. Since A-246 the stock fingerprints count batches through their product's store, so a wrong value there no longer skews the agreement panel.
-=======
-- **Consequence:** the child's own `store_id` is non-authoritative for pull scoping (A-288), so this does not move the row between tenants on any device. But it is the second ownership opinion `resolveChangeStoreId()` consults when the parent has none (A-297), so a line whose parent later becomes unattributable resolves to the store its payload named. Stock fingerprints count batches by `stock_batches.store_id` (A-246), so a wrong value there skews the agreement panel for both stores.
 - **Its sibling A-325 (a child UPDATE repointing its parent FK at another tenant's parent) was fixed on 2026-10-25** in `SyncWriteAuthorizer::repointsToForeignParent()`; this entry is the remaining half, the child's own `store_id` column.
->>>>>>> dev
 - **Fix:** extend `normalizePushPayload()`'s foreign-`store_id` refusal to every synced table that has a `store_id` column, not just the backfill list; A-298's per-branch claim check in DELETE can then go. **§11 first:** this also refuses child-table INSERTs naming a store outside the session, which today are accepted; a staff device with a queued row from a store it has since left would see it refused, and `permission_denied` is terminal where `forbidden` parks (A-165). Measure the population before choosing the reason.
 
 #### A-299. `laravel-server/` — a resent INSERT is recorded as an UPDATE, so the refusal breakdown will undercount resends from here on
@@ -459,14 +455,13 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
-<<<<<<< HEAD
 #### A-338. `laravel-server/` — `sync:backfill-store-ids` writes `store_id` without moving `updated_at` or `_version`, so a row it attributes never reaches a device
 - **Found:** 2026-10-25, by the review of A-246's fix.
 - **Location:** `app/Console/Commands/BackfillStoreIds.php`, the `--apply` write (`DB::table($table)->whereIn('id', $ids)->update(['store_id' => $storeId])`).
 - **What's wrong:** an incremental pull never re-offers a row whose `updated_at` and `_synced_at` did not move, so a device holding a legacy row as `store_id = NULL` keeps it that way. The stock fingerprint now counts batches through the device's copy of `products.store_id` (A-246), so a product attributed here stays outside the device's count while the server counts it. It is also the A-278 shape for any client-pushable column.
 - **Exposure:** small today. The one production run (2026-10-18) attributed 594 `activity_logs` rows and no business row (`laravel-server/AGENTS.md`, "`store_id` backfill").
 - **Fix:** spread `App\Support\SyncRowStamp::for($table)` into that update (A-278), and say in the command's output that touched rows re-pull to every device.
-=======
+
 #### A-335. `laravel-server/` — a child row can still be pointed at another tenant's store-less legacy parent
 - **Found:** 2026-10-25, fixing A-325.
 - **What's wrong:** `authorizeInsertTarget()` and A-325's `repointsToForeignParent()` resolve a child's store through its parent; a parent with `store_id = NULL` resolves to none, so the check falls back to the row's own `store_id` (INSERT) or lets it through (UPDATE). A batch can therefore be attached to another tenant's pre-backfill `NULL`-store product.
@@ -478,7 +473,6 @@ suggested tackle order rather than a strict ranking.
 - **Settings toast:** Settings > Data's Sync now shows `STORE_REFUSED_MESSAGE` alone, without the remedy the sync indicator appends (`storeRefusalRemedy()`); pass `result.refusal` through `failUnlessSucceeded()` and append it.
 - **In-progress sync:** `failUnlessSucceeded()` rejects `SYNC_IN_PROGRESS_ERROR` too, so pressing Sync while one runs shows an error toast. Before A-323 it showed a false "Sync complete!"; a `toast.info` would fit better.
 - **`/user` per refused round:** when the server's `store_id` for the user is not among the stores the round offered (null, or a store outside it), `adoptReassignedStore()` calls `/user` on every refused round, i.e. after every change in instant-sync mode, until the refusal ends. Remember the profile's answer per refused store for the session.
->>>>>>> dev
 
 #### A-330. both — the admin store detail's `recent_activity[].status` is always `null`
 

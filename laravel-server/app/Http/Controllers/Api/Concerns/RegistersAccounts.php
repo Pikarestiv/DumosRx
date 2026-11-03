@@ -210,7 +210,18 @@ trait RegistersAccounts
         }
 
         $deviceName = $request->device_name ?? 'Client App';
-        $token = $user->createToken($deviceName, ['*'], TokenLifetime::forLogin($user, $deviceName))->plainTextToken;
+        $tokenResult = $user->createToken($deviceName, ['*'], TokenLifetime::forLogin($user, $deviceName));
+        $tokenModel = $tokenResult->accessToken;
+        $deviceId = $request->header('X-Device-Id') ?? $request->input('device_id');
+        if (! $deviceId) {
+            $prefix = $deviceName === 'web' ? 'DRX-WEB-' : 'DRX-';
+            $deviceId = $prefix.strtoupper(\Illuminate\Support\Str::random(9));
+        }
+        $tokenModel->device_id = $deviceId;
+        $tokenModel->ip_address = $request->ip();
+        $tokenModel->user_agent = $request->userAgent();
+        $tokenModel->save();
+        $token = $tokenResult->plainTextToken;
 
         return response()->json([
             'message' => 'User registered successfully',

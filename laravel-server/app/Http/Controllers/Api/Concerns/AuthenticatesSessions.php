@@ -94,6 +94,13 @@ trait AuthenticatesSessions
                 })->exists();
         }
 
+        $deviceId = $request->header('X-Device-Id') ?? $request->input('device_id');
+        if (! $deviceId) {
+            $prefix = $request->device_name === 'web' ? 'DRX-WEB-' : 'DRX-';
+            $deviceId = $prefix.strtoupper(\Illuminate\Support\Str::random(9));
+        }
+
+        $tokenModel->device_id = $deviceId;
         $tokenModel->ip_address = $ipAddress;
         $tokenModel->user_agent = $userAgent;
         $tokenModel->save();

@@ -141,13 +141,16 @@ without updating that.
   no-op returning `{"status":"success"}` for the real, assignable non-owner
   `admin` staff role the controller's gate also admits. It now goes through a
   private `tenantOwnerId($user)` mirroring the trait; regression coverage in
-  `tests/Feature/DashboardResetScopingTest.php`. Note the other three methods
-  in that file (`getSummary`/`getStats`/`getWidgetSnapshot`) still resolve by
-  `$user->id` — read-only and lower-stakes, so deliberately not changed in
-  that pass, but they are the same latent shape. `TenantScopingArchitectureTest`
-  only scans controllers, so nothing catches this class of drift in a service
-  mechanically: extract the resolution into one shared helper rather than
-  adding a fourth inline copy.
+  `tests/Feature/DashboardResetScopingTest.php`. The other three read methods
+  in that file (`getSummary`/`getStats`/`getWidgetSnapshot`) resolve through
+  shared helpers (`resolveDashboardStores`, `resolveDashboardOwnerId`,
+  `resolveDashboardUserIds`): store owners see all their owned branches, while
+  assigned staff (e.g. `manager`, `auditor`) are scoped strictly to their assigned
+  `store_id` and never see other branches. Furthermore, `DashboardController` gates
+  view access so that non-reporting staff roles (`sales_staff`, `specialist` without
+  `view_reports`/`view_financial_reports`) are refused with HTTP 403, preventing
+  accidental leaks of store-wide revenue, margins, or inventory valuation.
+  Regression coverage in `tests/Feature/DashboardAuthorizationAndScopingTest.php`.
 - **Roles & permissions (`User::hasRole()`/`hasPermission()`, `app/Models/User.php`):**
   `hasRole($role)` checks three things, any of which can match: the flat
   `role` string column, the `userRole` relation's `slug` (a `Role` model,

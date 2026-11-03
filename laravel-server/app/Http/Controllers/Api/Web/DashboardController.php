@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Web;
 
+use App\Http\Controllers\Concerns\ScopesToTenant;
 use App\Http\Controllers\Controller;
 use App\Services\Web\DashboardService;
 use Illuminate\Http\Request;
@@ -11,6 +12,8 @@ use OpenApi\Attributes as OA;
 
 class DashboardController extends Controller
 {
+    use ScopesToTenant;
+
     protected $dashboardService;
 
     public function __construct(DashboardService $dashboardService)
@@ -32,6 +35,10 @@ class DashboardController extends Controller
     )]
     public function summary(Request $request)
     {
+        if ($authError = $this->authorizeDashboardView($request)) {
+            return $authError;
+        }
+
         try {
             $period = $request->query('period', '7d');
             $data = $this->dashboardService->getSummary($request->user(), $period);
@@ -60,6 +67,10 @@ class DashboardController extends Controller
     )]
     public function stats(Request $request)
     {
+        if ($authError = $this->authorizeDashboardView($request)) {
+            return $authError;
+        }
+
         try {
             $data = $this->dashboardService->getStats($request->user());
 
@@ -87,6 +98,10 @@ class DashboardController extends Controller
     )]
     public function widgetSnapshot(Request $request)
     {
+        if ($authError = $this->authorizeDashboardView($request)) {
+            return $authError;
+        }
+
         try {
             $data = $this->dashboardService->getWidgetSnapshot($request->user());
 
@@ -99,6 +114,50 @@ class DashboardController extends Controller
                 'message' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    private function authorizeDashboardView(Request $request): ?\Illuminate\Http\JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            return response()->json([
+                'error' => 'Unauthorized',
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        if ($user->hasRole('super_admin') || in_array($user->role, ['super_admin', 'store_owner', 'admin'], true)) {
+            return null;
+        }
+
+        if ($user->permission_group_id) {
+            $group = \App\Models\PermissionGroup::find($user->permission_group_id);
+            if ($group) {
+                $perms = is_array($group->permissions) ? $group->permissions : [];
+                if (in_array('view_reports', $perms, true) || in_array('view_financial_reports', $perms, true)) {
+                    return null;
+                }
+
+                return response()->json([
+                    'error' => 'Forbidden',
+                    'message' => 'You do not have permission to view store financial reports and statistics.',
+                ], 403);
+            }
+        }
+
+        if ($user->hasPermission('view_reports') || $user->hasPermission('view_financial_reports')) {
+            return null;
+        }
+
+        if (in_array($user->role, ['manager', 'auditor'], true)) {
+            return null;
+        }
+
+        return response()->json([
+            'error' => 'Forbidden',
+            'message' => 'You do not have permission to view store financial reports and statistics.',
+        ], 403);
     }
 
     #[OA\Post(

@@ -386,19 +386,6 @@ architectural notes this entry doesn't repeat.
 
 ## 🟠 Medium (3–5 days)
 
-### Cloud-Backed Multi-Till Stock Audit Sessions (Phase 2)
-
-- **Context & Motivation:** Phase 1 safely localizes and persists cycle count drafts in SQLite across store switches on a single device. However, pharmacies with multiple tills or multiple staff need cross-device visibility (e.g. manager monitoring progress, resuming an unfinished audit if a physical till malfunctions or battery dies) without introducing data corruption from concurrent editing.
-- **Architecture & Operational Rules (Local-First, Cloud-Backed, Single-Editor Lease):**
-  1. **Local count persistence:** Device continues to save counts instantly to local SQLite (zero offline latency).
-  2. **Audit session registration:** Starting a count registers an `audit_sessions` record in the cloud with status `in_progress`, assigned to the initiating till/user.
-  3. **Single-editor lease / lock:** Only one till holds active write lease for a store's audit session at any given time.
-  4. **Controlled handover / recovery:** If Till 1 dies or Cynthia steps away, Till 2 can request an explicit "Take Over Audit Session", invalidating Till 1's write lease while preserving all saved progress.
-  5. **Read-only progress inspection:** Store managers or other tills can view audit progress in real time without acquiring the write lock.
-  6. **Reconciliation at submission:** When the active holder submits, the audit reconciles inventory and transitions the cloud session to `completed`.
-- **Effort:** ~3–4 days (Laravel `audit_sessions` + `audit_session_items` schema, lease lock endpoints, client lease acquisition/handover UI, and sync integration).
-- **Cost:** Low (minimal payload size, batched progress updates).
-
 ### Migration System — real client blocker, existing build doesn't cover her actual file (Flagged urgent, 2026-08-27)
 
 - **Current state, confirmed via code trace:** a "QuickBooks import" already exists (`client/components/settings/quickbooks-import-dialog.tsx` + `client/lib/utils/iif-parser.ts`) but only parses the old tab-delimited **`.IIF`** export format with fixed `!INVITEM`/`!CUST` headers. It has never actually been tested against a real client file.

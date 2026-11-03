@@ -56,23 +56,24 @@ class DashboardService
                 break;
         }
 
-        // Get store and cashier network for scoping
-        $storeIds = Store::where('user_id', $userId)->pluck('id')->toArray();
-        $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($userId)->toArray();
+        $userStores = $this->resolveDashboardStores($user);
+        $storeIds = $userStores->pluck('id')->all();
+        $ownerId = $this->resolveDashboardOwnerId($user);
+        $userIds = $this->resolveDashboardUserIds($user, $storeIds, $ownerId);
 
         // 1. Sales Stats
         $totalSales = 0;
         $salesGrowth = 0;
         try {
-            $totalSales = (float) Sale::whereIn('cashier_id', $userIds)->sum('total_amount');
+            $totalSales = (float) $this->salesQuery($storeIds, $userIds)->sum('total_amount');
 
-            $salesThisPeriod = (float) Sale::whereIn('cashier_id', $userIds)
+            $salesThisPeriod = (float) $this->salesQuery($storeIds, $userIds)
                 ->where('created_at', '>=', $currentStartDate)
                 ->sum('total_amount');
 
             $salesPrevPeriod = 0;
             if ($previousStartDate && $previousEndDate) {
-                $salesPrevPeriod = (float) Sale::whereIn('cashier_id', $userIds)
+                $salesPrevPeriod = (float) $this->salesQuery($storeIds, $userIds)
                     ->where('created_at', '>=', $previousStartDate)
                     ->where('created_at', '<', $previousEndDate)
                     ->sum('total_amount');
@@ -88,37 +89,13 @@ class DashboardService
         }
 
         // 2. Inventory Stats
-        $inventoryValue = 0;
-        try {
-            $inventoryStats = DB::table('stock_batches')
-                ->whereIn('user_id', $userIds)
-                ->select(DB::raw('SUM(quantity * cost_price) as total_value'))
-                ->first();
-            $inventoryValue = (float) ($inventoryStats->total_value ?? 0);
-        } catch (\Exception $e) {
-            Log::error('DashboardService [Inventory]: '.$e->getMessage());
-        }
+        $inventoryValue = $this->calculateInventoryValue($storeIds, $ownerId, $user);
 
         // 3. Customer Stats
-        $totalCustomers = 0;
-        $newCustomersThisPeriod = 0;
-        try {
-            $totalCustomers = Customer::whereIn('user_id', $userIds)->count();
-            $newCustomersThisPeriod = Customer::whereIn('user_id', $userIds)->where('created_at', '>=', $currentStartDate)->count();
-        } catch (\Exception $e) {
-            Log::error('DashboardService [Customers]: '.$e->getMessage());
-        }
+        $totalCustomers = $this->customerCount($storeIds, $userIds);
+        $newCustomersThisPeriod = $this->customerCount($storeIds, $userIds, $currentStartDate);
 
         // 4. Stores/Sync Info
-        $userStores = collect([]);
-        try {
-            if (Schema::hasTable('stores')) {
-                $userStores = Store::where('user_id', $userId)->get();
-            }
-        } catch (\Exception $e) {
-            Log::error('DashboardService [Stores]: '.$e->getMessage());
-        }
-
         $lastSyncTime = 'Never';
         try {
             if ($userStores->count() > 0) {
@@ -134,7 +111,7 @@ class DashboardService
         // 5. Recent Sales
         $recentSales = collect([]);
         try {
-            $recentSales = Sale::whereIn('cashier_id', $userIds)
+            $recentSales = $this->salesQuery($storeIds, $userIds)
                 ->orderBy('created_at', 'desc')
                 ->limit(5)
                 ->get();
@@ -307,23 +284,24 @@ class DashboardService
      */
     public function getStats($user)
     {
-        $userId = $user->id;
         $now = Carbon::now();
         $currentStartDate = $now->copy()->subDays(7);
         $previousStartDate = $now->copy()->subDays(14);
         $previousEndDate = $now->copy()->subDays(7);
 
-        $storeIds = Store::where('user_id', $userId)->pluck('id')->toArray();
-        $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($userId)->toArray();
+        $userStores = $this->resolveDashboardStores($user);
+        $storeIds = $userStores->pluck('id')->all();
+        $ownerId = $this->resolveDashboardOwnerId($user);
+        $userIds = $this->resolveDashboardUserIds($user, $storeIds, $ownerId);
 
         $totalSales = 0;
         $salesGrowth = 0;
         try {
-            $totalSales = (float) Sale::whereIn('cashier_id', $userIds)->sum('total_amount');
-            $salesThisPeriod = (float) Sale::whereIn('cashier_id', $userIds)
+            $totalSales = (float) $this->salesQuery($storeIds, $userIds)->sum('total_amount');
+            $salesThisPeriod = (float) $this->salesQuery($storeIds, $userIds)
                 ->where('created_at', '>=', $currentStartDate)
                 ->sum('total_amount');
-            $salesPrevPeriod = (float) Sale::whereIn('cashier_id', $userIds)
+            $salesPrevPeriod = (float) $this->salesQuery($storeIds, $userIds)
                 ->where('created_at', '>=', $previousStartDate)
                 ->where('created_at', '<', $previousEndDate)
                 ->sum('total_amount');
@@ -336,34 +314,9 @@ class DashboardService
             Log::error('DashboardService::getStats [Sales]: '.$e->getMessage());
         }
 
-        $inventoryValue = 0;
-        try {
-            $inventoryStats = DB::table('stock_batches')
-                ->whereIn('user_id', $userIds)
-                ->select(DB::raw('SUM(quantity * cost_price) as total_value'))
-                ->first();
-            $inventoryValue = (float) ($inventoryStats->total_value ?? 0);
-        } catch (\Exception $e) {
-            Log::error('DashboardService::getStats [Inventory]: '.$e->getMessage());
-        }
-
-        $totalCustomers = 0;
-        $newCustomersThisPeriod = 0;
-        try {
-            $totalCustomers = Customer::whereIn('user_id', $userIds)->count();
-            $newCustomersThisPeriod = Customer::whereIn('user_id', $userIds)->where('created_at', '>=', $currentStartDate)->count();
-        } catch (\Exception $e) {
-            Log::error('DashboardService::getStats [Customers]: '.$e->getMessage());
-        }
-
-        $userStores = collect([]);
-        try {
-            if (Schema::hasTable('stores')) {
-                $userStores = Store::where('user_id', $userId)->get();
-            }
-        } catch (\Exception $e) {
-            Log::error('DashboardService::getStats [Stores]: '.$e->getMessage());
-        }
+        $inventoryValue = $this->calculateInventoryValue($storeIds, $ownerId, $user);
+        $totalCustomers = $this->customerCount($storeIds, $userIds);
+        $newCustomersThisPeriod = $this->customerCount($storeIds, $userIds, $currentStartDate);
 
         $lastSyncTime = 'Never';
         try {
@@ -383,16 +336,9 @@ class DashboardService
             $storeId = $store->id;
 
             $storeTotalSales = (float) Sale::where('store_id', $storeId)->sum('total_amount');
-
             $lowStock = $this->lowStockCount($storeId);
 
             $warningDays = $store->expiry_warning_days ?? 90;
-            // Joined through products.store_id rather than filtering
-            // stock_batches.store_id directly: unlike products/sales,
-            // stock_batches isn't in SyncController's store_id-backfill
-            // list and pull() itself scopes batches via product_id for the
-            // same reason (SyncController::pull), so stock_batches.store_id
-            // can't be trusted as the sole source of truth here.
             $expiringItems = DB::table('stock_batches')
                 ->whereIn('product_id', DB::table('products')->where('store_id', $storeId)->pluck('id'))
                 ->where('quantity', '>', 0)
@@ -427,32 +373,18 @@ class DashboardService
 
     public function getWidgetSnapshot($user)
     {
-        $userId = $user->id;
-
-        $storeIds = Store::where('user_id', $userId)->pluck('id')->toArray();
-        $userIds = User::whereIn('store_id', $storeIds)->pluck('id')->push($userId)->toArray();
+        $userStores = $this->resolveDashboardStores($user);
+        $storeIds = $userStores->pluck('id')->all();
+        $ownerId = $this->resolveDashboardOwnerId($user);
+        $userIds = $this->resolveDashboardUserIds($user, $storeIds, $ownerId);
 
         $todayFleetSales = 0;
         try {
-            // Fleet-wide total across all of the owner's stores, which may
-            // span timezones - a single "today" cutoff can't be exactly
-            // right for every store at once, so this stays on the server's
-            // UTC day. The per-store breakdown below uses each store's own
-            // local day via Store::localDayRangeUtc().
-            $todayFleetSales = (float) Sale::whereIn('cashier_id', $userIds)
+            $todayFleetSales = (float) $this->salesQuery($storeIds, $userIds)
                 ->whereDate('created_at', now()->toDateString())
                 ->sum('total_amount');
         } catch (\Exception $e) {
             Log::error('DashboardService::getWidgetSnapshot [FleetSales]: '.$e->getMessage());
-        }
-
-        $userStores = collect([]);
-        try {
-            if (Schema::hasTable('stores')) {
-                $userStores = Store::where('user_id', $userId)->get();
-            }
-        } catch (\Exception $e) {
-            Log::error('DashboardService::getWidgetSnapshot [Stores]: '.$e->getMessage());
         }
 
         $fleetLowStock = 0;
@@ -469,12 +401,6 @@ class DashboardService
             $lowStock = $this->lowStockCount($storeId);
 
             $warningDays = $store->expiry_warning_days ?? 90;
-            // Joined through products.store_id rather than filtering
-            // stock_batches.store_id directly: unlike products/sales,
-            // stock_batches isn't in SyncController's store_id-backfill
-            // list and pull() itself scopes batches via product_id for the
-            // same reason (SyncController::pull), so stock_batches.store_id
-            // can't be trusted as the sole source of truth here.
             $expiringItems = DB::table('stock_batches')
                 ->whereIn('product_id', DB::table('products')->where('store_id', $storeId)->pluck('id'))
                 ->where('quantity', '>', 0)
@@ -521,6 +447,115 @@ class DashboardService
             ->get()
             ->filter(fn ($product) => $product->total_stock <= $product->reorder_level)
             ->count();
+    }
+
+    public function resolveDashboardStores($user)
+    {
+        if ($user->hasRole('super_admin') || $user->role === 'super_admin') {
+            return Store::all();
+        }
+
+        $ownedStores = Store::where('user_id', $user->id)->get();
+        if ($ownedStores->isNotEmpty()) {
+            return $ownedStores;
+        }
+
+        if ($user->store_id) {
+            return Store::where('id', $user->store_id)->get();
+        }
+
+        return collect([]);
+    }
+
+    public function resolveDashboardOwnerId($user): ?string
+    {
+        if (Store::where('user_id', $user->id)->exists()) {
+            return $user->id;
+        }
+
+        return $this->tenantOwnerId($user);
+    }
+
+    public function resolveDashboardUserIds($user, array $storeIds, ?string $ownerId): array
+    {
+        if (empty($storeIds)) {
+            return array_values(array_filter([$user->id, $ownerId]));
+        }
+
+        return User::whereIn('store_id', $storeIds)
+            ->pluck('id')
+            ->push($ownerId)
+            ->push($user->id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function salesQuery(array $storeIds, array $userIds)
+    {
+        return Sale::where(function ($q) use ($storeIds, $userIds) {
+            if (!empty($storeIds)) {
+                $q->whereIn('store_id', $storeIds)
+                    ->orWhere(function ($legacy) use ($userIds) {
+                        $legacy->whereNull('store_id')->whereIn('cashier_id', $userIds);
+                    });
+            } else {
+                $q->whereIn('cashier_id', $userIds);
+            }
+        });
+    }
+
+    private function calculateInventoryValue(array $storeIds, ?string $ownerId, $user): float
+    {
+        if (empty($storeIds)) {
+            return 0.0;
+        }
+
+        try {
+            $inventoryStats = DB::table('stock_batches')
+                ->join('products', 'stock_batches.product_id', '=', 'products.id')
+                ->whereNull('products.deleted_at')
+                ->where('stock_batches.quantity', '>', 0)
+                ->where(function ($q) use ($storeIds, $ownerId, $user) {
+                    $q->whereIn('products.store_id', $storeIds);
+                    if (!$user->store_id && $ownerId) {
+                        $q->orWhere(function ($legacy) use ($ownerId) {
+                            $legacy->whereNull('products.store_id')->where('products.user_id', $ownerId);
+                        });
+                    }
+                })
+                ->select(DB::raw('SUM(stock_batches.quantity * stock_batches.cost_price) as total_value'))
+                ->first();
+
+            return (float) ($inventoryStats->total_value ?? 0);
+        } catch (\Exception $e) {
+            Log::error('DashboardService [Inventory]: '.$e->getMessage());
+
+            return 0.0;
+        }
+    }
+
+    private function customerCount(array $storeIds, array $userIds, ?Carbon $since = null): int
+    {
+        try {
+            $query = Customer::where(function ($q) use ($storeIds, $userIds) {
+                if (!empty($storeIds)) {
+                    $q->whereIn('store_id', $storeIds);
+                }
+                $q->orWhereIn('user_id', $userIds);
+            });
+
+            if ($since) {
+                $query->where('created_at', '>=', $since);
+            }
+
+            return $query->count();
+        } catch (\Exception $e) {
+            Log::error('DashboardService [Customers]: '.$e->getMessage());
+
+            return 0;
+        }
     }
 
     /**

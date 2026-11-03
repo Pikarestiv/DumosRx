@@ -108,6 +108,7 @@ export async function performLogin(
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L294
   if (
     pin?.length === TILL_CODE_LENGTH &&
+    /^\d{12}$/.test(pin) &&
     shouldAttemptAdminTillLogin(cleanIdentifier, candidates.length)
   ) {
     if (!navigator.onLine) {

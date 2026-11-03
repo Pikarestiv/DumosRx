@@ -39,7 +39,7 @@ export function TraditionalLoginForm({
   onCancel,
   codeMode = false,
 }: TraditionalLoginFormProps) {
-  const requiredLength = codeMode ? TILL_CODE_LENGTH : 4;
+  const canSubmit = !isLoading && (codeMode ? pin.length >= 4 : pin.length === 4);
   return (
     <form onSubmit={onSubmit} className="flex flex-col justify-center">
       <div className="px-10 pb-3 text-center space-y-1.5">
@@ -53,7 +53,7 @@ export function TraditionalLoginForm({
       <CardContent className="space-y-3 px-10 sm:pt-4">
         <div className="space-y-1.5 w-[276px] mx-auto">
           <Label htmlFor="username" className="text-sm font-medium">
-            Username
+            Username or Email
           </Label>
           <div className="relative group w-full">
             <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
@@ -69,7 +69,7 @@ export function TraditionalLoginForm({
         </div>
         <div className="space-y-1.5 w-[276px] mx-auto">
           <Label htmlFor="pin" className="text-sm font-medium">
-            {codeMode ? "Till access code" : "PIN"}
+            {codeMode ? "PIN or Access code" : "PIN"}
           </Label>
           <motion.div
             animate={hasError ? { x: [-10, 10, -10, 10, -5, 5, 0] } : {}}
@@ -79,15 +79,11 @@ export function TraditionalLoginForm({
               <Input
                 id="pin"
                 type="password"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={TILL_CODE_LENGTH}
+                autoComplete="current-password"
                 value={pin}
-                onChange={(event) =>
-                  setPin(event.target.value.replace(/\D/g, "").slice(0, TILL_CODE_LENGTH))
-                }
-                placeholder="12-digit code"
-                className="text-center tracking-[0.3em] font-mono"
+                onChange={(event) => setPin(event.target.value)}
+                placeholder="PIN, password, or 12-digit code"
+                className="text-center font-mono"
               />
             ) : (
             <InputOTP
@@ -142,7 +138,7 @@ export function TraditionalLoginForm({
         <Button
           type="submit"
           className="h-11 text-base font-bold shadow-lg active:scale-[0.98] w-[276px] mx-auto"
-          disabled={isLoading || pin.length !== requiredLength}
+          disabled={!canSubmit}
         >
           {!!isLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
           {!isLoading && "Authorize Entry"}

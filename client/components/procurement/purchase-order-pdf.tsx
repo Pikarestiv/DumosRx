@@ -23,6 +23,9 @@ const styles = StyleSheet.create({
   totalValue: { fontWeight: 700, fontSize: 11 },
 });
 
+export const formatPdfMoney = (amount: number, currencyCode?: string) =>
+  `${currencyCode || "NGN"} ${amount.toLocaleString("en-US")}`;
+
 interface PurchaseOrderPdfProps {
   storeName: string;
   poNumber: string;
@@ -33,6 +36,7 @@ interface PurchaseOrderPdfProps {
   items: { product_name: string; bulk_quantity: number; unit_cost: number; subtotal: number }[];
   totalAmount: number;
   generatedAt: string;
+  currencyCode?: string;
 }
 
 export function PurchaseOrderPdf({
@@ -45,6 +49,7 @@ export function PurchaseOrderPdf({
   items,
   totalAmount,
   generatedAt,
+  currencyCode,
 }: PurchaseOrderPdfProps) {
   return (
     <Document>
@@ -97,10 +102,10 @@ export function PurchaseOrderPdf({
                 <Text>{item.bulk_quantity}</Text>
               </View>
               <View style={styles.cellUnitCost}>
-                <Text>{item.unit_cost.toLocaleString()}</Text>
+                <Text>{formatPdfMoney(item.unit_cost, currencyCode)}</Text>
               </View>
               <View style={styles.cellSubtotal}>
-                <Text>{item.subtotal.toLocaleString()}</Text>
+                <Text>{formatPdfMoney(item.subtotal, currencyCode)}</Text>
               </View>
             </View>
           ))}
@@ -108,7 +113,7 @@ export function PurchaseOrderPdf({
 
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>{totalAmount.toLocaleString()}</Text>
+          <Text style={styles.totalValue}>{formatPdfMoney(totalAmount, currencyCode)}</Text>
         </View>
       </Page>
     </Document>

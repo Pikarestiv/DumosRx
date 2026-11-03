@@ -95,6 +95,7 @@ export function LoyaltyTierFormDialog({ open, onOpenChange, tier, userId, nextSo
               <Label>Minimum Spend</Label>
               <Input
                 type="number"
+                step="any"
                 inputMode="decimal"
                 min={0}
                 value={form.min_spend}

@@ -136,6 +136,7 @@ export async function createDestProduct(
       base_unit: product.base_unit ?? "Unit",
       bulk_unit: product.bulk_unit ?? null,
       units_per_bulk: product.units_per_bulk ?? 1,
+      show_online: 1,
       store_id: destStoreId,
     },
     { storeId: destStoreId },

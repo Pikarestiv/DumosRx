@@ -12,22 +12,22 @@ import {
 import { useCart } from "@/lib/store/use-cart-store";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { formatMoney } from "@/lib/utils/currency";
+import { toDisplayTitle } from "@/lib/storefront-display";
 
 interface StorefrontCartProps {
   storeSlug: string;
+  currency?: string | null;
 }
 
-export function StorefrontCart({ storeSlug }: StorefrontCartProps) {
+export function StorefrontCart({ storeSlug, currency }: StorefrontCartProps) {
   const [mounted, setMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const cart = useCart(storeSlug);
   const router = useRouter();
 
   useEffect(() => {
-    // Cart state is persisted (zustand + localStorage) and unavailable
-    // during SSR, so this intentionally renders null on the server and
-    // first client pass, then flips true post-mount to avoid a hydration
-    // mismatch.
+    // Persisted cart state is client-only; render after mount to avoid a hydration mismatch.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
@@ -45,7 +45,7 @@ export function StorefrontCart({ storeSlug }: StorefrontCartProps) {
         <Button variant="outline" size="icon" className="relative h-12 w-12 rounded-full shadow-md">
           <ShoppingCart className="h-6 w-6" />
           {cart.getItemCount() > 0 && (
-            <span className="absolute -top-2 -right-2 bg-emerald-600 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
+            <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
               {cart.getItemCount()}
             </span>
           )}
@@ -58,7 +58,7 @@ export function StorefrontCart({ storeSlug }: StorefrontCartProps) {
         
         <div className="flex-1 overflow-y-auto py-4">
           {cart.items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500">
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
               <ShoppingCart className="h-12 w-12 mb-4 opacity-20" />
               <p>Your cart is empty.</p>
             </div>
@@ -67,8 +67,8 @@ export function StorefrontCart({ storeSlug }: StorefrontCartProps) {
               {cart.items.map((item) => (
                 <div key={item.id} className="flex justify-between items-center border-b pb-4">
                   <div className="flex-1">
-                    <p className="font-semibold line-clamp-1">{item.name}</p>
-                    <p className="text-sm text-emerald-600">₦{item.price.toLocaleString()}</p>
+                    <p className="font-semibold line-clamp-1">{toDisplayTitle(item.name)}</p>
+                    <p className="text-sm text-primary">{formatMoney(item.price, currency)}</p>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Button 
@@ -97,7 +97,7 @@ export function StorefrontCart({ storeSlug }: StorefrontCartProps) {
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-8 w-8 ml-2 text-red-500 hover:text-red-700"
+                      className="h-8 w-8 ml-2 text-destructive hover:text-destructive/80"
                       onClick={() => cart.removeItem(item.id)}
                     >
                       <X className="h-4 w-4" />
@@ -113,7 +113,7 @@ export function StorefrontCart({ storeSlug }: StorefrontCartProps) {
           <div className="border-t pt-4">
             <div className="flex justify-between text-lg font-bold mb-4">
               <span>Total</span>
-              <span>₦{cart.getTotal().toLocaleString()}</span>
+              <span>{formatMoney(cart.getTotal(), currency)}</span>
             </div>
             <Button className="w-full" size="lg" onClick={handleCheckout}>
               Proceed to Checkout

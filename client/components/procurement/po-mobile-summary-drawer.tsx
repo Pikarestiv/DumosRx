@@ -8,7 +8,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { ChevronUp, ShoppingCart } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import { ProductName } from "@/components/ui/product-name";
 
 export interface POSummaryLineItem {
@@ -33,6 +33,7 @@ export function POMobileSummaryDrawer({
   selectedSupplierName,
   lineItems,
 }: POMobileSummaryDrawerProps) {
+  const formatCurrency = useFormatCurrency();
   return (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
       <div className="pointer-events-auto">

@@ -1,3 +1,4 @@
+import { apiClient } from "@/lib/api/client";
 import * as Sentry from "@sentry/nextjs";
 import { setCurrentUser as setDbUser, logAction } from "@/lib/db/local-database";
 import {
@@ -107,6 +108,7 @@ export async function performLogin(
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L294
   if (
     pin?.length === TILL_CODE_LENGTH &&
+    /^\d{12}$/.test(pin) &&
     shouldAttemptAdminTillLogin(cleanIdentifier, candidates.length)
   ) {
     if (!navigator.onLine) {
@@ -137,32 +139,48 @@ export async function performLogin(
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L333
   let matches = pin ? candidates.filter((u) => pinMatches(pin, u.pin)) : candidates;
   let dbUser = matches[0] ?? null;
+  let cloudAuthenticated = false;
 
-  if (dbUser || candidates.length > 0) {
-    // If PIN is provided, check it
-    if (pin && !dbUser) {
-      // A PIN reset via the web dashboard writes straight to the cloud DB; this device only sees it once it next syncs down, which could otherwise b…
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L346
-      const now = Date.now();
-      const hasCloudLink =
-        typeof window !== "undefined" && !!getAuthToken();
-      if (
-        hasCloudLink &&
-        navigator.onLine &&
-        now - lastPinRecoverySyncAt > PIN_RECOVERY_SYNC_COOLDOWN_MS
-      ) {
-        lastPinRecoverySyncAt = now;
-        const result = await sync().catch(() => null);
-        // If a background/setup sync was already in flight, our call above was a no-op; the pull we're relying on may still be running.
-        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L362
-        if (result?.error === "Sync already in progress") {
-          await waitForSyncToFinish();
+  if (pin && !dbUser) {
+    const now = Date.now();
+    const hasCloudLink = typeof window !== "undefined" && !!getAuthToken();
+    if (hasCloudLink && navigator.onLine && now - lastPinRecoverySyncAt > PIN_RECOVERY_SYNC_COOLDOWN_MS) {
+      lastPinRecoverySyncAt = now;
+      const result = await sync().catch(() => null);
+      if (result?.error === "Sync already in progress") {
+        await waitForSyncToFinish();
+      }
+      candidates = await getUsersByUsernameOrEmail(cleanIdentifier);
+      matches = candidates.filter((u) => pinMatches(pin, u.pin));
+      dbUser = matches[0] ?? null;
+    }
+
+    if (!dbUser && cleanIdentifier.includes("@")) {
+      if (navigator.onLine) {
+        const cloudRes = await apiClient.login(cleanIdentifier, pin).catch(() => null);
+        if (cloudRes?.token && cloudRes?.user) {
+          cloudAuthenticated = true;
+          apiClient.setToken(cloudRes.token);
+          void sync().catch(console.error);
+          candidates = await getUsersByUsernameOrEmail(cleanIdentifier);
+          dbUser = candidates[0] ?? {
+            id: cloudRes.user.id,
+            first_name: cloudRes.user.name?.split(" ")[0] || "User",
+            last_name: cloudRes.user.name?.split(" ").slice(1).join(" ") || "",
+            username: cleanIdentifier.split("@")[0],
+            email: cloudRes.user.email,
+            role: (cloudRes.user.role as User["role"]) || "admin",
+          };
         }
-        candidates = await getUsersByUsernameOrEmail(cleanIdentifier);
-        matches = candidates.filter((u) => pinMatches(pin, u.pin));
-        dbUser = matches[0] ?? null;
+      } else if (pin.length > 4) {
+        throw new Error(
+          "Offline: To sign in with a cloud password, connect to the internet. Otherwise, enter your 4-digit PIN.",
+        );
       }
     }
+  }
+
+  if (dbUser || candidates.length > 0) {
 
     // More than one of this device's stores has a user with this exact identifier AND this exact PIN — a genuine collision (plausible with default…
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L374
@@ -178,7 +196,7 @@ export async function performLogin(
       );
     }
 
-    if (!dbUser || (pin && !pinMatches(pin, dbUser.pin))) {
+    if (!dbUser || (!cloudAuthenticated && pin && !pinMatches(pin, dbUser.pin))) {
       // The acting user_id on this row will be whoever was previously logged in on this device (or null), not the failed identifier:
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L393
       logAction(AUDIT_ACTIONS.LOGIN_FAILED, "users", dbUser?.id || cleanIdentifier, {
@@ -191,7 +209,7 @@ export async function performLogin(
 
     // The PIN just verified against a LEGACY plaintext value:
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L408
-    if (pin && needsPinRehash(dbUser.pin)) {
+    if (!cloudAuthenticated && pin && needsPinRehash(dbUser.pin)) {
       void migrateLegacyPinToHash(dbUser.id, pin);
     }
 
@@ -200,6 +218,7 @@ export async function performLogin(
       first_name: dbUser.first_name || "",
       last_name: dbUser.last_name || "",
       username: dbUser.username || "",
+      email: dbUser.email || (cleanIdentifier.includes("@") ? cleanIdentifier : undefined),
       role: dbUser.role as User["role"],
       store_id: dbUser.store_id,
     };

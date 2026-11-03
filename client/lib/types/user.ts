@@ -54,6 +54,7 @@ export interface CurrentUser {
   id: string;
   first_name: string;
   last_name: string;
+  username?: string | null;
   email: string;
   phone?: string | null;
   role: string;

@@ -136,7 +136,7 @@ export function useOnboardingRegister({
         }
 
         const newRegistration: PendingNewRegistration = {
-          store, userId: response.user.id, firstName, lastName, username, pin, hashedPin, storeName,
+          store, userId: response.user.id, firstName, lastName, username, email, pin, hashedPin, storeName,
         };
         // Leftover data from a previously linked account - see client/AGENTS.md's clearDatabaseForNewStore() note.
         const localStores = await getLocalStores();
@@ -157,7 +157,7 @@ export function useOnboardingRegister({
         storeId,
         storeName,
         Boolean(existingStoreId),
-        { userId, firstName, lastName, username, hashedPin },
+        { userId, firstName, lastName, username, email, hashedPin },
         now,
       );
 

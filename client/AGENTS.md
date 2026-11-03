@@ -1566,16 +1566,45 @@ in `pull-round-end.ts`.
   has to be remembered in the meantime, so nothing can be forgotten).
   - **The one floor is over the sum, not per movement.** `+80, −100, +20` is
     `0`, not the `20` a per-movement floor used to leave: an oversell's deficit
-    is carried forward, not forgiven. That is a deliberate behaviour change,
-    and the alternative (an explicit compensating **inbound** movement at
-    oversell time — not the `shrinkage` the 2026-10-10 spec called it, which
-    would double the deficit) is designed in
+    would be carried forward, so since A-265 a sale never lets it form.
+  - **An oversell writes two rows (A-265).** When `writeSaleItemStock()`
+    deducts more from a batch than it holds, it writes the sale row as before
+    (still tagged "oversold" in its `reason`, so old bundles' alerts keep
+    working) and then an inbound `adjustment` of `+N` against the same batch
+    for the units the ledger did not hold: `reference_type =
+    OVERSELL_REFERENCE_TYPE` (`"oversell"`), `reference_id` the sale,
+    `OVERSELL_COMPENSATION_REASON`, the sale's cost and `correlationId`. The
+    log therefore never sums below zero, a later count is an ordinary
+    `counted − system`, and a Stage-0 server lands on the same figure when
+    both rows arrive in one push. It is inbound, never `shrinkage`: an
+    oversell means receipts went unrecorded, and a negative row would double
+    the deficit and read as a loss.
+  - **Only on a device whose movement log is complete**
+    (`movementLogIsComplete()`). N is judged against this device's copy of
+    the log, but the row joins the shared one: a till that has not pulled
+    another till's count on the same batch would book units that count
+    already holds, as phantom stock on every replica. Such a sale leaves the
+    deficit, as before, for the server backfill. The gate cannot see an
+    inbound another till wrote since this device's last completed pull, a
+    window that grows for as long as the device is offline; the next count
+    corrects it. A device that has never completed a pull, or is mid-page,
+    never compensates; its deficits stay on screen with the count warning and
+    go to the backfill once pushed.
+  - **Readers:** the Stock Adjustments ledger lists it as "Oversell"
+    (`adjustmentSourceLabel()`); product history and the movement list still
+    label it a plain adjustment, its reason naming the oversell;
+    `getStockLossTotal()` never matches it (its reason is no loss label);
+    `getStockMoM()` counts it as value added, because the stock was there; the
+    dashboard's recent-activity feed leaves it out, as it does the sale it
+    belongs to. A return now restores the full quantity the sale took, since
+    the compensation says those units existed.
+  - **A legacy carve-out batch can be oversold too**: the partial-shortfall
+    fallback deducts past its stored figure, and the compensation covers only
+    the part past zero. Deficits already in the log, those written by older
+    bundles or a device behind on its log, and a decayed carve-out's unlogged
+    opening stock are what the server's `stock:compensate-oversells`
+    backfills. Design:
     `docs/superpowers/specs/2026-10-14-oversell-compensating-movement-design.md`.
-    Oversells themselves are read off the log, never off `quantity`. **What the
-    carry-forward costs at the counting screen is `docs/KNOWN_BUGS.md` A-265:**
-    the next inbound movement pays the deficit off before it adds anything, so
-    the first cycle count on an oversold batch reads as having done nothing. One
-    live batch has this shape today (`gluformin` on store `571582a9`).
   - **`getBatchDeficits()` (`lib/db/batch-quantity.ts`) is the one place a
     shortfall is measured**, and it reports exactly the set
     `resolveBatchQuantity()` would rebuild to 0: a non-deleted, active batch in
@@ -1767,6 +1796,40 @@ in `pull-round-end.ts`.
   later starts from a full pull. Stamping every requested table at the end of
   a round would silently undo this. Pinned by
   `pull-refused-store-stamps-only-served-tables.test.ts`.
+- **A refused round is a failed sync, never "synced" (A-323).** `pull.ts`
+  returns the refusal (`readStoreRefusal()` in `store-refusal.ts`) with the
+  live stores the same response served, i.e. the ones this account can still
+  reach, and whether the refused store came back as a tombstone. `sync()`
+  then returns `success: false` with `STORE_REFUSED_MESSAGE` and the refusal,
+  does not set the last-sync time, and the recorded outcome's reason is
+  `store_refused`. Settings > Data's Sync and Force full resync wrap their
+  `toast.promise` in `failUnlessSucceeded()`, because `sync()` resolves on
+  failure and sonner would otherwise show "Sync complete".
+- **A fixed-store staff till is moved by sign-in, so the move has to reach the
+  local `users` row first.** Sign-in (`performLogin()`) builds the user from
+  the local row, and a refused round never serves `users` (serving the
+  caller's own row would stamp a partial `users` window under the refused
+  store's key, the A-254 trap). So on a refusal `adoptReassignedStore()` asks
+  `/user`; if it is the signed-in user, their local row still names the
+  refused store, and the server now has them at a store this round offered,
+  it rewrites the local `store_id` with a raw `execute`, never queued (the
+  server, not the device, decides a user's store). The result carries it
+  as `refusal.reassignedStore`. `/user` answers for the token's account,
+  which on a device linked by the owner is not the staff member, so then
+  nothing changes.
+- **The remedy** (`storeRefusalRemedy()`), toasted once per refused store
+  across every mounted indicator (module scope in
+  `useStoreRefusalAnnouncer()`), or on every manual sync:
+  - no store left: ask for access back;
+  - fixed-store staff: sign out and in again to move to the store
+    `adoptReassignedStore()` found, else ask the owner which store to use;
+  - the refused store was deleted: point at the store menu, because
+    `store-context.tsx` has already fallen back to the first local store;
+  - several stores: point at the store menu;
+  - one store: a "Switch to …" action calling `switchStore()`.
+  Apart from that deleted-store fallback, nothing switches on its own: the
+  device may hold unpushed changes for the refused store, and moving the till
+  is the user's call.
 - **Legacy products are attributed by evidence (A-248 part c).** At the start
   of every push on a device holding more than one store,
   `attributeStorelessProductsFromEvidence()` gives a store-less product the
@@ -2116,28 +2179,34 @@ on screen from having walked to the shelf.
   counted"; the review step's submit button is now disabled while
   `countedItems.length === 0`.
 
-### Device-local drafts: clear all of them, from one function (2026-10-13)
+### Device-local drafts: clear all of them, from one function (2026-10-13, updated 2026-11-02)
 
-Three drafts are persisted per device under their own single global
-localStorage keys, with no store or user in them: the POS cart
-(`pos-cart-storage`), the cycle count (`stock-audit-draft`) and the stock
-adjustment (`stock-adjustment-draft`). Every path that tears down one
-store/account's context must drop all three, and `clearLocalDrafts()`
-(`lib/utils/clear-local-drafts.ts`) is the only way it should be done — the
-list grew to three while two of the five transition paths were still
-clearing only the cart.
+Three drafts are persisted per device: POS cart (`pos-cart-storage`), cycle
+count (`stock-audit-draft`), and stock adjustment (`stock-adjustment-draft`).
+Previously, all three were un-scoped and wiped on every store switch.
 
-The five paths: store switch (`store-context.tsx`), a different user logging
-in (`auth-context.tsx`, gated on `previousUserId !== dbUser.id` so a same-user
-unlock keeps the work), logout (`auth-context.tsx`), linking a new cloud store
-(`app/setup/use-onboarding.ts`) and the factory reset
-(`hooks/use-settings-sync.ts`). The last two were missed until 2026-10-13: a
-count started against the outgoing store's product ids survived into the new
-store and could be submitted against foreign ids. Both import the helper
-**dynamically** — `use-settings-sync.ts` is loaded by every settings screen and
-a static import pulls the whole POS-cart module graph into it, which breaks
-`__tests__/factory-reset-disconnects-cloud.test.ts`'s partial `core` mock.
-Pinned by `__tests__/clear-local-drafts.test.ts`.
+As of 2026-11-02 (Cynthia's incident & draft store-scoping):
+1. **Stock audit & adjustment drafts are store-scoped**: State in `useStockAuditDraftStore`
+   and `useStockAdjustmentDraftStore` is keyed by store id (`drafts[storeId]`), and backed
+   by local SQLite tables `stock_audit_drafts` and `stock_adjustment_drafts`
+   (`(store_id TEXT PRIMARY KEY, user_id TEXT, draft_json/items_json TEXT NOT NULL, updated_at TEXT)`).
+   These tables are device-local (no server migration, not synced).
+2. **Store switching preserves audit and adjustment drafts**: `store-context.tsx` calls
+   `clearLocalDrafts({ preserveStoreAudit: true, preserveStoreAdjustment: true })`, which clears
+   the POS cart while leaving the store's audit and adjustment drafts intact.
+   Switching back to the store restores the draft seamlessly.
+3. **Work in-progress reminder**: `HeaderStoreSwitcher` checks
+   `hasActiveStockAuditCount(activeStoreId)` and `hasActiveStockAdjustmentDraft(activeStoreId)`
+   before switching; if active work exists, it displays an informative `ConfirmDialog` reassuring
+   the user that counts and items are safely saved locally on this device before proceeding.
+4. **Full context teardowns still clear everything**: `clearLocalDrafts()` without
+   options drops all drafts across the board. The four full teardown paths: a
+   different user logging in (`auth-context.tsx`, gated on `previousUserId !== dbUser.id`),
+   logout (`auth-context.tsx`), linking a new cloud store (`app/setup/use-onboarding.ts`),
+   and factory reset (`hooks/use-settings-sync.ts`).
+5. **Successful submission**: Once an audit or adjustment is submitted or discarded in
+   the UI, `clearStockAuditDraft(storeId)` or `clearStockAdjustmentDraft(storeId)` cleans up
+   that specific store's draft from SQLite and memory.
 
 A draft itself is **not** the problem it looks like: `submitStockAudit`
 re-reads the live quantity inside its transaction
@@ -6587,16 +6656,47 @@ needs a real paginated view.
 
 ## Publishing products to the online storefront
 
-`products.show_online` defaults off. Three ways to change it, in increasing
-bulk:
+`products.show_online` defaults **on** since storefront Phase 1 (2026-11-02);
+it used to default off, which left a newly enabled online store empty. Every
+client creation path now writes the field explicitly rather than leaning on
+the column default, because `schema.ts`'s `DEFAULT 1` only reaches **new
+installs** (SQLite cannot change an existing column's default) and `insert()`
+pushes only the keys it was given, so an omitted field would land as `0`
+locally on an old install and `1` on the server:
+
+- the add-product form (`emptyProductForm()` → `showOnline: true`);
+- the importer — a new row uses `row.showOnline ?? true`; a matched row still
+  leaves the field alone when the column is absent or blank;
+- `createDestProduct()` (stock transfer into a store that has never carried
+  the product) writes `show_online: 1`.
+
+- **Controlled substance interlock (PG-21):** Marking a product as a Controlled
+  Substance (`isControlled = true`) automatically sets `showOnline: false` via
+  `applyProductFormChange()` (`client/components/products/add-product-form-state.ts`).
+  Controlled items are also blocked at the server API layer from being listed or purchased.
+
+`lib/demo/loader.ts` is the one path that still omits it, so demo products
+follow the column default locally and the server's `true` once pulled.
+
+**Known limit, server side:** tills older than this release send an explicit
+`show_online: 0` on every product they create (their form defaulted to
+`false`), and the server cannot tell that from an owner deliberately hiding
+the product, so new products from an old till stay hidden. No shim exists for
+it; the condition for dropping this note is that clients older than this
+release stop reporting in. Existing hidden products are switched on once by
+`php artisan products:backfill-show-online` (see `laravel-server/AGENTS.md`,
+"Products are shown online by default", including why it does not bump
+`_version`).
+
+Three ways to change it, in increasing bulk:
 
 1. The per-product switch in `add-product-dialog.tsx`.
 2. The **CSV/XLSX importer** (`lib/utils/product-import-export.ts`), which
    handles a `show_online` column with the header spellings owners actually
    type and `parseBooleanValue()`'s accepted values. An unrecognised or blank
-   cell returns `undefined` and the product keeps whatever it has — never
-   guess, or an ambiguous spreadsheet silently publishes a catalog to a public
-   page. The exporter emits `Yes`/`No` under "Show in Online Store", the same
+   cell returns `undefined`: an existing product keeps whatever it has and a
+   new one takes the default (shown). Never guess a value from an ambiguous
+   cell. The exporter emits `Yes`/`No` under "Show in Online Store", the same
    spelling the importer reads, so export → edit → re-import is itself a bulk
    path.
 3. The **"Online" dropdown** on the catalog toolbar
@@ -7033,3 +7133,35 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Procurement price handling: selling price hits the catalog on save, cost stays per batch
+
+**Writing a price**
+- `createPurchaseOrder`, `updatePurchaseOrder`, `createAndReceivePurchaseOrder` and `receivePurchaseOrder` all write a line's `selling_price` to `products` through `applyChangedSellingPrices` (`lib/db/procurement-selling-price.ts`). Cost never goes to the catalog; it lives on `stock_batches`, so Avg/Last cost move only when goods are received.
+- A price is written only when it differs from the product's live catalog price, so re-saving an untouched line never bumps or re-syncs the product.
+- `receivePurchaseOrder` applies a typed price before its zero-quantity skip, so a line received at 0 still takes its new price. It returns `"already_received"` or `"not_found"` for those orders, and the hook reports them instead of toasting a price update.
+
+**Never write a price the user did not touch**
+- The edit page seeds an Immediate PO's line prices from the live catalog (`current_selling_price`) and records the seeded values per PO line id. On save, `markRepricedLines` sets `reprice` only on lines whose price differs from the seed, and `applyChangedSellingPrices` skips `reprice: false` lines.
+- The seed comes from a cached query that a catalog edit or sync pull does not invalidate, so an untouched price must never be written.
+- Draft save and edit toast "Selling price updated for N items" (`notifySellingPriceUpdates`), counting only changed lines.
+
+**Standard vs Immediate**
+- A Standard PO has no price, cost, lot or expiry inputs; those are entered when receiving. The order type is chosen on the details step before any item exists and is locked afterwards, so a Standard line cannot normally carry them; `createPurchaseOrder`/`updatePurchaseOrder` still strip them (`clearImmediateOnlyFields`) for any non-immediate PO, so a hidden value can neither reach the catalog nor change the stored total.
+
+**Receive panel prefill**
+- `ReceivePOPanel` seeds from the saved line only for Immediate POs: `cost_price` (the order's `cost_price_override`, per base unit) on every receipt, and `lot_number` / `expiry_date` on the first receipt only, since those belong to one delivery. Without the cost seed, a follow-up batch falls back to the line's order-time `unit_cost`, not the catalog average.
+- It never seeds `selling_price`: the catalog already has it, and re-sending a stale PO price would overwrite a later catalog edit.
+- Any new per-line field the PO form saves must be added to `buildInitialReceivedItems` too.
+
+**Backward compatibility (§11)**
+- A price typed on a draft saved before this release was never applied to the catalog and still is not: a Standard draft's price is never flagged as changed, and an Immediate draft's stored price is replaced by the live one when opened for edit. Re-applying a months-old price could overwrite a newer one, so a user who wants it applied re-types it.
+- Editing a Standard PO erases any stored cost, lot or expiry it carries (only reachable by switching type with values typed, before this release). Nothing in production relied on them. This note can go once no pre-release draft is open.
+
+## "Average cost" always carries a tooltip
+
+Average cost is a quantity-weighted blend across stock batches, and clients read a single number as "the cost". Wherever it is shown (catalog Avg Cost header, product pricing card, PO "Current Cost" header and phone card) wrap the label in `HintTooltip` with `AVG_COST_HINT` / `CURRENT_COST_HINT` from `lib/constants/cost-hints.ts`. `SortableHeaderCell` takes a `tooltip` prop for sortable headers.
+
+## Money inputs use `step="any"`
+
+Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundredth of a unit is meaningless for most African currencies), but nothing is ever a step mismatch, so a decimal amount can be typed and submitted in a native `<form>`. A fixed `step="1"` (or the browser default of 1, when no step is set) makes the browser refuse to submit a value like 12.5, and jsdom does not enforce that, so no test catches it. Percentages and multipliers (VAT, loyalty, commission) keep their own steps.

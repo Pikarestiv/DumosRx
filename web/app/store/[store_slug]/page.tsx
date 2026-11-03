@@ -1,19 +1,18 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Sparkles } from "lucide-react";
 
-import { FooterSection } from "@/components/landing/footer-section";
-import { Badge } from "@/components/ui/badge";
 import { ProductCard } from "@/components/storefront/product-card";
-import { StorefrontCart } from "@/components/storefront/storefront-cart";
+import { StoreContactBlock } from "@/components/storefront/store-contact-block";
+import { StorefrontFooter } from "@/components/storefront/storefront-footer";
+import { StorefrontHeader } from "@/components/storefront/storefront-header";
 import { getStorefrontData } from "@/lib/api/storefront-data";
 import { getStorefrontSlugs } from "@/lib/api/storefront-slugs";
 import { buildStorefrontMetadata } from "@/lib/storefront-metadata";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 
 interface StorefrontProps {
-  // Next 16 passes `params` as a Promise and, in a production build, it is a
-  // plain Promise with no property proxy - reading `params.store_slug`
-  // synchronously yields `undefined`, not the slug. It must be awaited.
   params: Promise<{
     store_slug: string;
   }>;
@@ -31,7 +30,9 @@ export async function generateMetadata({
   return buildStorefrontMetadata(store_slug, data?.store);
 }
 
-export default async function StorefrontPage({ params }: StorefrontProps) {
+export default async function StorefrontPage({
+  params,
+}: StorefrontProps) {
   const { store_slug } = await params;
   const data = await getStorefrontData(store_slug);
 
@@ -39,75 +40,88 @@ export default async function StorefrontPage({ params }: StorefrontProps) {
     notFound();
   }
 
-  const { store, products } = data;
+  const { store, products, storefront, branches } = data;
+  const selectedBranchId = store.id;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Custom simplified header for storefront */}
-      <header className="bg-white border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {store.logo_url && (
-              // eslint-disable-next-line @next/next/no-img-element -- static export, arbitrary base64 data URI, next/image's domain allowlisting doesn't apply
-              <img
-                src={store.logo_url}
-                alt={`${store.name} logo`}
-                className="h-9 w-9 object-contain rounded"
-              />
-            )}
-            <div className="font-bold text-xl text-emerald-700">{store.name}</div>
-          </div>
-          <div className="flex items-center space-x-4">
-            <StorefrontCart storeSlug={store_slug} />
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-muted/40 flex flex-col">
+      <StorefrontHeader
+        storeSlug={store_slug}
+        store={store}
+        storefront={storefront}
+        branches={branches}
+        selectedBranchId={selectedBranchId}
+      />
 
-      <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
-        <div className="mb-12 text-center md:text-left">
-          <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl">
-            {store.name}
-          </h1>
-          <p className="mt-4 text-xl text-gray-500">
-            {store.location ||
-              store.address ||
-              "Your trusted local store, now online."}
-          </p>
-          {(store.phone || store.email) && (
-            <div className="mt-4 flex flex-col sm:flex-row gap-4 items-center md:justify-start justify-center">
-              {store.phone && (
-                <Badge variant="secondary" className="text-md py-1 px-3">
-                  Call: {store.phone}
-                </Badge>
-              )}
-              {store.email && (
-                <Badge variant="secondary" className="text-md py-1 px-3">
-                  Email: {store.email}
-                </Badge>
+      <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-8">
+        <section aria-label="Welcome" className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-10 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+          <div className="max-w-2xl space-y-4">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">
+              <Sparkles className="h-3.5 w-3.5 shrink-0" /> Fast Pickup & Delivery
+            </div>
+            <h1 className="font-heading text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
+              {storefront?.headline || storefront?.name || store.name}
+            </h1>
+            {storefront?.about && (
+              <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
+                {storefront.about}
+              </p>
+            )}
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <Link
+                href={`/store/${store_slug}/catalog`}
+                className="inline-flex items-center justify-center rounded-full text-sm font-semibold h-10 px-5 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-colors"
+              >
+                Browse Catalog &rarr;
+              </Link>
+              {branches && branches.length > 1 && (
+                <Link
+                  href={`/store/${store_slug}/locations`}
+                  className="inline-flex items-center justify-center rounded-full text-sm font-semibold h-10 px-5 border border-border bg-background hover:bg-accent text-foreground transition-colors"
+                >
+                  View Locations
+                </Link>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        </section>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <StoreContactBlock store={store} />
+
+        <section aria-label="Products" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground">
+              Featured Products
+            </h2>
+            <Link
+              href={`/store/${store_slug}/catalog`}
+              className="text-sm font-semibold text-primary hover:underline flex items-center gap-1"
+            >
+              View Full Catalog &rarr;
+            </Link>
+          </div>
+
           {products.length === 0 ? (
-            <div className="col-span-full text-center py-12 text-gray-500">
+            <p className="col-span-full text-center py-12 text-muted-foreground">
               No products are currently available online. Please check back
               later.
-            </div>
+            </p>
           ) : (
-            products.map((product: StorefrontProduct) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                storeSlug={store_slug}
-              />
-            ))
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {products.map((product: StorefrontProduct) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  storeSlug={store_slug}
+                  currency={store.currency}
+                />
+              ))}
+            </div>
           )}
-        </div>
+        </section>
       </main>
 
-      <FooterSection />
+      <StorefrontFooter store={store} />
     </div>
   );
 }

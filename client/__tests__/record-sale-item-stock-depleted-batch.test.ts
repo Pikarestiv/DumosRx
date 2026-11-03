@@ -61,7 +61,7 @@ describe("recordSaleItemStock — depleted batch", () => {
     });
 
     const movements = db.exec(
-      "SELECT quantity, stock_batch_id FROM stock_movements WHERE reference_id = 'sale1' AND product_id = 'prod1'",
+      "SELECT quantity, stock_batch_id FROM stock_movements WHERE movement_type = 'sale' AND reference_id = 'sale1' AND product_id = 'prod1'",
     );
     expect(movements[0]?.values.length).toBe(1);
     expect(movements[0]?.values[0]?.[0]).toBe(-1);
@@ -78,7 +78,7 @@ describe("recordSaleItemStock — depleted batch", () => {
     expect(saleItems[0]?.values[0]?.[0]).toBe("batch1");
 
     const reason = db.exec(
-      "SELECT reason FROM stock_movements WHERE reference_id = 'sale1' AND product_id = 'prod1'",
+      "SELECT reason FROM stock_movements WHERE movement_type = 'sale' AND reference_id = 'sale1' AND product_id = 'prod1'",
     );
     expect(reason[0]?.values[0]?.[0]).toBe(
       "Customer sale (oversold — insufficient batch stock)",
@@ -105,7 +105,7 @@ describe("recordSaleItemStock — depleted batch", () => {
     expect(attributedBatchId).toBeTruthy();
 
     const movements = db.exec(
-      "SELECT quantity, stock_batch_id FROM stock_movements WHERE reference_id = 'sale1' AND product_id = 'prod1'",
+      "SELECT quantity, stock_batch_id FROM stock_movements WHERE movement_type = 'sale' AND reference_id = 'sale1' AND product_id = 'prod1'",
     );
     expect(movements[0]?.values.length).toBe(1);
     expect(movements[0]?.values[0]?.[0]).toBe(-1);
@@ -136,7 +136,7 @@ describe("recordSaleItemStock — depleted batch", () => {
     });
 
     const movements = db.exec(
-      "SELECT quantity, stock_batch_id FROM stock_movements WHERE reference_id = 'sale1' AND product_id = 'prod1'",
+      "SELECT quantity, stock_batch_id FROM stock_movements WHERE movement_type = 'sale' AND reference_id = 'sale1' AND product_id = 'prod1'",
     );
     expect(movements[0]?.values.length).toBe(1);
     expect(movements[0]?.values[0]?.[0]).toBe(-2);
@@ -167,7 +167,7 @@ describe("recordSaleItemStock — depleted batch", () => {
     });
 
     const movements = db.exec(
-      "SELECT quantity FROM stock_movements WHERE reference_id = 'sale1' AND product_id = 'prod1'",
+      "SELECT quantity FROM stock_movements WHERE movement_type = 'sale' AND reference_id = 'sale1' AND product_id = 'prod1'",
     );
     const totalDeducted = (movements[0]?.values ?? []).reduce(
       (sum, row) => sum + Math.abs(Number(row[0])),
@@ -186,7 +186,7 @@ describe("recordSaleItemStock — depleted batch", () => {
     expect(batch[0]?.values[0]?.[0]).toBe(0);
 
     const reason = db.exec(
-      "SELECT reason FROM stock_movements WHERE reference_id = 'sale1' AND stock_batch_id = 'batch1'",
+      "SELECT reason FROM stock_movements WHERE movement_type = 'sale' AND reference_id = 'sale1' AND stock_batch_id = 'batch1'",
     );
     expect(reason[0]?.values[0]?.[0]).toBe(
       "Customer sale (oversold — insufficient batch stock)",
@@ -218,7 +218,7 @@ describe("recordSaleItemStock — depleted batch", () => {
     expect(saleItemBatchRows[0]?.values[0]?.[0]).toBe(3);
 
     const movementRows = db.exec(
-      "SELECT quantity FROM stock_movements WHERE reference_id = 'sale1' AND stock_batch_id = 'batch1'",
+      "SELECT quantity FROM stock_movements WHERE movement_type = 'sale' AND reference_id = 'sale1' AND stock_batch_id = 'batch1'",
     );
     expect(movementRows[0]?.values.length).toBe(1);
     expect(movementRows[0]?.values[0]?.[0]).toBe(-3);
@@ -292,7 +292,7 @@ describe("recordSaleItemStock — depleted batch", () => {
     // A normal, non-oversold sale keeps the plain reason text (bug #4 fix
     // must not touch this case).
     const reason = db.exec(
-      "SELECT reason FROM stock_movements WHERE reference_id = 'sale1' AND stock_batch_id = 'batch_old'",
+      "SELECT reason FROM stock_movements WHERE movement_type = 'sale' AND reference_id = 'sale1' AND stock_batch_id = 'batch_old'",
     );
     expect(reason[0]?.values[0]?.[0]).toBe("Customer sale");
   });

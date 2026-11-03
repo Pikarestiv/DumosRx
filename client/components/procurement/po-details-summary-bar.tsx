@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 
 interface PODetailsSummaryBarProps {
@@ -43,6 +43,7 @@ export function PODetailsSummaryBar({
   amountPaid,
   onEdit,
 }: PODetailsSummaryBarProps) {
+  const formatCurrency = useFormatCurrency();
   const paymentLabel = paymentStatus
     ? PAYMENT_STATUS_LABEL[paymentStatus] ?? paymentStatus
     : undefined;

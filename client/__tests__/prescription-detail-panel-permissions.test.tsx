@@ -10,6 +10,10 @@ vi.mock("@/lib/hooks/use-permissions", () => ({
 import { PrescriptionDetailPanel } from "@/components/prescriptions/prescription-detail-panel";
 import type { Prescription } from "@/lib/hooks/use-prescription-queue";
 
+vi.mock("@/lib/context/store-context", () => ({
+  useStore: () => ({ storeProfile: { currency: undefined } }),
+}));
+
 function makePrescription(overrides: Partial<Prescription> = {}): Prescription {
   return {
     id: "rx-1",

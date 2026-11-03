@@ -2,6 +2,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SELF_PURCHASE_VENDOR_ID } from "@/components/procurement/po-details-fields";
 import { getValidatedAmountPaid, countSellingPriceOverrides } from "@/components/procurement/po-line-item-math";
+import { notifySellingPriceUpdates } from "@/components/procurement/notify-selling-price-updates";
 import { errorDescription } from "@/lib/utils/error-description";
 import {
   useCreatePurchaseOrderMutation,
@@ -64,20 +65,14 @@ export function usePoSubmit({
   const handleSubmit = () => {
     if (!canSubmit()) return;
 
+    const priceOverrideCount = countSellingPriceOverrides(items, products);
     if (poType === "immediate") {
       createAndReceivePurchaseOrderMutation.mutate(buildPayload(), {
         onSuccess: (poId) => {
           toast.success("Purchase received", {
             description: "Stock has been added to inventory.",
           });
-          const priceOverrideCount = countSellingPriceOverrides(items, products);
-          if (priceOverrideCount > 0) {
-            toast.success(
-              priceOverrideCount === 1
-                ? "Selling price updated for 1 item"
-                : `Selling price updated for ${priceOverrideCount} items`,
-            );
-          }
+          notifySellingPriceUpdates(priceOverrideCount);
           router.push(`/procurement?selected=${poId}`);
         },
         onError: (error) => {
@@ -111,10 +106,12 @@ export function usePoSubmit({
   const handleSaveDraft = () => {
     if (!canSubmit()) return;
 
+    const priceOverrideCount = countSellingPriceOverrides(items, products);
     createPurchaseOrderMutation.mutate(
       { ...buildPayload(), type: poType },
       {
         onSuccess: (poId) => {
+          notifySellingPriceUpdates(priceOverrideCount);
           toast.success("Purchase order saved as draft", {
             description:
               poType === "immediate"

@@ -25,8 +25,8 @@ import type { StockMovementDbRow } from "@/lib/types/stock-movement";
 import {
   ADJUSTMENT_REASONS,
   ALL_ADJUSTMENT_REASONS,
-  AUDIT_REFERENCE_TYPE,
   filterAdjustmentGroups,
+  adjustmentSourceLabel,
   groupAdjustmentMovements,
   type AdjustmentGroup,
 } from "./adjustment-derivations";
@@ -37,7 +37,6 @@ const RECENT_ACTIVITY_WINDOW_DAYS = 30;
 const ROW_HEIGHT = 64;
 
 function AdjustmentRow({ group }: { group: AdjustmentGroup }) {
-  const isAudit = group.source === AUDIT_REFERENCE_TYPE;
   return (
     <div
       data-testid={`adjustment-row-${group.referenceId}`}
@@ -46,7 +45,7 @@ function AdjustmentRow({ group }: { group: AdjustmentGroup }) {
       <div className="min-w-0">
         <div className="font-semibold truncate">{group.referenceId}</div>
         <div className="text-[11.5px] text-muted-foreground/70">
-          {isAudit ? "Cycle count" : "Quick adjustment"}
+          {adjustmentSourceLabel(group.source)}
         </div>
       </div>
       <div className="text-muted-foreground">

@@ -18,3 +18,7 @@ export const ADJUSTMENT_REASON_NOTE_SEPARATOR = " — ";
 // The ADJUSTMENT_REASONS entries whose direction is "decrease", i.e.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#constants-stock-adjustments-ts-L29
 export const STOCK_LOSS_REASON_LABELS = ["Damage", "Loss"] as const;
+
+// A-265: the inbound adjustment an oversell writes for the units sold that the batch's ledger did not hold.
+export const OVERSELL_REFERENCE_TYPE = "oversell";
+export const OVERSELL_COMPENSATION_REASON = "Oversell compensation: sold units the ledger did not hold";

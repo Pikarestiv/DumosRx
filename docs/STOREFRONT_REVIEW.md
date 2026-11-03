@@ -669,6 +669,9 @@ Ordered roughly by impact on a real store.
    an **empty storefront** and must open 800 dialogs. **Effort: small — an importer column
    plus a bulk action on the products table. High impact per unit of work; this silently
    defeats the paid feature at the exact moment a new customer tries it.**
+   **Update 2026-11-02:** the default itself is now `true` (server, client schema and
+   every client creation path), with `products:backfill-show-online` for existing rows —
+   see `laravel-server/AGENTS.md`, "Products are shown online by default".
    **✅ Shipped 2026-09-26:** `show_online` in the importer (with the header aliases and
    `Yes/No/true/1/online` spellings owners actually type; an unrecognised value leaves the
    product alone rather than guessing) and in the exporter as `Yes`/`No`, so

@@ -24,16 +24,6 @@ class SessionController extends Controller
                 new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
                 new OA\Property(property: 'is_current', type: 'boolean'),
             ]))),
-            new OA\Response(response: 200, description: 'Sessions, newest-used first', content: new OA\JsonContent(type: 'array', items: new OA\Items(properties: [
-                new OA\Property(property: 'id', type: 'string'),
-                new OA\Property(property: 'name', type: 'string', description: 'Device name given at login'),
-                new OA\Property(property: 'device_id', type: 'string', nullable: true, description: 'Stable DRX-... device identifier'),
-                new OA\Property(property: 'ip_address', type: 'string', nullable: true),
-                new OA\Property(property: 'user_agent', type: 'string', nullable: true),
-                new OA\Property(property: 'last_used_at', type: 'string', format: 'date-time', nullable: true),
-                new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
-                new OA\Property(property: 'is_current', type: 'boolean'),
-            ]))),
             new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
         ],
     )]

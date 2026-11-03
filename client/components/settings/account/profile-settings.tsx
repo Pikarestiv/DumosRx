@@ -9,8 +9,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrentUser, useUpdateProfileMutation } from "@/lib/hooks/use-current-user";
+import { useAuth } from "@/lib/context/auth-context";
 
 export function ProfileSettings() {
+  const { user: localUser } = useAuth();
   const { data: user, isLoading, isError } = useCurrentUser();
   const updateProfile = useUpdateProfileMutation();
   const [isEditing, setIsEditing] = useState(false);
@@ -93,14 +95,35 @@ export function ProfileSettings() {
             )}
           </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          {isLoading ? (
-            <Skeleton className="h-9 w-full" />
-          ) : (
-            <Input id="email" value={user?.email ?? ""} disabled className="opacity-70 cursor-not-allowed" />
-          )}
-          <p className="text-xs text-muted-foreground">Emails cannot be changed.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="username">Username</Label>
+            {isLoading && !localUser?.username ? (
+              <Skeleton className="h-9 w-full" />
+            ) : (
+              <Input
+                id="username"
+                value={user?.username || localUser?.username || ""}
+                disabled
+                className="opacity-70 cursor-not-allowed"
+              />
+            )}
+            <p className="text-xs text-muted-foreground">Used to sign in on tills.</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            {isLoading && !localUser?.email ? (
+              <Skeleton className="h-9 w-full" />
+            ) : (
+              <Input
+                id="email"
+                value={user?.email || localUser?.email || ""}
+                disabled
+                className="opacity-70 cursor-not-allowed"
+              />
+            )}
+            <p className="text-xs text-muted-foreground">Emails cannot be changed.</p>
+          </div>
         </div>
         <div className="space-y-2">
           <Label htmlFor="phone">Phone</Label>

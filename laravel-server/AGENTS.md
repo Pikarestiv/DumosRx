@@ -763,6 +763,13 @@ from the dashboard (`/refresh` renames everything `web`), hence the role rule.
 - Backward compatibility (§11): no response shape changed; old clients get
   longer-lived tokens and nothing else.
 
+### Session token device tracking (2026-11-03)
+
+`personal_access_tokens` carries a nullable `device_id` column (`2026_11_03_000001_add_device_id_to_personal_access_tokens_table`):
+- `login()`, `register()`, and `consumeRelinkCode()` store `X-Device-Id` (or `device_id`) on the minted token. If omitted (e.g. web browser), a persistent `DRX-WEB-...` (or `DRX-...`) identifier is generated.
+- `GET /sessions` (`SessionController::index`) returns `device_id` alongside `id`, `name`, `ip_address`, `user_agent`, `last_used_at`, `created_at`, `is_current`.
+- Legacy rows without a `device_id` were backfilled in migration; `SessionController` also falls back to `UserDevice` where unambiguous.
+
 ### Till re-link codes (2026-10-23, A-311)
 
 An unlinked till can be re-linked without anyone typing the owner's password

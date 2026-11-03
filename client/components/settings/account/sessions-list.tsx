@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useSessions, useRevokeSessionMutation, useRevokeAllSessionsMutation } from "@/lib/hooks/use-sessions";
 import type { Session } from "@/lib/types/user";
 import { formatDateSafe } from "@/lib/utils/date-utils";
+import { getDeviceId } from "@/lib/utils/device-id";
 import { RelinkCodeDialog } from "./relink-code-dialog";
 
 function getDeviceIcon(session: Session) {
@@ -20,13 +21,13 @@ function getDeviceIcon(session: Session) {
 
 // Pre-fix registrations named their token literally 'auth_token' (see RegistersAccounts.php) - treated as absent so those…
 // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-account-sessions-list-tsx-L19
-const NOT_A_REAL_DEVICE_NAME = new Set(["unknown", "auth_token"]);
+const NOT_A_REAL_DEVICE_NAME = new Set(["unknown", "auth_token", "web"]);
 
 function parseDeviceName(session: Session) {
   // Use device_name from login if available. Web falls back to UA parsing.
   if (session.name && !NOT_A_REAL_DEVICE_NAME.has(session.name.toLowerCase())) return session.name;
   const ua = session.user_agent || "";
-  if (!ua) return "Unknown Device";
+  if (!ua) return session.name?.toLowerCase() === "web" ? "Web Browser" : "Unknown Device";
   let os = "Unknown OS";
   if (ua.includes("Windows NT 10.0")) os = "Windows 10/11";
   else if (ua.includes("Windows NT")) os = "Windows";
@@ -109,14 +110,15 @@ export function SessionsList() {
         {!isLoading &&
           sessions.map((session) => {
             const Icon = getDeviceIcon(session);
+            const deviceId = (session.is_current ? getDeviceId() : null) || session.device_id;
             return (
               <div
                 key={session.id}
                 className="flex items-center justify-between gap-4 rounded-lg border p-3"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   <Icon className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">{parseDeviceName(session)}</span>
                       {session.is_current && (
@@ -125,6 +127,11 @@ export function SessionsList() {
                         </Badge>
                       )}
                     </div>
+                    {deviceId && (
+                      <p className="text-xs font-mono text-muted-foreground select-all">
+                        {deviceId}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground">
                       {session.ip_address || "Unknown IP"} • Last active:{" "}
                       {formatDateSafe(session.last_used_at || session.created_at, "dd/MM/yyyy HH:mm")}

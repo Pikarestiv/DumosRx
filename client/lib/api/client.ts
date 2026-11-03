@@ -48,7 +48,8 @@ class ApiClient extends FleetBillingApiClient {
       message: string;
     }>("/login", {
       method: "POST",
-      body: JSON.stringify({ email, password, device_name: "Client App" }),
+      headers: syncHeaders(),
+      body: JSON.stringify({ email, password, device_name: "Client App", device_id: getDeviceId() }),
     });
   }
 
@@ -75,7 +76,8 @@ class ApiClient extends FleetBillingApiClient {
       token: string;
     }>("/register", {
       method: "POST",
-      body: JSON.stringify(payload),
+      headers: syncHeaders(),
+      body: JSON.stringify({ ...payload, device_id: getDeviceId() }),
     });
   }
 

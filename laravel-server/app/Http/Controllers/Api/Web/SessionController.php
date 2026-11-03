@@ -17,6 +17,17 @@ class SessionController extends Controller
             new OA\Response(response: 200, description: 'Sessions, newest-used first', content: new OA\JsonContent(type: 'array', items: new OA\Items(properties: [
                 new OA\Property(property: 'id', type: 'string'),
                 new OA\Property(property: 'name', type: 'string', description: 'Device name given at login'),
+                new OA\Property(property: 'device_id', type: 'string', nullable: true, description: 'Stable DRX-... device identifier'),
+                new OA\Property(property: 'ip_address', type: 'string', nullable: true),
+                new OA\Property(property: 'user_agent', type: 'string', nullable: true),
+                new OA\Property(property: 'last_used_at', type: 'string', format: 'date-time', nullable: true),
+                new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
+                new OA\Property(property: 'is_current', type: 'boolean'),
+            ]))),
+            new OA\Response(response: 200, description: 'Sessions, newest-used first', content: new OA\JsonContent(type: 'array', items: new OA\Items(properties: [
+                new OA\Property(property: 'id', type: 'string'),
+                new OA\Property(property: 'name', type: 'string', description: 'Device name given at login'),
+                new OA\Property(property: 'device_id', type: 'string', nullable: true, description: 'Stable DRX-... device identifier'),
                 new OA\Property(property: 'ip_address', type: 'string', nullable: true),
                 new OA\Property(property: 'user_agent', type: 'string', nullable: true),
                 new OA\Property(property: 'last_used_at', type: 'string', format: 'date-time', nullable: true),
@@ -33,12 +44,20 @@ class SessionController extends Controller
 
         $currentProvider = $user->currentAccessToken();
 
-        $sessions = $tokens->map(function ($token) use ($currentProvider) {
+        $sessions = $tokens->map(function ($token) use ($user, $currentProvider) {
             $isCurrent = $currentProvider->id === $token->id;
+            $deviceId = $token->device_id;
+            if (! $deviceId) {
+                $userDevice = \App\Models\UserDevice::where('user_id', $user->id)->orderByDesc('last_synced_at')->first();
+                if ($userDevice && $token->name !== 'web') {
+                    $deviceId = $userDevice->device_id;
+                }
+            }
 
             return [
                 'id' => $token->id,
                 'name' => $token->name,
+                'device_id' => $deviceId,
                 'ip_address' => $token->ip_address,
                 'user_agent' => $token->user_agent,
                 'last_used_at' => $token->last_used_at,

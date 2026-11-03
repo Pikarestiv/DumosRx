@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Web;
 use App\Http\Controllers\Concerns\EnforcesStaffOwnership;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\SyncRowStamp;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -383,6 +384,7 @@ class StaffController extends Controller
         }
 
         $staff->update($data);
+        SyncRowStamp::bump($staff);
 
         return response()->json($staff);
     }

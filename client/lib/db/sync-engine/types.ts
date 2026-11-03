@@ -1,3 +1,5 @@
+import type { StoreRefusal } from "./store-refusal";
+
 export interface PushResponse {
   success: boolean;
   /** Operator intents for this device, handed back on the push response so
@@ -34,4 +36,5 @@ export interface SyncResult {
   pushed: number;
   pulled: number;
   error?: unknown;
+  refusal?: StoreRefusal;
 }

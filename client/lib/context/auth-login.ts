@@ -138,6 +138,7 @@ export async function performLogin(
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L333
   let matches = pin ? candidates.filter((u) => pinMatches(pin, u.pin)) : candidates;
   let dbUser = matches[0] ?? null;
+  let cloudAuthenticated = false;
 
   if (pin && !dbUser) {
     const now = Date.now();
@@ -157,6 +158,7 @@ export async function performLogin(
       if (navigator.onLine) {
         const cloudRes = await apiClient.login(cleanIdentifier, pin).catch(() => null);
         if (cloudRes?.token && cloudRes?.user) {
+          cloudAuthenticated = true;
           apiClient.setToken(cloudRes.token);
           void sync().catch(console.error);
           candidates = await getUsersByUsernameOrEmail(cleanIdentifier);
@@ -193,7 +195,7 @@ export async function performLogin(
       );
     }
 
-    if (!dbUser || (pin && !pinMatches(pin, dbUser.pin))) {
+    if (!dbUser || (!cloudAuthenticated && pin && !pinMatches(pin, dbUser.pin))) {
       // The acting user_id on this row will be whoever was previously logged in on this device (or null), not the failed identifier:
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L393
       logAction(AUDIT_ACTIONS.LOGIN_FAILED, "users", dbUser?.id || cleanIdentifier, {
@@ -206,7 +208,7 @@ export async function performLogin(
 
     // The PIN just verified against a LEGACY plaintext value:
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L408
-    if (pin && needsPinRehash(dbUser.pin)) {
+    if (!cloudAuthenticated && pin && needsPinRehash(dbUser.pin)) {
       void migrateLegacyPinToHash(dbUser.id, pin);
     }
 

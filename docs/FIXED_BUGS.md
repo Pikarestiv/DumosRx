@@ -1,3 +1,16 @@
+### A-352 — Session tokens did not track device ID, and Sessions & Devices list showed generic "web" with no device ID
+- **Fixed:** 2026-11-03, client, web, and server.
+- **Was:** In Settings > Account > Sessions & Devices, active sessions only showed token names (often generic "web") with an IP and timestamp, but no device ID. This made it impossible to distinguish which physical till or web browser owned a session. On the backend, `personal_access_tokens` did not record `device_id`, so tokens could not be unambiguously attributed to `user_devices` records.
+- **Now:**
+  - Added nullable `device_id` column to `personal_access_tokens` (`2026_11_03_000001_add_device_id_to_personal_access_tokens_table.php`), backfilling existing tokens from `user_devices` or fallback identifiers.
+  - Token creation in `AuthenticatesSessions`, `RegistersAccounts`, and `TillRelinkService` stores `device_id` on newly minted tokens.
+  - `GET /sessions` (`SessionController::index`) includes `device_id` alongside existing session metadata.
+  - Web client generates and persists a `DRX-WEB-...` UUID in `localStorage` (`web/lib/utils/device-id.ts`) sent in headers and body on login/registration.
+  - `client/components/settings/account/sessions-list.tsx` renders stable monospace device IDs with `select-all` under device names, and generic `"web"` names fall back to user agent parsing (e.g. `"Chrome on macOS"`) or `"Web Browser"`.
+- **Backward compatibility (§11):** Existing clients and tokens continue to work; `device_id` is nullable in API responses, and older tokens fall back to device lookup or display gracefully.
+- **Coverage:** `laravel-server/tests/Feature/SessionControllerTest.php` (4 test cases), `client/__tests__/sessions-list.test.tsx` (4 test cases), `web/__tests__/device-id.test.ts` (3 test cases).
+- **Full suite:** backend 1,711 passed, 1 skipped; client 3,268 passed; web 459 passed.
+
 ### A-351 — DashboardService resolved stores by `$user->id`, breaking manager dashboard access while lacking permission gating against cashiers
 - **Fixed:** 2026-11-03, server only, TDD.
 - **Was:** `DashboardService::getSummary()`, `getStats()`, and `getWidgetSnapshot()` scoped stores via `Store::where('user_id', $user->id)`. Because staff members do not own the `stores` row (`stores.user_id` is the tenant owner's ID), this returned zero stores for any assigned staff. While this accidentally blocked store financial stats for cashiers (`sales_staff`), it broke legitimate reporting for assigned store managers (`manager`) and auditors (`auditor`). Furthermore, non-reporting roles were not explicitly forbidden at the controller level with HTTP 403, leaving financial metrics exposed if store resolution was loosened without role authorization.

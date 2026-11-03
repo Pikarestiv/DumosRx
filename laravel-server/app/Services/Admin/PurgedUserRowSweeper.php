@@ -18,6 +18,7 @@ class PurgedUserRowSweeper
         'users' => ['account_manager_id', 'referred_by_id', 'registered_by_id'],
         'coupons' => ['created_by', 'assigned_to_user_id'],
         'referral_credit_transactions' => ['referred_user_id'],
+        'audit_sessions' => ['active_user_id'],
     ];
 
     /** @var array<string, array<string, string>> Parent table to [child table => column naming the parent]; children are swept depth first. */

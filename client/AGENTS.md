@@ -2214,6 +2214,15 @@ re-reads the live quantity inside its transaction
 draft's frozen `systemQty` never mis-posts. What a stale draft does miss is
 catalog churn — logged as A-259.
 
+### Cloud-backed multi-till stock audit sessions (2026-11-03, Phase 2)
+
+While local SQLite persists in-progress counts immediately without blocking when offline, multi-till stores coordinate through cloud-backed audit sessions:
+1. **Single-Editor Lease:** `useCloudAuditSession` hooks into `StockAudits` to acquire or resume the store's active session with a 5-minute renewable lease and a 60-second background heartbeat.
+2. **Read-Only Inspection Mode:** If another till holds the editing lease, the screen enters Inspection Mode (`isReadOnly = true`). Inputs and checkboxes are disabled, showing the active counter's till name and live counted count (`x of y items counted`).
+3. **Explicit Takeover:** Staff can take over an active count from any device (e.g. if the counter's till runs out of battery). Takeover issues `POST /app/audit-sessions/{id}/takeover`, invalidating previous leases via an incremented fencing version (`lease_version`).
+4. **Fencing & Offline Recovery:** Stale writes from a superseded device fail with HTTP 409 (`AuditSessionConflictError`). The older device immediately drops into read-only mode, but its local SQLite counts are preserved intact for review and never silently discarded.
+5. **Completion Lifecycle:** When submitting locally via `submitStockAudit()`, `POST /complete` records `submitted_stock_audit_id` and transitions the cloud session to `completion_pending_sync`. Once the background sync engine pushes the `stock_audits` record, the cloud session transitions to `completed`.
+
 ### An expense is dated by the store's own day (2026-10-13)
 
 `expenses.date` is a date-only column and must hold the **local** calendar

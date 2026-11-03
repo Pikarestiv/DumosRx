@@ -42,6 +42,13 @@ class StockAudit extends Model
         'reconciled_at' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        static::saved(function (StockAudit $audit) {
+            app(\App\Services\Audit\AuditSessionService::class)->confirmSyncCompletion($audit->id);
+        });
+    }
+
     /**
      * @return BelongsTo<Product, $this>
      */

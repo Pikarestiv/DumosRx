@@ -809,6 +809,16 @@ at it. `App\Http\Controllers\Api\App\TillRelinkController` (thin) over
   helpers on existing middleware; no existing route, payload or response
   changed. Old clients never call the new routes.
 
+## Multi-Till Cloud Audit Sessions (`audit_sessions`, `audit_session_items`)
+
+Multi-device cycle count coordination backed by the cloud:
+- **Tables & Service:** `audit_sessions` and `audit_session_items` (`UNIQUE(audit_session_id, product_id)`). Governed by `AuditSessionService` (`app/Services/Audit/AuditSessionService.php`) and `AuditSessionController` (`app/Http/Controllers/Api/App/AuditSessionController.php`).
+- **Store-Level Concurrency Lock:** `Store::whereKey($storeId)->lockForUpdate()` is executed inside `startSession()`'s transaction before querying existing sessions, eliminating race conditions when simultaneous creation requests arrive across multiple tills.
+- **Single-Editor Lease & Fencing Version:** Active sessions hold a renewable 5-minute lease (`lease_expires_at`) with 60-second client heartbeats. Every write operation (`heartbeat`, `syncItems`, `complete`) requires `till_id` and `lease_version`. Stale or superseded requests are rejected with HTTP 409 (`AuditSessionConflictException`).
+- **Session Takeover:** An authorized device can take over an active audit session via `POST /api/v1/app/audit-sessions/{session}/takeover`. Takeover locks the row, increments `lease_version`, assigns `active_till_id`, and returns the latest acknowledged session items.
+- **Completion Lifecycle & Sync Hook:** Submission occurs locally first on the counting till via `submitStockAudit()`. The client then calls `complete` which transitions the cloud session to `completion_pending_sync` with `submitted_stock_audit_id`. When the sync engine receives and saves the corresponding `StockAudit` row, `StockAudit::booted()` calls `AuditSessionService::confirmSyncCompletion($stockAudit->id)`, atomically moving the session to `completed`.
+- **Purged User Row Sweeping:** `audit_sessions.active_user_id` has `nullOnDelete()` foreign key semantics and is registered in `PurgedUserRowSweeper::POINTER_COLUMNS` for complete schema safety when users or stores are purged.
+
 ## Sync engine (server side)
 
 `app/Http/Controllers/Api/App/SyncController.php` (the delta push/pull

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Web;
 
+use App\Http\Controllers\Concerns\ScopesToTenant;
 use App\Http\Controllers\Controller;
 use App\Services\Web\DashboardService;
 use Illuminate\Http\Request;
@@ -11,6 +12,8 @@ use OpenApi\Attributes as OA;
 
 class DashboardController extends Controller
 {
+    use ScopesToTenant;
+
     protected $dashboardService;
 
     public function __construct(DashboardService $dashboardService)

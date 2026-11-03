@@ -373,7 +373,10 @@ and `synchronous = NORMAL`.
     cost edit resolved seconds later without the cost ever reaching the server
     (A-268), so the resolved rows are the evidence rather than noise. And
     `batchCostSnapshot()` lists up to 100 batches: every one the pull cannot
-    reach (`_synced = 0` or a pending `_sync_queue` row, flagged `shielded`)
+    reach or may soon stop reaching (flagged `shielded`: a pending queue row
+    the pull honours, by the same rule as `pull-apply.ts`; or an orphan,
+    `_synced = 0` with no queue row, which the pull does overwrite until a
+    crash-flagged boot re-queues it, A-337)
     plus the highest-value rows, since a valuation gap big enough to notice is
     dominated by a few of those. Batch ids, costs, quantities and versions
     only — no product names. `buildReport` truncates the whole report at
@@ -1298,7 +1301,8 @@ through `rewindPullWindow(table, cause)`. It never deletes the `_sync_state`
 row any more, because `pullChanges()` reads a missing or null
 `last_synced_at` as "pull this table from timestamp zero" and that state is
 unrecoverable once lost: the re-stamp is gated on the table having drained
-skip-free, and *any* row with a pending `_sync_queue` entry puts the table in
+skip-free, and *any* row with a pending `_sync_queue` entry (bar a
+quantity-only `stock_batches` UPDATE since A-271) puts the table in
 `skippedTables`. A queue row parked indefinitely — a `forbidden` rejection,
 deliberately retried for ever per A-165 — therefore kept the table skipped for
 ever, so the window was never re-stamped and every later round re-requested
@@ -1359,8 +1363,9 @@ unreachable in exactly the case it exists for: both callers fire only on a live
 fault, so a device that rewound two or three times and then stopped hitting the
 fault kept `last_synced_at = NULL` for ever — a full re-pull of that table every
 round, the A-218 grind the budget was supposed to bound. `stock_batches` is the
-realistic victim, because it is routinely in `skippedTables` (any pending
-`_sync_queue` row) and so never re-stamps.
+realistic victim, because it was routinely in `skippedTables` (any pending
+`_sync_queue` row, every sale's included, until A-271 exempted quantity-only
+edits) and so never re-stamped.
 
 `rewind_count` is deliberately **not** reset by the restore: it stays at the
 budget so further rewinds keep being refused, and only
@@ -1508,7 +1513,13 @@ in `pull-round-end.ts`.
   escape hatch.
 - **Skips hold the window cursor back, never the page cursor.** A record
   with a pending `_sync_queue` entry is left alone (the next push resolves
-  it by version); a record that hit a UNIQUE collision was not applied. In
+  it by version), **except a `stock_batches` row whose every pending entry is
+  a quantity-only UPDATE** (keys within `QUANTITY_ONLY_BATCH_KEYS`: `id`,
+  `quantity`, `updated_at`, `_version`, `_synced`). Every sale queues one of
+  those, and the pull drops `quantity` anyway, so the shield protected
+  nothing and kept another device's cost off a busy till (A-271); a
+  `store_id` claim, a cost edit or an INSERT still shields. A record that
+  hit a UNIQUE collision was not applied. In
   both cases the per-table window cursor must not advance past it, or the
   server never re-offers it and the local row is stuck on stale data
   forever. Re-fetching and re-applying an already-applied page is a harmless

@@ -356,6 +356,15 @@ Route::prefix('v1')->group(function () {
             Route::get('/sync/counts', [SyncController::class, 'counts']);
             Route::get('/sync/peer-freshness', [SyncController::class, 'peerFreshness']);
             Route::post('/sync/reconcile-quantities', [SyncController::class, 'reconcileQuantities']);
+
+            // Audit Sessions (Multi-Till Cloud Backing)
+            Route::get('/audit-sessions/active', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'active']);
+            Route::post('/audit-sessions', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'start']);
+            Route::post('/audit-sessions/{session}/heartbeat', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'heartbeat']);
+            Route::post('/audit-sessions/{session}/sync-items', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'syncItems']);
+            Route::post('/audit-sessions/{session}/takeover', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'takeover']);
+            Route::post('/audit-sessions/{session}/complete', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'complete']);
+            Route::post('/audit-sessions/{session}/abandon', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'abandon']);
         });
 
     });

@@ -52,6 +52,7 @@ export async function submitStockAudit(
   }
 
   return transaction(async () => {
+    const auditIds: string[] = [];
     for (const item of items) {
       // Re-read the product's ACTUAL current system quantity inside the transaction rather than trusting item.systemQty as-is:
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L594
@@ -80,6 +81,7 @@ export async function submitStockAudit(
       if (diff === 0 && costDiff === 0 && sellingDiff === 0) continue;
 
       const auditId = crypto.randomUUID();
+      auditIds.push(auditId);
       await insert("stock_audits", {
         id: auditId,
         product_id: item.productId,
@@ -135,6 +137,8 @@ export async function submitStockAudit(
         performedBy,
       });
     }
+
+    return auditIds;
   });
 }
 

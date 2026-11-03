@@ -871,8 +871,9 @@ migration here **and** the corresponding update on the `client/` side
 - **`quantity` is derived, never accepted — except through
   `reconcileQuantities()`.** `push()` forces `stock_batches.quantity = 0` on
   INSERT and strips it from every UPDATE; the column only ever moves via
-  `applyStockBatchDeltas()` replaying `stock_movements`. That invariant is
-  what makes concurrent multi-device writes commute, and it stays. The one
+  `applyStockBatchDeltas()`, which since A-217 rebuilds it from the batch's
+  `stock_movements` log. That invariant is what makes concurrent multi-device
+  writes commute, and it stays. The one
   sanctioned exception is `POST /app/sync/reconcile-quantities`
   (`reconcileQuantities()`, A-148): an explicit, client-triggered repair for
   a batch whose opening stock never produced a movement row (a bulk import
@@ -1629,9 +1630,13 @@ may still hold a stale `cost_price` until it pulls. Old clients in the field sen
 behave identically (§11) — no shim, nothing to retire.
 
 What this does **not** fix, and what the device report was extended to find:
-a cost edit can also sit in `_sync_queue` indefinitely (the pull skips any row
-with a pending queue entry), which keeps a device's own cost alive while its
-quantities keep reconciling through movements. See `docs/KNOWN_BUGS.md` A-271.
+a cost edit can also sit in `_sync_queue` indefinitely, which keeps a device's
+own cost alive while its quantities keep reconciling through movements. Since
+A-271 (2026-10-25) a queued *sale* no longer shields a batch from the pull, and
+`stock_batches.cost_price`, `stock_movements.unit_cost`/`total_cost` and
+`sale_items.cost_price` are `decimal(15,2)`, so a cost of 100,000,000 or more no
+longer fails on every retry. The orphaned-row path is still open: see
+`docs/KNOWN_BUGS.md` A-337.
 
 ## The pull watermark lags (A-282, 2026-10-18)
 
@@ -1841,6 +1846,51 @@ client drops the extra `deleted_at` key the response now carries for these
 tables because `pull.ts` filters every pulled column through its own
 `validColumns`. No shim, nothing to retire.
 
+## A batch's quantity is derived from its log (A-217, 2026-10-25)
+
+Stage 2 of `docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`.
+For every batch a push wrote a movement for, `StockBatchDeltaApplier` sets
+`quantity = MAX(0, Σ quantity)` over the batch's movements, the definition the
+client has used since Stage 1 (`resolveBatchQuantity()`). The old statement
+added the push's net delta and floored it, which is a floor over *one push*:
+an oversell in one push and a count in the next read 2 where the log says 0,
+and the two replicas disagreed for ever.
+
+- **The A-148 carve-out is the client's rule:** a batch whose stored quantity
+  exceeds its logged inbound total *before this push* holds unlogged opening
+  stock, so it is patched with the push's delta instead of rebuilt (rebuilding
+  would write that stock off). The push's own inbound is tracked beside its
+  deltas (`$stockBatchInbound`) for exactly this subtraction.
+- **A log holding another store's movements is patched, not rebuilt.** Rows
+  accepted between A-280 and A-287 name another store's batch, and their deltas
+  were refused; a mis-stamped product (A-248) has real rows under another
+  store's id. Rebuilding would add the first back (a cross-tenant write the
+  batch's own tills never see) and filtering would drop the second, so a batch
+  whose log has any row whose `store_id` differs from its product's keeps the
+  old `stored + delta`, floored.
+- **Concurrency.** The sum is a locking read (`sharedLock()`), because a plain
+  read inside the push's transaction would see only its MySQL snapshot and
+  miss movements another push committed meanwhile; the old atomic `quantity +
+  Δ` never had that problem. So that read cannot deadlock against another
+  push, the first `stock_movements` change of a push locks every batch the
+  push's movements reference, payload ids and the stored rows of any movement
+  it updates or deletes, in id order (`lockMovementBatches()`), before any
+  movement row lock, held to commit. Two pushes therefore take batch locks in
+  one order and serialise. The old code could deadlock on a single batch,
+  since a movement insert's foreign-key check took a shared lock that the
+  increment then upgraded. Writers outside the push are not covered:
+  `QuantityReconciliationService` locks the batch row first and is safe;
+  `DashboardService`'s wipe and the hand-run repair and backfill commands are
+  not, and a deadlock there rolls back the push, which the device retries.
+- **Cost:** a touched batch now costs a locked scan of its movements (indexed
+  by `stock_batch_id`) instead of a one-row UPDATE. Not measured on the shared
+  host; if a long-lived batch makes it slow, a covering index on
+  `(stock_batch_id, deleted_at, quantity)` is the first step.
+- **What it does not do:** a movement UPDATE or DELETE still moves no batch, as
+  before; a drift *above* a batch's inbound total is treated as carve-out and
+  kept, as on the client.
+- Coverage: `tests/Feature/SyncPushBatchQuantityDerivedTest.php`.
+
 ## Stock batch deltas are store-scoped (A-280, 2026-10-18)
 
 `applyStockBatchDeltas()` runs `UPDATE stock_batches SET quantity = … WHERE
@@ -1894,8 +1944,36 @@ looks the batch up fresh. `push()` sorts every `stock_movements` change to the
 end, so every batch write of a push lands before any movement is authorized,
 and a batch INSERT under a foreign product, live or soft-deleted, is itself
 refused (`resolveParentStoreId('stock_batches')` uses `withTrashed()`). It is
-pinned by a direct test so it cannot rot unnoticed. A batch UPDATE that
-repoints `product_id` is not checked at all: that is A-325.
+pinned by a direct test so it cannot rot unnoticed.
+
+**A child UPDATE's new parent must be in scope (A-325).** A child of a
+parent-FK table is owned through its parent (`SyncWriteAuthorizer::PARENT_KEYS`:
+`stock_batches.product_id`, `sale_items.sale_id`, `sale_item_batches.sale_item_id`,
+`return_items.return_id`, `prescription_items.prescription_id`,
+`purchase_order_items.purchase_order_id`). `authorizeChangeTarget()` judges the
+stored row, i.e. its current parent, so `repointsToForeignParent()` also judges
+the parent the payload names: when it differs from the stored one and resolves
+to a store outside the session, the change is refused `forbidden`, which
+parks. A resent INSERT runs as an UPDATE and gets the same check; a super admin
+is exempt; restating the stored parent costs no lookup. Parent lookups include
+soft-deleted parents, because the pull serves a voided parent's line items. A
+new parent with no store (legacy `NULL`) or that does not exist is let through,
+as on INSERT: the row then belongs to no store's pull (A-335). Secondary
+references (`sale_items.stock_batch_id`, `purchase_order_items.product_id` and
+the like) do not decide a row's store and are not checked.
+
+**A payload key that is not a bare column name is refused before anything
+reads it.** Every guard reads the bare lowercase key, but a key can still name
+that column other ways: MySQL and SQLite match column names case-insensitively
+(`PRODUCT_ID`), and the query grammar resolves a table-qualified key
+(`stock_batches.product_id`; SQLite drops the qualifier, MySQL accepts it in a
+single-table UPDATE). `push()` refuses a change `forbidden` as soon as its
+payload is decoded if any key falls outside `^[a-z0-9_]+$`
+(`SyncWriteAuthorizer::hasNonColumnKey()`), which also excludes non-ASCII
+look-alikes MySQL's Unicode folding might match. No column on either side
+falls outside it, and the client builds every payload from table rows; `web/`
+does not use this endpoint (§11). A payload that is not an object is left to
+fail its own change as before.
 
 **A product legitimately moved between stores parks too, on staff tills.** A
 till of the losing store still holds the product (A-291's phantom) and can sell
@@ -1959,7 +2037,35 @@ place on most models, because `_version` is not in their `$fillable` and `fill()
 drops it without a word. Use `Model::whereKey($id)->update([...])` (or
 `increment('_version', 1, $extra)`) when you have the instance in hand.
 
-Known outstanding instances are filed as `docs/KNOWN_BUGS.md` A-278.
+**Use `App\Support\SyncRowStamp::for($table)`** for the bump: it returns the
+`_version` increment plus `updated_at`/`_synced_at` for whichever of those the
+table has, which is what moves the row into the next pull. Spread it into the
+update array beside the columns being written. `PurgedUserRowSweeper`, the
+admin catalogue backfill and `ForeignKeyCascadeEmulator`'s `SET NULL` use it
+(the emulator only runs on a schema that declares foreign keys, which
+production does not). **After a model `save()` or `$model->update($data)`, call
+`SyncRowStamp::bump($model)`**: it stamps that row by key, only if the save
+changed something, and puts the new `_version` back on the model. The admin
+user deactivate/reactivate, a store suspension's owner toggle, the admin
+storefront publish and slug, the web staff and store edits, and both profile
+edits use it.
+
+A server-owned watermark no client should write belongs in the table's
+`*_SYNC_FORBIDDEN_FIELDS` and is then written bare: `stores.storefront_dirty_at`
+and `paystack_fee_dirty_at` are the examples (A-278). `storefront_dirty_at` is in
+the client's local schema, and the dev-only `forceSyncAllData()` re-queues
+whole store rows, so stripping it matters. Bumping the store's
+version on every storefront rebuild would re-push the store row to every
+device for nothing.
+
+The 2026-10-18 sweep only matched literal `->update([...])`/`increment` calls;
+the A-278 review (2026-10-25) re-swept model `save()`/`$model->update($var)`
+writes and fixed the seven it found on client-pushable columns. Migrations
+that already ran (`2026_10_15_000001_backfill_receipt_footer_default`,
+`2026_10_01_000000_clear_store_id_on_store_owners`,
+`2026_09_29_000003_retag_bulk_import_stock_movements`,
+`2026_09_28_100000_make_users_password_nullable`) cannot be fixed
+retroactively; the rule applies to new ones.
 
 ### Why `users.is_active` stays pushable (A-277, 2026-10-18)
 
@@ -2640,11 +2746,25 @@ and A-176 raised and nothing could answer.
   whatever they were written with — an audit log is immutable and backfilling
   its prose would be worse than a bare id.
 
+- **Both sides count a batch through its product's store** (A-246,
+  2026-10-25). The server always has
+  (`stock_batches.product_id IN products of the store`, trashed included); the
+  client used to count `stock_batches.store_id`, a column never backfilled
+  server-side, so a device whose own batch and product rows disagreed about
+  the store showed a gap no sync could clear. Since A-246 the client joins
+  `products` the same way. Both sides still differ wherever the device's copy
+  of `products.store_id` is stale: a product that left the store's scope stays
+  on the device (A-291; store `571582a9`'s 2026-10-12 `+18` is that, real stock
+  on those devices, cleared by `sync:repair-product-store-stamps`), and
+  `sync:backfill-store-ids` does not move `updated_at`, so its attributions
+  never reach devices. A bundle older than A-246 still reports the old
+  predicate.
+
 **Client side:** `client/lib/db/sync-engine/stock-fingerprint.ts`. Note that
-`stock_batches.store_id` exists only because `runSchemaMigrations()` adds it
-to every `STORE_SCOPED_TABLES` entry — it is NOT in `SCHEMA_SQL`, so a test
-that seeds from `SCHEMA_SQL` alone must add the column or the query silently
-returns nothing.
+`stock_batches.store_id` and `products.store_id` exist only because
+`runSchemaMigrations()` adds them to every `STORE_SCOPED_TABLES` entry — they
+are NOT in `SCHEMA_SQL`, so a test that seeds from `SCHEMA_SQL` alone must add
+the columns or the query silently returns nothing.
 
 ## What may be delegated, and what must never be
 
@@ -3891,9 +4011,11 @@ regain of access never pulled that store's older rows. Now:
 - **§11:** additive. Every bundle since at least 2026-09-26 stamps only tables
   present in `changes` (checked against that version of `pull.ts`), so an old
   bundle that ignores `refused_store_id` still stamps nothing it did not get.
-- **Not done:** the client neither surfaces a refusal nor re-resolves its
-  active store (A-323), and a device poisoned before this fix that has since
-  regained access cannot be detected (A-322).
+- Since A-323 the client reports a refused round as a failed sync and offers
+  a way back to a store the account can reach (`client/AGENTS.md`, "A refused
+  round is a failed sync").
+- **Not done:** a device poisoned before this fix that has since regained
+  access cannot be detected (A-322).
 - Coverage: `tests/Feature/SyncPullStaffCrossStoreIsolationTest.php`; client side
   `client/__tests__/pull-refused-store-stamps-only-served-tables.test.ts`.
 
@@ -4002,6 +4124,51 @@ recorded in `sync_failures` as `cross_store_reference`.
   `SELECT COUNT(*) FROM purchase_orders x JOIN suppliers s ON s.id = x.supplier_id WHERE s.store_id IS NOT NULL AND s.store_id <> x.store_id`
   and the same for `supplier_payments` and `stock_batches`.
 - Coverage: `tests/Feature/SyncPushCrossStoreSupplierTest.php`.
+
+## Oversell compensation backfill: `stock:compensate-oversells` (A-265, 2026-10-25)
+
+Since A-265 a client writes an inbound `adjustment` (`reference_type =
+'oversell'`) beside every oversold sale, so a batch's log never sums below
+zero. This command does the same for the deficits already in the log, and for
+any an older bundle still writes.
+
+```bash
+php artisan stock:compensate-oversells                       # report, writes nothing
+php artisan stock:compensate-oversells --write --run=<label> # one +N row per deficit
+php artisan stock:compensate-oversells --revert=<label>      # a matching -N row per row that run wrote
+```
+
+- **A deficit** is an active batch whose non-deleted log sums below zero and
+  whose stored quantity is no more than its logged inbound total, the client's
+  `getBatchDeficits()` rule. The second condition leaves out an A-148 legacy
+  batch while it still holds unlogged stock; once one has sold down to zero it
+  is indistinguishable from an oversell (A-264), and its row is labelled an
+  oversell compensation although the units were unlogged opening stock. The
+  figure it produces is right either way.
+- **The row's `store_id` is the product's**, because a batch is pulled through
+  its product's store. A batch whose product has no store is skipped and
+  reported: no device would ever pull its row.
+- **A batch with a movement that reached the server within `--settle-days`
+  (default 7) is skipped**, judged by `_synced_at`, never `created_at`, which a
+  push keeps from the till:
+  a till may have pushed an oversold sale and not yet its own compensation,
+  and compensating it here as well would book the units twice.
+- **It asserts no stored number.** It reads the server's own log and writes a
+  row every replica rebuilds from, so it can only raise a sum from below zero
+  to zero, never zero anything (the A-213/A-214 failure). It writes through
+  Eloquent and never `applyStockBatchDeltas()`, so `stock_batches.quantity` is
+  untouched and the row reaches devices as an ordinary pulled movement.
+- `performed_by` is the batch's latest outbound actor, as the client credits
+  its own compensation to the cashier; a batch with none is skipped and
+  reported (the column is NOT NULL).
+- **Revert writes counter-rows, not deletes:** `StockMovement` has no
+  `SoftDeletes`, so a deleted row would never reach a device (KNOWN_BUGS,
+  "Location: `app/Models/StockMovement.php`"). A run label is single-use, and
+  a revert runs once.
+- Refuses while `dumos.health_sync_enabled` is on, so the two repairs are never
+  both live. Run it once the client write has been live for a sync round on
+  every device; the settle window is the backstop, not the plan.
+- Coverage: `tests/Feature/CompensateOversellsTest.php`.
 
 ## Health Sync zeroing repair: `sync:repair-health-sync-reconciliation` (2026-10-10)
 

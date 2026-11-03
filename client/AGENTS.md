@@ -373,7 +373,10 @@ and `synchronous = NORMAL`.
     cost edit resolved seconds later without the cost ever reaching the server
     (A-268), so the resolved rows are the evidence rather than noise. And
     `batchCostSnapshot()` lists up to 100 batches: every one the pull cannot
-    reach (`_synced = 0` or a pending `_sync_queue` row, flagged `shielded`)
+    reach or may soon stop reaching (flagged `shielded`: a pending queue row
+    the pull honours, by the same rule as `pull-apply.ts`; or an orphan,
+    `_synced = 0` with no queue row, which the pull does overwrite until a
+    crash-flagged boot re-queues it, A-337)
     plus the highest-value rows, since a valuation gap big enough to notice is
     dominated by a few of those. Batch ids, costs, quantities and versions
     only — no product names. `buildReport` truncates the whole report at
@@ -1298,7 +1301,8 @@ through `rewindPullWindow(table, cause)`. It never deletes the `_sync_state`
 row any more, because `pullChanges()` reads a missing or null
 `last_synced_at` as "pull this table from timestamp zero" and that state is
 unrecoverable once lost: the re-stamp is gated on the table having drained
-skip-free, and *any* row with a pending `_sync_queue` entry puts the table in
+skip-free, and *any* row with a pending `_sync_queue` entry (bar a
+quantity-only `stock_batches` UPDATE since A-271) puts the table in
 `skippedTables`. A queue row parked indefinitely — a `forbidden` rejection,
 deliberately retried for ever per A-165 — therefore kept the table skipped for
 ever, so the window was never re-stamped and every later round re-requested
@@ -1359,8 +1363,9 @@ unreachable in exactly the case it exists for: both callers fire only on a live
 fault, so a device that rewound two or three times and then stopped hitting the
 fault kept `last_synced_at = NULL` for ever — a full re-pull of that table every
 round, the A-218 grind the budget was supposed to bound. `stock_batches` is the
-realistic victim, because it is routinely in `skippedTables` (any pending
-`_sync_queue` row) and so never re-stamps.
+realistic victim, because it was routinely in `skippedTables` (any pending
+`_sync_queue` row, every sale's included, until A-271 exempted quantity-only
+edits) and so never re-stamped.
 
 `rewind_count` is deliberately **not** reset by the restore: it stays at the
 budget so further rewinds keep being refused, and only
@@ -1508,7 +1513,13 @@ in `pull-round-end.ts`.
   escape hatch.
 - **Skips hold the window cursor back, never the page cursor.** A record
   with a pending `_sync_queue` entry is left alone (the next push resolves
-  it by version); a record that hit a UNIQUE collision was not applied. In
+  it by version), **except a `stock_batches` row whose every pending entry is
+  a quantity-only UPDATE** (keys within `QUANTITY_ONLY_BATCH_KEYS`: `id`,
+  `quantity`, `updated_at`, `_version`, `_synced`). Every sale queues one of
+  those, and the pull drops `quantity` anyway, so the shield protected
+  nothing and kept another device's cost off a busy till (A-271); a
+  `store_id` claim, a cost edit or an INSERT still shields. A record that
+  hit a UNIQUE collision was not applied. In
   both cases the per-table window cursor must not advance past it, or the
   server never re-offers it and the local row is stuck on stale data
   forever. Re-fetching and re-applying an already-applied page is a harmless
@@ -1555,16 +1566,45 @@ in `pull-round-end.ts`.
   has to be remembered in the meantime, so nothing can be forgotten).
   - **The one floor is over the sum, not per movement.** `+80, −100, +20` is
     `0`, not the `20` a per-movement floor used to leave: an oversell's deficit
-    is carried forward, not forgiven. That is a deliberate behaviour change,
-    and the alternative (an explicit compensating **inbound** movement at
-    oversell time — not the `shrinkage` the 2026-10-10 spec called it, which
-    would double the deficit) is designed in
+    would be carried forward, so since A-265 a sale never lets it form.
+  - **An oversell writes two rows (A-265).** When `writeSaleItemStock()`
+    deducts more from a batch than it holds, it writes the sale row as before
+    (still tagged "oversold" in its `reason`, so old bundles' alerts keep
+    working) and then an inbound `adjustment` of `+N` against the same batch
+    for the units the ledger did not hold: `reference_type =
+    OVERSELL_REFERENCE_TYPE` (`"oversell"`), `reference_id` the sale,
+    `OVERSELL_COMPENSATION_REASON`, the sale's cost and `correlationId`. The
+    log therefore never sums below zero, a later count is an ordinary
+    `counted − system`, and a Stage-0 server lands on the same figure when
+    both rows arrive in one push. It is inbound, never `shrinkage`: an
+    oversell means receipts went unrecorded, and a negative row would double
+    the deficit and read as a loss.
+  - **Only on a device whose movement log is complete**
+    (`movementLogIsComplete()`). N is judged against this device's copy of
+    the log, but the row joins the shared one: a till that has not pulled
+    another till's count on the same batch would book units that count
+    already holds, as phantom stock on every replica. Such a sale leaves the
+    deficit, as before, for the server backfill. The gate cannot see an
+    inbound another till wrote since this device's last completed pull, a
+    window that grows for as long as the device is offline; the next count
+    corrects it. A device that has never completed a pull, or is mid-page,
+    never compensates; its deficits stay on screen with the count warning and
+    go to the backfill once pushed.
+  - **Readers:** the Stock Adjustments ledger lists it as "Oversell"
+    (`adjustmentSourceLabel()`); product history and the movement list still
+    label it a plain adjustment, its reason naming the oversell;
+    `getStockLossTotal()` never matches it (its reason is no loss label);
+    `getStockMoM()` counts it as value added, because the stock was there; the
+    dashboard's recent-activity feed leaves it out, as it does the sale it
+    belongs to. A return now restores the full quantity the sale took, since
+    the compensation says those units existed.
+  - **A legacy carve-out batch can be oversold too**: the partial-shortfall
+    fallback deducts past its stored figure, and the compensation covers only
+    the part past zero. Deficits already in the log, those written by older
+    bundles or a device behind on its log, and a decayed carve-out's unlogged
+    opening stock are what the server's `stock:compensate-oversells`
+    backfills. Design:
     `docs/superpowers/specs/2026-10-14-oversell-compensating-movement-design.md`.
-    Oversells themselves are read off the log, never off `quantity`. **What the
-    carry-forward costs at the counting screen is `docs/KNOWN_BUGS.md` A-265:**
-    the next inbound movement pays the deficit off before it adds anything, so
-    the first cycle count on an oversold batch reads as having done nothing. One
-    live batch has this shape today (`gluformin` on store `571582a9`).
   - **`getBatchDeficits()` (`lib/db/batch-quantity.ts`) is the one place a
     shortfall is measured**, and it reports exactly the set
     `resolveBatchQuantity()` would rebuild to 0: a non-deleted, active batch in
@@ -1756,6 +1796,40 @@ in `pull-round-end.ts`.
   later starts from a full pull. Stamping every requested table at the end of
   a round would silently undo this. Pinned by
   `pull-refused-store-stamps-only-served-tables.test.ts`.
+- **A refused round is a failed sync, never "synced" (A-323).** `pull.ts`
+  returns the refusal (`readStoreRefusal()` in `store-refusal.ts`) with the
+  live stores the same response served, i.e. the ones this account can still
+  reach, and whether the refused store came back as a tombstone. `sync()`
+  then returns `success: false` with `STORE_REFUSED_MESSAGE` and the refusal,
+  does not set the last-sync time, and the recorded outcome's reason is
+  `store_refused`. Settings > Data's Sync and Force full resync wrap their
+  `toast.promise` in `failUnlessSucceeded()`, because `sync()` resolves on
+  failure and sonner would otherwise show "Sync complete".
+- **A fixed-store staff till is moved by sign-in, so the move has to reach the
+  local `users` row first.** Sign-in (`performLogin()`) builds the user from
+  the local row, and a refused round never serves `users` (serving the
+  caller's own row would stamp a partial `users` window under the refused
+  store's key, the A-254 trap). So on a refusal `adoptReassignedStore()` asks
+  `/user`; if it is the signed-in user, their local row still names the
+  refused store, and the server now has them at a store this round offered,
+  it rewrites the local `store_id` with a raw `execute`, never queued (the
+  server, not the device, decides a user's store). The result carries it
+  as `refusal.reassignedStore`. `/user` answers for the token's account,
+  which on a device linked by the owner is not the staff member, so then
+  nothing changes.
+- **The remedy** (`storeRefusalRemedy()`), toasted once per refused store
+  across every mounted indicator (module scope in
+  `useStoreRefusalAnnouncer()`), or on every manual sync:
+  - no store left: ask for access back;
+  - fixed-store staff: sign out and in again to move to the store
+    `adoptReassignedStore()` found, else ask the owner which store to use;
+  - the refused store was deleted: point at the store menu, because
+    `store-context.tsx` has already fallen back to the first local store;
+  - several stores: point at the store menu;
+  - one store: a "Switch to …" action calling `switchStore()`.
+  Apart from that deleted-store fallback, nothing switches on its own: the
+  device may hold unpushed changes for the refused store, and moving the till
+  is the user's call.
 - **Legacy products are attributed by evidence (A-248 part c).** At the start
   of every push on a device holding more than one store,
   `attributeStorelessProductsFromEvidence()` gives a store-less product the

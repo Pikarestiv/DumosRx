@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Models\Product;
+use App\Support\SyncRowStamp;
 use Illuminate\Support\Facades\DB;
 
 class AdminCatalogService
@@ -130,8 +131,8 @@ class AdminCatalogService
             ];
         }
 
-        $count = $blankGeneric()->update(['generic_name' => 'General'])
-            + $blankManufacturer()->update(['manufacturer' => 'Unknown']);
+        $count = $blankGeneric()->update(['generic_name' => 'General', ...SyncRowStamp::for('products')])
+            + $blankManufacturer()->update(['manufacturer' => 'Unknown', ...SyncRowStamp::for('products')]);
 
         return [
             'count' => $count,

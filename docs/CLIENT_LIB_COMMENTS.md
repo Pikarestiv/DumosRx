@@ -2920,7 +2920,9 @@ ever reaching the server (A-268), so the resolved ones are the evidence.
 `client/lib/db/queries/diagnostics-detail.ts:102`
 
 Costs for the batches a device can disagree with the server about: the ones
-the pull skips (pending queue row or unsynced), plus the highest-value rows,
+the pull skips (a pending queue row it honours, by pull-apply.ts's rule) or
+orphans a crash-flagged boot will re-queue (unsynced, no queue row; A-337),
+plus the highest-value rows,
 since a valuation gap the owner notices is dominated by a few of those.
 Capped so the report stays well inside the support endpoint's size limit.
 
@@ -3715,6 +3717,13 @@ and what they are worth at cost. The server compares these against what it
 derives itself, so a divergence between two devices of one store is visible
 without anyone counting shelves. See docs/superpowers/specs/2026-10-07-stuck-data-and-
 divergence-visibility-design.md, Phase 1.
+
+Batches are counted through their product's store (`JOIN products`), not their
+own `store_id`, because that is how `StockDivergenceService` counts and how the
+pull decides which batches a device holds (A-246). A batch's own `store_id` was
+never backfilled server-side, so on a legacy batch it can be empty or wrong; the
+product's is the one both sides share. A discontinued product's batches still
+count, as the server's `withTrashed()` does.
 
 ### db-sync-engine-stock-integrity-ts-L14
 

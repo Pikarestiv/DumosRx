@@ -1,7 +1,8 @@
 import { query, generateId, transaction, getActiveStoreId } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
+import { applyChangedSellingPrices, coerceOptionalNumber } from "./procurement-selling-price";
 import { roundMoney } from "@/lib/utils/pos-calculations";
-import { immediateLineAmount } from "@/components/procurement/po-line-item-math";
+import { clearImmediateOnlyFields, immediateLineAmount } from "@/components/procurement/po-line-item-math";
 
 export {
   getSuppliers,
@@ -10,18 +11,6 @@ export {
   getSupplierOutstandingBalance,
   deleteSupplier,
 } from "./suppliers";
-
-// Line-item form fields (selling_price, cost_price_override) come in as `number | string | undefined` from raw form inputs - blank/undefined m…
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-ts-L11
-export function coerceOptionalNumber(
-  value: number | string | null | undefined,
-): number | null {
-  if (value === undefined || value === null || String(value).trim() === "") {
-    return null;
-  }
-  const num = Number(value);
-  return Number.isFinite(num) ? num : null;
-}
 
 // `partially_received` sits between `sent` and `received`:
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-ts-L30
@@ -109,6 +98,7 @@ export interface DraftPOLineItem {
   lot_number?: string;
   expiry_date?: string;
   selling_price?: number | string;
+  reprice?: boolean;
 }
 
 export interface PODetailItem {
@@ -212,13 +202,14 @@ export async function createPurchaseOrder(
   dueDate: string | null = null,
   type: "standard" | "immediate" = "standard"
 ) {
+  const lines = type === "immediate" ? items : clearImmediateOnlyFields(items);
   const poId = generateId();
   const now = new Date().toISOString();
   let totalAmount = 0;
 
   // Via immediateLineAmount, not a bare bulk_quantity * unit_cost:
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-procurement-ts-L216
-  for (const item of items) {
+  for (const item of lines) {
     totalAmount += roundMoney(immediateLineAmount(item));
   }
 
@@ -236,7 +227,7 @@ export async function createPurchaseOrder(
       created_at: now
     });
 
-    for (const item of items) {
+    for (const item of lines) {
       await insert("purchase_order_items", {
         id: generateId(),
         po_id: poId,
@@ -254,6 +245,8 @@ export async function createPurchaseOrder(
       });
     }
 
+    await applyChangedSellingPrices(lines);
+
     return poId;
   });
 }
@@ -270,7 +263,13 @@ export async function updatePurchaseOrder(
   const now = new Date().toISOString();
   let totalAmount = 0;
 
-  for (const item of items) {
+  const [{ type } = { type: "standard" }] = await query<{ type: string | null }>(
+    "SELECT type FROM purchase_orders WHERE id = ?",
+    [poId],
+  );
+  const lines = type === "immediate" ? items : clearImmediateOnlyFields(items);
+
+  for (const item of lines) {
     totalAmount += roundMoney(immediateLineAmount(item));
   }
 
@@ -297,7 +296,7 @@ export async function updatePurchaseOrder(
     });
 
     // Insert new items
-    for (const item of items) {
+    for (const item of lines) {
       await insert("purchase_order_items", {
         id: generateId(),
         po_id: poId,
@@ -314,6 +313,8 @@ export async function updatePurchaseOrder(
         created_at: now
       });
     }
+
+    await applyChangedSellingPrices(lines);
 
     return poId;
   });

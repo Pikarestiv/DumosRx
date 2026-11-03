@@ -189,9 +189,7 @@ export async function importProductRows(
           selling_price: row.sellingPrice ?? 0,
           reorder_level: row.reorderLevel ?? 10,
           barcode: row.barcode ?? null,
-          // Defaults off, matching the schema: a bulk import must not publish
-          // a whole catalog to a public storefront unless the file says to.
-          show_online: row.showOnline ? 1 : 0,
+          show_online: (row.showOnline ?? true) ? 1 : 0,
         });
 
         if (row.quantity !== undefined && row.quantity !== 0) {

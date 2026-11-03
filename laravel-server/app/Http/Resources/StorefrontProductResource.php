@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Models\Product;
 use Illuminate\Http\Resources\Json\JsonResource;
+use OpenApi\Attributes as OA;
 
 /**
  * Explicit field whitelist for products served on the *unauthenticated*
@@ -23,6 +24,26 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * leverageable into a write (see `SyncController::push()`'s ownership
  * checks).
  */
+#[OA\Schema(
+    schema: 'StorefrontProduct',
+    description: 'Storefront product representation',
+    properties: [
+        new OA\Property(property: 'id', type: 'string'),
+        new OA\Property(property: 'name', type: 'string'),
+        new OA\Property(property: 'generic_name', type: 'string', nullable: true),
+        new OA\Property(property: 'description', type: 'string', nullable: true),
+        new OA\Property(property: 'dosage_form', type: 'string', nullable: true),
+        new OA\Property(property: 'strength', type: 'string', nullable: true),
+        new OA\Property(property: 'pack_size', type: 'string', nullable: true),
+        new OA\Property(property: 'unit_of_measure', type: 'string', nullable: true),
+        new OA\Property(property: 'selling_price', type: 'number'),
+        new OA\Property(property: 'requires_prescription', type: 'boolean'),
+        new OA\Property(property: 'in_stock', type: 'boolean'),
+        new OA\Property(property: 'image', type: 'string', nullable: true),
+        new OA\Property(property: 'category', type: 'string', nullable: true),
+    ],
+    type: 'object',
+)]
 class StorefrontProductResource extends JsonResource
 {
     /**

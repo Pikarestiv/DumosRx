@@ -189,4 +189,18 @@ class SyncStoresPaystackFieldGuardTest extends TestCase
         $this->store->refresh();
         $this->assertNotNull($this->store->paystack_fee_dirty_at);
     }
+
+    public function test_a_push_cannot_clear_the_storefront_rebuild_watermark()
+    {
+        \Illuminate\Support\Facades\DB::table('stores')
+            ->where('id', $this->store->id)
+            ->update(['storefront_dirty_at' => now()]);
+
+        $this->pushStoreChange($this->staff, [
+            'storefront_dirty_at' => null,
+        ])->assertStatus(200);
+
+        $this->store->refresh();
+        $this->assertNotNull($this->store->storefront_dirty_at);
+    }
 }

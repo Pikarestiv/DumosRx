@@ -15,7 +15,7 @@ export function OrphanReferencePanel({ reference, onReturnToStore }: ReturnToSto
       <CardHeader>
         <CardTitle>We couldn&apos;t match your payment to this cart</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3 text-sm text-gray-600">
+      <CardContent className="space-y-3 text-sm text-muted-foreground">
         <p>
           Your payment may have gone through, but this browser has no record of the order it was
           for (that happens if you came back in a new tab or window).
@@ -24,7 +24,7 @@ export function OrphanReferencePanel({ reference, onReturnToStore }: ReturnToSto
           Please contact the store with your payment reference so they can find and confirm your
           order:
         </p>
-        <p className="font-mono text-base font-semibold text-gray-900">{reference}</p>
+        <p className="font-mono text-base font-semibold text-foreground">{reference}</p>
       </CardContent>
       <CardFooter className="flex justify-center">
         <Button onClick={onReturnToStore}>Return to Store</Button>
@@ -53,7 +53,7 @@ export function FailedConfirmationPanel({
           {refunded ? "Your payment is being refunded" : "We couldn't confirm your payment yet"}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3 text-sm text-gray-600">
+      <CardContent className="space-y-3 text-sm text-muted-foreground">
         {refunded ? (
           <p>
             Your payment went through, but this order can no longer be fulfilled, so it has been
@@ -66,7 +66,7 @@ export function FailedConfirmationPanel({
           </p>
         )}
         <p>Payment reference:</p>
-        <p className="font-mono text-base font-semibold text-gray-900">{reference}</p>
+        <p className="font-mono text-base font-semibold text-foreground">{reference}</p>
       </CardContent>
       <CardFooter className="flex flex-col items-stretch gap-2 sm:flex-row sm:justify-center">
         {!refunded && (

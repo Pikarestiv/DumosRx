@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Web;
 use App\Http\Controllers\Controller;
 use App\Models\Store;
 use App\Models\User;
+use App\Support\SyncRowStamp;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -214,6 +215,7 @@ class StoreController extends Controller
         ]);
 
         $store->update($request->only(['name', 'location', 'address', 'phone', 'store_type']));
+        SyncRowStamp::bump($store);
 
         return response()->json([
             'message' => 'Store updated successfully',

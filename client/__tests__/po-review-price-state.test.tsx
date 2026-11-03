@@ -3,6 +3,10 @@ import { render, screen } from "@testing-library/react";
 import { act } from "react";
 import { POReviewPricePopover } from "@/components/procurement/po-review-price-popover";
 
+vi.mock("@/lib/context/store-context", () => ({
+  useStore: () => ({ storeProfile: { currency: undefined } }),
+}));
+
 // The trigger always read a neutral "Review price", so once the popover closed there was no way to tell which lines had ac…
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-po-review-price-state-test-tsx-L6
 describe("POReviewPricePopover reviewed/at-a-loss state", () => {

@@ -1,6 +1,8 @@
 import { insert, transaction, isInTransaction } from "@/lib/db/local-database";
 import type { StockBatch } from "@/lib/types/stock-batch";
 import { roundMoney } from "@/lib/utils/pos-calculations";
+import { OVERSELL_COMPENSATION_REASON, OVERSELL_REFERENCE_TYPE } from "@/lib/constants/stock-adjustments";
+import { movementLogIsComplete } from "@/lib/db/sync-engine/stock-auto-heal";
 import {
   getBatchesForProduct,
   getAnyActiveBatchForProduct,
@@ -84,6 +86,7 @@ async function writeSaleItemStock({
   // Batches touched by a deduction that exceeded what they actually had available (deduction > batch.quantity at the time it was applied) — i.e.
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L223
   const oversoldBatchIds = new Set<string>();
+  const oversoldByBatchId = new Map<string, number>();
 
   // What each touched batch has left as this call proceeds.
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L231
@@ -98,6 +101,8 @@ async function writeSaleItemStock({
 
     if (deduction > available) {
       oversoldBatchIds.add(batch.id);
+      const unheld = deduction - Math.max(0, available);
+      oversoldByBatchId.set(batch.id, (oversoldByBatchId.get(batch.id) ?? 0) + unheld);
     }
 
     liveQuantity.set(batch.id, Math.max(0, available - deduction));
@@ -128,6 +133,9 @@ async function writeSaleItemStock({
     }
   }
 
+  const movementDate = new Date().toISOString();
+  // A device behind on the log cannot tell an oversell from stock it has not pulled; the server backfill takes those.
+  const compensate = oversoldByBatchId.size > 0 && (await movementLogIsComplete());
   for (const [batchId, deduction] of deductionByBatchId) {
     await insert("sale_item_batches", {
       sale_item_id: saleItemId,
@@ -148,8 +156,25 @@ async function writeSaleItemStock({
         ? "Customer sale (oversold — insufficient batch stock)"
         : "Customer sale",
       performed_by: cashierId,
-      movement_date: new Date().toISOString(),
+      movement_date: movementDate,
     }, { correlationId });
+
+    const unheld = oversoldByBatchId.get(batchId) ?? 0;
+    if (compensate && unheld > 0) {
+      await insert("stock_movements", {
+        product_id: productId,
+        stock_batch_id: batchId,
+        movement_type: "adjustment",
+        quantity: unheld,
+        unit_cost: costPrice || 0,
+        total_cost: roundMoney((costPrice || 0) * unheld),
+        reference_id: saleId,
+        reference_type: OVERSELL_REFERENCE_TYPE,
+        reason: OVERSELL_COMPENSATION_REASON,
+        performed_by: cashierId,
+        movement_date: movementDate,
+      }, { correlationId });
+    }
   }
 
   return saleItemId;

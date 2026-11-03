@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import { type PurchaseOrder } from "@/lib/db/procurement";
 
 function formatPONumber(id: string) {
@@ -88,6 +88,7 @@ export function PurchaseOrderMobileRow({
   isSelected: boolean;
   onSelect: () => void;
 }) {
+  const formatCurrency = useFormatCurrency();
   return (
     <div
       role="button"
@@ -132,6 +133,7 @@ export function PurchaseOrderRow({
   isSelected: boolean;
   onSelect: () => void;
 }) {
+  const formatCurrency = useFormatCurrency();
   return (
     <TableRow
       className={`border-b border-border/50 cursor-pointer transition-colors ${isSelected ? "bg-primary/5 hover:bg-primary/5" : "hover:bg-accent/50"}`}

@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { ClipboardList, SlidersHorizontal } from "lucide-react";
-import { AUDIT_REFERENCE_TYPE, type AdjustmentGroup } from "./adjustment-derivations";
+import { AUDIT_REFERENCE_TYPE, adjustmentSourceLabel, type AdjustmentGroup } from "./adjustment-derivations";
 
 interface Props {
   groupLabel: string;
@@ -36,7 +36,7 @@ export function AdjustmentMobileGroup({ groupLabel, adjustments }: Props) {
                   {group.referenceId}
                 </div>
                 <div className="text-[12px] text-muted-foreground truncate mt-0.5">
-                  {isAudit ? "Cycle count" : "Quick adjustment"} · {group.reason || "—"} ·{" "}
+                  {adjustmentSourceLabel(group.source)} · {group.reason || "—"} ·{" "}
                   {group.itemCount} {group.itemCount === 1 ? "item" : "items"}
                 </div>
                 <div className="text-[11.5px] text-muted-foreground/70 truncate">

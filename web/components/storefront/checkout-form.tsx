@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api/base-client";
 import { formatMoney } from "@/lib/utils/currency";
+import { toDisplayTitle } from "@/lib/storefront-display";
 import {
   FailedConfirmationPanel,
   OrphanReferencePanel,
@@ -208,7 +209,7 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
   if (cart.items.length === 0) {
     return (
       <Card>
-        <CardContent className="py-12 text-center text-gray-500">
+        <CardContent className="py-12 text-center text-muted-foreground">
           Your cart is empty. Return to the store to add items.
         </CardContent>
         <CardFooter className="flex justify-center">
@@ -306,13 +307,13 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
           <CardContent className="space-y-4">
             {cart.items.map(item => (
               <div key={item.id} className="flex justify-between text-sm">
-                <span>{item.name} (x{item.quantity})</span>
+                <span>{toDisplayTitle(item.name)} (x{item.quantity})</span>
                 <span className="font-medium">{formatMoney(item.price * item.quantity, currency)}</span>
               </div>
             ))}
             <div className="border-t pt-4 flex justify-between font-bold text-lg">
               <span>Total</span>
-              <span className="text-emerald-600">{formatMoney(cart.getTotal(), currency)}</span>
+              <span className="text-primary">{formatMoney(cart.getTotal(), currency)}</span>
             </div>
           </CardContent>
         </Card>

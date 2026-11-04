@@ -4715,9 +4715,10 @@ direction is deliberate: A-191 was a store unable to sell.
 
 `client/lib/licensing/server-clock.ts:4`
 
-Tolerance for "this device's clock agrees with the server". Wide enough to
-absorb ordinary RTC drift and request latency, far narrower than any skew
-capable of poisoning the monotonic watermark.
+Tolerance for "this device's clock agrees with the server". Set to 24 hours to
+absorb global timezone configuration differences (e.g. UTC vs WAT/CAT/SAST) and
+RTC battery drift, while remaining far narrower than the days or weeks required
+to cheat offline licence expiry.
 
 ### licensing-server-clock-ts-L20
 

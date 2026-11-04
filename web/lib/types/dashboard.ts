@@ -129,6 +129,8 @@ export interface AppNotification {
 
 export interface UserSession {
   id: string;
+  name?: string;
+  device_id?: string | null;
   user_agent?: string;
   ip_address?: string;
   is_current?: boolean;

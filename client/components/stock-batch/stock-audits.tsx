@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { AuditLedgerStep } from "./audit-ledger-step";
 import { AuditReviewStep } from "./audit-review-step";
 import { AuditExportMenu } from "./audit-export-menu";
@@ -24,6 +24,8 @@ import { useAuditLedgerLens } from "@/lib/hooks/use-audit-ledger-lens";
 import { useAuditSheetExport } from "@/lib/hooks/use-audit-sheet-export";
 import { useAuditSheetSource } from "@/lib/hooks/use-audit-sheet-source";
 import { useAuditCounting } from "@/lib/hooks/use-audit-counting";
+import { useCloudAuditSession } from "@/lib/hooks/use-cloud-audit-session";
+import { AuditCloudPill, AuditCloudInspectionBanner } from "./audit-cloud-banner";
 
 type AuditStep = "ledger" | "review" | "done";
 
@@ -69,6 +71,23 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const ledger = useAuditLedgerLens(items);
   const { countRow, cancelPendingCounts, updateLedgerItem } = useAuditCounting();
 
+  const cloud = useCloudAuditSession(storeProfile?.id || null);
+  const { initSession, session: cloudSession, isReadOnly: cloudIsReadOnly, queueSync } = cloud;
+  const cloudInitialized = useRef(false);
+
+  useEffect(() => {
+    if (!cloudInitialized.current && items.length > 0) {
+      cloudInitialized.current = true;
+      void initSession(items);
+    }
+  }, [items, initSession]);
+
+  useEffect(() => {
+    if (cloudSession && !cloudIsReadOnly) {
+      queueSync(items);
+    }
+  }, [items, cloudSession, cloudIsReadOnly, queueSync]);
+
   const countedItems = useMemo(() => selectCountedAuditItems(items), [items]);
   const adjustedItems = useMemo(
     () => selectAdjustedAuditItems(countedItems),
@@ -95,18 +114,19 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const isSubmitting = submitAuditMutation.isPending;
 
   const submitAudit = () => {
-    if (isSubmitting) return;
+    if (isSubmitting || cloud.isReadOnly) return;
     submitAuditMutation.mutate(
       {
         items: toStockAuditSubmissions(adjustedItems),
         performedBy: user?.id || null,
       },
       {
-        onSuccess: () => {
+        onSuccess: (auditIds) => {
           setSubmittedSummary({
             counted: countedItems.length,
             adjusted: adjustedItems.length,
           });
+          void cloud.complete(auditIds?.[0] || null);
           clearDraft();
           setStep("done");
         },
@@ -202,12 +222,11 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
               onStartOver={() => setShowResetDialog(true)}
             />
           )}
-          <div className="hidden md:flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-200 rounded-full px-3 py-1.5">
-            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-            <span className="text-[11.5px] font-semibold text-emerald-700">
-              Saved locally · syncs when online
-            </span>
-          </div>
+          <AuditCloudPill
+            session={cloud.session}
+            isReadOnly={cloud.isReadOnly}
+            lastSyncedAt={cloud.lastSyncedAt}
+          />
         </div>
       </div>
 
@@ -221,25 +240,37 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
       >
         <div className={STEP_WIDTH(step)}>
           {step === "ledger" && (
-            <AuditLedgerStep
-              items={ledger.visibleItems}
-              totalItems={items.length}
-              isLoading={isLoading}
-              isSyncing={isSyncing}
-              onUpdateItem={updateLedgerItem}
-              onCountRow={(id, qty) => void countRow(id, qty)}
-              onClearCount={cancelPendingCounts}
-              categories={ledger.categories}
-              selectedCategory={ledger.selectedCategory}
-              setSelectedCategory={ledger.setSelectedCategory}
-              countStatus={ledger.countStatus}
-              setCountStatus={ledger.setCountStatus}
-              countedCount={countedItems.length}
-              search={ledger.search}
-              setSearch={ledger.setSearch}
-              scrollElementRef={scrollAreaRef}
-              sort={ledger.sort}
-            />
+            <>
+              <AuditCloudInspectionBanner
+                session={cloud.session}
+                isReadOnly={cloud.isReadOnly}
+                conflictMessage={cloud.conflictMessage}
+                isTakeoverOpen={cloud.isTakeoverOpen}
+                onTakeoverOpenChange={cloud.setIsTakeoverOpen}
+                onTakeoverConfirm={() => void cloud.takeover()}
+                isTakingOver={cloud.isTakingOver}
+              />
+              <AuditLedgerStep
+                items={ledger.visibleItems}
+                totalItems={items.length}
+                isLoading={isLoading}
+                isSyncing={isSyncing}
+                isReadOnly={cloud.isReadOnly}
+                onUpdateItem={updateLedgerItem}
+                onCountRow={(id, qty) => void countRow(id, qty)}
+                onClearCount={cancelPendingCounts}
+                categories={ledger.categories}
+                selectedCategory={ledger.selectedCategory}
+                setSelectedCategory={ledger.setSelectedCategory}
+                countStatus={ledger.countStatus}
+                setCountStatus={ledger.setCountStatus}
+                countedCount={countedItems.length}
+                search={ledger.search}
+                setSearch={ledger.setSearch}
+                scrollElementRef={scrollAreaRef}
+                sort={ledger.sort}
+              />
+            </>
           )}
 
           {step === "review" && (
@@ -282,13 +313,18 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
               className={`${PRIMARY_BUTTON} disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
               disabled={
                 isSubmitting ||
+                cloud.isReadOnly ||
                 countedItems.length === 0 ||
                 (freshness.shouldWarn && !staleAcknowledged)
               }
               onClick={submitAudit}
             >
               {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isSubmitting ? "Submitting..." : "Submit audit"}
+              {isSubmitting
+                ? "Submitting..."
+                : cloud.isReadOnly
+                  ? "Read Only Mode"
+                  : "Submit audit"}
             </button>
           )}
 

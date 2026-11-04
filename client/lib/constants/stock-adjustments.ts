@@ -24,3 +24,7 @@ export const BACKORDER_REFERENCE_TYPE = "backorder";
 export const BACKORDER_SETTLEMENT_REFERENCE_TYPE = "backorder_settlement";
 export const BACKORDER_REASON = "Sold before stock was received";
 export const BACKORDER_SETTLEMENT_REASON = "Already sold before this delivery";
+
+// A-265: the inbound adjustment an oversell writes for the units sold that the batch's ledger did not hold.
+export const OVERSELL_REFERENCE_TYPE = "oversell";
+export const OVERSELL_COMPENSATION_REASON = "Oversell compensation: sold units the ledger did not hold";

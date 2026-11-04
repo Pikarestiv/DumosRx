@@ -2,6 +2,7 @@ import { STORAGE_KEYS } from "@/lib/storage-keys";
 import { canonicaliseReason } from "./queue-state";
 import { SYNC_DISABLED_IMPERSONATION_MESSAGE } from "@/lib/utils/impersonation";
 import type { SyncResult } from "./types";
+import { STORE_REFUSED_MESSAGE } from "./store-refusal";
 
 // Defined here rather than in index.ts, which imports this module:
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-sync-outcome-ts-L6
@@ -29,6 +30,7 @@ function classifyReason(error: unknown): string {
   if (/^Unauthenticated/i.test(message)) return "unauthenticated";
   if (/batch\(es\) failed to push/i.test(message)) return "batches_failed";
   if (/throttl/i.test(message)) return "throttled";
+  if (message === STORE_REFUSED_MESSAGE) return "store_refused";
 
   return canonicaliseReason(message || null);
 }
@@ -74,4 +76,11 @@ export function readSyncOutcome(): SyncOutcome | null {
   } catch {
     return null;
   }
+}
+
+// sync() resolves on failure too, which toast.promise would show as success.
+export function failUnlessSucceeded(run: Promise<SyncResult>): Promise<SyncResult> {
+  return run.then((result) =>
+    result.success ? result : Promise.reject(new Error(typeof result.error === "string" ? result.error : "")),
+  );
 }

@@ -2744,7 +2744,7 @@ expiry math receivePurchaseOrder() uses for Standard POs.
 
 ### db-procurement-ts-L11
 
-`client/lib/db/procurement.ts:15`
+`client/lib/db/procurement-selling-price.ts:5`
 
 Line-item form fields (selling_price, cost_price_override) come in as
 `number | string | undefined` from raw form inputs - blank/undefined
@@ -2920,7 +2920,9 @@ ever reaching the server (A-268), so the resolved ones are the evidence.
 `client/lib/db/queries/diagnostics-detail.ts:102`
 
 Costs for the batches a device can disagree with the server about: the ones
-the pull skips (pending queue row or unsynced), plus the highest-value rows,
+the pull skips (a pending queue row it honours, by pull-apply.ts's rule) or
+orphans a crash-flagged boot will re-queue (unsynced, no queue row; A-337),
+plus the highest-value rows,
 since a valuation gap the owner notices is dominated by a few of those.
 Capped so the report stays well inside the support endpoint's size limit.
 
@@ -3715,6 +3717,13 @@ and what they are worth at cost. The server compares these against what it
 derives itself, so a divergence between two devices of one store is visible
 without anyone counting shelves. See docs/superpowers/specs/2026-10-07-stuck-data-and-
 divergence-visibility-design.md, Phase 1.
+
+Batches are counted through their product's store (`JOIN products`), not their
+own `store_id`, because that is how `StockDivergenceService` counts and how the
+pull decides which batches a device holds (A-246). A batch's own `store_id` was
+never backfilled server-side, so on a legacy batch it can be empty or wrong; the
+product's is the one both sides share. A discontinued product's batches still
+count, as the server's `withTrashed()` does.
 
 ### db-sync-engine-stock-integrity-ts-L14
 
@@ -4706,9 +4715,10 @@ direction is deliberate: A-191 was a store unable to sell.
 
 `client/lib/licensing/server-clock.ts:4`
 
-Tolerance for "this device's clock agrees with the server". Wide enough to
-absorb ordinary RTC drift and request latency, far narrower than any skew
-capable of poisoning the monotonic watermark.
+Tolerance for "this device's clock agrees with the server". Set to 24 hours to
+absorb global timezone configuration differences (e.g. UTC vs WAT/CAT/SAST) and
+RTC battery drift, while remaining far narrower than the days or weeks required
+to cheat offline licence expiry.
 
 ### licensing-server-clock-ts-L20
 
@@ -5092,12 +5102,13 @@ rejection path), so the two never drift apart on when to reload.
 `client/lib/utils/clear-local-drafts.ts:5`
 
 Every device-local, in-progress draft staged against the store/account
-being left behind. Each lives under its own single global localStorage key
-(no store or user in it), so all of them must be dropped together on a
-store switch, a logout, a different user signing in, a new-store link and
-a factory reset. Called as one function because the list kept growing and
-two of the five transition paths had been left clearing only the cart -
-see client/AGENTS.md.
+being left behind. POS cart (`pos-cart-storage`) is un-scoped and cleared across
+store transitions. Stock audit and adjustment drafts are store-scoped in memory
+and persisted to local SQLite (`stock_audit_drafts`, `stock_adjustment_drafts`),
+so store switching passes `{ preserveStoreAudit: true, preserveStoreAdjustment: true }`
+to keep in-progress counts and adjustments safe when leaving and returning to a store.
+Full context teardowns (different user login, logout, new store link, factory reset)
+clear all drafts unconditionally.
 
 ### utils-count-freshness-ts-L1
 
@@ -7010,9 +7021,9 @@ payload, and a sync-queue UPDATE payload carries changed fields only.
 
 `client/lib/db/procurement-receiving.ts:157`
 
-A submit with every line left at 0 against a PO that has nothing
-received yet isn't a partial receipt, it's a no-op — the order stays
-exactly where it was rather than moving into the partial state.
+A submit that receives nothing this time (every line left at 0) isn't
+a receipt, it's a no-op, whether or not earlier receipts exist: the order
+stays exactly where it was and no status change or audit entry is written.
 
 ### line-db-procurement-ts-L216
 
@@ -9963,9 +9974,10 @@ no reason, since the underlying data never changed).
 `client/lib/hooks/use-purchase-orders.ts:104`
 
 receivePurchaseOrder() writes products.selling_price synchronously
-for any line with a real override, same as createAndReceivePurchaseOrder -
-this is the other of the two paths that actually change the live
-price immediately, so it gets the same confirmation toast.
+for any line with a real override that differs from the live price, the
+same as createPurchaseOrder, updatePurchaseOrder and
+createAndReceivePurchaseOrder (all via applyChangedSellingPrices) - so it
+gets the same confirmation toast.
 
 ### line-hooks-use-report-export-ts-L120
 
@@ -10442,4 +10454,17 @@ The admin, so the pushed row names them rather than the sync token's
 owner. Without it the server's log said the STORE OWNER ran the clock
 override — backwards for the one repair whose premise is that the
 owner is the suspected tamperer.
+
+### local-database-users-restore
+
+`client/lib/db/local-database.ts:restoreUser`
+
+Restoring a soft-deleted staff account strips the `_del_${timestamp}` suffix
+from the stored `username` and `email` columns that was appended upon deletion.
+Before clearing `_deleted`, we explicitly verify that no other active staff
+member in the same store currently claims that restored username. When restored,
+`is_active` remains 0 to require explicit administrative reactivation, and
+an `UPDATE` action is queued into `_sync_queue` with `_deleted: 0` alongside
+the base `_version` so the cloud replica increments version cleanly.
+
 

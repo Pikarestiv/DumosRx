@@ -5,6 +5,7 @@ export interface LocalAdminSeed {
   firstName: string;
   lastName: string;
   username: string;
+  email?: string;
   hashedPin: string;
 }
 
@@ -17,13 +18,13 @@ export interface PendingNewRegistration extends LocalAdminSeed {
 const INSERT_STORE_SQL =
   "INSERT INTO stores (id, name, is_initialized, created_at, updated_at, _synced, auto_sync_enabled, auto_sync_interval) VALUES (?, ?, ?, ?, ?, ?, 1, 30)";
 const INSERT_USER_SQL =
-  "INSERT INTO users (id, first_name, last_name, username, pin, role, store_id, is_active, created_at, updated_at, _synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+  "INSERT INTO users (id, first_name, last_name, username, email, pin, role, store_id, is_active, created_at, updated_at, _synced) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 const INSERT_SYNC_QUEUE_SQL =
   "INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at) VALUES (?, ?, ?, ?, ?)";
 
 function insertAdminUser(admin: LocalAdminSeed, storeId: string, now: string, synced: 0 | 1) {
   return execute(INSERT_USER_SQL, [
-    admin.userId, admin.firstName, admin.lastName, admin.username, admin.hashedPin,
+    admin.userId, admin.firstName, admin.lastName, admin.username, admin.email || null, admin.hashedPin,
     "admin", storeId, 1, now, now, synced,
   ]);
 }
@@ -78,6 +79,7 @@ export async function seedOfflineStoreAndAdmin(
     first_name: admin.firstName,
     last_name: admin.lastName,
     username: admin.username,
+    email: admin.email || null,
     pin: admin.hashedPin,
     role: "admin",
     store_id: storeId,

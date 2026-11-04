@@ -22,6 +22,9 @@ export interface UserDbRow {
   store_id?: string;
   is_active?: number;
   created_at?: string;
+  updated_at?: string;
+  _deleted?: number;
+  _version?: number;
   permission_group_id?: string | null;
 }
 
@@ -54,6 +57,7 @@ export interface CurrentUser {
   id: string;
   first_name: string;
   last_name: string;
+  username?: string | null;
   email: string;
   phone?: string | null;
   role: string;
@@ -66,6 +70,7 @@ export interface CurrentUser {
 export interface Session {
   id: string;
   name: string;
+  device_id?: string | null;
   ip_address: string | null;
   user_agent: string | null;
   last_used_at: string | null;

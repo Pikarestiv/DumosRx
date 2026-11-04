@@ -1,3 +1,4 @@
+import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
@@ -303,13 +304,7 @@ export function useNewPrescription() {
     );
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  const formatCurrency = useFormatCurrency();
 
   const totalCost = formData.medications.reduce((sum, med) => sum + med.cost, 0);
 

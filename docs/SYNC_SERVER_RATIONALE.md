@@ -1107,6 +1107,16 @@ Above `'performed_by' => $currentUser->id,`:
 
 > A movement may not name, or be repointed at, a batch outside the session's scope (A-287).
 
+### `hasNonColumnKey`
+
+> A-325: a miscased or table-qualified key still names the column, so it would reach `forceFill()` past every
+> guard reading the bare key; see laravel-server/AGENTS.md, "A payload key that is not a bare column name is refused".
+
+### `repointsToForeignParent`
+
+> A-325: an UPDATE may not move a child onto a parent outside the session's scope; see
+> laravel-server/AGENTS.md, "A child UPDATE's new parent must be in scope".
+
 ### `authorizeChangeTarget`
 
 > Whether $model (an already-loaded row for $tableName) belongs to one
@@ -1217,9 +1227,12 @@ Above `return ! User::withTrashed()->whereKey($model->user_id)->exists();`:
 
 ### `applyStockBatchDeltas`
 
-> Applies every accumulated stock_movements delta. See push()'s own
-> comments (preserved verbatim below) for why this runs after the main
-> loop, per-delta-savepointed, as a single atomic floored UPDATE.
+> Rebuilds every batch a push wrote a movement for from its own log
+> (A-217): `MAX(0, Σ quantity)`, or the stored figure plus the push's delta
+> for an A-148 carve-out batch. See laravel-server/AGENTS.md, "A batch's
+> quantity is derived from its log". The notes below predate A-217: the
+> savepoint and after-the-loop reasoning still hold; the statement is no
+> longer a floored increment.
 
 Above `foreach ($stockBatchDeltas as $stockBatchId => $delta) {`:
 

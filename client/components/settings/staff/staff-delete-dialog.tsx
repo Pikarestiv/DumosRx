@@ -6,7 +6,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 interface StaffDeleteDialogProps {
   target: { id: string; name: string } | null;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (targetId: string, name: string) => void;
 }
 
 export function StaffDeleteDialog({
@@ -14,21 +14,20 @@ export function StaffDeleteDialog({
   onClose,
   onSuccess,
 }: StaffDeleteDialogProps) {
-  const [isDeactivating, setIsDeactivating] = useState(false);
-  const { update } = useMutateUser();
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { remove } = useMutateUser();
 
-  const confirmDeactivateUser = async () => {
+  const confirmDeleteUser = async () => {
     if (!target) return;
-    setIsDeactivating(true);
+    setIsDeleting(true);
     try {
-      await update.mutateAsync({ id: target.id, data: { is_active: 0 } });
-      toast.success("Staff account deactivated");
-      onSuccess();
+      await remove.mutateAsync(target.id);
+      onSuccess(target.id, target.name);
     } catch (error) {
-      console.error("Failed to deactivate user:", error);
-      toast.error("Failed to deactivate staff account");
+      console.error("Failed to delete user:", error);
+      toast.error("Failed to delete staff account");
     } finally {
-      setIsDeactivating(false);
+      setIsDeleting(false);
       onClose();
     }
   };
@@ -37,10 +36,10 @@ export function StaffDeleteDialog({
     <ConfirmDialog
       open={!!target}
       onOpenChange={(open) => !open && onClose()}
-      onConfirm={confirmDeactivateUser}
-      title="Deactivate Staff Account"
-      description={`Are you sure you want to deactivate the account for ${target?.name}? They will no longer be able to log in, but the account can be reactivated later.`}
-      confirmLabel={isDeactivating ? "Deactivating..." : "Deactivate Account"}
+      onConfirm={confirmDeleteUser}
+      title="Delete Staff Account"
+      description={`Are you sure you want to delete the account for ${target?.name}? They will be removed from your staff roster and will no longer be able to log in. Past sales, receipts, and audit history will remain intact. You can recover this account at any time from Deleted Accounts.`}
+      confirmLabel={isDeleting ? "Deleting..." : "Delete Account"}
       variant="destructive"
     />
   );

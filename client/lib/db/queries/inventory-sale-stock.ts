@@ -1,7 +1,8 @@
 import { insert, transaction, isInTransaction } from "@/lib/db/local-database";
 import type { StockBatch } from "@/lib/types/stock-batch";
 import { roundMoney } from "@/lib/utils/pos-calculations";
-import { BACKORDER_REASON, BACKORDER_REFERENCE_TYPE } from "@/lib/constants/stock-adjustments";
+import { BACKORDER_REASON, BACKORDER_REFERENCE_TYPE, OVERSELL_COMPENSATION_REASON, OVERSELL_REFERENCE_TYPE } from "@/lib/constants/stock-adjustments";
+import { movementLogIsComplete } from "@/lib/db/sync-engine/stock-auto-heal";
 import {
   getBatchesForProduct,
   getAnyActiveBatchForProduct,
@@ -35,6 +36,7 @@ interface ShortfallCompensation {
   unitCost: number;
   cashierId: string | null;
   correlationId?: string;
+  movementDate: string;
 }
 
 async function writeShortfallCompensation(c: ShortfallCompensation) {
@@ -49,7 +51,7 @@ async function writeShortfallCompensation(c: ShortfallCompensation) {
     reference_type: c.referenceType,
     reason: c.reason,
     performed_by: c.cashierId,
-    movement_date: new Date().toISOString(),
+    movement_date: c.movementDate,
   }, { correlationId: c.correlationId });
 }
 
@@ -131,9 +133,10 @@ async function writeSaleItemStock({
 
     if (deduction > available) {
       oversoldBatchIds.add(batch.id);
+      const unheld = deduction - Math.max(0, available);
       shortfallByBatchId.set(
         batch.id,
-        (shortfallByBatchId.get(batch.id) ?? 0) + deduction - Math.max(0, available),
+        (shortfallByBatchId.get(batch.id) ?? 0) + unheld,
       );
     }
 
@@ -165,6 +168,10 @@ async function writeSaleItemStock({
     }
   }
 
+  const movementDate = new Date().toISOString();
+  // A device behind on the log cannot tell an oversell from stock it has not pulled; the server backfill takes those.
+  const compensate =
+    !recordShortfallAsOwed && shortfallByBatchId.size > 0 && (await movementLogIsComplete());
   for (const [batchId, deduction] of deductionByBatchId) {
     await insert("sale_item_batches", {
       sale_item_id: saleItemId,
@@ -185,15 +192,24 @@ async function writeSaleItemStock({
         ? "Customer sale (oversold — insufficient batch stock)"
         : "Customer sale",
       performed_by: cashierId,
-      movement_date: new Date().toISOString(),
+      movement_date: movementDate,
     }, { correlationId });
 
     const shortfall = shortfallByBatchId.get(batchId) ?? 0;
-    if (recordShortfallAsOwed && shortfall > 0) {
-      await writeShortfallCompensation({
-        productId, batchId, units: shortfall, saleId, cashierId, correlationId,
-        referenceType: BACKORDER_REFERENCE_TYPE, reason: BACKORDER_REASON, unitCost: costPrice || 0,
-      });
+    if (shortfall > 0) {
+      if (recordShortfallAsOwed) {
+        await writeShortfallCompensation({
+          productId, batchId, units: shortfall, saleId, cashierId, correlationId,
+          referenceType: BACKORDER_REFERENCE_TYPE, reason: BACKORDER_REASON, unitCost: costPrice || 0,
+          movementDate,
+        });
+      } else if (compensate) {
+        await writeShortfallCompensation({
+          productId, batchId, units: shortfall, saleId, cashierId, correlationId,
+          referenceType: OVERSELL_REFERENCE_TYPE, reason: OVERSELL_COMPENSATION_REASON, unitCost: costPrice || 0,
+          movementDate,
+        });
+      }
     }
   }
 

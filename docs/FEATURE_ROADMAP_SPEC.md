@@ -35,6 +35,25 @@ A-286 — restamp `_synced_at` at commit — is done, see `docs/FIXED_BUGS.md`):
 
 ## ✅ Recently Completed
 
+### Multi-Till Cloud-Backed Stock Audit Sessions (Phase 2 Backend & Phase 3 UI Integration): DONE (2026-11-03)
+
+- **Status:** Shipped in `laravel-server/` and `client/`. Solves cross-device visibility, single-editor lease coordination, crash recovery, and fencing token validation for multi-till pharmacies running cycle counts.
+- **Tables & Service:** `audit_sessions` and `audit_session_items` with unique `(audit_session_id, product_id)`. Governed by `AuditSessionService` with store-level locking (`Store::whereKey($storeId)->lockForUpdate()`) to prevent concurrent active sessions per store.
+- **Single-Editor Lease & Fencing Version:** 5-minute renewable lease with 60s background heartbeat. Write requests include `lease_version`; stale writes from superseded devices are refused with HTTP 409 (`AuditSessionConflictException`).
+- **Client UI Integration (Phase 3):** Coordinated by `useCloudAuditSession` hook in `client/lib/hooks/use-cloud-audit-session.ts` and integrated into `client/components/stock-batch/stock-audits.tsx`. Renders an `AuditInspectionBanner` when another device holds the lease, showing active editor details and counted item tallies, with an explicit "Take Over Count" action.
+- **Offline-First & Completion Lifecycle:** Submission completes locally first via `submitStockAudit()` without blocking offline devices. Cloud session transitions to `completion_pending_sync` with `submitted_stock_audit_id`, and automatically moves to `completed` upon the sync engine delivering the `stock_audits` record. Stale cloud rejections preserve local counts without data destruction.
+- **Docs:** `docs/SYSTEM_FEATURES_DOCUMENTATION.md`, `laravel-server/AGENTS.md`, `client/AGENTS.md`.
+
+### Stock audit & adjustment draft persistence & non-destructive store switching: DONE (2026-11-02)
+
+- **Status:** Shipped in `client/`. Solves the incident where in-progress cycle counts and stock adjustments were wiped upon switching stores with no warning.
+- **Store-scoped drafts:** The stock audit and adjustment draft stores (`useStockAuditDraftStore`, `useStockAdjustmentDraftStore`) now partition drafts by store ID (`drafts[storeId]`).
+- **SQLite local persistence:** Backed by local SQLite tables `stock_audit_drafts` and `stock_adjustment_drafts` (`(store_id PRIMARY KEY, user_id, draft_json/items_json, updated_at)`). Device-local only, no cloud push/pull, passes schema parity.
+- **Non-destructive store switching:** `store-context.tsx` passes `{ preserveStoreAudit: true, preserveStoreAdjustment: true }` to `clearLocalDrafts()`, ensuring an unfinished count or adjustment is preserved when switching stores and restored upon return. Full teardowns (user change, logout, unlink, factory reset) still clear all drafts unconditionally.
+- **Work in-progress reminder dialog:** When switching stores via the header dropdown while unsubmitted counts or adjustments exist, a `ConfirmDialog` informs the user that their in-progress work is safely saved on this device.
+- **Backward compatibility:** Automatic migration from legacy un-scoped single-draft format (v1 -> v2) with active store adoption.
+- **Docs:** `client/AGENTS.md`, `docs/SYSTEM_FEATURES_DOCUMENTATION.md`, `docs/CLIENT_LIB_COMMENTS.md`.
+
 ### Per-device, per-table sync agreement and delivery timing: DONE (2026-10-18/19)
 
 - **Status:** Shipped in #169/#170. Every synced table is now compared between each device and the cloud by row count and version sum, with a per-device, per-table verdict (`agrees` / `syncing` / `behind` / `diverged`) and the non-verdict states that matter — `No local copy of this store`, `Stopped reporting`, and `Not measured`, because silence is not agreement. Push health is now measured as *eventual delivery per edit* (the age of the oldest unsent edit, plus a histogram of what was delivered) rather than per HTTP attempt. Mechanism, cost, the four verdicts and the digest's documented blind spots: **`docs/DEVICE_TABLE_AGREEMENT.md`** — not restated here.
@@ -494,6 +513,17 @@ The Gemini/LLM approach below remains a **possible future phase**, not a superse
 - **Description:** Integrate with a Nigerian bulk SMS aggregator (like Termii or BulkSMSNigeria, rather than MTN's direct high-cost API) to power transactional SMS.
 - **Value:** Store owners can "top up" their SMS wallet directly within DumosRx using Paystack to send receipts or refill reminders. This creates an additional passive revenue stream for the platform.
 - **Effort:** Unestimated: payment integration (Paystack) + wallet balance/ledger logic + aggregator API, realistically ~1 week.
+
+---
+
+## 🌐 Multi-Page Owner Storefront (Enterprise) — Completed 2026-11-02
+
+Shipped and documented in `SYSTEM_FEATURES_DOCUMENTATION.md`, `client/AGENTS.md`, `laravel-server/AGENTS.md`, and `web/AGENTS.md`:
+- Phase 1: Products show online by default, `products:backfill-show-online` command, house card aesthetics, PG-21 controlled product exclusion.
+- Phase 2: Paginated catalog API (`GET /storefront/{slug}/products`), dedicated catalog page (`/catalog`), controller decomposed into catalog/payment/checkout services.
+- Phase 3: Owner-level storefront (`storefronts` table), multi-branch picker with cart clearing dialog, branch stock and subaccount isolation, legacy store slug alias compatibility.
+- Phase 4: Full company pages (`/about`, `/locations`, `/faq`), responsive directory with branch deep links.
+- Phase 5: Digital prescription upload (`/prescription` + `storefront_prescriptions` table) and public order tracking (`/track`).
 
 ---
 

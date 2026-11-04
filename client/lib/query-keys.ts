@@ -182,6 +182,8 @@ export const queryKeys = {
     count: () => resource(["staffCount"] as const, ["users"]),
     users: (storeId?: string | null) =>
       resource(["users", storeId ?? "all"] as const, ["users"]),
+    deleted: (storeId?: string | null) =>
+      resource(["users", "deleted", storeId ?? "all"] as const, ["users"]),
   },
   sync: {
     queueCount: () => resource(["syncQueueCount"] as const, ["_sync_queue"]),

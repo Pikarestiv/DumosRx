@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS products (
   requires_prescription INTEGER DEFAULT 0,
   is_controlled INTEGER DEFAULT 0,
   is_active INTEGER DEFAULT 1,
-  show_online INTEGER DEFAULT 0,
+  show_online INTEGER DEFAULT 1,
   barcode TEXT,
   base_unit TEXT DEFAULT 'Unit',
   bulk_unit TEXT,
@@ -542,6 +542,18 @@ CREATE TABLE IF NOT EXISTS stock_audits (
   _synced INTEGER DEFAULT 0,
   _synced_at TEXT,
   _deleted INTEGER DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS stock_audit_drafts (
+  store_id TEXT PRIMARY KEY,
+  user_id TEXT,
+  items_json TEXT NOT NULL,
+  updated_at TEXT
+);
+CREATE TABLE IF NOT EXISTS stock_adjustment_drafts (
+  store_id TEXT PRIMARY KEY,
+  user_id TEXT,
+  draft_json TEXT NOT NULL,
+  updated_at TEXT
 );
 CREATE TABLE IF NOT EXISTS held_transactions (
   id TEXT PRIMARY KEY,

@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Support\SchemaTables;
+use App\Support\SyncRowStamp;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -17,6 +18,7 @@ class PurgedUserRowSweeper
         'users' => ['account_manager_id', 'referred_by_id', 'registered_by_id'],
         'coupons' => ['created_by', 'assigned_to_user_id'],
         'referral_credit_transactions' => ['referred_user_id'],
+        'audit_sessions' => ['active_user_id'],
     ];
 
     /** @var array<string, array<string, string>> Parent table to [child table => column naming the parent]; children are swept depth first. */
@@ -122,23 +124,7 @@ class PurgedUserRowSweeper
                 DB::table($table)->whereIn('id', $rowIds)->whereIn($column, $userIds)->update([$column => null]);
             }
 
-            DB::table($table)->whereIn('id', $rowIds)->update($this->syncStamp($table));
+            DB::table($table)->whereIn('id', $rowIds)->update(SyncRowStamp::for($table));
         }
-    }
-
-    /** @return array<string, mixed> What moves a raw update into the next pull (A-245, A-286). */
-    private function syncStamp(string $table): array
-    {
-        $stamp = [];
-        if (Schema::hasColumn($table, '_version')) {
-            $stamp['_version'] = DB::raw('COALESCE(_version, 0) + 1');
-        }
-        foreach (['updated_at', '_synced_at'] as $column) {
-            if (Schema::hasColumn($table, $column)) {
-                $stamp[$column] = now();
-            }
-        }
-
-        return $stamp;
     }
 }

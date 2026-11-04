@@ -10,9 +10,11 @@ import {
   clampReceivedQuantity,
   outstandingBulkQuantity,
   resolveBaseUnitCost,
+  sellingPricePlaceholder,
 } from "./po-line-item-math";
 import { ReceiveItemCategoryEditor } from "./receive-item-category-editor";
 import { formatCurrency } from "@/lib/utils";
+import { useStore } from "@/lib/context/store-context";
 import { ProductName } from "@/components/ui/product-name";
 
 interface ReceiveLedgerTableProps {
@@ -34,6 +36,8 @@ export function ReceiveLedgerTable({
   receivedItems,
   onFieldChange,
 }: ReceiveLedgerTableProps) {
+  const { storeProfile } = useStore();
+  const currency = storeProfile?.currency;
   return (
     <div className="border border-border rounded-xl overflow-x-auto">
       <div
@@ -104,7 +108,7 @@ export function ReceiveLedgerTable({
                 </div>
                 <div
                   role="cell"
-                  className="px-3 py-2 text-right text-muted-foreground flex items-center justify-end"
+                  className="px-3 py-2 text-right text-muted-foreground flex items-start justify-end leading-9"
                 >
                   {item.bulk_quantity}
                   {alreadyReceived > 0 && (
@@ -115,7 +119,7 @@ export function ReceiveLedgerTable({
                 </div>
                 <div
                   role="cell"
-                  className="px-3 py-2 text-right flex items-center"
+                  className="px-3 py-2 text-right flex items-start"
                 >
                   <Input
                     type="number"
@@ -135,15 +139,15 @@ export function ReceiveLedgerTable({
                 </div>
                 <div
                   role="cell"
-                  className="px-3 py-2 text-right flex flex-col justify-center gap-0.5"
+                  className="px-3 py-2 text-right flex flex-col justify-start gap-0.5"
                 >
                   <Input
                     type="number"
                     min="0"
-                    step="0.01"
+                    step="any"
                     className="w-full min-w-20 text-right"
                     aria-label={`Cost Price per ${item.base_unit} for ${item.product_name}`}
-                    placeholder={formatCurrency(orderedBaseUnitCost)}
+                    placeholder={formatCurrency(orderedBaseUnitCost, currency)}
                     value={state.cost_price ?? ""}
                     onChange={(e) =>
                       onFieldChange(
@@ -156,21 +160,21 @@ export function ReceiveLedgerTable({
                   <span className="text-[10px] text-muted-foreground/80 leading-none">
                     per {item.base_unit}
                     {item.last_bought_price
-                      ? ` · last ${formatCurrency(item.last_bought_price)}`
+                      ? ` · last ${formatCurrency(item.last_bought_price, currency)}`
                       : ""}
                   </span>
                 </div>
                 <div
                   role="cell"
-                  className="px-3 py-2 text-right flex items-center"
+                  className="px-3 py-2 text-right flex items-start"
                 >
                   <Input
                     type="number"
                     min="0"
-                    step="0.01"
+                    step="any"
                     className="w-full min-w-20 text-right"
                     aria-label={`New Selling Price for ${item.product_name}`}
-                    placeholder="Unchanged"
+                    placeholder={sellingPricePlaceholder(item.current_selling_price, currency)}
                     value={state.selling_price ?? ""}
                     onChange={(e) =>
                       onFieldChange(
@@ -181,7 +185,7 @@ export function ReceiveLedgerTable({
                     }
                   />
                 </div>
-                <div role="cell" className="px-3 py-2 flex items-center">
+                <div role="cell" className="px-3 py-2 flex items-start">
                   <Input
                     className="w-full min-w-24"
                     aria-label={`Lot or batch number for ${item.product_name}`}
@@ -192,7 +196,7 @@ export function ReceiveLedgerTable({
                     }
                   />
                 </div>
-                <div role="cell" className="px-3 py-2 flex items-center">
+                <div role="cell" className="px-3 py-2 flex items-start">
                   <DatePickerInput
                     value={state.expiry_date}
                     onChange={(val) =>

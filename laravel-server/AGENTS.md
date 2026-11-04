@@ -141,13 +141,16 @@ without updating that.
   no-op returning `{"status":"success"}` for the real, assignable non-owner
   `admin` staff role the controller's gate also admits. It now goes through a
   private `tenantOwnerId($user)` mirroring the trait; regression coverage in
-  `tests/Feature/DashboardResetScopingTest.php`. Note the other three methods
-  in that file (`getSummary`/`getStats`/`getWidgetSnapshot`) still resolve by
-  `$user->id` — read-only and lower-stakes, so deliberately not changed in
-  that pass, but they are the same latent shape. `TenantScopingArchitectureTest`
-  only scans controllers, so nothing catches this class of drift in a service
-  mechanically: extract the resolution into one shared helper rather than
-  adding a fourth inline copy.
+  `tests/Feature/DashboardResetScopingTest.php`. The other three read methods
+  in that file (`getSummary`/`getStats`/`getWidgetSnapshot`) resolve through
+  shared helpers (`resolveDashboardStores`, `resolveDashboardOwnerId`,
+  `resolveDashboardUserIds`): store owners see all their owned branches, while
+  assigned staff (e.g. `manager`, `auditor`) are scoped strictly to their assigned
+  `store_id` and never see other branches. Furthermore, `DashboardController` gates
+  view access so that non-reporting staff roles (`sales_staff`, `specialist` without
+  `view_reports`/`view_financial_reports`) are refused with HTTP 403, preventing
+  accidental leaks of store-wide revenue, margins, or inventory valuation.
+  Regression coverage in `tests/Feature/DashboardAuthorizationAndScopingTest.php`.
 - **Roles & permissions (`User::hasRole()`/`hasPermission()`, `app/Models/User.php`):**
   `hasRole($role)` checks three things, any of which can match: the flat
   `role` string column, the `userRole` relation's `slug` (a `Role` model,
@@ -760,6 +763,13 @@ from the dashboard (`/refresh` renames everything `web`), hence the role rule.
 - Backward compatibility (§11): no response shape changed; old clients get
   longer-lived tokens and nothing else.
 
+### Session token device tracking (2026-11-03)
+
+`personal_access_tokens` carries a nullable `device_id` column (`2026_11_03_000001_add_device_id_to_personal_access_tokens_table`):
+- `login()`, `register()`, and `consumeRelinkCode()` store `X-Device-Id` (or `device_id`) on the minted token. If omitted (e.g. web browser), a persistent `DRX-WEB-...` (or `DRX-...`) identifier is generated.
+- `GET /sessions` (`SessionController::index`) returns `device_id` alongside `id`, `name`, `ip_address`, `user_agent`, `last_used_at`, `created_at`, `is_current`.
+- Legacy rows without a `device_id` were backfilled in migration; `SessionController` also falls back to `UserDevice` where unambiguous.
+
 ### Till re-link codes (2026-10-23, A-311)
 
 An unlinked till can be re-linked without anyone typing the owner's password
@@ -808,6 +818,16 @@ at it. `App\Http\Controllers\Api\App\TillRelinkController` (thin) over
 - **Backward compatibility (§11):** two new routes and two new public static
   helpers on existing middleware; no existing route, payload or response
   changed. Old clients never call the new routes.
+
+## Multi-Till Cloud Audit Sessions (`audit_sessions`, `audit_session_items`)
+
+Multi-device cycle count coordination backed by the cloud:
+- **Tables & Service:** `audit_sessions` and `audit_session_items` (`UNIQUE(audit_session_id, product_id)`). Governed by `AuditSessionService` (`app/Services/Audit/AuditSessionService.php`) and `AuditSessionController` (`app/Http/Controllers/Api/App/AuditSessionController.php`).
+- **Store-Level Concurrency Lock:** `Store::whereKey($storeId)->lockForUpdate()` is executed inside `startSession()`'s transaction before querying existing sessions, eliminating race conditions when simultaneous creation requests arrive across multiple tills.
+- **Single-Editor Lease & Fencing Version:** Active sessions hold a renewable 5-minute lease (`lease_expires_at`) with 60-second client heartbeats. Every write operation (`heartbeat`, `syncItems`, `complete`) requires `till_id` and `lease_version`. Stale or superseded requests are rejected with HTTP 409 (`AuditSessionConflictException`).
+- **Session Takeover:** An authorized device can take over an active audit session via `POST /api/v1/app/audit-sessions/{session}/takeover`. Takeover locks the row, increments `lease_version`, assigns `active_till_id`, and returns the latest acknowledged session items.
+- **Completion Lifecycle & Sync Hook:** Submission occurs locally first on the counting till via `submitStockAudit()`. The client then calls `complete` which transitions the cloud session to `completion_pending_sync` with `submitted_stock_audit_id`. When the sync engine receives and saves the corresponding `StockAudit` row, `StockAudit::booted()` calls `AuditSessionService::confirmSyncCompletion($stockAudit->id)`, atomically moving the session to `completed`.
+- **Purged User Row Sweeping:** `audit_sessions.active_user_id` has `nullOnDelete()` foreign key semantics and is registered in `PurgedUserRowSweeper::POINTER_COLUMNS` for complete schema safety when users or stores are purged.
 
 ## Sync engine (server side)
 
@@ -871,8 +891,9 @@ migration here **and** the corresponding update on the `client/` side
 - **`quantity` is derived, never accepted — except through
   `reconcileQuantities()`.** `push()` forces `stock_batches.quantity = 0` on
   INSERT and strips it from every UPDATE; the column only ever moves via
-  `applyStockBatchDeltas()` replaying `stock_movements`. That invariant is
-  what makes concurrent multi-device writes commute, and it stays. The one
+  `applyStockBatchDeltas()`, which since A-217 rebuilds it from the batch's
+  `stock_movements` log. That invariant is what makes concurrent multi-device
+  writes commute, and it stays. The one
   sanctioned exception is `POST /app/sync/reconcile-quantities`
   (`reconcileQuantities()`, A-148): an explicit, client-triggered repair for
   a batch whose opening stock never produced a movement row (a bulk import
@@ -1448,9 +1469,13 @@ extending or relying on any of this):
   `show_online`. Keep those two field lists in step with
   `web/app/store/[store_slug]/page.tsx` and `StorefrontProductResource` — a
   column the page renders but neither list names is a silently-stale page.
-  Both write via raw `DB::table()->update()`, never `->save()`, and
-  `Product`'s is narrowed to stores with `online_store_enabled` so a bulk
-  product sync writes nothing for the accounts that publish no storefront.
+  Both write via raw `DB::table()->update()`, never `->save()` (a save would
+  re-fire model events), and `Product`'s is narrowed to stores with
+  `online_store_enabled` so a bulk product sync writes nothing for the
+  accounts that publish no storefront. `Product::markStorefrontsDirty($storeIds, $ownerIds)`
+  is the public form of that write, for bulk writers such as
+  `products:backfill-show-online`; a store-less legacy product dirties every
+  publishing store of its owner, since it cannot be narrowed further.
 - **The stamp is always refreshed, not only set when null.** That is
   load-bearing, not sloppiness: the confirmation callback below clears flags
   stamped at or before the dispatch moment, so a change landing mid-build has
@@ -1485,6 +1510,66 @@ Note also that the storefront's online-payment flow (`initializeCheckout`/
 per-store Paystack subaccounts — see the dedicated section below for the
 onboarding flow, fee semantics, propagation cadence, and the refund decision.
 Full design: `docs/superpowers/specs/2026-09-26-storefront-paystack-subaccounts-design.md`.
+
+## Products are shown online by default (storefront Phase 1, 2026-11-02)
+
+`products.show_online` used to default to `false`, so a store that switched its
+online store on published an empty page. It now defaults to `true` in three
+places that must stay in step:
+
+- **MySQL column default** — `2026_11_02_000001_default_products_show_online_to_true`
+  (`->default(true)->change()`; works on the SQLite test DB too, same as
+  `2026_08_01_000002_default_vat_percentage_to_zero`). Covers raw inserts.
+- **`Product::$attributes = ['show_online' => true]`** — needed as well as the
+  column default, because `Product::booted()`'s `created` hook reads
+  `$product->show_online` off the in-memory model. With only a column default
+  a `Product::create()` that omits the field writes a shown row but leaves the
+  attribute `null`, so the storefront is never marked dirty and the new
+  product does not appear until something unrelated triggers a rebuild.
+- **Client** — `client/lib/db/schema.ts` and every client creation path; see
+  `client/AGENTS.md`, "Publishing products to the online storefront", which
+  also records the old-client limit (an older till sends an explicit
+  `show_online: 0` on every create, indistinguishable here from a deliberate
+  hide).
+
+**Existing rows: `php artisan products:backfill-show-online [--dry-run]`.** Sets
+`show_online = true` on every product with `show_online = false`,
+`is_active = true`, `is_controlled = false` and `deleted_at IS NULL`
+(`is_controlled` is the real column on `products`, from the original
+`medicines` table). It walks by `id` in chunks of `--chunk` (default 500),
+writes through the query builder, stamps `updated_at` from PHP
+`now()->utc()` (§7: never MySQL `NOW()`), and after the last chunk calls
+`Product::markStorefrontsDirty()` once for every affected store (store-less
+legacy rows dirty their owner's publishing stores — the same rule the model
+hook uses). `--dry-run` prints the count and writes nothing. It prints the
+database it is connected to first, like the other repair commands; run the
+dry run first, and only against a database the user has named (root
+`.agents/AGENTS.md` §12).
+
+**It deliberately does not bump `_version`** — the one documented exception to
+"A raw `update()` on a synced table must move `_version`" below. A bump turns
+every un-pushed local edit to any of those products (a price change made
+offline, say) into a `version_conflict`, which the client handles by dropping
+the queue row and re-pulling (`client/lib/db/sync-engine/push-response.ts`):
+across a whole catalogue that would silently discard real owner edits to fix
+a default. Moving `updated_at` is enough for every device to pull the new
+value (`PullPager` filters on `updated_at`/`_synced_at`). The cost, accepted:
+a device that edits one of these products in the full product form *before*
+it has pulled the backfill pushes the form's `show_online: 0` at an equal
+`_version`, which is accepted and re-hides that one product. That edit was
+made by the owner looking at a form that said "hidden", so it is treated as
+theirs. Coverage: `tests/Feature/BackfillShowOnlineCommandTest.php`.
+
+### Which products a storefront lists (PG-21 stopgap and ranking)
+
+- **Controlled products are strictly excluded from the online storefront:**
+  `StorefrontController::storeProducts()` enforces `where('is_controlled', false)`
+  across `show()` and `checkout()`. Even if `show_online` is true, controlled
+  substances (narcotics/regulated meds) cannot be listed or ordered.
+- **In-stock inventory ranks first:** `Product::scopeInStockFirstAt($store->id)`
+  sorts products having `SUM(stock_batches.quantity) > 0` before zero-stock rows,
+  so the 300-item storefront response prioritizes available items over sold-out ones.
+  Coverage: `tests/Feature/StorefrontListingTest.php`.
 
 ## Sync push refusals are recorded once, from `$failed`, after the outer commit
 
@@ -1601,9 +1686,13 @@ may still hold a stale `cost_price` until it pulls. Old clients in the field sen
 behave identically (§11) — no shim, nothing to retire.
 
 What this does **not** fix, and what the device report was extended to find:
-a cost edit can also sit in `_sync_queue` indefinitely (the pull skips any row
-with a pending queue entry), which keeps a device's own cost alive while its
-quantities keep reconciling through movements. See `docs/KNOWN_BUGS.md` A-271.
+a cost edit can also sit in `_sync_queue` indefinitely, which keeps a device's
+own cost alive while its quantities keep reconciling through movements. Since
+A-271 (2026-10-25) a queued *sale* no longer shields a batch from the pull, and
+`stock_batches.cost_price`, `stock_movements.unit_cost`/`total_cost` and
+`sale_items.cost_price` are `decimal(15,2)`, so a cost of 100,000,000 or more no
+longer fails on every retry. The orphaned-row path is still open: see
+`docs/KNOWN_BUGS.md` A-337.
 
 ## The pull watermark lags (A-282, 2026-10-18)
 
@@ -1813,6 +1902,51 @@ client drops the extra `deleted_at` key the response now carries for these
 tables because `pull.ts` filters every pulled column through its own
 `validColumns`. No shim, nothing to retire.
 
+## A batch's quantity is derived from its log (A-217, 2026-10-25)
+
+Stage 2 of `docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`.
+For every batch a push wrote a movement for, `StockBatchDeltaApplier` sets
+`quantity = MAX(0, Σ quantity)` over the batch's movements, the definition the
+client has used since Stage 1 (`resolveBatchQuantity()`). The old statement
+added the push's net delta and floored it, which is a floor over *one push*:
+an oversell in one push and a count in the next read 2 where the log says 0,
+and the two replicas disagreed for ever.
+
+- **The A-148 carve-out is the client's rule:** a batch whose stored quantity
+  exceeds its logged inbound total *before this push* holds unlogged opening
+  stock, so it is patched with the push's delta instead of rebuilt (rebuilding
+  would write that stock off). The push's own inbound is tracked beside its
+  deltas (`$stockBatchInbound`) for exactly this subtraction.
+- **A log holding another store's movements is patched, not rebuilt.** Rows
+  accepted between A-280 and A-287 name another store's batch, and their deltas
+  were refused; a mis-stamped product (A-248) has real rows under another
+  store's id. Rebuilding would add the first back (a cross-tenant write the
+  batch's own tills never see) and filtering would drop the second, so a batch
+  whose log has any row whose `store_id` differs from its product's keeps the
+  old `stored + delta`, floored.
+- **Concurrency.** The sum is a locking read (`sharedLock()`), because a plain
+  read inside the push's transaction would see only its MySQL snapshot and
+  miss movements another push committed meanwhile; the old atomic `quantity +
+  Δ` never had that problem. So that read cannot deadlock against another
+  push, the first `stock_movements` change of a push locks every batch the
+  push's movements reference, payload ids and the stored rows of any movement
+  it updates or deletes, in id order (`lockMovementBatches()`), before any
+  movement row lock, held to commit. Two pushes therefore take batch locks in
+  one order and serialise. The old code could deadlock on a single batch,
+  since a movement insert's foreign-key check took a shared lock that the
+  increment then upgraded. Writers outside the push are not covered:
+  `QuantityReconciliationService` locks the batch row first and is safe;
+  `DashboardService`'s wipe and the hand-run repair and backfill commands are
+  not, and a deadlock there rolls back the push, which the device retries.
+- **Cost:** a touched batch now costs a locked scan of its movements (indexed
+  by `stock_batch_id`) instead of a one-row UPDATE. Not measured on the shared
+  host; if a long-lived batch makes it slow, a covering index on
+  `(stock_batch_id, deleted_at, quantity)` is the first step.
+- **What it does not do:** a movement UPDATE or DELETE still moves no batch, as
+  before; a drift *above* a batch's inbound total is treated as carve-out and
+  kept, as on the client.
+- Coverage: `tests/Feature/SyncPushBatchQuantityDerivedTest.php`.
+
 ## Stock batch deltas are store-scoped (A-280, 2026-10-18)
 
 `applyStockBatchDeltas()` runs `UPDATE stock_batches SET quantity = … WHERE
@@ -1866,8 +2000,36 @@ looks the batch up fresh. `push()` sorts every `stock_movements` change to the
 end, so every batch write of a push lands before any movement is authorized,
 and a batch INSERT under a foreign product, live or soft-deleted, is itself
 refused (`resolveParentStoreId('stock_batches')` uses `withTrashed()`). It is
-pinned by a direct test so it cannot rot unnoticed. A batch UPDATE that
-repoints `product_id` is not checked at all: that is A-325.
+pinned by a direct test so it cannot rot unnoticed.
+
+**A child UPDATE's new parent must be in scope (A-325).** A child of a
+parent-FK table is owned through its parent (`SyncWriteAuthorizer::PARENT_KEYS`:
+`stock_batches.product_id`, `sale_items.sale_id`, `sale_item_batches.sale_item_id`,
+`return_items.return_id`, `prescription_items.prescription_id`,
+`purchase_order_items.purchase_order_id`). `authorizeChangeTarget()` judges the
+stored row, i.e. its current parent, so `repointsToForeignParent()` also judges
+the parent the payload names: when it differs from the stored one and resolves
+to a store outside the session, the change is refused `forbidden`, which
+parks. A resent INSERT runs as an UPDATE and gets the same check; a super admin
+is exempt; restating the stored parent costs no lookup. Parent lookups include
+soft-deleted parents, because the pull serves a voided parent's line items. A
+new parent with no store (legacy `NULL`) or that does not exist is let through,
+as on INSERT: the row then belongs to no store's pull (A-335). Secondary
+references (`sale_items.stock_batch_id`, `purchase_order_items.product_id` and
+the like) do not decide a row's store and are not checked.
+
+**A payload key that is not a bare column name is refused before anything
+reads it.** Every guard reads the bare lowercase key, but a key can still name
+that column other ways: MySQL and SQLite match column names case-insensitively
+(`PRODUCT_ID`), and the query grammar resolves a table-qualified key
+(`stock_batches.product_id`; SQLite drops the qualifier, MySQL accepts it in a
+single-table UPDATE). `push()` refuses a change `forbidden` as soon as its
+payload is decoded if any key falls outside `^[a-z0-9_]+$`
+(`SyncWriteAuthorizer::hasNonColumnKey()`), which also excludes non-ASCII
+look-alikes MySQL's Unicode folding might match. No column on either side
+falls outside it, and the client builds every payload from table rows; `web/`
+does not use this endpoint (§11). A payload that is not an object is left to
+fail its own change as before.
 
 **A product legitimately moved between stores parks too, on staff tills.** A
 till of the losing store still holds the product (A-291's phantom) and can sell
@@ -1914,6 +2076,11 @@ payload carries, so that is safe for now but turns into this bug the day a
 client starts sending it. A column in a `*_SYNC_FORBIDDEN_FIELDS` list is
 genuinely exempt, because it is stripped before `forceFill`.
 
+One deliberate, documented exception to the rule (not to the exemption above):
+`products:backfill-show-online` writes `show_online` without a bump, and why
+is in "Products are shown online by default" above. Do not copy it for a
+column whose stale value being pushed back would be a correctness bug.
+
 Expect a version bump to cost a re-pull of every row it touches, and say so
 wherever the write is a bulk repair. That traffic is the point: those rows were
 wrong on the device.
@@ -1926,7 +2093,35 @@ place on most models, because `_version` is not in their `$fillable` and `fill()
 drops it without a word. Use `Model::whereKey($id)->update([...])` (or
 `increment('_version', 1, $extra)`) when you have the instance in hand.
 
-Known outstanding instances are filed as `docs/KNOWN_BUGS.md` A-278.
+**Use `App\Support\SyncRowStamp::for($table)`** for the bump: it returns the
+`_version` increment plus `updated_at`/`_synced_at` for whichever of those the
+table has, which is what moves the row into the next pull. Spread it into the
+update array beside the columns being written. `PurgedUserRowSweeper`, the
+admin catalogue backfill and `ForeignKeyCascadeEmulator`'s `SET NULL` use it
+(the emulator only runs on a schema that declares foreign keys, which
+production does not). **After a model `save()` or `$model->update($data)`, call
+`SyncRowStamp::bump($model)`**: it stamps that row by key, only if the save
+changed something, and puts the new `_version` back on the model. The admin
+user deactivate/reactivate, a store suspension's owner toggle, the admin
+storefront publish and slug, the web staff and store edits, and both profile
+edits use it.
+
+A server-owned watermark no client should write belongs in the table's
+`*_SYNC_FORBIDDEN_FIELDS` and is then written bare: `stores.storefront_dirty_at`
+and `paystack_fee_dirty_at` are the examples (A-278). `storefront_dirty_at` is in
+the client's local schema, and the dev-only `forceSyncAllData()` re-queues
+whole store rows, so stripping it matters. Bumping the store's
+version on every storefront rebuild would re-push the store row to every
+device for nothing.
+
+The 2026-10-18 sweep only matched literal `->update([...])`/`increment` calls;
+the A-278 review (2026-10-25) re-swept model `save()`/`$model->update($var)`
+writes and fixed the seven it found on client-pushable columns. Migrations
+that already ran (`2026_10_15_000001_backfill_receipt_footer_default`,
+`2026_10_01_000000_clear_store_id_on_store_owners`,
+`2026_09_29_000003_retag_bulk_import_stock_movements`,
+`2026_09_28_100000_make_users_password_nullable`) cannot be fixed
+retroactively; the rule applies to new ones.
 
 ### Why `users.is_active` stays pushable (A-277, 2026-10-18)
 
@@ -2607,11 +2802,25 @@ and A-176 raised and nothing could answer.
   whatever they were written with — an audit log is immutable and backfilling
   its prose would be worse than a bare id.
 
+- **Both sides count a batch through its product's store** (A-246,
+  2026-10-25). The server always has
+  (`stock_batches.product_id IN products of the store`, trashed included); the
+  client used to count `stock_batches.store_id`, a column never backfilled
+  server-side, so a device whose own batch and product rows disagreed about
+  the store showed a gap no sync could clear. Since A-246 the client joins
+  `products` the same way. Both sides still differ wherever the device's copy
+  of `products.store_id` is stale: a product that left the store's scope stays
+  on the device (A-291; store `571582a9`'s 2026-10-12 `+18` is that, real stock
+  on those devices, cleared by `sync:repair-product-store-stamps`), and
+  `sync:backfill-store-ids` does not move `updated_at`, so its attributions
+  never reach devices. A bundle older than A-246 still reports the old
+  predicate.
+
 **Client side:** `client/lib/db/sync-engine/stock-fingerprint.ts`. Note that
-`stock_batches.store_id` exists only because `runSchemaMigrations()` adds it
-to every `STORE_SCOPED_TABLES` entry — it is NOT in `SCHEMA_SQL`, so a test
-that seeds from `SCHEMA_SQL` alone must add the column or the query silently
-returns nothing.
+`stock_batches.store_id` and `products.store_id` exist only because
+`runSchemaMigrations()` adds them to every `STORE_SCOPED_TABLES` entry — they
+are NOT in `SCHEMA_SQL`, so a test that seeds from `SCHEMA_SQL` alone must add
+the columns or the query silently returns nothing.
 
 ## What may be delegated, and what must never be
 
@@ -3267,16 +3476,46 @@ lives in `config/backups.php` rather than in the controller:
 ## Public storefront endpoints
 
 `Api/Public/StorefrontController` is the only unauthenticated tenant-data
-surface in the app. Three things about it are easy to undo by accident:
+surface in the app. It is kept strictly below 350 lines by delegating to
+specialized storefront services:
+- **`StorefrontCatalogService`**: encapsulates product querying (`storeProducts`),
+  excluding controlled substances, sorting in-stock first (`scopeInStockFirstAt`),
+  landing page product slicing, paginated catalog searching with category counts,
+  and owner storefront / multi-branch resolution (`resolveStorefront`, `resolveBranch`).
+- **`StorefrontPaymentService`**: encapsulates Paystack transaction initialization,
+  payment intent creation, idempotency/reference verification, and unfulfillable
+  order refunds.
+- **`StorefrontCheckoutService`**: encapsulates live stock availability calculations,
+  atomic cart pricing, and transactional order placement.
+- **`StorefrontInteractionService`**: encapsulates order status tracking (`trackOrder`,
+  with customer name masking) and customer prescription document upload (`uploadPrescription`).
+
+Public endpoints:
+- `GET /storefront-slugs`: lists all published slugs for static site generation.
+- `GET /storefront/{store_slug}`: returns landing page storefront data (brand profile,
+  branches list, selected branch data, featured products capped at 300, payment availability).
+  Supports `?branch=<id>` query parameter.
+- `GET /storefront/{store_slug}/products`: paginated catalog endpoint supporting
+  search (`?q=`), category filtering (`?category=`), branch scoping (`?branch=`),
+  page numbers (`?page=`), and facet counts (`categories`). Throttled under `storefront-read`.
+- `GET /storefront/{store_slug}/orders/{identifier}`: public order tracking endpoint returning
+  fulfillment status and order summary with masked customer name. Throttled under `storefront-read`.
+- `POST /storefront/{store_slug}/prescriptions`: public prescription upload endpoint storing
+  document and medication notes, triggering staff notification. Throttled under `storefront-order`.
+- `POST /storefront/{store_slug}/checkout/initialize`: initiates Paystack online payment.
+- `POST /storefront/{store_slug}/checkout`: completes order placement.
+
+Three things about it are easy to undo by accident:
 
 - **Every route carries its own named limiter.** Laravel 11 dropped
   `throttle:api` from the default `api` group and `bootstrap/app.php`
   deliberately does not call `throttleApi()` (a platform-wide floor would
   change every other route as a side effect), so a new public storefront route
   with no `throttle:` group is completely unmetered. Current groups:
-  `storefront-read` (120/min/IP, both GETs), `storefront-order` (5/min/IP,
-  order placement), `storefront-checkout` (15/min/IP, the Paystack initialize
-  step). `tests/Feature/StorefrontThrottleTest.php` asserts all four routes and
+  `storefront-read` (120/min/IP, GETs including products and order tracking),
+  `storefront-order` (5/min/IP, order placement and prescription uploads),
+  `storefront-checkout` (15/min/IP, the Paystack initialize step).
+  `tests/Feature/StorefrontThrottleTest.php` asserts all public routes and
   deliberately does **not** disable `ThrottleRequests` — `StorefrontControllerTest`
   does, which is exactly why this gap was invisible for so long, so add
   limiter coverage there, not here.
@@ -3828,9 +4067,11 @@ regain of access never pulled that store's older rows. Now:
 - **§11:** additive. Every bundle since at least 2026-09-26 stamps only tables
   present in `changes` (checked against that version of `pull.ts`), so an old
   bundle that ignores `refused_store_id` still stamps nothing it did not get.
-- **Not done:** the client neither surfaces a refusal nor re-resolves its
-  active store (A-323), and a device poisoned before this fix that has since
-  regained access cannot be detected (A-322).
+- Since A-323 the client reports a refused round as a failed sync and offers
+  a way back to a store the account can reach (`client/AGENTS.md`, "A refused
+  round is a failed sync").
+- **Not done:** a device poisoned before this fix that has since regained
+  access cannot be detected (A-322).
 - Coverage: `tests/Feature/SyncPullStaffCrossStoreIsolationTest.php`; client side
   `client/__tests__/pull-refused-store-stamps-only-served-tables.test.ts`.
 
@@ -3939,6 +4180,51 @@ recorded in `sync_failures` as `cross_store_reference`.
   `SELECT COUNT(*) FROM purchase_orders x JOIN suppliers s ON s.id = x.supplier_id WHERE s.store_id IS NOT NULL AND s.store_id <> x.store_id`
   and the same for `supplier_payments` and `stock_batches`.
 - Coverage: `tests/Feature/SyncPushCrossStoreSupplierTest.php`.
+
+## Oversell compensation backfill: `stock:compensate-oversells` (A-265, 2026-10-25)
+
+Since A-265 a client writes an inbound `adjustment` (`reference_type =
+'oversell'`) beside every oversold sale, so a batch's log never sums below
+zero. This command does the same for the deficits already in the log, and for
+any an older bundle still writes.
+
+```bash
+php artisan stock:compensate-oversells                       # report, writes nothing
+php artisan stock:compensate-oversells --write --run=<label> # one +N row per deficit
+php artisan stock:compensate-oversells --revert=<label>      # a matching -N row per row that run wrote
+```
+
+- **A deficit** is an active batch whose non-deleted log sums below zero and
+  whose stored quantity is no more than its logged inbound total, the client's
+  `getBatchDeficits()` rule. The second condition leaves out an A-148 legacy
+  batch while it still holds unlogged stock; once one has sold down to zero it
+  is indistinguishable from an oversell (A-264), and its row is labelled an
+  oversell compensation although the units were unlogged opening stock. The
+  figure it produces is right either way.
+- **The row's `store_id` is the product's**, because a batch is pulled through
+  its product's store. A batch whose product has no store is skipped and
+  reported: no device would ever pull its row.
+- **A batch with a movement that reached the server within `--settle-days`
+  (default 7) is skipped**, judged by `_synced_at`, never `created_at`, which a
+  push keeps from the till:
+  a till may have pushed an oversold sale and not yet its own compensation,
+  and compensating it here as well would book the units twice.
+- **It asserts no stored number.** It reads the server's own log and writes a
+  row every replica rebuilds from, so it can only raise a sum from below zero
+  to zero, never zero anything (the A-213/A-214 failure). It writes through
+  Eloquent and never `applyStockBatchDeltas()`, so `stock_batches.quantity` is
+  untouched and the row reaches devices as an ordinary pulled movement.
+- `performed_by` is the batch's latest outbound actor, as the client credits
+  its own compensation to the cashier; a batch with none is skipped and
+  reported (the column is NOT NULL).
+- **Revert writes counter-rows, not deletes:** `StockMovement` has no
+  `SoftDeletes`, so a deleted row would never reach a device (KNOWN_BUGS,
+  "Location: `app/Models/StockMovement.php`"). A run label is single-use, and
+  a revert runs once.
+- Refuses while `dumos.health_sync_enabled` is on, so the two repairs are never
+  both live. Run it once the client write has been live for a sync round on
+  every device; the settle window is the backstop, not the plan.
+- Coverage: `tests/Feature/CompensateOversellsTest.php`.
 
 ## Health Sync zeroing repair: `sync:repair-health-sync-reconciliation` (2026-10-10)
 
@@ -4310,3 +4596,15 @@ design: `/admin/maintenance` exposes only `migrations` and `roles/sync`
 (`AdminMaintenanceController`, `role:super_admin`), so anything else needs
 terminal access. Worth remembering before writing a command that an operator
 has no way to invoke.
+
+## Tenant Ownership Scope Includes Trashed Users (2026-11-04)
+
+`SyncOwnershipResolver::resolveAllowedOwnershipScope()` queries `$allowedUserIds` via:
+```php
+$allowedUserIds = User::withTrashed()->whereIn('store_id', $allowedStoreIds)->pluck('id')->push($ownerId)->toArray();
+```
+Because Eloquent's `SoftDeletes` trait automatically adds `WHERE deleted_at IS NULL`, omitting
+`withTrashed()` previously excluded soft-deleted staff members from the tenant owner's allowed ownership scope.
+When a store owner pushed a soft-delete (`DELETE` operation) or pushed an update to restore a soft-deleted staff account (`UPDATE` with `_deleted: 0`), `SyncWriteAuthorizer::authorizeChangeTarget()` failed with `"forbidden"`.
+Any query assembling the tenant's allowed user IDs for sync authorization must use `User::withTrashed()`.
+

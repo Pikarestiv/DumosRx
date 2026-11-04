@@ -8,9 +8,9 @@ import { insert, update } from "./base-helpers";
 import {
   getPurchaseOrderById,
   updatePurchaseOrderStatus,
-  coerceOptionalNumber,
   type DraftPOLineItem,
 } from "./procurement";
+import { applyChangedSellingPrices, coerceOptionalNumber } from "./procurement-selling-price";
 import { getStoredUser } from "@/lib/storage-keys";
 import {
   immediateLineAmount,
@@ -50,13 +50,14 @@ export interface ImmediateLineItemDraft extends DraftPOLineItem {
 
 export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedItem[]) {
   const poData = await getPurchaseOrderById(id);
-  if (!poData || poData.status === "received") return;
+  if (!poData) return "not_found";
+  if (poData.status === "received") return "already_received";
 
   const now = new Date().toISOString();
 
   return transaction(async () => {
     let outstandingRemains = false;
-    let anyQuantityReceived = false;
+    let receivedThisSubmit = false;
 
     for (const item of poData.items) {
       const receivedItem = receivedItems?.find(ri => ri.po_item_id === item.id);
@@ -80,7 +81,9 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
         : outstanding;
 
       if (bulkQty < outstanding) outstandingRemains = true;
-      if (alreadyReceived + bulkQty > 0) anyQuantityReceived = true;
+      if (bulkQty > 0) receivedThisSubmit = true;
+
+      await applyChangedSellingPrices([{ product_id: item.product_id, selling_price: receivedItem?.selling_price }]);
 
       if (bulkQty === 0) continue;
 
@@ -150,13 +153,6 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
         performedBy: dumosUser?.id || null,
         movementDate: now,
       });
-
-      if (receivedItem?.selling_price !== undefined && receivedItem.selling_price !== "") {
-        await update("products", item.product_id, {
-          selling_price: Math.max(0, Number(receivedItem.selling_price)),
-        });
-      }
-
       // bulk_quantity/units_per_bulk are re-sent unchanged so the sync push's purchase_order_items mapping (SyncController::push) can scale quantity…
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-procurement-receiving-ts-L166
       await update("purchase_order_items", item.id, {
@@ -168,7 +164,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
 
     // A submit with every line left at 0 against a PO that has nothing received yet isn't a partial receipt, it's a no-op — the order stays exactl…
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-procurement-receiving-ts-L178
-    if (outstandingRemains && !anyQuantityReceived) return;
+    if (!receivedThisSubmit) return;
 
     const status = outstandingRemains ? "partially_received" : "received";
     await updatePurchaseOrderStatus(id, status);
@@ -299,11 +295,7 @@ export async function createAndReceivePurchaseOrder(
         movementDate: now,
       });
 
-      if (item.selling_price !== undefined && item.selling_price !== "") {
-        await update("products", item.product_id, {
-          selling_price: Math.max(0, Number(item.selling_price)),
-        });
-      }
+      await applyChangedSellingPrices([item]);
     }
 
     await logAction("RECEIVE_PO", "purchase_orders", poId, { total_items: items.length });

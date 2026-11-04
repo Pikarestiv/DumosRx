@@ -14,7 +14,7 @@ import {
   countSellingPriceOverrides,
   getTotalBaseUnits,
 } from "./po-line-item-math";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import type { POLineItemDraft } from "./po-item-ledger-table";
 import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
@@ -39,6 +39,7 @@ export function POImmediateConfirmDialog({
   totalAmount,
   onConfirm,
 }: POImmediateConfirmDialogProps) {
+  const formatCurrency = useFormatCurrency();
   const displayName = useDisplayName();
   const priceChangeCount = countSellingPriceOverrides(items, products);
   const totalUnits = getTotalBaseUnits(items);

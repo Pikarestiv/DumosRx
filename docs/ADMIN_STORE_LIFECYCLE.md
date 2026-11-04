@@ -178,7 +178,9 @@ foreign keys:
   `NULL`-store rows are kept.
 
 `ForeignKeyCascadeEmulator` still runs afterwards as a backstop for whatever a
-schema *does* declare, but is told to skip every store-scoped table, for the
+schema *does* declare (a `SET NULL` it replays stamps the surviving row with
+`SyncRowStamp`, so devices pull the cleared pointer, A-278), but is told to
+skip every store-scoped table, for the
 users cascade and the legacy-sale cascade alike, so both schema shapes delete
 the same rows. Without
 that, on a schema with FKs (the test suite's, a local MySQL built from the

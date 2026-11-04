@@ -61,6 +61,7 @@ class TillRelinkService
 
         $tokenResult = $owner->createToken('Client App', ['*'], TokenLifetime::till());
         $tokenResult->accessToken->forceFill([
+            'device_id' => $device['id'] ?: ('DRX-'.strtoupper(\Illuminate\Support\Str::random(9))),
             'ip_address' => $device['ip'],
             'user_agent' => $device['user_agent'],
         ])->save();

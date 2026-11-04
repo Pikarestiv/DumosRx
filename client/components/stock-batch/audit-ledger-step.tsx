@@ -34,6 +34,7 @@ interface AuditLedgerStepProps {
   totalItems: number;
   isLoading: boolean;
   isSyncing: boolean;
+  isReadOnly?: boolean;
   onUpdateItem: (id: string, patch: Partial<AuditItem>) => void;
   /** Records a count and re-baselines the row against live stock (A-263). */
   onCountRow: (id: string, countedQty?: number) => void;
@@ -64,6 +65,7 @@ export function AuditLedgerStep({
   totalItems,
   isLoading,
   isSyncing,
+  isReadOnly = false,
   onUpdateItem,
   onCountRow,
   onClearCount,
@@ -242,6 +244,7 @@ export function AuditLedgerStep({
                       item={item}
                       canEditProductCost={canEditProductCost}
                       canEditProductPrice={canEditProductPrice}
+                      isReadOnly={isReadOnly}
                       onUpdateItem={onUpdateItem}
                       onCountRow={onCountRow}
                       onClearCount={onClearCount}

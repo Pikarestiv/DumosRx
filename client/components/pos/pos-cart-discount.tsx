@@ -45,6 +45,7 @@ export function POSCartDiscount({
           <div className="flex gap-1 items-center flex-1 max-w-[160px] justify-end">
             <input
               type="number"
+              step="any"
               inputMode="decimal"
               min={0}
               max={discountType === "percentage" ? 100 : undefined}

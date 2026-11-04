@@ -90,7 +90,7 @@ function withNormalizedName(
 
 // The one choke point every local write passes through; see client/AGENTS.md,
 // "On-till admin inspection", for what deliberately bypasses it.
-function assertWritable(): void {
+export function assertWritable(): void {
   if (isTillInspectionSession()) {
     throw new Error(READ_ONLY_REFUSAL_MESSAGE);
   }

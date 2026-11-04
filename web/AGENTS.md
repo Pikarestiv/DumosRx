@@ -67,6 +67,10 @@ together). The current design:
   outside the `auth:sanctum` group in `routes/api.php` since it has no
   bearer token to check). `logout()` now also revokes the refresh token and
   clears the cookie.
+- **Web Device Identity (`web/lib/utils/device-id.ts`)**: `getOrCreateWebDeviceId()` generates
+  and persists a `DRX-WEB-...` UUID in `localStorage`. Both `login()` and `register()` in `web/lib/api/client.ts`
+  send this identifier in the request body and `X-Device-Id` header, populating `personal_access_tokens.device_id`
+  so that web browser sessions are tracked with stable device identifiers in the admin/settings session lists.
 - **The old `AuthenticateFromCookie` middleware is gone** (deleted, and its
   global registration removed from `bootstrap/app.php`). Nothing should
   ever again silently promote an ambient cookie into an `Authorization`

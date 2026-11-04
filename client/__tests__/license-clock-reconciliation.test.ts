@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { CLOCK_AGREEMENT_TOLERANCE_MS } from "@/lib/licensing/server-clock";
 
 // Covers the only route out of a clock-discrepancy lock (docs/KNOWN_BUGS.md A-191).
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-license-clock-reconciliation-test-ts-L3
@@ -27,7 +28,7 @@ function reading(serverIso: string, localIso: string) {
   const serverNow = new Date(serverIso);
   const localNow = new Date(localIso);
   const driftMs = localNow.getTime() - serverNow.getTime();
-  return { serverNow, localNow, driftMs, agrees: Math.abs(driftMs) <= 5 * 60 * 1000 };
+  return { serverNow, localNow, driftMs, agrees: Math.abs(driftMs) <= CLOCK_AGREEMENT_TOLERANCE_MS };
 }
 
 beforeEach(() => {
@@ -41,8 +42,8 @@ afterEach(() => {
 });
 
 describe("reconcileClockWithServer", () => {
-  it("resets a poisoned watermark when the local clock agrees with the server", async () => {
-    serverClock.reading = reading("2026-10-08T11:00:00.000Z", "2026-10-08T11:00:30.000Z");
+  it("resets a poisoned watermark when the local clock agrees with the server (even with a 2-hour offset)", async () => {
+    serverClock.reading = reading("2026-10-08T11:00:00.000Z", "2026-10-08T13:00:00.000Z");
 
     const { reconcileClockWithServer } = await import("@/lib/licensing/licensing-manager");
     const result = await reconcileClockWithServer();
@@ -51,8 +52,8 @@ describe("reconcileClockWithServer", () => {
     expect(updateMonotonic).toHaveBeenCalledWith("store-1", "2026-10-08T11:00:00.000Z");
   });
 
-  it("refuses when the device clock still disagrees with the server", async () => {
-    serverClock.reading = reading("2026-10-08T11:00:00.000Z", "2026-10-08T22:48:00.000Z");
+  it("refuses when the device clock disagrees with the server by more than 24h", async () => {
+    serverClock.reading = reading("2026-10-08T11:00:00.000Z", "2026-10-10T11:00:00.000Z");
 
     const { reconcileClockWithServer } = await import("@/lib/licensing/licensing-manager");
     const result = await reconcileClockWithServer();
@@ -84,8 +85,8 @@ describe("reconcileClockWithServer", () => {
     expect(updateMonotonic).not.toHaveBeenCalled();
   });
 
-  it("refuses when the device clock is behind the server, not just ahead", async () => {
-    serverClock.reading = reading("2026-10-08T11:00:00.000Z", "2026-10-07T11:00:00.000Z");
+  it("refuses when the device clock is behind the server by more than 24h", async () => {
+    serverClock.reading = reading("2026-10-08T11:00:00.000Z", "2026-10-06T11:00:00.000Z");
 
     const { reconcileClockWithServer } = await import("@/lib/licensing/licensing-manager");
     const result = await reconcileClockWithServer();
@@ -93,5 +94,18 @@ describe("reconcileClockWithServer", () => {
     expect(result.reconciled).toBe(false);
     expect(result.reason).toContain("behind");
     expect(updateMonotonic).not.toHaveBeenCalled();
+  });
+});
+
+describe("describeDrift", () => {
+  it("formats minutes, hours, and days drift correctly", async () => {
+    const { describeDrift } = await import("@/lib/licensing/server-clock");
+
+    expect(describeDrift(5 * 60 * 1000)).toBe("5m ahead of our servers");
+    expect(describeDrift(-15 * 60 * 1000)).toBe("15m behind our servers");
+    expect(describeDrift(2 * 3600 * 1000)).toBe("2h ahead of our servers");
+    expect(describeDrift(2 * 3600 * 1000 + 15 * 60 * 1000)).toBe("2h 15m ahead of our servers");
+    expect(describeDrift(26 * 3600 * 1000)).toBe("1d 2h ahead of our servers");
+    expect(describeDrift(-48 * 3600 * 1000)).toBe("2d behind our servers");
   });
 });

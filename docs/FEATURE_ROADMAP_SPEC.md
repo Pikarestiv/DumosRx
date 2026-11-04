@@ -35,12 +35,12 @@ A-286 — restamp `_synced_at` at commit — is done, see `docs/FIXED_BUGS.md`):
 
 ## ✅ Recently Completed
 
-### Multi-Till Cloud-Backed Stock Audit Sessions (Phase 2): DONE (2026-11-03)
+### Multi-Till Cloud-Backed Stock Audit Sessions (Phase 2 Backend & Phase 3 UI Integration): DONE (2026-11-03)
 
 - **Status:** Shipped in `laravel-server/` and `client/`. Solves cross-device visibility, single-editor lease coordination, crash recovery, and fencing token validation for multi-till pharmacies running cycle counts.
 - **Tables & Service:** `audit_sessions` and `audit_session_items` with unique `(audit_session_id, product_id)`. Governed by `AuditSessionService` with store-level locking (`Store::whereKey($storeId)->lockForUpdate()`) to prevent concurrent active sessions per store.
 - **Single-Editor Lease & Fencing Version:** 5-minute renewable lease with 60s background heartbeat. Write requests include `lease_version`; stale writes from superseded devices are refused with HTTP 409 (`AuditSessionConflictException`).
-- **Inspection Mode & Takeover:** Other devices in the store view active audit progress in read-only Inspection Mode with live item progress counts. Any till can explicitly take over an active count, atomically incrementing the fencing version.
+- **Client UI Integration (Phase 3):** Coordinated by `useCloudAuditSession` hook in `client/lib/hooks/use-cloud-audit-session.ts` and integrated into `client/components/stock-batch/stock-audits.tsx`. Renders an `AuditInspectionBanner` when another device holds the lease, showing active editor details and counted item tallies, with an explicit "Take Over Count" action.
 - **Offline-First & Completion Lifecycle:** Submission completes locally first via `submitStockAudit()` without blocking offline devices. Cloud session transitions to `completion_pending_sync` with `submitted_stock_audit_id`, and automatically moves to `completed` upon the sync engine delivering the `stock_audits` record. Stale cloud rejections preserve local counts without data destruction.
 - **Docs:** `docs/SYSTEM_FEATURES_DOCUMENTATION.md`, `laravel-server/AGENTS.md`, `client/AGENTS.md`.
 

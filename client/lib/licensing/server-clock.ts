@@ -3,7 +3,7 @@ import { anchorClock } from "./monotonic-clock";
 
 // Tolerance for "this device's clock agrees with the server".
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#licensing-server-clock-ts-L4
-export const CLOCK_AGREEMENT_TOLERANCE_MS = 5 * 60 * 1000;
+export const CLOCK_AGREEMENT_TOLERANCE_MS = 24 * 60 * 60 * 1000;
 
 const SERVER_TIME_TIMEOUT_MS = 8000;
 
@@ -57,9 +57,19 @@ export async function readServerClock(): Promise<ServerClockReading | null> {
 
 export function describeDrift(driftMs: number): string {
   const totalMinutes = Math.round(Math.abs(driftMs) / 60000);
-  const hours = Math.floor(totalMinutes / 60);
+  const totalHours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-  const magnitude = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+
+  let magnitude: string;
+  if (days > 0) {
+    magnitude = hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+  } else if (hours > 0) {
+    magnitude = minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  } else {
+    magnitude = `${minutes}m`;
+  }
 
   return `${magnitude} ${driftMs > 0 ? "ahead of" : "behind"} our servers`;
 }

@@ -1,7 +1,12 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { CountFreshnessWarning } from "@/components/stock-batch/count-freshness-warning";
 import type { CountFreshness } from "@/lib/hooks/use-count-freshness";
+
+const state = { canSee: true };
+vi.mock("@/lib/hooks/use-stock-visibility", () => ({
+  useStockVisibility: () => ({ canSeeQuantities: state.canSee }),
+}));
 
 // Stage 1 of docs/superpowers/specs/2026-10-14-oversell-compensating-movement-design.md:
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-count-freshness-warning-deficit-test-tsx-L6
@@ -99,5 +104,31 @@ describe("CountFreshnessWarning: the shortfall notice", () => {
     expect(screen.getByText("Some of these products were sold before their stock was received")).toBeTruthy();
     expect(screen.getByText(/5 units were sold before stock was received/)).toBeTruthy();
     expect(screen.getByText(/or the delivery will be counted twice/)).toBeTruthy();
+  });
+
+  it("omits raw quantity counts when user cannot see quantities", () => {
+    state.canSee = false;
+    render(
+      <CountFreshnessWarning
+        freshness={{
+          ...fresh,
+          deficits: [{ productName: "gluformin", deficit: 2 }],
+          owed: [{ productName: "Cement 50kg", owed: 5 }],
+          shouldWarn: true,
+        }}
+        acknowledged={false}
+        onAcknowledgedChange={() => {}}
+      />,
+    );
+
+    expect(screen.getByText(/gluformin/)).toBeTruthy();
+    expect(screen.getByText(/carrying a shortfall/)).toBeTruthy();
+    expect(screen.queryByText(/2 units short/)).toBeNull();
+
+    expect(screen.getByText(/Cement 50kg/)).toBeTruthy();
+    expect(screen.getByText(/Sold before stock was received/)).toBeTruthy();
+    expect(screen.queryByText(/5 units were sold/)).toBeNull();
+
+    state.canSee = true;
   });
 });

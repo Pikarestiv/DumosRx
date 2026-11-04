@@ -1,3 +1,15 @@
+### A-339 — `getOutstandingBackorders()` rereads the store's whole owed and settled history on every call
+- **Fixed:** 2026-11-04, client only, TDD, on `feat/sell-at-zero-stock`.
+- **Was:** `client/lib/db/queries/backorders.ts` loaded every `backorder` and `backorder_settlement` movement row across all time into memory and grouped them in JavaScript with array spreading (`byProduct.set(id, [...existing, row])`), scaling quadratically with transaction volume.
+- **Now:** Aggregates backorders directly in SQLite (`GROUP BY product_id, reference_id` with `HAVING net_units > 0.000001`, then grouped by `product_id`). Settled sales drop out in SQL immediately, avoiding unbounded memory and array copies.
+- **Coverage:** `client/__tests__/sell-at-zero` (all 4 files, 40 tests).
+
+### A-336 — the count screen's owed-units warning was store-wide and exposed quantities to restricted roles
+- **Fixed:** 2026-11-04, client only, TDD, on `feat/sell-at-zero-stock`.
+- **Was:** `useCountFreshness()` retrieved store-wide deficits and backorders without scoping them to the products currently being counted, causing unnecessary acknowledgement prompts. `count-freshness-warning.tsx` displayed raw quantities unconditionally, potentially leaking stock numbers to roles without `view_stock_quantities`.
+- **Now:** `useCountFreshness(countedProductIds)` scopes both `deficits` and `owed` backorders to the counted products. `CountFreshnessWarning` checks `useStockVisibility().canSeeQuantities` and renders generalized warning copy when quantity visibility is restricted.
+- **Coverage:** `client/__tests__/count-freshness-warning-deficit.test.tsx` (scopes and checks `canSee: false`).
+
 ### A-344 — a pull could re-cost a sale from an incomplete ledger
 - **Fixed:** 2026-10-26, client only, TDD, before `feat/sell-at-zero-stock` merged. Found by the fourth and fifth independent reviews.
 - **Was:** `recostSalesTouchedByPull()` ran after each pull page. A sale line could arrive before the settlement rows that set its cost (a Force Full Resync, or any multi-page round), be re-derived from the partial ledger and queued, and be pushed if the round was then interrupted, overwriting the server's correct cost until another till re-derived it.

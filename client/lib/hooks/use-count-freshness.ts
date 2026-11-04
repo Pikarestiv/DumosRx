@@ -39,7 +39,7 @@ export interface CountFreshness {
   shouldWarn: boolean;
 }
 
-export function useCountFreshness(): CountFreshness {
+export function useCountFreshness(countedProductIds?: string[]): CountFreshness {
   const lastSync = getLastSyncTime();
 
   const { data } = useQuery({
@@ -62,15 +62,19 @@ export function useCountFreshness(): CountFreshness {
     staleTime: 60_000,
   });
 
+  const relevantDeficitRows = countedProductIds?.length
+    ? (deficitRows ?? []).filter((row) => countedProductIds.includes(row.productId))
+    : (deficitRows ?? []);
+
   const byProduct = new Map<string, number>();
-  for (const row of deficitRows ?? []) {
+  for (const row of relevantDeficitRows) {
     byProduct.set(row.productName, (byProduct.get(row.productName) ?? 0) + row.deficit);
   }
   const deficits = [...byProduct.entries()]
     .map(([productName, deficit]) => ({ productName, deficit }))
     .sort((a, b) => b.deficit - a.deficit);
 
-  const owed = useOutstandingBackorders().map((o) => ({ productName: o.productName, owed: o.outstanding }));
+  const owed = useOutstandingBackorders(countedProductIds).map((o) => ({ productName: o.productName, owed: o.outstanding }));
 
   const isLocalStale = isCountBaselineStale(lastSync);
 

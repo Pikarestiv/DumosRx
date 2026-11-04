@@ -2,6 +2,7 @@ import React from "react";
 import { AlertTriangle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { CountFreshness } from "@/lib/hooks/use-count-freshness";
+import { useStockVisibility } from "@/lib/hooks/use-stock-visibility";
 
 interface CountFreshnessWarningProps {
   freshness: CountFreshness;
@@ -20,6 +21,7 @@ export function CountFreshnessWarning({
   acknowledged,
   onAcknowledgedChange,
 }: CountFreshnessWarningProps) {
+  const { canSeeQuantities } = useStockVisibility();
   if (!freshness.shouldWarn) return null;
 
   const isStale = freshness.isLocalStale || freshness.stalePeers.length > 0;
@@ -74,9 +76,9 @@ export function CountFreshnessWarning({
                 {freshness.deficits.map((entry) => (
                   <li key={entry.productName}>
                     <span className="font-medium">{entry.productName}</span> is{" "}
-                    {entry.deficit} {entry.deficit === 1 ? "unit" : "units"}{" "}
-                    short, so a count records the difference and leaves the
-                    shortfall standing.
+                    {canSeeQuantities
+                      ? `${entry.deficit} ${entry.deficit === 1 ? "unit" : "units"} short, so a count records the difference and leaves the shortfall standing.`
+                      : "carrying a shortfall, so a count records the difference and leaves the shortfall standing."}
                   </li>
                 ))}
               </ul>
@@ -87,9 +89,9 @@ export function CountFreshnessWarning({
               {freshness.owed.map((entry) => (
                 <li key={entry.productName}>
                   <span className="font-medium">{entry.productName}</span>:{" "}
-                  {entry.owed} {entry.owed === 1 ? "unit was" : "units were"} sold
-                  before stock was received. Receive the purchase order before
-                  counting this item, or the delivery will be counted twice.
+                  {canSeeQuantities
+                    ? `${entry.owed} ${entry.owed === 1 ? "unit was" : "units were"} sold before stock was received. Receive the purchase order before counting this item, or the delivery will be counted twice.`
+                    : "Sold before stock was received. Receive the purchase order before counting this item, or the delivery will be counted twice."}
                 </li>
               ))}
             </ul>

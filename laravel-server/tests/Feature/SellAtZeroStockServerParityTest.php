@@ -76,12 +76,12 @@ class SellAtZeroStockServerParityTest extends TestCase
         $this->assertSame('backorder', DB::table('stock_movements')->where('id', 'm-owed')->value('reference_type'));
     }
 
-    public function test_a_chunk_split_gives_the_bounded_a217_shape()
+    public function test_a_chunk_split_lands_on_zero_under_derived_stock_quantity()
     {
         $this->push([$this->movement('m-sale', -5, 'sale', 'sale')]);
         $this->push([$this->movement('m-owed', 2, 'adjustment', 'backorder')]);
 
-        $this->assertSame(2.0, $this->batchQuantity());
+        $this->assertSame(0.0, $this->batchQuantity());
     }
 
     public function test_a_re_costed_sale_item_update_is_accepted()

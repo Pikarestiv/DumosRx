@@ -1,3 +1,9 @@
+### A-342 — an owed row pushed apart from its sale could leave the server N units high
+- **Fixed:** 2026-11-04, server and client.
+- **Was:** When an oversold sale (`sale −Q`) and its backorder adjustment (`backorder +N`) were split across separate push chunks, Stage-0 `applyStockBatchDeltas()` floored the batch at 0 on the first push and then added N on the second push, leaving the server with N phantom units while the client read 0.
+- **Now:** Resolved by A-217 (`5b5b0802`): the server derives batch quantity from its entire movement log (`MAX(0, Σlog)`) under a batch lock instead of flooring per-push deltas. When a sale and its owed backorder row arrive in separate chunks, the server's derived quantity computes `max(0, Σlog)` over both movements, landing at 0.0 exactly as the client does.
+- **Coverage:** `laravel-server/tests/Feature/SellAtZeroStockServerParityTest.php` (`test_a_chunk_split_lands_on_zero_under_derived_stock_quantity`).
+
 ### A-339 — `getOutstandingBackorders()` rereads the store's whole owed and settled history on every call
 - **Fixed:** 2026-11-04, client only, TDD, on `feat/sell-at-zero-stock`.
 - **Was:** `client/lib/db/queries/backorders.ts` loaded every `backorder` and `backorder_settlement` movement row across all time into memory and grouped them in JavaScript with array spreading (`byProduct.set(id, [...existing, row])`), scaling quadratically with transaction volume.

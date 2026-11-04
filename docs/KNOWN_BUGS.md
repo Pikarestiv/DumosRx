@@ -48,12 +48,6 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 2 — stock and money figures wrong
 
-#### A-342. `laravel-server/`+`client/` — an owed row pushed apart from its sale leaves the server N units high (worsens A-217)
-- **Found:** 2026-10-26, third independent review of `feat/sell-at-zero-stock`.
-- **Issue:** a sale at zero stock writes `sale −Q` and, on the same batch, `backorder +N`. The server's Stage-0 `applyStockBatchDeltas()` floors a batch per push. If the two rows go in different pushes (`push.ts` sends 50 queue rows a request), the first floors at 0 and the second adds N, so the server keeps N phantom units where the client reads 0. `laravel-server/tests/Feature/SellAtZeroStockServerParityTest.php::test_a_chunk_split_gives_the_bounded_a217_shape` pins that shape. It is A-217's disagreement, and this feature creates new occasions for it on every intended oversell.
-- **Mitigated 2026-10-26, not fixed:** `chunkPushQueue()` (`client/lib/db/sync-engine/push-queue-prep.ts`) moves a chunk boundary up to 10 rows later when that keeps a `backorder` row in the same push as a `sale` movement with the same `reference_id` (`client/__tests__/push-keeps-owed-row-with-its-sale.test.ts`). Judged small and safe: it only ever lengthens a chunk by a few rows, and the server takes any number of changes. It does not cover a sale row that failed and is retried on a later push while its owed row went earlier, an owed row more than 10 rows away, or bundles without it.
-- **Fix:** the derived-quantity Stage 2 server recompute (`docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`), which makes the server `MAX(0, Σlog)` per batch and removes the per-push floor. Same fix as A-217.
-
 #### A-337. `client/` — what A-271 left: a terminally conflicted batch re-queued on boot keeps shielding itself, and other money columns still overflow at 100,000,000
 - **Found:** 2026-10-15 as part of A-271; split out 2026-10-25 when the rest of A-271 was fixed.
 - **Orphaned rows:** after a terminal conflict drop a batch is left `_synced = 0` with no queue entry, and `requeueOrphanedRowsOnce()` (`reconcile-identity.ts`, on a crash-flagged boot) re-queues it as a whole-row push. That push conflicts again, and while it is queued it is not quantity-only, so it shields the row from the pull again. This is the only path that pins both the cost and the rewind budget. Fix: re-queue an orphaned `stock_batches` row only after pulling the server's copy, or drop its non-quantity fields when the conflict was terminal.

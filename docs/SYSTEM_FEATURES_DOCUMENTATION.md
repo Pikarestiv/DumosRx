@@ -64,6 +64,15 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Procurement:** Generate Purchase Orders for your suppliers. An Immediate Purchase — goods paid for and taken on the spot — opens on "Fully Paid", while a standard Purchase Order raised ahead of payment opens on "Unpaid"; either can be changed before saving. When the goods arrive, the system automatically updates your stock levels. Your catalog also shows the price you last actually paid for each product, right alongside its running average cost.
 
+**Sell at Zero Stock (Overselling / Delayed Paperwork):** When physical delivery has arrived on the shop floor but staff hasn't had the time or capacity to enter the purchase order paperwork yet, the store can toggle on "Allow Sales Without Stock" in Settings → Store. Cashiers can continue selling incoming items immediately. Shortfalls are recorded as owed backorders. When the delivery is subsequently entered through a Purchase Order or Immediate Purchase, backorders are cleared and historical sales lines are automatically re-costed from the delivery cost.
+
+**External Stock Sourcing (Unlinked Stores & Partner Sourcing):** If a product is out of stock in your main store, staff can collect units from an unlinked sister branch or neighboring partner store to fulfill customer demand on the spot:
+- The sale is booked under the selling store (customer receipt issued for full price).
+- Sourcing is entered as an Immediate Purchase from the supplying store (treated as a supplier) at the agreed cost price.
+- Can be combined with Sell at Zero Stock: cashiers sell the collected stock first, and entering the Immediate Purchase later settles the backorder and re-costs the sale line.
+- The selling store retains the gross margin (Retail Price − Sourcing Cost).
+- If cash is paid immediately to the partner store or runner from the till drawer, an Expense is recorded (Category: Stock Sourcing / Purchase, Payment Method: Cash) to reconcile Net Cash Expected in Daily Close without register discrepancies. If sourced on credit, the payable balance is tracked in the Supplier Debt Ledger until settled.
+
 **Borrow Stock Between Branches:** Running low on something and the owner isn't around? A cashier can pull stock in from another one of your branches right from the checkout screen — it moves immediately, and is flagged for you to review afterward. You decide who's allowed to do this: managers and admins always can, and you can choose whether to extend that to regular staff too (Settings → Multiple Stores, off for staff by default).
 
 **Supplier Debt Ledger:** Track goods received on credit from your suppliers, manage your business cash flow, and log partial or full payments against outstanding purchase orders.

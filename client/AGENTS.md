@@ -2329,7 +2329,7 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   and the server's per-push floor (Stage 0) lands on the same number when the
   pair shares a push. `pushChanges()` chunks with `chunkPushQueue()`, which
   pushes a boundary up to 10 rows later so an owed row shares its sale row's
-  push; what that misses is A-342. Constants live in `lib/constants/stock-adjustments.ts`.
+  push. (A-342 parity is resolved under A-217 derived stock quantity on the server). Constants live in `lib/constants/stock-adjustments.ts`.
   With the flag off the write is byte-for-byte today's.
 - **Who passes the flag.** `writeSaleTransaction()` (from `usePOSPayment`,
   fed by `usePOSSystem`) and `useFulfillOnlineOrderMutation` (fed by
@@ -2466,6 +2466,39 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
 - **No compatibility shim (§11).** Only earlier commits on this feature
   branch ever wrote a settlement naming a PO; no such row exists on `dev` or
   `main`, so none is read specially.
+
+### External Stock Sourcing (Unlinked Stores & Partner Stores)
+
+When a store is exhausted of stock and staff collects units from an unlinked
+sister branch (e.g. Branch 2 without computers) or an external partner store
+to satisfy a walk-in customer:
+
+- **Revenue & Profit Recognition:** The transaction belongs to the selling
+  store. The customer pays the selling store's price (e.g. ₦2,000), a receipt
+  prints for ₦2,000, and full revenue is recorded. The agreed sourcing cost
+  owed to the partner/branch (e.g. ₦1,700) is the Cost of Goods Sold (COGS).
+  Gross profit retained = `₦2,000 − ₦1,700 = ₦300`. It is NOT recorded merely
+  as markup, preserving receipt totals, tax compliance, and sales audit trails.
+- **Sourcing via Immediate Purchase:** The supplying store or unlinked branch
+  is added as a `supplier`. Sourcing is entered via **Immediate Purchase**
+  (`createAndReceivePurchaseOrder`), which atomically logs the receipt, creates
+  the batch, and triggers `settleBackordersOnReceipt()`.
+- **Integration with Sell-at-Zero:** If the cashier sells the collected goods
+  before the purchase order paperwork is entered, the sale is recorded under
+  Sell-at-Zero (`allow_sale_without_stock = 1`), logging an owed backorder
+  row. When the Immediate Purchase is entered later, `settleBackordersOnReceipt()`
+  clears the backorder and automatically re-costs the sale's `cost_price` to
+  the agreed sourcing cost.
+- **Settlement & Cash Drawer (Daily Close):**
+  - **Credit (Pay Later):** Immediate Purchase saved with `payment_status = "unpaid"`
+    or `"partial"`. The liability is tracked in the supplier's debt ledger
+    (`getSupplierOutstandingBalance`) until paid. Net Cash Expected in the
+    drawer is unaffected.
+  - **Cash Paid from Till:** When cash leaves the till drawer to pay the runner
+    or supplying store, staff records an **Expense** (Category: "Stock Purchase /
+    Sourcing", Payment Method: "Cash"). `getCashExpensesForDate()` deducts this
+    from Daily Close's `Net Cash Expected`, ensuring the cash counted in drawer
+    reconciles with zero unexplained shortages.
 
 ### Stock quantity reconciliation and the `sync_reconciliation` movement type (2026-10-02)
 

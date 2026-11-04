@@ -274,12 +274,12 @@ export async function getDeletedUsers(storeId?: string | null) {
   const effectiveStoreId = storeId === undefined ? getActiveStoreId() : storeId;
   if (effectiveStoreId) {
     return await query<StaffListItem>(
-      `SELECT ${STAFF_LIST_COLUMNS}, _deleted, updated_at FROM users WHERE _deleted = 1 AND (store_id = ? OR store_id IS NULL OR role = 'store_owner') ORDER BY updated_at DESC, first_name ASC`,
+      `SELECT ${STAFF_LIST_COLUMNS}, _deleted, updated_at FROM users WHERE _deleted = 1 AND role != 'store_owner' AND (store_id = ? OR store_id IS NULL) ORDER BY updated_at DESC, first_name ASC`,
       [effectiveStoreId],
     );
   }
   return await query<StaffListItem>(
-    `SELECT ${STAFF_LIST_COLUMNS}, _deleted, updated_at FROM users WHERE _deleted = 1 ORDER BY updated_at DESC, first_name ASC`,
+    `SELECT ${STAFF_LIST_COLUMNS}, _deleted, updated_at FROM users WHERE _deleted = 1 AND role != 'store_owner' ORDER BY updated_at DESC, first_name ASC`,
   );
 }
 

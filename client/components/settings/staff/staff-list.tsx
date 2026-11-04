@@ -24,7 +24,7 @@ import { checkIsAdmin, useAuth } from "@/lib/context/auth-context";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { StaffListItem } from "@/lib/types/user";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { NoStaffFoundRow, PinBadge } from "./staff-list-parts";
+import { NoStaffFoundRow, PinBadge, StaffListMobileCard } from "./staff-list-parts";
 
 interface StaffListProps {
   users: StaffListItem[];
@@ -266,116 +266,17 @@ export function StaffList({
             />
           )}
           {!isEmpty &&
-            sortedUsers.map((user) => {
-              const isMainAccount = !user.store_id || user.role === "admin";
-              return (
-                <div
-                  key={user.id}
-                  className={
-                    isMainAccount
-                      ? "p-4 space-y-2 bg-indigo-50/50 dark:bg-indigo-900/10"
-                      : "p-4 space-y-2"
-                  }
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-8 h-8 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                        {user.first_name?.charAt(0).toUpperCase() || "U"}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="font-medium truncate">
-                          {`${user.first_name || ""} ${user.last_name || ""}`.trim()}
-                        </div>
-                        <div className="font-mono text-xs text-muted-foreground truncate">
-                          {user.username}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEditClick(user)}
-                        aria-label={`Edit ${user.username}`}
-                        className="h-8 w-8 text-muted-foreground hover:text-muted"
-                        disabled={user.id === "default-admin"}
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                      {user.is_active === 0 ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => onReactivate(user.id)}
-                          aria-label={`Reactivate ${user.username}`}
-                          className="h-8 w-8 text-muted-foreground hover:text-emerald-600"
-                        >
-                          <RotateCcw className="w-4 h-4" />
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeactivateClick(user)}
-                          aria-label={`Deactivate ${user.username}`}
-                          className="h-8 w-8 text-muted-foreground hover:text-amber-600"
-                          disabled={user.id === "default-admin"}
-                        >
-                          <UserX className="w-4 h-4" />
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteClick(user)}
-                        aria-label={`Delete ${user.username}`}
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        disabled={user.id === "default-admin" || isMainAccount}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {isMainAccount && (
-                      <Badge className="h-5 px-1.5 text-[9px] bg-primary">
-                        Main Account
-                      </Badge>
-                    )}
-                    <Badge
-                      variant={
-                        checkIsAdmin(user.role) ? "default" : "secondary"
-                      }
-                      className="capitalize"
-                    >
-                      {checkIsAdmin(user.role) && (
-                        <Shield className="w-3 h-3" />
-                      )}
-                      {user.role?.replace("_", " ") || "Staff"}
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className={
-                        user.is_active === 0
-                          ? "bg-slate-50 text-slate-500 border-slate-200"
-                          : "bg-green-50 text-green-700 border-green-200"
-                      }
-                    >
-                      {user.is_active === 0 ? "Inactive" : "Active"}
-                    </Badge>
-                    <PinBadge hasPin={user.has_pin === 1} />
-                  </div>
-
-                  <div className="text-xs text-muted-foreground">
-                    Created:{" "}
-                    {user.created_at
-                      ? formatDateToDDMMYYYY(user.created_at)
-                      : "N/A"}
-                  </div>
-                </div>
-              );
-            })}
+            sortedUsers.map((user) => (
+              <StaffListMobileCard
+                key={user.id}
+                user={user}
+                isMainAccount={!user.store_id || user.role === "admin"}
+                onEdit={handleEditClick}
+                onDeactivate={handleDeactivateClick}
+                onReactivate={onReactivate}
+                onDelete={handleDeleteClick}
+              />
+            ))}
         </div>
       )}
     </>

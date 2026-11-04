@@ -39,13 +39,14 @@
   - Deleting appends a timestamp suffix (`_del_${Date.now()}`) to `username` and `email` to release credentials for reuse while preserving all historic sales, receipts, and audit log foreign-key references.
   - Dedicated **Deleted Accounts** tab and **Deleted** status filter pill with search, role badges, deleted timestamps, and a 1-click **Recover Account** action (complete with duplicate username collision detection and credential restoration as inactive).
   - Immediate toast notification with an **Undo** action button upon deletion.
-  - Backend `SyncOwnershipResolver.php` updated with `User::withTrashed()` so store owners are authorized to push soft-deletes and account restoration deltas.
+  - Backend `SyncOwnershipResolver.php` and `PullTenantScope.php` updated with `User::withTrashed()` so store owners are authorized to push soft-deletes and account restoration deltas, and other tills pulling changes receive the soft-deleted user with `_deleted = 1`.
   - Pushed restore payloads include `_deleted: 0` and the current base `_version` for clean atomic incrementation.
+  - Client `base-helpers.ts` `insert()` updated to honor `options?.storeId` over active store ID fallback, and `getDeletedUsers()` explicitly excludes `store_owner`.
 - **Backward compatibility (§11):** Existing active and inactive accounts remain unaffected. Old clients syncing user updates continue to work; server tolerates both active toggles and soft-delete/restore operations.
 - **Coverage:**
   - `client/__tests__/staff-delete-restore.test.ts` (3 tests: soft-delete + suffix, getDeletedUsers, restoreUser with credential de-duplication).
   - `client/__tests__/staff-list-ui.test.tsx` (6 tests: deactivation vs. deletion button affordances, default-admin disabled).
-  - `laravel-server/tests/Feature/SyncEndpointTest.php` (`test_push_sync_handles_user_soft_delete_and_restore`).
+  - `laravel-server/tests/Feature/SyncEndpointTest.php` (`test_push_sync_handles_user_soft_delete_and_restore`, verifying push soft-delete/restore and pull delivery of soft-deleted users).
 - **Full suite:** client 523 suites passed (3,273 tests), client `tsc --noEmit` clean, laravel 1,708 tests passed.
 
 ### A-353 — Server clock agreement tolerance was 5 minutes, rejecting tills with legitimate timezone offsets on "Check Again"

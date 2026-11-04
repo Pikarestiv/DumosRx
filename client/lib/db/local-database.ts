@@ -7,8 +7,17 @@ export * from "./procurement";
 export * from "./procurement-receiving";
 export * from "./schema";
 
-import { query, execute, transaction, getActiveStoreId } from "./core";
-import { insert, update, softDelete } from "./base-helpers";
+import {
+  query,
+  execute,
+  transaction,
+  isInTransaction,
+  logAction,
+  queueTableInvalidation,
+  getActiveStoreId,
+} from "./core";
+import { insert, update, softDelete, assertWritable } from "./base-helpers";
+import { addToSyncQueue } from "./sync-queue";
 import { queryClient } from "../query-client";
 import { AUDIT_ACTIONS } from "./audit-actions";
 import { isUuid } from "@/lib/utils/uuid";
@@ -259,6 +268,81 @@ export async function updateUser(id: string, data: StaffUpdatePayload) {
 
 export async function deleteUser(id: string) {
   return await softDelete("users", id);
+}
+
+export async function getDeletedUsers(storeId?: string | null) {
+  const effectiveStoreId = storeId === undefined ? getActiveStoreId() : storeId;
+  if (effectiveStoreId) {
+    return await query<StaffListItem>(
+      `SELECT ${STAFF_LIST_COLUMNS}, _deleted, updated_at FROM users WHERE _deleted = 1 AND (store_id = ? OR store_id IS NULL OR role = 'store_owner') ORDER BY updated_at DESC, first_name ASC`,
+      [effectiveStoreId],
+    );
+  }
+  return await query<StaffListItem>(
+    `SELECT ${STAFF_LIST_COLUMNS}, _deleted, updated_at FROM users WHERE _deleted = 1 ORDER BY updated_at DESC, first_name ASC`,
+  );
+}
+
+export async function restoreUser(id: string) {
+  assertWritable();
+  const rows = await query<{
+    id: string;
+    username: string;
+    email: string | null;
+    store_id: string | null;
+    _deleted: number;
+    _version: number;
+  }>("SELECT id, username, email, store_id, _deleted, _version FROM users WHERE id = ?", [id]);
+
+  if (!rows.length) {
+    throw new Error("User not found");
+  }
+
+  const user = rows[0];
+  if (user._deleted === 0) {
+    return;
+  }
+
+  const cleanUsername = (user.username || "").replace(/_del_\d+$/, "");
+  const cleanEmail = user.email ? user.email.replace(/_del_\d+$/, "") : null;
+
+  const existingWithUsername = await query<{ id: string }>(
+    "SELECT id FROM users WHERE username = ? AND (store_id = ? OR (store_id IS NULL AND ? IS NULL)) AND _deleted = 0 AND id != ?",
+    [cleanUsername, user.store_id ?? null, user.store_id ?? null, id]
+  );
+  if (existingWithUsername.length > 0) {
+    throw new Error(`A staff member with username "${cleanUsername}" already exists. Please resolve the duplicate username first.`);
+  }
+
+  const now = new Date().toISOString();
+  const currentVersion = user._version || 1;
+
+  const writeRestore = async () => {
+    await execute(
+      "UPDATE users SET _deleted = 0, is_active = 0, username = ?, email = ?, updated_at = ?, _synced = 0 WHERE id = ?",
+      [cleanUsername, cleanEmail, now, id]
+    );
+
+    await addToSyncQueue("users", id, "UPDATE", {
+      id,
+      _deleted: 0,
+      is_active: 0,
+      username: cleanUsername,
+      email: cleanEmail,
+      _version: currentVersion,
+      updated_at: now,
+    });
+
+    await logAction("RESTORE", "users", id, { id }, user.store_id ?? undefined);
+  };
+
+  if (isInTransaction()) {
+    await writeRestore();
+  } else {
+    await transaction(writeRestore);
+  }
+
+  queueTableInvalidation("users");
 }
 
 /**

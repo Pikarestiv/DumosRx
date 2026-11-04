@@ -56,11 +56,11 @@ function renderList(users: StaffListItem[]) {
 // U8: "delete staff" is really a reversible deactivation (the confirm dialog says so), but the row used a red trash icon a…
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-staff-list-ui-test-tsx-L56
 describe("StaffList row affordances", () => {
-  it("labels the deactivate action as deactivation, not deletion", () => {
+  it("offers both deactivation and deletion for active staff", () => {
     renderList([staff()]);
 
-    expect(screen.queryAllByLabelText(/^Delete /)).toHaveLength(0);
     expect(screen.getAllByLabelText("Deactivate ada").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("Delete ada").length).toBeGreaterThan(0);
   });
 
   it("only claims a PIN is set when the row says so", () => {
@@ -80,9 +80,16 @@ describe("StaffList row affordances", () => {
     expect(screen.queryAllByText("PIN set")).toHaveLength(0);
   });
 
-  it("offers reactivation, not deactivation, for an inactive account", () => {
+  it("offers reactivation and deletion for an inactive account", () => {
     renderList([staff({ is_active: 0 })]);
     expect(screen.getAllByLabelText("Reactivate ada").length).toBeGreaterThan(0);
     expect(screen.queryAllByLabelText("Deactivate ada")).toHaveLength(0);
+    expect(screen.getAllByLabelText("Delete ada").length).toBeGreaterThan(0);
+  });
+
+  it("disables deletion for default-admin or main account", () => {
+    renderList([staff({ id: "default-admin", username: "admin", role: "admin" })]);
+    const deleteButtons = screen.getAllByLabelText("Delete admin");
+    expect(deleteButtons.every((btn) => btn.hasAttribute("disabled"))).toBe(true);
   });
 });

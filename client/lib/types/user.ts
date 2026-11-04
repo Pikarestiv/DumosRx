@@ -22,6 +22,9 @@ export interface UserDbRow {
   store_id?: string;
   is_active?: number;
   created_at?: string;
+  updated_at?: string;
+  _deleted?: number;
+  _version?: number;
   permission_group_id?: string | null;
 }
 

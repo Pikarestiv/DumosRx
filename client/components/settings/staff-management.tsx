@@ -8,7 +8,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { FilterPill } from "@/components/ui/filter-pill";
 import { UserPlus } from "lucide-react";
 import { toast } from "sonner";
-import { useUsers, useMutateUser } from "@/lib/hooks/queries/use-users";
+import { useUsers, useDeletedUsers, useMutateUser } from "@/lib/hooks/queries/use-users";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useStore } from "@/lib/context/store-context";
 import { queryKeys } from "@/lib/query-keys";
@@ -20,7 +20,9 @@ import { STAFF_ROLES } from "@/lib/constants/roles";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 import { StaffList } from "./staff/staff-list";
+import { DeletedStaffList } from "./staff/deleted-staff-list";
 import { StaffFormDialog } from "./staff/staff-form-dialog";
+import { StaffDeactivateDialog } from "./staff/staff-deactivate-dialog";
 import { StaffDeleteDialog } from "./staff/staff-delete-dialog";
 import { StaffStats } from "./staff/staff-stats";
 import { StaffActivitiesTab } from "./staff/staff-activities-tab";
@@ -29,6 +31,7 @@ export function StaffManagement() {
   const { activeStoreId, availableStores } = useStore();
   const { maxStaffAccounts, getUpgradeMessage, withRestriction } =
     useFeatureGate();
+  const [activeTab, setActiveTab] = useState<string>("management");
   // Follows the header's switcher, including a switch after mount;
   // "All Stores" stays available as a choice.
   const [selectedStore, setSelectedStore] = useState<string>(
@@ -44,23 +47,31 @@ export function StaffManagement() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const filterStoreId = selectedStore === "all" ? null : selectedStore;
+  const storeScope =
+    availableStores && availableStores.length > 1
+      ? filterStoreId
+      : activeStoreId;
+
   const {
     data: users = [],
     isLoading,
     refetch: loadUsers,
-  } = useUsers(
-    availableStores && availableStores.length > 1
-      ? filterStoreId
-      : activeStoreId,
-  );
-  const { update } = useMutateUser();
+  } = useUsers(storeScope);
+
+  const {
+    data: deletedUsers = [],
+    isLoading: isDeletedLoading,
+    refetch: loadDeletedUsers,
+  } = useDeletedUsers(storeScope);
+
+  const { update, restore } = useMutateUser();
 
   const filteredUsers = useMemo(() => {
     let result = users;
     if (roleFilter !== "all") {
       result = result.filter((u) => u.role === roleFilter);
     }
-    if (statusFilter !== "all") {
+    if (statusFilter !== "all" && statusFilter !== "deleted") {
       result = result.filter((u) =>
         statusFilter === "active" ? u.is_active !== 0 : u.is_active === 0,
       );
@@ -85,6 +96,10 @@ export function StaffManagement() {
   // Dialog States
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [userToEdit, setUserToEdit] = useState<StaffListItem | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
     name: string;
@@ -98,6 +113,10 @@ export function StaffManagement() {
   const handleOpenEdit = (user: StaffListItem) => {
     setUserToEdit(user);
     setIsFormOpen(true);
+  };
+
+  const handleDeactivateInitiate = (id: string, name: string) => {
+    setDeactivateTarget({ id, name });
   };
 
   const handleDeleteInitiate = (id: string, name: string) => {
@@ -115,6 +134,32 @@ export function StaffManagement() {
     }
   };
 
+  const handleRecover = async (id: string, name: string) => {
+    try {
+      await restore.mutateAsync(id);
+      toast.success(
+        `Staff account "${name}" recovered as Inactive. You can reactivate them from the Staff Roster when ready.`,
+      );
+      void loadUsers();
+      void loadDeletedUsers();
+    } catch (error) {
+      const msg =
+        error instanceof Error ? error.message : "Failed to recover staff account";
+      toast.error(msg);
+    }
+  };
+
+  const handleDeletedSuccess = (targetId: string, name: string) => {
+    toast.success(`Staff account "${name}" deleted. Past records remain preserved.`, {
+      action: {
+        label: "Undo",
+        onClick: () => void handleRecover(targetId, name),
+      },
+    });
+    void loadUsers();
+    void loadDeletedUsers();
+  };
+
   const handleExport = () => {
     const csv = buildStaffCsv(users);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -129,10 +174,18 @@ export function StaffManagement() {
   };
 
   return (
-    <Tabs defaultValue="management" className="space-y-6">
+    <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
       <TabsList className="w-full md:w-max">
-        <TabsTrigger value="management">Management</TabsTrigger>
+        <TabsTrigger value="management">Staff Roster</TabsTrigger>
         <TabsTrigger value="activities">Activities</TabsTrigger>
+        <TabsTrigger value="deleted" className="flex items-center gap-1.5">
+          Deleted Accounts
+          {deletedUsers.length > 0 && (
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive">
+              {deletedUsers.length}
+            </span>
+          )}
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="management" className="space-y-6">
@@ -217,19 +270,32 @@ export function StaffManagement() {
                   { value: "all", label: "All" },
                   { value: "active", label: "Active" },
                   { value: "inactive", label: "Inactive" },
+                  { value: "deleted", label: `Deleted (${deletedUsers.length})` },
                 ]}
               />
             </div>
           </div>
 
-          <StaffList
-            users={filteredUsers}
-            isLoading={isLoading}
-            onEdit={handleOpenEdit}
-            onDelete={handleDeleteInitiate}
-            onReactivate={(id) => void handleReactivate(id)}
-            onAddStaff={withRestriction(handleOpenCreate)}
-          />
+          {statusFilter === "deleted" ? (
+            <div className="p-4">
+              <DeletedStaffList
+                users={deletedUsers}
+                isLoading={isDeletedLoading}
+                onRecover={handleRecover}
+                isRecovering={restore.isPending}
+              />
+            </div>
+          ) : (
+            <StaffList
+              users={filteredUsers}
+              isLoading={isLoading}
+              onEdit={handleOpenEdit}
+              onDeactivate={handleDeactivateInitiate}
+              onDelete={handleDeleteInitiate}
+              onReactivate={(id) => void handleReactivate(id)}
+              onAddStaff={withRestriction(handleOpenCreate)}
+            />
+          )}
         </Card>
 
         <StaffFormDialog
@@ -240,15 +306,39 @@ export function StaffManagement() {
           onSuccess={() => void loadUsers()}
         />
 
+        <StaffDeactivateDialog
+          target={deactivateTarget}
+          onClose={() => setDeactivateTarget(null)}
+          onSuccess={() => void loadUsers()}
+        />
+
         <StaffDeleteDialog
           target={deleteTarget}
           onClose={() => setDeleteTarget(null)}
-          onSuccess={() => void loadUsers()}
+          onSuccess={handleDeletedSuccess}
         />
       </TabsContent>
 
       <TabsContent value="activities">
         <StaffActivitiesTab />
+      </TabsContent>
+
+      <TabsContent value="deleted" className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold font-serif">Deleted Staff Accounts</h2>
+            <p className="text-sm text-muted-foreground">
+              Recover staff accounts previously deleted from your roster. Their past transaction history is always preserved.
+            </p>
+          </div>
+        </div>
+
+        <DeletedStaffList
+          users={deletedUsers}
+          isLoading={isDeletedLoading}
+          onRecover={handleRecover}
+          isRecovering={restore.isPending}
+        />
       </TabsContent>
     </Tabs>
   );

@@ -10455,3 +10455,16 @@ owner. Without it the server's log said the STORE OWNER ran the clock
 override — backwards for the one repair whose premise is that the
 owner is the suspected tamperer.
 
+### local-database-users-restore
+
+`client/lib/db/local-database.ts:restoreUser`
+
+Restoring a soft-deleted staff account strips the `_del_${timestamp}` suffix
+from the stored `username` and `email` columns that was appended upon deletion.
+Before clearing `_deleted`, we explicitly verify that no other active staff
+member in the same store currently claims that restored username. When restored,
+`is_active` remains 0 to require explicit administrative reactivation, and
+an `UPDATE` action is queued into `_sync_queue` with `_deleted: 0` alongside
+the base `_version` so the cloud replica increments version cleanly.
+
+

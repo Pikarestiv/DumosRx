@@ -7179,3 +7179,18 @@ Average cost is a quantity-weighted blend across stock batches, and clients read
 ## Money inputs use `step="any"`
 
 Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundredth of a unit is meaningless for most African currencies), but nothing is ever a step mismatch, so a decimal amount can be typed and submitted in a native `<form>`. A fixed `step="1"` (or the browser default of 1, when no step is set) makes the browser refuse to submit a value like 12.5, and jsdom does not enforce that, so no test catches it. Percentages and multipliers (VAT, loyalty, commission) keep their own steps.
+
+## Staff Deletion vs. Deactivation & Recovery
+
+- **Deactivate vs. Soft Delete:**
+  - **Deactivate (`is_active = 0`):** Retains the staff member in the default Staff Roster with an "Inactive" badge and a "Reactivate" button. Use this for temporary suspensions or leaves of absence.
+  - **Soft Delete (`_deleted = 1`):** Removes the staff member from the active Staff Roster completely so they do not clutter the roster view. Credential suffixes (`_del_${Date.now()}`) are appended to `username` and `email` to release those credentials for re-use. Historical references (sales, receipts, stock adjustments, audit logs) remain fully preserved.
+- **Deleted Accounts View & Filter:**
+  - Store owners can switch to the **Deleted Accounts (N)** tab or select the **Deleted** option under the Status filter pill to view soft-deleted staff members.
+  - The deleted list cleans up the appended `_del_` timestamp suffixes for display, shows the role and deletion timestamp, and provides a **Recover Account** action.
+- **Account Recovery (`restoreUser`):**
+  - Restoring strips the deletion timestamp suffix from username and email, validates that the username does not collide with an existing active staff member in the same store, restores `_deleted = 0` and `is_active = 0` (requiring intentional reactivation), logs an audit event, and queues an `UPDATE` delta for cloud sync.
+- **Sync & Authorization:**
+  - `laravel-server/app/Services/Sync/SyncOwnershipResolver.php` includes `User::withTrashed()` when querying tenant-scoped user IDs. Without `withTrashed()`, soft-deleted users were omitted from tenant authorization scopes, causing push updates for soft-delete and restoration to fail with `"forbidden"`.
+  - Pushed restore payloads include `_deleted: 0` and the record's current base `_version` to permit atomic server incrementation without version conflicts.
+

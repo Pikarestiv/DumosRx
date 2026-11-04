@@ -17,6 +17,7 @@ import {
   Loader2,
   Users,
   RotateCcw,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { checkIsAdmin, useAuth } from "@/lib/context/auth-context";
@@ -30,6 +31,7 @@ interface StaffListProps {
   isLoading: boolean;
   onEdit: (user: StaffListItem) => void;
   onDelete: (id: string, name: string) => void;
+  onDeactivate?: (id: string, name: string) => void;
   onReactivate: (id: string) => void;
   onAddStaff?: () => void;
 }
@@ -39,6 +41,7 @@ export function StaffList({
   isLoading,
   onEdit,
   onDelete,
+  onDeactivate,
   onReactivate,
   onAddStaff,
 }: StaffListProps) {
@@ -49,6 +52,19 @@ export function StaffList({
       return;
     }
     onEdit(user);
+  };
+
+  const handleDeactivateClick = (user: StaffListItem) => {
+    if (user.id === "default-admin" || user.username === "admin") {
+      toast.error("Default admin cannot be deactivated");
+      return;
+    }
+    const name = `${user.first_name || ""} ${user.last_name || ""}`.trim();
+    if (onDeactivate) {
+      onDeactivate(user.id, name);
+    } else {
+      onDelete(user.id, name);
+    }
   };
 
   const handleDeleteClick = (user: StaffListItem) => {
@@ -195,14 +211,24 @@ export function StaffList({
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleDeleteClick(user)}
+                            onClick={() => handleDeactivateClick(user)}
                             aria-label={`Deactivate ${user.username}`}
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            className="h-8 w-8 text-muted-foreground hover:text-amber-600"
                             disabled={user.id === "default-admin"}
                           >
                             <UserX className="w-4 h-4" />
                           </Button>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteClick(user)}
+                          aria-label={`Delete ${user.username}`}
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          disabled={user.id === "default-admin" || isMainAccount}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -285,14 +311,24 @@ export function StaffList({
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDeleteClick(user)}
+                        onClick={() => handleDeactivateClick(user)}
                         aria-label={`Deactivate ${user.username}`}
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        className="h-8 w-8 text-muted-foreground hover:text-amber-600"
                         disabled={user.id === "default-admin"}
                       >
                         <UserX className="w-4 h-4" />
                       </Button>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteClick(user)}
+                      aria-label={`Delete ${user.username}`}
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      disabled={user.id === "default-admin" || isMainAccount}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
 

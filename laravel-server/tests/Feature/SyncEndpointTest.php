@@ -2588,4 +2588,72 @@ class SyncEndpointTest extends TestCase
             'role' => 'sales_staff',
         ]);
     }
+
+    public function test_push_sync_handles_user_soft_delete_and_restore()
+    {
+        $staff = User::create([
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'username' => 'johndoe',
+            'email' => 'johndoe@dumosrx.com',
+            'store_id' => $this->store->id,
+            'password' => bcrypt('password'),
+            'role' => 'sales_staff',
+            'is_active' => true,
+            '_version' => 1,
+        ]);
+
+        // 1. Owner pushes a DELETE operation for this staff member
+        $deleteResponse = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'users',
+                    'operation' => 'DELETE',
+                    'record_id' => $staff->id,
+                    'payload' => ['id' => $staff->id],
+                ],
+            ],
+        ]);
+
+        $deleteResponse->assertStatus(200);
+        $deleteResponse->assertJsonCount(0, 'failed');
+
+        $staffAfterDelete = User::withTrashed()->find($staff->id);
+        $this->assertTrue($staffAfterDelete->trashed());
+        $this->assertStringContainsString('johndoe_del_', $staffAfterDelete->username);
+        $this->assertStringContainsString('johndoe@dumosrx.com_del_', $staffAfterDelete->email);
+
+        $serverVersion = $staffAfterDelete->_version;
+
+        // 2. Owner pushes an UPDATE operation to restore the staff member
+        $restoreResponse = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'setup' => true,
+            'changes' => [
+                [
+                    'table_name' => 'users',
+                    'operation' => 'UPDATE',
+                    'record_id' => $staff->id,
+                    'payload' => [
+                        'id' => $staff->id,
+                        '_deleted' => 0,
+                        'is_active' => 0,
+                        'username' => 'johndoe',
+                        'email' => 'johndoe@dumosrx.com',
+                        '_version' => $serverVersion,
+                    ],
+                ],
+            ],
+        ]);
+
+        $restoreResponse->assertStatus(200);
+        $restoreResponse->assertJsonCount(0, 'failed');
+
+        $staffAfterRestore = User::find($staff->id);
+        $this->assertNotNull($staffAfterRestore);
+        $this->assertFalse($staffAfterRestore->trashed());
+        $this->assertFalse((bool) $staffAfterRestore->is_active);
+        $this->assertEquals('johndoe', $staffAfterRestore->username);
+        $this->assertEquals('johndoe@dumosrx.com', $staffAfterRestore->email);
+    }
 }

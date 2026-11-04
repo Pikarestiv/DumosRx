@@ -28,7 +28,7 @@ class SyncOwnershipResolver
     public function resolveAllowedOwnershipScope($currentUser): array
     {
         ['ownerId' => $ownerId, 'storeIds' => $allowedStoreIds] = $this->resolveOwnershipIdentity($currentUser);
-        $allowedUserIds = User::whereIn('store_id', $allowedStoreIds)->pluck('id')->push($ownerId)->toArray();
+        $allowedUserIds = User::withTrashed()->whereIn('store_id', $allowedStoreIds)->pluck('id')->push($ownerId)->toArray();
 
         return [$allowedStoreIds, $allowedUserIds, $ownerId];
     }

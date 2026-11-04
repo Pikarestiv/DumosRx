@@ -2,9 +2,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import {
   getUsers,
+  getDeletedUsers,
   createUser,
   updateUser,
   deleteUser,
+  restoreUser,
 } from "@/lib/db/local-database";
 import type { StaffCreatePayload, StaffUpdatePayload } from "@/lib/types/user";
 
@@ -12,6 +14,13 @@ export function useUsers(storeId?: string | null) {
   return useQuery({
     ...queryKeys.staff.users(storeId),
     queryFn: () => getUsers(storeId),
+  });
+}
+
+export function useDeletedUsers(storeId?: string | null) {
+  return useQuery({
+    ...queryKeys.staff.deleted(storeId),
+    queryFn: () => getDeletedUsers(storeId),
   });
 }
 
@@ -39,5 +48,10 @@ export function useMutateUser() {
     onSuccess: invalidateAllUsers,
   });
 
-  return { create, update, remove };
+  const restore = useMutation({
+    mutationFn: (id: string) => restoreUser(id),
+    onSuccess: invalidateAllUsers,
+  });
+
+  return { create, update, remove, restore };
 }

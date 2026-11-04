@@ -1,3 +1,20 @@
+### A-354 — Staff deletion was replaced by in-place deactivation with no way to remove departed staff from the active roster or recover deleted accounts
+- **Fixed:** 2026-11-04, client and server.
+- **Was:** When store owners wanted to delete a staff member, the only option in the UI was "Deactivate" (which only updated `is_active = 0`). This left former staff accounts permanently visible in the active staff roster table with an "Inactive" status badge and an "Activate later" button, with no way for store owners to make departed accounts disappear from view. There was no true soft-deletion affordance in the UI, no "Deleted Accounts" filter or dedicated tab, and no account recovery mechanism (`restoreUser` and `getDeletedUsers` did not exist). Furthermore, backend `SyncOwnershipResolver.php` filtered by `User::whereIn('store_id', ...)` without `withTrashed()`, meaning any sync push for a soft-deleted staff member (or an update to restore them) was rejected with a 403 "forbidden" authorization error.
+- **Now:**
+  - Clear separation between **Deactivation** (`is_active = 0`, stays in roster with "Inactive" badge and Reactivate action for temporary leave) and **Soft Delete** (`_deleted = 1`, removed completely from active roster view).
+  - Deleting appends a timestamp suffix (`_del_${Date.now()}`) to `username` and `email` to release credentials for reuse while preserving all historic sales, receipts, and audit log foreign-key references.
+  - Dedicated **Deleted Accounts** tab and **Deleted** status filter pill with search, role badges, deleted timestamps, and a 1-click **Recover Account** action (complete with duplicate username collision detection and credential restoration as inactive).
+  - Immediate toast notification with an **Undo** action button upon deletion.
+  - Backend `SyncOwnershipResolver.php` updated with `User::withTrashed()` so store owners are authorized to push soft-deletes and account restoration deltas.
+  - Pushed restore payloads include `_deleted: 0` and the current base `_version` for clean atomic incrementation.
+- **Backward compatibility (§11):** Existing active and inactive accounts remain unaffected. Old clients syncing user updates continue to work; server tolerates both active toggles and soft-delete/restore operations.
+- **Coverage:**
+  - `client/__tests__/staff-delete-restore.test.ts` (3 tests: soft-delete + suffix, getDeletedUsers, restoreUser with credential de-duplication).
+  - `client/__tests__/staff-list-ui.test.tsx` (6 tests: deactivation vs. deletion button affordances, default-admin disabled).
+  - `laravel-server/tests/Feature/SyncEndpointTest.php` (`test_push_sync_handles_user_soft_delete_and_restore`).
+- **Full suite:** client 523 suites passed (3,273 tests), client `tsc --noEmit` clean, laravel 1,708 tests passed.
+
 ### A-353 — Server clock agreement tolerance was 5 minutes, rejecting tills with legitimate timezone offsets on "Check Again"
 - **Fixed:** 2026-11-04, client only, TDD.
 - **Was:** `CLOCK_AGREEMENT_TOLERANCE_MS` in `client/lib/licensing/server-clock.ts` was set to 5 minutes (`5 * 60 * 1000`). When a till's operating system clock was set to the correct local wall time but the OS timezone was misconfigured (e.g. set to UTC+0 or UTC-1 in a UTC+1 or UTC+2 region), or had daylight savings offset, its local UTC timestamp differed from server UTC by 1–2 hours. When clicking "Check Again", `reconcileClockWithServer()` failed with `"This device's clock is 2h 0m ahead of our servers. Correct the date and time, then try again."` and remained locked, preventing legitimate sales even while online and connected to the server.

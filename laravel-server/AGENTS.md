@@ -4560,3 +4560,15 @@ design: `/admin/maintenance` exposes only `migrations` and `roles/sync`
 (`AdminMaintenanceController`, `role:super_admin`), so anything else needs
 terminal access. Worth remembering before writing a command that an operator
 has no way to invoke.
+
+## Tenant Ownership Scope Includes Trashed Users (2026-11-04)
+
+`SyncOwnershipResolver::resolveAllowedOwnershipScope()` queries `$allowedUserIds` via:
+```php
+$allowedUserIds = User::withTrashed()->whereIn('store_id', $allowedStoreIds)->pluck('id')->push($ownerId)->toArray();
+```
+Because Eloquent's `SoftDeletes` trait automatically adds `WHERE deleted_at IS NULL`, omitting
+`withTrashed()` previously excluded soft-deleted staff members from the tenant owner's allowed ownership scope.
+When a store owner pushed a soft-delete (`DELETE` operation) or pushed an update to restore a soft-deleted staff account (`UPDATE` with `_deleted: 0`), `SyncWriteAuthorizer::authorizeChangeTarget()` failed with `"forbidden"`.
+Any query assembling the tenant's allowed user IDs for sync authorization must use `User::withTrashed()`.
+

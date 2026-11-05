@@ -71,3 +71,4 @@ describe("DeviceIdentity", () => {
     expect(screen.getByText("v0.0.41 · a19fa29f")).toBeInTheDocument();
   });
 });
+

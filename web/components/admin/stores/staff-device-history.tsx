@@ -4,7 +4,8 @@ import { useState } from "react";
 import { History, Loader2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useStaffDevices } from "@/lib/api/admin-hooks";
-import { DeviceVersionBadge } from "./details/store-detail-primitives";
+import { useAdminClientVersion } from "@/lib/api/release-hooks";
+import { DeviceVersionBadge, LatestBuildShaProvider } from "./details/store-detail-primitives";
 
 interface StaffDeviceHistoryProps {
   userId: string;
@@ -17,6 +18,7 @@ interface StaffDeviceHistoryProps {
 export function StaffDeviceHistory({ userId }: StaffDeviceHistoryProps) {
   const [open, setOpen] = useState(false);
   const { data, isLoading } = useStaffDevices(userId, open);
+  const { data: clientVersion } = useAdminClientVersion();
   const devices = data?.devices ?? [];
 
   return (
@@ -31,35 +33,37 @@ export function StaffDeviceHistory({ userId }: StaffDeviceHistoryProps) {
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-64 p-3">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">
-          Devices synced from
-        </p>
-        {isLoading && (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-4 w-4 animate-spin text-indigo-500" />
-          </div>
-        )}
-        {!isLoading && devices.length === 0 && (
-          <p className="text-xs text-slate-400">Never synced from any device.</p>
-        )}
-        {!isLoading && devices.length > 0 && (
-          <ul className="space-y-2">
-            {devices.map((device) => (
-              <li key={device.deviceId} className="text-xs">
-                <div className="flex items-center justify-between gap-1">
-                  <p className="font-bold text-slate-900 dark:text-slate-100 truncate">
-                    {device.deviceLabel ?? "Unnamed device"}
+        <LatestBuildShaProvider value={clientVersion?.build_sha}>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+            Devices synced from
+          </p>
+          {isLoading && (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin text-indigo-500" />
+            </div>
+          )}
+          {!isLoading && devices.length === 0 && (
+            <p className="text-xs text-slate-400">Never synced from any device.</p>
+          )}
+          {!isLoading && devices.length > 0 && (
+            <ul className="space-y-2">
+              {devices.map((device) => (
+                <li key={device.deviceId} className="text-xs">
+                  <div className="flex items-center justify-between gap-1">
+                    <p className="font-bold text-slate-900 dark:text-slate-100 truncate">
+                      {device.deviceLabel ?? "Unnamed device"}
+                    </p>
+                    <DeviceVersionBadge appVersion={device.appVersion} buildSha={device.buildSha} />
+                  </div>
+                  <p className="font-mono text-[10px] text-slate-400 break-all">
+                    {device.deviceId}
                   </p>
-                  <DeviceVersionBadge appVersion={device.appVersion} buildSha={device.buildSha} />
-                </div>
-                <p className="font-mono text-[10px] text-slate-400 break-all">
-                  {device.deviceId}
-                </p>
-                <p className="text-slate-400">{device.lastSyncedAt ?? "Unknown time"}</p>
-              </li>
-            ))}
-          </ul>
-        )}
+                  <p className="text-slate-400">{device.lastSyncedAt ?? "Unknown time"}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </LatestBuildShaProvider>
       </PopoverContent>
     </Popover>
   );

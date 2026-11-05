@@ -16,16 +16,22 @@ class ClientVersionService
     {
         if ($fresh) {
             $manifest = $this->probe();
-            Cache::put(self::CACHE_KEY, $manifest, self::CACHE_TTL_SECONDS);
+            $ttl = ! empty($manifest['build_sha']) ? self::CACHE_TTL_SECONDS : 30;
+            Cache::put(self::CACHE_KEY, $manifest, $ttl);
 
             return $manifest;
         }
 
-        return Cache::remember(
-            self::CACHE_KEY,
-            self::CACHE_TTL_SECONDS,
-            fn () => $this->probe()
-        );
+        $cached = Cache::get(self::CACHE_KEY);
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        $manifest = $this->probe();
+        $ttl = ! empty($manifest['build_sha']) ? self::CACHE_TTL_SECONDS : 30;
+        Cache::put(self::CACHE_KEY, $manifest, $ttl);
+
+        return $manifest;
     }
 
     public function probe(): array
@@ -60,3 +66,4 @@ class ClientVersionService
         ];
     }
 }
+

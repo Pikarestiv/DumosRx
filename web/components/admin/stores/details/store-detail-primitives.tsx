@@ -72,12 +72,19 @@ export function DeviceVersionBadge({
 
   const deviceSha = buildSha?.trim();
   const shortDeviceSha = deviceSha && deviceSha.length > 8 ? deviceSha.slice(0, 8) : deviceSha;
-  const isUpToDate = Boolean(targetSha && shortDeviceSha && shortDeviceSha === targetSha);
-  const isOutdated = Boolean(
+  const isUpToDate = Boolean(
     targetSha &&
+      targetSha !== "local" &&
       shortDeviceSha &&
       shortDeviceSha !== "local" &&
-      shortDeviceSha !== targetSha
+      shortDeviceSha.toLowerCase() === targetSha.toLowerCase()
+  );
+  const isOutdated = Boolean(
+    targetSha &&
+      targetSha !== "local" &&
+      shortDeviceSha &&
+      shortDeviceSha !== "local" &&
+      shortDeviceSha.toLowerCase() !== targetSha.toLowerCase()
   );
 
   let statusClass = "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent";

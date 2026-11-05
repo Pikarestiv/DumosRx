@@ -4,6 +4,7 @@ import {
   formatDeviceVersion,
   DeviceVersionBadge,
   DeviceIdentity,
+  LatestBuildShaProvider,
 } from "@/components/admin/stores/details/store-detail-primitives";
 
 describe("formatDeviceVersion", () => {
@@ -40,7 +41,7 @@ describe("DeviceVersionBadge", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders a badge with tooltip containing full details", () => {
+  it("renders a neutral badge when latest build SHA is not provided", () => {
     render(
       <DeviceVersionBadge
         appVersion="0.0.41"
@@ -54,6 +55,51 @@ describe("DeviceVersionBadge", () => {
       "App: 0.0.41 | Build: a19fa29fca740203bf1887888bccffcd9da5fd6e"
     );
   });
+
+  it("renders emerald up-to-date badge when device matches latest build SHA", () => {
+    render(
+      <DeviceVersionBadge
+        appVersion="0.0.41"
+        buildSha="a19fa29fca740203bf1887888bccffcd9da5fd6e"
+        latestBuildSha="a19fa29f"
+      />
+    );
+    const badge = screen.getByText("v0.0.41 · a19fa29f");
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveAttribute("title", "Up to date (Build: a19fa29f)");
+    expect(badge).toHaveClass("text-emerald-700");
+  });
+
+  it("renders amber update-pending badge when device lags behind latest build SHA", () => {
+    render(
+      <DeviceVersionBadge
+        appVersion="0.0.40"
+        buildSha="7d6930d9"
+        latestBuildSha="a19fa29f"
+      />
+    );
+    const badge = screen.getByText("v0.0.40 · 7d6930d9");
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveAttribute(
+      "title",
+      "Update pending (device: 7d6930d9, latest: a19fa29f)"
+    );
+    expect(badge).toHaveClass("text-amber-700");
+  });
+
+  it("inherits latestBuildSha from LatestBuildShaProvider context", () => {
+    render(
+      <LatestBuildShaProvider value="a19fa29f">
+        <DeviceVersionBadge
+          appVersion="0.0.41"
+          buildSha="a19fa29f"
+        />
+      </LatestBuildShaProvider>
+    );
+    const badge = screen.getByText("v0.0.41 · a19fa29f");
+    expect(badge).toHaveAttribute("title", "Up to date (Build: a19fa29f)");
+    expect(badge).toHaveClass("text-emerald-700");
+  });
 });
 
 describe("DeviceIdentity", () => {
@@ -64,6 +110,7 @@ describe("DeviceIdentity", () => {
         deviceId="DRX-COUNTER-1"
         appVersion="0.0.41"
         buildSha="a19fa29f"
+        latestBuildSha="a19fa29f"
       />
     );
     expect(screen.getByText("Main Counter")).toBeInTheDocument();
@@ -71,4 +118,3 @@ describe("DeviceIdentity", () => {
     expect(screen.getByText("v0.0.41 · a19fa29f")).toBeInTheDocument();
   });
 });
-

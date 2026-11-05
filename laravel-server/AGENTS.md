@@ -972,7 +972,12 @@ migration here **and** the corresponding update on the `client/` side
   panels via `ResolvesDeviceLabels::deviceAppVersions()` and `deviceBuildShas()`
   so operators can verify both the release version and the exact PWA deployment SHA
   a till is running before enabling version-gated store capabilities.
-  `tests/Feature/UserDeviceTrackingTest.php` and
+  `GET /admin/client/version` (`ClientVersionService`) probes the live deployed
+  `version.json` (emitted at build time by `client/scripts/generate-precache-manifest.ts`)
+  with a 5-minute server-side cache so the admin panel can show live "Up to date" (emerald)
+  vs. "Update pending" (amber) tell-tale status across devices without client-side CORS issues.
+  `tests/Feature/UserDeviceTrackingTest.php`,
+  `tests/Feature/AdminClientVersionTest.php`, and
   `tests/Feature/Admin/AdminUserSyncVisibilityTest.php` guard it.
 - **Operator nicknames beat the sniffed label (2026-10-14).** `device_nicknames`
   (`store_id`, `device_id`, unique together) holds the name a super admin typed

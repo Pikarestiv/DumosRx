@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface DetailCardProps {
@@ -53,21 +53,53 @@ export function formatDeviceVersion(
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
+const LatestBuildShaContext = createContext<string | null | undefined>(undefined);
+export const LatestBuildShaProvider = LatestBuildShaContext.Provider;
+
 export function DeviceVersionBadge({
   appVersion,
   buildSha,
+  latestBuildSha,
 }: {
   appVersion?: string | null;
   buildSha?: string | null;
+  latestBuildSha?: string | null;
 }) {
+  const contextSha = useContext(LatestBuildShaContext);
+  const targetSha = (latestBuildSha !== undefined ? latestBuildSha : contextSha)?.trim()?.slice(0, 8);
   const formatted = formatDeviceVersion(appVersion, buildSha);
   if (!formatted) return null;
 
+  const deviceSha = buildSha?.trim();
+  const shortDeviceSha = deviceSha && deviceSha.length > 8 ? deviceSha.slice(0, 8) : deviceSha;
+  const isUpToDate = Boolean(targetSha && shortDeviceSha && shortDeviceSha === targetSha);
+  const isOutdated = Boolean(
+    targetSha &&
+      shortDeviceSha &&
+      shortDeviceSha !== "local" &&
+      shortDeviceSha !== targetSha
+  );
+
+  let statusClass = "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-transparent";
+  let dotClass: string | null = null;
+  let statusTitle = `App: ${appVersion?.trim() || "unknown"} | Build: ${buildSha?.trim() || "unknown"}`;
+
+  if (isUpToDate) {
+    statusClass = "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800";
+    dotClass = "bg-emerald-500";
+    statusTitle = `Up to date (Build: ${shortDeviceSha})`;
+  } else if (isOutdated) {
+    statusClass = "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800";
+    dotClass = "bg-amber-500";
+    statusTitle = `Update pending (device: ${shortDeviceSha}, latest: ${targetSha})`;
+  }
+
   return (
     <span
-      title={`App: ${appVersion?.trim() || "unknown"} | Build: ${buildSha?.trim() || "unknown"}`}
-      className="shrink-0 font-mono text-[9px] font-semibold px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+      title={statusTitle}
+      className={`inline-flex items-center gap-1 shrink-0 font-mono text-[9px] font-semibold px-1 py-0.5 rounded border ${statusClass}`}
     >
+      {dotClass && <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${dotClass}`} />}
       {formatted}
     </span>
   );
@@ -78,17 +110,23 @@ export function DeviceIdentity({
   deviceId,
   appVersion,
   buildSha,
+  latestBuildSha,
 }: {
   label: string | null | undefined;
   deviceId: string;
   appVersion?: string | null;
   buildSha?: string | null;
+  latestBuildSha?: string | null;
 }) {
   return (
     <div className="min-w-0">
       <div className="flex items-center gap-1.5">
         <p className="truncate text-sm font-bold text-foreground">{label ?? "Unnamed device"}</p>
-        <DeviceVersionBadge appVersion={appVersion} buildSha={buildSha} />
+        <DeviceVersionBadge
+          appVersion={appVersion}
+          buildSha={buildSha}
+          latestBuildSha={latestBuildSha}
+        />
       </div>
       <p className="truncate font-mono text-xs text-muted-foreground">{deviceId}</p>
     </div>

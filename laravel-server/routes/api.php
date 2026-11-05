@@ -269,6 +269,7 @@ Route::prefix('v1')->group(function () {
 
             Route::get('/trends', [\App\Http\Controllers\Api\Admin\AdminTrendsController::class, 'index'])->middleware('permission:view_platform_revenue');
             Route::get('/downloads/manifest', [AdminPlatformController::class, 'downloadsManifest'])->middleware('role:super_admin');
+            Route::get('/client/version', [AdminPlatformController::class, 'clientVersion'])->middleware('role:super_admin');
             Route::put('/users/{id}', [AdminUserController::class, 'updateUser'])->middleware('role:super_admin');
             Route::delete('/users/{id}', [AdminUserController::class, 'deleteUser'])->middleware('role:super_admin');
             Route::post('/users/{id}/deactivate', [AdminUserController::class, 'deactivateUser'])->middleware('permission:manage_account_status');

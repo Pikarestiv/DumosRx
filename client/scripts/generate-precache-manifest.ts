@@ -1,13 +1,15 @@
 // Runs after `next build` (see package.json's "postbuild" script) against the static export in `out/`.
 // Rationale: docs/CLIENT_COMMENTS.md#block-scripts-generate-precache-manifest-ts-L1
+import { execSync } from "child_process";
 import { createHash } from "crypto";
 import { readdirSync, readFileSync, statSync, writeFileSync } from "fs";
 import { join, relative, sep } from "path";
 
 const OUT_DIR = join(__dirname, "..", "out");
 const MANIFEST_PATH = join(OUT_DIR, "precache-manifest.json");
+const VERSION_PATH = join(OUT_DIR, "version.json");
 const SW_PATH = join(OUT_DIR, "sw.js");
-const EXCLUDED_ROOT_FILES = new Set([".htaccess", "precache-manifest.json"]);
+const EXCLUDED_ROOT_FILES = new Set([".htaccess", "precache-manifest.json", "version.json"]);
 
 function walk(dir: string, urls: string[]): void {
   for (const entry of readdirSync(dir)) {
@@ -51,6 +53,39 @@ function main() {
   console.log(`[precache-manifest] Wrote ${urls.length} URLs to ${MANIFEST_PATH}`);
 
   stampCacheVersion(urls);
+  generateVersionManifest();
+}
+
+function resolveBuildSha(): string {
+  const envSha = (process.env.NEXT_PUBLIC_BUILD_SHA || "").trim();
+  if (envSha) return envSha.slice(0, 8);
+  try {
+    return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] })
+      .toString()
+      .trim()
+      .slice(0, 8);
+  } catch {
+    return "local";
+  }
+}
+
+function generateVersionManifest(): void {
+  try {
+    const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf8"));
+    const appVersion = pkg.version || "0.0.0";
+    const buildSha = resolveBuildSha();
+
+    const payload = {
+      app_version: appVersion,
+      build_sha: buildSha,
+      built_at: new Date().toISOString(),
+    };
+
+    writeFileSync(VERSION_PATH, JSON.stringify(payload, null, 2) + "\n");
+    console.log(`[version-manifest] Wrote ${VERSION_PATH} (app_version: ${appVersion}, build_sha: ${buildSha})`);
+  } catch (err) {
+    console.warn(`[version-manifest] Skipped version.json: ${(err as Error).message}`);
+  }
 }
 
 /**

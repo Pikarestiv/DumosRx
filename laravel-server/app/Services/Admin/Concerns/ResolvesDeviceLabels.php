@@ -97,6 +97,25 @@ trait ResolvesDeviceLabels
      * @param  string[]  $deviceIds
      * @return array<string, string>
      */
+    protected function deviceAppVersions(array $deviceIds): array
+    {
+        $ids = $this->uniqueDeviceIds($deviceIds);
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return UserDevice::whereIn('device_id', $ids)
+            ->whereNotNull('app_version')
+            ->orderBy('last_synced_at')
+            ->pluck('app_version', 'device_id')
+            ->all();
+    }
+
+    /**
+     * @param  string[]  $deviceIds
+     * @return array<string, string>
+     */
     private function sniffedLabels(array $deviceIds): array
     {
         return UserDevice::whereIn('device_id', $deviceIds)

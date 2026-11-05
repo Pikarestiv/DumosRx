@@ -45,9 +45,16 @@ export function StaffDeviceHistory({ userId }: StaffDeviceHistoryProps) {
           <ul className="space-y-2">
             {devices.map((device) => (
               <li key={device.deviceId} className="text-xs">
-                <p className="font-bold text-slate-900 dark:text-slate-100">
-                  {device.deviceLabel ?? "Unnamed device"}
-                </p>
+                <div className="flex items-center justify-between gap-1">
+                  <p className="font-bold text-slate-900 dark:text-slate-100 truncate">
+                    {device.deviceLabel ?? "Unnamed device"}
+                  </p>
+                  {device.appVersion && (
+                    <span className="shrink-0 font-mono text-[9px] font-semibold px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                      v{device.appVersion}
+                    </span>
+                  )}
+                </div>
                 <p className="font-mono text-[10px] text-slate-400 break-all">
                   {device.deviceId}
                 </p>

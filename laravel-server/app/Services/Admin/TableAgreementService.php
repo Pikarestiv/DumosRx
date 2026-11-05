@@ -152,8 +152,9 @@ class TableAgreementService
         $deviceIds = $reports->pluck('device_id')->all();
         $labels = $this->deviceLabels($storeId, $deviceIds);
         $nicknames = $this->deviceNicknames($storeId, $deviceIds);
+        $appVersions = $this->deviceAppVersions($deviceIds);
 
-        $devices = $reports->map(function (DeviceTableReport $report) use ($labels, $nicknames) {
+        $devices = $reports->map(function (DeviceTableReport $report) use ($labels, $nicknames, $appVersions) {
             $tables = $this->storedVerdicts((array) ($report->tables ?? []));
             $stale = $report->reported_at->lt(now()->subHours(self::STALE_AFTER_HOURS));
 
@@ -169,6 +170,7 @@ class TableAgreementService
                 'device_id' => $report->device_id,
                 'device_label' => $labels[$report->device_id] ?? null,
                 'device_nickname' => $nicknames[$report->device_id] ?? null,
+                'app_version' => $appVersions[$report->device_id] ?? null,
                 'tables' => $tables,
                 'diverged_tables' => $hasLocalCopy && ! $stale ? $diverged : [],
                 'has_local_copy' => $hasLocalCopy,

@@ -966,7 +966,11 @@ migration here **and** the corresponding update on the `client/` side
   drill-down. `device_label` is best-effort client-side UA sniffing
   (`client/lib/utils/device-label.ts`) purely for admin readability — never
   trust it for anything security- or correctness-relevant, unlike
-  `device_id`. `tests/Feature/UserDeviceTrackingTest.php` and
+  `device_id`. `X-App-Version` is captured on `user_devices.app_version`
+  (bypassing the 1-minute throttle when the reported version changes), and
+  resolved across superadmin panels via `ResolvesDeviceLabels::deviceAppVersions()`
+  so operators can verify which client build a till is running before enabling
+  version-gated store capabilities. `tests/Feature/UserDeviceTrackingTest.php` and
   `tests/Feature/Admin/AdminUserSyncVisibilityTest.php` guard it.
 - **Operator nicknames beat the sniffed label (2026-10-14).** `device_nicknames`
   (`store_id`, `device_id`, unique together) holds the name a super admin typed

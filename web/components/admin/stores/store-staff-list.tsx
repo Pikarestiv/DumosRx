@@ -73,7 +73,7 @@ export function StoreStaffList({
                   {member.lastSyncedAt
                     ? `Synced ${member.lastSyncedAt} · ${member.lastSyncDeviceId ?? member.lastSyncDevice}${
                         member.lastSyncDeviceLabel ? ` (${member.lastSyncDeviceLabel})` : ""
-                      }`
+                      }${member.lastSyncAppVersion ? ` · v${member.lastSyncAppVersion}` : ""}`
                     : "Never synced"}
                 </p>
               </div>

@@ -71,8 +71,9 @@ class StockDivergenceService
         $deviceIds = $reports->pluck('device_id')->all();
         $labels = $this->deviceLabels($storeId, $deviceIds);
         $nicknames = $this->deviceNicknames($storeId, $deviceIds);
+        $appVersions = $this->deviceAppVersions($deviceIds);
 
-        $devices = $reports->map(function (DeviceStockReport $report) use ($labels, $nicknames) {
+        $devices = $reports->map(function (DeviceStockReport $report) use ($labels, $nicknames, $appVersions) {
             $quantityDelta = round((float) $report->device_quantity_sum - (float) $report->server_quantity_sum, 3);
             $batchDelta = $report->device_batch_count - $report->server_batch_count;
             $deviceValue = $report->device_value_sum === null ? null : (float) $report->device_value_sum;
@@ -86,6 +87,7 @@ class StockDivergenceService
                 'device_id' => $report->device_id,
                 'device_label' => $labels[$report->device_id] ?? null,
                 'device_nickname' => $nicknames[$report->device_id] ?? null,
+                'app_version' => $appVersions[$report->device_id] ?? null,
                 'device_batch_count' => $report->device_batch_count,
                 'device_quantity_sum' => (float) $report->device_quantity_sum,
                 'server_batch_count' => $report->server_batch_count,

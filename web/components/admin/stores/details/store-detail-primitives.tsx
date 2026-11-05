@@ -40,13 +40,22 @@ export function signedCount(value: number): string {
 export function DeviceIdentity({
   label,
   deviceId,
+  appVersion,
 }: {
   label: string | null | undefined;
   deviceId: string;
+  appVersion?: string | null;
 }) {
   return (
     <div className="min-w-0">
-      <p className="truncate text-sm font-bold text-foreground">{label ?? "Unnamed device"}</p>
+      <div className="flex items-center gap-1.5">
+        <p className="truncate text-sm font-bold text-foreground">{label ?? "Unnamed device"}</p>
+        {appVersion && (
+          <span className="shrink-0 font-mono text-[9px] font-semibold px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+            v{appVersion}
+          </span>
+        )}
+      </div>
       <p className="truncate font-mono text-xs text-muted-foreground">{deviceId}</p>
     </div>
   );

@@ -72,14 +72,45 @@ class UserDeviceTrackingTest extends TestCase
     public function a_counts_call_records_the_device_with_its_label(): void
     {
         $this->actingAs($this->owner)
-            ->withHeaders(['X-Device-Id' => 'DRX-ABC123', 'X-Device-Label' => 'Chrome on Windows'])
+            ->withHeaders([
+                'X-Device-Id' => 'DRX-ABC123',
+                'X-Device-Label' => 'Chrome on Windows',
+                'X-App-Version' => '0.0.41',
+            ])
             ->getJson('/api/v1/app/sync/counts')
             ->assertStatus(200);
 
         $device = UserDevice::where('user_id', $this->owner->id)->where('device_id', 'DRX-ABC123')->first();
         $this->assertNotNull($device);
         $this->assertSame('Chrome on Windows', $device->device_label);
+        $this->assertSame('0.0.41', $device->app_version);
         $this->assertNotNull($device->last_synced_at);
+    }
+
+    #[Test]
+    public function an_upgraded_app_version_rewrites_the_row_even_within_a_minute(): void
+    {
+        $this->actingAs($this->owner)
+            ->withHeaders([
+                'X-Device-Id' => 'DRX-ABC123',
+                'X-Device-Label' => 'Chrome on Windows',
+                'X-App-Version' => '0.0.40',
+            ])
+            ->getJson('/api/v1/app/sync/counts');
+
+        $first = UserDevice::where('user_id', $this->owner->id)->where('device_id', 'DRX-ABC123')->first();
+        $this->assertSame('0.0.40', $first->app_version);
+
+        $this->actingAs($this->owner)
+            ->withHeaders([
+                'X-Device-Id' => 'DRX-ABC123',
+                'X-Device-Label' => 'Chrome on Windows',
+                'X-App-Version' => '0.0.41',
+            ])
+            ->getJson('/api/v1/app/sync/counts');
+
+        $second = UserDevice::where('user_id', $this->owner->id)->where('device_id', 'DRX-ABC123')->first();
+        $this->assertSame('0.0.41', $second->app_version);
     }
 
     #[Test]

@@ -70,6 +70,7 @@ class AdminUserSyncVisibilityTest extends TestCase
         UserDevice::create([
             'user_id' => $this->staff->id, 'store_id' => $this->store->id,
             'device_id' => 'DRX-NEW', 'device_label' => 'Chrome on Windows',
+            'app_version' => '0.0.41',
             'last_synced_at' => now()->subMinutes(5),
         ]);
 
@@ -79,6 +80,7 @@ class AdminUserSyncVisibilityTest extends TestCase
         $response->assertStatus(200);
         $row = collect($response->json('data'))->firstWhere('id', $this->staff->id);
         $this->assertSame('Chrome on Windows', $row['lastSyncDevice']);
+        $this->assertSame('0.0.41', $row['lastSyncAppVersion']);
         $this->assertNotNull($row['lastSyncedAt']);
     }
 
@@ -105,6 +107,7 @@ class AdminUserSyncVisibilityTest extends TestCase
         UserDevice::create([
             'user_id' => $this->staff->id, 'store_id' => $this->store->id,
             'device_id' => 'DRX-NEW', 'device_label' => 'Chrome on Windows',
+            'app_version' => '0.0.41',
             'last_synced_at' => now()->subMinutes(5),
         ]);
 
@@ -115,7 +118,9 @@ class AdminUserSyncVisibilityTest extends TestCase
         $devices = $response->json('devices');
         $this->assertCount(2, $devices);
         $this->assertSame('Chrome on Windows', $devices[0]['deviceLabel']);
+        $this->assertSame('0.0.41', $devices[0]['appVersion']);
         $this->assertSame('Firefox on Linux', $devices[1]['deviceLabel']);
+        $this->assertNull($devices[1]['appVersion']);
     }
 
     #[Test]

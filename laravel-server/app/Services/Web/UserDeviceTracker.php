@@ -39,12 +39,13 @@ class UserDeviceTracker
             // Inside the try: this contract is that nothing here can fail the
             // sync request it is called from, and this now runs a query.
             $userId = self::resolveActingUserId($request, $storeId) ?? $user->id;
+            $appVersion = $request->header('X-App-Version');
 
             $existing = UserDevice::where('user_id', $userId)
                 ->where('device_id', $deviceId)
                 ->first();
 
-            if ($existing && $existing->last_synced_at && $existing->last_synced_at->gt(now()->subMinute())) {
+            if ($existing && $existing->last_synced_at && $existing->last_synced_at->gt(now()->subMinute()) && $existing->app_version === $appVersion) {
                 return;
             }
 
@@ -53,6 +54,7 @@ class UserDeviceTracker
                 [
                     'store_id' => $storeId,
                     'device_label' => $request->header('X-Device-Label'),
+                    'app_version' => $appVersion,
                     'last_synced_at' => now(),
                 ],
             );

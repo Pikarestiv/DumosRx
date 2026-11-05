@@ -6,6 +6,7 @@ import { useStoreQueueState } from "@/lib/api/admin-hooks-sync";
 import { syncReasonLabel } from "@/lib/api/admin-hooks-sync";
 import { formatDateSafe } from "@/lib/utils/date-utils";
 import { StuckItemActions } from "./stuck-item-actions";
+import { DeviceVersionBadge } from "./store-detail-primitives";
 import type { DeviceQueueReport, StoreQueueState } from "@/lib/types/admin-platform";
 
 function waitedFor(seconds: number): string {
@@ -124,17 +125,7 @@ export function StoreQueueStateSection({
                 <p className="text-xs font-bold text-foreground">
                   {device.device_label ?? "Unnamed device"}
                 </p>
-                {(device.app_version || device.build_sha) && (
-                  <span
-                    title={`App: ${device.app_version ?? "unknown"} | Build: ${device.build_sha ?? "unknown"}`}
-                    className="shrink-0 font-mono text-[9px] font-semibold px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
-                  >
-                    {[
-                      device.app_version ? `v${device.app_version}` : null,
-                      device.build_sha ? device.build_sha.slice(0, 8) : null,
-                    ].filter(Boolean).join(" · ")}
-                  </span>
-                )}
+                <DeviceVersionBadge appVersion={device.app_version} buildSha={device.build_sha} />
               </div>
               <p className="font-mono text-xs text-muted-foreground break-all">
                 {device.device_id}

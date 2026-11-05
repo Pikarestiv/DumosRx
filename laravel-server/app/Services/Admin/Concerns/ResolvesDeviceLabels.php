@@ -107,6 +107,7 @@ trait ResolvesDeviceLabels
 
         return UserDevice::whereIn('device_id', $ids)
             ->whereNotNull('app_version')
+            ->where('app_version', '!=', '')
             ->orderBy('last_synced_at')
             ->pluck('app_version', 'device_id')
             ->all();
@@ -126,6 +127,7 @@ trait ResolvesDeviceLabels
 
         return UserDevice::whereIn('device_id', $ids)
             ->whereNotNull('build_sha')
+            ->where('build_sha', '!=', '')
             ->orderBy('last_synced_at')
             ->pluck('build_sha', 'device_id')
             ->all();

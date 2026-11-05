@@ -4,6 +4,7 @@ import { useState } from "react";
 import { History, Loader2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useStaffDevices } from "@/lib/api/admin-hooks";
+import { DeviceVersionBadge } from "./details/store-detail-primitives";
 
 interface StaffDeviceHistoryProps {
   userId: string;
@@ -49,17 +50,7 @@ export function StaffDeviceHistory({ userId }: StaffDeviceHistoryProps) {
                   <p className="font-bold text-slate-900 dark:text-slate-100 truncate">
                     {device.deviceLabel ?? "Unnamed device"}
                   </p>
-                  {(device.appVersion || device.buildSha) && (
-                    <span
-                      title={`App: ${device.appVersion ?? "unknown"} | Build: ${device.buildSha ?? "unknown"}`}
-                      className="shrink-0 font-mono text-[9px] font-semibold px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
-                    >
-                      {[
-                        device.appVersion ? `v${device.appVersion}` : null,
-                        device.buildSha ? device.buildSha.slice(0, 8) : null,
-                      ].filter(Boolean).join(" · ")}
-                    </span>
-                  )}
+                  <DeviceVersionBadge appVersion={device.appVersion} buildSha={device.buildSha} />
                 </div>
                 <p className="font-mono text-[10px] text-slate-400 break-all">
                   {device.deviceId}

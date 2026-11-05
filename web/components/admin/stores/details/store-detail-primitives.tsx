@@ -37,6 +37,42 @@ export function signedCount(value: number): string {
   return `${value > 0 ? "+" : ""}${value.toLocaleString()}`;
 }
 
+export function formatDeviceVersion(
+  appVersion?: string | null,
+  buildSha?: string | null,
+): string | null {
+  const cleanApp = appVersion?.trim();
+  const cleanSha = buildSha?.trim();
+  const shortSha = cleanSha ? (cleanSha.length > 8 ? cleanSha.slice(0, 8) : cleanSha) : null;
+
+  const parts = [
+    cleanApp ? `v${cleanApp}` : null,
+    shortSha,
+  ].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+export function DeviceVersionBadge({
+  appVersion,
+  buildSha,
+}: {
+  appVersion?: string | null;
+  buildSha?: string | null;
+}) {
+  const formatted = formatDeviceVersion(appVersion, buildSha);
+  if (!formatted) return null;
+
+  return (
+    <span
+      title={`App: ${appVersion?.trim() || "unknown"} | Build: ${buildSha?.trim() || "unknown"}`}
+      className="shrink-0 font-mono text-[9px] font-semibold px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+    >
+      {formatted}
+    </span>
+  );
+}
+
 export function DeviceIdentity({
   label,
   deviceId,
@@ -48,24 +84,11 @@ export function DeviceIdentity({
   appVersion?: string | null;
   buildSha?: string | null;
 }) {
-  const shortSha = buildSha ? (buildSha.length > 8 ? buildSha.slice(0, 8) : buildSha) : null;
-  const versionBadge = [
-    appVersion ? `v${appVersion}` : null,
-    shortSha,
-  ].filter(Boolean).join(" · ");
-
   return (
     <div className="min-w-0">
       <div className="flex items-center gap-1.5">
         <p className="truncate text-sm font-bold text-foreground">{label ?? "Unnamed device"}</p>
-        {versionBadge && (
-          <span
-            title={`App: ${appVersion ?? "unknown"} | Build: ${buildSha ?? "unknown"}`}
-            className="shrink-0 font-mono text-[9px] font-semibold px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
-          >
-            {versionBadge}
-          </span>
-        )}
+        <DeviceVersionBadge appVersion={appVersion} buildSha={buildSha} />
       </div>
       <p className="truncate font-mono text-xs text-muted-foreground">{deviceId}</p>
     </div>

@@ -4,6 +4,7 @@ import { Loader2, ShieldAlert, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useStoreStaff } from "@/lib/api/admin-hooks";
 import { StaffDeviceHistory } from "./staff-device-history";
+import { formatDeviceVersion } from "./details/store-detail-primitives";
 
 interface StoreStaffListProps {
   storeId: string | null | undefined;
@@ -74,13 +75,8 @@ export function StoreStaffList({
                     ? `Synced ${member.lastSyncedAt} · ${member.lastSyncDeviceId ?? member.lastSyncDevice}${
                         member.lastSyncDeviceLabel ? ` (${member.lastSyncDeviceLabel})` : ""
                       }${
-                        member.lastSyncAppVersion || member.lastSyncBuildSha
-                          ? ` · ${[
-                              member.lastSyncAppVersion ? `v${member.lastSyncAppVersion}` : null,
-                              member.lastSyncBuildSha ? member.lastSyncBuildSha.slice(0, 8) : null,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}`
+                        formatDeviceVersion(member.lastSyncAppVersion, member.lastSyncBuildSha)
+                          ? ` · ${formatDeviceVersion(member.lastSyncAppVersion, member.lastSyncBuildSha)}`
                           : ""
                       }`
                     : "Never synced"}

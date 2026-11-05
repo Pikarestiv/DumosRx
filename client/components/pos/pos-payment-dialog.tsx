@@ -117,7 +117,14 @@ export function POSPaymentDialog({
         setSelectedAccountId(defaultId);
       }
     }
-  }, [paymentMethod, storeProfile?.id, showPaymentDialog, defaults, isValidAccount, setSelectedAccountId]);
+  }, [
+    paymentMethod,
+    storeProfile?.id,
+    showPaymentDialog,
+    defaults,
+    isValidAccount,
+    setSelectedAccountId,
+  ]);
 
   const isCurrentDefault =
     selectedAccountId && storeProfile?.id
@@ -145,7 +152,7 @@ export function POSPaymentDialog({
           <Button
             variant="outline"
             onClick={() => setShowPaymentDialog(false)}
-            className="flex-1"
+            className="flex-1 hover:bg-primary/30"
             disabled={processingPayment}
           >
             Cancel
@@ -193,7 +200,8 @@ export function POSPaymentDialog({
                 )}
               </p>
             )}
-            {calculateCashShortfall(Number.parseFloat(amountPaid), total) > 0 && (
+            {calculateCashShortfall(Number.parseFloat(amountPaid), total) >
+              0 && (
               <p className="text-sm text-destructive font-medium mt-1">
                 {formatCurrency(
                   calculateCashShortfall(Number.parseFloat(amountPaid), total),

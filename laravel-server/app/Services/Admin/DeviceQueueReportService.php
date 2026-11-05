@@ -78,11 +78,13 @@ class DeviceQueueReportService
         $deviceIds = $reports->pluck('device_id')->all();
         $labels = $this->deviceLabels($storeId, $deviceIds);
         $appVersions = $this->deviceAppVersions($deviceIds);
+        $buildShas = $this->deviceBuildShas($deviceIds);
 
         $devices = $reports->map(fn (DeviceQueueReport $report) => [
             'device_id' => $report->device_id,
             'device_label' => $labels[$report->device_id] ?? null,
             'app_version' => $appVersions[$report->device_id] ?? null,
+            'build_sha' => $buildShas[$report->device_id] ?? null,
             'queue_depth' => $report->queue_depth,
             'oldest_queued_seconds' => $report->oldest_queued_seconds,
             'delivered_ages' => $report->delivered_ages,

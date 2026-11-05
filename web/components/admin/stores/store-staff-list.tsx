@@ -73,7 +73,16 @@ export function StoreStaffList({
                   {member.lastSyncedAt
                     ? `Synced ${member.lastSyncedAt} · ${member.lastSyncDeviceId ?? member.lastSyncDevice}${
                         member.lastSyncDeviceLabel ? ` (${member.lastSyncDeviceLabel})` : ""
-                      }${member.lastSyncAppVersion ? ` · v${member.lastSyncAppVersion}` : ""}`
+                      }${
+                        member.lastSyncAppVersion || member.lastSyncBuildSha
+                          ? ` · ${[
+                              member.lastSyncAppVersion ? `v${member.lastSyncAppVersion}` : null,
+                              member.lastSyncBuildSha ? member.lastSyncBuildSha.slice(0, 8) : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}`
+                          : ""
+                      }`
                     : "Never synced"}
                 </p>
               </div>

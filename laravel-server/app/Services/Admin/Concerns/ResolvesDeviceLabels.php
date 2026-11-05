@@ -116,6 +116,25 @@ trait ResolvesDeviceLabels
      * @param  string[]  $deviceIds
      * @return array<string, string>
      */
+    protected function deviceBuildShas(array $deviceIds): array
+    {
+        $ids = $this->uniqueDeviceIds($deviceIds);
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return UserDevice::whereIn('device_id', $ids)
+            ->whereNotNull('build_sha')
+            ->orderBy('last_synced_at')
+            ->pluck('build_sha', 'device_id')
+            ->all();
+    }
+
+    /**
+     * @param  string[]  $deviceIds
+     * @return array<string, string>
+     */
     private function sniffedLabels(array $deviceIds): array
     {
         return UserDevice::whereIn('device_id', $deviceIds)

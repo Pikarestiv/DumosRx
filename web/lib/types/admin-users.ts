@@ -37,6 +37,7 @@ export interface AdminUser {
   lastSyncDeviceId?: string | null;
   lastSyncDeviceLabel?: string | null;
   lastSyncAppVersion?: string | null;
+  lastSyncBuildSha?: string | null;
   /** Server-computed hint that this row's deletion would be refused;
    * advisory only — the server still enforces it on delete. */
   can_delete?: boolean;
@@ -48,6 +49,7 @@ export interface AdminUserDevice {
   deviceId: string;
   deviceLabel: string | null;
   appVersion?: string | null;
+  buildSha?: string | null;
   storeId: string | null;
   lastSyncedAt: string | null;
   lastSyncedAtIso: string | null;

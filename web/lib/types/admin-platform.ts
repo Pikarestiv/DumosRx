@@ -123,6 +123,7 @@ export interface DeviceStockReport {
   /** The operator-set name alone; `device_label` falls back to UA sniffing. */
   device_nickname?: string | null;
   app_version?: string | null;
+  build_sha?: string | null;
   device_batch_count: number;
   device_quantity_sum: number;
   /** Null when the device's client predates the value fingerprint. */
@@ -163,6 +164,7 @@ export interface DeviceQueueReport {
   device_id: string;
   device_label: string | null;
   app_version?: string | null;
+  build_sha?: string | null;
   queue_depth: number;
   /** Optional: absent from a response served before this shipped. */
   oldest_queued_seconds?: number | null;
@@ -204,6 +206,7 @@ export interface DeviceTableReport {
   device_label: string | null;
   device_nickname: string | null;
   app_version?: string | null;
+  build_sha?: string | null;
   tables: DeviceTableAgreementRow[];
   diverged_tables: string[];
   has_local_copy: boolean;

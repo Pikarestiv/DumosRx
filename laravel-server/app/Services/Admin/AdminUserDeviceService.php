@@ -40,6 +40,7 @@ class AdminUserDeviceService
                 'deviceId' => $device->device_id,
                 'deviceLabel' => $device->device_label,
                 'appVersion' => $device->app_version,
+                'buildSha' => $device->build_sha,
                 'storeId' => $device->store_id,
                 'lastSyncedAt' => $device->last_synced_at?->diffForHumans(),
                 'lastSyncedAtIso' => $device->last_synced_at?->toIso8601String(),

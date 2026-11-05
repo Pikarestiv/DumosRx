@@ -41,18 +41,29 @@ export function DeviceIdentity({
   label,
   deviceId,
   appVersion,
+  buildSha,
 }: {
   label: string | null | undefined;
   deviceId: string;
   appVersion?: string | null;
+  buildSha?: string | null;
 }) {
+  const shortSha = buildSha ? (buildSha.length > 8 ? buildSha.slice(0, 8) : buildSha) : null;
+  const versionBadge = [
+    appVersion ? `v${appVersion}` : null,
+    shortSha,
+  ].filter(Boolean).join(" · ");
+
   return (
     <div className="min-w-0">
       <div className="flex items-center gap-1.5">
         <p className="truncate text-sm font-bold text-foreground">{label ?? "Unnamed device"}</p>
-        {appVersion && (
-          <span className="shrink-0 font-mono text-[9px] font-semibold px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-            v{appVersion}
+        {versionBadge && (
+          <span
+            title={`App: ${appVersion ?? "unknown"} | Build: ${buildSha ?? "unknown"}`}
+            className="shrink-0 font-mono text-[9px] font-semibold px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+          >
+            {versionBadge}
           </span>
         )}
       </div>

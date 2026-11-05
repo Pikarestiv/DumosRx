@@ -233,6 +233,7 @@ export function StoreTableAgreementSection({
                 label={device.device_nickname ?? device.device_label}
                 deviceId={device.device_id}
                 appVersion={device.app_version}
+                buildSha={device.build_sha}
               />
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <DeviceVerdict device={device} />

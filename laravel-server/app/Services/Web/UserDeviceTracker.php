@@ -40,12 +40,13 @@ class UserDeviceTracker
             // sync request it is called from, and this now runs a query.
             $userId = self::resolveActingUserId($request, $storeId) ?? $user->id;
             $appVersion = $request->header('X-App-Version');
+            $buildSha = $request->header('X-Build-Sha');
 
             $existing = UserDevice::where('user_id', $userId)
                 ->where('device_id', $deviceId)
                 ->first();
 
-            if ($existing && $existing->last_synced_at && $existing->last_synced_at->gt(now()->subMinute()) && $existing->app_version === $appVersion) {
+            if ($existing && $existing->last_synced_at && $existing->last_synced_at->gt(now()->subMinute()) && $existing->app_version === $appVersion && $existing->build_sha === $buildSha) {
                 return;
             }
 
@@ -55,6 +56,7 @@ class UserDeviceTracker
                     'store_id' => $storeId,
                     'device_label' => $request->header('X-Device-Label'),
                     'app_version' => $appVersion,
+                    'build_sha' => $buildSha,
                     'last_synced_at' => now(),
                 ],
             );

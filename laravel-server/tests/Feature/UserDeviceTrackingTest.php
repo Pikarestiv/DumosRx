@@ -76,6 +76,7 @@ class UserDeviceTrackingTest extends TestCase
                 'X-Device-Id' => 'DRX-ABC123',
                 'X-Device-Label' => 'Chrome on Windows',
                 'X-App-Version' => '0.0.41',
+                'X-Build-Sha' => 'a1b2c3d4',
             ])
             ->getJson('/api/v1/app/sync/counts')
             ->assertStatus(200);
@@ -84,7 +85,36 @@ class UserDeviceTrackingTest extends TestCase
         $this->assertNotNull($device);
         $this->assertSame('Chrome on Windows', $device->device_label);
         $this->assertSame('0.0.41', $device->app_version);
+        $this->assertSame('a1b2c3d4', $device->build_sha);
         $this->assertNotNull($device->last_synced_at);
+    }
+
+    #[Test]
+    public function an_upgraded_build_sha_rewrites_the_row_even_within_a_minute(): void
+    {
+        $this->actingAs($this->owner)
+            ->withHeaders([
+                'X-Device-Id' => 'DRX-ABC123',
+                'X-Device-Label' => 'Chrome on Windows',
+                'X-App-Version' => '0.0.41',
+                'X-Build-Sha' => '11111111',
+            ])
+            ->getJson('/api/v1/app/sync/counts');
+
+        $first = UserDevice::where('user_id', $this->owner->id)->where('device_id', 'DRX-ABC123')->first();
+        $this->assertSame('11111111', $first->build_sha);
+
+        $this->actingAs($this->owner)
+            ->withHeaders([
+                'X-Device-Id' => 'DRX-ABC123',
+                'X-Device-Label' => 'Chrome on Windows',
+                'X-App-Version' => '0.0.41',
+                'X-Build-Sha' => '22222222',
+            ])
+            ->getJson('/api/v1/app/sync/counts');
+
+        $second = UserDevice::where('user_id', $this->owner->id)->where('device_id', 'DRX-ABC123')->first();
+        $this->assertSame('22222222', $second->build_sha);
     }
 
     #[Test]

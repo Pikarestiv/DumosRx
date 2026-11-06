@@ -223,15 +223,15 @@ export function useActionCenterAlerts(
       if (owedCount > 0) {
         items.push({
           id: "owed-units",
-          title: `${owedCount} ${pluralize(owedCount, "Product")} Owed to Customers`,
+          title: `${owedCount} ${pluralize(owedCount, "Product")} Owed`,
           description:
             owedCount === 1 && owedProduct
-              ? `${owedProduct} — sold before stock was received. Receive the delivery to settle it.`
-              : "Sold before stock was received. Receive the deliveries to settle them.",
+              ? `${owedProduct} — receive stock to settle.`
+              : "Sold before stock received. Receive delivery to settle.",
           icon: PackageCheck,
           priority: "warning",
-          actionLabel: "Receive Stock",
-          actionRoute: "/procurement",
+          actionLabel: "View Catalog",
+          actionRoute: "/inventory/catalog?status=stock_owed",
         });
       }
 

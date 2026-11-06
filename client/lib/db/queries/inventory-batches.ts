@@ -26,10 +26,21 @@ export async function getBatchTrackingData() {
 }
 
 export async function getStockBatchesForProductDetails(productId: string) {
-  return query<StockBatch>(
-    "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 ORDER BY expiry_date ASC",
-    [productId]
-  );
+  try {
+    return await query<StockBatch>(
+      `SELECT sb.*, s.name AS supplier_name
+         FROM stock_batches sb
+         LEFT JOIN suppliers s ON s.id = sb.supplier_id AND s._deleted = 0
+        WHERE sb.product_id = ? AND sb._deleted = 0
+        ORDER BY sb.expiry_date ASC`,
+      [productId],
+    );
+  } catch {
+    return query<StockBatch>(
+      "SELECT * FROM stock_batches WHERE product_id = ? AND _deleted = 0 ORDER BY expiry_date ASC",
+      [productId],
+    );
+  }
 }
 
 export async function getStockBatchById(id: string) {

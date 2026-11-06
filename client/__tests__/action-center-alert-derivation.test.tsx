@@ -148,9 +148,9 @@ describe("useActionCenterAlerts", () => {
     let result = await alerts({ owed: 1, owedProduct: "Cement 50kg" });
     const alert = result.current.find((a) => a.id === "owed-units");
     expect(alert?.priority).toBe("warning");
-    expect(alert?.title).toBe("1 Product Owed to Customers");
+    expect(alert?.title).toBe("1 Product Owed");
     expect(alert?.description).toContain("Cement 50kg");
-    expect(alert?.actionRoute).toBe("/procurement");
+    expect(alert?.actionRoute).toBe("/inventory/catalog?status=stock_owed");
 
     result = await alerts();
     expect(ids(result.current)).not.toContain("owed-units");

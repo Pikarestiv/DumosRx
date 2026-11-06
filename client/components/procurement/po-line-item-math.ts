@@ -207,7 +207,8 @@ export function getImmediateEffectiveSellingPrice(
     const parsed = Number(item.selling_price);
     return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
   }
-  return Number(product?.selling_price) || 0;
+  const catalogPrice = Number(product?.selling_price);
+  return Number.isFinite(catalogPrice) ? Math.max(0, catalogPrice) : 0;
 }
 
 export function getZeroCostLineItems(items: POLineItemDraft[]): POLineItemDraft[] {
@@ -240,7 +241,10 @@ export function getReceiveZeroCostItems<
     .map((item) => ({
       item,
       poItem: poItems.find(
-        (p) => p.id === (item.po_item_id ?? item.product_id),
+        (p) =>
+          (item.po_item_id && p.id === item.po_item_id) ||
+          (item.product_id && p.product_id === item.product_id) ||
+          p.id === item.product_id,
       ),
     }))
     .filter(({ item, poItem }) => {
@@ -271,7 +275,10 @@ export function getReceiveZeroSellingPriceItems<
     .map((item) => ({
       item,
       poItem: poItems.find(
-        (p) => p.id === (item.po_item_id ?? item.product_id),
+        (p) =>
+          (item.po_item_id && p.id === item.po_item_id) ||
+          (item.product_id && p.product_id === item.product_id) ||
+          p.id === item.product_id,
       ),
     }))
     .filter(({ item, poItem }) => {
@@ -286,4 +293,14 @@ export function getReceiveZeroSellingPriceItems<
 export function formatProductNamesList(names: string[]): string {
   if (names.length <= 3) return names.join(", ");
   return `${names.slice(0, 3).join(", ")} and ${names.length - 3} more`;
+}
+
+export function resolveReceiveButtonLabel(
+  hasZeroCost: boolean,
+  hasZeroSell: boolean,
+): string {
+  if (hasZeroCost && hasZeroSell) return "Receive with ₦0 Cost & Sell Price";
+  if (hasZeroCost) return "Receive with ₦0 Cost";
+  if (hasZeroSell) return "Receive with ₦0 Sell Price";
+  return "Receive Purchase";
 }

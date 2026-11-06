@@ -210,7 +210,7 @@ describe("Immediate Purchase submit confirmation", () => {
     expect(dialog.textContent).toContain("distort your inventory valuation");
 
     expect(screen.getByRole("button", { name: "Go Back & Edit Prices" })).toBeTruthy();
-    const confirm = screen.getByRole("button", { name: "Receive with ₦0 Price" });
+    const confirm = screen.getByRole("button", { name: "Receive with ₦0 Cost" });
     expect(confirm).toBeTruthy();
 
     act(() => {
@@ -245,7 +245,7 @@ describe("Immediate Purchase submit confirmation", () => {
     expect(dialog.textContent).toContain("Price warning on items being received");
     expect(dialog.textContent).toContain("Zero Selling Price (₦0): PANADOL");
     expect(dialog.textContent).toContain("sold for free (₦0)");
-    expect(screen.getByRole("button", { name: "Receive with ₦0 Price" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Receive with ₦0 Sell Price" })).toBeTruthy();
   });
 
   it("warns when both cost price and selling price are zero", () => {
@@ -273,5 +273,6 @@ describe("Immediate Purchase submit confirmation", () => {
     const dialog = screen.getByRole("alertdialog");
     expect(dialog.textContent).toContain("Zero Cost Price (₦0): PANADOL");
     expect(dialog.textContent).toContain("Zero Selling Price (₦0): PANADOL");
+    expect(screen.getByRole("button", { name: "Receive with ₦0 Cost & Sell Price" })).toBeTruthy();
   });
 });

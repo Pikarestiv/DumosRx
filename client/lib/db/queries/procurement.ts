@@ -79,6 +79,7 @@ export async function getActiveProductsForPO() {
        COALESCE(
          (SELECT cost_price FROM stock_batches WHERE product_id = p.id AND _deleted = 0 AND is_active = 1 AND cost_price > 0 AND COALESCE(batch_number, '') NOT LIKE 'ADJ-%' ORDER BY created_at DESC, rowid DESC LIMIT 1),
          (SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = p.id AND _deleted = 0 AND is_active = 1 AND quantity > 0),
+         NULLIF(p.cost_price, 0),
          0
        ) as cost_price,
        COALESCE((SELECT SUM(quantity) FROM stock_batches WHERE product_id = p.id AND _deleted = 0 AND is_active = 1), 0) as stock_quantity

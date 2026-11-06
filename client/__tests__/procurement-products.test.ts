@@ -25,7 +25,7 @@ describe("getActiveProductsForPO", () => {
     db.run(`
       CREATE TABLE products (
         id TEXT PRIMARY KEY, name TEXT, base_unit TEXT, bulk_unit TEXT, units_per_bulk INTEGER,
-        selling_price REAL, generic_name TEXT, manufacturer TEXT, strength TEXT,
+        cost_price REAL, selling_price REAL, generic_name TEXT, manufacturer TEXT, strength TEXT,
         dosage_form TEXT, reorder_level INTEGER DEFAULT 10, _deleted INTEGER DEFAULT 0
       );
       CREATE TABLE stock_batches (
@@ -114,5 +114,14 @@ describe("getActiveProductsForPO", () => {
     const item = products.find((p) => p.id === "prod5");
 
     expect(item?.reorder_level).toBe(15);
+  });
+
+  it("falls back to products.cost_price when a product has no previous batches", async () => {
+    db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, cost_price) VALUES ('prod6', 'Vitamin C', 'Tablet', 'Bottle', 100, 250)`);
+
+    const products = await getActiveProductsForPO();
+    const item = products.find((p) => p.id === "prod6");
+
+    expect(item?.cost_price).toBe(250);
   });
 });

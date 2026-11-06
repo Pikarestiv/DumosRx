@@ -17,6 +17,7 @@ import {
   getTotalBaseUnits,
   getZeroCostLineItems,
   getZeroSellingPriceLineItems,
+  resolveReceiveButtonLabel,
 } from "./po-line-item-math";
 import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import type { POProduct } from "@/lib/db/queries/procurement";
@@ -146,7 +147,10 @@ export function POImmediateConfirmDialog({
                 : undefined
             }
           >
-            {hasZeroPriceWarning ? "Receive with ₦0 Price" : "Receive Purchase"}
+            {resolveReceiveButtonLabel(
+              zeroCostItems.length > 0,
+              zeroSellingPriceItems.length > 0,
+            )}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

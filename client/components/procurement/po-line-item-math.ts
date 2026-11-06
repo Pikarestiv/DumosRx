@@ -198,3 +198,92 @@ export function clearImmediateOnlyFields<
     return rest as unknown as T;
   });
 }
+
+export function getImmediateEffectiveSellingPrice(
+  item: POLineItemDraft,
+  product?: { selling_price?: number | null },
+): number {
+  if (item.selling_price != null && item.selling_price !== "") {
+    const parsed = Number(item.selling_price);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+  }
+  return Number(product?.selling_price) || 0;
+}
+
+export function getZeroCostLineItems(items: POLineItemDraft[]): POLineItemDraft[] {
+  return items.filter(
+    (item) => Number(item.bulk_quantity) > 0 && getImmediateUnitCost(item) <= 0,
+  );
+}
+
+export function getZeroSellingPriceLineItems(
+  items: POLineItemDraft[],
+  products: { id: string; selling_price?: number | null }[],
+): POLineItemDraft[] {
+  const productMap = new Map(products.map((p) => [p.id, p]));
+  return items.filter((item) => {
+    if (Number(item.bulk_quantity) <= 0) return false;
+    const product = productMap.get(item.product_id);
+    return getImmediateEffectiveSellingPrice(item, product) <= 0;
+  });
+}
+
+export function getReceiveZeroCostItems<
+  T extends { quantity?: number | string; cost_price?: number | string; po_item_id?: string; product_id?: string },
+  P extends { id: string; product_id?: string; unit_cost: number; product_units_per_bulk?: number; units_per_bulk?: number },
+>(
+  payload: T[],
+  poItems: P[],
+): { item: T; poItem?: P }[] {
+  return payload
+    .filter((item) => Number(item.quantity) > 0)
+    .map((item) => ({
+      item,
+      poItem: poItems.find(
+        (p) => p.id === (item.po_item_id ?? item.product_id),
+      ),
+    }))
+    .filter(({ item, poItem }) => {
+      if (item.cost_price != null && item.cost_price !== "") {
+        return Number(item.cost_price) <= 0;
+      }
+      if (!poItem) return true;
+      const unitsPerBulk =
+        poItem.product_units_per_bulk || poItem.units_per_bulk || 1;
+      return (
+        resolveBaseUnitCost({
+          unitCost: poItem.unit_cost,
+          unitsPerBulk,
+        }) <= 0
+      );
+    });
+}
+
+export function getReceiveZeroSellingPriceItems<
+  T extends { quantity?: number | string; selling_price?: number | string; po_item_id?: string; product_id?: string },
+  P extends { id: string; product_id?: string; current_selling_price?: number | null },
+>(
+  payload: T[],
+  poItems: P[],
+): { item: T; poItem?: P }[] {
+  return payload
+    .filter((item) => Number(item.quantity) > 0)
+    .map((item) => ({
+      item,
+      poItem: poItems.find(
+        (p) => p.id === (item.po_item_id ?? item.product_id),
+      ),
+    }))
+    .filter(({ item, poItem }) => {
+      if (item.selling_price != null && item.selling_price !== "") {
+        return Number(item.selling_price) <= 0;
+      }
+      const livePrice = Number(poItem?.current_selling_price);
+      return !Number.isFinite(livePrice) || livePrice <= 0;
+    });
+}
+
+export function formatProductNamesList(names: string[]): string {
+  if (names.length <= 3) return names.join(", ");
+  return `${names.slice(0, 3).join(", ")} and ${names.length - 3} more`;
+}

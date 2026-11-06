@@ -180,4 +180,98 @@ describe("Immediate Purchase submit confirmation", () => {
     expect(handleSubmit).not.toHaveBeenCalled();
     expect(screen.getByRole("alertdialog")).toBeTruthy();
   });
+
+  it("warns when receiving an immediate purchase item with zero cost price", () => {
+    const zeroCostProps = {
+      ...baseProps("immediate"),
+      items: [
+        {
+          product_id: "p1",
+          product_name: "Panadol",
+          bulk_unit: "Carton",
+          bulk_quantity: 2,
+          units_per_bulk: 100,
+          unit_cost: 0,
+          subtotal: 0,
+          selling_price: 20,
+        },
+      ],
+    };
+    render(<PODesktopCreateView {...zeroCostProps} />);
+
+    act(() => {
+      screen.getByRole("button", { name: "Receive & Save" }).click();
+    });
+
+    expect(handleSubmit).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog.textContent).toContain("Price warning on items being received");
+    expect(dialog.textContent).toContain("Zero Cost Price (₦0): PANADOL");
+    expect(dialog.textContent).toContain("distort your inventory valuation");
+
+    expect(screen.getByRole("button", { name: "Go Back & Edit Prices" })).toBeTruthy();
+    const confirm = screen.getByRole("button", { name: "Receive with ₦0 Price" });
+    expect(confirm).toBeTruthy();
+
+    act(() => {
+      confirm.click();
+    });
+    expect(handleSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("warns when receiving an immediate purchase item with zero selling price", () => {
+    const zeroSellPriceProps = {
+      ...baseProps("immediate"),
+      items: [
+        {
+          product_id: "p1",
+          product_name: "Panadol",
+          bulk_unit: "Carton",
+          bulk_quantity: 2,
+          units_per_bulk: 100,
+          unit_cost: 400,
+          subtotal: 800,
+          selling_price: 0,
+        },
+      ],
+    };
+    render(<PODesktopCreateView {...zeroSellPriceProps} />);
+
+    act(() => {
+      screen.getByRole("button", { name: "Receive & Save" }).click();
+    });
+
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog.textContent).toContain("Price warning on items being received");
+    expect(dialog.textContent).toContain("Zero Selling Price (₦0): PANADOL");
+    expect(dialog.textContent).toContain("sold for free (₦0)");
+    expect(screen.getByRole("button", { name: "Receive with ₦0 Price" })).toBeTruthy();
+  });
+
+  it("warns when both cost price and selling price are zero", () => {
+    const zeroBothProps = {
+      ...baseProps("immediate"),
+      items: [
+        {
+          product_id: "p1",
+          product_name: "Panadol",
+          bulk_unit: "Carton",
+          bulk_quantity: 2,
+          units_per_bulk: 100,
+          unit_cost: 0,
+          subtotal: 0,
+          selling_price: 0,
+        },
+      ],
+    };
+    render(<PODesktopCreateView {...zeroBothProps} />);
+
+    act(() => {
+      screen.getByRole("button", { name: "Receive & Save" }).click();
+    });
+
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog.textContent).toContain("Zero Cost Price (₦0): PANADOL");
+    expect(dialog.textContent).toContain("Zero Selling Price (₦0): PANADOL");
+  });
 });

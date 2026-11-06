@@ -218,4 +218,44 @@ describe("ReceiveItemCard price fields", () => {
       expiry_date: "2027-03-01",
     });
   });
+
+  it("warns about zero cost price and zero selling price even when expiry date is provided", () => {
+    const onConfirm = vi.fn();
+    const zeroPricePo = {
+      ...po,
+      items: [
+        {
+          ...(po.items ?? [])[0],
+          unit_cost: 0,
+          current_selling_price: 0,
+        },
+      ],
+    } as unknown as PurchaseOrder;
+
+    render(
+      withQueryClient(
+        <ReceivePOPanel po={zeroPricePo} onBack={vi.fn()} onConfirm={onConfirm} />,
+      ),
+    );
+
+    // Provide expiry date so missing expiry is not the trigger
+    fireEvent.change(screen.getByLabelText(/expiry date for panadol/i), {
+      target: { value: "2027-05-01" },
+    });
+
+    act(() => {
+      screen.getByRole("button", { name: "Confirm & Receive" }).click();
+    });
+
+    expect(onConfirm).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog.textContent).toContain("Review Items Before Receiving");
+    expect(dialog.textContent).toContain("Zero Cost Price (₦0): PANADOL");
+    expect(dialog.textContent).toContain("Zero Selling Price (₦0): PANADOL");
+
+    act(() => {
+      screen.getByRole("button", { name: "Proceed Anyway" }).click();
+    });
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
 });

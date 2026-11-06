@@ -7185,6 +7185,7 @@ what's already covered above:
   with fallback to average cost plus `stock_quantity` and `reorder_level`. This
   aligns procurement with industry-standard replacement cost, avoiding ₦0
   defaults on out-of-stock items and fractional kobo averages.
+- **Zero-price warning before receiving:** `POImmediateConfirmDialog` (`po-immediate-confirm-dialog.tsx`) and `ReceivePOPanel` (`receive-po-panel.tsx`) inspect line items before receipt and warn prominently if any product is being received with ₦0 cost price (`getZeroCostLineItems`) or ₦0 selling price (`getZeroSellingPriceLineItems`). Prevents accidental zero-cost receipts that distort inventory valuation and margins, giving the user an explicit "Go Back & Edit Prices" choice or an amber/destructive "Receive with ₦0 Price" / "Proceed Anyway" override.
 - `components/procurement/po-review-price-popover.tsx`: per-row sell-price
   + live margin % popover on Immediate Purchase rows, so cost and sell
   price can be set in one pass instead of a separate Product Catalog trip.

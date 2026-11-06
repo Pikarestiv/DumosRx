@@ -21,9 +21,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { outstandingBulkQuantity } from "./po-line-item-math";
+import {
+  formatProductNamesList,
+  getReceiveZeroCostItems,
+  getReceiveZeroSellingPriceItems,
+  outstandingBulkQuantity,
+} from "./po-line-item-math";
 import { useDroppedReceiptSignal } from "@/lib/hooks/use-dropped-receipt-signal";
 import { OwedSettlementNotice } from "./owed-settlement-notice";
+import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
 
 export interface ReceivedItemPayload {
   po_item_id: string;
@@ -81,8 +87,7 @@ export function ReceivePOPanel({
     Record<string, ReceivedItemPayload>
   >({});
   const [showWarningModal, setShowWarningModal] = useState(false);
-  // Ledger needs room for a dense multi-column table. Tablet and up have
-  // it, phones get the one-item-at-a-time card flow instead.
+  const displayName = useDisplayName();
   const isTabletUp = useMediaQuery("(min-width: 640px)");
   const mode = isTabletUp ? "ledger" : "standard";
   const { signal: droppedReceipt, dismiss: dismissDroppedReceipt } =
@@ -118,11 +123,16 @@ export function ReceivePOPanel({
     if (isReceiving) return;
     const payload = Object.values(receivedItems);
 
-    // Check if any items are missing an expiry date
     const missingExpiry = payload.find(
-      (item) => item.quantity > 0 && !item.expiry_date,
+      (item) => Number(item.quantity) > 0 && !item.expiry_date,
     );
-    if (missingExpiry) {
+    const zeroCost = getReceiveZeroCostItems(payload, po.items || []);
+    const zeroSellingPrice = getReceiveZeroSellingPriceItems(
+      payload,
+      po.items || [],
+    );
+
+    if (missingExpiry || zeroCost.length > 0 || zeroSellingPrice.length > 0) {
       setShowWarningModal(true);
       return;
     }
@@ -244,22 +254,69 @@ export function ReceivePOPanel({
 
       <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Missing Expiry Date</AlertDialogTitle>
-            <AlertDialogDescription>
-              Some items are missing an expiry date. They will be marked with a
-              warning badge. Are you sure you want to proceed?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Go Back</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleProceedWarning}
-              className="!bg-destructive !text-destructive-foreground !hover:bg-destructive/90"
-            >
-              Proceed Anyway
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          {(() => {
+            const payload = Object.values(receivedItems);
+            const hasMissingExpiry = payload.some(
+              (item) => Number(item.quantity) > 0 && !item.expiry_date,
+            );
+            const zeroCostLines = getReceiveZeroCostItems(payload, po.items || []);
+            const zeroSellingPriceLines = getReceiveZeroSellingPriceItems(
+              payload,
+              po.items || [],
+            );
+            return (
+              <>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {zeroCostLines.length > 0 || zeroSellingPriceLines.length > 0
+                      ? "Review Items Before Receiving"
+                      : "Missing Expiry Date"}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription asChild>
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                      {hasMissingExpiry && (
+                        <p>
+                          Some items are missing an expiry date. They will be marked with a warning badge.
+                        </p>
+                      )}
+                      {zeroCostLines.length > 0 && (
+                        <p className="text-amber-600 dark:text-amber-400 font-medium">
+                          Zero Cost Price (₦0):{" "}
+                          {formatProductNamesList(
+                            zeroCostLines.map((l) =>
+                              displayName(l.poItem?.product_name || "Unknown"),
+                            ),
+                          )}
+                          . Stock will enter inventory without a purchase cost.
+                        </p>
+                      )}
+                      {zeroSellingPriceLines.length > 0 && (
+                        <p className="text-amber-600 dark:text-amber-400 font-medium">
+                          Zero Selling Price (₦0):{" "}
+                          {formatProductNamesList(
+                            zeroSellingPriceLines.map((l) =>
+                              displayName(l.poItem?.product_name || "Unknown"),
+                            ),
+                          )}
+                          . Products will be sold for free (₦0).
+                        </p>
+                      )}
+                      <p>Are you sure you want to proceed?</p>
+                    </div>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Go Back</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleProceedWarning}
+                    className="!bg-destructive !text-destructive-foreground !hover:bg-destructive/90"
+                  >
+                    Proceed Anyway
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </>
+            );
+          })()}
         </AlertDialogContent>
       </AlertDialog>
     </div>

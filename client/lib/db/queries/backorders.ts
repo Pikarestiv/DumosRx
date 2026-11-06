@@ -140,7 +140,7 @@ export async function getUnsettledSales(productId: string): Promise<UnsettledSal
 }
 
 export async function getSaleStockReconciliation(saleId: string): Promise<SaleStockReconciliation> {
-  const rows = await query<{
+  let rows: {
     product_id: string;
     product_name?: string;
     reference_type: string;
@@ -148,14 +148,20 @@ export async function getSaleStockReconciliation(saleId: string): Promise<SaleSt
     unit_cost: number | null;
     reason: string | null;
     movement_date: string;
-  }>(
-    `SELECT sm.product_id, p.name as product_name, sm.reference_type, sm.quantity, sm.unit_cost, sm.reason, sm.movement_date
-       FROM stock_movements sm
-       LEFT JOIN products p ON sm.product_id = p.id
-      WHERE sm.reference_id = ? AND sm.reference_type IN (?, ?) AND (sm._deleted = 0 OR sm._deleted IS NULL)
-      ORDER BY sm.movement_date ASC, sm.created_at ASC`,
-    [saleId, BACKORDER_REFERENCE_TYPE, BACKORDER_SETTLEMENT_REFERENCE_TYPE],
-  );
+  }[] = [];
+
+  try {
+    rows = await query(
+      `SELECT sm.product_id, p.name as product_name, sm.reference_type, sm.quantity, sm.unit_cost, sm.reason, sm.movement_date
+         FROM stock_movements sm
+         LEFT JOIN products p ON sm.product_id = p.id
+        WHERE sm.reference_id = ? AND sm.reference_type IN (?, ?) AND (sm._deleted = 0 OR sm._deleted IS NULL)
+        ORDER BY sm.movement_date ASC, sm.created_at ASC`,
+      [saleId, BACKORDER_REFERENCE_TYPE, BACKORDER_SETTLEMENT_REFERENCE_TYPE],
+    );
+  } catch {
+    return { originallyOwed: 0, settled: 0, outstanding: 0, status: "none", settlements: [] };
+  }
 
   let originallyOwed = 0;
   let settled = 0;

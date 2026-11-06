@@ -30,7 +30,7 @@ describe("getActiveProductsForPO", () => {
       );
       CREATE TABLE stock_batches (
         id TEXT PRIMARY KEY, product_id TEXT, quantity INTEGER, cost_price REAL,
-        created_at TEXT, is_active INTEGER DEFAULT 1, _deleted INTEGER DEFAULT 0
+        batch_number TEXT, created_at TEXT, is_active INTEGER DEFAULT 1, _deleted INTEGER DEFAULT 0
       );
     `);
     core.__setDatabaseForTesting(db);
@@ -50,19 +50,29 @@ describe("getActiveProductsForPO", () => {
     );
   });
 
-  it("returns the quantity-weighted average cost across active batches and total stock quantity", async () => {
+  it("returns the most recent purchase cost and total stock quantity across active batches", async () => {
     db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
-    db.run(`INSERT INTO stock_batches (id, product_id, quantity, cost_price, is_active, _deleted) VALUES
-      ('b1', 'prod1', 100, 4, 1, 0),
-      ('b2', 'prod1', 50, 6, 1, 0)`);
+    db.run(`INSERT INTO stock_batches (id, product_id, quantity, cost_price, is_active, _deleted, created_at) VALUES
+      ('b1', 'prod1', 100, 4, 1, 0, '2026-10-01 10:00:00'),
+      ('b2', 'prod1', 50, 6, 1, 0, '2026-10-02 10:00:00')`);
 
     const products = await getActiveProductsForPO();
     const panadol = products.find((p) => p.id === "prod1");
 
-    // Weighted: (100*4 + 50*6) / 150 = 4.667 — a plain AVG(4, 6) = 5 would be
-    // wrong here since it ignores that the ₦4 batch is twice the size.
-    expect(panadol?.cost_price).toBeCloseTo(4.6667, 4);
+    expect(panadol?.cost_price).toBe(6);
     expect(panadol?.stock_quantity).toBe(150);
+  });
+
+  it("returns the most recent purchase cost even when recorded stock is zero", async () => {
+    db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod6', 'Liquid Wash', 'Bottle', 'Carton', 12)`);
+    db.run(`INSERT INTO stock_batches (id, product_id, quantity, cost_price, is_active, _deleted, created_at) VALUES
+      ('b10', 'prod6', 0, 2200, 1, 0, '2026-10-01 10:00:00')`);
+
+    const products = await getActiveProductsForPO();
+    const item = products.find((p) => p.id === "prod6");
+
+    expect(item?.cost_price).toBe(2200);
+    expect(item?.stock_quantity).toBe(0);
   });
 
   it("returns 0 stock_quantity for a product with no batches", async () => {

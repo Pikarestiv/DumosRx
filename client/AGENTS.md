@@ -7180,10 +7180,11 @@ reading before touching this area again — they carry the "why" behind the
 decisions summarized in Domain model essentials above). Key pieces, beyond
 what's already covered above:
 
-- `getActiveProductsForPO()` (`lib/db/queries/procurement.ts`) now returns a
-  real `AVG(cost_price)` across active batches plus `stock_quantity`,
-  fixing a prior bug where "cost" meant "most recently created batch's
-  cost" and stock wasn't selected at all.
+- `getActiveProductsForPO()` (`lib/db/queries/procurement.ts`) returns the
+  most recent purchase cost (`last_bought_price`, ignoring adjustment batches)
+  with fallback to average cost plus `stock_quantity` and `reorder_level`. This
+  aligns procurement with industry-standard replacement cost, avoiding ₦0
+  defaults on out-of-stock items and fractional kobo averages.
 - `components/procurement/po-review-price-popover.tsx`: per-row sell-price
   + live margin % popover on Immediate Purchase rows, so cost and sell
   price can be set in one pass instead of a separate Product Catalog trip.

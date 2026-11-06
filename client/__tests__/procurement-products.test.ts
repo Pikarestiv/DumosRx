@@ -26,7 +26,7 @@ describe("getActiveProductsForPO", () => {
       CREATE TABLE products (
         id TEXT PRIMARY KEY, name TEXT, base_unit TEXT, bulk_unit TEXT, units_per_bulk INTEGER,
         selling_price REAL, generic_name TEXT, manufacturer TEXT, strength TEXT,
-        dosage_form TEXT, _deleted INTEGER DEFAULT 0
+        dosage_form TEXT, reorder_level INTEGER DEFAULT 10, _deleted INTEGER DEFAULT 0
       );
       CREATE TABLE stock_batches (
         id TEXT PRIMARY KEY, product_id TEXT, quantity INTEGER, cost_price REAL,
@@ -95,5 +95,14 @@ describe("getActiveProductsForPO", () => {
 
     expect(amoxil?.cost_price).toBe(4);
     expect(amoxil?.stock_quantity).toBe(100);
+  });
+
+  it("returns reorder_level for products to identify low-stock items", async () => {
+    db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, reorder_level) VALUES ('prod5', 'Paracetamol', 'Tablet', 'Carton', 100, 15)`);
+
+    const products = await getActiveProductsForPO();
+    const item = products.find((p) => p.id === "prod5");
+
+    expect(item?.reorder_level).toBe(15);
   });
 });

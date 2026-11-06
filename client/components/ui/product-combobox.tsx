@@ -7,12 +7,16 @@ import { cn } from "@/lib/utils";
 
 import { Input } from "@/components/ui/input";
 import { useProductList } from "@/lib/hooks/use-product-list";
-import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
 import { useStore } from "@/lib/context/store-context";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { genericFuzzySearch } from "@/lib/utils/search";
 import {
   AddNewProductOption,
+  ComboboxSectionHeader,
+  getGlobalSuggestions,
+  getProductStockPriority,
   ProductComboboxItem,
+  sortComboboxOptions,
 } from "@/components/ui/product-combobox-options";
 
 export type ProductSource = "local" | "global" | "new";
@@ -27,35 +31,38 @@ export interface SelectedProduct {
   manufacturer?: string;
   strength?: string;
   dosageForm?: string;
+  stock_quantity?: number;
+  stock_owed?: number;
+  reorder_level?: number | null;
+}
+
+export interface ComboboxProductItem {
+  id: string;
+  name: string;
+  generic_name?: string | null;
+  barcode?: string | null;
+  category_name?: string | null;
+  manufacturer?: string | null;
+  strength?: string | null;
+  dosage_form?: string | null;
+  stock_quantity?: number;
+  stock_owed?: number;
+  reorder_level?: number | null;
 }
 
 interface ProductComboboxProps {
   value: string;
   onChange: (product: SelectedProduct) => void;
-  // Called only when the value is cleared via the explicit clear (X) button, not when the user backspaces the field to empty.
-  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-product-combobox-tsx-L31
   onClear?: () => void;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
-  // When false, the dropdown only shows real catalog matches and the "create new" fallback — never the static reference-list…
-  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-product-combobox-tsx-L39
   showGlobalSuggestions?: boolean;
-  // Fired only when the user explicitly clicks "Add "X" as new product", not on every keystroke.
-  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-product-combobox-tsx-L46
   onCreateNew?: (name: string) => void;
-  // When false, never renders the pinned "Create ...
-  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-product-combobox-tsx-L50
   showCreateNewOption?: boolean;
-  // Shows a leading search icon, matching the shared SearchInput component's look used on other list pages.
-  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-product-combobox-tsx-L57
   showSearchIcon?: boolean;
-  // Forwarded straight to the underlying input - lets a caller (e.g.
-  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-product-combobox-tsx-L64
   inputRef?: React.Ref<HTMLInputElement>;
-  // Catalog to search, when the caller already holds one.
-  // Rationale: docs/CLIENT_COMMENTS.md#block-components-ui-product-combobox-tsx-L68
-  products?: { id: string; name: string; generic_name?: string | null; barcode?: string | null; category_name?: string | null; manufacturer?: string | null; strength?: string | null; dosage_form?: string | null }[];
+  products?: ComboboxProductItem[];
 }
 
 export function ProductCombobox({
@@ -76,10 +83,7 @@ export function ProductCombobox({
   const containerRef = React.useRef<HTMLDivElement>(null);
   const listRef = React.useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = React.useState(-1);
-  // Stable per-instance id prefix so the input's aria-activedescendant can point at the active option, and so two comboboxes…
-  // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-product-combobox-tsx-L216
   const listboxId = React.useId();
-  // activeIndex -1 is the pinned "Create new product" row when it is shown.
   const optionId = (idx: number) =>
     idx === -1 ? `${listboxId}-create` : `${listboxId}-opt-${idx}`;
   const activeDescendant =
@@ -95,54 +99,36 @@ export function ProductCombobox({
 
   const { storeProfile } = useStore();
   const isPharmacy = storeProfile?.store_type === "pharmacy";
+  const capsClass = useUppercaseDisplayClass();
 
   const { data: queriedProducts = [] } = useProductList({
     enabled: !products,
   });
   const localProducts = products ?? queriedProducts;
 
-  // Compile global suggestions
   const globalSuggestions = React.useMemo(() => {
     if (!showGlobalSuggestions) return [];
-    const list: SelectedProduct[] = [];
-    const source = isPharmacy
-      ? FORM_SUGGESTIONS.store
-      : FORM_SUGGESTIONS.retail;
-
-    if (source && source.products) {
-      (source.products as {
-        name: string;
-        genericName?: string;
-        manufacturer?: string;
-        strength?: string;
-        dosageForm?: string;
-      }[]).forEach((prod) => {
-        list.push({
-          name: prod.name,
-          source: "global",
-          generic_name: prod.genericName,
-          manufacturer: prod.manufacturer,
-          strength: prod.strength,
-          dosageForm: prod.dosageForm,
-        });
-      });
-    }
-    return list;
+    return getGlobalSuggestions(isPharmacy);
   }, [isPharmacy, showGlobalSuggestions]);
 
-  // Map local products
   const localSuggestions = React.useMemo(() => {
-    return localProducts.map((p) => ({
-      name: p.name,
-      source: "local" as ProductSource,
-      localId: p.id,
-      generic_name: p.generic_name ?? undefined,
-      barcode: p.barcode ?? undefined,
-      category: p.category_name ?? undefined,
-      manufacturer: p.manufacturer ?? undefined,
-      strength: p.strength ?? undefined,
-      dosageForm: p.dosage_form ?? undefined,
-    }));
+    return localProducts.map((p) => {
+      const item = p as ComboboxProductItem;
+      return {
+        name: item.name,
+        source: "local" as ProductSource,
+        localId: item.id,
+        generic_name: item.generic_name ?? undefined,
+        barcode: item.barcode ?? undefined,
+        category: item.category_name ?? undefined,
+        manufacturer: item.manufacturer ?? undefined,
+        strength: item.strength ?? undefined,
+        dosageForm: item.dosage_form ?? undefined,
+        stock_quantity: item.stock_quantity,
+        stock_owed: item.stock_owed,
+        reorder_level: item.reorder_level,
+      };
+    });
   }, [localProducts]);
 
   const allSuggestions = React.useMemo(
@@ -152,35 +138,26 @@ export function ProductCombobox({
   const deferredValue = React.useDeferredValue(value);
 
   const filteredOptions = React.useMemo(() => {
-    const base = !deferredValue
-      ? allSuggestions.slice(0, 50) // Limit initial display
-      : genericFuzzySearch(deferredValue, allSuggestions, [
-          "name",
-          "generic_name",
-          "barcode",
-        ]).results.slice(0, 50);
-
-    // Always show products already in this store's inventory before global
-    // suggestions/other stores' products, regardless of fuzzy-match score:
-    // that's almost always the correct pick (it's the one with real stock
-    // and pricing), and a new user shouldn't have to know to look for it.
-    // Array.sort is stable, so this only reorders across the two groups,
-    // never within one.
-    return [...base].sort((a, b) => {
-      if (a.source === b.source) return 0;
-      return a.source === "local" ? -1 : b.source === "local" ? 1 : 0;
-    });
+    if (!deferredValue) {
+      return sortComboboxOptions(allSuggestions).slice(0, 50);
+    }
+    const results = genericFuzzySearch(deferredValue, allSuggestions, [
+      "name",
+      "generic_name",
+      "barcode",
+    ]).results;
+    return sortComboboxOptions(results).slice(0, 50);
   }, [deferredValue, allSuggestions]);
 
-  // Keep the aria-activedescendant option scrolled into view: the input
-  // holds focus, so the browser will not scroll the list on its own.
+  const hasRestockSection =
+    !deferredValue &&
+    filteredOptions.some((o) => getProductStockPriority(o) < 3);
+
   React.useEffect(() => {
     if (!open) return;
-    const el = listRef.current?.querySelector<HTMLElement>(
-      `#${CSS.escape(optionId(activeIndex))}`,
-    );
+    const safeId = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(optionId(activeIndex)) : optionId(activeIndex);
+    const el = listRef.current?.querySelector<HTMLElement>(`#${safeId}`);
     el?.scrollIntoView({ block: "nearest" });
-    // optionId is derived from listboxId, which is stable for this instance.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIndex, open]);
 
@@ -229,9 +206,6 @@ export function ProductCombobox({
             } else if (e.key === "ArrowUp") {
               e.preventDefault();
               if (!open) setOpen(true);
-              // Floor of -1, not 0, so ArrowUp can walk back up onto the
-              // pinned "Create new product" row instead of getting stuck on
-              // the first match.
               setActiveIndex((prev) =>
                 Math.max(prev - 1, showCreateNewOption ? -1 : 0),
               );
@@ -270,6 +244,7 @@ export function ProductCombobox({
             "w-full",
             showSearchIcon && "sm:pl-9",
             value && !disabled && "pr-8",
+            capsClass,
             className,
           )}
         />
@@ -298,14 +273,6 @@ export function ProductCombobox({
             aria-label={placeholder}
             className="max-h-[300px] overflow-y-auto stable-scrollbar p-1"
           >
-            {/* Always pinned above matches, whether or not anything is typed:
-             * with no text it opens an empty "Add New Product" form (a real
-             * discoverable entry point, not a dead end); once text exists the
-             * label switches to reflect it, and it stays pinned regardless of
-             * whether a fuzzy match happens to also exist below it. Suppressed
-             * entirely when this combobox is itself the name field of the
-             * product being created (showCreateNewOption=false) — "create the
-             * product you're naming" is not a meaningful action there. */}
             {showCreateNewOption && (
               <AddNewProductOption
                 id={optionId(-1)}
@@ -321,19 +288,37 @@ export function ProductCombobox({
                 }}
               />
             )}
-            {filteredOptions.map((option, idx) => (
-              <ProductComboboxItem
-                key={`${option.source}_${option.name}_${idx}`}
-                id={optionId(idx)}
-                option={option}
-                isSelected={value === option.name}
-                isActive={idx === activeIndex}
-                onSelect={() => {
-                  onChange(option);
-                  setOpen(false);
-                }}
-              />
-            ))}
+            {filteredOptions.map((option, idx) => {
+              const showRestockHeader =
+                hasRestockSection &&
+                idx === 0 &&
+                getProductStockPriority(option) < 3;
+              const showAllHeader =
+                hasRestockSection &&
+                getProductStockPriority(option) === 3 &&
+                (idx === 0 || getProductStockPriority(filteredOptions[idx - 1]) < 3);
+
+              return (
+                <React.Fragment key={`${option.source}_${option.name}_${idx}`}>
+                  {showRestockHeader && (
+                    <ComboboxSectionHeader label="Needs Restocking" />
+                  )}
+                  {showAllHeader && (
+                    <ComboboxSectionHeader label="All Products" />
+                  )}
+                  <ProductComboboxItem
+                    id={optionId(idx)}
+                    option={option}
+                    isSelected={value === option.name}
+                    isActive={idx === activeIndex}
+                    onSelect={() => {
+                      onChange(option);
+                      setOpen(false);
+                    }}
+                  />
+                </React.Fragment>
+              );
+            })}
           </div>
         </div>
       )}

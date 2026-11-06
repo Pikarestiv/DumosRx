@@ -2,7 +2,71 @@
 
 import { Check, Database, Globe, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FORM_SUGGESTIONS } from "@/lib/constants/suggestions";
+import { lowStockThreshold } from "@/lib/utils/stock-status";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import type { SelectedProduct } from "@/components/ui/product-combobox";
+
+export function getGlobalSuggestions(isPharmacy: boolean): SelectedProduct[] {
+  const list: SelectedProduct[] = [];
+  const source = isPharmacy ? FORM_SUGGESTIONS.store : FORM_SUGGESTIONS.retail;
+
+  if (source && source.products) {
+    (
+      source.products as {
+        name: string;
+        genericName?: string;
+        manufacturer?: string;
+        strength?: string;
+        dosageForm?: string;
+      }[]
+    ).forEach((prod) => {
+      list.push({
+        name: prod.name,
+        source: "global",
+        generic_name: prod.genericName,
+        manufacturer: prod.manufacturer,
+        strength: prod.strength,
+        dosageForm: prod.dosageForm,
+      });
+    });
+  }
+  return list;
+}
+
+export function getProductStockPriority(item: SelectedProduct): number {
+  if ((item.stock_owed ?? 0) > 0) return 0;
+  if (item.stock_quantity !== undefined && item.stock_quantity !== null) {
+    if (item.stock_quantity <= 0) return 1;
+    if (item.stock_quantity <= lowStockThreshold(item.reorder_level)) return 2;
+  }
+  return 3;
+}
+
+export function sortComboboxOptions(options: SelectedProduct[]): SelectedProduct[] {
+  return [...options].sort((a, b) => {
+    if (a.source !== b.source) {
+      return a.source === "local" ? -1 : 1;
+    }
+    const prioA = getProductStockPriority(a);
+    const prioB = getProductStockPriority(b);
+    if (prioA !== prioB) return prioA - prioB;
+
+    if (prioA === 0) {
+      const owedA = a.stock_owed ?? 0;
+      const owedB = b.stock_owed ?? 0;
+      if (owedA !== owedB) return owedB - owedA;
+    }
+
+    if (prioA === 2) {
+      const qtyA = a.stock_quantity ?? 0;
+      const qtyB = b.stock_quantity ?? 0;
+      if (qtyA !== qtyB) return qtyA - qtyB;
+    }
+
+    return 0;
+  });
+}
 
 function SourceBadge({
   source,
@@ -41,6 +105,49 @@ function SourceBadge({
   );
 }
 
+export function StockStatusBadge({ option }: { option: SelectedProduct }) {
+  if (option.stock_owed && option.stock_owed > 0) {
+    return (
+      <span className="ml-2 shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+        {option.stock_owed} owed
+      </span>
+    );
+  }
+  if (option.stock_quantity !== undefined && option.stock_quantity !== null) {
+    if (option.stock_quantity <= 0) {
+      return (
+        <span className="ml-2 shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30">
+          0 in stock
+        </span>
+      );
+    }
+    if (option.stock_quantity <= lowStockThreshold(option.reorder_level)) {
+      return (
+        <span className="ml-2 shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/30">
+          Low ({option.stock_quantity})
+        </span>
+      );
+    }
+    return (
+      <span className="ml-2 shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] text-muted-foreground whitespace-nowrap bg-muted/60 border border-border/50">
+        {option.stock_quantity} in stock
+      </span>
+    );
+  }
+  return null;
+}
+
+export function ComboboxSectionHeader({ label }: { label: string }) {
+  return (
+    <div
+      role="presentation"
+      className="px-2 pt-2.5 pb-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider select-none bg-popover"
+    >
+      {label}
+    </div>
+  );
+}
+
 export function ProductComboboxItem({
   id,
   option,
@@ -54,15 +161,15 @@ export function ProductComboboxItem({
   isActive: boolean;
   onSelect: () => void;
 }) {
+  const capsClass = useUppercaseDisplayClass();
+
   return (
     <div
       id={id}
       role="option"
       aria-selected={isSelected}
-      // The input keeps DOM focus and drives this list via aria-activedescendant, so options are not themselves tabbable.
-      // Rationale: docs/CLIENT_COMMENTS.md#line-components-ui-product-combobox-tsx-L131
       onMouseDown={(e) => {
-        if (e.button !== 0) return; // left-click/primary touch only
+        if (e.button !== 0) return;
         e.preventDefault();
         onSelect();
       }}
@@ -78,14 +185,29 @@ export function ProductComboboxItem({
             isSelected ? "opacity-100" : "opacity-0",
           )}
         />
-        <span className="truncate flex-1 font-medium">{option.name}</span>
-        {(option.source === "local" || option.source === "global") && (
-          <SourceBadge source={option.source} active={isActive} />
+        <span className={cn("truncate flex-1 font-medium", capsClass)}>
+          {option.name}
+        </span>
+        {option.source === "local" ? (
+          option.stock_owed !== undefined || option.stock_quantity !== undefined ? (
+            <StockStatusBadge option={option} />
+          ) : (
+            <SourceBadge source="local" active={isActive} />
+          )
+        ) : (
+          <SourceBadge source="global" active={isActive} />
         )}
       </div>
-      {option.generic_name && (
-        <div className="pl-6 text-xs text-muted-foreground group-hover:text-accent-foreground/70 mt-0.5 w-full truncate">
-          <span className="italic">{option.generic_name}</span>
+      {(option.generic_name || option.category || option.barcode) && (
+        <div className="pl-6 text-xs text-muted-foreground group-hover:text-accent-foreground/70 mt-0.5 w-full flex items-center justify-between gap-2">
+          <span className={cn("italic truncate", capsClass)}>
+            {option.generic_name || option.category || ""}
+          </span>
+          {option.barcode && (
+            <span className="font-mono text-[10px] shrink-0 opacity-70">
+              SKU: {option.barcode}
+            </span>
+          )}
         </div>
       )}
     </div>
@@ -103,6 +225,8 @@ export function AddNewProductOption({
   isActive: boolean;
   onSelect: () => void;
 }) {
+  const capsClass = useUppercaseDisplayClass();
+
   return (
     <div
       id={id}
@@ -119,7 +243,13 @@ export function AddNewProductOption({
       )}
     >
       <Plus className="h-4 w-4 shrink-0" />
-      {value ? `Create "${value}" as new product` : "Create New Product"}
+      {value ? (
+        <span className="truncate">
+          Create &ldquo;<span className={capsClass}>{value}</span>&rdquo; as new product
+        </span>
+      ) : (
+        "Create New Product"
+      )}
     </div>
   );
 }

@@ -5581,6 +5581,9 @@ same tab session still gets its own fresh one-time retry.
   `showSearchIcon` (leading `Search` icon, hidden below `sm`, for contexts
   that are genuinely a search bar rather than a name field).
 
+- **`ProductCombobox` stock-status prioritization and casing:**
+  When provided with a catalog containing stock quantities (e.g. `POItemBuilder` via `getActiveProductsForPO()` and `useOutstandingBackorders()`), options display contextual stock badges (`X owed` in amber, `0 in stock` in rose, `Low (N)` in orange when $\le$ `lowStockThreshold(reorder_level)`, and `N in stock`). Items are prioritized by restocking urgency: stock owed first (highest owed first), then 0 stock, then low stock (most depleted first), then normal stock. While browsing without a search term, the dropdown separates items into "Needs Restocking" and "All Products" section headers. Product names in the dropdown, the search input, and the create-option row consistently follow the store's casing settings via `useUppercaseDisplayClass()`.
+
 - **Category pickers read the `categories` table, never `suggestions.ts`.**
   `components/ui/category-combobox.tsx` is the one picker for *choosing* a
   category (Add/Edit Product, and the receive flow's inline fix-up). It

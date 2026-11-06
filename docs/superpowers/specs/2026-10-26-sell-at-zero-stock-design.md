@@ -131,7 +131,7 @@ What the owner sees:
   is shown because receiving is a role that sees quantities under the `view_stock_quantities` rule.
 - `po-immediate-confirm-dialog.tsx`: the same line per item.
 - Stock Adjustments ledger (`getStockAdjustments()`): both rows appear. `stock-movement-utils.tsx` gets two source labels
-  next to `"import"`: "Sold before received" and "Settled on delivery", each linked to its sale or PO.
+  next to `"import"`: "Stock owed" and "Stock settled", each linked to its sale or PO.
 - Inventory alerts (`inventory-alerts.ts`): a new "Owed to customers" list built on `getOutstandingBackorders()`. It is
   separate from `getOversoldAlerts()`, which with the compensation in place no longer sees these sales. That is
   correct, because they are intended rather than accidental.

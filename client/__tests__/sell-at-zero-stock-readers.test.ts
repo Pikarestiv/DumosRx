@@ -25,8 +25,8 @@ describe("readers of owed and settled rows", () => {
   it("labels both rows in the stock movements list", () => {
     const owed = resolveMovementDisplayType({ movement_type: "adjustment", reference_type: BACKORDER_REFERENCE_TYPE });
     const settled = resolveMovementDisplayType({ movement_type: "adjustment", reference_type: BACKORDER_SETTLEMENT_REFERENCE_TYPE });
-    expect(getTypeLabel(owed)).toBe("Sold before received");
-    expect(getTypeLabel(settled)).toBe("Settled on delivery");
+    expect(getTypeLabel(owed)).toBe("Stock owed");
+    expect(getTypeLabel(settled)).toBe("Stock settled");
   });
 
   it("keeps both out of the count ledger's grouping, the way imports are kept out", () => {

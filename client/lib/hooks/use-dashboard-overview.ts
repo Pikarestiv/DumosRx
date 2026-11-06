@@ -99,7 +99,9 @@ export function useDashboardOverview() {
       );
       amount = isNaN(val) ? "N/A" : formatCurrency(val, storeProfile?.currency);
     } else if (activity.activity_type === "stock_movement") {
-      message = `Stock ${getTypeLabel(resolveMovementDisplayType(activity)).toLowerCase()}: ${Math.abs(activity.quantity ?? 0)} units`;
+      const label = getTypeLabel(resolveMovementDisplayType(activity));
+      const prefix = label.toLowerCase().startsWith("stock") ? "" : "Stock ";
+      message = `${prefix}${label}: ${Math.abs(activity.quantity ?? 0)} units`;
       const val = Number(activity.total_cost);
       if (!isNaN(val) && val > 0) {
         amount = formatCurrency(val, storeProfile?.currency);

@@ -100,9 +100,9 @@ export const getTypeLabel = (type: string) => {
     case "import":
       return "Bulk Import";
     case "backorder":
-      return "Sold before received";
+      return "Stock owed";
     case "backorder_settlement":
-      return "Settled on delivery";
+      return "Stock settled";
     default:
       return type;
   }

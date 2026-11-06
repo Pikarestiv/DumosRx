@@ -2432,7 +2432,7 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   `aria-disabled`/greyscale for an out-of-stock tile, still saying "Out of
   stock". With the setting off both paths refuse exactly as before.
 - **Readers.** `resolveMovementDisplayType()` returns `"backorder"` /
-  `"backorder_settlement"` ("Sold before received" / "Settled on delivery")
+  `"backorder_settlement"` ("Stock owed" / "Stock settled")
   in the Stock Movements list and dashboard feed. `groupAdjustmentMovements()`
   skips both reference types the way it skips imports, so they never appear
   in the Stock Adjustments (count) ledger and a count derivation never reads

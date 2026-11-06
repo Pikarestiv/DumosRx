@@ -15,6 +15,8 @@ export interface DashboardActivity {
   markup_type?: "reseller" | "store" | null;
   price_markup_total?: number;
   price_cut_total?: number;
+  stock_originally_owed?: number;
+  stock_settled?: number;
   // stock_movement
   movement_type?: string;
   reference_type?: string | null;

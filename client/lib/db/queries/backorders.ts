@@ -10,6 +10,7 @@ import {
   BACKORDER_SETTLEMENT_REASON,
   BACKORDER_SETTLEMENT_REFERENCE_TYPE,
 } from "@/lib/constants/stock-adjustments";
+import type { SaleStockReconciliation, StockSettlementRecord } from "@/lib/types/sale";
 
 export interface OutstandingBackorder {
   productId: string;
@@ -22,6 +23,16 @@ export interface UnsettledSale {
   saleId: string;
   units: number;
   estimatedUnitCost: number;
+}
+
+export type SaleStockOwedStatus = "none" | "open" | "partial" | "settled";
+
+export function deriveSaleStockOwedStatus(originallyOwed: number, settled: number): SaleStockOwedStatus {
+  if (originallyOwed <= 0.000001) return "none";
+  const outstanding = Math.max(0, originallyOwed - settled);
+  if (outstanding <= 0.000001) return "settled";
+  if (Math.abs(outstanding - originallyOwed) <= 0.000001) return "open";
+  return "partial";
 }
 
 interface LedgerRow {
@@ -126,6 +137,63 @@ function ledgerRowsFor(productId: string): Promise<LedgerRow[]> {
 
 export async function getUnsettledSales(productId: string): Promise<UnsettledSale[]> {
   return unsettledFromLedger(await ledgerRowsFor(productId));
+}
+
+export async function getSaleStockReconciliation(saleId: string): Promise<SaleStockReconciliation> {
+  const rows = await query<{
+    product_id: string;
+    product_name?: string;
+    reference_type: string;
+    quantity: number;
+    unit_cost: number | null;
+    reason: string | null;
+    movement_date: string;
+  }>(
+    `SELECT sm.product_id, p.name as product_name, sm.reference_type, sm.quantity, sm.unit_cost, sm.reason, sm.movement_date
+       FROM stock_movements sm
+       LEFT JOIN products p ON sm.product_id = p.id
+      WHERE sm.reference_id = ? AND sm.reference_type IN (?, ?) AND (sm._deleted = 0 OR sm._deleted IS NULL)
+      ORDER BY sm.movement_date ASC, sm.created_at ASC`,
+    [saleId, BACKORDER_REFERENCE_TYPE, BACKORDER_SETTLEMENT_REFERENCE_TYPE],
+  );
+
+  let originallyOwed = 0;
+  let settled = 0;
+  const settlements: StockSettlementRecord[] = [];
+  const byProduct: Record<string, { originallyOwed: number; settled: number; outstanding: number }> = {};
+
+  for (const r of rows) {
+    const entry = byProduct[r.product_id] ?? { originallyOwed: 0, settled: 0, outstanding: 0 };
+    if (r.reference_type === BACKORDER_REFERENCE_TYPE) {
+      const q = Number(r.quantity);
+      originallyOwed += q;
+      entry.originallyOwed = roundUnits(entry.originallyOwed + q);
+    } else if (r.reference_type === BACKORDER_SETTLEMENT_REFERENCE_TYPE) {
+      const units = Math.abs(Number(r.quantity));
+      settled += units;
+      entry.settled = roundUnits(entry.settled + units);
+      const poId = r.reason?.includes(ADJUSTMENT_REASON_NOTE_SEPARATOR)
+        ? r.reason.split(ADJUSTMENT_REASON_NOTE_SEPARATOR)[1]
+        : undefined;
+      settlements.push({
+        productId: r.product_id,
+        productName: r.product_name,
+        quantity: units,
+        unitCost: Number(r.unit_cost ?? 0),
+        purchaseOrderId: poId,
+        movementDate: r.movement_date,
+      });
+    }
+    entry.outstanding = Math.max(0, roundUnits(entry.originallyOwed - entry.settled));
+    byProduct[r.product_id] = entry;
+  }
+
+  originallyOwed = roundUnits(originallyOwed);
+  settled = roundUnits(settled);
+  const outstanding = Math.max(0, roundUnits(originallyOwed - settled));
+  const status = deriveSaleStockOwedStatus(originallyOwed, settled);
+
+  return { originallyOwed, settled, outstanding, status, settlements, byProduct };
 }
 
 async function recostSale(productId: string, saleId: string, storeId?: string) {

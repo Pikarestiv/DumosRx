@@ -46,6 +46,7 @@ export interface CatalogRowProps {
   hasTouchCapability: boolean;
   canPrintLabels: boolean;
   canDeleteProducts: boolean;
+  owedQuantity?: number;
   formatCurrency: (amount: number) => string;
   onSelect: (product: Product) => void;
   onSaveCategory: (product: Product, category: string) => void;
@@ -71,6 +72,7 @@ function CatalogRowInner({
   hasTouchCapability,
   canPrintLabels,
   canDeleteProducts,
+  owedQuantity = 0,
   formatCurrency,
   onSelect,
   onSaveCategory,
@@ -134,6 +136,11 @@ function CatalogRowInner({
                   ? `${product.stockQuantity} ${product.baseUnit || "unit"}${product.stockQuantity === 1 ? "" : "s"}`
                   : describeStock(product.stockQuantity, product.reorderLevel, false)}
               </div>
+              {owedQuantity > 0 && (
+                <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 dark:bg-amber-500/20 dark:text-amber-400 px-1.5 py-0.5 rounded-full border border-amber-200 dark:border-amber-500/30 mt-0.5">
+                  {showStockQuantity ? `${owedQuantity} owed` : "Stock owed"}
+                </span>
+              )}
             </div>
             <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
           </div>
@@ -192,23 +199,30 @@ function CatalogRowInner({
             ariaLabel={`Edit selling price for ${product.name} (${formatCurrency(product.sellingPrice)})`}
             onSave={(val) => onSaveSellingPrice(product, val)}
           />
-          {showStockQuantity ? (
-            <EditableQuickNumberCell
-              displayValue={`${product.stockQuantity} ${product.baseUnit || "unit"}${product.stockQuantity === 1 ? "" : "s"}`}
-              displayClassName={`text-[13px] font-semibold ${stockColour}`}
-              value={product.stockQuantity}
-              parse={(raw) => parseInt(raw, 10)}
-              canEdit={canEdit && canAdjustStockQuantity}
-              hasTouchCapability={hasTouchCapability}
-              ariaLabel={`Edit stock quantity for ${product.name} (${product.stockQuantity})`}
-              commitOnBlur={false}
-              onSave={(val) => onSaveStockQuantity(product, val)}
-            />
-          ) : (
-            <div className={`text-[13px] font-semibold ${stockColour}`}>
-              {describeStock(product.stockQuantity, product.reorderLevel, false)}
-            </div>
-          )}
+          <div className="flex flex-col items-start gap-0.5 min-w-0">
+            {showStockQuantity ? (
+              <EditableQuickNumberCell
+                displayValue={`${product.stockQuantity} ${product.baseUnit || "unit"}${product.stockQuantity === 1 ? "" : "s"}`}
+                displayClassName={`text-[13px] font-semibold ${stockColour}`}
+                value={product.stockQuantity}
+                parse={(raw) => parseInt(raw, 10)}
+                canEdit={canEdit && canAdjustStockQuantity}
+                hasTouchCapability={hasTouchCapability}
+                ariaLabel={`Edit stock quantity for ${product.name} (${product.stockQuantity})`}
+                commitOnBlur={false}
+                onSave={(val) => onSaveStockQuantity(product, val)}
+              />
+            ) : (
+              <div className={`text-[13px] font-semibold ${stockColour}`}>
+                {describeStock(product.stockQuantity, product.reorderLevel, false)}
+              </div>
+            )}
+            {owedQuantity > 0 && (
+              <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 dark:bg-amber-500/20 dark:text-amber-400 px-1.5 py-0.5 rounded-full border border-amber-200 dark:border-amber-500/30 whitespace-nowrap">
+                {showStockQuantity ? `${owedQuantity} owed` : "Stock owed"}
+              </span>
+            )}
+          </div>
           <EditableQuickNumberCell
             displayValue={String(product.reorderLevel)}
             displayClassName="text-[13px] text-muted-foreground"

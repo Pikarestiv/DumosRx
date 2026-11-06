@@ -97,32 +97,36 @@ function lineCostFromLedger(sale: SaleBalance, lineUnits: number): number {
 const LEDGER_ORDER = "ORDER BY sm.movement_date, sm.created_at, sm.id";
 
 export async function getOutstandingBackorders(productIds?: string[]): Promise<OutstandingBackorder[]> {
-  const storeId = getActiveStoreId();
-  const productFilter = productIds?.length ? ` AND sm.product_id IN (${productIds.map(() => "?").join(", ")})` : "";
-  const rows = await query<{ product_id: string; product_name: string; outstanding: number }>(
-    `SELECT product_id, product_name, ROUND(SUM(net_units), 6) AS outstanding
-       FROM (
-         SELECT sm.product_id, p.name AS product_name, sm.reference_id,
-                SUM(sm.quantity) AS net_units
-           FROM stock_movements sm
-           JOIN products p ON p.id = sm.product_id
-          WHERE sm._deleted = 0 AND p._deleted = 0
-            AND sm.reference_type IN (?, ?)
-            ${storeId ? " AND p.store_id = ?" : ""}
-            ${productFilter}
-          GROUP BY sm.product_id, sm.reference_id
-         HAVING net_units > 0.000001
-       )
-      GROUP BY product_id
-      ORDER BY product_name ASC`,
-    [BACKORDER_REFERENCE_TYPE, BACKORDER_SETTLEMENT_REFERENCE_TYPE, ...(storeId ? [storeId] : []), ...(productIds ?? [])],
-  );
+  try {
+    const storeId = getActiveStoreId();
+    const productFilter = productIds?.length ? ` AND sm.product_id IN (${productIds.map(() => "?").join(", ")})` : "";
+    const rows = await query<{ product_id: string; product_name: string; outstanding: number }>(
+      `SELECT product_id, product_name, ROUND(SUM(net_units), 6) AS outstanding
+         FROM (
+           SELECT sm.product_id, p.name AS product_name, sm.reference_id,
+                  SUM(sm.quantity) AS net_units
+             FROM stock_movements sm
+             JOIN products p ON p.id = sm.product_id
+            WHERE sm._deleted = 0 AND p._deleted = 0
+              AND sm.reference_type IN (?, ?)
+              ${storeId ? " AND p.store_id = ?" : ""}
+              ${productFilter}
+            GROUP BY sm.product_id, sm.reference_id
+           HAVING net_units > 0.000001
+         )
+        GROUP BY product_id
+        ORDER BY product_name ASC`,
+      [BACKORDER_REFERENCE_TYPE, BACKORDER_SETTLEMENT_REFERENCE_TYPE, ...(storeId ? [storeId] : []), ...(productIds ?? [])],
+    );
 
-  return rows.map((r) => ({
-    productId: r.product_id,
-    productName: r.product_name,
-    outstanding: Number(r.outstanding),
-  }));
+    return rows.map((r) => ({
+      productId: r.product_id,
+      productName: r.product_name,
+      outstanding: Number(r.outstanding),
+    }));
+  } catch {
+    return [];
+  }
 }
 
 function ledgerRowsFor(productId: string): Promise<LedgerRow[]> {
@@ -136,7 +140,11 @@ function ledgerRowsFor(productId: string): Promise<LedgerRow[]> {
 }
 
 export async function getUnsettledSales(productId: string): Promise<UnsettledSale[]> {
-  return unsettledFromLedger(await ledgerRowsFor(productId));
+  try {
+    return unsettledFromLedger(await ledgerRowsFor(productId));
+  } catch {
+    return [];
+  }
 }
 
 export async function getSaleStockReconciliation(saleId: string): Promise<SaleStockReconciliation> {

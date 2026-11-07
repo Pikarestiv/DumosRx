@@ -25,6 +25,10 @@ export function isMarkupSalesEnabled(
   return tierAllows && storeToggle === 1;
 }
 
+export function isSaleWithoutStockEnabled(storeToggle: number | undefined | null): boolean {
+  return storeToggle === 1;
+}
+
 // Fallback used only when the server's subscription_plans config has no explicit `limits.sync_interval` for the current tier (see getLimit() b…
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-feature-gate-ts-L35
 export function getDefaultMinimumSyncIntervalMinutes(
@@ -207,6 +211,7 @@ export function useFeatureGate() {
       getFeature('reseller_commission', 'reseller_commission', isPro || isEnterprise),
       storeProfile?.markup_sales_enabled,
     ),
+    canSellWithoutStock: isSaleWithoutStockEnabled(storeProfile?.allow_sale_without_stock),
     // The POS "Preview Quote" (proforma) flow.
     canUseProformaQuotes: getFeature('proforma_quotes', 'proforma_quotes', isPro || isEnterprise),
     // The End-of-Day / Daily Close report tab, including its own export — deliberately Starter+ (not Pro-only), matching expenses/procurement/ pre…

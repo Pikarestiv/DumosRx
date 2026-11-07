@@ -12,6 +12,7 @@ import { addOrMergeLineItem } from "./po-line-item-math";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import type { ProductViewModel } from "@/lib/types/product";
 import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
+import { useOutstandingBackorders } from "@/lib/hooks/use-outstanding-backorders";
 
 interface POItemBuilderProps {
   poType: "standard" | "immediate";
@@ -39,6 +40,22 @@ export function POItemBuilder({
   const [itemFilter, setItemFilter] = useState("");
   const isTabletUp = useMediaQuery("(min-width: 640px)");
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const backorders = useOutstandingBackorders();
+  const owedByProduct = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const b of backorders) {
+      if (b.outstanding > 0) map.set(b.productId, b.outstanding);
+    }
+    return map;
+  }, [backorders]);
+
+  const productsWithStockInfo = useMemo(() => {
+    return products.map((p) => ({
+      ...p,
+      stock_owed: owedByProduct.get(p.id) ?? 0,
+    }));
+  }, [products, owedByProduct]);
 
   // Staff's first instinct on a brand-new order is to start typing an item name right away, not to click into the search bar…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-procurement-po-item-builder-tsx-L48
@@ -162,7 +179,7 @@ export function POItemBuilder({
         className="bg-muted border-border h-10 px-3 text-[13px] rounded-[10px]"
         onClear={() => setSearchValue("")}
         inputRef={searchInputRef}
-        products={products}
+        products={productsWithStockInfo}
       />
 
       {items.length > 1 && (

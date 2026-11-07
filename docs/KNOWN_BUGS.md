@@ -453,6 +453,11 @@ suggested tackle order rather than a strict ranking.
 - **Issue:** the app has no `config/logging.php`, so the framework defaults apply: `LOG_STACK` defaults to `single` and `LOG_LEVEL` to `debug` (`vendor/laravel/framework/config/logging.php:21,57,64`), and `.env.example` sets the same values (`LOG_STACK=single`, `LOG_LEVEL=debug`). Nothing rotates the file and every debug line is kept. A file that size is slow to open when an incident needs it and can exhaust the shared-hosting disk quota, which would take the API down. The public, throttled `POST /logs/client-error` (`ActivityLogController.php:101`) writes every client API error to this file at error level, up to about 12 KB each, so it is a likely contributor; the file's real composition was not measured. The production `.env` was not read; this is what the template and the file's size imply.
 - **Fix:** set `LOG_STACK=daily` and `LOG_DAILY_DAYS=14` in the production `.env`, set `LOG_LEVEL` to `warning` or `info`, archive then truncate the existing file. `.env.example` already carries the safe values (`LOG_STACK=daily`, `LOG_DAILY_DAYS=14`, `LOG_LEVEL=warning`); the production and dev `.env` files are not deployed and still need the same edit by hand. Nothing in `app/` reads `laravel.log` back; the only references write to it.
 
+#### A-340. `laravel-server/` — `LegacySaleWithoutStockGate` guards little, and its `INTRODUCED_IN` is right only while 0.0.41 is untagged
+- **Found:** 2026-10-26, second independent review of `feat/sell-at-zero-stock`.
+- **Issue:** `laravel-server/app/Services/Sync/LegacySaleWithoutStockGate.php` drops a truthy `allow_sale_without_stock` from a push whose `X-App-Version` is missing or below `0.0.41`. A bundle older than the column has no column to send, so in practice it only stops a header-less client. And `INTRODUCED_IN = '0.0.41'` is correct only because 0.0.41 is not yet tagged when this merges. Any 0.0.41 build from before the feature reports the same version.
+- **Fix:** at release, if 0.0.41 has been tagged without this feature, bump the app version and `INTRODUCED_IN` together (`laravel-server/AGENTS.md`, "`LegacySaleWithoutStockGate`"). Otherwise decide whether the gate earns its keep, and delete it and its test if not.
+
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
 #### A-338. `laravel-server/` — `sync:backfill-store-ids` writes `store_id` without moving `updated_at` or `_version`, so a row it attributes never reaches a device
@@ -628,6 +633,14 @@ suggested tackle order rather than a strict ranking.
 - **Return dialog:** `return-dialog.tsx` reads the fresh sale at "Confirm Return & Refund", not at "Yes, Process Return", so a redemption between the two steps is stored correctly (the mutation re-reads) but its warning is not shown. `handleInitialSubmit` has no try/catch, so a failing `getSaleById` makes the button do nothing silently.
 - **File size:** `transaction-details-dialog.tsx` is 407 lines, over the 350 limit (`.agents/AGENTS.md` §4); split it.
 - **Fix:** shrink the list-price figure by returned quantity (or label it as the original sale), re-read at the second confirm and catch the failure with a toast, and extract the reseller block into its own component.
+
+#### A-341. `client/` — a settlement row's link to its purchase order is a raw id in `reason`
+- **Found:** 2026-10-26, second independent review of `feat/sell-at-zero-stock`.
+- **Issue:** since settlements name the sale they pay off (`reference_id` = sale id), the PO id survives only as text after `ADJUSTMENT_REASON_NOTE_SEPARATOR` in `stock_movements.reason` (`client/lib/db/queries/backorders.ts`, `settleBackordersOnReceipt()`). Nothing parses it, so the Stock Movements list cannot link a settlement to its delivery, and the reason shows a bare UUID.
+- **Fix:** either parse it with `parseAdjustmentReason()` and render a PO link, or add a nullable `stock_movements` column for a secondary reference, mirrored in `schema.ts`, `schema-migrations.ts`, the Laravel migration and `$fillable`, with `npm run test:schema` run after.
+
+#### A-343. `client/` — the cart's owed-units warning overstates the shortfall when only expired stock is left
+- **Found:** 2026-10-26, third independent review of `feat/sell-at-zero-stock`; deferred. `formatBackorderWarning()` uses `product.stock`, which excludes expired batches, but `writeSaleItemStock()` falls back to an expired batch and may sell from it, so the toast can say more units are owed than the sale actually records.
 
 ---
 

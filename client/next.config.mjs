@@ -1,5 +1,18 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import os from "os";
+import { execSync } from "child_process";
+
+if (!process.env.NEXT_PUBLIC_BUILD_SHA) {
+  try {
+    process.env.NEXT_PUBLIC_BUILD_SHA = execSync("git rev-parse --short HEAD", {
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim();
+  } catch {
+    process.env.NEXT_PUBLIC_BUILD_SHA = "local";
+  }
+}
 
 function getLocalIps() {
   const interfaces = os.networkInterfaces();

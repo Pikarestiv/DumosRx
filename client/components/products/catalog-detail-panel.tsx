@@ -237,6 +237,7 @@ export function CatalogDetailPanel({
               loadingBatches={loadingBatches}
               storeType={storeProfile?.store_type || "pharmacy"}
               canSeeQuantities={canSeeQuantities}
+              formatPrice={formatPrice}
             />
           </TabsContent>
 

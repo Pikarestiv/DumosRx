@@ -2,6 +2,7 @@ import React from "react";
 import { AlertTriangle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { CountFreshness } from "@/lib/hooks/use-count-freshness";
+import { useStockVisibility } from "@/lib/hooks/use-stock-visibility";
 
 interface CountFreshnessWarningProps {
   freshness: CountFreshness;
@@ -20,6 +21,7 @@ export function CountFreshnessWarning({
   acknowledged,
   onAcknowledgedChange,
 }: CountFreshnessWarningProps) {
+  const { canSeeQuantities } = useStockVisibility();
   if (!freshness.shouldWarn) return null;
 
   const isStale = freshness.isLocalStale || freshness.stalePeers.length > 0;
@@ -32,7 +34,9 @@ export function CountFreshnessWarning({
           <div className="text-[14px] font-semibold text-amber-900 dark:text-amber-200">
             {isStale
               ? "This count may be recorded against out-of-date stock"
-              : "Some of these products are carrying a stock shortfall"}
+              : freshness.deficits.length > 0
+                ? "Some of these products are carrying a stock shortfall"
+                : "Some of these products were sold before their stock was received"}
           </div>
           {isStale && (
             <div className="text-[13px] text-amber-900/80 dark:text-amber-200/80">
@@ -72,13 +76,25 @@ export function CountFreshnessWarning({
                 {freshness.deficits.map((entry) => (
                   <li key={entry.productName}>
                     <span className="font-medium">{entry.productName}</span> is{" "}
-                    {entry.deficit} {entry.deficit === 1 ? "unit" : "units"}{" "}
-                    short, so a count records the difference and leaves the
-                    shortfall standing.
+                    {canSeeQuantities
+                      ? `${entry.deficit} ${entry.deficit === 1 ? "unit" : "units"} short, so a count records the difference and leaves the shortfall standing.`
+                      : "carrying a shortfall, so a count records the difference and leaves the shortfall standing."}
                   </li>
                 ))}
               </ul>
             </>
+          )}
+          {freshness.owed.length > 0 && (
+            <ul className="text-[13px] text-amber-900/80 dark:text-amber-200/80 list-disc pl-4">
+              {freshness.owed.map((entry) => (
+                <li key={entry.productName}>
+                  <span className="font-medium">{entry.productName}</span>:{" "}
+                  {canSeeQuantities
+                    ? `${entry.owed} ${entry.owed === 1 ? "unit was" : "units were"} sold before stock was received. Receive the purchase order before counting this item, or the delivery will be counted twice.`
+                    : "Sold before stock was received. Receive the purchase order before counting this item, or the delivery will be counted twice."}
+                </li>
+              ))}
+            </ul>
           )}
           <label className="flex items-center gap-2 pt-1 text-[13px] font-medium text-amber-900 dark:text-amber-200 cursor-pointer">
             <Checkbox

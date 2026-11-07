@@ -162,6 +162,14 @@ function ActivityList({
                         Reseller
                       </Badge>
                     )}
+                  {Number(activity.rawActivity.stock_originally_owed ?? 0) > 0 && (
+                    <Badge
+                      variant="secondary"
+                      className="bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30 shrink-0 px-1.5 text-[11px]"
+                    >
+                      Stock owed
+                    </Badge>
+                  )}
                   <PriceAdjustmentBadge
                     markup={activity.rawActivity.price_markup_total}
                     cut={activity.rawActivity.price_cut_total}

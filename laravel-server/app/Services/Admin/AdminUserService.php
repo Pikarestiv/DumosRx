@@ -241,6 +241,8 @@ class AdminUserService
                     'lastSyncDevice' => $device ? ($device->device_label ?: $device->device_id) : null,
                     'lastSyncDeviceId' => $device?->device_id,
                     'lastSyncDeviceLabel' => $device?->device_label,
+                    'lastSyncAppVersion' => $device?->app_version,
+                    'lastSyncBuildSha' => $device?->build_sha,
                     'can_delete' => $this->canDeleteUser($user, $actorId, $platformRoleSlugs),
                 ];
             }),

@@ -177,3 +177,24 @@ export function calculateSalePaymentStatus(
   }
   return "completed";
 }
+
+export function getQuickCashOptions(total: number): number[] {
+  if (!Number.isFinite(total) || total <= 0) return [];
+  const roundedTotal = Math.ceil(total);
+  const options = new Set<number>();
+  options.add(roundedTotal);
+
+  const candidateSteps = [500, 1000, 2000, 5000, 10000, 20000, 50000];
+  for (const step of candidateSteps) {
+    if (step > roundedTotal && options.size < 4) {
+      options.add(step);
+    } else if (roundedTotal > step) {
+      const nextMultiple = Math.ceil(roundedTotal / step) * step;
+      if (nextMultiple > roundedTotal && options.size < 4) {
+        options.add(nextMultiple);
+      }
+    }
+  }
+
+  return Array.from(options).sort((a, b) => a - b).slice(0, 4);
+}

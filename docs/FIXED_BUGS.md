@@ -1,3 +1,54 @@
+### A-342 — an owed row pushed apart from its sale could leave the server N units high
+- **Fixed:** 2026-11-04, server and client.
+- **Was:** When an oversold sale (`sale −Q`) and its backorder adjustment (`backorder +N`) were split across separate push chunks, Stage-0 `applyStockBatchDeltas()` floored the batch at 0 on the first push and then added N on the second push, leaving the server with N phantom units while the client read 0.
+- **Now:** Resolved by A-217 (`5b5b0802`): the server derives batch quantity from its entire movement log (`MAX(0, Σlog)`) under a batch lock instead of flooring per-push deltas. When a sale and its owed backorder row arrive in separate chunks, the server's derived quantity computes `max(0, Σlog)` over both movements, landing at 0.0 exactly as the client does.
+- **Coverage:** `laravel-server/tests/Feature/SellAtZeroStockServerParityTest.php` (`test_a_chunk_split_lands_on_zero_under_derived_stock_quantity`).
+
+### A-339 — `getOutstandingBackorders()` rereads the store's whole owed and settled history on every call
+- **Fixed:** 2026-11-04, client only, TDD, on `feat/sell-at-zero-stock`.
+- **Was:** `client/lib/db/queries/backorders.ts` loaded every `backorder` and `backorder_settlement` movement row across all time into memory and grouped them in JavaScript with array spreading (`byProduct.set(id, [...existing, row])`), scaling quadratically with transaction volume.
+- **Now:** Aggregates backorders directly in SQLite (`GROUP BY product_id, reference_id` with `HAVING net_units > 0.000001`, then grouped by `product_id`). Settled sales drop out in SQL immediately, avoiding unbounded memory and array copies.
+- **Coverage:** `client/__tests__/sell-at-zero` (all 4 files, 40 tests).
+
+### A-336 — the count screen's owed-units warning was store-wide and exposed quantities to restricted roles
+- **Fixed:** 2026-11-04, client only, TDD, on `feat/sell-at-zero-stock`.
+- **Was:** `useCountFreshness()` retrieved store-wide deficits and backorders without scoping them to the products currently being counted, causing unnecessary acknowledgement prompts. `count-freshness-warning.tsx` displayed raw quantities unconditionally, potentially leaking stock numbers to roles without `view_stock_quantities`.
+- **Now:** `useCountFreshness(countedProductIds)` scopes both `deficits` and `owed` backorders to the counted products. `CountFreshnessWarning` checks `useStockVisibility().canSeeQuantities` and renders generalized warning copy when quantity visibility is restricted.
+- **Coverage:** `client/__tests__/count-freshness-warning-deficit.test.tsx` (scopes and checks `canSee: false`).
+
+### A-344 — a pull could re-cost a sale from an incomplete ledger
+- **Fixed:** 2026-10-26, client only, TDD, before `feat/sell-at-zero-stock` merged. Found by the fourth and fifth independent reviews.
+- **Was:** `recostSalesTouchedByPull()` ran after each pull page. A sale line could arrive before the settlement rows that set its cost (a Force Full Resync, or any multi-page round), be re-derived from the partial ledger and queued, and be pushed if the round was then interrupted, overwriting the server's correct cost until another till re-derived it.
+- **Now:** `pullChanges()` collects the sales each page names (`keepPulledRecostRows()`) and re-costs once, after the round's last page. A thrown or interrupted round re-costs nothing. A round stopped at `MAX_PULL_PAGES` (1000) also re-costs nothing, and those sales wait for a later pull that names them.
+- **Coverage:** `client/__tests__/sell-at-zero-stock-pull-recost.test.ts` ("the re-cost waits for the round's last page"): a sale line pulled before its settlement rows is not overwritten, and an interrupted round queues nothing. Both fail on the per-page hook.
+
+### A-335 — a sale line for a product with no stock on hand was costed at 0, so its whole price booked as profit
+- **Fixed:** 2026-10-26, client only, TDD. Found by the sell-at-zero scoping pass (`docs/superpowers/specs/2026-10-26-sell-at-zero-stock-design.md`).
+- **Was:** `getProductsWithStock()` derived `cost_price` only from the weighted average over batches holding stock. When every batch was empty that average is NULL and became `0`, which `writeSaleTransaction()` wrote to `sale_items.cost_price`, so COGS (`SUM(si.cost_price * si.quantity)`) counted the whole selling price as profit. It hit every sale of an out-of-stock product, including each online-order oversell.
+- **Now:** `cost_price` falls back to the last purchase cost (the newest non-`ADJ-` batch with a cost, the same subquery `getProductsWithDetails()` uses for `last_bought_price`, now shared as `lastBoughtPriceSql`), then to 0 for a product that has never been bought. A product with stock on hand still uses the weighted average.
+- **Backward compatibility (§11):** no contract change. Past `sale_items` rows keep the cost they were written with; they are not backfilled.
+- **Coverage:** `client/__tests__/products-cost-price.test.ts` (empty batches use the newest purchase cost and skip `ADJ-` batches; stock on hand still prefers the average). The first fails on the old query.
+- **Not a regression (2026-10-26):** this changes COGS for zero-stock lines with the sell-at-zero setting **off** too, by design. A report comparing this branch with `dev` will show lower profit on out-of-stock sales. That is this fix, not a sell-at-zero side effect.
+- **Follow-up (2026-10-26, sell-at-zero step 3):** the online-order fulfilment path costs its own lines and still wrote `batches[0]?.cost_price ?? 0` over *positive* batches, so a zero-stock online order kept costing 0. It now calls `getLastPurchaseCost()` (`products.ts`, the same shared subquery). That subquery also skipped a batch with a NULL `batch_number` (`NULL NOT LIKE 'ADJ-%'` is NULL); it now reads `COALESCE(batch_number, '')`. Pinned by `client/__tests__/use-fulfill-online-order-mutation.test.ts`.
+
+### A-354 — Staff deletion was replaced by in-place deactivation with no way to remove departed staff from the active roster or recover deleted accounts
+- **Fixed:** 2026-11-04, client and server.
+- **Was:** When store owners wanted to delete a staff member, the only option in the UI was "Deactivate" (which only updated `is_active = 0`). This left former staff accounts permanently visible in the active staff roster table with an "Inactive" status badge and an "Activate later" button, with no way for store owners to make departed accounts disappear from view. There was no true soft-deletion affordance in the UI, no "Deleted Accounts" filter or dedicated tab, and no account recovery mechanism (`restoreUser` and `getDeletedUsers` did not exist). Furthermore, backend `SyncOwnershipResolver.php` filtered by `User::whereIn('store_id', ...)` without `withTrashed()`, meaning any sync push for a soft-deleted staff member (or an update to restore them) was rejected with a 403 "forbidden" authorization error.
+- **Now:**
+  - Clear separation between **Deactivation** (`is_active = 0`, stays in roster with "Inactive" badge and Reactivate action for temporary leave) and **Soft Delete** (`_deleted = 1`, removed completely from active roster view).
+  - Deleting appends a timestamp suffix (`_del_${Date.now()}`) to `username` and `email` to release credentials for reuse while preserving all historic sales, receipts, and audit log foreign-key references.
+  - Dedicated **Deleted Accounts** tab and **Deleted** status filter pill with search, role badges, deleted timestamps, and a 1-click **Recover Account** action (complete with duplicate username collision detection and credential restoration as inactive).
+  - Immediate toast notification with an **Undo** action button upon deletion.
+  - Backend `SyncOwnershipResolver.php` and `PullTenantScope.php` updated with `User::withTrashed()` so store owners are authorized to push soft-deletes and account restoration deltas, and other tills pulling changes receive the soft-deleted user with `_deleted = 1`.
+  - Pushed restore payloads include `_deleted: 0` and the current base `_version` for clean atomic incrementation.
+  - Client `base-helpers.ts` `insert()` updated to honor `options?.storeId` over active store ID fallback, and `getDeletedUsers()` explicitly excludes `store_owner`.
+- **Backward compatibility (§11):** Existing active and inactive accounts remain unaffected. Old clients syncing user updates continue to work; server tolerates both active toggles and soft-delete/restore operations.
+- **Coverage:**
+  - `client/__tests__/staff-delete-restore.test.ts` (3 tests: soft-delete + suffix, getDeletedUsers, restoreUser with credential de-duplication).
+  - `client/__tests__/staff-list-ui.test.tsx` (6 tests: deactivation vs. deletion button affordances, default-admin disabled).
+  - `laravel-server/tests/Feature/SyncEndpointTest.php` (`test_push_sync_handles_user_soft_delete_and_restore`, verifying push soft-delete/restore and pull delivery of soft-deleted users).
+- **Full suite:** client 523 suites passed (3,273 tests), client `tsc --noEmit` clean, laravel 1,708 tests passed.
+
 ### A-353 — Server clock agreement tolerance was 5 minutes, rejecting tills with legitimate timezone offsets on "Check Again"
 - **Fixed:** 2026-11-04, client only, TDD.
 - **Was:** `CLOCK_AGREEMENT_TOLERANCE_MS` in `client/lib/licensing/server-clock.ts` was set to 5 minutes (`5 * 60 * 1000`). When a till's operating system clock was set to the correct local wall time but the OS timezone was misconfigured (e.g. set to UTC+0 or UTC-1 in a UTC+1 or UTC+2 region), or had daylight savings offset, its local UTC timestamp differed from server UTC by 1–2 hours. When clicking "Check Again", `reconcileClockWithServer()` failed with `"This device's clock is 2h 0m ahead of our servers. Correct the date and time, then try again."` and remained locked, preventing legitimate sales even while online and connected to the server.

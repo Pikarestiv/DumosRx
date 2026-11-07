@@ -1,7 +1,7 @@
 import { insert, transaction, isInTransaction } from "@/lib/db/local-database";
 import type { StockBatch } from "@/lib/types/stock-batch";
 import { roundMoney } from "@/lib/utils/pos-calculations";
-import { OVERSELL_COMPENSATION_REASON, OVERSELL_REFERENCE_TYPE } from "@/lib/constants/stock-adjustments";
+import { BACKORDER_REASON, BACKORDER_REFERENCE_TYPE, OVERSELL_COMPENSATION_REASON, OVERSELL_REFERENCE_TYPE } from "@/lib/constants/stock-adjustments";
 import { movementLogIsComplete } from "@/lib/db/sync-engine/stock-auto-heal";
 import {
   getBatchesForProduct,
@@ -22,6 +22,37 @@ interface RecordSaleItemStockParams {
   /** Ties this line item's audit_logs rows to the rest of the sale's, so
    * the Activity Log can collapse them into one entry. */
   correlationId?: string;
+  /** The store sells past recorded stock: write the shortfall as an owed `backorder` row. */
+  recordShortfallAsOwed?: boolean;
+}
+
+interface ShortfallCompensation {
+  productId: string;
+  batchId: string;
+  units: number;
+  referenceType: string;
+  reason: string;
+  saleId: string;
+  unitCost: number;
+  cashierId: string | null;
+  correlationId?: string;
+  movementDate: string;
+}
+
+async function writeShortfallCompensation(c: ShortfallCompensation) {
+  await insert("stock_movements", {
+    product_id: c.productId,
+    stock_batch_id: c.batchId,
+    movement_type: "adjustment",
+    quantity: c.units,
+    unit_cost: c.unitCost,
+    total_cost: roundMoney(c.unitCost * c.units),
+    reference_id: c.saleId,
+    reference_type: c.referenceType,
+    reason: c.reason,
+    performed_by: c.cashierId,
+    movement_date: c.movementDate,
+  }, { correlationId: c.correlationId });
 }
 
 // Inserts the sale_items row for one cart line and deducts/logs the stock it consumed.
@@ -43,6 +74,7 @@ async function writeSaleItemStock({
   subtotal,
   cashierId,
   correlationId,
+  recordShortfallAsOwed,
 }: RecordSaleItemStockParams) {
   // Prefer FEFO picking among batches that still show positive stock; if the product's true stock is already fully depleted, fall back to whatev…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L171
@@ -86,11 +118,11 @@ async function writeSaleItemStock({
   // Batches touched by a deduction that exceeded what they actually had available (deduction > batch.quantity at the time it was applied) — i.e.
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L223
   const oversoldBatchIds = new Set<string>();
-  const oversoldByBatchId = new Map<string, number>();
 
   // What each touched batch has left as this call proceeds.
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L231
   const liveQuantity = new Map<string, number>();
+  const shortfallByBatchId = new Map<string, number>();
 
   // batch.quantity can be <= 0 when this batch only turned up via the getAnyActiveBatchForProduct fallback (nothing with positive stock left for…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L238
@@ -102,7 +134,10 @@ async function writeSaleItemStock({
     if (deduction > available) {
       oversoldBatchIds.add(batch.id);
       const unheld = deduction - Math.max(0, available);
-      oversoldByBatchId.set(batch.id, (oversoldByBatchId.get(batch.id) ?? 0) + unheld);
+      shortfallByBatchId.set(
+        batch.id,
+        (shortfallByBatchId.get(batch.id) ?? 0) + unheld,
+      );
     }
 
     liveQuantity.set(batch.id, Math.max(0, available - deduction));
@@ -135,7 +170,8 @@ async function writeSaleItemStock({
 
   const movementDate = new Date().toISOString();
   // A device behind on the log cannot tell an oversell from stock it has not pulled; the server backfill takes those.
-  const compensate = oversoldByBatchId.size > 0 && (await movementLogIsComplete());
+  const compensate =
+    !recordShortfallAsOwed && shortfallByBatchId.size > 0 && (await movementLogIsComplete());
   for (const [batchId, deduction] of deductionByBatchId) {
     await insert("sale_item_batches", {
       sale_item_id: saleItemId,
@@ -159,21 +195,21 @@ async function writeSaleItemStock({
       movement_date: movementDate,
     }, { correlationId });
 
-    const unheld = oversoldByBatchId.get(batchId) ?? 0;
-    if (compensate && unheld > 0) {
-      await insert("stock_movements", {
-        product_id: productId,
-        stock_batch_id: batchId,
-        movement_type: "adjustment",
-        quantity: unheld,
-        unit_cost: costPrice || 0,
-        total_cost: roundMoney((costPrice || 0) * unheld),
-        reference_id: saleId,
-        reference_type: OVERSELL_REFERENCE_TYPE,
-        reason: OVERSELL_COMPENSATION_REASON,
-        performed_by: cashierId,
-        movement_date: movementDate,
-      }, { correlationId });
+    const shortfall = shortfallByBatchId.get(batchId) ?? 0;
+    if (shortfall > 0) {
+      if (recordShortfallAsOwed) {
+        await writeShortfallCompensation({
+          productId, batchId, units: shortfall, saleId, cashierId, correlationId,
+          referenceType: BACKORDER_REFERENCE_TYPE, reason: BACKORDER_REASON, unitCost: costPrice || 0,
+          movementDate,
+        });
+      } else if (compensate) {
+        await writeShortfallCompensation({
+          productId, batchId, units: shortfall, saleId, cashierId, correlationId,
+          referenceType: OVERSELL_REFERENCE_TYPE, reason: OVERSELL_COMPENSATION_REASON, unitCost: costPrice || 0,
+          movementDate,
+        });
+      }
     }
   }
 

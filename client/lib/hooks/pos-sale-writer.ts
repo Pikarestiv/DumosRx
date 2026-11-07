@@ -34,6 +34,7 @@ export interface SaleWriteInput {
   cashierId: string | null;
   transactionNumber: string;
   earnedPoints: number;
+  recordShortfallAsOwed?: boolean;
 }
 
 export async function writeSaleTransaction({
@@ -62,6 +63,7 @@ export async function writeSaleTransaction({
   cashierId,
   transactionNumber,
   earnedPoints,
+  recordShortfallAsOwed = false,
 }: SaleWriteInput): Promise<string> {
   // A store-markup sale has no reseller to pay, so there's nothing to redeem later - settle it right here, at checkout, instead of leaving it si…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-ts-L174
@@ -148,6 +150,7 @@ export async function writeSaleTransaction({
         subtotal: item.subtotal,
         cashierId,
         correlationId: newSaleId,
+        recordShortfallAsOwed,
       });
     }
 

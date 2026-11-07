@@ -24,6 +24,8 @@ vi.mock("@/lib/db/queries/categories", () => ({
 }));
 // The panel's A-26 dropped-receipt banner reads the local database; this file is about the price fields, so the signal is…
 // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-receive-item-card-price-fields-test-tsx-L21
+vi.mock("@/lib/db/queries/backorders", () => ({ getOutstandingBackorders: () => Promise.resolve([]) }));
+
 vi.mock("@/lib/hooks/use-dropped-receipt-signal", () => ({
   useDroppedReceiptSignal: () => ({ signal: null, dismiss: vi.fn() }),
 }));
@@ -215,5 +217,45 @@ describe("ReceiveItemCard price fields", () => {
       lot_number: "LOT-9",
       expiry_date: "2027-03-01",
     });
+  });
+
+  it("warns about zero cost price and zero selling price even when expiry date is provided", () => {
+    const onConfirm = vi.fn();
+    const zeroPricePo = {
+      ...po,
+      items: [
+        {
+          ...(po.items ?? [])[0],
+          unit_cost: 0,
+          current_selling_price: 0,
+        },
+      ],
+    } as unknown as PurchaseOrder;
+
+    render(
+      withQueryClient(
+        <ReceivePOPanel po={zeroPricePo} onBack={vi.fn()} onConfirm={onConfirm} />,
+      ),
+    );
+
+    // Provide expiry date so missing expiry is not the trigger
+    fireEvent.change(screen.getByLabelText(/expiry date for panadol/i), {
+      target: { value: "2027-05-01" },
+    });
+
+    act(() => {
+      screen.getByRole("button", { name: "Confirm & Receive" }).click();
+    });
+
+    expect(onConfirm).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog.textContent).toContain("Review Items Before Receiving");
+    expect(dialog.textContent).toContain("Zero Cost Price (₦0): PANADOL");
+    expect(dialog.textContent).toContain("Zero Selling Price (₦0): PANADOL");
+
+    act(() => {
+      screen.getByRole("button", { name: "Proceed Anyway" }).click();
+    });
+    expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 });

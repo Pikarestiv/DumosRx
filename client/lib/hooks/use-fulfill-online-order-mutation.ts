@@ -3,12 +3,14 @@ import { apiClient } from "@/lib/api/client";
 import { generateId, query, transaction } from "@/lib/db/core";
 import { insert } from "@/lib/db/base-helpers";
 import { getBatchesForProduct, recordSaleItemStock } from "@/lib/db/queries/inventory";
+import { getLastPurchaseCost } from "@/lib/db/queries/products";
 import type { OnlineOrder } from "@/lib/types/online-order";
 
 interface FulfillOnlineOrderParams {
   order: OnlineOrder;
   storeId?: string;
   cashierId?: string;
+  recordShortfallAsOwed?: boolean;
 }
 
 // Deterministic from order.id (not generateShortId()'s randomness) so a retry after the server leg below fails can recognize its own prior loc…
@@ -52,7 +54,7 @@ export async function findOnlineOrderStockGaps(order: OnlineOrder): Promise<Onli
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-fulfill-online-order-mutation-L53
 export function useFulfillOnlineOrderMutation() {
   return useMutation({
-    mutationFn: async ({ order, storeId, cashierId }: FulfillOnlineOrderParams) => {
+    mutationFn: async ({ order, storeId, cashierId, recordShortfallAsOwed }: FulfillOnlineOrderParams) => {
       const existing = await query<{ id: string }>(
         "SELECT id FROM sales WHERE transaction_number = ?",
         [transactionNumberFor(order)],
@@ -61,7 +63,7 @@ export function useFulfillOnlineOrderMutation() {
       if (existing.length === 0) {
         const saleId = generateId();
         await transaction(() =>
-          recordLocalOnlineSale({ order, storeId, cashierId, saleId }),
+          recordLocalOnlineSale({ order, storeId, cashierId, saleId, recordShortfallAsOwed }),
         );
       }
 
@@ -75,6 +77,7 @@ async function recordLocalOnlineSale({
   storeId,
   cashierId,
   saleId,
+  recordShortfallAsOwed,
 }: FulfillOnlineOrderParams & { saleId: string }): Promise<void> {
   // Written via the standard insert()/update() helpers, not raw execute(), so this gets audit logging and cache invalidation like every other mu…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-fulfill-online-order-mutation-ts-L76
@@ -104,7 +107,7 @@ async function recordLocalOnlineSale({
     const costPrice =
       totalQty > 0
         ? batches.reduce((sum, b) => sum + (b.cost_price || 0) * b.quantity, 0) / totalQty
-        : batches[0]?.cost_price ?? 0;
+        : await getLastPurchaseCost(item.product_id);
 
     await recordSaleItemStock({
       saleId,
@@ -114,6 +117,7 @@ async function recordLocalOnlineSale({
       costPrice,
       subtotal: item.subtotal,
       cashierId: cashierId ?? null,
+      recordShortfallAsOwed,
     });
   }
 }

@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getDashboardOverviewData } from "@/lib/db/queries/reports";
 import { getOversoldAlerts } from "@/lib/db/queries/inventory";
+import { useOutstandingBackorders } from "@/lib/hooks/use-outstanding-backorders";
 import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
@@ -41,6 +42,8 @@ export function useDashboardOverview() {
     queryFn: () => getOversoldAlerts(),
   });
 
+  const owed = useOutstandingBackorders();
+
   const salesToday = dashboardData?.salesToday
     ? [dashboardData.salesToday]
     : [];
@@ -75,6 +78,8 @@ export function useDashboardOverview() {
     missingExpiryCount: stock_batchStats.missingExpiryCount,
     oversoldCount: oversoldAlerts?.length || 0,
     oversoldProduct: oversoldAlerts?.[0]?.product,
+    owedCount: owed.length,
+    owedProduct: owed[0]?.productName,
   };
 
   // Memoized, like getActivityColor below, because both are handed to the activity feed's rows.
@@ -94,7 +99,9 @@ export function useDashboardOverview() {
       );
       amount = isNaN(val) ? "N/A" : formatCurrency(val, storeProfile?.currency);
     } else if (activity.activity_type === "stock_movement") {
-      message = `Stock ${getTypeLabel(resolveMovementDisplayType(activity)).toLowerCase()}: ${Math.abs(activity.quantity ?? 0)} units`;
+      const label = getTypeLabel(resolveMovementDisplayType(activity));
+      const prefix = label.toLowerCase().startsWith("stock") ? "" : "Stock ";
+      message = `${prefix}${label}: ${Math.abs(activity.quantity ?? 0)} units`;
       const val = Number(activity.total_cost);
       if (!isNaN(val) && val > 0) {
         amount = formatCurrency(val, storeProfile?.currency);

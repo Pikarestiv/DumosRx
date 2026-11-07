@@ -20,8 +20,8 @@ export interface POProduct {
   cost_price: number;
   stock_quantity: number;
   selling_price: number | null;
-  // Catalog fields the PO item search needs.
-  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-procurement-ts-L23
+  reorder_level?: number | null;
+  stock_owed?: number;
   generic_name?: string | null;
   manufacturer?: string | null;
   strength?: string | null;
@@ -75,8 +75,13 @@ export async function getActiveProductsForPO() {
   const storeId = getActiveStoreId();
   return query<POProduct>(
     `SELECT p.id, p.name, p.bulk_unit, p.base_unit, p.units_per_bulk, p.selling_price,
-       p.generic_name, p.manufacturer, p.strength, p.dosage_form,
-       (SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = p.id AND _deleted = 0 AND is_active = 1 AND quantity > 0) as cost_price,
+       p.generic_name, p.manufacturer, p.strength, p.dosage_form, p.reorder_level,
+       COALESCE(
+         (SELECT cost_price FROM stock_batches WHERE product_id = p.id AND _deleted = 0 AND is_active = 1 AND cost_price > 0 AND COALESCE(batch_number, '') NOT LIKE 'ADJ-%' ORDER BY created_at DESC, rowid DESC LIMIT 1),
+         (SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = p.id AND _deleted = 0 AND is_active = 1 AND quantity > 0),
+         NULLIF(p.cost_price, 0),
+         0
+       ) as cost_price,
        COALESCE((SELECT SUM(quantity) FROM stock_batches WHERE product_id = p.id AND _deleted = 0 AND is_active = 1), 0) as stock_quantity
      FROM products p
      WHERE p._deleted = 0${storeId ? " AND p.store_id = ?" : ""}

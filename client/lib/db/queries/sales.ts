@@ -1,6 +1,7 @@
 import { query } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
 import { PRICE_ADJUSTMENT_COLUMNS_SQL } from "@/lib/db/queries/price-adjustment-sql";
+import { getSaleStockReconciliation } from "@/lib/db/queries/backorders";
 import type { Sale, SaleWithDetails, SaleItemDetail, ReturnRecord, ReturnItemDetail } from "@/lib/types/sale";
 import type { StockBatch } from "@/lib/types/stock-batch";
 
@@ -50,7 +51,19 @@ export async function getTransactionDetails(saleId: string) {
       [saleId]
     );
 
-    return { items, returnsData };
+    const stockReconciliation = await getSaleStockReconciliation(saleId);
+    if (stockReconciliation.originallyOwed > 0 && stockReconciliation.byProduct) {
+      for (const item of items) {
+        const p = stockReconciliation.byProduct[item.product_id];
+        if (p && p.originallyOwed > 0) {
+          item.originally_owed = p.originallyOwed;
+          item.settled_units = p.settled;
+          item.outstanding_units = p.outstanding;
+        }
+      }
+    }
+
+    return { items, returnsData, stockReconciliation };
   } catch (error) {
     console.error("Failed to fetch transaction details:", error);
     
@@ -71,35 +84,11 @@ export async function getTransactionDetails(saleId: string) {
   }
 }
 
-export interface HeldTransaction {
-  id: string;
-  customer_id?: string | null;
-  customer_name: string;
-  items_json: string;
-  total_amount: number;
-  discount?: number;
-  discount_type?: string | null;
-  is_reseller_sale?: number | null;
-  markup_type?: string | null;
-  created_at: string;
-}
-
-export async function getHeldTransactions() {
-  const storeId = getActiveStoreId();
-  return query<HeldTransaction>(
-    `SELECT * FROM held_transactions WHERE (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""} ORDER BY created_at DESC`,
-    storeId ? [storeId] : [],
-  );
-}
-
-export async function getHeldTransactionCount() {
-  const storeId = getActiveStoreId();
-  const result = await query<{ count: number }>(
-    `SELECT COUNT(*) as count FROM held_transactions WHERE (_deleted = 0 OR _deleted IS NULL)${storeId ? " AND store_id = ?" : ""}`,
-    storeId ? [storeId] : [],
-  );
-  return result[0]?.count || 0;
-}
+export {
+  type HeldTransaction,
+  getHeldTransactions,
+  getHeldTransactionCount,
+} from "./held-transactions";
 
 export async function getSaleItemBatches(saleItemId: string) {
   return query<{ id: string; stock_batch_id: string; quantity: number }>(
@@ -203,6 +192,8 @@ export async function getResellerCommissionSales() {
       s.*,
       TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,
       (SELECT GROUP_CONCAT(pr.name, '||') FROM sale_items si JOIN products pr ON si.product_id = pr.id WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_names,
+      COALESCE((SELECT ROUND(SUM(sm.quantity), 6) FROM stock_movements sm WHERE sm.reference_id = s.id AND sm.reference_type = 'backorder' AND (sm._deleted = 0 OR sm._deleted IS NULL)), 0) as stock_originally_owed,
+      COALESCE((SELECT ROUND(SUM(ABS(sm.quantity)), 6) FROM stock_movements sm WHERE sm.reference_id = s.id AND sm.reference_type = 'backorder_settlement' AND (sm._deleted = 0 OR sm._deleted IS NULL)), 0) as stock_settled,
       ${PRICE_ADJUSTMENT_COLUMNS_SQL}
      FROM sales s
      LEFT JOIN customers c ON s.customer_id = c.id
@@ -267,6 +258,8 @@ export async function getRecentSales(
       (SELECT SUM(quantity) FROM sale_items si WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_count,
       COALESCE((SELECT SUM(r.total_refunded) FROM returns r WHERE r.sale_id = s.id AND (r._deleted = 0 OR r._deleted IS NULL)), 0) as total_refunded,
       (SELECT GROUP_CONCAT(pr.name, '||') FROM sale_items si JOIN products pr ON si.product_id = pr.id WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_names,
+      COALESCE((SELECT ROUND(SUM(sm.quantity), 6) FROM stock_movements sm WHERE sm.reference_id = s.id AND sm.reference_type = 'backorder' AND (sm._deleted = 0 OR sm._deleted IS NULL)), 0) as stock_originally_owed,
+      COALESCE((SELECT ROUND(SUM(ABS(sm.quantity)), 6) FROM stock_movements sm WHERE sm.reference_id = s.id AND sm.reference_type = 'backorder_settlement' AND (sm._deleted = 0 OR sm._deleted IS NULL)), 0) as stock_settled,
       ${PRICE_ADJUSTMENT_COLUMNS_SQL}
      FROM sales s
      LEFT JOIN customers c ON s.customer_id = c.id

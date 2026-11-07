@@ -500,6 +500,7 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       // Off by default: gates the POS cart's entire "Reseller sale" row (both the reseller-commission and store-markup sub-types) behind an explicit…
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L551
       "markup_sales_enabled INTEGER DEFAULT 0",
+      "allow_sale_without_stock INTEGER DEFAULT 0",
       // Paystack subaccount integration columns (see Task 1 of the
       // 2026-09-26-storefront-paystack-subaccounts spec).
       "paystack_subaccount_code TEXT",

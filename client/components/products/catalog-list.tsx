@@ -54,6 +54,7 @@ interface CatalogListProps {
   sortDirection: SortDirection;
   onToggleSort: (key: ProductSortKey) => void;
   onProductUpdated: () => void;
+  owedByProduct?: Map<string, number>;
   // Lets the catalog close a detail panel that is still showing the product the row context menu just deleted - the panel's…
   // Rationale: docs/CLIENT_COMMENTS.md#block-components-products-catalog-list-tsx-L51
   onProductDeleted?: (productId: string) => void;
@@ -73,6 +74,7 @@ export function CatalogList({
   sortDirection,
   onToggleSort,
   onProductUpdated,
+  owedByProduct,
   onProductDeleted,
 }: CatalogListProps) {
   const { storeType } = useStore();
@@ -286,6 +288,7 @@ export function CatalogList({
                     canAdjustStockQuantity={canAdjustStockQuantity}
                     showStockQuantity={showStockQuantity}
                     hasTouchCapability={hasTouchCapability}
+                    owedQuantity={owedByProduct?.get(product.id) ?? 0}
                     canPrintLabels={canPrintLabels}
                     canDeleteProducts={canDeleteProducts}
                     formatCurrency={formatCurrency}

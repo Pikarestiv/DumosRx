@@ -6,6 +6,7 @@ import { useStoreQueueState } from "@/lib/api/admin-hooks-sync";
 import { syncReasonLabel } from "@/lib/api/admin-hooks-sync";
 import { formatDateSafe } from "@/lib/utils/date-utils";
 import { StuckItemActions } from "./stuck-item-actions";
+import { DeviceVersionBadge } from "./store-detail-primitives";
 import type { DeviceQueueReport, StoreQueueState } from "@/lib/types/admin-platform";
 
 function waitedFor(seconds: number): string {
@@ -120,9 +121,12 @@ export function StoreQueueStateSection({
         >
           <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-slate-100 dark:border-slate-800">
             <div className="min-w-0">
-              <p className="text-xs font-bold text-foreground">
-                {device.device_label ?? "Unnamed device"}
-              </p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-bold text-foreground">
+                  {device.device_label ?? "Unnamed device"}
+                </p>
+                <DeviceVersionBadge appVersion={device.app_version} buildSha={device.build_sha} />
+              </div>
               <p className="font-mono text-xs text-muted-foreground break-all">
                 {device.device_id}
               </p>

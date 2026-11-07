@@ -34,6 +34,7 @@ import { useStore } from "@/lib/context/store-context";
 import type { OnlineOrder } from "@/lib/types/online-order";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { useStockVisibility } from "@/lib/hooks/use-stock-visibility";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 
 function NoOnlineOrdersFound() {
   return <EmptyState icon={PackageOpen} title="No online orders found" className="py-8" />;
@@ -46,6 +47,7 @@ export function OnlineOrdersModal() {
   const currencyCode = storeProfile?.currency;
   const capsClass = useUppercaseDisplayClass();
   const { canSeeQuantities } = useStockVisibility();
+  const { canSellWithoutStock } = useFeatureGate();
   const {
     data: orders = [],
     isLoading: loading,
@@ -74,7 +76,7 @@ export function OnlineOrdersModal() {
     fulfillOrderMutation.mutate(
       // A store OWNER's own users.store_id is always null by design (they "have" a store via stores.user_id), so passing it stra…
       // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-online-orders-modal-tsx-L72
-      { order, storeId: user?.store_id ?? storeProfile?.id, cashierId: user?.id },
+      { order, storeId: user?.store_id ?? storeProfile?.id, cashierId: user?.id, recordShortfallAsOwed: canSellWithoutStock },
       {
         onSuccess: () => {
           toast.success("Order fulfilled and recorded locally");

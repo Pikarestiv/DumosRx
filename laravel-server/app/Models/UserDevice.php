@@ -17,7 +17,7 @@ class UserDevice extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'user_id', 'store_id', 'device_id', 'device_label', 'last_synced_at',
+        'user_id', 'store_id', 'device_id', 'device_label', 'app_version', 'build_sha', 'last_synced_at',
     ];
 
     protected $casts = [

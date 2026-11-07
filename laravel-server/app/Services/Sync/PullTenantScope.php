@@ -107,7 +107,7 @@ class PullTenantScope
 
         $userIds = $refusedStoreId !== null
             ? [$ownerId]
-            : User::whereIn('store_id', $storeIds)->pluck('id')->push($ownerId)->toArray();
+            : User::withTrashed()->whereIn('store_id', $storeIds)->pluck('id')->push($ownerId)->toArray();
 
         return [
             'ownerId' => $ownerId,

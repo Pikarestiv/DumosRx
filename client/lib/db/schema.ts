@@ -394,7 +394,8 @@ CREATE TABLE IF NOT EXISTS stores (
   permission_groups_seeded_at TEXT,
   permission_catalog_version INTEGER,
   staff_can_request_transfers INTEGER DEFAULT 0,
-  markup_sales_enabled INTEGER DEFAULT 0
+  markup_sales_enabled INTEGER DEFAULT 0,
+  allow_sale_without_stock INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS expenses (

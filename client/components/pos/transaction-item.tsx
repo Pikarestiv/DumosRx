@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
 import { PriceAdjustmentBadge } from '@/components/pos/price-adjustment-badge';
+import { deriveSaleStockOwedStatus } from '@/lib/db/queries/backorders';
 import type { SaleWithDetails } from '@/lib/types/sale';
 
 interface TransactionItemProps {
@@ -124,6 +125,45 @@ function TransactionItemInner({
     );
   };
 
+  const stockOwedStatus = deriveSaleStockOwedStatus(
+    Number(sale.stock_originally_owed ?? 0),
+    Number(sale.stock_settled ?? 0),
+  );
+
+  const getStockOwedBadge = () => {
+    if (stockOwedStatus === "open") {
+      return (
+        <Badge
+          variant="secondary"
+          className="bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30 shrink-0 font-medium"
+        >
+          Stock owed · Open
+        </Badge>
+      );
+    }
+    if (stockOwedStatus === "partial") {
+      return (
+        <Badge
+          variant="secondary"
+          className="bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30 shrink-0 font-medium"
+        >
+          Stock owed · Partial
+        </Badge>
+      );
+    }
+    if (stockOwedStatus === "settled") {
+      return (
+        <Badge
+          variant="secondary"
+          className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0 font-medium"
+        >
+          Stock owed · Settled
+        </Badge>
+      );
+    }
+    return null;
+  };
+
   return (
     <div
       role="button"
@@ -204,10 +244,11 @@ function TransactionItemInner({
           </Button>
         )}
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
           <div className="font-bold font-serif text-[15px]">
             {formatCurrency(amount, currencyCode)}
           </div>
+          {getStockOwedBadge()}
           {getStatusBadge(sale.payment_status)}
         </div>
       </div>

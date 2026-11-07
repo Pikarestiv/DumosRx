@@ -14,6 +14,7 @@ import {
   clearCommandResults,
 } from "./sync-commands";
 import {
+  chunkPushQueue,
   coalescePendingUpdates,
   compareCategoriesFirst,
   withheldRecordsWithBackedOffSiblingsRemoved,
@@ -96,14 +97,12 @@ export async function pushChanges(
   // can tell "nothing to push" from "everything failed".
   let failedBatches = 0;
 
-  for (let i = 0; i < coalesced.length; i += SYNC_BATCH_SIZE) {
+  for (const [chunkIndex, batch] of chunkPushQueue(coalesced, SYNC_BATCH_SIZE).entries()) {
     // 60 req/min per authenticated USER (laravel-server/routes/api.php:132),
     // so tills on one shared login share it; pace multi-batch backlogs.
-    if (i > 0) {
+    if (chunkIndex > 0) {
       await new Promise((resolve) => setTimeout(resolve, 1100));
     }
-
-    const batch = coalesced.slice(i, i + SYNC_BATCH_SIZE);
 
     // Ids already given a specific rejection reason below; the whole-batch
     // and catch paths skip them rather than overwrite it.

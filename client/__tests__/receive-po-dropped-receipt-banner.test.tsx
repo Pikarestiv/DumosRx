@@ -20,6 +20,8 @@ vi.mock("@/lib/hooks/use-permissions", () => ({
 vi.mock("@/lib/db/queries/categories", () => ({
   getCategoryList: vi.fn(() => Promise.resolve([])),
 }));
+vi.mock("@/lib/db/queries/backorders", () => ({ getOutstandingBackorders: () => Promise.resolve([]) }));
+
 vi.mock("@/lib/hooks/use-dropped-receipt-signal", () => ({
   useDroppedReceiptSignal: () => ({ signal, dismiss }),
 }));

@@ -48,6 +48,13 @@ export function TransactionItemsView({
                 </TableCell>
                 <TableCell className="text-right">
                   <span>{item.quantity}</span>
+                  {(item.originally_owed ?? 0) > 0 && (
+                    <span className="text-amber-600 dark:text-amber-400 text-xs font-medium block">
+                      {item.quantity > (item.originally_owed ?? 0)
+                        ? `${item.quantity - (item.originally_owed ?? 0)} recorded · ${item.originally_owed} owed`
+                        : `${item.originally_owed} owed`}
+                    </span>
+                  )}
                   {(item.returned_quantity ?? 0) > 0 && (
                     <span className="text-destructive text-xs ml-1 font-medium block">
                       (-{item.returned_quantity} returned)
@@ -88,6 +95,13 @@ export function TransactionItemsView({
                 <span className="font-semibold text-foreground ml-1">
                   {item.quantity}
                 </span>
+                {(item.originally_owed ?? 0) > 0 && (
+                  <span className="text-amber-600 dark:text-amber-400 text-xs font-medium ml-1.5 block">
+                    ({item.quantity > (item.originally_owed ?? 0)
+                      ? `${item.quantity - (item.originally_owed ?? 0)} recorded · ${item.originally_owed} owed`
+                      : `${item.originally_owed} owed`})
+                  </span>
+                )}
               </span>
               <span className="text-muted-foreground">
                 Price:{" "}

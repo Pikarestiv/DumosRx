@@ -2,6 +2,7 @@
 
 import { PaymentMethodSelector } from "./payment-method-selector";
 import { PaymentSplits } from "./payment-splits";
+import { QuickCashTender } from "./quick-cash-tender";
 
 import { useCallback, useEffect, useRef } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
@@ -72,16 +73,10 @@ export function POSPaymentDialog({
   const { defaults, setDefaultAccount, clearDefaultAccount } =
     useDefaultPaymentAccounts();
 
-  // Re-syncs to `total` whenever it changes (e.g.
-  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-payment-dialog-tsx-L75
   const lastAutoFilledRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!showPaymentDialog) {
-      // Reset on close so a value a cashier manually typed in a previous sale can't be silently overwritten just because a later…
-      // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-payment-dialog-tsx-L84
-      lastAutoFilledRef.current = null;
-      return;
-    }
+    if (!showPaymentDialog) return;
+
     const isBlank = !amountPaid || amountPaid === "0";
     const stillAutoFilled =
       lastAutoFilledRef.current !== null &&
@@ -202,14 +197,37 @@ export function POSPaymentDialog({
             )}
             {calculateCashShortfall(Number.parseFloat(amountPaid), total) >
               0 && (
-              <p className="text-sm text-destructive font-medium mt-1">
-                {formatCurrency(
-                  calculateCashShortfall(Number.parseFloat(amountPaid), total),
-                  currencyCode,
-                )}{" "}
-                short
-              </p>
+              <div className="flex items-center justify-between mt-1.5 gap-2">
+                <p className="text-sm text-destructive font-medium">
+                  {formatCurrency(
+                    calculateCashShortfall(Number.parseFloat(amountPaid), total),
+                    currencyCode,
+                  )}{" "}
+                  short
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10"
+                  onClick={() => {
+                    lastAutoFilledRef.current = total.toString();
+                    setAmountPaid(total.toString());
+                  }}
+                >
+                  Pay Exact ({formatCurrency(total, currencyCode)})
+                </Button>
+              </div>
             )}
+            <QuickCashTender
+              total={total}
+              amountPaid={amountPaid}
+              onSelectAmount={(amount) => {
+                lastAutoFilledRef.current = amount;
+                setAmountPaid(amount);
+              }}
+              currencyCode={currencyCode}
+            />
           </div>
         )}
 

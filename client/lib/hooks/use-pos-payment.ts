@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { generateShortId } from "@/lib/db/core";
 import { writeSaleTransaction } from "./pos-sale-writer";
@@ -100,6 +100,7 @@ export function usePOSPayment({
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
 
+  const prevTotalRef = useRef(total);
   const cartIsEmpty = cart.length === 0;
   const [wasCartEmpty, setWasCartEmpty] = useState(cartIsEmpty);
   if (cartIsEmpty !== wasCartEmpty) {
@@ -110,8 +111,25 @@ export function usePOSPayment({
       setSelectedAccountId("");
       setPaymentSplits([]);
       setSaleNote("");
+      prevTotalRef.current = 0;
     }
   }
+
+  useEffect(() => {
+    const prevTotal = prevTotalRef.current;
+    if (prevTotal !== total) {
+      prevTotalRef.current = total;
+      if (!amountPaid || amountPaid === "0" || amountPaid === prevTotal.toString()) {
+        setAmountPaid(total > 0 ? total.toString() : "");
+      }
+      if (
+        paymentSplits.length === 1 &&
+        (paymentSplits[0].amount === prevTotal || paymentSplits[0].amount === 0)
+      ) {
+        setPaymentSplits([{ ...paymentSplits[0], amount: total }]);
+      }
+    }
+  }, [total, amountPaid, paymentSplits]);
 
   const handlePayment = async () => {
     if (processingPaymentRef.current) return;

@@ -7390,3 +7390,13 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
   - `laravel-server/app/Services/Sync/SyncOwnershipResolver.php` includes `User::withTrashed()` when querying tenant-scoped user IDs. Without `withTrashed()`, soft-deleted users were omitted from tenant authorization scopes, causing push updates for soft-delete and restoration to fail with `"forbidden"`.
   - Pushed restore payloads include `_deleted: 0` and the record's current base `_version` to permit atomic server incrementation without version conflicts.
 
+## POS Payment Amount Resynchronization & Quick Cash Tender
+
+- **Automatic Total Resynchronization (`usePOSPayment`):** When the POS cart changes (e.g. items added, removed, swapped, or discounted), if `amountPaid` matched the previous total, was 0, or was blank, `usePOSPayment` automatically resynchronizes `amountPaid` to the new cart total. If `paymentSplits` has a single split that matched the previous total (or 0), that split amount is also automatically updated to the new total. Intentionally custom partial amounts typed by cashiers are preserved. When the cart is emptied, `prevTotalRef.current` resets to 0.
+- **Auto-Fill Awareness across Dialog Close/Reopen (`POSPaymentDialog`):** `lastAutoFilledRef.current` is not cleared on modal close within the same sale so reopening the dialog does not mistake an auto-filled total for a manually entered partial amount.
+- **Shortfall Resolution & Quick Tender:**
+  - Cash shortfall alert displays a 1-click **"Pay Exact ({total})"** button beside the shortfall text so the cashier can instantly resolve shortages with one tap without manual retyping.
+  - `<QuickCashTender />` displays smart tender chips (`Exact`, rounded bill denominations such as ₦1,000, ₦2,000, ₦5,000) for rapid cash handling.
+  - In `PaymentSplits`, when splits under-cover the total, the exact shortfall is shown alongside a 1-click **"Cover Remaining ({shortage})"** button that fills the remaining balance into the split automatically.
+
+

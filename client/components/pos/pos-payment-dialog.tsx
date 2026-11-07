@@ -78,13 +78,23 @@ export function POSPaymentDialog({
     if (!showPaymentDialog) return;
 
     const isBlank = !amountPaid || amountPaid === "0";
+    const parsedPaid = Number.parseFloat(amountPaid);
+    const matchesTotal = !Number.isNaN(parsedPaid) && parsedPaid === total;
     const stillAutoFilled =
       lastAutoFilledRef.current !== null &&
-      amountPaid === lastAutoFilledRef.current;
-    if (isBlank || stillAutoFilled) {
+      (amountPaid === lastAutoFilledRef.current ||
+        parsedPaid === Number.parseFloat(lastAutoFilledRef.current));
+
+    if (
+      isBlank ||
+      stillAutoFilled ||
+      (lastAutoFilledRef.current === null && matchesTotal)
+    ) {
       const next = total.toString();
       lastAutoFilledRef.current = next;
-      setAmountPaid(next);
+      if (amountPaid !== next) {
+        setAmountPaid(next);
+      }
     }
   }, [showPaymentDialog, total, paymentMethod, amountPaid, setAmountPaid]);
 

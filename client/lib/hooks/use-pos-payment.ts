@@ -119,7 +119,12 @@ export function usePOSPayment({
     const prevTotal = prevTotalRef.current;
     if (prevTotal !== total) {
       prevTotalRef.current = total;
-      if (!amountPaid || amountPaid === "0" || amountPaid === prevTotal.toString()) {
+      const isCoveringPrevTotal =
+        !amountPaid ||
+        amountPaid === "0" ||
+        amountPaid === prevTotal.toString() ||
+        Number.parseFloat(amountPaid) === prevTotal;
+      if (isCoveringPrevTotal) {
         setAmountPaid(total > 0 ? total.toString() : "");
       }
       if (

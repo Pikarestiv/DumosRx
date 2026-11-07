@@ -140,4 +140,48 @@ describe("usePOSPayment amountPaid & split auto-resynchronization", () => {
 
     expect(result.current.amountPaid).toBe("500");
   });
+
+  it("resyncs amountPaid even when formatted with decimals like 700.00", () => {
+    let currentTotal = 700;
+    let currentCart = [baseItem];
+
+    const { result, rerender } = renderHook(
+      ({ total, cart }) =>
+        usePOSPayment({
+          cart,
+          subtotal: total,
+          tax: 0,
+          total,
+          discount: 0,
+          selectedCustomer: null,
+          setSelectedCustomer: vi.fn(),
+          clearCart: vi.fn(),
+          refetchProducts: vi.fn(),
+          refetchSales: vi.fn(),
+        }),
+      {
+        initialProps: { total: currentTotal, cart: currentCart },
+      },
+    );
+
+    act(() => {
+      result.current.setAmountPaid("700.00");
+    });
+    expect(result.current.amountPaid).toBe("700.00");
+
+    currentTotal = 850;
+    currentCart = [
+      {
+        ...baseItem,
+        unit_price: 850,
+        original_unit_price: 850,
+        quantity: 1,
+        subtotal: 850,
+      },
+    ];
+
+    rerender({ total: currentTotal, cart: currentCart });
+
+    expect(result.current.amountPaid).toBe("850");
+  });
 });

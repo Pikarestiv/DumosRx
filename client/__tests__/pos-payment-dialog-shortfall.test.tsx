@@ -41,6 +41,43 @@ describe("POSPaymentDialog shortfall UX", () => {
     fireEvent.click(payExactBtn);
     expect(setAmountPaid).toHaveBeenCalledWith("850");
   });
+
+  it("auto-syncs amountPaid when total changes and previous amount was auto-filled or matched total", () => {
+    const setAmountPaid = vi.fn();
+    const { rerender } = render(
+      <POSPaymentDialog
+        showPaymentDialog={true}
+        setShowPaymentDialog={vi.fn()}
+        total={700}
+        paymentMethod="cash"
+        setPaymentMethod={vi.fn()}
+        amountPaid="700"
+        setAmountPaid={setAmountPaid}
+        processingPayment={false}
+        handlePayment={vi.fn()}
+        selectedCustomer={null}
+        currencyCode="NGN"
+      />,
+    );
+
+    rerender(
+      <POSPaymentDialog
+        showPaymentDialog={true}
+        setShowPaymentDialog={vi.fn()}
+        total={850}
+        paymentMethod="cash"
+        setPaymentMethod={vi.fn()}
+        amountPaid="700"
+        setAmountPaid={setAmountPaid}
+        processingPayment={false}
+        handlePayment={vi.fn()}
+        selectedCustomer={null}
+        currencyCode="NGN"
+      />,
+    );
+
+    expect(setAmountPaid).toHaveBeenCalledWith("850");
+  });
 });
 
 describe("PaymentSplits shortage UX", () => {
@@ -68,3 +105,4 @@ describe("PaymentSplits shortage UX", () => {
     ]);
   });
 });
+

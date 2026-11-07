@@ -16,6 +16,7 @@ import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { getRecentSales, getPendingResellerCommissionTotal } from "@/lib/db/queries/sales";
 import { queryKeys } from "@/lib/query-keys";
 import { formatCurrency, getLocalTodayDate } from "@/lib/utils";
+import { deriveSaleStockOwedStatus } from "@/lib/db/queries/backorders";
 import type { DateRangeValue } from "@/components/ui/date-range-picker";
 import type { SaleWithDetails } from "@/lib/types/sale";
 
@@ -87,6 +88,7 @@ export function POSTransactionHistory({
   const [dateRange, setDateRange] = useState<DateRangeValue>({});
   const [paymentFilter, setPaymentFilter] = useState<string>("All");
   const [saleTypeFilter, setSaleTypeFilter] = useState<string>("All");
+  const [stockOwedFilter, setStockOwedFilter] = useState<string>("All");
 
   const { user } = useAuth();
   const canReturn = useHasPermission("void_refund_sales");
@@ -189,6 +191,16 @@ export function POSTransactionHistory({
       if (saleTypeFilter === "StoreMarkup" && (!sale.is_reseller_sale || sale.markup_type !== "store")) {
         return false;
       }
+      if (stockOwedFilter !== "All") {
+        const owedStatus = deriveSaleStockOwedStatus(
+          Number(sale.stock_originally_owed ?? 0),
+          Number(sale.stock_settled ?? 0),
+        );
+        if (stockOwedFilter === "AnyOwed" && owedStatus === "none") return false;
+        if (stockOwedFilter === "Open" && owedStatus !== "open") return false;
+        if (stockOwedFilter === "Partial" && owedStatus !== "partial") return false;
+        if (stockOwedFilter === "Settled" && owedStatus !== "settled") return false;
+      }
       return true;
     });
   }, [
@@ -197,6 +209,7 @@ export function POSTransactionHistory({
     debouncedSearchQuery,
     paymentFilter,
     saleTypeFilter,
+    stockOwedFilter,
   ]);
 
   const groupedSales = useMemo(() => groupSalesByRecency(filteredSales), [filteredSales]);
@@ -225,6 +238,8 @@ export function POSTransactionHistory({
         setPaymentFilter={setPaymentFilter}
         saleTypeFilter={saleTypeFilter}
         setSaleTypeFilter={setSaleTypeFilter}
+        stockOwedFilter={stockOwedFilter}
+        setStockOwedFilter={setStockOwedFilter}
       />
 
       <TransactionList

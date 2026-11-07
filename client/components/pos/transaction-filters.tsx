@@ -13,6 +13,8 @@ interface TransactionFiltersProps {
   setPaymentFilter: (filter: string) => void;
   saleTypeFilter: string;
   setSaleTypeFilter: (filter: string) => void;
+  stockOwedFilter: string;
+  setStockOwedFilter: (filter: string) => void;
 }
 
 const PAYMENT_OPTIONS = [
@@ -26,6 +28,13 @@ const SALE_TYPE_OPTIONS = [
   { value: "StoreMarkup", label: "Store Markup" },
 ];
 
+const STOCK_OWED_OPTIONS = [
+  { value: "AnyOwed", label: "Stock Owed (All)" },
+  { value: "Open", label: "Stock Owed · Open" },
+  { value: "Partial", label: "Stock Owed · Partial" },
+  { value: "Settled", label: "Stock Owed · Settled" },
+];
+
 export function TransactionFilters({
   searchQuery,
   setSearchQuery,
@@ -35,6 +44,8 @@ export function TransactionFilters({
   setPaymentFilter,
   saleTypeFilter,
   setSaleTypeFilter,
+  stockOwedFilter,
+  setStockOwedFilter,
 }: TransactionFiltersProps) {
   return (
     <div className="flex flex-col gap-4">
@@ -78,6 +89,13 @@ export function TransactionFilters({
           value={saleTypeFilter}
           onValueChange={setSaleTypeFilter}
           options={SALE_TYPE_OPTIONS}
+          allValue="All"
+        />
+        <FilterPill
+          label="Stock"
+          value={stockOwedFilter}
+          onValueChange={setStockOwedFilter}
+          options={STOCK_OWED_OPTIONS}
           allValue="All"
         />
       </div>

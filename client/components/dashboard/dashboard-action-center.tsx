@@ -16,6 +16,7 @@ import {
   CloudUpload,
   CloudOff,
   Download,
+  PackageCheck,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
@@ -35,6 +36,7 @@ const BACKDROP_ICONS: Record<string, React.ElementType> = {
   "expiring-soon": CalendarClock,
   "low-stock": PackageSearch,
   oversold: Siren,
+  "owed-units": PackageCheck,
   "missing-expiry": CalendarX,
   "add-widget": Smartphone,
   "get-the-app": Download,
@@ -47,6 +49,8 @@ export interface ActionCenterProps {
   missingExpiryCount: number;
   oversoldCount: number;
   oversoldProduct?: string;
+  owedCount?: number;
+  owedProduct?: string;
 }
 
 // --- Card Item Component ---
@@ -118,6 +122,8 @@ export function DashboardActionCenter({
   missingExpiryCount,
   oversoldCount,
   oversoldProduct,
+  owedCount,
+  owedProduct,
 }: ActionCenterProps) {
   const alerts = useActionCenterAlerts(
     expiringCount,
@@ -125,6 +131,8 @@ export function DashboardActionCenter({
     missingExpiryCount,
     oversoldCount,
     oversoldProduct,
+    owedCount,
+    owedProduct,
   );
   const [isPaused, setIsPaused] = useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);

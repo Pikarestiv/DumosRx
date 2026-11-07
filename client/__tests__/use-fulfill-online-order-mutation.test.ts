@@ -307,4 +307,32 @@ describe("useFulfillOnlineOrderMutation", () => {
       expect(await findOnlineOrderStockGaps(order)).toEqual([]);
     });
   });
+
+  describe("an oversell on a store that sells past recorded stock", () => {
+    async function fulfillZeroStock(recordShortfallAsOwed: boolean) {
+      seedProductWithBatch("p1", 700, 0);
+      const { useFulfillOnlineOrderMutation } = await import("@/lib/hooks/use-fulfill-online-order-mutation");
+      const { result } = renderHook(() => useFulfillOnlineOrderMutation(), { wrapper });
+      await act(async () => {
+        await result.current.mutateAsync({ order, storeId: "store1", cashierId: "cashier1", recordShortfallAsOwed });
+      });
+    }
+
+    const owedRows = () =>
+      db.exec(`SELECT quantity FROM stock_movements WHERE reference_type = 'backorder'`)[0]?.values ?? [];
+
+    it("records the units as owed when the setting is on, costed at the last purchase cost", async () => {
+      await fulfillZeroStock(true);
+
+      expect(owedRows()).toEqual([[2]]);
+      expect(db.exec(`SELECT cost_price FROM sale_items`)[0].values).toEqual([[700]]);
+      expect(db.exec(`SELECT quantity FROM stock_batches WHERE id = 'batch-p1'`)[0].values[0][0]).toBe(0);
+    });
+
+    it("leaves today's accidental deficit when the setting is off", async () => {
+      await fulfillZeroStock(false);
+
+      expect(owedRows()).toEqual([]);
+    });
+  });
 });

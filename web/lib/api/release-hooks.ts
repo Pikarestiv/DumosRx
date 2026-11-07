@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useContext } from "react";
+import { QueryClient, QueryClientContext, useQuery } from "@tanstack/react-query";
 import { webApiClient } from "./client";
 import { useScopedKey } from "./query-scope";
 import { APP_VERSION, DOWNLOAD_URL } from "@/lib/constants";
@@ -116,4 +117,25 @@ export const usePublicLatestRelease = () => {
     queryFn: () => fetchReleaseLinks(PUBLIC_MANIFEST_ENDPOINT),
     staleTime: STALE_TIME_MS,
   });
+};
+
+export interface ClientVersionManifest {
+  app_version: string | null;
+  build_sha: string | null;
+  built_at: string | null;
+}
+
+const fallbackQueryClient = new QueryClient();
+
+export const useAdminClientVersion = () => {
+  const client = useContext(QueryClientContext);
+  return useQuery(
+    {
+      queryKey: useScopedKey(["admin-client-version"]),
+      queryFn: () => webApiClient.request<ClientVersionManifest>("admin/client/version"),
+      staleTime: 5 * 60 * 1000,
+      enabled: Boolean(client),
+    },
+    client ?? fallbackQueryClient
+  );
 };

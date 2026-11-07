@@ -5,6 +5,7 @@ import {
   Activity,
   PackagePlus,
   PackageMinus,
+  PackageCheck,
   Edit,
   ShoppingCart,
   PlusCircle,
@@ -13,6 +14,8 @@ import {
 import { getProductHistory } from "@/lib/db/queries/products";
 import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
+import { resolveMovementDisplayType } from "@/components/stock-batch/stock-movement-utils";
+import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
 
 interface HistoryItem {
   id: string;
@@ -23,6 +26,69 @@ interface HistoryItem {
   action: string;
   user: string;
   meta?: { quantity: number; type: string };
+}
+
+function describeMovement(mov: StockMovementHistoryRow) {
+  const displayType = resolveMovementDisplayType(mov);
+  const absQty = Math.abs(mov.quantity);
+  const reasonSuffix = mov.reason ? ` Reason: ${mov.reason}` : "";
+
+  switch (displayType) {
+    case "backorder":
+      return {
+        title: "Stock Shortfall",
+        description: `${absQty} units owed to customer.${reasonSuffix}`,
+        action: "backorder",
+      };
+    case "backorder_settlement":
+      return {
+        title: "Shortfall Settlement",
+        description: `${absQty} units settled by receipt.${reasonSuffix}`,
+        action: "backorder_settlement",
+      };
+    case "sale":
+      return {
+        title: "Stock Deducted",
+        description: `-${absQty} units.${reasonSuffix}`,
+        action: "sale",
+      };
+    case "purchase":
+    case "in":
+    case "addition":
+    case "restock":
+      return {
+        title: "Stock Added",
+        description: `+${absQty} units.${reasonSuffix}`,
+        action: "purchase",
+      };
+    case "return":
+      return {
+        title: "Stock Restocked (Return)",
+        description: `+${absQty} units.${reasonSuffix}`,
+        action: "return",
+      };
+    case "damaged":
+    case "damage":
+      return {
+        title: "Stock Damaged",
+        description: `-${absQty} units.${reasonSuffix}`,
+        action: "damaged",
+      };
+    case "import":
+      return {
+        title: "Bulk Import",
+        description: `${mov.quantity >= 0 ? "+" : "-"}${absQty} units.${reasonSuffix}`,
+        action: "import",
+      };
+    default: {
+      const sign = mov.quantity >= 0 ? "+" : "-";
+      return {
+        title: "Stock Adjusted",
+        description: `${sign}${absQty} units.${reasonSuffix}`,
+        action: mov.movement_type,
+      };
+    }
+  }
 }
 
 async function loadProductHistory(productId: string, viewerId?: string): Promise<HistoryItem[]> {
@@ -39,18 +105,14 @@ async function loadProductHistory(productId: string, viewerId?: string): Promise
   }));
 
   const normalizedMovements: HistoryItem[] = stockMovements.map((mov) => {
-    const isAddition = ["in", "addition", "purchase"].includes(
-      mov.movement_type.toLowerCase()
-    );
+    const desc = describeMovement(mov);
     return {
       id: `mov-${mov.id}`,
       type: "movement",
-      title: isAddition ? "Stock Added" : "Stock Deducted",
-      description: `${isAddition ? "+" : "-"}${mov.quantity} units. ${
-        mov.reason ? `Reason: ${mov.reason}` : ""
-      }`,
+      title: desc.title,
+      description: desc.description,
       date: new Date(mov.created_at || mov.movement_date || 0),
-      action: mov.movement_type,
+      action: desc.action,
       user: mov.performed_by_name || "System",
       meta: { quantity: mov.quantity, type: mov.movement_type },
     };
@@ -216,8 +278,10 @@ function describeAuditDetails(action: string, details: string | null) {
 function getIconForAction(item: HistoryItem) {
   if (item.type === "movement") {
     const t = item.action.toLowerCase();
+    if (t === "backorder") return PackageMinus;
+    if (t === "backorder_settlement") return PackageCheck;
     if (t.includes("sale")) return ShoppingCart;
-    if (t === "in" || t === "addition") return PackagePlus;
+    if (t === "in" || t === "addition" || t === "purchase" || t === "return") return PackagePlus;
     return PackageMinus;
   }
   const a = normalizeAction(item.action);
@@ -229,7 +293,9 @@ function getIconForAction(item: HistoryItem) {
 function getColorForAction(item: HistoryItem) {
   if (item.type === "movement") {
     const t = item.action.toLowerCase();
-    if (t === "in" || t === "addition" || t === "purchase")
+    if (t === "backorder") return "text-amber-500 border-amber-200 dark:text-amber-400 dark:border-amber-500/30";
+    if (t === "backorder_settlement") return "text-emerald-500 border-emerald-200 dark:text-emerald-400 dark:border-emerald-500/30";
+    if (t === "in" || t === "addition" || t === "purchase" || t === "return")
       return "text-emerald-500 border-emerald-200";
     if (t.includes("sale")) return "text-blue-500 border-blue-200";
     return "text-rose-500 border-rose-200";

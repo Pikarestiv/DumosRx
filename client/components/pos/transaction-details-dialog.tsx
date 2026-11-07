@@ -30,6 +30,7 @@ import { TransactionItemsView } from "./transaction-items-view";
 import { PriceAdjustmentBadge } from "./price-adjustment-badge";
 import { sumPriceAdjustments } from "@/lib/utils/price-adjustment";
 import { ResellerMarkupPanel } from "./reseller-markup-panel";
+import { TransactionStockReconciliation } from "./transaction-stock-reconciliation";
 
 interface TransactionDetailsDialogProps {
   sale: SaleWithDetails | null;
@@ -239,6 +240,13 @@ export function TransactionDetailsDialog({
             currencyCode={currencyCode}
             isRedeeming={redeemMutation.isPending}
             onRedeem={(claimType) => void handleRedeemCommission(claimType)}
+          />
+        )}
+
+        {detailsData?.stockReconciliation && detailsData.stockReconciliation.originallyOwed > 0 && (
+          <TransactionStockReconciliation
+            reconciliation={detailsData.stockReconciliation}
+            currencyCode={currencyCode}
           />
         )}
 

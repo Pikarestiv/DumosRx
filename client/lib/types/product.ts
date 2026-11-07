@@ -38,6 +38,7 @@ export interface ProductWithStockRow extends Product {
   stock_quantity?: number;
   batch_number?: string;
   avg_cost_price?: number;
+  last_bought_price?: number | null;
 }
 
 export interface POSProduct {

@@ -5,6 +5,14 @@ import type { AuditLogRow } from "@/lib/types/audit-log";
 import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
 import { HIDDEN_MOVEMENT_TYPES, HIDDEN_MOVEMENT_TYPES_SQL } from "@/lib/db/movement-types";
 
+const lastBoughtPriceSql = (productIdRef: string) =>
+  `(SELECT cost_price FROM stock_batches WHERE product_id = ${productIdRef} AND _deleted = 0 AND cost_price > 0 AND COALESCE(batch_number, '') NOT LIKE 'ADJ-%' ORDER BY created_at DESC LIMIT 1)`;
+
+export async function getLastPurchaseCost(productId: string): Promise<number> {
+  const rows = await query<{ cost: number | null }>(`SELECT ${lastBoughtPriceSql("?")} AS cost`, [productId]);
+  return Number(rows[0]?.cost ?? 0);
+}
+
 export async function getProductsWithDetails() {
   const storeId = getActiveStoreId();
   return query<ProductWithDetails>(
@@ -14,7 +22,7 @@ export async function getProductsWithDetails() {
        (SELECT expiry_date FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as expiry_date,
        (SELECT batch_number FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as batch_number,
        (SELECT MAX(reconciled_at) FROM stock_audits WHERE product_id = m.id AND _deleted = 0 AND status = 'reconciled') as last_audited_at,
-       (SELECT cost_price FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND cost_price > 0 AND batch_number NOT LIKE 'ADJ-%' ORDER BY created_at DESC LIMIT 1) as last_bought_price
+       ${lastBoughtPriceSql("m.id")} as last_bought_price
      FROM products m
      LEFT JOIN categories c ON m.category_id = c.id
      WHERE m._deleted = 0${storeId ? " AND m.store_id = ?" : ""}
@@ -103,7 +111,7 @@ export async function getProductList() {
 export async function getProductsWithStock(): Promise<POSProduct[]> {
   const storeId = getActiveStoreId();
   const items = await query<ProductWithStockRow>(
-    `SELECT p.*, c.name as category_name, COALESCE(SUM(sb.quantity), 0) as stock_quantity, GROUP_CONCAT(sb.batch_number, ', ') as batch_number, SUM(sb.cost_price * sb.quantity) * 1.0 / NULLIF(SUM(sb.quantity), 0) as avg_cost_price
+    `SELECT p.*, c.name as category_name, COALESCE(SUM(sb.quantity), 0) as stock_quantity, GROUP_CONCAT(sb.batch_number, ', ') as batch_number, SUM(sb.cost_price * sb.quantity) * 1.0 / NULLIF(SUM(sb.quantity), 0) as avg_cost_price, ${lastBoughtPriceSql("p.id")} as last_bought_price
      FROM products p
      LEFT JOIN categories c ON p.category_id = c.id AND c._deleted = 0
      LEFT JOIN stock_batches sb ON p.id = sb.product_id AND sb._deleted = 0 AND sb.is_active = 1 AND (sb.expiry_date IS NULL OR sb.expiry_date = '' OR date(sb.expiry_date) > date('now'))
@@ -121,7 +129,7 @@ export async function getProductsWithStock(): Promise<POSProduct[]> {
     unit_price: m.selling_price || 0,
     stock: m.stock_quantity || 0,
     reorder_level: m.reorder_level || 10,
-    cost_price: m.avg_cost_price || 0,
+    cost_price: m.avg_cost_price || m.last_bought_price || 0,
     barcode: m.barcode || "",
     batch_number: m.batch_number || "",
     category_id: m.category_id || "",

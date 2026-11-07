@@ -7,6 +7,8 @@ import type { POSProduct } from "@/lib/types/product";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { useStockVisibility } from "@/lib/hooks/use-stock-visibility";
 import { stockLevel } from "@/lib/utils/stock-status";
+import { useStore } from "@/lib/context/store-context";
+import { isSaleWithoutStockEnabled } from "@/lib/hooks/use-feature-gate";
 import { CategoryIcon } from "./category-icon";
 
 type PosGroup = "suggestion" | "recent" | "common" | "standard";
@@ -58,6 +60,8 @@ export const POSProductCard = memo(function POSProductCard({
   const { describeStock } = useStockVisibility();
   const level = stockLevel(product.stock, product.reorder_level);
   const isOutOfStock = level === "out";
+  const { storeProfile } = useStore();
+  const isBlocked = isOutOfStock && !isSaleWithoutStockEnabled(storeProfile?.allow_sale_without_stock);
   const capsClass = useUppercaseDisplayClass();
 
   return (
@@ -65,8 +69,8 @@ export const POSProductCard = memo(function POSProductCard({
       type="button"
       // Not `disabled`: clicking an out-of-stock tile still surfaces the "This item is out of stock" toast, and a disabled butto…
       // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-product-list-tsx-L104
-      aria-disabled={isOutOfStock || undefined}
-      className={`relative w-full text-left p-2 sm:p-3 border rounded-xl sm:rounded-2xl transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:border-ring ${cardStyle} ${isOutOfStock ? "opacity-60 grayscale-[0.5] cursor-not-allowed" : "cursor-pointer"}`}
+      aria-disabled={isBlocked || undefined}
+      className={`relative w-full text-left p-2 sm:p-3 border rounded-xl sm:rounded-2xl transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:border-ring ${cardStyle} ${isBlocked ? "opacity-60 grayscale-[0.5] cursor-not-allowed" : "cursor-pointer"}`}
       onClick={() => addToCart(product)}
     >
       {indicator}

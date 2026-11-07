@@ -6,6 +6,7 @@ import {
   getOversoldAlerts,
 } from "@/lib/db/queries/inventory";
 import { queryKeys } from "@/lib/query-keys";
+import { useOutstandingBackorders } from "@/lib/hooks/use-outstanding-backorders";
 
 // @param enabled - these three reads feed only the Analytics dashboard's Stock Batches tab, so its caller gates them on that tab being the act…
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-stock-batch-alerts-ts-L10
@@ -27,6 +28,8 @@ export function useStockBatchAlerts(enabled = true) {
     queryFn: () => getOversoldAlerts(),
     enabled,
   });
+
+  const backorders = useOutstandingBackorders(undefined, enabled);
 
   const stock_batchAlerts = useMemo(() => {
     const low = (lowStockAlerts || []).map((a) => ({
@@ -52,8 +55,14 @@ export function useStockBatchAlerts(enabled = true) {
       quantity: a.quantity,
       severity: "critical",
     }));
-    return [...oversold, ...expiring, ...low];
-  }, [lowStockAlerts, expiryAlerts, oversoldAlerts]);
+    const owed = backorders.map((b) => ({
+      product: b.productName,
+      issue: "Owed to customers",
+      quantity: b.outstanding,
+      severity: "high",
+    }));
+    return [...oversold, ...owed, ...expiring, ...low];
+  }, [lowStockAlerts, expiryAlerts, oversoldAlerts, backorders]);
 
   return stock_batchAlerts;
 }

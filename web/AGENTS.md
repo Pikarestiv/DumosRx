@@ -553,6 +553,14 @@ is that two devices of one store disagree.
 - **`store-queue-state-section.tsx`** lists what is stuck on each device, with
   attempts and a canonical reason. The reason is a slug the device already
   canonicalised — it is never raw error text, and nothing here should start
+- **Device version and deployment tell-tale:** Every device row across
+  `StoreStockDivergenceSection`, `StoreTableAgreementSection`, `StoreQueueStateSection`,
+  `StoreStaffList`, and `StaffDeviceHistory` renders `<DeviceVersionBadge />` (and `<DeviceIdentity />`).
+  Wrapped in `<LatestBuildShaProvider value={clientVersion?.build_sha}>` (fed by `useAdminClientVersion()`),
+  it compares the device's reported `build_sha` against the live deployed PWA build:
+  - 🟢 **Emerald**: `Up to date` when the device's build SHA matches the live deployed PWA manifest.
+  - 🟡 **Amber**: `Update pending` when the device's build SHA lags behind the live deployed PWA manifest.
+  - **Slate**: neutral fallback when `latestBuildSha` is unknown or running `local` dev.
   rendering one.
 - **A store that has never reported says so.** "No reports yet" is not
   "0 divergence" and not an empty table that reads like agreement. This is the

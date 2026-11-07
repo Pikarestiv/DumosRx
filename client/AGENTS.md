@@ -280,7 +280,10 @@ and `synchronous = NORMAL`.
   - **Read-only is enforced in `insert`/`update`/`softDelete`/`remove`**
     (`base-helpers.ts`), not by hiding buttons. `remove()` matters: it hard
     deletes. The fold, the clock override and sync's pull all write via raw
-    `execute`, which is why they are unaffected and need no exception.
+    `execute`, which is why they are unaffected and need no exception. The
+    one pull-side step that goes through `update()` is the sell-at-zero
+    re-cost (`recostSalesTouchedByPull()`), so it returns early during a
+    session and never throws into the pull.
   - **Two deadlines, both local.** A 20-minute idle timer extended by real
     interaction, and a 4-hour cap derived from the server's `expires_in`
     **duration** — never its absolute `expires_at`, which on a till whose
@@ -2308,6 +2311,194 @@ range in place of the lifetime and this-month ones. Both dates are in
 §8 limit); "Load older" grows the window by 50. The initial range is read
 from `?from=YYYY-MM-DD&to=YYYY-MM-DD` (malformed values are ignored); Daily
 Close's "View in Expenses" link sets both to the report day.
+
+### Selling past recorded stock: owed units and their settlement (2026-10-26)
+
+Spec: `docs/superpowers/specs/2026-10-26-sell-at-zero-stock-design.md` (read its
+"Owner decisions" section; it overrides the earlier proposals in that file).
+`stores.allow_sale_without_stock` (off by default, no plan gate, no role
+permission) is read through `useFeatureGate().canSellWithoutStock`.
+
+- **The sale write.** `recordSaleItemStock({ recordShortfallAsOwed })` still
+  writes the `sale −Q` row exactly as before. When the flag is on and a batch
+  went short, it then writes, on that same batch, an `adjustment +N` with
+  `reference_type = BACKORDER_REFERENCE_TYPE` (`"backorder"`),
+  `reference_id = saleId`, `unit_cost` = the line's cost, reason
+  `BACKORDER_REASON`. N is the deduction minus what the batch held. The log
+  therefore never sums below zero, the batch reads its true shelf figure (0),
+  and the server's per-push floor (Stage 0) lands on the same number when the
+  pair shares a push. `pushChanges()` chunks with `chunkPushQueue()`, which
+  pushes a boundary up to 10 rows later so an owed row shares its sale row's
+  push. (A-342 parity is resolved under A-217 derived stock quantity on the server). Constants live in `lib/constants/stock-adjustments.ts`.
+  With the flag off the write is byte-for-byte today's.
+- **Who passes the flag.** `writeSaleTransaction()` (from `usePOSPayment`,
+  fed by `usePOSSystem`) and `useFulfillOnlineOrderMutation` (fed by
+  `online-orders-modal.tsx`; owner decision 3: an online-order oversell the
+  owner confirms counts as owed when the setting is on). Nothing else sells.
+- **No new `movement_type`.** Same reasoning as the A-265 spec: `adjustment`
+  plus a distinguishing `reference_type` is readable by every bundle.
+- **Outstanding is derived, never stored.** `lib/db/queries/backorders.ts`:
+  `getOutstandingBackorders(productIds?)` sums, per product and store-scoped,
+  each sale's owed units less the settlement rows naming that sale, each sale
+  floored at 0. A settlement whose `reference_id` names no local sale pays
+  nothing. Owed-minus-settled is rounded to 1e-6 (`roundUnits()`) before
+  any comparison with zero, so fractional receipts (0.9 owed, then 0.2 and 1
+  received) clear instead of leaving `1.1e-16` owed forever. `getUnsettledSales(productId)` says which sales still owe units, oldest
+  first. Balances are per sale and matched by id, never replayed in
+  timestamp order: a sale's owed units minus the settlement rows whose
+  `reference_id` names that sale. Tills' clocks disagree, so an order-based
+  replay let a settlement stamped before its sale pay nothing and be paid
+  again. Timestamp order only picks which unsettled sale the next delivery
+  pays first.
+- **Settlement at receipt.** Both `receivePurchaseOrder()` and
+  `createAndReceivePurchaseOrder()` call `settleBackordersOnReceipt()` right
+  after each line's `purchase` movement: `settle = min(owed, received base
+  units)`, written as **one `adjustment` row per sale paid off** on the
+  receipt batch: `reference_type = "backorder_settlement"`, `reference_id` =
+  that **sale's** id, the PO id in `reason` after
+  `ADJUSTMENT_REASON_NOTE_SEPARATOR` (the table has no spare column),
+  `unit_cost` = the actual receipt cost. Its id is
+  `receiptSettlementMovementId(poItemId, alreadyReceived, saleId)` so a
+  retry or a second device receiving the same line collapses onto it. Settlement does **not**
+  depend on the setting: a store that switched it off still settles.
+- **Past sales are re-costed (owner decision 2).** After each settlement row
+  is written, `recostSale()` sets that sale's `sale_items.cost_price` lines
+  for the product to an **absolute** figure derived from the ledger:
+  `estimate + Σ settled_i × (actual_i − estimate) / line units`, rounded to
+  the cent, where the estimate is the `backorder` rows' `unit_cost` and the
+  settled units are capped at what the sale owed. It never adds to the
+  current cost, so a pulled re-cost that arrives without its settlement (a
+  chunk split, `push.ts` sends 50 rows a request) cannot compound when the
+  sale is settled again, and receipts give the same answer in any order. A
+  receipt costed at 0 or blank settles the units but contributes nothing to
+  the cost: re-costing to 0 would book the whole price as profit again
+  (A-335).
+- **Re-cost converges across devices.** The settling device re-costs at
+  settle time, but that alone does not converge: the server accepts a
+  `sale_items` UPDATE only at its exact `_version`, so when two tills re-cost
+  the same sale the second is refused and the pull reverts it, and a line not
+  yet local at settle time is skipped. So `pullChanges()` collects, page by
+  page (`keepPulledRecostRows()`), the sales named by pulled
+  `backorder_settlement` rows and the pulled `sale_items` lines, and calls
+  `recostSalesTouchedByPull(rows, activeRun.storeId)` **once, after the
+  round's last page**, in its own transaction. Each of those sales that has
+  settlements is re-costed from the local ledger. Running per page let a line
+  be re-derived (and queued) from a ledger whose settlement rows were still
+  paging; an interrupted or thrown round now re-costs nothing, and its pulled
+  rows are re-offered by the next round. A round that stops at
+  `MAX_PULL_PAGES` (1000) with more to fetch also re-costs nothing, and those
+  sales wait for a later pull that names them. The figure is absolute, so
+  devices converge.
+  - **It can never abort a pull.** It returns at once during an on-till
+    inspection session (`update()` would refuse the write); it writes against
+    the run's pinned store, not the ambient one; and any error is sent to
+    `logCrash()` and swallowed, so the round's settlement and sale rows stay
+    committed. The re-cost runs in its own `transaction()` with the catch
+    **outside** it (there are no savepoints), so a failure part-way, such as
+    the queue write throwing after a line's UPDATE, rolls back every re-cost
+    write of that round together and never leaves a line changed at
+    `_synced = 0` with no queue row. A skipped re-cost needs no catch-up on that till: an inspected
+    till settles nothing, and every *other* till re-derives from the full
+    ledger when it pulls the settlement, then pushes that figure, which the
+    inspected till later pulls.
+  - **A stale base is dropped silently.** A till can pull a settlement before
+    the server's re-costed line and so queue its re-cost on an old
+    `_version`. The server refuses it (`version_conflict`), the queue row is
+    dropped and the window rewound as for any conflict, the server row is
+    pulled, and the hook re-derives on the current version. That conflict is
+    not toasted (`push-conflict-toasts.ts`, `isRefusedAutomaticRecost()`):
+    only a `sale_items` **UPDATE** refused as **`version_conflict`** is
+    silent, because the re-cost is the only client code that UPDATEs
+    `sale_items`. A refused `sale_items` INSERT or any other reason still
+    toasts. `PushConflict.operation` carries the queued change's operation for
+    this. If a
+    user-facing `sale_items` edit is ever added, that silence must become
+    narrower.
+  - **When it does not loop.** A re-cost writes a `sale_items` UPDATE, never
+    a settlement. A line already at the derived cost is not written, so no
+    `_version` bump and no queue entry. A line that differs is written and
+    queued once per completed pull round that names it, and stops once the
+    server holds the derived figure. Until then the server keeps the last
+    pushed figure, which is the window another till's report can see. Pinned by `__tests__/sell-at-zero-stock-pull-recost.test.ts`. That is an `update()` on a historical
+  `sale_items` row, so it syncs, and **COGS for a closed period changes when
+  the goods arrive**. The receive screens say so (step 6).
+- **The cart.** With `canSellWithoutStock` on, `usePOSCart`'s `addToCart()`
+  and `updateQuantity()` stop refusing past `product.stock` and instead raise
+  one `toast.warning(formatBackorderWarning(onHand, requested,
+  canSeeQuantities))` when a line first crosses stock (not on every later
+  `+`). The hidden-quantity wording carries no number. `CartItem` gets no
+  field: the shortfall is worked out at write time from live batches.
+  `pos-product-card.tsx` reads the setting through `useStore()` and drops
+  `aria-disabled`/greyscale for an out-of-stock tile, still saying "Out of
+  stock". With the setting off both paths refuse exactly as before.
+- **Readers.** `resolveMovementDisplayType()` returns `"backorder"` /
+  `"backorder_settlement"` ("Stock owed" / "Stock settled")
+  in the Stock Movements list and dashboard feed. `groupAdjustmentMovements()`
+  skips both reference types the way it skips imports, so they never appear
+  in the Stock Adjustments (count) ledger and a count derivation never reads
+  them. `BACKORDER_*_REASON` never equals or prefixes a
+  `STOCK_LOSS_REASON_LABELS` entry, so `getStockLossTotal()` never counts them
+  (pinned). COGS reads `sale_items` and sees the re-cost, nothing else.
+- **Persistent warning (owner decision 6, no cap).** `useOutstandingBackorders()`
+  (`lib/hooks/`, key `stockBatches.outstandingBackorders`) feeds: the
+  dashboard Action Center's `owed-units` warning (admin-only like every
+  action-centre card, product count only, routes to `/procurement`); the
+  Analytics stock alert list ("Owed to customers", high); the count screen
+  (`useCountFreshness().owed`, warn-and-acknowledge, never block, owner
+  decision 4); and the assistant's `product_stock` reply ("N owed to
+  customers", only when `view_stock_quantities` holds).
+- **Receive screens.** `OwedSettlementNotice` (`components/procurement/`)
+  sits above the lines in `ReceivePOPanel` (both the card and ledger layouts)
+  and inside `POImmediateConfirmDialog`: per product, "5 already sold before
+  this delivery. 15 will go on the shelf." (`describeOwedSettlement()`), the
+  quantity-free wording for a stock-hidden role, and the line saying those
+  sales are re-costed so reported profit for those days will change.
+- **Returns do not touch owed units.** Owner decision 5: the customer took
+  the goods, so owed units are stock that was on the yard. A return restores
+  `+Q` to the shelf as usual, and the later receipt still settles the full
+  owed amount. Reducing owed on the return would double-count the returned
+  units.
+- **Over-settlement.** Two tills settling the same sale on different receipts
+  write two rows naming that sale; its balance floors at 0 and the excess
+  cannot pay any other sale. The shelf reads low by the overlap until the next
+  count. No over-settled alert: nothing could ever clear it. This is a
+  documented limit, not prevented.
+- **No compatibility shim (§11).** Only earlier commits on this feature
+  branch ever wrote a settlement naming a PO; no such row exists on `dev` or
+  `main`, so none is read specially.
+
+### External Stock Sourcing (Unlinked Stores & Partner Stores)
+
+When a store is exhausted of stock and staff collects units from an unlinked
+sister branch (e.g. Branch 2 without computers) or an external partner store
+to satisfy a walk-in customer:
+
+- **Revenue & Profit Recognition:** The transaction belongs to the selling
+  store. The customer pays the selling store's price (e.g. ₦2,000), a receipt
+  prints for ₦2,000, and full revenue is recorded. The agreed sourcing cost
+  owed to the partner/branch (e.g. ₦1,700) is the Cost of Goods Sold (COGS).
+  Gross profit retained = `₦2,000 − ₦1,700 = ₦300`. It is NOT recorded merely
+  as markup, preserving receipt totals, tax compliance, and sales audit trails.
+- **Sourcing via Immediate Purchase:** The supplying store or unlinked branch
+  is added as a `supplier`. Sourcing is entered via **Immediate Purchase**
+  (`createAndReceivePurchaseOrder`), which atomically logs the receipt, creates
+  the batch, and triggers `settleBackordersOnReceipt()`.
+- **Integration with Sell-at-Zero:** If the cashier sells the collected goods
+  before the purchase order paperwork is entered, the sale is recorded under
+  Sell-at-Zero (`allow_sale_without_stock = 1`), logging an owed backorder
+  row. When the Immediate Purchase is entered later, `settleBackordersOnReceipt()`
+  clears the backorder and automatically re-costs the sale's `cost_price` to
+  the agreed sourcing cost.
+- **Settlement & Cash Drawer (Daily Close):**
+  - **Credit (Pay Later):** Immediate Purchase saved with `payment_status = "unpaid"`
+    or `"partial"`. The liability is tracked in the supplier's debt ledger
+    (`getSupplierOutstandingBalance`) until paid. Net Cash Expected in the
+    drawer is unaffected.
+  - **Cash Paid from Till:** When cash leaves the till drawer to pay the runner
+    or supplying store, staff records an **Expense** (Category: "Stock Purchase /
+    Sourcing", Payment Method: "Cash"). `getCashExpensesForDate()` deducts this
+    from Daily Close's `Net Cash Expected`, ensuring the cash counted in drawer
+    reconciles with zero unexplained shortages.
 
 ### Stock quantity reconciliation and the `sync_reconciliation` movement type (2026-10-02)
 
@@ -5390,6 +5581,9 @@ same tab session still gets its own fresh one-time retry.
   `showSearchIcon` (leading `Search` icon, hidden below `sm`, for contexts
   that are genuinely a search bar rather than a name field).
 
+- **`ProductCombobox` stock-status prioritization and casing:**
+  When provided with a catalog containing stock quantities (e.g. `POItemBuilder` via `getActiveProductsForPO()` and `useOutstandingBackorders()`), options display contextual stock badges (`X owed` in amber, `0 in stock` in rose, `Low (N)` in orange when $\le$ `lowStockThreshold(reorder_level)`, and `N in stock`). Items are prioritized by restocking urgency: stock owed first (highest owed first), then 0 stock, then low stock (most depleted first), then normal stock. While browsing without a search term, the dropdown separates items into "Needs Restocking" and "All Products" section headers. Product names in the dropdown, the search input, and the create-option row consistently follow the store's casing settings via `useUppercaseDisplayClass()`.
+
 - **Category pickers read the `categories` table, never `suggestions.ts`.**
   `components/ui/category-combobox.tsx` is the one picker for *choosing* a
   category (Add/Edit Product, and the receive flow's inline fix-up). It
@@ -6986,10 +7180,12 @@ reading before touching this area again — they carry the "why" behind the
 decisions summarized in Domain model essentials above). Key pieces, beyond
 what's already covered above:
 
-- `getActiveProductsForPO()` (`lib/db/queries/procurement.ts`) now returns a
-  real `AVG(cost_price)` across active batches plus `stock_quantity`,
-  fixing a prior bug where "cost" meant "most recently created batch's
-  cost" and stock wasn't selected at all.
+- `getActiveProductsForPO()` (`lib/db/queries/procurement.ts`) returns the
+  most recent purchase cost (`last_bought_price`, ignoring adjustment batches)
+  with fallback to average cost plus `stock_quantity` and `reorder_level`. This
+  aligns procurement with industry-standard replacement cost, avoiding ₦0
+  defaults on out-of-stock items and fractional kobo averages.
+- **Zero-price warning before receiving:** `POImmediateConfirmDialog` (`po-immediate-confirm-dialog.tsx`) and `ReceivePOPanel` (`receive-po-panel.tsx`) inspect line items before receipt and warn prominently if any product is being received with ₦0 cost price (`getZeroCostLineItems`) or ₦0 selling price (`getZeroSellingPriceLineItems`). Prevents accidental zero-cost receipts that distort inventory valuation and margins, giving the user an explicit "Go Back & Edit Prices" choice or an amber/destructive "Receive with ₦0 Price" / "Proceed Anyway" override.
 - `components/procurement/po-review-price-popover.tsx`: per-row sell-price
   + live margin % popover on Immediate Purchase rows, so cost and sell
   price can be set in one pass instead of a separate Product Catalog trip.
@@ -7193,4 +7389,14 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
 - **Sync & Authorization:**
   - `laravel-server/app/Services/Sync/SyncOwnershipResolver.php` includes `User::withTrashed()` when querying tenant-scoped user IDs. Without `withTrashed()`, soft-deleted users were omitted from tenant authorization scopes, causing push updates for soft-delete and restoration to fail with `"forbidden"`.
   - Pushed restore payloads include `_deleted: 0` and the record's current base `_version` to permit atomic server incrementation without version conflicts.
+
+## POS Payment Amount Resynchronization & Quick Cash Tender
+
+- **Automatic Total Resynchronization (`usePOSPayment`):** When the POS cart changes (e.g. items added, removed, swapped, or discounted), if `amountPaid` matched the previous total, was 0, or was blank, `usePOSPayment` automatically resynchronizes `amountPaid` to the new cart total. If `paymentSplits` has a single split that matched the previous total (or 0), that split amount is also automatically updated to the new total. Intentionally custom partial amounts typed by cashiers are preserved. When the cart is emptied, `prevTotalRef.current` resets to 0.
+- **Auto-Fill Awareness across Dialog Close/Reopen (`POSPaymentDialog`):** `lastAutoFilledRef.current` is not cleared on modal close within the same sale so reopening the dialog does not mistake an auto-filled total for a manually entered partial amount.
+- **Shortfall Resolution & Quick Tender:**
+  - Cash shortfall alert displays a 1-click **"Pay Exact ({total})"** button beside the shortfall text so the cashier can instantly resolve shortages with one tap without manual retyping.
+  - `<QuickCashTender />` displays smart tender chips (`Exact`, rounded bill denominations such as ₦1,000, ₦2,000, ₦5,000) for rapid cash handling.
+  - In `PaymentSplits`, when splits under-cover the total, the exact shortfall is shown alongside a 1-click **"Cover Remaining ({shortage})"** button that fills the remaining balance into the split automatically.
+
 

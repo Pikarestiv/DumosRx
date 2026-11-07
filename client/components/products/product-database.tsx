@@ -6,9 +6,8 @@ import { ProductDatabaseFilters } from "./product-database-filters";
 import { AddProductDialog } from "./add-product-dialog";
 import { useAddProduct } from "./use-add-product";
 import { useQuery } from "@tanstack/react-query";
-import {
-  getProductsWithDetails,
-} from "@/lib/db/queries/products";
+import { getProductsWithDetails } from "@/lib/db/queries/products";
+import { useOutstandingBackorders } from "@/lib/hooks/use-outstanding-backorders";
 import { getCategoryList } from "@/lib/db/queries/categories";
 import { useStore } from "@/lib/context/store-context";
 import { formatCurrency as formatCurrencyWithCode } from "@/lib/utils";
@@ -44,9 +43,7 @@ export function ProductDatabase() {
   const router = useRouter();
 
   const searchParamsKey = searchParams.toString();
-  const [appliedSearchParamsKey, setAppliedSearchParamsKey] = useState<
-    string | null
-  >(null);
+  const [appliedSearchParamsKey, setAppliedSearchParamsKey] = useState<string | null>(null);
   if (searchParamsKey !== appliedSearchParamsKey) {
     setAppliedSearchParamsKey(searchParamsKey);
     if (searchParams.get("action") === "add") setShowAddDialog(true);
@@ -78,6 +75,15 @@ export function ProductDatabase() {
 
   // Rationale: docs/CLIENT_COMMENTS.md#block-components-products-product-database-tsx-memo-and-layout
   const refetchProducts = useCallback(() => void refetch(), [refetch]);
+
+  const backorders = useOutstandingBackorders();
+  const owedByProduct = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const b of backorders) {
+      if (b.outstanding > 0) map.set(b.productId, b.outstanding);
+    }
+    return map;
+  }, [backorders]);
 
   // Rationale: docs/CLIENT_COMMENTS.md#block-components-products-product-database-tsx-memo-and-layout
   const handleProductDeleted = useCallback(
@@ -151,6 +157,7 @@ export function ProductDatabase() {
     "expired",
     "low_stock",
     "out_of_stock",
+    "stock_owed",
   ];
 
   const { handleAddProduct, isSaving } = useAddProduct({
@@ -193,10 +200,16 @@ export function ProductDatabase() {
       ) {
         matchesStatus = true;
       }
+      if (
+        statusFilter === "stock_owed" &&
+        (owedByProduct.get(product.id) ?? 0) > 0
+      ) {
+        matchesStatus = true;
+      }
 
       return matchesCategory && matchesStatus;
     });
-  }, [products, categoryFilter, statusFilter]);
+  }, [products, categoryFilter, statusFilter, owedByProduct]);
 
   const { results: searchedProducts, isFuzzyFallback } = useMemo(
     () =>
@@ -259,7 +272,7 @@ export function ProductDatabase() {
               onValueChange={setStatusFilter}
               options={statuses.map((s) => ({
                 value: s,
-                label: formatFilterLabel(s),
+                label: s === "stock_owed" ? `Stock Owed (${owedByProduct.size})` : formatFilterLabel(s),
               }))}
               className="bg-card"
             />
@@ -278,6 +291,7 @@ export function ProductDatabase() {
             setStatusFilter={setStatusFilter}
             categories={categories}
             statuses={statuses}
+            owedCount={owedByProduct.size}
             onManageCategories={() => router.push("/settings/categories")}
             onProductsChanged={() => void refetch()}
             filteredProductIds={isFiltering ? filteredProducts.map((p) => p.id) : undefined}
@@ -298,6 +312,7 @@ export function ProductDatabase() {
             onToggleSort={toggleSort}
             onProductUpdated={refetchProducts}
             onProductDeleted={handleProductDeleted}
+            owedByProduct={owedByProduct}
           />
         </div>
       </div>

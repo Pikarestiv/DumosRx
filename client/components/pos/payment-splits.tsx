@@ -93,6 +93,21 @@ export function PaymentSplits({
     setPaymentSplits(newSplits);
   };
 
+  const totalSplit =
+    paymentSplits?.reduce((acc, s) => acc + (s.amount || 0), 0) || 0;
+  const shortage = Math.max(0, total - totalSplit);
+
+  const handleCoverRemaining = () => {
+    if (!setPaymentSplits || !paymentSplits || paymentSplits.length === 0) return;
+    const next = [...paymentSplits];
+    const lastIdx = next.length - 1;
+    next[lastIdx] = {
+      ...next[lastIdx],
+      amount: Math.max(0, (next[lastIdx].amount || 0) + shortage),
+    };
+    setPaymentSplits(next);
+  };
+
   return (
     <div className="space-y-4">
       <label className="text-sm font-medium">Split Payment Details</label>
@@ -216,24 +231,18 @@ export function PaymentSplits({
         <div className="flex flex-col font-medium">
           <div className="flex justify-between">
             <span>
-              Total Split:{" "}
-              {formatCurrency(
-                paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0),
-                currencyCode,
-              )}
+              Total Split: {formatCurrency(totalSplit, currencyCode)}
             </span>
             <span
               className={
-                paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0) <
-                total
-                  ? "text-destructive"
+                shortage > 0
+                  ? "text-destructive font-semibold"
                   : "text-green-600"
               }
             >
-              {paymentSplits.reduce((acc, s) => acc + (s.amount || 0), 0) >=
-              total
-                ? "Fully Covered"
-                : "Short"}
+              {shortage > 0
+                ? `${formatCurrency(shortage, currencyCode)} Short`
+                : "Fully Covered"}
             </span>
           </div>
           {calculateMixedChangeDue(paymentSplits, total) > 0 && (
@@ -245,6 +254,20 @@ export function PaymentSplits({
                   currencyCode,
                 )}
               </span>
+            </div>
+          )}
+          {shortage > 0 && paymentSplits.length > 0 && (
+            <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-border">
+              <span className="text-xs text-muted-foreground">Unpaid balance:</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10"
+                onClick={handleCoverRemaining}
+              >
+                Cover Remaining ({formatCurrency(shortage, currencyCode)})
+              </Button>
             </div>
           )}
         </div>

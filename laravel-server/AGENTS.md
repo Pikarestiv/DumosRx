@@ -966,7 +966,18 @@ migration here **and** the corresponding update on the `client/` side
   drill-down. `device_label` is best-effort client-side UA sniffing
   (`client/lib/utils/device-label.ts`) purely for admin readability — never
   trust it for anything security- or correctness-relevant, unlike
-  `device_id`. `tests/Feature/UserDeviceTrackingTest.php` and
+  `device_id`. `X-App-Version` and `X-Build-Sha` are captured on
+  `user_devices.app_version` and `user_devices.build_sha` (bypassing the
+  1-minute throttle when either version changes), and resolved across superadmin
+  panels via `ResolvesDeviceLabels::deviceAppVersions()` and `deviceBuildShas()`
+  so operators can verify both the release version and the exact PWA deployment SHA
+  a till is running before enabling version-gated store capabilities.
+  `GET /admin/client/version` (`ClientVersionService`) probes the live deployed
+  `version.json` (emitted at build time by `client/scripts/generate-precache-manifest.ts`)
+  with a 5-minute server-side cache so the admin panel can show live "Up to date" (emerald)
+  vs. "Update pending" (amber) tell-tale status across devices without client-side CORS issues.
+  `tests/Feature/UserDeviceTrackingTest.php`,
+  `tests/Feature/AdminClientVersionTest.php`, and
   `tests/Feature/Admin/AdminUserSyncVisibilityTest.php` guard it.
 - **Operator nicknames beat the sniffed label (2026-10-14).** `device_nicknames`
   (`store_id`, `device_id`, unique together) holds the name a super admin typed
@@ -1388,6 +1399,42 @@ owner's untick is put back on every push.
 `tests/Feature/LegacyStockQuantitiesGrantTest.php`. Keep the payload
 decode (`JsonList::decodeList()`) when you do, because the escalation check
 depends on it. Pinned by `tests/Feature/LegacyStockQuantitiesGrantTest.php`.
+
+## `LegacySaleWithoutStockGate`: only a current bundle may switch selling at zero stock on
+
+`stores.allow_sale_without_stock` (migration `2026_10_26_000001`, boolean,
+default off; spec `docs/superpowers/specs/2026-10-26-sell-at-zero-stock-design.md`)
+lets a till sell past recorded stock and record the shortfall as owed. Only a
+bundle that also *settles* owed units on receipt may run a store with it on, so
+`app/Services/Sync/LegacySaleWithoutStockGate.php`, called from
+`PushPayloadNormalizer` on every `stores` change, drops a truthy
+`allow_sale_without_stock` from a push whose `X-App-Version` is missing or
+below `INTRODUCED_IN` (`0.0.41`). Turning it **off** is always accepted, and
+the rest of the row still applies.
+
+`INTRODUCED_IN` is `0.0.41` without a version bump because 0.0.41 is not yet
+tagged or on `main`: every production bundle reports `0.0.40` or less, and a
+pre-feature 0.0.41 dev bundle has no such column to send. If 0.0.41 is tagged
+before this branch merges, bump the version and this constant together.
+
+This gate does not stop an old till already in the field from *selling* on a
+store with the setting on (it never reads the column, so it keeps blocking at
+zero, which is safe) or from *receiving* without settling (shelf reads R
+instead of R − owed). The settings switch tells the owner to update every till
+first; that is the mitigation for the second case.
+
+**Retire it** once no active device reports an `X-App-Version` below
+`0.0.41`: delete the class, its call in `normalizePushPayload()` and
+`tests/Feature/SaleWithoutStockVersionGateTest.php`.
+
+The feature needs no other server code. Owed and settled units are ordinary
+`adjustment` rows with `reference_type` `backorder` / `backorder_settlement`,
+and re-costing is an ordinary `sale_items` UPDATE.
+`tests/Feature/SellAtZeroStockServerParityTest.php` pins that a sale and its
+backorder pushed together land the Stage-0 batch on 0 like the client, that a
+chunk split gives the bounded A-217 shape (the server reads N), and that the
+re-cost UPDATE is accepted. The client keeps an owed row in the same push as its
+sale where it can (`chunkPushQueue()`); the residual cases are A-342.
 
 ## Known gotcha: MySQL timezone vs. Laravel's UTC clock
 
@@ -4560,3 +4607,15 @@ design: `/admin/maintenance` exposes only `migrations` and `roles/sync`
 (`AdminMaintenanceController`, `role:super_admin`), so anything else needs
 terminal access. Worth remembering before writing a command that an operator
 has no way to invoke.
+
+## Tenant Ownership Scope Includes Trashed Users (2026-11-04)
+
+`SyncOwnershipResolver::resolveAllowedOwnershipScope()` queries `$allowedUserIds` via:
+```php
+$allowedUserIds = User::withTrashed()->whereIn('store_id', $allowedStoreIds)->pluck('id')->push($ownerId)->toArray();
+```
+Because Eloquent's `SoftDeletes` trait automatically adds `WHERE deleted_at IS NULL`, omitting
+`withTrashed()` previously excluded soft-deleted staff members from the tenant owner's allowed ownership scope.
+When a store owner pushed a soft-delete (`DELETE` operation) or pushed an update to restore a soft-deleted staff account (`UPDATE` with `_deleted: 0`), `SyncWriteAuthorizer::authorizeChangeTarget()` failed with `"forbidden"`.
+Any query assembling the tenant's allowed user IDs for sync authorization must use `User::withTrashed()`.
+

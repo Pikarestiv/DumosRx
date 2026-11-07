@@ -27,7 +27,11 @@ export interface PushConflict {
   table_name: string;
   record_id: string;
   reason: string;
+  operation?: string;
 }
+
+const isRefusedAutomaticRecost = (c: PushConflict) =>
+  c.table_name === "sale_items" && c.reason === "version_conflict" && c.operation === "UPDATE";
 
 export function announceTerminalConflicts(
   versionConflicts: PushConflict[],
@@ -42,8 +46,8 @@ export function announceTerminalConflicts(
       );
       return false;
     }
-    // Push-only telemetry the user never edits: log, don't toast.
-    if (conflict.table_name === "feedback" || conflict.table_name === "audit_logs") {
+    // Push-only telemetry, or the automatic re-cost (the only sale_items UPDATE): log, don't toast.
+    if (conflict.table_name === "feedback" || conflict.table_name === "audit_logs" || isRefusedAutomaticRecost(conflict)) {
       console.info(
         `[Sync] ${conflict.table_name} record ${conflict.record_id} hit a version conflict; server's version kept, no toast shown.`,
       );

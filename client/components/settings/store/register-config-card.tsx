@@ -87,6 +87,15 @@ export function RegisterConfigCard({
       // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-store-register-config-card-tsx-L87
       locked: !canUseResellerCommission,
     },
+    {
+      id: "allow-sale-without-stock",
+      label: "Allow sales beyond recorded stock",
+      description: "Staff can sell more than the system shows. The extra units are recorded as owed and are taken off the next delivery you receive. Make sure every till is updated before turning this on.",
+      checked: storeProfile?.allow_sale_without_stock === 1,
+      onCheckedChange: (checked) => {
+        void updateStoreProfile({ allow_sale_without_stock: checked ? 1 : 0 });
+      },
+    },
   ];
 
   return (

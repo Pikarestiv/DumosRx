@@ -109,6 +109,8 @@ describe("useActionCenterAlerts", () => {
       missingExpiry?: number;
       oversold?: number;
       oversoldProduct?: string;
+      owed?: number;
+      owedProduct?: string;
     } = {},
   ) {
     const { result } = renderHook(
@@ -119,6 +121,8 @@ describe("useActionCenterAlerts", () => {
           counts.missingExpiry ?? 0,
           counts.oversold ?? 0,
           counts.oversoldProduct,
+          counts.owed ?? 0,
+          counts.owedProduct,
         ),
       { wrapper },
     );
@@ -138,6 +142,18 @@ describe("useActionCenterAlerts", () => {
     state.isAdmin = false;
     const result = await alerts({ expiring: 9, lowStock: 9, oversold: 9, missingExpiry: 9 });
     expect(result.current).toEqual([]);
+  });
+
+  it("keeps a warning up while units are owed to customers, pointing at the deliveries to receive", async () => {
+    let result = await alerts({ owed: 1, owedProduct: "Cement 50kg" });
+    const alert = result.current.find((a) => a.id === "owed-units");
+    expect(alert?.priority).toBe("warning");
+    expect(alert?.title).toBe("1 Product Owed");
+    expect(alert?.description).toContain("Cement 50kg");
+    expect(alert?.actionRoute).toBe("/inventory/catalog?status=stock_owed");
+
+    result = await alerts();
+    expect(ids(result.current)).not.toContain("owed-units");
   });
 
   it("raises a critical cloud-sync alert only when no cloud account is linked", async () => {

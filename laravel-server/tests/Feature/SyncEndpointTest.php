@@ -2624,6 +2624,15 @@ class SyncEndpointTest extends TestCase
         $this->assertStringContainsString('johndoe_del_', $staffAfterDelete->username);
         $this->assertStringContainsString('johndoe@dumosrx.com_del_', $staffAfterDelete->email);
 
+        $pullAfterDelete = $this->actingAs($this->user)->postJson('/api/v1/app/sync/pull', [
+            'last_synced' => [],
+        ]);
+        $pullAfterDelete->assertOk();
+        $pulledUsers = collect($pullAfterDelete->json('changes.users'));
+        $pulledStaff = $pulledUsers->firstWhere('id', $staff->id);
+        $this->assertNotNull($pulledStaff, 'Soft-deleted staff member must be included in pull sync');
+        $this->assertSame(1, $pulledStaff['_deleted']);
+
         $serverVersion = $staffAfterDelete->_version;
 
         // 2. Owner pushes an UPDATE operation to restore the staff member

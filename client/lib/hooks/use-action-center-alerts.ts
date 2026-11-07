@@ -19,6 +19,7 @@ import {
   Download,
   AlertOctagon,
   LayoutGrid,
+  PackageCheck,
 } from "lucide-react";
 import { pluralize } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
@@ -44,6 +45,8 @@ export function useActionCenterAlerts(
   missingExpiryCount: number,
   oversoldCount: number,
   oversoldProduct?: string,
+  owedCount = 0,
+  owedProduct?: string,
 ) {
   const { isAuthenticated, isAdmin, user } = useAuth();
   const { storeProfile } = useStore();
@@ -217,6 +220,21 @@ export function useActionCenterAlerts(
         });
       }
 
+      if (owedCount > 0) {
+        items.push({
+          id: "owed-units",
+          title: `${owedCount} ${pluralize(owedCount, "Product")} Owed`,
+          description:
+            owedCount === 1 && owedProduct
+              ? `${owedProduct} — receive stock to settle.`
+              : "Sold before stock received. Receive delivery to settle.",
+          icon: PackageCheck,
+          priority: "warning",
+          actionLabel: "View Catalog",
+          actionRoute: "/inventory/catalog?status=stock_owed",
+        });
+      }
+
       if (missingExpiryCount > 0) {
         items.push({
           id: "missing-expiry",
@@ -282,6 +300,8 @@ export function useActionCenterAlerts(
     missingExpiryCount,
     oversoldCount,
     oversoldProduct,
+    owedCount,
+    owedProduct,
     licenseStatus,
     licenseCheckedAt,
     showWidgetPrompt,

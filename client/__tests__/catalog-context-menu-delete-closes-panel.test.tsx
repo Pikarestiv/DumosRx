@@ -69,6 +69,9 @@ vi.mock("@/lib/db/queries/products", () => ({
 vi.mock("@/lib/db/queries/categories", () => ({
   getCategoryList: vi.fn(() => Promise.resolve([{ name: "Analgesics" }])),
 }));
+vi.mock("@/lib/hooks/use-outstanding-backorders", () => ({
+  useOutstandingBackorders: () => [],
+}));
 
 const deleteMutateAsync = vi.fn(async () => {});
 vi.mock("@/lib/hooks/use-product-delete", () => ({

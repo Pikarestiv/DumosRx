@@ -55,6 +55,8 @@ export interface SaleWithDetails extends Sale {
   /** "||"-joined product names for this sale's line items, for searching by
    * item without a separate fetch - see getRecentSales(). */
   item_names?: string;
+  stock_originally_owed?: number;
+  stock_settled?: number;
   // Legacy/alternate field names some older records or views may use in
   // place of the canonical column above.
   total?: number;
@@ -84,6 +86,9 @@ export interface SaleItemDetail {
   name?: string;
   subtotal?: number;
   returned_quantity?: number;
+  originally_owed?: number;
+  settled_units?: number;
+  outstanding_units?: number;
 }
 
 /** returns row joined with the originating sale's payment fields: used to
@@ -109,4 +114,22 @@ export interface ReturnItemDetail {
   subtotal: number;
   cost_price?: number;
   med_cost_price?: number;
+}
+
+export interface StockSettlementRecord {
+  productId: string;
+  productName?: string;
+  quantity: number;
+  unitCost: number;
+  purchaseOrderId?: string;
+  movementDate: string;
+}
+
+export interface SaleStockReconciliation {
+  originallyOwed: number;
+  settled: number;
+  outstanding: number;
+  status: "none" | "open" | "partial" | "settled";
+  settlements: StockSettlementRecord[];
+  byProduct?: Record<string, { originallyOwed: number; settled: number; outstanding: number }>;
 }

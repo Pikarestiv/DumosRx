@@ -3,7 +3,9 @@
 import { Loader2, ShieldAlert, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useStoreStaff } from "@/lib/api/admin-hooks";
+import { useAdminClientVersion } from "@/lib/api/release-hooks";
 import { StaffDeviceHistory } from "./staff-device-history";
+import { DeviceVersionBadge, LatestBuildShaProvider } from "./details/store-detail-primitives";
 
 interface StoreStaffListProps {
   storeId: string | null | undefined;
@@ -16,6 +18,7 @@ export function StoreStaffList({
   emptyLabel = "This store has no staff accounts yet.",
 }: StoreStaffListProps) {
   const { data, isLoading, isError } = useStoreStaff(storeId);
+  const { data: clientVersion } = useAdminClientVersion();
   const staff = data?.data ?? [];
   const total = data?.meta?.total ?? staff.length;
 
@@ -51,53 +54,64 @@ export function StoreStaffList({
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-        <Users className="h-3 w-3" />
-        {total} staff account{total === 1 ? "" : "s"}
-        {total > staff.length ? ` · showing first ${staff.length}` : ""}
+    <LatestBuildShaProvider value={clientVersion?.build_sha}>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <Users className="h-3 w-3" />
+          {total} staff account{total === 1 ? "" : "s"}
+          {total > staff.length ? ` · showing first ${staff.length}` : ""}
+        </div>
+        <ul className="divide-y divide-slate-100 dark:divide-slate-800 rounded-xl border border-slate-200 dark:border-slate-800">
+          {staff.map((member) => (
+            <li key={member.id} className="flex items-center justify-between gap-4 p-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="h-9 w-9 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-xs text-slate-400">
+                  {member.name.charAt(0)}
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">
+                    {member.name}
+                  </p>
+                  <p className="text-[11px] text-slate-400 truncate">{member.email}</p>
+                  <div className="text-[11px] text-slate-400 truncate flex items-center gap-1.5 flex-wrap">
+                    {member.lastSyncedAt ? (
+                      <>
+                        <span>
+                          Synced {member.lastSyncedAt} · {member.lastSyncDeviceId ?? member.lastSyncDevice}
+                          {member.lastSyncDeviceLabel ? ` (${member.lastSyncDeviceLabel})` : ""}
+                        </span>
+                        <DeviceVersionBadge
+                          appVersion={member.lastSyncAppVersion}
+                          buildSha={member.lastSyncBuildSha}
+                        />
+                      </>
+                    ) : (
+                      "Never synced"
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="font-bold bg-slate-500/10 text-slate-500 border-slate-500/20">
+                    {member.role}
+                  </Badge>
+                  <Badge
+                    className={
+                      member.status === "Active"
+                        ? "bg-emerald-500 hover:bg-emerald-600"
+                        : "bg-slate-400 hover:bg-slate-500"
+                    }
+                  >
+                    {member.status}
+                  </Badge>
+                </div>
+                <StaffDeviceHistory userId={member.id} />
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
-      <ul className="divide-y divide-slate-100 dark:divide-slate-800 rounded-xl border border-slate-200 dark:border-slate-800">
-        {staff.map((member) => (
-          <li key={member.id} className="flex items-center justify-between gap-4 p-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="h-9 w-9 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-xs text-slate-400">
-                {member.name.charAt(0)}
-              </div>
-              <div className="min-w-0">
-                <p className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">
-                  {member.name}
-                </p>
-                <p className="text-[11px] text-slate-400 truncate">{member.email}</p>
-                <p className="text-[11px] text-slate-400 truncate">
-                  {member.lastSyncedAt
-                    ? `Synced ${member.lastSyncedAt} · ${member.lastSyncDeviceId ?? member.lastSyncDevice}${
-                        member.lastSyncDeviceLabel ? ` (${member.lastSyncDeviceLabel})` : ""
-                      }`
-                    : "Never synced"}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-1.5 shrink-0">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="font-bold bg-slate-500/10 text-slate-500 border-slate-500/20">
-                  {member.role}
-                </Badge>
-                <Badge
-                  className={
-                    member.status === "Active"
-                      ? "bg-emerald-500 hover:bg-emerald-600"
-                      : "bg-slate-400 hover:bg-slate-500"
-                  }
-                >
-                  {member.status}
-                </Badge>
-              </div>
-              <StaffDeviceHistory userId={member.id} />
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
+    </LatestBuildShaProvider>
   );
 }

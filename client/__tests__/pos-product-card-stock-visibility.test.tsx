@@ -2,10 +2,10 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { POSProduct } from "@/lib/types/product";
 
-const visibility = vi.hoisted(() => ({ canSee: true }));
+const visibility = vi.hoisted(() => ({ canSee: true, allowSaleWithoutStock: 0 }));
 
 vi.mock("@/lib/context/store-context", () => ({
-  useStore: () => ({ storeProfile: {} }),
+  useStore: () => ({ storeProfile: { allow_sale_without_stock: visibility.allowSaleWithoutStock } }),
 }));
 
 vi.mock("@/lib/hooks/use-permissions", () => ({
@@ -56,5 +56,14 @@ describe("POS tile stock chip and view_stock_quantities", () => {
     renderCard(0, false, false);
     expect(screen.getByRole("button").getAttribute("aria-disabled")).toBe("true");
     expect(screen.queryByText("Out of stock")).toBeNull();
+  });
+
+  it("keeps a zero-stock tile live, still saying Out of stock, when the store sells past stock", () => {
+    visibility.allowSaleWithoutStock = 1;
+    renderCard(0, true, true);
+    visibility.allowSaleWithoutStock = 0;
+    expect(screen.getByRole("button").getAttribute("aria-disabled")).toBeNull();
+    expect(screen.getByRole("button").className).not.toContain("grayscale");
+    expect(screen.getByText("Out of stock")).toBeTruthy();
   });
 });

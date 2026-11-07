@@ -6,7 +6,7 @@ import { useStore } from "@/lib/context/store-context";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
 import { useStockVisibility } from "@/lib/hooks/use-stock-visibility";
-import { formatInsufficientStock } from "@/lib/utils/stock-status";
+import { formatBackorderWarning, formatInsufficientStock } from "@/lib/utils/stock-status";
 import {
   calculateSubtotal,
   calculateTax,
@@ -34,7 +34,7 @@ export {
 
 export function usePOSCart(products: Product[]) {
   const { vatPercentage } = useStore();
-  const { canUseLoyaltyProgram } = useFeatureGate();
+  const { canUseLoyaltyProgram, canSellWithoutStock } = useFeatureGate();
   const { canSeeQuantities } = useStockVisibility();
   const cart = usePOSCartStore((state) => state.cart);
   const setCart = usePOSCartStore((state) => state.setCart);
@@ -156,8 +156,14 @@ export function usePOSCart(products: Product[]) {
 
       const product = products.find((m) => m.id === id);
       if (product && newQuantity > product.stock) {
-        toast.warning(formatInsufficientStock(product.stock, canSeeQuantities));
-        return;
+        if (!canSellWithoutStock) {
+          toast.warning(formatInsufficientStock(product.stock, canSeeQuantities));
+          return;
+        }
+        const previous = cart.find((item) => item.id === id)?.quantity ?? 0;
+        if (previous <= product.stock) {
+          toast.warning(formatBackorderWarning(product.stock, newQuantity, canSeeQuantities));
+        }
       }
 
       setCart((prev) =>
@@ -172,7 +178,7 @@ export function usePOSCart(products: Product[]) {
         ),
       );
     },
-    [products, setCart, removeFromCart, canSeeQuantities],
+    [products, cart, setCart, removeFromCart, canSeeQuantities, canSellWithoutStock],
   );
 
   const addToCart = useCallback(
@@ -180,7 +186,7 @@ export function usePOSCart(products: Product[]) {
       const existingItem = cart.find((item) => item.id === product.id);
 
       if (existingItem) {
-        if (existingItem.quantity < product.stock) {
+        if (canSellWithoutStock || existingItem.quantity < product.stock) {
           updateQuantity(product.id, existingItem.quantity + 1);
         } else {
           toast.warning(formatInsufficientStock(product.stock, canSeeQuantities));
@@ -188,7 +194,7 @@ export function usePOSCart(products: Product[]) {
         return;
       }
 
-      if (product.stock > 0) {
+      if (product.stock > 0 || canSellWithoutStock) {
         const cartItem: CartItem = {
           ...product,
           quantity: 1,
@@ -196,12 +202,13 @@ export function usePOSCart(products: Product[]) {
           original_unit_price: product.unit_price,
         };
         setCart((prev) => [...prev, cartItem]);
-        toast.success(`${displayName(product.name)} added to cart`);
+        if (product.stock > 0) toast.success(`${displayName(product.name)} added to cart`);
+        else toast.warning(formatBackorderWarning(product.stock, 1, canSeeQuantities));
       } else {
         toast.error("This item is out of stock");
       }
     },
-    [cart, setCart, updateQuantity, displayName, canSeeQuantities],
+    [cart, setCart, updateQuantity, displayName, canSeeQuantities, canSellWithoutStock],
   );
 
   const updateUnitPrice = useCallback(

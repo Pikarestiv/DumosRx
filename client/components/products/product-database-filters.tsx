@@ -16,6 +16,7 @@ interface ProductDatabaseFiltersProps {
   setStatusFilter: (val: string) => void;
   categories: string[];
   statuses: string[];
+  owedCount?: number;
   onManageCategories: () => void;
   onProductsChanged: () => void;
   // Currently-filtered product ids, so Export and the bulk online-visibility action both default to what's on screen — undef…
@@ -32,6 +33,7 @@ export function ProductDatabaseFilters({
   setStatusFilter,
   categories,
   statuses,
+  owedCount = 0,
   onManageCategories,
   onProductsChanged,
   filteredProductIds,
@@ -90,7 +92,7 @@ export function ProductDatabaseFilters({
           onValueChange={setStatusFilter}
           options={statuses.map((s) => ({
             value: s,
-            label: formatFilterLabel(s),
+            label: s === "stock_owed" ? `Stock Owed (${owedCount})` : formatFilterLabel(s),
           }))}
         />
       </div>

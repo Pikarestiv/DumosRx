@@ -62,13 +62,6 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const { storeProfile } = useStore();
   const storeName = storeProfile?.name || "";
   const [step, setStep] = useState<AuditStep>("ledger");
-  const freshness = useCountFreshness();
-  const [staleAcknowledged, setStaleAcknowledged] = useState(false);
-  const [submittedSummary, setSubmittedSummary] = useState<{
-    counted: number;
-    adjusted: number;
-  } | null>(null);
-
   const { isLoading, isSyncing } = useAuditSheetSource();
   const items = useStockAuditDraftStore((state) => state.items);
   const clearDraft = useStockAuditDraftStore((state) => state.clearDraft);
@@ -100,6 +93,16 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
     () => selectAdjustedAuditItems(countedItems),
     [countedItems],
   );
+  const countedProductIds = useMemo(
+    () => (countedItems.length > 0 ? countedItems.map((i) => i.id) : undefined),
+    [countedItems],
+  );
+  const freshness = useCountFreshness(countedProductIds);
+  const [staleAcknowledged, setStaleAcknowledged] = useState(false);
+  const [submittedSummary, setSubmittedSummary] = useState<{
+    counted: number;
+    adjusted: number;
+  } | null>(null);
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const sheetExport = useAuditSheetExport(

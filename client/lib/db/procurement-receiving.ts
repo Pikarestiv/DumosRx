@@ -3,6 +3,7 @@
 
 import { generateId, logAction, query, transaction } from "./core";
 import { receiptBatchId, receiptMovementId } from "./deterministic-id";
+import { settleBackordersOnReceipt } from "./queries/backorders";
 import { insert, update } from "./base-helpers";
 import {
   getPurchaseOrderById,
@@ -141,6 +142,17 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
         _deleted: 0
       });
 
+      await settleBackordersOnReceipt({
+        poItemId: item.id,
+        alreadyReceived,
+        productId: item.product_id,
+        batchId: invId,
+        receivedUnits: totalBaseUnits,
+        unitCost: baseUnitCost,
+        purchaseOrderId: poData.id,
+        performedBy: dumosUser?.id || null,
+        movementDate: now,
+      });
       // bulk_quantity/units_per_bulk are re-sent unchanged so the sync push's purchase_order_items mapping (SyncController::push) can scale quantity…
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-procurement-receiving-ts-L166
       await update("purchase_order_items", item.id, {
@@ -269,6 +281,18 @@ export async function createAndReceivePurchaseOrder(
         _version: 1,
         _synced: 0,
         _deleted: 0
+      });
+
+      await settleBackordersOnReceipt({
+        poItemId,
+        alreadyReceived: 0,
+        productId: item.product_id,
+        batchId: invId,
+        receivedUnits: totalBaseUnits,
+        unitCost: baseUnitCost,
+        purchaseOrderId: poId,
+        performedBy: dumosUser?.id || null,
+        movementDate: now,
       });
 
       await applyChangedSellingPrices([item]);

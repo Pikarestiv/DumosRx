@@ -78,13 +78,15 @@ tracks current behavior.
 
 ## Settings
 - Store profile, branches (multi-store), and business info (Business Vertical, tax/VAT number, reseller commission %, Enable Loyalty Program)
-- Staff accounts and role assignment (Admin / Manager / Specialist / Cashier / Auditor); Roles & Permissions is a "coming soon" placeholder — no custom/granular permissions yet
+- Staff management: create staff accounts, assign roles and custom permission groups. Accounts can be deactivated (retains account in roster with "Inactive" badge for temporary suspension) or soft-deleted (removes account from active roster completely so it no longer clutters the list, while preserving historic sales, receipts, and audit log associations)
+- Staff Account Recovery: dedicated "Deleted Accounts" archive tab and "Deleted" status filter with search, role badges, deleted dates, and a 1-click "Recover Account" action (with duplicate username detection and credentials restoration)
+- Roles & Permissions: granular permission groups across POS, Inventory, Customers, Procurement, Expenses, Reports, and Settings, customizable per store
 - Payment methods (5 independently toggleable: Cash/Card/Transfer/Credit/Mixed) and named destination accounts; receipt customization (paper size is device-local, not synced)
 - Regional settings: currency (including CFA franc, XAF/XOF, displayed with the symbol as a suffix rather than a prefix), VAT percentage
 - Register configuration: require sale notes, display stock levels at checkout
 - Product units (a large built-in list plus custom units, including Metre for by-length sales) and categories, both simple tag-list CRUD
 - Notifications: low-stock and expiry warnings, with a configurable "days before expiry to warn"
-- Security: PIN change, auto-lock duration (plan-gated)
+- Security & Sessions: PIN change, auto-lock duration (plan-gated), and Sessions & Devices management (view active sessions across physical tills and web browsers with parsed device names, IP addresses, last active timestamps, and monospace device IDs; revoke individual sessions or log out all other devices remotely)
 - Cloud sync and account linking: auto-sync interval is plan-tiered, with Enterprise able to sync instantly on every change (a "Sync Instantly" option appears in the interval dropdown when the plan allows it); local backup/restore and a local-only Factory Reset also live here
 - Billing and subscription management (Free / Starter / Pro / Enterprise, monthly/yearly, referral program)
 

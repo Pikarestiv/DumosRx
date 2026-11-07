@@ -7,6 +7,7 @@ use App\Services\Admin\AdminActivityService;
 use App\Services\Admin\AdminCatalogService;
 use App\Services\Admin\AdminHealthService;
 use App\Services\Admin\AdminSummaryService;
+use App\Services\Admin\ClientVersionService;
 use App\Services\DownloadsManifestService;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
@@ -175,6 +176,21 @@ class AdminPlatformController extends AdminBaseController
     public function downloadsManifest(Request $request)
     {
         return response()->json($this->downloadsManifestService->manifest());
+    }
+
+    #[OA\Get(
+        path: '/admin/client/version',
+        summary: 'Live deployed PWA client version and build SHA manifest',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Version manifest', content: new OA\JsonContent(type: 'object')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+        ],
+    )]
+    public function clientVersion(Request $request, ClientVersionService $clientVersionService)
+    {
+        return response()->json($clientVersionService->getVersion($request->boolean('refresh')));
     }
 
     #[OA\Get(

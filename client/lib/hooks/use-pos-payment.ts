@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { generateShortId } from "@/lib/db/core";
 import { writeSaleTransaction } from "./pos-sale-writer";
@@ -56,6 +56,7 @@ interface UsePOSPaymentProps {
   // Called when the sale is rejected because the customer's real current points balance can't cover the redemption picked earlier in checkout (s…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pos-payment-ts-L69
   onInsufficientLoyaltyPoints?: () => void;
+  recordShortfallAsOwed?: boolean;
 }
 
 export function usePOSPayment({
@@ -83,6 +84,7 @@ export function usePOSPayment({
   resellerCommissionPercentage = 0,
   loyaltyPointsPerCurrency = 0.01,
   onInsufficientLoyaltyPoints,
+  recordShortfallAsOwed = false,
 }: UsePOSPaymentProps) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [amountPaid, setAmountPaid] = useState("");
@@ -98,6 +100,7 @@ export function usePOSPayment({
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
 
+  const prevTotalRef = useRef(total);
   const cartIsEmpty = cart.length === 0;
   const [wasCartEmpty, setWasCartEmpty] = useState(cartIsEmpty);
   if (cartIsEmpty !== wasCartEmpty) {
@@ -108,8 +111,30 @@ export function usePOSPayment({
       setSelectedAccountId("");
       setPaymentSplits([]);
       setSaleNote("");
+      prevTotalRef.current = 0;
     }
   }
+
+  useEffect(() => {
+    const prevTotal = prevTotalRef.current;
+    if (prevTotal !== total) {
+      prevTotalRef.current = total;
+      const isCoveringPrevTotal =
+        !amountPaid ||
+        amountPaid === "0" ||
+        amountPaid === prevTotal.toString() ||
+        Number.parseFloat(amountPaid) === prevTotal;
+      if (isCoveringPrevTotal) {
+        setAmountPaid(total > 0 ? total.toString() : "");
+      }
+      if (
+        paymentSplits.length === 1 &&
+        (paymentSplits[0].amount === prevTotal || paymentSplits[0].amount === 0)
+      ) {
+        setPaymentSplits([{ ...paymentSplits[0], amount: total }]);
+      }
+    }
+  }, [total, amountPaid, paymentSplits]);
 
   const handlePayment = async () => {
     if (processingPaymentRef.current) return;
@@ -180,6 +205,7 @@ export function usePOSPayment({
         cashierId,
         transactionNumber,
         earnedPoints,
+        recordShortfallAsOwed,
       });
 
       refetchProducts();

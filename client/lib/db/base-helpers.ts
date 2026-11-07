@@ -126,7 +126,7 @@ export async function insert(
   const id = (data.id as string) || generateId();
   const now = new Date().toISOString();
 
-  const storeId = getActiveStoreId();
+  const storeId = options?.storeId ?? getActiveStoreId();
   const record: Record<string, unknown> = withNormalizedName(table, {
     ...data,
     id,

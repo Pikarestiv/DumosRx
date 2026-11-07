@@ -85,4 +85,6 @@ return [
         'rebuild_token' => env('STOREFRONT_REBUILD_TOKEN'),
         'rebuild_confirmation_timeout' => (int) env('STOREFRONT_REBUILD_TIMEOUT_MINUTES', 45),
     ],
+
+    'client_app_url' => env('CLIENT_APP_URL', 'https://app.dumosrx.com'),
 ];

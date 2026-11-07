@@ -116,7 +116,7 @@ export function usePOSSystem() {
     setMarkupType,
     updateUnitPrice,
   } = usePOSCart(products);
-  const { canUseSmartSuggestions, canUseLoyaltyProgram, withRestriction } = useFeatureGate();
+  const { canUseSmartSuggestions, canUseLoyaltyProgram, withRestriction, canSellWithoutStock } = useFeatureGate();
   const { suggestions } = useSmartSuggestions(cart, products);
   const requirePaymentAccount = storeProfile?.require_payment_account === 1;
   const requireSaleNotes = storeProfile?.require_sale_notes === 1;
@@ -163,6 +163,7 @@ export function usePOSSystem() {
     resellerCommissionPercentage: storeProfile?.reseller_commission_percentage ?? 0,
     loyaltyPointsPerCurrency: storeProfile?.loyalty_points_per_currency ?? 0.01,
     onInsufficientLoyaltyPoints: clearRedemption,
+    recordShortfallAsOwed: canSellWithoutStock,
   });
   usePOSKeyboardShortcuts({
     searchInputRef,

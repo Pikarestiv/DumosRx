@@ -1,5 +1,6 @@
 import { getProductsWithStock } from "@/lib/db/queries/products";
 import { getStockBatchStats, getLowStockAlerts } from "@/lib/db/queries/inventory";
+import { getOutstandingBackorders } from "@/lib/db/queries/backorders";
 import { hasPermission } from "@/lib/hooks/use-permissions";
 import { searchProducts } from "@/lib/utils/search";
 import { describeStock } from "@/lib/utils/stock-status";
@@ -9,6 +10,7 @@ import { formatMoney } from "../reply-formatters";
 interface ProductStockResult {
   name: string;
   stock: number | null;
+  owed: number | null;
   reorderLevel: number | null;
   status: string;
   alternates: string[];
@@ -28,6 +30,7 @@ export const productStockTool: AssistantTool<{ product: string }, ProductStockRe
     return {
       name: top.name,
       stock: canSeeQuantities ? top.stock : null,
+      owed: canSeeQuantities ? (await getOutstandingBackorders([top.id]))[0]?.outstanding ?? null : null,
       reorderLevel: canSeeQuantities && typeof top.reorder_level === "number" ? top.reorder_level : null,
       status: describeStock(top.stock, top.reorder_level, false).toLowerCase(),
       alternates: rest.slice(0, 3).map((p) => p.name),
@@ -39,6 +42,7 @@ export const productStockTool: AssistantTool<{ product: string }, ProductStockRe
     }
 
     let text = result.stock === null ? `${result.name}: ${result.status}` : `${result.name}: ${result.stock} in stock`;
+    if (result.owed) text += `, ${result.owed} owed to customers`;
     if (result.reorderLevel !== null) text += ` (reorder level: ${result.reorderLevel})`;
     if (result.alternates.length > 0) text += `. Did you mean one of: ${result.alternates.join(", ")}?`;
 

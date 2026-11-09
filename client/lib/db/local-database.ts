@@ -113,7 +113,7 @@ export async function createProduct(data: NewProductPayload) {
     if (data.category_id && !isUuid(data.category_id)) {
       const storeId = getActiveStoreId();
       const categories = await query<{ id: string }>(
-        `SELECT id FROM categories WHERE name = ? COLLATE NOCASE${storeId ? " AND store_id = ?" : ""}`,
+        `SELECT id FROM categories WHERE name = ? COLLATE NOCASE AND _deleted = 0${storeId ? " AND store_id = ?" : ""}`,
         storeId ? [data.category_id, storeId] : [data.category_id],
       );
       if (categories.length > 0) {

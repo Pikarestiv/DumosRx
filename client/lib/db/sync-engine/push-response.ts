@@ -2,7 +2,7 @@ import { markConflictSettled, recordSyncFailure } from "../local-database";
 import type { SyncChange } from "@/lib/types/sync";
 import { remapForeignKey, DUPLICATE_NAME_TABLES, columnExists } from "../reconcile-identity";
 import { conflictFieldList, recordTerminalConflict } from "./conflict-log";
-import { execute, query } from "../core";
+import { execute, query, STORE_SCOPED_TABLES } from "../core";
 import { rewindPullWindow, TABLES_NEVER_PULLED } from "./pull-window";
 import type { PushConflict } from "./push-conflict-toasts";
 import type { PushResponse } from "./types";
@@ -118,7 +118,7 @@ export async function applyDuplicateNameIdMap(idMap: NonNullable<PushResponse["i
           )
         : [];
       await remapForeignKey(oldId, newId, refs, losing[0]?.store_id ?? null);
-      await execute(`UPDATE ${table} SET _deleted = 1 WHERE id = ?`, [oldId]);
+      await execute(`DELETE FROM ${table} WHERE id = ?`, [oldId]);
       // remapForeignKey() rewrites payload content only, never the
       // queue row's own record_id, which the server looks up by.
       await execute(
@@ -126,6 +126,18 @@ export async function applyDuplicateNameIdMap(idMap: NonNullable<PushResponse["i
         [newId, table, oldId],
       );
     }
+  }
+}
+
+export async function applyPurgedIds(purgedIds: NonNullable<PushResponse["purged_ids"]>): Promise<void> {
+  for (const [table, ids] of Object.entries(purgedIds)) {
+    if (!Array.isArray(ids) || ids.length === 0) continue;
+    if (!STORE_SCOPED_TABLES.includes(table)) continue;
+    const placeholders = ids.map(() => "?").join(", ");
+    await execute(
+      `DELETE FROM ${table} WHERE id IN (${placeholders}) AND _deleted = 1`,
+      ids,
+    );
   }
 }
 

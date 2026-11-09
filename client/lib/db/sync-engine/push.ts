@@ -22,7 +22,7 @@ import {
 import { exchangeReportsOnly } from "./push-reports-only";
 import { announceTerminalConflicts, type PushConflict } from "./push-conflict-toasts";
 import { filterPushableChanges, mapBatchPayloads, type PushRejection } from "./push-request";
-import { applyDuplicateNameIdMap, applyServerVersions, settleFailedChanges } from "./push-response";
+import { applyDuplicateNameIdMap, applyPurgedIds, applyServerVersions, settleFailedChanges } from "./push-response";
 import { PushResponse } from "./types";
 import type { SyncChange } from "@/lib/types/sync";
 import { resolveSyncRun, type SyncRun } from "./sync-run";
@@ -202,6 +202,8 @@ export async function pushChanges(
           await applyDuplicateNameIdMap(response.id_map ?? {});
 
           await applyServerVersions(response.versions ?? {});
+
+          await applyPurgedIds(response.purged_ids ?? {});
         });
 
         // After this batch's bookkeeping, never before:

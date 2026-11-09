@@ -74,6 +74,7 @@ class SyncController extends Controller
                 ])),
                 new OA\Property(property: 'id_map', type: 'object', description: 'Local id -> server id, grouped by table_name, for INSERTs skipped because the name collided with an existing categories/suppliers row. The client applies this immediately to its own local rows referencing the old id, rather than relying on a future pull to ever surface the collision.'),
                 new OA\Property(property: 'versions', type: 'object', description: 'Record id -> server-assigned new _version, grouped by table_name, for UPDATE changes accepted via the version-equality check. The client applies this immediately to its local row so its very next edit is based on the true current server version, instead of waiting for a future pull.'),
+                new OA\Property(property: 'purged_ids', type: 'object', description: 'Table name -> array of record IDs for DELETE changes whose target does not exist in any state on the server (even soft-deleted), allowing the client to prune unaccepted tombstones (A-293).'),
             ])),
             new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
             new OA\Response(response: 403, description: 'Cloud sync disabled on current plan, or store count exceeds plan limit'),
@@ -137,6 +138,7 @@ class SyncController extends Controller
         try {
             $idMap = [];
             $idMapByTable = [];
+            $purgedIdsByTable = [];
 
             $stockBatchDeltas = [];
             $stockBatchInbound = [];
@@ -499,6 +501,10 @@ class SyncController extends Controller
                             }
                             $target->delete();
                             $restamper->remember($target);
+                        } else {
+                            if (! empty($change['record_id'])) {
+                                $purgedIdsByTable[$change['table_name']][] = (string) $change['record_id'];
+                            }
                         }
                     }
 
@@ -567,6 +573,7 @@ class SyncController extends Controller
                 'failed' => $failed,
                 'id_map' => $idMapByTable,
                 'versions' => $versions,
+                'purged_ids' => $purgedIdsByTable,
                 'sync_commands' => $activity->exchangeSyncCommands($request, $currentStoreId),
             ]);
         } catch (\Throwable $e) {

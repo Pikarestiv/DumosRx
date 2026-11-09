@@ -84,6 +84,14 @@ export async function reconcileDuplicateNames(
       row.store_id,
     );
 
-    await execute(`UPDATE ${table} SET _deleted = 1 WHERE id = ?`, [row.id]);
+    await execute(`DELETE FROM ${table} WHERE id = ?`, [row.id]);
+    await execute(
+      `DELETE FROM _sync_queue WHERE table_name = ? AND record_id = ? AND operation = 'INSERT' COLLATE NOCASE`,
+      [table, row.id],
+    );
+    await execute(
+      `UPDATE _sync_queue SET record_id = ? WHERE table_name = ? AND record_id = ?`,
+      [matchedServerId, table, row.id],
+    );
   }
 }

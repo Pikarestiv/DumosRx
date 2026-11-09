@@ -21,12 +21,35 @@ class PurgedUserRowSweeper
         'audit_sessions' => ['active_user_id'],
     ];
 
+    /** @var array<string, string> Tables naming a user through a column other than user_id. */
+    public const USER_COLUMN_ALIASES = [
+        'purchase_orders' => 'ordered_by',
+        'stock_movements' => 'performed_by',
+    ];
+
     /** @var array<string, array<string, string>> Parent table to [child table => column naming the parent]; children are swept depth first. */
     public const CHILDREN = [
         'sales' => ['sale_items' => 'sale_id', 'returns' => 'sale_id'],
         'sale_items' => ['sale_item_batches' => 'sale_item_id'],
         'returns' => ['return_items' => 'return_id'],
         'prescriptions' => ['prescription_items' => 'prescription_id'],
+        'purchase_orders' => ['purchase_order_items' => 'purchase_order_id'],
+        'customers' => [
+            'customer_payments' => 'customer_id',
+            'loyalty_transactions' => 'customer_id',
+            'held_transactions' => 'customer_id',
+        ],
+        'suppliers' => [
+            'supplier_payments' => 'supplier_id',
+            'purchase_orders' => 'supplier_id',
+        ],
+        'products' => [
+            'stock_batches' => 'product_id',
+            'stock_movements' => 'product_id',
+            'audit_session_items' => 'product_id',
+            'return_items' => 'product_id',
+            'prescription_items' => 'product_id',
+        ],
     ];
 
     /** Tenant business data with a user_id and no store_id: removed only when the whole tenant goes. */
@@ -45,7 +68,12 @@ class PurgedUserRowSweeper
         }
 
         foreach (SchemaTables::names() as $table) {
-            if (in_array($table, $skipTables, true) || ! in_array('user_id', Schema::getColumnListing($table), true)) {
+            if (in_array($table, $skipTables, true)) {
+                continue;
+            }
+
+            $userColumn = self::USER_COLUMN_ALIASES[$table] ?? (in_array('user_id', Schema::getColumnListing($table), true) ? 'user_id' : null);
+            if ($userColumn === null) {
                 continue;
             }
 
@@ -55,7 +83,7 @@ class PurgedUserRowSweeper
                 continue;
             }
 
-            $query = DB::table($table)->whereIn('user_id', $userIds);
+            $query = DB::table($table)->whereIn($userColumn, $userIds);
             if ($isStoreScoped) {
                 $query->whereNull('store_id');
             }

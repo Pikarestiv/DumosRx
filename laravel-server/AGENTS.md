@@ -438,7 +438,11 @@ The irreversible `DELETE /admin/stores/{id}/purge` lives in
 `AdminStoreDeletionController`/`AdminStoreDeletionService`; it requires the
 literal `confirmation` string `DumosRx` **server-side**, and it clears every
 table carrying a `store_id` by schema introspection because almost none of
-those columns has a real foreign key. See `docs/ADMIN_STORE_LIFECYCLE.md`.
+those columns has a real foreign key. On a whole-tenant purge, `PurgedUserRowSweeper`
+also sweeps storeless rows via `user_id` and user-alias columns
+(`purchase_orders.ordered_by`, `stock_movements.performed_by`), cascading
+descendants via `CHILDREN` (`customers`, `suppliers`, `products`, `purchase_orders`).
+See `docs/ADMIN_STORE_LIFECYCLE.md`.
 
 Two things restore and purge now guarantee, both from A-40/A-41 and both
 detailed in that file: every archive/restore/purge `ActivityLog` row is

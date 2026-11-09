@@ -32,13 +32,6 @@ suggested tackle order rather than a strict ranking.
 - **Consequence:** silent, permanent gaps on exactly those devices. Population unknown and probably small: it needs a refusal, then a regained scope, both before the fixed bundle ran.
 - **Fix, if worth it:** the agreement panel's per-table counts (`TableAgreementService`) already detect a device behind the cloud for a store; a "force full resync of this store" sync command for a flagged device is the targeted repair. Not worth a blind fleet-wide window reset.
 
-#### A-324. `laravel-server/` — a whole-tenant purge leaves `NULL`-store rows in tables that carry no `user_id`
-
-- **Found:** 2026-10-23, by the second review of A-292's fix.
-- **What's wrong:** A-292's sweeper removes a purged tenant's pre-backfill `NULL`-store rows through `user_id`. Tables without one (`purchase_orders` keyed by `ordered_by`, `stock_movements` by `performed_by`, `customer_payments` and `loyalty_transactions` through their customer, `held_transactions`, `supplier_payments`, `requested_products`) keep theirs, and so do the children of a swept customer, product or supplier.
-- **Consequence:** inert residue: unreachable by any tenant scope, counted by nothing an owner reads. The same class as A-288's leftovers.
-- **Fix:** attribute per table through the column that does name an owner (`ordered_by`, `performed_by`, the parent FK), only on a whole-tenant purge, and add those parents to `PurgedUserRowSweeper::CHILDREN`. Measure first: none of the 50 rows measured on 2026-10-19 is in these tables.
-
 #### A-327. `laravel-server/` — what A-248 left behind: unreconstructed stock deltas, and a store-less product with no stock staying unattributed
 
 - **Found:** 2026-10-23, closing A-248 (parts a to c in `docs/FIXED_BUGS.md`). Recorded so they are not lost with that entry.

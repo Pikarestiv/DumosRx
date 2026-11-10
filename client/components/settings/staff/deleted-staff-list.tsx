@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
+import { formatDateSafe } from "@/lib/utils/date-utils";
 import { RotateCcw, Loader2, Users, Search } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -130,7 +130,7 @@ export function DeletedStaffList({
                           </Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
-                          {user.updated_at ? formatDateToDDMMYYYY(user.updated_at) : "N/A"}
+                          {formatDateSafe(user.updated_at, "dd/MM/yyyy HH:mm", "N/A")}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
@@ -199,7 +199,7 @@ export function DeletedStaffList({
 
                     <div className="flex items-center justify-between pt-1">
                       <span className="text-xs text-muted-foreground">
-                        Deleted: {user.updated_at ? formatDateToDDMMYYYY(user.updated_at) : "N/A"}
+                        Deleted: {formatDateSafe(user.updated_at, "dd/MM/yyyy HH:mm", "N/A")}
                       </span>
                       <Button
                         variant="outline"

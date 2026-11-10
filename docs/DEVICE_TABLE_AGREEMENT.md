@@ -337,6 +337,12 @@ that store. A delta with no such warnings is route 2, and settling it needs
 the till's rows — an on-till inspection or device report — because the cloud
 by definition holds no trace of the row.
 
+### A-293 Resolution (2026-11-09)
+
+1. **Route 1 resolved**: When resolving duplicate name collisions in `applyDuplicateNameIdMap()` (`push-response.ts`) and `reconcileDuplicateNames()` (`pull-reconcile.ts`), the loser row is now hard-deleted (`DELETE FROM ${table} WHERE id = ?`) instead of tombstoned, and any pending `INSERT` in `_sync_queue` for that loser is removed. `createProduct()` also adds `AND _deleted = 0` to avoid re-attaching new products to soft-deleted categories.
+2. **Route 2 resolved**: `SyncController::push()` checks `DELETE` changes against `$modelClass::withTrashed()`. If the record exists nowhere on the server, the server succeeds the operation and returns its ID in `purged_ids: Record<string, string[]>`. The client executes `applyPurgedIds()` to prune unaccepted local `_deleted = 1` tombstones safely.
+3. **Forensic finding on pre-A-281 deletes**: SoftDeletes was added to `Category`, `PurchaseOrder`, and `PurchaseOrderItem` on 2026-10-18 (`9746e7b0`, A-281). Prior to that date, pushed DELETE operations invoked hard deletes in MySQL while the client soft-deleted. The missing parents in A-293 (category `t`, deleted 08/10) and A-296 (POs from 22/09, 25/09, 14/10) were successfully pushed and accepted, then permanently hard-deleted from MySQL when deleted on the till.
+
 ## Backward compatibility (§11), piece by piece
 
 Every piece is additive and nothing is required.

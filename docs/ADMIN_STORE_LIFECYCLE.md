@@ -156,12 +156,17 @@ foreign keys:
 - **A swept parent's descendants go with it**, per
   `PurgedUserRowSweeper::CHILDREN`: a sale's `sale_items` (and their
   `sale_item_batches`) and `returns` (and their `return_items`), a
-  prescription's `prescription_items`. A test checks that map against every
+  prescription's `prescription_items`, a purchase order's
+  `purchase_order_items`, a customer's `customer_payments`,
+  `loyalty_transactions`, and `held_transactions`, a supplier's
+  `supplier_payments` and `purchase_orders`, and a product's
+  `stock_batches`, `stock_movements`, `audit_session_items`,
+  `return_items`, and `prescription_items`. A test checks that map against every
   `CASCADE` the schema declares for those parents, so a new child cannot be
   covered by the emulator alone.
-- **Not swept:** a whole-tenant purge's `NULL`-store rows in tables that carry
-  no `user_id` (`purchase_orders`, `stock_movements`, `customer_payments`, …)
-  stay behind, because nothing on the row says whose they are (A-324).
+- **Tables naming users via alternate columns** (`PurgedUserRowSweeper::USER_COLUMN_ALIASES`),
+  such as `purchase_orders.ordered_by` and `stock_movements.performed_by`, are
+  swept alongside `user_id`-bearing tables on a whole-tenant purge (A-324).
 - **Kept on purpose:** a purged staff member's `activity_logs`,
   `user_devices` and `audit_logs` rows that carry a surviving store's id.
   They are that store's history; their `user_id` simply resolves to nobody.

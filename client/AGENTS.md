@@ -1112,7 +1112,8 @@ response bookkeeping (terminal/retryable `failed` handling, the duplicate-name
   row's own `record_id` column — what the server actually looks the target
   up by — is rewritten separately, or a pending edit to the merged-away
   record keeps targeting an id the server no longer has, failing until the
-  backoff cap. The local duplicate is then soft-deleted. This must happen at
+  backoff cap. The local duplicate is then hard-deleted (A-293) rather than
+  tombstoned, preventing a permanent local-only row on the agreement panel. This must happen at
   push time: a future delta pull only reconciles categories/suppliers that
   appear in that pull's own response, and a long-unchanged row never will.
 - **`response.versions` is applied per row inside a `try`/`catch`.** Applying
@@ -1847,7 +1848,7 @@ in `pull-round-end.ts`.
   only line. Pinned by `legacy-product-attribution.test.ts`.
 - **Duplicate-name reconciliation:** a local row absent from the response
   but name-matching a server row has its references remapped to the server's
-  id and is then soft-deleted rather than left as an orphaned duplicate.
+  id and is then hard-deleted (A-293) rather than left as a local tombstone.
   - **A `NULL`-store local row is never folded on a device holding more than
     one store (A-303).** It cannot be attributed to either store, so a fold
     would repoint both stores' products. An ordinary pull never offers one a

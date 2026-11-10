@@ -79,7 +79,7 @@ describe("push.ts id_map reconciliation", () => {
     expect(product[0].values[0][0]).toBe(SERVER_CAT);
 
     const localCat = db.exec(`SELECT _deleted FROM categories WHERE id = ?`, [LOCAL_CAT]);
-    expect(localCat[0].values[0][0]).toBe(1);
+    expect(localCat.length).toBe(0);
 
     const queued = db.exec(`SELECT payload FROM _sync_queue WHERE id = 2`);
     const payload = JSON.parse(queued[0].values[0][0] as string);

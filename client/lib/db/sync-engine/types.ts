@@ -21,6 +21,7 @@ export interface PushResponse {
   // Record id -> server-assigned new `_version`, grouped by table_name, for UPDATE changes accepted via SyncController::push's strict version- e…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-types-ts-L24
   versions?: Record<string, Record<string, number>>;
+  purged_ids?: Record<string, string[]>;
 }
 
 export interface PullResponse {

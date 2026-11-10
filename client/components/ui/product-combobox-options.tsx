@@ -105,10 +105,23 @@ function SourceBadge({
   );
 }
 
-export function StockStatusBadge({ option }: { option: SelectedProduct }) {
+export function StockStatusBadge({
+  option,
+  active = false,
+}: {
+  option: SelectedProduct;
+  active?: boolean;
+}) {
   if (option.stock_owed && option.stock_owed > 0) {
     return (
-      <span className="ml-2 shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+      <span
+        className={cn(
+          "ml-2 shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap transition-colors",
+          active
+            ? "bg-white text-amber-800 border-white shadow-sm dark:bg-slate-900 dark:text-amber-300 dark:border-slate-800"
+            : "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 group-hover:bg-white group-hover:text-amber-800 group-hover:border-white group-hover:shadow-sm dark:group-hover:bg-slate-900 dark:group-hover:text-amber-300 dark:group-hover:border-slate-800",
+        )}
+      >
         {option.stock_owed} owed
       </span>
     );
@@ -116,20 +129,41 @@ export function StockStatusBadge({ option }: { option: SelectedProduct }) {
   if (option.stock_quantity !== undefined && option.stock_quantity !== null) {
     if (option.stock_quantity <= 0) {
       return (
-        <span className="ml-2 shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30">
+        <span
+          className={cn(
+            "ml-2 shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap transition-colors",
+            active
+              ? "bg-white text-rose-800 border-white shadow-sm dark:bg-slate-900 dark:text-rose-300 dark:border-slate-800"
+              : "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30 group-hover:bg-white group-hover:text-rose-800 group-hover:border-white group-hover:shadow-sm dark:group-hover:bg-slate-900 dark:group-hover:text-rose-300 dark:group-hover:border-slate-800",
+          )}
+        >
           0 in stock
         </span>
       );
     }
     if (option.stock_quantity <= lowStockThreshold(option.reorder_level)) {
       return (
-        <span className="ml-2 shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/30">
+        <span
+          className={cn(
+            "ml-2 shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap transition-colors",
+            active
+              ? "bg-white text-orange-800 border-white shadow-sm dark:bg-slate-900 dark:text-orange-300 dark:border-slate-800"
+              : "bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/30 group-hover:bg-white group-hover:text-orange-800 group-hover:border-white group-hover:shadow-sm dark:group-hover:bg-slate-900 dark:group-hover:text-orange-300 dark:group-hover:border-slate-800",
+          )}
+        >
           Low ({option.stock_quantity})
         </span>
       );
     }
     return (
-      <span className="ml-2 shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] text-muted-foreground whitespace-nowrap bg-muted/60 border border-border/50">
+      <span
+        className={cn(
+          "ml-2 shrink-0 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] whitespace-nowrap transition-colors",
+          active
+            ? "bg-white text-slate-800 font-medium border-white shadow-sm dark:bg-slate-900 dark:text-slate-100 dark:border-slate-800"
+            : "bg-muted/60 text-muted-foreground border border-border/50 group-hover:bg-white group-hover:text-slate-800 group-hover:font-medium group-hover:border-white group-hover:shadow-sm dark:group-hover:bg-slate-900 dark:group-hover:text-slate-100 dark:group-hover:border-slate-800",
+        )}
+      >
         {option.stock_quantity} in stock
       </span>
     );
@@ -190,7 +224,7 @@ export function ProductComboboxItem({
         </span>
         {option.source === "local" ? (
           option.stock_owed !== undefined || option.stock_quantity !== undefined ? (
-            <StockStatusBadge option={option} />
+            <StockStatusBadge option={option} active={isActive} />
           ) : (
             <SourceBadge source="local" active={isActive} />
           )
@@ -198,16 +232,17 @@ export function ProductComboboxItem({
           <SourceBadge source="global" active={isActive} />
         )}
       </div>
-      {(option.generic_name || option.category || option.barcode) && (
-        <div className="pl-6 text-xs text-muted-foreground group-hover:text-accent-foreground/70 mt-0.5 w-full flex items-center justify-between gap-2">
-          <span className={cn("italic truncate", capsClass)}>
-            {option.generic_name || option.category || ""}
+      {(option.generic_name || option.category) && (
+        <div className="pl-6 text-xs text-muted-foreground group-hover:text-accent-foreground/80 mt-0.5 w-full truncate">
+          <span
+            className={cn(
+              "italic",
+              capsClass,
+              isActive && "text-accent-foreground/80",
+            )}
+          >
+            {option.generic_name || option.category}
           </span>
-          {option.barcode && (
-            <span className="font-mono text-[10px] shrink-0 opacity-70">
-              SKU: {option.barcode}
-            </span>
-          )}
         </div>
       )}
     </div>

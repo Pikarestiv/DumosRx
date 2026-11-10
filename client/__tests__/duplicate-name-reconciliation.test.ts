@@ -78,7 +78,7 @@ describe("pull.ts duplicate-name reconciliation", () => {
     expect(product[0].values[0][1]).toBe(0);
 
     const localCat = db.exec(`SELECT _deleted FROM categories WHERE id = 'local-cat'`);
-    expect(localCat[0].values[0][0]).toBe(1);
+    expect(localCat.length).toBe(0);
 
     // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-duplicate-name-reconciliation-test-ts-L83
     const queued = db.exec(`SELECT operation, payload FROM _sync_queue WHERE table_name = 'products' AND record_id = 'p1'`);
@@ -235,6 +235,6 @@ describe("pull.ts duplicate-name reconciliation", () => {
     expect(po[0].values[0][0]).toBe("server-sup");
 
     const localSup = db.exec(`SELECT _deleted FROM suppliers WHERE id = 'local-sup'`);
-    expect(localSup[0].values[0][0]).toBe(1);
+    expect(localSup.length).toBe(0);
   });
 });

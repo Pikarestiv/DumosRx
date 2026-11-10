@@ -25,8 +25,8 @@ describe("getActiveProductsForPO", () => {
     db.run(`
       CREATE TABLE products (
         id TEXT PRIMARY KEY, name TEXT, base_unit TEXT, bulk_unit TEXT, units_per_bulk INTEGER,
-        cost_price REAL, selling_price REAL, generic_name TEXT, manufacturer TEXT, strength TEXT,
-        dosage_form TEXT, reorder_level INTEGER DEFAULT 10, _deleted INTEGER DEFAULT 0
+        selling_price REAL, generic_name TEXT, manufacturer TEXT, strength TEXT,
+        dosage_form TEXT, barcode TEXT, reorder_level INTEGER DEFAULT 10, _deleted INTEGER DEFAULT 0
       );
       CREATE TABLE stock_batches (
         id TEXT PRIMARY KEY, product_id TEXT, quantity INTEGER, cost_price REAL,
@@ -116,12 +116,13 @@ describe("getActiveProductsForPO", () => {
     expect(item?.reorder_level).toBe(15);
   });
 
-  it("falls back to products.cost_price when a product has no previous batches", async () => {
-    db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, cost_price) VALUES ('prod6', 'Vitamin C', 'Tablet', 'Bottle', 100, 250)`);
+  it("returns barcode for products to support barcode and SKU search", async () => {
+    db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, barcode) VALUES ('prod6', 'Vitamin C', 'Tablet', 'Bottle', 100, '1234567890123')`);
 
     const products = await getActiveProductsForPO();
     const item = products.find((p) => p.id === "prod6");
 
-    expect(item?.cost_price).toBe(250);
+    expect(item?.barcode).toBe("1234567890123");
+    expect(item?.cost_price).toBe(0);
   });
 });

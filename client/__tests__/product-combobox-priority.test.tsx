@@ -191,4 +191,40 @@ describe("ProductCombobox UI stock badges and sections", () => {
     const nameSpan = items[0].querySelector("span.font-medium");
     expect(nameSpan?.className).toContain("uppercase");
   });
+
+  it("hides SKU from the visual item row to prevent clutter while keeping it searchable", async () => {
+    const onChange = vi.fn();
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ProductCombobox
+          value="4050"
+          onChange={onChange}
+          products={[
+            {
+              id: "p1",
+              name: "212 MEN PERFUME",
+              barcode: "4050",
+              stock_owed: 1,
+              stock_quantity: 0,
+            },
+          ]}
+          showGlobalSuggestions={false}
+          showCreateNewOption={false}
+        />
+      </QueryClientProvider>,
+    );
+
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+    const item = await screen.findByRole("option");
+    expect(item.textContent).toContain("212 MEN PERFUME");
+    expect(item.textContent).toContain("1 owed");
+    // SKU is hidden from visual label
+    expect(item.textContent).not.toContain("SKU:");
+    // No second line rendered for items without generic name
+    expect(item.querySelector(".text-xs")).toBeNull();
+  });
 });

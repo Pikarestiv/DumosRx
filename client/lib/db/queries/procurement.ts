@@ -26,6 +26,7 @@ export interface POProduct {
   manufacturer?: string | null;
   strength?: string | null;
   dosage_form?: string | null;
+  barcode?: string | null;
 }
 
 export interface FullVendor {
@@ -75,11 +76,10 @@ export async function getActiveProductsForPO() {
   const storeId = getActiveStoreId();
   return query<POProduct>(
     `SELECT p.id, p.name, p.bulk_unit, p.base_unit, p.units_per_bulk, p.selling_price,
-       p.generic_name, p.manufacturer, p.strength, p.dosage_form, p.reorder_level,
+       p.generic_name, p.manufacturer, p.strength, p.dosage_form, p.reorder_level, p.barcode,
        COALESCE(
          (SELECT cost_price FROM stock_batches WHERE product_id = p.id AND _deleted = 0 AND is_active = 1 AND cost_price > 0 AND COALESCE(batch_number, '') NOT LIKE 'ADJ-%' ORDER BY created_at DESC, rowid DESC LIMIT 1),
          (SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = p.id AND _deleted = 0 AND is_active = 1 AND quantity > 0),
-         NULLIF(p.cost_price, 0),
          0
        ) as cost_price,
        COALESCE((SELECT SUM(quantity) FROM stock_batches WHERE product_id = p.id AND _deleted = 0 AND is_active = 1), 0) as stock_quantity

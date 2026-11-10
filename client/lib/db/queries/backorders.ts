@@ -218,7 +218,7 @@ async function recostSale(productId: string, saleId: string, storeId?: string) {
     [saleId, productId],
   );
   const lineUnits = lines.reduce((sum, l) => sum + Number(l.quantity), 0);
-  if (lineUnits <= 0) return;
+  if (!lineUnits || lineUnits <= 0 || Number.isNaN(lineUnits)) return;
   const cost = lineCostFromLedger(sale, lineUnits);
   for (const l of lines) {
     if (Number(l.cost_price ?? 0) !== cost) await update("sale_items", l.id, { cost_price: cost }, { storeId });

@@ -307,7 +307,7 @@ export async function restoreUser(id: string) {
   const cleanEmail = user.email ? user.email.replace(/_del_\d+$/, "") : null;
 
   const existingWithUsername = await query<{ id: string }>(
-    "SELECT id FROM users WHERE username = ? AND (store_id = ? OR (store_id IS NULL AND ? IS NULL)) AND _deleted = 0 AND id != ?",
+    "SELECT id FROM users WHERE username = ? COLLATE NOCASE AND (store_id = ? OR (store_id IS NULL AND ? IS NULL)) AND _deleted = 0 AND id != ?",
     [cleanUsername, user.store_id ?? null, user.store_id ?? null, id]
   );
   if (existingWithUsername.length > 0) {

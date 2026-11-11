@@ -38,7 +38,7 @@ const faqs = [
       },
       {
         q: "What should I do if a store till gets unlinked or disconnected?",
-        a: "Store owners can generate a single-use 8-character Re-link Code from any logged-in device under Settings > Account > Sessions & Devices. Staff enters this code on the unlinked till to reconnect in seconds. If the owner is unreachable, your DumosRx account manager or support team can generate a secure re-link code on your behalf from the platform portal.",
+        a: "Store owners can generate a single-use 8-character Re-link Code from any logged-in device under Settings > Security > Sessions & Devices. Staff enters this code on the unlinked till to reconnect in seconds. If the owner is unreachable, your DumosRx account manager or support team can generate a secure re-link code on your behalf from the platform portal.",
       },
     ],
   },

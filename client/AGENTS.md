@@ -7283,7 +7283,7 @@ Before that, work focused on the **Inventory** area:
   unverified) leaves it. The indicator reads "Not Backed Up" when a till is unlinked and has
   unsynced changes. Till tokens live 180 days (`laravel-server/AGENTS.md`, "Token lifetimes").
   To re-link without the owner's password, the owner clicks "Generate till re-link code" in
-  Settings > Account > Sessions & Devices (`relink-code-dialog.tsx`, owner-only, hidden while
+  Settings > Security > Sessions & Devices (`relink-code-dialog.tsx`, owner-only, hidden while
   impersonating), and anyone at the till who can open the Data tab (`backup_restore_data`) enters
   it in the CloudLinkDialog's "Have a re-link code?" path. Both link paths live in `lib/hooks/use-cloud-link.ts` and share
   `adoptCloudToken()`. The code path deliberately skips `linkCloudAccount`'s "email must match

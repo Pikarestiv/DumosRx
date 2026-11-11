@@ -30,7 +30,7 @@ export const OPERATIONS_GUIDES: GuideItem[] = [
     summary:
       "Re-link disconnected, formatted, or offline till computers in seconds using single-use 15-minute codes, without ever having to share your confidential owner password or master PIN with staff.",
     steps: [
-      "Open DumosRx on your phone or owner device and go to Settings > Account > Sessions & Devices.",
+      "Open DumosRx on your phone or owner device and go to Settings > Security > Sessions & Devices.",
       "Tap 'Generate Re-link Code' to view your 8-character single-use code with a 15-minute countdown.",
       "Share the 8 characters with your shop staff over phone or chat. The cashier enters the code directly on the till screen.",
       "The till immediately reconnects and resumes offline-first sync. If you are unreachable, your DumosRx CRM / Support team can generate a code on your behalf from the administrative portal.",

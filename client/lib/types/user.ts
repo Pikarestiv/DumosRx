@@ -66,7 +66,7 @@ export interface CurrentUser {
 }
 
 /** A single authenticated Sanctum session/device, as listed on the
- * account's Sessions & Devices settings page. */
+ * Security's Sessions & Devices settings page. */
 export interface Session {
   id: string;
   name: string;

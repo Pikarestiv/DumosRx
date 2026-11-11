@@ -150,7 +150,7 @@ Your Cloud Dashboard is your management hub. Log in from any web browser to get 
 
 **Remote Logout:** Instantly sign out devices remotely if a computer is lost or a staff member leaves the company.
 
-**Instant Till Re-link (Owner Self-Service & CRM Fallback):** If a till computer is disconnected, formatted, or unlinked, store owners never have to travel down to the branch or share their master cloud password and PIN with staff. The store owner can generate a single-use 8-character 15-minute Re-link Code from their personal till or mobile browser under **Settings → Account → Sessions & Devices**. Additionally, if the owner is unreachable or unavailable, DumosRx CRM and support agents can generate a re-link code on the owner's behalf directly from the administrative portal. Cashiers simply enter the 8-character code at the till to securely re-authenticate the device immediately.
+**Instant Till Re-link (Owner Self-Service & CRM Fallback):** If a till computer is disconnected, formatted, or unlinked, store owners never have to travel down to the branch or share their master cloud password and PIN with staff. The store owner can generate a single-use 8-character 15-minute Re-link Code from their personal till or mobile browser under **Settings → Security → Sessions & Devices**. Additionally, if the owner is unreachable or unavailable, DumosRx CRM and support agents can generate a re-link code on the owner's behalf directly from the administrative portal. Cashiers simply enter the 8-character code at the till to securely re-authenticate the device immediately.
 
 ### 🌐 Online Storefront
 

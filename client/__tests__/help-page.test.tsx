@@ -6,6 +6,13 @@ import { useAssistantPanel } from "@/lib/store/use-assistant-panel";
 import { toast } from "sonner";
 
 const mockMutate = vi.fn();
+const mockPush = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+}));
 
 vi.mock("@/lib/context/auth-context", () => ({
   useAuth: () => ({
@@ -93,6 +100,15 @@ describe("HelpPage", () => {
       },
       expect.any(Object),
     );
+  });
+
+  it("navigates to business-info contact specialist anchor when clicked", () => {
+    render(<HelpPage />);
+
+    const specialistButton = screen.getByRole("button", { name: /View your Contact Specialist in Business Info/i });
+    fireEvent.click(specialistButton);
+
+    expect(mockPush).toHaveBeenCalledWith("/settings/business-info#contact-specialist");
   });
 });
 

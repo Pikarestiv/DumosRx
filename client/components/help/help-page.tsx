@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Video,
   ExternalLink,
@@ -10,6 +11,7 @@ import {
   Clock,
   Send,
   HelpCircle,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +30,7 @@ import { useAssistantPanel } from "@/lib/store/use-assistant-panel";
 import { GUIDES_URL, SUPPORT_EMAIL } from "@/lib/constants";
 
 export function HelpPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const [feedbackType, setFeedbackType] = useState<string>("bug");
   const [feedbackContent, setFeedbackContent] = useState("");
@@ -171,10 +174,20 @@ export function HelpPage() {
               </div>
             </div>
           </div>
-          <div className="pt-6">
+          <div className="pt-6 space-y-2">
             <p className="text-xs text-muted-foreground">
               You can also message your dedicated CRM onboarding agent directly on WhatsApp.
             </p>
+            <div>
+              <Button
+                variant="link"
+                className="p-0 h-auto text-primary text-xs font-semibold gap-1 hover:underline cursor-pointer"
+                onClick={() => router.push("/settings/business-info#contact-specialist")}
+              >
+                <span>View your Contact Specialist in Business Info</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>

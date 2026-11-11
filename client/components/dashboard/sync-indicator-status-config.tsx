@@ -100,7 +100,7 @@ export function getSyncStatusConfig({
       mobileBg: isSyncOverdue ? "bg-destructive/10" : "bg-amber-500/10",
       tooltip: isLinked
         ? `${pendingCount} local change${pendingCount > 1 ? "s" : ""} pending sync since ${lastSync ? formatDistanceSafe(lastSync) + " ago" : "a while"}.`
-        : `This till is not linked to the cloud, so ${pendingCount} local change${pendingCount > 1 ? "s are" : " is"} not backed up. Re-link it in Settings > Data with the owner's login or a re-link code from the owner (Settings > Account > Sessions & Devices).`,
+        : `This till is not linked to the cloud, so ${pendingCount} local change${pendingCount > 1 ? "s are" : " is"} not backed up. Re-link it in Settings > Data with the owner's login or a re-link code from the owner (Settings > Security > Sessions & Devices).`,
     },
     active: {
       label: "Cloud Active",

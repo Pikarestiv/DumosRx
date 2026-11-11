@@ -300,9 +300,9 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: "relink_till",
     title: "Re-link a till device",
-    href: "/settings/account",
+    href: "/settings/security",
     steps: [
-      "Store owner opens Settings > Account > Sessions & Devices on their till or browser",
+      "Store owner opens Settings > Security > Sessions & Devices on their till or browser",
       "Tap 'Generate Re-link Code' to view the 8-character single-use code",
       "Cashier enters the code on the unlinked till to reconnect immediately",
       "If the owner is unavailable, contact DumosRx support/CRM to generate a code",

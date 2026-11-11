@@ -89,3 +89,8 @@ export const GUIDES: GuideItem[] = [
     videoPlaceholderText: "Video Walkthrough: Generating 15-minute till re-link codes and remote support fallback",
   },
 ];
+
+export function getGuideBySlug(slug: string): GuideItem | undefined {
+  return GUIDES.find((g) => g.id === slug);
+}
+

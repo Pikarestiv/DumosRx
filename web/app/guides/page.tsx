@@ -15,7 +15,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { GUIDES } from "@/lib/guides-data";
-import { GuideCard } from "@/components/guides/guide-card";
+import { GuideListCard } from "@/components/guides/guide-list-card";
 
 const CATEGORIES = [
   "All",
@@ -120,12 +120,14 @@ export default function GuidesPage() {
           </div>
         </div>
 
-        {/* Guides List */}
-        <div className="space-y-8">
+        {/* Guides Grid */}
+        <div>
           {filteredGuides.length > 0 ? (
-            filteredGuides.map((guide) => (
-              <GuideCard key={guide.id} guide={guide} />
-            ))
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filteredGuides.map((guide) => (
+                <GuideListCard key={guide.id} guide={guide} />
+              ))}
+            </div>
           ) : (
             <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 space-y-3">
               <BookOpen className="w-10 h-10 text-muted-foreground mx-auto" />
@@ -168,3 +170,4 @@ export default function GuidesPage() {
     </div>
   );
 }
+

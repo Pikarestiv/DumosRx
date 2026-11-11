@@ -86,7 +86,7 @@ describe("useOnboarding() cloud setup when the identity pull fails", () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    vi.useRealTimers();
+    vi.useFakeTimers();
     getTotalUserCountMock.mockResolvedValue(0);
     linkCloudAccountMock.mockResolvedValue({ success: true, message: "" });
     getStoresMock.mockResolvedValue([{ id: "store-1", name: "Store One" }]);
@@ -111,21 +111,23 @@ describe("useOnboarding() cloud setup when the identity pull fails", () => {
       root.unmount();
     });
     container.remove();
+    vi.useRealTimers();
   });
 
   it("shows the real sync error and returns to the cloud step instead of reporting 'no staff accounts'", async () => {
     syncMock.mockImplementation((_isManual, _isSetup, onCriticalTablesReady) => {
       onCriticalTablesReady?.(false);
-      return Promise.resolve({ success: false, error: "no such table: permission_groups" });
+      return Promise.resolve({ success: false, error: "Cloud sync failed: server unreachable" });
     });
 
     await act(async () => {
-      await hookResult.handleCloudRestore("owner@example.com", "secret");
-      await new Promise((r) => setTimeout(r, 3500));
+      const restorePromise = hookResult.handleCloudRestore("owner@example.com", "secret");
+      await vi.advanceTimersByTimeAsync(1000);
+      await restorePromise;
     });
 
     expect(toastErrorMock).toHaveBeenCalledWith(
-      expect.stringContaining("no such table: permission_groups"),
+      expect.stringContaining("Cloud sync failed: server unreachable"),
     );
     expect(toastWarningMock).not.toHaveBeenCalled();
     expect(pushedSteps().some((u) => u.includes("step=register"))).toBe(false);
@@ -140,8 +142,10 @@ describe("useOnboarding() cloud setup when the identity pull fails", () => {
     });
 
     await act(async () => {
-      await hookResult.handleCloudRestore("owner@example.com", "secret");
-      await new Promise((r) => setTimeout(r, 3500));
+      const restorePromise = hookResult.handleCloudRestore("owner@example.com", "secret");
+      await vi.advanceTimersByTimeAsync(1000); // 800ms initial sync delay
+      await vi.advanceTimersByTimeAsync(2000); // 1500ms no-accounts delay
+      await restorePromise;
     });
 
     expect(toastWarningMock).toHaveBeenCalledWith(
@@ -158,8 +162,10 @@ describe("useOnboarding() cloud setup when the identity pull fails", () => {
     });
 
     await act(async () => {
-      await hookResult.handleCloudRestore("owner@example.com", "secret");
-      await new Promise((r) => setTimeout(r, 3500));
+      const restorePromise = hookResult.handleCloudRestore("owner@example.com", "secret");
+      await vi.advanceTimersByTimeAsync(1000); // 800ms initial sync delay
+      await vi.advanceTimersByTimeAsync(1000); // 800ms post-login navigation delay
+      await restorePromise;
     });
 
     expect(toastWarningMock).not.toHaveBeenCalled();

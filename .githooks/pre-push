@@ -13,3 +13,4 @@ echo "3/3 Analysing server..."
 (cd laravel-server && composer run analyse)
 
 echo "✅ All pre-push quality gates passed!"
+

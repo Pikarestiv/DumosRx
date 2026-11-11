@@ -42,6 +42,14 @@ trait ConnectsToRealMysql
             }
         }
 
+        if (app()->environment('production') || env('APP_ENV') === 'production') {
+            throw new \RuntimeException('SAFETY VIOLATION: ConnectsToRealMysql cannot run in production environment.');
+        }
+
+        if (! in_array($defaults['host'], ['127.0.0.1', 'localhost', 'mysql'], true)) {
+            throw new \RuntimeException("SAFETY VIOLATION: ConnectsToRealMysql refuses to connect to non-local host: {$defaults['host']}");
+        }
+
         return [
             'driver' => 'mysql',
             'host' => $defaults['host'],

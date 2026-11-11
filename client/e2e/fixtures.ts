@@ -38,6 +38,11 @@ export async function loginAsPaidTier(page: Page) {
 
 export const test = base.extend({
   page: async ({ page }, use) => {
+    // Hard-block all outbound requests to production/staging cloud APIs during E2E tests:
+    await page.route(/https:\/\/(api\.)?(dev\.)?dumosrx\.com/, (route) => {
+      void route.abort('blockedbyclient');
+    });
+
     // Go to a known page to ensure we can execute script in context
     await page.goto('/login', { waitUntil: 'domcontentloaded' });
 

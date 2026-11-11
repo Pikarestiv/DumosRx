@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Menu, Zap, Shield, CreditCard, UserPlus } from "lucide-react";
+import { Menu, Zap, Shield, CreditCard, UserPlus, BookOpen } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -56,6 +56,12 @@ export function HeaderSection() {
             className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors"
           >
             Pricing
+          </Link>
+          <Link
+            href="/guides"
+            className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors"
+          >
+            Guides
           </Link>
           <div className="h-6 w-px bg-border mx-2" />
           <div className="flex items-center gap-4">
@@ -123,6 +129,17 @@ export function HeaderSection() {
                           <CreditCard className="h-4 w-4" />
                         </div>
                         Pricing
+                      </Link>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Link
+                        href="/guides"
+                        className="flex items-center gap-3 py-2 text-lg font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <div className="p-2 rounded-md bg-primary/10 text-primary">
+                          <BookOpen className="h-4 w-4" />
+                        </div>
+                        Guides & Tutorials
                       </Link>
                     </SheetClose>
                   </div>

@@ -677,6 +677,21 @@ is the only place that mapping belongs.
   and displays `StoreRelinkCodeDialog`. The dialog renders the 8-character
   single-use code, a 15-minute countdown timer, a quick-copy button, and clear
   step-by-step instructions for the cashier on the till screen.
+  `handleOpenRelinkCode` is optional on `StoreRowActionHandlers` so legacy test
+  harnesses mocking `StoreRowActions` or `StoreTable` retain backward compatibility.
+
+### Guides & Video Tutorials Hub (2026-11-11)
+
+- **Route:** `app/guides/page.tsx` (`/guides`), completely statically exportable
+  under `output: "export"`.
+- **Purpose:** Centralized user documentation and video tutorials hub for store
+  owners and staff. Each feature release email links directly to its deep-anchor
+  section (e.g. `dumosrx.com/guides#spot-sourcing`, `#sell-at-zero-stock`,
+  `#branch-transfers`, `#till-relink`).
+- **Data & Components:** Structured in `lib/guides-data.ts` (`GUIDES`) and
+  rendered via `components/guides/guide-card.tsx` with video tutorial preview
+  players, numbered step-by-step guides, pro-tips, and one-click copyable share
+  links. Included in desktop and mobile header navigation and footer product links.
 
 ### Admin PWA and the production server switcher (2026-10-07)
 

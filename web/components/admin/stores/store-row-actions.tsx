@@ -32,7 +32,7 @@ import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.
 export interface StoreRowActionHandlers {
   handleImpersonate: (store: AdminStoreSummary) => void;
   handleViewBilling: (store: AdminStoreSummary) => void;
-  handleOpenRelinkCode: (store: AdminStoreSummary) => void;
+  handleOpenRelinkCode?: (store: AdminStoreSummary) => void;
   setSelectedStore: (store: AdminStoreSummary) => void;
   setIsSuspendDialogOpen: (open: boolean) => void;
   setIsTrialDialogOpen: (open: boolean) => void;
@@ -132,7 +132,7 @@ export function StoreRowActions({
             Impersonate (Admin)
           </DropdownMenuItem>
         )}
-        {canImpersonate && (
+        {canImpersonate && handleOpenRelinkCode && (
           <DropdownMenuItem className={ITEM_CLASS} onClick={() => handleOpenRelinkCode(store)}>
             <KeyRound className="h-4 w-4 text-amber-500" />
             Generate Till Re-link Code

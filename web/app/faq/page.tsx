@@ -95,12 +95,20 @@ export default function FAQPage() {
           </h1>
           <p className="text-lg text-muted-foreground">
             Find answers to common questions about DumosRx, our features, and
-            billing. Can't find what you're looking for?{" "}
+            billing. Looking for step-by-step walkthroughs and video tutorials?
+            Visit our{" "}
+            <Link
+              href="/guides"
+              className="text-primary hover:underline font-medium"
+            >
+              Guides & Tutorials
+            </Link>{" "}
+            hub, or{" "}
             <Link
               href="/support"
               className="text-primary hover:underline font-medium"
             >
-              Contact our support team
+              contact our support team
             </Link>
             .
           </p>

@@ -43,3 +43,4 @@ class AdminStoreRelinkController extends AdminBaseController
         return response()->json($result);
     }
 }
+

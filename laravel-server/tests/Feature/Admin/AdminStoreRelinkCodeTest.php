@@ -164,3 +164,4 @@ class AdminStoreRelinkCodeTest extends TestCase
         ]);
     }
 }
+

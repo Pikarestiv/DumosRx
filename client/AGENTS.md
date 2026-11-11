@@ -2468,6 +2468,13 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   branch ever wrote a settlement naming a PO; no such row exists on `dev` or
   `main`, so none is read specially.
 
+### Help & Support Hub (`/help`, 2026-11-11)
+
+- **Route:** `app/(dashboard)/help/page.tsx` (`/help`) rendering `components/help/help-page.tsx`.
+- **Purpose:** Replaces the legacy modal popup with a dedicated support screen accessible from the user account menu (`UserNav` / `useAccountActions`).
+- **External Knowledgebase Launch:** The primary card links to `GUIDES_URL` (`https://dumosrx.com/guides`) using `window.open(GUIDES_URL, "_blank", "noopener,noreferrer")`, opening in the user's system browser so their active offline register session remains open and undisturbed.
+- **Support Channels:** Combines offline AI Assistant launcher, CRM / WhatsApp / email contacts (`support@dumosrx.com`), and an embedded offline-first feedback and issue submission form (`useSubmitFeedbackMutation`).
+
 ### External Stock Sourcing & POS Spot Sourcing (2026-11-11)
 
 There are two distinct workflows for selling goods sourced outside the store:

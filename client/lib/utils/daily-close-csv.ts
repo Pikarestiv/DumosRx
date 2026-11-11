@@ -85,3 +85,4 @@ export function exportDailyCloseToCSV({
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+

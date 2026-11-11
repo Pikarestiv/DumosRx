@@ -139,3 +139,4 @@ describe("POS State Machine: Settled Credit Returns & Debt Invariants", () => {
     expect(scalar(`SELECT amount_paid FROM sales WHERE id = 's-mixed-part-1'`)).toBe(100);
   });
 });
+

@@ -124,3 +124,22 @@ Every bug fix listed in `docs/FIXED_BUGS.md` or fixed during development MUST be
 2. Passes on the corrected implementation.
 3. Asserts the observable domain invariant, not just the hyper-local variable fix.
 
+---
+
+## 8. Change-Impact Testing Protocol & Quality Gates
+
+Before pushing code or creating a pull request, enforce the 3 quality layers:
+
+1. **Local Pre-Push Verification (`.githooks/pre-push`):**
+   - Client typecheck: `cd client && npx tsc --noEmit`
+   - Web typecheck: `cd web && npx tsc --noEmit`
+   - Server static analysis: `cd laravel-server && composer run analyse`
+2. **Targeted Test Execution by Subsystem:**
+   - **POS Checkout & Calculations:** `cd client && npx vitest run __tests__/pos-*`
+   - **Stock & Inventory Transfers:** `cd client && npx vitest run __tests__/stock-*`
+   - **Sync Engine & Cloud Reconciliation:** `cd client && npx vitest run __tests__/*sync*` and `cd laravel-server && php artisan test tests/Feature/SyncEndpointTest.php`
+   - **Admin Platform & Roles:** `cd web && npx vitest run __tests__/admin-*` and `cd laravel-server && php artisan test tests/Feature/Admin`
+3. **CI Quality Gates (`.github/workflows/checks.yml`):**
+   - Automatically executes full lint, typecheck, static analysis, and test suites across all three packages (`client`, `web`, `server`).
+
+

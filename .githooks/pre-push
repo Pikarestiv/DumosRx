@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+echo "🔍 Running pre-push quality gates..."
+
+echo "1/3 Type-checking client..."
+(cd client && npx tsc --noEmit)
+
+echo "2/3 Type-checking web..."
+(cd web && npx tsc --noEmit)
+
+echo "3/3 Analysing server..."
+(cd laravel-server && composer run analyse)
+
+echo "✅ All pre-push quality gates passed!"

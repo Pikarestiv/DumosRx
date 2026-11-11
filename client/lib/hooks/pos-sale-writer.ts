@@ -3,7 +3,6 @@ import { generateId } from "@/lib/db/core";
 import { getCustomerBalance } from "@/lib/db/queries/customers";
 import { recordSaleItemStock } from "@/lib/db/queries/inventory";
 import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/queries/prescriptions";
-import { SPOT_SOURCING_EXPENSE_CATEGORY } from "@/lib/db/queries/finance";
 import { getLocalTodayDate } from "@/lib/utils";
 import { applyLoyaltyPointsForSale, type PaymentMethod, type PaymentSplit } from "./use-pos-payment-helpers";
 import { calculateTaxPercentage, calculateMixedAmountPaid, calculateMixedChangeDue, calculateSalePaymentStatus, calculateMaxAllowedCreditSplit, roundMoney } from "@/lib/utils/pos-calculations";
@@ -127,6 +126,7 @@ export async function writeSaleTransaction({
           paymentMethod === "card" || paymentMethod === "transfer"
             ? selectedAccountId
             : null,
+        ...(isRefillDispense ? { is_refill: true } : {}),
         ...(spotSourcedItems.length > 0
           ? {
               spot_sourcing: spotSourcedItems.map((i) => ({
@@ -174,26 +174,6 @@ export async function writeSaleTransaction({
           recordShortfallAsOwed: false,
           isSpotSourced: true,
         });
-
-        if (item.sourcing_payment_source === "cash_drawer") {
-          const sourcingTotal = roundMoney(sourcingCost * item.quantity);
-          if (sourcingTotal > 0) {
-            await insert("expenses", {
-              id: generateId(),
-              user_id: cashierId,
-              category: SPOT_SOURCING_EXPENSE_CATEGORY,
-              description: `Spot sourced: ${item.quantity}x ${item.name}`,
-              amount: sourcingTotal,
-              date: getLocalTodayDate(),
-              payment_method: "cash",
-              vendor_name: item.sourcing_partner || "Spot Sourcing",
-              reference_number: transactionNumber,
-              notes: `Paid from till cash drawer for sale #${transactionNumber}`,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            }, { correlationId: newSaleId });
-          }
-        }
       } else {
         await recordSaleItemStock({
           saleId: newSaleId,

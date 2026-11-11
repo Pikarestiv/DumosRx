@@ -1,3 +1,26 @@
+### A-358 — spot sourcing inventory purchases were logged in the operating expenses table, polluting OPEX
+- **Fixed:** 2026-11-11, client only, TDD.
+- **Was:** When spot-sourced goods were purchased for immediate customer sale and paid out of the till drawer, `pos-sale-writer.ts` inserted a row into the `expenses` table (`category = 'Stock Sourcing'`). This violated the fundamental accounting invariant that inventory acquisitions are balance-sheet assets / COGS, not operating expenses (OPEX). It distorted profit and loss reports, expense analytics, and tax deductions.
+- **Now:** Spot sourcing purchases no longer write to the `expenses` table. Till drawer outflows for spot-sourced goods are recorded directly in `sales.payment_details` (`spot_sourcing: [{ product_id, quantity, unit_cost, payment_source, partner }]`). Daily close reconciliation (`daily-close-breakdown.ts` and `use-daily-close-data.ts`) computes `spotSourcingPayouts` from sales to account for till drawer deductions without contaminating operating expenses.
+- **Coverage:** `client/__tests__/pos-spot-sourcing.test.ts` (6 tests verifying zero expenses rows created, till drawer breakdown accounting, and catalog repricing).
+
+### A-357 — refunding a prescription refill sale clobbered the prescription back to "ready" without restoring the used refill
+- **Fixed:** 2026-11-11, client only, TDD.
+- **Was:** When a sale linked to a prescription was fully refunded, `useProcessReturnMutation` unconditionally set `prescriptions.status = 'ready'`. If the sale was a chronic refill dispense, the refill had previously incremented `prescription_items.refills_used`. Refunding the sale clobbered the prescription to `ready` while leaving `refills_used` unchanged, permanently costing the patient an authorized refill and misrepresenting a completed prescription.
+- **Now:** `revertPrescriptionDispense(prescriptionId, isRefill)` inspects whether the dispense was a refill (`isRefill` flag on sale payment details or `refills_used > 0`). If it was a refill, it decrements `prescription_items.refills_used` by 1 and preserves `status = 'completed'`. Only initial fills (`refills_used === 0`) revert to `status = 'ready'`.
+- **Coverage:** `client/__tests__/pos-prescription-return.test.ts` (4 tests covering initial dispense rollback, partial return completed status preservation, refill return decrementing refills_used, and non-underflow clamping).
+
+### A-356 — refunding a credit sale that the customer already settled evaporated the refund amount entirely
+- **Fixed:** 2026-11-11, client only, TDD.
+- **Was:** In `useProcessReturnMutation`, debt relief on a returned credit sale was calculated as `forgiven = Math.min(owed, creditPortionOfRefund)` where `owed = total_amount - amount_paid`. If the customer had already paid off the credit sale (`amount_paid == total_amount`), `owed = 0` and `forgiven = 0`. The customer received no debt relief, no store credit, and no cash refund despite returning the merchandise.
+- **Now:** When `creditPortionOfRefund > owed`, the surplus represents real money already collected from the customer. Any surplus beyond the sale's remaining debt offsets any other outstanding debt the customer owes across other credit sales (`customers.outstanding_balance`), or remains as refundable credit, while preserving customer balance invariants and recording the full refund in `returns.total_refunded`.
+- **Coverage:** `client/__tests__/returns-credit-settled.test.ts` (4 tests covering zero-balance preservation, multi-sale debt offset, partial settlement prorating, and mixed payment credit refunding).
+
+### A-355 — a soft-deleted staff member's username was only freed in SQLite, causing MySQL duplicate key errors on rehire
+- **Fixed:** 2026-11-11, server only.
+- **Was:** When a staff member was deleted, `base-helpers.ts:softDelete()` freed the username locally by appending `_del_<timestamp>` to `username` and `email` in SQLite. However, sync push sends only `{ id }` for DELETE operations. In MySQL, `User::softDelete()` only stamped `deleted_at`, leaving `username` unmutated. Because MySQL enforces `UNIQUE(store_id, username)` across all rows including soft-deleted ones, hiring a new employee with the same username failed with `1062 Duplicate entry`.
+- **Now:** `User` model's `deleting` Eloquent hook suffixes `username` with `_del_<timestamp>` (and `email` when non-null) upon deletion if not already suffixed, ensuring username credentials are freed in MySQL without clobbering null emails.
+
 ### A-293 — unaccepted local tombstone left permanent diverged on device agreement panel
 - **Fixed:** 2026-11-09, both packages, TDD. GitHub #193.
 - **Was:** When a client resolved a duplicate name collision (`categories`/`suppliers`), or deleted an unaccepted/historical row, it marked the local row `_deleted = 1`. Because the server never accepted that row ID (or hard-deleted it pre-A-281), the server had 0 rows while the till counted the local tombstone (`_version DEFAULT 1`) in its table fingerprint digest. Because the digest counts soft-deleted rows on both sides, this produced a permanent positive `row_delta` (`diverged`) that no `forceFullResync()` could clear.

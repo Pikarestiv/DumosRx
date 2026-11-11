@@ -6,7 +6,7 @@ import { insert, update, query, transaction } from "@/lib/db/local-database";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { restoreReturnedStock } from "@/lib/db/queries/returns";
 import { getCustomerBalance, getCustomerLoyaltyPoints } from "@/lib/db/queries/customers";
-import { updatePrescriptionStatus } from "@/lib/db/queries/prescriptions";
+import { revertPrescriptionDispense } from "@/lib/db/queries/prescriptions";
 import { calculateLoyaltyPointsAfterSale, calculateReturnPointsAdjustment } from "@/lib/utils/loyalty-calculator";
 import type { Sale, SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
 import { getStoredUser } from "@/lib/storage-keys";
@@ -98,10 +98,22 @@ export function useProcessReturnMutation() {
           ...resellerPatch,
         });
 
-        // A full return of a prescription-linked sale undoes the dispense.
+        // A full return of a prescription-linked sale undoes the dispense or rolls back the refill.
         // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-process-return-mutation-ts-L98
         if (sale.prescription_id && allItemsReturned) {
-          await updatePrescriptionStatus(sale.prescription_id, "ready");
+          let isRefill = false;
+          if (sale.payment_details) {
+            try {
+              const details =
+                typeof sale.payment_details === "string"
+                  ? JSON.parse(sale.payment_details)
+                  : sale.payment_details;
+              isRefill = Boolean(details?.is_refill);
+            } catch {
+              // Ignore invalid JSON
+            }
+          }
+          await revertPrescriptionDispense(sale.prescription_id, isRefill);
         }
 
         // If any part of this sale was paid on credit, returning goods must also reduce what the customer owes, otherwise they're still on the hook fo…
@@ -130,20 +142,23 @@ export function useProcessReturnMutation() {
           if (creditFraction > 0) {
             const creditPortionOfRefund = totalRefund * creditFraction;
 
-            // The credit portion of a return is debt forgiveness, not a collection event, but applyCreditPaymentFIFO() computes what a sale still owes as…
+            // The credit portion of a return covers debt forgiveness up to what this sale still owes.
             // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-process-return-mutation-ts-L134
             const owed = Math.max(
               0,
               (sale.total_amount || 0) - (sale.amount_paid || 0),
             );
-            // Cap the debt forgiveness at what this sale actually still owes - crediting the customer's outstanding_balance by the full creditPortionOfRef…
-            // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-process-return-mutation-ts-L147
             const forgiven = Math.min(owed, creditPortionOfRefund);
+            const surplusPaid = creditPortionOfRefund - forgiven;
 
             const balanceRows = await getCustomerBalance(sale.customer_id);
             const currentBalance = balanceRows[0]?.balance || 0;
+            // Any surplus beyond this sale's remaining debt reduces customer balance across other sales
+            const additionalForgiven = Math.min(Math.max(0, currentBalance - forgiven), surplusPaid);
+            const totalDebtForgiven = forgiven + additionalForgiven;
+
             await update("customers", sale.customer_id, {
-              outstanding_balance: roundMoney(Math.max(0, currentBalance - forgiven)),
+              outstanding_balance: roundMoney(Math.max(0, currentBalance - totalDebtForgiven)),
             });
 
             if (forgiven > 0) {

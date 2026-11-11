@@ -118,7 +118,7 @@ describe("POS Spot Sourcing (in-cart external sourcing)", () => {
     expect(batchDeficitCount).toBe(0);
   });
 
-  it("writeSaleTransaction with spot-sourced item paid from cash drawer logs automated cash expense", async () => {
+  it("writeSaleTransaction with spot-sourced item paid from cash drawer records details in sale without creating operating expenses", async () => {
     const saleId = await writeSaleTransaction({
       ...baseSale,
       cart: [spotPipeLine({ quantity: 2, subtotal: 10000, sourcing_partner: "Kiki Hardware Across Street" })],
@@ -152,14 +152,7 @@ describe("POS Spot Sourcing (in-cart external sourcing)", () => {
       "SELECT category, description, amount, payment_method, reference_number FROM expenses WHERE reference_number = 'DRX-SPOT-001'",
     )[0]?.values ?? [];
 
-    expect(expenseRows).toHaveLength(1);
-    expect(expenseRows[0]).toEqual([
-      "Stock Sourcing",
-      "Spot sourced: 2x PVC Pipe 2 inch",
-      9000,
-      "cash",
-      "DRX-SPOT-001",
-    ]);
+    expect(expenseRows).toHaveLength(0);
 
     const movementCount = Number(
       db.exec("SELECT COUNT(*) FROM stock_movements")[0]?.values?.[0]?.[0] ?? -1,
@@ -224,23 +217,18 @@ describe("POS Spot Sourcing (in-cart external sourcing)", () => {
     )[0]?.values?.[0]?.[0];
     expect(Number(p1Movements)).toBe(0);
 
-    const expenses = db.exec(
-      "SELECT amount FROM expenses WHERE reference_number = 'DRX-MIXED-001'",
-    )[0]?.values?.[0]?.[0];
-    expect(Number(expenses)).toBe(4500);
+    const expensesCount = Number(
+      db.exec("SELECT COUNT(*) FROM expenses WHERE reference_number = 'DRX-MIXED-001'")[0]?.values?.[0]?.[0] ?? -1,
+    );
+    expect(expensesCount).toBe(0);
   });
 
-  it("cash drawer spot sourcing counts toward till cash payouts (getCashExpensesForDate) without double-counting in P&L operating expenses", async () => {
-    const {
-      getCashExpensesForDate,
-      getExpensesAttributableToDate,
-      getSmoothedExpensesTotal,
-      getCurrentMonthExpensesByCategory,
-    } = await import("@/lib/db/queries/finance");
+  it("cash drawer spot sourcing is tracked in payment_details for till reconciliation without polluting expenses table", async () => {
+    const { buildNetCashBreakdown } = await import("@/lib/utils/daily-close-breakdown");
     const { getLocalTodayDate } = await import("@/lib/utils");
     const today = getLocalTodayDate();
 
-    await writeSaleTransaction({
+    const saleId = await writeSaleTransaction({
       ...baseSale,
       cart: [spotPipeLine()],
       subtotal: 5000,
@@ -249,23 +237,35 @@ describe("POS Spot Sourcing (in-cart external sourcing)", () => {
       transactionNumber: "DRX-PNL-001",
     });
 
-    const cashDrawerOutflow = await getCashExpensesForDate(today);
-    expect(cashDrawerOutflow).toBe(4500);
+    const saleRow = db.exec(
+      "SELECT payment_details FROM sales WHERE id = '" + saleId + "'",
+    )[0]?.values?.[0]?.[0];
+    const details = JSON.parse(String(saleRow));
+    const spotPayout = details.spot_sourcing.reduce(
+      (sum: number, item: { payment_source: string; unit_cost: number; quantity: number }) =>
+        item.payment_source === "cash_drawer" ? sum + item.unit_cost * item.quantity : sum,
+      0,
+    );
+    expect(spotPayout).toBe(4500);
 
-    const pnlDayExpenses = await getExpensesAttributableToDate(today);
-    expect(pnlDayExpenses).toBe(0);
-
-    const pnlPeriodExpenses = await getSmoothedExpensesTotal({
-      from: `${today}T00:00:00.000Z`,
-      to: `${today}T23:59:59.999Z`,
+    const breakdown = buildNetCashBreakdown({
+      cashSales: 5000,
+      cashRefunds: 0,
+      cashExpenses: 0,
+      spotSourcingPayouts: spotPayout,
+      reportDate: today,
     });
-    expect(pnlPeriodExpenses).toBe(0);
 
-    const pnlByCategory = await getCurrentMonthExpensesByCategory({
-      from: `${today}T00:00:00.000Z`,
-      to: `${today}T23:59:59.999Z`,
+    expect(breakdown.total).toBe(500);
+    expect(breakdown.lines).toContainEqual({
+      label: "Spot-sourced stock purchased",
+      amount: -4500,
     });
-    expect(pnlByCategory).toEqual([]);
+
+    const expenseCount = Number(
+      db.exec("SELECT COUNT(*) FROM expenses")[0]?.values?.[0]?.[0] ?? -1,
+    );
+    expect(expenseCount).toBe(0);
   });
 
   it("buildNewCartItem and repriceCartFromCatalog preserve spot-sourced quantity > 1 and custom sellingPrice override", async () => {

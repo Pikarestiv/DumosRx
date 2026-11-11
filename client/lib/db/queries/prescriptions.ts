@@ -223,6 +223,31 @@ export async function dispensePrescriptionRefill(prescriptionId: string) {
   });
 }
 
+export async function revertPrescriptionDispense(prescriptionId: string, isRefill?: boolean) {
+  const { update } = await import("@/lib/db/local-database");
+  const items = await query<PrescriptionItem>(
+    "SELECT * FROM prescription_items WHERE prescription_id = ? AND _deleted = 0",
+    [prescriptionId]
+  );
+  const hasRefillsUsed = items.some((i) => (i.refills_used || 0) > 0);
+  const shouldRollbackRefill = isRefill || hasRefillsUsed;
+
+  if (shouldRollbackRefill) {
+    for (const item of items) {
+      if ((item.refills_used || 0) > 0) {
+        await update("prescription_items", item.id, {
+          refills_used: Math.max(0, (item.refills_used || 0) - 1),
+        });
+      }
+    }
+  } else {
+    await update("prescriptions", prescriptionId, {
+      status: "ready",
+      dispensed_at: null,
+    });
+  }
+}
+
 /** Prescription items with at least one refill remaining and due today or earlier. */
 export async function getRefillsDue() {
   const storeId = getActiveStoreId();

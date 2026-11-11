@@ -24,6 +24,7 @@ import {
   applySpotSourcingConfig,
   stripSpotSourcingConfig,
   type CartItem,
+  type MarkupType,
   type AddToCartOptions,
   type SpotSourcingConfig,
 } from "./use-pos-cart-store";

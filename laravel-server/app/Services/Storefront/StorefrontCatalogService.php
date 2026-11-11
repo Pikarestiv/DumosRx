@@ -134,7 +134,7 @@ class StorefrontCatalogService
     }
 
     /**
-     * @return LengthAwarePaginator<Product>
+     * @return LengthAwarePaginator<int, Product>
      */
     public function paginateProducts(
         Store $store,

@@ -1856,3 +1856,15 @@ the strip scrolled away. Radix's default keyboard behaviour
 
 The tab's permission gate is "The Sync tab is gated on
 `view_platform_health` (A-290)" above.
+
+## CI & Automated Quality Gates (`checks.yml`)
+
+`web/` runs in `.github/workflows/checks.yml` (`Web — tsc + vitest`) on PRs and
+pushes to `dev`/`main`. The job executes:
+- `npm run lint` (ESLint)
+- `npx tsc --noEmit` (TypeScript typecheck)
+- `npx vitest run` (85 test files, 478 tests)
+
+`deploy-web.yml` gates on `checks.yml` for all code pushes to `main` before
+running `next build` and syncing to FTP (storefront-change repository dispatches
+bypass checks so storefront toggles stay fast).

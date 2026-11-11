@@ -4596,8 +4596,7 @@ migration loop needs a model `@property` (as `store_id`/`user_id` have), and a
 helper that takes or returns a query builder needs a `Builder<Model>` generic.
 Prefer `getAttribute()` over a magic property on a bare `Model`, and
 `->toBase()->get()` for `selectRaw` aggregates. Do not add `@phpstan-ignore`.
-Neither tool runs in `.github/workflows/checks.yml` yet, and that workflow
-gates the deploys.
+`composer analyse` runs in `.github/workflows/checks.yml`, which gates the deploys.
 
 ## Running artisan on the production box (Namecheap shared hosting)
 

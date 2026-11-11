@@ -46,7 +46,7 @@ test.describe('Stock transfer entry point and multi-store lifecycle', () => {
     db.close();
 
     await page.evaluate(async (data) => {
-      await window.restoreDatabase(new Uint8Array(data));
+      await window.restoreDatabase?.(new Uint8Array(data));
     }, rewritten);
 
     await page.reload();

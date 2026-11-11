@@ -35,6 +35,11 @@ jobs:
           cd client
           npm ci --legacy-peer-deps
 
+      - name: Lint
+        run: |
+          cd client
+          npm run lint
+
       - name: Type-check
         run: |
           cd client
@@ -43,6 +48,43 @@ jobs:
       - name: Unit tests
         run: |
           cd client
+          npx vitest run
+
+  web:
+    name: Web — tsc + vitest
+    if: github.event_name != 'pull_request' || github.head_ref != 'dev'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Get latest code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd web
+          npm ci --legacy-peer-deps
+
+      - name: Lint
+        run: |
+          cd web
+          npm run lint
+
+      - name: Type-check
+        run: |
+          cd web
+          npx tsc --noEmit
+
+      - name: Unit tests
+        run: |
+          cd web
           npx vitest run
 
   server:
@@ -65,6 +107,11 @@ jobs:
         run: |
           cd laravel-server
           composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Static analysis
+        run: |
+          cd laravel-server
+          composer run analyse
 
       - name: Prepare test environment
         run: |

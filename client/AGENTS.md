@@ -5917,7 +5917,7 @@ identical work, doubled minutes, and two independent chances for the teardown
 flake above to show a red check on a green suite (which is exactly what
 happened on PR #137).
 
-Both jobs now carry
+All three jobs (`client`, `web`, `server`) carry
 `if: github.event_name != 'pull_request' || github.head_ref != 'dev'`. In a
 called workflow `github.event_name` is the *caller's* event (`push`), so the
 deploy path is unaffected; only the redundant standalone copy skips, and only
@@ -5925,7 +5925,7 @@ for a `dev` head. A PR from any other branch still gets it, since
 `deploy-dev.yml` never runs for those.
 
 **`main`'s branch protection requires the prefixed contexts**
-(`checks / Server — phpunit`, `checks / Client — tsc + vitest`), which only a
+(`checks / Server — phpunit`, `checks / Client — tsc + vitest`, `checks / Web — tsc + vitest`), which only a
 *called* run produces. That is why the standalone copy is the one that gives
 way. It also means a branch that never pushes to `dev` — a hotfix opened
 straight against `main` — produces only the unprefixed contexts and cannot

@@ -28,7 +28,7 @@ export const POS_GUIDES: GuideItem[] = [
     readTime: "2 min read",
     videoDuration: "1:30",
     summary:
-      "Accept multiple payment methods on a single receipt — such as part cash and part transfer — with automatic exact change calculations.",
+      "Accept multiple payment methods on a single receipt (such as part cash and part transfer) with automatic exact change calculations.",
     steps: [
       "Rings up the customer's items in the POS and tap the 'Charge' button.",
       "Select 'Mixed Payment' from the payment options.",

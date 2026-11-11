@@ -47,7 +47,7 @@ export const FINANCE_GUIDES: GuideItem[] = [
     readTime: "2 min read",
     videoDuration: "1:30",
     summary:
-      "Ask questions in plain English directly on your store computer — even with zero internet. The assistant answers questions about sales, low stock, and how to use any feature.",
+      "Ask questions in plain English directly on your store computer, even with zero internet. The assistant answers questions about sales, low stock, and how to use any feature.",
     steps: [
       "Tap the Assistant lightbulb icon in the header or select 'Ask the assistant' from the account menu.",
       "Ask a how-to question (e.g. 'How do I add a product?' or 'How do I run daily close?') to get step-by-step guidance and a direct navigation button.",

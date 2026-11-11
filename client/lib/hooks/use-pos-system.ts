@@ -3,7 +3,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@/lib/context/store-context";
-import { usePOSCart } from "@/lib/hooks/use-pos-cart";
+import { usePOSCart, type SpotSourcingConfig, type Product } from "@/lib/hooks/use-pos-cart";
 import { usePOSPayment } from "@/lib/hooks/use-pos-payment";
 import { useSmartSuggestions } from "@/hooks/use-smart-suggestions";
 import { usePOSProductFilter } from "@/lib/hooks/use-pos-product-filter";
@@ -115,6 +115,7 @@ export function usePOSSystem() {
     markupType,
     setMarkupType,
     updateUnitPrice,
+    updateSpotSourcing,
   } = usePOSCart(products);
   const { canUseSmartSuggestions, canUseLoyaltyProgram, withRestriction, canSellWithoutStock } = useFeatureGate();
   const { suggestions } = useSmartSuggestions(cart, products);
@@ -210,8 +211,32 @@ export function usePOSSystem() {
   const handleEditPrescription = isPrescriptionLocked
     ? () => router.push(`/prescriptions?action=add&edit_rx=${dispensedRxId}`)
     : undefined;
-  // Clears the search after a search-driven add so the next scan/search starts clean, instead of leaving the previous query (and its now-stale n…
-  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-system-ts-L219
+
+  const [spotSourceProduct, setSpotSourceProduct] = useState<Product | null>(null);
+
+  const handleSpotSourceConfirm = useCallback(
+    (config: SpotSourcingConfig, quantity?: number, sellingPrice?: number) => {
+      if (!spotSourceProduct) return;
+      addToCart(
+        sellingPrice !== undefined && sellingPrice !== spotSourceProduct.unit_price
+          ? { ...spotSourceProduct, unit_price: sellingPrice }
+          : spotSourceProduct,
+        {
+          isSpotSourced: true,
+          sourcingCost: config.sourcingCost,
+          paymentSource: config.paymentSource,
+          partner: config.partner,
+        },
+      );
+      if (quantity && quantity > 1) {
+        updateQuantity(spotSourceProduct.id, quantity);
+      }
+      setSpotSourceProduct(null);
+      setSearchTerm((term) => (term.trim().length > 0 ? "" : term));
+    },
+    [spotSourceProduct, addToCart, updateQuantity, setSearchTerm],
+  );
+
   const handleAddToCart = useCallback(
     (product: Parameters<typeof addToCart>[0]) => {
       if (isPrescriptionLocked) {
@@ -220,10 +245,14 @@ export function usePOSSystem() {
         );
         return;
       }
+      if (product.stock <= 0 && !canSellWithoutStock) {
+        setSpotSourceProduct(product);
+        return;
+      }
       addToCart(product);
       setSearchTerm((term) => (term.trim().length > 0 ? "" : term));
     },
-    [isPrescriptionLocked, addToCart],
+    [isPrescriptionLocked, canSellWithoutStock, addToCart, setSearchTerm],
   );
 
   return {
@@ -283,6 +312,7 @@ export function usePOSSystem() {
     markupType,
     setMarkupType,
     updateUnitPrice,
+    updateSpotSourcing,
     canUseSmartSuggestions,
     withRestriction,
     suggestions,
@@ -300,5 +330,8 @@ export function usePOSSystem() {
     isPrescriptionLocked,
     handleEditPrescription,
     handleAddToCart,
+    spotSourceProduct,
+    setSpotSourceProduct,
+    handleSpotSourceConfirm,
   };
 }

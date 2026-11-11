@@ -653,7 +653,7 @@ only ever sign in on the shop's own terminal.
 
 ### Store actions live in one hook, used by two surfaces (2026-10-09)
 
-`hooks/use-store-actions.ts` owns every store-level action: the six mutations,
+`hooks/use-store-actions.ts` owns every store-level action: the mutations,
 the dialog open state, the selected store, and the handler bodies. It returns
 `{ handlers, pendingStoreId, dialogHost }`, which spread straight into
 `StoreRowActions` and `StoreDialogHost`.
@@ -668,6 +668,15 @@ is the only place that mapping belongs.
 `StoreRowActions` takes `trigger`: `"icon"` (default, the fleet row's kebab) or
 `"labelled"` (the detail page's visible "Actions" button). Both carry the same
 `aria-label`, so a test or a screen reader addresses them identically.
+
+- **Till Re-link Code CRM Fallback (2026-11-11)**: When staff at an unlinked till
+  cannot reach the store owner to log in with master credentials or PIN,
+  support/super admins with `impersonate_store` permission can trigger "Generate
+  Till Re-link Code" from the store's action menu. This calls
+  `useGenerateStoreRelinkCodeMutation` (`POST /admin/stores/{id}/relink-code`)
+  and displays `StoreRelinkCodeDialog`. The dialog renders the 8-character
+  single-use code, a 15-minute countdown timer, a quick-copy button, and clear
+  step-by-step instructions for the cashier on the till screen.
 
 ### Admin PWA and the production server switcher (2026-10-07)
 

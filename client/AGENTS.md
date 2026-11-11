@@ -2468,38 +2468,48 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   branch ever wrote a settlement naming a PO; no such row exists on `dev` or
   `main`, so none is read specially.
 
-### External Stock Sourcing (Unlinked Stores & Partner Stores)
+### External Stock Sourcing & POS Spot Sourcing (2026-11-11)
 
-When a store is exhausted of stock and staff collects units from an unlinked
-sister branch (e.g. Branch 2 without computers) or an external partner store
-to satisfy a walk-in customer:
+There are two distinct workflows for selling goods sourced outside the store:
 
-- **Revenue & Profit Recognition:** The transaction belongs to the selling
-  store. The customer pays the selling store's price (e.g. ₦2,000), a receipt
-  prints for ₦2,000, and full revenue is recorded. The agreed sourcing cost
-  owed to the partner/branch (e.g. ₦1,700) is the Cost of Goods Sold (COGS).
-  Gross profit retained = `₦2,000 − ₦1,700 = ₦300`. It is NOT recorded merely
-  as markup, preserving receipt totals, tax compliance, and sales audit trails.
-- **Sourcing via Immediate Purchase:** The supplying store or unlinked branch
-  is added as a `supplier`. Sourcing is entered via **Immediate Purchase**
-  (`createAndReceivePurchaseOrder`), which atomically logs the receipt, creates
-  the batch, and triggers `settleBackordersOnReceipt()`.
-- **Integration with Sell-at-Zero:** If the cashier sells the collected goods
-  before the purchase order paperwork is entered, the sale is recorded under
-  Sell-at-Zero (`allow_sale_without_stock = 1`), logging an owed backorder
-  row. When the Immediate Purchase is entered later, `settleBackordersOnReceipt()`
-  clears the backorder and automatically re-costs the sale's `cost_price` to
-  the agreed sourcing cost.
-- **Settlement & Cash Drawer (Daily Close):**
-  - **Credit (Pay Later):** Immediate Purchase saved with `payment_status = "unpaid"`
-    or `"partial"`. The liability is tracked in the supplier's debt ledger
-    (`getSupplierOutstandingBalance`) until paid. Net Cash Expected in the
-    drawer is unaffected.
-  - **Cash Paid from Till:** When cash leaves the till drawer to pay the runner
-    or supplying store, staff records an **Expense** (Category: "Stock Purchase /
-    Sourcing", Payment Method: "Cash"). `getCashExpensesForDate()` deducts this
-    from Daily Close's `Net Cash Expected`, ensuring the cash counted in drawer
-    reconciles with zero unexplained shortages.
+1. **POS Spot Sourcing (In-Cart On-The-Spot External Sourcing):**
+   Designed for active shop-floor reality where the business owner or manager
+   is off-site and cannot raise purchase orders or reconcile backorders at EOD.
+   When a walk-in customer requests an out-of-stock item, a cashier can run to a
+   neighboring pharmacy or partner shop, buy the units, and ring them up immediately:
+   - **Trigger & UI:** Clicking an out-of-stock product card (when `canSellWithoutStock`
+     is off) or clicking "Source outside" / the "Spot Sourced" badge on a cart line
+     opens `SpotSourceDialog`.
+   - **Sourcing Cost & Margin:** Staff enters the agreed buying cost (e.g. ₦1,700)
+     and selling price (e.g. ₦2,000). The dialog calculates the live unit margin
+     and total gross profit.
+   - **Net Shelf Inventory is Zero:** In `lib/db/queries/inventory-sale-stock.ts`,
+     `isSpotSourced: true` writes `sale_items` with `cost_price = sourcingCost`
+     and immediately returns without deducting `stock_batches` or recording
+     `stock_movements`. No phantom negative stock or owed backorder is created.
+   - **Automated Cash Drawer Reconciliation:** In `lib/hooks/pos-sale-writer.ts`,
+     if `sourcing_payment_source === "cash_drawer"`, an expense row is inserted
+     atomically inside the sale transaction (`category = "Stock Sourcing"`,
+     `payment_method = "cash"`, `reference_number = transactionNumber`).
+     `buildNetCashBreakdown` in `daily-close-breakdown.ts` derives cash drawer
+     deductions directly from cash expenses, ensuring physical drawer cash and
+     Daily Close Net Cash Expected match with zero manual paperwork.
+   - **Owner Credit / External:** If `sourcing_payment_source === "external"`, no
+     drawer expense is created.
+   - **Audit Trail:** The sale's `payment_details.spot_sourcing` persists the
+     structured metadata array, and a summary is appended to `sales.notes`.
+
+2. **Delayed Paperwork & PO Sourcing (Back-office / Bulk):**
+   When physical delivery has arrived or units were taken in bulk from another branch
+   with the intent to enter supplier purchase orders later:
+   - **Revenue & Profit Recognition:** The customer pays the selling store's price
+     (e.g. ₦2,000).
+   - **Sourcing via Immediate Purchase:** Entered via **Immediate Purchase**
+     (`createAndReceivePurchaseOrder`), which atomically logs the receipt, creates
+     the batch, and triggers `settleBackordersOnReceipt()`.
+   - **Integration with Sell-at-Zero:** If sold before paperwork,
+     `allow_sale_without_stock = 1` logs an owed backorder. Entering the PO later
+     settles backorders and re-costs the historical sale lines.
 
 ### Stock quantity reconciliation and the `sync_reconciliation` movement type (2026-10-02)
 

@@ -14,14 +14,15 @@ import {
   calculateTotal,
   roundMoney,
 } from "@/lib/utils/pos-calculations";
-export type { POSProduct as Product } from "@/lib/types/product";
 import type { POSProduct as Product } from "@/lib/types/product";
+export type { POSProduct as Product } from "@/lib/types/product";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import {
   usePOSCartStore,
   repriceCartFromCatalog,
   type CartItem,
-  type MarkupType,
+  type AddToCartOptions,
+  type SpotSourcingConfig,
 } from "./use-pos-cart-store";
 export {
   clearPOSCartStorage,
@@ -30,6 +31,8 @@ export {
   type CartRepricing,
   type MarkupType,
   type RedeemedOption,
+  type AddToCartOptions,
+  type SpotSourcingConfig,
 } from "./use-pos-cart-store";
 
 export function usePOSCart(products: Product[]) {
@@ -155,12 +158,13 @@ export function usePOSCart(products: Product[]) {
       }
 
       const product = products.find((m) => m.id === id);
-      if (product && newQuantity > product.stock) {
+      const currentItem = cart.find((item) => item.id === id);
+      if (product && newQuantity > product.stock && !currentItem?.is_spot_sourced) {
         if (!canSellWithoutStock) {
           toast.warning(formatInsufficientStock(product.stock, canSeeQuantities));
           return;
         }
-        const previous = cart.find((item) => item.id === id)?.quantity ?? 0;
+        const previous = currentItem?.quantity ?? 0;
         if (previous <= product.stock) {
           toast.warning(formatBackorderWarning(product.stock, newQuantity, canSeeQuantities));
         }
@@ -182,11 +186,11 @@ export function usePOSCart(products: Product[]) {
   );
 
   const addToCart = useCallback(
-    (product: Product) => {
+    (product: Product, options?: AddToCartOptions) => {
       const existingItem = cart.find((item) => item.id === product.id);
 
       if (existingItem) {
-        if (canSellWithoutStock || existingItem.quantity < product.stock) {
+        if (canSellWithoutStock || existingItem.is_spot_sourced || existingItem.quantity < product.stock) {
           updateQuantity(product.id, existingItem.quantity + 1);
         } else {
           toast.warning(formatInsufficientStock(product.stock, canSeeQuantities));
@@ -194,21 +198,56 @@ export function usePOSCart(products: Product[]) {
         return;
       }
 
-      if (product.stock > 0 || canSellWithoutStock) {
+      if (product.stock > 0 || canSellWithoutStock || options?.isSpotSourced) {
         const cartItem: CartItem = {
           ...product,
           quantity: 1,
           subtotal: product.unit_price,
           original_unit_price: product.unit_price,
+          ...(options?.isSpotSourced
+            ? {
+                is_spot_sourced: true,
+                sourcing_cost: options.sourcingCost ?? product.cost_price ?? 0,
+                sourcing_payment_source: options.paymentSource ?? "cash_drawer",
+                sourcing_partner: options.partner ?? "",
+              }
+            : {}),
         };
         setCart((prev) => [...prev, cartItem]);
-        if (product.stock > 0) toast.success(`${displayName(product.name)} added to cart`);
-        else toast.warning(formatBackorderWarning(product.stock, 1, canSeeQuantities));
+        if (options?.isSpotSourced) {
+          toast.success(`${displayName(product.name)} added as spot-sourced`);
+        } else if (product.stock > 0) {
+          toast.success(`${displayName(product.name)} added to cart`);
+        } else {
+          toast.warning(formatBackorderWarning(product.stock, 1, canSeeQuantities));
+        }
       } else {
         toast.error("This item is out of stock");
       }
     },
     [cart, setCart, updateQuantity, displayName, canSeeQuantities, canSellWithoutStock],
+  );
+
+  const updateSpotSourcing = useCallback(
+    (id: string, config: SpotSourcingConfig | null) => {
+      setCart((prev) =>
+        prev.map((item) => {
+          if (item.id !== id) return item;
+          if (!config || !config.isSpotSourced) {
+            const { is_spot_sourced, sourcing_cost, sourcing_payment_source, sourcing_partner, ...rest } = item;
+            return rest as CartItem;
+          }
+          return {
+            ...item,
+            is_spot_sourced: true,
+            sourcing_cost: config.sourcingCost ?? item.cost_price ?? 0,
+            sourcing_payment_source: config.paymentSource ?? "cash_drawer",
+            sourcing_partner: config.partner ?? "",
+          };
+        }),
+      );
+    },
+    [setCart],
   );
 
   const updateUnitPrice = useCallback(
@@ -299,6 +338,7 @@ export function usePOSCart(products: Product[]) {
     redeemReward,
     clearRedemption,
     updateUnitPrice,
+    updateSpotSourcing,
     isResellerSale: isHydrated ? isResellerSale : false,
     setIsResellerSale,
     markupType: isHydrated ? markupType : null,

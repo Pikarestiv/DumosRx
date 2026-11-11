@@ -10,6 +10,24 @@ export interface CartItem extends Product {
   quantity: number;
   subtotal: number;
   original_unit_price: number;
+  is_spot_sourced?: boolean;
+  sourcing_cost?: number;
+  sourcing_payment_source?: "cash_drawer" | "external";
+  sourcing_partner?: string;
+}
+
+export interface AddToCartOptions {
+  isSpotSourced?: boolean;
+  sourcingCost?: number;
+  paymentSource?: "cash_drawer" | "external";
+  partner?: string;
+}
+
+export interface SpotSourcingConfig {
+  isSpotSourced: boolean;
+  sourcingCost?: number;
+  paymentSource?: "cash_drawer" | "external";
+  partner?: string;
 }
 
 export interface RedeemedOption {

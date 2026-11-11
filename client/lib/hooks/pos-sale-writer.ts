@@ -75,6 +75,11 @@ export async function writeSaleTransaction({
     // Pre-generated (rather than letting insert() assign one) so every other write this sale makes - line items, stock deduction, credit-balance u…
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-ts-L188
     const newSaleId = generateId();
+    const spotSourcedItems = cart.filter((i) => i.is_spot_sourced);
+    const spotSummary = spotSourcedItems.length > 0
+      ? ` [Spot Sourced: ${spotSourcedItems.map((i) => `${i.quantity}x ${i.name}`).join(", ")}]`
+      : "";
+
     await insert("sales", {
       id: newSaleId,
       transaction_number: transactionNumber,
@@ -120,10 +125,22 @@ export async function writeSaleTransaction({
           paymentMethod === "card" || paymentMethod === "transfer"
             ? selectedAccountId
             : null,
+        ...(spotSourcedItems.length > 0
+          ? {
+              spot_sourcing: spotSourcedItems.map((i) => ({
+                product_id: i.id,
+                product_name: i.name,
+                quantity: i.quantity,
+                unit_cost: i.sourcing_cost ?? i.cost_price ?? 0,
+                payment_source: i.sourcing_payment_source || "cash_drawer",
+                partner: i.sourcing_partner || null,
+              })),
+            }
+          : {}),
       }),
       transaction_date: new Date().toISOString(),
       receipt_printed: 0,
-      notes: saleNote.trim() || "POS Sale",
+      notes: (saleNote.trim() || "POS Sale") + spotSummary,
       prescription_id: dispensedRxId || null,
       is_reseller_sale: isResellerSale ? 1 : 0,
       markup_type: isResellerSale ? markupType : null,
@@ -140,18 +157,55 @@ export async function writeSaleTransaction({
     }, { correlationId: newSaleId });
 
     for (const item of cart) {
-      await recordSaleItemStock({
-        saleId: newSaleId,
-        productId: item.id,
-        quantity: item.quantity,
-        unitPrice: item.unit_price,
-        listPrice: item.original_unit_price,
-        costPrice: item.cost_price || 0,
-        subtotal: item.subtotal,
-        cashierId,
-        correlationId: newSaleId,
-        recordShortfallAsOwed,
-      });
+      if (item.is_spot_sourced) {
+        const sourcingCost = item.sourcing_cost ?? item.cost_price ?? 0;
+        await recordSaleItemStock({
+          saleId: newSaleId,
+          productId: item.id,
+          quantity: item.quantity,
+          unitPrice: item.unit_price,
+          listPrice: item.original_unit_price,
+          costPrice: sourcingCost,
+          subtotal: item.subtotal,
+          cashierId,
+          correlationId: newSaleId,
+          recordShortfallAsOwed: false,
+          isSpotSourced: true,
+        });
+
+        if (item.sourcing_payment_source === "cash_drawer") {
+          const sourcingTotal = roundMoney(sourcingCost * item.quantity);
+          if (sourcingTotal > 0) {
+            await insert("expenses", {
+              id: generateId(),
+              user_id: cashierId,
+              category: "Stock Sourcing",
+              description: `Spot sourced: ${item.quantity}x ${item.name}`,
+              amount: sourcingTotal,
+              date: new Date().toISOString().split("T")[0],
+              payment_method: "cash",
+              vendor_name: item.sourcing_partner || "Spot Sourcing",
+              reference_number: transactionNumber,
+              notes: `Paid from till cash drawer for sale #${transactionNumber}`,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }, { correlationId: newSaleId });
+          }
+        }
+      } else {
+        await recordSaleItemStock({
+          saleId: newSaleId,
+          productId: item.id,
+          quantity: item.quantity,
+          unitPrice: item.unit_price,
+          listPrice: item.original_unit_price,
+          costPrice: item.cost_price || 0,
+          subtotal: item.subtotal,
+          cashierId,
+          correlationId: newSaleId,
+          recordShortfallAsOwed,
+        });
+      }
     }
 
     // Re-read the current balance rather than trusting selectedCustomer (captured when the cashier picked the customer, possibly stale by the time…

@@ -1,0 +1,292 @@
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import initSqlJs, { type Database } from "sql.js";
+
+vi.mock("idb-keyval", () => ({
+  get: vi.fn(() => Promise.resolve(undefined)),
+  set: vi.fn(() => Promise.resolve(undefined)),
+}));
+
+const STORE_ID = "store-spot-1";
+
+describe("POS Spot Sourcing (in-cart external sourcing)", () => {
+  let db: Database;
+  let core: typeof import("@/lib/db/core");
+  let insert: typeof import("@/lib/db/base-helpers").insert;
+  let recordSaleItemStock: typeof import("@/lib/db/queries/inventory-sale-stock").recordSaleItemStock;
+  let writeSaleTransaction: typeof import("@/lib/hooks/pos-sale-writer").writeSaleTransaction;
+
+  beforeAll(async () => {
+    core = await import("@/lib/db/core");
+    ({ insert } = await import("@/lib/db/base-helpers"));
+    ({ recordSaleItemStock } = await import("@/lib/db/queries/inventory-sale-stock"));
+    ({ writeSaleTransaction } = await import("@/lib/hooks/pos-sale-writer"));
+
+    const { SCHEMA_SQL } = await import("@/lib/db/schema");
+    const SQL = await initSqlJs({ locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm") });
+    db = new SQL.Database();
+    db.run(SCHEMA_SQL);
+    const { runSchemaMigrations, makeSqlJsAdapter } = await import("@/lib/db/schema-migrations");
+    await runSchemaMigrations(makeSqlJsAdapter(db));
+    core.__setDatabaseForTesting(db);
+    core.setActiveStoreId(STORE_ID);
+  });
+
+  beforeEach(() => {
+    db.run(
+      `DELETE FROM stock_movements; DELETE FROM stock_batches; DELETE FROM products;
+       DELETE FROM sale_items; DELETE FROM sale_item_batches; DELETE FROM sales;
+       DELETE FROM expenses; DELETE FROM _sync_queue; DELETE FROM audit_logs;`,
+    );
+    db.run(`INSERT INTO products (id, name, selling_price, _deleted, store_id)
+            VALUES ('p1', 'PVC Pipe 2 inch', 5000, 0, '${STORE_ID}')`);
+    db.run(`INSERT INTO products (id, name, selling_price, _deleted, store_id)
+            VALUES ('p2', 'Augmentin 625mg', 3000, 0, '${STORE_ID}')`);
+    db.run(
+      `INSERT INTO stock_batches (id, product_id, batch_number, quantity, cost_price, is_active, _deleted, store_id, created_at, updated_at)
+       VALUES ('b2', 'p2', 'B-p2', 5, 2000, 1, 0, '${STORE_ID}', '2026-11-01', '2026-11-01')`,
+    );
+  });
+
+  it("recordSaleItemStock with isSpotSourced=true bypasses batch deduction and stock movements", async () => {
+    const saleItemId = await recordSaleItemStock({
+      saleId: "sale-spot-1",
+      productId: "p1",
+      quantity: 2,
+      unitPrice: 5000,
+      costPrice: 4500,
+      subtotal: 10000,
+      cashierId: "cashier-1",
+      correlationId: "sale-spot-1",
+      isSpotSourced: true,
+    });
+
+    expect(saleItemId).toBeTruthy();
+
+    const saleItemRows = db.exec(
+      "SELECT product_id, quantity, unit_price, cost_price, total_price, stock_batch_id FROM sale_items WHERE sale_id = 'sale-spot-1'",
+    )[0]?.values ?? [];
+
+    expect(saleItemRows).toHaveLength(1);
+    expect(saleItemRows[0]).toEqual(["p1", 2, 5000, 4500, 10000, null]);
+
+    const movementCount = Number(
+      db.exec("SELECT COUNT(*) FROM stock_movements")[0]?.values?.[0]?.[0] ?? -1,
+    );
+    expect(movementCount).toBe(0);
+
+    const batchDeficitCount = Number(
+      db.exec("SELECT COUNT(*) FROM stock_batches WHERE quantity < 0")[0]?.values?.[0]?.[0] ?? -1,
+    );
+    expect(batchDeficitCount).toBe(0);
+  });
+
+  it("writeSaleTransaction with spot-sourced item paid from cash drawer logs automated cash expense", async () => {
+    const saleId = await writeSaleTransaction({
+      cart: [
+        {
+          id: "p1",
+          name: "PVC Pipe 2 inch",
+          generic_name: "",
+          strength: "",
+          unit_price: 5000,
+          original_unit_price: 5000,
+          stock: 0,
+          quantity: 2,
+          subtotal: 10000,
+          is_spot_sourced: true,
+          sourcing_cost: 4500,
+          sourcing_payment_source: "cash_drawer",
+          sourcing_partner: "Kiki Hardware Across Street",
+        },
+      ],
+      subtotal: 10000,
+      tax: 0,
+      total: 10000,
+      discount: 0,
+      rawDiscount: 0,
+      discountType: "fixed",
+      redeemedOption: null,
+      selectedCustomer: null,
+      canUseLoyaltyProgram: false,
+      isResellerSale: false,
+      markupType: null,
+      resellerCommissionPercentage: 0,
+      resellerMarkup: 0,
+      resellerCommissionAmount: 0,
+      paymentMethod: "cash",
+      amountPaid: "10000",
+      paymentSplits: [],
+      selectedAccountId: "",
+      saleNote: "Customer quick walk-in",
+      isRefillDispense: false,
+      cashierId: "cashier-1",
+      transactionNumber: "DRX-SPOT-001",
+      earnedPoints: 0,
+    });
+
+    expect(saleId).toBeTruthy();
+
+    const saleRows = db.exec(
+      "SELECT transaction_number, total_amount, notes, payment_details FROM sales WHERE id = '" + saleId + "'",
+    )[0]?.values ?? [];
+    expect(saleRows).toHaveLength(1);
+    expect(saleRows[0][0]).toBe("DRX-SPOT-001");
+    expect(String(saleRows[0][2])).toContain("Spot Sourced: 2x PVC Pipe 2 inch");
+
+    const paymentDetails = JSON.parse(String(saleRows[0][3]));
+    expect(paymentDetails.spot_sourcing).toHaveLength(1);
+    expect(paymentDetails.spot_sourcing[0]).toMatchObject({
+      product_id: "p1",
+      quantity: 2,
+      unit_cost: 4500,
+      payment_source: "cash_drawer",
+      partner: "Kiki Hardware Across Street",
+    });
+
+    const expenseRows = db.exec(
+      "SELECT category, description, amount, payment_method, reference_number FROM expenses WHERE reference_number = 'DRX-SPOT-001'",
+    )[0]?.values ?? [];
+
+    expect(expenseRows).toHaveLength(1);
+    expect(expenseRows[0]).toEqual([
+      "Stock Sourcing",
+      "Spot sourced: 2x PVC Pipe 2 inch",
+      9000,
+      "cash",
+      "DRX-SPOT-001",
+    ]);
+
+    const movementCount = Number(
+      db.exec("SELECT COUNT(*) FROM stock_movements")[0]?.values?.[0]?.[0] ?? -1,
+    );
+    expect(movementCount).toBe(0);
+  });
+
+  it("writeSaleTransaction with spot-sourced item paid via external credit does NOT log cash drawer expense", async () => {
+    const saleId = await writeSaleTransaction({
+      cart: [
+        {
+          id: "p1",
+          name: "PVC Pipe 2 inch",
+          generic_name: "",
+          strength: "",
+          unit_price: 5000,
+          original_unit_price: 5000,
+          stock: 0,
+          quantity: 1,
+          subtotal: 5000,
+          is_spot_sourced: true,
+          sourcing_cost: 4500,
+          sourcing_payment_source: "external",
+          sourcing_partner: "Neighbour Store",
+        },
+      ],
+      subtotal: 5000,
+      tax: 0,
+      total: 5000,
+      discount: 0,
+      rawDiscount: 0,
+      discountType: "fixed",
+      redeemedOption: null,
+      selectedCustomer: null,
+      canUseLoyaltyProgram: false,
+      isResellerSale: false,
+      markupType: null,
+      resellerCommissionPercentage: 0,
+      resellerMarkup: 0,
+      resellerCommissionAmount: 0,
+      paymentMethod: "cash",
+      amountPaid: "5000",
+      paymentSplits: [],
+      selectedAccountId: "",
+      saleNote: "",
+      isRefillDispense: false,
+      cashierId: "cashier-1",
+      transactionNumber: "DRX-SPOT-002",
+      earnedPoints: 0,
+    });
+
+    expect(saleId).toBeTruthy();
+
+    const expenseRows = db.exec(
+      "SELECT COUNT(*) FROM expenses WHERE reference_number = 'DRX-SPOT-002'",
+    )[0]?.values ?? [];
+    expect(Number(expenseRows[0][0])).toBe(0);
+
+    const saleItemRows = db.exec(
+      "SELECT cost_price FROM sale_items WHERE sale_id = '" + saleId + "'",
+    )[0]?.values ?? [];
+    expect(saleItemRows[0][0]).toBe(4500);
+  });
+
+  it("mixed cart: shelf stock item deducts inventory, spot-sourced item does not", async () => {
+    await writeSaleTransaction({
+      cart: [
+        {
+          id: "p2",
+          name: "Augmentin 625mg",
+          generic_name: "",
+          strength: "",
+          unit_price: 3000,
+          original_unit_price: 3000,
+          stock: 5,
+          quantity: 2,
+          subtotal: 6000,
+          cost_price: 2000,
+        },
+        {
+          id: "p1",
+          name: "PVC Pipe 2 inch",
+          generic_name: "",
+          strength: "",
+          unit_price: 5000,
+          original_unit_price: 5000,
+          stock: 0,
+          quantity: 1,
+          subtotal: 5000,
+          is_spot_sourced: true,
+          sourcing_cost: 4500,
+          sourcing_payment_source: "cash_drawer",
+        },
+      ],
+      subtotal: 11000,
+      tax: 0,
+      total: 11000,
+      discount: 0,
+      rawDiscount: 0,
+      discountType: "fixed",
+      redeemedOption: null,
+      selectedCustomer: null,
+      canUseLoyaltyProgram: false,
+      isResellerSale: false,
+      markupType: null,
+      resellerCommissionPercentage: 0,
+      resellerMarkup: 0,
+      resellerCommissionAmount: 0,
+      paymentMethod: "cash",
+      amountPaid: "11000",
+      paymentSplits: [],
+      selectedAccountId: "",
+      saleNote: "",
+      isRefillDispense: false,
+      cashierId: "cashier-1",
+      transactionNumber: "DRX-MIXED-001",
+      earnedPoints: 0,
+    });
+
+    const p2RemainingStock = Number(
+      db.exec("SELECT quantity FROM stock_batches WHERE id = 'b2'")[0]?.values?.[0]?.[0] ?? -1,
+    );
+    expect(p2RemainingStock).toBe(3);
+
+    const p1Movements = db.exec(
+      "SELECT COUNT(*) FROM stock_movements WHERE product_id = 'p1'",
+    )[0]?.values?.[0]?.[0];
+    expect(Number(p1Movements)).toBe(0);
+
+    const expenses = db.exec(
+      "SELECT amount FROM expenses WHERE reference_number = 'DRX-MIXED-001'",
+    )[0]?.values?.[0]?.[0];
+    expect(Number(expenses)).toBe(4500);
+  });
+});

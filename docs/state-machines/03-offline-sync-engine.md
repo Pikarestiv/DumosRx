@@ -109,3 +109,4 @@ SELECT table_name, action, attempts, last_error, count(*)
 FROM _sync_queue 
 GROUP BY table_name, action, attempts, last_error;
 ```
+

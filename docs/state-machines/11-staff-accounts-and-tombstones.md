@@ -109,3 +109,4 @@ FROM sales s
 LEFT JOIN users u ON u.id = s.user_id
 WHERE u.id IS NULL;
 ```
+

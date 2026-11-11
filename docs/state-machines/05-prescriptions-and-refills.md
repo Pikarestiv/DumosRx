@@ -113,3 +113,4 @@ SELECT id, prescription_number, status, dispensed_at, created_at
 FROM prescriptions
 WHERE status IN ('dispensed', 'completed') AND dispensed_at IS NULL;
 ```
+

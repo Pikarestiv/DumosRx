@@ -101,3 +101,4 @@ SELECT id, store_id, name, completed_at, submitted_stock_audit_id
 FROM audit_sessions
 WHERE status = 'completed' AND submitted_stock_audit_id IS NULL;
 ```
+

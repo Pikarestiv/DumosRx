@@ -110,3 +110,4 @@ LEFT JOIN (
 ) payments_total ON payments_total.customer_id = c.id
 WHERE ABS(c.outstanding_balance - (COALESCE(sales_total.credit_sum, 0) - COALESCE(payments_total.paid_sum, 0))) > 0.01;
 ```
+

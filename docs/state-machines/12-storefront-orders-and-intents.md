@@ -106,3 +106,4 @@ FROM online_orders oo
 LEFT JOIN storefront_payment_intents spi ON spi.reference = oo.paystack_reference
 WHERE oo.payment_method = 'paystack' AND oo.payment_status = 'paid' AND (spi.id IS NULL OR spi.status != 'consumed');
 ```
+

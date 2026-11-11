@@ -114,3 +114,4 @@ FROM stores s
 JOIN subscriptions sub ON sub.store_id = s.id
 WHERE s.status = 'Suspended' AND sub.status = 'active';
 ```
+

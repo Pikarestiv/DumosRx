@@ -107,3 +107,4 @@ WHERE sm.movement_type = 'sale'
   AND json_extract(s.payment_details, '$.spot_sourcing') IS NOT NULL
   AND sm.stock_batch_id IS NULL;
 ```
+

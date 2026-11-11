@@ -112,3 +112,4 @@ FROM purchase_orders po
 JOIN stock_movements sm ON sm.reference_id = po.id AND sm.reference_type = 'purchase_order'
 WHERE po.status = 'draft';
 ```
+

@@ -104,3 +104,4 @@ FROM sales
 WHERE is_reseller_sale = 1 AND reseller_commission_owed_back > 0
 GROUP BY reseller_agent_id;
 ```
+

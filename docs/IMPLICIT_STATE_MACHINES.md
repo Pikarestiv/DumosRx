@@ -68,3 +68,4 @@ This guide catalogs the **12 core implicit state machines** governing DumosRx, t
    - Run offline partition tests: mutate on two disconnected client instances, reconnect, verify conflict resolution and queue settling.
 4. **Read-Only Inspection Assertion**:
    - Verify that enabling `dumos_till_inspection` reliably causes `assertWritable()` to abort any write operation before touching SQLite.
+

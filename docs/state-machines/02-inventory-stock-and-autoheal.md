@@ -109,3 +109,4 @@ WHERE sm._deleted = 0
 GROUP BY sm.stock_batch_id
 HAVING net_balance < 0;
 ```
+

@@ -113,3 +113,4 @@ SELECT id, admin_id, label, last_used_at, revoked_at
 FROM admin_till_codes
 WHERE revoked_at IS NOT NULL;
 ```
+

@@ -2484,23 +2484,33 @@ There are two distinct workflows for selling goods sourced outside the store:
    is off-site and cannot raise purchase orders or reconcile backorders at EOD.
    When a walk-in customer requests an out-of-stock item, a cashier can run to a
    neighboring pharmacy or partner shop, buy the units, and ring them up immediately:
-   - **Trigger & UI:** Clicking an out-of-stock product card (when `canSellWithoutStock`
-     is off) or clicking "Source outside" / the "Spot Sourced" badge on a cart line
-     opens `SpotSourceDialog`.
-   - **Sourcing Cost & Margin:** Staff enters the agreed buying cost (e.g. ₦1,700)
-     and selling price (e.g. ₦2,000). The dialog calculates the live unit margin
-     and total gross profit.
+   - **Trigger & UI:** Clicking or barcode-scanning an out-of-stock product (when
+     `canSellWithoutStock` is off) or clicking "Source outside" / the "Spot Sourced"
+     badge on a cart line opens `SpotSourceDialog`.
+   - **Sourcing Cost, Selling Price & Margin:** Staff enters the agreed buying cost
+     (e.g. ₦1,700), quantity, and selling price (e.g. ₦2,000). `buildNewCartItem`
+     and `applySpotSourcingConfig` keep `original_unit_price` pinned to the catalog
+     price so `repriceCartFromCatalog` does not overwrite a custom spot-sourced
+     selling price. Reverting a spot-sourced cart line to shelf (`stripSpotSourcingConfig`)
+     clamps quantity to available shelf stock (or removes the item if `stock <= 0`
+     and `!canSellWithoutStock`) and resets `unit_price` to `original_unit_price`.
+     Held transactions (`use-pos-held-transactions.ts`) preserve all spot-sourcing
+     fields and custom unit prices when recalled.
    - **Net Shelf Inventory is Zero:** In `lib/db/queries/inventory-sale-stock.ts`,
      `isSpotSourced: true` writes `sale_items` with `cost_price = sourcingCost`
      and immediately returns without deducting `stock_batches` or recording
      `stock_movements`. No phantom negative stock or owed backorder is created.
-   - **Automated Cash Drawer Reconciliation:** In `lib/hooks/pos-sale-writer.ts`,
-     if `sourcing_payment_source === "cash_drawer"`, an expense row is inserted
-     atomically inside the sale transaction (`category = "Stock Sourcing"`,
-     `payment_method = "cash"`, `reference_number = transactionNumber`).
-     `buildNetCashBreakdown` in `daily-close-breakdown.ts` derives cash drawer
-     deductions directly from cash expenses, ensuring physical drawer cash and
-     Daily Close Net Cash Expected match with zero manual paperwork.
+   - **Automated Cash Drawer Reconciliation Without P&L Double-Counting:** In
+     `lib/hooks/pos-sale-writer.ts`, if `sourcing_payment_source === "cash_drawer"`,
+     an expense row is inserted atomically inside the sale transaction
+     (`category = SPOT_SOURCING_EXPENSE_CATEGORY` (`"Stock Sourcing"`),
+     `payment_method = "cash"`, `date = getLocalTodayDate()`,
+     `reference_number = transactionNumber`). `getCashExpensesForDate` includes this
+     row so Daily Close `Net Cash Expected` deducts the physical cash taken from the
+     drawer, while P&L operating expense queries (`getSmoothedExpensesTotal`,
+     `getCurrentMonthExpensesByCategory`, `getExpensesAttributableToDate`, and
+     `getSmoothedExpensesByMonth`) explicitly exclude `category = 'Stock Sourcing'`
+     because the sourcing cost is already accounted for in COGS (`sale_items.cost_price`).
    - **Owner Credit / External:** If `sourcing_payment_source === "external"`, no
      drawer expense is created.
    - **Audit Trail:** The sale's `payment_details.spot_sourcing` persists the

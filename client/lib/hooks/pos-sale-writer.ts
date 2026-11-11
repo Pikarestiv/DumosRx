@@ -3,6 +3,8 @@ import { generateId } from "@/lib/db/core";
 import { getCustomerBalance } from "@/lib/db/queries/customers";
 import { recordSaleItemStock } from "@/lib/db/queries/inventory";
 import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/queries/prescriptions";
+import { SPOT_SOURCING_EXPENSE_CATEGORY } from "@/lib/db/queries/finance";
+import { getLocalTodayDate } from "@/lib/utils";
 import { applyLoyaltyPointsForSale, type PaymentMethod, type PaymentSplit } from "./use-pos-payment-helpers";
 import { calculateTaxPercentage, calculateMixedAmountPaid, calculateMixedChangeDue, calculateSalePaymentStatus, calculateMaxAllowedCreditSplit, roundMoney } from "@/lib/utils/pos-calculations";
 import type { CartItem, RedeemedOption } from "./use-pos-cart-store";
@@ -179,10 +181,10 @@ export async function writeSaleTransaction({
             await insert("expenses", {
               id: generateId(),
               user_id: cashierId,
-              category: "Stock Sourcing",
+              category: SPOT_SOURCING_EXPENSE_CATEGORY,
               description: `Spot sourced: ${item.quantity}x ${item.name}`,
               amount: sourcingTotal,
-              date: new Date().toISOString().split("T")[0],
+              date: getLocalTodayDate(),
               payment_method: "cash",
               vendor_name: item.sourcing_partner || "Spot Sourcing",
               reference_number: transactionNumber,

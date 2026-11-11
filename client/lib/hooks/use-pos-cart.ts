@@ -20,6 +20,9 @@ import { useHydrated } from "@/lib/hooks/use-hydrated";
 import {
   usePOSCartStore,
   repriceCartFromCatalog,
+  buildNewCartItem,
+  applySpotSourcingConfig,
+  stripSpotSourcingConfig,
   type CartItem,
   type AddToCartOptions,
   type SpotSourcingConfig,
@@ -53,8 +56,6 @@ export function usePOSCart(products: Product[]) {
   const setMarkupType = usePOSCartStore((state) => state.setMarkupType);
   const isHydrated = useHydrated();
 
-  // A manual discount edit and a loyalty redemption share the same discount slot (by design, to keep a single source of truth for "the" discount…
-  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L170
   const setDiscount = useCallback(
     (value: number) => {
       setStoreDiscount(value);
@@ -89,8 +90,6 @@ export function usePOSCart(products: Product[]) {
     setRedeemedOption(null);
   }, [setStoreDiscount, setRedeemedOption]);
 
-  // Re-price against the catalog rather than at checkout:
-  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L212
   useEffect(() => {
     if (products.length === 0) return;
     const { cart: repriced, repricedNames } = repriceCartFromCatalog(cart, products);
@@ -103,8 +102,6 @@ export function usePOSCart(products: Product[]) {
     }
   }, [products, cart, setCart]);
 
-  // A redemption already staged in cart state can outlive the gate that allowed it — a plan downgrade, or an admin flipping the store's on/off t…
-  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L232
   useEffect(() => {
     if (!canUseLoyaltyProgram && redeemedOption) {
       clearRedemption();
@@ -117,8 +114,6 @@ export function usePOSCart(products: Product[]) {
     () => calculateDiscountAmount(subtotal, discount, discountType),
     [subtotal, discount, discountType]
   );
-  // VAT must be charged on the net-of-discount amount (this covers loyalty redemptions too, since they share this same discount slot — see redee…
-  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L250
   const tax = useMemo(
     () => calculateTax(Math.max(0, subtotal - calculatedDiscount), vatPercentage),
     [subtotal, calculatedDiscount, vatPercentage]
@@ -135,8 +130,6 @@ export function usePOSCart(products: Product[]) {
       const removed = cart.find((item) => item.id === id);
       setCart((prev) => prev.filter((item) => item.id !== id));
       if (!removed) return;
-      // A swipe-to-remove is easy to trigger by accident while scrolling the
-      // cart on a phone, so every removal is reversible rather than silent.
       toast(`${displayName(removed.name)} removed from cart`, {
         action: {
           label: "Undo",
@@ -190,6 +183,24 @@ export function usePOSCart(products: Product[]) {
       const existingItem = cart.find((item) => item.id === product.id);
 
       if (existingItem) {
+        if (options?.isSpotSourced) {
+          setCart((prev) =>
+            prev.map((item) =>
+              item.id === product.id
+                ? applySpotSourcingConfig(item, {
+                    isSpotSourced: true,
+                    sourcingCost: options.sourcingCost,
+                    paymentSource: options.paymentSource,
+                    partner: options.partner,
+                    quantity: options.quantity ?? item.quantity + 1,
+                    sellingPrice: options.sellingPrice,
+                  })
+                : item,
+            ),
+          );
+          toast.success(`${displayName(product.name)} added as spot-sourced`);
+          return;
+        }
         if (canSellWithoutStock || existingItem.is_spot_sourced || existingItem.quantity < product.stock) {
           updateQuantity(product.id, existingItem.quantity + 1);
         } else {
@@ -199,27 +210,14 @@ export function usePOSCart(products: Product[]) {
       }
 
       if (product.stock > 0 || canSellWithoutStock || options?.isSpotSourced) {
-        const cartItem: CartItem = {
-          ...product,
-          quantity: 1,
-          subtotal: product.unit_price,
-          original_unit_price: product.unit_price,
-          ...(options?.isSpotSourced
-            ? {
-                is_spot_sourced: true,
-                sourcing_cost: options.sourcingCost ?? product.cost_price ?? 0,
-                sourcing_payment_source: options.paymentSource ?? "cash_drawer",
-                sourcing_partner: options.partner ?? "",
-              }
-            : {}),
-        };
+        const cartItem = buildNewCartItem(product, options);
         setCart((prev) => [...prev, cartItem]);
         if (options?.isSpotSourced) {
           toast.success(`${displayName(product.name)} added as spot-sourced`);
         } else if (product.stock > 0) {
           toast.success(`${displayName(product.name)} added to cart`);
         } else {
-          toast.warning(formatBackorderWarning(product.stock, 1, canSeeQuantities));
+          toast.warning(formatBackorderWarning(product.stock, cartItem.quantity, canSeeQuantities));
         }
       } else {
         toast.error("This item is out of stock");
@@ -230,24 +228,32 @@ export function usePOSCart(products: Product[]) {
 
   const updateSpotSourcing = useCallback(
     (id: string, config: SpotSourcingConfig | null) => {
+      if (!config || !config.isSpotSourced) {
+        const product = products.find((p) => p.id === id);
+        const currentItem = cart.find((item) => item.id === id);
+        const availableStock = product?.stock ?? currentItem?.stock ?? 0;
+        if (!canSellWithoutStock && availableStock <= 0) {
+          setCart((prev) => prev.filter((item) => item.id !== id));
+          toast.info(
+            `${displayName(currentItem?.name || product?.name || "Item")} removed from cart (no shelf stock available)`,
+          );
+          return;
+        }
+        setCart((prev) =>
+          prev.map((item) =>
+            item.id === id
+              ? stripSpotSourcingConfig(item, availableStock, canSellWithoutStock, isResellerSale)
+              : item,
+          ),
+        );
+        return;
+      }
+
       setCart((prev) =>
-        prev.map((item) => {
-          if (item.id !== id) return item;
-          if (!config || !config.isSpotSourced) {
-            const { is_spot_sourced, sourcing_cost, sourcing_payment_source, sourcing_partner, ...rest } = item;
-            return rest as CartItem;
-          }
-          return {
-            ...item,
-            is_spot_sourced: true,
-            sourcing_cost: config.sourcingCost ?? item.cost_price ?? 0,
-            sourcing_payment_source: config.paymentSource ?? "cash_drawer",
-            sourcing_partner: config.partner ?? "",
-          };
-        }),
+        prev.map((item) => (item.id === id ? applySpotSourcingConfig(item, config) : item)),
       );
     },
-    [setCart],
+    [products, cart, setCart, canSellWithoutStock, isResellerSale, displayName],
   );
 
   const updateUnitPrice = useCallback(
@@ -297,26 +303,15 @@ export function usePOSCart(products: Product[]) {
       restoredMarkup?: { isResellerSale: boolean; markupType: MarkupType | null },
     ) => {
       setCart(items);
-      // A held transaction never persisted a redemption (only its resulting discount amount), so any redemption tag from before this restore is now…
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L393
       setRedeemedOption(null);
       if (restoredDiscount !== undefined) setStoreDiscount(restoredDiscount);
       if (restoredDiscountType !== undefined) setStoreDiscountType(restoredDiscountType);
-      // The raw store setter, not setIsResellerSale:
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L399
       if (restoredMarkup) {
         setStoreIsResellerSale(restoredMarkup.isResellerSale);
         setMarkupType(restoredMarkup.markupType);
       }
     },
-    [
-      setCart,
-      setRedeemedOption,
-      setStoreDiscount,
-      setStoreDiscountType,
-      setStoreIsResellerSale,
-      setMarkupType,
-    ],
+    [setCart, setRedeemedOption, setStoreDiscount, setStoreDiscountType, setStoreIsResellerSale, setMarkupType],
   );
 
   return {

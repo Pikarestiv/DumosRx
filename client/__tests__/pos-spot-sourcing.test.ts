@@ -8,6 +8,44 @@ vi.mock("idb-keyval", () => ({
 
 const STORE_ID = "store-spot-1";
 
+const baseSale = {
+  tax: 0,
+  discount: 0,
+  rawDiscount: 0,
+  discountType: "fixed" as const,
+  redeemedOption: null,
+  selectedCustomer: null,
+  canUseLoyaltyProgram: false,
+  isResellerSale: false,
+  markupType: null,
+  resellerCommissionPercentage: 0,
+  resellerMarkup: 0,
+  resellerCommissionAmount: 0,
+  paymentMethod: "cash" as const,
+  paymentSplits: [],
+  selectedAccountId: "",
+  saleNote: "",
+  isRefillDispense: false,
+  cashierId: "cashier-1",
+  earnedPoints: 0,
+};
+
+const spotPipeLine = (overrides: Record<string, unknown> = {}) => ({
+  id: "p1",
+  name: "PVC Pipe 2 inch",
+  generic_name: "",
+  strength: "",
+  unit_price: 5000,
+  original_unit_price: 5000,
+  stock: 0,
+  quantity: 1,
+  subtotal: 5000,
+  is_spot_sourced: true,
+  sourcing_cost: 4500,
+  sourcing_payment_source: "cash_drawer" as const,
+  ...overrides,
+});
+
 describe("POS Spot Sourcing (in-cart external sourcing)", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
@@ -82,46 +120,13 @@ describe("POS Spot Sourcing (in-cart external sourcing)", () => {
 
   it("writeSaleTransaction with spot-sourced item paid from cash drawer logs automated cash expense", async () => {
     const saleId = await writeSaleTransaction({
-      cart: [
-        {
-          id: "p1",
-          name: "PVC Pipe 2 inch",
-          generic_name: "",
-          strength: "",
-          unit_price: 5000,
-          original_unit_price: 5000,
-          stock: 0,
-          quantity: 2,
-          subtotal: 10000,
-          is_spot_sourced: true,
-          sourcing_cost: 4500,
-          sourcing_payment_source: "cash_drawer",
-          sourcing_partner: "Kiki Hardware Across Street",
-        },
-      ],
+      ...baseSale,
+      cart: [spotPipeLine({ quantity: 2, subtotal: 10000, sourcing_partner: "Kiki Hardware Across Street" })],
       subtotal: 10000,
-      tax: 0,
       total: 10000,
-      discount: 0,
-      rawDiscount: 0,
-      discountType: "fixed",
-      redeemedOption: null,
-      selectedCustomer: null,
-      canUseLoyaltyProgram: false,
-      isResellerSale: false,
-      markupType: null,
-      resellerCommissionPercentage: 0,
-      resellerMarkup: 0,
-      resellerCommissionAmount: 0,
-      paymentMethod: "cash",
       amountPaid: "10000",
-      paymentSplits: [],
-      selectedAccountId: "",
       saleNote: "Customer quick walk-in",
-      isRefillDispense: false,
-      cashierId: "cashier-1",
       transactionNumber: "DRX-SPOT-001",
-      earnedPoints: 0,
     });
 
     expect(saleId).toBeTruthy();
@@ -164,46 +169,12 @@ describe("POS Spot Sourcing (in-cart external sourcing)", () => {
 
   it("writeSaleTransaction with spot-sourced item paid via external credit does NOT log cash drawer expense", async () => {
     const saleId = await writeSaleTransaction({
-      cart: [
-        {
-          id: "p1",
-          name: "PVC Pipe 2 inch",
-          generic_name: "",
-          strength: "",
-          unit_price: 5000,
-          original_unit_price: 5000,
-          stock: 0,
-          quantity: 1,
-          subtotal: 5000,
-          is_spot_sourced: true,
-          sourcing_cost: 4500,
-          sourcing_payment_source: "external",
-          sourcing_partner: "Neighbour Store",
-        },
-      ],
+      ...baseSale,
+      cart: [spotPipeLine({ sourcing_payment_source: "external", sourcing_partner: "Neighbour Store" })],
       subtotal: 5000,
-      tax: 0,
       total: 5000,
-      discount: 0,
-      rawDiscount: 0,
-      discountType: "fixed",
-      redeemedOption: null,
-      selectedCustomer: null,
-      canUseLoyaltyProgram: false,
-      isResellerSale: false,
-      markupType: null,
-      resellerCommissionPercentage: 0,
-      resellerMarkup: 0,
-      resellerCommissionAmount: 0,
-      paymentMethod: "cash",
       amountPaid: "5000",
-      paymentSplits: [],
-      selectedAccountId: "",
-      saleNote: "",
-      isRefillDispense: false,
-      cashierId: "cashier-1",
       transactionNumber: "DRX-SPOT-002",
-      earnedPoints: 0,
     });
 
     expect(saleId).toBeTruthy();
@@ -221,6 +192,7 @@ describe("POS Spot Sourcing (in-cart external sourcing)", () => {
 
   it("mixed cart: shelf stock item deducts inventory, spot-sourced item does not", async () => {
     await writeSaleTransaction({
+      ...baseSale,
       cart: [
         {
           id: "p2",
@@ -234,44 +206,12 @@ describe("POS Spot Sourcing (in-cart external sourcing)", () => {
           subtotal: 6000,
           cost_price: 2000,
         },
-        {
-          id: "p1",
-          name: "PVC Pipe 2 inch",
-          generic_name: "",
-          strength: "",
-          unit_price: 5000,
-          original_unit_price: 5000,
-          stock: 0,
-          quantity: 1,
-          subtotal: 5000,
-          is_spot_sourced: true,
-          sourcing_cost: 4500,
-          sourcing_payment_source: "cash_drawer",
-        },
+        spotPipeLine(),
       ],
       subtotal: 11000,
-      tax: 0,
       total: 11000,
-      discount: 0,
-      rawDiscount: 0,
-      discountType: "fixed",
-      redeemedOption: null,
-      selectedCustomer: null,
-      canUseLoyaltyProgram: false,
-      isResellerSale: false,
-      markupType: null,
-      resellerCommissionPercentage: 0,
-      resellerMarkup: 0,
-      resellerCommissionAmount: 0,
-      paymentMethod: "cash",
       amountPaid: "11000",
-      paymentSplits: [],
-      selectedAccountId: "",
-      saleNote: "",
-      isRefillDispense: false,
-      cashierId: "cashier-1",
       transactionNumber: "DRX-MIXED-001",
-      earnedPoints: 0,
     });
 
     const p2RemainingStock = Number(
@@ -288,5 +228,100 @@ describe("POS Spot Sourcing (in-cart external sourcing)", () => {
       "SELECT amount FROM expenses WHERE reference_number = 'DRX-MIXED-001'",
     )[0]?.values?.[0]?.[0];
     expect(Number(expenses)).toBe(4500);
+  });
+
+  it("cash drawer spot sourcing counts toward till cash payouts (getCashExpensesForDate) without double-counting in P&L operating expenses", async () => {
+    const {
+      getCashExpensesForDate,
+      getExpensesAttributableToDate,
+      getSmoothedExpensesTotal,
+      getCurrentMonthExpensesByCategory,
+    } = await import("@/lib/db/queries/finance");
+    const { getLocalTodayDate } = await import("@/lib/utils");
+    const today = getLocalTodayDate();
+
+    await writeSaleTransaction({
+      ...baseSale,
+      cart: [spotPipeLine()],
+      subtotal: 5000,
+      total: 5000,
+      amountPaid: "5000",
+      transactionNumber: "DRX-PNL-001",
+    });
+
+    const cashDrawerOutflow = await getCashExpensesForDate(today);
+    expect(cashDrawerOutflow).toBe(4500);
+
+    const pnlDayExpenses = await getExpensesAttributableToDate(today);
+    expect(pnlDayExpenses).toBe(0);
+
+    const pnlPeriodExpenses = await getSmoothedExpensesTotal({
+      from: `${today}T00:00:00.000Z`,
+      to: `${today}T23:59:59.999Z`,
+    });
+    expect(pnlPeriodExpenses).toBe(0);
+
+    const pnlByCategory = await getCurrentMonthExpensesByCategory({
+      from: `${today}T00:00:00.000Z`,
+      to: `${today}T23:59:59.999Z`,
+    });
+    expect(pnlByCategory).toEqual([]);
+  });
+
+  it("buildNewCartItem and repriceCartFromCatalog preserve spot-sourced quantity > 1 and custom sellingPrice override", async () => {
+    const {
+      buildNewCartItem,
+      applySpotSourcingConfig,
+      stripSpotSourcingConfig,
+      repriceCartFromCatalog,
+    } = await import("@/lib/hooks/use-pos-cart-store");
+
+    const catalogProduct = {
+      id: "p1",
+      name: "PVC Pipe 2 inch",
+      generic_name: "",
+      strength: "",
+      unit_price: 5000,
+      cost_price: 4000,
+      stock: 0,
+    };
+
+    const item = buildNewCartItem(catalogProduct, {
+      isSpotSourced: true,
+      sourcingCost: 4600,
+      paymentSource: "cash_drawer",
+      partner: "Kiki Hardware",
+      quantity: 3,
+      sellingPrice: 5500,
+    });
+
+    expect(item.quantity).toBe(3);
+    expect(item.unit_price).toBe(5500);
+    expect(item.original_unit_price).toBe(5000);
+    expect(item.subtotal).toBe(16500);
+    expect(item.is_spot_sourced).toBe(true);
+    expect(item.sourcing_cost).toBe(4600);
+
+    const { cart: repriced, repricedNames } = repriceCartFromCatalog([item], [catalogProduct]);
+    expect(repricedNames).toEqual([]);
+    expect(repriced[0].unit_price).toBe(5500);
+    expect(repriced[0].subtotal).toBe(16500);
+
+    const updated = applySpotSourcingConfig(item, {
+      isSpotSourced: true,
+      sourcingCost: 4700,
+      paymentSource: "external",
+      quantity: 4,
+      sellingPrice: 6000,
+    });
+    expect(updated.quantity).toBe(4);
+    expect(updated.unit_price).toBe(6000);
+    expect(updated.subtotal).toBe(24000);
+
+    const reverted = stripSpotSourcingConfig(updated, 2, false, false);
+    expect(reverted.is_spot_sourced).toBeUndefined();
+    expect(reverted.quantity).toBe(2);
+    expect(reverted.unit_price).toBe(5000);
+    expect(reverted.subtotal).toBe(10000);
   });
 });

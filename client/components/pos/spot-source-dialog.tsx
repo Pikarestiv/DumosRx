@@ -76,9 +76,11 @@ export function SpotSourceDialog({
         sourcingCost,
         paymentSource,
         partner: partner.trim() || undefined,
+        quantity,
+        sellingPrice,
       },
-      product ? quantity : undefined,
-      product ? sellingPrice : undefined,
+      quantity,
+      sellingPrice,
     );
     onOpenChange(false);
   };
@@ -147,31 +149,29 @@ export function SpotSourceDialog({
           </div>
         </div>
 
-        {product && (
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs font-semibold">Quantity to Source</Label>
-              <Input
-                type="number"
-                min={1}
-                value={quantityInput}
-                onChange={(e) => setQuantityInput(e.target.value)}
-                className="mt-1 h-9"
-              />
-            </div>
-            <div>
-              <Label className="text-xs font-semibold">Selling Price (each)</Label>
-              <Input
-                type="number"
-                min={0}
-                step="any"
-                value={sellingPriceInput}
-                onChange={(e) => setSellingPriceInput(e.target.value)}
-                className="mt-1 h-9"
-              />
-            </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs font-semibold">Quantity to Source</Label>
+            <Input
+              type="number"
+              min={1}
+              value={quantityInput}
+              onChange={(e) => setQuantityInput(e.target.value)}
+              className="mt-1 h-9"
+            />
           </div>
-        )}
+          <div>
+            <Label className="text-xs font-semibold">Selling Price (each)</Label>
+            <Input
+              type="number"
+              min={0}
+              step="any"
+              value={sellingPriceInput}
+              onChange={(e) => setSellingPriceInput(e.target.value)}
+              className="mt-1 h-9"
+            />
+          </div>
+        </div>
 
         <div>
           <div className="flex items-center justify-between mb-1">

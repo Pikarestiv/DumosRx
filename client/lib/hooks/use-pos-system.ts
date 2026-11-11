@@ -200,12 +200,6 @@ export function usePOSSystem() {
     searchTerm,
     categoryFilter,
   );
-  const { handleKeyPress, handleScanSuccess } = usePOSScan({
-    products,
-    searchTerm,
-    setSearchTerm,
-    addToCart,
-  });
 
   const isPrescriptionLocked = !!dispensedRxId;
   const handleEditPrescription = isPrescriptionLocked
@@ -217,24 +211,18 @@ export function usePOSSystem() {
   const handleSpotSourceConfirm = useCallback(
     (config: SpotSourcingConfig, quantity?: number, sellingPrice?: number) => {
       if (!spotSourceProduct) return;
-      addToCart(
-        sellingPrice !== undefined && sellingPrice !== spotSourceProduct.unit_price
-          ? { ...spotSourceProduct, unit_price: sellingPrice }
-          : spotSourceProduct,
-        {
-          isSpotSourced: true,
-          sourcingCost: config.sourcingCost,
-          paymentSource: config.paymentSource,
-          partner: config.partner,
-        },
-      );
-      if (quantity && quantity > 1) {
-        updateQuantity(spotSourceProduct.id, quantity);
-      }
+      addToCart(spotSourceProduct, {
+        isSpotSourced: true,
+        sourcingCost: config.sourcingCost,
+        paymentSource: config.paymentSource,
+        partner: config.partner,
+        quantity: quantity ?? config.quantity,
+        sellingPrice: sellingPrice ?? config.sellingPrice,
+      });
       setSpotSourceProduct(null);
       setSearchTerm((term) => (term.trim().length > 0 ? "" : term));
     },
-    [spotSourceProduct, addToCart, updateQuantity, setSearchTerm],
+    [spotSourceProduct, addToCart, setSearchTerm],
   );
 
   const handleAddToCart = useCallback(
@@ -246,14 +234,27 @@ export function usePOSSystem() {
         return;
       }
       if (product.stock <= 0 && !canSellWithoutStock) {
+        const existingInCart = cart.find((item) => item.id === product.id);
+        if (existingInCart?.is_spot_sourced) {
+          addToCart(product);
+          setSearchTerm((term) => (term.trim().length > 0 ? "" : term));
+          return;
+        }
         setSpotSourceProduct(product);
         return;
       }
       addToCart(product);
       setSearchTerm((term) => (term.trim().length > 0 ? "" : term));
     },
-    [isPrescriptionLocked, canSellWithoutStock, addToCart, setSearchTerm],
+    [isPrescriptionLocked, canSellWithoutStock, cart, addToCart, setSearchTerm],
   );
+
+  const { handleKeyPress, handleScanSuccess } = usePOSScan({
+    products,
+    searchTerm,
+    setSearchTerm,
+    addToCart: handleAddToCart,
+  });
 
   return {
     t,

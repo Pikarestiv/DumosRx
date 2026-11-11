@@ -43,7 +43,14 @@ export default async function GuideDetailPage({ params }: GuidePageProps) {
     notFound();
   }
 
-  const relatedGuides = GUIDES.filter((g) => g.id !== slug).slice(0, 2);
+  const sameCategory = GUIDES.filter(
+    (g) => g.id !== slug && g.category === guide.category,
+  );
+  const otherCategory = GUIDES.filter(
+    (g) => g.id !== slug && g.category !== guide.category,
+  );
+  const relatedGuides = [...sameCategory, ...otherCategory].slice(0, 2);
 
   return <GuideDetailView guide={guide} relatedGuides={relatedGuides} />;
 }
+

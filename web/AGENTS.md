@@ -680,18 +680,24 @@ is the only place that mapping belongs.
   `handleOpenRelinkCode` is optional on `StoreRowActionHandlers` so legacy test
   harnesses mocking `StoreRowActions` or `StoreTable` retain backward compatibility.
 
-### Guides & Video Tutorials Hub (2026-11-11)
+### Guides & Video Tutorials Hub (`/guides` & `/guides/[slug]`, 2026-11-11)
 
-- **Route:** `app/guides/page.tsx` (`/guides`), completely statically exportable
-  under `output: "export"`.
-- **Purpose:** Centralized user documentation and video tutorials hub for store
-  owners and staff. Each feature release email links directly to its deep-anchor
-  section (e.g. `dumosrx.com/guides#spot-sourcing`, `#sell-at-zero-stock`,
-  `#branch-transfers`, `#till-relink`).
-- **Data & Components:** Structured in `lib/guides-data.ts` (`GUIDES`) and
-  rendered via `components/guides/guide-card.tsx` with video tutorial preview
-  players, numbered step-by-step guides, pro-tips, and one-click copyable share
-  links. Included in desktop and mobile header navigation and footer product links.
+- **Routes:**
+  - Catalog index: `app/guides/page.tsx` (`/guides`), featuring responsive
+    search, category pills, and 2-column `GuideListCard` previews with video
+    thumbnails and duration badges.
+  - Dedicated slug pages: `app/guides/[slug]/page.tsx` (`/guides/[slug]`),
+    statically prerendered via `generateStaticParams()` matching every entry in
+    `web/lib/guides-data.ts`.
+- **Standing Rule — Guides Ship with Features:** Whenever a new user-facing
+  feature is implemented, a new guide entry MUST be added to `web/lib/guides/`
+  (`pos-guides.ts`, `inventory-guides.ts`, `finance-guides.ts`, or
+  `operations-guides.ts`), giving store owners and release emails a permanent,
+  shareable direct URL (`https://dumosrx.com/guides/<slug>`).
+- **Data & Components:** Types defined in `lib/guides/types.ts`. Detailed pages
+  rendered with `components/guides/guide-detail-view.tsx` containing interactive
+  video player previews, numbered visual steps, business impact pro-tips, and
+  one-click link sharing. Keep all guide definition files under 350 lines.
 
 ### Admin PWA and the production server switcher (2026-10-07)
 

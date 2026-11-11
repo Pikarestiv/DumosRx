@@ -69,6 +69,12 @@ not as a follow-up:
 - A change that alters a rule listed *in this file*, or that's genuinely
   true across every package → update this file.
 - **Roadmap Updates:** When a feature from `FEATURE_ROADMAP_SPEC.md` is completed, you must remove it from the roadmap and add its documentation to `SYSTEM_FEATURES_DOCUMENTATION.md`.
+- **New Feature Guides (dumosrx.com/guides):** Whenever a new user-facing
+  feature is implemented, you must add a dedicated guide entry in
+  `web/lib/guides/` with its unique slug (`/guides/[slug]`), step-by-step
+  instructions, video tutorial placeholder, and business pro-tip. This ensures
+  store owners, CRM agents, and release emails always have a live, dedicated,
+  shareable guide URL (`https://dumosrx.com/guides/<slug>`) ready at launch.
 - **Known Bugs:** If you spot a real bug or data gap while working on something else (e.g. during a refactor, type-safety pass, or code review) and are not fixing it as part of the current task, log it in `docs/KNOWN_BUGS.md` instead of letting it go unrecorded. Include where it is, what's wrong, and the fix if known.
 - **Standing rule — docs ship with the code, never after it.** Every code
   change carries its own doc update in the same change, no exceptions: a

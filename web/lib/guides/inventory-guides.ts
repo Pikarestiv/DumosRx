@@ -1,0 +1,118 @@
+import type { GuideItem } from "./types";
+
+export const INVENTORY_GUIDES: GuideItem[] = [
+  {
+    id: "sell-at-zero-stock",
+    title: "Sell Beyond Recorded Stock: Incoming Deliveries & Delayed Paperwork",
+    category: "Inventory",
+    badge: "Inventory Pro",
+    readTime: "3 min read",
+    videoDuration: "2:15",
+    summary:
+      "Sell newly arrived stock immediately while cartons are still unloading on your shop floor, without waiting for staff to finish entering supplier invoices or purchase orders.",
+    steps: [
+      "Go to Settings > Register Configs (or Store Settings) and toggle on 'Allow sales beyond recorded stock'.",
+      "Cashiers can now ring up products even when on-screen stock shows zero. A subtle notice reminds staff that units are recorded as owed.",
+      "When the delivery is subsequently entered via a Purchase Order or Immediate Purchase, the system automatically clears the owed units first and places the remainder on the shelf.",
+      "Past sales lines are automatically re-costed from the true invoice delivery cost, ensuring your reported profits reflect reality.",
+    ],
+    proTip:
+      "If you run a stock count while units are owed, DumosRx warns you to receive the delivery paperwork first, preventing accidental double-counting.",
+    videoPlaceholderText: "Video Walkthrough: Selling past stock, backorder tracking, and automatic invoice reconciliation",
+  },
+  {
+    id: "cycle-count",
+    title: "Cycle Count & Stock Audit: Walk Shelves, Auto-Save Drafts & Cloud Fencing",
+    category: "Inventory",
+    badge: "Audit Tool",
+    readTime: "3 min read",
+    videoDuration: "2:30",
+    summary:
+      "Audit your pharmacy shelves section by section. Counted quantities start clean, in-progress audits save locally against power failure, and cloud session locking prevents multi-till count collisions.",
+    steps: [
+      "Navigate to Inventory > Audits and tap 'Start Audit'.",
+      "Walk the shelves and enter your physical counts row by row. Where a quantity matches system records, tap the checkmark to confirm.",
+      "Filter the sheet by 'Counted', 'Not Counted', or 'Qty Differences' to review variances.",
+      "Tap 'Review & Submit' to finalize. Only the rows you actually modified are posted to your inventory ledger.",
+    ],
+    proTip:
+      "If your counting device battery dies, another till can safely take over the cloud audit session without losing a single counted entry.",
+    videoPlaceholderText: "Video Walkthrough: Conducting cycle counts, reviewing variance reports, and submitting audits",
+  },
+  {
+    id: "stock-adjustments",
+    title: "Stock Adjustments: Log Wastage, Breakage, and Damaged Goods",
+    category: "Inventory",
+    badge: "Stock Control",
+    readTime: "2 min read",
+    videoDuration: "1:40",
+    summary:
+      "Accurately write off damaged, broken, or expired stock with clear audit reasons, keeping inventory numbers matching physical shelf reality.",
+    steps: [
+      "Open Inventory > Adjustments and tap 'New Adjustment'.",
+      "Search for the product and select the specific batch number affected.",
+      "Enter the quantity to write off and select a reason (e.g. Broken, Expired, Damaged in Transit, Theft).",
+      "Submit the adjustment. System logs an adjustment movement and recalculates running valuation.",
+    ],
+    proTip:
+      "In-progress adjustments auto-save into local draft storage, so switching branches or answering a customer never loses your entries.",
+    videoPlaceholderText: "Video Walkthrough: Creating stock adjustments and categorizing shrinkage write-offs",
+  },
+  {
+    id: "procurement-orders",
+    title: "Supplier Procurement: Standard Purchase Orders & Immediate Purchases",
+    category: "Inventory",
+    badge: "Purchasing",
+    readTime: "2 min read",
+    videoDuration: "2:10",
+    summary:
+      "Manage supplier relationships, issue formal purchase orders ahead of delivery, or log Immediate Purchases when goods are paid and received on the spot.",
+    steps: [
+      "Navigate to Procurement and tap 'New Purchase Order'.",
+      "Select your supplier, expected delivery date, and add line items with agreed cost prices.",
+      "For goods bought and paid on the spot, choose 'Immediate Purchase' to auto-receive inventory and mark payment status as fully paid.",
+      "For pending supplier orders, tap 'Receive PO' once the delivery truck arrives to update shelf stock and verify invoice quantities.",
+    ],
+    proTip:
+      "DumosRx tracks your last-paid price right alongside the product's running average cost, so you always know when a supplier raises prices.",
+    videoPlaceholderText: "Video Walkthrough: Creating supplier purchase orders and receiving inventory deliveries",
+  },
+  {
+    id: "batch-expiry",
+    title: "Batch & Expiry Tracking: FEFO Picking & Near-Expiry Alerts",
+    category: "Inventory",
+    badge: "Safety Standard",
+    readTime: "2 min read",
+    videoDuration: "1:50",
+    summary:
+      "Never lose money to expired stock. DumosRx tracks individual batch numbers and expiration dates, automatically enforcing First-Expired, First-Out (FEFO) dispensing.",
+    steps: [
+      "Enter batch numbers and expiry dates whenever receiving supplier deliveries or adding stock.",
+      "At checkout, the system automatically pulls from the earliest expiring batch on hand.",
+      "Check the Expiry Watchlist under Inventory > Expiry to view products expiring within 30, 60, or 90 days.",
+      "Print or export near-expiry lists to run clearance promotions before stock reaches its expiration date.",
+    ],
+    proTip:
+      "The system prevents cashiers from dispensing expired batches to customers, protecting patient safety and pharmacy compliance.",
+    videoPlaceholderText: "Video Walkthrough: Monitoring expiring batches and automated FEFO inventory picking",
+  },
+  {
+    id: "hide-stock-numbers",
+    title: "Hide Stock Quantities: Restrict Counts While Preserving Availability Signals",
+    category: "Inventory",
+    badge: "Internal Security",
+    readTime: "2 min read",
+    videoDuration: "1:35",
+    summary:
+      "Prevent staff stock theft and pilferage by hiding exact on-hand numbers while still showing 'In stock', 'Low stock', and 'Out of stock' signals.",
+    steps: [
+      "Open Settings > Roles & Permissions and select a staff role (e.g. Sales Cashier).",
+      "Uncheck the 'View Stock Quantities' permission and save changes.",
+      "Staff members in that group will now see availability badges without the exact numerical count across POS, catalog, and search.",
+      "Staff with count, receiving, or management permissions continue to see full counts as required for their duties.",
+    ],
+    proTip:
+      "Hiding quantities from front-desk staff eliminates inventory probing while still letting cashiers know whether an item can be sold.",
+    videoPlaceholderText: "Video Walkthrough: Configuring role-based stock quantity visibility for cashiers",
+  },
+];

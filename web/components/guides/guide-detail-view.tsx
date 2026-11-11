@@ -216,3 +216,4 @@ export function GuideDetailView({ guide, relatedGuides }: GuideDetailViewProps) 
     </div>
   );
 }
+

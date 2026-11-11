@@ -21,8 +21,10 @@ const CATEGORIES = [
   "All",
   "Point of Sale",
   "Inventory",
+  "Reports & Finance",
   "Multi-Store",
   "Device & Security",
+  "Online Storefront",
 ] as const;
 
 export default function GuidesPage() {

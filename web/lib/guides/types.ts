@@ -18,3 +18,4 @@ export interface GuideItem {
   proTip?: string;
   videoPlaceholderText: string;
 }
+

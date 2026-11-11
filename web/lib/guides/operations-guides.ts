@@ -78,3 +78,4 @@ export const OPERATIONS_GUIDES: GuideItem[] = [
     videoPlaceholderText: "Video Walkthrough: Setting up your webstore, managing online orders, and processing digital prescriptions",
   },
 ];
+

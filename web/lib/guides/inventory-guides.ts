@@ -116,3 +116,4 @@ export const INVENTORY_GUIDES: GuideItem[] = [
     videoPlaceholderText: "Video Walkthrough: Configuring role-based stock quantity visibility for cashiers",
   },
 ];
+

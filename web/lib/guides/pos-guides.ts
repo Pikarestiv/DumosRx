@@ -154,3 +154,4 @@ export const POS_GUIDES: GuideItem[] = [
     videoPlaceholderText: "Video Walkthrough: Configuring receipt headers, logos, tax numbers, and A4 invoice formats",
   },
 ];
+

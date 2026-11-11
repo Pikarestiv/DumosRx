@@ -59,3 +59,4 @@ export const FINANCE_GUIDES: GuideItem[] = [
     videoPlaceholderText: "Video Walkthrough: Interacting with the in-app assistant for instant reports and guidance",
   },
 ];
+

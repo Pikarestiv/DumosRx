@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { hasPermission } from "@/lib/hooks/use-permissions";
 
 // Regression coverage for FIXED_BUGS.md A-45:
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-dashboard-header-action-permission-test-tsx-L4
@@ -26,15 +27,17 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
 }));
 
-// canManageStockBatch is auth-context's own hasPermission("manage_products") call, so the mock derives it the same way rat…
-// Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-dashboard-header-action-permission-test-tsx-L36
 vi.mock("@/lib/context/auth-context", () => ({
-  useAuth: () => ({
-    user: { id: "u1", first_name: "Ada", role },
-    canManageStockBatch: role === "store_owner" || permissions.includes("manage_products"),
-    isAdmin: false,
-    permissionGroup: { id: "g1", permissions },
-  }),
+  useAuth: () => {
+    const user = { id: "u1", first_name: "Ada", role };
+    const permissionGroup = { userId: "u1", id: "g1", permissions };
+    return {
+      user,
+      canManageStockBatch: hasPermission(user, permissionGroup, "manage_products"),
+      isAdmin: hasPermission(user, permissionGroup, "manage_staff"),
+      permissionGroup,
+    };
+  },
 }));
 
 vi.mock("@/lib/context/store-context", () => ({

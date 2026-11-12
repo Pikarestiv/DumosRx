@@ -153,5 +153,25 @@ export const POS_GUIDES: GuideItem[] = [
       "Paper format is remembered per device, so the sales counter can use thermal till rolls while the back-office PC prints formal A4 invoices.",
     videoPlaceholderText: "Video Walkthrough: Configuring receipt headers, logos, tax numbers, and A4 invoice formats",
   },
+  {
+    id: "customer-returns-disposition",
+    title: "Customer Returns & Refunds: Restock vs Damaged Goods Disposition",
+    category: "Point of Sale",
+    badge: "Pharmacy Essential",
+    readTime: "2 min read",
+    videoDuration: "1:40",
+    summary:
+      "Handle partial or full customer returns with granular disposition control. Return sound products back to inventory while writing off broken, unsealed, or compromised medicines as damage loss in a single transaction.",
+    steps: [
+      "Find the transaction in Sales History and tap 'Return / Refund'.",
+      "Select the items being returned and set the 'Qty to Return' (the customer receives a full refund for all returned units).",
+      "If any units are broken, expired, or unsealed, enter the count under 'Damaged / Discard' and pick the reason.",
+      "Review the breakdown: sound units return to stock batches, while damaged units are written off directly as inventory loss without touching shelf stock.",
+      "Confirm to process the refund and update inventory and accounting automatically.",
+    ],
+    proTip:
+      "Discarded medicines never re-enter saleable stock batches, protecting pharmacy safety standards while automatically logging an inventory write-off in your Profit & Loss reports.",
+    videoPlaceholderText: "Video Walkthrough: Processing split customer returns with damaged medicine write-offs",
+  },
 ];
 

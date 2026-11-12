@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { GUIDES, GUIDE_CATEGORIES, getGuideBySlug } from "../lib/guides-data";
 
 describe("Guides & Video Tutorials Hub", () => {
-  it("contains all 21 core feature guides", () => {
-    expect(GUIDES.length).toBe(21);
+  it("contains all core feature guides", () => {
+    expect(GUIDES.length).toBe(22);
   });
 
   it("has valid categories for all guides", () => {
@@ -45,6 +45,10 @@ describe("Guides & Video Tutorials Hub", () => {
     const relink = getGuideBySlug("till-relink");
     expect(relink).toBeDefined();
     expect(relink?.title.toLowerCase()).toContain("re-link");
+
+    const returnsGuide = getGuideBySlug("customer-returns-disposition");
+    expect(returnsGuide).toBeDefined();
+    expect(returnsGuide?.title).toContain("Customer Returns");
 
     const nonExistent = getGuideBySlug("non-existent-feature-xyz");
     expect(nonExistent).toBeUndefined();

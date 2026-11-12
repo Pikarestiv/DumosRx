@@ -193,6 +193,7 @@ export function usePOSSystem() {
       clearCart,
       setSelectedCustomer,
       products,
+      services,
       restoreCart,
       customers,
       setShowHeldDialog,

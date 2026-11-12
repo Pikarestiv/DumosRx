@@ -3,6 +3,7 @@ import { generateId } from "@/lib/db/core";
 import { toast } from "sonner";
 import { Customer } from "./use-pos-data";
 import type { POSProduct as Product } from "@/lib/types/product";
+import type { Service } from "@/lib/types/service";
 import type { CartItem, MarkupType } from "./use-pos-cart";
 import type { HeldTransaction } from "@/lib/db/queries/sales";
 import { useQueryClient } from "@tanstack/react-query";
@@ -18,6 +19,7 @@ interface UsePOSHeldTransactionsProps {
   clearCart: () => void;
   setSelectedCustomer: (customer: Customer | null) => void;
   products: Product[];
+  services?: Service[];
   restoreCart: (
     items: CartItem[],
     restoredDiscount?: number,
@@ -49,6 +51,7 @@ export function usePOSHeldTransactions({
   clearCart,
   setSelectedCustomer,
   products,
+  services = [],
   restoreCart,
   customers,
   setShowHeldDialog,
@@ -105,9 +108,26 @@ export function usePOSHeldTransactions({
       const wasResellerSale = held.is_reseller_sale === 1;
       const productFor = (item: CartItem & { product_id?: string }) =>
         products.find((m) => m.id === (item.product_id || item.id));
+      const serviceFor = (item: CartItem & { product_id?: string }) =>
+        services.find((s) => s.id === (item.product_id || item.id));
 
       const restoredItems = items
         .map((item) => {
+          if (item.item_type === "service") {
+            const service = serviceFor(item);
+            if (!service) return null;
+            const unitPrice = service.price;
+            return {
+              ...item,
+              item_type: "service" as const,
+              name: service.name,
+              unit_price: unitPrice,
+              original_unit_price: unitPrice,
+              subtotal: roundMoney(unitPrice * item.quantity),
+              stock: Infinity,
+            };
+          }
+
           const product = productFor(item);
           if (!product) return null;
           // Rebuilt from the current catalog; a held reseller sale keeps its agreed markup or cut relative to it.
@@ -138,6 +158,10 @@ export function usePOSHeldTransactions({
       // A genuine catalog price change, measured against the price the line was based on (original_unit_price when present) rather than the possibly…
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-held-transactions-ts-L131
       const hasRepricedItem = items.some((item) => {
+        if (item.item_type === "service") {
+          const service = serviceFor(item);
+          return !!service && service.price !== item.unit_price;
+        }
         const product = productFor(item);
         const heldBasePrice = item.original_unit_price ?? item.unit_price;
         return !!product && product.unit_price !== heldBasePrice;

@@ -93,7 +93,7 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
             removeFromCart(item.id);
           }
         }}
-        className={`relative flex items-center gap-3 py-3 bg-background touch-pan-y ${
+        className={`relative flex items-center gap-3 py-3 bg-background touch-pan-y group ${
           isLast ? "" : "border-b border-border"
         }`}
       >
@@ -128,15 +128,32 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
           ) : (
             onConfigureSpotSourcing && !isLocked && item.item_type !== "service" && (
               <div className="mb-0.5">
-                <button
-                  type="button"
-                  onClick={() => onConfigureSpotSourcing(item)}
-                  className="text-[10px] text-muted-foreground/60 hover:text-amber-600 dark:hover:text-amber-400 inline-flex items-center gap-1 transition-colors cursor-pointer"
-                  title="Source this item on the spot from an external store"
-                >
-                  <Share2 className="w-2.5 h-2.5" />
-                  <span>Source outside</span>
-                </button>
+                {item.stock <= 0 || item.quantity > item.stock ? (
+                  <button
+                    type="button"
+                    onClick={() => onConfigureSpotSourcing(item)}
+                    className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-colors cursor-pointer"
+                    title="Source this item on the spot from an external store"
+                  >
+                    <Share2 className="w-2.5 h-2.5" />
+                    <span>
+                      Source outside
+                      {item.stock <= 0
+                        ? " (Out of stock)"
+                        : ` (${item.quantity - item.stock} short)`}
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onConfigureSpotSourcing(item)}
+                    className="text-[10px] text-muted-foreground/50 hover:text-amber-600 dark:hover:text-amber-400 inline-flex items-center gap-1 transition-colors cursor-pointer opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+                    title="Source this item on the spot from an external store (e.g. if shelf stock is damaged)"
+                  >
+                    <Share2 className="w-2.5 h-2.5" />
+                    <span>Source outside</span>
+                  </button>
+                )}
               </div>
             )
           )}

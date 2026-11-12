@@ -9,6 +9,7 @@ import { roundMoney } from "@/lib/utils/pos-calculations";
 
 export interface CartItem extends Product {
   item_type?: "product" | "service";
+  product_id?: string;
   quantity: number;
   subtotal: number;
   original_unit_price: number;
@@ -25,6 +26,12 @@ export interface AddToCartOptions {
   partner?: string;
   quantity?: number;
   sellingPrice?: number;
+}
+
+export interface SpotSourcingSplitOptions {
+  isSplit?: boolean;
+  shelfQuantity?: number;
+  spotQuantity?: number;
 }
 
 export interface SpotSourcingConfig {
@@ -87,8 +94,6 @@ export const usePOSCartStore = create<POSCartState>()(
   )
 );
 
-// Clears the persisted POS cart (cart items, discount, redeemed reward, reseller flag) both in memory and in localStorage.
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L78
 export function clearPOSCartStorage() {
   usePOSCartStore.setState({
     cart: [],
@@ -140,7 +145,7 @@ export function repriceCartFromCatalog(
 
   const next = cart.map((item) => {
     if (item.item_type === "service") return item;
-    const product = products.find((p) => p.id === item.id);
+    const product = products.find((p) => p.id === (item.product_id || item.id));
     if (!product) return item;
 
     const unitPrice = roundMoney(Math.max(0, product.unit_price + (item.unit_price - item.original_unit_price)));
@@ -238,8 +243,16 @@ export function updateCartSpotSourcing(
   availableStock: number,
   canSellWithoutStock: boolean,
   isResellerSale: boolean,
+  splitOptions?: SpotSourcingSplitOptions,
 ): { cart: CartItem[]; removedName?: string } {
   if (!config || !config.isSpotSourced) {
+    if (id.endsWith(":spot_sourced")) {
+      const removed = cart.find((item) => item.id === id);
+      return {
+        cart: cart.filter((item) => item.id !== id),
+        removedName: removed?.name || "Spot-sourced item",
+      };
+    }
     if (!canSellWithoutStock && availableStock <= 0) {
       const removed = cart.find((item) => item.id === id);
       return {
@@ -255,6 +268,53 @@ export function updateCartSpotSourcing(
       ),
     };
   }
+
+  if (
+    splitOptions?.isSplit &&
+    (splitOptions.shelfQuantity ?? 0) > 0 &&
+    (splitOptions.spotQuantity ?? 0) > 0
+  ) {
+    const existing = cart.find((item) => item.id === id);
+    if (!existing) return { cart };
+
+    const baseProductId = existing.product_id || existing.id.replace(/:spot_sourced$/, "");
+    const shelfQty = splitOptions.shelfQuantity!;
+    const spotQty = splitOptions.spotQuantity!;
+    const sellingPrice =
+      config.sellingPrice !== undefined ? Math.max(0, config.sellingPrice) : existing.unit_price;
+
+    const shelfLine: CartItem = {
+      ...existing,
+      id: baseProductId,
+      product_id: baseProductId,
+      quantity: shelfQty,
+      subtotal: roundMoney(existing.unit_price * shelfQty),
+      is_spot_sourced: undefined, sourcing_cost: undefined,
+      sourcing_payment_source: undefined, sourcing_partner: undefined,
+    };
+
+    const spotLineId = `${baseProductId}:spot_sourced`;
+    const spotLine: CartItem = {
+      ...existing,
+      id: spotLineId,
+      product_id: baseProductId,
+      quantity: spotQty,
+      unit_price: sellingPrice,
+      subtotal: roundMoney(sellingPrice * spotQty),
+      is_spot_sourced: true,
+      sourcing_cost: config.sourcingCost ?? existing.sourcing_cost ?? existing.cost_price ?? 0,
+      sourcing_payment_source: config.paymentSource ?? existing.sourcing_payment_source ?? "cash_drawer",
+      sourcing_partner: config.partner ?? existing.sourcing_partner ?? "",
+    };
+
+    const remainingCart = cart.filter(
+      (item) => item.id !== id && item.id !== baseProductId && item.id !== spotLineId,
+    );
+    return {
+      cart: [...remainingCart, shelfLine, spotLine],
+    };
+  }
+
   return {
     cart: cart.map((item) => (item.id === id ? applySpotSourcingConfig(item, config) : item)),
   };

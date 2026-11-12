@@ -4,6 +4,8 @@ import { useState, useMemo } from "react";
 import { Search, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { POSServiceCard } from "./pos-service-card";
 import type { Service } from "@/lib/types/service";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
@@ -32,6 +34,9 @@ export function POSServiceList({
   onManageServices,
 }: POSServiceListProps) {
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const { isAdmin } = useAuth();
+  const canManageCatalog = useHasPermission("manage_products");
+  const canManage = isAdmin || canManageCatalog;
 
   const cartQuantityMap = useMemo(
     () =>
@@ -138,7 +143,9 @@ export function POSServiceList({
               }
               description={
                 services.length === 0
-                  ? "Configure walk-in spa, styling, clinic, or repair services in the Inventory catalog to sell them here."
+                  ? canManage
+                    ? "Configure walk-in spa, styling, clinic, or repair services in the Inventory catalog to sell them here."
+                    : "No services configured for this store yet. Contact a store manager to configure services."
                   : "No services matched your search or category filter."
               }
               action={
@@ -150,11 +157,13 @@ export function POSServiceList({
                         onClearSearch?.();
                       },
                     }
-                  : {
-                      label: "Manage Services",
-                      href: "/inventory/services",
-                      onClick: onManageServices,
-                    }
+                  : canManage
+                    ? {
+                        label: "Manage Services in Inventory",
+                        href: "/inventory/services",
+                        onClick: onManageServices,
+                      }
+                    : undefined
               }
             />
           </div>

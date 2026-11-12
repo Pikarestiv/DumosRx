@@ -42,9 +42,17 @@ class PushPayloadNormalizer
             }
         }
 
-        if ($change['table_name'] === 'sales' && isset($payload['user_id'])) {
-            $payload['cashier_id'] = $payload['user_id'];
-            unset($payload['user_id']);
+        if ($change['table_name'] === 'sales') {
+            if (isset($payload['user_id'])) {
+                $payload['cashier_id'] = $payload['user_id'];
+                unset($payload['user_id']);
+            }
+            if (($payload['payment_status'] ?? null) === 'refunded') {
+                $saleId = $change['record_id'] ?? ($payload['id'] ?? null);
+                if ($saleId) {
+                    $payload = LegacyServicesReturnGate::apply($payload, $saleId, $request);
+                }
+            }
         }
 
         if ($change['table_name'] === 'purchase_orders') {

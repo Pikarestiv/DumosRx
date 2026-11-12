@@ -1437,6 +1437,16 @@ first; that is the mitigation for the second case.
 `0.0.41`: delete the class, its call in `normalizePushPayload()` and
 `tests/Feature/SaleWithoutStockVersionGateTest.php`.
 
+## `LegacyServicesReturnGate`: prevents legacy terminals from marking mixed sales fully refunded
+
+When a store with multiple terminals operates on mixed client versions (e.g., Terminal 1 on v0.0.42 creating mixed product + service tickets, and Terminal 2 on legacy v0.0.41), the legacy terminal only syncs `sales` and `sale_items` without knowing about `sale_services`. If the legacy terminal attempts to process a return for the physical products, its local logic checks only physical items and attempts to mark `sales.payment_status = 'refunded'`.
+
+`app/Services/Sync/LegacyServicesReturnGate.php`, called from `PushPayloadNormalizer` on every `sales` UPDATE attempting to set `payment_status = 'refunded'`, inspects the sale for active `sale_services`. If active service lines exist on the sale and are not fully returned (via `return_services` either already recorded or in the incoming push batch), the server clamps `payment_status` to `'partially_refunded'`.
+
+This ensures physical items are safely restocked and refunded without falsely writing off unrefunded service revenue.
+
+**Retire it** once no active device reports an `X-App-Version` below `0.0.42`: delete `LegacyServicesReturnGate`, its invocation in `normalizePushPayload()`, and `tests/Feature/LegacyServicesReturnGateTest.php`.
+
 The feature needs no other server code. Owed and settled units are ordinary
 `adjustment` rows with `reference_type` `backorder` / `backorder_settlement`,
 and re-costing is an ordinary `sale_items` UPDATE.

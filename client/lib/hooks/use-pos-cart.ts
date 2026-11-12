@@ -31,6 +31,7 @@ import {
   type MarkupType,
   type AddToCartOptions,
   type SpotSourcingConfig,
+  type SpotSourcingSplitOptions,
 } from "./use-pos-cart-store";
 import type { Service } from "@/lib/types/service";
 export {
@@ -42,6 +43,7 @@ export {
   type RedeemedOption,
   type AddToCartOptions,
   type SpotSourcingConfig,
+  type SpotSourcingSplitOptions,
 } from "./use-pos-cart-store";
 
 export function usePOSCart(products: Product[]) {
@@ -104,9 +106,7 @@ export function usePOSCart(products: Product[]) {
   }, [products, cart, setCart]);
 
   useEffect(() => {
-    if (!canUseLoyaltyProgram && redeemedOption) {
-      clearRedemption();
-    }
+    if (!canUseLoyaltyProgram && redeemedOption) clearRedemption();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canUseLoyaltyProgram, redeemedOption]);
 
@@ -125,10 +125,7 @@ export function usePOSCart(products: Product[]) {
       toast(`${displayName(removed.name)} removed from cart`, {
         action: {
           label: "Undo",
-          onClick: () =>
-            setCart((prev) =>
-              prev.some((item) => item.id === removed.id) ? prev : [...prev, removed],
-            ),
+          onClick: () => setCart((prev) => prev.some((i) => i.id === removed.id) ? prev : [...prev, removed]),
         },
       });
     },
@@ -234,16 +231,17 @@ export function usePOSCart(products: Product[]) {
   );
 
   const updateSpotSourcing = useCallback(
-    (id: string, config: SpotSourcingConfig | null) => {
-      const product = products.find((p) => p.id === id);
+    (id: string, config: SpotSourcingConfig | null, splitOptions?: SpotSourcingSplitOptions) => {
       const currentItem = cart.find((item) => item.id === id);
+      const baseProductId = currentItem?.product_id || id.replace(/:spot_sourced$/, "");
+      const product = products.find((p) => p.id === baseProductId);
       const availableStock = product?.stock ?? currentItem?.stock ?? 0;
-      const result = updateCartSpotSourcing(cart, id, config, availableStock, canSellWithoutStock, isResellerSale);
+      const result = updateCartSpotSourcing(
+        cart, id, config, availableStock, canSellWithoutStock, isResellerSale, splitOptions,
+      );
       setCart(result.cart);
       if (result.removedName) {
-        toast.info(
-          `${displayName(result.removedName)} removed from cart (no shelf stock available)`,
-        );
+        toast.info(`${displayName(result.removedName)} removed from cart (no shelf stock available)`);
       }
     },
     [products, cart, setCart, canSellWithoutStock, isResellerSale, displayName],

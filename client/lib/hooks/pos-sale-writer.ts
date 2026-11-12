@@ -130,7 +130,7 @@ export async function writeSaleTransaction({
         ...(spotSourcedItems.length > 0
           ? {
               spot_sourcing: spotSourcedItems.map((i) => ({
-                product_id: i.id,
+                product_id: i.product_id || i.id,
                 product_name: i.name,
                 quantity: i.quantity,
                 unit_cost: i.sourcing_cost ?? i.cost_price ?? 0,
@@ -177,7 +177,7 @@ export async function writeSaleTransaction({
         const sourcingCost = item.sourcing_cost ?? item.cost_price ?? 0;
         await recordSaleItemStock({
           saleId: newSaleId,
-          productId: item.id,
+          productId: item.product_id || item.id,
           quantity: item.quantity,
           unitPrice: item.unit_price,
           listPrice: item.original_unit_price,
@@ -191,7 +191,7 @@ export async function writeSaleTransaction({
       } else {
         await recordSaleItemStock({
           saleId: newSaleId,
-          productId: item.id,
+          productId: item.product_id || item.id,
           quantity: item.quantity,
           unitPrice: item.unit_price,
           listPrice: item.original_unit_price,

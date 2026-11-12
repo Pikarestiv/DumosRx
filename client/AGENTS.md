@@ -2484,9 +2484,22 @@ There are two distinct workflows for selling goods sourced outside the store:
    is off-site and cannot raise purchase orders or reconcile backorders at EOD.
    When a walk-in customer requests an out-of-stock item, a cashier can run to a
    neighboring pharmacy or partner shop, buy the units, and ring them up immediately:
-   - **Trigger & UI:** Clicking or barcode-scanning an out-of-stock product (when
-     `canSellWithoutStock` is off) or clicking "Source outside" / the "Spot Sourced"
-     badge on a cart line opens `SpotSourceDialog`.
+   - **Trigger & UI:** When an item has `stock <= 0` or `quantity > stock`, the cart
+     prominently displays a warning badge / button: `"Source outside (Out of stock)"` or
+     `"Source outside (N short)"`. For well-stocked items (`stock >= quantity`), the button
+     is subtly available on hover/focus (for cases where shelf units are damaged or reserved).
+     Clicking opens `SpotSourceDialog`.
+   - **Partial Spot Sourcing (Split Allocation):** When a customer requests more units
+     than exist on shelf (e.g. 5 requested, 2 on shelf), `SpotSourceDialog` defaults to
+     **Split Allocation**:
+     1. Shelf allocation (2 units): Deducted from store inventory batches via FEFO at
+        standard inventory cost.
+     2. Spot-sourced line (3 units): Sourced externally (`id: `${product.id}:spot_sourced``,
+        `product_id: product.id`), with external sourcing cost and partner metadata.
+     Cash drawer payouts apply strictly to the 3 spot-sourced units ($3 \times \text{cost}$),
+     leaving the 2 shelf units properly depleted and eliminating phantom inventory and
+     inflated drawer expense payouts. A toggle allows cashiers to "Source all externally"
+     if the shelf units are unusable/damaged.
    - **Sourcing Cost, Selling Price & Margin:** Staff enters the agreed buying cost
      (e.g. ₦1,700), quantity, and selling price (e.g. ₦2,000). `buildNewCartItem`
      and `applySpotSourcingConfig` keep `original_unit_price` pinned to the catalog

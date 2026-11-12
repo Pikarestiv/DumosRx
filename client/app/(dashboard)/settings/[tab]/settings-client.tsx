@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useEffect } from "react";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { CloudLinkDialog } from "@/components/settings/cloud-link-dialog";
 import { StaffManagement } from "@/components/settings/staff-management";
@@ -86,9 +87,30 @@ const TAB_LABELS: Record<string, string> = {
   diagnostics: "Diagnostics",
 };
 
+let cachedSettingsNavScrollTop = 0;
+
 export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
   const s = useSettings();
   const router = useRouter();
+  const asideRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const aside = asideRef.current;
+    if (!aside) return;
+
+    if (cachedSettingsNavScrollTop > 0) {
+      aside.scrollTop = cachedSettingsNavScrollTop;
+    }
+
+    const activeTrigger = aside.querySelector<HTMLElement>('[data-state="active"]');
+    if (activeTrigger) {
+      activeTrigger.scrollIntoView({ block: "nearest", behavior: "instant" });
+    }
+  }, [s.activeTab]);
+
+  const handleNavScroll = (e: React.UIEvent<HTMLElement>) => {
+    cachedSettingsNavScrollTop = e.currentTarget.scrollTop;
+  };
 
   if (!s.isDesktop && isIndex) {
     return (
@@ -117,7 +139,11 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
       className="flex flex-col md:flex-row w-full overflow-hidden bg-background"
       style={{ height: "calc(100dvh - var(--tauri-top, 0px))" }}
     >
-      <aside className="hidden md:flex md:flex-col w-full md:w-56 flex-shrink-0 h-full min-h-0 overflow-y-auto stable-scrollbar border-border/50 p-3 pr-2">
+      <aside
+        ref={asideRef}
+        onScroll={handleNavScroll}
+        className="hidden md:flex md:flex-col w-full md:w-56 flex-shrink-0 h-full min-h-0 overflow-y-auto stable-scrollbar border-border/50 p-3 pr-2"
+      >
         <SettingsTabNav isAdmin={s.isAdmin} canAccessTab={s.canAccessTab} />
       </aside>
 

@@ -3284,10 +3284,13 @@ line, so at most one sale_item per product exists within a given sale.
 
 `client/lib/db/queries/returns.ts:69`
 
-Restores stock for a returned sale line to the exact batches it was drawn
+Restores stock and records write-offs for a returned sale line across the exact batches it was drawn
 from, in the proportions recorded at sale time (FEFO splits may span >1
-batch). Falls back to the legacy single stock_batch_id for sales made
-before sale_item_batches existed.
+batch). Sound units are restored to consumed batches in FEFO layer order with the batch's actual cost_price.
+Discarded units are written off from the corresponding batch layer as damage losses with stock_batch_id: null
+(preventing double-deduction of physical shelf batch inventory) while capturing the exact batch cost basis in
+financial reports. Falls back to the legacy single stock_batch_id or a traceable RETURN batch for sales made
+before sale_item_batches existed or spot-sourced items.
 
 ### db-queries-sales-ts-L245
 

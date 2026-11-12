@@ -106,13 +106,39 @@ describe("useOnboarding().handleRegister() seeding the initial subscription stat
     container.remove();
   });
 
-  it("fetches the real subscription status before routing to the dashboard, not just the fire-and-forget sync()", async () => {
-    await renderRegister();
+  it("waits for subscription status synchronization before routing to dashboard", async () => {
+    let resolveSubscription!: (value: { success: boolean; updated: boolean }) => void;
+    syncSubscriptionStatusMock.mockImplementation(
+      () =>
+        new Promise<{ success: boolean; updated: boolean }>((resolve) => {
+          resolveSubscription = resolve;
+        })
+    );
+
+    let registerResolved = false;
+    let registerPromise: Promise<void>;
+    act(() => {
+      registerPromise = hookResult.handleRegister(
+        "New", "Owner", "newowner", "1234", "New Store",
+        undefined, "newowner@example.com", "password123",
+      ).then(() => {
+        registerResolved = true;
+      });
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(syncSubscriptionStatusMock).toHaveBeenCalledTimes(1);
-    const statusOrder = syncSubscriptionStatusMock.mock.invocationCallOrder[0];
-    const routeOrder = routerPushMock.mock.invocationCallOrder[0];
-    expect(statusOrder).toBeLessThan(routeOrder);
+    expect(routerPushMock).not.toHaveBeenCalled();
+    expect(registerResolved).toBe(false);
+
+    await act(async () => {
+      resolveSubscription({ success: true, updated: true });
+      await registerPromise;
+    });
+
+    expect(registerResolved).toBe(true);
+    expect(routerPushMock).toHaveBeenCalledWith("/dashboard");
   });
 
   it("doesn't block account creation if the status fetch fails", async () => {

@@ -73,6 +73,14 @@ export function FooterSection() {
                   Downloads
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/guides"
+                  className="text-sm text-muted-foreground hover:text-primary"
+                >
+                  Guides & Tutorials
+                </Link>
+              </li>
             </ul>
           </div>
           <div>

@@ -1,6 +1,7 @@
 "use client";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import type { SaleWithDetails } from "@/lib/types/sale";
+import type { POSProduct } from "@/lib/types/product";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { usePOSSystem } from "@/lib/hooks/use-pos-system";
 import { POSLayoutHeader } from "./pos-layout-header";
@@ -11,6 +12,7 @@ import { POSTransactionHistory } from "./pos-transaction-history";
 import { POSMobileSearch } from "./pos-mobile-search";
 import { POSDialogs } from "./pos-dialogs";
 import { POSCartPanels } from "./pos-cart-panels";
+import { SpotSourceDialog } from "./spot-source-dialog";
 import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 
@@ -81,6 +83,7 @@ export function POSSystem() {
     markupType,
     setMarkupType,
     updateUnitPrice,
+    updateSpotSourcing,
     canUseSmartSuggestions,
     withRestriction,
     suggestions,
@@ -114,6 +117,9 @@ export function POSSystem() {
     isPrescriptionLocked,
     handleEditPrescription,
     handleAddToCart,
+    spotSourceProduct,
+    setSpotSourceProduct,
+    handleSpotSourceConfirm,
   } = usePOSSystem();
 
   // The Recent Sales tab is reachable by URL (?tab=history), so the panel and the resolved tab are gated here as well as the…
@@ -306,12 +312,20 @@ export function POSSystem() {
         markupType={markupType}
         setMarkupType={setMarkupType}
         updateUnitPrice={updateUnitPrice}
+        updateSpotSourcing={updateSpotSourcing}
         selectedCustomer={selectedCustomer}
         customers={customers}
         loadingCustomers={loadingCustomers}
         onSelectCustomer={setSelectedCustomer}
       />
       <POSDialogs {...posDialogProps} />
+      <SpotSourceDialog
+        open={spotSourceProduct !== null}
+        onOpenChange={(open) => !open && setSpotSourceProduct(null)}
+        product={spotSourceProduct}
+        currencyCode={storeProfile?.currency}
+        onConfirm={handleSpotSourceConfirm}
+      />
     </div>
   );
 }

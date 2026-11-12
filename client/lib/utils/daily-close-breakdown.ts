@@ -26,18 +26,24 @@ export function buildNetCashBreakdown({
   cashSales,
   cashRefunds,
   cashExpenses,
+  spotSourcingPayouts = 0,
   reportDate,
 }: {
   cashSales: number;
   cashRefunds: number;
   cashExpenses: number;
+  spotSourcingPayouts?: number;
   reportDate: string;
 }): FigureBreakdown {
-  return fromLines([
+  const lines: BreakdownLine[] = [
     { label: "Cash taken in sales", amount: cashSales },
     { label: "Cash refunded on returns", amount: -cashRefunds },
     { label: "Cash expenses paid out", amount: -cashExpenses, href: expensesForDayHref(reportDate) },
-  ]);
+  ];
+  if (spotSourcingPayouts > 0) {
+    lines.push({ label: "Spot-sourced stock purchased", amount: -spotSourcingPayouts });
+  }
+  return fromLines(lines);
 }
 
 export function buildProfitBreakdown({

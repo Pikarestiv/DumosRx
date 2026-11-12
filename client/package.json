@@ -11,6 +11,7 @@
     "tauri": "tauri",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test e2e/stock-transfer.spec.ts",
     "test:e2e:ui": "playwright test --ui",
     "test:watch": "vitest",
     "test:schema": "npx tsx scripts/verify-schema-sync.ts",

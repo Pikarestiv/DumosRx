@@ -28,7 +28,8 @@ class OversellCompensationService
         $inbound = 'SUM(CASE WHEN m.quantity > 0 THEN m.quantity ELSE 0 END)';
         $arrival = Schema::hasColumn('stock_movements', '_synced_at') ? 'COALESCE(m._synced_at, m.created_at)' : 'm.created_at';
 
-        return DB::table('stock_movements as m')
+        /** @var Collection<int, object{batch_id: string, product_id: string, product: string, store_id: ?string, cost_price: mixed, inbound: mixed, outbound: mixed, deficit: int, last_arrival: ?string}> $results */
+        $results = DB::table('stock_movements as m')
             ->join('stock_batches as b', 'b.id', '=', 'm.stock_batch_id')
             ->join('products as p', 'p.id', '=', 'b.product_id')
             ->when(Schema::hasColumn('stock_movements', 'deleted_at'), fn ($q) => $q->whereNull('m.deleted_at'))
@@ -52,6 +53,8 @@ class OversellCompensationService
 
                 return $row;
             });
+
+        return $results;
     }
 
     /** Why a deficit is left alone, or null to write it; a recent arrival may still have its own compensation in flight. */

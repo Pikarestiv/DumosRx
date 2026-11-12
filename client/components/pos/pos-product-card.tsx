@@ -67,10 +67,8 @@ export const POSProductCard = memo(function POSProductCard({
   return (
     <button
       type="button"
-      // Not `disabled`: clicking an out-of-stock tile still surfaces the "This item is out of stock" toast, and a disabled butto…
-      // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-product-list-tsx-L104
       aria-disabled={isBlocked || undefined}
-      className={`relative w-full text-left p-2 sm:p-3 border rounded-xl sm:rounded-2xl transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:border-ring ${cardStyle} ${isBlocked ? "opacity-60 grayscale-[0.5] cursor-not-allowed" : "cursor-pointer"}`}
+      className={`relative w-full text-left p-2 sm:p-3 border rounded-xl sm:rounded-2xl transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:border-ring cursor-pointer ${cardStyle} ${isBlocked ? "opacity-75 grayscale-[0.3]" : ""}`}
       onClick={() => addToCart(product)}
     >
       {indicator}

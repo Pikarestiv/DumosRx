@@ -8,6 +8,8 @@ import {
   STOCK_LOSS_REASON_LABELS,
 } from "@/lib/constants/stock-adjustments";
 
+export const SPOT_SOURCING_EXPENSE_CATEGORY = "Stock Sourcing";
+
 export interface Expense {
   id: string;
   category: string;
@@ -35,7 +37,7 @@ export async function getCurrentMonthRevenue({ from, to }: { from: string; to: s
       params,
     ),
     query<{ total: number }>(
-      `SELECT SUM(total_refunded) as total FROM returns WHERE (_deleted = 0 OR _deleted IS NULL) AND created_at >= ? AND created_at < ?${storeId ? " AND store_id = ?" : ""}`,
+      `SELECT SUM(CASE WHEN s.total_amount IS NOT NULL AND s.total_amount != 0 THEN r.total_refunded * (s.total_amount - IFNULL(s.tax_amount, 0)) / s.total_amount ELSE r.total_refunded END) as total FROM returns r LEFT JOIN sales s ON s.id = r.sale_id WHERE (r._deleted = 0 OR r._deleted IS NULL) AND r.created_at >= ? AND r.created_at < ?${storeId ? " AND r.store_id = ?" : ""}`,
       params,
     ),
   ]);
@@ -142,7 +144,8 @@ export async function getSmoothedExpensesTotal({
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-finance-ts-L148
   const plainResult = await query<{ total: number }>(
     `SELECT SUM(amount) as total FROM expenses
-     WHERE _deleted = 0 AND date(date) >= date(?, 'localtime') AND date(date) <= date(?, 'localtime') AND (covers_months IS NULL OR covers_months <= 0)
+     WHERE _deleted = 0 AND COALESCE(category, '') != '${SPOT_SOURCING_EXPENSE_CATEGORY}'
+       AND date(date) >= date(?, 'localtime') AND date(date) <= date(?, 'localtime') AND (covers_months IS NULL OR covers_months <= 0)
      ${viewerId ? " AND user_id = ?" : ""}${storeId ? " AND store_id = ?" : ""}`,
     [from, to, ...scopeParams],
   );
@@ -151,7 +154,7 @@ export async function getSmoothedExpensesTotal({
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-finance-ts-L174
   const amortized = await query<{ amount: number; date: string; covers_months: number }>(
     `SELECT amount, date, covers_months FROM expenses
-     WHERE _deleted = 0 AND covers_months > 0
+     WHERE _deleted = 0 AND COALESCE(category, '') != '${SPOT_SOURCING_EXPENSE_CATEGORY}' AND covers_months > 0
      ${viewerId ? " AND user_id = ?" : ""}${storeId ? " AND store_id = ?" : ""}`,
     scopeParams,
   );
@@ -183,11 +186,10 @@ export async function getCurrentMonthExpensesByCategory({
   const storeId = getActiveStoreId();
   const scopeParams = [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])];
 
-  // See the matching comment in getSmoothedExpensesTotal above - `to` is inclusive here too, and 'localtime' is needed for the same reason (from…
-  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-finance-ts-L213
   const plainRows = await query<{ category: string; total: number }>(
     `SELECT category, SUM(amount) as total FROM expenses
-     WHERE _deleted = 0 AND date(date) >= date(?, 'localtime') AND date(date) <= date(?, 'localtime') AND (covers_months IS NULL OR covers_months <= 0)
+     WHERE _deleted = 0 AND COALESCE(category, '') != '${SPOT_SOURCING_EXPENSE_CATEGORY}'
+       AND date(date) >= date(?, 'localtime') AND date(date) <= date(?, 'localtime') AND (covers_months IS NULL OR covers_months <= 0)
      ${viewerId ? " AND user_id = ?" : ""}${storeId ? " AND store_id = ?" : ""}
      GROUP BY category`,
     [from, to, ...scopeParams],
@@ -195,7 +197,7 @@ export async function getCurrentMonthExpensesByCategory({
 
   const amortized = await query<{ amount: number; date: string; covers_months: number; category: string }>(
     `SELECT amount, date, covers_months, category FROM expenses
-     WHERE _deleted = 0 AND covers_months > 0
+     WHERE _deleted = 0 AND COALESCE(category, '') != '${SPOT_SOURCING_EXPENSE_CATEGORY}' AND covers_months > 0
      ${viewerId ? " AND user_id = ?" : ""}${storeId ? " AND store_id = ?" : ""}`,
     scopeParams,
   );
@@ -292,16 +294,11 @@ export async function getExpensesPage({
   return { rows, total: countRows[0]?.total || 0, amount: countRows[0]?.amount || 0 };
 }
 
-// The lifetime expense figure, summed in SQL.
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-finance-ts-L335
 export async function getExpensesLifetimeTotal(
   viewerId?: string,
 ): Promise<number> {
   const storeId = getActiveStoreId();
-  const params = [
-    ...(viewerId ? [viewerId] : []),
-    ...(storeId ? [storeId] : []),
-  ];
+  const params = [...(viewerId ? [viewerId] : []), ...(storeId ? [storeId] : [])];
   const rows = await query<{ total: number | null }>(
     `SELECT SUM(amount) as total FROM expenses
      WHERE _deleted = 0${viewerId ? " AND user_id = ?" : ""}${storeId ? " AND store_id = ?" : ""}`,
@@ -310,8 +307,6 @@ export async function getExpensesLifetimeTotal(
   return rows[0]?.total || 0;
 }
 
-// Cash that physically left the drawer on `reportDate` ("YYYY-MM-DD"), for till reconciliation.
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-finance-ts-L360
 export async function getCashExpensesForDate(reportDate: string): Promise<number> {
   const storeId = getActiveStoreId();
   const result = await query<{ total: number }>(
@@ -341,7 +336,8 @@ export async function getExpensesAttributableToDate(reportDate: string): Promise
   const storeId = getActiveStoreId();
   const rows = await query<Pick<Expense, "amount" | "date" | "covers_months">>(
     `SELECT amount, date, covers_months FROM expenses
-     WHERE _deleted = 0 AND (date(date) = date(?) OR covers_months > 1)
+     WHERE _deleted = 0 AND COALESCE(category, '') != '${SPOT_SOURCING_EXPENSE_CATEGORY}'
+       AND (date(date) = date(?) OR covers_months > 1)
      ${storeId ? " AND store_id = ?" : ""}`,
     storeId ? [reportDate, storeId] : [reportDate],
   );

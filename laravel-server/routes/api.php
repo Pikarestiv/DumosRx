@@ -284,6 +284,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/referral-code/check', [AdminUserController::class, 'checkReferralCode']);
             Route::post('/referral-code', [AdminUserController::class, 'updateReferralCode']);
             Route::post('/stores/{id}/impersonate', [AdminStoreController::class, 'impersonateStore'])->middleware('permission:impersonate_store');
+            Route::post('/stores/{id}/relink-code', [\App\Http\Controllers\Api\Admin\AdminStoreRelinkController::class, 'generate'])->middleware('permission:impersonate_store');
             Route::put('/stores/{id}/account-manager', [AdminStoreController::class, 'updateAccountManager'])->middleware('role:super_admin');
             Route::put('/stores/{id}/referrer', [AdminStoreController::class, 'updateReferrer'])->middleware('role:super_admin');
             Route::get('/account-managers', [AdminStoreController::class, 'accountManagerCandidates'])->middleware('role:super_admin');

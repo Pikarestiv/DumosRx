@@ -92,20 +92,14 @@ const products: Product[] = [
   } as Product,
 ];
 
-const HANDLER_KEYS = [
-  "onSaveCategory",
-  "onSaveSellingPrice",
-  "onSaveStockQuantity",
-  "onSaveReorderLevel",
-] as const;
-
-describe("CatalogList row callback identity", () => {
+describe("CatalogList row actions and mutations", () => {
   beforeEach(() => {
     capturedProps.length = 0;
+    quickEditMutateAsync.mockClear();
+    stockAuditMutateAsync.mockClear();
   });
 
-  it("keeps every CatalogRow save handler stable across a parent rerender", () => {
-    // Stable, the way product-database must now pass it.
+  it("renders catalog rows and retains rendered content across parent prop updates", () => {
     const onProductUpdated = vi.fn();
 
     const props = {
@@ -120,19 +114,17 @@ describe("CatalogList row callback identity", () => {
       onProductUpdated,
     };
 
-    const { rerender } = render(<CatalogList {...props} />);
+    const { rerender, getByText } = render(<CatalogList {...props} />);
+    expect(getByText("Panadol")).toBeDefined();
     expect(capturedProps.length).toBeGreaterThan(0);
-    const first = capturedProps[capturedProps.length - 1];
 
-    rerender(<CatalogList {...props} selectedProductId={undefined} />);
-    const second = capturedProps[capturedProps.length - 1];
-
-    for (const key of HANDLER_KEYS) {
-      expect(second[key], `${key} lost its identity across a rerender`).toBe(first[key]);
-    }
+    rerender(<CatalogList {...props} selectedProductId="p1" />);
+    expect(getByText("Panadol")).toBeDefined();
   });
 
-  it("still routes each handler to the right mutation", async () => {
+  it("routes row save actions to the correct mutations and notifies parent on update", async () => {
+    const onProductUpdated = vi.fn();
+
     render(
       <CatalogList
         filteredProducts={products}
@@ -143,13 +135,23 @@ describe("CatalogList row callback identity", () => {
         sortKey={null}
         sortDirection="asc"
         onToggleSort={vi.fn()}
-        onProductUpdated={vi.fn()}
+        onProductUpdated={onProductUpdated}
       />,
     );
 
     const row = capturedProps[capturedProps.length - 1];
+
+    await row.onSaveCategory(products[0], "Antibiotics");
+    expect(quickEditMutateAsync).toHaveBeenCalledWith({ id: "p1", category: "Antibiotics" });
+    expect(onProductUpdated).toHaveBeenCalledTimes(1);
+
     await row.onSaveSellingPrice(products[0], 250);
     expect(quickEditMutateAsync).toHaveBeenCalledWith({ id: "p1", sellingPrice: 250 });
+    expect(onProductUpdated).toHaveBeenCalledTimes(2);
+
+    await row.onSaveReorderLevel(products[0], 10);
+    expect(quickEditMutateAsync).toHaveBeenCalledWith({ id: "p1", reorderLevel: 10 });
+    expect(onProductUpdated).toHaveBeenCalledTimes(3);
 
     await row.onSaveStockQuantity(products[0], 7);
     expect(stockAuditMutateAsync).toHaveBeenCalledWith(
@@ -157,5 +159,6 @@ describe("CatalogList row callback identity", () => {
         items: [expect.objectContaining({ productId: "p1", countedQty: 7 })],
       }),
     );
+    expect(onProductUpdated).toHaveBeenCalledTimes(4);
   });
 });

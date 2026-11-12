@@ -24,8 +24,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  checks:
+    if: github.event_name != 'repository_dispatch'
+    uses: ./.github/workflows/checks.yml
+
   deploy:
     name: Build & Deploy Web
+    needs: checks
+    if: always() && (needs.checks.result == 'success' || needs.checks.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: read

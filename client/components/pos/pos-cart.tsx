@@ -7,12 +7,13 @@ import { formatCurrency } from "@/lib/utils";
 import { EmptyCart, HeldSalesChip, PrescriptionLockBanner } from "./pos-cart-notices";
 import { RequestItemDialog } from "./request-item-dialog";
 import { ProformaPreviewDialog } from "./proforma-preview-dialog";
+import { SpotSourceDialog } from "./spot-source-dialog";
 import { POSCartItem } from "./pos-cart-item";
 import { useRevealChangedCartLine } from "@/lib/hooks/use-reveal-changed-cart-line";
 import { POSRedeemReward } from "./pos-redeem-reward";
 import { POSCartDiscount } from "./pos-cart-discount";
 import { POSCartMarkupPicker } from "./pos-cart-markup-picker";
-import type { CartItem, RedeemedOption, MarkupType } from "@/lib/hooks/use-pos-cart";
+import type { CartItem, RedeemedOption, MarkupType, SpotSourcingConfig } from "@/lib/hooks/use-pos-cart";
 import type { Customer } from "@/lib/types/customer";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
@@ -56,6 +57,7 @@ interface POSCartProps {
   markupType?: MarkupType | null;
   setMarkupType?: (value: MarkupType | null) => void;
   updateUnitPrice?: (id: string, price: number) => void;
+  updateSpotSourcing?: (id: string, config: SpotSourcingConfig | null) => void;
 }
 
 export const POSCart = memo(function POSCart({
@@ -88,12 +90,14 @@ export const POSCart = memo(function POSCart({
   markupType = null,
   setMarkupType,
   updateUnitPrice,
+  updateSpotSourcing,
 }: POSCartProps) {
   const { listRef, revealedId } = useRevealChangedCartLine(cart);
 
   const [showDiscount, setShowDiscount] = useState(false);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [showProformaDialog, setShowProformaDialog] = useState(false);
+  const [spotSourceItem, setSpotSourceItem] = useState<CartItem | null>(null);
   const { withRestriction, canUseResellerCommission, canUseMarkupSales, canUseProformaQuotes } = useFeatureGate();
   // Unconditional top-level const, never inlined into the JSX conditions below:
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-cart-tsx-L105
@@ -162,6 +166,7 @@ export const POSCart = memo(function POSCart({
               isLocked={isPrescriptionLocked}
               isResellerSale={isResellerSale}
               updateUnitPrice={updateUnitPrice}
+              onConfigureSpotSourcing={(item) => setSpotSourceItem(item)}
             />
           ))}
       </div>
@@ -301,6 +306,23 @@ export const POSCart = memo(function POSCart({
           </svg>
         </button>
       </div>
+
+      <SpotSourceDialog
+        open={spotSourceItem !== null}
+        onOpenChange={(open) => !open && setSpotSourceItem(null)}
+        cartItem={spotSourceItem}
+        currencyCode={currencyCode}
+        onConfirm={(config) => {
+          if (spotSourceItem) {
+            updateSpotSourcing?.(spotSourceItem.id, config);
+          }
+        }}
+        onRevertToShelf={() => {
+          if (spotSourceItem) {
+            updateSpotSourcing?.(spotSourceItem.id, null);
+          }
+        }}
+      />
     </div>
   );
 });

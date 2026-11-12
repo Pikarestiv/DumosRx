@@ -10,6 +10,28 @@ export interface CartItem extends Product {
   quantity: number;
   subtotal: number;
   original_unit_price: number;
+  is_spot_sourced?: boolean;
+  sourcing_cost?: number;
+  sourcing_payment_source?: "cash_drawer" | "external";
+  sourcing_partner?: string;
+}
+
+export interface AddToCartOptions {
+  isSpotSourced?: boolean;
+  sourcingCost?: number;
+  paymentSource?: "cash_drawer" | "external";
+  partner?: string;
+  quantity?: number;
+  sellingPrice?: number;
+}
+
+export interface SpotSourcingConfig {
+  isSpotSourced: boolean;
+  sourcingCost?: number;
+  paymentSource?: "cash_drawer" | "external";
+  partner?: string;
+  quantity?: number;
+  sellingPrice?: number;
 }
 
 export interface RedeemedOption {
@@ -123,4 +145,68 @@ export function repriceCartFromCatalog(
   });
 
   return { cart: changed ? next : cart, repricedNames };
+}
+
+export function buildNewCartItem(
+  product: Product,
+  options?: AddToCartOptions,
+): CartItem {
+  const initialQty = options?.quantity && options.quantity > 0 ? options.quantity : 1;
+  const effectiveUnitPrice =
+    options?.sellingPrice !== undefined
+      ? Math.max(0, options.sellingPrice)
+      : product.unit_price;
+  return {
+    ...product,
+    quantity: initialQty,
+    unit_price: effectiveUnitPrice,
+    subtotal: roundMoney(effectiveUnitPrice * initialQty),
+    original_unit_price: product.unit_price,
+    ...(options?.isSpotSourced
+      ? {
+          is_spot_sourced: true,
+          sourcing_cost: options.sourcingCost ?? product.cost_price ?? 0,
+          sourcing_payment_source: options.paymentSource ?? "cash_drawer",
+          sourcing_partner: options.partner ?? "",
+        }
+      : {}),
+  };
+}
+
+export function applySpotSourcingConfig(
+  item: CartItem,
+  config: SpotSourcingConfig,
+): CartItem {
+  const nextQty = config.quantity && config.quantity > 0 ? config.quantity : item.quantity;
+  const nextPrice =
+    config.sellingPrice !== undefined
+      ? Math.max(0, config.sellingPrice)
+      : item.unit_price;
+  return {
+    ...item,
+    quantity: nextQty,
+    unit_price: nextPrice,
+    subtotal: roundMoney(nextPrice * nextQty),
+    is_spot_sourced: true,
+    sourcing_cost: config.sourcingCost ?? item.sourcing_cost ?? item.cost_price ?? 0,
+    sourcing_payment_source: config.paymentSource ?? item.sourcing_payment_source ?? "cash_drawer",
+    sourcing_partner: config.partner ?? item.sourcing_partner ?? "",
+  };
+}
+
+export function stripSpotSourcingConfig(
+  item: CartItem,
+  availableStock: number,
+  canSellWithoutStock: boolean,
+  isResellerSale: boolean,
+): CartItem {
+  const { is_spot_sourced, sourcing_cost, sourcing_payment_source, sourcing_partner, ...rest } = item;
+  const nextQty = !canSellWithoutStock ? Math.min(rest.quantity, availableStock) : rest.quantity;
+  const nextPrice = isResellerSale ? rest.unit_price : rest.original_unit_price;
+  return {
+    ...(rest as CartItem),
+    quantity: nextQty,
+    unit_price: nextPrice,
+    subtotal: roundMoney(nextPrice * nextQty),
+  };
 }

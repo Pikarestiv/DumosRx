@@ -3,7 +3,7 @@
 import { POSCustomerSelector } from "./pos-customer-selector";
 import { POSCart } from "./pos-cart";
 import { POSMobileCartWrapper } from "./pos-mobile-cart-wrapper";
-import type { CartItem, RedeemedOption, MarkupType } from "@/lib/hooks/use-pos-cart";
+import type { CartItem, RedeemedOption, MarkupType, SpotSourcingConfig } from "@/lib/hooks/use-pos-cart";
 import type { Customer } from "@/lib/types/customer";
 
 interface POSCartPanelsProps {
@@ -35,6 +35,7 @@ interface POSCartPanelsProps {
   markupType?: MarkupType | null;
   setMarkupType?: (value: MarkupType | null) => void;
   updateUnitPrice?: (id: string, price: number) => void;
+  updateSpotSourcing?: (id: string, config: SpotSourcingConfig | null) => void;
   selectedCustomer: Customer | null;
   customers: Customer[];
   loadingCustomers: boolean;
@@ -72,6 +73,7 @@ export function POSCartPanels(props: POSCartPanelsProps) {
     markupType,
     setMarkupType,
     updateUnitPrice,
+    updateSpotSourcing,
     selectedCustomer,
     customers,
     loadingCustomers,
@@ -108,6 +110,7 @@ export function POSCartPanels(props: POSCartPanelsProps) {
     markupType,
     setMarkupType,
     updateUnitPrice,
+    updateSpotSourcing,
   };
 
   return (

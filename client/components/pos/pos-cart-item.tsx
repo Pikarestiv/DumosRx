@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Minus, Plus, Trash2 } from "lucide-react";
+import { Minus, Plus, Trash2, Share2 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { CategoryIcon } from "./category-icon";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
@@ -24,10 +24,11 @@ interface Props {
   isLocked?: boolean;
   isResellerSale?: boolean;
   updateUnitPrice?: (id: string, price: number) => void;
+  onConfigureSpotSourcing?: (item: CartItem) => void;
 }
 
 /** Swipe-left-to-remove cart row: a red delete backdrop revealed as the row is dragged left. */
-export function POSCartItem({ item, currencyCode, isLast, updateQuantity, removeFromCart, isLocked = false, isResellerSale = false, updateUnitPrice, highlighted = false }: Props) {
+export function POSCartItem({ item, currencyCode, isLast, updateQuantity, removeFromCart, isLocked = false, isResellerSale = false, updateUnitPrice, onConfigureSpotSourcing, highlighted = false }: Props) {
   const capsClass = useUppercaseDisplayClass();
   // Unconditional top-level const, never inlined into the JSX branch below -
   // see pos-cart.tsx's canApplyDiscounts for the hook-ordering reason.
@@ -103,6 +104,35 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
           <div className={`text-[12.5px] font-semibold mb-0.5 truncate leading-tight ${capsClass}`}>
             {item.name}
           </div>
+          {item.is_spot_sourced ? (
+            <div className="flex items-center gap-1.5 mb-1">
+              <button
+                type="button"
+                onClick={() => onConfigureSpotSourcing?.(item)}
+                className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-colors cursor-pointer"
+                title="Edit spot sourcing details"
+              >
+                <Share2 className="w-2.5 h-2.5" />
+                <span>
+                  Spot Sourced ({formatCurrency(item.sourcing_cost || 0, currencyCode)})
+                </span>
+              </button>
+            </div>
+          ) : (
+            onConfigureSpotSourcing && !isLocked && (
+              <div className="mb-0.5">
+                <button
+                  type="button"
+                  onClick={() => onConfigureSpotSourcing(item)}
+                  className="text-[10px] text-muted-foreground/60 hover:text-amber-600 dark:hover:text-amber-400 inline-flex items-center gap-1 transition-colors cursor-pointer"
+                  title="Source this item on the spot from an external store"
+                >
+                  <Share2 className="w-2.5 h-2.5" />
+                  <span>Source outside</span>
+                </button>
+              </div>
+            )
+          )}
           {isResellerSale && canOverridePrice ? (
             <div className="flex flex-col items-start gap-1 text-[11.5px]">
               <input

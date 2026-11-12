@@ -109,7 +109,7 @@ describe("usePOSPayment amountPaid & split auto-resynchronization", () => {
 
   it("preserves intentionally custom partial amounts when total changes", () => {
     let currentTotal = 700;
-    let currentCart = [baseItem];
+    const currentCart = [baseItem];
 
     const { result, rerender } = renderHook(
       ({ total, cart }) =>

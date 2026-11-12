@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { useStore } from "@/lib/context/store-context";
 import { getDailyCloseData } from "@/lib/db/queries/sales";
 import { getPaymentAccounts } from "@/lib/db/queries/setup";
 import { getCashExpensesForDate } from "@/lib/db/queries/finance";
 import { queryKeys } from "@/lib/query-keys";
-import { buildNetCashBreakdown, buildProfitBreakdown, DAILY_CLOSE_PROFIT_AFTER_EXPENSES_LABEL, DAILY_CLOSE_PROFIT_LABEL } from "@/lib/utils/daily-close-breakdown";
+import { buildNetCashBreakdown, buildProfitBreakdown } from "@/lib/utils/daily-close-breakdown";
+import { exportDailyCloseToCSV } from "@/lib/utils/daily-close-csv";
 import { useDailyCloseProfitAfterExpenses } from "@/lib/hooks/use-daily-close-profit-after-expenses";
 import type { PaymentAccount } from "@/lib/types/payment-account";
 
@@ -254,9 +254,41 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
     };
   }, [salesToday, itemsToday, returnsToday, returnItemsToday, paymentAccounts]);
 
+  const spotSourcingCashPayouts = useMemo(() => {
+    return salesToday.reduce((sum, sale) => {
+      if (!sale.payment_details) return sum;
+      try {
+        const details =
+          typeof sale.payment_details === "string"
+            ? JSON.parse(sale.payment_details)
+            : sale.payment_details;
+        const spotItems = details?.spot_sourcing || [];
+        const saleSpotCost = spotItems.reduce(
+          (iSum: number, item: { payment_source?: string; unit_cost?: number; quantity?: number }) => {
+            if (item.payment_source === "cash_drawer" || item.payment_source === "till_drawer") {
+              return iSum + (Number(item.unit_cost) || 0) * (Number(item.quantity) || 1);
+            }
+            return iSum;
+          },
+          0,
+        );
+        return sum + saleSpotCost;
+      } catch {
+        return sum;
+      }
+    }, 0);
+  }, [salesToday]);
+
   const netCashBreakdown = useMemo(
-    () => buildNetCashBreakdown({ cashSales, cashRefunds, cashExpenses, reportDate }),
-    [cashSales, cashRefunds, cashExpenses, reportDate],
+    () =>
+      buildNetCashBreakdown({
+        cashSales,
+        cashRefunds,
+        cashExpenses,
+        spotSourcingPayouts: spotSourcingCashPayouts,
+        reportDate,
+      }),
+    [cashSales, cashRefunds, cashExpenses, spotSourcingCashPayouts, reportDate],
   );
   const profitAfterExpensesBreakdown = useDailyCloseProfitAfterExpenses(reportDate, profitBreakdown, showProfit);
   const totalProfit = profitBreakdown.total;
@@ -264,62 +296,15 @@ export function useDailyCloseData(reportDate: string, showProfit = true) {
   const netCashExpected = netCashBreakdown.total;
 
   const exportToCSV = () => {
-    const csvContent = [
-      ["Daily Close Report", `Generated: ${formatDateToDDMMYYYY(new Date())}`],
-      ["Total Net Sales", aggregatedTotals.total.toString()],
-      ["Total Refunds", aggregatedTotals.refunds.toString()],
-      ["Cash Expected (gross)", aggregatedTotals.cash.toString()],
-      ["Cash Expenses Paid Out", cashExpenses.toString()],
-      ["Net Cash Expected", netCashExpected.toString()],
-      ["Transfer / Mobile", aggregatedTotals.transfer.toString()],
-      ...(showProfit
-        ? [
-            [DAILY_CLOSE_PROFIT_LABEL, totalProfit.toString()],
-            [DAILY_CLOSE_PROFIT_AFTER_EXPENSES_LABEL, profitAfterExpenses.toString()],
-          ]
-        : []),
-      [],
-      ["Payment Breakdown"],
-      ["Method", "Amount"],
-      ["Cash", aggregatedTotals.cash.toString()],
-      ["Card / POS", aggregatedTotals.card.toString()],
-      ...Object.values(aggregatedTotals.cardAccounts).map(a => [`  - ${a.name}`, a.total.toString()]),
-      ["Transfer / Mobile", aggregatedTotals.transfer.toString()],
-      ...Object.values(aggregatedTotals.transferAccounts).map(a => [`  - ${a.name}`, a.total.toString()]),
-      ["Credit Sales", aggregatedTotals.credit.toString()],
-      // Only emitted when non-zero: an unrecognized/legacy payment_method or
-      // a mixed refund with no split data to prorate against - see totals.other.
-      ...(aggregatedTotals.other !== 0 ? [["Other (uncategorized)", aggregatedTotals.other.toString()]] : []),
-      [],
-      ["Highest Selling Products"],
-      ["Product", "Qty Sold", "Revenue"],
-      ...topSellingMeds.map((med) => [
-        med.name,
-        med.quantity.toString(),
-        med.revenue.toString(),
-      ]),
-    ]
-      .map((row) =>
-        row
-          .map((cell) => {
-            const s = String(cell ?? "");
-            return s.includes(",") || s.includes('"') || s.includes("\n")
-              ? `"${s.replace(/"/g, '""')}"`
-              : s;
-          })
-          .join(","),
-      )
-      .join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Daily_Close_Report_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    exportDailyCloseToCSV({
+      aggregatedTotals,
+      cashExpenses,
+      netCashExpected,
+      showProfit,
+      totalProfit,
+      profitAfterExpenses,
+      topSellingMeds,
+    });
   };
 
   return {

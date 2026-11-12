@@ -64,3 +64,17 @@ export const useRevokeTillCodeMutation = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
   });
 };
+
+export interface StoreRelinkCodeResponse {
+  code: string;
+  expires_at: string;
+}
+
+export const useGenerateStoreRelinkCodeMutation = () => {
+  return useMutation({
+    mutationFn: (storeId: string) =>
+      webApiClient.request<StoreRelinkCodeResponse>(`admin/stores/${storeId}/relink-code`, {
+        method: "POST",
+      }),
+  });
+};

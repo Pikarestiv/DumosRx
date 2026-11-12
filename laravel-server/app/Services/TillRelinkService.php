@@ -40,6 +40,30 @@ class TillRelinkService
         return ['code' => $code, 'expires_at' => $expiresAt->toIso8601String()];
     }
 
+    public function generateForAdmin(User $admin, Store $store, array $device): array
+    {
+        $owner = $store->user;
+        if (! $owner) {
+            throw new HttpResponseException(response()->json(['message' => 'Store owner not found.'], 404));
+        }
+
+        $this->refuseBlockedAccounts($owner, $store);
+
+        $code = $this->randomCode();
+        $expiresAt = now()->addSeconds(self::TTL_SECONDS);
+
+        Cache::put($this->cacheKey($code), [
+            'user_id' => $store->user_id,
+            'store_id' => $store->id,
+            'created_by' => $admin->id,
+            'issued_by_admin' => true,
+        ], $expiresAt);
+
+        $this->auditIssuedByAdmin($admin, $store, $expiresAt, $device);
+
+        return ['code' => $code, 'expires_at' => $expiresAt->toIso8601String()];
+    }
+
     /** @return array|null the login() response body, or null for an unknown, expired, used or other-store code */
     public function consume(string $code, string $storeId, array $device): ?array
     {
@@ -66,7 +90,8 @@ class TillRelinkService
             'user_agent' => $device['user_agent'],
         ])->save();
 
-        $this->audit($owner, $store, $entry['created_by'], $device);
+        $issuedByAdmin = (bool) ($entry['issued_by_admin'] ?? false);
+        $this->audit($owner, $store, $entry['created_by'], $device, $issuedByAdmin);
 
         return [
             'message' => 'Login successful',
@@ -104,19 +129,40 @@ class TillRelinkService
         ]);
     }
 
-    private function audit(User $owner, Store $store, ?string $createdBy, array $device): void
+    private function auditIssuedByAdmin(User $admin, Store $store, \DateTimeInterface $expiresAt, array $device): void
+    {
+        ActivityLog::create([
+            'user_id' => $admin->id,
+            'store_id' => $store->id,
+            'action' => 'TILL_RELINK_CODE_ISSUED_BY_ADMIN',
+            'description' => "Till re-link code issued by admin {$admin->email} for {$store->name}",
+            'ip_address' => $device['ip'] ?? null,
+            'user_agent' => $device['user_agent'] ?? null,
+            'properties' => [
+                'expires_at' => $expiresAt->format(DATE_ATOM),
+                'admin_id' => $admin->id,
+                'admin_email' => $admin->email,
+            ],
+        ]);
+    }
+
+    private function audit(User $owner, Store $store, ?string $createdBy, array $device, bool $issuedByAdmin = false): void
     {
         $label = $device['label'] ?: 'Unnamed device';
+        $desc = $issuedByAdmin
+            ? "Till re-linked with an admin-issued code on {$label}"
+            : "Till re-linked with an owner code on {$label}";
 
         ActivityLog::create([
             'user_id' => $owner->id,
             'store_id' => $store->id,
             'action' => 'TILL_RELINKED',
-            'description' => "Till re-linked with an owner code on {$label}",
+            'description' => $desc,
             'ip_address' => $device['ip'],
             'user_agent' => $device['user_agent'],
             'properties' => [
                 'created_by' => $createdBy,
+                'issued_by_admin' => $issuedByAdmin,
                 'device_id' => $device['id'],
                 'device_label' => $device['label'],
             ],

@@ -14,14 +14,19 @@ import {
   calculateTotal,
   roundMoney,
 } from "@/lib/utils/pos-calculations";
-export type { POSProduct as Product } from "@/lib/types/product";
 import type { POSProduct as Product } from "@/lib/types/product";
+export type { POSProduct as Product } from "@/lib/types/product";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import {
   usePOSCartStore,
   repriceCartFromCatalog,
+  buildNewCartItem,
+  applySpotSourcingConfig,
+  stripSpotSourcingConfig,
   type CartItem,
   type MarkupType,
+  type AddToCartOptions,
+  type SpotSourcingConfig,
 } from "./use-pos-cart-store";
 export {
   clearPOSCartStorage,
@@ -30,6 +35,8 @@ export {
   type CartRepricing,
   type MarkupType,
   type RedeemedOption,
+  type AddToCartOptions,
+  type SpotSourcingConfig,
 } from "./use-pos-cart-store";
 
 export function usePOSCart(products: Product[]) {
@@ -50,8 +57,6 @@ export function usePOSCart(products: Product[]) {
   const setMarkupType = usePOSCartStore((state) => state.setMarkupType);
   const isHydrated = useHydrated();
 
-  // A manual discount edit and a loyalty redemption share the same discount slot (by design, to keep a single source of truth for "the" discount…
-  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L170
   const setDiscount = useCallback(
     (value: number) => {
       setStoreDiscount(value);
@@ -86,8 +91,6 @@ export function usePOSCart(products: Product[]) {
     setRedeemedOption(null);
   }, [setStoreDiscount, setRedeemedOption]);
 
-  // Re-price against the catalog rather than at checkout:
-  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L212
   useEffect(() => {
     if (products.length === 0) return;
     const { cart: repriced, repricedNames } = repriceCartFromCatalog(cart, products);
@@ -100,8 +103,6 @@ export function usePOSCart(products: Product[]) {
     }
   }, [products, cart, setCart]);
 
-  // A redemption already staged in cart state can outlive the gate that allowed it — a plan downgrade, or an admin flipping the store's on/off t…
-  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L232
   useEffect(() => {
     if (!canUseLoyaltyProgram && redeemedOption) {
       clearRedemption();
@@ -114,8 +115,6 @@ export function usePOSCart(products: Product[]) {
     () => calculateDiscountAmount(subtotal, discount, discountType),
     [subtotal, discount, discountType]
   );
-  // VAT must be charged on the net-of-discount amount (this covers loyalty redemptions too, since they share this same discount slot — see redee…
-  // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L250
   const tax = useMemo(
     () => calculateTax(Math.max(0, subtotal - calculatedDiscount), vatPercentage),
     [subtotal, calculatedDiscount, vatPercentage]
@@ -132,8 +131,6 @@ export function usePOSCart(products: Product[]) {
       const removed = cart.find((item) => item.id === id);
       setCart((prev) => prev.filter((item) => item.id !== id));
       if (!removed) return;
-      // A swipe-to-remove is easy to trigger by accident while scrolling the
-      // cart on a phone, so every removal is reversible rather than silent.
       toast(`${displayName(removed.name)} removed from cart`, {
         action: {
           label: "Undo",
@@ -155,12 +152,13 @@ export function usePOSCart(products: Product[]) {
       }
 
       const product = products.find((m) => m.id === id);
-      if (product && newQuantity > product.stock) {
+      const currentItem = cart.find((item) => item.id === id);
+      if (product && newQuantity > product.stock && !currentItem?.is_spot_sourced) {
         if (!canSellWithoutStock) {
           toast.warning(formatInsufficientStock(product.stock, canSeeQuantities));
           return;
         }
-        const previous = cart.find((item) => item.id === id)?.quantity ?? 0;
+        const previous = currentItem?.quantity ?? 0;
         if (previous <= product.stock) {
           toast.warning(formatBackorderWarning(product.stock, newQuantity, canSeeQuantities));
         }
@@ -182,11 +180,29 @@ export function usePOSCart(products: Product[]) {
   );
 
   const addToCart = useCallback(
-    (product: Product) => {
+    (product: Product, options?: AddToCartOptions) => {
       const existingItem = cart.find((item) => item.id === product.id);
 
       if (existingItem) {
-        if (canSellWithoutStock || existingItem.quantity < product.stock) {
+        if (options?.isSpotSourced) {
+          setCart((prev) =>
+            prev.map((item) =>
+              item.id === product.id
+                ? applySpotSourcingConfig(item, {
+                    isSpotSourced: true,
+                    sourcingCost: options.sourcingCost,
+                    paymentSource: options.paymentSource,
+                    partner: options.partner,
+                    quantity: options.quantity ?? item.quantity + 1,
+                    sellingPrice: options.sellingPrice,
+                  })
+                : item,
+            ),
+          );
+          toast.success(`${displayName(product.name)} added as spot-sourced`);
+          return;
+        }
+        if (canSellWithoutStock || existingItem.is_spot_sourced || existingItem.quantity < product.stock) {
           updateQuantity(product.id, existingItem.quantity + 1);
         } else {
           toast.warning(formatInsufficientStock(product.stock, canSeeQuantities));
@@ -194,21 +210,51 @@ export function usePOSCart(products: Product[]) {
         return;
       }
 
-      if (product.stock > 0 || canSellWithoutStock) {
-        const cartItem: CartItem = {
-          ...product,
-          quantity: 1,
-          subtotal: product.unit_price,
-          original_unit_price: product.unit_price,
-        };
+      if (product.stock > 0 || canSellWithoutStock || options?.isSpotSourced) {
+        const cartItem = buildNewCartItem(product, options);
         setCart((prev) => [...prev, cartItem]);
-        if (product.stock > 0) toast.success(`${displayName(product.name)} added to cart`);
-        else toast.warning(formatBackorderWarning(product.stock, 1, canSeeQuantities));
+        if (options?.isSpotSourced) {
+          toast.success(`${displayName(product.name)} added as spot-sourced`);
+        } else if (product.stock > 0) {
+          toast.success(`${displayName(product.name)} added to cart`);
+        } else {
+          toast.warning(formatBackorderWarning(product.stock, cartItem.quantity, canSeeQuantities));
+        }
       } else {
         toast.error("This item is out of stock");
       }
     },
     [cart, setCart, updateQuantity, displayName, canSeeQuantities, canSellWithoutStock],
+  );
+
+  const updateSpotSourcing = useCallback(
+    (id: string, config: SpotSourcingConfig | null) => {
+      if (!config || !config.isSpotSourced) {
+        const product = products.find((p) => p.id === id);
+        const currentItem = cart.find((item) => item.id === id);
+        const availableStock = product?.stock ?? currentItem?.stock ?? 0;
+        if (!canSellWithoutStock && availableStock <= 0) {
+          setCart((prev) => prev.filter((item) => item.id !== id));
+          toast.info(
+            `${displayName(currentItem?.name || product?.name || "Item")} removed from cart (no shelf stock available)`,
+          );
+          return;
+        }
+        setCart((prev) =>
+          prev.map((item) =>
+            item.id === id
+              ? stripSpotSourcingConfig(item, availableStock, canSellWithoutStock, isResellerSale)
+              : item,
+          ),
+        );
+        return;
+      }
+
+      setCart((prev) =>
+        prev.map((item) => (item.id === id ? applySpotSourcingConfig(item, config) : item)),
+      );
+    },
+    [products, cart, setCart, canSellWithoutStock, isResellerSale, displayName],
   );
 
   const updateUnitPrice = useCallback(
@@ -258,26 +304,15 @@ export function usePOSCart(products: Product[]) {
       restoredMarkup?: { isResellerSale: boolean; markupType: MarkupType | null },
     ) => {
       setCart(items);
-      // A held transaction never persisted a redemption (only its resulting discount amount), so any redemption tag from before this restore is now…
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L393
       setRedeemedOption(null);
       if (restoredDiscount !== undefined) setStoreDiscount(restoredDiscount);
       if (restoredDiscountType !== undefined) setStoreDiscountType(restoredDiscountType);
-      // The raw store setter, not setIsResellerSale:
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-cart-ts-L399
       if (restoredMarkup) {
         setStoreIsResellerSale(restoredMarkup.isResellerSale);
         setMarkupType(restoredMarkup.markupType);
       }
     },
-    [
-      setCart,
-      setRedeemedOption,
-      setStoreDiscount,
-      setStoreDiscountType,
-      setStoreIsResellerSale,
-      setMarkupType,
-    ],
+    [setCart, setRedeemedOption, setStoreDiscount, setStoreDiscountType, setStoreIsResellerSale, setMarkupType],
   );
 
   return {
@@ -299,6 +334,7 @@ export function usePOSCart(products: Product[]) {
     redeemReward,
     clearRedemption,
     updateUnitPrice,
+    updateSpotSourcing,
     isResellerSale: isHydrated ? isResellerSale : false,
     setIsResellerSale,
     markupType: isHydrated ? markupType : null,

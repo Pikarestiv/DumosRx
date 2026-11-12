@@ -69,6 +69,7 @@ async function restoreBatchQuantity(
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-returns-ts-L80
 export async function restoreReturnedStock(params: RestoreParams) {
   const { saleItemId, legacyStockBatchId, returnQuantity, productId, costPrice, returnId, saleId, performedBy } = params;
+  if (returnQuantity <= 0) return;
   const consumedBatches = await getSaleItemBatches(saleItemId);
   // A second (or third) partial return of the same sale line must not restore batches from scratch — without this, every partial return restarte…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-returns-ts-L76

@@ -24,6 +24,8 @@ interface RecordSaleItemStockParams {
   correlationId?: string;
   /** The store sells past recorded stock: write the shortfall as an owed `backorder` row. */
   recordShortfallAsOwed?: boolean;
+  /** Sourced on the spot externally: write sale_items and bypass shelf batch deduction. */
+  isSpotSourced?: boolean;
 }
 
 interface ShortfallCompensation {
@@ -75,7 +77,20 @@ async function writeSaleItemStock({
   cashierId,
   correlationId,
   recordShortfallAsOwed,
+  isSpotSourced = false,
 }: RecordSaleItemStockParams) {
+  if (isSpotSourced) {
+    return insert("sale_items", {
+      sale_id: saleId,
+      product_id: productId,
+      stock_batch_id: null,
+      quantity,
+      unit_price: unitPrice,
+      list_price: listPrice ?? null,
+      cost_price: costPrice || 0,
+      total_price: subtotal,
+    }, { correlationId });
+  }
   // Prefer FEFO picking among batches that still show positive stock; if the product's true stock is already fully depleted, fall back to whatev…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L171
   let batches = await getBatchesForProduct(productId);

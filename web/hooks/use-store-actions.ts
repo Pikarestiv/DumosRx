@@ -29,6 +29,7 @@ export function useStoreActions(onChanged: () => void): StoreActions {
   const [isTrialDialogOpen, setIsTrialDialogOpen] = useState(false);
   const [isActivatePlanDialogOpen, setIsActivatePlanDialogOpen] = useState(false);
   const [isBillingDialogOpen, setIsBillingDialogOpen] = useState(false);
+  const [isRelinkDialogOpen, setIsRelinkDialogOpen] = useState(false);
 
   const suspendMutation = useSuspendStoreMutation();
   const unsuspendMutation = useUnsuspendStoreMutation();
@@ -167,10 +168,16 @@ export function useStoreActions(onChanged: () => void): StoreActions {
     setIsBillingDialogOpen(true);
   };
 
+  const handleOpenRelinkCode = (store: AdminStoreSummary) => {
+    setSelectedStore(store);
+    setIsRelinkDialogOpen(true);
+  };
+
   return {
     handlers: {
       handleImpersonate: impersonation.handleImpersonate,
       handleViewBilling,
+      handleOpenRelinkCode,
       setSelectedStore,
       setIsSuspendDialogOpen,
       setIsTrialDialogOpen,
@@ -203,6 +210,7 @@ export function useStoreActions(onChanged: () => void): StoreActions {
         isPending: activatePlanMutation.isPending,
       },
       billing: { isOpen: isBillingDialogOpen, onOpenChange: setIsBillingDialogOpen },
+      relinkCode: { isOpen: isRelinkDialogOpen, onOpenChange: setIsRelinkDialogOpen },
       deletion,
       impersonation,
     },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { DialogFooter } from "@/components/ui/dialog";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
@@ -14,20 +14,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatCurrency } from "@/lib/utils";
 import { calculateProportionalRefund } from "@/lib/utils/pos-calculations";
 import { getMaxReturnable } from "@/lib/utils/returns-calculations";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getSaleById, getTransactionDetails } from "@/lib/db/queries/sales";
 import { queryKeys } from "@/lib/query-keys";
-import { useProcessReturnMutation } from "@/lib/hooks/use-process-return-mutation";
+import { useProcessReturnMutation, type ReturnableItem } from "@/lib/hooks/use-process-return-mutation";
 import { Loader2, RotateCcw } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ReturnItemRow } from "./return-item-row";
+import { ReturnConfirmDialog } from "./return-confirm-dialog";
 import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
-import { ProductName } from "@/components/ui/product-name";
 import { resellerPatchAfterReturn } from "@/lib/utils/reseller-return-adjustment";
 
 interface ReturnDialogProps {
@@ -38,10 +36,12 @@ interface ReturnDialogProps {
   currencyCode?: string;
 }
 
-type ReturnableItem = SaleItemDetail & {
-  returnQuantity: number;
-  stock_batch_id?: string;
-};
+interface ItemSelection {
+  selected: boolean;
+  quantity: number;
+  discardQuantity: number;
+  discardReason: string;
+}
 
 export function ReturnDialog({
   open,
@@ -51,15 +51,11 @@ export function ReturnDialog({
   currencyCode,
 }: ReturnDialogProps) {
   const { user } = useAuth();
-  const [selectedItems, setSelectedItems] = useState<
-    Map<string, { selected: boolean; quantity: number }>
-  >(new Map());
+  const [selectedItems, setSelectedItems] = useState<Map<string, ItemSelection>>(new Map());
   const [reason, setReason] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [freshSale, setFreshSale] = useState<SaleWithDetails | null>(null);
 
-  // Fetch items for this sale, including how much of each has already been returned in a prior return on this sale — getSale…
-  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-return-dialog-tsx-L59
   const { data: detailsData, isLoading: loadingSaleItems } = useQuery({
     ...queryKeys.sales.transactionDetails(sale?.id),
     queryFn: () => (sale ? getTransactionDetails(sale.id) : Promise.resolve(null)),
@@ -67,6 +63,22 @@ export function ReturnDialog({
   });
   const saleItems = detailsData?.items || [];
   const returnMutation = useProcessReturnMutation();
+
+  const spotSourcedProductIds = useMemo(() => {
+    if (!sale?.payment_details) return new Set<string>();
+    try {
+      const details =
+        typeof sale.payment_details === "string"
+          ? JSON.parse(sale.payment_details)
+          : sale.payment_details;
+      const spotList = Array.isArray(details?.spot_sourcing) ? details.spot_sourcing : [];
+      return new Set<string>(
+        spotList.map((s: { product_id?: string }) => s.product_id).filter(Boolean) as string[],
+      );
+    } catch {
+      return new Set<string>();
+    }
+  }, [sale?.payment_details]);
 
   if (!sale) return null;
 
@@ -77,6 +89,8 @@ export function ReturnDialog({
       next.set(itemId, {
         selected: !current?.selected,
         quantity: current?.quantity || maxQty,
+        discardQuantity: current?.discardQuantity ?? 0,
+        discardReason: current?.discardReason ?? "Damaged / Broken",
       });
       return next;
     });
@@ -87,10 +101,41 @@ export function ReturnDialog({
     const validQty = Math.min(Math.max(1, parsedQty), maxQty);
     setSelectedItems((prev) => {
       const next = new Map(prev);
-      // const current = next.get(itemId);
+      const current = next.get(itemId);
       next.set(itemId, {
         selected: true,
         quantity: validQty,
+        discardQuantity: Math.min(current?.discardQuantity ?? 0, validQty),
+        discardReason: current?.discardReason ?? "Damaged / Broken",
+      });
+      return next;
+    });
+  };
+
+  const handleDiscardQtyChange = (itemId: string, discardQty: number) => {
+    setSelectedItems((prev) => {
+      const next = new Map(prev);
+      const current = next.get(itemId);
+      const returnQty = current?.quantity ?? 1;
+      const validDiscard = Math.min(Math.max(0, discardQty), returnQty);
+      next.set(itemId, {
+        selected: true,
+        quantity: returnQty,
+        discardQuantity: validDiscard,
+        discardReason: current?.discardReason ?? "Damaged / Broken",
+      });
+      return next;
+    });
+  };
+
+  const handleDiscardReasonChange = (itemId: string, discardReason: string) => {
+    setSelectedItems((prev) => {
+      const next = new Map(prev);
+      const current = next.get(itemId);
+      if (!current) return prev;
+      next.set(itemId, {
+        ...current,
+        discardReason,
       });
       return next;
     });
@@ -101,14 +146,14 @@ export function ReturnDialog({
     .map(([id, val]) => ({
       ...(saleItems?.find((si) => si.id === id) as SaleItemDetail),
       returnQuantity: val.quantity,
+      discardQuantity: val.discardQuantity,
+      discardReason: val.discardReason,
     }));
 
   const itemsSubtotal = itemsToReturn.reduce(
     (sum, item) => sum + (item.unit_price || 0) * item.returnQuantity,
     0,
   );
-  // Refund proportionally includes the tax and discount the customer actually paid on these items, not just their raw unit p…
-  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-return-dialog-tsx-L111
   const saleSubtotal = sale?.subtotal || 0;
   const totalRefund = calculateProportionalRefund({
     itemsSubtotal,
@@ -135,8 +180,6 @@ export function ReturnDialog({
     setShowConfirm(true);
   };
 
-  // Passed as ConfirmDialog's onConfirm, which awaits it and only closes once it settles.
-  // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-return-dialog-tsx-L133
   const handleSubmit = async () => {
     if (returnMutation.isPending) return;
     try {
@@ -168,7 +211,7 @@ export function ReturnDialog({
           </span>
         }
         description={`Select the items to return for Receipt #${sale.receipt_number || sale.id.substring(0, 8).toUpperCase()}`}
-        className="md:max-w-[min(72rem,90vw)] max-h-[90vh] overflow-hidden flex flex-col"
+        className="md:max-w-[min(76rem,95vw)] max-h-[90vh] overflow-hidden flex flex-col"
         footer={
           <DialogFooter>
             <Button
@@ -190,7 +233,7 @@ export function ReturnDialog({
         }
       >
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-          <div className="border rounded-lg overflow-hidden">
+          <div className="border rounded-lg overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -198,13 +241,14 @@ export function ReturnDialog({
                   <TableHead>Item</TableHead>
                   <TableHead className="text-right">Qty Sold</TableHead>
                   <TableHead className="text-right">Qty to Return</TableHead>
+                  <TableHead className="text-right">Damaged / Discard</TableHead>
                   <TableHead className="text-right">Refund</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loadingSaleItems && (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                       <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
                       Loading items from this sale...
                     </TableCell>
@@ -212,24 +256,26 @@ export function ReturnDialog({
                 )}
                 {!loadingSaleItems &&
                   saleItems?.map((item) => {
-                  const maxQty = getMaxReturnable(item);
-                  return (
-                    <ReturnItemRow
-                      key={item.id}
-                      item={item}
-                      quantity={
-                        selectedItems.get(item.id)?.quantity ?? maxQty
-                      }
-                      selected={selectedItems.get(item.id)?.selected || false}
-                      maxQty={maxQty}
-                      currencyCode={currencyCode}
-                      onToggle={() => handleToggleItem(item.id, maxQty)}
-                      onQtyChange={(qty) =>
-                        handleQtyChange(item.id, qty, maxQty)
-                      }
-                    />
-                  );
-                })}
+                    const maxQty = getMaxReturnable(item);
+                    const selection = selectedItems.get(item.id);
+                    return (
+                      <ReturnItemRow
+                        key={item.id}
+                        item={item}
+                        quantity={selection?.quantity ?? maxQty}
+                        discardQuantity={selection?.discardQuantity ?? 0}
+                        discardReason={selection?.discardReason ?? "Damaged / Broken"}
+                        selected={selection?.selected || false}
+                        maxQty={maxQty}
+                        currencyCode={currencyCode}
+                        isSpotSourced={spotSourcedProductIds.has(item.product_id)}
+                        onToggle={() => handleToggleItem(item.id, maxQty)}
+                        onQtyChange={(qty) => handleQtyChange(item.id, qty, maxQty)}
+                        onDiscardQtyChange={(dQty) => handleDiscardQtyChange(item.id, dQty)}
+                        onDiscardReasonChange={(dReason) => handleDiscardReasonChange(item.id, dReason)}
+                      />
+                    );
+                  })}
               </TableBody>
             </Table>
           </div>
@@ -246,54 +292,13 @@ export function ReturnDialog({
         </div>
       </ResponsiveModal>
 
-      <ConfirmDialog
+      <ReturnConfirmDialog
         open={showConfirm}
         onOpenChange={setShowConfirm}
-        title="Confirm Return & Refund"
-        confirmLabel="Yes, Process Return"
-        description={
-          <div className="space-y-3 mt-2 text-left">
-            <p className="text-sm">
-              You are about to process a return for the following item(s):
-            </p>
-            <ul className="list-disc pl-5 text-sm space-y-1">
-              {itemsToReturn.map((item) => (
-                <li key={item.id}>
-                  <span className="font-medium">{item.returnQuantity}x</span>{" "}
-                  <ProductName
-                    name={item.product_name || ""}
-                    className="inline-block max-w-full align-bottom"
-                  />
-                  <span className="text-muted-foreground ml-1">
-                    (
-                    {formatCurrency(
-                      (item.unit_price || 0) * item.returnQuantity,
-                      currencyCode,
-                    )}
-                    )
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <div className="pt-2 border-t mt-2">
-              <p className="font-medium text-destructive">
-                Total Refund: {formatCurrency(totalRefund, currencyCode)}
-              </p>
-              {commissionOwedBack > 0 && (
-                <p className="text-sm text-amber-600 mt-1">
-                  The reseller was already paid commission on this sale;{" "}
-                  {formatCurrency(commissionOwedBack, currencyCode)} of it is owed back.
-                </p>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground pt-2">
-              <strong>Consequences:</strong> The returned quantities will be
-              immediately restocked into stock batch, and this sale will be
-              marked as returned in the transaction history. This action cannot
-              be undone.
-            </p>
-          </div>
-        }
+        itemsToReturn={itemsToReturn}
+        totalRefund={totalRefund}
+        commissionOwedBack={commissionOwedBack}
+        currencyCode={currencyCode}
         onConfirm={handleSubmit}
       />
     </>

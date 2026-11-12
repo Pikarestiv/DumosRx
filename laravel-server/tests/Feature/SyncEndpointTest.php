@@ -20,8 +20,6 @@ class SyncEndpointTest extends TestCase
     {
         parent::setUp();
 
-        \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
-
         // sanitizeUserSyncPayload()'s manage_staff/role-privilege gate (see
         // Fix A) consults real Role/Permission rows via hasPermission(), the
         // same way CheckPermission middleware and StaffController's routes
@@ -60,8 +58,6 @@ class SyncEndpointTest extends TestCase
         ]);
 
         $this->withoutMiddleware();
-
-        \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
     }
 
     public function test_push_sync_handles_inserts()

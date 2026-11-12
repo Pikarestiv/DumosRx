@@ -1,7 +1,7 @@
 import { query } from "@/lib/db";
 import { getActiveStoreId } from "@/lib/db/core";
 import { addMonths, startOfMonth, endOfMonth } from "date-fns";
-import { getSmoothedAmountInWindow } from "@/lib/db/queries/finance";
+import { getSmoothedAmountInWindow, SPOT_SOURCING_EXPENSE_CATEGORY } from "@/lib/db/queries/finance";
 import { parseLocalDateOnly } from "@/lib/utils/date-utils";
 
 export interface SalesFilters {
@@ -35,7 +35,7 @@ export async function getSmoothedExpensesByMonth(
   const params: string[] = [];
   // date() on both sides:
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-reports-ts-L48
-  let where = "_deleted = 0 AND (covers_months IS NULL OR covers_months <= 0)";
+  let where = `_deleted = 0 AND COALESCE(category, '') != '${SPOT_SOURCING_EXPENSE_CATEGORY}' AND (covers_months IS NULL OR covers_months <= 0)`;
   if (dateFrom) { where += " AND date(date) >= date(?, 'localtime')"; params.push(dateFrom); }
   if (dateTo) { where += " AND date(date) <= date(?, 'localtime')"; params.push(dateTo); }
   if (storeId) { where += " AND store_id = ?"; params.push(storeId); }
@@ -51,7 +51,7 @@ export async function getSmoothedExpensesByMonth(
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-reports-ts-L71
   const amortized = await query<{ amount: number; date: string; covers_months: number }>(
     `SELECT amount, date, covers_months FROM expenses
-     WHERE _deleted = 0 AND covers_months > 0${storeId ? " AND store_id = ?" : ""}`,
+     WHERE _deleted = 0 AND COALESCE(category, '') != '${SPOT_SOURCING_EXPENSE_CATEGORY}' AND covers_months > 0${storeId ? " AND store_id = ?" : ""}`,
     storeId ? [storeId] : [],
   );
 

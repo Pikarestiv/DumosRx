@@ -785,9 +785,15 @@ at it. `App\Http\Controllers\Api\App\TillRelinkController` (thin) over
   owner (`stores.user_id === caller`) may call it; staff, other owners and an
   `Impersonation Token` session get 403. Returns `{code, expires_at}`, the only
   time the code is ever shown. Client UI: Settings > Account > Sessions &
-  Devices (`client/components/settings/account/relink-code-dialog.tsx`). The
-  owner dashboard lives in `client/`, not `web/` (`web/app/dashboard` only
-  redirects), so there is no `web/` UI for this.
+  Devices (`client/components/settings/account/relink-code-dialog.tsx`).
+- **`POST /admin/stores/{id}/relink-code` (CRM / Admin Fallback)**:
+  `App\Http\Controllers\Api\Admin\AdminStoreRelinkController` gated on
+  `permission:impersonate_store`. Allows Super Admins and Support/CRM agents to
+  generate a single-use 15-minute till re-link code on behalf of a store owner
+  when staff at an unlinked till cannot reach the owner (e.g. Nest Agidi offline
+  incident). Writes audit log `TILL_RELINK_CODE_ISSUED_BY_ADMIN` with `admin_id`.
+  When consumed, `activity_logs` logs `TILL_RELINKED` recording `issued_by_admin: true`
+  and the admin's user ID.
 - **No table.** Same pattern as `AuthHandoffController`: `Cache::put` under
   `till_relink:` + sha256 of the code, value `{user_id (the owner), store_id,
   created_by}`, TTL 900s. Code: 8 chars from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`
@@ -4590,8 +4596,7 @@ migration loop needs a model `@property` (as `store_id`/`user_id` have), and a
 helper that takes or returns a query builder needs a `Builder<Model>` generic.
 Prefer `getAttribute()` over a magic property on a bare `Model`, and
 `->toBase()->get()` for `selectRaw` aggregates. Do not add `@phpstan-ignore`.
-Neither tool runs in `.github/workflows/checks.yml` yet, and that workflow
-gates the deploys.
+`composer analyse` runs in `.github/workflows/checks.yml`, which gates the deploys.
 
 ## Running artisan on the production box (Namecheap shared hosting)
 

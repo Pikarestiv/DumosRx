@@ -22,6 +22,27 @@ const faqs = [
     ],
   },
   {
+    category: "POS & Inventory",
+    questions: [
+      {
+        q: "How do I sell products sourced from neighboring stores or outside?",
+        a: "At the Point of Sale, click 'Source outside' on any cart item (or click an out-of-stock product). Enter what you paid the neighboring shop and select whether you paid from the Cash Drawer or on Owner Credit. The customer receives a receipt for your normal price, your profit margin is calculated instantly, and if cash was taken from the drawer, your Daily Close register balances automatically without manual notes.",
+      },
+      {
+        q: "Can I sell items when physical stock arrives before paperwork is entered?",
+        a: "Yes. In Settings > Register Configs, turn on 'Allow sales beyond recorded stock'. Cashiers can continue selling incoming items immediately. The system tracks the shortfall as owed stock and automatically settles it as soon as your supplier purchase order or delivery is received.",
+      },
+      {
+        q: "How do I transfer stock between branches?",
+        a: "If you operate multiple branches, staff with transfer permissions can move stock directly from the POS or under Inventory > Transfers. Select the supplying or destination branch and confirm the quantities to move.",
+      },
+      {
+        q: "What should I do if a store till gets unlinked or disconnected?",
+        a: "Store owners can generate a single-use 8-character Re-link Code from any logged-in device under Settings > Security > Sessions & Devices. Staff enters this code on the unlinked till to reconnect in seconds. If the owner is unreachable, your DumosRx account manager or support team can generate a secure re-link code on your behalf from the platform portal.",
+      },
+    ],
+  },
+  {
     category: "Accounts & Security",
     questions: [
       {
@@ -74,12 +95,20 @@ export default function FAQPage() {
           </h1>
           <p className="text-lg text-muted-foreground">
             Find answers to common questions about DumosRx, our features, and
-            billing. Can't find what you're looking for?{" "}
+            billing. Looking for step-by-step walkthroughs and video tutorials?
+            Visit our{" "}
+            <Link
+              href="/guides"
+              className="text-primary hover:underline font-medium"
+            >
+              Guides & Tutorials
+            </Link>{" "}
+            hub, or{" "}
             <Link
               href="/support"
               className="text-primary hover:underline font-medium"
             >
-              Contact our support team
+              contact our support team
             </Link>
             .
           </p>

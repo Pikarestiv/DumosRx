@@ -66,7 +66,14 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Sell at Zero Stock (Overselling / Delayed Paperwork):** When physical delivery has arrived on the shop floor but staff hasn't had the time or capacity to enter the purchase order paperwork yet, the store can toggle on "Allow Sales Without Stock" in Settings → Store. Cashiers can continue selling incoming items immediately. Shortfalls are recorded as owed backorders. When the delivery is subsequently entered through a Purchase Order or Immediate Purchase, backorders are cleared and historical sales lines are automatically re-costed from the delivery cost.
 
-**External Stock Sourcing (Unlinked Stores & Partner Sourcing):** If a product is out of stock in your main store, staff can collect units from an unlinked sister branch or neighboring partner store to fulfill customer demand on the spot:
+**POS Spot Sourcing (On-the-Spot External Sourcing in Cart):** When a customer needs an out-of-stock item and staff can immediately get it from a neighboring pharmacy or partner shop:
+- Cashiers can click "Source outside" directly on the cart item, or tap an out-of-stock product tile to open the Spot Source dialog.
+- Staff enters the agreed purchase cost (what was paid to the neighbor) and whether it was paid from the **Cash Drawer** or on **Owner Credit / Paid Externally**.
+- **Net shelf stock is zero:** It does not deduct existing batches or create phantom negative stock or backorders.
+- **Instant profit accuracy:** The true cost price is saved on the sale line, giving you 100% accurate profit reports instantly.
+- **Automatic register cash balance:** If paid from the Cash Drawer, the system automatically writes a cash expense ("Stock Sourcing") behind the scenes. At Daily Close, Net Cash Expected automatically accounts for the cash paid out, so physical cash reconciles without manual notes or shortages!
+
+**External Stock Sourcing (Unlinked Stores & Partner Sourcing via Procurement):** For larger batches collected from an unlinked sister branch or partner store before sales:
 - The sale is booked under the selling store (customer receipt issued for full price).
 - Sourcing is entered as an Immediate Purchase from the supplying store (treated as a supplier) at the agreed cost price.
 - Can be combined with Sell at Zero Stock: cashiers sell the collected stock first, and entering the Immediate Purchase later settles the backorder and re-costs the sale line.
@@ -142,6 +149,8 @@ Your Cloud Dashboard is your management hub. Log in from any web browser to get 
 **Secure PIN Login:** Assign unique 4-digit PINs to your cashiers for fast, secure login at the store computers.
 
 **Remote Logout:** Instantly sign out devices remotely if a computer is lost or a staff member leaves the company.
+
+**Instant Till Re-link (Owner Self-Service & CRM Fallback):** If a till computer is disconnected, formatted, or unlinked, store owners never have to travel down to the branch or share their master cloud password and PIN with staff. The store owner can generate a single-use 8-character 15-minute Re-link Code from their personal till or mobile browser under **Settings → Security → Sessions & Devices**. Additionally, if the owner is unreachable or unavailable, DumosRx CRM and support agents can generate a re-link code on the owner's behalf directly from the administrative portal. Cashiers simply enter the 8-character code at the till to securely re-authenticate the device immediately.
 
 ### 🌐 Online Storefront
 

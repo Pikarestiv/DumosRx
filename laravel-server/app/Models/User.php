@@ -346,8 +346,10 @@ class User extends Authenticatable
         static::deleting(function ($user) {
             if (! $user->isForceDeleting()) {
                 $suffix = '_del_'.time();
-                $user->email = $user->email.$suffix;
-                if ($user->username) {
+                if ($user->email && ! str_contains($user->email, '_del_')) {
+                    $user->email = $user->email.$suffix;
+                }
+                if ($user->username && ! str_contains($user->username, '_del_')) {
                     $user->username = $user->username.$suffix;
                 }
                 $user->save();

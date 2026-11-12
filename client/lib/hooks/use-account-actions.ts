@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, Repeat, MessageSquare, Sparkles, type LucideIcon } from "lucide-react";
+import { LogOut, Repeat, HelpCircle, Sparkles, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { useAutoLockStore } from "@/lib/hooks/use-auto-lock";
 import { getSyncQueueCount } from "@/lib/db/queries/setup";
@@ -82,19 +82,15 @@ export function useAccountActions({
         },
       ),
     },
-    ...(onOpenFeedback
-      ? [
-          {
-            key: "feedback",
-            label: "Help & Feedback",
-            icon: MessageSquare,
-            onClick: () => {
-              onClose();
-              onOpenFeedback();
-            },
-          },
-        ]
-      : []),
+    {
+      key: "help",
+      label: "Help & Support",
+      icon: HelpCircle,
+      onClick: () => {
+        onClose();
+        router.push("/help");
+      },
+    },
     {
       key: "switch",
       label: "Switch Account",

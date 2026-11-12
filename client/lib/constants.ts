@@ -11,6 +11,7 @@ export const APP_VERSION = "0.0.41"; // DumosRx current version (update when bum
 export const BUILD_SHA = (process.env.NEXT_PUBLIC_BUILD_SHA || "").slice(0, 8) || "local";
 
 export const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || "https://dumosrx.com";
+export const GUIDES_URL = `${WEB_APP_URL}/guides`;
 export const STOREFRONT_BASE_URL = process.env.NEXT_PUBLIC_STOREFRONT_BASE_URL || "dumosrx.com/store";
 export const SYSTEM_EMAIL = "system-logs@dumosrx.com";
 export const SUPPORT_EMAIL = "support@dumosrx.com";

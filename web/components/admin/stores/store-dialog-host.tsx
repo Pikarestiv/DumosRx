@@ -8,6 +8,7 @@ import {
 import { SharedGrantTrialDialog } from "@/components/admin/shared-grant-trial-dialog";
 import { SharedActivatePlanDialog } from "@/components/admin/shared-activate-plan-dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { StoreRelinkCodeDialog } from "@/components/admin/stores/store-relink-code-dialog";
 import type { useStoreDeletionActions } from "@/hooks/use-store-deletion-actions";
 import type { useStoreImpersonation } from "@/hooks/use-store-impersonation";
 import type { AdminStoreSummary } from "@/lib/types/admin";
@@ -18,6 +19,7 @@ export interface StoreDialogHostProps {
   trial: { isOpen: boolean; onOpenChange: (open: boolean) => void; onConfirm: (plan: string, duration?: string, endDate?: string) => void; isPending: boolean };
   activatePlan: { isOpen: boolean; onOpenChange: (open: boolean) => void; onConfirm: (plan: string, billingCycle: string, amount: number, reference?: string) => void; isPending: boolean };
   billing: { isOpen: boolean; onOpenChange: (open: boolean) => void };
+  relinkCode: { isOpen: boolean; onOpenChange: (open: boolean) => void };
   deletion: ReturnType<typeof useStoreDeletionActions>;
   impersonation: ReturnType<typeof useStoreImpersonation>;
 }
@@ -28,6 +30,7 @@ export function StoreDialogHost({
   trial,
   activatePlan,
   billing,
+  relinkCode,
   deletion,
   impersonation,
 }: StoreDialogHostProps) {
@@ -79,6 +82,12 @@ export function StoreDialogHost({
         isOpen={billing.isOpen}
         onOpenChange={billing.onOpenChange}
         selectedStore={selectedStore}
+      />
+
+      <StoreRelinkCodeDialog
+        isOpen={relinkCode.isOpen}
+        onOpenChange={relinkCode.onOpenChange}
+        store={selectedStore}
       />
 
       <ConfirmDialog

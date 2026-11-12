@@ -31,11 +31,11 @@ interface UsePOSHeldTransactionsProps {
 }
 
 function recalledUnitPrice(
-  item: { unit_price: number; original_unit_price?: number },
+  item: { unit_price: number; original_unit_price?: number; is_spot_sourced?: boolean },
   catalogPrice: number,
   wasResellerSale: boolean,
 ): number {
-  if (!wasResellerSale) return catalogPrice;
+  if (!wasResellerSale && !item.is_spot_sourced) return catalogPrice;
   if (item.original_unit_price == null) return Math.max(item.unit_price, catalogPrice);
   return roundMoney(Math.max(0, catalogPrice + item.unit_price - item.original_unit_price));
 }
@@ -119,6 +119,14 @@ export function usePOSHeldTransactions({
             unit_price: unitPrice,
             subtotal: roundMoney(unitPrice * item.quantity),
             original_unit_price: product.unit_price,
+            ...(item.is_spot_sourced
+              ? {
+                  is_spot_sourced: true,
+                  sourcing_cost: item.sourcing_cost ?? product.cost_price ?? 0,
+                  sourcing_payment_source: item.sourcing_payment_source ?? "cash_drawer",
+                  sourcing_partner: item.sourcing_partner ?? "",
+                }
+              : {}),
           };
         })
         .filter((item): item is CartItem => item !== null);

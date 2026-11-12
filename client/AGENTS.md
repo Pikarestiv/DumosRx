@@ -2468,38 +2468,65 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   branch ever wrote a settlement naming a PO; no such row exists on `dev` or
   `main`, so none is read specially.
 
-### External Stock Sourcing (Unlinked Stores & Partner Stores)
+### Help & Support Hub (`/help`, 2026-11-11)
 
-When a store is exhausted of stock and staff collects units from an unlinked
-sister branch (e.g. Branch 2 without computers) or an external partner store
-to satisfy a walk-in customer:
+- **Route:** `app/(dashboard)/help/page.tsx` (`/help`) rendering `components/help/help-page.tsx`.
+- **Purpose:** Replaces the legacy modal popup with a dedicated support screen accessible from the user account menu (`UserNav` / `useAccountActions`).
+- **External Knowledgebase Launch:** The primary card links to `GUIDES_URL` (`https://dumosrx.com/guides`) using `window.open(GUIDES_URL, "_blank", "noopener,noreferrer")`, opening in the user's system browser so their active offline register session remains open and undisturbed.
+- **Support Channels:** Combines offline AI Assistant launcher, CRM / WhatsApp / email contacts (`support@dumosrx.com`), and an embedded offline-first feedback and issue submission form (`useSubmitFeedbackMutation`).
 
-- **Revenue & Profit Recognition:** The transaction belongs to the selling
-  store. The customer pays the selling store's price (e.g. ₦2,000), a receipt
-  prints for ₦2,000, and full revenue is recorded. The agreed sourcing cost
-  owed to the partner/branch (e.g. ₦1,700) is the Cost of Goods Sold (COGS).
-  Gross profit retained = `₦2,000 − ₦1,700 = ₦300`. It is NOT recorded merely
-  as markup, preserving receipt totals, tax compliance, and sales audit trails.
-- **Sourcing via Immediate Purchase:** The supplying store or unlinked branch
-  is added as a `supplier`. Sourcing is entered via **Immediate Purchase**
-  (`createAndReceivePurchaseOrder`), which atomically logs the receipt, creates
-  the batch, and triggers `settleBackordersOnReceipt()`.
-- **Integration with Sell-at-Zero:** If the cashier sells the collected goods
-  before the purchase order paperwork is entered, the sale is recorded under
-  Sell-at-Zero (`allow_sale_without_stock = 1`), logging an owed backorder
-  row. When the Immediate Purchase is entered later, `settleBackordersOnReceipt()`
-  clears the backorder and automatically re-costs the sale's `cost_price` to
-  the agreed sourcing cost.
-- **Settlement & Cash Drawer (Daily Close):**
-  - **Credit (Pay Later):** Immediate Purchase saved with `payment_status = "unpaid"`
-    or `"partial"`. The liability is tracked in the supplier's debt ledger
-    (`getSupplierOutstandingBalance`) until paid. Net Cash Expected in the
-    drawer is unaffected.
-  - **Cash Paid from Till:** When cash leaves the till drawer to pay the runner
-    or supplying store, staff records an **Expense** (Category: "Stock Purchase /
-    Sourcing", Payment Method: "Cash"). `getCashExpensesForDate()` deducts this
-    from Daily Close's `Net Cash Expected`, ensuring the cash counted in drawer
-    reconciles with zero unexplained shortages.
+### External Stock Sourcing & POS Spot Sourcing (2026-11-11)
+
+There are two distinct workflows for selling goods sourced outside the store:
+
+1. **POS Spot Sourcing (In-Cart On-The-Spot External Sourcing):**
+   Designed for active shop-floor reality where the business owner or manager
+   is off-site and cannot raise purchase orders or reconcile backorders at EOD.
+   When a walk-in customer requests an out-of-stock item, a cashier can run to a
+   neighboring pharmacy or partner shop, buy the units, and ring them up immediately:
+   - **Trigger & UI:** Clicking or barcode-scanning an out-of-stock product (when
+     `canSellWithoutStock` is off) or clicking "Source outside" / the "Spot Sourced"
+     badge on a cart line opens `SpotSourceDialog`.
+   - **Sourcing Cost, Selling Price & Margin:** Staff enters the agreed buying cost
+     (e.g. ₦1,700), quantity, and selling price (e.g. ₦2,000). `buildNewCartItem`
+     and `applySpotSourcingConfig` keep `original_unit_price` pinned to the catalog
+     price so `repriceCartFromCatalog` does not overwrite a custom spot-sourced
+     selling price. Reverting a spot-sourced cart line to shelf (`stripSpotSourcingConfig`)
+     clamps quantity to available shelf stock (or removes the item if `stock <= 0`
+     and `!canSellWithoutStock`) and resets `unit_price` to `original_unit_price`.
+     Held transactions (`use-pos-held-transactions.ts`) preserve all spot-sourcing
+     fields and custom unit prices when recalled.
+   - **Net Shelf Inventory is Zero:** In `lib/db/queries/inventory-sale-stock.ts`,
+     `isSpotSourced: true` writes `sale_items` with `cost_price = sourcingCost`
+     and immediately returns without deducting `stock_batches` or recording
+     `stock_movements`. No phantom negative stock or owed backorder is created.
+   - **Automated Cash Drawer Reconciliation Without P&L Double-Counting:** In
+     `lib/hooks/pos-sale-writer.ts`, if `sourcing_payment_source === "cash_drawer"`,
+     an expense row is inserted atomically inside the sale transaction
+     (`category = SPOT_SOURCING_EXPENSE_CATEGORY` (`"Stock Sourcing"`),
+     `payment_method = "cash"`, `date = getLocalTodayDate()`,
+     `reference_number = transactionNumber`). `getCashExpensesForDate` includes this
+     row so Daily Close `Net Cash Expected` deducts the physical cash taken from the
+     drawer, while P&L operating expense queries (`getSmoothedExpensesTotal`,
+     `getCurrentMonthExpensesByCategory`, `getExpensesAttributableToDate`, and
+     `getSmoothedExpensesByMonth`) explicitly exclude `category = 'Stock Sourcing'`
+     because the sourcing cost is already accounted for in COGS (`sale_items.cost_price`).
+   - **Owner Credit / External:** If `sourcing_payment_source === "external"`, no
+     drawer expense is created.
+   - **Audit Trail:** The sale's `payment_details.spot_sourcing` persists the
+     structured metadata array, and a summary is appended to `sales.notes`.
+
+2. **Delayed Paperwork & PO Sourcing (Back-office / Bulk):**
+   When physical delivery has arrived or units were taken in bulk from another branch
+   with the intent to enter supplier purchase orders later:
+   - **Revenue & Profit Recognition:** The customer pays the selling store's price
+     (e.g. ₦2,000).
+   - **Sourcing via Immediate Purchase:** Entered via **Immediate Purchase**
+     (`createAndReceivePurchaseOrder`), which atomically logs the receipt, creates
+     the batch, and triggers `settleBackordersOnReceipt()`.
+   - **Integration with Sell-at-Zero:** If sold before paperwork,
+     `allow_sale_without_stock = 1` logs an owed backorder. Entering the PO later
+     settles backorders and re-costs the historical sale lines.
 
 ### Stock quantity reconciliation and the `sync_reconciliation` movement type (2026-10-02)
 
@@ -5890,7 +5917,7 @@ identical work, doubled minutes, and two independent chances for the teardown
 flake above to show a red check on a green suite (which is exactly what
 happened on PR #137).
 
-Both jobs now carry
+All four jobs (`client`, `web`, `server`, `e2e`) carry
 `if: github.event_name != 'pull_request' || github.head_ref != 'dev'`. In a
 called workflow `github.event_name` is the *caller's* event (`push`), so the
 deploy path is unaffected; only the redundant standalone copy skips, and only
@@ -5898,7 +5925,7 @@ for a `dev` head. A PR from any other branch still gets it, since
 `deploy-dev.yml` never runs for those.
 
 **`main`'s branch protection requires the prefixed contexts**
-(`checks / Server — phpunit`, `checks / Client — tsc + vitest`), which only a
+(`checks / Server — phpunit`, `checks / Client — tsc + vitest`, `checks / Web — tsc + vitest`, `checks / Client — e2e smoke`), which only a
 *called* run produces. That is why the standalone copy is the one that gives
 way. It also means a branch that never pushes to `dev` — a hotfix opened
 straight against `main` — produces only the unprefixed contexts and cannot
@@ -7266,7 +7293,7 @@ Before that, work focused on the **Inventory** area:
   unverified) leaves it. The indicator reads "Not Backed Up" when a till is unlinked and has
   unsynced changes. Till tokens live 180 days (`laravel-server/AGENTS.md`, "Token lifetimes").
   To re-link without the owner's password, the owner clicks "Generate till re-link code" in
-  Settings > Account > Sessions & Devices (`relink-code-dialog.tsx`, owner-only, hidden while
+  Settings > Security > Sessions & Devices (`relink-code-dialog.tsx`, owner-only, hidden while
   impersonating), and anyone at the till who can open the Data tab (`backup_restore_data`) enters
   it in the CloudLinkDialog's "Have a re-link code?" path. Both link paths live in `lib/hooks/use-cloud-link.ts` and share
   `adoptCloudToken()`. The code path deliberately skips `linkCloudAccount`'s "email must match

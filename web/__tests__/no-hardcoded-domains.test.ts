@@ -1,8 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
+
+vi.mock("next/font/google", () => ({
+  Inter: () => ({ variable: "--font-sans" }),
+  Montserrat: () => ({ variable: "--font-heading" }),
+}));
+
 import { DOWNLOAD_URL, WEB_APP_URL } from "@/lib/constants";
 import { FALLBACK_RELEASE_LINKS } from "@/lib/api/release-hooks";
+import { metadata } from "@/app/layout";
 
 const ROOT = path.resolve(__dirname, "..");
 const SCANNED_DIRS = ["app", "components", "hooks"];
@@ -33,8 +40,11 @@ describe("configurable domains come from constants.ts (A-104)", () => {
   });
 
   it("builds the site metadata URLs from WEB_APP_URL", () => {
-    const layout = readFileSync(path.join(ROOT, "app/layout.tsx"), "utf8");
-    expect(layout).toContain("WEB_APP_URL");
+    expect(metadata.openGraph?.url).toBe(WEB_APP_URL);
+    expect(metadata.openGraph?.images).toEqual([
+      expect.objectContaining({ url: `${WEB_APP_URL}/og-image.jpg` }),
+    ]);
+    expect(metadata.twitter?.images).toEqual([`${WEB_APP_URL}/og-image.jpg`]);
     expect(WEB_APP_URL.startsWith("http")).toBe(true);
   });
 });

@@ -125,15 +125,6 @@ export function ReturnDialog({
         itemsToReturn,
         saleItems,
         servicesToReturn,
-        saleServices: saleServices.map((s) => ({
-          id: s.id,
-          saleServiceId: s.id,
-          serviceId: s.service_id || null,
-          serviceName: s.service_name || s.name || "Service",
-          quantity: s.quantity,
-          returnQuantity: s.returned_quantity || 0,
-          unitPrice: s.unit_price,
-        })),
         currencyCode,
       });
       onSuccess();

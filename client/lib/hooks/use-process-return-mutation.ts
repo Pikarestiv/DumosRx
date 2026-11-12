@@ -1,7 +1,8 @@
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
-import { isFullyReturned } from "@/lib/utils/returns-calculations";
+import { isFullyReturned, getMaxReturnable } from "@/lib/utils/returns-calculations";
+import { getSaleServices } from "@/lib/db/queries/services";
 import { insert, update, query, transaction } from "@/lib/db/local-database";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { recordReturnDisposition } from "@/lib/db/queries/returns";
@@ -40,7 +41,6 @@ interface ProcessReturnParams {
   itemsToReturn: ReturnableItem[];
   saleItems: SaleItemDetail[];
   servicesToReturn?: ReturnableService[];
-  saleServices?: ReturnableService[];
   currencyCode?: string;
 }
 
@@ -54,7 +54,6 @@ export function useProcessReturnMutation() {
       itemsToReturn,
       saleItems,
       servicesToReturn,
-      saleServices,
     }: ProcessReturnParams) => {
       // returns.user_id is a constrained foreign key server-side, so a sentinel written here only fails much later and somewhere else:
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-process-return-mutation-ts-L40
@@ -125,11 +124,7 @@ export function useProcessReturnMutation() {
             saleItems,
             itemsToReturn.map((i) => ({ id: i.id, returnQuantity: i.returnQuantity })),
           ) &&
-          (!saleServices || saleServices.length === 0 ||
-            isFullyReturned(
-              saleServices,
-              (servicesToReturn || []).map((s) => ({ id: s.id, returnQuantity: s.returnQuantity })),
-            ));
+          (await getSaleServices(sale.id)).every((s) => getMaxReturnable(s) === 0);
         const [storedSale] = await query<Sale>(`SELECT * FROM sales WHERE id = ?`, [sale.id]);
         const resellerPatch = resellerPatchAfterReturn(
           storedSale ?? sale,

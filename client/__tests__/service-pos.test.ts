@@ -291,17 +291,6 @@ describe("Service POS (Services catalog, mixed cart, checkout, receipt, and retu
             unitPrice: 12000,
           },
         ],
-        saleServices: [
-          {
-            id: saleServiceRow.id,
-            saleServiceId: saleServiceRow.id,
-            serviceId: saleServiceRow.service_id,
-            serviceName: saleServiceRow.service_name,
-            quantity: 1,
-            returnQuantity: 0,
-            unitPrice: 12000,
-          },
-        ],
       });
     });
 

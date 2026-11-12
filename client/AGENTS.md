@@ -7427,4 +7427,20 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
   - `<QuickCashTender />` displays smart tender chips (`Exact`, rounded bill denominations such as ₦1,000, ₦2,000, ₦5,000) for rapid cash handling.
   - In `PaymentSplits`, when splits under-cover the total, the exact shortfall is shown alongside a 1-click **"Cover Remaining ({shortage})"** button that fills the remaining balance into the split automatically.
 
+## Service POS (Walk-In Services Alongside Physical Products)
+
+- **Separate Tables & Data Isolation:**
+  - Services are managed via dedicated `services`, `sale_services`, and `return_services` tables on both SQLite and MySQL rather than overloading `products` or `stock_batches`.
+  - Services generate pure revenue in `sales` and detail line snapshots in `sale_services`. They never receive rows in `stock_movements`, `stock_batches`, or `sale_items`.
+- **Historical Immutability:**
+  - At checkout, `writeSaleTransaction` snapshots `service_name` and `unit_price` directly onto `sale_services`. Subsequent price or name changes in the `services` catalog never mutate past financial receipts.
+- **Mixed Cart Checkout:**
+  - `usePOSCart` supports mixed carts with both `item_type: "product"` and `item_type: "service"`.
+  - Services bypass inventory stock validation, out-of-stock gating, and spot-sourcing dialogs.
+  - At payment execution, stock is decremented and recorded in `stock_movements` solely for physical items.
+- **Returns & Refunds:**
+  - Service returns insert into `return_services` and cleanly reverse revenue without creating phantom inventory restocks or damage write-offs.
+  - A mixed return considers a sale fully refunded (`payment_status = 'refunded'`) only when all physical products AND all services on the sale have been completely returned.
+
+
 

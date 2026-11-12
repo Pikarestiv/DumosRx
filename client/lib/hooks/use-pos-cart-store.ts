@@ -3,10 +3,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { POSProduct as Product } from "@/lib/types/product";
+import type { Service } from "@/lib/types/service";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
 import { roundMoney } from "@/lib/utils/pos-calculations";
 
 export interface CartItem extends Product {
+  item_type?: "product" | "service";
   quantity: number;
   subtotal: number;
   original_unit_price: number;
@@ -98,6 +100,23 @@ export function clearPOSCartStorage() {
   });
 }
 
+export function restorePOSCart(
+  items: CartItem[],
+  restoredDiscount?: number,
+  restoredDiscountType?: "fixed" | "percentage",
+  restoredMarkup?: { isResellerSale: boolean; markupType: MarkupType | null },
+) {
+  usePOSCartStore.setState({
+    cart: items,
+    redeemedOption: null,
+    ...(restoredDiscount !== undefined ? { discount: restoredDiscount } : {}),
+    ...(restoredDiscountType !== undefined ? { discountType: restoredDiscountType } : {}),
+    ...(restoredMarkup
+      ? { isResellerSale: restoredMarkup.isResellerSale, markupType: restoredMarkup.markupType }
+      : {}),
+  });
+}
+
 /** Below a tenth of a kobo two prices are the same price; anything coarser
  * re-prices a line on a float artefact and nags the cashier about it. */
 const PRICE_EPSILON = 0.001;
@@ -120,6 +139,7 @@ export function repriceCartFromCatalog(
   let changed = false;
 
   const next = cart.map((item) => {
+    if (item.item_type === "service") return item;
     const product = products.find((p) => p.id === item.id);
     if (!product) return item;
 
@@ -208,5 +228,58 @@ export function stripSpotSourcingConfig(
     quantity: nextQty,
     unit_price: nextPrice,
     subtotal: roundMoney(nextPrice * nextQty),
+  };
+}
+
+export function updateCartSpotSourcing(
+  cart: CartItem[],
+  id: string,
+  config: SpotSourcingConfig | null,
+  availableStock: number,
+  canSellWithoutStock: boolean,
+  isResellerSale: boolean,
+): { cart: CartItem[]; removedName?: string } {
+  if (!config || !config.isSpotSourced) {
+    if (!canSellWithoutStock && availableStock <= 0) {
+      const removed = cart.find((item) => item.id === id);
+      return {
+        cart: cart.filter((item) => item.id !== id),
+        removedName: removed?.name || "Item",
+      };
+    }
+    return {
+      cart: cart.map((item) =>
+        item.id === id
+          ? stripSpotSourcingConfig(item, availableStock, canSellWithoutStock, isResellerSale)
+          : item,
+      ),
+    };
+  }
+  return {
+    cart: cart.map((item) => (item.id === id ? applySpotSourcingConfig(item, config) : item)),
+  };
+}
+
+export function buildNewServiceCartItem(
+  service: Service,
+  quantity = 1,
+): CartItem {
+  const effectiveQty = quantity > 0 ? quantity : 1;
+  const price = Math.max(0, service.price);
+  return {
+    id: service.id,
+    name: service.name,
+    generic_name: service.category || "",
+    strength: "",
+    unit_price: price,
+    original_unit_price: price,
+    cost_price: 0,
+    stock: Infinity,
+    quantity: effectiveQty,
+    subtotal: roundMoney(price * effectiveQty),
+    item_type: "service",
+    is_spot_sourced: false,
+    barcode: service.code || "",
+    category_id: service.category || "",
   };
 }

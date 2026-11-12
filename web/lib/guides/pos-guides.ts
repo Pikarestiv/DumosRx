@@ -173,5 +173,25 @@ export const POS_GUIDES: GuideItem[] = [
       "Discarded medicines never re-enter saleable stock batches, protecting pharmacy safety standards while automatically logging an inventory write-off in your Profit & Loss reports.",
     videoPlaceholderText: "Video Walkthrough: Processing split customer returns with damaged medicine write-offs",
   },
+  {
+    id: "service-sales",
+    title: "Service POS: Selling Walk-In Services Alongside Physical Products",
+    category: "Point of Sale",
+    badge: "New Feature",
+    readTime: "2 min read",
+    videoDuration: "1:35",
+    summary:
+      "Offer spa treatments, salon styling, consultations, clinical checks, or repair services alongside physical items in a unified POS cart without creating phantom inventory batches.",
+    steps: [
+      "In the POS screen, tap the 'Services' tab above the product list.",
+      "Browse or search for the service (e.g., Full Body Massage, Consultation, Hair Styling).",
+      "Tap 'Add to Cart' to include the service line item alongside any retail products the customer is purchasing.",
+      "Adjust quantities as needed. Services never track shelf stock or block checkout on zero inventory.",
+      "Complete payment with any supported tender (Cash, Card, Transfer, Split). Receipts print with services clearly designated, and sales revenue is recorded cleanly.",
+    ],
+    proTip:
+      "Because services are tracked separately from physical goods, your inventory reports and cycle counts remain 100% accurate without phantom batch variances or artificial reorder alerts.",
+    videoPlaceholderText: "Video Walkthrough: Ringing up mixed carts with physical products and service sales",
+  },
 ];
 

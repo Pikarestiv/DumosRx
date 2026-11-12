@@ -37,6 +37,7 @@ class BackfillStoreIds extends Command
         'held_transactions' => [['customers', 'customer_id']],
         'loyalty_transactions' => [['customers', 'customer_id']],
         'customer_payments' => [['customers', 'customer_id']],
+        'services' => [],
         'requested_products' => [],
     ];
 

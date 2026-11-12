@@ -4628,3 +4628,15 @@ Because Eloquent's `SoftDeletes` trait automatically adds `WHERE deleted_at IS N
 When a store owner pushed a soft-delete (`DELETE` operation) or pushed an update to restore a soft-deleted staff account (`UPDATE` with `_deleted: 0`), `SyncWriteAuthorizer::authorizeChangeTarget()` failed with `"forbidden"`.
 Any query assembling the tenant's allowed user IDs for sync authorization must use `User::withTrashed()`.
 
+## Service POS & Sync Engine Scoping (2026-11-12)
+
+- **Dedicated Services Tables:**
+  - Services are partitioned from inventory via `services`, `sale_services`, and `return_services` tables.
+  - `services` is store-scoped directly by `store_id`.
+  - `sale_services` and `return_services` are parent-scoped by `sale_id` and `return_id` (mirrored in `PullTenantScope`, `SyncWriteAuthorizer`, and `CountsSyncedTableRows`). They carry `store_id` to satisfy the client's `STORE_SCOPED_TABLES` helper and multi-tenancy constraints.
+- **Sync Authorizer Parent Keys:**
+  - `SyncWriteAuthorizer::PARENT_KEYS` maps `sale_services => sale_id` and `return_services => return_id`, protecting service detail lines from cross-tenant spoofing.
+- **Admin Purge Sweeper:**
+  - `PurgedUserRowSweeper::sweepOrphanedChildren()` cascades sweeps to `sale_services` and `return_services` when parent transactions are purged.
+
+

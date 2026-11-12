@@ -6,6 +6,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { usePOSSystem } from "@/lib/hooks/use-pos-system";
 import { POSLayoutHeader } from "./pos-layout-header";
 import { POSProductList } from "./pos-product-list";
+import { POSServiceList } from "./pos-service-list";
 import { POSCategoryFilter } from "./pos-category-filter";
 import { POSMainTabNav } from "./pos-main-tab-nav";
 import { POSTransactionHistory } from "./pos-transaction-history";
@@ -41,6 +42,8 @@ export function POSSystem() {
     showClearCartDialog,
     setShowClearCartDialog,
     heldSalesCount,
+    services,
+    loadingServices,
     loadingProducts,
     productsLoadFailed,
     refetchProducts,
@@ -117,6 +120,7 @@ export function POSSystem() {
     isPrescriptionLocked,
     handleEditPrescription,
     handleAddToCart,
+    addServiceToCart,
     spotSourceProduct,
     setSpotSourceProduct,
     handleSpotSourceConfirm,
@@ -256,6 +260,18 @@ export function POSSystem() {
                     featureAllowed: canUseSmartSuggestions,
                     featureKey: "smart_suggestions",
                   })}
+                />
+              </TabsContent>
+              <TabsContent
+                value="services"
+                className="absolute inset-0 overflow-y-auto mt-0 pr-1 flex flex-col gap-4"
+              >
+                <POSServiceList
+                  services={services}
+                  loadingServices={loadingServices}
+                  addToCart={addServiceToCart}
+                  currencyCode={storeProfile?.currency}
+                  cart={cart}
                 />
               </TabsContent>
               {canViewSalesHistory && (

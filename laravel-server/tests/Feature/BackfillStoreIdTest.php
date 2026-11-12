@@ -202,7 +202,7 @@ class BackfillStoreIdTest extends TestCase
      */
     public function test_every_directly_scoped_agreement_table_has_a_derivation(): void
     {
-        $parentScoped = ['stock_batches', 'sale_items', 'sale_item_batches', 'prescription_items', 'return_items', 'purchase_order_items'];
+        $parentScoped = ['stock_batches', 'sale_items', 'sale_services', 'sale_item_batches', 'prescription_items', 'return_items', 'return_services', 'purchase_order_items'];
         $notNullable = ['permission_groups'];
 
         $agreement = (new \ReflectionClass(\App\Services\Admin\Concerns\CountsSyncedTableRows::class))

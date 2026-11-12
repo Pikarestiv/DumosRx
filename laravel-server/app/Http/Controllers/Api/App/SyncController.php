@@ -637,7 +637,7 @@ class SyncController extends Controller
         $changes = [];
         $hasMore = [];
         $serverTimestamp = now()->subSeconds(self::PULL_WATERMARK_LAG_SECONDS)->toIso8601String();
-        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'sale_items', 'sale_item_batches', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments', 'returns', 'return_items', 'prescriptions', 'prescription_items', 'loyalty_tiers', 'loyalty_redemption_options', 'stock_audits', 'held_transactions', 'loyalty_transactions', 'customer_payments', 'audit_logs', 'permission_groups'];
+        $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'sale_items', 'sale_item_batches', 'services', 'sale_services', 'return_services', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments', 'returns', 'return_items', 'prescriptions', 'prescription_items', 'loyalty_tiers', 'loyalty_redemption_options', 'stock_audits', 'held_transactions', 'loyalty_transactions', 'customer_payments', 'audit_logs', 'permission_groups'];
 
         if (app(SyncGate::class)->isStoresOnlySetupOverridePull($request, $lastSyncedMap)) {
             $tables = ['stores'];
@@ -828,6 +828,9 @@ class SyncController extends Controller
             'loyalty_tiers' => \App\Models\LoyaltyTier::class,
             'loyalty_redemption_options' => \App\Models\LoyaltyRedemptionOption::class,
             'sale_item_batches' => \App\Models\SaleItemBatch::class,
+            'services' => \App\Models\Service::class,
+            'sale_services' => \App\Models\SaleService::class,
+            'return_services' => \App\Models\ReturnService::class,
             'stock_audits' => \App\Models\StockAudit::class,
             'held_transactions' => \App\Models\HeldTransaction::class,
             'loyalty_transactions' => \App\Models\LoyaltyTransaction::class,

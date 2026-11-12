@@ -101,8 +101,15 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
           <CategoryIcon categoryName={item.category_name} className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className={`text-[12.5px] font-semibold mb-0.5 truncate leading-tight ${capsClass}`}>
-            {item.name}
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <span className={`text-[12.5px] font-semibold truncate leading-tight ${capsClass}`}>
+              {item.name}
+            </span>
+            {item.item_type === "service" && (
+              <span className="inline-flex items-center text-[9.5px] font-medium px-1 py-0.2 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
+                Service
+              </span>
+            )}
           </div>
           {item.is_spot_sourced ? (
             <div className="flex items-center gap-1.5 mb-1">
@@ -119,7 +126,7 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
               </button>
             </div>
           ) : (
-            onConfigureSpotSourcing && !isLocked && (
+            onConfigureSpotSourcing && !isLocked && item.item_type !== "service" && (
               <div className="mb-0.5">
                 <button
                   type="button"

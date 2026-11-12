@@ -16,8 +16,10 @@ class SyncWriteAuthorizer
     private const PARENT_KEYS = [
         'stock_batches' => 'product_id',
         'sale_items' => 'sale_id',
+        'sale_services' => 'sale_id',
         'sale_item_batches' => 'sale_item_id',
         'return_items' => 'return_id',
+        'return_services' => 'return_id',
         'prescription_items' => 'prescription_id',
         'purchase_order_items' => 'purchase_order_id',
     ];

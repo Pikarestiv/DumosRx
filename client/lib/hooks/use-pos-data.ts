@@ -5,8 +5,10 @@ import { getProductsWithStock } from "@/lib/db/queries/products";
 import { getRecentSales, getRecentlySoldProductIds, getCommonlySoldProductIds } from "@/lib/db/queries/sales";
 import { getAllCustomers } from "@/lib/db/queries/customers";
 import { getPaymentAccounts } from "@/lib/db/queries/setup";
+import { getServices } from "@/lib/db/queries/services";
 import { queryKeys } from "@/lib/query-keys";
 export type { POSProduct as Product } from "@/lib/types/product";
+export type { Service } from "@/lib/types/service";
 export type { Customer } from "@/lib/types/customer";
 export type { PaymentAccount } from "@/lib/types/payment-account";
 
@@ -65,8 +67,16 @@ export function usePOSData(options?: POSDataOptions) {
     queryFn: () => getPaymentAccounts()
   });
 
+  const { data: servicesData, isLoading: loadingServices, refetch: refetchServices } = useQuery({
+    queryKey: ["pos", "services"],
+    queryFn: () => getServices(),
+  });
+
   return {
     products: products || [],
+    services: servicesData || [],
+    loadingServices,
+    refetchServices,
     loadingProducts,
     productsLoadFailed,
     productsError,

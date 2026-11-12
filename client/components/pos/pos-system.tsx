@@ -1,7 +1,6 @@
 "use client";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import type { SaleWithDetails } from "@/lib/types/sale";
-import type { POSProduct } from "@/lib/types/product";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { usePOSSystem } from "@/lib/hooks/use-pos-system";
 import { POSLayoutHeader } from "./pos-layout-header";

@@ -3,7 +3,6 @@ import { generateId } from "@/lib/db/core";
 import { getCustomerBalance } from "@/lib/db/queries/customers";
 import { recordSaleItemStock } from "@/lib/db/queries/inventory";
 import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/queries/prescriptions";
-import { getLocalTodayDate } from "@/lib/utils";
 import { applyLoyaltyPointsForSale, type PaymentMethod, type PaymentSplit } from "./use-pos-payment-helpers";
 import { calculateTaxPercentage, calculateMixedAmountPaid, calculateMixedChangeDue, calculateSalePaymentStatus, calculateMaxAllowedCreditSplit, roundMoney } from "@/lib/utils/pos-calculations";
 import type { CartItem, RedeemedOption } from "./use-pos-cart-store";

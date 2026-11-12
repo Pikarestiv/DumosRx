@@ -225,7 +225,7 @@ export function stripSpotSourcingConfig(
   canSellWithoutStock: boolean,
   isResellerSale: boolean,
 ): CartItem {
-  const { is_spot_sourced, sourcing_cost, sourcing_payment_source, sourcing_partner, ...rest } = item;
+  const { is_spot_sourced: _iss, sourcing_cost: _sc, sourcing_payment_source: _sps, sourcing_partner: _sp, ...rest } = item;
   const nextQty = !canSellWithoutStock ? Math.min(rest.quantity, availableStock) : rest.quantity;
   const nextPrice = isResellerSale ? rest.unit_price : rest.original_unit_price;
   return {

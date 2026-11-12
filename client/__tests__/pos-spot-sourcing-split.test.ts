@@ -33,14 +33,10 @@ const baseSale = {
 describe("POS Spot Sourcing Split Allocation", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
-  let insert: typeof import("@/lib/db/base-helpers").insert;
-  let recordSaleItemStock: typeof import("@/lib/db/queries/inventory-sale-stock").recordSaleItemStock;
   let writeSaleTransaction: typeof import("@/lib/hooks/pos-sale-writer").writeSaleTransaction;
 
   beforeAll(async () => {
     core = await import("@/lib/db/core");
-    ({ insert } = await import("@/lib/db/base-helpers"));
-    ({ recordSaleItemStock } = await import("@/lib/db/queries/inventory-sale-stock"));
     ({ writeSaleTransaction } = await import("@/lib/hooks/pos-sale-writer"));
 
     const { SCHEMA_SQL } = await import("@/lib/db/schema");
@@ -56,7 +52,7 @@ describe("POS Spot Sourcing Split Allocation", () => {
     localStorage.setItem("dumos_user", JSON.stringify({ id: "cashier-1" }));
   });
 
-  beforeEach(async () => {
+  beforeEach(() => {
     db.run(`
       DELETE FROM stock_movements; DELETE FROM stock_batches; DELETE FROM products;
       DELETE FROM sale_items; DELETE FROM sale_item_batches; DELETE FROM sales;

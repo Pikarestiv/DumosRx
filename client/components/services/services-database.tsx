@@ -2,16 +2,15 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Sparkles, Edit, Trash2 } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { FilterPill } from "@/components/ui/filter-pill";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useStore } from "@/lib/context/store-context";
-import { formatCurrency } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
 import { getServices } from "@/lib/db/queries/services";
+import { ServicesList } from "./services-list";
 import { ServiceFormDialog } from "./service-form-dialog";
 import { ServiceDeleteDialog } from "./service-delete-dialog";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -223,85 +222,12 @@ export function ServicesDatabase() {
               />
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-muted/40 border-b border-border text-muted-foreground font-semibold">
-                  <tr>
-                    <th className="py-3 px-4">Service Name</th>
-                    <th className="py-3 px-4">Code</th>
-                    <th className="py-3 px-4">Category</th>
-                    <th className="py-3 px-4 text-right">Price</th>
-                    <th className="py-3 px-4 text-center">Status</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {filteredServices.map((srv) => (
-                    <tr
-                      key={srv.id}
-                      className="hover:bg-muted/20 transition-colors"
-                    >
-                      <td className="py-3 px-4 font-medium text-foreground">
-                        <div>{srv.name}</div>
-                        {srv.description && (
-                          <div className="text-[11px] text-muted-foreground line-clamp-1">
-                            {srv.description}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-muted-foreground font-mono">
-                        {srv.code || "—"}
-                      </td>
-                      <td className="py-3 px-4">
-                        {srv.category ? (
-                          <span className="inline-flex px-2 py-0.5 rounded-md bg-muted text-[11px] font-medium">
-                            {srv.category}
-                          </span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-right font-semibold text-foreground">
-                        {formatCurrency(srv.price, currencyCode)}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        {srv.is_active ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                            Active
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-muted text-muted-foreground">
-                            Inactive
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                            onClick={() => handleEdit(srv)}
-                            aria-label={`Edit ${srv.name}`}
-                          >
-                            <Edit className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={() => handleDelete(srv)}
-                            aria-label={`Delete ${srv.name}`}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ServicesList
+              services={filteredServices}
+              currencyCode={currencyCode}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
           )}
         </div>
       </div>

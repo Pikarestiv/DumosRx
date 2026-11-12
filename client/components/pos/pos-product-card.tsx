@@ -9,7 +9,12 @@ import { useStockVisibility } from "@/lib/hooks/use-stock-visibility";
 import { stockLevel } from "@/lib/utils/stock-status";
 import { useStore } from "@/lib/context/store-context";
 import { isSaleWithoutStockEnabled } from "@/lib/hooks/use-feature-gate";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from "@/components/ui/tooltip";
 import { CategoryIcon } from "./category-icon";
 
 type PosGroup = "suggestion" | "recent" | "common" | "standard";
@@ -86,19 +91,21 @@ export const POSProductCard = memo(function POSProductCard({
           <CategoryIcon categoryName={product.category_name} className="h-4 w-4 sm:h-5 sm:w-5" />
         </div>
 
-        <Tooltip delayDuration={1000}>
-          <TooltipTrigger asChild>
-            <div
-              title={product.name}
-              className={`text-[11.5px] sm:text-[13px] font-semibold leading-tight mb-0.5 sm:mb-1 line-clamp-2 min-h-[2.2rem] sm:min-h-[2.5rem] flex items-start ${capsClass}`}
-            >
-              {product.name}
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="top">
-            <p className="text-xs">{product.name}</p>
-          </TooltipContent>
-        </Tooltip>
+        <TooltipProvider delayDuration={1000}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                title={product.name}
+                className={`text-[11.5px] sm:text-[13px] font-semibold leading-tight mb-0.5 sm:mb-1 line-clamp-2 min-h-[2.2rem] sm:min-h-[2.5rem] flex items-start ${capsClass}`}
+              >
+                {product.name}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p className="text-xs">{product.name}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         <div className="text-[10px] sm:text-[11px] text-muted-foreground truncate mb-1 sm:mb-2">
           {product.generic_name || "Generic"} • {product.strength || "-"}

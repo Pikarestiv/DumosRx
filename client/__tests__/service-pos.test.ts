@@ -42,13 +42,11 @@ describe("Service POS (Services catalog, mixed cart, checkout, receipt, and retu
   let db: Database;
   let core: typeof import("@/lib/db/core");
   let writeSaleTransaction: typeof import("@/lib/hooks/pos-sale-writer").writeSaleTransaction;
-  let recordSaleItemStock: typeof import("@/lib/db/queries/inventory-sale-stock").recordSaleItemStock;
   let useProcessReturnMutation: typeof import("@/lib/hooks/use-process-return-mutation").useProcessReturnMutation;
 
   beforeAll(async () => {
     core = await import("@/lib/db/core");
     ({ writeSaleTransaction } = await import("@/lib/hooks/pos-sale-writer"));
-    ({ recordSaleItemStock } = await import("@/lib/db/queries/inventory-sale-stock"));
     ({ useProcessReturnMutation } = await import("@/lib/hooks/use-process-return-mutation"));
 
     const { SCHEMA_SQL } = await import("@/lib/db/schema");

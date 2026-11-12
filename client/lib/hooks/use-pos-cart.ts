@@ -25,7 +25,6 @@ import {
   buildNewCartItem,
   buildNewServiceCartItem,
   applySpotSourcingConfig,
-  stripSpotSourcingConfig,
   updateCartSpotSourcing,
   type CartItem,
   type MarkupType,

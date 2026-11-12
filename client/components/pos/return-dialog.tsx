@@ -20,14 +20,14 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getSaleById, getTransactionDetails } from "@/lib/db/queries/sales";
 import { queryKeys } from "@/lib/query-keys";
-import { useProcessReturnMutation, type ReturnableItem, type ReturnableService } from "@/lib/hooks/use-process-return-mutation";
+import { useProcessReturnMutation } from "@/lib/hooks/use-process-return-mutation";
 import { Loader2, RotateCcw } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { ReturnItemRow } from "./return-item-row";
 import { ReturnServiceRow } from "./return-service-row";
 import { ReturnConfirmDialog } from "./return-confirm-dialog";
 import { useReturnSelection } from "./use-return-selection";
-import type { SaleWithDetails, SaleItemDetail, SaleServiceDetail } from "@/lib/types/sale";
+import type { SaleWithDetails } from "@/lib/types/sale";
 import { resellerPatchAfterReturn } from "@/lib/utils/reseller-return-adjustment";
 import { extractSpotSourcedProductIds } from "@/lib/utils/spot-sourcing";
 

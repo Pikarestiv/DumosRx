@@ -1,5 +1,5 @@
 import { query, insert, update, softDelete } from "@/lib/db/local-database";
-import type { Service, SaleService, ReturnService } from "@/lib/types/service";
+import type { Service, ReturnService } from "@/lib/types/service";
 import type { SaleServiceDetail } from "@/lib/types/sale";
 
 export interface GetServicesFilter {

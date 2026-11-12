@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
-/** Bundles older than the services release are not served held carts holding a service. Rules: laravel-server/AGENTS.md, "Service POS & Sync Engine Scoping". */
+/** Bundles older than the services release are not served the services tables or held carts holding a service. Rules: laravel-server/AGENTS.md, "Service POS & Sync Engine Scoping". */
 class SyncPullLegacyServicesGateTest extends TestCase
 {
     use RefreshDatabase;
@@ -61,6 +61,16 @@ class SyncPullLegacyServicesGateTest extends TestCase
             ->postJson('/api/v1/app/sync/pull', ['last_synced' => []], $headers)
             ->assertOk()
             ->json('changes');
+    }
+
+    public function test_a_legacy_bundle_is_served_no_services_tables(): void
+    {
+        $changes = $this->pull('0.0.41');
+
+        foreach (['services', 'sale_services', 'return_services'] as $table) {
+            $this->assertArrayNotHasKey($table, $changes);
+        }
+        $this->assertArrayHasKey('sales', $changes);
     }
 
     public function test_a_legacy_bundle_is_served_only_held_carts_without_a_service(): void

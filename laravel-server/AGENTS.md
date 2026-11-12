@@ -4650,6 +4650,7 @@ Any query assembling the tenant's allowed user IDs for sync authorization must u
 - **Legacy bundles and held carts (`LegacyServicesPullGate`, §11):**
   - A bundle older than 0.0.42 recalling a held cart drops its `item_type: "service"` lines and then deletes the held row, so the service is lost for every till. The pull therefore withholds `held_transactions` rows whose `items_json` holds a service line from any bundle reporting `X-App-Version` < `LegacyServicesPullGate::INTRODUCED_IN` (or none). Both the compact (`"item_type":"service"`) and MySQL-normalised (`"item_type": "service"`) JSON spellings are matched, because `items_json` is a MySQL `JSON` column that re-serialises with spaces.
   - Such a cart stays recallable on 0.0.42+ tills only. An old till simply never sees it; nothing is deleted.
+  - The same gate drops `services`, `sale_services` and `return_services` from the pull's table list for those bundles. An old client has no local table for them and logged three Sentry events per pull; it never reads them, so omitting them loses nothing. Once the device updates, its first 0.0.42 pull has no watermark for these tables and receives them in full.
   - **Retire** once no active `user_devices` row reports an `app_version` below 0.0.42.
 - **Admin Purge Sweeper:**
   - `PurgedUserRowSweeper::sweepOrphanedChildren()` cascades sweeps to `sale_services` and `return_services` when parent transactions are purged.

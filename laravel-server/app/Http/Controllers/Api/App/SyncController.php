@@ -640,6 +640,8 @@ class SyncController extends Controller
         $serverTimestamp = now()->subSeconds(self::PULL_WATERMARK_LAG_SECONDS)->toIso8601String();
         $tables = ['products', 'stock_batches', 'categories', 'customers', 'suppliers', 'sales', 'sale_items', 'sale_item_batches', 'services', 'sale_services', 'return_services', 'stores', 'users', 'stock_movements', 'purchase_orders', 'purchase_order_items', 'expenses', 'payment_accounts', 'requested_products', 'supplier_payments', 'returns', 'return_items', 'prescriptions', 'prescription_items', 'loyalty_tiers', 'loyalty_redemption_options', 'stock_audits', 'held_transactions', 'loyalty_transactions', 'customer_payments', 'audit_logs', 'permission_groups'];
 
+        $tables = LegacyServicesPullGate::tables($tables, $request->header('X-App-Version'));
+
         if (app(SyncGate::class)->isStoresOnlySetupOverridePull($request, $lastSyncedMap)) {
             $tables = ['stores'];
         }

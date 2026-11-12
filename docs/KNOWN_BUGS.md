@@ -459,13 +459,13 @@ suggested tackle order rather than a strict ranking.
 - **Exposure:** small today. The one production run (2026-10-18) attributed 594 `activity_logs` rows and no business row (`laravel-server/AGENTS.md`, "`store_id` backfill").
 - **Fix:** spread `App\Support\SyncRowStamp::for($table)` into that update (A-278), and say in the command's output that touched rows re-pull to every device.
 
-#### A-335. `laravel-server/` — a child row can still be pointed at another tenant's store-less legacy parent
+#### A-362. `laravel-server/` — a child row can still be pointed at another tenant's store-less legacy parent
 - **Found:** 2026-10-25, fixing A-325.
 - **What's wrong:** `authorizeInsertTarget()` and A-325's `repointsToForeignParent()` resolve a child's store through its parent; a parent with `store_id = NULL` resolves to none, so the check falls back to the row's own `store_id` (INSERT) or lets it through (UPDATE). A batch can therefore be attached to another tenant's pre-backfill `NULL`-store product.
 - **Consequence:** small. The row joins no store's pull, so nothing crosses tenants on any device, and the A-248 attributor and repair command both refuse to attribute another tenant's product (4431114). But the attacker's batch becomes contradictory evidence on the victim's product, so that product can no longer be attributed from its stock. It needs the uuid of a store-less product.
 - **Fix:** when the parent resolves to no store, judge it by its author the way `authorizeChangeTarget()` judges a legacy row (`user_id` in `$allowedUserIds`, or no live author), on INSERT and UPDATE alike.
 
-#### A-336. `client/` — small A-323 follow-ups: Settings shows a refusal without its remedy, an in-progress sync reads as an error, repeated `/user` calls
+#### A-363. `client/` — small A-323 follow-ups: Settings shows a refusal without its remedy, an in-progress sync reads as an error, repeated `/user` calls
 - **Found:** 2026-10-25, by the second review of A-323's fix.
 - **Settings toast:** Settings > Data's Sync now shows `STORE_REFUSED_MESSAGE` alone, without the remedy the sync indicator appends (`storeRefusalRemedy()`); pass `result.refusal` through `failUnlessSucceeded()` and append it.
 - **In-progress sync:** `failUnlessSucceeded()` rejects `SYNC_IN_PROGRESS_ERROR` too, so pressing Sync while one runs shows an error toast. Before A-323 it showed a false "Sync complete!"; a `toast.info` would fit better.

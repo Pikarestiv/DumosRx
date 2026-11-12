@@ -2046,7 +2046,7 @@ parks. A resent INSERT runs as an UPDATE and gets the same check; a super admin
 is exempt; restating the stored parent costs no lookup. Parent lookups include
 soft-deleted parents, because the pull serves a voided parent's line items. A
 new parent with no store (legacy `NULL`) or that does not exist is let through,
-as on INSERT: the row then belongs to no store's pull (A-335). Secondary
+as on INSERT: the row then belongs to no store's pull (A-362). Secondary
 references (`sale_items.stock_batch_id`, `purchase_order_items.product_id` and
 the like) do not decide a row's store and are not checked.
 

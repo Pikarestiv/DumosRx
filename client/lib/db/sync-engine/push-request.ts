@@ -78,15 +78,6 @@ export function filterPushableChanges(
         return false;
       }
     }
-    if (item.table_name === "stock_movements") {
-      // Laravel backend requires stock_batch_id for stock_movements. Drop if null.
-      if (!item.payload.stock_batch_id) {
-        for (const id of idsFor(item.id)) {
-          rejected.push({ id, reason: "Missing required stock_batch_id" });
-        }
-        return false;
-      }
-    }
     if (item.table_name === "stock_batches") {
       if (item.payload && "selling_price" in item.payload) {
         delete item.payload.selling_price;

@@ -37,7 +37,7 @@ export async function getCurrentMonthRevenue({ from, to }: { from: string; to: s
       params,
     ),
     query<{ total: number }>(
-      `SELECT SUM(total_refunded) as total FROM returns WHERE (_deleted = 0 OR _deleted IS NULL) AND created_at >= ? AND created_at < ?${storeId ? " AND store_id = ?" : ""}`,
+      `SELECT SUM(CASE WHEN s.total_amount IS NOT NULL AND s.total_amount != 0 THEN r.total_refunded * (s.total_amount - IFNULL(s.tax_amount, 0)) / s.total_amount ELSE r.total_refunded END) as total FROM returns r LEFT JOIN sales s ON s.id = r.sale_id WHERE (r._deleted = 0 OR r._deleted IS NULL) AND r.created_at >= ? AND r.created_at < ?${storeId ? " AND r.store_id = ?" : ""}`,
       params,
     ),
   ]);

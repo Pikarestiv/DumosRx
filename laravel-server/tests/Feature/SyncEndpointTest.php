@@ -2661,4 +2661,54 @@ class SyncEndpointTest extends TestCase
         $this->assertEquals('johndoe', $staffAfterRestore->username);
         $this->assertEquals('johndoe@dumosrx.com', $staffAfterRestore->email);
     }
+
+    public function test_push_sync_accepts_damage_stock_movement_with_null_stock_batch_id()
+    {
+        $productId = (string) \Illuminate\Support\Str::uuid();
+        $movementId = (string) \Illuminate\Support\Str::uuid();
+
+        DB::table('products')->insert([
+            'id' => $productId,
+            'store_id' => $this->store->id,
+            'user_id' => $this->user->id,
+            'name' => 'Spot Sourced Medicine',
+            '_version' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $payload = [
+            'changes' => [
+                [
+                    'table_name' => 'stock_movements',
+                    'operation' => 'INSERT',
+                    'record_id' => $movementId,
+                    'payload' => [
+                        'id' => $movementId,
+                        'product_id' => $productId,
+                        'stock_batch_id' => null,
+                        'movement_type' => 'adjustment',
+                        'quantity' => -1,
+                        'unit_cost' => 4500.00,
+                        'total_cost' => 4500.00,
+                        'reason' => 'Damage — Customer return discarded: Broken',
+                        'performed_by' => $this->user->id,
+                        'store_id' => $this->store->id,
+                        '_version' => 1,
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', $payload);
+        $response->assertStatus(200);
+        $response->assertJsonCount(0, 'failed');
+
+        $movement = DB::table('stock_movements')->where('id', $movementId)->first();
+        $this->assertNotNull($movement);
+        $this->assertNull($movement->stock_batch_id);
+        $this->assertEquals(-1, $movement->quantity);
+        $this->assertEquals('4500.00', $movement->unit_cost);
+        $this->assertEquals('Damage — Customer return discarded: Broken', $movement->reason);
+    }
 }

@@ -91,3 +91,4 @@ describe("ServicesList responsive layout", () => {
     expect(screen.getByText("Status")).toBeDefined();
   });
 });
+

@@ -1,3 +1,9 @@
+### A-359 — the held-sales list showed only a clock time, so sales held on different days looked identical
+- **Fixed:** 2026-11-13, client only, TDD.
+- **Was:** `held-transactions-dialog.tsx` rendered `created_at` with `toLocaleTimeString()`: no date, and in the browser's locale format rather than the house `DD/MM/YYYY HH:mm` (rule §6, "a timestamp always carries its time").
+- **Now:** `formatDateSafe(item.created_at, "dd/MM/yyyy HH:mm", "Unknown time")`.
+- **Coverage:** `client/__tests__/held-transactions-recall-permission.test.tsx` ("shows when the sale was held as DD/MM/YYYY HH:mm").
+
 ### A-358 — spot sourcing inventory purchases were logged in the operating expenses table, polluting OPEX
 - **Fixed:** 2026-11-11, client only, TDD.
 - **Was:** When spot-sourced goods were purchased for immediate customer sale and paid out of the till drawer, `pos-sale-writer.ts` inserted a row into the `expenses` table (`category = 'Stock Sourcing'`). This violated the fundamental accounting invariant that inventory acquisitions are balance-sheet assets / COGS, not operating expenses (OPEX). It distorted profit and loss reports, expense analytics, and tax deductions.

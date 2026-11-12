@@ -20,6 +20,7 @@ import { useHeldTransactions, useDeleteHeldTransactionMutation } from "@/lib/hoo
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, cn } from "@/lib/utils";
+import { formatDateSafe } from "@/lib/utils/date-utils";
 import { useStore } from "@/lib/context/store-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { useLastNonNull } from "@/lib/hooks/use-last-non-null";
@@ -161,7 +162,7 @@ export function HeldTransactionsDialog({
                       <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-muted-foreground uppercase tracking-wider font-medium flex-wrap">
                         <span className="flex items-center gap-1 shrink-0">
                           <Clock className="w-3 h-3" />{" "}
-                          {new Date(item.created_at).toLocaleTimeString()}
+                          {formatDateSafe(item.created_at, "dd/MM/yyyy HH:mm", "Unknown time")}
                         </span>
                         <span className="w-1 h-1 rounded-full bg-muted-foreground/30 shrink-0" />
                         <span className="shrink-0">

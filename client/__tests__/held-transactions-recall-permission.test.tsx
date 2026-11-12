@@ -86,6 +86,11 @@ describe("Held transactions recall permission", () => {
     expect(screen.getByText("Ada")).toBeTruthy();
   });
 
+  it("shows when the sale was held as DD/MM/YYYY HH:mm", () => {
+    renderDialog();
+    expect(screen.getByText(/^28\/09\/2026 \d{2}:\d{2}$/)).toBeTruthy();
+  });
+
   it("checks the hold_sales key specifically", () => {
     renderDialog();
     expect(hasPermission).toHaveBeenCalledWith("hold_sales");

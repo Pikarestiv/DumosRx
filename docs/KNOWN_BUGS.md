@@ -442,6 +442,16 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
+#### A-360. `client/` — the toast countdown bar always runs 4 seconds, whatever the toast's own duration
+- **Found:** 2026-11-13, review of `feat/service-pos`; deferred.
+- **What's wrong:** `globals.css` animates the bar with `--toast-timer-duration: 4000ms` set once on `[data-sonner-toaster]`, matching `sonner.tsx`'s default `duration={4000}`. A toast passing its own `duration` (`staff-form-dialog.tsx` 8000, `use-post-restore-cloud-link-notice.ts` 20000, `use-auto-lock.ts`) empties its bar long before it closes, and an `Infinity` toast shows a bar that runs out and then sits there.
+- **Fix:** set `--toast-timer-duration` per toast (e.g. a `style` on the toast from the call's `duration`), or hide the bar for any toast whose duration is not the default.
+
+#### A-361. `client/` + `laravel-server/` — `schema-migrations.ts` and `SyncController.php` are far over the 350-line rule
+- **Found:** 2026-11-13, review of `feat/service-pos`; pre-existing (main already had 857 and ~840 lines), the services work added a little to each.
+- **What's wrong:** `client/lib/db/schema-migrations.ts` is 925 lines and `laravel-server/app/Http/Controllers/Api/App/SyncController.php` 846, against `.agents/AGENTS.md` §4.
+- **Fix:** split the migrations by era or table group behind the same `runSchemaMigrations()` entry point; move the pull loop out of `SyncController::pull()` into a service beside `PullPager`/`PullTenantScope`. Each in its own refactor PR, with `npm run test:schema` and the sync feature tests as the guard.
+
 #### A-338. `laravel-server/` — `sync:backfill-store-ids` writes `store_id` without moving `updated_at` or `_version`, so a row it attributes never reaches a device
 - **Found:** 2026-10-25, by the review of A-246's fix.
 - **Location:** `app/Console/Commands/BackfillStoreIds.php`, the `--apply` write (`DB::table($table)->whereIn('id', $ids)->update(['store_id' => $storeId])`).

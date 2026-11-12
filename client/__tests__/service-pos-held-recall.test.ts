@@ -226,11 +226,39 @@ describe("usePOSHeldTransactions — mixed products and services recall", () => 
     expect(restoredCart).toHaveLength(1);
     // Agreed price is preserved
     expect(restoredCart[0].unit_price).toBe(5000);
+    expect(restoredCart[0].original_unit_price).toBe(5000);
     expect(restoredCart[0].subtotal).toBe(10000);
     expect(restoredCart[0].stock).toBeNull();
     expect(toastMock.info).toHaveBeenCalledWith(
       "Catalog prices have changed for some services since held; original agreed pricing was preserved.",
     );
+  });
+
+  it("keeps a cashier's price override on an unrepriced service without claiming the catalog changed", async () => {
+    const heldWithOverride: HeldTransaction = {
+      id: "held_override",
+      customer_id: null,
+      customer_name: "Walk-in Customer",
+      items_json: JSON.stringify([
+        { id: "srv-1", name: "Haircut & Styling", quantity: 1, unit_price: 4500, original_unit_price: 5000, subtotal: 4500, item_type: "service", stock: null },
+      ]),
+      total_amount: 4500,
+      discount: 0,
+      discount_type: "fixed",
+      created_at: new Date().toISOString(),
+      is_reseller_sale: 0,
+      markup_type: null,
+    };
+
+    const handle = renderHooks([testService]);
+    await act(async () => {
+      await handle.held().handleRecallTransaction(heldWithOverride);
+    });
+
+    const [restored] = handle.cart().cart;
+    expect(restored.unit_price).toBe(4500);
+    expect(restored.original_unit_price).toBe(5000);
+    expect(toastMock.info).not.toHaveBeenCalled();
   });
 
   it("preserves service line and warns if service was deactivated while held", async () => {

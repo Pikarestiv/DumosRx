@@ -116,15 +116,12 @@ export function usePOSHeldTransactions({
           if (item.item_type === "service") {
             const service = serviceFor(item);
             const unitPrice = item.unit_price;
-            const originalUnitPrice = service
-              ? service.price
-              : item.original_unit_price ?? item.unit_price;
             return {
               ...item,
               item_type: "service",
               name: service?.name || item.name,
               unit_price: unitPrice,
-              original_unit_price: originalUnitPrice,
+              original_unit_price: item.original_unit_price ?? unitPrice,
               subtotal: roundMoney(unitPrice * item.quantity),
               stock: null,
             };
@@ -175,7 +172,7 @@ export function usePOSHeldTransactions({
       const hasRepricedService = items.some((item) => {
         if (item.item_type === "service") {
           const service = serviceFor(item);
-          return !!service && service.price !== item.unit_price;
+          return !!service && service.price !== (item.original_unit_price ?? item.unit_price);
         }
         return false;
       });

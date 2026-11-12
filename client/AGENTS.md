@@ -7447,6 +7447,7 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
   - Services generate pure revenue in `sales` and detail line snapshots in `sale_services`. They never receive rows in `stock_movements`, `stock_batches`, or `sale_items`.
 - **Historical Immutability:**
   - At checkout, `writeSaleTransaction` snapshots `service_name` and `unit_price` directly onto `sale_services`. Subsequent price or name changes in the `services` catalog never mutate past financial receipts.
+- **Held service lines keep their quote:** recalling a held cart keeps a service's `unit_price` *and* its held `original_unit_price` (the catalog price when it was rung up); it never resets `original_unit_price` to today's catalog price, which would make a reprice look like a cashier override. The "catalog prices have changed" notice compares the catalog price to the held `original_unit_price`, so a cashier's own override is not reported as a reprice.
 - **Mixed Cart Checkout:**
   - `usePOSCart` supports mixed carts with both `item_type: "product"` and `item_type: "service"`.
   - Services bypass inventory stock validation, out-of-stock gating, and spot-sourcing dialogs.

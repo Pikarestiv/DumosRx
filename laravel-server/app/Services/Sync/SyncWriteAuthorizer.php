@@ -192,10 +192,10 @@ class SyncWriteAuthorizer
             return $model->store_id ?? null;
         }
 
-        if ($tableName === 'sale_items') {
+        if ($tableName === 'sale_items' || $tableName === 'sale_services') {
             return isset($model->sale_id) ? Sale::withTrashed()->where('id', $model->sale_id)->value('store_id') : null;
         }
-        if ($tableName === 'return_items') {
+        if ($tableName === 'return_items' || $tableName === 'return_services') {
             return isset($model->return_id) ? \App\Models\SaleReturn::withTrashed()->where('id', $model->return_id)->value('store_id') : null;
         }
         if ($tableName === 'prescription_items') {

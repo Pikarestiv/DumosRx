@@ -2036,7 +2036,8 @@ pinned by a direct test so it cannot rot unnoticed.
 **A child UPDATE's new parent must be in scope (A-325).** A child of a
 parent-FK table is owned through its parent (`SyncWriteAuthorizer::PARENT_KEYS`:
 `stock_batches.product_id`, `sale_items.sale_id`, `sale_item_batches.sale_item_id`,
-`return_items.return_id`, `prescription_items.prescription_id`,
+`return_items.return_id`, `sale_services.sale_id`, `return_services.return_id`,
+`prescription_items.prescription_id`,
 `purchase_order_items.purchase_order_id`). `authorizeChangeTarget()` judges the
 stored row, i.e. its current parent, so `repointsToForeignParent()` also judges
 the parent the payload names: when it differs from the stored one and resolves
@@ -4645,7 +4646,7 @@ Any query assembling the tenant's allowed user IDs for sync authorization must u
   - `services` is store-scoped directly by `store_id`.
   - `sale_services` and `return_services` are parent-scoped by `sale_id` and `return_id` (mirrored in `PullTenantScope`, `SyncWriteAuthorizer`, and `CountsSyncedTableRows`). They carry `store_id` to satisfy the client's `STORE_SCOPED_TABLES` helper and multi-tenancy constraints.
 - **Sync Authorizer Parent Keys:**
-  - `SyncWriteAuthorizer::PARENT_KEYS` maps `sale_services => sale_id` and `return_services => return_id`, protecting service detail lines from cross-tenant spoofing.
+  - `SyncWriteAuthorizer::PARENT_KEYS` (`sale_services => sale_id`, `return_services => return_id`) only drives the A-325 *repoint* check on UPDATE. What stops a cross-tenant INSERT is `resolveParentStoreId()`, which resolves `sale_services` through `Sale` and `return_services` through `SaleReturn` beside `sale_items`/`return_items`. Without that branch the row fell back to its own claimed `store_id`, so a tenant could insert a service line under another store's sale (pinned by `SyncPushServiceLineParentScopeTest`). A new parent-FK table needs **both** entries.
 - **Admin Purge Sweeper:**
   - `PurgedUserRowSweeper::sweepOrphanedChildren()` cascades sweeps to `sale_services` and `return_services` when parent transactions are purged.
 

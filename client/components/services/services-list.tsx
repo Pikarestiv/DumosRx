@@ -23,7 +23,7 @@ export function ServicesList({
 
   if (!isDesktop) {
     return (
-      <div className="p-3 sm:p-4 space-y-2.5">
+      <div className="pb-3 sm:p-4 space-y-2.5">
         {services.map((srv) => (
           <div
             key={srv.id}

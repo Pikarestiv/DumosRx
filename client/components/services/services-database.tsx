@@ -37,7 +37,9 @@ export function ServicesDatabase() {
   const router = useRouter();
 
   const searchParamsKey = searchParams.toString();
-  const [appliedSearchParamsKey, setAppliedSearchParamsKey] = useState<string | null>(null);
+  const [appliedSearchParamsKey, setAppliedSearchParamsKey] = useState<
+    string | null
+  >(null);
   if (searchParamsKey !== appliedSearchParamsKey) {
     setAppliedSearchParamsKey(searchParamsKey);
     if (searchParams.get("action") === "add") {
@@ -116,6 +118,7 @@ export function ServicesDatabase() {
             onChange={setSearchTerm}
             placeholder="Search services by name, code or category..."
             aria-label="Search services"
+            inputClassName="bg-card border-border"
           />
           <div className="flex items-center gap-2 flex-wrap">
             <FilterPill

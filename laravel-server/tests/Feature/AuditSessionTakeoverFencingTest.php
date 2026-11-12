@@ -141,3 +141,4 @@ class AuditSessionTakeoverFencingTest extends TestCase
         $takeoverRes->assertJsonPath('message', 'Cannot take over an audit session that is not in progress.');
     }
 }
+

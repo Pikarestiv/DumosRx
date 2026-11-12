@@ -47,3 +47,4 @@ class Service extends Model
         return $this->hasMany(SaleService::class);
     }
 }
+

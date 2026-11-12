@@ -49,3 +49,4 @@ export interface ReturnService {
   _synced_at?: string | null;
   _deleted?: number;
 }
+

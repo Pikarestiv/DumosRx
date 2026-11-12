@@ -15,3 +15,4 @@ export function extractSpotSourcedProductIds(paymentDetails: unknown): Set<strin
     return new Set<string>();
   }
 }
+

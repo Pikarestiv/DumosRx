@@ -60,3 +60,4 @@ export const POSServiceCard = memo(function POSServiceCard({
     </button>
   );
 });
+

@@ -17,6 +17,7 @@ use App\Models\StockMovement;
 use App\Models\Store;
 use App\Models\Supplier;
 use App\Models\User;
+use App\Services\Sync\LegacyServicesPullGate;
 use App\Services\Sync\PeerSyncFreshnessService;
 use App\Services\Sync\PullPager;
 use App\Services\Sync\PullRowMapper;
@@ -669,6 +670,7 @@ class SyncController extends Controller
             if ($tenantScope) {
                 $scoper->applyPullTenantScope($query, $table, $tenantScope);
             }
+            LegacyServicesPullGate::scope($query, $table, $request->header('X-App-Version'));
 
             $pager->applyPullCursor($query, $table, $lastSyncedMap[$table] ?? null);
 

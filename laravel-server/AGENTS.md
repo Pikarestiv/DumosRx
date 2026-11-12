@@ -4647,6 +4647,10 @@ Any query assembling the tenant's allowed user IDs for sync authorization must u
   - `sale_services` and `return_services` are parent-scoped by `sale_id` and `return_id` (mirrored in `PullTenantScope`, `SyncWriteAuthorizer`, and `CountsSyncedTableRows`). They carry `store_id` to satisfy the client's `STORE_SCOPED_TABLES` helper and multi-tenancy constraints.
 - **Sync Authorizer Parent Keys:**
   - `SyncWriteAuthorizer::PARENT_KEYS` (`sale_services => sale_id`, `return_services => return_id`) only drives the A-325 *repoint* check on UPDATE. What stops a cross-tenant INSERT is `resolveParentStoreId()`, which resolves `sale_services` through `Sale` and `return_services` through `SaleReturn` beside `sale_items`/`return_items`. Without that branch the row fell back to its own claimed `store_id`, so a tenant could insert a service line under another store's sale (pinned by `SyncPushServiceLineParentScopeTest`). A new parent-FK table needs **both** entries.
+- **Legacy bundles and held carts (`LegacyServicesPullGate`, §11):**
+  - A bundle older than 0.0.42 recalling a held cart drops its `item_type: "service"` lines and then deletes the held row, so the service is lost for every till. The pull therefore withholds `held_transactions` rows whose `items_json` holds a service line from any bundle reporting `X-App-Version` < `LegacyServicesPullGate::INTRODUCED_IN` (or none). Both the compact (`"item_type":"service"`) and MySQL-normalised (`"item_type": "service"`) JSON spellings are matched, because `items_json` is a MySQL `JSON` column that re-serialises with spaces.
+  - Such a cart stays recallable on 0.0.42+ tills only. An old till simply never sees it; nothing is deleted.
+  - **Retire** once no active `user_devices` row reports an `app_version` below 0.0.42.
 - **Admin Purge Sweeper:**
   - `PurgedUserRowSweeper::sweepOrphanedChildren()` cascades sweeps to `sale_services` and `return_services` when parent transactions are purged.
 

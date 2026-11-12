@@ -7441,6 +7441,14 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
 - **Returns & Refunds:**
   - Service returns insert into `return_services` and cleanly reverse revenue without creating phantom inventory restocks or damage write-offs.
   - A mixed return considers a sale fully refunded (`payment_status = 'refunded'`) only when all physical products AND all services on the sale have been completely returned.
+- **Inventory Services Catalog (`/inventory/services`):**
+  - Services are managed in the back-office inventory hub under the `Services` tab (`/inventory/services`) alongside `Catalog` (physical products).
+  - Here store owners/managers can create, edit, deactivate, and view services (`ServicesDatabase`, `ServiceFormDialog`, `ServiceDeleteDialog`).
+  - Cashiers in POS remain focused strictly on ringing up sales. The POS Services tab includes an `EmptyState` with a direct link to `"Manage Services in Inventory"`.
+- **Unified POS Search Bar:**
+  - The top search bar in `POSLayoutHeader` is the single search input for the entire POS, dynamically adapting its placeholder and search target to the active tab (`Products` vs `Services`).
+  - Redundant duplicate search bars inside the Services tab are removed on desktop, leaving only a mobile input on small screens.
+
 
 
 

@@ -304,4 +304,9 @@ export const queryKeys = {
     // Remote API data, not a local table.
     show: () => resource(["accountManager"] as const, []),
   },
+  services: {
+    all: () => resource(["services"] as const, ["services"]),
+    list: () => resource(["services", "list"] as const, ["services"]),
+    detail: (id: string) => resource(["services", "detail", id] as const, ["services"]),
+  },
 } as const;

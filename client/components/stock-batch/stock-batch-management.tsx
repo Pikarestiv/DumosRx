@@ -5,6 +5,7 @@ import { StockOverview } from "./stock-overview";
 import { StockMovements } from "./stock-movements";
 import { StockAdjustmentsLedger } from "./stock-adjustments-ledger";
 import { ProductDatabase } from "@/components/products/product-database";
+import { ServicesDatabase } from "@/components/services/services-database";
 import { Button } from "@/components/ui/button";
 import { StockBatchMetrics } from "./stock-batch-metrics";
 import { formatMetricCurrency } from "@/lib/utils";
@@ -48,6 +49,10 @@ export function StockBatchManagement({
 
         <TabsContent value="catalog" className="flex flex-col flex-1 min-h-0 mt-0">
           <ProductDatabase />
+        </TabsContent>
+
+        <TabsContent value="services" className="flex flex-col flex-1 min-h-0 mt-0">
+          <ServicesDatabase />
         </TabsContent>
 
         <TabsContent value="overview" className="flex flex-col flex-1 min-h-0 mt-0 gap-6">

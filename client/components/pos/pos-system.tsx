@@ -19,41 +19,14 @@ import { useHasPermission } from "@/lib/hooks/use-permissions";
 
 export function POSSystem() {
   const {
-    t,
-    storeProfile,
-    vatPercentage,
-    searchInputRef,
-    activeTab,
-    handleTabChange,
-    searchTerm,
-    setSearchTerm,
-    categoryFilter,
-    setCategoryFilter,
-    isMobileScannerOpen,
-    setIsMobileScannerOpen,
-    selectedCustomer,
-    setSelectedCustomer,
-    showReturnDialog,
-    setShowReturnDialog,
-    saleToReturn,
-    setSaleToReturn,
-    showHeldDialog,
-    setShowHeldDialog,
-    showClearCartDialog,
-    setShowClearCartDialog,
-    heldSalesCount,
-    services,
-    loadingServices,
-    loadingProducts,
-    productsLoadFailed,
-    refetchProducts,
-    recentSales,
-    refetchSales,
-    recentlySoldIds,
-    commonlySoldIds,
-    customers,
-    loadingCustomers,
-    paymentAccounts,
+    t, storeProfile, vatPercentage, searchInputRef, activeTab, handleTabChange,
+    searchTerm, setSearchTerm, categoryFilter, setCategoryFilter,
+    isMobileScannerOpen, setIsMobileScannerOpen, selectedCustomer, setSelectedCustomer,
+    showReturnDialog, setShowReturnDialog, saleToReturn, setSaleToReturn,
+    showHeldDialog, setShowHeldDialog, showClearCartDialog, setShowClearCartDialog,
+    heldSalesCount, services, loadingServices, loadingProducts, productsLoadFailed,
+    refetchProducts, recentSales, refetchSales, recentlySoldIds, commonlySoldIds,
+    customers, loadingCustomers, paymentAccounts,
     productsPullToRefresh: {
       scrollRef: productsScrollRef,
       pullDistance: productsPullDistance,
@@ -198,6 +171,11 @@ export function POSSystem() {
           heldSalesCount={heldSalesCount}
           onOpenHeldSales={() => setShowHeldDialog(true)}
           onScanSuccess={handleScanSuccess}
+          searchPlaceholder={
+            resolvedTab === "services"
+              ? "Search services (e.g. massage, styling)..."
+              : undefined
+          }
         />
 
         <div className="p-4 sm:p-6 sm:pt-3 sm:py-4 flex-1 overflow-hidden flex flex-col">
@@ -272,6 +250,9 @@ export function POSSystem() {
                   addToCart={addServiceToCart}
                   currencyCode={storeProfile?.currency}
                   cart={cart}
+                  searchTerm={searchTerm}
+                  onSearchChange={setSearchTerm}
+                  onClearSearch={() => setSearchTerm("")}
                 />
               </TabsContent>
               {canViewSalesHistory && (

@@ -32,6 +32,7 @@ interface POSLayoutHeaderProps {
   heldSalesCount: number;
   onOpenHeldSales: () => void;
   onScanSuccess: (barcode: string) => void;
+  searchPlaceholder?: string;
 }
 
 export function POSLayoutHeader({
@@ -42,6 +43,7 @@ export function POSLayoutHeader({
   heldSalesCount,
   onOpenHeldSales,
   onScanSuccess,
+  searchPlaceholder,
 }: POSLayoutHeaderProps) {
   const router = useRouter();
   const { storeProfile, availableStores } = useStore();
@@ -121,8 +123,8 @@ export function POSLayoutHeader({
             <Input
               ref={searchInputRef}
               type="text"
-              aria-label="Search products or SKU"
-              placeholder="Search products or SKU"
+              aria-label={searchPlaceholder || "Search products or SKU"}
+              placeholder={searchPlaceholder || "Search products or SKU"}
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               onKeyDown={onKeyDown}

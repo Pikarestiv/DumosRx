@@ -760,24 +760,24 @@ textarea,
   [data-sonner-toast]:not([data-type="loading"]):not([data-promise="true"])::before {
     content: "";
     position: absolute;
-    left: 0;
-    bottom: 0;
-    height: 3px;
-    width: 100%;
+    left: -1px;
+    right: -1px;
+    bottom: -1px;
+    height: 5px;
     border-bottom-left-radius: inherit;
     border-bottom-right-radius: inherit;
     pointer-events: none;
     z-index: 10;
-    background-color: var(--toast-track-color, rgba(0, 114, 213, 0.15));
+    background-color: var(--toast-track-color, color-mix(in srgb, var(--primary) 15%, transparent));
   }
 
   [data-sonner-toast]:not([data-type="loading"]):not([data-promise="true"])::after {
     content: "";
     position: absolute;
-    left: 0;
-    bottom: 0;
-    height: 3px;
-    width: 100%;
+    left: -1px;
+    bottom: -1px;
+    width: calc(100% + 2px);
+    height: 5px;
     border-bottom-left-radius: inherit;
     border-bottom-right-radius: inherit;
     pointer-events: none;

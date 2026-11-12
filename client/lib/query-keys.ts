@@ -82,7 +82,7 @@ export const queryKeys = {
     commonlySoldIds: () => resource(["commonlySoldIds"] as const, ["sale_items"]),
     saleItems: (saleId?: string) => resource(["saleItems", saleId] as const, ["sale_items"]),
     transactionDetails: (saleId?: string) =>
-      resource(["transactionDetails", saleId] as const, ["sale_items", "returns"]),
+      resource(["transactionDetails", saleId] as const, ["sale_items", "returns", "sale_services", "return_services"]),
     fastMovers: () => resource(["fastMovers"] as const, ["sales", "sale_items", "products"]),
   },
   purchaseOrders: {

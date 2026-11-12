@@ -7455,6 +7455,7 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
   - Service returns insert into `return_services` and cleanly reverse revenue without creating phantom inventory restocks or damage write-offs.
   - A mixed return considers a sale fully refunded (`payment_status = 'refunded'`) only when all physical products AND all services on the sale have been completely returned.
   - Service completeness is read from SQLite after this return's `return_services` rows are written (`getSaleServices()`' summed `returned_quantity` against `quantity`), not from a caller-supplied list. The dialog used to pass a mapped list without `returned_quantity`, so a qty-2 service returned in two goes never reached `refunded` (pinned by `process-return-partial-services.test.ts`).
+- **POS services query:** `usePOSData` reads services through `queryKeys.services.list()` with `getServices({ storeId: getActiveStoreId() })`, so a multi-store owner never sees another store's services or a cache from the store they just switched away from. `queryKeys.sales.transactionDetails` is tagged with `sale_services` and `return_services` so a service return refreshes an open receipt.
 - **Inventory Services Catalog (`/inventory/services`):**
   - Services are managed in the back-office inventory hub under the `Services` tab (`/inventory/services`) alongside `Catalog` (physical products).
   - Here store owners/managers can create, edit, deactivate, and view services (`ServicesDatabase`, `ServiceFormDialog`, `ServiceDeleteDialog`).

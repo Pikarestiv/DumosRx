@@ -111,20 +111,22 @@ export function usePOSHeldTransactions({
       const serviceFor = (item: CartItem & { product_id?: string }) =>
         services.find((s) => s.id === (item.product_id || item.id));
 
-      const restoredItems = items
-        .map((item) => {
+      const restoredItems: CartItem[] = items
+        .map((item): CartItem | null => {
           if (item.item_type === "service") {
             const service = serviceFor(item);
-            if (!service) return null;
-            const unitPrice = service.price;
+            const unitPrice = item.unit_price;
+            const originalUnitPrice = service
+              ? service.price
+              : item.original_unit_price ?? item.unit_price;
             return {
               ...item,
-              item_type: "service" as const,
-              name: service.name,
+              item_type: "service",
+              name: service?.name || item.name,
               unit_price: unitPrice,
-              original_unit_price: unitPrice,
+              original_unit_price: originalUnitPrice,
               subtotal: roundMoney(unitPrice * item.quantity),
-              stock: Infinity,
+              stock: null,
             };
           }
 
@@ -151,20 +153,31 @@ export function usePOSHeldTransactions({
         })
         .filter((item): item is CartItem => item !== null);
 
-      // Items whose product was deleted/deactivated while the sale was held are dropped by the filter above; say so rather than handing back a quiet…
+      // Items whose physical product was deleted while the sale was held are dropped by the filter above.
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-held-transactions-ts-L126
       const missingCount = items.length - restoredItems.length;
 
-      // A genuine catalog price change, measured against the price the line was based on (original_unit_price when present) rather than the possibly…
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-held-transactions-ts-L131
-      const hasRepricedItem = items.some((item) => {
+      const hasDeactivatedService = items.some((item) => {
+        if (item.item_type === "service") {
+          const service = serviceFor(item);
+          return !service || !service.is_active;
+        }
+        return false;
+      });
+
+      const hasRepricedProduct = items.some((item) => {
+        if (item.item_type === "service") return false;
+        const product = productFor(item);
+        const heldBasePrice = item.original_unit_price ?? item.unit_price;
+        return !!product && product.unit_price !== heldBasePrice;
+      });
+
+      const hasRepricedService = items.some((item) => {
         if (item.item_type === "service") {
           const service = serviceFor(item);
           return !!service && service.price !== item.unit_price;
         }
-        const product = productFor(item);
-        const heldBasePrice = item.original_unit_price ?? item.unit_price;
-        return !!product && product.unit_price !== heldBasePrice;
+        return false;
       });
 
       // 2. Delete the held row BEFORE touching cart state.
@@ -199,9 +212,19 @@ export function usePOSHeldTransactions({
           `${missingCount} item(s) from this held sale are no longer available and were not restored.`,
         );
       }
-      if (hasRepricedItem) {
+      if (hasRepricedProduct) {
         toast.info(
-          "Some item prices have changed since this sale was held and were updated to current pricing.",
+          "Some product prices have changed since this sale was held and were updated to current pricing.",
+        );
+      }
+      if (hasRepricedService) {
+        toast.info(
+          "Catalog prices have changed for some services since held; original agreed pricing was preserved.",
+        );
+      }
+      if (hasDeactivatedService) {
+        toast.warning(
+          "One or more services in this held sale are no longer active in the catalog. Preserved agreed quote.",
         );
       }
       setShowHeldDialog(false);

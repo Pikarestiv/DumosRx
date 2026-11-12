@@ -150,7 +150,7 @@ describe("usePOSHeldTransactions — mixed products and services recall", () => 
           original_unit_price: 5000,
           subtotal: 5000,
           item_type: "service",
-          stock: Infinity,
+          stock: null,
         },
       ]),
       total_amount: 12000,
@@ -181,16 +181,16 @@ describe("usePOSHeldTransactions — mixed products and services recall", () => 
     expect(serviceLine?.quantity).toBe(1);
     expect(serviceLine?.unit_price).toBe(5000);
     expect(serviceLine?.subtotal).toBe(5000);
-    expect(serviceLine?.stock).toBe(Infinity);
+    expect(serviceLine?.stock).toBeNull();
 
     expect(removeMock).toHaveBeenCalledWith("held_transactions", "held_mixed_1");
     expect(toastMock.success).toHaveBeenCalledWith("Transaction recalled");
   });
 
-  it("updates service price from catalog when catalog price changed during hold", async () => {
+  it("preserves agreed service price when catalog price changed during hold and informs cashier", async () => {
     const updatedService: Service = {
       ...testService,
-      price: 6000, // Price bumped from 5000 to 6000
+      price: 6000, // Price bumped in catalog from 5000 to 6000
     };
 
     const heldWithOldPrice: HeldTransaction = {
@@ -206,7 +206,7 @@ describe("usePOSHeldTransactions — mixed products and services recall", () => 
           original_unit_price: 5000,
           subtotal: 10000,
           item_type: "service",
-          stock: Infinity,
+          stock: null,
         },
       ]),
       total_amount: 10000,
@@ -224,28 +224,30 @@ describe("usePOSHeldTransactions — mixed products and services recall", () => 
 
     const restoredCart = handle.cart().cart;
     expect(restoredCart).toHaveLength(1);
-    expect(restoredCart[0].unit_price).toBe(6000);
-    expect(restoredCart[0].subtotal).toBe(12000);
+    // Agreed price is preserved
+    expect(restoredCart[0].unit_price).toBe(5000);
+    expect(restoredCart[0].subtotal).toBe(10000);
+    expect(restoredCart[0].stock).toBeNull();
     expect(toastMock.info).toHaveBeenCalledWith(
-      "Some item prices have changed since this sale was held and were updated to current pricing.",
+      "Catalog prices have changed for some services since held; original agreed pricing was preserved.",
     );
   });
 
-  it("drops service line and warns if service was deleted from catalog while held", async () => {
+  it("preserves service line and warns if service was deactivated while held", async () => {
     const heldWithDeletedService: HeldTransaction = {
       id: "held_mixed_deleted",
       customer_id: null,
       customer_name: "Walk-in Customer",
       items_json: JSON.stringify([
         {
-          id: "srv-nonexistent",
-          name: "Obsolete Service",
+          id: "srv-deactivated",
+          name: "Inactive Spa Service",
           quantity: 1,
           unit_price: 4000,
           original_unit_price: 4000,
           subtotal: 4000,
           item_type: "service",
-          stock: Infinity,
+          stock: null,
         },
         {
           id: "prod-1",
@@ -266,16 +268,22 @@ describe("usePOSHeldTransactions — mixed products and services recall", () => 
       markup_type: null,
     };
 
+    // Catalog does not contain srv-deactivated
     const handle = renderHooks([testService]);
     await act(async () => {
       await handle.held().handleRecallTransaction(heldWithDeletedService);
     });
 
     const restoredCart = handle.cart().cart;
-    expect(restoredCart).toHaveLength(1);
-    expect(restoredCart[0].id).toBe("prod-1");
+    // Both product and service preserved (not discarded)
+    expect(restoredCart).toHaveLength(2);
+    const preservedService = restoredCart.find((i) => i.id === "srv-deactivated");
+    expect(preservedService).toBeDefined();
+    expect(preservedService?.name).toBe("Inactive Spa Service");
+    expect(preservedService?.unit_price).toBe(4000);
+    expect(preservedService?.stock).toBeNull();
     expect(toastMock.warning).toHaveBeenCalledWith(
-      "1 item(s) from this held sale are no longer available and were not restored.",
+      "One or more services in this held sale are no longer active in the catalog. Preserved agreed quote.",
     );
   });
 });

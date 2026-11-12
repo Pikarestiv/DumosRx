@@ -7,7 +7,8 @@ import type { Service } from "@/lib/types/service";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
 import { roundMoney } from "@/lib/utils/pos-calculations";
 
-export interface CartItem extends Product {
+export interface CartItem extends Omit<Product, "stock"> {
+  stock: number | null;
   item_type?: "product" | "service";
   product_id?: string;
   quantity: number;
@@ -334,7 +335,7 @@ export function buildNewServiceCartItem(
     unit_price: price,
     original_unit_price: price,
     cost_price: 0,
-    stock: Infinity,
+    stock: null,
     quantity: effectiveQty,
     subtotal: roundMoney(price * effectiveQty),
     item_type: "service",

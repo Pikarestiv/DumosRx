@@ -128,7 +128,7 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
           ) : (
             onConfigureSpotSourcing && !isLocked && item.item_type !== "service" && (
               <div className="mb-0.5">
-                {item.stock <= 0 || item.quantity > item.stock ? (
+                {(item.stock ?? 0) <= 0 || item.quantity > (item.stock ?? 0) ? (
                   <button
                     type="button"
                     onClick={() => onConfigureSpotSourcing(item)}
@@ -138,9 +138,9 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
                     <Share2 className="w-2.5 h-2.5" />
                     <span>
                       Source outside
-                      {item.stock <= 0
+                      {(item.stock ?? 0) <= 0
                         ? " (Out of stock)"
-                        : ` (${item.quantity - item.stock} short)`}
+                        : ` (${item.quantity - (item.stock ?? 0)} short)`}
                     </span>
                   </button>
                 ) : (

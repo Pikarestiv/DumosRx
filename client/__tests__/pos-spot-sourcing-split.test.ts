@@ -206,6 +206,13 @@ describe("POS Spot Sourcing Split Allocation", () => {
     );
     expect(spotPayout).toBe(7500);
 
+    // Invariant from PR #299: external spot sourcing is recorded in sales.payment_details
+    // for till reconciliation, NOT as an OPEX expense in the expenses table.
+    const expenseCount = Number(
+      db.exec("SELECT count(*) FROM expenses")[0]?.values?.[0]?.[0] ?? -1,
+    );
+    expect(expenseCount).toBe(0);
+
     expect(String(saleRow[1])).toContain("Spot Sourced: 3x Augmentin 625mg");
   });
 });

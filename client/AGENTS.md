@@ -7458,7 +7458,7 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
 - **POS services query:** `usePOSData` reads services through `queryKeys.services.list()` with `getServices({ storeId: getActiveStoreId() })`, so a multi-store owner never sees another store's services or a cache from the store they just switched away from. `queryKeys.sales.transactionDetails` is tagged with `sale_services` and `return_services` so a service return refreshes an open receipt.
 - **Inventory Services Catalog (`/inventory/services`):**
   - Services are managed in the back-office inventory hub under the `Services` tab (`/inventory/services`) alongside `Catalog` (physical products).
-  - Here store owners/managers can create, edit, deactivate, and view services (`ServicesDatabase`, `ServiceFormDialog`, `ServiceDeleteDialog`).
+  - Every role reaches the tab (the Inventory nav is not role-gated), so writes reuse the product catalog's permissions: add/edit (including `?action=add`) needs `manage_products` (`canManageStockBatch`), delete needs `delete_products`. With default groups that is owner/admin and manager for all three, specialist for add/edit only, and sales_staff/auditor read-only. Without the permission the buttons, the empty-state action and the dialog itself are not rendered (`services-database-permissions.test.tsx`).
   - Cashiers in POS remain focused strictly on ringing up sales. The POS Services tab includes an `EmptyState` with a direct link to `"Manage Services in Inventory"`.
 - **Unified POS Search Bar:**
   - The top search bar in `POSLayoutHeader` is the single search input for the entire POS, dynamically adapting its placeholder and search target to the active tab (`Products` vs `Services`).

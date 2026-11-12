@@ -8,6 +8,8 @@ import { SearchInput } from "@/components/ui/search-input";
 import { FilterPill } from "@/components/ui/filter-pill";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useStore } from "@/lib/context/store-context";
+import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { queryKeys } from "@/lib/query-keys";
 import { getServices } from "@/lib/db/queries/services";
 import { ServicesList } from "./services-list";
@@ -20,6 +22,8 @@ export function ServicesDatabase() {
   const { activeStoreId, storeProfile } = useStore();
   const currencyCode = storeProfile?.currency;
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const { canManageStockBatch: canManageServices } = useAuth();
+  const canDeleteServices = useHasPermission("delete_products");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -42,7 +46,7 @@ export function ServicesDatabase() {
   >(null);
   if (searchParamsKey !== appliedSearchParamsKey) {
     setAppliedSearchParamsKey(searchParamsKey);
-    if (searchParams.get("action") === "add") {
+    if (searchParams.get("action") === "add" && canManageServices) {
       setEditingService(null);
       setFormOpen(true);
     }
@@ -217,10 +221,9 @@ export function ServicesDatabase() {
                           setStatusFilter("all");
                         },
                       }
-                    : {
-                        label: "Add Service",
-                        onClick: handleAdd,
-                      }
+                    : canManageServices
+                      ? { label: "Add Service", onClick: handleAdd }
+                      : undefined
                 }
               />
             </div>
@@ -228,24 +231,28 @@ export function ServicesDatabase() {
             <ServicesList
               services={filteredServices}
               currencyCode={currencyCode}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
+              onEdit={canManageServices ? handleEdit : undefined}
+              onDelete={canDeleteServices ? handleDelete : undefined}
             />
           )}
         </div>
       </div>
 
-      <ServiceFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        service={editingService}
-      />
+      {canManageServices && (
+        <ServiceFormDialog
+          open={formOpen}
+          onOpenChange={setFormOpen}
+          service={editingService}
+        />
+      )}
 
-      <ServiceDeleteDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        service={serviceToDelete}
-      />
+      {canDeleteServices && (
+        <ServiceDeleteDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          service={serviceToDelete}
+        />
+      )}
     </div>
   );
 }

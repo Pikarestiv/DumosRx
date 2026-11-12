@@ -28,7 +28,7 @@ test.describe('Stock transfer entry point and multi-store lifecycle', () => {
     const db = new SQL.Database(new Uint8Array(rawBinary));
 
     db.run(
-      "INSERT INTO stores (id, name, slug, subscription_tier, is_initialized, _synced, _deleted) VALUES ('store-branch-2', 'Branch Two', 'branch-two', 'pro', 1, 1, 0)",
+      "INSERT INTO stores (id, name, store_slug, subscription_tier, is_initialized, _synced, _deleted) VALUES ('store-branch-2', 'Branch Two', 'branch-two', 'pro', 1, 1, 0)",
     );
     db.run("UPDATE stores SET subscription_tier = 'pro'");
 
@@ -61,7 +61,7 @@ test.describe('Stock transfer entry point and multi-store lifecycle', () => {
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText('Transfer Stock')).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: /Transfer stock/i })).toBeVisible();
     await expect(dialog.getByText(/Select Destination Store/i)).toBeVisible();
   });
 });

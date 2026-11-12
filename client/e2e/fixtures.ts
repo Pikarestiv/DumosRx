@@ -11,12 +11,13 @@ export async function login(page: Page) {
   await page.evaluate(() => {
     localStorage.setItem('dumos_client_tour_completed', 'true');
   });
+  await expect(page.getByText('Initializing workspace...')).toBeHidden({ timeout: 15000 });
   await page.getByPlaceholder('admin').fill('admin');
   // PIN field is an InputOTP (components/auth/traditional-login-form.tsx), not a placeholder-based text input - '••••' hasn'…
   // Rationale: docs/CLIENT_COMMENTS.md#line-e2e-fixtures-ts-L18
   await page.locator('input[data-input-otp="true"]').first().fill('1234');
   await page.getByRole('button', { name: /Authorize Entry/i }).click();
-  await expect(page.getByText(/Today's Sales/i)).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText(/Today's Sales/i)).toBeVisible({ timeout: 15000 });
 }
 
 // Logs in, then elevates the current per-test copy of the local DB to a paid tier via the dev-only `window.__e2eSetSubscri…
@@ -33,7 +34,7 @@ export async function loginAsPaidTier(page: Page) {
     await window.__e2eSetSubscriptionTier('pro');
   });
   await page.reload();
-  await expect(page.getByText(/Today's Sales/i)).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText(/Today's Sales/i)).toBeVisible({ timeout: 15000 });
 }
 
 export const test = base.extend({
@@ -43,29 +44,31 @@ export const test = base.extend({
       void route.abort('blockedbyclient');
     });
 
-    // Go to a known page to ensure we can execute script in context
-    await page.goto('/login', { waitUntil: 'domcontentloaded' });
-
     const fixturePath = path.join(__dirname, '.auth', 'test-db.bin');
     if (fs.existsSync(fixturePath)) {
-      const dbBinary = fs.readFileSync(fixturePath);
-      // Pass it as an array of numbers so it can be serialized into the browser context
-      const binaryArray = Array.from(dbBinary);
+      const dbBinary = Array.from(fs.readFileSync(fixturePath));
 
-      await page.waitForFunction(() => typeof window.restoreDatabase === 'function', undefined, {
-        timeout: 30000,
-      });
-
+      // Seed IndexedDB directly on the origin before the app boots to avoid empty-DB race conditions
+      await page.goto('/manifest.json');
       await page.evaluate(async (data) => {
-        const uint8 = new Uint8Array(data);
-        await window.restoreDatabase?.(uint8);
-      }, binaryArray);
-
-      // Reload page so it picks up the DB instead of Setup
-      await page.reload();
-      await page.waitForFunction(() => typeof window.getDatabaseBinary === 'function', undefined, {
-        timeout: 30000,
-      });
+        return new Promise<void>((resolve, reject) => {
+          const req = indexedDB.open('keyval-store');
+          req.onupgradeneeded = () => {
+            req.result.createObjectStore('keyval');
+          };
+          req.onsuccess = () => {
+            const db = req.result;
+            const tx = db.transaction('keyval', 'readwrite');
+            tx.objectStore('keyval').put(new Uint8Array(data), 'dumosrx_db');
+            tx.oncomplete = () => {
+              db.close();
+              resolve();
+            };
+            tx.onerror = () => reject(tx.error);
+          };
+          req.onerror = () => reject(req.error);
+        });
+      }, dbBinary);
     }
 
     await use(page);

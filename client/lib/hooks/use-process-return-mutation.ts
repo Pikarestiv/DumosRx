@@ -4,7 +4,7 @@ import { formatCurrency } from "@/lib/utils";
 import { isFullyReturned } from "@/lib/utils/returns-calculations";
 import { insert, update, query, transaction } from "@/lib/db/local-database";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
-import { restoreReturnedStock } from "@/lib/db/queries/returns";
+import { recordReturnDisposition } from "@/lib/db/queries/returns";
 import { getCustomerBalance, getCustomerLoyaltyPoints } from "@/lib/db/queries/customers";
 import { revertPrescriptionDispense } from "@/lib/db/queries/prescriptions";
 import { calculateLoyaltyPointsAfterSale, calculateReturnPointsAdjustment } from "@/lib/utils/loyalty-calculator";
@@ -76,35 +76,18 @@ export function useProcessReturnMutation() {
             subtotal: roundMoney(item.unit_price * totalReturnQty),
           });
 
-          if (restockQty > 0) {
-            await restoreReturnedStock({
-              saleItemId: item.id,
-              productId: item.product_id,
-              costPrice: item.cost_price || 0,
-              legacyStockBatchId: item.stock_batch_id,
-              returnQuantity: restockQty,
-              returnId,
-              saleId: sale.id,
-              performedBy: dumosUser?.id,
-            });
-          }
-
-          if (discardQty > 0) {
-            const discardNote = item.discardReason ? `: ${item.discardReason}` : "";
-            const unitCost = item.cost_price || 0;
-            await insert("stock_movements", {
-              product_id: item.product_id,
-              movement_type: "adjustment",
-              quantity: -discardQty,
-              unit_cost: unitCost,
-              total_cost: roundMoney(unitCost * discardQty),
-              reference_id: returnId,
-              reference_type: "return",
-              reason: `Damage${ADJUSTMENT_REASON_NOTE_SEPARATOR}Customer return discarded${discardNote}`,
-              performed_by: dumosUser?.id || null,
-              movement_date: new Date().toISOString(),
-            });
-          }
+          await recordReturnDisposition({
+            saleItemId: item.id,
+            productId: item.product_id,
+            costPrice: item.cost_price || 0,
+            legacyStockBatchId: item.stock_batch_id,
+            returnQuantity: totalReturnQty,
+            discardQuantity: discardQty,
+            discardReason: item.discardReason,
+            returnId,
+            saleId: sale.id,
+            performedBy: dumosUser?.id,
+          });
         }
 
         // 3. Mark sale as returned once every line item's full remaining balance has been returned (across this and any prior returns), not just when…

@@ -171,7 +171,12 @@ export async function fetchProfitLossReportData(dateFrom?: string, dateTo?: stri
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-reports-ts-L857
   const returnedCogsRows = await query<{ Month: string; returned_cogs: number }>(
     `SELECT strftime('%Y-%m', r.created_at, 'localtime') as "Month",
-       SUM(ri.quantity * IFNULL(sic.avg_cost_price, 0)) as returned_cogs
+       SUM(
+         COALESCE(
+           (SELECT SUM(sm.total_cost) FROM stock_movements sm WHERE sm.reference_id = r.id AND sm.reference_type = 'return' AND sm.product_id = ri.product_id AND (sm._deleted = 0 OR sm._deleted IS NULL)),
+           ri.quantity * IFNULL(sic.avg_cost_price, 0)
+         )
+       ) as returned_cogs
      FROM return_items ri
      JOIN returns r ON ri.return_id = r.id
      LEFT JOIN sales s ON s.id = r.sale_id

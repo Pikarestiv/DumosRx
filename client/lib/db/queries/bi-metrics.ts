@@ -85,7 +85,7 @@ export async function getBIMetrics(
 
     // Uses the cost_price recorded on the original sale_items row, not a recomputed current-stock average - the product's cost basis can change be…
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-reports-ts-L519
-    query<{ total: number }>(`SELECT SUM(ri.quantity * IFNULL(si.avg_cost_price, 0)) as total FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN sales s ON s.id = r.sale_id LEFT JOIN (SELECT sale_id, product_id, SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as avg_cost_price FROM sale_items GROUP BY sale_id, product_id) si ON si.sale_id = r.sale_id AND si.product_id = ri.product_id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}${joined.clause}`, s1CappedJoined),
+    query<{ total: number }>(`SELECT SUM(COALESCE((SELECT SUM(sm.total_cost) FROM stock_movements sm WHERE sm.reference_id = r.id AND sm.reference_type = 'return' AND sm.product_id = ri.product_id AND (sm._deleted = 0 OR sm._deleted IS NULL)), ri.quantity * IFNULL(si.avg_cost_price, 0))) as total FROM return_items ri JOIN returns r ON ri.return_id = r.id LEFT JOIN sales s ON s.id = r.sale_id LEFT JOIN (SELECT sale_id, product_id, SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) as avg_cost_price FROM sale_items GROUP BY sale_id, product_id) si ON si.sale_id = r.sale_id AND si.product_id = ri.product_id WHERE r.created_at >= ? AND r.created_at <= ? AND (r._deleted = 0 OR r._deleted IS NULL)${storeId ? " AND r.store_id = ?" : ""}${joined.clause}`, s1CappedJoined),
 
     // Smoothed, not a raw SUM:
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-reports-ts-L534

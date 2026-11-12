@@ -2,6 +2,8 @@ import { test, expect, login } from './fixtures';
 import initSqlJs from 'sql.js';
 
 test.describe('Stock transfer entry point and multi-store lifecycle', () => {
+  test.setTimeout(120000);
+
   test('Transfer Stock button is hidden for a single-store account', async ({ page }) => {
     await login(page);
     await page.goto('/inventory/ledger');

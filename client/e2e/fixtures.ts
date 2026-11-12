@@ -51,25 +51,21 @@ export const test = base.extend({
       const dbBinary = fs.readFileSync(fixturePath);
       // Pass it as an array of numbers so it can be serialized into the browser context
       const binaryArray = Array.from(dbBinary);
-      
-      await page.evaluate(async (data) => {
-        // Wait for window.restoreDatabase to be available
-        let attempts = 0;
-        while (typeof window.restoreDatabase !== 'function' && attempts < 50) {
-          await new Promise(r => setTimeout(r, 100));
-          attempts++;
-        }
 
-        if (typeof window.restoreDatabase === 'function') {
-          const uint8 = new Uint8Array(data);
-          await window.restoreDatabase(uint8);
-        } else {
-          console.error("restoreDatabase not found on window");
-        }
+      await page.waitForFunction(() => typeof window.restoreDatabase === 'function', undefined, {
+        timeout: 30000,
+      });
+
+      await page.evaluate(async (data) => {
+        const uint8 = new Uint8Array(data);
+        await window.restoreDatabase?.(uint8);
       }, binaryArray);
-      
+
       // Reload page so it picks up the DB instead of Setup
       await page.reload();
+      await page.waitForFunction(() => typeof window.getDatabaseBinary === 'function', undefined, {
+        timeout: 30000,
+      });
     }
 
     await use(page);

@@ -1441,7 +1441,7 @@ first; that is the mitigation for the second case.
 
 When a store with multiple terminals operates on mixed client versions (e.g., Terminal 1 on v0.0.42 creating mixed product + service tickets, and Terminal 2 on legacy v0.0.41), the legacy terminal only syncs `sales` and `sale_items` without knowing about `sale_services`. If the legacy terminal attempts to process a return for the physical products, its local logic checks only physical items and attempts to mark `sales.payment_status = 'refunded'`.
 
-`app/Services/Sync/LegacyServicesReturnGate.php`, called from `PushPayloadNormalizer` on every `sales` UPDATE attempting to set `payment_status = 'refunded'`, inspects the sale for active `sale_services`. If active service lines exist on the sale and are not fully returned (via `return_services` either already recorded or in the incoming push batch), the server clamps `payment_status` to `'partially_refunded'`.
+`app/Services/Sync/LegacyServicesReturnGate.php`, called from `PushPayloadNormalizer` on every `sales` UPDATE attempting to set `payment_status = 'refunded'`, inspects the sale for active `sale_services`. If any active service line's summed `return_services.quantity` (stored rows plus this push's INSERTs, keyed by row id so a resent stored row is not counted twice) is below its `sale_services.quantity`, the server clamps `payment_status` to `'partially_refunded'`. Existence alone is not enough: one of two units returned, then a legacy full product return, must stay partially refunded.
 
 This ensures physical items are safely restocked and refunded without falsely writing off unrefunded service revenue.
 

@@ -8,6 +8,7 @@ use App\Models\Service;
 use App\Models\Store;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -192,5 +193,76 @@ class LegacyServicesReturnGateTest extends TestCase
 
         $sale = Sale::find($saleId);
         $this->assertSame('refunded', $sale->payment_status);
+    }
+
+    private function seedQtyTwoServiceWithOneReturned(): array
+    {
+        $sale = Sale::create([
+            'store_id' => $this->store->id, 'cashier_id' => $this->owner->id, 'transaction_number' => 'TXN-SERVICE-'.uniqid(),
+            'total_amount' => 20000, 'amount_paid' => 20000, 'payment_status' => 'partially_refunded',
+            'payment_method' => 'cash', 'transaction_date' => now()->toIso8601String(),
+        ]);
+        $saleServiceId = (string) Str::uuid();
+        SaleService::create([
+            'id' => $saleServiceId, 'sale_id' => $sale->id, 'service_name' => 'Consultation',
+            'quantity' => 2, 'unit_price' => 10000, 'total_price' => 20000,
+        ]);
+        $returnId = (string) Str::uuid();
+        DB::table('returns')->insert([
+            'id' => $returnId, 'store_id' => $this->store->id, 'sale_id' => $sale->id, 'user_id' => $this->owner->id,
+            'total_refunded' => 10000, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('return_services')->insert([
+            'id' => (string) Str::uuid(), 'store_id' => $this->store->id, 'return_id' => $returnId,
+            'sale_service_id' => $saleServiceId, 'quantity' => 1, 'refund_amount' => 10000,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        return [$sale->id, $saleServiceId, $returnId];
+    }
+
+    private function pushRefunded(string $saleId, string $appVersion, array $before = []): void
+    {
+        $this->actingAs($this->owner)->postJson('/api/v1/app/sync/push', [
+            'changes' => [...$before, [
+                'table_name' => 'sales', 'operation' => 'UPDATE', 'record_id' => $saleId,
+                'payload' => ['id' => $saleId, 'payment_status' => 'refunded'],
+            ]],
+        ], ['X-Store-Id' => $this->store->id, 'X-Device-Id' => 'POS-TERMINAL', 'X-App-Version' => $appVersion])->assertStatus(200);
+    }
+
+    public function test_a_legacy_full_product_return_after_one_of_two_service_units_returned_stays_partially_refunded(): void
+    {
+        [$saleId] = $this->seedQtyTwoServiceWithOneReturned();
+
+        $this->pushRefunded($saleId, '0.0.41');
+
+        $this->assertSame('partially_refunded', Sale::find($saleId)->payment_status);
+    }
+
+    public function test_the_incoming_remainder_plus_the_stored_unit_completes_the_refund(): void
+    {
+        [$saleId, $saleServiceId, $returnId] = $this->seedQtyTwoServiceWithOneReturned();
+        $lineId = (string) Str::uuid();
+
+        $this->pushRefunded($saleId, '0.0.42', [[
+            'table_name' => 'return_services', 'operation' => 'INSERT', 'record_id' => $lineId,
+            'payload' => ['id' => $lineId, 'return_id' => $returnId, 'sale_service_id' => $saleServiceId, 'quantity' => 1, 'refund_amount' => 10000],
+        ]]);
+
+        $this->assertSame('refunded', Sale::find($saleId)->payment_status);
+    }
+
+    public function test_a_resent_stored_service_return_is_not_counted_twice(): void
+    {
+        [$saleId, $saleServiceId, $returnId] = $this->seedQtyTwoServiceWithOneReturned();
+        $storedLineId = DB::table('return_services')->where('sale_service_id', $saleServiceId)->value('id');
+
+        $this->pushRefunded($saleId, '0.0.42', [[
+            'table_name' => 'return_services', 'operation' => 'INSERT', 'record_id' => $storedLineId,
+            'payload' => ['id' => $storedLineId, 'return_id' => $returnId, 'sale_service_id' => $saleServiceId, 'quantity' => 1, 'refund_amount' => 10000],
+        ]]);
+
+        $this->assertSame('partially_refunded', Sale::find($saleId)->payment_status);
     }
 }

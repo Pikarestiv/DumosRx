@@ -4,6 +4,11 @@ import path from 'path';
 import initSqlJs from 'sql.js';
 
 setup('create mock store and extract database', async ({ page }) => {
+  const existingFixture = path.join(__dirname, '.auth', 'test-db.bin');
+  if (fs.existsSync(existingFixture) && fs.statSync(existingFixture).size > 1000) {
+    return;
+  }
+
   // Go to setup page
   await page.goto('/setup');
 

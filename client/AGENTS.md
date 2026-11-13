@@ -2489,10 +2489,17 @@ There are two distinct workflows for selling goods sourced outside the store:
      as separate text beside it. For well-stocked items (`stock >= quantity`) a quieter
      `text-muted-foreground` "Source outside" link is always visible (for damaged or reserved
      shelf units); it used to be `opacity-0` until hover, which hid it on touch tills.
-     Clicking either opens `SpotSourceDialog`. The controls live in
-     `components/pos/pos-cart-item-sourcing.tsx`. Each label is `whitespace-nowrap` and the
-     row is `flex-wrap`, so a narrow (~380px) cart wraps whole chips rather than mid-label
-     (`pos-cart-item-spot-sourcing-layout.test.tsx`).
+     Clicking either opens `SpotSourceDialog`. A spot-sourced line shows a "Spot Sourced"
+     pill with the per-unit "Cost ₦…" as separate text beside it. The controls live in
+     `components/pos/pos-cart-item-sourcing.tsx` and sit on their own full-width row under
+     the cart line (`basis-full`, indented past the category icon), not in the name column:
+     at ~380px that column is about 95px wide, which truncated the pill to "Spot Sour…" and
+     pushed it within 2px of the quantity stepper (A-368). Each label is `whitespace-nowrap`
+     and the row is `flex-wrap`, so wrapping happens between whole chips, never mid-label
+     (`pos-cart-item-spot-sourcing-layout.test.tsx`, `e2e/services-pos-sourcing-layout.spec.ts`).
+     The swipe-to-delete `bg-destructive` backdrop in `pos-cart-item.tsx` takes its opacity
+     from the row's drag offset, so it is fully transparent at rest and cannot bleed a red
+     hairline through the rounded clip.
    - **Partial Spot Sourcing (Split Allocation):** When a customer requests more units
      than exist on shelf (e.g. 5 requested, 2 on shelf), `SpotSourceDialog` defaults to
      **Split Allocation**:
@@ -5838,9 +5845,46 @@ same tab session still gets its own fresh one-time retry.
   - A run rewrites the tracked fixture `e2e/.auth/test-db.bin`, and
     `next dev` re-injects a `nextjs-agent-rules` block into this file. Both
     are artifacts: `git restore` them, don't commit them.
+  - **Screenshots go to `test.info().outputPath(name)`** (under
+    `test-results/`, per test), never an absolute path: two specs once wrote
+    to a hardcoded `/Users/admin/.gemini/...` folder that exists on one
+    machine only.
   - If you add or rename a card, tab or heading, grep `e2e/` for the old
     text. A loose regex locator elsewhere in the suite may now match two
     elements, which Playwright fails on in strict mode.
+  - **Port:** `playwright.config.ts` reads `E2E_PORT` (default 3000) for
+    both `baseURL` and the `webServer` it starts. `reuseExistingServer` is on
+    locally, so when something else already owns :3000 (another session's
+    dev server), run `E2E_PORT=3100 npx playwright test …` rather than let the
+    suite drive a server built from a different checkout. In a git worktree,
+    copy `node_modules` (`cp -cR`, an APFS clone) instead of symlinking it:
+    Turbopack refuses a `node_modules` symlink that points outside the root.
+  - **Seeding rows instead of clicking them in (`e2e/local-db.ts`):** the
+    checked-in fixture predates newer tables (`services`, `sale_services`…),
+    so `getMigratedFixture()` boots it once per worker to let the app's own
+    migrations run and exports the result. `seedAndLogin()`
+    (`e2e/services-pos-ui.ts`) applies `SeedStatement`s to that copy with
+    sql.js in Node and writes it to IndexedDB before login; `queryLocalDb()`
+    reads the live page DB back through `window.getDatabaseBinary()` for
+    stored-row assertions. Role users (`e2e/services-seed.ts`'s
+    `roleUsers()`: `admin`, `specialist`, `sales_staff`, `auditor`, PIN 1234)
+    have no permission-group row, so they get `fallbackPermissions(role)` —
+    the role defaults, same as a device before its first sync. `login(page,
+    username)` takes the username; a non-owner's dashboard reads "My Sales
+    Today", which it also waits for.
+  - **Services POS specs** (`services-catalog-permissions`,
+    `services-pos-checkout`, `services-pos-held`,
+    `services-pos-sourcing-layout`): catalog gating per role and the
+    no-active-store refusal; mixed checkout with no stock movement for the
+    service line; split and full service returns reaching `refunded`; held
+    service repricing notices; and the cart's "Source outside"/"Spot Sourced"
+    labels at 390×844 in light and dark: one line, unclipped, the spot cost
+    visible, at least 6px clear of the quantity stepper on either axis, and
+    the delete backdrop transparent at rest (set `E2E_SCREENSHOT_DIR` to keep the
+    screenshots; dark is applied by swapping the `<html>` class because a
+    reload currently resets a stored dark theme, A-367). One case is
+    `test.fail` on purpose until its bug is fixed:
+    `theme-persistence.spec.ts` (A-367).
 - `npm run test:schema`: diffs local SQLite schema against the Laravel
   backend's live MySQL schema. Requires the sibling `../laravel-server` repo
   and a working `php artisan tinker` in it. Two things about it are load

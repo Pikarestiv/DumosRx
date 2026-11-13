@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useTransform } from "framer-motion";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { CategoryIcon } from "./category-icon";
@@ -34,6 +34,8 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
   // Unconditional top-level const, never inlined into the JSX branch below -
   // see pos-cart.tsx's canApplyDiscounts for the hook-ordering reason.
   const canOverridePrice = useHasPermission("override_price");
+  const dragX = useMotionValue(0);
+  const backdropOpacity = useTransform(dragX, [-1, 0], [1, 0]);
 
   // The price input is uncontrolled-while-typing:
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-cart-item-tsx-L37
@@ -76,14 +78,17 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
       )}
     >
       {!isLocked && (
-        <div
+        <motion.div
           aria-hidden="true"
+          data-swipe-delete-backdrop
+          style={{ opacity: backdropOpacity }}
           className="absolute inset-0 flex items-center justify-end pr-4 bg-destructive text-destructive-foreground"
         >
           <Trash2 className="w-4 h-4" />
-        </div>
+        </motion.div>
       )}
       <motion.div
+        style={{ x: dragX }}
         drag={isLocked ? false : "x"}
         dragConstraints={{ left: -100, right: 0 }}
         dragElastic={{ left: 0.5, right: 0 }}
@@ -94,7 +99,7 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
             removeFromCart(item.id);
           }
         }}
-        className={`relative flex items-center gap-3 py-3 bg-background touch-pan-y group ${
+        className={`relative flex flex-wrap items-center gap-x-3 gap-y-1 py-3 bg-background touch-pan-y group ${
           isLast ? "" : "border-b border-border"
         }`}
       >
@@ -112,12 +117,6 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
               </span>
             )}
           </div>
-          <POSCartItemSourcing
-            item={item}
-            currencyCode={currencyCode}
-            isLocked={isLocked}
-            onConfigureSpotSourcing={onConfigureSpotSourcing}
-          />
           {isResellerSale && canOverridePrice ? (
             <div className="flex flex-col items-start gap-1 text-[11.5px]">
               <input
@@ -197,6 +196,14 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         )}
+        <div className="basis-full pl-[52px] empty:hidden">
+          <POSCartItemSourcing
+            item={item}
+            currencyCode={currencyCode}
+            isLocked={isLocked}
+            onConfigureSpotSourcing={onConfigureSpotSourcing}
+          />
+        </div>
       </motion.div>
     </div>
   );

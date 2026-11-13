@@ -644,8 +644,20 @@ suggested tackle order rather than a strict ranking.
 #### A-365. `client/` — transaction history and recent sales show a services-only sale as 0 items with no names
 - **Found:** 2026-11-13, review of `feat/service-pos`, beside the customer purchase-history fix.
 - **Location:** `client/lib/db/queries/sales.ts`, every `item_count` (`SUM(quantity) FROM sale_items`) and `item_names` (`GROUP_CONCAT(pr.name) FROM sale_items JOIN products`) subquery (four queries, around lines 123, 138, 156 and 220).
-- **What's wrong:** they read `sale_items` only, so a service line contributes nothing: a services-only sale lists as 0 items with a blank item summary, and a mixed sale under-counts. `getCustomerTransactions()` in `customers.ts` was fixed the same way the proposed fix describes (`customer-purchase-history-services.test.ts`).
+- **What's wrong:** they read `sale_items` only, so a service line contributes nothing: a services-only sale's count comes back `NULL` with a blank item summary, and a mixed sale under-counts. The POS Recent Sales row then shows "1 item" whatever was sold, because `transaction-item.tsx` falls back with `sale.item_count || 1` (seen in the 2026-11-13 Playwright smoke: a product plus a service listed as "1 item"). `getCustomerTransactions()` in `customers.ts` was fixed the same way the proposed fix describes (`customer-purchase-history-services.test.ts`).
 - **Proposed fix:** add `+ (SELECT SUM(quantity) FROM sale_services …)` to each count and `UNION ALL` live `sale_services.service_name` into each `item_names` subquery, as `customers.ts` now does. Display only; no stored figure is wrong.
+
+#### A-367. `client/` — a paid store's dark theme is reset to light on every reload
+- **Found:** 2026-11-13, Playwright smoke of `feat/service-pos` (`e2e/theme-persistence.spec.ts`, a `test.fail` case).
+- **Location:** `client/components/auth/license-guard.tsx`, `ThemeRestrictor`.
+- **What's wrong:** it calls `setTheme("light")` whenever `currentTier === "free"`, and `useFeatureGate()` reports `"free"` while `storeProfile` is still loading (`storeProfile?.subscription_tier || "free"`). `LicenseGuard` mounts it as soon as the local license check finishes, before the store profile query resolves, so on every full load the stored theme is overwritten with "light" for a Pro store too.
+- **Repro:** Pro store, Settings → General → Dark, reload: the page comes back light and `localStorage["dumosrx-ui-theme"]` is `"light"`.
+- **Fix:** skip the reset until the store profile has loaded (e.g. return early while `storeProfile` is undefined), then drop the `test.fail`.
+
+#### A-368. `client/` — at phone width the cart cuts product names to about ten characters, and dark-mode "Clear cart" reads as disabled
+- **Found:** 2026-11-13, Playwright smoke of `feat/service-pos` at 390×844 (`e2e/services-pos-sourcing-layout.spec.ts`). The sourcing-pill truncation, stepper gap and red hairline from the original entry are fixed (`docs/FIXED_BUGS.md`, A-368); this is what is left.
+- **Product names:** `pos-cart-item.tsx`'s name column is `flex-1 min-w-0` between a 40px icon, the quantity stepper, a `min-w-[56px]` line total and the remove button, so at a ~380px drawer it is about 95px wide and "E2E Amoxicillin 500mg Capsules" renders as "E2E AMOXIC…". Two lines of the same product (strengths, pack sizes) are indistinguishable. Fix: let the name wrap to two lines (`line-clamp-2`) or give it the full row width above the stepper.
+- **"Clear cart" in dark mode:** in the cart drawer's footer the destructive-outline "Clear cart" button renders as dim red on near-black, so it looks disabled while the cart has items (seen in `cart-*-390-dark.png`; not measured). Fix: check its contrast against the dark surface and lift the dark text/border shade.
 
 ---
 

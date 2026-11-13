@@ -7,15 +7,6 @@ vi.mock("@/lib/hooks/use-permissions", () => ({
 vi.mock("@/lib/hooks/use-uppercase-display", () => ({
   useUppercaseDisplayClass: () => "",
 }));
-vi.mock("framer-motion", () => ({
-  motion: {
-    div: ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) => {
-      const { drag: _d, dragConstraints: _c, dragElastic: _e, dragSnapToOrigin: _s, onDragEnd: _o, ...rest } = props;
-      return <div {...rest}>{children}</div>;
-    },
-  },
-}));
-
 import { POSCartItem } from "@/components/pos/pos-cart-item";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
 
@@ -60,11 +51,14 @@ describe("POS cart item spot-sourcing controls", () => {
     expect(screen.queryByText("Out of stock")).toBeNull();
   });
 
-  it("does not let the 'Spot Sourced' pill wrap mid-label", () => {
+  it("shows the spot-sourcing cost as its own unwrapped text beside the 'Spot Sourced' pill, not inside it", () => {
     renderItem({ is_spot_sourced: true, sourcing_cost: 1700 } as Partial<CartItem>);
 
-    const pill = screen.getByRole("button", { name: /Spot Sourced/ });
-    expect(pill.className).toContain("whitespace-nowrap");
-    expect(pill.textContent).toMatch(/Spot Sourced \(.*1,700.*\)/);
+    const pill = screen.getByRole("button", { name: "Spot Sourced" });
+    expectOneLine(pill);
+    const cost = screen.getByText(/^Cost .*1,700(\.00)?$/);
+    expect(pill.contains(cost)).toBe(false);
+    expect(cost.className).toContain("whitespace-nowrap");
+    expect(pill.parentElement?.className).toContain("flex-wrap");
   });
 });

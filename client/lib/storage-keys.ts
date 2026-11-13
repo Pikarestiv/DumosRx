@@ -31,6 +31,7 @@ export const STORAGE_KEYS = {
   sidebarCollapsed: "sidebar_collapsed",
   sidebarPeekEnabled: "sidebar_peek_enabled",
   receiptPaperSize: "receipt_paper_size",
+  labelPrintLayout: "label_print_layout",
   recentDownloads: "drx_recent_downloads",
   exportColumns: "drx_export_columns",
   chunkReloadGuard: "chunk-error-reload-attempted",

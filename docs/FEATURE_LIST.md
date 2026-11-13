@@ -29,6 +29,7 @@ tracks current behavior.
 ## Inventory
 - Overview: stock health stat cards, a "Needs attention" panel (expiring batches, low/out-of-stock products), and a Fast Movers panel (last-7-days top sellers)
 - Catalog: full product list with search, category filter, an inventory-status filter (Active/Inactive/Expiring Soon/Expired/Low Stock/Out of Stock), sortable columns, and a category management dialog
+- Barcode labels: print from a catalog row or the product actions menu, on a 50 × 25 mm label roll (one per label) or packed 24 to an A4 sticker sheet (3 × 8) with a start position for partly used sheets, typed quantity with presets, paper/sheet count shown before printing, per-device layout memory, and a warning when a barcode is too long to scan
 - Batch cost correction: a pencil on each batch in a product's Batches tab fixes a cost typed wrongly at receiving (review-then-confirm, audit-logged with old and new cost, gated by View Cost & Margin Fields plus Edit Product Cost Price); past sales keep their recorded cost
 - Bulk product import: multi-sheet workbook support, auto column-mapping from known header sets (QuickBooks POS, Moniebook, and other common exports), an in-file duplicate warning before committing
 - Export: CSV, XLSX, or PDF — all three open the same column-picker dialog (respects whatever search/category/status filter is currently active on the Catalog table)

@@ -25,10 +25,6 @@ vi.mock("@/lib/context/store-context", () => ({
   useStore: () => ({ storeProfile: { currency: "NGN", store_type: "pharmacy" } }),
 }));
 
-vi.mock("@/lib/hooks/use-uppercase-display", () => ({
-  useUppercaseDisplayClass: () => "",
-}));
-
 vi.mock("@/lib/hooks/use-stock-visibility", () => ({
   useStockVisibility: () => ({ canSeeQuantities: true }),
 }));

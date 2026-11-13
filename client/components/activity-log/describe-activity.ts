@@ -53,6 +53,7 @@ const STANDALONE_ACTIONS: Record<string, string> = {
   SALE_RETURN: "Processed a return",
   STOCK_EXPIRED: "Marked stock as expired",
   STOCK_DAMAGED: "Marked stock as damaged",
+  BATCH_COST_CORRECTED: "Corrected a batch cost price",
 };
 
 // Short, friendly verb for the generic CRUD ops (see base-helpers.ts) and the remaining named actions.

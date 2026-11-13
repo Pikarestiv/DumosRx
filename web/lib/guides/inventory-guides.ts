@@ -135,5 +135,23 @@ export const INVENTORY_GUIDES: GuideItem[] = [
       "Your paper choice is remembered on each device, so the counter's label printer and the back office's A4 printer each open on the right layout. If the dialog warns that a barcode is too long to scan, give the product a shorter barcode.",
     videoPlaceholderText: "Video Walkthrough: Printing barcode labels on a label roll and on A4 sticker sheets",
   },
+  {
+    id: "correct-batch-cost-price",
+    title: "Correct a Batch's Cost Price: Fix a Cost Typed Wrongly at Receiving",
+    category: "Inventory",
+    badge: "Stock Control",
+    readTime: "2 min read",
+    videoDuration: "1:30",
+    summary:
+      "Fix the cost price of a batch you have already received, so stock value and future profit use the right figure, while past sales keep the cost they were sold at.",
+    steps: [
+      "Open Inventory > Catalog, select the product, and open its Batches tab.",
+      "Tap the pencil icon beside the batch whose cost is wrong.",
+      "Enter the correct cost per unit and tap 'Review change'.",
+      "Check the summary of what changes, then tap 'Confirm change'. The correction syncs to your other tills and is recorded in the Activity Log and the product's History tab.",
+    ],
+    proTip:
+      "Only staff with both 'View Cost & Margin Fields' and 'Edit Product Cost Price' see the pencil. Make sure other tills have synced before you edit, so two people do not correct the same batch at once.",
+    videoPlaceholderText: "Video Walkthrough: Correcting a batch cost price from the product's Batches tab",
+  },
 ];
-

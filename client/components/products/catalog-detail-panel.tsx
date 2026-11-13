@@ -44,6 +44,8 @@ export function CatalogDetailPanel({
   const { canManageStockBatch } = useAuth();
   const canPrintLabels = useHasPermission("print_product_labels");
   const canDeleteProducts = useHasPermission("delete_products");
+  const canViewCost = useHasPermission("view_cost_fields");
+  const canEditCost = useHasPermission("edit_product_cost");
   const { canSeeQuantities } = useStockVisibility();
   const [isLabelDialogOpen, setIsLabelDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -57,7 +59,6 @@ export function CatalogDetailPanel({
     creator,
     formatPrice,
     formatDate,
-    // getStatusBadge,
     expiryWarningDays,
     profitMargin,
     daysToExpiry,
@@ -105,7 +106,6 @@ export function CatalogDetailPanel({
         className,
       )}
     >
-      {/* Header */}
       <div className="p-4 shrink-0 flex flex-col gap-4 border-b border-border">
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-3">
@@ -137,7 +137,6 @@ export function CatalogDetailPanel({
                 </p>
               </div>
 
-              {/* Category below border */}
               <span className={`text-[11px] font-semibold text-primary px-2 py-0.5 shrink-0 bg-primary/5 rounded-md mt-2 ${capsClass}`}>
                 {product.category || "Pharmacy"}
               </span>
@@ -206,7 +205,6 @@ export function CatalogDetailPanel({
       </div>
 
       <Tabs defaultValue="details" className="flex flex-col flex-1 min-h-0">
-        {/* Fixed tab header, stays in place while tab content scrolls */}
         <div className="shrink-0 bg-primary/5 border-b border-border px-4 py-3">
           <ProductDetailTabNav />
         </div>
@@ -237,6 +235,9 @@ export function CatalogDetailPanel({
               loadingBatches={loadingBatches}
               storeType={storeProfile?.store_type || "pharmacy"}
               canSeeQuantities={canSeeQuantities}
+              canViewCost={canViewCost}
+              canEditCost={canEditCost}
+              currencyCode={storeProfile?.currency}
               formatPrice={formatPrice}
             />
           </TabsContent>

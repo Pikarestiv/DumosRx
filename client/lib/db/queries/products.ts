@@ -4,6 +4,7 @@ import type { Product, ProductWithDetails, ProductWithStockRow, POSProduct } fro
 import type { AuditLogRow } from "@/lib/types/audit-log";
 import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
 import { HIDDEN_MOVEMENT_TYPES, HIDDEN_MOVEMENT_TYPES_SQL } from "@/lib/db/movement-types";
+import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 
 const lastBoughtPriceSql = (productIdRef: string) =>
   `(SELECT cost_price FROM stock_batches WHERE product_id = ${productIdRef} AND _deleted = 0 AND cost_price > 0 AND COALESCE(batch_number, '') NOT LIKE 'ADJ-%' ORDER BY created_at DESC LIMIT 1)`;
@@ -166,9 +167,10 @@ export async function getProductHistory(productId: string, viewerId?: string) {
     `SELECT al.*, TRIM(u.first_name || ' ' || u.last_name) as user_name
      FROM audit_logs al
      LEFT JOIN users u ON u.id = al.user_id
-     WHERE al.record_id = ?${viewerId ? " AND al.user_id = ?" : ""}
+     WHERE (al.record_id = ? OR (al.action = '${AUDIT_ACTIONS.BATCH_COST_CORRECTED}' AND al.table_name = 'stock_batches'
+       AND al.record_id IN (SELECT id FROM stock_batches WHERE product_id = ?)))${viewerId ? " AND al.user_id = ?" : ""}
      ORDER BY al.created_at DESC`,
-    viewerId ? [productId, viewerId] : [productId]
+    viewerId ? [productId, productId, viewerId] : [productId, productId]
   );
 
   const stockMovements = await query<StockMovementHistoryRow>(

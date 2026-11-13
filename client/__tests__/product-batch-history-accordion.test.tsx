@@ -29,6 +29,7 @@ describe("ProductBatchHistory accordion and details", () => {
         batches={batches}
         loadingBatches={false}
         storeType="pharmacy"
+        canViewCost
         canSeeQuantities
         formatPrice={(amount) => `₦${amount.toLocaleString()}`}
       />,
@@ -51,6 +52,7 @@ describe("ProductBatchHistory accordion and details", () => {
         batches={batches}
         loadingBatches={false}
         storeType="pharmacy"
+        canViewCost
         canSeeQuantities
         formatPrice={(amount) => `₦${amount.toLocaleString()}`}
       />,
@@ -85,6 +87,7 @@ describe("ProductBatchHistory accordion and details", () => {
         batches={batches}
         loadingBatches={false}
         storeType="pharmacy"
+        canViewCost
         canSeeQuantities={false}
         formatPrice={(amount) => `₦${amount.toLocaleString()}`}
       />,

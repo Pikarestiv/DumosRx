@@ -23,7 +23,7 @@ describe("ProductBatchHistory FEFO label", () => {
     ];
 
     render(
-      <ProductBatchHistory batches={batches} loadingBatches={false} storeType="pharmacy" canSeeQuantities />,
+      <ProductBatchHistory batches={batches} loadingBatches={false} storeType="pharmacy" canViewCost canSeeQuantities />,
     );
 
     const soonerCard = screen.getByText("Batch #SOONER").closest("div.bg-card");
@@ -40,7 +40,7 @@ describe("ProductBatchHistory FEFO label", () => {
     ];
 
     render(
-      <ProductBatchHistory batches={batches} loadingBatches={false} storeType="pharmacy" canSeeQuantities />,
+      <ProductBatchHistory batches={batches} loadingBatches={false} storeType="pharmacy" canViewCost canSeeQuantities />,
     );
 
     const datedCard = screen.getByText("Batch #DATED").closest("div.bg-card");
@@ -59,7 +59,7 @@ describe("ProductBatchHistory FEFO label", () => {
     ];
 
     render(
-      <ProductBatchHistory batches={batches} loadingBatches={false} storeType="pharmacy" canSeeQuantities />,
+      <ProductBatchHistory batches={batches} loadingBatches={false} storeType="pharmacy" canViewCost canSeeQuantities />,
     );
 
     expect(screen.getByText("Batch #ELIGIBLE").closest("div.bg-card")?.textContent).toContain(

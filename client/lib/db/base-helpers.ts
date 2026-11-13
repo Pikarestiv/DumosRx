@@ -189,7 +189,7 @@ export async function update(
   table: string,
   id: string,
   data: Record<string, unknown>,
-  options?: { action?: string; storeId?: string; correlationId?: string },
+  options?: { action?: string; storeId?: string; correlationId?: string; auditDetails?: Record<string, unknown> },
 ): Promise<void> {
   assertWritable();
 
@@ -234,7 +234,7 @@ export async function update(
     // See insert()'s matching exclusion above - "feedback" is background crash/error telemetry, not a user action.
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L295
     if (table !== "feedback") {
-      await logAction(options?.action || "UPDATE", table, id, record, options?.storeId, options?.correlationId);
+      await logAction(options?.action || "UPDATE", table, id, { ...record, ...options?.auditDetails }, options?.storeId, options?.correlationId);
     }
   };
 

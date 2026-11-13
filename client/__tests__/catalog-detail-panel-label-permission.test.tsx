@@ -23,10 +23,6 @@ vi.mock("@/lib/context/store-context", () => ({
   useStore: () => ({ storeProfile: { currency: "NGN", store_type: "pharmacy" } }),
 }));
 
-vi.mock("@/lib/hooks/use-uppercase-display", () => ({
-  useUppercaseDisplayClass: () => "",
-}));
-
 vi.mock("@/components/products/product-delete-dialog", () => ({
   ProductDeleteDialog: () => null,
 }));

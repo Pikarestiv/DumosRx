@@ -10,17 +10,28 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Barcode as BarcodeIcon, Printer, Minus, Plus } from "lucide-react";
+import { AlertTriangle, Barcode as BarcodeIcon, Printer } from "lucide-react";
 import ReactBarcode from "react-barcode";
 import { printNode } from "@/lib/utils/print-node";
 import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
 import {
+  useDisplayName,
+  useUppercaseDisplay,
+  useUppercaseDisplayClass,
+} from "@/lib/hooks/use-uppercase-display";
+import { cn } from "@/lib/utils";
+import {
+  barcodeFit,
   buildLabelSheetHtml,
   clampLabelQuantity,
-  MAX_LABEL_QUANTITY,
+  clampStartPosition,
+  getLabelPageStyle,
+  LABEL_LAYOUTS,
 } from "./barcode-label-sheet";
+import { BarcodeLabelOptions } from "./barcode-label-options";
+import { useLabelLayout } from "./use-label-layout";
+
 // Only the four fields a label actually carries, so any product shape can be printed — POSProduct satisfies it structurall…
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-barcode-print-dialog-tsx-L24
 export interface BarcodeLabelProduct {
@@ -30,46 +41,28 @@ export interface BarcodeLabelProduct {
   unit_price: number;
 }
 
-// printNode() ships this as a page <style> in the popped-out print window, so it's a plain string, not a Tailwind class —…
-// Rationale: docs/CLIENT_COMMENTS.md#line-components-stock-batch-barcode-print-dialog-tsx-L34
-function getLabelPageStyle(uppercaseNames: boolean) {
-  return `
-  @page { size: 50mm 25mm; margin: 0; }
-  body { margin: 0; padding: 0; }
-  .label {
-    width: 50mm;
-    height: 25mm;
-    box-sizing: border-box;
-    padding: 2mm;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    page-break-after: always;
-    font-family: sans-serif;
-  }
-  .label .name {
-    font-size: 8pt;
-    font-weight: bold;
-    text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    width: 100%;
-    text-transform: ${uppercaseNames ? "uppercase" : "capitalize"};
-  }
-  .label .price {
-    font-size: 9pt;
-    font-weight: bold;
-    margin-top: 1mm;
-  }
-`;
-}
-
 interface BarcodePrintDialogProps {
   isOpen: boolean;
   onClose: () => void;
   product: BarcodeLabelProduct | null;
+}
+
+function BarcodeWidthWarning({ product, neededMm, availableMm }: {
+  product: BarcodeLabelProduct;
+  neededMm: number;
+  availableMm: number;
+}) {
+  return (
+    <div role="alert" className="flex gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+      <p>
+        {!product.barcode && "This product has no barcode, so the label uses its internal ID. "}
+        That code needs about {Math.round(neededMm)} mm of bars but the label has {Math.round(availableMm)} mm,
+        so it will be squeezed to fit and may not scan.
+        {product.barcode ? " Give the product a shorter barcode." : " Add a barcode to the product for a scannable label."}
+      </p>
+    </div>
+  );
 }
 
 export function BarcodePrintDialog({
@@ -78,8 +71,19 @@ export function BarcodePrintDialog({
   product,
 }: BarcodePrintDialogProps) {
   const { storeProfile } = useStore();
-  const [quantity, setQuantity] = useState(1);
+  const uppercaseNames = useUppercaseDisplay();
+  const capsClass = useUppercaseDisplayClass();
+  const displayName = useDisplayName();
+  const { layout, setLayout } = useLabelLayout();
+  const [quantityText, setQuantityText] = useState("1");
+  const [startText, setStartText] = useState("1");
   const printRef = useRef<HTMLDivElement>(null);
+
+  const quantity = clampLabelQuantity(Number(quantityText));
+  const startPosition = clampStartPosition(layout, Number(startText));
+  const barcodeValue = product ? product.barcode || product.id : "";
+  const fit = barcodeFit(barcodeValue, layout);
+  const price = product ? `${storeProfile?.currency || "NGN"} ${product.unit_price.toLocaleString()}` : "";
 
   const handlePrint = () => {
     if (!product) return;
@@ -88,20 +92,15 @@ export function BarcodePrintDialog({
       const template = printRef.current;
       if (!template) return;
 
-      // One label is mounted off-screen; the print job is that label's markup
-      // repeated, rather than `quantity` live React components.
       const sheet = document.createElement("div");
-      sheet.innerHTML = buildLabelSheetHtml(template.innerHTML, quantity);
+      sheet.innerHTML = buildLabelSheetHtml(template.innerHTML, quantity, layout, startPosition);
 
-      printNode(
-        sheet,
-        getLabelPageStyle(storeProfile?.uppercase_display_enabled !== 0),
-      ).catch((err) => {
+      printNode(sheet, getLabelPageStyle(layout, uppercaseNames)).catch((err) => {
         console.error("[print] Failed to print labels:", err);
         toast.error("Couldn't open the print dialog. Please try again.");
       });
 
-      toast.success(`Printing ${quantity} labels for ${product.name}`);
+      toast.success(`Printing ${quantity} labels for ${displayName(product.name)}`);
       onClose();
     } catch (err) {
       console.error(err);
@@ -111,81 +110,70 @@ export function BarcodePrintDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md bg-background/95 backdrop-blur-xl border-accent/10">
-        <DialogHeader>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+      <DialogContent className="sm:max-w-md flex flex-col gap-0 p-0 overflow-hidden bg-background/95 backdrop-blur-xl border-accent/10"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <DialogHeader className="shrink-0 p-6 pb-4 pr-12">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
               <BarcodeIcon className="w-6 h-6" />
             </div>
-            <div>
+            <div className="min-w-0 text-left">
               <DialogTitle className="text-xl font-serif">
                 Print Barcode Labels
               </DialogTitle>
               <DialogDescription>
-                Print individual product labels for your inventory.
+                Print price and barcode labels for this product.
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
         {product && (
-          <div className="py-6 space-y-6">
+          <div data-label-dialog-body className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 pb-6 space-y-5">
             <div className="p-4 rounded-2xl bg-muted/30 border border-accent/5">
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                 Product
               </p>
-              <p className="font-bold text-lg">{product.name}</p>
+              <p data-testid="label-product-name" className={cn("font-bold text-lg break-words", capsClass)}>
+                {product.name}
+              </p>
             </div>
 
-            <div className="space-y-4">
-              <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground block text-center">
-                Number of Labels
-              </Label>
-              <div className="flex items-center justify-center gap-6">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-12 w-12 rounded-xl"
-                  onClick={() => setQuantity((prev) => clampLabelQuantity(prev - 1))}
-                  disabled={quantity <= 1}
-                >
-                  <Minus className="w-5 h-5" />
-                </Button>
-                <div className="w-20 text-center">
-                  <span className="text-3xl font-bold">{quantity}</span>
-                </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-12 w-12 rounded-xl"
-                  onClick={() => setQuantity((prev) => clampLabelQuantity(prev + 1))}
-                  disabled={quantity >= MAX_LABEL_QUANTITY}
-                >
-                  <Plus className="w-5 h-5" />
-                </Button>
-              </div>
-            </div>
+            <BarcodeLabelOptions
+              quantityText={quantityText}
+              onQuantityTextChange={setQuantityText}
+              layout={layout}
+              onLayoutChange={setLayout}
+              startText={startText}
+              onStartTextChange={setStartText}
+              startPosition={startPosition}
+            />
 
-            <div className="p-4 rounded-xl border-2 border-dashed border-accent/10 flex flex-col items-center justify-center gap-3 bg-accent/5">
-              <div className="bg-white rounded p-2">
+            {!fit.fits && (
+              <BarcodeWidthWarning product={product} neededMm={fit.neededMm} availableMm={fit.availableMm} />
+            )}
+
+            <div className="p-4 rounded-xl border-2 border-dashed border-accent/10 flex flex-col items-center justify-center gap-2 bg-accent/5">
+              <div className="w-full max-w-[16rem] bg-white text-black rounded p-2 text-center space-y-1">
+                <p className={cn("text-xs font-bold truncate", capsClass)}>{product.name}</p>
                 <ReactBarcode
-                  value={product.barcode || product.id}
-                  width={1.4}
+                  value={barcodeValue}
+                  width={1}
                   height={40}
                   fontSize={11}
                   margin={0}
+                  className="mx-auto block max-w-full h-auto"
                 />
+                <p className="text-xs font-bold">{price}</p>
               </div>
               <p className="text-[10px] text-muted-foreground font-mono italic">
-                Label Preview (50mm x 25mm)
+                Label preview ({LABEL_LAYOUTS[layout].widthMm} × {LABEL_LAYOUTS[layout].heightMm} mm)
               </p>
             </div>
           </div>
         )}
 
-        {/* One off-screen label, used as the template handlePrint repeats -
-            not display:none (that would carry over into the printed clone and
-            hide it there too). */}
         {product && (
           <div
             aria-hidden="true"
@@ -195,31 +183,29 @@ export function BarcodePrintDialog({
               <div className="label">
                 <div className="name">{product.name}</div>
                 <ReactBarcode
-                  value={product.barcode || product.id}
+                  value={barcodeValue}
                   width={1}
                   height={26}
                   fontSize={8}
                   margin={0}
                 />
-                <div className="price">
-                  {storeProfile?.currency || "NGN"}{" "}
-                  {product.unit_price.toLocaleString()}
-                </div>
+                <div className="price">{price}</div>
               </div>
             </div>
           </div>
         )}
 
-        <DialogFooter className="border-t border-accent/10 pt-6">
+        <DialogFooter className="shrink-0 border-t border-accent/10 px-6 py-4">
           <Button variant="ghost" onClick={onClose} className="cursor-pointer">
             Cancel
           </Button>
           <Button
             onClick={handlePrint}
+            disabled={!product}
             className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold cursor-pointer"
           >
             <Printer className="w-4 h-4 mr-2" />
-            Print Labels
+            Print {quantity} label{quantity === 1 ? "" : "s"}
           </Button>
         </DialogFooter>
       </DialogContent>

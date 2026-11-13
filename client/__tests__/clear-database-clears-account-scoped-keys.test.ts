@@ -58,6 +58,7 @@ describe("clearDatabaseForNewStore clears account-scoped caches", () => {
       STORAGE_KEYS.apiUrl,
       STORAGE_KEYS.sidebarCollapsed,
       STORAGE_KEYS.receiptPaperSize,
+      STORAGE_KEYS.labelPrintLayout,
       STORAGE_KEYS.tourCompleted,
     ];
 

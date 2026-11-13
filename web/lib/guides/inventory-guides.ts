@@ -116,5 +116,43 @@ export const INVENTORY_GUIDES: GuideItem[] = [
       "Hiding quantities from front-desk staff eliminates inventory probing while still letting cashiers know whether an item can be sold.",
     videoPlaceholderText: "Video Walkthrough: Configuring role-based stock quantity visibility for cashiers",
   },
+  {
+    id: "barcode-labels",
+    title: "Barcode Labels: Print on a Label Roll or Pack an A4 Sticker Sheet",
+    category: "Inventory",
+    badge: "Labelling",
+    readTime: "2 min read",
+    videoDuration: "1:45",
+    summary:
+      "Print price and barcode stickers for any product, one per label on a 50 x 25 mm roll, or 24 to a page on standard A4 sticker sheets without wasting a sheet you have already started.",
+    steps: [
+      "Open Inventory > Catalog, right-click a product and choose 'Print barcode label' (or open the product and choose 'Print Labels' from its actions menu).",
+      "Type how many labels you need, or tap a preset (1, 10, 24, 48).",
+      "Under Paper, pick 'Label roll' for a thermal label printer, or 'A4 sheet' for 3 x 8 sticker sheets (63.5 x 33.9 mm labels). The dialog shows how many sheets the job will use.",
+      "Using a partly used A4 sheet? Set 'Start at position' to the first unused sticker, counted across then down from the top left.",
+      "Tap Print, and in the print window keep the scale at 100% with 'Fit to page' turned off so the labels line up with the stickers.",
+    ],
+    proTip:
+      "Your paper choice is remembered on each device, so the counter's label printer and the back office's A4 printer each open on the right layout. If the dialog warns that a barcode is too long to scan, give the product a shorter barcode.",
+    videoPlaceholderText: "Video Walkthrough: Printing barcode labels on a label roll and on A4 sticker sheets",
+  },
+  {
+    id: "correct-batch-cost-price",
+    title: "Correct a Batch's Cost Price: Fix a Cost Typed Wrongly at Receiving",
+    category: "Inventory",
+    badge: "Stock Control",
+    readTime: "2 min read",
+    videoDuration: "1:30",
+    summary:
+      "Fix the cost price of a batch you have already received, so stock value and future profit use the right figure, while past sales keep the cost they were sold at.",
+    steps: [
+      "Open Inventory > Catalog, select the product, and open its Batches tab.",
+      "Tap the pencil icon beside the batch whose cost is wrong.",
+      "Enter the correct cost per unit and tap 'Review change'.",
+      "Check the summary of what changes, then tap 'Confirm change'. The correction syncs to your other tills and is recorded in the Activity Log and the product's History tab.",
+    ],
+    proTip:
+      "Only staff with both 'View Cost & Margin Fields' and 'Edit Product Cost Price' see the pencil. Make sure other tills have synced before you edit, so two people do not correct the same batch at once.",
+    videoPlaceholderText: "Video Walkthrough: Correcting a batch cost price from the product's Batches tab",
+  },
 ];
-

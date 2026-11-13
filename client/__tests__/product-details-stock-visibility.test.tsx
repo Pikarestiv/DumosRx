@@ -57,13 +57,13 @@ describe("Product details and view_stock_quantities", () => {
   });
 
   it("lists batch units with the permission", () => {
-    render(<ProductBatchHistory batches={[batch]} loadingBatches={false} storeType="pharmacy" canSeeQuantities />);
+    render(<ProductBatchHistory batches={[batch]} loadingBatches={false} storeType="pharmacy" canViewCost canSeeQuantities />);
     expect(screen.queryByText(/29 units/)).not.toBeNull();
   });
 
   it("keeps batch number, expiry and the FEFO hint but drops units without it", () => {
     const { container } = render(
-      <ProductBatchHistory batches={[batch]} loadingBatches={false} storeType="pharmacy" canSeeQuantities={false} />,
+      <ProductBatchHistory batches={[batch]} loadingBatches={false} storeType="pharmacy" canViewCost canSeeQuantities={false} />,
     );
     expect(screen.queryByText("Batch #LOT-9")).not.toBeNull();
     expect(screen.queryByText(/Sell first \(FEFO\)/)).not.toBeNull();

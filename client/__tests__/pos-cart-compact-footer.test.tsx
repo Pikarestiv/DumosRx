@@ -98,8 +98,12 @@ describe("POS cart footer compaction", () => {
     expect(screen.queryByText("Subtotal")).toBeNull();
   });
 
-  it("shows Subtotal once VAT or a discount makes it differ from Total", () => {
-    renderCart({ vatPercentage: 7.5, tax: 750 });
+  it.each([
+    ["VAT only", { vatPercentage: 7.5, tax: 750 }],
+    ["a discount only", { discount: 500, calculatedDiscount: 500 }],
+    ["VAT and a discount that cancel out", { vatPercentage: 7.5, tax: 750, discount: 750, calculatedDiscount: 750 }],
+  ])("shows Subtotal with %s", (_label, adjustments) => {
+    renderCart(adjustments);
 
     expect(screen.getByText("Subtotal")).toBeTruthy();
   });

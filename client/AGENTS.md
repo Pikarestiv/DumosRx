@@ -2516,8 +2516,10 @@ There are two distinct workflows for selling goods sourced outside the store:
      separate VAT on/off switch and its help text defines 0 as "don't charge VAT", so a rate
      of 0 is "not configured" and there is no explicit-zero case to show. "+ Add discount"
      carries no "₦0" beside it; the applied discount amount still shows. The Subtotal row
-     shows only when it differs from Total (VAT, discount or reward), since it would repeat
-     Total. Cart lines carry no category icon (it cost ~52px of name width). The customer
+     shows whenever VAT or a discount (a reward is applied as a fixed discount) adjusts the
+     sale, and is hidden only when nothing does, since it would then repeat Total. It is not
+     keyed on `subtotal !== total`: VAT is charged on the discounted amount, so VAT and a
+     discount can cancel exactly and leave both rows showing with no Subtotal. Cart lines carry no category icon (it cost ~52px of name width). The customer
      picker is one slim line (name · hint) whose trailing Plus icon sits inside the clickable
      trigger, and the reseller toggle row is `py-1`.
      Don't colour cart text with `text-destructive`: dark `--destructive` is a fill shade

@@ -324,6 +324,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Right-click the product and choose Print barcode label",
       "Enter how many labels and pick Label roll or A4 sheet",
       "On a partly used A4 sheet, set Start at position, then tap Print",
+      "For many products at once, filter the catalog and tap Print labels beside the search box",
     ],
     keywords: ["barcode label", "price label", "print labels", "sticker", "label sheet"],
     phrases: [

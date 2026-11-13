@@ -30,6 +30,7 @@ import {
   LABEL_LAYOUTS,
 } from "./barcode-label-sheet";
 import { BarcodeLabelOptions } from "./barcode-label-options";
+import { formatLabelPrice, labelBarcodeValue } from "./barcode-label-markup";
 import { useLabelLayout } from "./use-label-layout";
 
 // Only the four fields a label actually carries, so any product shape can be printed — POSProduct satisfies it structurall…
@@ -47,20 +48,28 @@ interface BarcodePrintDialogProps {
   product: BarcodeLabelProduct | null;
 }
 
-function BarcodeWidthWarning({ product, neededMm, availableMm }: {
+function BarcodeWidthWarning({ product, unencodable, neededMm, availableMm }: {
   product: BarcodeLabelProduct;
+  unencodable: boolean;
   neededMm: number;
   availableMm: number;
 }) {
   return (
     <div role="alert" className="flex gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300">
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-      <p>
-        {!product.barcode && "This product has no barcode, so the label uses its internal ID. "}
-        That code needs about {Math.round(neededMm)} mm of bars but the label has {Math.round(availableMm)} mm,
-        so it will be squeezed to fit and may not scan.
-        {product.barcode ? " Give the product a shorter barcode." : " Add a barcode to the product for a scannable label."}
-      </p>
+      {unencodable ? (
+        <p>
+          This barcode contains characters a label can&apos;t encode, so the label prints the product&apos;s internal ID
+          instead, which is long and may not scan. Change the product&apos;s barcode for a scannable label.
+        </p>
+      ) : (
+        <p>
+          {!product.barcode && "This product has no barcode, so the label uses its internal ID. "}
+          That code needs about {Math.round(neededMm)} mm of bars but the label has {Math.round(availableMm)} mm,
+          so it will be squeezed to fit and may not scan.
+          {product.barcode ? " Give the product a shorter barcode." : " Add a barcode to the product for a scannable label."}
+        </p>
+      )}
     </div>
   );
 }
@@ -81,9 +90,10 @@ export function BarcodePrintDialog({
 
   const quantity = clampLabelQuantity(Number(quantityText));
   const startPosition = clampStartPosition(layout, Number(startText));
-  const barcodeValue = product ? product.barcode || product.id : "";
+  const barcodeValue = product ? labelBarcodeValue(product) : "";
+  const unencodable = !!product?.barcode && barcodeValue !== product.barcode;
   const fit = barcodeFit(barcodeValue, layout);
-  const price = product ? `${storeProfile?.currency || "NGN"} ${product.unit_price.toLocaleString()}` : "";
+  const price = product ? formatLabelPrice(storeProfile?.currency, product.unit_price) : "";
 
   const handlePrint = () => {
     if (!product) return;
@@ -150,8 +160,8 @@ export function BarcodePrintDialog({
               startPosition={startPosition}
             />
 
-            {!fit.fits && (
-              <BarcodeWidthWarning product={product} neededMm={fit.neededMm} availableMm={fit.availableMm} />
+            {(unencodable || !fit.fits) && (
+              <BarcodeWidthWarning product={product} unencodable={unencodable} neededMm={fit.neededMm} availableMm={fit.availableMm} />
             )}
 
             <div className="p-4 rounded-xl border-2 border-dashed border-accent/10 flex flex-col items-center justify-center gap-2 bg-accent/5">

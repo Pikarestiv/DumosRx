@@ -295,6 +295,7 @@ export function ProductDatabase() {
             onManageCategories={() => router.push("/settings/categories")}
             onProductsChanged={() => void refetch()}
             filteredProductIds={isFiltering ? filteredProducts.map((p) => p.id) : undefined}
+            labelProducts={filteredProducts}
           />
           )}
           <CatalogList

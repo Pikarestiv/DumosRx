@@ -131,6 +131,7 @@ export const INVENTORY_GUIDES: GuideItem[] = [
       "Under Paper, pick 'Label roll' for a thermal label printer, or 'A4 sheet' for 3 x 8 sticker sheets (63.5 x 33.9 mm labels). The dialog shows how many sheets the job will use.",
       "Using a partly used A4 sheet? Set 'Start at position' to the first unused sticker, counted across then down from the top left.",
       "Tap Print, and in the print window keep the scale at 100% with 'Fit to page' turned off so the labels line up with the stickers.",
+      "Labelling many products at once? On the desktop Catalog, narrow the list with search or the Category and Inventory filters, tap 'Print labels' beside the search box, and print one label per product shown packed across the sheet (set 'Labels per product' for more).",
     ],
     proTip:
       "Your paper choice is remembered on each device, so the counter's label printer and the back office's A4 printer each open on the right layout. If the dialog warns that a barcode is too long to scan, give the product a shorter barcode.",

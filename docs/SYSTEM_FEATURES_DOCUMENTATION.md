@@ -26,6 +26,8 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Fast Checkout:** Quickly search your catalog or use a barcode scanner to ring up items.
 
+**Barcode Scanning:** A plug-in (USB or Bluetooth) scanner set to send Enter or Tab after each code works from anywhere on the POS screen, so cashiers never have to click back into the search box first. Scans are ignored while a dialog is open or another field is being typed in. On phones and tablets, the camera scanner starts straight away once camera access has been allowed. A scanned code must match a product's barcode or batch number exactly; if nothing matches, the cashier sees "No product found" and the cart is left unchanged.
+
 **Split Payments:** Customers can pay with a mix of Cash, Card, and Bank Transfers on a single receipt. The system automatically calculates any exact change needed.
 
 **Smart Suggestions:** The system intelligently recommends related products (like suggesting Vitamin C when a customer buys Antibiotics) to help increase your sales.

@@ -15,6 +15,7 @@ import { POSCartPanels } from "./pos-cart-panels";
 import { SpotSourceDialog } from "./spot-source-dialog";
 import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
+import { useBarcodeWedge } from "@/lib/hooks/use-barcode-wedge";
 
 export function POSSystem() {
   const {
@@ -97,6 +98,12 @@ export function POSSystem() {
     setSpotSourceProduct,
     handleSpotSourceConfirm,
   } = usePOSSystem();
+
+  useBarcodeWedge({
+    onScan: handleScanSuccess,
+    searchInputRef,
+    disabled: showPaymentDialog || showReceiptDialog || isMobileScannerOpen || Boolean(spotSourceProduct),
+  });
 
   // The Recent Sales tab is reachable by URL (?tab=history), so the panel and the resolved tab are gated here as well as the…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-system-tsx-L109

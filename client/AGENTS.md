@@ -7648,6 +7648,22 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
   double effect starts one camera, and `sessionRef` makes a start that is still
   awaiting `getCameras()`/`start()` when the dialog closes stop itself instead
   of leaving the camera on.
+- **Keyboard-wedge scanners (`lib/hooks/use-barcode-wedge.ts`, wired in
+  `components/pos/pos-system.tsx`, so it only runs on `/pos`):** a capture-phase
+  `window` keydown listener collects printable keys arriving at most
+  `WEDGE_MAX_KEY_GAP_MS` (50ms) apart and, on a key in `WEDGE_TERMINATOR_KEYS`
+  (Enter, Tab) with at least `WEDGE_MIN_CODE_LENGTH` (4) characters buffered,
+  calls the same `handleScanSuccess` as the search box. Only a confirmed scan's
+  terminator is `preventDefault`ed and stopped, so the Enter cannot also click a
+  focused product tile; the burst's characters themselves are not swallowed.
+  It stands down for any `input`/`textarea`/`select`/contenteditable target,
+  **including the POS search input, which keeps its own Enter path in
+  `usePOSScan.handleKeyPress`** (exactly one path fires), for Ctrl/Alt/Meta
+  chords, while any `[role=dialog]`/`[role=alertdialog]` is in the DOM, and
+  while payment, receipt, camera scanner or spot sourcing is open.
+  `handleScanSuccess` matches exactly (case-insensitive) on `barcode` or
+  `batch_number`; no match shows a "No product found for barcode" error toast
+  and leaves the cart alone.
 
 ## Service POS (Walk-In Services Alongside Physical Products)
 

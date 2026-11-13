@@ -3950,12 +3950,21 @@ Avery L7159-style margins), the chosen layout is a per-device
 `localStorage` convenience (`STORAGE_KEYS.labelPrintLayout`, read and
 written in try/catch by `use-label-layout.ts`, untouched by store switches),
 and the product name obeys display caps through `useUppercaseDisplay()` for
-both the on-screen name and the printed `text-transform`. Selecting several
-catalog products and printing all their labels in one job is not built: the
-catalog has no multi-select, so it would need row selection state in
-`catalog-list.tsx`, a dialog that takes `BarcodeLabelProduct[]` with a
-per-product quantity, and `buildLabelSheetHtml` taking a list of label
-templates instead of one.
+both the on-screen name and the printed `text-transform`.
+
+**Labels for many products at once (2026-11-13).** The desktop catalog
+toolbar (`product-database-filters.tsx`, gated on `print_product_labels`)
+has a Print labels button that opens `barcode-bulk-print-dialog.tsx` for
+whatever the search and the Category/Inventory filters currently show; there
+is no row selection (narrow the list instead) and the toolbar is `lg`+ only.
+The dialog reuses `BarcodeLabelOptions` ("Labels per product", paper, start
+position; `totalLabels` feeds the "N labels on M sheets" line). Unlike the
+single-product dialog it renders no off-screen React labels: `buildLabelHtml`
+in `barcode-label-markup.ts` draws each label's SVG with jsbarcode at print
+time, and `buildMultiProductSheetHtml` repeats each product's label per copy
+and packs them through the same `packLabels` the single dialog uses. A job is
+capped at `MAX_BULK_LABELS` (2000) and the dialog blocks Print above it; a
+product with no barcode prints its product id and the dialog counts those.
 
 `delete_products` and `delete_suppliers` joined the enforced list on
 2026-09-29 as well, and they are the **third** reversal of that morning's

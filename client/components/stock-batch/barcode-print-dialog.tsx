@@ -30,6 +30,7 @@ import {
   LABEL_LAYOUTS,
 } from "./barcode-label-sheet";
 import { BarcodeLabelOptions } from "./barcode-label-options";
+import { formatLabelPrice } from "./barcode-label-markup";
 import { useLabelLayout } from "./use-label-layout";
 
 // Only the four fields a label actually carries, so any product shape can be printed — POSProduct satisfies it structurall…
@@ -83,7 +84,7 @@ export function BarcodePrintDialog({
   const startPosition = clampStartPosition(layout, Number(startText));
   const barcodeValue = product ? product.barcode || product.id : "";
   const fit = barcodeFit(barcodeValue, layout);
-  const price = product ? `${storeProfile?.currency || "NGN"} ${product.unit_price.toLocaleString()}` : "";
+  const price = product ? formatLabelPrice(storeProfile?.currency, product.unit_price) : "";
 
   const handlePrint = () => {
     if (!product) return;

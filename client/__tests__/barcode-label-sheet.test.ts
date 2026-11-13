@@ -2,12 +2,14 @@ import { describe, it, expect } from "vitest";
 import {
   barcodeFit,
   buildLabelSheetHtml,
+  buildMultiProductSheetHtml,
   clampLabelQuantity,
   clampStartPosition,
   countLabelPages,
   describeLabelPaper,
   getLabelPageStyle,
   labelsPerPage,
+  MAX_BULK_LABELS,
   MAX_LABEL_QUANTITY,
 } from "@/components/stock-batch/barcode-label-sheet";
 
@@ -185,5 +187,35 @@ describe("clampLabelQuantity", () => {
 
   it("falls back to one for a value that isn't a number", () => {
     expect(clampLabelQuantity(Number.NaN)).toBe(1);
+  });
+});
+
+describe("buildMultiProductSheetHtml", () => {
+  const labels = ['<div class="label">A</div>', '<div class="label">B</div>', '<div class="label">C</div>'];
+  const countOf = (html: string, marker: string) => html.split(marker).length - 1;
+
+  it("puts one label per product on a single A4 sheet", () => {
+    const html = buildMultiProductSheetHtml(labels, 1, "a4");
+    expect(countOf(html, 'class="sheet"')).toBe(1);
+    expect(html.indexOf(">A<")).toBeLessThan(html.indexOf(">B<"));
+    expect(countOf(html, 'class="label"')).toBe(3);
+  });
+
+  it("repeats each product's label for the copies asked, grouped per product", () => {
+    const html = buildMultiProductSheetHtml(labels, 2, "roll");
+    expect(html).toBe(labels.flatMap((l) => [l, l]).join(""));
+  });
+
+  it("spills onto a second A4 sheet after 24 labels and honours the start position", () => {
+    const many = Array.from({ length: 24 }, (_, i) => `<div class="label">${i}</div>`);
+    expect(countOf(buildMultiProductSheetHtml(many, 1, "a4"), 'class="sheet"')).toBe(1);
+    const shifted = buildMultiProductSheetHtml(many, 1, "a4", 2);
+    expect(countOf(shifted, 'class="sheet"')).toBe(2);
+    expect(countOf(shifted, 'class="blank"')).toBe(1);
+  });
+
+  it("never emits more than MAX_BULK_LABELS labels", () => {
+    const html = buildMultiProductSheetHtml([...labels, ...labels], MAX_LABEL_QUANTITY, "roll");
+    expect(countOf(html, 'class="label"')).toBe(MAX_BULK_LABELS);
   });
 });

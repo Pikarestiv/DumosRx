@@ -68,8 +68,6 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Procurement:** Generate Purchase Orders for your suppliers. An Immediate Purchase — goods paid for and taken on the spot — opens on "Fully Paid", while a standard Purchase Order raised ahead of payment opens on "Unpaid"; either can be changed before saving. When the goods arrive, the system automatically updates your stock levels. Your catalog also shows the price you last actually paid for each product, right alongside its running average cost.
 
-**Sell at Zero Stock (Overselling / Delayed Paperwork):** When physical delivery has arrived on the shop floor but staff hasn't had the time or capacity to enter the purchase order paperwork yet, the store can toggle on "Allow Sales Without Stock" in Settings → Store. Cashiers can continue selling incoming items immediately. Shortfalls are recorded as owed backorders. When the delivery is subsequently entered through a Purchase Order or Immediate Purchase, backorders are cleared and historical sales lines are automatically re-costed from the delivery cost.
-
 **POS Spot Sourcing (On-the-Spot External Sourcing in Cart):** When a customer needs an out-of-stock item and staff can immediately get it from a neighboring pharmacy or partner shop:
 - Cashiers can tap an out-of-stock product tile, or click "Source outside" on a cart line, to open the Spot Source dialog. The cart line offers it only when the product is out of stock, short, or the cart already holds all the shelf stock (never for services).
 - Staff enters the agreed purchase cost (what was paid to the neighbor) and whether it was paid from the **Cash Drawer** or on **Owner Credit / Paid Externally**.
@@ -96,7 +94,7 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 ### 📊 Shift Management & Expenses
 
-**End of Day (EOD) Closure:** At the end of their shift, cashiers must count the drawer. The system automatically compares their count with the recorded sales and highlights any shortages or overages.
+**End of Day (Daily Close):** The dashboard's "End of Day" shortcut opens Daily Close, a one-day report of sales, refunds, cash expected, payments by account and top sellers, which every role can see. Count the drawer against its "Net Cash Expected" figure; DumosRx does not yet record the counted amount or a shortage/overage itself.
 
 **Expense Tracking:** Log daily operational expenses directly from the cash register.
 
@@ -127,6 +125,10 @@ The desktop application is built for speed, reliability, and ease of use. It con
 **Included From Pro:** The assistant is part of the Dumos Pro and Enterprise plans, the same as Smart Suggestions. On Free and Starter the icon stays in your header and tells you which plan unlocks it, so you always know it's there. If you'd like it on a different plan for a particular customer, it's a per-plan switch in Platform Settings rather than a code change.
 
 **Respects Your Staff Permissions:** Everyone gets answers to the things they're allowed to see, and only those. A cashier asking about sales gets their *own* sales for the day rather than the store's takings, and profit questions stay with the people you've given financial access to. The suggestions it offers each person are filtered the same way, so nobody is prompted to ask something they'd only be refused.
+
+### 🆘 Help & Support
+
+**Help & Support Hub:** The Help screen gathers everything in one place: step-by-step guides with video walkthroughs (they open on dumosrx.com/guides in your browser so the till stays signed in), the in-app assistant, your account manager's contact details, and a form to send feedback or report a problem. Feedback is saved on the till and syncs when it's online.
 
 ---
 
@@ -171,6 +173,8 @@ Your Cloud Dashboard is your management hub. Log in from any web browser to get 
 **About, Locations & FAQ pages:** `/store/[slug]/about`, `/locations` and `/faq` still exist so old links and the sitemap keep working, and render the same sections as the home page.
 
 **Order Tracking and Prescription Upload (built, not linked):** `/store/[slug]/track` (order status by reference, customer names masked) and `/store/[slug]/prescription` (scanned prescription or PDF upload) still work but are not linked from any storefront page. Stores can only move an online order from pending straight to fulfilled or cancelled, so there is no in-between progress worth tracking yet; both will be re-linked when that changes.
+
+**Online Orders at the Till:** Orders customers place on your storefront appear in the POS's online orders list. Fulfilling one records it as a normal sale and takes the stock off your shelves at that moment, so it shows in your reports and stock movements like any walk-in sale. Stock is not held at online checkout, so two customers can order the last unit before you fulfil either.
 
 ### 💳 Billing & Subscriptions
 

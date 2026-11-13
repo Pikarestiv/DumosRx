@@ -1,3 +1,9 @@
+### A-366 — the receipt shown right after checkout did not mark service lines "(Service)"
+- **Fixed:** 2026-11-13, client only, TDD.
+- **Was:** `buildReceiptTransaction()` (`client/lib/hooks/use-pos-payment-helpers.ts`) set `items: [...cart]`, so the Sale Completed receipt printed the raw cart name, while the proforma preview (`cart-to-receipt-transaction.ts`) and the Transaction Details reprint (`sale-to-receipt-transaction.ts`) both appended " (Service)". The copy the customer actually took home was the only one that did not say which lines were services.
+- **Now:** `buildReceiptTransaction()` builds its lines with `cartToReceiptTransaction()` and overrides only the sale id and the payment fields, so the post-checkout receipt and the quote preview share one line mapping.
+- **Coverage:** `client/__tests__/pos-checkout-receipt-services.test.ts`; `client/e2e/services-pos-checkout.spec.ts` ("the checkout receipt flags the service line as (Service)", no longer `test.fail`).
+
 ### A-359 — the held-sales list showed only a clock time, so sales held on different days looked identical
 - **Fixed:** 2026-11-13, client only, TDD.
 - **Was:** `held-transactions-dialog.tsx` rendered `created_at` with `toLocaleTimeString()`: no date, and in the browser's locale format rather than the house `DD/MM/YYYY HH:mm` (rule §6, "a timestamp always carries its time").

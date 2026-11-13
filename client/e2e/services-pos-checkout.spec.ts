@@ -53,7 +53,6 @@ test.describe('POS services: mixed checkout and service returns', () => {
   });
 
   test('the checkout receipt flags the service line as (Service)', async ({ page, browser, baseURL }) => {
-    test.fail(true, 'A-366: buildReceiptTransaction() passes raw cart lines, so the post-checkout receipt omits "(Service)"');
     await seedAndLogin(page, browser, baseURL, (storeId) => [service(storeId, 'srv-consult', SERVICE, 2500)]);
     await page.goto('/pos');
     await addServiceToCart(page, SERVICE);

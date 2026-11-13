@@ -5869,9 +5869,9 @@ same tab session still gets its own fresh one-time retry.
     service repricing notices; and the cart's "Source outside"/"Spot Sourced"
     labels at 390×844 in light and dark (set `E2E_SCREENSHOT_DIR` to keep the
     screenshots; dark is applied by swapping the `<html>` class because a
-    reload currently resets a stored dark theme, A-367). Two cases are
-    `test.fail` on purpose until their bug is fixed: the checkout receipt's
-    "(Service)" marker (A-366) and `theme-persistence.spec.ts` (A-367).
+    reload currently resets a stored dark theme, A-367). One case is
+    `test.fail` on purpose until its bug is fixed:
+    `theme-persistence.spec.ts` (A-367).
 - `npm run test:schema`: diffs local SQLite schema against the Laravel
   backend's live MySQL schema. Requires the sibling `../laravel-server` repo
   and a working `php artisan tinker` in it. Two things about it are load

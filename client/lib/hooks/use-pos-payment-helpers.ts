@@ -19,6 +19,7 @@ import {
 import { CartItem, RedeemedOption } from "./use-pos-cart";
 import type { Customer } from "@/lib/types/customer";
 import type { ReceiptTransaction } from "@/components/pos/receipt-view";
+import { cartToReceiptTransaction } from "@/components/pos/cart-to-receipt-transaction";
 import { roundMoney } from "@/lib/utils/pos-calculations";
 
 export type PaymentMethod = "cash" | "card" | "transfer" | "credit" | "mixed";
@@ -286,23 +287,13 @@ export function buildReceiptTransaction(params: {
     amountPaid,
   } = params;
 
+  const cashier = cashierUser?.first_name
+    ? `${cashierUser.first_name} ${cashierUser.last_name || ""}`.trim()
+    : cashierUser?.username || "Cashier";
+
   return {
+    ...cartToReceiptTransaction(cart, subtotal, tax, discount, total, selectedCustomer, cashier),
     id: saleId,
-    date: new Date().toISOString(),
-    customer: selectedCustomer
-      ? {
-          name: `${selectedCustomer.first_name} ${selectedCustomer.last_name || ""}`.trim(),
-          phone: selectedCustomer.phone,
-        }
-      : null,
-    cashier: cashierUser?.first_name
-      ? `${cashierUser.first_name} ${cashierUser.last_name || ""}`.trim()
-      : cashierUser?.username || "Cashier",
-    items: [...cart],
-    subtotal,
-    tax,
-    discount,
-    total,
     paymentMethod,
     paymentSplits: paymentMethod === "mixed" ? paymentSplits : undefined,
     amountPaid:

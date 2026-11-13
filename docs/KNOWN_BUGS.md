@@ -647,13 +647,6 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** they read `sale_items` only, so a service line contributes nothing: a services-only sale's count comes back `NULL` with a blank item summary, and a mixed sale under-counts. The POS Recent Sales row then shows "1 item" whatever was sold, because `transaction-item.tsx` falls back with `sale.item_count || 1` (seen in the 2026-11-13 Playwright smoke: a product plus a service listed as "1 item"). `getCustomerTransactions()` in `customers.ts` was fixed the same way the proposed fix describes (`customer-purchase-history-services.test.ts`).
 - **Proposed fix:** add `+ (SELECT SUM(quantity) FROM sale_services …)` to each count and `UNION ALL` live `sale_services.service_name` into each `item_names` subquery, as `customers.ts` now does. Display only; no stored figure is wrong.
 
-#### A-366. `client/` — the receipt shown right after checkout does not mark service lines "(Service)"
-- **Found:** 2026-11-13, Playwright smoke of `feat/service-pos` (`e2e/services-pos-checkout.spec.ts`, the `test.fail` case).
-- **Location:** `client/lib/hooks/use-pos-payment-helpers.ts`, `buildReceiptTransaction()`, which sets `items: [...cart]`.
-- **What's wrong:** the proforma preview (`cart-to-receipt-transaction.ts`) and a reprint from Transaction Details (`sale-to-receipt-transaction.ts`) both append " (Service)" to a service line, but the Sale Completed receipt after Charge prints the raw cart name, so the receipt the customer actually gets is the one copy that does not say which lines were services.
-- **Repro:** sell a service at POS; the Sale Completed receipt lists "E2E CONSULTATION", not "E2E CONSULTATION (Service)".
-- **Fix:** map the cart lines in `buildReceiptTransaction()` the way `cartToReceiptTransaction()` does, then drop the `test.fail` from the spec.
-
 #### A-367. `client/` — a paid store's dark theme is reset to light on every reload
 - **Found:** 2026-11-13, Playwright smoke of `feat/service-pos` (`e2e/theme-persistence.spec.ts`, a `test.fail` case).
 - **Location:** `client/components/auth/license-guard.tsx`, `ThemeRestrictor`.

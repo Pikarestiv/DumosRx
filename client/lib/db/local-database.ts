@@ -461,6 +461,7 @@ export async function forceSyncAllData() {
     "stock_movements",
     "payment_accounts",
     "system_configs",
+    "services", "sale_services", "return_services",
   ];
 
   console.log(

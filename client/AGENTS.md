@@ -2517,21 +2517,18 @@ There are two distinct workflows for selling goods sourced outside the store:
      `isSpotSourced: true` writes `sale_items` with `cost_price = sourcingCost`
      and immediately returns without deducting `stock_batches` or recording
      `stock_movements`. No phantom negative stock or owed backorder is created.
-   - **Automated Cash Drawer Reconciliation Without P&L Double-Counting:** In
-     `lib/hooks/pos-sale-writer.ts`, if `sourcing_payment_source === "cash_drawer"`,
-     an expense row is inserted atomically inside the sale transaction
-     (`category = SPOT_SOURCING_EXPENSE_CATEGORY` (`"Stock Sourcing"`),
-     `payment_method = "cash"`, `date = getLocalTodayDate()`,
-     `reference_number = transactionNumber`). `getCashExpensesForDate` includes this
-     row so Daily Close `Net Cash Expected` deducts the physical cash taken from the
-     drawer, while P&L operating expense queries (`getSmoothedExpensesTotal`,
-     `getCurrentMonthExpensesByCategory`, `getExpensesAttributableToDate`, and
-     `getSmoothedExpensesByMonth`) explicitly exclude `category = 'Stock Sourcing'`
-     because the sourcing cost is already accounted for in COGS (`sale_items.cost_price`).
-   - **Owner Credit / External:** If `sourcing_payment_source === "external"`, no
-     drawer expense is created.
+   - **Cash Drawer Reconciliation Without P&L Double-Counting:** No `expenses` row is
+     written for a spot-sourced line (pinned by `pos-spot-sourcing-split.test.ts`). Daily
+     Close derives the drawer payout from `payment_details.spot_sourcing`
+     (`spotSourcingCashPayouts` in `lib/hooks/use-daily-close-data.ts`: `unit_cost × quantity`
+     for `payment_source` `cash_drawer`/`till_drawer`), and the sourcing cost reaches P&L only
+     as COGS through `sale_items.cost_price`. `"external"` (owner credit) adds no payout.
    - **Audit Trail:** The sale's `payment_details.spot_sourcing` persists the
      structured metadata array, and a summary is appended to `sales.notes`.
+   - **Return badge:** `payment_details.spot_sourcing` names products, not sale lines, so the
+     return dialog flags a line with `isSpotSourcedSaleLine()` (`lib/utils/spot-sourcing.ts`):
+     product listed **and** `stock_batch_id` null. A spot line is always written without a
+     batch, and the shelf half of a split always has one, so only the spot half is badged.
 
 2. **Delayed Paperwork & PO Sourcing (Back-office / Bulk):**
    When physical delivery has arrived or units were taken in bulk from another branch

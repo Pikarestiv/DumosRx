@@ -57,8 +57,6 @@ export const PAGE_ROUTES: PageRoute[] = [
     desc: "Manage walk-in spa, styling, clinic, or repair services.",
     action: { label: "Add Service", path: "/inventory/services?action=add" },
     actionAdminOnly: true,
-    secondaryAction: { label: "Start Audit", path: "/inventory/audits" },
-    secondaryActionAdminOnly: true,
   },
   {
     path: "/inventory/overview",

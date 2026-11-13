@@ -29,7 +29,7 @@ import { ReturnConfirmDialog } from "./return-confirm-dialog";
 import { useReturnSelection } from "./use-return-selection";
 import type { SaleWithDetails } from "@/lib/types/sale";
 import { resellerPatchAfterReturn } from "@/lib/utils/reseller-return-adjustment";
-import { extractSpotSourcedProductIds } from "@/lib/utils/spot-sourcing";
+import { extractSpotSourcedProductIds, isSpotSourcedSaleLine } from "@/lib/utils/spot-sourcing";
 
 interface ReturnDialogProps {
   open: boolean;
@@ -203,7 +203,7 @@ export function ReturnDialog({
                         selected={selection?.selected || false}
                         maxQty={maxQty}
                         currencyCode={currencyCode}
-                        isSpotSourced={spotSourcedProductIds.has(item.product_id)}
+                        isSpotSourced={isSpotSourcedSaleLine(item, spotSourcedProductIds)}
                         onToggle={() => handleToggleItem(item.id, maxQty)}
                         onQtyChange={(qty) => handleQtyChange(item.id, qty, maxQty)}
                         onDiscardQtyChange={(dQty) => handleDiscardQtyChange(item.id, dQty)}

@@ -16,3 +16,10 @@ export function extractSpotSourcedProductIds(paymentDetails: unknown): Set<strin
   }
 }
 
+export function isSpotSourcedSaleLine(
+  line: { product_id: string; stock_batch_id?: string | null },
+  spotSourcedProductIds: Set<string>,
+): boolean {
+  return spotSourcedProductIds.has(line.product_id) && !line.stock_batch_id;
+}
+

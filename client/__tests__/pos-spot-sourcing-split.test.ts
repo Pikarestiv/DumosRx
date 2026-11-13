@@ -214,5 +214,12 @@ describe("POS Spot Sourcing Split Allocation", () => {
     expect(expenseCount).toBe(0);
 
     expect(String(saleRow[1])).toContain("Spot Sourced: 3x Augmentin 625mg");
+
+    const { getTransactionDetails } = await import("@/lib/db/queries/sales");
+    const { extractSpotSourcedProductIds, isSpotSourcedSaleLine } = await import("@/lib/utils/spot-sourcing");
+    const spotIds = extractSpotSourcedProductIds(saleRow[0]);
+    const lines = (await getTransactionDetails(saleId)).items;
+    const flagged = lines.filter((line) => isSpotSourcedSaleLine(line, spotIds)).map((line) => line.quantity);
+    expect(flagged).toEqual([3]);
   });
 });

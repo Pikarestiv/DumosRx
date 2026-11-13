@@ -15,6 +15,8 @@ class AuditSessionService
 {
     public const LEASE_DURATION_SECONDS = 300;
 
+    public const PENDING_SYNC_GRACE_HOURS = 24;
+
     public function startSession(
         string $storeId,
         string $userId,
@@ -26,6 +28,7 @@ class AuditSessionService
     ): AuditSession {
         return DB::transaction(function () use ($storeId, $userId, $tillId, $tillName, $name, $notes, $items) {
             Store::whereKey($storeId)->lockForUpdate()->firstOrFail();
+            $this->settlePendingSessions($storeId);
 
             $existing = AuditSession::where('store_id', $storeId)
                 ->whereIn('status', [AuditSession::STATUS_IN_PROGRESS, AuditSession::STATUS_COMPLETION_PENDING_SYNC])
@@ -112,6 +115,8 @@ class AuditSessionService
 
     public function getActiveSession(string $storeId, bool $includeItems = false): ?AuditSession
     {
+        $this->settlePendingSessions($storeId);
+
         $query = AuditSession::where('store_id', $storeId)
             ->whereIn('status', [AuditSession::STATUS_IN_PROGRESS, AuditSession::STATUS_COMPLETION_PENDING_SYNC])
             ->with(['creator', 'activeUser']);
@@ -120,7 +125,35 @@ class AuditSessionService
             $query->with('items');
         }
 
-        return $query->first();
+        $session = $query->first();
+        if ($session && $includeItems && $session->status !== AuditSession::STATUS_IN_PROGRESS) {
+            $session->setRelation('items', collect());
+        }
+
+        return $session;
+    }
+
+    private function settlePendingSessions(string $storeId): void
+    {
+        $pending = AuditSession::where('store_id', $storeId)
+            ->where('status', AuditSession::STATUS_COMPLETION_PENDING_SYNC)
+            ->get();
+
+        foreach ($pending as $session) {
+            $synced = $session->submitted_stock_audit_id
+                && StockAudit::whereKey($session->submitted_stock_audit_id)->exists();
+            $expired = $session->last_synced_at === null
+                || $session->last_synced_at->lt(now()->subHours(self::PENDING_SYNC_GRACE_HOURS));
+            if ($synced || $expired) {
+                $session->update(['status' => AuditSession::STATUS_COMPLETED, 'completed_at' => now()]);
+            }
+        }
+    }
+
+    private function isCompletionReplay(AuditSession $session, ?string $submittedAuditId): bool
+    {
+        return in_array($session->status, [AuditSession::STATUS_COMPLETION_PENDING_SYNC, AuditSession::STATUS_COMPLETED], true)
+            && $session->submitted_stock_audit_id === $submittedAuditId;
     }
 
     public function heartbeat(AuditSession $session, string $tillId, int $leaseVersion, ?string $userId = null): AuditSession
@@ -226,6 +259,12 @@ class AuditSessionService
         int $leaseVersion,
         ?string $submittedAuditId = null
     ): AuditSession {
+        if ($this->isCompletionReplay($session, $submittedAuditId)) {
+            $this->settlePendingSessions($session->store_id);
+
+            return $session->refresh();
+        }
+
         if ($session->status !== AuditSession::STATUS_IN_PROGRESS) {
             throw new AuditSessionConflictException('Cannot complete an audit session that is not in progress.', $session);
         }

@@ -2184,34 +2184,48 @@ on screen from having walked to the shelf.
   counted"; the review step's submit button is now disabled while
   `countedItems.length === 0`.
 
-### Device-local drafts: clear all of them, from one function (2026-10-13, updated 2026-11-02)
+### Device-local drafts: where they live and what clears them (2026-10-13, updated 2026-11-02 and 2026-11-13)
 
-Three drafts are persisted per device: POS cart (`pos-cart-storage`), cycle
-count (`stock-audit-draft`), and stock adjustment (`stock-adjustment-draft`).
-Previously, all three were un-scoped and wiped on every store switch.
+Three drafts are persisted per device: POS cart (`pos-cart-storage`, localStorage),
+cycle count, and stock adjustment.
 
-As of 2026-11-02 (Cynthia's incident & draft store-scoping):
-1. **Stock audit & adjustment drafts are store-scoped**: State in `useStockAuditDraftStore`
-   and `useStockAdjustmentDraftStore` is keyed by store id (`drafts[storeId]`), and backed
-   by local SQLite tables `stock_audit_drafts` and `stock_adjustment_drafts`
-   (`(store_id TEXT PRIMARY KEY, user_id TEXT, draft_json/items_json TEXT NOT NULL, updated_at TEXT)`).
-   These tables are device-local (no server migration, not synced).
-2. **Store switching preserves audit and adjustment drafts**: `store-context.tsx` calls
-   `clearLocalDrafts({ preserveStoreAudit: true, preserveStoreAdjustment: true })`, which clears
-   the POS cart while leaving the store's audit and adjustment drafts intact.
-   Switching back to the store restores the draft seamlessly.
-3. **Work in-progress reminder**: `HeaderStoreSwitcher` checks
-   `hasActiveStockAuditCount(activeStoreId)` and `hasActiveStockAdjustmentDraft(activeStoreId)`
-   before switching; if active work exists, it displays an informative `ConfirmDialog` reassuring
-   the user that counts and items are safely saved locally on this device before proceeding.
-4. **Full context teardowns still clear everything**: `clearLocalDrafts()` without
-   options drops all drafts across the board. The four full teardown paths: a
-   different user logging in (`auth-context.tsx`, gated on `previousUserId !== dbUser.id`),
-   logout (`auth-context.tsx`), linking a new cloud store (`app/setup/use-onboarding.ts`),
-   and factory reset (`hooks/use-settings-sync.ts`).
-5. **Successful submission**: Once an audit or adjustment is submitted or discarded in
-   the UI, `clearStockAuditDraft(storeId)` or `clearStockAdjustmentDraft(storeId)` cleans up
-   that specific store's draft from SQLite and memory.
+1. **Stock audit & adjustment drafts are store-scoped** (A-373, 2026-11-02): state in
+   `useStockAuditDraftStore` and `useStockAdjustmentDraftStore` is keyed by store id
+   (`drafts[storeId]`), backed by the device-local SQLite tables `stock_audit_drafts` and
+   `stock_adjustment_drafts` (`(store_id TEXT PRIMARY KEY, user_id TEXT, draft_json/items_json TEXT NOT NULL, updated_at TEXT)`).
+   No server migration, not synced.
+2. **The cycle count draft has one durable copy, SQLite** (A-375, 2026-11-13).
+   `useStockAuditDraftStore` no longer uses zustand `persist`; nothing of the sheet is
+   in localStorage. Writes are debounced 400ms and flushed at once by
+   `flushStockAuditDraftSaves()` on `pagehide`, `visibilitychange` (hidden), store switch,
+   logout and user switch. `loadStoreDraft()` waits for `initDatabase()` (on a cold start
+   the store id resolves before the DB opens; without the wait the sheet rebuilt empty and
+   overwrote the draft), and `useAuditSheetSource` builds no sheet until
+   `loadedStoreId === activeStoreId`. A count made while no store id resolves stays in
+   memory and is filed under the store once one is set; nothing is written under
+   `"default"` any more.
+   **Compat shim:** `importLegacyStockAuditDrafts()` (`lib/hooks/stock-audit-draft-legacy.ts`)
+   moves a pre-2026-11 `stock-audit-draft` localStorage blob into SQLite once, never over an
+   existing SQLite draft, removing the key only after every write succeeded;
+   `adoptUnscopedStockAuditDraft()` adopts an old `"default"` SQLite row. Retire both once
+   no active device reports a build older than 2026-11-13.
+   The stock adjustment draft still has its localStorage `persist` copy; not changed here.
+3. **Store switch, logout and user switch keep the cycle count.** All three call
+   `clearLocalDrafts({ preserveStoreAudit: true, ... })`. Logout and a different user's
+   `login()` still clear the POS cart and the stock adjustment draft. Before logout or
+   Switch Account, `useAccountActions` shows `AccountExitDialog`
+   (`components/dashboard/unsynced-logout-dialog.tsx`) when `hasActiveStockAuditCount()` is
+   true; `HeaderStoreSwitcher` shows its own reminder. A draft is per store, not per user:
+   whoever signs in to that store on this device sees it, and the submit stamps the
+   submitting user.
+4. **Tenant boundary.** A store id belongs to one tenant, and a different tenant can only
+   reach this device by linking its store (`use-onboarding.ts`, `clearDatabaseForNewStore()`)
+   or after a factory reset (`hooks/use-settings-sync.ts`, `resetDatabase()`). Both call
+   `clearLocalDrafts()` without options and both wipe `stock_audit_drafts` (it is in
+   `LOCAL_WIPE_TABLES`), and both confirm dialogs add `UNFINISHED_COUNT_WIPE_NOTE` when a
+   count exists. So drafts need no tenant key of their own.
+5. **Successful submission or Start over** calls `clearStockAuditDraft(storeId)` /
+   `clearStockAdjustmentDraft(storeId)` for that store only.
 
 A draft itself is **not** the problem it looks like: `submitStockAudit`
 re-reads the live quantity inside its transaction
@@ -2219,14 +2233,16 @@ re-reads the live quantity inside its transaction
 draft's frozen `systemQty` never mis-posts. What a stale draft does miss is
 catalog churn — logged as A-259.
 
-### Cloud-backed multi-till stock audit sessions (2026-11-03, Phase 2)
+### Cloud-backed multi-till stock audit sessions (2026-11-03, Phase 2; lifecycle fixed 2026-11-13)
 
-While local SQLite persists in-progress counts immediately without blocking when offline, multi-till stores coordinate through cloud-backed audit sessions:
-1. **Single-Editor Lease:** `useCloudAuditSession` hooks into `StockAudits` to acquire or resume the store's active session with a 5-minute renewable lease and a 60-second background heartbeat.
+The local SQLite draft covers offline counting; while online the count is also held in the store's cloud audit session, so another till can take it over:
+1. **Single-Editor Lease:** `useCloudAuditSession` hooks into `StockAudits` to acquire or resume the store's active session with a 5-minute renewable lease and a 60-second background heartbeat. Counted rows are pushed (`sync-items`) 1.5s after each change while this till holds the lease, and again on the `online` event; a till that opened Cycle Count offline starts or resumes its session on `online`.
 2. **Read-Only Inspection Mode:** If another till holds the editing lease, the screen enters Inspection Mode (`isReadOnly = true`). Inputs and checkboxes are disabled, showing the active counter's till name and live counted count (`x of y items counted`).
-3. **Explicit Takeover:** Staff can take over an active count from any device (e.g. if the counter's till runs out of battery). Takeover issues `POST /app/audit-sessions/{id}/takeover`, invalidating previous leases via an incremented fencing version (`lease_version`).
+3. **Explicit Takeover:** Staff can take over an active count from any device (e.g. if the counter's till runs out of battery). Takeover issues `POST /app/audit-sessions/{id}/takeover`, invalidating previous leases via an incremented fencing version (`lease_version`). Logout and user switch never abandon the session, so a till can take over a count whose counter signed out.
 4. **Fencing & Offline Recovery:** Stale writes from a superseded device fail with HTTP 409 (`AuditSessionConflictError`). The older device immediately drops into read-only mode, but its local SQLite counts are preserved intact for review and never silently discarded.
-5. **Completion Lifecycle:** When submitting locally via `submitStockAudit()`, `POST /complete` records `submitted_stock_audit_id` and transitions the cloud session to `completion_pending_sync`. Once the background sync engine pushes the `stock_audits` record, the cloud session transitions to `completed`.
+5. **Merge is newest-wins:** rows carry `countedAt` (stamped by `useAuditCounting`, sent as `counted_at`). `mergeCloudItemsIntoLocal()` takes a cloud row only when the local row is uncounted, or both carry timestamps and the cloud one is newer; a local count with no timestamp (a pre-2026-11-13 draft) wins. A merged row has no `baselineQty` (A-378).
+6. **Completion and abandon go through an outbox** (A-376): `complete()` (after submit) and `abandon()` (Start over, only when this till holds the session) write to `lib/hooks/cloud-audit-pending-ops.ts` (localStorage `dumos_audit_session_pending_ops`) before sending, and every Cycle Count open and `online` event flushes it. 409 and 403/404/410/422 settle an entry; network errors and 401 keep it. `initSession()` never adopts or merges a session that is not `in_progress`, names `submitted_stock_audit_id`, or is still in the outbox.
+7. **Completion Lifecycle:** `POST /complete` records `submitted_stock_audit_id` and moves the session to `completion_pending_sync`; when the sync engine pushes that `stock_audits` row the session becomes `completed`. Only `auditIds[0]` is sent; any one of a submit's rows arriving is enough because they are pushed together.
 
 ### An expense is dated by the store's own day (2026-10-13)
 

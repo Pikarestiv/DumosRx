@@ -1,5 +1,18 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
+vi.mock("@/lib/db/core", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/db/core")>()),
+  initDatabase: vi.fn(() => Promise.resolve(null)),
+}));
+
+vi.mock("@/lib/db/queries/stock-audit-drafts", () => ({
+  getLocalStockAuditDraft: vi.fn(() => Promise.resolve(null)),
+  saveLocalStockAuditDraft: vi.fn(() => Promise.resolve()),
+  deleteLocalStockAuditDraft: vi.fn(() => Promise.resolve()),
+  hasAnyLocalStockAuditCount: vi.fn(() => Promise.resolve(false)),
+  clearAllLocalStockAuditDrafts: vi.fn(() => Promise.resolve()),
+}));
+
 vi.mock("idb-keyval", () => ({
   get: vi.fn(() => Promise.resolve(undefined)),
   set: vi.fn(() => Promise.resolve(undefined)),

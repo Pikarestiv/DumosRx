@@ -11,7 +11,7 @@ import {
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { useAccountActions } from "@/lib/hooks/use-account-actions";
-import { UnsyncedLogoutDialog } from "./unsynced-logout-dialog";
+import { AccountExitDialog } from "./unsynced-logout-dialog";
 import { SyncIndicator } from "./sync-indicator";
 import { cn } from "@/lib/utils";
 import {
@@ -40,10 +40,7 @@ export function MobileMoreDrawer({
 
   const {
     navActions,
-    pendingCount,
-    showLogoutConfirm,
-    setShowLogoutConfirm,
-    confirmFullLogout,
+    exitDialog,
   } = useAccountActions({
     onClose: () => onOpenChange(false),
     onOpenFeedback,
@@ -126,12 +123,7 @@ export function MobileMoreDrawer({
           </div>
         </DrawerContent>
       </Drawer>
-      <UnsyncedLogoutDialog
-        open={showLogoutConfirm}
-        onOpenChange={setShowLogoutConfirm}
-        pendingCount={pendingCount}
-        onConfirm={confirmFullLogout}
-      />
+      <AccountExitDialog {...exitDialog} />
     </>
   );
 }

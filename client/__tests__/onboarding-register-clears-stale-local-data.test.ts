@@ -19,6 +19,14 @@ const getStoresMock = vi.fn(() => Promise.resolve([{ id: "new-store-1", name: "N
 const setTokenMock = vi.fn();
 const getLocalStoresMock = vi.fn(() => Promise.resolve([] as { id: string; name: string }[]));
 
+vi.mock("@/lib/db/queries/stock-audit-drafts", () => ({
+  getLocalStockAuditDraft: vi.fn(() => Promise.resolve(null)),
+  saveLocalStockAuditDraft: vi.fn(() => Promise.resolve()),
+  deleteLocalStockAuditDraft: vi.fn(() => Promise.resolve()),
+  hasAnyLocalStockAuditCount: vi.fn(() => Promise.resolve(false)),
+  clearAllLocalStockAuditDrafts: vi.fn(() => Promise.resolve()),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: routerPushMock }),
   useSearchParams: () => new URLSearchParams("tab=setup&step=register"),

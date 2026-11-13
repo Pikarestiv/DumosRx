@@ -12,6 +12,10 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
+import {
+  UNFINISHED_COUNT_WIPE_NOTE,
+  useUnfinishedStockCountOnDevice,
+} from "@/lib/hooks/use-stock-audit-draft";
 import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -29,6 +33,7 @@ export function DeviceDangerZone({
   const { verifyPin } = useAuth();
   const canFactoryReset = useHasPermission("factory_reset");
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const wipesUnfinishedCount = useUnfinishedStockCountOnDevice(showResetConfirm);
 
   return (
     <>
@@ -75,11 +80,11 @@ export function DeviceDangerZone({
         open={showResetConfirm}
         onOpenChange={setShowResetConfirm}
         title="Factory Reset"
-        description={
+        description={`${
           isCloudLinked
             ? "This will permanently delete all local data: products, sales, customers, and expenses, and disconnect this device from cloud sync. Your staff logins will remain, and you can re-link your cloud account afterward. This cannot be undone."
             : "This will permanently delete all local data: products, sales, customers, and expenses. Your login account will remain. This cannot be undone."
-        }
+        }${wipesUnfinishedCount ? ` ${UNFINISHED_COUNT_WIPE_NOTE}` : ""}`}
         confirmLabel="Reset All Data"
         requirePin={true}
         onConfirm={async (pin) => {

@@ -1,20 +1,28 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
-import { getActiveStoreId } from "@/lib/db/core";
+import { getActiveStoreId, initDatabase } from "@/lib/db/core";
 import {
   deleteLocalStockAuditDraft,
   clearAllLocalStockAuditDrafts,
   getLocalStockAuditDraft,
+  hasAnyLocalStockAuditCount,
   saveLocalStockAuditDraft,
 } from "@/lib/db/queries/stock-audit-drafts";
+import {
+  adoptUnscopedStockAuditDraft,
+  importLegacyStockAuditDrafts,
+} from "./stock-audit-draft-legacy";
+
+export { migrateStockAuditDraft } from "./stock-audit-draft-legacy";
 
 interface StockAuditDraftState {
   drafts: Record<string, AuditItem[]>;
   items: AuditItem[];
   activeStoreId: string | null;
+  loadedStoreId: string | null;
   setActiveStoreId: (storeId: string | null) => void;
   loadStoreDraft: (storeId: string) => Promise<void>;
   setItems: (updater: AuditItem[] | ((prev: AuditItem[]) => AuditItem[])) => void;
@@ -23,202 +31,141 @@ interface StockAuditDraftState {
   hasActiveCount: (storeId?: string | null) => boolean;
 }
 
-const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const SAVE_DEBOUNCE_MS = 400;
+const pendingSaves = new Map<string, { timer: ReturnType<typeof setTimeout>; items: AuditItem[] }>();
 
 function scheduleSave(storeId: string, items: AuditItem[]) {
-  if (!storeId) return;
-  const existing = saveTimers.get(storeId);
-  if (existing) clearTimeout(existing);
+  cancelSave(storeId);
   const timer = setTimeout(() => {
-    saveLocalStockAuditDraft(storeId, items).catch(() => {});
-    saveTimers.delete(storeId);
-  }, 400);
-  saveTimers.set(storeId, timer);
-}
-
-function flushSave(storeId: string, items: AuditItem[]) {
-  if (!storeId) return;
-  const existing = saveTimers.get(storeId);
-  if (existing) {
-    clearTimeout(existing);
-    saveTimers.delete(storeId);
-  }
-  saveLocalStockAuditDraft(storeId, items).catch(() => {});
+    pendingSaves.delete(storeId);
+    void saveLocalStockAuditDraft(storeId, items);
+  }, SAVE_DEBOUNCE_MS);
+  pendingSaves.set(storeId, { timer, items });
 }
 
 function cancelSave(storeId: string) {
-  if (!storeId) return;
-  const existing = saveTimers.get(storeId);
-  if (existing) {
-    clearTimeout(existing);
-    saveTimers.delete(storeId);
-  }
+  const pending = pendingSaves.get(storeId);
+  if (pending) clearTimeout(pending.timer);
+  pendingSaves.delete(storeId);
 }
 
-function cancelAllSaves() {
-  saveTimers.forEach((timer) => clearTimeout(timer));
-  saveTimers.clear();
+export async function flushStockAuditDraftSaves(): Promise<void> {
+  const writes = [...pendingSaves].map(([storeId, { timer, items }]) => {
+    clearTimeout(timer);
+    pendingSaves.delete(storeId);
+    return saveLocalStockAuditDraft(storeId, items);
+  });
+  await Promise.all(writes);
 }
 
-export function migrateStockAuditDraft(
-  persisted: unknown,
-  version: number,
-): { items: AuditItem[]; drafts?: Record<string, AuditItem[]> } {
-  const state = (persisted ?? {}) as {
-    items?: AuditItem[];
-    drafts?: Record<string, AuditItem[]>;
-  };
-  const items = state.items ?? [];
-  const cleanItems =
-    version >= 1
-      ? items
-      : items.map((item) =>
-          item.counted !== true && item.countedQty === item.systemQty
-            ? { ...item, countedQty: undefined }
-            : item,
-        );
-  if (state.drafts !== undefined) {
-    return { items: cleanItems, drafts: state.drafts };
-  }
-  return { items: cleanItems };
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", () => void flushStockAuditDraftSaves());
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") void flushStockAuditDraftSaves();
+  });
 }
 
-export const useStockAuditDraftStore = create<StockAuditDraftState>()(
-  persist(
-    (set, get) => ({
-      drafts: {},
-      items: [],
-      activeStoreId: null,
+function storeKeyFor(state: StockAuditDraftState, storeId?: string | null): string | null {
+  return storeId || state.activeStoreId || getActiveStoreId() || null;
+}
 
-      setActiveStoreId: (newStoreId) => {
-        const outgoingStoreId = get().activeStoreId;
-        const outgoingItems = get().items;
-        if (outgoingStoreId && outgoingItems.length > 0) {
-          flushSave(outgoingStoreId, outgoingItems);
-        }
+function hasCountedRow(items: AuditItem[]): boolean {
+  return items.some(
+    (item) =>
+      item.counted === true ||
+      (item.countedQty !== undefined && item.countedQty !== null),
+  );
+}
 
-        set((state) => {
-          if (state.activeStoreId === newStoreId) return state;
+export const useStockAuditDraftStore = create<StockAuditDraftState>()((set, get) => ({
+  drafts: {},
+  items: [],
+  activeStoreId: null,
+  loadedStoreId: null,
 
-          const isInitialMount = state.activeStoreId === null;
-          const hasLegacyItems =
-            isInitialMount &&
-            state.items.length > 0 &&
-            Object.keys(state.drafts).length === 0;
+  setActiveStoreId: (newStoreId) => {
+    const state = get();
+    if (state.activeStoreId === newStoreId) {
+      if (newStoreId && state.loadedStoreId !== newStoreId) void get().loadStoreDraft(newStoreId);
+      return;
+    }
 
-          const updatedDrafts = state.activeStoreId
-            ? { ...state.drafts, [state.activeStoreId]: state.items }
-            : hasLegacyItems && newStoreId
-              ? { ...state.drafts, [newStoreId]: state.items }
-              : state.drafts;
+    const outgoing = state.activeStoreId;
+    const unscopedItems = outgoing === null ? state.items : [];
+    const drafts = outgoing ? { ...state.drafts, [outgoing]: state.items } : { ...state.drafts };
+    if (newStoreId && unscopedItems.length > 0 && !drafts[newStoreId]?.length) {
+      drafts[newStoreId] = unscopedItems;
+      scheduleSave(newStoreId, unscopedItems);
+    }
 
-          const nextItems = newStoreId
-            ? (updatedDrafts[newStoreId] ?? (hasLegacyItems ? state.items : []))
-            : [];
+    set({
+      activeStoreId: newStoreId,
+      drafts,
+      items: newStoreId ? (drafts[newStoreId] ?? []) : [],
+      loadedStoreId: null,
+    });
+    if (outgoing) void flushStockAuditDraftSaves();
+    if (newStoreId) void get().loadStoreDraft(newStoreId);
+  },
 
-          if (newStoreId && hasLegacyItems && state.items.length > 0) {
-            scheduleSave(newStoreId, state.items);
-          }
+  loadStoreDraft: async (storeId) => {
+    if (!storeId) return;
+    await initDatabase().catch(() => null);
+    await importLegacyStockAuditDrafts(storeId);
+    const stored =
+      (await getLocalStockAuditDraft(storeId)) ?? (await adoptUnscopedStockAuditDraft(storeId));
 
-          return {
-            activeStoreId: newStoreId,
-            drafts: updatedDrafts,
-            items: nextItems,
-          };
-        });
+    set((state) => {
+      const inMemory = state.drafts[storeId] ?? [];
+      const restored = inMemory.length > 0 || !stored?.length ? inMemory : stored;
+      const isActive = state.activeStoreId === storeId;
+      return {
+        drafts: { ...state.drafts, [storeId]: restored },
+        ...(isActive ? { items: restored, loadedStoreId: storeId } : {}),
+      };
+    });
+  },
 
-        if (newStoreId) {
-          void get().loadStoreDraft(newStoreId);
-        }
-      },
+  setItems: (updater) => {
+    set((state) => {
+      const nextItems = typeof updater === "function" ? updater(state.items) : updater;
+      const storeKey = storeKeyFor(state);
+      if (!storeKey) return { items: nextItems };
+      scheduleSave(storeKey, nextItems);
+      return { items: nextItems, drafts: { ...state.drafts, [storeKey]: nextItems } };
+    });
+  },
 
-      loadStoreDraft: async (storeId: string) => {
-        if (!storeId) return;
-        const sqliteItems = await getLocalStockAuditDraft(storeId);
-        if (sqliteItems && sqliteItems.length > 0) {
-          set((state) => {
-            const currentInMemory =
-              state.drafts[storeId] ??
-              (state.activeStoreId === storeId ? state.items : []);
-            if (currentInMemory.length > 0) {
-              return state;
-            }
-            if (state.activeStoreId !== storeId && state.activeStoreId !== null) {
-              return {
-                drafts: { ...state.drafts, [storeId]: sqliteItems },
-              };
-            }
-            return {
-              items: sqliteItems,
-              drafts: { ...state.drafts, [storeId]: sqliteItems },
-            };
-          });
-        }
-      },
+  clearDraft: (targetStoreId) => {
+    const storeKey = storeKeyFor(get(), targetStoreId);
+    if (storeKey) {
+      cancelSave(storeKey);
+      void deleteLocalStockAuditDraft(storeKey);
+    }
+    set((state) => {
+      const nextDrafts = { ...state.drafts };
+      if (storeKey) delete nextDrafts[storeKey];
+      const clearsActive = !targetStoreId || state.activeStoreId === storeKey;
+      return { drafts: nextDrafts, items: clearsActive ? [] : state.items };
+    });
+  },
 
-      setItems: (updater) => {
-        set((state) => {
-          const nextItems =
-            typeof updater === "function" ? updater(state.items) : updater;
-          const storeKey =
-            state.activeStoreId || getActiveStoreId() || "default";
-          scheduleSave(storeKey, nextItems);
-          return {
-            items: nextItems,
-            drafts: {
-              ...state.drafts,
-              [storeKey]: nextItems,
-            },
-          };
-        });
-      },
+  clearAllDrafts: () => {
+    pendingSaves.forEach(({ timer }) => clearTimeout(timer));
+    pendingSaves.clear();
+    void clearAllLocalStockAuditDrafts();
+    set({ drafts: {}, items: [] });
+  },
 
-      clearDraft: (targetStoreId) => {
-        const storeKey =
-          targetStoreId || get().activeStoreId || getActiveStoreId() || "default";
-        cancelSave(storeKey);
-        deleteLocalStockAuditDraft(storeKey).catch(() => {});
-        set((state) => {
-          const nextDrafts = { ...state.drafts };
-          delete nextDrafts[storeKey];
-          return {
-            drafts: nextDrafts,
-            items:
-              state.activeStoreId === storeKey || !targetStoreId
-                ? []
-                : state.items,
-          };
-        });
-      },
-
-      clearAllDrafts: () => {
-        cancelAllSaves();
-        clearAllLocalStockAuditDrafts().catch(() => {});
-        set({ drafts: {}, items: [] });
-      },
-
-      hasActiveCount: (storeId) => {
-        const state = get();
-        const storeKey =
-          storeId || state.activeStoreId || getActiveStoreId() || "default";
-        const targetItems =
-          state.drafts[storeKey] ??
-          (storeKey === state.activeStoreId ? state.items : []);
-        return targetItems.some(
-          (item) =>
-            item.counted === true ||
-            (item.countedQty !== undefined && item.countedQty !== null),
-        );
-      },
-    }),
-    {
-      name: "stock-audit-draft",
-      version: 2,
-      migrate: (persisted, version) =>
-        migrateStockAuditDraft(persisted, version) as StockAuditDraftState,
-    },
-  ),
-);
+  hasActiveCount: (storeId) => {
+    const state = get();
+    const storeKey = storeKeyFor(state, storeId);
+    const items =
+      (storeKey ? state.drafts[storeKey] : undefined) ??
+      (storeKey === state.activeStoreId ? state.items : []);
+    return hasCountedRow(items);
+  },
+}));
 
 export function clearStockAuditDraft(storeId?: string) {
   useStockAuditDraftStore.getState().clearDraft(storeId);
@@ -230,4 +177,22 @@ export function clearAllStockAuditDrafts() {
 
 export function hasActiveStockAuditCount(storeId?: string | null): boolean {
   return useStockAuditDraftStore.getState().hasActiveCount(storeId);
+}
+
+export const UNFINISHED_COUNT_WIPE_NOTE =
+  "An unfinished cycle count saved on this device will be deleted too. Rows already saved to the store's cloud count session stay there and can be taken over from Cycle Count.";
+
+export function useUnfinishedStockCountOnDevice(enabled: boolean): boolean {
+  const [exists, setExists] = useState(false);
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    void hasAnyLocalStockAuditCount().then((found) => {
+      if (!cancelled) setExists(found || hasActiveStockAuditCount());
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled]);
+  return enabled && exists;
 }

@@ -9,6 +9,10 @@ import { BackupStep } from "@/components/setup/steps/backup-step";
 import { SyncingStep } from "@/components/setup/steps/syncing-step";
 import { SelectStoreStep } from "@/components/setup/steps/select-store-step";
 import type { Onboarding } from "@/app/setup/use-onboarding";
+import {
+  UNFINISHED_COUNT_WIPE_NOTE,
+  useUnfinishedStockCountOnDevice,
+} from "@/lib/hooks/use-stock-audit-draft";
 
 export interface SetupTabProps {
   authHeader: React.ReactNode;
@@ -18,6 +22,7 @@ export interface SetupTabProps {
 // Every setup step renders through AuthCardShell now, so the header is always injected inside the step's own Card (see eac…
 // Rationale: docs/CLIENT_COMMENTS.md#line-components-auth-setup-tab-tsx-L18
 export function SetupTab({ authHeader, onboarding }: SetupTabProps) {
+  const wipesUnfinishedCount = useUnfinishedStockCountOnDevice(onboarding.showConfirmSwitch);
   return (
     <>
       <AnimatePresence mode="wait">
@@ -113,6 +118,7 @@ export function SetupTab({ authHeader, onboarding }: SetupTabProps) {
                 ? " to make room for the new, empty store."
                 : " and replace it with the new store's data."}
             </p>
+            {wipesUnfinishedCount && <p>{UNFINISHED_COUNT_WIPE_NOTE}</p>}
             <p className="font-semibold text-foreground mt-2">
               Do you want to proceed?
             </p>

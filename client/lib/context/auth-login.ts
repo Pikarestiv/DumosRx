@@ -237,7 +237,7 @@ export async function performLogin(
     // Same shared-terminal risk as logout():
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L474
     if (previousUserId && previousUserId !== dbUser.id) {
-      clearLocalDrafts();
+      clearLocalDrafts({ preserveStoreAudit: true });
     }
 
     setters.setUser(userProfile);

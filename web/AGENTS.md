@@ -295,6 +295,15 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   `getStorefrontData()` is a plain GET `fetch`, which Next request-memoizes
   within one render, so the page, the layout and `generateMetadata` share
   one request.
+- **The header store name wraps, it does not truncate.** It is
+  `line-clamp-2 leading-tight break-words` beside the logo inside the fixed
+  `h-16` header, and `storeNameTextClass()` (`lib/storefront-display.ts`) steps
+  the font down for names over 16 characters on phones and over 28 on wider
+  screens, so a real name such as "Cutis Aesthetics & Med Spa" shows whole at
+  390px. The nav and cart are `shrink-0 whitespace-nowrap`, so the name gives
+  way instead of them. Anything past two lines is clamped; the full name stays
+  on the home link's `title` and accessible name. The footer and breadcrumb
+  print the name unclamped.
 - **Contact details are one labelled block**, `store-contact-block.tsx`
   (Address / Phone / Email, `tel:`/`mailto:` links), rendered only when the
   store has at least one. `lib/storefront-display.ts`'s `storeAddressLine()`

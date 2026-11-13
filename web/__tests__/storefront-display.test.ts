@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { storeAddressLine, toDisplayTitle } from "@/lib/storefront-display";
+import { storeAddressLine, storeNameTextClass, toDisplayTitle } from "@/lib/storefront-display";
 
 describe("toDisplayTitle", () => {
   it.each([
@@ -40,5 +40,26 @@ describe("storeAddressLine", () => {
 
   it("returns null when the store has neither", () => {
     expect(storeAddressLine({ address: "  ", location: null })).toBeNull();
+  });
+});
+
+describe("storeNameTextClass", () => {
+  it("keeps the full heading size for a short name", () => {
+    expect(storeNameTextClass("Grace Pharmacy")).toBe("text-base sm:text-xl");
+    expect(storeNameTextClass("a".repeat(16))).toBe("text-base sm:text-xl");
+  });
+
+  it("steps a medium name down on phones only", () => {
+    expect(storeNameTextClass("Cutis Aesthetics & Med Spa")).toBe("text-sm sm:text-xl");
+    expect(storeNameTextClass("a".repeat(28))).toBe("text-sm sm:text-xl");
+  });
+
+  it("steps a long name down everywhere so two lines fit the header", () => {
+    expect(storeNameTextClass("Cutis Aesthetics & Med Spa and Wellness Centre")).toBe("text-sm sm:text-lg");
+    expect(storeNameTextClass("a".repeat(29))).toBe("text-sm sm:text-lg");
+  });
+
+  it("measures the trimmed name", () => {
+    expect(storeNameTextClass(`  ${"a".repeat(16)}  `)).toBe("text-base sm:text-xl");
   });
 });

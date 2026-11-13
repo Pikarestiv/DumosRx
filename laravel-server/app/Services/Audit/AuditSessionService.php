@@ -288,10 +288,19 @@ class AuditSessionService
         return $session;
     }
 
-    public function abandonSession(AuditSession $session, string $userId, ?string $reason = null): AuditSession
-    {
+    public function abandonSession(
+        AuditSession $session,
+        string $userId,
+        ?string $reason = null,
+        ?string $tillId = null,
+        ?int $leaseVersion = null
+    ): AuditSession {
         if (in_array($session->status, [AuditSession::STATUS_COMPLETED, AuditSession::STATUS_ABANDONED], true)) {
             throw new AuditSessionConflictException('Cannot abandon an audit session that is already finished.', $session);
+        }
+
+        if ($leaseVersion !== null && ($session->active_till_id !== $tillId || $session->lease_version !== $leaseVersion)) {
+            throw new AuditSessionConflictException('Lease has been superseded or expired on this device.', $session);
         }
 
         $notes = $session->notes;

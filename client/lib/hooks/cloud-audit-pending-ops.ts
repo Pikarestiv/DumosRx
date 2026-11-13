@@ -8,8 +8,8 @@ import {
 export const PENDING_AUDIT_SESSION_OPS_KEY = "dumos_audit_session_pending_ops";
 
 export type PendingAuditSessionOp =
-  | { kind: "complete"; sessionId: string; leaseVersion: number; submittedStockAuditId: string | null }
-  | { kind: "abandon"; sessionId: string; reason?: string };
+  | { kind: "complete"; sessionId: string; leaseVersion: number; submittedStockAuditId: string | null; storeId?: string }
+  | { kind: "abandon"; sessionId: string; reason?: string; leaseVersion?: number; storeId?: string };
 
 function readOps(): PendingAuditSessionOp[] {
   try {
@@ -37,7 +37,7 @@ export function pendingAuditSessionIds(): Set<string> {
   return new Set(readOps().map((o) => o.sessionId));
 }
 
-const SETTLED_STATUSES = new Set([403, 404, 410, 422]);
+const SETTLED_STATUSES = new Set([404, 410, 422]);
 
 function isSettled(err: unknown): boolean {
   if (err instanceof AuditSessionConflictError) return true;
@@ -46,9 +46,9 @@ function isSettled(err: unknown): boolean {
 
 async function send(op: PendingAuditSessionOp) {
   if (op.kind === "complete") {
-    await completeAuditSession(op.sessionId, op.leaseVersion, op.submittedStockAuditId);
+    await completeAuditSession(op.sessionId, op.leaseVersion, op.submittedStockAuditId, op.storeId);
   } else {
-    await abandonAuditSession(op.sessionId, op.reason);
+    await abandonAuditSession(op.sessionId, op.reason, op.leaseVersion, op.storeId);
   }
 }
 

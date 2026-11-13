@@ -19,8 +19,6 @@ function pendingSyncText(pendingCount: number): string {
   return `You have ${pendingCount} offline transaction${pendingCount > 1 ? "s" : ""} pending sync. If you log out now, another user logging into this device will sync them on their account.`;
 }
 
-// Paired with useAccountActions: shown before logout or Switch Account when
-// something on this device is still unsynced or a cycle count is in progress.
 export function AccountExitDialog({
   action,
   pendingCount,

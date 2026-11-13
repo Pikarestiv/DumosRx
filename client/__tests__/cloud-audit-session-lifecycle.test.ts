@@ -239,10 +239,18 @@ describe("merging cloud rows into the local sheet", () => {
     expect(merged.countedAt).toBe("2026-11-10T09:00:00Z");
   });
 
-  it("keeps a local count with no timestamp (a draft from before counts were stamped)", () => {
+  it("treats a local count with no timestamp (a draft from before counts were stamped) as older than a stamped cloud count", () => {
     const [merged] = mergeCloudItemsIntoLocal(
       [local({ counted: true, countedQty: 18 })],
       [{ product_id: "p1", counted: true, counted_quantity: 15, counted_at: "2026-11-10T09:00:00Z" }],
+    );
+    expect(merged.countedQty).toBe(15);
+  });
+
+  it("keeps the local count when neither side carries a timestamp", () => {
+    const [merged] = mergeCloudItemsIntoLocal(
+      [local({ counted: true, countedQty: 18 })],
+      [{ product_id: "p1", counted: true, counted_quantity: 15, counted_at: null }],
     );
     expect(merged.countedQty).toBe(18);
   });
@@ -280,6 +288,21 @@ describe("stamping counts for the cloud merge", () => {
       countedAt: "2026-11-10T08:00:00Z",
     });
     expect(cloud.counted_at).toBe("2026-11-10T08:00:00Z");
+  });
+
+  it("sends no time for a row counted before counts were stamped, rather than the push time", async () => {
+    const { toCloudItem } = await import("@/lib/hooks/use-cloud-audit-session");
+    const cloud = toCloudItem({
+      id: "p1",
+      name: "Amoxil",
+      sku: "A",
+      category: "c",
+      systemQty: 20,
+      counted: true,
+      countedQty: 3,
+      baselineQty: 20,
+    });
+    expect(cloud.counted_at).toBeNull();
   });
 
   it("stamps a row edited on the ledger with when it was counted", async () => {

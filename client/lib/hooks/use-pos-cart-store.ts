@@ -95,15 +95,13 @@ export const usePOSCartStore = create<POSCartState>()(
   )
 );
 
+export function clearPOSCartContents() {
+  usePOSCartStore.setState({ cart: [], discount: 0, redeemedOption: null, isResellerSale: false, markupType: null });
+}
+
 export function clearPOSCartStorage() {
-  usePOSCartStore.setState({
-    cart: [],
-    discount: 0,
-    discountType: "fixed",
-    redeemedOption: null,
-    isResellerSale: false,
-    markupType: null,
-  });
+  clearPOSCartContents();
+  usePOSCartStore.setState({ discountType: "fixed" });
 }
 
 export function restorePOSCart(

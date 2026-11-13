@@ -19,7 +19,7 @@ export type { POSProduct as Product } from "@/lib/types/product";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import {
   usePOSCartStore,
-  clearPOSCartStorage,
+  clearPOSCartContents,
   restorePOSCart,
   repriceCartFromCatalog,
   buildNewCartItem,
@@ -293,7 +293,7 @@ export function usePOSCart(products: Product[]) {
   );
 
   const clearCart = useCallback(() => {
-    clearPOSCartStorage();
+    clearPOSCartContents();
   }, []);
 
   const restoreCart = useCallback(

@@ -191,41 +191,101 @@ the storefront product/cart views next get touched.
 
 The product cards and the cart drawer (`components/storefront/product-card.tsx`, `storefront-cart.tsx`) take `currency` from `store.currency` on the storefront page and format through the same `formatMoney`; they used to print a hardcoded naira sign.
 
-## Storefront chrome and display conventions (storefront Phases 1–5, 2026-11-02)
+## Storefront chrome and display conventions (storefront Phases 1–5, 2026-11-02; home refresh and themes 2026-11-13)
 
-- **Multi-page company storefront layout:**
-  - Landing page (`app/store/[store_slug]/page.tsx`): Header, StoreContactBlock,
-    "Featured Products" preview section with a "Browse Catalog →" link, Footer.
-  - Dedicated Catalog page (`app/store/[store_slug]/catalog/page.tsx`): Breadcrumbs,
-    interactive search filter (`q`), category pill selectors (`category`), product grid,
-    and responsive pagination powered by `StorefrontCatalogView`.
-  - Company pages:
-    - `/store/[store_slug]/about`: Brand story, care standards, licensed pharmacists commitment.
-    - `/store/[store_slug]/locations`: Multi-branch directory, addresses, phone links, and "Shop this branch" deep links.
-    - `/store/[store_slug]/faq`: Plain-language policies on pharmacy delivery, payments, returns, and prescription verification.
-  - Interactive services:
-    - `/store/[store_slug]/track`: Live order status lookup by reference or Paystack transaction code (`StoreOrderTracker`).
-    - `/store/[store_slug]/prescription`: Scanned prescription and PDF upload form with dosage notes (`StorePrescriptionForm`).
-  - Checkout page (`app/store/[store_slug]/checkout/page.tsx`): Order confirmation and
-    Paystack online payment.
-- **Storefront Header Navigation & Branch Selector:** `components/storefront/storefront-header.tsx`
-  renders navigation links ("Home", "Catalog", "Upload Rx", "Track Order") and the branch selector
-  pill (`StoreBranchSelector`, wrapped in `<Suspense fallback={null}>`). When multiple branches
-  exist under the owner, users can switch branches seamlessly (`?branch=<id>`), with a confirmation
-  modal clearing the cart if items were staged.
+- **Storefront routes (refreshed 2026-11-13):**
+  - Home (`app/store/[store_slug]/page.tsx`), top to bottom: hero (store
+    name, "Shop now", "Contact us"), **Featured Products** (the first 8 of
+    the show endpoint's `products`, which the API already orders in-stock
+    first, plus "View all N products" → `/catalog`), a headline band
+    (`storefront.headline` with fixed supporting copy and "Browse the shop"),
+    then `StoreAboutSection` (`#about`), `StoreLocationsSection`
+    (`#locations`, only when `hasLocationsToShow()`: more than one branch, or
+    the store has an address), `StoreFaqSection` (`#faq`) and a Contact
+    section (`#contact`) wrapping `StoreContactBlock`. Every section carries
+    `scroll-mt-24` so the sticky header does not cover its heading.
+  - **N in "View all N products" is `products.length`, which is capped.** The
+    show endpoint returns at most `StorefrontCatalogService::MAX_STOREFRONT_PRODUCTS`
+    (300) rows, so a store with more reads "View all 300 products". Accepted:
+    the build already holds that array, and an extra paginated request per
+    store per build just for a total is not worth it yet. The shop page's own
+    count comes from its paginated `meta.total` and is exact.
+  - Shop (`/catalog`, labelled **Shop** in breadcrumbs, title and heading;
+    the route name stays `catalog` so old links work): search, category
+    pills and pagination via `StorefrontCatalogView`.
+  - `/about`, `/locations`, `/faq` stay as routes so old links and anything
+    indexed keep resolving, and render the same section components as the
+    home page (with `headingAs="h1"`). Never fork their content back into the
+    page files.
+  - Checkout (`/checkout`): order confirmation and Paystack payment.
+- **Nav is exactly Home, Shop, Contact**, then the cart, plus the branch
+  selector (unchanged). The list lives once in `lib/storefront-nav.ts` and
+  both the header and the footer's quick links render it. Contact is
+  `/store/<slug>#contact`, so it works from any storefront page.
+- **Upload Rx and Track Order are intentionally unlinked** (2026-11-13). The
+  `/prescription` and `/track` routes and their components stay, still
+  prerendered, but no storefront page links them. Track Order: a store can
+  only move an online order from pending straight to fulfilled or cancelled
+  from the POS, so there is no in-between progress for a customer to watch;
+  re-link it once stores can set packed / out-for-delivery, and the intended
+  placement then is a Track Order section on the home page. Upload Rx was
+  pulled from the nav in the same refresh to keep the nav to three items;
+  relink it when prescription intake is part of the order flow. Do not
+  re-add either link as a side effect of other work.
+- **Footer** (`storefront-footer.tsx`, takes `storeSlug`, `store`,
+  `storefront`): `bg-primary text-primary-foreground`, so it follows the
+  theme; store name plus the first 220 characters of `storefront.about`
+  (else the headline), the shared quick links, phone/email/address via
+  `storeAddressLine()`, copyright, and "Powered by {APP_NAME}" linking
+  `WEB_APP_URL`. No social links: `storefronts.social_links` exists in the
+  schema but `GET /storefront/{slug}` does not expose it; add it to the
+  response first if wanted. No text opacity in the footer: white on the
+  default blue is close enough to 4.5:1 that dimming it fails.
+- **Storefront themes** (`lib/storefront-themes.ts`). Each theme sets
+  `--primary`, `--primary-foreground` and `--ring` for light and dark mode.
+  `app/store/[store_slug]/layout.tsx` is the one place a theme is applied
+  for every storefront route: it renders a `display: contents` wrapper with
+  `data-storefront-theme=<id>` and one `<style>` from `storefrontThemeCss()`,
+  whose rules match `:root:has([data-storefront-theme=…])` so portalled UI
+  (the cart sheet, dialogs, toasts) is themed too, not only the page tree.
+  The id `emerald` is the default and emits **no** rules, so a store without
+  a theme looks exactly as before; its registry values are a copy of
+  `globals.css`'s `--primary`/`--ring` (which is a blue, despite the name:
+  the id predates the palette and is the DB column default, so it cannot be
+  renamed) and `__tests__/storefront-themes.test.ts` fails if they drift.
+  The same test computes every theme's foreground-on-primary contrast
+  (≥ 4.5:1, light and dark) and pins the id list equal to
+  `laravel-server/app/Support/StorefrontThemes.php`, which is the allow-list
+  the server validates against. An unknown or missing theme falls back to
+  `emerald`. To add a theme: add it to both lists, run that test.
+- **Only a super admin chooses a theme**, through
+  `PUT /admin/stores/{id}/storefront/theme` (`role:super_admin`) from
+  `StorefrontThemePicker` in the admin store detail's Online Storefront card;
+  everyone else sees the theme name read-only. The store detail payload
+  carries `storefront.theme` and `storefront.available_themes`, and the
+  picker shows only registry themes the server lists. A change marks the
+  owner's published stores dirty, so it ships with the next scheduled
+  rebuild. Store owners deliberately have no theme control in `client/` or
+  the owner dashboard yet.
+- **Storefront Header Branch Selector:** `StoreBranchSelector`, wrapped in
+  `<Suspense fallback={null}>`. When multiple branches exist under the owner,
+  users can switch branches (`?branch=<id>`), with a confirmation modal
+  clearing the cart if items were staged.
 - **Offline / Sandbox Builds:** When `STOREFRONT_ALLOW_EMPTY=1` is set in offline or
   sandbox environments without a live backend, `lib/api/storefront-data.ts` supplies
-  `DEMO_STOREFRONT_DATA` and `DEMO_PAGINATED_PRODUCTS` placeholders so static export
-  prerendering (`/store/demo`, `/about`, `/locations`, `/faq`, `/catalog`, `/track`, `/prescription`, `/checkout`) succeeds
-  without crashing or requiring a mock server.
+  the placeholders in `lib/api/storefront-demo-data.ts` (a storefront profile and
+  12 sample products, so the home page and shop render something to look at) and
+  static export prerendering (`/store/demo`, `/about`, `/locations`, `/faq`,
+  `/catalog`, `/track`, `/prescription`, `/checkout`) succeeds without a mock
+  server. `STOREFRONT_DEMO_THEME=<id>` previews the demo store in a theme.
 - **A storefront never renders the DumosRx marketing footer.** All
   `[store_slug]` routes use `components/storefront/storefront-header.tsx`
-  (logo + store name, the only place the name is printed, linking back to the
-  catalogue, plus the cart) and `storefront-footer.tsx` (the store's name and a
-  single small "Powered by DumosRx" link to `WEB_APP_URL`). The checkout page
-  now fetches the store too, so its header shows the store and its cart
-  formats in the store's currency; `getStorefrontData()` is memoized per
-  render, so this is not a second request beside `generateMetadata`.
+  (logo + store name, linking home, the nav and the cart) and
+  `storefront-footer.tsx`. The checkout page fetches the store too, so its
+  header shows the store and its cart formats in the store's currency;
+  `getStorefrontData()` is a plain GET `fetch`, which Next request-memoizes
+  within one render, so the page, the layout and `generateMetadata` share
+  one request.
 - **Contact details are one labelled block**, `store-contact-block.tsx`
   (Address / Phone / Email, `tel:`/`mailto:` links), rendered only when the
   store has at least one. `lib/storefront-display.ts`'s `storeAddressLine()`
@@ -237,8 +297,8 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   worse than leaving it.
 - **Colours are semantic theme classes** (`text-primary`,
   `text-muted-foreground`, `bg-muted/40`, `text-destructive`, ...), never
-  palette literals such as `text-emerald-600`/`bg-gray-50`, so the per-store
-  theming planned for a later phase only has to swap variables.
+  palette literals such as `text-emerald-600`/`bg-gray-50`, because the
+  per-store themes above work only by swapping those variables.
 - Carts are partitioned per storefront by `storeSlug`
   (`lib/store/use-cart-store.ts`), which is why every storefront component
   takes the slug.

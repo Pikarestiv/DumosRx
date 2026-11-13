@@ -1,3 +1,4 @@
+import { DEMO_PAGINATED_PRODUCTS, DEMO_STOREFRONT_DATA } from "@/lib/api/storefront-demo-data";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 
 export interface StorefrontStore {
@@ -49,35 +50,6 @@ export interface StorefrontData {
  * (SF-P1-1).
  */
 export class StorefrontFetchError extends Error {}
-
-const DEMO_STOREFRONT_DATA: StorefrontData = {
-  store: {
-    id: "demo",
-    name: "Demo Pharmacy",
-    location: "Demo Location",
-    address: "123 Demo Street",
-    phone: "08000000000",
-    email: "demo@example.com",
-    currency: "NGN",
-  },
-  products: [],
-};
-
-const DEMO_PAGINATED_PRODUCTS: PaginatedStorefrontProducts = {
-  data: [],
-  links: { first: null, last: null, prev: null, next: null },
-  meta: {
-    current_page: 1,
-    from: null,
-    last_page: 1,
-    path: "/storefront/demo/products",
-    per_page: 50,
-    to: null,
-    total: 0,
-  },
-  categories: [],
-  store: { id: "demo", name: "Demo Pharmacy", currency: "NGN" },
-};
 
 /**
  * Build-time fetch of one storefront. `null` means "this store is genuinely

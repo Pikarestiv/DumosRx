@@ -57,6 +57,7 @@ describe("CameraScannerDialog permission-aware start", () => {
 
   afterEach(() => {
     setCameraPermission(undefined);
+    localStorage.clear();
   });
 
   it("starts the camera straight away when permission was already granted", async () => {
@@ -133,5 +134,42 @@ describe("CameraScannerDialog permission-aware start", () => {
     await act(async () => {});
     expect(screen.getByRole("button", { name: "Enable Camera" })).toBeTruthy();
     expect(scannerMock.start).not.toHaveBeenCalled();
+  });
+
+  it("remembers a successful start and auto-starts next time when the browser cannot report camera permission", async () => {
+    setCameraPermission(undefined);
+    const first = renderDialog();
+    await act(async () => {});
+    expect(scannerMock.start).not.toHaveBeenCalled();
+    act(() => screen.getByRole("button", { name: "Enable Camera" }).click());
+    await waitFor(() => expect(scannerMock.start).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(localStorage.getItem("camera_scanner_allowed")).toBe("1"));
+    first.unmount();
+
+    scannerMock.start.mockClear();
+    renderDialog();
+    await waitFor(() => expect(scannerMock.start).toHaveBeenCalledTimes(1));
+  });
+
+  it("does not trust the remembered flag when the browser says it would ask again", async () => {
+    localStorage.setItem("camera_scanner_allowed", "1");
+    setCameraPermission(() => Promise.resolve({ state: "prompt" }));
+    renderDialog();
+
+    await act(async () => {});
+    expect(screen.getByRole("button", { name: "Enable Camera" })).toBeTruthy();
+    expect(scannerMock.start).not.toHaveBeenCalled();
+  });
+
+  it("forgets the remembered flag when the camera is refused", async () => {
+    localStorage.setItem("camera_scanner_allowed", "1");
+    setCameraPermission(undefined);
+    scannerMock.start.mockImplementation(() => {
+      throw Object.assign(new Error("denied"), { name: "NotAllowedError" });
+    });
+    renderDialog();
+
+    await waitFor(() => expect(screen.getByText("Camera access denied")).toBeTruthy());
+    expect(localStorage.getItem("camera_scanner_allowed")).toBeNull();
   });
 });

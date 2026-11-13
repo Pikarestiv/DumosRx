@@ -7655,9 +7655,13 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
 
 - **Camera scanner (`components/pos/camera-scanner-dialog.tsx`):** on open it
   asks `navigator.permissions.query({ name: "camera" })`. `granted` starts the
-  camera straight away; `denied` shows the denied screen; `prompt`, a throw
-  (Firefox/older Safari reject the `camera` name) or no Permissions API keep the
+  camera straight away; `denied` shows the denied screen; `prompt` keeps the
   "Enable Camera" screen, so the browser's own prompt only ever follows a tap.
+  A throw (Firefox/older Safari reject the `camera` name) or no Permissions API
+  falls back to a per-device `localStorage` flag (`cameraScannerAllowed`, set on
+  the first successful start, cleared on `NotAllowedError`), so those browsers
+  also skip the screen after the first grant; the flag is never trusted when the
+  browser reports `prompt`.
   The permission read is cancelled by the effect cleanup, so strict mode's
   double effect starts one camera, and `sessionRef` makes a start that is still
   awaiting `getCameras()`/`start()` when the dialog closes stop itself instead

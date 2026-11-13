@@ -6,6 +6,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import type { Html5Qrcode } from "html5-qrcode";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 import {
   Camera,
   Flashlight,
@@ -30,6 +31,21 @@ async function cameraPermissionState(): Promise<PermissionState | null> {
     return status?.state ?? null;
   } catch {
     return null;
+  }
+}
+
+function rememberCameraAllowed(allowed: boolean) {
+  try {
+    if (allowed) localStorage.setItem(STORAGE_KEYS.cameraScannerAllowed, "1");
+    else localStorage.removeItem(STORAGE_KEYS.cameraScannerAllowed);
+  } catch {}
+}
+
+function cameraWasAllowedBefore(): boolean {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.cameraScannerAllowed) === "1";
+  } catch {
+    return false;
   }
 }
 
@@ -91,6 +107,7 @@ export function CameraScannerDialog({
           await scanner.stop().catch(() => undefined);
           return;
         }
+        rememberCameraAllowed(true);
         setState("scanning");
         setTorchSupported(
           Boolean(scanner.getRunningTrackCameraCapabilities().torchFeature().isSupported()),
@@ -98,6 +115,7 @@ export function CameraScannerDialog({
       } catch (error) {
         console.error("Camera scanner failed to start:", error);
         const name = (error as { name?: string })?.name;
+        if (name === "NotAllowedError") rememberCameraAllowed(false);
         setState(name === "NotAllowedError" ? "denied" : "error");
       }
     },
@@ -128,7 +146,8 @@ export function CameraScannerDialog({
     let cancelled = false;
     void cameraPermissionState().then((permission) => {
       if (cancelled) return;
-      if (permission === "granted") void startScannerRef.current(0);
+      const remembered = permission === null && cameraWasAllowedBefore();
+      if (permission === "granted" || remembered) void startScannerRef.current(0);
       else if (permission === "denied") setState("denied");
     });
     return () => {

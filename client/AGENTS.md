@@ -3778,9 +3778,10 @@ noted below with what it widens or narrows:
   is behaviour-neutral and only the cost figures change.
 - `edit_product_price` — `catalog-row.tsx` (the selling-price quick edit)
   and `components/stock-batch/audit-ledger-step.tsx` (the Counted Selling
-  cell). `edit_product_cost` — `audit-ledger-step.tsx`'s Counted Cost cell,
-  the app's only master-data cost-correction surface (cost is otherwise a
-  per-batch acquisition figure set by receiving). A withheld key leaves the
+  cell). `edit_product_cost` — `audit-ledger-step.tsx`'s Counted Cost cell
+  (a product-wide cost correction applied to every active batch) and, since
+  2026-11-13, the per-batch correction in the catalog Batches tab, which also
+  needs `view_cost_fields` (see "Batch cost correction"). A withheld key leaves the
   figure on screen read-only in both places, but the **two surfaces are
   protected differently**. In `catalog-row.tsx` the new key *composes* with
   the existing coarse check rather than replacing it —
@@ -7503,6 +7504,15 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 **Backward compatibility (§11)**
 - A price typed on a draft saved before this release was never applied to the catalog and still is not: a Standard draft's price is never flagged as changed, and an Immediate draft's stored price is replaced by the live one when opened for edit. Re-applying a months-old price could overwrite a newer one, so a user who wants it applied re-types it.
 - Editing a Standard PO erases any stored cost, lot or expiry it carries (only reachable by switching type with values typed, before this release). Nothing in production relied on them. This note can go once no pre-release draft is open.
+
+## Batch cost correction (`lib/db/queries/batch-cost-correction.ts`)
+
+The product detail panel's Batches tab (`product-batch-history.tsx`) lets a user with **both** `view_cost_fields` and `edit_product_cost` correct one batch's `cost_price` through `BatchCostEditDialog` (input, then a confirm step). Without `view_cost_fields` the tab shows no batch cost, total value or edit control; before this it showed cost to everyone.
+
+- **What it writes:** one `update("stock_batches", id, { cost_price })`, rounded to 2 dp, so it syncs as a cost-only UPDATE. A cost-only push is *not* quantity-only, so the server applies its normal strict `_version` check (`SyncEndpointTest::test_push_sync_keeps_a_cost_correction_valid_after_another_device_sells`); no server change was needed. The server does not validate the value, so the client range check (`isValidBatchCostPrice`: finite, 0 to 1,000,000,000) is the only one. An unchanged cost writes nothing.
+- **Audit trail:** the same `update()` call logs the row under the named action `BATCH_COST_CORRECTED`, with `previous_cost_price`, `batch_number` and `product_id` merged into the logged details through `update()`'s `auditDetails` option. No stock movement and no `stock_audits` row: quantity does not change, and `stock_audits` is product-level. `getProductHistory()` pulls these rows into the product's History tab by batch, which is why `queryKeys.products.history` also lists `stock_batches`.
+- **What it changes:** stock value, the product's average and last-bought cost (all read live from `stock_batches`), the cost of future sales via that average, and the cost a later return restocks at (A-372). **What it does not:** `sale_items.cost_price` (sale-time snapshot, used by every COGS/profit figure), the receipt's `stock_movements.unit_cost/total_cost` (so stock MoM history stays as received), and `purchase_order_items` (what was ordered and paid, per "Receiving cost scale" above).
+- Expired, sold-out and inactive batches are editable on purpose: a zero-quantity batch still feeds Last Bought Price and return valuation.
 
 ## "Average cost" always carries a tooltip
 

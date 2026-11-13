@@ -257,6 +257,11 @@ function describeAuditDetails(action: string, details: string | null) {
     return details;
   }
 
+  if (a === "batch_cost_corrected") {
+    const formatCost = (value: unknown) => (typeof value === "number" ? value.toLocaleString() : "-");
+    return `Batch #${parsed.batch_number || "Default"}: cost price ${formatCost(parsed.previous_cost_price)} → ${formatCost(parsed.cost_price)}.`;
+  }
+
   const entries = Object.entries(parsed).filter(
     ([key, value]) => !AUDIT_DETAIL_HIDDEN_KEYS.has(key) && value !== undefined,
   );

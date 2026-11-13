@@ -229,8 +229,8 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "manage_suppliers", // supplier-table.tsx, supplier-detail-pane.tsx, supplier-management.tsx, dashboard-page-routes.ts
   "request_stock_transfers", // pos-layout-header.tsx
   "approve_stock_transfers", // stock-movement-detail-modal.tsx (markStockTransferReviewed)
-  "view_cost_fields", // catalog-list.tsx, catalog-row.tsx, product-pricing-info.tsx; assistant inventory_status tool (adds stock value to the reply, never denies it)
-  "edit_product_cost", // audit-ledger-step.tsx
+  "view_cost_fields", // catalog-list.tsx, catalog-row.tsx, product-pricing-info.tsx, catalog-detail-panel.tsx (batch costs); assistant inventory_status tool (adds stock value to the reply, never denies it)
+  "edit_product_cost", // audit-ledger-step.tsx, catalog-detail-panel.tsx (batch cost correction)
   "edit_product_price", // catalog-row.tsx, audit-ledger-step.tsx
   "perform_stock_audit", // dashboard-header.tsx, stock-batch-management.tsx, use-stock-batch-management.ts; assistant "Start a stock audit" help topic
   "view_stock_adjustment_history", // stock-batch-tab-nav.tsx, stock-batch-management.tsx, use-stock-batch-management.ts (Movements + Adjustments tabs)

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Boxes, ChevronDown, ChevronUp } from "lucide-react";
+import { Boxes, ChevronDown, ChevronUp, Pencil } from "lucide-react";
+import { HintTooltip } from "@/components/ui/hint-tooltip";
+import { BatchCostEditDialog } from "./batch-cost-edit-dialog";
 import type { StockBatch } from "@/lib/types/stock-batch";
 import { formatCurrency } from "@/lib/utils";
 import { formatDateSafe, formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
@@ -11,6 +13,9 @@ interface ProductBatchHistoryProps {
   loadingBatches: boolean;
   storeType: string;
   canSeeQuantities: boolean;
+  canViewCost: boolean;
+  canEditCost?: boolean;
+  currencyCode?: string;
   formatPrice?: (amount: number) => string;
 }
 
@@ -29,8 +34,12 @@ export function ProductBatchHistory({
   loadingBatches,
   storeType,
   canSeeQuantities,
+  canViewCost,
+  canEditCost = false,
+  currencyCode,
   formatPrice,
 }: ProductBatchHistoryProps) {
+  const [costEditBatch, setCostEditBatch] = useState<StockBatch | null>(null);
   const [expandedBatchId, setExpandedBatchId] = useState<string | null>(
     batches.length === 1 ? batches[0]?.id : null,
   );
@@ -48,7 +57,7 @@ export function ProductBatchHistory({
   }
 
   const formatCost = (amount?: number) => {
-    if (amount == null) return "—";
+    if (amount == null || !canViewCost) return "—";
     return formatPrice ? formatPrice(amount) : formatCurrency(amount);
   };
 
@@ -56,8 +65,6 @@ export function ProductBatchHistory({
     setExpandedBatchId((prev) => (prev === id ? null : id));
   };
 
-  // Matches the real FEFO deduction order (see docs/FIXED_BUGS.md) - only
-  // the batch this would actually pick first counts as "sell first".
   const sellFirstBatchId = [...batches]
     .filter(
       (b) =>
@@ -100,7 +107,7 @@ export function ProductBatchHistory({
 
         const isExpanded = expandedBatchId === batch.id;
         const totalBatchValue =
-          canSeeQuantities && batch.cost_price != null && batch.quantity > 0
+          canSeeQuantities && canViewCost && batch.cost_price != null && batch.quantity > 0
             ? formatCost(batch.cost_price * batch.quantity)
             : null;
 
@@ -124,6 +131,22 @@ export function ProductBatchHistory({
                 Batch #{batch.batch_number || "Default"}
               </span>
               <div className="flex items-center gap-2">
+                {canEditCost && canViewCost && (
+                  <HintTooltip text="Edit cost price">
+                    <button
+                      type="button"
+                      aria-label={`Edit cost price for batch ${batch.batch_number || "Default"}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCostEditBatch(batch);
+                      }}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  </HintTooltip>
+                )}
                 <span
                   className={`text-[11px] font-bold px-2.5 py-1 rounded-md ${statusColor}`}
                 >
@@ -141,7 +164,7 @@ export function ProductBatchHistory({
               {[
                 canSeeQuantities && `${batch.quantity} units`,
                 batch.id === sellFirstBatchId && "Sell first (FEFO)",
-                batch.cost_price != null && `Cost: ${formatCost(batch.cost_price)}`,
+                canViewCost && batch.cost_price != null && `Cost: ${formatCost(batch.cost_price)}`,
               ]
                 .filter(Boolean)
                 .join(" · ")}
@@ -149,14 +172,18 @@ export function ProductBatchHistory({
 
             {isExpanded && (
               <div className="pt-3 mt-1 border-t border-border/60 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                <div>
-                  <span className="text-muted-foreground block text-[11px]">Cost Price</span>
-                  <span className="font-medium">{formatCost(batch.cost_price)}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground block text-[11px]">Total Value</span>
-                  <span className="font-medium">{totalBatchValue ?? "—"}</span>
-                </div>
+                {canViewCost && (
+                  <>
+                    <div>
+                      <span className="text-muted-foreground block text-[11px]">Cost Price</span>
+                      <span className="font-medium">{formatCost(batch.cost_price)}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[11px]">Total Value</span>
+                      <span className="font-medium">{totalBatchValue ?? "—"}</span>
+                    </div>
+                  </>
+                )}
                 <div>
                   <span className="text-muted-foreground block text-[11px]">Expiry Date</span>
                   <span className="font-medium">
@@ -190,6 +217,16 @@ export function ProductBatchHistory({
           </div>
         );
       })}
+      {costEditBatch && (
+        <BatchCostEditDialog
+          batch={costEditBatch}
+          open
+          onOpenChange={(open) => !open && setCostEditBatch(null)}
+          currencyCode={currencyCode}
+          canSeeQuantities={canSeeQuantities}
+          formatPrice={(amount) => formatCost(amount)}
+        />
+      )}
     </div>
   );
 }

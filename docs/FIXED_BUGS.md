@@ -1,3 +1,9 @@
+### A-367 — a paid store's dark theme was reset to light on every reload
+- **Fixed:** 2026-11-13, client only, TDD. LicenseGuard's licence and anti-backdating checks are untouched; only the theme restriction changed.
+- **Was:** `ThemeRestrictor` in `client/components/auth/license-guard.tsx` called `setTheme("light")` whenever `useFeatureGate()` reported `"free"`, and that hook reports `"free"` while `storeProfile` is still loading. `LicenseGuard` mounts it as soon as the local licence check finishes, so every full load overwrote a Pro store's stored dark theme with light.
+- **Now:** `ThemeRestrictor` returns early until the store profile is loaded, so the plan it restricts on is the store's real one. A free store is still reset to light (and its store theme to `default`) once its profile arrives.
+- **Coverage:** `client/__tests__/license-guard-theme-restriction.test.tsx`; `client/e2e/theme-persistence.spec.ts` (no longer `test.fail`).
+
 ### A-368 (part) — at phone width the cart truncated the "Spot Sourced" pill and hid its cost, crowded the quantity stepper, and showed a red hairline round each line
 - **Fixed:** 2026-11-13, client only, TDD. The product-name truncation and the dark "Clear cart" contrast remain open under A-368 in `docs/KNOWN_BUGS.md`.
 - **Was:** the sourcing controls sat in the ~95px name column of a 390px cart. Commit `4b02797f` kept the pill on one line by truncating it, so it read "Spot Sour…" and the cost in brackets was never visible; the backordered "Source outside" pill overflowed the column to within 2px of the quantity stepper. The always-painted swipe-to-delete `bg-destructive` backdrop bled a faint red hairline through the row's antialiased rounded edges in light mode.

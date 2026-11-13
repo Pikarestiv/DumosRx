@@ -5881,10 +5881,11 @@ same tab session still gets its own fresh one-time retry.
     labels at 390×844 in light and dark: one line, unclipped, the spot cost
     visible, at least 6px clear of the quantity stepper on either axis, and
     the delete backdrop transparent at rest (set `E2E_SCREENSHOT_DIR` to keep the
-    screenshots; dark is applied by swapping the `<html>` class because a
-    reload currently resets a stored dark theme, A-367). One case is
-    `test.fail` on purpose until its bug is fixed:
-    `theme-persistence.spec.ts` (A-367).
+    screenshots; dark is applied by swapping the `<html>` class, which is all
+    `ThemeProvider` does). `theme-persistence.spec.ts` pins that a Pro store's
+    stored dark theme survives a reload (A-367): `ThemeRestrictor`
+    (`license-guard.tsx`) forces light only once the store profile has loaded,
+    because until then `useFeatureGate()` reports `"free"` for every store.
 - `npm run test:schema`: diffs local SQLite schema against the Laravel
   backend's live MySQL schema. Requires the sibling `../laravel-server` repo
   and a working `php artisan tinker` in it. Two things about it are load

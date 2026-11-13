@@ -26,14 +26,9 @@ function ThemeRestrictor() {
   const { storeProfile, updateStoreProfile } = useStore();
 
   useEffect(() => {
-    if (currentTier === "free") {
-      if (theme !== "light") {
-        setTheme("light");
-      }
-      if (storeProfile && storeProfile.theme !== "default") {
-        void updateStoreProfile({ theme: "default" });
-      }
-    }
+    if (!storeProfile || currentTier !== "free") return;
+    if (theme !== "light") setTheme("light");
+    if (storeProfile.theme !== "default") void updateStoreProfile({ theme: "default" });
   }, [currentTier, theme, storeProfile, setTheme, updateStoreProfile]);
 
   return null;

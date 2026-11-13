@@ -22,7 +22,7 @@ const twoProducts = (storeId: string): SeedStatement[] => [
 ];
 
 async function openMobileCartAndCapture(page: Page, theme: (typeof THEMES)[number], screenshotName: string) {
-  // ThemeProvider only swaps this class; set it directly because a full reload resets a stored dark theme (A-367).
+  // ThemeProvider only swaps this class, so setting it directly avoids a Settings round trip and a reload.
   await page.evaluate((t: string) => document.documentElement.classList.replace(t === 'dark' ? 'light' : 'dark', t), theme);
   await expect(page.locator('html')).toHaveClass(new RegExp(`\\b${theme}\\b`));
   await page.getByText(/^2 items$/).filter({ visible: true }).first().click();

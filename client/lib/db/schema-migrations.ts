@@ -751,7 +751,7 @@ async function relaxPurchaseOrdersSupplierIdNullable(adapter: DbAdapter): Promis
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L833
 async function clearLegacyTransactionsOnce(
   adapter: DbAdapter,
-  onCleared?: () => Promise<void>,
+  onCleared?: () => Promise<unknown>,
 ): Promise<void> {
   try {
     const hasClearedLegacy = typeof window !== "undefined" && window.localStorage
@@ -818,7 +818,7 @@ const ANALYZE_STALENESS_FLOOR = 1000;
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L917
 async function ensureReadPathIndexes(
   adapter: DbAdapter,
-  persist?: () => Promise<void>,
+  persist?: () => Promise<unknown>,
 ): Promise<void> {
   for (const statement of READ_PATH_INDEXES) {
     await tryRun(adapter, statement);
@@ -909,7 +909,7 @@ async function ensureServiceTables(adapter: DbAdapter): Promise<void> {
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L964
 export async function runSchemaMigrations(
   adapter: DbAdapter,
-  persist?: () => Promise<void>,
+  persist?: () => Promise<unknown>,
 ): Promise<void> {
   await ensureServiceTables(adapter);
   await runSyncColumnMigrations(adapter, SYNC_COLUMN_MIGRATIONS);

@@ -170,7 +170,7 @@ export const POSCart = memo(function POSCart({
         {heldSalesCount > 0 && <HeldSalesChip count={heldSalesCount} onOpen={onOpenHeldSales} />}
 
         <div className="space-y-1.5 mb-3">
-          {subtotal !== total && (
+          {(tax > 0 || calculatedDiscount > 0) && (
             <div className="flex justify-between text-[12.5px] text-muted-foreground">
               <span>Subtotal</span>
               <span>{formatCurrency(subtotal, currencyCode)}</span>

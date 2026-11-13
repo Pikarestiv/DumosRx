@@ -52,7 +52,7 @@ export interface SaleWithDetails extends Sale {
   cashier?: string;
   item_count?: number;
   total_refunded?: number;
-  /** "||"-joined product names for this sale's line items, for searching by
+  /** "||"-joined product and service names for this sale's lines, for searching by
    * item without a separate fetch - see getRecentSales(). */
   item_names?: string;
   stock_originally_owed?: number;

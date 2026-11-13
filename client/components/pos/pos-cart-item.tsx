@@ -34,6 +34,7 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
   // Unconditional top-level const, never inlined into the JSX branch below -
   // see pos-cart.tsx's canApplyDiscounts for the hook-ordering reason.
   const canOverridePrice = useHasPermission("override_price");
+  const [nameExpanded, setNameExpanded] = useState(false);
   const dragX = useMotionValue(0);
   const backdropOpacity = useTransform(dragX, [-1, 0], [1, 0]);
 
@@ -106,12 +107,18 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-1.5 mb-0.5">
             <HintTooltip text={item.name}>
-              <span
-                tabIndex={0}
-                className={`min-w-0 text-[12.5px] font-semibold line-clamp-2 break-words leading-tight rounded outline-none focus-visible:ring-2 focus-visible:ring-ring ${capsClass}`}
+              <button
+                type="button"
+                aria-expanded={nameExpanded}
+                onClick={() => setNameExpanded((expanded) => !expanded)}
+                className={cn(
+                  "min-w-0 text-left text-[12.5px] font-semibold break-words leading-tight rounded cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  !nameExpanded && "line-clamp-2",
+                  capsClass,
+                )}
               >
                 {item.name}
-              </span>
+              </button>
             </HintTooltip>
             {item.item_type === "service" && (
               <span className="inline-flex items-center text-[9.5px] font-medium px-1 py-0.2 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 shrink-0">

@@ -9109,12 +9109,11 @@ local state — the caller gets it back directly for immediate use.
 
 ### line-hooks-use-daily-close-data-ts-L31
 
-`client/lib/hooks/use-daily-close-data.ts:34`
-
-itemsToday already has every line item for the day (product_name
-included) - reuse it to attach a "||"-joined item_names string per sale,
-same shape as getRecentSales()'s item_names, so sales-list-modal.tsx can
-search by item without a separate query.
+Retired 2026-11-13. The hook used to build each sale's `item_names` from
+`itemsToday` (products only), so a service name never matched the Daily
+Close sales-list search. `getDailyCloseData()` now selects `item_names`
+from `SALE_LINE_NAMES_SQL` (`lib/db/queries/sale-line-summary-sql.ts`),
+the same product-and-service names Recent Sales uses.
 
 ### line-hooks-use-daily-close-data-ts-L64
 

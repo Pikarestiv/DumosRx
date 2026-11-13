@@ -454,11 +454,6 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** `AdminStoreStorefrontService::setEnabled()` calls `Store::findOrFail()`, and `AdminBaseController::withErrorResponse()` catches every `\Exception` except a validation one, so the `ModelNotFoundException` is logged as an error and returned as a generic 500 "Failed to update the storefront". The new theme endpoint catches it and answers 404.
 - **Fix:** catch `ModelNotFoundException` in `AdminStoreStorefrontController::update()` the way `updateTheme()` does, or let `withErrorResponse()` rethrow it so Laravel renders the 404 for every admin controller.
 
-#### A-360. `client/` — the toast countdown bar always runs 4 seconds, whatever the toast's own duration
-- **Found:** 2026-11-13, review of `feat/service-pos`; deferred.
-- **What's wrong:** `globals.css` animates the bar with `--toast-timer-duration: 4000ms` set once on `[data-sonner-toaster]`, matching `sonner.tsx`'s default `duration={4000}`. A toast passing its own `duration` (`staff-form-dialog.tsx` 8000, `use-post-restore-cloud-link-notice.ts` 20000, `use-auto-lock.ts`) empties its bar long before it closes, and an `Infinity` toast shows a bar that runs out and then sits there.
-- **Fix:** set `--toast-timer-duration` per toast (e.g. a `style` on the toast from the call's `duration`), or hide the bar for any toast whose duration is not the default.
-
 #### A-361. `client/` + `laravel-server/` — `schema-migrations.ts` and `SyncController.php` are far over the 350-line rule
 - **Found:** 2026-11-13, review of `feat/service-pos`; pre-existing (main already had 857 and ~840 lines), the services work added a little to each.
 - **What's wrong:** `client/lib/db/schema-migrations.ts` is 925 lines and `laravel-server/app/Http/Controllers/Api/App/SyncController.php` 846, against `.agents/AGENTS.md` §4.

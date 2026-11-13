@@ -17,7 +17,7 @@ test('a warning toast shows its depleting timer bar (A-370)', async ({ page, bro
   await expect(toast).toContainText('owed');
   const bar = await toast.evaluate((el) => {
     const after = getComputedStyle(el, '::after');
-    return { height: after.height, animation: after.animationName };
+    return { height: after.height, animation: after.animationName, duration: after.animationDuration };
   });
-  expect(bar).toEqual({ height: '5px', animation: 'sonner-deplete' });
+  expect(bar).toEqual({ height: '5px', animation: 'sonner-deplete', duration: '4s' });
 });

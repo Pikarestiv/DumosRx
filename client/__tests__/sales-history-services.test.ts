@@ -104,4 +104,19 @@ describe("sales history counts and names service lines (A-365)", () => {
     expect(row?.item_count).toBe(0);
     expect(row?.item_names ?? null).toBeNull();
   });
+
+  it("names service lines on the Daily Close sales list so a service search finds the sale", async () => {
+    seedSale("s6");
+    seedService("ss6", "s6", "Consultation", 1);
+    seedService("ss7", "s6", "Voided Scan", 1, 1);
+    seedSale("s7");
+    seedItem("si7", "s7", 1);
+    seedService("ss8", "s7", "Fitting", 1);
+
+    const { salesToday } = await sales.getDailyCloseData("2026-09-01");
+    const byId = new Map(salesToday.map((s) => [s.id, s]));
+
+    expect(names(byId.get("s6")?.item_names)).toEqual(["Consultation"]);
+    expect(names(byId.get("s7")?.item_names)).toEqual(["Body Lotion", "Fitting"]);
+  });
 });

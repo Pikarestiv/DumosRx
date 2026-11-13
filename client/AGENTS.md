@@ -2502,8 +2502,12 @@ There are two distinct workflows for selling goods sourced outside the store:
      pushed it within 2px of the quantity stepper (A-368). Each label is `whitespace-nowrap`
      and the row is `flex-wrap`, so wrapping happens between whole chips, never mid-label
      (`pos-cart-item-spot-sourcing-layout.test.tsx`, `e2e/services-pos-sourcing-layout.spec.ts`).
-     The line's name wraps to two lines (`line-clamp-2 break-words`) rather than truncating, and
-     is a focusable `HintTooltip` trigger so hover or focus reveals the full name (A-368).
+     The line's name wraps to two lines (`line-clamp-2 break-words`) rather than truncating
+     (A-368). It is a `type="button"` with `aria-expanded` that drops the clamp on tap, click,
+     Enter or Space and restores it on the next, because the `HintTooltip` around it (kept for
+     hover) never opens on touch, and phone width is where the clamp cuts. Its accessible name
+     is the full product name. A tap does not swipe the row: framer-motion only starts a drag
+     after 3px of movement and removes the line past -70px or -500px/s.
      **Cart panel space (2026-11-13).** The cart list is the only scrolling region and Charge
      is always on screen; everything around the list is kept to one slim row each so a
      six-line cart fits whole at 390×844 and in the 420px desktop column
@@ -2516,10 +2520,15 @@ There are two distinct workflows for selling goods sourced outside the store:
      separate VAT on/off switch and its help text defines 0 as "don't charge VAT", so a rate
      of 0 is "not configured" and there is no explicit-zero case to show. "+ Add discount"
      carries no "₦0" beside it; the applied discount amount still shows. The Subtotal row
-     shows only when it differs from Total (VAT, discount or reward), since it would repeat
-     Total. Cart lines carry no category icon (it cost ~52px of name width). The customer
-     picker is one slim line (name · hint) whose trailing Plus icon sits inside the clickable
-     trigger, and the reseller toggle row is `py-1`.
+     shows whenever VAT or a discount (a reward is applied as a fixed discount) adjusts the
+     sale, and is hidden only when nothing does, since it would then repeat Total. It is not
+     keyed on `subtotal !== total`: VAT is charged on the discounted amount, so VAT and a
+     discount can cancel exactly and leave both rows showing with no Subtotal. Cart lines
+     carry no category icon (it cost ~52px of name width). The customer picker is one slim
+     line (name · hint) whose trailing Plus icon sits inside the clickable trigger; with a
+     customer chosen, name and phone truncate and the "• N pts" figure is a separate
+     `shrink-0` span, so a long name cannot push the points off. The reseller toggle row is
+     `py-1`.
      Don't colour cart text with `text-destructive`: dark `--destructive` is a fill shade
      (1.92:1 as text on the dark footer); "Clear" uses `text-red-700 dark:text-red-400`.
      The swipe-to-delete `bg-destructive` backdrop in `pos-cart-item.tsx` takes its opacity
@@ -3062,6 +3071,17 @@ Expected, the dashboard tiles — unreachable by keyboard. It now takes
 unfocusable div. Pinned by `__tests__/metric-card-keyboard.test.tsx`. Do the
 same for any other card-shaped shortcut rather than re-adding a bare
 `onClick` div.
+
+## A toast with its own duration uses `toastTiming()` (2026-11-13, A-360)
+
+Every toast carries a countdown bar (`app/globals.css`) that runs over
+`--toast-timer-duration`, 4000ms by default to match `components/ui/sonner.tsx`.
+A toast that is not on the default passes `toastTiming(ms)`
+(`lib/utils/toast-timing.ts`) instead of `{ duration: ms }`: it sets that
+variable on the toast's own `style` so the bar empties when the toast closes,
+and hides the bar for `Infinity`. Spread it (`...toastTiming(8000)`) when the
+options carry anything else. A bare `duration` brings back A-360's bar that
+empties early.
 
 ## Render a product name with `<ProductName>`, never bare (2026-10-13)
 

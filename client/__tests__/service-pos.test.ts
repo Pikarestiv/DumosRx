@@ -121,6 +121,13 @@ describe("Service POS (Services catalog, mixed cart, checkout, receipt, and retu
     expect(activeAfterDelete.map((s) => s.id)).not.toContain(s2Id);
   });
 
+  it.each([null, ""])("refuses to create a service with no store (store_id %j)", async (storeId) => {
+    await expect(
+      createService({ store_id: storeId, name: "Orphan", code: null, description: null, category: null, price: 100, is_active: 1 }),
+    ).rejects.toThrow(/store/i);
+    expect(scalar("SELECT COUNT(*) FROM services")).toBe(0);
+  });
+
   it("checks out a mixed cart with physical product and service, updating inventory only for product", async () => {
     db.run(
       `INSERT INTO products (id, store_id, name, selling_price)

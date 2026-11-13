@@ -197,6 +197,6 @@ class PushPayloadNormalizer
         'stock_movements', 'supplier_payments', 'audit_logs',
         'permission_groups', 'loyalty_tiers', 'loyalty_redemption_options',
         'stock_audits', 'held_transactions', 'loyalty_transactions',
-        'customer_payments',
+        'customer_payments', 'services',
     ];
 }

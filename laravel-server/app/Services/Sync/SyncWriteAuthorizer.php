@@ -128,6 +128,10 @@ class SyncWriteAuthorizer
             return in_array($resolvedStoreId, $allowedStoreIds, true);
         }
 
+        if ($tableName === 'services') {
+            return false;
+        }
+
         // Fails open on purpose for legacy rows (docs/SYNC_SERVER_RATIONALE.md).
         if (! isset($model->user_id)) {
             return true;
@@ -185,7 +189,7 @@ class SyncWriteAuthorizer
             'stock_movements', 'supplier_payments', 'requested_products',
             'payment_accounts', 'loyalty_tiers', 'loyalty_redemption_options',
             'stock_audits', 'held_transactions', 'loyalty_transactions',
-            'customer_payments', 'audit_logs', 'permission_groups',
+            'customer_payments', 'audit_logs', 'permission_groups', 'services',
         ];
 
         if (in_array($tableName, $directStoreTables, true)) {

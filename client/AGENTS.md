@@ -7460,6 +7460,7 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
 - **Inventory Services Catalog (`/inventory/services`):**
   - Services are managed in the back-office inventory hub under the `Services` tab (`/inventory/services`) alongside `Catalog` (physical products).
   - Every role reaches the tab (the Inventory nav is not role-gated), so writes reuse the product catalog's permissions: add/edit (including `?action=add`) needs `manage_products` (`canManageStockBatch`), delete needs `delete_products`. With default groups that is owner/admin and manager for all three, specialist for add/edit only, and sales_staff/auditor read-only. Without the permission the buttons, the empty-state action and the dialog itself are not rendered (`services-database-permissions.test.tsx`).
+  - `createService()` throws when `store_id` is empty, and the dialog shows that message: a storeless service was never pulled by any other till and the server could not scope its edits (the server now backfills and guards it too; see `laravel-server/AGENTS.md`, "Service POS & Sync Engine Scoping").
   - Cashiers in POS remain focused strictly on ringing up sales. The POS Services tab includes an `EmptyState` with a direct link to `"Manage Services in Inventory"`.
 - **Unified POS Search Bar:**
   - The top search bar in `POSLayoutHeader` is the single search input for the entire POS, dynamically adapting its placeholder and search target to the active tab (`Products` vs `Services`).

@@ -49,6 +49,7 @@ export async function getServiceById(id: string): Promise<Service | null> {
 export async function createService(
   data: Omit<Service, "id" | "_version" | "_synced" | "_synced_at" | "_deleted">,
 ): Promise<string> {
+  if (!data.store_id) throw new Error("Select a store before adding a service.");
   return insert("services", {
     ...data,
     price: Math.max(0, Number(data.price) || 0),

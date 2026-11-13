@@ -9,6 +9,12 @@ import { useStockVisibility } from "@/lib/hooks/use-stock-visibility";
 import { stockLevel } from "@/lib/utils/stock-status";
 import { useStore } from "@/lib/context/store-context";
 import { isSaleWithoutStockEnabled } from "@/lib/hooks/use-feature-gate";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from "@/components/ui/tooltip";
 import { CategoryIcon } from "./category-icon";
 
 type PosGroup = "suggestion" | "recent" | "common" | "standard";
@@ -68,30 +74,45 @@ export const POSProductCard = memo(function POSProductCard({
     <button
       type="button"
       aria-disabled={isBlocked || undefined}
-      className={`relative w-full text-left p-2 sm:p-3 border rounded-xl sm:rounded-2xl transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:border-ring cursor-pointer ${cardStyle} ${isBlocked ? "opacity-75 grayscale-[0.3]" : ""}`}
+      className={`relative w-full h-full text-left p-2 sm:p-3 border rounded-xl sm:rounded-2xl transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col justify-between outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:border-ring cursor-pointer ${cardStyle} ${isBlocked ? "opacity-75 grayscale-[0.3]" : ""}`}
       onClick={() => addToCart(product)}
     >
-      {indicator}
+      <div className="w-full">
+        {indicator}
 
-      {cartQuantity > 0 && (
-        <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10 flex items-center justify-center min-w-[18px] h-[18px] sm:min-w-[22px] sm:h-[22px] px-1 text-[9px] sm:text-[10px] font-bold text-primary-foreground bg-primary shadow-sm rounded-full">
-          {cartQuantity}
+        {cartQuantity > 0 && (
+          <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10 flex items-center justify-center min-w-[18px] h-[18px] sm:min-w-[22px] sm:h-[22px] px-1 text-[9px] sm:text-[10px] font-bold text-primary-foreground bg-primary shadow-sm rounded-full">
+            {cartQuantity}
+          </div>
+        )}
+
+        {/* Icon Area */}
+        <div className="w-full h-10 sm:h-14 rounded-lg sm:rounded-xl bg-primary/5 text-primary/70 flex items-center justify-center mb-1.5 sm:mb-2.5">
+          <CategoryIcon categoryName={product.category_name} className="h-4 w-4 sm:h-5 sm:w-5" />
         </div>
-      )}
 
-      {/* Icon Area */}
-      <div className="w-full h-10 sm:h-14 rounded-lg sm:rounded-xl bg-primary/5 text-primary/70 flex items-center justify-center mb-1.5 sm:mb-2.5">
-        <CategoryIcon categoryName={product.category_name} className="h-4 w-4 sm:h-5 sm:w-5" />
+        <TooltipProvider delayDuration={1000}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                title={product.name}
+                className={`text-[11.5px] sm:text-[13px] font-semibold leading-tight mb-0.5 sm:mb-1 line-clamp-2 min-h-[2.2rem] sm:min-h-[2.5rem] flex items-start ${capsClass}`}
+              >
+                {product.name}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p className="text-xs">{product.name}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <div className="text-[10px] sm:text-[11px] text-muted-foreground truncate mb-1 sm:mb-2">
+          {product.generic_name || "Generic"} • {product.strength || "-"}
+        </div>
       </div>
 
-      <div className={`text-[11.5px] sm:text-[13px] font-semibold leading-tight mb-0.5 sm:mb-1 line-clamp-2 ${capsClass}`}>
-        {product.name}
-      </div>
-      <div className="text-[10px] sm:text-[11px] text-muted-foreground truncate mb-1 sm:mb-2">
-        {product.generic_name || "Generic"} • {product.strength || "-"}
-      </div>
-
-      <div className="flex items-center justify-between mt-auto pt-0.5 sm:pt-1">
+      <div className="flex items-center justify-between w-full mt-auto pt-0.5 sm:pt-1">
         <div className="text-[12px] sm:text-[13.5px] font-bold text-primary">
           {formatCurrency(product.unit_price, currencyCode)}
         </div>

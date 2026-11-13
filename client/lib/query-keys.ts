@@ -82,7 +82,7 @@ export const queryKeys = {
     commonlySoldIds: () => resource(["commonlySoldIds"] as const, ["sale_items"]),
     saleItems: (saleId?: string) => resource(["saleItems", saleId] as const, ["sale_items"]),
     transactionDetails: (saleId?: string) =>
-      resource(["transactionDetails", saleId] as const, ["sale_items", "returns"]),
+      resource(["transactionDetails", saleId] as const, ["sale_items", "returns", "sale_services", "return_services"]),
     fastMovers: () => resource(["fastMovers"] as const, ["sales", "sale_items", "products"]),
   },
   purchaseOrders: {
@@ -303,5 +303,10 @@ export const queryKeys = {
   accountManager: {
     // Remote API data, not a local table.
     show: () => resource(["accountManager"] as const, []),
+  },
+  services: {
+    all: () => resource(["services"] as const, ["services"]),
+    list: () => resource(["services", "list"] as const, ["services"]),
+    detail: (id: string) => resource(["services", "detail", id] as const, ["services"]),
   },
 } as const;

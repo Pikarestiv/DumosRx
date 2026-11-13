@@ -68,6 +68,9 @@ export function usePOSSystem() {
   const heldSalesCount = heldSalesCountData || 0;
   const {
     products,
+    services,
+    loadingServices,
+    refetchServices,
     loadingProducts,
     productsLoadFailed,
     refetchProducts,
@@ -95,6 +98,7 @@ export function usePOSSystem() {
   const {
     cart,
     addToCart,
+    addServiceToCart,
     updateQuantity,
     removeFromCart,
     clearCart,
@@ -189,6 +193,7 @@ export function usePOSSystem() {
       clearCart,
       setSelectedCustomer,
       products,
+      services,
       restoreCart,
       customers,
       setShowHeldDialog,
@@ -281,6 +286,9 @@ export function usePOSSystem() {
     setShowClearCartDialog,
     heldSalesCount,
     products,
+    services,
+    loadingServices,
+    refetchServices,
     loadingProducts,
     productsLoadFailed,
     refetchProducts,
@@ -331,6 +339,7 @@ export function usePOSSystem() {
     isPrescriptionLocked,
     handleEditPrescription,
     handleAddToCart,
+    addServiceToCart,
     spotSourceProduct,
     setSpotSourceProduct,
     handleSpotSourceConfirm,

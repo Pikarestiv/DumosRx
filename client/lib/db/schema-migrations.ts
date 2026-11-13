@@ -18,12 +18,15 @@ export const STORE_SCOPED_TABLES = [
   "suppliers",
   "sales",
   "sale_items",
+  "sale_services",
   "sale_item_batches",
+  "services",
   "prescriptions",
   "prescription_items",
   "expenses",
   "returns",
   "return_items",
+  "return_services",
   "purchase_orders",
   "purchase_order_items",
   "stock_audits",
@@ -562,6 +565,14 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "store_id TEXT",
     ],
   },
+  {
+    table: "sale_services",
+    columns: ["store_id TEXT"],
+  },
+  {
+    table: "return_services",
+    columns: ["store_id TEXT"],
+  },
   { table: "_sync_queue", columns: ["next_retry_at TEXT"] },
   {
     table: "_sync_state",
@@ -794,6 +805,8 @@ const READ_PATH_INDEXES = [
   `CREATE INDEX IF NOT EXISTS idx_products_name ON products(name)`,
   `CREATE INDEX IF NOT EXISTS idx_products_store_id_barcode ON products(store_id, barcode)`,
   `CREATE INDEX IF NOT EXISTS idx_sync_queue_table_name_record_id ON _sync_queue(table_name, record_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_sale_services_sale_id ON sale_services(sale_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_return_services_return_id ON return_services(return_id)`,
 ];
 
 // How far `sales` may outgrow the row count the last ANALYZE recorded before the stats are rebuilt.
@@ -838,12 +851,67 @@ async function areTableStatsStale(adapter: DbAdapter): Promise<boolean> {
   }
 }
 
+async function ensureServiceTables(adapter: DbAdapter): Promise<void> {
+  await tryRun(adapter, `CREATE TABLE IF NOT EXISTS services (
+    id TEXT PRIMARY KEY,
+    store_id TEXT,
+    name TEXT NOT NULL,
+    code TEXT,
+    description TEXT,
+    category TEXT,
+    price REAL DEFAULT 0,
+    is_active INTEGER DEFAULT 1,
+    created_at TEXT,
+    updated_at TEXT,
+    deleted_at TEXT,
+    _version INTEGER DEFAULT 1,
+    _synced INTEGER DEFAULT 0,
+    _synced_at TEXT,
+    _deleted INTEGER DEFAULT 0
+  )`);
+  await tryRun(adapter, `CREATE TABLE IF NOT EXISTS sale_services (
+    id TEXT PRIMARY KEY,
+    store_id TEXT,
+    sale_id TEXT NOT NULL,
+    service_id TEXT,
+    service_name TEXT NOT NULL,
+    quantity INTEGER DEFAULT 1,
+    unit_price REAL DEFAULT 0,
+    total_price REAL DEFAULT 0,
+    notes TEXT,
+    created_at TEXT,
+    updated_at TEXT,
+    deleted_at TEXT,
+    _version INTEGER DEFAULT 1,
+    _synced INTEGER DEFAULT 0,
+    _synced_at TEXT,
+    _deleted INTEGER DEFAULT 0
+  )`);
+  await tryRun(adapter, `CREATE TABLE IF NOT EXISTS return_services (
+    id TEXT PRIMARY KEY,
+    store_id TEXT,
+    return_id TEXT NOT NULL,
+    sale_service_id TEXT,
+    quantity INTEGER DEFAULT 1,
+    refund_amount REAL DEFAULT 0,
+    reason TEXT,
+    created_at TEXT,
+    updated_at TEXT,
+    deleted_at TEXT,
+    _version INTEGER DEFAULT 1,
+    _synced INTEGER DEFAULT 0,
+    _synced_at TEXT,
+    _deleted INTEGER DEFAULT 0
+  )`);
+}
+
 // The full, ordered migration sequence initDatabase() applies to an existing local database, identical on both backends.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L964
 export async function runSchemaMigrations(
   adapter: DbAdapter,
   persist?: () => Promise<void>,
 ): Promise<void> {
+  await ensureServiceTables(adapter);
   await runSyncColumnMigrations(adapter, SYNC_COLUMN_MIGRATIONS);
   await backfillStoreIdOnLegacyRows(adapter);
   await backfillReceiptContactVisibility(adapter);

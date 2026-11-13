@@ -1446,6 +1446,18 @@ chunk split gives the bounded A-217 shape (the server reads N), and that the
 re-cost UPDATE is accepted. The client keeps an owed row in the same push as its
 sale where it can (`chunkPushQueue()`); the residual cases are A-342.
 
+## `LegacyServicesReturnGate`: prevents legacy terminals from marking mixed sales fully refunded
+
+When a store with multiple terminals operates on mixed client versions (e.g., Terminal 1 on v0.0.42 creating mixed product + service tickets, and Terminal 2 on legacy v0.0.41), the legacy terminal only syncs `sales` and `sale_items` without knowing about `sale_services`. If the legacy terminal attempts to process a return for the physical products, its local logic checks only physical items and attempts to mark `sales.payment_status = 'refunded'`.
+
+`app/Services/Sync/LegacyServicesReturnGate.php`, called from `PushPayloadNormalizer` on every `sales` UPDATE attempting to set `payment_status = 'refunded'`, inspects the sale for active `sale_services`. If any active service line's summed `return_services.quantity` (stored rows plus this push's INSERTs, keyed by row id so a resent stored row is not counted twice) is below its `sale_services.quantity`, the server clamps `payment_status` to `'partially_refunded'`. A stored `return_services` row counts only when both `_deleted = 0` and `deleted_at IS NULL`, so a soft-deleted return line never completes a refund. Existence alone is not enough: one of two units returned, then a legacy full product return, must stay partially refunded.
+
+This ensures physical items are safely restocked and refunded without falsely writing off unrefunded service revenue.
+
+Despite the name, the gate does not read `X-App-Version`: it runs on every push from every client, because a current client never sends `refunded` with service units outstanding, so the clamp is a no-op for it. The class has no `INTRODUCED_IN` constant; 0.0.42 below is only the version that marks when it can be retired.
+
+**Retire it** once no active device reports an `X-App-Version` below `0.0.42`: delete `LegacyServicesReturnGate`, its invocation in `normalizePushPayload()`, and `tests/Feature/LegacyServicesReturnGateTest.php`.
+
 ## Known gotcha: MySQL timezone vs. Laravel's UTC clock
 
 See `.agents/AGENTS.md` §6 for the full writeup (Namecheap shared hosting's
@@ -2026,7 +2038,8 @@ pinned by a direct test so it cannot rot unnoticed.
 **A child UPDATE's new parent must be in scope (A-325).** A child of a
 parent-FK table is owned through its parent (`SyncWriteAuthorizer::PARENT_KEYS`:
 `stock_batches.product_id`, `sale_items.sale_id`, `sale_item_batches.sale_item_id`,
-`return_items.return_id`, `prescription_items.prescription_id`,
+`return_items.return_id`, `sale_services.sale_id`, `return_services.return_id`,
+`prescription_items.prescription_id`,
 `purchase_order_items.purchase_order_id`). `authorizeChangeTarget()` judges the
 stored row, i.e. its current parent, so `repointsToForeignParent()` also judges
 the parent the payload names: when it differs from the stored one and resolves
@@ -2035,7 +2048,7 @@ parks. A resent INSERT runs as an UPDATE and gets the same check; a super admin
 is exempt; restating the stored parent costs no lookup. Parent lookups include
 soft-deleted parents, because the pull serves a voided parent's line items. A
 new parent with no store (legacy `NULL`) or that does not exist is let through,
-as on INSERT: the row then belongs to no store's pull (A-335). Secondary
+as on INSERT: the row then belongs to no store's pull (A-362). Secondary
 references (`sale_items.stock_batch_id`, `purchase_order_items.product_id` and
 the like) do not decide a row's store and are not checked.
 
@@ -4627,4 +4640,25 @@ Because Eloquent's `SoftDeletes` trait automatically adds `WHERE deleted_at IS N
 `withTrashed()` previously excluded soft-deleted staff members from the tenant owner's allowed ownership scope.
 When a store owner pushed a soft-delete (`DELETE` operation) or pushed an update to restore a soft-deleted staff account (`UPDATE` with `_deleted: 0`), `SyncWriteAuthorizer::authorizeChangeTarget()` failed with `"forbidden"`.
 Any query assembling the tenant's allowed user IDs for sync authorization must use `User::withTrashed()`.
+
+## Service POS & Sync Engine Scoping (2026-11-12)
+
+- **Dedicated Services Tables:**
+  - Services are partitioned from inventory via `services`, `sale_services`, and `return_services` tables.
+  - `services` is store-scoped directly by `store_id`, and is in both `PushPayloadNormalizer::STORE_ID_BACKFILL_TABLES` and `SyncWriteAuthorizer`'s direct-store list, so an INSERT that omits `store_id` is stamped with the caller's store. Without the backfill the row landed with `NULL` `store_id`, no other till ever pulled it, and `authorizeChangeTarget()` failed open for it (services has no `user_id`). A `services` row that still resolves no store is refused on UPDATE/DELETE rather than failing open: the table is new, so there are no legacy storeless rows to protect (`SyncPushServiceStoreScopeTest`). The client's `createService()` also refuses a missing `store_id`.
+  - `sale_services` and `return_services` are parent-scoped by `sale_id` and `return_id` (mirrored in `PullTenantScope`, `SyncWriteAuthorizer`, and `CountsSyncedTableRows`). They carry `store_id` to satisfy the client's `STORE_SCOPED_TABLES` helper and multi-tenancy constraints.
+- **Sync Authorizer Parent Keys:**
+  - `SyncWriteAuthorizer::PARENT_KEYS` (`sale_services => sale_id`, `return_services => return_id`) only drives the A-325 *repoint* check on UPDATE. What stops a cross-tenant INSERT is `resolveParentStoreId()`, which resolves `sale_services` through `Sale` and `return_services` through `SaleReturn` beside `sale_items`/`return_items`. Without that branch the row fell back to its own claimed `store_id`, so a tenant could insert a service line under another store's sale (pinned by `SyncPushServiceLineParentScopeTest`). A new parent-FK table needs **both** entries.
+- **Legacy bundles and held carts (`LegacyServicesPullGate`, §11):**
+  - A bundle older than 0.0.42 recalling a held cart drops its `item_type: "service"` lines and then deletes the held row, so the service is lost for every till. The pull therefore withholds `held_transactions` rows whose `items_json` holds a service line from any bundle reporting `X-App-Version` < `LegacyServicesPullGate::INTRODUCED_IN` (or none). Both the compact (`"item_type":"service"`) and MySQL-normalised (`"item_type": "service"`) JSON spellings are matched, because `items_json` is a MySQL `JSON` column that re-serialises with spaces.
+  - Such a cart stays recallable on 0.0.42+ tills only. An old till never sees it; nothing is deleted on the server.
+  - **Withheld held carts do not catch up when the till updates.** The old till's `held_transactions` watermark still advances past the withheld rows on every pull, so after it updates to 0.0.42 its incremental pull starts beyond them and they never arrive on that till unless the row is re-stamped (any later write to it, which bumps `updated_at`) or the till runs Force Full Resync. Other 0.0.42+ tills already have them.
+  - **Old tills mis-recall split spot-sourced carts.** A 0.0.42 split allocation holds two lines for one product, `X` (shelf) and `X:spot_sourced`. A pre-0.0.42 recall rebuilds each line as `{...product}` from the catalog by `product_id`, so both lines come back with the same cart id `X`, catalog price, and no spot-sourcing fields, and the held row is then deleted. The gate does not withhold these carts (it matches only `item_type: "service"`), so the cashier sees two indistinguishable lines that both deduct shelf stock at checkout.
+  - **Both are accepted, not fixed.** Held carts are same-day artifacts: the owner's call is that a held sale older than about 24 hours does not matter, and both cases need a till still on a pre-0.0.42 bundle in the same store as one already on 0.0.42. They go away with the gate.
+  - The same gate drops `services`, `sale_services` and `return_services` from the pull's table list for those bundles. An old client has no local table for them and logged three Sentry events per pull; it never reads them, so omitting them loses nothing. Once the device updates, its first 0.0.42 pull has no watermark for these three services tables and receives them in full. That applies to the services tables only, not to the withheld `held_transactions` rows above.
+  - **Retire** once no active `user_devices` row reports an `app_version` below 0.0.42. That same condition ends both accepted held-cart gaps above: no pre-0.0.42 till is left to withhold from or to mis-recall a split cart.
+- **Web dashboard recent transactions:** `DashboardService::getSummary()` builds each recent sale's `items` with `RecentTransactionLines::forSale()`: product lines as before, then live `sale_services` lines in the same shape (`service_name` as `medicine_name`, no `product_id` key), each tagged `item_type` `product`/`service`. This only adds rows and a field, so an older reader keeps working (§11); no current web screen renders `items` (`DashboardRecentTransactionServicesTest`).
+- **Admin Purge Sweeper:**
+  - `PurgedUserRowSweeper::sweepOrphanedChildren()` cascades sweeps to `sale_services` and `return_services` when parent transactions are purged.
+
 

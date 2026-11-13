@@ -225,11 +225,11 @@ export function POSProductList({
                 </button>
               )}
               {canUseSmartSuggestions && suggestionsList.length > 0 && (
-                <HorizontalScrollFade className="flex gap-3 overflow-x-auto pb-2 px-4 mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory">
+                <HorizontalScrollFade className="flex items-stretch gap-3 overflow-x-auto pb-2 px-4 mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory">
                   {suggestionsList.map((product) => (
                     <div
                       key={product.id}
-                      className="w-[150px] sm:w-[170px] shrink-0 snap-start"
+                      className="w-[150px] sm:w-[170px] shrink-0 snap-start h-full self-stretch flex"
                     >
                       <POSProductCard
                         product={product}
@@ -256,11 +256,11 @@ export function POSProductList({
                   <Clock className="h-3.5 w-3.5 text-blue-500" />
                   Recently sold
                 </div>
-                <HorizontalScrollFade className="flex gap-3 overflow-x-auto pb-2 px-4 mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory">
+                <HorizontalScrollFade className="flex items-stretch gap-3 overflow-x-auto pb-2 px-4 mx-0 sm:px-0 hide-scrollbar snap-x snap-mandatory">
                   {recentlySoldList.map((product) => (
                     <div
                       key={product.id}
-                      className="w-[150px] sm:w-[170px] shrink-0 snap-start"
+                      className="w-[150px] sm:w-[170px] shrink-0 snap-start h-full self-stretch flex"
                     >
                       <POSProductCard
                         product={product}

@@ -119,6 +119,13 @@ describe('base-helpers invalidateQueriesForTable predicate', () => {
     expect(predicate(fakeQuery(['products', 'categories', 'stock_batches']))).toBe(true);
   });
 
+  it('invalidates a sale\'s transaction details when a service line or service return is written', async () => {
+    const details = queryKeys.sales.transactionDetails('sale-1') as unknown as Query;
+    expect((await getCapturedPredicate('sale_services'))(details)).toBe(true);
+    vi.clearAllMocks();
+    expect((await getCapturedPredicate('return_services'))(details)).toBe(true);
+  });
+
   it('falls back to invalidating untagged (not-yet-migrated) queries', async () => {
     const predicate = await getCapturedPredicate('products');
     expect(predicate(fakeQuery(undefined))).toBe(true);

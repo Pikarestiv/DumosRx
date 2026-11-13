@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/utils";
 import { Share2, Wallet, CreditCard, RotateCcw } from "lucide-react";
-import type { CartItem, SpotSourcingConfig } from "@/lib/hooks/use-pos-cart";
+import type { CartItem, SpotSourcingConfig, SpotSourcingSplitOptions } from "@/lib/hooks/use-pos-cart";
 import type { POSProduct } from "@/lib/types/product";
 
 interface SpotSourceDialogProps {
@@ -20,6 +20,7 @@ interface SpotSourceDialogProps {
     config: SpotSourcingConfig,
     quantity?: number,
     sellingPrice?: number,
+    splitOptions?: SpotSourcingSplitOptions,
   ) => void;
   onRevertToShelf?: () => void;
 }
@@ -41,6 +42,9 @@ export function SpotSourceDialog({
     product?.cost_price ??
     0;
 
+  const availableStock = Math.max(0, cartItem?.stock ?? product?.stock ?? 0);
+  const [allocationMode, setAllocationMode] = useState<"split" | "all_external">("split");
+
   const [sourcingCostInput, setSourcingCostInput] = useState(String(defaultCost));
   const [sellingPriceInput, setSellingPriceInput] = useState(String(defaultSelling));
   const [quantityInput, setQuantityInput] = useState(
@@ -58,16 +62,23 @@ export function SpotSourceDialog({
     setQuantityInput(String(cartItem?.quantity ?? 1));
     setPaymentSource(cartItem?.sourcing_payment_source ?? "cash_drawer");
     setPartner(cartItem?.sourcing_partner ?? "");
+    setAllocationMode("split");
   }, [open, cartItem, product, defaultCost, defaultSelling]);
 
   const sourcingCost = Math.max(0, parseFloat(sourcingCostInput) || 0);
   const sellingPrice = Math.max(0, parseFloat(sellingPriceInput) || 0);
   const quantity = Math.max(1, parseInt(quantityInput, 10) || 1);
 
+  const isSplitEligible = availableStock > 0 && quantity > availableStock && !cartItem?.is_spot_sourced;
+  const isSplitActive = isSplitEligible && allocationMode === "split";
+  const effectiveSpotQty = isSplitActive ? quantity - availableStock : quantity;
+  const effectiveShelfQty = isSplitActive ? availableStock : 0;
+
   const unitProfit = sellingPrice - sourcingCost;
-  const totalProfit = unitProfit * quantity;
-  const marginPct =
-    sellingPrice > 0 ? ((unitProfit) / sellingPrice) * 100 : 0;
+  const totalProfit = isSplitActive
+    ? effectiveShelfQty * (sellingPrice - defaultCost) + effectiveSpotQty * unitProfit
+    : unitProfit * quantity;
+  const marginPct = sellingPrice > 0 ? (unitProfit / sellingPrice) * 100 : 0;
 
   const handleSave = () => {
     onConfirm(
@@ -76,11 +87,18 @@ export function SpotSourceDialog({
         sourcingCost,
         paymentSource,
         partner: partner.trim() || undefined,
-        quantity,
+        quantity: effectiveSpotQty,
         sellingPrice,
       },
       quantity,
       sellingPrice,
+      isSplitActive
+        ? {
+            isSplit: true,
+            shelfQuantity: effectiveShelfQty,
+            spotQuantity: effectiveSpotQty,
+          }
+        : undefined,
     );
     onOpenChange(false);
   };
@@ -173,6 +191,44 @@ export function SpotSourceDialog({
           </div>
         </div>
 
+        {isSplitEligible && (
+          <div className="rounded-xl border border-amber-200 dark:border-amber-900/50 p-2.5 bg-amber-50/40 dark:bg-amber-950/20 space-y-1.5">
+            <Label className="text-[11.5px] font-semibold block text-amber-950 dark:text-amber-200">
+              Inventory Allocation ({availableStock} on shelf, {quantity} requested)
+            </Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setAllocationMode("split")}
+                className={`p-2 rounded-lg border text-left transition-all ${
+                  allocationMode === "split"
+                    ? "border-primary bg-primary/10 ring-1 ring-primary"
+                    : "border-border hover:bg-muted/40"
+                }`}
+              >
+                <div className="text-xs font-bold text-foreground">Split Allocation</div>
+                <div className="text-[10.5px] text-muted-foreground leading-snug">
+                  Sell {availableStock} from shelf; source {effectiveSpotQty} outside.
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAllocationMode("all_external")}
+                className={`p-2 rounded-lg border text-left transition-all ${
+                  allocationMode === "all_external"
+                    ? "border-primary bg-primary/10 ring-1 ring-primary"
+                    : "border-border hover:bg-muted/40"
+                }`}
+              >
+                <div className="text-xs font-bold text-foreground">Source All Outside</div>
+                <div className="text-[10.5px] text-muted-foreground leading-snug">
+                  Keep shelf stock untouched (damaged or reserved).
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
         <div>
           <div className="flex items-center justify-between mb-1">
             <Label className="text-xs font-semibold">Sourcing Cost (Unit Cost Paid Outside)</Label>
@@ -190,24 +246,43 @@ export function SpotSourceDialog({
         </div>
 
         <div className="rounded-xl border border-border p-3 bg-muted/20 space-y-1 text-xs">
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Selling Price:</span>
-            <span className="font-medium">{formatCurrency(sellingPrice, currencyCode)} each</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Sourcing Cost:</span>
-            <span className="font-medium">{formatCurrency(sourcingCost, currencyCode)} each</span>
-          </div>
+          {isSplitActive ? (
+            <>
+              <div className="flex justify-between items-center text-muted-foreground">
+                <span>Shelf allocation ({effectiveShelfQty} units):</span>
+                <span>{formatCurrency(defaultSelling * effectiveShelfQty, currencyCode)}</span>
+              </div>
+              <div className="flex justify-between items-center text-muted-foreground">
+                <span>Spot sourced ({effectiveSpotQty} units):</span>
+                <span>{formatCurrency(sellingPrice * effectiveSpotQty, currencyCode)}</span>
+              </div>
+              <div className="flex justify-between items-center text-amber-700 dark:text-amber-400 font-medium">
+                <span>External cash payout:</span>
+                <span>{formatCurrency(effectiveSpotQty * sourcingCost, currencyCode)}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Selling Price:</span>
+                <span className="font-medium">{formatCurrency(sellingPrice, currencyCode)} each</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Sourcing Cost:</span>
+                <span className="font-medium">{formatCurrency(sourcingCost, currencyCode)} each</span>
+              </div>
+            </>
+          )}
           <div className="border-t border-border/60 pt-1 mt-1 flex justify-between items-center">
             <span className="font-semibold text-foreground">Estimated Profit:</span>
             <span
               className={`font-bold ${
-                unitProfit >= 0
+                totalProfit >= 0
                   ? "text-emerald-600 dark:text-emerald-400"
                   : "text-rose-600 dark:text-rose-400"
               }`}
             >
-              {unitProfit >= 0 ? "+" : ""}
+              {totalProfit >= 0 ? "+" : ""}
               {formatCurrency(totalProfit, currencyCode)} ({marginPct.toFixed(1)}% margin)
             </span>
           </div>

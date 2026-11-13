@@ -52,6 +52,13 @@ export const PAGE_ROUTES: PageRoute[] = [
     secondaryActionAdminOnly: true,
   },
   {
+    path: "/inventory/services",
+    title: "Services Catalog",
+    desc: "Manage walk-in spa, styling, clinic, or repair services.",
+    action: { label: "Add Service", path: "/inventory/services?action=add" },
+    actionAdminOnly: true,
+  },
+  {
     path: "/inventory/overview",
     title: "Inventory Dashboard",
     desc: "Overview of your inventory health and metrics.",

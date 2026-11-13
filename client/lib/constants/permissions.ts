@@ -222,7 +222,7 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "view_sales_history", // pos-main-tab-nav.tsx, pos-system.tsx
   "reprint_receipt", // transaction-details-dialog.tsx
   "run_daily_close", // reports/daily-close/daily-close-header.tsx; assistant "Run daily close" help topic
-  "manage_products", // transfer-stock-dialog.tsx, auth-context.tsx (canManageStockBatch); assistant "Add a product" help topic
+  "manage_products", // transfer-stock-dialog.tsx, auth-context.tsx (canManageStockBatch), services-database.tsx (add/edit services); assistant "Add a product" help topic
   "adjust_stock_counts", // catalog-row.tsx, catalog-list.tsx, stock-adjustments-ledger.tsx, dashboard-page-routes.ts; assistant "Adjust stock" help topic
   "manage_purchase_orders", // purchase-order-details.tsx, procurement/new + /edit routes, dashboard-page-routes.ts; assistant "Create a purchase order" help topic
   "receive_purchase_orders", // purchase-order-details.tsx
@@ -235,7 +235,7 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "perform_stock_audit", // dashboard-header.tsx, stock-batch-management.tsx, use-stock-batch-management.ts; assistant "Start a stock audit" help topic
   "view_stock_adjustment_history", // stock-batch-tab-nav.tsx, stock-batch-management.tsx, use-stock-batch-management.ts (Movements + Adjustments tabs)
   "print_product_labels", // catalog-detail-panel.tsx, catalog-list.tsx/catalog-row.tsx (opens barcode-print-dialog.tsx)
-  "delete_products", // catalog-detail-panel.tsx, catalog-list.tsx/catalog-row.tsx (opens product-delete-dialog.tsx)
+  "delete_products", // catalog-detail-panel.tsx, catalog-list.tsx/catalog-row.tsx (opens product-delete-dialog.tsx), services-database.tsx (opens service-delete-dialog.tsx)
   "delete_suppliers", // supplier-detail-pane.tsx (opens supplier-delete-dialog.tsx)
   "view_stock_quantities", // use-stock-visibility.ts via pos-product-list.tsx, use-pos-cart.ts, transfer-stock-dialog.tsx, online-orders-modal.tsx, needs-attention.tsx, catalog-list.tsx, catalog-detail-panel.tsx; assistant product_stock tool (status word instead of the number, never denies)
   "export_product_list", // import-export-toolbar.tsx

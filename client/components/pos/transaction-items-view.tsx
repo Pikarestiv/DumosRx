@@ -10,16 +10,18 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 import { RotateCcw } from "lucide-react";
-import type { SaleItemDetail } from "@/lib/types/sale";
+import type { SaleItemDetail, SaleServiceDetail } from "@/lib/types/sale";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { LinePriceNote } from "@/components/pos/price-adjustment-badge";
 
 export function TransactionItemsView({
   items,
+  services,
   currencyCode,
 }: {
   items: SaleItemDetail[];
+  services?: SaleServiceDetail[];
   currencyCode?: string;
 }) {
   const capsClass = useUppercaseDisplayClass();
@@ -67,6 +69,32 @@ export function TransactionItemsView({
                 </TableCell>
                 <TableCell className="text-right font-semibold">
                   {formatCurrency(item.total_price, currencyCode)}
+                </TableCell>
+              </TableRow>
+            ))}
+            {services?.map((svc: SaleServiceDetail) => (
+              <TableRow key={svc.id}>
+                <TableCell className={`font-medium ${capsClass}`}>
+                  <span className="flex items-center gap-2">
+                    {svc.service_name || svc.name || "Service"}
+                    <span className="text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                      Service
+                    </span>
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <span>{svc.quantity}</span>
+                  {(svc.returned_quantity ?? 0) > 0 && (
+                    <span className="text-destructive text-xs ml-1 font-medium block">
+                      (-{svc.returned_quantity} returned)
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right text-muted-foreground">
+                  {formatCurrency(svc.unit_price, currencyCode)}
+                </TableCell>
+                <TableCell className="text-right font-semibold">
+                  {formatCurrency(svc.total_price ?? svc.unit_price * svc.quantity, currencyCode)}
                 </TableCell>
               </TableRow>
             ))}
@@ -123,6 +151,47 @@ export function TransactionItemsView({
               <div className="mt-2 pt-2 border-t border-destructive/10 text-[12px] font-semibold text-destructive flex items-center">
                 <RotateCcw className="w-3 h-3 mr-1" />
                 {item.returned_quantity} units returned
+              </div>
+            )}
+          </div>
+        ))}
+        {services?.map((svc: SaleServiceDetail) => (
+          <div
+            key={svc.id}
+            className="bg-card border border-border rounded-[14px] p-3.5 shadow-sm"
+          >
+            <div className={`font-semibold text-[14px] text-foreground mb-2 leading-tight flex items-center justify-between ${capsClass}`}>
+              <span>{svc.service_name || svc.name || "Service"}</span>
+              <span className="text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                Service
+              </span>
+            </div>
+            <div className="flex justify-between items-center text-[13px] mb-2.5">
+              <span className="text-muted-foreground">
+                Qty:{" "}
+                <span className="font-semibold text-foreground ml-1">
+                  {svc.quantity}
+                </span>
+              </span>
+              <span className="text-muted-foreground">
+                Price:{" "}
+                <span className="font-medium text-foreground ml-1">
+                  {formatCurrency(svc.unit_price, currencyCode)}
+                </span>
+              </span>
+            </div>
+            <div className="flex justify-between items-center pt-2.5 border-t border-border/60">
+              <span className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">
+                Total
+              </span>
+              <span className="font-bold text-[15px] text-primary">
+                {formatCurrency(svc.total_price ?? svc.unit_price * svc.quantity, currencyCode)}
+              </span>
+            </div>
+            {(svc.returned_quantity ?? 0) > 0 && (
+              <div className="mt-2 pt-2 border-t border-destructive/10 text-[12px] font-semibold text-destructive flex items-center">
+                <RotateCcw className="w-3 h-3 mr-1" />
+                {svc.returned_quantity} units returned
               </div>
             )}
           </div>

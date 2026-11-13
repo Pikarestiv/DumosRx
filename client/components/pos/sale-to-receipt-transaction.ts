@@ -1,9 +1,9 @@
-import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
+import type { SaleWithDetails, SaleItemDetail, SaleServiceDetail } from "@/lib/types/sale";
 import type { ReceiptTransaction } from "./receipt-view";
 
 export function saleToReceiptTransaction(
   sale: SaleWithDetails,
-  items: SaleItemDetail[],
+  items: (SaleItemDetail | SaleServiceDetail)[],
 ): ReceiptTransaction {
   let paymentSplits;
   if (sale.payment_method === "mixed" && sale.payment_details) {
@@ -24,7 +24,10 @@ export function saleToReceiptTransaction(
     cashier: sale.cashier_name || sale.user_name || sale.cashier,
     items: items.map((item) => ({
       id: item.id,
-      name: item.product_name || item.name || "Unknown Item",
+      name:
+        "service_name" in item && item.service_name
+          ? `${item.service_name} (Service)`
+          : ("product_name" in item ? item.product_name : item.name) || "Unknown Item",
       quantity: item.quantity,
       unit_price: item.unit_price,
       subtotal: item.total_price ?? item.subtotal ?? item.unit_price * item.quantity,

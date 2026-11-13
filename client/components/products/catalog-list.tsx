@@ -83,7 +83,8 @@ export function CatalogList({
   const showCostColumn = useHasPermission("view_cost_fields");
   const canEditSellingPrice = useHasPermission("edit_product_price");
   const canAdjustStockQuantity = useHasPermission("adjust_stock_counts");
-  const showStockQuantity = useStockVisibility().canSeeQuantities || canAdjustStockQuantity;
+  const showStockQuantity =
+    useStockVisibility().canSeeQuantities || canAdjustStockQuantity;
   const canPrintLabels = useHasPermission("print_product_labels");
   const canDeleteProducts = useHasPermission("delete_products");
   const [showRequestDialog, setShowRequestDialog] = useState(false);
@@ -192,7 +193,9 @@ export function CatalogList({
       )}
 
       {/* Header */}
-      <div className={`hidden sm:grid gap-2 ${showCostColumn ? CATALOG_GRID_COLS.withCost : CATALOG_GRID_COLS.withoutCost} px-4 py-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wide border-b border-border shrink-0`}>
+      <div
+        className={`hidden sm:grid gap-2 ${showCostColumn ? CATALOG_GRID_COLS.withCost : CATALOG_GRID_COLS.withoutCost} px-4 py-2.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wide border-b border-border shrink-0`}
+      >
         <SortableHeaderCell
           label="Product"
           active={sortKey === "name"}
@@ -241,7 +244,7 @@ export function CatalogList({
       {/* Rows */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto stable-scrollbar py-3 sm:py-0 mb-4"
+        className="flex-1 overflow-y-auto stable-scrollbar pb-3 sm:py-0 mb-4"
       >
         {isLoading && filteredProducts.length === 0 && <CatalogListSkeleton />}
         {!isLoading && loadFailed && (
@@ -249,7 +252,9 @@ export function CatalogList({
             icon={AlertCircle}
             title="Couldn't load the catalog on this device"
             description="The product list couldn't be read from this device's local database. Nothing is lost — try again."
-            action={onRetryLoad ? { label: "Retry", onClick: onRetryLoad } : undefined}
+            action={
+              onRetryLoad ? { label: "Retry", onClick: onRetryLoad } : undefined
+            }
           />
         )}
         {!isLoading && !loadFailed && filteredProducts.length === 0 && (

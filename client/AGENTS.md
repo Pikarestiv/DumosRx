@@ -2484,9 +2484,26 @@ There are two distinct workflows for selling goods sourced outside the store:
    is off-site and cannot raise purchase orders or reconcile backorders at EOD.
    When a walk-in customer requests an out-of-stock item, a cashier can run to a
    neighboring pharmacy or partner shop, buy the units, and ring them up immediately:
-   - **Trigger & UI:** Clicking or barcode-scanning an out-of-stock product (when
-     `canSellWithoutStock` is off) or clicking "Source outside" / the "Spot Sourced"
-     badge on a cart line opens `SpotSourceDialog`.
+   - **Trigger & UI:** When an item has `stock <= 0` or `quantity > stock`, the cart
+     shows an amber `"Source outside"` pill with the status (`"Out of stock"` or `"N short"`)
+     as separate text beside it. For well-stocked items (`stock >= quantity`) a quieter
+     `text-muted-foreground` "Source outside" link is always visible (for damaged or reserved
+     shelf units); it used to be `opacity-0` until hover, which hid it on touch tills.
+     Clicking either opens `SpotSourceDialog`. The controls live in
+     `components/pos/pos-cart-item-sourcing.tsx`. Each label is `whitespace-nowrap` and the
+     row is `flex-wrap`, so a narrow (~380px) cart wraps whole chips rather than mid-label
+     (`pos-cart-item-spot-sourcing-layout.test.tsx`).
+   - **Partial Spot Sourcing (Split Allocation):** When a customer requests more units
+     than exist on shelf (e.g. 5 requested, 2 on shelf), `SpotSourceDialog` defaults to
+     **Split Allocation**:
+     1. Shelf allocation (2 units): Deducted from store inventory batches via FEFO at
+        standard inventory cost.
+     2. Spot-sourced line (3 units): Sourced externally (`id: `${product.id}:spot_sourced``,
+        `product_id: product.id`), with external sourcing cost and partner metadata.
+     Cash drawer payouts apply strictly to the 3 spot-sourced units ($3 \times \text{cost}$),
+     leaving the 2 shelf units properly depleted and eliminating phantom inventory and
+     inflated drawer expense payouts. A toggle allows cashiers to "Source all externally"
+     if the shelf units are unusable/damaged.
    - **Sourcing Cost, Selling Price & Margin:** Staff enters the agreed buying cost
      (e.g. ₦1,700), quantity, and selling price (e.g. ₦2,000). `buildNewCartItem`
      and `applySpotSourcingConfig` keep `original_unit_price` pinned to the catalog
@@ -2500,21 +2517,18 @@ There are two distinct workflows for selling goods sourced outside the store:
      `isSpotSourced: true` writes `sale_items` with `cost_price = sourcingCost`
      and immediately returns without deducting `stock_batches` or recording
      `stock_movements`. No phantom negative stock or owed backorder is created.
-   - **Automated Cash Drawer Reconciliation Without P&L Double-Counting:** In
-     `lib/hooks/pos-sale-writer.ts`, if `sourcing_payment_source === "cash_drawer"`,
-     an expense row is inserted atomically inside the sale transaction
-     (`category = SPOT_SOURCING_EXPENSE_CATEGORY` (`"Stock Sourcing"`),
-     `payment_method = "cash"`, `date = getLocalTodayDate()`,
-     `reference_number = transactionNumber`). `getCashExpensesForDate` includes this
-     row so Daily Close `Net Cash Expected` deducts the physical cash taken from the
-     drawer, while P&L operating expense queries (`getSmoothedExpensesTotal`,
-     `getCurrentMonthExpensesByCategory`, `getExpensesAttributableToDate`, and
-     `getSmoothedExpensesByMonth`) explicitly exclude `category = 'Stock Sourcing'`
-     because the sourcing cost is already accounted for in COGS (`sale_items.cost_price`).
-   - **Owner Credit / External:** If `sourcing_payment_source === "external"`, no
-     drawer expense is created.
+   - **Cash Drawer Reconciliation Without P&L Double-Counting:** No `expenses` row is
+     written for a spot-sourced line (pinned by `pos-spot-sourcing-split.test.ts`). Daily
+     Close derives the drawer payout from `payment_details.spot_sourcing`
+     (`spotSourcingCashPayouts` in `lib/hooks/use-daily-close-data.ts`: `unit_cost × quantity`
+     for `payment_source` `cash_drawer`/`till_drawer`), and the sourcing cost reaches P&L only
+     as COGS through `sale_items.cost_price`. `"external"` (owner credit) adds no payout.
    - **Audit Trail:** The sale's `payment_details.spot_sourcing` persists the
      structured metadata array, and a summary is appended to `sales.notes`.
+   - **Return badge:** `payment_details.spot_sourcing` names products, not sale lines, so the
+     return dialog flags a line with `isSpotSourcedSaleLine()` (`lib/utils/spot-sourcing.ts`):
+     product listed **and** `stock_batch_id` null. A spot line is always written without a
+     batch, and the shelf half of a split always has one, so only the spot half is badged.
 
 2. **Delayed Paperwork & PO Sourcing (Back-office / Bulk):**
    When physical delivery has arrived or units were taken in bulk from another branch
@@ -7426,5 +7440,35 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
   - Cash shortfall alert displays a 1-click **"Pay Exact ({total})"** button beside the shortfall text so the cashier can instantly resolve shortages with one tap without manual retyping.
   - `<QuickCashTender />` displays smart tender chips (`Exact`, rounded bill denominations such as ₦1,000, ₦2,000, ₦5,000) for rapid cash handling.
   - In `PaymentSplits`, when splits under-cover the total, the exact shortfall is shown alongside a 1-click **"Cover Remaining ({shortage})"** button that fills the remaining balance into the split automatically.
+
+## Service POS (Walk-In Services Alongside Physical Products)
+
+- **Separate Tables & Data Isolation:**
+  - Services are managed via dedicated `services`, `sale_services`, and `return_services` tables on both SQLite and MySQL rather than overloading `products` or `stock_batches`.
+  - Services generate pure revenue in `sales` and detail line snapshots in `sale_services`. They never receive rows in `stock_movements`, `stock_batches`, or `sale_items`.
+- **Historical Immutability:**
+  - At checkout, `writeSaleTransaction` snapshots `service_name` and `unit_price` directly onto `sale_services`. Subsequent price or name changes in the `services` catalog never mutate past financial receipts.
+- **Held service lines keep their quote:** recalling a held cart keeps a service's `unit_price` *and* its held `original_unit_price` (the catalog price when it was rung up); it never resets `original_unit_price` to today's catalog price, which would make a reprice look like a cashier override. The "catalog prices have changed" notice compares the catalog price to the held `original_unit_price`, so a cashier's own override is not reported as a reprice.
+- **Mixed Cart Checkout:**
+  - `usePOSCart` supports mixed carts with both `item_type: "product"` and `item_type: "service"`.
+  - Services bypass inventory stock validation, out-of-stock gating, and spot-sourcing dialogs.
+  - At payment execution, stock is decremented and recorded in `stock_movements` solely for physical items.
+- **Returns & Refunds:**
+  - Service returns insert into `return_services` and cleanly reverse revenue without creating phantom inventory restocks or damage write-offs.
+  - A mixed return considers a sale fully refunded (`payment_status = 'refunded'`) only when all physical products AND all services on the sale have been completely returned.
+  - Service completeness is read from SQLite after this return's `return_services` rows are written (`getSaleServices()`' summed `returned_quantity` against `quantity`), not from a caller-supplied list. The dialog used to pass a mapped list without `returned_quantity`, so a qty-2 service returned in two goes never reached `refunded` (pinned by `process-return-partial-services.test.ts`).
+- **POS services query:** `usePOSData` reads services through `queryKeys.services.list()` with `getServices({ storeId: getActiveStoreId() })`, so a multi-store owner never sees another store's services or a cache from the store they just switched away from. `queryKeys.sales.transactionDetails` is tagged with `sale_services` and `return_services` so a service return refreshes an open receipt.
+- **Views that list a sale's lines must read `sale_services` too.** `getCustomerTransactions()` (customer purchase history) counts and names service lines beside product lines (`customer-purchase-history-services.test.ts`). `sales.ts`'s history/recent-sales summaries (A-365) and the BI report (A-364) still read `sale_items` only.
+- **Clearing the cart:** `usePOSCart().clearCart()` calls `clearPOSCartContents()`, which empties the cart, discount, redeemed option and reseller state but keeps the cashier's chosen `discountType` for the next sale. `clearPOSCartStorage()` (store switch, logout) also resets `discountType` to `"fixed"` (`use-pos-cart-reseller.test.ts`).
+- **Inventory Services Catalog (`/inventory/services`):**
+  - Services are managed in the back-office inventory hub under the `Services` tab (`/inventory/services`) alongside `Catalog` (physical products).
+  - Every role reaches the tab (the Inventory nav is not role-gated), so writes reuse the product catalog's permissions: add/edit (including `?action=add`) needs `manage_products` (`canManageStockBatch`), delete needs `delete_products`. With default groups that is owner/admin and manager for all three, specialist for add/edit only, and sales_staff/auditor read-only. Without the permission the buttons, the empty-state action and the dialog itself are not rendered (`services-database-permissions.test.tsx`).
+  - `createService()` throws when `store_id` is empty, and the dialog shows that message: a storeless service was never pulled by any other till and the server could not scope its edits (the server now backfills and guards it too; see `laravel-server/AGENTS.md`, "Service POS & Sync Engine Scoping").
+  - Cashiers in POS remain focused strictly on ringing up sales. The POS Services tab includes an `EmptyState` with a direct link to `"Manage Services in Inventory"`.
+- **Unified POS Search Bar:**
+  - The top search bar in `POSLayoutHeader` is the single search input for the entire POS, dynamically adapting its placeholder and search target to the active tab (`Products` vs `Services`).
+  - Redundant duplicate search bars inside the Services tab are removed on desktop, leaving only a mobile input on small screens.
+
+
 
 

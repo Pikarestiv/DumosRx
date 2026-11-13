@@ -386,6 +386,20 @@ architectural notes this entry doesn't repeat.
 
 ## 🟠 Medium (3–5 days)
 
+### Product & Service Images Feature
+
+- **Description:** Support uploading and displaying product photos and service banner/thumbnail images across the POS catalog, inventory tables, and customer-facing storefronts.
+- **Value:**
+  - Speeds up cashier recognition on touchscreens in high-volume retail, beauty salons, spas, and supermarkets where item names are similar.
+  - Directly enhances the public online storefront with visual product showcases.
+  - Provides visual line items on digital receipts and customer-facing displays.
+- **Architectural & Offline Constraints:**
+  - **No raw binary blobs in SQLite/MySQL:** Never store image base64 strings directly in SQLite or MySQL rows to avoid severe database bloat and sync engine throttling.
+  - **Cloud Media Storage & CDN:** Uploads are dispatched to S3-compatible cloud storage (e.g., Cloudflare R2 or GCS) via signed URLs from `laravel-server`, saving only optimized public CDN URLs in `products.image_url` and `services.image_url`.
+  - **Offline Client Caching:** Client Tauri/PWA caches thumbnail-sized WebP assets locally (via Cache Storage / IndexedDB), ensuring images remain available even when the till loses internet connection.
+  - **Graceful Fallbacks & Low-Spec Mode:** Defaults back to lightweight category SVG icons whenever an image is missing or offline. Adds a store display setting toggle ("Show images in POS grid") so low-memory devices can disable images for maximum rendering speed.
+- **Effort:** ~3–4 days (storage endpoints, image resizing pipeline, local cache adapter, catalog/POS card thumbnail components).
+
 ### Migration System — real client blocker, existing build doesn't cover her actual file (Flagged urgent, 2026-08-27)
 
 - **Current state, confirmed via code trace:** a "QuickBooks import" already exists (`client/components/settings/quickbooks-import-dialog.tsx` + `client/lib/utils/iif-parser.ts`) but only parses the old tab-delimited **`.IIF`** export format with fixed `!INVITEM`/`!CUST` headers. It has never actually been tested against a real client file.

@@ -43,12 +43,15 @@ trait CountsSyncedTableRows
         'suppliers',
         'sales',
         'sale_items',
+        'sale_services',
         'sale_item_batches',
         'prescriptions',
         'prescription_items',
         'expenses',
         'returns',
         'return_items',
+        'return_services',
+        'services',
         'purchase_orders',
         'purchase_order_items',
         'stock_audits',
@@ -98,6 +101,10 @@ trait CountsSyncedTableRows
                 'sale_id',
                 Sale::withTrashed()->select('id')->where('store_id', $storeId),
             ),
+            'sale_services' => $query->whereIn(
+                'sale_id',
+                Sale::withTrashed()->select('id')->where('store_id', $storeId),
+            ),
             'sale_item_batches' => $query->whereIn(
                 'sale_item_id',
                 SaleItem::withTrashed()->select('id')->whereIn(
@@ -106,6 +113,10 @@ trait CountsSyncedTableRows
                 ),
             ),
             'return_items' => $query->whereIn(
+                'return_id',
+                SaleReturn::withTrashed()->select('id')->where('store_id', $storeId),
+            ),
+            'return_services' => $query->whereIn(
                 'return_id',
                 SaleReturn::withTrashed()->select('id')->where('store_id', $storeId),
             ),

@@ -1,7 +1,8 @@
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
-import { isFullyReturned } from "@/lib/utils/returns-calculations";
+import { isFullyReturned, getMaxReturnable } from "@/lib/utils/returns-calculations";
+import { getSaleServices } from "@/lib/db/queries/services";
 import { insert, update, query, transaction } from "@/lib/db/local-database";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import { recordReturnDisposition } from "@/lib/db/queries/returns";
@@ -21,6 +22,17 @@ export type ReturnableItem = SaleItemDetail & {
   stock_batch_id?: string;
 };
 
+export type ReturnableService = {
+  id: string;
+  saleServiceId?: string;
+  serviceId?: string | null;
+  serviceName?: string;
+  quantity: number;
+  returnQuantity: number;
+  unitPrice: number;
+  reason?: string;
+};
+
 interface ProcessReturnParams {
   sale: SaleWithDetails;
   userId?: string;
@@ -28,6 +40,7 @@ interface ProcessReturnParams {
   totalRefund: number;
   itemsToReturn: ReturnableItem[];
   saleItems: SaleItemDetail[];
+  servicesToReturn?: ReturnableService[];
   currencyCode?: string;
 }
 
@@ -40,6 +53,7 @@ export function useProcessReturnMutation() {
       totalRefund,
       itemsToReturn,
       saleItems,
+      servicesToReturn,
     }: ProcessReturnParams) => {
       // returns.user_id is a constrained foreign key server-side, so a sentinel written here only fails much later and somewhere else:
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-process-return-mutation-ts-L40
@@ -90,12 +104,27 @@ export function useProcessReturnMutation() {
           });
         }
 
+        if (servicesToReturn && servicesToReturn.length > 0) {
+          for (const srv of servicesToReturn) {
+            if (srv.returnQuantity <= 0) continue;
+            await insert("return_services", {
+              return_id: returnId,
+              sale_service_id: srv.saleServiceId || srv.id,
+              quantity: srv.returnQuantity,
+              refund_amount: roundMoney(srv.unitPrice * srv.returnQuantity),
+              reason: srv.reason || reason || null,
+            });
+          }
+        }
+
         // 3. Mark sale as returned once every line item's full remaining balance has been returned (across this and any prior returns), not just when…
         // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-process-return-mutation-ts-L87
-        const allItemsReturned = isFullyReturned(
-          saleItems,
-          itemsToReturn.map((i) => ({ id: i.id, returnQuantity: i.returnQuantity })),
-        );
+        const allItemsReturned =
+          isFullyReturned(
+            saleItems,
+            itemsToReturn.map((i) => ({ id: i.id, returnQuantity: i.returnQuantity })),
+          ) &&
+          (await getSaleServices(sale.id)).every((s) => getMaxReturnable(s) === 0);
         const [storedSale] = await query<Sale>(`SELECT * FROM sales WHERE id = ?`, [sale.id]);
         const resellerPatch = resellerPatchAfterReturn(
           storedSale ?? sale,

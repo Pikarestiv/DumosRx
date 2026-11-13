@@ -1,11 +1,11 @@
 "use client";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import type { SaleWithDetails } from "@/lib/types/sale";
-import type { POSProduct } from "@/lib/types/product";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { usePOSSystem } from "@/lib/hooks/use-pos-system";
 import { POSLayoutHeader } from "./pos-layout-header";
 import { POSProductList } from "./pos-product-list";
+import { POSServiceList } from "./pos-service-list";
 import { POSCategoryFilter } from "./pos-category-filter";
 import { POSMainTabNav } from "./pos-main-tab-nav";
 import { POSTransactionHistory } from "./pos-transaction-history";
@@ -18,39 +18,14 @@ import { useHasPermission } from "@/lib/hooks/use-permissions";
 
 export function POSSystem() {
   const {
-    t,
-    storeProfile,
-    vatPercentage,
-    searchInputRef,
-    activeTab,
-    handleTabChange,
-    searchTerm,
-    setSearchTerm,
-    categoryFilter,
-    setCategoryFilter,
-    isMobileScannerOpen,
-    setIsMobileScannerOpen,
-    selectedCustomer,
-    setSelectedCustomer,
-    showReturnDialog,
-    setShowReturnDialog,
-    saleToReturn,
-    setSaleToReturn,
-    showHeldDialog,
-    setShowHeldDialog,
-    showClearCartDialog,
-    setShowClearCartDialog,
-    heldSalesCount,
-    loadingProducts,
-    productsLoadFailed,
-    refetchProducts,
-    recentSales,
-    refetchSales,
-    recentlySoldIds,
-    commonlySoldIds,
-    customers,
-    loadingCustomers,
-    paymentAccounts,
+    t, storeProfile, vatPercentage, searchInputRef, activeTab, handleTabChange,
+    searchTerm, setSearchTerm, categoryFilter, setCategoryFilter,
+    isMobileScannerOpen, setIsMobileScannerOpen, selectedCustomer, setSelectedCustomer,
+    showReturnDialog, setShowReturnDialog, saleToReturn, setSaleToReturn,
+    showHeldDialog, setShowHeldDialog, showClearCartDialog, setShowClearCartDialog,
+    heldSalesCount, services, loadingServices, loadingProducts, productsLoadFailed,
+    refetchProducts, recentSales, refetchSales, recentlySoldIds, commonlySoldIds,
+    customers, loadingCustomers, paymentAccounts,
     productsPullToRefresh: {
       scrollRef: productsScrollRef,
       pullDistance: productsPullDistance,
@@ -117,6 +92,7 @@ export function POSSystem() {
     isPrescriptionLocked,
     handleEditPrescription,
     handleAddToCart,
+    addServiceToCart,
     spotSourceProduct,
     setSpotSourceProduct,
     handleSpotSourceConfirm,
@@ -194,6 +170,11 @@ export function POSSystem() {
           heldSalesCount={heldSalesCount}
           onOpenHeldSales={() => setShowHeldDialog(true)}
           onScanSuccess={handleScanSuccess}
+          searchPlaceholder={
+            resolvedTab === "services"
+              ? "Search services (e.g. massage, styling)..."
+              : undefined
+          }
         />
 
         <div className="p-4 sm:p-6 sm:pt-3 sm:py-4 flex-1 overflow-hidden flex flex-col">
@@ -256,6 +237,21 @@ export function POSSystem() {
                     featureAllowed: canUseSmartSuggestions,
                     featureKey: "smart_suggestions",
                   })}
+                />
+              </TabsContent>
+              <TabsContent
+                value="services"
+                className="absolute inset-0 overflow-y-auto mt-0 pr-1 flex flex-col gap-4"
+              >
+                <POSServiceList
+                  services={services}
+                  loadingServices={loadingServices}
+                  addToCart={addServiceToCart}
+                  currencyCode={storeProfile?.currency}
+                  cart={cart}
+                  searchTerm={searchTerm}
+                  onSearchChange={setSearchTerm}
+                  onClearSearch={() => setSearchTerm("")}
                 />
               </TabsContent>
               {canViewSalesHistory && (

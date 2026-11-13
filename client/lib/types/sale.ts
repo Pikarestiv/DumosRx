@@ -91,6 +91,20 @@ export interface SaleItemDetail {
   outstanding_units?: number;
 }
 
+export interface SaleServiceDetail {
+  id: string;
+  sale_id: string;
+  service_id?: string | null;
+  service_name: string;
+  name?: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  subtotal?: number;
+  notes?: string | null;
+  returned_quantity?: number;
+}
+
 /** returns row joined with the originating sale's payment fields: used to
  * work out which payment bucket (cash/card/transfer) a refund reduces. */
 export interface ReturnRecord {

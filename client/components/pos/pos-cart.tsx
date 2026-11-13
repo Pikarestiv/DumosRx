@@ -13,7 +13,7 @@ import { useRevealChangedCartLine } from "@/lib/hooks/use-reveal-changed-cart-li
 import { POSRedeemReward } from "./pos-redeem-reward";
 import { POSCartDiscount } from "./pos-cart-discount";
 import { POSCartMarkupPicker } from "./pos-cart-markup-picker";
-import type { CartItem, RedeemedOption, MarkupType, SpotSourcingConfig } from "@/lib/hooks/use-pos-cart";
+import type { CartItem, RedeemedOption, MarkupType, SpotSourcingConfig, SpotSourcingSplitOptions } from "@/lib/hooks/use-pos-cart";
 import type { Customer } from "@/lib/types/customer";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
@@ -57,7 +57,11 @@ interface POSCartProps {
   markupType?: MarkupType | null;
   setMarkupType?: (value: MarkupType | null) => void;
   updateUnitPrice?: (id: string, price: number) => void;
-  updateSpotSourcing?: (id: string, config: SpotSourcingConfig | null) => void;
+  updateSpotSourcing?: (
+    id: string,
+    config: SpotSourcingConfig | null,
+    splitOptions?: SpotSourcingSplitOptions,
+  ) => void;
 }
 
 export const POSCart = memo(function POSCart({
@@ -312,9 +316,9 @@ export const POSCart = memo(function POSCart({
         onOpenChange={(open) => !open && setSpotSourceItem(null)}
         cartItem={spotSourceItem}
         currencyCode={currencyCode}
-        onConfirm={(config) => {
+        onConfirm={(config, quantity, sellingPrice, splitOptions) => {
           if (spotSourceItem) {
-            updateSpotSourcing?.(spotSourceItem.id, config);
+            updateSpotSourcing?.(spotSourceItem.id, config, splitOptions);
           }
         }}
         onRevertToShelf={() => {

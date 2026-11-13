@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Minus, Plus, Trash2, Share2 } from "lucide-react";
+import { Minus, Plus, Trash2 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { CategoryIcon } from "./category-icon";
+import { POSCartItemSourcing } from "./pos-cart-item-sourcing";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
@@ -93,7 +94,7 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
             removeFromCart(item.id);
           }
         }}
-        className={`relative flex items-center gap-3 py-3 bg-background touch-pan-y ${
+        className={`relative flex items-center gap-3 py-3 bg-background touch-pan-y group ${
           isLast ? "" : "border-b border-border"
         }`}
       >
@@ -101,38 +102,22 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
           <CategoryIcon categoryName={item.category_name} className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className={`text-[12.5px] font-semibold mb-0.5 truncate leading-tight ${capsClass}`}>
-            {item.name}
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <span className={`text-[12.5px] font-semibold truncate leading-tight ${capsClass}`}>
+              {item.name}
+            </span>
+            {item.item_type === "service" && (
+              <span className="inline-flex items-center text-[9.5px] font-medium px-1 py-0.2 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
+                Service
+              </span>
+            )}
           </div>
-          {item.is_spot_sourced ? (
-            <div className="flex items-center gap-1.5 mb-1">
-              <button
-                type="button"
-                onClick={() => onConfigureSpotSourcing?.(item)}
-                className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-colors cursor-pointer"
-                title="Edit spot sourcing details"
-              >
-                <Share2 className="w-2.5 h-2.5" />
-                <span>
-                  Spot Sourced ({formatCurrency(item.sourcing_cost || 0, currencyCode)})
-                </span>
-              </button>
-            </div>
-          ) : (
-            onConfigureSpotSourcing && !isLocked && (
-              <div className="mb-0.5">
-                <button
-                  type="button"
-                  onClick={() => onConfigureSpotSourcing(item)}
-                  className="text-[10px] text-muted-foreground/60 hover:text-amber-600 dark:hover:text-amber-400 inline-flex items-center gap-1 transition-colors cursor-pointer"
-                  title="Source this item on the spot from an external store"
-                >
-                  <Share2 className="w-2.5 h-2.5" />
-                  <span>Source outside</span>
-                </button>
-              </div>
-            )
-          )}
+          <POSCartItemSourcing
+            item={item}
+            currencyCode={currencyCode}
+            isLocked={isLocked}
+            onConfigureSpotSourcing={onConfigureSpotSourcing}
+          />
           {isResellerSale && canOverridePrice ? (
             <div className="flex flex-col items-start gap-1 text-[11.5px]">
               <input

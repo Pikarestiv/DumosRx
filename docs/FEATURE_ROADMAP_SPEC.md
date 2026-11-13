@@ -60,6 +60,12 @@ The review concluded the sync engine should **not** be rewritten: every defect t
 - **Action:** extend the same filtering to low-value `audit_logs` actions (`LOGIN`/`LOGOUT`), or restrict the count to business-critical tables, and verify that real pending business data still warns. A best-effort sync attempt on logout can sit on top but does not replace the filter.
 - **Effort:** ~half a day.
 
+### Print barcode labels for many products at once
+
+- **Description:** the Print Barcode Labels dialog prints one product at a time. Let an owner select several products in the catalog (or "all products") and print one label each, packed edge to edge in the A4 sheet grid, so a single sheet carries many different products instead of a sheet per product.
+- **Needs:** row selection in `catalog-list.tsx` (with a "select all" that respects the active search and filter), `BarcodePrintDialog` taking a list of `BarcodeLabelProduct` with a quantity per product (default 1), and `buildLabelSheetHtml` in `components/stock-batch/barcode-label-sheet.ts` taking a list of label templates so it can fill the grid across products. The A4 grid, start-at-position and labels-on-sheets count already exist.
+- **Effort:** ~1–2 days.
+
 ---
 
 ## 🟠 Medium (3–5 days)

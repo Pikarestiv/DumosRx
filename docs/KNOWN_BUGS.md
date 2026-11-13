@@ -47,6 +47,12 @@ suggested tackle order rather than a strict ranking.
 - **Evidence still worth gathering:** a device report from both of Cynthia's tills (`laravel-server/AGENTS.md`, "Remote device report"). Read `rewind_count`, "Batch edits the server refused" and "Batch costs on this device"; since A-271 `SHIELDED` marks rows the pull skips by the same rule it applies, plus orphans (unsynced, no queue row), which the pull overwrites until a crash-flagged boot re-queues them. Also ask her whether a conflict toast appears when she saves a cost, and whether the old price comes back.
 - **Other `decimal(10,2)` money columns:** A-271 widened the batch cost columns. Selling prices, sale and purchase-order totals and the rest of `decimal(10,2)` still refuse 100,000,000 or more, which leaves that row failing on every retry the same way. Fix: widen them together, or validate the value at entry.
 
+#### A-374. `client/` — a return values the restocked units at the batch's current cost, not the cost the sale recorded
+
+- **Found:** 2026-11-13, building the batch cost correction (`client/lib/db/queries/batch-cost-correction.ts`).
+- **What's wrong:** `recordReturnDisposition()` and `restoreBatchQuantity()` (`client/lib/db/queries/returns.ts:55`, `:111`) read `stock_batches.cost_price` at return time for the `return` movement's `unit_cost`/`total_cost`, and returned COGS in BI and the monthly trend (`bi-metrics.ts:88`, `report-trends.ts:40`) prefers that `total_cost`. The sale's own COGS comes from `sale_items.cost_price`, which is the product's *average* cost at sale time. So a full return does not net the sale's COGS to zero whenever the batch cost differs from that snapshot: after a batch cost correction, after a stock-audit cost correction, or simply because the average and the batch cost were never equal.
+- **Fix:** value the return movement from the returned `sale_items.cost_price` (already joined as `avg_cost_price` in the fallback branch) rather than the live batch cost. Changes reported profit for past returns on recompute, so ship it with a note to owners.
+
 #### A-211. `client/` — a stock count still records the difference it saw, not the number counted; a device behind sync is now warned, not prevented
 
 - **Found:** 2026-10-10, in review of the derived-stock-quantity design (`docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`).

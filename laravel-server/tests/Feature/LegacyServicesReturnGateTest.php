@@ -265,4 +265,18 @@ class LegacyServicesReturnGateTest extends TestCase
 
         $this->assertSame('partially_refunded', Sale::find($saleId)->payment_status);
     }
+
+    public function test_a_soft_deleted_stored_service_return_is_not_counted(): void
+    {
+        [$saleId, $saleServiceId, $returnId] = $this->seedQtyTwoServiceWithOneReturned();
+        DB::table('return_services')->insert([
+            'id' => (string) Str::uuid(), 'store_id' => $this->store->id, 'return_id' => $returnId,
+            'sale_service_id' => $saleServiceId, 'quantity' => 1, 'refund_amount' => 10000,
+            'created_at' => now(), 'updated_at' => now(), 'deleted_at' => now(),
+        ]);
+
+        $this->pushRefunded($saleId, '0.0.41');
+
+        $this->assertSame('partially_refunded', Sale::find($saleId)->payment_status);
+    }
 }

@@ -6,11 +6,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /** Clamps a 'refunded' sale to 'partially_refunded' while any service line still has units left unreturned.
- * Retire once no active device reports an X-App-Version < 0.0.42; see laravel-server/AGENTS.md. */
+ * Runs for every client version; retire once no active device reports an X-App-Version < 0.0.42 (laravel-server/AGENTS.md). */
 final class LegacyServicesReturnGate
 {
-    public const INTRODUCED_IN = '0.0.42';
-
     public static function apply(array $payload, string $saleId, Request $request): array
     {
         if (($payload['payment_status'] ?? null) !== 'refunded') {
@@ -29,6 +27,7 @@ final class LegacyServicesReturnGate
         $lines = DB::table('return_services')
             ->whereIn('sale_service_id', $saleServices->pluck('id'))
             ->where('_deleted', 0)
+            ->whereNull('deleted_at')
             ->get(['id', 'sale_service_id', 'quantity'])
             ->keyBy('id')
             ->map(fn ($line) => (array) $line)

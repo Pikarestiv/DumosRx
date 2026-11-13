@@ -3674,6 +3674,16 @@ AuthContext — the identity check at the call site is the fail-safe half
 (A-55 in `docs/FIXED_BUGS.md`). A group with no `userId` (the assistant's
 tool context builds one) is still honoured as-is.
 
+**The staff list's Role column shows the permission group, not the base
+role.** `getUsers()`/`getDeletedUsers()` select `permission_group_name` with a
+correlated subquery on `permission_groups` (live rows only), so the list is
+still one query; `staffRoleLabel()` (`components/settings/staff/staff-list-parts.tsx`)
+falls back to the formatted `role` when a member has no group or the group
+was deleted or has not synced yet. The Admin shield and badge variant stay
+keyed on `role`. `queryKeys.staff.users`/`deleted` are tagged with
+`permission_groups` as well as `users`, so a group rename, either locally or
+from a sync pull, refreshes the list.
+
 `ENFORCED_PERMISSION_KEYS` (`lib/constants/permissions.ts`) lists the keys
 with a real `useHasPermission()` / `hasPermission()` call site; the Roles &
 Permissions matrix reads it to mark the rest as not-yet-wired. **It is a
@@ -7640,6 +7650,38 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
   - Cash shortfall alert displays a 1-click **"Pay Exact ({total})"** button beside the shortfall text so the cashier can instantly resolve shortages with one tap without manual retyping.
   - `<QuickCashTender />` displays smart tender chips (`Exact`, rounded bill denominations such as ₦1,000, ₦2,000, ₦5,000) for rapid cash handling.
   - In `PaymentSplits`, when splits under-cover the total, the exact shortfall is shown alongside a 1-click **"Cover Remaining ({shortage})"** button that fills the remaining balance into the split automatically.
+
+## Barcode Scanning on the POS
+
+- **Camera scanner (`components/pos/camera-scanner-dialog.tsx`):** on open it
+  asks `navigator.permissions.query({ name: "camera" })`. `granted` starts the
+  camera straight away; `denied` shows the denied screen; `prompt` keeps the
+  "Enable Camera" screen, so the browser's own prompt only ever follows a tap.
+  A throw (Firefox/older Safari reject the `camera` name) or no Permissions API
+  falls back to a per-device `localStorage` flag (`cameraScannerAllowed`, set on
+  the first successful start, cleared on `NotAllowedError`), so those browsers
+  also skip the screen after the first grant; the flag is never trusted when the
+  browser reports `prompt`.
+  The permission read is cancelled by the effect cleanup, so strict mode's
+  double effect starts one camera, and `sessionRef` makes a start that is still
+  awaiting `getCameras()`/`start()` when the dialog closes stop itself instead
+  of leaving the camera on.
+- **Keyboard-wedge scanners (`lib/hooks/use-barcode-wedge.ts`, wired in
+  `components/pos/pos-system.tsx`, so it only runs on `/pos`):** a capture-phase
+  `window` keydown listener collects printable keys arriving at most
+  `WEDGE_MAX_KEY_GAP_MS` (50ms) apart and, on a key in `WEDGE_TERMINATOR_KEYS`
+  (Enter, Tab) with at least `WEDGE_MIN_CODE_LENGTH` (4) characters buffered,
+  calls the same `handleScanSuccess` as the search box. Only a confirmed scan's
+  terminator is `preventDefault`ed and stopped, so the Enter cannot also click a
+  focused product tile; the burst's characters themselves are not swallowed.
+  It stands down for any `input`/`textarea`/`select`/contenteditable target,
+  **including the POS search input, which keeps its own Enter path in
+  `usePOSScan.handleKeyPress`** (exactly one path fires), for Ctrl/Alt/Meta
+  chords, while any `[role=dialog]`/`[role=alertdialog]` is in the DOM, and
+  while payment, receipt, camera scanner or spot sourcing is open.
+  `handleScanSuccess` matches exactly (case-insensitive) on `barcode` or
+  `batch_number`; no match shows a "No product found for barcode" error toast
+  and leaves the cart alone.
 
 ## Service POS (Walk-In Services Alongside Physical Products)
 

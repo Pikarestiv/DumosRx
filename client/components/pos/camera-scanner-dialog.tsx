@@ -6,6 +6,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import type { Html5Qrcode } from "html5-qrcode";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 import {
   Camera,
   Flashlight,
@@ -24,6 +25,30 @@ type ScanState = "prompt" | "requesting" | "scanning" | "denied" | "error";
 
 const READER_ELEMENT_ID = "camera-scanner-reader";
 
+async function cameraPermissionState(): Promise<PermissionState | null> {
+  try {
+    const status = await navigator.permissions?.query({ name: "camera" as PermissionName });
+    return status?.state ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberCameraAllowed(allowed: boolean) {
+  try {
+    if (allowed) localStorage.setItem(STORAGE_KEYS.cameraScannerAllowed, "1");
+    else localStorage.removeItem(STORAGE_KEYS.cameraScannerAllowed);
+  } catch {}
+}
+
+function cameraWasAllowedBefore(): boolean {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.cameraScannerAllowed) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export function CameraScannerDialog({
   isOpen,
   onClose,
@@ -36,7 +61,10 @@ export function CameraScannerDialog({
   const [cameraCount, setCameraCount] = useState(0);
   const cameraIndexRef = useRef(0);
 
+  const sessionRef = useRef(0);
+
   const stopScanner = useCallback(async () => {
+    sessionRef.current += 1;
     const scanner = scannerRef.current;
     scannerRef.current = null;
     if (scanner && scanner.isScanning) {
@@ -51,9 +79,11 @@ export function CameraScannerDialog({
   const startScanner = useCallback(
     async (cameraIndex = 0) => {
       setState("requesting");
+      const session = sessionRef.current;
       try {
         const { Html5Qrcode } = await import("html5-qrcode");
         const cameras = await Html5Qrcode.getCameras();
+        if (session !== sessionRef.current) return;
         setCameraCount(cameras.length);
         const camera = cameras[cameraIndex] ?? cameras[0];
 
@@ -73,6 +103,11 @@ export function CameraScannerDialog({
           },
         );
 
+        if (session !== sessionRef.current) {
+          await scanner.stop().catch(() => undefined);
+          return;
+        }
+        rememberCameraAllowed(true);
         setState("scanning");
         setTorchSupported(
           Boolean(scanner.getRunningTrackCameraCapabilities().torchFeature().isSupported()),
@@ -80,6 +115,7 @@ export function CameraScannerDialog({
       } catch (error) {
         console.error("Camera scanner failed to start:", error);
         const name = (error as { name?: string })?.name;
+        if (name === "NotAllowedError") rememberCameraAllowed(false);
         setState(name === "NotAllowedError" ? "denied" : "error");
       }
     },
@@ -96,13 +132,26 @@ export function CameraScannerDialog({
     }
   }
 
+  const startScannerRef = useRef(startScanner);
+  useEffect(() => {
+    startScannerRef.current = startScanner;
+  }, [startScanner]);
+
   useEffect(() => {
     if (!isOpen) {
       void stopScanner();
       cameraIndexRef.current = 0;
       return;
     }
+    let cancelled = false;
+    void cameraPermissionState().then((permission) => {
+      if (cancelled) return;
+      const remembered = permission === null && cameraWasAllowedBefore();
+      if (permission === "granted" || remembered) void startScannerRef.current(0);
+      else if (permission === "denied") setState("denied");
+    });
     return () => {
+      cancelled = true;
       void stopScanner();
     };
   }, [isOpen, stopScanner]);
@@ -144,12 +193,10 @@ export function CameraScannerDialog({
 
         {state === "scanning" && (
           <>
-            {/* Dimmed backdrop with a clear viewfinder cutout */}
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <div className="relative w-[260px] h-[160px]">
                 <div className="absolute inset-0 rounded-xl ring-[999px] ring-black/50" />
                 <div className="absolute inset-0 rounded-xl border-2 border-white/80" />
-                {/* Corner brackets */}
                 {[
                   "top-0 left-0 border-t-4 border-l-4 rounded-tl-xl",
                   "top-0 right-0 border-t-4 border-r-4 rounded-tr-xl",
@@ -161,12 +208,10 @@ export function CameraScannerDialog({
                     className={`absolute w-7 h-7 border-primary ${cls}`}
                   />
                 ))}
-                {/* Animated scan line */}
                 <div className="absolute inset-x-0 top-0 h-0.5 bg-primary shadow-[0_0_8px_2px] shadow-primary animate-scan-line" />
               </div>
             </div>
 
-            {/* Controls */}
             <div className="absolute bottom-3 inset-x-0 flex items-center justify-center gap-3">
               {torchSupported && (
                 <button

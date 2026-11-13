@@ -46,6 +46,16 @@ export function storeAddressLine(store: { address?: string | null; location?: st
   return parts.length > 0 ? parts.join(", ") : null;
 }
 
+export const LONG_STORE_NAME_LENGTH = 28;
+export const LONG_STORE_NAME_LENGTH_MOBILE = 16;
+
+export function storeNameTextClass(name: string): string {
+  const length = name.trim().length;
+  const mobile = length > LONG_STORE_NAME_LENGTH_MOBILE ? "text-sm" : "text-base";
+  const wide = length > LONG_STORE_NAME_LENGTH ? "sm:text-lg" : "sm:text-xl";
+  return `${mobile} ${wide}`;
+}
+
 export const STOREFRONT_LANDING_PRODUCT_CAP = 50;
 
 export function viewAllProductsLabel(shown: number, productCount?: number): string {

@@ -7,6 +7,10 @@ import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { checkIsAdmin } from "@/lib/context/auth-context";
 import type { StaffListItem } from "@/lib/types/user";
 
+export function staffRoleLabel(user: Pick<StaffListItem, "role" | "permission_group_name">): string {
+  return user.permission_group_name || user.role?.replace("_", " ") || "Staff";
+}
+
 export function NoStaffFoundRow({
   isAdmin,
   onAddStaff,
@@ -138,10 +142,10 @@ export function StaffListMobileCard({
         )}
         <Badge
           variant={checkIsAdmin(user.role) ? "default" : "secondary"}
-          className="capitalize"
+          className={user.permission_group_name ? undefined : "capitalize"}
         >
           {checkIsAdmin(user.role) && <Shield className="w-3 h-3" />}
-          {user.role?.replace("_", " ") || "Staff"}
+          {staffRoleLabel(user)}
         </Badge>
         <Badge
           variant="outline"

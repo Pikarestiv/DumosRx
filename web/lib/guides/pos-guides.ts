@@ -193,5 +193,25 @@ export const POS_GUIDES: GuideItem[] = [
       "Because services are tracked separately from physical goods, your inventory reports and cycle counts remain 100% accurate without phantom batch variances or artificial reorder alerts.",
     videoPlaceholderText: "Video Walkthrough: Ringing up mixed carts with physical products and service sales",
   },
+  {
+    id: "barcode-scanning",
+    title: "Barcode Scanning: Ring Up Items with a USB Scanner or Your Camera",
+    category: "Point of Sale",
+    badge: "Cashier Essential",
+    readTime: "2 min read",
+    videoDuration: "1:20",
+    summary:
+      "Scan a product's barcode or batch number to add it straight to the cart, with a plug-in barcode scanner from anywhere on the POS screen, or with your phone or tablet camera.",
+    steps: [
+      "USB or Bluetooth scanner: set the scanner to send Enter (or Tab) after each code. Most scanners do this out of the box.",
+      "Open the POS and scan. You do not need to click the search box first: a scan is picked up anywhere on the POS screen, even after you have tapped a product or the cart.",
+      "Scans are ignored while a dialog (such as Payment) is open or while you are typing in another field, so a scan never lands in the wrong place.",
+      "Camera: tap the scan button on the POS. The first time, allow camera access; after that the camera starts as soon as the scanner opens.",
+      "The scanned code must match a product's barcode or batch number exactly. If nothing matches, you see a 'No product found' message and the cart is left as it was.",
+    ],
+    proTip:
+      "If a scan is not recognised, check the code saved on the product in Inventory > Catalog, or print fresh barcode labels from the catalog so every shelf item scans first time.",
+    videoPlaceholderText: "Video Walkthrough: Scanning products into the cart with a USB scanner and the camera",
+  },
 ];
 

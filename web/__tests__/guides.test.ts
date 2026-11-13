@@ -3,7 +3,7 @@ import { GUIDES, GUIDE_CATEGORIES, getGuideBySlug } from "../lib/guides-data";
 
 describe("Guides & Video Tutorials Hub", () => {
   it("contains all core feature guides", () => {
-    expect(GUIDES.length).toBe(25);
+    expect(GUIDES.length).toBe(26);
   });
 
   it("has valid categories for all guides", () => {
@@ -53,6 +53,8 @@ describe("Guides & Video Tutorials Hub", () => {
     const serviceSalesGuide = getGuideBySlug("service-sales");
     expect(serviceSalesGuide).toBeDefined();
     expect(serviceSalesGuide?.title).toContain("Service POS");
+
+    expect(getGuideBySlug("barcode-scanning")?.title).toContain("Barcode Scanning");
 
     const nonExistent = getGuideBySlug("non-existent-feature-xyz");
     expect(nonExistent).toBeUndefined();

@@ -227,7 +227,8 @@ export async function createPrescription(
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-local-database-ts-L225
 const STAFF_LIST_COLUMNS =
   "id, first_name, last_name, username, email, role, store_id, is_active, created_at, permission_group_id, " +
-  "CASE WHEN pin IS NOT NULL AND pin != '' THEN 1 ELSE 0 END AS has_pin";
+  "CASE WHEN pin IS NOT NULL AND pin != '' THEN 1 ELSE 0 END AS has_pin, " +
+  "(SELECT pg.name FROM permission_groups pg WHERE pg.id = users.permission_group_id AND pg._deleted = 0) AS permission_group_name";
 
 export async function getUsers(storeId?: string | null) {
   // Only fall back to the module-scope resolver when the caller omits the argument entirely.

@@ -186,6 +186,13 @@ suggested tackle order rather than a strict ranking.
 - **Consequence:** sale of 4 × 150 (list 100), commission 20 redeemed; till A returns 1 (owed back 5), till B returns 2 offline. B's patch is dropped, so the stored owed-back stays 5 where 15 is correct, on the server and on every device. The `payment_status` half was already true; the money fields widen it.
 - **Fix:** derive the three figures (ideally `payment_status` too) from `sale_items` + `return_items` instead of storing a patch, either on the client whenever a pulled `return_items` row lands for a local sale or on the server when a `returns` row is inserted. Needs the §11 plan: old bundles keep sending patches.
 
+#### A-364. `client/` — the BI report's top sellers and category split leave out service revenue, so they no longer add up to revenue
+- **Found:** 2026-11-13, review of `feat/service-pos`.
+- **Location:** `client/lib/db/queries/bi-metrics.ts`, the top-sellers-by-revenue, top-sellers-by-units and category-split queries and the full product-performance query (all `FROM sale_items si JOIN products m`).
+- **What's wrong:** service revenue is in `sales.total_amount` but in no `sale_items` row, so on a store that sells services the category split and the top-seller lists stop summing to the revenue figure above them, with nothing to say where the difference went.
+- **Why it was left:** how services should appear is a product call: one "Services" category row, one slice per `services.category`, services ranked among products in top sellers, or a separate services table. Each changes what an owner reads, so it was not guessed.
+- **Proposed fix:** once decided, `UNION ALL` the matching `sale_services` aggregate (`service_name`, `SUM(total_price)`, `SUM(quantity)`, live rows only, same date/store/`joined.clause` filters) into each query, with a test that the category split sums to net product + service revenue on a mixed sale.
+
 ### Tier 3 — sync reliability, observability, latent hazards
 
 #### A-332. `client/` — ten Playwright e2e specs fail on `dev` and on the base commit, so the e2e suite is not a regression gate
@@ -634,6 +641,12 @@ suggested tackle order rather than a strict ranking.
 #### A-343. `client/` — the cart's owed-units warning overstates the shortfall when only expired stock is left
 - **Found:** 2026-10-26, third independent review of `feat/sell-at-zero-stock`; deferred. `formatBackorderWarning()` uses `product.stock`, which excludes expired batches, but `writeSaleItemStock()` falls back to an expired batch and may sell from it, so the toast can say more units are owed than the sale actually records.
 
+#### A-365. `client/` — transaction history and recent sales show a services-only sale as 0 items with no names
+- **Found:** 2026-11-13, review of `feat/service-pos`, beside the customer purchase-history fix.
+- **Location:** `client/lib/db/queries/sales.ts`, every `item_count` (`SUM(quantity) FROM sale_items`) and `item_names` (`GROUP_CONCAT(pr.name) FROM sale_items JOIN products`) subquery (four queries, around lines 123, 138, 156 and 220).
+- **What's wrong:** they read `sale_items` only, so a service line contributes nothing: a services-only sale lists as 0 items with a blank item summary, and a mixed sale under-counts. `getCustomerTransactions()` in `customers.ts` was fixed the same way the proposed fix describes (`customer-purchase-history-services.test.ts`).
+- **Proposed fix:** add `+ (SELECT SUM(quantity) FROM sale_services …)` to each count and `UNION ALL` live `sale_services.service_name` into each `item_names` subquery, as `customers.ts` now does. Display only; no stored figure is wrong.
+
 ---
 
 ## Accepted tradeoffs (no fix planned)
@@ -712,6 +725,8 @@ These describe the current state of known architectural tradeoffs and performanc
 ### Files over 350 lines touched by a fix
 Logged per the 2026-10-25 rule: each file a fix edits that was already over the 350-line limit, or that it pushes over, with its size after the change. None of these were split inside a bug fix.
 - `laravel-server/app/Http/Controllers/Api/App/SyncController.php`: 823 lines, already over (A-325 added the payload-key refusal, A-217 added the up-front batch lock and push-inbound map). What is left in it is listed under Architecture below.
+- `laravel-server/app/Services/Web/DashboardService.php`: 707 lines, already over (the recent-transaction line query moved out to `RecentTransactionLines`, so it shrank).
+- `client/lib/db/local-database.ts`: 500 lines, already over (`forceSyncAllData()` gained the three services tables on one line).
 
 ### Architecture
 

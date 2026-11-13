@@ -77,8 +77,13 @@ export async function getCustomerTransactions(
       s.total_amount,
       s.points_earned,
       s.transaction_date,
-      (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_count,
-      (SELECT GROUP_CONCAT(pr.name, '||') FROM sale_items si JOIN products pr ON si.product_id = pr.id WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_names
+      (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL))
+        + (SELECT COUNT(*) FROM sale_services ss WHERE ss.sale_id = s.id AND (ss._deleted = 0 OR ss._deleted IS NULL)) as item_count,
+      (SELECT GROUP_CONCAT(line_name, '||') FROM (
+        SELECT pr.name AS line_name FROM sale_items si JOIN products pr ON si.product_id = pr.id WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)
+        UNION ALL
+        SELECT ss.service_name FROM sale_services ss WHERE ss.sale_id = s.id AND (ss._deleted = 0 OR ss._deleted IS NULL)
+      )) as item_names
     FROM sales s
     JOIN customers c ON s.customer_id = c.id
     WHERE s.customer_id IS NOT NULL AND (s._deleted = 0 OR s._deleted IS NULL) ${dateFilter}${storeId ? " AND s.store_id = ?" : ""}

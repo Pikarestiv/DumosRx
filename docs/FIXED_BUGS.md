@@ -1,3 +1,9 @@
+### A-365 — transaction history and recent sales showed a services-only sale as "1 item" with no names
+- **Fixed:** 2026-11-13, client only, TDD. Display only; no stored figure was wrong.
+- **Was:** `client/lib/db/queries/sales.ts`'s `item_count` (`SUM(quantity) FROM sale_items`) and `item_names` (`GROUP_CONCAT` over `sale_items JOIN products`) subqueries in `getRecentSales()`, `getSaleById()`, `getSaleByTransactionNumber()` and `getResellerCommissionSales()` ignored `sale_services`. A services-only sale counted `NULL`, which `transaction-item.tsx` rendered as "1 item" through its `|| 1` fallback, and a mixed sale under-counted and left the service names out.
+- **Now:** the four queries and `customers.ts`'s `getCustomerTransactions()` share the subqueries in `client/lib/db/queries/sale-line-summary-sql.ts`: names `UNION ALL` live `sale_services.service_name` with product names, and sales history counts product units plus live service units (purchase history keeps its line count). A sale with no live lines counts 0.
+- **Coverage:** `client/__tests__/sales-history-services.test.ts` (services-only, mixed, voided service, by id and transaction number, reseller list, empty sale); `customer-purchase-history-services.test.ts` and `deleted-product-sales-history.test.ts` still pass on the shared fragments.
+
 ### A-367 — a paid store's dark theme was reset to light on every reload
 - **Fixed:** 2026-11-13, client only, TDD. LicenseGuard's licence and anti-backdating checks are untouched; only the theme restriction changed.
 - **Was:** `ThemeRestrictor` in `client/components/auth/license-guard.tsx` called `setTheme("light")` whenever `useFeatureGate()` reported `"free"`, and that hook reports `"free"` while `storeProfile` is still loading. `LicenseGuard` mounts it as soon as the local licence check finishes, so every full load overwrote a Pro store's stored dark theme with light.

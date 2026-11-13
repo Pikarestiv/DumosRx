@@ -3900,7 +3900,8 @@ protect (verified by temporarily adding one to every join below):
   `getSaleItems()`, `getTransactionDetails()`, `getRecentSales()`'s
   `item_names`, `getDailyCloseData()`'s `itemsToday`; plus `customers.ts`'s
   `getCustomerTransactions()` `item_names`. (`getResellerCommissionSales()`
-  carries the same `item_names` subquery and the same comment.)
+  uses the same `item_names` subquery: all of them now come from
+  `SALE_LINE_NAMES_SQL` in `lib/db/queries/sale-line-summary-sql.ts`.)
 - `__tests__/deleted-entity-procurement-history.test.ts` — `procurement.ts`:
   `getPurchaseOrders()` and `getPurchaseOrderById()` (`vendor_name`, which
   falls back to "Self / Walk-in Purchase" if the vendor join is filtered) plus
@@ -7503,7 +7504,7 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
   - A mixed return considers a sale fully refunded (`payment_status = 'refunded'`) only when all physical products AND all services on the sale have been completely returned.
   - Service completeness is read from SQLite after this return's `return_services` rows are written (`getSaleServices()`' summed `returned_quantity` against `quantity`), not from a caller-supplied list. The dialog used to pass a mapped list without `returned_quantity`, so a qty-2 service returned in two goes never reached `refunded` (pinned by `process-return-partial-services.test.ts`).
 - **POS services query:** `usePOSData` reads services through `queryKeys.services.list()` with `getServices({ storeId: getActiveStoreId() })`, so a multi-store owner never sees another store's services or a cache from the store they just switched away from. `queryKeys.sales.transactionDetails` is tagged with `sale_services` and `return_services` so a service return refreshes an open receipt.
-- **Views that list a sale's lines must read `sale_services` too.** `getCustomerTransactions()` (customer purchase history) counts and names service lines beside product lines (`customer-purchase-history-services.test.ts`). `sales.ts`'s history/recent-sales summaries (A-365) and the BI report (A-364) still read `sale_items` only.
+- **Views that list a sale's lines must read `sale_services` too.** `getCustomerTransactions()` (customer purchase history) counts and names service lines beside product lines (`customer-purchase-history-services.test.ts`). `sales.ts`'s `getRecentSales()`, `getSaleById()`, `getSaleByTransactionNumber()` and `getResellerCommissionSales()` do the same (A-365, `sales-history-services.test.ts`). All of them build the subqueries from `lib/db/queries/sale-line-summary-sql.ts`: `SALE_LINE_NAMES_SQL`, `SALE_LINE_COUNT_SQL` (lines, used by purchase history) and `SALE_UNIT_COUNT_SQL` (units, used by sales history, which always counted quantity); add a new view's summary there rather than hand-writing another `sale_items`-only subquery. The BI report (A-364) still reads `sale_items` only.
 - **Clearing the cart:** `usePOSCart().clearCart()` calls `clearPOSCartContents()`, which empties the cart, discount, redeemed option and reseller state but keeps the cashier's chosen `discountType` for the next sale. `clearPOSCartStorage()` (store switch, logout) also resets `discountType` to `"fixed"` (`use-pos-cart-reseller.test.ts`).
 - **Inventory Services Catalog (`/inventory/services`):**
   - Services are managed in the back-office inventory hub under the `Services` tab (`/inventory/services`) alongside `Catalog` (physical products).

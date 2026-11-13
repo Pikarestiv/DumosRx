@@ -217,15 +217,21 @@ export async function takeoverAuditSession(
   );
 }
 
+function storeHeader(storeId?: string): Record<string, string> {
+  return storeId ? { "X-Store-Id": storeId } : {};
+}
+
 export async function completeAuditSession(
   sessionId: string,
   leaseVersion: number,
-  submittedStockAuditId?: string | null
+  submittedStockAuditId?: string | null,
+  storeId?: string
 ): Promise<{ success: boolean; session: CloudAuditSession }> {
   return request<{ success: boolean; session: CloudAuditSession }>(
     `/app/audit-sessions/${sessionId}/complete`,
     {
       method: "POST",
+      headers: storeHeader(storeId),
       body: JSON.stringify({
         till_id: getDeviceId(),
         lease_version: leaseVersion,
@@ -237,13 +243,17 @@ export async function completeAuditSession(
 
 export async function abandonAuditSession(
   sessionId: string,
-  reason?: string
+  reason?: string,
+  leaseVersion?: number,
+  storeId?: string
 ): Promise<{ success: boolean; session: CloudAuditSession }> {
+  const lease = leaseVersion === undefined ? {} : { till_id: getDeviceId(), lease_version: leaseVersion };
   return request<{ success: boolean; session: CloudAuditSession }>(
     `/app/audit-sessions/${sessionId}/abandon`,
     {
       method: "POST",
-      body: JSON.stringify({ reason }),
+      headers: storeHeader(storeId),
+      body: JSON.stringify({ reason, ...lease }),
     }
   );
 }

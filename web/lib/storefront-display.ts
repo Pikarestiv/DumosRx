@@ -34,10 +34,31 @@ export function toDisplayTitle(name: string): string {
     .join("");
 }
 
+export function hasContactDetails(store: { address?: string | null; location?: string | null; phone?: string | null; email?: string | null }): boolean {
+  return Boolean(store.phone?.trim() || store.email?.trim() || storeAddressLine(store));
+}
+
 export function storeAddressLine(store: { address?: string | null; location?: string | null }): string | null {
   const parts = [store.address, store.location]
     .map((part) => part?.trim() ?? "")
     .filter((part, index, all) => part !== "" && all.findIndex((p) => p.toLowerCase() === part.toLowerCase()) === index);
 
   return parts.length > 0 ? parts.join(", ") : null;
+}
+
+export const LONG_STORE_NAME_LENGTH = 28;
+export const LONG_STORE_NAME_LENGTH_MOBILE = 16;
+
+export function storeNameTextClass(name: string): string {
+  const length = name.trim().length;
+  const mobile = length > LONG_STORE_NAME_LENGTH_MOBILE ? "text-sm" : "text-base";
+  const wide = length > LONG_STORE_NAME_LENGTH ? "sm:text-lg" : "sm:text-xl";
+  return `${mobile} ${wide}`;
+}
+
+export const STOREFRONT_LANDING_PRODUCT_CAP = 50;
+
+export function viewAllProductsLabel(shown: number, productCount?: number): string {
+  const total = productCount !== undefined ? Math.max(productCount, shown) : shown < STOREFRONT_LANDING_PRODUCT_CAP ? shown : null;
+  return total === null ? "View all products" : `View all ${total} product${total === 1 ? "" : "s"}`;
 }

@@ -37,6 +37,7 @@ describe("getUsers has_pin", () => {
         _deleted INTEGER DEFAULT 0
       )`,
     );
+    db.run("CREATE TABLE permission_groups (id TEXT PRIMARY KEY, name TEXT NOT NULL, _deleted INTEGER DEFAULT 0)");
     core.__setDatabaseForTesting(db);
   });
 

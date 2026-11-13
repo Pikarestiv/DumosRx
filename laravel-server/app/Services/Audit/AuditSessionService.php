@@ -288,24 +288,37 @@ class AuditSessionService
         return $session;
     }
 
-    public function abandonSession(AuditSession $session, string $userId, ?string $reason = null): AuditSession
-    {
-        if (in_array($session->status, [AuditSession::STATUS_COMPLETED, AuditSession::STATUS_ABANDONED], true)) {
-            throw new AuditSessionConflictException('Cannot abandon an audit session that is already finished.', $session);
-        }
+    public function abandonSession(
+        AuditSession $session,
+        string $userId,
+        ?string $reason = null,
+        ?string $tillId = null,
+        ?int $leaseVersion = null
+    ): AuditSession {
+        return DB::transaction(function () use ($session, $reason, $tillId, $leaseVersion) {
+            $locked = AuditSession::whereKey($session->id)->lockForUpdate()->firstOrFail();
 
-        $notes = $session->notes;
-        if ($reason) {
-            $notes = trim(($notes ? $notes."\n" : '').'['.now()->toIso8601String().'] Abandoned: '.$reason);
-        }
+            if (in_array($locked->status, [AuditSession::STATUS_COMPLETED, AuditSession::STATUS_ABANDONED], true)) {
+                throw new AuditSessionConflictException('Cannot abandon an audit session that is already finished.', $locked);
+            }
 
-        $session->update([
-            'status' => AuditSession::STATUS_ABANDONED,
-            'lease_expires_at' => null,
-            'notes' => $notes,
-        ]);
+            if ($leaseVersion !== null && ($locked->active_till_id !== $tillId || $locked->lease_version !== $leaseVersion)) {
+                throw new AuditSessionConflictException('Lease has been superseded or expired on this device.', $locked);
+            }
 
-        return $session;
+            $notes = $locked->notes;
+            if ($reason) {
+                $notes = trim(($notes ? $notes."\n" : '').'['.now()->toIso8601String().'] Abandoned: '.$reason);
+            }
+
+            $locked->update([
+                'status' => AuditSession::STATUS_ABANDONED,
+                'lease_expires_at' => null,
+                'notes' => $notes,
+            ]);
+
+            return $locked;
+        });
     }
 
     public function confirmSyncCompletion(string $stockAuditId): int

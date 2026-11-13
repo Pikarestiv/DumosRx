@@ -126,6 +126,12 @@ describe('base-helpers invalidateQueriesForTable predicate', () => {
     expect((await getCapturedPredicate('return_services'))(details)).toBe(true);
   });
 
+  it('refreshes the staff lists when a permission group is written, so a renamed group shows in the Role column', async () => {
+    const predicate = await getCapturedPredicate('permission_groups');
+    expect(predicate(queryKeys.staff.users('store-a') as unknown as Query)).toBe(true);
+    expect(predicate(queryKeys.staff.deleted('store-a') as unknown as Query)).toBe(true);
+  });
+
   it('falls back to invalidating untagged (not-yet-migrated) queries', async () => {
     const predicate = await getCapturedPredicate('products');
     expect(predicate(fakeQuery(undefined))).toBe(true);

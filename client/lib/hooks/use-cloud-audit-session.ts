@@ -37,15 +37,14 @@ export function toCloudItem(item: AuditItem): CloudAuditSessionItem {
     counted_selling_price: item.countedSellingPrice ?? null,
     counted: Boolean(item.counted),
     notes: item.reason ?? null,
-    counted_at:
-      item.countedAt ?? (item.baselineQty !== undefined ? new Date().toISOString() : null),
+    counted_at: item.countedAt ?? null,
   };
 }
 
 function remoteCountWins(local: AuditItem, remote: CloudAuditSessionItem): boolean {
   if (!isAuditItemCounted(local)) return true;
-  if (!local.countedAt || !remote.counted_at) return false;
-  return Date.parse(remote.counted_at) > Date.parse(local.countedAt);
+  if (!remote.counted_at) return false;
+  return !local.countedAt || Date.parse(remote.counted_at) > Date.parse(local.countedAt);
 }
 
 function isResumable(session: CloudAuditSession): boolean {
@@ -279,6 +278,7 @@ export function useCloudAuditSession(storeId: string | null) {
       sessionId: cur.id,
       leaseVersion: cur.lease_version,
       submittedStockAuditId: submittedStockAuditId || null,
+      storeId: cur.store_id,
     });
     sessionRef.current = null;
     setSession(null);
@@ -288,7 +288,13 @@ export function useCloudAuditSession(storeId: string | null) {
   const abandon = useCallback(async (reason?: string) => {
     const cur = sessionRef.current;
     if (!cur || cur.active_till_id !== currentTillId) return;
-    queueAuditSessionOp({ kind: "abandon", sessionId: cur.id, reason });
+    queueAuditSessionOp({
+      kind: "abandon",
+      sessionId: cur.id,
+      reason,
+      leaseVersion: cur.lease_version,
+      storeId: cur.store_id,
+    });
     sessionRef.current = null;
     setSession(null);
     setIsReadOnly(false);

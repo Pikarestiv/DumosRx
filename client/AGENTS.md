@@ -192,7 +192,12 @@ for the same origin budget) emits `APP_EVENTS.dbSaveFailed` rate-limited to
 once per `SAVE_FAILURE_NOTICE_INTERVAL_MS` (5 min) rather than importing a
 toast library into this low-level module; before that, it was
 `console.error` only and the app looked perfectly healthy while writes
-silently stopped persisting.
+silently stopped persisting. `saveDatabase()` is a no-op that resolves `false` in a
+read-only web tab: a reader's in-memory copy is stale by definition, and exporting it
+would overwrite the writer's newer IndexedDB snapshot (A-384). Otherwise it resolves
+whether the export it took, or a later one that coalesced over it, was persisted, so a
+caller can judge its own writes without being tripped by writes that landed meanwhile
+(`hasUnpersistedWrites()` answers the different question "is anything pending at all").
 
 **Invalidation is batched per transaction.** `queueTableInvalidation()`
 collects touched table names while `inTransaction` and fires once after
@@ -212,8 +217,12 @@ own in-memory `db` (so its later reads see the current schema) while never
 writing that back to shared storage. It is awaited rather than
 fire-and-forget so a caller that awaits `initDatabase()` can read
 `isWriterTab()` immediately; that only waits for the initial decision, never
-for an eventual promotion. `saveDatabase` is passed as the graceful-handoff
-callback so an outgoing writer force-saves before dropping to read-only.
+for an eventual promotion. `saveBeforeWriterHandoff()` is passed as the
+graceful-handoff callback so an outgoing writer force-saves before dropping to
+read-only. It first awaits every `onBeforeWriterHandoff()` hook, so a module that
+debounces its writes (the cycle count draft, 400ms) can flush them while the tab may
+still write; otherwise that write fires after demotion and `assertWritable()` drops it
+(A-384).
 
 `initDatabasePromise` dedupes concurrent `initDatabase()` calls. `db` stays
 null for the whole async init (WASM load, IndexedDB read, schema run) and
@@ -2196,17 +2205,34 @@ cycle count, and stock adjustment.
    No server migration, not synced.
 2. **The cycle count draft has one durable copy, SQLite** (A-375, 2026-11-13).
    `useStockAuditDraftStore` no longer uses zustand `persist`; nothing of the sheet is
-   in localStorage. Writes are debounced 400ms and flushed at once by
-   `flushStockAuditDraftSaves()` on `pagehide`, `visibilitychange` (hidden), store switch,
-   logout and user switch. `loadStoreDraft()` waits for `initDatabase()` (on a cold start
+   in localStorage. Writes are debounced 400ms; `flushStockAuditDraftSaves()` starts them
+   early on `pagehide`, `visibilitychange` (hidden), store switch, logout and user switch.
+   That is best effort: it only queues an async sql.js write and IndexedDB persist, so a
+   count made in the last moments before the browser is killed may not reach IndexedDB. `loadStoreDraft()` waits for `initDatabase()` (on a cold start
    the store id resolves before the DB opens; without the wait the sheet rebuilt empty and
    overwrote the draft), and `useAuditSheetSource` builds no sheet until
    `loadedStoreId === activeStoreId`. A count made while no store id resolves stays in
-   memory and is filed under the store once one is set; nothing is written under
-   `"default"` any more.
+   memory and is filed under the store once one is set, but only if it holds a counted row
+   and the store's in-memory draft does not; `loadStoreDraft()` likewise keeps the
+   in-memory sheet over SQLite only when it has a counted row (`hasCountedAuditRow()`), so
+   an uncounted sheet built early never overwrites a counted draft (A-379). Nothing is
+   written under `"default"` any more.
+   **Read-only second tab:** `assertWritable()` refuses its writes, so `StockAudits`
+   treats `useDatabase().isReadOnlyTab` like the cloud lease's `isReadOnly` (no counting,
+   no submit, no cloud push) and hides Start over. When the tab is promoted to writer the
+   draft store drops its pending saves and in-memory drafts and reloads from SQLite, which
+   the promotion has just rehydrated from IndexedDB.
    **Compat shim:** `importLegacyStockAuditDrafts()` (`lib/hooks/stock-audit-draft-legacy.ts`)
    moves a pre-2026-11 `stock-audit-draft` localStorage blob into SQLite once, never over an
-   existing SQLite draft, removing the key only after every write succeeded;
+   SQLite draft that has a counted row (it does replace an uncounted or empty one when the
+   blob has counts), removing the key only after every write succeeded and, on the web
+   build, `saveDatabase()` reports that the import's own export reached IndexedDB (a write
+   landing meanwhile no longer keeps the key; A-384). It does nothing in a read-only web
+   tab and runs when the tab is promoted. With the drafts it writes a marker row
+   (`LEGACY_IMPORT_MARKER_KEY`, `items_json = "[]"`) into `stock_audit_drafts`; a boot that
+   finds both the key and the marker only persists and removes the key, so a sheet
+   submitted after an import whose key survived is never resurrected. Wiping all drafts
+   also drops the key;
    `adoptUnscopedStockAuditDraft()` adopts an old `"default"` SQLite row. Retire both once
    no active device reports a build older than 2026-11-13.
    The stock adjustment draft still has its localStorage `persist` copy; not changed here.
@@ -2240,8 +2266,8 @@ The local SQLite draft covers offline counting; while online the count is also h
 2. **Read-Only Inspection Mode:** If another till holds the editing lease, the screen enters Inspection Mode (`isReadOnly = true`). Inputs and checkboxes are disabled, showing the active counter's till name and live counted count (`x of y items counted`).
 3. **Explicit Takeover:** Staff can take over an active count from any device (e.g. if the counter's till runs out of battery). Takeover issues `POST /app/audit-sessions/{id}/takeover`, invalidating previous leases via an incremented fencing version (`lease_version`). Logout and user switch never abandon the session, so a till can take over a count whose counter signed out.
 4. **Fencing & Offline Recovery:** Stale writes from a superseded device fail with HTTP 409 (`AuditSessionConflictError`). The older device immediately drops into read-only mode, but its local SQLite counts are preserved intact for review and never silently discarded.
-5. **Merge is newest-wins:** rows carry `countedAt` (stamped by `useAuditCounting`, sent as `counted_at`). `mergeCloudItemsIntoLocal()` takes a cloud row only when the local row is uncounted, or both carry timestamps and the cloud one is newer; a local count with no timestamp (a pre-2026-11-13 draft) wins. A merged row has no `baselineQty` (A-378).
-6. **Completion and abandon go through an outbox** (A-376): `complete()` (after submit) and `abandon()` (Start over, only when this till holds the session) write to `lib/hooks/cloud-audit-pending-ops.ts` (localStorage `dumos_audit_session_pending_ops`) before sending, and every Cycle Count open and `online` event flushes it. 409 and 403/404/410/422 settle an entry; network errors and 401 keep it. `initSession()` never adopts or merges a session that is not `in_progress`, names `submitted_stock_audit_id`, or is still in the outbox.
+5. **Merge is newest-wins:** rows carry `countedAt` (stamped by `useAuditCounting`, sent as `counted_at`). `mergeCloudItemsIntoLocal()` takes a cloud row only when the local row is uncounted, or the cloud row carries a timestamp and the local one is older or has none; a missing time counts as oldest, and when neither side has one the local row stays. `toCloudItem()` sends `counted_at: null` for a row with no `countedAt` (a pre-2026-11-13 draft), never the push time, so every till converges on the stamped figure (A-379). A merged row has no `baselineQty` (A-378).
+6. **Completion and abandon go through an outbox** (A-376): `complete()` (after submit) and `abandon()` (Start over, only when this till holds the session) write to `lib/hooks/cloud-audit-pending-ops.ts` (localStorage `dumos_audit_session_pending_ops`) before sending, and every Cycle Count open and `online` event flushes it. Each entry stores its session's `storeId` and is sent with that `X-Store-Id`, so a multi-store owner's switch cannot misroute it; abandon also sends `till_id` and `lease_version`, and the server's 409 for a till that has been taken over drops the entry without a toast. 409 and 404/410/422 settle an entry; network errors and 401 keep it, and so does 403 until the entry is older than `FORBIDDEN_AUDIT_OP_TTL_MS` (7 days, from `queuedAt`; an entry from an older build without it is stamped at its first flush), after which a 403 drops it (A-384). An entry from an older build has no `storeId` and is sent under the active store, so a 403 keeps it until a flush from its own store or the TTL (A-379). `clearLocalDrafts()` without `preserveStoreAudit` (factory reset, linking another store) clears the whole outbox; logout and same-tenant user switch keep it, because a queued complete must still reach the server. `initSession()` never adopts or merges a session that is not `in_progress`, names `submitted_stock_audit_id`, or is still in the outbox.
 7. **Completion Lifecycle:** `POST /complete` records `submitted_stock_audit_id` and moves the session to `completion_pending_sync`; when the sync engine pushes that `stock_audits` row the session becomes `completed`. Only `auditIds[0]` is sent; any one of a submit's rows arriving is enough because they are pushed together.
 
 ### An expense is dated by the store's own day (2026-10-13)
@@ -3648,6 +3674,16 @@ AuthContext — the identity check at the call site is the fail-safe half
 (A-55 in `docs/FIXED_BUGS.md`). A group with no `userId` (the assistant's
 tool context builds one) is still honoured as-is.
 
+**The staff list's Role column shows the permission group, not the base
+role.** `getUsers()`/`getDeletedUsers()` select `permission_group_name` with a
+correlated subquery on `permission_groups` (live rows only), so the list is
+still one query; `staffRoleLabel()` (`components/settings/staff/staff-list-parts.tsx`)
+falls back to the formatted `role` when a member has no group or the group
+was deleted or has not synced yet. The Admin shield and badge variant stay
+keyed on `role`. `queryKeys.staff.users`/`deleted` are tagged with
+`permission_groups` as well as `users`, so a group rename, either locally or
+from a sync pull, refreshes the list.
+
 `ENFORCED_PERMISSION_KEYS` (`lib/constants/permissions.ts`) lists the keys
 with a real `useHasPermission()` / `hasPermission()` call site; the Roles &
 Permissions matrix reads it to mark the rest as not-yet-wired. **It is a
@@ -3944,18 +3980,36 @@ has a `viewBox`, so it scales instead of clipping). `barcodeFit()` in
 `barcode-label-sheet.ts` encodes the value with jsbarcode, counts modules at
 1 CSS px (0.2646 mm) each and compares against the label's inner width; when
 it does not fit, the dialog says the code will be squeezed and may not scan,
-rather than silently printing an unscannable label. Paper layouts live in
+rather than silently printing an unscannable label. A value jsbarcode refuses
+outright (CODE128 takes ASCII only, so `café123` or `€12` throw) comes back
+as `reason: "unencodable"`, and react-barcode would swallow the same error
+and draw an empty SVG. So both dialogs pick the code through
+`labelBarcodeValue()` (`barcode-label-markup.ts`, built on
+`canEncodeBarcode()`): the barcode when it encodes, otherwise the product id,
+for the preview, the print template and the bulk markup alike. The single
+dialog then says the barcode has characters a label can't encode and that
+the id prints instead. Paper layouts live in
 `LABEL_LAYOUTS` (roll 50×25 mm, one per page; A4 3×8 of 63.5×33.9 mm with
 Avery L7159-style margins), the chosen layout is a per-device
 `localStorage` convenience (`STORAGE_KEYS.labelPrintLayout`, read and
 written in try/catch by `use-label-layout.ts`, untouched by store switches),
 and the product name obeys display caps through `useUppercaseDisplay()` for
-both the on-screen name and the printed `text-transform`. Selecting several
-catalog products and printing all their labels in one job is not built: the
-catalog has no multi-select, so it would need row selection state in
-`catalog-list.tsx`, a dialog that takes `BarcodeLabelProduct[]` with a
-per-product quantity, and `buildLabelSheetHtml` taking a list of label
-templates instead of one.
+both the on-screen name and the printed `text-transform`.
+
+**Labels for many products at once (2026-11-13).** The desktop catalog
+toolbar (`product-database-filters.tsx`, gated on `print_product_labels`)
+has a Print labels button that opens `barcode-bulk-print-dialog.tsx` for
+whatever the search and the Category/Inventory filters currently show; there
+is no row selection (narrow the list instead) and the toolbar is `lg`+ only.
+The dialog reuses `BarcodeLabelOptions` ("Labels per product", paper, start
+position; `totalLabels` feeds the "N labels on M sheets" line). Unlike the
+single-product dialog it renders no off-screen React labels: `buildLabelHtml`
+in `barcode-label-markup.ts` draws each label's SVG with jsbarcode at print
+time, and `buildMultiProductSheetHtml` repeats each product's label per copy
+and packs them through the same `packLabels` the single dialog uses. A job is
+capped at `MAX_BULK_LABELS` (2000) and the dialog blocks Print above it; a
+product with no barcode, or one `canEncodeBarcode()` rejects, prints its
+product id and the dialog counts both together.
 
 `delete_products` and `delete_suppliers` joined the enforced list on
 2026-09-29 as well, and they are the **third** reversal of that morning's
@@ -7562,7 +7616,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 The product detail panel's Batches tab (`product-batch-history.tsx`) lets a user with **both** `view_cost_fields` and `edit_product_cost` correct one batch's `cost_price` through `BatchCostEditDialog` (input, then a confirm step). Without `view_cost_fields` the tab shows no batch cost, total value or edit control; before this it showed cost to everyone.
 
 - **What it writes:** one `update("stock_batches", id, { cost_price })`, rounded to 2 dp, so it syncs as a cost-only UPDATE. A cost-only push is *not* quantity-only, so the server applies its normal strict `_version` check (`SyncEndpointTest::test_push_sync_keeps_a_cost_correction_valid_after_another_device_sells`); no server change was needed. The server does not validate the value, so the client range check (`isValidBatchCostPrice`: finite, 0 to 1,000,000,000) is the only one. An unchanged cost writes nothing.
-- **Audit trail:** the same `update()` call logs the row under the named action `BATCH_COST_CORRECTED`, with `previous_cost_price`, `batch_number` and `product_id` merged into the logged details through `update()`'s `auditDetails` option. No stock movement and no `stock_audits` row: quantity does not change, and `stock_audits` is product-level. `getProductHistory()` pulls these rows into the product's History tab by batch, which is why `queryKeys.products.history` also lists `stock_batches`.
+- **Audit trail:** the same `update()` call logs the row under the named action `BATCH_COST_CORRECTED`, with `previous_cost_price`, `batch_number` and `product_id` merged into the logged details through `update()`'s `auditDetails` option. No stock movement and no `stock_audits` row: quantity does not change, and `stock_audits` is product-level. `getProductHistory()` pulls these rows into the product's History tab by batch, which is why `queryKeys.products.history` also lists `stock_batches`. Without `view_cost_fields` the History tab prints the row without either cost (`describeAuditDetails(..., canViewCost)`; the permission is part of the query key). The Activity Log detail panel does not gate them yet (A-380).
 - **What it changes:** stock value, the product's average and last-bought cost (all read live from `stock_batches`), the cost of future sales via that average, and the cost a later return restocks at (A-374). **What it does not:** `sale_items.cost_price` (sale-time snapshot, used by every COGS/profit figure), the receipt's `stock_movements.unit_cost/total_cost` (so stock MoM history stays as received), and `purchase_order_items` (what was ordered and paid, per "Receiving cost scale" above).
 - Expired, sold-out and inactive batches are editable on purpose: a zero-quantity batch still feeds Last Bought Price and return valuation.
 
@@ -7596,6 +7650,38 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
   - Cash shortfall alert displays a 1-click **"Pay Exact ({total})"** button beside the shortfall text so the cashier can instantly resolve shortages with one tap without manual retyping.
   - `<QuickCashTender />` displays smart tender chips (`Exact`, rounded bill denominations such as ₦1,000, ₦2,000, ₦5,000) for rapid cash handling.
   - In `PaymentSplits`, when splits under-cover the total, the exact shortfall is shown alongside a 1-click **"Cover Remaining ({shortage})"** button that fills the remaining balance into the split automatically.
+
+## Barcode Scanning on the POS
+
+- **Camera scanner (`components/pos/camera-scanner-dialog.tsx`):** on open it
+  asks `navigator.permissions.query({ name: "camera" })`. `granted` starts the
+  camera straight away; `denied` shows the denied screen; `prompt` keeps the
+  "Enable Camera" screen, so the browser's own prompt only ever follows a tap.
+  A throw (Firefox/older Safari reject the `camera` name) or no Permissions API
+  falls back to a per-device `localStorage` flag (`cameraScannerAllowed`, set on
+  the first successful start, cleared on `NotAllowedError`), so those browsers
+  also skip the screen after the first grant; the flag is never trusted when the
+  browser reports `prompt`.
+  The permission read is cancelled by the effect cleanup, so strict mode's
+  double effect starts one camera, and `sessionRef` makes a start that is still
+  awaiting `getCameras()`/`start()` when the dialog closes stop itself instead
+  of leaving the camera on.
+- **Keyboard-wedge scanners (`lib/hooks/use-barcode-wedge.ts`, wired in
+  `components/pos/pos-system.tsx`, so it only runs on `/pos`):** a capture-phase
+  `window` keydown listener collects printable keys arriving at most
+  `WEDGE_MAX_KEY_GAP_MS` (50ms) apart and, on a key in `WEDGE_TERMINATOR_KEYS`
+  (Enter, Tab) with at least `WEDGE_MIN_CODE_LENGTH` (4) characters buffered,
+  calls the same `handleScanSuccess` as the search box. Only a confirmed scan's
+  terminator is `preventDefault`ed and stopped, so the Enter cannot also click a
+  focused product tile; the burst's characters themselves are not swallowed.
+  It stands down for any `input`/`textarea`/`select`/contenteditable target,
+  **including the POS search input, which keeps its own Enter path in
+  `usePOSScan.handleKeyPress`** (exactly one path fires), for Ctrl/Alt/Meta
+  chords, while any `[role=dialog]`/`[role=alertdialog]` is in the DOM, and
+  while payment, receipt, camera scanner or spot sourcing is open.
+  `handleScanSuccess` matches exactly (case-insensitive) on `barcode` or
+  `batch_number`; no match shows a "No product found for barcode" error toast
+  and leaves the cart alone.
 
 ## Service POS (Walk-In Services Alongside Physical Products)
 

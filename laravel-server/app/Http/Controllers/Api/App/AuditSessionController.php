@@ -219,10 +219,15 @@ class AuditSessionController extends Controller
     {
         $this->ensureSessionStoreScope($request, $session);
 
+        [$tillId] = $this->resolveTill($request);
+        $leaseVersion = $request->filled('lease_version') ? (int) $request->input('lease_version') : null;
+
         $updated = $this->auditSessions->abandonSession(
             $session,
             $request->user()->id,
-            $request->input('reason')
+            $request->input('reason'),
+            $tillId,
+            $leaseVersion
         );
 
         return response()->json([

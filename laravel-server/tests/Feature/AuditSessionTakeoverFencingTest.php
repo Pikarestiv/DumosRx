@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Exceptions\AuditSessionConflictException;
 use App\Models\AuditSession;
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\User;
+use App\Services\Audit\AuditSessionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -15,7 +17,9 @@ class AuditSessionTakeoverFencingTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $store;
+
     protected Product $product;
 
     protected function setUp(): void
@@ -140,5 +144,128 @@ class AuditSessionTakeoverFencingTest extends TestCase
         $takeoverRes->assertStatus(409);
         $takeoverRes->assertJsonPath('message', 'Cannot take over an audit session that is not in progress.');
     }
-}
 
+    private function startSessionOnTill(string $tillId): string
+    {
+        return $this->actingAs($this->owner)
+            ->withHeaders(['X-Store-Id' => $this->store->id, 'X-Device-Id' => $tillId])
+            ->postJson('/api/v1/app/audit-sessions', [
+                'items' => [['product_id' => $this->product->id, 'system_quantity' => 20, 'counted' => false]],
+            ])
+            ->json('session.id');
+    }
+
+    public function test_stale_abandon_after_takeover_is_rejected_and_session_stays_in_progress(): void
+    {
+        $sessionId = $this->startSessionOnTill('TILL-01');
+
+        $this->actingAs($this->owner)
+            ->withHeaders(['X-Store-Id' => $this->store->id])
+            ->postJson("/api/v1/app/audit-sessions/{$sessionId}/takeover", ['till_id' => 'TILL-02'])
+            ->assertStatus(200);
+
+        $staleAbandon = $this->actingAs($this->owner)
+            ->withHeaders(['X-Store-Id' => $this->store->id, 'X-Device-Id' => 'TILL-01'])
+            ->postJson("/api/v1/app/audit-sessions/{$sessionId}/abandon", [
+                'till_id' => 'TILL-01',
+                'lease_version' => 1,
+                'reason' => 'Start over',
+            ]);
+
+        $staleAbandon->assertStatus(409);
+        $this->assertSame(AuditSession::STATUS_IN_PROGRESS, AuditSession::find($sessionId)->status);
+        $this->assertSame('TILL-02', AuditSession::find($sessionId)->active_till_id);
+    }
+
+    public function test_abandon_from_a_different_till_with_the_current_lease_version_is_rejected(): void
+    {
+        $sessionId = $this->startSessionOnTill('TILL-01');
+
+        $this->actingAs($this->owner)
+            ->withHeaders(['X-Store-Id' => $this->store->id])
+            ->postJson("/api/v1/app/audit-sessions/{$sessionId}/abandon", [
+                'till_id' => 'TILL-03',
+                'lease_version' => 1,
+            ])
+            ->assertStatus(409);
+
+        $this->assertSame(AuditSession::STATUS_IN_PROGRESS, AuditSession::find($sessionId)->status);
+    }
+
+    public function test_abandon_from_the_lease_holder_succeeds(): void
+    {
+        $sessionId = $this->startSessionOnTill('TILL-01');
+
+        $this->actingAs($this->owner)
+            ->withHeaders(['X-Store-Id' => $this->store->id])
+            ->postJson("/api/v1/app/audit-sessions/{$sessionId}/abandon", [
+                'till_id' => 'TILL-01',
+                'lease_version' => 1,
+            ])
+            ->assertStatus(200)
+            ->assertJsonPath('session.status', AuditSession::STATUS_ABANDONED);
+    }
+
+    public function test_abandon_without_lease_fields_from_an_older_client_still_succeeds(): void
+    {
+        $sessionId = $this->startSessionOnTill('TILL-01');
+
+        $this->actingAs($this->owner)
+            ->withHeaders(['X-Store-Id' => $this->store->id, 'X-Device-Id' => 'TILL-09'])
+            ->postJson("/api/v1/app/audit-sessions/{$sessionId}/abandon", ['reason' => 'Start over'])
+            ->assertStatus(200)
+            ->assertJsonPath('session.status', AuditSession::STATUS_ABANDONED);
+    }
+
+    public function test_store_id_header_selects_the_sessions_store_for_a_multi_store_owner(): void
+    {
+        $sessionId = $this->startSessionOnTill('TILL-01');
+        $otherStore = Store::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $this->owner->id,
+            'name' => 'Second Branch',
+            'store_slug' => 'second-branch',
+            'device_id' => 'DRX-FENCE-STORE-2',
+            'currency' => 'NGN',
+        ]);
+        $completeBody = ['till_id' => 'TILL-01', 'lease_version' => 1, 'submitted_stock_audit_id' => (string) Str::uuid()];
+
+        $this->actingAs($this->owner)
+            ->withHeaders(['X-Store-Id' => $otherStore->id])
+            ->postJson("/api/v1/app/audit-sessions/{$sessionId}/complete", $completeBody)
+            ->assertStatus(403);
+
+        $this->actingAs($this->owner)
+            ->withHeaders(['X-Store-Id' => $this->store->id])
+            ->postJson("/api/v1/app/audit-sessions/{$sessionId}/complete", $completeBody)
+            ->assertStatus(200)
+            ->assertJsonPath('session.status', AuditSession::STATUS_COMPLETION_PENDING_SYNC);
+    }
+
+    public function test_abandon_checks_the_lease_against_the_row_not_a_copy_read_before_a_takeover(): void
+    {
+        $sessionId = $this->startSessionOnTill('TILL-01');
+        $readBeforeTakeover = AuditSession::findOrFail($sessionId);
+        $service = app(AuditSessionService::class);
+        $service->takeoverSession(AuditSession::findOrFail($sessionId), $this->owner->id, 'TILL-02', null);
+
+        try {
+            $service->abandonSession($readBeforeTakeover, $this->owner->id, 'Start over', 'TILL-01', 1);
+            $this->fail('A stale lease abandoned a session another till had taken over.');
+        } catch (AuditSessionConflictException) {
+        }
+
+        $this->assertSame(AuditSession::STATUS_IN_PROGRESS, AuditSession::find($sessionId)->status);
+        $this->assertSame('TILL-02', AuditSession::find($sessionId)->active_till_id);
+    }
+
+    public function test_an_older_client_abandon_does_not_reopen_a_session_completed_after_it_was_read(): void
+    {
+        $sessionId = $this->startSessionOnTill('TILL-01');
+        $readBeforeCompletion = AuditSession::findOrFail($sessionId);
+        AuditSession::whereKey($sessionId)->update(['status' => AuditSession::STATUS_COMPLETED]);
+
+        $this->expectException(AuditSessionConflictException::class);
+        app(AuditSessionService::class)->abandonSession($readBeforeCompletion, $this->owner->id, 'Start over');
+    }
+}

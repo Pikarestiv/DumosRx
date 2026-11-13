@@ -7,9 +7,12 @@ import {
 
 export const PENDING_AUDIT_SESSION_OPS_KEY = "dumos_audit_session_pending_ops";
 
-export type PendingAuditSessionOp =
-  | { kind: "complete"; sessionId: string; leaseVersion: number; submittedStockAuditId: string | null }
-  | { kind: "abandon"; sessionId: string; reason?: string };
+export const FORBIDDEN_AUDIT_OP_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+export type PendingAuditSessionOp = (
+  | { kind: "complete"; sessionId: string; leaseVersion: number; submittedStockAuditId: string | null; storeId?: string }
+  | { kind: "abandon"; sessionId: string; reason?: string; leaseVersion?: number; storeId?: string }
+) & { queuedAt?: number };
 
 function readOps(): PendingAuditSessionOp[] {
   try {
@@ -30,25 +33,39 @@ function writeOps(ops: PendingAuditSessionOp[]) {
 }
 
 export function queueAuditSessionOp(op: PendingAuditSessionOp) {
-  writeOps([...readOps().filter((o) => o.sessionId !== op.sessionId), op]);
+  writeOps([...readOps().filter((o) => o.sessionId !== op.sessionId), { ...op, queuedAt: Date.now() }]);
+}
+
+export function clearAuditSessionOps() {
+  writeOps([]);
+}
+
+function readStampedOps(): PendingAuditSessionOp[] {
+  const ops = readOps();
+  if (ops.every((o) => typeof o.queuedAt === "number")) return ops;
+  const stamped = ops.map((o) => (typeof o.queuedAt === "number" ? o : { ...o, queuedAt: Date.now() }));
+  writeOps(stamped);
+  return stamped;
 }
 
 export function pendingAuditSessionIds(): Set<string> {
   return new Set(readOps().map((o) => o.sessionId));
 }
 
-const SETTLED_STATUSES = new Set([403, 404, 410, 422]);
+const SETTLED_STATUSES = new Set([404, 410, 422]);
 
-function isSettled(err: unknown): boolean {
+function isSettled(err: unknown, op: PendingAuditSessionOp): boolean {
   if (err instanceof AuditSessionConflictError) return true;
-  return err instanceof AuditSessionRequestError && SETTLED_STATUSES.has(err.statusCode);
+  if (!(err instanceof AuditSessionRequestError)) return false;
+  if (err.statusCode === 403) return Date.now() - (op.queuedAt ?? Date.now()) > FORBIDDEN_AUDIT_OP_TTL_MS;
+  return SETTLED_STATUSES.has(err.statusCode);
 }
 
 async function send(op: PendingAuditSessionOp) {
   if (op.kind === "complete") {
-    await completeAuditSession(op.sessionId, op.leaseVersion, op.submittedStockAuditId);
+    await completeAuditSession(op.sessionId, op.leaseVersion, op.submittedStockAuditId, op.storeId);
   } else {
-    await abandonAuditSession(op.sessionId, op.reason);
+    await abandonAuditSession(op.sessionId, op.reason, op.leaseVersion, op.storeId);
   }
 }
 
@@ -56,11 +73,11 @@ let flushing: Promise<void> | null = null;
 
 export function flushAuditSessionOps(): Promise<void> {
   flushing ??= (async () => {
-    for (const op of readOps()) {
+    for (const op of readStampedOps()) {
       try {
         await send(op);
       } catch (err) {
-        if (!isSettled(err)) continue;
+        if (!isSettled(err, op)) continue;
       }
       writeOps(readOps().filter((o) => o.sessionId !== op.sessionId));
     }

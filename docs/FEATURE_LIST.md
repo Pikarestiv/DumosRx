@@ -14,7 +14,8 @@ tracks current behavior.
 - Notifications bell — a raw activity-log feed, distinct from the curated Recent Activity card
 
 ## Point of Sale
-- Barcode-scan or search-based product lookup, category filter pills, "goes well with cart" smart suggestions, a "recently sold" row once a sale completes this session
+- Barcode scanning: a USB/Bluetooth scanner set to send Enter (or Tab) after the code works from anywhere on the POS screen, not just the search box (ignored while a dialog is open or another field has focus); the camera scanner starts on its own once camera access has been granted; matching is exact on barcode or batch number, and an unmatched code shows "No product found" without touching the cart
+- Search-based product lookup, category filter pills, "goes well with cart" smart suggestions, a "recently sold" row once a sale completes this session
 - Cart with quantity adjustment (click-to-type or +/- buttons), per-item discounts, manual price override, swipe-to-delete on touch
 - Hold/park a transaction and resume it later (survives item renames/deactivation by re-matching against the live product list on recall)
 - Split payments (Cash, Card, Transfer, Credit, Mixed) with automatic change calculation; Card/Transfer can require a destination account, filtered by account type
@@ -29,7 +30,7 @@ tracks current behavior.
 ## Inventory
 - Overview: stock health stat cards, a "Needs attention" panel (expiring batches, low/out-of-stock products), and a Fast Movers panel (last-7-days top sellers)
 - Catalog: full product list with search, category filter, an inventory-status filter (Active/Inactive/Expiring Soon/Expired/Low Stock/Out of Stock), sortable columns, and a category management dialog
-- Barcode labels: print from a catalog row or the product actions menu, on a 50 × 25 mm label roll (one per label) or packed 24 to an A4 sticker sheet (3 × 8) with a start position for partly used sheets, typed quantity with presets, paper/sheet count shown before printing, per-device layout memory, and a warning when a barcode is too long to scan
+- Barcode labels: print from a catalog row or the product actions menu, on a 50 × 25 mm label roll (one per label) or packed 24 to an A4 sticker sheet (3 × 8) with a start position for partly used sheets, typed quantity with presets, paper/sheet count shown before printing, per-device layout memory, a warning when a barcode is too long to scan, and a Print labels button on the desktop catalog toolbar that prints one label per product for whatever the search and filters show (copies per product, packed across A4 sheets, up to 2000 labels a job)
 - Batch cost correction: a pencil on each batch in a product's Batches tab fixes a cost typed wrongly at receiving (review-then-confirm, audit-logged with old and new cost, gated by View Cost & Margin Fields plus Edit Product Cost Price); past sales keep their recorded cost
 - Bulk product import: multi-sheet workbook support, auto column-mapping from known header sets (QuickBooks POS, Moniebook, and other common exports), an in-file duplicate warning before committing
 - Export: CSV, XLSX, or PDF — all three open the same column-picker dialog (respects whatever search/category/status filter is currently active on the Catalog table)

@@ -1,4 +1,5 @@
 import { clearPOSCartStorage } from "@/lib/hooks/use-pos-cart";
+import { clearAuditSessionOps } from "@/lib/hooks/cloud-audit-pending-ops";
 import {
   clearAllStockAuditDrafts,
   flushStockAuditDraftSaves,
@@ -16,6 +17,7 @@ export function clearLocalDrafts(opts?: {
     void flushStockAuditDraftSaves();
   } else {
     clearAllStockAuditDrafts();
+    clearAuditSessionOps();
   }
   if (!opts?.preserveStoreAdjustment) {
     clearAllStockAdjustmentDrafts();

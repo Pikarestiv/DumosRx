@@ -87,6 +87,17 @@ describe("StaffList row affordances", () => {
     expect(screen.getAllByLabelText("Delete ada").length).toBeGreaterThan(0);
   });
 
+  it("shows the staff member's permission group as their role", () => {
+    renderList([staff({ permission_group_name: "Cashier+StockManager" })]);
+    expect(screen.getAllByText("Cashier+StockManager").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("sales staff")).toHaveLength(0);
+  });
+
+  it("falls back to the base role when the member has no group", () => {
+    renderList([staff({ permission_group_name: null })]);
+    expect(screen.getAllByText("sales staff").length).toBeGreaterThan(0);
+  });
+
   it("disables deletion for default-admin or main account", () => {
     renderList([staff({ id: "default-admin", username: "admin", role: "admin" })]);
     const deleteButtons = screen.getAllByLabelText("Delete admin");

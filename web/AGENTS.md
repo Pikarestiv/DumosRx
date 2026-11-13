@@ -157,8 +157,8 @@ together). The current design:
   into `removed` (absent from the catalog response) and `repriced`, and names
   the items in each toast instead of the old blanket "Some prices or items in
   your cart changed" (A-106). The structural half of A-106 is **not** fixed:
-  `GET /storefront/{slug}` is still capped at `MAX_STOREFRONT_PRODUCTS = 300`
-  while `checkout()`/`priceCart()` are uncapped, so a catalogue past 300
+  `GET /storefront/{slug}` is still capped at `MAX_STOREFRONT_PRODUCTS = 50`
+  while `checkout()`/`priceCart()` are uncapped, so a catalogue past 50
   products can still drop a legitimately purchasable item — the customer now
   at least sees which one. The real fix is a cart-scoped pricing endpoint
   (`POST /storefront/{slug}/price-cart` taking item ids); log it there if it
@@ -195,21 +195,31 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
 
 - **Storefront routes (refreshed 2026-11-13):**
   - Home (`app/store/[store_slug]/page.tsx`), top to bottom: hero (store
-    name, "Shop now", "Contact us"), **Featured Products** (the first 8 of
+    name, "Shop now", and "Contact us" when the store has contact details), **Featured Products** (the first 8 of
     the show endpoint's `products`, which the API already orders in-stock
     first, plus "View all N products" → `/catalog`), a headline band
     (`storefront.headline` with fixed supporting copy and "Browse the shop"),
     then `StoreAboutSection` (`#about`), `StoreLocationsSection`
     (`#locations`, only when `hasLocationsToShow()`: more than one branch, or
     the store has an address), `StoreFaqSection` (`#faq`) and a Contact
-    section (`#contact`) wrapping `StoreContactBlock`. Every section carries
+    section (`#contact`) wrapping `StoreContactBlock`. The Contact section,
+    the hero's "Contact us", the footer's Contact column and the Contact nav
+    link (`storefrontNavLinks(slug, store)`) all appear only when
+    `hasContactDetails(store)` (`lib/storefront-display.ts`): a phone, an
+    email or an address line, each ignored when it is only whitespace
+    (A-384). Without one there is nothing to link to. Every section carries
     `scroll-mt-24` so the sticky header does not cover its heading.
-  - **N in "View all N products" is `products.length`, which is capped.** The
-    show endpoint returns at most `StorefrontCatalogService::MAX_STOREFRONT_PRODUCTS`
-    (300) rows, so a store with more reads "View all 300 products". Accepted:
-    the build already holds that array, and an extra paginated request per
-    store per build just for a total is not worth it yet. The shop page's own
-    count comes from its paginated `meta.total` and is exact.
+  - **N in "View all N products" is the show endpoint's `product_count`**
+    (2026-11-13), the uncapped total of the branch's online-visible products.
+    `products` itself stays capped at
+    `StorefrontCatalogService::MAX_STOREFRONT_PRODUCTS` (50), so its length is
+    not the total. `viewAllProductsLabel()` (`lib/storefront-display.ts`) falls
+    back for an API that predates `product_count`: it shows
+    `products.length` while that is under the cap (mirrored on the web as
+    `STOREFRONT_LANDING_PRODUCT_CAP`), and plain "View all products" once the
+    list is full, since the real total is unknown. The fallback can go once
+    every deployed API returns `product_count` (the same release as this
+    change). One product reads "View all 1 product". The shop page's own count comes from its paginated `meta.total`.
   - Shop (`/catalog`, labelled **Shop** in breadcrumbs, title and heading;
     the route name stays `catalog` so old links work): search, category
     pills and pagination via `StorefrontCatalogView`.
@@ -286,6 +296,15 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   `getStorefrontData()` is a plain GET `fetch`, which Next request-memoizes
   within one render, so the page, the layout and `generateMetadata` share
   one request.
+- **The header store name wraps, it does not truncate.** It is
+  `line-clamp-2 leading-tight break-words` beside the logo inside the fixed
+  `h-16` header, and `storeNameTextClass()` (`lib/storefront-display.ts`) steps
+  the font down for names over 16 characters on phones and over 28 on wider
+  screens, so a real name such as "Cutis Aesthetics & Med Spa" shows whole at
+  390px. The nav and cart are `shrink-0 whitespace-nowrap`, so the name gives
+  way instead of them. Anything past two lines is clamped; the full name stays
+  on the home link's `title` and accessible name. The footer and breadcrumb
+  print the name unclamped.
 - **Contact details are one labelled block**, `store-contact-block.tsx`
   (Address / Phone / Email, `tel:`/`mailto:` links), rendered only when the
   store has at least one. `lib/storefront-display.ts`'s `storeAddressLine()`

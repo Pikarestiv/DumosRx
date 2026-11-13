@@ -52,15 +52,29 @@ export function clampStartPosition(layout: LabelLayoutId, position: number): num
 
 export function countLabelPages(layout: LabelLayoutId, quantity: number, startPosition: number): number {
   const skipped = clampStartPosition(layout, startPosition) - 1;
-  return Math.ceil((skipped + clampLabelQuantity(quantity)) / labelsPerPage(layout));
+  return Math.ceil((skipped + Math.max(1, Math.floor(quantity))) / labelsPerPage(layout));
 }
 
 const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? "" : "s"}`;
 
 export function describeLabelPaper(layout: LabelLayoutId, quantity: number, startPosition: number): string {
-  const labels = clampLabelQuantity(quantity);
+  const labels = Math.max(1, Math.floor(quantity));
   const pages = countLabelPages(layout, labels, startPosition);
   return `${plural(labels, "label")} on ${plural(pages, LABEL_LAYOUTS[layout].paper)}`;
+}
+
+export const MAX_BULK_LABELS = 2000;
+
+export function packLabels(labels: string[], layout: LabelLayoutId, startPosition = 1): string {
+  if (layout === "roll") return labels.join("");
+  const blanks = Array<string>(clampStartPosition(layout, startPosition) - 1).fill('<div class="blank"></div>');
+  const cells = [...blanks, ...labels];
+  const perPage = labelsPerPage(layout);
+  const sheets: string[] = [];
+  for (let i = 0; i < cells.length; i += perPage) {
+    sheets.push(`<div class="sheet">${cells.slice(i, i + perPage).join("")}</div>`);
+  }
+  return sheets.join("");
 }
 
 // Builds the print sheet by repeating ONE rendered label's markup.
@@ -73,23 +87,25 @@ export function buildLabelSheetHtml(
 ): string {
   if (!labelHtml) return "";
   if (quantity <= 0) return "";
-  const labels = Array<string>(clampLabelQuantity(quantity)).fill(labelHtml);
-  if (layout === "roll") return labels.join("");
+  return packLabels(Array<string>(clampLabelQuantity(quantity)).fill(labelHtml), layout, startPosition);
+}
 
-  const blanks = Array<string>(clampStartPosition(layout, startPosition) - 1).fill('<div class="blank"></div>');
-  const cells = [...blanks, ...labels];
-  const perPage = labelsPerPage(layout);
-  const sheets: string[] = [];
-  for (let i = 0; i < cells.length; i += perPage) {
-    sheets.push(`<div class="sheet">${cells.slice(i, i + perPage).join("")}</div>`);
-  }
-  return sheets.join("");
+export function buildMultiProductSheetHtml(
+  labelHtmls: string[],
+  copiesEach: number,
+  layout: LabelLayoutId,
+  startPosition = 1,
+): string {
+  const copies = clampLabelQuantity(copiesEach);
+  const labels = labelHtmls.flatMap((html) => Array<string>(copies).fill(html));
+  return packLabels(labels.slice(0, MAX_BULK_LABELS), layout, startPosition);
 }
 
 export interface BarcodeFit {
   fits: boolean;
   neededMm: number;
   availableMm: number;
+  reason?: "unencodable";
 }
 
 export function barcodeFit(value: string, layout: LabelLayoutId): BarcodeFit {
@@ -98,11 +114,15 @@ export function barcodeFit(value: string, layout: LabelLayoutId): BarcodeFit {
   try {
     JsBarcode(encoded, value, { margin: 0 });
   } catch {
-    return { fits: false, neededMm: Number.POSITIVE_INFINITY, availableMm };
+    return { fits: false, neededMm: Number.POSITIVE_INFINITY, availableMm, reason: "unencodable" };
   }
   const modules = (encoded.encodings ?? []).reduce((sum, e) => sum + e.data.length, 0);
   const neededMm = modules * MM_PER_CSS_PX;
   return { fits: modules > 0 && neededMm <= availableMm, neededMm, availableMm };
+}
+
+export function canEncodeBarcode(value: string): boolean {
+  return barcodeFit(value, "roll").reason !== "unencodable";
 }
 
 function rollPageStyle(): string {

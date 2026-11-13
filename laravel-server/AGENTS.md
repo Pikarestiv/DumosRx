@@ -846,6 +846,7 @@ Multi-device cycle count coordination backed by the cloud:
 - **Tables & Service:** `audit_sessions` and `audit_session_items` (`UNIQUE(audit_session_id, product_id)`). Governed by `AuditSessionService` (`app/Services/Audit/AuditSessionService.php`) and `AuditSessionController` (`app/Http/Controllers/Api/App/AuditSessionController.php`).
 - **Store-Level Concurrency Lock:** `Store::whereKey($storeId)->lockForUpdate()` is executed inside `startSession()`'s transaction before querying existing sessions, eliminating race conditions when simultaneous creation requests arrive across multiple tills.
 - **Single-Editor Lease & Fencing Version:** Active sessions hold a renewable 5-minute lease (`lease_expires_at`) with 60-second client heartbeats. Every write operation (`heartbeat`, `syncItems`, `complete`) requires `till_id` and `lease_version`. Stale or superseded requests are rejected with HTTP 409 (`AuditSessionConflictException`).
+- **Abandon is fenced when the client says who it is (2026-11-13, A-379):** `abandon` accepts optional `till_id` and `lease_version`; when `lease_version` is present and either does not match the session, `abandonSession()` throws the usual 409, so a stale or queued abandon from a till that was taken over cannot kill the new holder's session. The check runs on a `lockForUpdate()` re-read inside a transaction, like `takeoverSession()`, so a takeover committing between the controller's read and the update cannot be overwritten (A-384). A request without `lease_version` (pre-2026-11-13 clients) is accepted unchanged; that compat path can go once no active device reports an older build. Every write takes its store from `X-Store-Id` when the tenant owns it, which is how a queued client op reaches its own store after the owner switched (`AuditSessionTakeoverFencingTest`).
 - **Session Takeover:** An authorized device can take over an active audit session via `POST /api/v1/app/audit-sessions/{session}/takeover`. Takeover locks the row, increments `lease_version`, assigns `active_till_id`, and returns the latest acknowledged session items.
 - **Completion Lifecycle & Sync Hook:** Submission occurs locally first on the counting till via `submitStockAudit()`. The client then calls `complete` which transitions the cloud session to `completion_pending_sync` with `submitted_stock_audit_id`. When the sync engine receives and saves the corresponding `StockAudit` row, `StockAudit::booted()` calls `AuditSessionService::confirmSyncCompletion($stockAudit->id)`, atomically moving the session to `completed`.
 - **Completion is replay-safe and cannot stick (2026-11-13, A-376):** a repeat `complete` naming the same `submitted_stock_audit_id` returns 200 (and settles the session if the audit has since synced) instead of 409; a different id still conflicts. `getActiveSession()` and `startSession()` first settle `completion_pending_sync` sessions whose stock audit exists or whose `last_synced_at` is older than `PENDING_SYNC_GRACE_HOURS` (24), so one that never confirms stops blocking new sessions. `getActiveSession()` returns `items: []` for a session that is not `in_progress`, which also stops pre-2026-11-13 clients merging an already-submitted count. No route, field or response shape changed. Tests: `tests/Feature/AuditSessionCompletionRecoveryTest.php`.
@@ -1614,7 +1615,7 @@ theirs. Coverage: `tests/Feature/BackfillShowOnlineCommandTest.php`.
   substances (narcotics/regulated meds) cannot be listed or ordered.
 - **In-stock inventory ranks first:** `Product::scopeInStockFirstAt($store->id)`
   sorts products having `SUM(stock_batches.quantity) > 0` before zero-stock rows,
-  so the 300-item storefront response prioritizes available items over sold-out ones.
+  so the 50-item storefront response prioritizes available items over sold-out ones.
   Coverage: `tests/Feature/StorefrontListingTest.php`.
 
 ## Sync push refusals are recorded once, from `$failed`, after the outer commit
@@ -3540,7 +3541,10 @@ specialized storefront services:
 Public endpoints:
 - `GET /storefront-slugs`: lists all published slugs for static site generation.
 - `GET /storefront/{store_slug}`: returns landing page storefront data (brand profile,
-  branches list, selected branch data, featured products capped at 300, payment availability).
+  branches list, selected branch data, featured products capped at
+  `MAX_STOREFRONT_PRODUCTS` (50), `product_count` (the uncapped total of the branch's
+  online-visible products, same `storeProducts()` filter, added 2026-11-13 so the home
+  page's "View all N products" is real), payment availability).
   Supports `?branch=<id>` query parameter.
 - `GET /storefront/{store_slug}/products`: paginated catalog endpoint supporting
   search (`?q=`), category filtering (`?category=`), branch scoping (`?branch=`),

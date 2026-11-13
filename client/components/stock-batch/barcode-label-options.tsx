@@ -26,6 +26,8 @@ interface BarcodeLabelOptionsProps {
   startText: string;
   onStartTextChange: (value: string) => void;
   startPosition: number;
+  quantityLabel?: string;
+  totalLabels?: number;
 }
 
 export function BarcodeLabelOptions({
@@ -36,6 +38,8 @@ export function BarcodeLabelOptions({
   startText,
   onStartTextChange,
   startPosition,
+  quantityLabel = "Number of labels",
+  totalLabels,
 }: BarcodeLabelOptionsProps) {
   const quantity = clampLabelQuantity(Number(quantityText));
   const setQuantity = (value: number) => onQuantityTextChange(String(clampLabelQuantity(value)));
@@ -44,7 +48,7 @@ export function BarcodeLabelOptions({
     <div className="space-y-5">
       <div className="space-y-3">
         <Label htmlFor="label-quantity" className={SECTION_LABEL}>
-          Number of labels
+          {quantityLabel}
         </Label>
         <div className="flex items-center gap-2">
           <Button
@@ -136,7 +140,7 @@ export function BarcodeLabelOptions({
             </p>
           </div>
         )}
-        <p className="text-sm font-medium">{describeLabelPaper(layout, quantity, startPosition)}</p>
+        <p className="text-sm font-medium">{describeLabelPaper(layout, totalLabels ?? quantity, startPosition)}</p>
       </div>
     </div>
   );

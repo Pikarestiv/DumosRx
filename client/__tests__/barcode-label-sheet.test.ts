@@ -1,13 +1,16 @@
 import { describe, it, expect } from "vitest";
 import {
   barcodeFit,
+  canEncodeBarcode,
   buildLabelSheetHtml,
+  buildMultiProductSheetHtml,
   clampLabelQuantity,
   clampStartPosition,
   countLabelPages,
   describeLabelPaper,
   getLabelPageStyle,
   labelsPerPage,
+  MAX_BULK_LABELS,
   MAX_LABEL_QUANTITY,
 } from "@/components/stock-batch/barcode-label-sheet";
 
@@ -163,6 +166,18 @@ describe("barcodeFit", () => {
   it("treats a value the encoder rejects as not fitting rather than throwing", () => {
     expect(barcodeFit("", "roll").fits).toBe(false);
   });
+
+  it.each(["café123", "€12"])("names %s as unencodable instead of reporting a width", (value) => {
+    const fit = barcodeFit(value, "roll");
+    expect(fit.fits).toBe(false);
+    expect(fit.reason).toBe("unencodable");
+    expect(canEncodeBarcode(value)).toBe(false);
+  });
+
+  it("leaves reason unset for an encodable value that is merely too wide", () => {
+    expect(barcodeFit("3f2b8c1e-9d4a-4e7b-a1c2-5d6e7f8a9b0c", "roll").reason).toBeUndefined();
+    expect(canEncodeBarcode("5901234123457")).toBe(true);
+  });
 });
 
 describe("clampLabelQuantity", () => {
@@ -185,5 +200,35 @@ describe("clampLabelQuantity", () => {
 
   it("falls back to one for a value that isn't a number", () => {
     expect(clampLabelQuantity(Number.NaN)).toBe(1);
+  });
+});
+
+describe("buildMultiProductSheetHtml", () => {
+  const labels = ['<div class="label">A</div>', '<div class="label">B</div>', '<div class="label">C</div>'];
+  const countOf = (html: string, marker: string) => html.split(marker).length - 1;
+
+  it("puts one label per product on a single A4 sheet", () => {
+    const html = buildMultiProductSheetHtml(labels, 1, "a4");
+    expect(countOf(html, 'class="sheet"')).toBe(1);
+    expect(html.indexOf(">A<")).toBeLessThan(html.indexOf(">B<"));
+    expect(countOf(html, 'class="label"')).toBe(3);
+  });
+
+  it("repeats each product's label for the copies asked, grouped per product", () => {
+    const html = buildMultiProductSheetHtml(labels, 2, "roll");
+    expect(html).toBe(labels.flatMap((l) => [l, l]).join(""));
+  });
+
+  it("spills onto a second A4 sheet after 24 labels and honours the start position", () => {
+    const many = Array.from({ length: 24 }, (_, i) => `<div class="label">${i}</div>`);
+    expect(countOf(buildMultiProductSheetHtml(many, 1, "a4"), 'class="sheet"')).toBe(1);
+    const shifted = buildMultiProductSheetHtml(many, 1, "a4", 2);
+    expect(countOf(shifted, 'class="sheet"')).toBe(2);
+    expect(countOf(shifted, 'class="blank"')).toBe(1);
+  });
+
+  it("never emits more than MAX_BULK_LABELS labels", () => {
+    const html = buildMultiProductSheetHtml([...labels, ...labels], MAX_LABEL_QUANTITY, "roll");
+    expect(countOf(html, 'class="label"')).toBe(MAX_BULK_LABELS);
   });
 });

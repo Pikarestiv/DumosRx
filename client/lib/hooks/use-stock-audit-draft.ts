@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { create } from "zustand";
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
-import { getActiveStoreId, initDatabase } from "@/lib/db/core";
+import {
+  getActiveStoreId,
+  initDatabase,
+  onBeforeWriterHandoff,
+  onWriterTabChange,
+} from "@/lib/db/core";
 import {
   deleteLocalStockAuditDraft,
   clearAllLocalStockAuditDrafts,
@@ -11,8 +16,10 @@ import {
   hasAnyLocalStockAuditCount,
   saveLocalStockAuditDraft,
 } from "@/lib/db/queries/stock-audit-drafts";
+import { hasCountedAuditRow } from "@/components/stock-batch/audit-derivations";
 import {
   adoptUnscopedStockAuditDraft,
+  discardLegacyStockAuditDraft,
   importLegacyStockAuditDrafts,
 } from "./stock-audit-draft-legacy";
 
@@ -49,6 +56,11 @@ function cancelSave(storeId: string) {
   pendingSaves.delete(storeId);
 }
 
+function cancelAllSaves() {
+  pendingSaves.forEach(({ timer }) => clearTimeout(timer));
+  pendingSaves.clear();
+}
+
 export async function flushStockAuditDraftSaves(): Promise<void> {
   const writes = [...pendingSaves].map(([storeId, { timer, items }]) => {
     clearTimeout(timer);
@@ -59,6 +71,7 @@ export async function flushStockAuditDraftSaves(): Promise<void> {
 }
 
 if (typeof window !== "undefined") {
+  onBeforeWriterHandoff(flushStockAuditDraftSaves);
   window.addEventListener("pagehide", () => void flushStockAuditDraftSaves());
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") void flushStockAuditDraftSaves();
@@ -67,14 +80,6 @@ if (typeof window !== "undefined") {
 
 function storeKeyFor(state: StockAuditDraftState, storeId?: string | null): string | null {
   return storeId || state.activeStoreId || getActiveStoreId() || null;
-}
-
-function hasCountedRow(items: AuditItem[]): boolean {
-  return items.some(
-    (item) =>
-      item.counted === true ||
-      (item.countedQty !== undefined && item.countedQty !== null),
-  );
 }
 
 export const useStockAuditDraftStore = create<StockAuditDraftState>()((set, get) => ({
@@ -93,7 +98,7 @@ export const useStockAuditDraftStore = create<StockAuditDraftState>()((set, get)
     const outgoing = state.activeStoreId;
     const unscopedItems = outgoing === null ? state.items : [];
     const drafts = outgoing ? { ...state.drafts, [outgoing]: state.items } : { ...state.drafts };
-    if (newStoreId && unscopedItems.length > 0 && !drafts[newStoreId]?.length) {
+    if (newStoreId && hasCountedAuditRow(unscopedItems) && !hasCountedAuditRow(drafts[newStoreId] ?? [])) {
       drafts[newStoreId] = unscopedItems;
       scheduleSave(newStoreId, unscopedItems);
     }
@@ -117,7 +122,8 @@ export const useStockAuditDraftStore = create<StockAuditDraftState>()((set, get)
 
     set((state) => {
       const inMemory = state.drafts[storeId] ?? [];
-      const restored = inMemory.length > 0 || !stored?.length ? inMemory : stored;
+      const restored = hasCountedAuditRow(inMemory) || !stored?.length ? inMemory : stored;
+      if (restored === stored) cancelSave(storeId);
       const isActive = state.activeStoreId === storeId;
       return {
         drafts: { ...state.drafts, [storeId]: restored },
@@ -151,9 +157,9 @@ export const useStockAuditDraftStore = create<StockAuditDraftState>()((set, get)
   },
 
   clearAllDrafts: () => {
-    pendingSaves.forEach(({ timer }) => clearTimeout(timer));
-    pendingSaves.clear();
+    cancelAllSaves();
     void clearAllLocalStockAuditDrafts();
+    discardLegacyStockAuditDraft();
     set({ drafts: {}, items: [] });
   },
 
@@ -163,9 +169,22 @@ export const useStockAuditDraftStore = create<StockAuditDraftState>()((set, get)
     const items =
       (storeKey ? state.drafts[storeKey] : undefined) ??
       (storeKey === state.activeStoreId ? state.items : []);
-    return hasCountedRow(items);
+    return hasCountedAuditRow(items);
   },
 }));
+
+function reloadDraftsWrittenByAnotherTab() {
+  cancelAllSaves();
+  const { activeStoreId } = useStockAuditDraftStore.getState();
+  useStockAuditDraftStore.setState({ drafts: {}, items: [], loadedStoreId: null });
+  if (activeStoreId) void useStockAuditDraftStore.getState().loadStoreDraft(activeStoreId);
+}
+
+if (typeof window !== "undefined") {
+  onWriterTabChange((isWriter) => {
+    if (isWriter) reloadDraftsWrittenByAnotherTab();
+  });
+}
 
 export function clearStockAuditDraft(storeId?: string) {
   useStockAuditDraftStore.getState().clearDraft(storeId);

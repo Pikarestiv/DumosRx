@@ -91,14 +91,18 @@ function describeMovement(mov: StockMovementHistoryRow) {
   }
 }
 
-async function loadProductHistory(productId: string, viewerId?: string): Promise<HistoryItem[]> {
+async function loadProductHistory(
+  productId: string,
+  viewerId: string | undefined,
+  canViewCost: boolean,
+): Promise<HistoryItem[]> {
   const { auditLogs, stockMovements } = await getProductHistory(productId, viewerId);
 
   const normalizedLogs: HistoryItem[] = auditLogs.map((log) => ({
     id: `audit-${log.id}`,
     type: "audit",
     title: formatAuditTitle(log.action),
-    description: describeAuditDetails(log.action, log.details || null),
+    description: describeAuditDetails(log.action, log.details || null, canViewCost),
     date: new Date(log.created_at || 0),
     action: log.action,
     user: log.user_name || "System",
@@ -126,11 +130,14 @@ async function loadProductHistory(productId: string, viewerId?: string): Promise
 export function ProductHistory({ productId }: { productId: string }) {
   const { user } = useAuth();
   const canViewAllActivity = useHasPermission("view_activity_log");
+  const canViewCost = useHasPermission("view_cost_fields");
   const viewerId = canViewAllActivity ? undefined : user?.id;
+  const historyKey = queryKeys.products.history(productId, viewerId);
 
   const { data: history = [], isLoading: loading } = useQuery({
-    ...queryKeys.products.history(productId, viewerId),
-    queryFn: () => loadProductHistory(productId, viewerId),
+    ...historyKey,
+    queryKey: [...historyKey.queryKey, canViewCost],
+    queryFn: () => loadProductHistory(productId, viewerId, canViewCost),
     enabled: !!productId,
   });
 
@@ -242,7 +249,7 @@ function formatAuditValue(value: unknown): string {
 
 /** Turns the raw JSON payload logAction() stores into a short, readable
  * summary instead of dumping the JSON blob in the UI. */
-function describeAuditDetails(action: string, details: string | null) {
+function describeAuditDetails(action: string, details: string | null, canViewCost: boolean) {
   const a = normalizeAction(action);
   if (a === "delete" || a === "hard_delete") {
     return "Product removed from the catalog.";
@@ -258,6 +265,7 @@ function describeAuditDetails(action: string, details: string | null) {
   }
 
   if (a === "batch_cost_corrected") {
+    if (!canViewCost) return `Batch #${parsed.batch_number || "Default"}: cost price corrected.`;
     const formatCost = (value: unknown) => (typeof value === "number" ? value.toLocaleString() : "-");
     return `Batch #${parsed.batch_number || "Default"}: cost price ${formatCost(parsed.previous_cost_price)} → ${formatCost(parsed.cost_price)}.`;
   }

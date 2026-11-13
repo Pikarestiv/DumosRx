@@ -4,6 +4,7 @@ import Link from "next/link";
 import { StoreBranchSelector } from "@/components/storefront/store-branch-selector";
 import { StorefrontCart } from "@/components/storefront/storefront-cart";
 import { storefrontNavLinks } from "@/lib/storefront-nav";
+import { storeNameTextClass } from "@/lib/storefront-display";
 import type {
   StorefrontBranch,
   StorefrontProfile,
@@ -34,6 +35,7 @@ export function StorefrontHeader({
         <div className="flex items-center gap-4 min-w-0">
           <Link
             href={`/store/${storeSlug}`}
+            title={brandName}
             className="flex items-center gap-3 min-w-0"
           >
             {logo && (
@@ -41,10 +43,10 @@ export function StorefrontHeader({
               <img
                 src={logo}
                 alt=""
-                className="h-9 w-9 object-contain rounded"
+                className="h-9 w-9 shrink-0 object-contain rounded"
               />
             )}
-            <span className="font-heading font-bold text-xl text-primary truncate max-w-[160px] sm:max-w-[240px]">
+            <span className={`font-heading font-bold leading-tight text-primary line-clamp-2 break-words max-w-[200px] sm:max-w-[320px] ${storeNameTextClass(brandName)}`}>
               {brandName}
             </span>
           </Link>
@@ -62,9 +64,9 @@ export function StorefrontHeader({
           )}
         </div>
 
-        <div className="flex items-center gap-3 sm:gap-6">
-          <nav aria-label="Store" className="flex items-center gap-3 sm:gap-5 text-sm font-medium">
-            {storefrontNavLinks(storeSlug).map((link) => (
+        <div className="flex shrink-0 items-center gap-3 sm:gap-6">
+          <nav aria-label="Store" className="flex items-center gap-3 sm:gap-5 text-sm font-medium whitespace-nowrap">
+            {storefrontNavLinks(storeSlug, store).map((link) => (
               <Link
                 key={link.label}
                 href={link.href}

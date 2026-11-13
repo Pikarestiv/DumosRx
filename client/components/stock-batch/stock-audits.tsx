@@ -26,6 +26,7 @@ import { useAuditSheetSource } from "@/lib/hooks/use-audit-sheet-source";
 import { useAuditCounting } from "@/lib/hooks/use-audit-counting";
 import { useCloudAuditSession } from "@/lib/hooks/use-cloud-audit-session";
 import { AuditCloudPill, AuditCloudInspectionBanner } from "./audit-cloud-banner";
+import { useDatabase } from "@/lib/db/DatabaseProvider";
 
 type AuditStep = "ledger" | "review" | "done";
 
@@ -75,6 +76,8 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const cloud = useCloudAuditSession(storeProfile?.id || null);
   const { initSession, session: cloudSession, isReadOnly: cloudIsReadOnly, queueSync } = cloud;
   const cloudInitialized = useRef(false);
+  const { isReadOnlyTab } = useDatabase();
+  const isReadOnly = cloudIsReadOnly || isReadOnlyTab;
 
   useEffect(() => {
     if (!cloudInitialized.current && items.length > 0) {
@@ -84,10 +87,10 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   }, [items, initSession]);
 
   useEffect(() => {
-    if (cloudSession && !cloudIsReadOnly) {
+    if (cloudSession && !isReadOnly) {
       queueSync(items);
     }
-  }, [items, cloudSession, cloudIsReadOnly, queueSync]);
+  }, [items, cloudSession, isReadOnly, queueSync]);
 
   const countedItems = useMemo(() => selectCountedAuditItems(items), [items]);
   const adjustedItems = useMemo(
@@ -115,7 +118,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const isSubmitting = submitAuditMutation.isPending;
 
   const submitAudit = () => {
-    if (isSubmitting || cloud.isReadOnly) return;
+    if (isSubmitting || isReadOnly) return;
     submitAuditMutation.mutate(
       {
         items: toStockAuditSubmissions(adjustedItems),
@@ -221,7 +224,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
               onPrint={() => void sheetExport.handlePrint()}
               onDownloadPdf={() => void sheetExport.handleDownloadPdf()}
               onExport={(format) => void sheetExport.handleExport(format)}
-              onStartOver={() => setShowResetDialog(true)}
+              onStartOver={isReadOnlyTab ? undefined : () => setShowResetDialog(true)}
             />
           )}
           <AuditCloudPill
@@ -257,7 +260,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                 totalItems={items.length}
                 isLoading={isLoading}
                 isSyncing={isSyncing}
-                isReadOnly={cloud.isReadOnly}
+                isReadOnly={isReadOnly}
                 onUpdateItem={updateLedgerItem}
                 onCountRow={(id, qty) => void countRow(id, qty)}
                 onClearCount={cancelPendingCounts}
@@ -315,7 +318,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
               className={`${PRIMARY_BUTTON} disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
               disabled={
                 isSubmitting ||
-                cloud.isReadOnly ||
+                isReadOnly ||
                 countedItems.length === 0 ||
                 (freshness.shouldWarn && !staleAcknowledged)
               }
@@ -324,7 +327,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
               {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
               {isSubmitting
                 ? "Submitting..."
-                : cloud.isReadOnly
+                : isReadOnly
                   ? "Read Only Mode"
                   : "Submit audit"}
             </button>

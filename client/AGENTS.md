@@ -7637,6 +7637,18 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
   - `<QuickCashTender />` displays smart tender chips (`Exact`, rounded bill denominations such as ₦1,000, ₦2,000, ₦5,000) for rapid cash handling.
   - In `PaymentSplits`, when splits under-cover the total, the exact shortfall is shown alongside a 1-click **"Cover Remaining ({shortage})"** button that fills the remaining balance into the split automatically.
 
+## Barcode Scanning on the POS
+
+- **Camera scanner (`components/pos/camera-scanner-dialog.tsx`):** on open it
+  asks `navigator.permissions.query({ name: "camera" })`. `granted` starts the
+  camera straight away; `denied` shows the denied screen; `prompt`, a throw
+  (Firefox/older Safari reject the `camera` name) or no Permissions API keep the
+  "Enable Camera" screen, so the browser's own prompt only ever follows a tap.
+  The permission read is cancelled by the effect cleanup, so strict mode's
+  double effect starts one camera, and `sessionRef` makes a start that is still
+  awaiting `getCameras()`/`start()` when the dialog closes stop itself instead
+  of leaving the camera on.
+
 ## Service POS (Walk-In Services Alongside Physical Products)
 
 - **Separate Tables & Data Isolation:**

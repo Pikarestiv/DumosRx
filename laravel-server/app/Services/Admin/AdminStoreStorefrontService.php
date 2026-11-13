@@ -4,7 +4,10 @@ namespace App\Services\Admin;
 
 use App\Exceptions\StoreActionBlockedException;
 use App\Models\ActivityLog;
+use App\Models\Product;
 use App\Models\Store;
+use App\Models\Storefront;
+use App\Services\Storefront\StorefrontCatalogService;
 use App\Support\SyncRowStamp;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +26,42 @@ use Illuminate\Support\Str;
 class AdminStoreStorefrontService
 {
     private const MAX_SLUG_LENGTH = 100;
+
+    public function __construct(private StorefrontCatalogService $catalogService) {}
+
+    /**
+     * Super-admin-only for now; see web/AGENTS.md "Storefront themes".
+     */
+    public function setTheme(string $id, string $theme): Storefront
+    {
+        return DB::transaction(function () use ($id, $theme) {
+            $store = Store::findOrFail($id);
+
+            if (blank($store->store_slug) && ! Storefront::where('user_id', $store->user_id)->exists()) {
+                throw new StoreActionBlockedException(
+                    'This store has no storefront address yet, so there is no storefront to theme. Set the address first.',
+                );
+            }
+
+            $storefront = $this->catalogService->storefrontForStore($store);
+            $previous = $storefront->theme;
+
+            if ($previous === $theme) {
+                return $storefront;
+            }
+
+            $storefront->update(['theme' => $theme]);
+            Product::markStorefrontsDirty([], [$store->user_id]);
+
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action' => 'STOREFRONT_THEME_CHANGED',
+                'description' => "Changed the storefront theme for store: {$store->name} ({$store->id}) from '{$previous}' to '{$theme}'",
+            ]);
+
+            return $storefront->refresh();
+        });
+    }
 
     public function setEnabled(string $id, bool $enabled, ?string $requestedSlug = null): Store
     {

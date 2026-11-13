@@ -110,6 +110,8 @@ export interface AdminStoreDetail {
     store_slug: string | null;
     pending_rebuild: boolean;
     dirty_since: string | null;
+    theme?: string;
+    available_themes?: string[];
   };
   payments: {
     paystack_connected: boolean;

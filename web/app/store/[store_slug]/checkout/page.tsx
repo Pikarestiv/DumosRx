@@ -43,7 +43,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
         </Suspense>
       </main>
 
-      <StorefrontFooter store={data?.store} />
+      <StorefrontFooter storeSlug={store_slug} store={data?.store} storefront={data?.storefront} />
     </div>
   );
 }

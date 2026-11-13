@@ -91,4 +91,16 @@ describe("POS cart footer compaction", () => {
 
     expect(screen.getByText("-₦500")).toBeTruthy();
   });
+
+  it("hides Subtotal when nothing adjusts the total, since Total says the same thing", () => {
+    renderCart();
+
+    expect(screen.queryByText("Subtotal")).toBeNull();
+  });
+
+  it("shows Subtotal once VAT or a discount makes it differ from Total", () => {
+    renderCart({ vatPercentage: 7.5, tax: 750 });
+
+    expect(screen.getByText("Subtotal")).toBeTruthy();
+  });
 });

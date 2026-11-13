@@ -1,6 +1,6 @@
 import React from "react";
 import { POSMobileCartDrawer } from "./pos-mobile-cart-drawer";
-import type { CartItem, RedeemedOption, MarkupType } from "@/lib/hooks/use-pos-cart";
+import type { CartItem, RedeemedOption, MarkupType, SpotSourcingConfig, SpotSourcingSplitOptions } from "@/lib/hooks/use-pos-cart";
 import type { Customer } from "@/lib/types/customer";
 
 interface POSMobileCartWrapperProps {
@@ -33,6 +33,11 @@ interface POSMobileCartWrapperProps {
   markupType?: MarkupType | null;
   setMarkupType?: (value: MarkupType | null) => void;
   updateUnitPrice?: (id: string, price: number) => void;
+  updateSpotSourcing?: (
+    id: string,
+    config: SpotSourcingConfig | null,
+    splitOptions?: SpotSourcingSplitOptions,
+  ) => void;
 }
 
 export function POSMobileCartWrapper({
@@ -65,6 +70,7 @@ export function POSMobileCartWrapper({
   markupType,
   setMarkupType,
   updateUnitPrice,
+  updateSpotSourcing,
 }: POSMobileCartWrapperProps) {
   if (cart.length === 0) return null;
 
@@ -101,6 +107,7 @@ export function POSMobileCartWrapper({
           markupType={markupType}
           setMarkupType={setMarkupType}
           updateUnitPrice={updateUnitPrice}
+          updateSpotSourcing={updateSpotSourcing}
         />
       </div>
     </div>

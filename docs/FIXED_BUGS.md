@@ -1,3 +1,9 @@
+### A-369 — on a phone, "Source outside" in the cart drawer opened the dialog but confirming it did nothing
+- **Fixed:** 2026-11-13, client only, TDD.
+- **Was:** `POSCartPanels` spread `updateSpotSourcing` into `POSMobileCartWrapper`, but neither the wrapper nor `POSMobileCartDrawer` forwarded it, so the drawer's `POSCart` got `undefined` and both the dialog's confirm and "revert to shelf" silently did nothing.
+- **Now:** both declare and forward `updateSpotSourcing`.
+- **Coverage:** `client/__tests__/pos-mobile-cart-drawer-spot-sourcing.test.tsx` (fails with the forward removed).
+
 ### A-368 (rest) — dark-mode "Clear cart" read as disabled
 - **Fixed:** 2026-11-13, client only, TDD. This closes A-368.
 - **Was:** the cart footer's "Clear cart" button used `text-destructive` on `bg-destructive/5`. In dark mode `--destructive` is a deep red meant as a fill behind white text, so as text on the near-black footer it measured **1.92:1** (light mode: 4.01:1), and the button looked disabled while the cart had items.

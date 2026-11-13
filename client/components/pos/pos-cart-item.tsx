@@ -5,7 +5,6 @@ import { motion, useMotionValue, useTransform } from "framer-motion";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { HintTooltip } from "@/components/ui/hint-tooltip";
-import { CategoryIcon } from "./category-icon";
 import { POSCartItemSourcing } from "./pos-cart-item-sourcing";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
@@ -104,9 +103,6 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
           isLast ? "" : "border-b border-border"
         }`}
       >
-        <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-          <CategoryIcon categoryName={item.category_name} className="w-5 h-5" />
-        </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-1.5 mb-0.5">
             <HintTooltip text={item.name}>

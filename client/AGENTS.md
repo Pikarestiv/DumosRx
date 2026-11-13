@@ -2497,7 +2497,7 @@ There are two distinct workflows for selling goods sourced outside the store:
      (amber-700 measured 4.15:1 on its own tint). A spot-sourced line shows a "Spot Sourced"
      pill with the per-unit "Cost ₦…" as separate text beside it. The controls live in
      `components/pos/pos-cart-item-sourcing.tsx` and sit on their own full-width row under
-     the cart line (`basis-full`, indented past the category icon), not in the name column:
+     the cart line (`basis-full`), not in the name column:
      at ~380px that column is about 95px wide, which truncated the pill to "Spot Sour…" and
      pushed it within 2px of the quantity stepper (A-368). Each label is `whitespace-nowrap`
      and the row is `flex-wrap`, so wrapping happens between whole chips, never mid-label
@@ -2515,8 +2515,11 @@ There are two distinct workflows for selling goods sourced outside the store:
      row shows only when `vat_percentage > 0` (or a non-zero tax amount): Settings has no
      separate VAT on/off switch and its help text defines 0 as "don't charge VAT", so a rate
      of 0 is "not configured" and there is no explicit-zero case to show. "+ Add discount"
-     carries no "₦0" beside it; the applied discount amount still shows. The customer picker
-     is one line (name · hint), and the reseller toggle row is `py-1`.
+     carries no "₦0" beside it; the applied discount amount still shows. The Subtotal row
+     shows only when it differs from Total (VAT, discount or reward), since it would repeat
+     Total. Cart lines carry no category icon (it cost ~52px of name width). The customer
+     picker is one slim line (name · hint) whose trailing Plus icon sits inside the clickable
+     trigger, and the reseller toggle row is `py-1`.
      Don't colour cart text with `text-destructive`: dark `--destructive` is a fill shade
      (1.92:1 as text on the dark footer); "Clear" uses `text-red-700 dark:text-red-400`.
      The swipe-to-delete `bg-destructive` backdrop in `pos-cart-item.tsx` takes its opacity

@@ -108,7 +108,7 @@ export const POSProductCard = memo(function POSProductCard({
         </TooltipProvider>
 
         <div className="text-[10px] sm:text-[11px] text-muted-foreground truncate mb-1 sm:mb-2">
-          {product.generic_name || "Generic"} • {product.strength || "-"}
+          {[product.generic_name, product.strength].filter(Boolean).join(" • ")}
         </div>
       </div>
 

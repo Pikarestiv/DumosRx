@@ -28,11 +28,12 @@ export const INVENTORY_GUIDES: GuideItem[] = [
     readTime: "3 min read",
     videoDuration: "2:30",
     summary:
-      "Audit your pharmacy shelves section by section. Counted quantities start clean, in-progress audits save locally against power failure, and cloud session locking prevents multi-till count collisions.",
+      "Audit your pharmacy shelves section by section. Counted quantities start clean, in-progress audits are saved on the device as you count and survive logout, switching user and restarts, and cloud session locking prevents multi-till count collisions.",
     steps: [
       "Navigate to Inventory > Audits and tap 'Start Audit'.",
       "Walk the shelves and enter your physical counts row by row. Where a quantity matches system records, tap the checkmark to confirm.",
       "Filter the sheet by 'Counted', 'Not Counted', or 'Qty Differences' to review variances.",
+      "Need to stop part-way? Logging out, switching account or closing the app keeps the count on this device, and you are reminded first. Sign back in on the same device to carry on; while the till was online, another till can also take the count over.",
       "Tap 'Review & Submit' to finalize. Only the rows you actually modified are posted to your inventory ledger.",
     ],
     proTip:

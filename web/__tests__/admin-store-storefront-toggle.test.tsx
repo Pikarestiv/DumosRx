@@ -8,6 +8,7 @@ const { toggleMutate } = vi.hoisted(() => ({ toggleMutate: vi.fn() }));
 
 vi.mock("@/lib/api/admin-hooks", () => ({
   useSetStoreStorefrontMutation: () => ({ mutate: toggleMutate, isPending: false }),
+  useSetStoreStorefrontThemeMutation: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 const { authState } = vi.hoisted(() => ({
@@ -16,6 +17,7 @@ const { authState } = vi.hoisted(() => ({
 
 vi.mock("@/lib/store/use-admin-auth-store", () => ({
   useAdminAuthStore: () => ({ user: { role: "platform_admin" } }),
+  checkIsSuperAdmin: (role?: string) => role === "super_admin",
   checkHasPermission: (_user: unknown, permission: string) =>
     authState.permissions.includes(permission),
 }));

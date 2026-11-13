@@ -31,7 +31,7 @@ export function POSCartMarkupPicker({
   return (
     <div
       ref={pickerRef}
-      className={`mx-5 mt-3 flex flex-col gap-2 px-3 py-2 rounded-lg border bg-muted/20 shrink-0 ${
+      className={`mx-5 mt-2 flex flex-col gap-1.5 px-3 py-1 rounded-lg border bg-muted/20 shrink-0 ${
         alert ? "animate-attention-shake border-destructive ring-2 ring-destructive/30" : "border-border"
       }`}
     >

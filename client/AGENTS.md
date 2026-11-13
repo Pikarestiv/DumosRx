@@ -2504,6 +2504,19 @@ There are two distinct workflows for selling goods sourced outside the store:
      (`pos-cart-item-spot-sourcing-layout.test.tsx`, `e2e/services-pos-sourcing-layout.spec.ts`).
      The line's name wraps to two lines (`line-clamp-2 break-words`) rather than truncating, and
      is a focusable `HintTooltip` trigger so hover or focus reveals the full name (A-368).
+     **Cart panel space (2026-11-13).** The cart list is the only scrolling region and Charge
+     is always on screen; everything around the list is kept to one slim row each so a
+     six-line cart fits whole at 390×844 and in the 420px desktop column
+     (`e2e/pos-cart-space.spec.ts`: all 6 rows fully visible, list capacity >= 7 rows; it was
+     3 on dev before this pass). The four secondary actions share one row
+     (`pos-cart-actions.tsx`) with short labels "Request", "Hold", "Clear", "Preview"; each
+     keeps its full name ("Request Item", "Hold Sale", "Clear cart", "Preview Quote") as its
+     `aria-label` and in a `HintTooltip`, so role-name selectors use the full phrase. The VAT
+     row shows only when `vat_percentage > 0` (or a non-zero tax amount): Settings has no
+     separate VAT on/off switch and its help text defines 0 as "don't charge VAT", so a rate
+     of 0 is "not configured" and there is no explicit-zero case to show. "+ Add discount"
+     carries no "₦0" beside it; the applied discount amount still shows. The customer picker
+     is one line (name · hint), and the reseller toggle row is `py-1`.
      Don't colour cart text with `text-destructive`: dark `--destructive` is a fill shade
      (1.92:1 as text on the dark footer); "Clear" uses `text-red-700 dark:text-red-400`.
      The swipe-to-delete `bg-destructive` backdrop in `pos-cart-item.tsx` takes its opacity
@@ -3655,9 +3668,9 @@ still rendered read-only, only the trigger gated):
   is who rings reseller sales, and withholding it would have made the
   Reseller toggle inert at the till. `specialist` deliberately still lacks
   it (stock role, matching its existing `apply_discounts` exclusion).
-- `hold_sales` — `components/pos/pos-cart.tsx` (the "Hold Sale" button, plus
-  `SECONDARY_ACTION_GRID_COLS`, a literal-class lookup that keeps the
-  secondary-action grid honest now that its column count varies) and
+- `hold_sales` — `components/pos/pos-cart.tsx` (the "Hold" button, named
+  "Hold Sale" for assistive tech, rendered by `pos-cart-actions.tsx`, whose
+  flex row needs no column lookup when a button is hidden) and
   `components/pos/held-transactions-dialog.tsx` (the "Recall" button).
   Creating a hold and resuming one are both gated; the amber "N on hold"
   banner and the held list itself are not, so a cashier without the right
@@ -4026,7 +4039,7 @@ than on history.
   Order, opening `components/suppliers/supplier-delete-dialog.tsx`), backed
   by `deleteSupplier()` in `lib/db/suppliers.ts`. The row's column count is
   now a literal-class lookup (`ACTION_GRID_COLS`, same mechanism as
-  `CATALOG_GRID_COLS`/`SECONDARY_ACTION_GRID_COLS`) because it varies from
+  `CATALOG_GRID_COLS`) because it varies from
   one to three buttons with the two keys. It sits in the **detail pane, not
   `supplier-table.tsx`'s rows**: the table has no row menu at all (its only
   row affordance is the inline rating pencil), and a destructive action on a

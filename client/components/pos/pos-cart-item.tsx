@@ -100,7 +100,7 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
             removeFromCart(item.id);
           }
         }}
-        className={`relative flex flex-wrap items-center gap-x-3 gap-y-1 py-3 bg-background touch-pan-y group ${
+        className={`relative flex flex-wrap items-center gap-x-3 gap-y-1 py-2 bg-background touch-pan-y group ${
           isLast ? "" : "border-b border-border"
         }`}
       >

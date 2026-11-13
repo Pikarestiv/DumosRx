@@ -50,7 +50,7 @@ export const POS_GUIDES: GuideItem[] = [
       "Give customers an itemized price quotation for their prescription or shopping list before they commit, without deducting inventory or recording sales revenue.",
     steps: [
       "Add the requested products to the POS cart as normal.",
-      "Tap the 'Quote' (Proforma) button in the cart options.",
+      "Tap 'Preview' in the cart's action row to open the Proforma Quote.",
       "Optionally select or enter the customer's name and contact information.",
       "Print or export the Proforma Quote. When the customer returns to buy, recall the quote and convert it to a live sale with a single click.",
     ],

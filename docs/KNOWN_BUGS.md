@@ -641,6 +641,12 @@ suggested tackle order rather than a strict ranking.
 #### A-343. `client/` — the cart's owed-units warning overstates the shortfall when only expired stock is left
 - **Found:** 2026-10-26, third independent review of `feat/sell-at-zero-stock`; deferred. `formatBackorderWarning()` uses `product.stock`, which excludes expired batches, but `writeSaleItemStock()` falls back to an expired batch and may sell from it, so the toast can say more units are owed than the sale actually records.
 
+#### A-369. `client/` — on a phone, "Source outside" in the cart drawer opens the dialog but confirming it does nothing
+- **Found:** 2026-11-13, while compacting the cart panel (`fix/pos-cart-space-and-polish`); not fixed there.
+- **Location:** `client/components/pos/pos-mobile-cart-wrapper.tsx` and `pos-mobile-cart-drawer.tsx`.
+- **What's wrong:** `POSCartPanels` spreads `updateSpotSourcing` into `POSMobileCartWrapper`, but neither the wrapper nor the drawer declares or forwards it, so the drawer's `POSCart` gets `undefined`. `POSCart` still wires every line's "Source outside" pill to `SpotSourceDialog`, whose confirm and "revert to shelf" call `updateSpotSourcing?.(…)`: on a phone both silently do nothing. Spot sourcing from an out-of-stock product tile is a different path and works.
+- **Fix:** add `updateSpotSourcing` to both prop interfaces and pass it through (the wrapper should just forward its props to the drawer), with a component test that confirms the dialog from the drawer and sees the line marked "Spot Sourced".
+
 ---
 
 ## Accepted tradeoffs (no fix planned)

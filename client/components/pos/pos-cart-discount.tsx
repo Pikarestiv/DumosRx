@@ -96,7 +96,6 @@ export function POSCartDiscount({
           >
             + Add discount
           </button>
-          <span>{formatCurrency(0, currencyCode)}</span>
         </div>
       )}
     </>

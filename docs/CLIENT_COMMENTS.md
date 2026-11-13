@@ -8402,16 +8402,6 @@ digit and mangle multi-digit entry the same way the price input did
 before this fix. Commits via the existing updateQuantity (which already
 validates against stock and removes the item on <= 0) on blur/Enter.
 
-## block-components-pos-pos-cart-tsx-L24
-
-`client/components/pos/pos-cart.tsx:21`
-
-Literal class strings, not a `grid-cols-${n}` template: Tailwind's
-scanner only sees classes that appear whole in the source. Indexed by how
-many of the three secondary cart actions are currently rendered, which now
-varies with the acting user's "hold_sales" permission as well as the cart
-and prescription-lock state.
-
 ## line-components-pos-pos-cart-tsx-L105
 
 `client/components/pos/pos-cart.tsx:99`

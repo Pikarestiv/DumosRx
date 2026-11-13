@@ -5,9 +5,11 @@ namespace App\Services\Admin;
 use App\Http\Controllers\Api\AccountManagerController;
 use App\Models\ActivityLog;
 use App\Models\Store;
+use App\Models\Storefront;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Services\Admin\Concerns\ResolvesDeviceLabels;
+use App\Support\StorefrontThemes;
 
 /**
  * The single-store payload behind the admin panel's Store Details page.
@@ -88,6 +90,8 @@ class AdminStoreDetailService
                 'store_slug' => $store->store_slug,
                 'pending_rebuild' => $store->storefront_dirty_at !== null,
                 'dirty_since' => $store->storefront_dirty_at?->diffForHumans(),
+                'theme' => Storefront::where('user_id', $store->user_id)->value('theme') ?? StorefrontThemes::DEFAULT,
+                'available_themes' => StorefrontThemes::IDS,
             ],
             'payments' => [
                 'paystack_connected' => ! empty($store->paystack_subaccount_code),

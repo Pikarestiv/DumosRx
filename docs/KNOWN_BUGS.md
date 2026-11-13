@@ -449,6 +449,11 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
+#### A-371. `laravel-server/` — `PUT /admin/stores/{id}/storefront` answers 500, not 404, for a store id that does not exist
+- **Found:** 2026-11-13, adding the storefront theme endpoint beside it.
+- **What's wrong:** `AdminStoreStorefrontService::setEnabled()` calls `Store::findOrFail()`, and `AdminBaseController::withErrorResponse()` catches every `\Exception` except a validation one, so the `ModelNotFoundException` is logged as an error and returned as a generic 500 "Failed to update the storefront". The new theme endpoint catches it and answers 404.
+- **Fix:** catch `ModelNotFoundException` in `AdminStoreStorefrontController::update()` the way `updateTheme()` does, or let `withErrorResponse()` rethrow it so Laravel renders the 404 for every admin controller.
+
 #### A-360. `client/` — the toast countdown bar always runs 4 seconds, whatever the toast's own duration
 - **Found:** 2026-11-13, review of `feat/service-pos`; deferred.
 - **What's wrong:** `globals.css` animates the bar with `--toast-timer-duration: 4000ms` set once on `[data-sonner-toaster]`, matching `sonner.tsx`'s default `duration={4000}`. A toast passing its own `duration` (`staff-form-dialog.tsx` 8000, `use-post-restore-cloud-link-notice.ts` 20000, `use-auto-lock.ts`) empties its bar long before it closes, and an `Infinity` toast shows a bar that runs out and then sits there.

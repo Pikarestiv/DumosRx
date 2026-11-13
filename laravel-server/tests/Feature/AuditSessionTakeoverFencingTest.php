@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Exceptions\AuditSessionConflictException;
 use App\Models\AuditSession;
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\User;
+use App\Services\Audit\AuditSessionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -15,7 +17,9 @@ class AuditSessionTakeoverFencingTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $store;
+
     protected Product $product;
 
     protected function setUp(): void
@@ -236,5 +240,32 @@ class AuditSessionTakeoverFencingTest extends TestCase
             ->postJson("/api/v1/app/audit-sessions/{$sessionId}/complete", $completeBody)
             ->assertStatus(200)
             ->assertJsonPath('session.status', AuditSession::STATUS_COMPLETION_PENDING_SYNC);
+    }
+
+    public function test_abandon_checks_the_lease_against_the_row_not_a_copy_read_before_a_takeover(): void
+    {
+        $sessionId = $this->startSessionOnTill('TILL-01');
+        $readBeforeTakeover = AuditSession::findOrFail($sessionId);
+        $service = app(AuditSessionService::class);
+        $service->takeoverSession(AuditSession::findOrFail($sessionId), $this->owner->id, 'TILL-02', null);
+
+        try {
+            $service->abandonSession($readBeforeTakeover, $this->owner->id, 'Start over', 'TILL-01', 1);
+            $this->fail('A stale lease abandoned a session another till had taken over.');
+        } catch (AuditSessionConflictException) {
+        }
+
+        $this->assertSame(AuditSession::STATUS_IN_PROGRESS, AuditSession::find($sessionId)->status);
+        $this->assertSame('TILL-02', AuditSession::find($sessionId)->active_till_id);
+    }
+
+    public function test_an_older_client_abandon_does_not_reopen_a_session_completed_after_it_was_read(): void
+    {
+        $sessionId = $this->startSessionOnTill('TILL-01');
+        $readBeforeCompletion = AuditSession::findOrFail($sessionId);
+        AuditSession::whereKey($sessionId)->update(['status' => AuditSession::STATUS_COMPLETED]);
+
+        $this->expectException(AuditSessionConflictException::class);
+        app(AuditSessionService::class)->abandonSession($readBeforeCompletion, $this->owner->id, 'Start over');
     }
 }

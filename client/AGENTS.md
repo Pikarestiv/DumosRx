@@ -192,7 +192,12 @@ for the same origin budget) emits `APP_EVENTS.dbSaveFailed` rate-limited to
 once per `SAVE_FAILURE_NOTICE_INTERVAL_MS` (5 min) rather than importing a
 toast library into this low-level module; before that, it was
 `console.error` only and the app looked perfectly healthy while writes
-silently stopped persisting.
+silently stopped persisting. `saveDatabase()` is a no-op that resolves `false` in a
+read-only web tab: a reader's in-memory copy is stale by definition, and exporting it
+would overwrite the writer's newer IndexedDB snapshot (A-384). Otherwise it resolves
+whether the export it took, or a later one that coalesced over it, was persisted, so a
+caller can judge its own writes without being tripped by writes that landed meanwhile
+(`hasUnpersistedWrites()` answers the different question "is anything pending at all").
 
 **Invalidation is batched per transaction.** `queueTableInvalidation()`
 collects touched table names while `inTransaction` and fires once after
@@ -212,8 +217,12 @@ own in-memory `db` (so its later reads see the current schema) while never
 writing that back to shared storage. It is awaited rather than
 fire-and-forget so a caller that awaits `initDatabase()` can read
 `isWriterTab()` immediately; that only waits for the initial decision, never
-for an eventual promotion. `saveDatabase` is passed as the graceful-handoff
-callback so an outgoing writer force-saves before dropping to read-only.
+for an eventual promotion. `saveBeforeWriterHandoff()` is passed as the
+graceful-handoff callback so an outgoing writer force-saves before dropping to
+read-only. It first awaits every `onBeforeWriterHandoff()` hook, so a module that
+debounces its writes (the cycle count draft, 400ms) can flush them while the tab may
+still write; otherwise that write fires after demotion and `assertWritable()` drops it
+(A-384).
 
 `initDatabasePromise` dedupes concurrent `initDatabase()` calls. `db` stays
 null for the whole async init (WASM load, IndexedDB read, schema run) and
@@ -2217,8 +2226,13 @@ cycle count, and stock adjustment.
    moves a pre-2026-11 `stock-audit-draft` localStorage blob into SQLite once, never over an
    SQLite draft that has a counted row (it does replace an uncounted or empty one when the
    blob has counts), removing the key only after every write succeeded and, on the web
-   build, `saveDatabase()` has persisted to IndexedDB (`hasUnpersistedWrites()` is false;
-   a failed `set()` no longer marks the export saved);
+   build, `saveDatabase()` reports that the import's own export reached IndexedDB (a write
+   landing meanwhile no longer keeps the key; A-384). It does nothing in a read-only web
+   tab and runs when the tab is promoted. With the drafts it writes a marker row
+   (`LEGACY_IMPORT_MARKER_KEY`, `items_json = "[]"`) into `stock_audit_drafts`; a boot that
+   finds both the key and the marker only persists and removes the key, so a sheet
+   submitted after an import whose key survived is never resurrected. Wiping all drafts
+   also drops the key;
    `adoptUnscopedStockAuditDraft()` adopts an old `"default"` SQLite row. Retire both once
    no active device reports a build older than 2026-11-13.
    The stock adjustment draft still has its localStorage `persist` copy; not changed here.
@@ -2253,7 +2267,7 @@ The local SQLite draft covers offline counting; while online the count is also h
 3. **Explicit Takeover:** Staff can take over an active count from any device (e.g. if the counter's till runs out of battery). Takeover issues `POST /app/audit-sessions/{id}/takeover`, invalidating previous leases via an incremented fencing version (`lease_version`). Logout and user switch never abandon the session, so a till can take over a count whose counter signed out.
 4. **Fencing & Offline Recovery:** Stale writes from a superseded device fail with HTTP 409 (`AuditSessionConflictError`). The older device immediately drops into read-only mode, but its local SQLite counts are preserved intact for review and never silently discarded.
 5. **Merge is newest-wins:** rows carry `countedAt` (stamped by `useAuditCounting`, sent as `counted_at`). `mergeCloudItemsIntoLocal()` takes a cloud row only when the local row is uncounted, or the cloud row carries a timestamp and the local one is older or has none; a missing time counts as oldest, and when neither side has one the local row stays. `toCloudItem()` sends `counted_at: null` for a row with no `countedAt` (a pre-2026-11-13 draft), never the push time, so every till converges on the stamped figure (A-379). A merged row has no `baselineQty` (A-378).
-6. **Completion and abandon go through an outbox** (A-376): `complete()` (after submit) and `abandon()` (Start over, only when this till holds the session) write to `lib/hooks/cloud-audit-pending-ops.ts` (localStorage `dumos_audit_session_pending_ops`) before sending, and every Cycle Count open and `online` event flushes it. Each entry stores its session's `storeId` and is sent with that `X-Store-Id`, so a multi-store owner's switch cannot misroute it; abandon also sends `till_id` and `lease_version`, and the server's 409 for a till that has been taken over drops the entry without a toast. 409 and 404/410/422 settle an entry; network errors, 401 and 403 keep it. An entry from an older build has no `storeId` and is sent under the active store, so a 403 keeps it until a flush from its own store (A-379). `initSession()` never adopts or merges a session that is not `in_progress`, names `submitted_stock_audit_id`, or is still in the outbox.
+6. **Completion and abandon go through an outbox** (A-376): `complete()` (after submit) and `abandon()` (Start over, only when this till holds the session) write to `lib/hooks/cloud-audit-pending-ops.ts` (localStorage `dumos_audit_session_pending_ops`) before sending, and every Cycle Count open and `online` event flushes it. Each entry stores its session's `storeId` and is sent with that `X-Store-Id`, so a multi-store owner's switch cannot misroute it; abandon also sends `till_id` and `lease_version`, and the server's 409 for a till that has been taken over drops the entry without a toast. 409 and 404/410/422 settle an entry; network errors and 401 keep it, and so does 403 until the entry is older than `FORBIDDEN_AUDIT_OP_TTL_MS` (7 days, from `queuedAt`; an entry from an older build without it is stamped at its first flush), after which a 403 drops it (A-384). An entry from an older build has no `storeId` and is sent under the active store, so a 403 keeps it until a flush from its own store or the TTL (A-379). `clearLocalDrafts()` without `preserveStoreAudit` (factory reset, linking another store) clears the whole outbox; logout and same-tenant user switch keep it, because a queued complete must still reach the server. `initSession()` never adopts or merges a session that is not `in_progress`, names `submitted_stock_audit_id`, or is still in the outbox.
 7. **Completion Lifecycle:** `POST /complete` records `submitted_stock_audit_id` and moves the session to `completion_pending_sync`; when the sync engine pushes that `stock_audits` row the session becomes `completed`. Only `auditIds[0]` is sent; any one of a submit's rows arriving is enough because they are pushed together.
 
 ### An expense is dated by the store's own day (2026-10-13)

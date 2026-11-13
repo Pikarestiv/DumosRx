@@ -253,11 +253,13 @@ describe("cycle count draft durability", () => {
     drafts.useStockAuditDraftStore.getState().setItems([row({ countedQty: 5, counted: true })]);
     await drafts.flushStockAuditDraftSaves();
     seedSqlite("store-b", [row({ countedQty: 1, counted: true })]);
+    localStorage.setItem(LEGACY_KEY, legacyBlob("store-a", [row({ countedQty: 4, counted: true })]));
     const { clearLocalDrafts } = await import("@/lib/utils/clear-local-drafts");
 
     clearLocalDrafts();
 
     expect(drafts.hasActiveStockAuditCount("store-a")).toBe(false);
+    expect(localStorage.getItem(LEGACY_KEY)).toBeNull();
     await waitFor(() => expect(db.exec("SELECT * FROM stock_audit_drafts")).toEqual([]));
   });
 });

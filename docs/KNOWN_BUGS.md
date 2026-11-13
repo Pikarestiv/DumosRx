@@ -59,6 +59,24 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** `client/components/activity-log/activity-log-detail-panel.tsx` parses an entry's `details` and lists every key. A `BATCH_COST_CORRECTED` row carries `cost_price` and `previous_cost_price`, and a `stock_batches` insert or update carries `cost_price`, so a role with `view_activity_log` but without `view_cost_fields` reads batch costs there. The product History tab hides them since A-379; this panel does not.
 - **Fix:** read `view_cost_fields` in the panel and drop cost keys (`cost_price`, `previous_cost_price`, `counted_cost_price`, `unit_cost`, `total_cost`) from the listed fields when it is withheld.
 
+#### A-381. `client/` — the Cycle Count ledger shows cost and cost difference to anyone who can count stock
+
+- **Found:** 2026-11-13, in the release review of #312–#314; pre-existing.
+- **What's wrong:** `client/components/stock-batch/audit-ledger-row-cells.tsx` renders the cost price, the counted cost (read-only text when `canEditProductCost` is false) and the cost difference for every row. Only editing is gated (`edit_product_cost`); seeing the figures needs nothing beyond `perform_stock_audit`, so a role without `view_cost_fields` reads every product's cost there.
+- **Fix:** read `view_cost_fields` in `audit-ledger-step.tsx` and hide the three cost cells and their headers when it is withheld.
+
+#### A-382. `client/` — the product export's Cost Price column ignores `view_cost_fields`
+
+- **Found:** 2026-11-13, same review; pre-existing.
+- **What's wrong:** `EXPORT_COLUMNS` in `client/lib/utils/product-import-export.ts` always offers "Cost Price" (the batch average from `lib/db/queries/product-export.ts`), and the toolbar (`components/stock-batch/import-export-toolbar.tsx`) gates the export on `export_product_list` only.
+- **Fix:** drop the `costPrice` column from the column picker and the file when the user lacks `view_cost_fields`.
+
+#### A-383. `client/` — the Inventory Valuation report export carries Cost Price for anyone with report access
+
+- **Found:** 2026-11-13, same review; pre-existing.
+- **What's wrong:** the `stock_batches` report in `client/lib/hooks/use-report-export.ts` always exports "Cost Price" (and "Stock Value", which is derived from it). The Report Center gates it on `export_reports` / `view_financial_reports`, not `view_cost_fields`.
+- **Fix:** omit the cost columns, or hide the report, when `view_cost_fields` is withheld.
+
 #### A-337. `client/` — what A-271 left: a terminally conflicted batch re-queued on boot keeps shielding itself, and other money columns still overflow at 100,000,000
 - **Found:** 2026-10-15 as part of A-271; split out 2026-10-25 when the rest of A-271 was fixed.
 - **Orphaned rows:** after a terminal conflict drop a batch is left `_synced = 0` with no queue entry, and `requeueOrphanedRowsOnce()` (`reconcile-identity.ts`, on a crash-flagged boot) re-queues it as a whole-row push. That push conflicts again, and while it is queued it is not quantity-only, so it shields the row from the pull again. This is the only path that pins both the cost and the rewind budget. Fix: re-queue an orphaned `stock_batches` row only after pulling the server's copy, or drop its non-quantity fields when the conflict was terminal.
@@ -750,7 +768,7 @@ Logged per the 2026-10-25 rule: each file a fix edits that was already over the 
 - `laravel-server/app/Http/Controllers/Api/App/SyncController.php`: 823 lines, already over (A-325 added the payload-key refusal, A-217 added the up-front batch lock and push-inbound map). What is left in it is listed under Architecture below.
 - `laravel-server/app/Services/Web/DashboardService.php`: 707 lines, already over (the recent-transaction line query moved out to `RecentTransactionLines`, so it shrank).
 - `client/lib/db/local-database.ts`: 500 lines, already over (`forceSyncAllData()` gained the three services tables on one line).
-- `client/lib/db/core.ts`: 1274 lines, already over (A-375 added `stock_audit_drafts` to `LOCAL_WIPE_TABLES`; A-379 made `persistDatabaseExport()` report failure).
+- `client/lib/db/core.ts`: 1294 lines, already over (A-375 added `stock_audit_drafts` to `LOCAL_WIPE_TABLES`; A-379 made `persistDatabaseExport()` report failure; A-384 added the reader-tab save guard, the per-call persist result and the pre-handoff flush hook).
 
 ### Architecture
 

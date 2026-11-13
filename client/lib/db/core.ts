@@ -216,7 +216,7 @@ async function initDatabaseInternal(): Promise<any> {
 
     // Must run, and be awaited, BEFORE the migrations below — see
     // client/AGENTS.md, "One connection, one writer".
-    await initWriterLock(rehydrateFromIndexedDb, saveDatabase);
+    await initWriterLock(rehydrateFromIndexedDb, saveBeforeWriterHandoff);
 
     const webAdapter = makeSqlJsAdapter(db);
 
@@ -270,22 +270,40 @@ const SAVE_FAILURE_NOTICE_INTERVAL_MS = 5 * 60 * 1000;
 let lastSaveFailureNoticeAt = 0;
 
 let saveChain: Promise<void> = Promise.resolve();
-let queuedExport: { data: Uint8Array; epoch: number } | null = null;
+let queuedExport: { data: Uint8Array; epoch: number; seq: number } | null = null;
 let savedWriteEpoch = 0;
+let exportSeq = 0;
+let persistedExportSeq = 0;
 
-export function saveDatabase(): Promise<void> {
-  if (!db) return Promise.resolve();
+export function saveDatabase(): Promise<boolean> {
+  if (!db || (!isTauri() && !isWriterTab())) return Promise.resolve(false);
 
-  queuedExport = { data: db.export(), epoch: writeEpoch };
+  const seq = ++exportSeq;
+  queuedExport = { data: db.export(), epoch: writeEpoch, seq };
 
   saveChain = saveChain.then(async () => {
     const pending = queuedExport;
     queuedExport = null;
     if (!pending) return;
-    if (await persistDatabaseExport(pending.data)) savedWriteEpoch = pending.epoch;
+    if (await persistDatabaseExport(pending.data)) {
+      savedWriteEpoch = pending.epoch;
+      persistedExportSeq = pending.seq;
+    }
   });
 
-  return saveChain;
+  return saveChain.then(() => persistedExportSeq >= seq);
+}
+
+const beforeWriterHandoff = new Set<() => Promise<void>>();
+
+export function onBeforeWriterHandoff(fn: () => Promise<void>): () => void {
+  beforeWriterHandoff.add(fn);
+  return () => beforeWriterHandoff.delete(fn);
+}
+
+export async function saveBeforeWriterHandoff(): Promise<void> {
+  await Promise.all([...beforeWriterHandoff].map((fn) => fn()));
+  await saveDatabase();
 }
 
 async function persistDatabaseExport(data: Uint8Array): Promise<boolean> {
@@ -332,6 +350,8 @@ export function __resetExitFlushForTesting(): void {
   saveChain = Promise.resolve();
   queuedExport = null;
   savedWriteEpoch = 0;
+  exportSeq = 0;
+  persistedExportSeq = 0;
   writeEpoch = 0;
 }
 

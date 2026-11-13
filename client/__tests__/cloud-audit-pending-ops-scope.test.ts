@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import type { CloudAuditSession } from "@/lib/api/audit-sessions";
 
@@ -27,6 +27,7 @@ import {
   pendingAuditSessionIds,
 } from "@/lib/hooks/cloud-audit-pending-ops";
 import { useStockAuditDraftStore } from "@/lib/hooks/use-stock-audit-draft";
+import { clearLocalDrafts } from "@/lib/utils/clear-local-drafts";
 
 function session(overrides: Partial<CloudAuditSession> = {}): CloudAuditSession {
   return {
@@ -171,6 +172,54 @@ describe("queued audit session ops carry their own store", () => {
     await flushAuditSessionOps();
 
     expect(calls.at(-1)?.body).toEqual({ reason: "Started over" });
+    expect(pendingAuditSessionIds().has("S1")).toBe(false);
+  });
+});
+
+describe("a queued audit session op the server keeps forbidding", () => {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  beforeEach(() => {
+    localStorage.clear();
+    device.activeStoreId = "store-2";
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-01T09:00:00Z"));
+    serveStoreScopedServer({ reachable: () => true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function queueLegacyComplete() {
+    localStorage.setItem(
+      PENDING_AUDIT_SESSION_OPS_KEY,
+      JSON.stringify([{ kind: "complete", sessionId: "S1", leaseVersion: 3, submittedStockAuditId: "audit-1" }]),
+    );
+  }
+
+  it("keeps retrying a 403 for seven days from when it was first flushed", async () => {
+    queueLegacyComplete();
+    await flushAuditSessionOps();
+    vi.setSystemTime(new Date(Date.now() + 7 * DAY_MS - 60_000));
+    await flushAuditSessionOps();
+    expect(pendingAuditSessionIds().has("S1")).toBe(true);
+  });
+
+  it("drops a 403'd entry once it is older than seven days", async () => {
+    queueLegacyComplete();
+    await flushAuditSessionOps();
+    vi.setSystemTime(new Date(Date.now() + 7 * DAY_MS + 60_000));
+    await flushAuditSessionOps();
+    expect(pendingAuditSessionIds().has("S1")).toBe(false);
+  });
+
+  it("is cleared by a wipe for another store or account, but kept by a same-account logout", () => {
+    queueLegacyComplete();
+    clearLocalDrafts({ preserveStoreAudit: true });
+    expect(pendingAuditSessionIds().has("S1")).toBe(true);
+
+    clearLocalDrafts();
     expect(pendingAuditSessionIds().has("S1")).toBe(false);
   });
 });

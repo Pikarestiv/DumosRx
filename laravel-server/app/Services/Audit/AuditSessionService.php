@@ -295,26 +295,30 @@ class AuditSessionService
         ?string $tillId = null,
         ?int $leaseVersion = null
     ): AuditSession {
-        if (in_array($session->status, [AuditSession::STATUS_COMPLETED, AuditSession::STATUS_ABANDONED], true)) {
-            throw new AuditSessionConflictException('Cannot abandon an audit session that is already finished.', $session);
-        }
+        return DB::transaction(function () use ($session, $reason, $tillId, $leaseVersion) {
+            $locked = AuditSession::whereKey($session->id)->lockForUpdate()->firstOrFail();
 
-        if ($leaseVersion !== null && ($session->active_till_id !== $tillId || $session->lease_version !== $leaseVersion)) {
-            throw new AuditSessionConflictException('Lease has been superseded or expired on this device.', $session);
-        }
+            if (in_array($locked->status, [AuditSession::STATUS_COMPLETED, AuditSession::STATUS_ABANDONED], true)) {
+                throw new AuditSessionConflictException('Cannot abandon an audit session that is already finished.', $locked);
+            }
 
-        $notes = $session->notes;
-        if ($reason) {
-            $notes = trim(($notes ? $notes."\n" : '').'['.now()->toIso8601String().'] Abandoned: '.$reason);
-        }
+            if ($leaseVersion !== null && ($locked->active_till_id !== $tillId || $locked->lease_version !== $leaseVersion)) {
+                throw new AuditSessionConflictException('Lease has been superseded or expired on this device.', $locked);
+            }
 
-        $session->update([
-            'status' => AuditSession::STATUS_ABANDONED,
-            'lease_expires_at' => null,
-            'notes' => $notes,
-        ]);
+            $notes = $locked->notes;
+            if ($reason) {
+                $notes = trim(($notes ? $notes."\n" : '').'['.now()->toIso8601String().'] Abandoned: '.$reason);
+            }
 
-        return $session;
+            $locked->update([
+                'status' => AuditSession::STATUS_ABANDONED,
+                'lease_expires_at' => null,
+                'notes' => $notes,
+            ]);
+
+            return $locked;
+        });
     }
 
     public function confirmSyncCompletion(string $stockAuditId): int

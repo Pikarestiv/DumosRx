@@ -35,7 +35,7 @@ export function toDisplayTitle(name: string): string {
 }
 
 export function hasContactDetails(store: { address?: string | null; location?: string | null; phone?: string | null; email?: string | null }): boolean {
-  return Boolean(store.phone || store.email || storeAddressLine(store));
+  return Boolean(store.phone?.trim() || store.email?.trim() || storeAddressLine(store));
 }
 
 export function storeAddressLine(store: { address?: string | null; location?: string | null }): string | null {
@@ -50,5 +50,5 @@ export const STOREFRONT_LANDING_PRODUCT_CAP = 50;
 
 export function viewAllProductsLabel(shown: number, productCount?: number): string {
   const total = productCount !== undefined ? Math.max(productCount, shown) : shown < STOREFRONT_LANDING_PRODUCT_CAP ? shown : null;
-  return total === null ? "View all products" : `View all ${total} products`;
+  return total === null ? "View all products" : `View all ${total} product${total === 1 ? "" : "s"}`;
 }

@@ -2489,10 +2489,17 @@ There are two distinct workflows for selling goods sourced outside the store:
      as separate text beside it. For well-stocked items (`stock >= quantity`) a quieter
      `text-muted-foreground` "Source outside" link is always visible (for damaged or reserved
      shelf units); it used to be `opacity-0` until hover, which hid it on touch tills.
-     Clicking either opens `SpotSourceDialog`. The controls live in
-     `components/pos/pos-cart-item-sourcing.tsx`. Each label is `whitespace-nowrap` and the
-     row is `flex-wrap`, so a narrow (~380px) cart wraps whole chips rather than mid-label
-     (`pos-cart-item-spot-sourcing-layout.test.tsx`).
+     Clicking either opens `SpotSourceDialog`. A spot-sourced line shows a "Spot Sourced"
+     pill with the per-unit "Cost ₦…" as separate text beside it. The controls live in
+     `components/pos/pos-cart-item-sourcing.tsx` and sit on their own full-width row under
+     the cart line (`basis-full`, indented past the category icon), not in the name column:
+     at ~380px that column is about 95px wide, which truncated the pill to "Spot Sour…" and
+     pushed it within 2px of the quantity stepper (A-368). Each label is `whitespace-nowrap`
+     and the row is `flex-wrap`, so wrapping happens between whole chips, never mid-label
+     (`pos-cart-item-spot-sourcing-layout.test.tsx`, `e2e/services-pos-sourcing-layout.spec.ts`).
+     The swipe-to-delete `bg-destructive` backdrop in `pos-cart-item.tsx` takes its opacity
+     from the row's drag offset, so it is fully transparent at rest and cannot bleed a red
+     hairline through the rounded clip.
    - **Partial Spot Sourcing (Split Allocation):** When a customer requests more units
      than exist on shelf (e.g. 5 requested, 2 on shelf), `SpotSourceDialog` defaults to
      **Split Allocation**:
@@ -5867,7 +5874,9 @@ same tab session still gets its own fresh one-time retry.
     no-active-store refusal; mixed checkout with no stock movement for the
     service line; split and full service returns reaching `refunded`; held
     service repricing notices; and the cart's "Source outside"/"Spot Sourced"
-    labels at 390×844 in light and dark (set `E2E_SCREENSHOT_DIR` to keep the
+    labels at 390×844 in light and dark: one line, unclipped, the spot cost
+    visible, at least 6px clear of the quantity stepper on either axis, and
+    the delete backdrop transparent at rest (set `E2E_SCREENSHOT_DIR` to keep the
     screenshots; dark is applied by swapping the `<html>` class because a
     reload currently resets a stored dark theme, A-367). One case is
     `test.fail` on purpose until its bug is fixed:

@@ -22,16 +22,19 @@ function shortfallLabel(item: CartItem): string | null {
 export function POSCartItemSourcing({ item, currencyCode, isLocked, onConfigureSpotSourcing }: Props) {
   if (item.is_spot_sourced) {
     return (
-      <div className="flex items-center gap-1.5 mb-1 min-w-0">
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
         <button
           type="button"
           onClick={() => onConfigureSpotSourcing?.(item)}
-          className={`${PILL} font-bold max-w-full`}
+          className={`${PILL} font-bold`}
           title="Edit spot sourcing details"
         >
           <Share2 className={ICON} />
-          <span className="truncate">Spot Sourced ({formatCurrency(item.sourcing_cost || 0, currencyCode)})</span>
+          Spot Sourced
         </button>
+        <span className="whitespace-nowrap text-[10px] font-medium text-amber-700 dark:text-amber-400">
+          Cost {formatCurrency(item.sourcing_cost || 0, currencyCode)}
+        </span>
       </div>
     );
   }
@@ -41,7 +44,7 @@ export function POSCartItemSourcing({ item, currencyCode, isLocked, onConfigureS
   const shortfall = shortfallLabel(item);
   if (!shortfall) {
     return (
-      <div className="mb-0.5">
+      <div>
         <button
           type="button"
           onClick={() => onConfigureSpotSourcing(item)}
@@ -56,7 +59,7 @@ export function POSCartItemSourcing({ item, currencyCode, isLocked, onConfigureS
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 mb-0.5">
+    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
       <button
         type="button"
         onClick={() => onConfigureSpotSourcing(item)}

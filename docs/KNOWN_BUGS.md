@@ -654,10 +654,10 @@ suggested tackle order rather than a strict ranking.
 - **Repro:** Pro store, Settings → General → Dark, reload: the page comes back light and `localStorage["dumosrx-ui-theme"]` is `"light"`.
 - **Fix:** skip the reset until the store profile has loaded (e.g. return early while `storeProfile` is undefined), then drop the `test.fail`.
 
-#### A-368. `client/` — at phone width the cart truncates a spot-sourced line's pill to "Spot Sour…", hiding the sourcing cost
-- **Found:** 2026-11-13, Playwright smoke of `feat/service-pos` at 390×844 (`e2e/services-pos-sourcing-layout.spec.ts`).
-- **What's wrong:** commit `4b02797f` kept the pill on one line by truncating its text, but at a ~380px cart the name column is only ~95px wide, so the pill reads "Spot Sour…" and the cost in brackets is never visible; product names are cut to about ten characters by the same squeeze. Separately, each cart line shows a faint red hairline round its edges in light mode: the swipe-to-delete `bg-destructive` backdrop bleeding through the antialiased rounded clip.
-- **Fix:** let the sourcing row take the full line width under the name (or drop the cost to its own line), and inset the delete backdrop or give the row the same radius as its clip.
+#### A-368. `client/` — at phone width the cart cuts product names to about ten characters, and dark-mode "Clear cart" reads as disabled
+- **Found:** 2026-11-13, Playwright smoke of `feat/service-pos` at 390×844 (`e2e/services-pos-sourcing-layout.spec.ts`). The sourcing-pill truncation, stepper gap and red hairline from the original entry are fixed (`docs/FIXED_BUGS.md`, A-368); this is what is left.
+- **Product names:** `pos-cart-item.tsx`'s name column is `flex-1 min-w-0` between a 40px icon, the quantity stepper, a `min-w-[56px]` line total and the remove button, so at a ~380px drawer it is about 95px wide and "E2E Amoxicillin 500mg Capsules" renders as "E2E AMOXIC…". Two lines of the same product (strengths, pack sizes) are indistinguishable. Fix: let the name wrap to two lines (`line-clamp-2`) or give it the full row width above the stepper.
+- **"Clear cart" in dark mode:** in the cart drawer's footer the destructive-outline "Clear cart" button renders as dim red on near-black, so it looks disabled while the cart has items (seen in `cart-*-390-dark.png`; not measured). Fix: check its contrast against the dark surface and lift the dark text/border shade.
 
 ---
 

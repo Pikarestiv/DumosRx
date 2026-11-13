@@ -11,6 +11,7 @@ const SCREENSHOT_DIR =
 const IN_STOCK = 'E2E Amoxicillin 500mg Capsules';
 const OUT_OF_STOCK = 'E2E Ciprofloxacin 500mg Tablets';
 const MIN_SMALL_TEXT_CONTRAST = 4.5;
+const MIN_STEPPER_GAP_PX = 6;
 const THEMES = ['light', 'dark'] as const;
 
 test.use({ viewport: { width: 390, height: 844 } });
@@ -34,12 +35,20 @@ async function openMobileCartAndCapture(page: Page, theme: (typeof THEMES)[numbe
 
 async function expectOneLineClearOfStepper(page: Page, productName: string, label: Locator) {
   const metrics = await measureLabel(label);
-  const stepperBox = await cartLine(page, productName).getByRole('button', { name: 'Decrease quantity' }).boundingBox();
-  test.info().annotations.push({ type: `metrics: ${productName}`, description: JSON.stringify(metrics) });
+  const stepper = await cartLine(page, productName).getByRole('spinbutton').locator('..').boundingBox();
+  const box = await label.boundingBox();
+  if (!stepper || !box) throw new Error(`no layout box for ${productName}'s stepper or label`);
+  const gapToStepper = Math.max(stepper.x - (box.x + box.width), box.y - (stepper.y + stepper.height));
+  test.info().annotations.push({ type: `metrics: ${productName}`, description: JSON.stringify({ ...metrics, gapToStepper }) });
   expect(metrics.textLines).toBe(1);
   expect(metrics.height).toBeLessThan(metrics.lineHeight * 2);
-  expect(metrics.right).toBeLessThanOrEqual(stepperBox?.x ?? 0);
+  expect(gapToStepper).toBeGreaterThanOrEqual(MIN_STEPPER_GAP_PX);
   return metrics;
+}
+
+async function expectDeleteBackdropHiddenAtRest(page: Page, productName: string) {
+  const backdrop = cartLine(page, productName).locator('[data-swipe-delete-backdrop]');
+  await expect(backdrop).toHaveCSS('opacity', '0');
 }
 
 test.describe('POS cart sourcing controls at phone width', () => {
@@ -72,9 +81,15 @@ test.describe('POS cart sourcing controls at phone width', () => {
 
       const spotSourced = cartLine(page, OUT_OF_STOCK).getByRole('button', { name: /Spot Sourced/ });
       await expect(spotSourced).toBeVisible();
-      await expectOneLineClearOfStepper(page, OUT_OF_STOCK, spotSourced);
-      const spotText = await measureLabel(spotSourced.locator('span'));
-      test.info().annotations.push({ type: 'metrics: spot-sourced text', description: JSON.stringify(spotText) });
+      const pill = await expectOneLineClearOfStepper(page, OUT_OF_STOCK, spotSourced);
+      expect(pill.clipped).toBe(false);
+      const cost = cartLine(page, OUT_OF_STOCK).getByText('Cost ₦900', { exact: true });
+      await expect(cost).toBeVisible();
+      const costMetrics = await expectOneLineClearOfStepper(page, OUT_OF_STOCK, cost);
+      expect(costMetrics.clipped).toBe(false);
+      expect(costMetrics.contrast).toBeGreaterThanOrEqual(MIN_SMALL_TEXT_CONTRAST);
+      await expectDeleteBackdropHiddenAtRest(page, OUT_OF_STOCK);
+      await expectDeleteBackdropHiddenAtRest(page, IN_STOCK);
       const line = cartLine(page, IN_STOCK);
       for (const [what, locator] of [
         ['name', line.getByText(nameMatcher(IN_STOCK))],

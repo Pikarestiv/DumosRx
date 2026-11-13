@@ -33,6 +33,9 @@ export function useAuditSheetSource() {
   const [isSyncing, setIsSyncing] = useState(false);
   const items = useStockAuditDraftStore((state) => state.items);
   const setItems = useStockAuditDraftStore((state) => state.setItems);
+  const draftRestored = useStockAuditDraftStore(
+    (state) => state.activeStoreId === null || state.loadedStoreId === state.activeStoreId,
+  );
 
   const { data: rawProducts, isLoading } = useQuery({
     ...queryKeys.products.withDetails(),
@@ -64,19 +67,19 @@ export function useAuditSheetSource() {
   // Counted Qty opens empty; the cost/price columns do not. Rebuild rules
   // and the deps: client/AGENTS.md.
   useEffect(() => {
-    if (rawProducts && shouldRebuildAuditSheet(items)) {
+    if (draftRestored && rawProducts && shouldRebuildAuditSheet(items)) {
       setItems(rawProducts.map(toAuditItem));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawProducts, items.length]);
+  }, [rawProducts, items.length, draftRestored]);
 
   // Refresh "Last Counted" in place without touching counts in progress.
   // Rationale: docs/CLIENT_COMMENTS.md#stock-audits-last-audited-refresh
   useEffect(() => {
-    if (!rawProducts || rawProducts.length === 0) return;
+    if (!draftRestored || !rawProducts || rawProducts.length === 0) return;
     setItems((prev) => mergeFreshLastAuditedAt(prev, rawProducts));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawProducts]);
+  }, [rawProducts, draftRestored]);
 
-  return { isLoading, isSyncing };
+  return { isLoading: isLoading || !draftRestored, isSyncing };
 }

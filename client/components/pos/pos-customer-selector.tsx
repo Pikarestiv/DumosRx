@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useMemo, useState } from "react";
-import { Search, UserPlus, X, ChevronDown, Check } from "lucide-react";
+import { Search, UserPlus, X, Plus, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
@@ -103,35 +103,37 @@ export const POSCustomerSelector = memo(function POSCustomerSelector({
   };
 
   return (
-    <div className="px-0 sm:px-5 lg:pt-[18px] pb-3.5 border-b border-border">
-      <div className="hidden sm:flex items-center justify-between mb-3">
+    <div className="px-0 sm:px-5 lg:pt-3 pb-2.5 border-b border-border">
+      <div className="hidden sm:flex items-center justify-between mb-2">
         <div className="text-[15px] font-semibold">Current sale</div>
         <div className="text-xs text-muted-foreground">{cartLength} items</div>
       </div>
 
-      {/* Trigger. The clear control is a sibling button, not nested inside the
-          trigger: nested interactive content is unreachable by keyboard. */}
-      <div className="flex items-center gap-2.5 px-3 py-2.5 bg-primary/5 border border-primary/20 rounded-[10px] hover:bg-primary/10 transition-colors">
+      {/* The clear control is a sibling button, not nested in the trigger:
+          nested interactive content is unreachable by keyboard. */}
+      <div className="flex items-center gap-2 px-2.5 py-1 bg-primary/5 border border-primary/20 rounded-[10px] hover:bg-primary/10 transition-colors">
         <button
           type="button"
-          className="flex flex-1 min-w-0 items-center gap-2.5 text-left cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+          className="flex flex-1 min-w-0 items-center gap-2 text-left cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
           onClick={() => setOpen(true)}
         >
-          <div className="w-[30px] h-[30px] rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11.5px] font-bold shrink-0">
+          <div className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold shrink-0">
             {initials}
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[12.5px] font-semibold text-foreground truncate">
+          <div className="flex-1 min-w-0 truncate leading-tight">
+            <span className="text-[12.5px] font-semibold text-foreground">
               {selectedCustomer
                 ? `${selectedCustomer.first_name} ${selectedCustomer.last_name || ""}`
                 : "Walk-in customer"}
-            </div>
-            <div className="text-[11px] text-muted-foreground truncate">
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              {" · "}
               {selectedCustomer
                 ? `${selectedCustomer.phone || "No phone"} • ${selectedCustomer.loyalty_points || 0} pts`
                 : "Tap to search or add"}
-            </div>
+            </span>
           </div>
+          {!selectedCustomer && <Plus className="w-4 h-4 text-muted-foreground shrink-0" />}
         </button>
         {selectedCustomer && (
           <button
@@ -142,9 +144,6 @@ export const POSCustomerSelector = memo(function POSCustomerSelector({
           >
             <X className="w-4 h-4" />
           </button>
-        )}
-        {!selectedCustomer && (
-          <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
         )}
       </div>
 

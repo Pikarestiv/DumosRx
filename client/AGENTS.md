@@ -2484,19 +2484,44 @@ There are two distinct workflows for selling goods sourced outside the store:
    is off-site and cannot raise purchase orders or reconcile backorders at EOD.
    When a walk-in customer requests an out-of-stock item, a cashier can run to a
    neighboring pharmacy or partner shop, buy the units, and ring them up immediately:
-   - **Trigger & UI:** When an item has `stock <= 0` or `quantity > stock`, the cart
-     shows an amber `"Source outside"` pill with the status (`"Out of stock"` or `"N short"`)
-     as separate text beside it. For well-stocked items (`stock >= quantity`) a quieter
-     `text-muted-foreground` "Source outside" link is always visible (for damaged or reserved
-     shelf units); it used to be `opacity-0` until hover, which hid it on touch tills.
-     Clicking either opens `SpotSourceDialog`. A spot-sourced line shows a "Spot Sourced"
+   - **Trigger & UI:** A product cart line shows the amber `"Source outside"` pill only when
+     `quantity >= stock` (which includes `stock <= 0`), with the status as separate text beside
+     it: `"Out of stock"`, `"N short"`, or a muted `"All shelf stock used"` when the cart holds
+     exactly the shelf stock. Service lines never show it. Below the shelf level there is no
+     control at all (owner decision, 2026-11-13: the always-visible link under every line cost
+     a row of height each), so sourcing outside because the shelf units are damaged or
+     reserved is no longer offered from the cart line: write the damaged units off as a stock
+     adjustment first, or raise the quantity to the shelf level, and the pill appears.
+     Clicking it opens `SpotSourceDialog`, whose "Source all externally" toggle still covers
+     unusable shelf units at that point. The pill text is `text-amber-800 dark:text-amber-400`
+     (amber-700 measured 4.15:1 on its own tint). A spot-sourced line shows a "Spot Sourced"
      pill with the per-unit "Cost ₦…" as separate text beside it. The controls live in
      `components/pos/pos-cart-item-sourcing.tsx` and sit on their own full-width row under
-     the cart line (`basis-full`, indented past the category icon), not in the name column:
+     the cart line (`basis-full`), not in the name column:
      at ~380px that column is about 95px wide, which truncated the pill to "Spot Sour…" and
      pushed it within 2px of the quantity stepper (A-368). Each label is `whitespace-nowrap`
      and the row is `flex-wrap`, so wrapping happens between whole chips, never mid-label
      (`pos-cart-item-spot-sourcing-layout.test.tsx`, `e2e/services-pos-sourcing-layout.spec.ts`).
+     The line's name wraps to two lines (`line-clamp-2 break-words`) rather than truncating, and
+     is a focusable `HintTooltip` trigger so hover or focus reveals the full name (A-368).
+     **Cart panel space (2026-11-13).** The cart list is the only scrolling region and Charge
+     is always on screen; everything around the list is kept to one slim row each so a
+     six-line cart fits whole at 390×844 and in the 420px desktop column
+     (`e2e/pos-cart-space.spec.ts`: all 6 rows fully visible, list capacity >= 7 rows; it was
+     3 on dev before this pass). The four secondary actions share one row
+     (`pos-cart-actions.tsx`) with short labels "Request", "Hold", "Clear", "Preview"; each
+     keeps its full name ("Request Item", "Hold Sale", "Clear cart", "Preview Quote") as its
+     `aria-label` and in a `HintTooltip`, so role-name selectors use the full phrase. The VAT
+     row shows only when `vat_percentage > 0` (or a non-zero tax amount): Settings has no
+     separate VAT on/off switch and its help text defines 0 as "don't charge VAT", so a rate
+     of 0 is "not configured" and there is no explicit-zero case to show. "+ Add discount"
+     carries no "₦0" beside it; the applied discount amount still shows. The Subtotal row
+     shows only when it differs from Total (VAT, discount or reward), since it would repeat
+     Total. Cart lines carry no category icon (it cost ~52px of name width). The customer
+     picker is one slim line (name · hint) whose trailing Plus icon sits inside the clickable
+     trigger, and the reseller toggle row is `py-1`.
+     Don't colour cart text with `text-destructive`: dark `--destructive` is a fill shade
+     (1.92:1 as text on the dark footer); "Clear" uses `text-red-700 dark:text-red-400`.
      The swipe-to-delete `bg-destructive` backdrop in `pos-cart-item.tsx` takes its opacity
      from the row's drag offset, so it is fully transparent at rest and cannot bleed a red
      hairline through the rounded clip.
@@ -3646,9 +3671,9 @@ still rendered read-only, only the trigger gated):
   is who rings reseller sales, and withholding it would have made the
   Reseller toggle inert at the till. `specialist` deliberately still lacks
   it (stock role, matching its existing `apply_discounts` exclusion).
-- `hold_sales` — `components/pos/pos-cart.tsx` (the "Hold Sale" button, plus
-  `SECONDARY_ACTION_GRID_COLS`, a literal-class lookup that keeps the
-  secondary-action grid honest now that its column count varies) and
+- `hold_sales` — `components/pos/pos-cart.tsx` (the "Hold" button, named
+  "Hold Sale" for assistive tech, rendered by `pos-cart-actions.tsx`, whose
+  flex row needs no column lookup when a button is hidden) and
   `components/pos/held-transactions-dialog.tsx` (the "Recall" button).
   Creating a hold and resuming one are both gated; the amber "N on hold"
   banner and the held list itself are not, so a cashier without the right
@@ -3900,7 +3925,8 @@ protect (verified by temporarily adding one to every join below):
   `getSaleItems()`, `getTransactionDetails()`, `getRecentSales()`'s
   `item_names`, `getDailyCloseData()`'s `itemsToday`; plus `customers.ts`'s
   `getCustomerTransactions()` `item_names`. (`getResellerCommissionSales()`
-  carries the same `item_names` subquery and the same comment.)
+  uses the same `item_names` subquery: all of them now come from
+  `SALE_LINE_NAMES_SQL` in `lib/db/queries/sale-line-summary-sql.ts`.)
 - `__tests__/deleted-entity-procurement-history.test.ts` — `procurement.ts`:
   `getPurchaseOrders()` and `getPurchaseOrderById()` (`vendor_name`, which
   falls back to "Self / Walk-in Purchase" if the vendor join is filtered) plus
@@ -4016,7 +4042,7 @@ than on history.
   Order, opening `components/suppliers/supplier-delete-dialog.tsx`), backed
   by `deleteSupplier()` in `lib/db/suppliers.ts`. The row's column count is
   now a literal-class lookup (`ACTION_GRID_COLS`, same mechanism as
-  `CATALOG_GRID_COLS`/`SECONDARY_ACTION_GRID_COLS`) because it varies from
+  `CATALOG_GRID_COLS`) because it varies from
   one to three buttons with the two keys. It sits in the **detail pane, not
   `supplier-table.tsx`'s rows**: the table has no row menu at all (its only
   row affordance is the inline rating pencil), and a destructive action on a
@@ -5880,11 +5906,15 @@ same tab session still gets its own fresh one-time retry.
     service repricing notices; and the cart's "Source outside"/"Spot Sourced"
     labels at 390×844 in light and dark: one line, unclipped, the spot cost
     visible, at least 6px clear of the quantity stepper on either axis, and
-    the delete backdrop transparent at rest (set `E2E_SCREENSHOT_DIR` to keep the
-    screenshots; dark is applied by swapping the `<html>` class because a
-    reload currently resets a stored dark theme, A-367). One case is
-    `test.fail` on purpose until its bug is fixed:
-    `theme-persistence.spec.ts` (A-367).
+    the delete backdrop transparent at rest; "Source outside" absent on an
+    in-stock line until its quantity reaches the shelf stock; the two-line
+    name; and "Clear cart" at >= 4.5:1. `e2e/layout-metrics.ts` composites
+    translucent backgrounds when it measures contrast (set `E2E_SCREENSHOT_DIR` to keep the
+    screenshots; dark is applied by swapping the `<html>` class, which is all
+    `ThemeProvider` does). `theme-persistence.spec.ts` pins that a Pro store's
+    stored dark theme survives a reload (A-367): `ThemeRestrictor`
+    (`license-guard.tsx`) forces light only once the store profile has loaded,
+    because until then `useFeatureGate()` reports `"free"` for every store.
 - `npm run test:schema`: diffs local SQLite schema against the Laravel
   backend's live MySQL schema. Requires the sibling `../laravel-server` repo
   and a working `php artisan tinker` in it. Two things about it are load
@@ -7502,7 +7532,7 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
   - A mixed return considers a sale fully refunded (`payment_status = 'refunded'`) only when all physical products AND all services on the sale have been completely returned.
   - Service completeness is read from SQLite after this return's `return_services` rows are written (`getSaleServices()`' summed `returned_quantity` against `quantity`), not from a caller-supplied list. The dialog used to pass a mapped list without `returned_quantity`, so a qty-2 service returned in two goes never reached `refunded` (pinned by `process-return-partial-services.test.ts`).
 - **POS services query:** `usePOSData` reads services through `queryKeys.services.list()` with `getServices({ storeId: getActiveStoreId() })`, so a multi-store owner never sees another store's services or a cache from the store they just switched away from. `queryKeys.sales.transactionDetails` is tagged with `sale_services` and `return_services` so a service return refreshes an open receipt.
-- **Views that list a sale's lines must read `sale_services` too.** `getCustomerTransactions()` (customer purchase history) counts and names service lines beside product lines (`customer-purchase-history-services.test.ts`). `sales.ts`'s history/recent-sales summaries (A-365) and the BI report (A-364) still read `sale_items` only.
+- **Views that list a sale's lines must read `sale_services` too.** `getCustomerTransactions()` (customer purchase history) counts and names service lines beside product lines (`customer-purchase-history-services.test.ts`). `sales.ts`'s `getRecentSales()`, `getSaleById()`, `getSaleByTransactionNumber()` and `getResellerCommissionSales()` do the same (A-365, `sales-history-services.test.ts`). All of them build the subqueries from `lib/db/queries/sale-line-summary-sql.ts`: `SALE_LINE_NAMES_SQL`, `SALE_LINE_COUNT_SQL` (lines, used by purchase history) and `SALE_UNIT_COUNT_SQL` (units, used by sales history, which always counted quantity); add a new view's summary there rather than hand-writing another `sale_items`-only subquery. The BI report (A-364) still reads `sale_items` only.
 - **Clearing the cart:** `usePOSCart().clearCart()` calls `clearPOSCartContents()`, which empties the cart, discount, redeemed option and reseller state but keeps the cashier's chosen `discountType` for the next sale. `clearPOSCartStorage()` (store switch, logout) also resets `discountType` to `"fixed"` (`use-pos-cart-reseller.test.ts`).
 - **Inventory Services Catalog (`/inventory/services`):**
   - Services are managed in the back-office inventory hub under the `Services` tab (`/inventory/services`) alongside `Catalog` (physical products).

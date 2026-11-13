@@ -66,3 +66,13 @@ describe("POS customer selector add permission", () => {
     expect(hasPermission).toHaveBeenCalledWith("manage_customers");
   });
 });
+
+describe("POS customer selector trigger", () => {
+  it("puts the plus icon inside the clickable trigger, not beside it", () => {
+    render(
+      <POSCustomerSelector selectedCustomer={null} customers={[]} loadingCustomers={false} onSelectCustomer={vi.fn()} />,
+    );
+    const trigger = screen.getByText("Walk-in customer").closest("button");
+    expect(trigger?.querySelector("svg.lucide-plus")).toBeTruthy();
+  });
+});

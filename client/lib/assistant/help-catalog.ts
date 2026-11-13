@@ -245,7 +245,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     title: "Source stock from outside",
     href: "/pos",
     steps: [
-      "In POS, click 'Source outside' on the cart item (or tap an out-of-stock product)",
+      "In POS, tap an out-of-stock product, or click 'Source outside' on a cart line that is out of stock, short, or holds all your shelf stock",
       "Enter the unit cost paid to the outside shop or neighbor",
       "Select payment source: Cash Drawer (auto-deducted) or Credit / Owner Paid",
       "Proceed to charge the customer as usual",

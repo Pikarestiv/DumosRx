@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, useMotionValue, useTransform } from "framer-motion";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
-import { CategoryIcon } from "./category-icon";
+import { HintTooltip } from "@/components/ui/hint-tooltip";
 import { POSCartItemSourcing } from "./pos-cart-item-sourcing";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
@@ -99,18 +99,20 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
             removeFromCart(item.id);
           }
         }}
-        className={`relative flex flex-wrap items-center gap-x-3 gap-y-1 py-3 bg-background touch-pan-y group ${
+        className={`relative flex flex-wrap items-center gap-x-3 gap-y-1 py-2 bg-background touch-pan-y group ${
           isLast ? "" : "border-b border-border"
         }`}
       >
-        <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-          <CategoryIcon categoryName={item.category_name} className="w-5 h-5" />
-        </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <span className={`text-[12.5px] font-semibold truncate leading-tight ${capsClass}`}>
-              {item.name}
-            </span>
+          <div className="flex items-start gap-1.5 mb-0.5">
+            <HintTooltip text={item.name}>
+              <span
+                tabIndex={0}
+                className={`min-w-0 text-[12.5px] font-semibold line-clamp-2 break-words leading-tight rounded outline-none focus-visible:ring-2 focus-visible:ring-ring ${capsClass}`}
+              >
+                {item.name}
+              </span>
+            </HintTooltip>
             {item.item_type === "service" && (
               <span className="inline-flex items-center text-[9.5px] font-medium px-1 py-0.2 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
                 Service

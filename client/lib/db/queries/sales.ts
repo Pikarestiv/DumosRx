@@ -1,6 +1,7 @@
 import { query } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
 import { PRICE_ADJUSTMENT_COLUMNS_SQL } from "@/lib/db/queries/price-adjustment-sql";
+import { SALE_LINE_NAMES_SQL, SALE_UNIT_COUNT_SQL } from "@/lib/db/queries/sale-line-summary-sql";
 import { getSaleStockReconciliation } from "@/lib/db/queries/backorders";
 import { getSaleServices } from "@/lib/db/queries/services";
 import type { Sale, SaleWithDetails, SaleItemDetail, ReturnRecord, ReturnItemDetail, SaleServiceDetail } from "@/lib/types/sale";
@@ -120,7 +121,7 @@ export async function getSaleById(saleId: string) {
     `SELECT
       s.*,
       TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,
-      (SELECT SUM(quantity) FROM sale_items si WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_count
+      ${SALE_UNIT_COUNT_SQL} as item_count
      FROM sales s
      LEFT JOIN customers c ON s.customer_id = c.id
      WHERE s.id = ? AND s._deleted = 0`,
@@ -135,7 +136,7 @@ export async function getSaleByTransactionNumber(transactionNumber: string) {
     `SELECT
       s.*,
       TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,
-      (SELECT SUM(quantity) FROM sale_items si WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_count
+      ${SALE_UNIT_COUNT_SQL} as item_count
      FROM sales s
      LEFT JOIN customers c ON s.customer_id = c.id
      WHERE s.transaction_number = ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}`,
@@ -153,7 +154,7 @@ export async function getResellerCommissionSales() {
     `SELECT
       s.*,
       TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,
-      (SELECT GROUP_CONCAT(pr.name, '||') FROM sale_items si JOIN products pr ON si.product_id = pr.id WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_names,
+      ${SALE_LINE_NAMES_SQL} as item_names,
       COALESCE((SELECT ROUND(SUM(sm.quantity), 6) FROM stock_movements sm WHERE sm.reference_id = s.id AND sm.reference_type = 'backorder' AND (sm._deleted = 0 OR sm._deleted IS NULL)), 0) as stock_originally_owed,
       COALESCE((SELECT ROUND(SUM(ABS(sm.quantity)), 6) FROM stock_movements sm WHERE sm.reference_id = s.id AND sm.reference_type = 'backorder_settlement' AND (sm._deleted = 0 OR sm._deleted IS NULL)), 0) as stock_settled,
       ${PRICE_ADJUSTMENT_COLUMNS_SQL}
@@ -217,9 +218,9 @@ export async function getRecentSales(
       s.*,
       TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,
       TRIM(u.first_name || ' ' || u.last_name) as cashier_name,
-      (SELECT SUM(quantity) FROM sale_items si WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_count,
+      ${SALE_UNIT_COUNT_SQL} as item_count,
       COALESCE((SELECT SUM(r.total_refunded) FROM returns r WHERE r.sale_id = s.id AND (r._deleted = 0 OR r._deleted IS NULL)), 0) as total_refunded,
-      (SELECT GROUP_CONCAT(pr.name, '||') FROM sale_items si JOIN products pr ON si.product_id = pr.id WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_names,
+      ${SALE_LINE_NAMES_SQL} as item_names,
       COALESCE((SELECT ROUND(SUM(sm.quantity), 6) FROM stock_movements sm WHERE sm.reference_id = s.id AND sm.reference_type = 'backorder' AND (sm._deleted = 0 OR sm._deleted IS NULL)), 0) as stock_originally_owed,
       COALESCE((SELECT ROUND(SUM(ABS(sm.quantity)), 6) FROM stock_movements sm WHERE sm.reference_id = s.id AND sm.reference_type = 'backorder_settlement' AND (sm._deleted = 0 OR sm._deleted IS NULL)), 0) as stock_settled,
       ${PRICE_ADJUSTMENT_COLUMNS_SQL}

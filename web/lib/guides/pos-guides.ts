@@ -11,13 +11,13 @@ export const POS_GUIDES: GuideItem[] = [
     summary:
       "Never turn away a customer when an item is out of stock. Pick it up from a nearby shop or partner pharmacy and ring it up on the spot. DumosRx tracks your true profit margin and automatically reconciles your till cash drawer at Daily Close.",
     steps: [
-      "In the POS cart, click 'Source outside' on the item, or simply tap any out-of-stock product tile on the screen.",
+      "Tap any out-of-stock product tile, or click 'Source outside' on a cart line. The cart shows it only when the line is out of stock, short, or already holds all your shelf stock.",
       "Enter the buying cost paid to the outside shop (sourcing cost) and your customer selling price to see your instant profit margin.",
       "Choose payment source: select 'Cash Drawer' if cash was taken from the register, or 'Owner Credit / Paid Externally' if paid on credit.",
-      "Tap 'Add to Cart' and complete the sale as usual. DumosRx automatically records the cash expense (if paid from drawer) and logs accurate profit without touching shelf batches.",
+      "Tap 'Add to Cart' and complete the sale as usual. DumosRx records the sourcing cost as the line's cost of goods and logs accurate profit without touching shelf batches.",
     ],
     proTip:
-      "When paid from the cash drawer, DumosRx automatically logs a 'Stock Sourcing' expense tied to the sale receipt number. At Daily Close, Net Cash Expected automatically subtracts this payout so your physical drawer cash balances with zero manual calculations!",
+      "When paid from the cash drawer, Daily Close subtracts the sourcing payout from Net Cash Expected, so your physical drawer cash balances with zero manual calculations. It is not booked as an operating expense, so your profit is not counted twice.",
     videoPlaceholderText: "Video Walkthrough: Ringing up externally sourced items and automatic cash drawer balancing",
   },
   {
@@ -50,7 +50,7 @@ export const POS_GUIDES: GuideItem[] = [
       "Give customers an itemized price quotation for their prescription or shopping list before they commit, without deducting inventory or recording sales revenue.",
     steps: [
       "Add the requested products to the POS cart as normal.",
-      "Tap the 'Quote' (Proforma) button in the cart options.",
+      "Tap 'Preview' in the cart's action row to open the Proforma Quote.",
       "Optionally select or enter the customer's name and contact information.",
       "Print or export the Proforma Quote. When the customer returns to buy, recall the quote and convert it to a live sale with a single click.",
     ],

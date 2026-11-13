@@ -37,15 +37,21 @@ export function measureLabel(label: Locator): Promise<LabelMetrics> {
     const textLines = textTops.filter((top, i) => i === 0 || top - textTops[i - 1] > lineHeight / 2).length;
 
     let effectiveOpacity = 1;
-    let background: number[] | null = null;
+    const layers: number[][] = [];
+    let opaqueFound = false;
     for (let node: Element | null = el; node; node = node.parentElement) {
       const cs = getComputedStyle(node);
       effectiveOpacity *= parseFloat(cs.opacity);
-      const bg = toRgba(cs.backgroundColor);
-      if (!background && bg[3] === 255) background = bg;
+      const layer = toRgba(cs.backgroundColor);
+      if (!opaqueFound && layer[3] > 0) layers.push(layer);
+      if (layer[3] === 255) opaqueFound = true;
     }
+    if (!opaqueFound) layers.push([255, 255, 255, 255]);
+    const bg = layers.reduceRight((under, over) => {
+      const a = over[3] / 255;
+      return [...over.slice(0, 3).map((c, i) => c * a + under[i] * (1 - a)), 255];
+    });
     const fg = toRgba(style.color);
-    const bg = background ?? [255, 255, 255, 255];
     const alpha = (fg[3] / 255) * effectiveOpacity;
     const blended = fg.slice(0, 3).map((c, i) => c * alpha + bg[i] * (1 - alpha));
     const [hi, lo] = [luminance(blended), luminance(bg)].sort((a, b) => b - a);

@@ -9,7 +9,7 @@ import {
 import { ChevronUp, ShoppingCart } from "lucide-react";
 import { POSCart } from "./pos-cart";
 import { formatCurrency } from "@/lib/utils";
-import type { CartItem, RedeemedOption, MarkupType } from "@/lib/hooks/use-pos-cart";
+import type { CartItem, RedeemedOption, MarkupType, SpotSourcingConfig, SpotSourcingSplitOptions } from "@/lib/hooks/use-pos-cart";
 import type { Customer } from "@/lib/types/customer";
 
 interface POSMobileCartDrawerProps {
@@ -42,6 +42,11 @@ interface POSMobileCartDrawerProps {
   markupType?: MarkupType | null;
   setMarkupType?: (value: MarkupType | null) => void;
   updateUnitPrice?: (id: string, price: number) => void;
+  updateSpotSourcing?: (
+    id: string,
+    config: SpotSourcingConfig | null,
+    splitOptions?: SpotSourcingSplitOptions,
+  ) => void;
 }
 
 export function POSMobileCartDrawer({
@@ -74,6 +79,7 @@ export function POSMobileCartDrawer({
   markupType,
   setMarkupType,
   updateUnitPrice,
+  updateSpotSourcing,
 }: POSMobileCartDrawerProps) {
   const [open, setOpen] = useState(false);
 
@@ -151,6 +157,7 @@ export function POSMobileCartDrawer({
               markupType={markupType}
               setMarkupType={setMarkupType}
               updateUnitPrice={updateUnitPrice}
+              updateSpotSourcing={updateSpotSourcing}
             />
           </div>
         </div>

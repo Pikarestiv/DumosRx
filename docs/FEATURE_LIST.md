@@ -54,7 +54,7 @@ tracks current behavior.
 - Purchase Orders: **Standard** (draft → sent → receive, no stock effect until received) or **Immediate** (order and receipt happen atomically, for walk-in/self purchases)
 - Receiving: supports a partial receive (less than ordered arrived), per-line cost/expiry entry, an optional selling-price update applied immediately, and additive stock via new batch rows (never a single mutable running total, so receiving can't double-apply or clobber existing stock)
 - Saving or editing a PO with a selling price updates the catalog product immediately (only when it differs from the current catalog price, and an Immediate PO's edit form shows the catalog price as of when it was opened), and a toast says how many were repriced; cost stays per stock batch and never touches the catalog
-- Requested Products queue, fed by POS's "Request Item" flow — de-dupes by product name while a request is still pending, "Mark as Ordered" is a manual acknowledgement (it does not create or link a purchase order)
+- Requested Products queue, fed by POS's "Request" (Request Item) cart button — de-dupes by product name while a request is still pending, "Mark as Ordered" is a manual acknowledgement (it does not create or link a purchase order)
 
 ## Expenses
 - Categorized (Rent / Utilities / Salaries / Maintenance / Marketing / Other), plan-gated (paid tiers only)

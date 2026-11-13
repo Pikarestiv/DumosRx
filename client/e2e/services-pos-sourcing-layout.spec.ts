@@ -22,7 +22,7 @@ const twoProducts = (storeId: string): SeedStatement[] => [
 ];
 
 async function openMobileCartAndCapture(page: Page, theme: (typeof THEMES)[number], screenshotName: string) {
-  // ThemeProvider only swaps this class; set it directly because a full reload resets a stored dark theme (A-367).
+  // ThemeProvider only swaps this class, so setting it directly avoids a Settings round trip and a reload.
   await page.evaluate((t: string) => document.documentElement.classList.replace(t === 'dark' ? 'light' : 'dark', t), theme);
   await expect(page.locator('html')).toHaveClass(new RegExp(`\\b${theme}\\b`));
   await page.getByText(/^2 items$/).filter({ visible: true }).first().click();
@@ -55,7 +55,7 @@ test.describe('POS cart sourcing controls at phone width', () => {
   test.setTimeout(120000);
 
   for (const theme of THEMES) {
-    test(`${theme}: spot-sourced and in-stock lines keep their sourcing labels on one visible line`, async ({
+    test(`${theme}: a spot-sourced line keeps its labels on one line, and an in-stock line offers Source outside only once the cart holds all its stock`, async ({
       page,
       browser,
       baseURL,
@@ -73,11 +73,13 @@ test.describe('POS cart sourcing controls at phone width', () => {
       expect(drawerWidth).toBeGreaterThanOrEqual(370);
       expect(drawerWidth).toBeLessThanOrEqual(395);
 
+      const clearCart = await measureLabel(drawer.getByRole('button', { name: 'Clear cart' }));
+      test.info().annotations.push({ type: 'metrics: Clear cart', description: JSON.stringify(clearCart) });
+      expect(clearCart.effectiveOpacity).toBe(1);
+      expect(clearCart.contrast).toBeGreaterThanOrEqual(MIN_SMALL_TEXT_CONTRAST);
+
       const sourceOutside = cartLine(page, IN_STOCK).getByRole('button', { name: 'Source outside' });
-      await expect(sourceOutside).toBeVisible();
-      const inStock = await expectOneLineClearOfStepper(page, IN_STOCK, sourceOutside);
-      expect(inStock.effectiveOpacity).toBe(1);
-      expect(inStock.contrast).toBeGreaterThanOrEqual(MIN_SMALL_TEXT_CONTRAST);
+      await expect(sourceOutside).toHaveCount(0);
 
       const spotSourced = cartLine(page, OUT_OF_STOCK).getByRole('button', { name: /Spot Sourced/ });
       await expect(spotSourced).toBeVisible();
@@ -91,6 +93,9 @@ test.describe('POS cart sourcing controls at phone width', () => {
       await expectDeleteBackdropHiddenAtRest(page, OUT_OF_STOCK);
       await expectDeleteBackdropHiddenAtRest(page, IN_STOCK);
       const line = cartLine(page, IN_STOCK);
+      const nameMetrics = await measureLabel(line.getByText(nameMatcher(IN_STOCK)));
+      expect(nameMetrics.height).toBeGreaterThan(nameMetrics.lineHeight * 1.5);
+      expect(nameMetrics.height).toBeLessThanOrEqual(nameMetrics.lineHeight * 2 + 1);
       for (const [what, locator] of [
         ['name', line.getByText(nameMatcher(IN_STOCK))],
         ['line total', line.getByText('₦1,200', { exact: true })],
@@ -98,6 +103,16 @@ test.describe('POS cart sourcing controls at phone width', () => {
       ] as const) {
         test.info().annotations.push({ type: `metrics: ${what}`, description: JSON.stringify(await measureLabel(locator)) });
       }
+
+      await line.getByRole('spinbutton').fill('10');
+      await line.getByRole('spinbutton').press('Enter');
+      const allUsed = line.getByText('All shelf stock used', { exact: true });
+      await expect(allUsed).toBeVisible();
+      const inStock = await expectOneLineClearOfStepper(page, IN_STOCK, sourceOutside);
+      expect(inStock.effectiveOpacity).toBe(1);
+      expect(inStock.clipped).toBe(false);
+      expect(inStock.contrast).toBeGreaterThanOrEqual(MIN_SMALL_TEXT_CONTRAST);
+      expect((await measureLabel(allUsed)).contrast).toBeGreaterThanOrEqual(MIN_SMALL_TEXT_CONTRAST);
     });
 
     test(`${theme}: a backordered out-of-stock line keeps the "Source outside" pill on one line`, async ({

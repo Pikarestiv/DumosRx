@@ -2,7 +2,6 @@ import { test, expect, login } from './fixtures';
 import { queryLocalDb } from './local-db';
 
 test('a paid store keeps its dark theme across a reload', async ({ page }) => {
-  test.fail(true, 'A-367: ThemeRestrictor reads the tier as "free" before the store profile loads and resets the theme');
   await login(page);
   expect(await queryLocalDb(page, 'SELECT subscription_tier FROM stores')).toEqual([{ subscription_tier: 'pro' }]);
 

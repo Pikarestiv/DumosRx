@@ -4594,6 +4594,16 @@ On production use the 8.2 binary (next section):
 
 ## What reaches Sentry (2026-10-19)
 
+**Wiring (2026-08-14).** `sentry/sentry-laravel` hooks in through
+`Integration::handles($exceptions)` in `bootstrap/app.php`'s `withExceptions`.
+Events go to their own Sentry project, `dumosrx-server`, in the same org as the
+client's, so the two share one event quota. `SENTRY_TRACES_SAMPLE_RATE=0`:
+errors only, no performance tracing. The backend deploy workflows exclude
+`.env` from their FTP sync, so `SENTRY_LARAVEL_DSN` on `api.dumosrx.com` and
+`api.dev.dumosrx.com` is set by hand in the persistent `.env`, not by CI.
+`SENTRY_API_TOKEN` is a different, read-only token for the admin panel's error
+feed (see "`AdminHealthService::getRecentErrors()`" above).
+
 **`config/sentry.php` resolves the DSN to `null` when `APP_ENV` is `local` or
 `testing`.** Nothing else gates it. The gate has to live in config rather than
 in `.env`, because the developer's own gitignored `.env` carries a real

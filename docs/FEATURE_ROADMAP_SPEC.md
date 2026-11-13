@@ -1,6 +1,8 @@
 # DumosRx Feature Roadmap & Implementation Spec
 
-This document tracks the proposed features for the DumosRx system, sorted by implementation difficulty (easiest first). The goal is to shift DumosRx from a "passive record-keeper" to an "active intelligence system."
+This document holds only what we still **want to build**, sorted by implementation difficulty (easiest first). The goal is to shift DumosRx from a "passive record-keeper" to an "active intelligence system."
+
+Completed work does not belong here. When an item ships, remove it (or, if only part of it shipped, cut it down to the part still open, phrased as remaining work) and describe what the product now does in `docs/FEATURE_LIST.md` and `docs/SYSTEM_FEATURES_DOCUMENTATION.md`. Implementation notes and gotchas go in the relevant package's `AGENTS.md`, and bugs go in `docs/KNOWN_BUGS.md`.
 
 ---
 
@@ -15,346 +17,23 @@ This document tracks the proposed features for the DumosRx system, sorted by imp
 
 ## 🧭 Recommended next, from the 2026-10-18 sync architecture review
 
-The review's conclusion was explicitly **not to rewrite the sync engine**:
-every defect the October audit found (A-271 → A-290 in `docs/FIXED_BUGS.md`)
-was a local one inside a sound design, and all of them were fixable in place.
-The two things still open from what it recommended next, in order (the first,
-A-286 — restamp `_synced_at` at commit — is done, see `docs/FIXED_BUGS.md`):
+The review concluded the sync engine should **not** be rewritten: every defect the October audit found (A-271 → A-290 in `docs/FIXED_BUGS.md`) was local to a sound design. Still open from what it recommended:
 
-1. **A two-device simulation harness**, asserting the three properties nothing
-   tests end to end today: eventual agreement between two devices and the
-   cloud, ledger consistency (a batch's quantity equals the sum of its
-   movements on both sides), and no lost edit without a trace. The per-table
-   agreement digest already computes the oracle — what is missing is a test
-   that drives two clients against one server.
-2. **Derived-quantity Stage 2**
-   (`docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`),
-   which is also the prerequisite for A-283.
-
----
-
-## ✅ Recently Completed
-
-### Multi-Till Cloud-Backed Stock Audit Sessions (Phase 2 Backend & Phase 3 UI Integration): DONE (2026-11-03)
-
-- **Status:** Shipped in `laravel-server/` and `client/`. Solves cross-device visibility, single-editor lease coordination, crash recovery, and fencing token validation for multi-till pharmacies running cycle counts.
-- **Tables & Service:** `audit_sessions` and `audit_session_items` with unique `(audit_session_id, product_id)`. Governed by `AuditSessionService` with store-level locking (`Store::whereKey($storeId)->lockForUpdate()`) to prevent concurrent active sessions per store.
-- **Single-Editor Lease & Fencing Version:** 5-minute renewable lease with 60s background heartbeat. Write requests include `lease_version`; stale writes from superseded devices are refused with HTTP 409 (`AuditSessionConflictException`).
-- **Client UI Integration (Phase 3):** Coordinated by `useCloudAuditSession` hook in `client/lib/hooks/use-cloud-audit-session.ts` and integrated into `client/components/stock-batch/stock-audits.tsx`. Renders an `AuditInspectionBanner` when another device holds the lease, showing active editor details and counted item tallies, with an explicit "Take Over Count" action.
-- **Offline-First & Completion Lifecycle:** Submission completes locally first via `submitStockAudit()` without blocking offline devices. Cloud session transitions to `completion_pending_sync` with `submitted_stock_audit_id`, and automatically moves to `completed` upon the sync engine delivering the `stock_audits` record. Stale cloud rejections preserve local counts without data destruction.
-- **Docs:** `docs/SYSTEM_FEATURES_DOCUMENTATION.md`, `laravel-server/AGENTS.md`, `client/AGENTS.md`.
-
-### Stock audit & adjustment draft persistence & non-destructive store switching: DONE (2026-11-02)
-
-- **Status:** Shipped in `client/`. Solves the incident where in-progress cycle counts and stock adjustments were wiped upon switching stores with no warning.
-- **Store-scoped drafts:** The stock audit and adjustment draft stores (`useStockAuditDraftStore`, `useStockAdjustmentDraftStore`) now partition drafts by store ID (`drafts[storeId]`).
-- **SQLite local persistence:** Backed by local SQLite tables `stock_audit_drafts` and `stock_adjustment_drafts` (`(store_id PRIMARY KEY, user_id, draft_json/items_json, updated_at)`). Device-local only, no cloud push/pull, passes schema parity.
-- **Non-destructive store switching:** `store-context.tsx` passes `{ preserveStoreAudit: true, preserveStoreAdjustment: true }` to `clearLocalDrafts()`, ensuring an unfinished count or adjustment is preserved when switching stores and restored upon return. Full teardowns (user change, logout, unlink, factory reset) still clear all drafts unconditionally.
-- **Work in-progress reminder dialog:** When switching stores via the header dropdown while unsubmitted counts or adjustments exist, a `ConfirmDialog` informs the user that their in-progress work is safely saved on this device.
-- **Backward compatibility:** Automatic migration from legacy un-scoped single-draft format (v1 -> v2) with active store adoption.
-- **Docs:** `client/AGENTS.md`, `docs/SYSTEM_FEATURES_DOCUMENTATION.md`, `docs/CLIENT_LIB_COMMENTS.md`.
-
-### Per-device, per-table sync agreement and delivery timing: DONE (2026-10-18/19)
-
-- **Status:** Shipped in #169/#170. Every synced table is now compared between each device and the cloud by row count and version sum, with a per-device, per-table verdict (`agrees` / `syncing` / `behind` / `diverged`) and the non-verdict states that matter — `No local copy of this store`, `Stopped reporting`, and `Not measured`, because silence is not agreement. Push health is now measured as *eventual delivery per edit* (the age of the oldest unsent edit, plus a histogram of what was delivered) rather than per HTTP attempt. Mechanism, cost, the four verdicts and the digest's documented blind spots: **`docs/DEVICE_TABLE_AGREEMENT.md`** — not restated here.
-- **Admin UI:** store details is now Overview / Sync / Activity, deep-linkable via `?tab=`, with a sync-agreement badge on the Sync tab; the whole tab, its content and its badge queries are gated on `view_platform_health`. Both agreement panels were redesigned as dense tabular-numeral tables (`web/AGENTS.md`, "The agreement rows are tables, not sentences"). A requested device report now shows its outcome — `Sent to till`, `Report received <when>`, or a refusal reason — and can be re-requested.
-- **Three opt-in repair commands**, all dry-run by default and all naming the database before they write: `sync:backfill-product-versions`, `sync:backfill-store-ids` (A-288), `sync:repair-product-store-stamps` (A-248). See `laravel-server/AGENTS.md` for each.
-- **Behaviour changes that are not features but matter to an operator:** deletes now propagate for nine previously hard-deleting models (A-281), a voided sale's line items now reach devices (A-284), a cross-tenant stock write is refused (A-280), and a stale device can no longer reactivate a deactivated account (A-277) or revert a repair (A-276).
-- **Sentry policy changed with it** — see the three Sentry entries below, which this release partly superseded, and `docs/SYNC_CRASH_REPORT_POLICY.md` for the single authority.
-- **Still open, deliberately, rather than dropped:** A-291 (a product moved between stores leaves a sellable phantom on the losing store's devices — needs a scoping tombstone, a new field in a shared contract), A-288's `requested_products` residue (no owner column exists to attribute by), A-248's unreconstructed cloud `stock_batches.quantity` deltas, A-283 (soft-deleting `stock_movements`/`stock_batches` needs the quantity accumulator first), A-275 (money is a binary float on the device and an exact decimal on the server). All in `docs/KNOWN_BUGS.md` with the fix where it is known. A-286, A-249 and A-287, listed here when this shipped, have since been fixed (`docs/FIXED_BUGS.md`).
-- **Two standing verification gaps, neither closed by this release:** none of the new admin UI has had a real logged-in browser smoke test (§9 — the intended clicks are written down in `web/AGENTS.md` instead), and `npm run test:schema` has still never been run against a migrated local database, so cross-repo schema parity (§5) is asserted only against the committed schema files.
-
-### Stock audit: tell counted apart from uncounted, and filter on it: DONE (2026-10-13)
-
-- **Status:** Shipped. Requested 2026-10-12 by Nest Pharmacy after a live count; the contradiction in the request (prefill 0 *and* use "has a number" as the counted signal) was resolved as **Reading B plus an explicit marker**: the Counted Qty column opens blank with the system's own figure shown faintly inside it, a matching row can be ticked instead of retyped, and un-ticking returns it to uncounted — so a real zero count is recordable and distinguishable from an untouched row.
-- **Also shipped:** Counted / Not Counted / Qty Differences filters, a **Last Counted** column, an in-progress count persisted on the device, and a submit that posts only the rows actually changed.
-- **Docs:** `docs/SYSTEM_FEATURES_DOCUMENTATION.md`, "Cycle Count (Stock Audit)".
-
-### Retry-with-backoff on the cloud setup/registration flow: DONE (2026-10-01)
-
-- **Status:** Shipped on `dev`. New `withNetworkRetry()` (`client/lib/api/retry-on-network-error.ts`) retries only a true network failure (no HTTP response received), never any status including 5xx, and is wired into the cloud setup/registration flow's four network calls (`app/setup/use-onboarding.ts`'s `register()`/`getStores()`/`getProfile()`, `auth-context.tsx`'s `linkCloudAccount()` → `login()`) — the only place in `client/` with this pattern, since day-to-day PIN login is local-only and the sync engine's own retry/backoff is a background queue, not a blocking spinner.
-- **Also fixed, found during the investigation:** `laravel-server/RegistersAccounts::register()` now wraps user+store+trial creation in one DB transaction (previously a mid-flight failure could leave an orphaned user row with no store, permanently stuck), and a 422 "email already taken" during brand-new registration now self-heals by logging in with the same credentials instead of dead-ending — recovering today's pre-existing lost-response failure mode too, independent of the new retries.
-- **Deliberately not done:** queueing the admin-alert email that registration sends synchronously (the likely source of any timeout a retry needs to recover from) — attempted, then reverted, because it conflicts with a standing project rule (`laravel-server/AGENTS.md`'s "Outbound third-party API calls"): there's no confirmed queue-worker draining `jobs` on the shared host, so Laravel would have silently swallowed every admin alert instead of sending it. Logged as `A-125` in `docs/KNOWN_BUGS.md` — needs real queue infrastructure, not a one-file fix.
-- **Docs:** `client/AGENTS.md`'s "Cloud setup/registration network calls" section; `docs/FIXED_BUGS.md`'s 2026-10-01 entry for the full investigation trail.
-
-### AI Assistant, Phase 1 — offline intent router: DONE (2026-09-29)
-
-- **Status:** Shipped in `client/lib/assistant/` + `client/components/assistant/`. A chat panel reachable from the dashboard header and the account menu, answering typed questions with no LLM, no API key and no network — a deterministic pipeline (normalize → intent match → permission gate → tool → formatted reply).
-- **What it answers:** thirteen procedural "how do I…" topics (each replying with steps plus a deep link to the right screen), and six read-only data tools — `product_stock`, `inventory_status`, `my_sales_today`, `sales_summary`, `profit_summary`, `navigate_help` — all reading the same local query functions the UI uses, so its numbers can't drift from the screens'.
-- **Permission-aware:** every tool passes `authorizeToolCall()` (the app's own `hasPermission()`); suggestion chips are filtered the same way, so a user is never invited to ask a question that can only be answered with a refusal. A cashier without `view_reports` asking a store-wide sales question is *narrowed* to their own sales rather than refused (`REROUTE_ON_DENIAL`).
-- **Deliberately not built:** no persistence (the thread is in-memory Zustand only — no table, no sync coverage), no audit-log or crash-report rows, no write actions, and no open-ended/forecasting answers. Those last two are what a future LLM phase would add: see "AI Assistant Module" under Medium below, which stays on the roadmap for exactly that reason.
-- **Docs:** `client/AGENTS.md` ("In-app Assistant" and the Assistant sections following it) for the architecture; `docs/SYSTEM_FEATURES_DOCUMENTATION.md` for the customer-facing description.
-
-### Sentry Integration (client): DONE (2026-08-14)
-
-- **Status:** Shipped and verified live in production. Client-side error capture wired via `client/instrumentation-client.ts` (Next.js 15+ auto-loaded convention), reading `NEXT_PUBLIC_SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_ENVIRONMENT` from env. `GlobalHandlers` integration explicitly disabled to avoid double-reporting alongside the existing `error-logger.ts` + `GlobalErrorListener` choke point: Sentry captures through that same choke point, not a parallel `window.onerror` hook.
-- **Static-export-safe:** Server/edge init files (`sentry.server.config.ts`, `sentry.edge.config.ts`, `instrumentation.ts`) and the API-route test page generated by the `@sentry/wizard` were deleted: `client/` has no server runtime (`output: "export"`) in either deploy target (Tauri or the `app.dumosrx.com` static build), so those would have broken the build or shipped dead code.
-- **Source maps:** `withSentryConfig` wraps `next.config.mjs` for build-time source-map upload, gated on `SENTRY_AUTH_TOKEN` (CI secret).
-- **CI wiring:** DSN + environment env vars added to both `.github/workflows/deploy-client.yml` (web build → `app.dumosrx.com`) and `.github/workflows/release.yml` (Tauri desktop/mobile releases): both deploy targets report.
-- **Tooling:** Project-scoped Sentry MCP configured for Claude Code (`.mcp.json`), Cursor (`.cursor/mcp.json`), and VS Code (`.vscode/mcp.json`).
-- **⚠️ Partly superseded (2026-10-19) — the configuration described above no longer exists.** The original integration reported everything, from every build, unthrottled, and that walked the owner into his event quota: ~3,450 of one week's ~3,700 events came from two already-fixed bugs firing per row, and the rest included a success report, a measurement and a deliberate telemetry ping, each opening its own billable issue. What changed: `lib/utils/sentry-config.ts` is now the only thing that decides whether to report (`next dev` and an unlabelled local `next build` are **off** and tagged `local`, never `production`; dev builds are on at `sampleRate` 0.1; production unchanged at 1.0); `logCrash` throttles the Sentry send to one event per crash fingerprint per hour (`SENTRY_THROTTLE_MS`) beside the existing five-minute throttle on the `/logs/client-error` POST; and every new report must now pick one of three destinations (issue / breadcrumb / local crash table only) via `CrashContext.informational`. Full rules: `client/AGENTS.md`, "What reaches Sentry".
-
-### Sentry on `laravel-server/`: DONE (2026-08-14)
-
-- **Status:** Shipped and verified live: `sentry/sentry-laravel` installed, wired into `bootstrap/app.php` via `Integration::handles($exceptions)` in the existing (previously empty) `withExceptions` hook. Confirmed capturing real events (`php artisan sentry:test`, two events landed in the dashboard).
-- **Separate project:** Uses its own Sentry project (`dumosrx-server`) rather than the client's, so PHP errors don't mix into the client's JS issue stream: but it's in the same org, so it shares the same free-tier event quota, not an additional one.
-- **Traces:** `SENTRY_TRACES_SAMPLE_RATE=0`: error capture only, no perf tracing, matching the client's config.
-- **`.env.example`** documents `SENTRY_LARAVEL_DSN` / `SENTRY_TRACES_SAMPLE_RATE`.
-- **Deployed:** DSN confirmed added to the persistent `.env` on both `api.dumosrx.com` and `api.dev.dumosrx.com` (backend deploy workflows exclude `.env` from their FTP sync, so this was a manual step, not CI-driven).
-- **⚠️ Partly superseded (2026-10-19).** The "shares the same free-tier quota, not an additional one" note above is still true and is now exactly why the config changed: `config/sentry.php` resolves the DSN to `null` when `APP_ENV` is `local` or `testing` (the gate has to live in config, because the developer's own gitignored `.env` carries a real `SENTRY_LARAVEL_DSN` — before this, a local `php artisan serve` and every test run that reported an exception spent the owner's quota), `'environment'` falls back to `APP_ENV` rather than being guessed, and a dev/staging box sets `SENTRY_SAMPLE_RATE=0.1` while production stays at 1.0. `SentryEnvironmentGatingTest` pins it. Rationale: `laravel-server/AGENTS.md`, "What reaches Sentry".
-
-### Sentry issues surfaced in the super-admin dashboard: DONE (2026-08-15)
-
-- **Status:** Shipped and verified live: closes the last piece of the remote-visibility gap ("is anything broken right now" no longer means checking a second, separate dashboard). `AdminService::getRecentErrors()` calls Sentry's REST API for both `dumosrx-client` and `dumosrx-server` projects, gated behind a `super_admin`-only `GET /admin/errors` endpoint (`AdminController::errors`), consumed by a new "Recent Errors" card on `web/app/admin/system`.
-- **Why server-side, not direct from `web/`:** `web/` is also a static export (`output: "export"`) with no server of its own: a Sentry API token embedded in its browser bundle would be extractable by anyone with access to the app. Routing through `laravel-server` (which already holds the crash-reporting DSN server-side) keeps the read-token off the client entirely.
-- **Auth:** A read-only Sentry internal integration token (`Issue & Event: Read`, `Project: Read`; no write/webhook scopes) stored as `SENTRY_API_TOKEN` in `laravel-server/.env`, distinct from `SENTRY_LARAVEL_DSN` (that one reports crashes; this one reads them back out).
-- **Verified:** Real issues from both Sentry projects (including the `ENOENT` dev-cache error hit earlier this session) render correctly in the dashboard with level, project, culprit, event count, and a link out to Sentry.
-- **⚠️ The "event count" in that card is no longer an occurrence count (2026-10-19).** Once the client throttles the Sentry send per fingerprint per hour and dev samples at 0.1, Sentry only counts the events it was actually sent, so the card renders `≥ N events` with the sampling named in its header. The **true** figure is `feedback.occurrence_count`, maintained per fingerprint by `logCrash`, synced up with the crash row and touched by no throttle; the feedback list shows it whenever it is above 1. Do not re-render a bare Sentry count anywhere, and do not try to join a Sentry issue to a `feedback` row — the two grouping schemes have no reliable mapping. See `web/AGENTS.md`, "A Sentry event count is a sample, not an occurrence count".
-- **Note:** `web/` itself still has no Sentry SDK — it is a static export, and the admin panel *reads* Sentry through `laravel-server` rather than reporting to it.
-
-### Impersonate feature: DONE, verified (2026-08-15)
-
-- **Status:** Already built, not hypothetical: `AdminController::impersonateStore` + `AdminService` (backend), and `web/app/admin/stores` already has a working impersonate button (`useImpersonateStoreMutation`) that swaps in the store's session cookie. Manually click-tested end to end: start impersonation → correct scoped store/account data shown, "IMPERSONATION MODE" banner visible throughout → "End Session" cleanly restores the super-admin session with no leftover state.
-- **Scope limitation (by design, not a bug):** This only impersonates `web/` (the cloud account/admin dashboard): it has zero effect on `client/` (the actual offline-first POS app running on a store's device). Confirmed via grep: no impersonation-awareness anywhere in `client/`. The two apps use entirely separate auth (`drx_token`/`drx_admin_token` + a Sanctum session for `web/`, vs. `auth_token` + a local PIN-unlock backed by local SQLite for `client/`), on separate origins, so there's no token crossover even in principle. Impersonation gets you "see this store's account/business data as an admin," not "become this store's cashier": a POS-specific bug (UI glitch, local sync issue, PIN-gated flow) still needs the actual device or the store's PIN.
-
-### Date Range Filters for Recent-Window Lists: DONE (2026-08-15)
-
-Surfaced while discussing navigation in virtualized lists: virtualization keeps scrolling smooth on a long list, but doesn't help you *reach* an arbitrary point in it: you still have to scroll past everything in between. The previous escape hatch for that was text search, which only helps if you know what you're looking for, not "show me last March."
-
-- **Status:** Shipped and verified live: both `components/customers/activity-tab.tsx` (customer transaction activity) and `components/stock-batch/stock-movements.tsx` (stock movement ledger) now have a `DateRangePicker` (reused as-is from Reports, no new component). An explicit range takes precedence over both the 30-day default window and full-history mode.
-- **Behavior note:** Picking a range is a deliberate choice, so search/filter no longer silently discards it: previously, typing a search term while browsing the recent-window default would force-upgrade to full history; that upgrade is now skipped while a custom range is active, so search stays scoped within the range the user picked. A "Clear date range" control resets back to the default window.
-- **Also fixed in the same pass:** the shared `DateRangePicker`'s calendar icon wasn't tracking the trigger button's hover text color (stayed muted while the label darkened): now uses `group-hover:text-accent-foreground` to match.
-
-### E-commerce Integration Layer: core gaps closed (2026-08-15)
-
-This was previously listed under v2.0+ Hold as "not started," which was wrong: investigation found a substantial partial build already existed (public storefront page, checkout with 3 payment methods including server-verified Paystack, an online-orders fulfillment modal in `client/`'s POS that creates a real `sales` row and deducts stock). It just had specific, concrete gaps making it non-functional end-to-end for any real store. Those are now closed:
-
-- **No way to ever enable a store's online store: fixed.** Added `stores.online_store_enabled` (migration + local SQLite schema/sync column, `Store` model `$fillable`/`$casts`) and a real "Enable Online Store" toggle in `client/`'s Store Information settings (gated behind the existing `canUseEcommerce` plan feature, same gate as the storefront URL). `StorefrontController::show`/`checkout` now 404 when it's off. Previously, access was only ever implicit (whether a `store_slug` happened to be set), with no explicit on/off control.
-- **No way to ever list a product on the storefront: fixed.** `show_online` was wired end-to-end in the data layer but had zero UI control anywhere. Added a "Show Online" switch to `product-additional-details-fields.tsx` (same gate as above), for every store type, not just pharmacy.
-- **Storefront URLs 404'd for every real store in production: fixed at the code level, with a real caveat.** `web/` is a static export; `generateStaticParams` for both `/store/[store_slug]` and its `/checkout` route was hardcoded to a single literal `"demo"` slug that no real store ever had. Added `GET /storefront-slugs` (public, lists slugs for non-suspended stores with `online_store_enabled`) and a shared `getStorefrontSlugs()` helper that both routes now call at build time: verified with a real local build, which correctly generated `/store/pikarestiv-test` instead of `/store/demo`. **Caveat that's inherent to static export, not fixed:** this fetch runs at *build* time. Toggling a store's online store on doesn't make its page exist until the next `web/` deploy actually runs: there's no mechanism yet to trigger a redeploy when the toggle flips.
-- **"No UI to view/fulfill orders" and "no order-to-sale pipeline": these were never actually gaps.** Corrected a mistake from earlier investigation (only searched `web/`, missed `client/`): `client/components/pos/online-orders-modal.tsx` already lists orders and has a working "Fulfill & Deduct Stock" button that creates a real local `sales`/`sale_items` row and decrements `stock_batches`: so fulfilled online orders do surface in POS reports and inventory movement going forward.
-- **Test coverage:** `StorefrontControllerTest.php`'s store fixture didn't set `online_store_enabled`, which would have made every existing test in that file silently fail against the new gate once fixed: updated the fixture, plus added two new tests asserting the gate itself (`show`/`checkout` both 404 when disabled).
-
-**Still a real, unaddressed gap:** stock is only deducted at *fulfillment* time (when a merchant clicks the button in the POS modal), not at storefront checkout time. Two customers can still both successfully place an order for the last unit online before either gets fulfilled. True prevention needs either a stock hold at order time or a live-stock check at checkout: both are nontrivial given `client/`'s offline-first architecture (the server doesn't have real-time-accurate stock counts between syncs), so this wasn't attempted here. Worth its own scoped design pass if overselling becomes a real complaint, not a quick fix. (Since 2026-10-26, a store with **Allow sales beyond recorded stock** on records a confirmed online-order oversell as owed units that the next delivery settles; see `SYSTEM_FEATURES_DOCUMENTATION.md`. The checkout-time race above is unchanged.)
-
-### Roles & Permissions cleanup: DONE (2026-08-15)
-
-Scope was significantly larger than originally estimated once audited against live code, not just the ~18 `AdminController` checks the doc previously called out:
-
-- **Server (`laravel-server/`):** replaced raw `role !== 'super_admin'` string checks with `hasRole('super_admin')` across 10 files: `AdminController.php` (23 checks, not ~18), `AuthController.php` (2), `SyncController.php` (2), `CheckSubscription.php`, `EnsureEmailIsVerified.php`, `CheckAccountStatus.php`, `StaffController.php`, `NotificationController.php`, `BroadcastController.php` (1 each). `User.php`'s own internal `hasRole()`/`hasPermission()` implementation was left untouched (it's the canonical helper, not a call site). Verified `hasRole()`'s normalization first: `store_owner`/`admin` are treated as equivalent to each other but never to `super_admin`, ruling out privilege escalation before the bulk swap.
-- **`manage_platform` permission gap: fixed.** The `permission:manage_platform` middleware on `admin/*` routes referenced a permission that was never actually seeded to anyone: it only ever worked via `super_admin`'s unconditional bypass in `CheckPermission`, not a real grant. Seeded it, explicitly excluded from `admin`/`store_owner`'s permission lists (only `super_admin` holds it).
-- **Client (`client/`):** `pos-transaction-history.tsx`'s `canReturn` check was an exact-string allowlist (`store_owner|admin|manager`) that silently excluded `super_admin`: a real bug (the platform's own top role couldn't process a POS return). Fixed via the existing `checkIsAdmin()` helper from `auth-context.tsx`. Also fixed `staff-list.tsx` (cosmetic-only checks).
-- **`web/` (not in the original doc scope at all):** had no shared role-helper before this: added `checkIsSuperAdmin()` and used it in `admin/layout.tsx`, `admin/login/page.tsx`, `admin-login-form.tsx` (4 raw checks total). Also found and fixed a real, confirmed-live bug in `user-table.tsx`: it compared the *display label* (`user.role`, e.g. `"Store Admin"`) against a literal that the server's `ucwords()` transform never actually produces for the `admin` slug (it produces `"Admin"`): so the "Grant Free Trial" menu item and badge styling had never once worked for any actual admin-role platform user. Root-caused to `AdminService::getGlobalUsers()` and fixed by adding a raw `role_slug` field to the API response, switching frontend logic to key off that instead of the label.
-- **Explicitly left alone:** `staff-table.tsx`'s 3 `role === 'store_owner'` checks: verified these check the raw slug correctly already, not worth the churn.
-- **Verification:** `web/` typechecked clean, all 11 touched Laravel files lint-clean. Full `php artisan test` run surfaced two *pre-existing, unrelated* migrations (`make_customers_last_name_nullable`, `add_partial_to_sales_payment_status_enum`) using MySQL-only `ALTER TABLE ... MODIFY` syntax that crashed the entire suite on SQLite: fixed both with the same `DB::getDriverName() !== 'sqlite'` guard already used elsewhere in the migrations directory. One more pre-existing, unrelated bug found but *not* fixed (out of scope): `SyncController::push()` can leave a PDO transaction open under some exception path, which cascades into unrelated test failures only when specific test classes run in the same process: flagged for a future pass.
-
-### New "agent" role (app installers): DONE (2026-08-15)
-
-- **Correction to the doc's original premise:** `referral_code`/`referred_by_id`/`referral_credits` are *not* an unused foundation: they already power a live, separate **customer** referral program (store owners referring other store owners for account credit; `ReferralController`, `referral-tab.tsx`, `referrals-relationships-table.tsx`). Reusing them for platform staff would have conflated two different relationships and risked agents surfacing in customer-facing referral UI. Built entirely separate columns instead, per discussion.
-- **Three platform-level roles** (no store of their own, same shape as the pre-existing `super_admin`): `super_admin`, `platform_admin` (partners/co-founders: distinct slug from the pre-existing store-level `admin`, which always has a store and means something different), and `agent` (recruited onboarding agents). Seeded with `create_accounts`/`grant_trials` permissions (`super_admin` gets both plus everything else, `platform_admin` gets both, `agent` gets `create_accounts` only).
-- **Attribution, not commission math**: per explicit instruction, no rate/payout calculation was built. New `users.platform_referral_code` (unique, auto-generated for all three roles) + `users.registered_by_id` (nullable FK) track which platform user created or referred each account; the actual charge/remittance/commission happens outside the platform.
-- **Two attribution paths, both wired:**
-  - Direct creation: `AdminController::registerStore` (already existed, was super_admin-only) now checks `create_accounts` instead, open to all three roles, and records `registered_by_id`.
-  - Self-serve: `AuthController::register` accepts a new `agent_ref` param, resolved against `platform_referral_code`: wired into `web/`'s `/register` form via `?agent_ref=` (a pre-existing gap was found and left alone: that same form doesn't forward the *customer* `ref` param either, despite `referral-tab.tsx` generating links that imply it does: not fixed here, out of scope).
-- **Permission split implemented exactly as specified:** `grantTrial`/`grantUserTrial` now check `grant_trials` (super_admin + platform_admin, not agent). `suspendStore`/`unsuspendStore`/`deactivateUser`/`reactivateUser`/`createPlatformAdmin` (creating *other* platform accounts) stay `hasRole('super_admin')`-only, unchanged: platform_admin can create customer accounts but not manage other platform accounts.
-- **`web/` admin dashboard opened up:** was `super_admin`-only end to end (`checkIsSuperAdmin` gated login + layout). Added `checkCanAccessAdmin` for the three roles to get in at all, while `checkIsSuperAdmin` still gates the specific super_admin-exclusive actions (suspend/unsuspend buttons hidden for non-super_admin in `store-table.tsx`, grant-trial button additionally hidden for `agent`). Sidebar nav (`admin-sidebar.tsx`) now per-item role-scoped: platform_admin/agent see only Overview, Stores, and the new "My Referrals" page; everything else stays super_admin-only, avoiding dead links that would just 403.
-- **New `/admin/my-referrals` endpoint + `/admin/referrals` page:** shows the caller's own referral link and the accounts they've registered/referred; `super_admin` can pass `?user_id=` to view any platform user's.
-- **`admin/users/new`** (already existed, previously hardcoded to create another `super_admin` despite being labeled "Add Platform Admin") now has a real role selector for all three roles.
-- **Verified live** via tinker: created a real `platform_admin` and `agent`, confirmed `create_accounts`/`grant_trials` resolve exactly per the split above, confirmed referral code generation and resolution round-trips correctly, confirmed `registered_by_id` attribution. Test accounts cleaned up afterward. `web/` typechecks clean, all touched Laravel files lint-clean, full test suite unchanged from baseline.
-
-### Measurement units → per-store custom list: DONE (2026-08-15)
-
-Reversed the doc's earlier "suggest, don't restrict" recommendation per direct request: two products silently ending up with "Tablet" vs "tablet" vs "Tabs" was worse than occasionally blocking an edge case.
-
-- New `UnitSelect` (`client/components/products/unit-select.tsx`) replaces `SearchableInput` for both `baseUnit` and `bulkUnit` in `product-packaging-fields.tsx`. Dropdown-only: typing filters the list but can never commit a value that isn't a real option; blur reverts to the last valid value.
-- Options are `FORM_SUGGESTIONS.common.units` merged with the store's own `custom_units` (new `stores.custom_units` JSON column, same pattern as the existing `enabled_payment_methods`). A "+ Add "X" as a new unit" row appears inline whenever the typed text doesn't match an existing option: one click persists it to the store's list via `updateStoreProfile()` and selects it immediately, no separate settings trip required.
-- `bulkUnit` previously had its own separate hardcoded 4-item list (`["Carton", "Pack", "Box", "Roll"]`), inconsistent with `baseUnit`'s suggestions-backed list: now unified onto the same combined list.
-- Scope, per discussion: units only, not a generalized creatable-dropdown pattern: `SearchableInput` (still free-text/suggest-only) is untouched and still used elsewhere (categories, dosage forms, etc.).
-- Cleanup: `commonSuggestions` prop threading (`add-product-dialog.tsx` → `ProductFormFields` → `ProductPackagingFields`) removed: `UnitSelect` sources its own options directly, the prop had no other consumer.
-
-### Business Information card: DONE (2026-08-15)
-
-- **Structure, per discussion:** kept in `client/` rather than moving to `web/` as originally recommended: nested instead of split, since the two apps aren't part of the same page tree and a "nest under" relationship only makes sense within one. `store-information-card.tsx` was replaced by `business-information-card.tsx`: a "Business Information" card (name, new `registration_number`/CAC field, address, phone, email, logo) with a visually nested "Store Profile" sub-section inside it (store URL slug, PCN license, online-store toggle, retail-suggestions toggle). One save action, one edit-mode toggle, same as before.
-- **Known tradeoff, accepted:** `registration_number` lives on `stores`, not a separate business/account entity (none exists in the schema): same limitation `name`/`phone`/`address` already had. A business running multiple stores re-enters it per store. A real fix would mean extracting a `Business` model shared across a user's stores: a substantially larger, separate project, not attempted here.
-- **Logo, two real bugs found and fixed, not just gated:**
-  - It was already gated (`canCustomizeTheme`/`custom_branding`, same tier as everywhere else): upload UI just moved from `ReceiptCustomizationCard` to the new card; `ReceiptCustomizationCard` now only shows a read-only preview + the existing "Show Logo on Receipt" toggle.
-  - **`stores.logo_url` was never in `Store::$fillable`.** A synced logo silently vanished server-side on every save. (Sync's own `push()` path uses `forceFill()`, which bypasses this: so this specifically would have broken any *other* code path that saves a store via normal mass assignment, e.g. an admin-side edit.) Fixed by adding it to `$fillable`.
-  - **`stores.logo_url` was `VARCHAR(255)`**: nowhere near enough for the base64 data URI a 1MB upload actually produces (~1.4MB of text). This is the real reason logos never reliably reached the server at all. Migrated to `LONGTEXT` (MySQL; no-op on SQLite, which has no fixed-length string type).
-  - **Never rendered on the public storefront**: only ever showed on printed POS receipts. Added `logo_url` to `StorefrontController::show`'s response and rendered it in `web/app/store/[store_slug]/page.tsx`'s header.
-
-### Prepaid / Amortized Expense Recognition, Tier 1: DONE (2026-08-15)
-
-Surfaced during demo prep: a store logged a full year's rent (₦270,000) as one lump-sum expense entry. Because the P&L/Analytics views window by calendar period (e.g. "Last 30 Days"), the entire amount hit that one period's Net Profit, showing a large one-time paper loss that doesn't reflect actual monthly burn.
-
-- **Status:** Shipped and verified live. Added an optional "Spread over how many months?" field to the expense form (`add-expense-dialog.tsx`): a live preview shows exactly what will happen (e.g. "Reports will count ₦22,500/month for 12 months starting August 2026") before saving. Backed by a new `expenses.covers_months` column (migration on both sides + local SQLite schema/sync).
-- **Behavior, per discussion:** not a display-hint alongside the lump sum: the smoothed figure *is* the reported number everywhere Net Profit is computed (Analytics BI dashboard, the P&L report hook), replacing the lump sum outright for any expense with `covers_months` set. Opt-in per expense: nothing changes for expenses that don't use the field, and the raw expense entry (real date, real full amount) is untouched in the expense list itself; only the P&L rollup reads it smoothed.
-- **How it's computed:** `getSmoothedExpensesTotal()` (`lib/db/queries/finance.ts`) splits the amount into `covers_months` equal calendar-month installments starting from the expense's own date, and sums whichever installments' calendar month overlaps the requested report window: not day-prorated, discrete month buckets, matching how the user described wanting it to work.
-- **Verified live:** added a real ₦270,000/12-month test expense; the Analytics BI dashboard's Net Profit immediately showed -₦22,500 (one month's installment), not -₦270,000.
-- **Known accepted tradeoff:** Net Profit is now an accrual number that can diverge from actual cash movement in the period it was paid: inherent to smoothing at all, not a bug.
-- **Scope note:** applied to the two live "Net Profit" surfaces (Analytics BI dashboard, P&L report hook). A `p-and-l-report-dialog.tsx` component also exists and was updated for consistency, but turned out to be dead code: nothing in the app currently renders it, so it couldn't be verified live.
-- **Follow-up catch:** the Expenses list page (`use-expenses-page.ts`) had its own separate, unsmoothed "This month" / top-category computation that reproduced the exact same bug one screen over: missed in the first pass since it doesn't compute Net Profit, just an expense-totals summary. Fixed by extracting the per-expense smoothing math into a pure `getSmoothedAmountInWindow()` reusable on an already-loaded in-memory `Expense[]`, not just via a DB query. "Total expenses (all time)" and the transaction count are deliberately left raw: a lifetime cash total and a row count aren't period-attribution questions.
-
-### Tax Invoice & Proforma Quote receipt variants: DONE (2026-09-16)
-
-Client feature-gathering item (Cynthia referral): a construction-materials store needed a formal tax document for customers who need one, and a way to show a shopping-list buyer pricing before they commit.
-
-- **Tax Invoice:** new `stores.tax_number` field (Settings → Business Info), `ReceiptView` gained a `documentType: "receipt" | "tax" | "quote"` prop — "tax" reuses the exact same sale data as the normal receipt (renamed from the previous always-"Invoice" default to "Receipt"), just adds the store's tax number to the header and labels it "Tax Invoice". Post-sale dialog gets a Receipt/Tax Invoice toggle; reprint-from-history's "Print Receipt" becomes a split button with a "Print Tax Invoice" dropdown option.
-- **Proforma Quote:** a "Preview" (Preview Quote) button in the POS cart's action row (only shown once the cart has items) opens a live price breakdown built straight from cart state — no sale is created, no stock is deducted. Payment/change/barcode sections are hidden (nothing's been paid yet), replaced by a disclaimer that pricing is indicative and not a tax invoice.
-- **Known gap, missed in the first pass, fixed in review:** the server had no migration/`$fillable` entry for `stores.tax_number` — any device syncing a tax number would have failed every subsequent push for that store, the same failure class `fix_sync_schema_drift.php` documents. Caught and fixed during the (unrelated) Reseller Commission feature's final review below.
-
-### Reseller Commission Sales: DONE (2026-09-16/17)
-
-Client feature-gathering item (Cynthia referral), originally described as "over-invoicing receipt plus percentage of how much to remit to the over-invoicer" — flagged and clarified before building: the real scenario is a legitimate consignment/agent arrangement (an independent reseller with no storefront quotes their own client a marked-up price, the money flows through the store, the store owes the reseller a cut of the markup), not the invoice-fraud reading the phrasing first suggested. Spec: `docs/superpowers/specs/2026-09-16-reseller-commission-design.md`. Plan: `docs/superpowers/plans/2026-09-16-reseller-commission.md`. Built via 8 tasks + subagent-driven review, with a final whole-branch review that caught and fixed 3 more issues beyond the per-task reviews.
-
-- **Model:** a single store-wide "Reseller Commission %" setting (Settings, same pattern as VAT %) applied to the *markup* of a sale, not a flat rate on the whole sale and not per-reseller — there's deliberately no reseller identity/CRM concept anywhere.
-- **POS flow:** a "Reseller Sale" toggle in the cart; turning it on makes each line's price editable, floored at that item's normal selling price (enforced in two layers: the cart-state clamp AND the input's `min` attribute — neither alone was considered sufficient). At checkout, the markup (sum of each item's price raised above normal, times quantity) and the resulting commission are computed once and stored as an immutable snapshot on the `sales` row (`is_reseller_sale`, `reseller_commission_percentage`, `reseller_commission_amount`) — nothing anywhere recalculates it later. The customer-facing receipt is completely unaffected; nothing about "reseller" ever appears on it.
-- **Redemption:** a new admin-gated "Reseller Commission" tab on Reports shows a running total of unredeemed commissions and a receipt-number lookup that marks a specific sale's commission redeemed (a guarded status flag + timestamp + which staff member processed it — no till/cash-drawer simulation, since this app has no till subsystem at all).
-- **Bugs found and fixed via the review loop, not just gated:**
-  - A `CartItem`-shaped object built by the prescription-dispense cart-restore path was missing the new required `original_unit_price` baseline field (bypassing `addToCart`, defeating TypeScript's type-predicate check) — would have produced `NaN` prices if reseller mode were used on a prescription-loaded cart. Fixed in the same task that introduced the field, then found a **second, identical instance** in the held-transaction recall path during the final whole-branch review — same bug class missed twice by two different reviewers, only surfaced by looking at the feature as a whole rather than task-by-task.
-  - The reseller-mode price input originally clamped on every keystroke (bound directly to already-clamped state), making it nearly impossible to type an intended value — e.g. typing "150" over a 100 floor produced "1005". Only a live click-through would have caught this; live browser verification was blocked twice by an unrelated browser-automation limitation with this app's PIN-unlock input, and the final review caught it anyway by reading the code carefully. Fixed with local-input-state-until-blur.
-  - **Server sync gap:** the 7 new SQLite columns (`stores.reseller_commission_percentage`; 6 on `sales`) had no Laravel migration or `$fillable` entries — would have permanently broken sync push for every sale, the exact failure class `fix_sync_schema_drift.php` documents. None of the 8 task briefs had considered the server side at all; caught only at the final whole-branch review. Fixed with a migration following the existing `add_uppercase_display_enabled_to_stores.php` template, actually run (migrate → rollback → migrate) against the test DB, not just reviewed.
-  - **Related pre-existing gap, found but out of scope, fixed separately:** the same "no server migration" bug already existed for `stores.tax_number` (the Tax Invoice feature above, shipped just before this one) — flagged during this feature's final review, fixed in a follow-up commit once the user asked for it.
-- **Process note:** built with the `subagent-driven-development` skill — a fresh implementer subagent per task, a spec+quality review after each (2 of 8 tasks needed one fix round), and a final whole-branch review on a more capable model that caught cross-task issues no single task-scoped review could see (the held-transaction duplicate bug, the keystroke-clamp UX bug, and the missing server migration).
-- **Superseded 2026-09-23:** the standalone admin-only "Reseller Commission" tab/panel described above (`ResellerCommissionPanel`, on Reports) was removed. Reseller sales are now shown inline in Recent Transactions (a badge + "Sale Type" filter) and the redeem/store-claim actions moved into `TransactionDetailsDialog` itself (still admin-gated) — see the 2026-09-23 batch entry below. The underlying data model (commission % setting, immutable per-sale snapshot, redeemed status/timestamp/staff) is unchanged, only where it's surfaced.
-
-### Cashier/store-owner bug-fix & small-feature batch: DONE (2026-09-23)
-
-A large, mostly-independent batch driven by direct store-owner/cashier
-feedback rather than one spec. Reviewed in three separate passes by a
-more capable model (per-batch, not per-task), each of which caught and
-fixed real bugs before merge — see `client/AGENTS.md` and
-`laravel-server/AGENTS.md` for the durable architectural notes; this
-entry is the "what shipped" summary.
-
-- **Cashier visibility/permission sweep:** hid profit/margin from
-  `sales_staff` everywhere it was reachable (Daily Close's aggregate,
-  the product pricing panel, and — the one review caught — the
-  transaction detail dialog reachable from three separate entry points,
-  which would have quietly defeated the Daily Close fix alone). Added
-  customer deletion (blocked while a balance is outstanding, so debt
-  can't silently vanish from reports), a last-bought-price catalog
-  column, a login-picker tile "remove from this device" action, and
-  surfaced Expenses to cashiers (nav + header action + route guard,
-  narrowly — not by loosening the existing admin-only gate for every
-  non-admin role, which the first pass of this same change did by
-  mistake and a review caught).
-- **Reseller sales merged into Recent Transactions**, replacing the
-  standalone tab — see the note above.
-- **Cross-store stock transfer for cashiers**, pull-only, flagged for
-  owner review afterward — see `client/AGENTS.md`'s cashier-gating
-  section.
-- **Purchase Order fixes:** Immediate Purchase draft fields
-  (selling price, cost override, lot, expiry) now actually persist
-  through a save-as-draft/resume cycle (previously silently discarded);
-  "Amount Paid" hidden on "Fully Paid"; the edit page now shows the
-  correct field set for a resumed Immediate draft instead of always
-  assuming Standard.
-- **Stock audit export** split into real Print/Download PDF/Export
-  CSV+Excel, replacing one ambiguous PDF-then-`window.open` action.
-- **Receipt logo position** (per-store above/beside toggle).
-- **Activity Log correlation grouping**: a single sale's ~10-15 audit
-  log rows now collapse into one entry with a "Related Actions"
-  drill-down.
-- **PWA offline precaching**: a fresh install can now launch fully
-  offline immediately, not only after having been opened online once.
-- **Storefront auto-rebuild**: going online/offline or changing a
-  store's slug now triggers an automatic, debounced (max one rebuild
-  per 15-minute window) static-site rebuild via GitHub Actions, instead
-  of requiring someone to notice and manually redeploy `web/`. Added a
-  6-month slug-change cooldown (contact support to change sooner).
-- **Two real, pre-existing (not introduced by this batch) production
-  sync bugs found and fixed:** `stock_movements.movement_type` has been
-  a MySQL `ENUM` since 2024 that never actually included the values
-  stock transfers write (`transfer_out`/`transfer_in`) — every transfer
-  has silently failed to sync since that feature shipped, only
-  discovered when this batch's own cashier-transfer feature increased
-  transfer volume enough to notice in a live sync error. Converted to
-  `VARCHAR`. Separately, this batch's own `activity_logs.correlation_id`
-  migration was live-caught not yet deployed to production before the
-  column was in active use client-side — see
-  `docs/KNOWN_BUGS.md` Critical section, remove that entry once
-  confirmed deployed.
-- **Verification:** full client (`vitest`, 765 tests) and server
-  (`php artisan test`, 278 tests) suites green throughout, plus fresh
-  regression coverage for the two bugs the review passes caught
-  (`StoreSlugCooldownTest.php` for a Carbon 3 sign bug that would have
-  permanently locked every slug change after the first one).
-
-### Cashier/store-owner bug-fix batch, evening continuation: DONE (2026-09-23)
-
-A second pass the same day, working directly through a store owner's live
-testing notes one item at a time (not a spec), ending with a
-`/code-review high` pass against the whole batch's diff. See
-`client/AGENTS.md`/`laravel-server/AGENTS.md` for the durable
-architectural notes this entry doesn't repeat.
-
-- **Cashier dashboard metrics fixed properly**: "Today's Sales" no longer
-  shows store-wide revenue to cashiers (replaced with "My Transactions
-  Today", a count) — and the underlying "my sales today" query, found to
-  be silently undercounting a cashier who personally rings more than 100
-  sales in a day, now filters by date in SQL instead of an undated
-  `LIMIT 100` fetch filtered client-side.
-- **Reseller vs. store-markup sales split**: a store staff member pricing
-  above normal purely for the store's own benefit (no real reseller
-  involved) is now a distinct choice at the point of sale from an actual
-  reseller/agent sale — separate `sales.markup_type`, a required choice
-  before checkout, pre-settled at checkout with no commission and no
-  pending-redemption state (previously required remembering to click
-  "Store Claims Markup" afterward), its own badge/filter everywhere a
-  reseller sale is shown, and a new store-level `markup_sales_enabled`
-  toggle (default off — an existing Pro/Enterprise store already using
-  reseller sales loses that POS row until the owner flips it on; see
-  `docs/KNOWN_BUGS.md` Medium section).
-- **Cross-store transfer requests, admin-controllable**: the
-  cashier-transfer-request button added earlier the same day is now
-  gated behind a `staff_can_request_transfers` store toggle (default
-  off, Settings → Multiple Stores) — admin-tier roles could always use
-  it and still can regardless of the setting.
-- **Cancellable stock-audit PDF export**: the PDF render already ran off
-  the main thread in a Web Worker; the full-viewport progress overlay
-  just had no Cancel button. Added one, wired to actually terminate the
-  worker.
-- **Two real crash/offline bugs found and fixed**: "Loading chunk N
-  failed" (a tab left open across a redeploy) now auto-reloads once
-  instead of showing the crash screen — covering both the React-throw
-  case and the more common rejected-dynamic-import case, plus Safari/
-  Firefox's different wording for the same failure. Separately, an
-  iPhone home-screen PWA install restarted offline was found to show raw
-  React Server Component flight-payload text instead of the app — this
-  static export writes each route as both a `.html` page and a `.txt`
-  RSC payload, and the service worker had no check that a navigation
-  response was actually HTML before serving it as "the page."
-- **Server sync gap, again:** `sales.markup_type` and the two new
-  `stores.*` toggles above shipped client-side with no matching Laravel
-  migration — the exact same failure class as this same day's earlier
-  batch (`activity_logs.correlation_id`, the `stock_movements.movement_type`
-  ENUM), caught this time by code review before it ever reached
-  production. This is now a proven-recurring gotcha across three
-  separate incidents in one week — see `laravel-server/AGENTS.md`'s sync
-  engine section, now a mandatory-checklist item, not just documented.
-- **Review also caught, self-inflicted:** the chunk-crash fix's own
-  service-worker change initially made a genuine, current 404/500 page
-  get treated the same as being offline (served stale cached content
-  instead) — reverted to only checking content-type, not status.
-- **Verification:** full client (`vitest`, 778 tests) and server
-  (`php artisan test`, 278 tests) suites green throughout; the two new
-  Laravel migrations were verified by actually running the full
-  migration chain against a throwaway sqlite db and inspecting the
-  resulting columns/defaults, not just reviewing the migration files.
+1. **A two-device simulation harness**, asserting the three properties nothing tests end to end today: eventual agreement between two devices and the cloud, ledger consistency (a batch's quantity equals the sum of its movements on both sides), and no lost edit without a trace. The per-table agreement digest already computes the oracle; what is missing is a test that drives two clients against one server.
+2. **Derived-quantity Stage 3 (retirement)** (`docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`; Stages 0–2 have shipped): delete `deferred-stock-deltas.ts`, `_pending_stock_deltas` and the per-page drain, and demote `healStockIntegrity()` from repair to assertion. Stage 4 is optional and waits on field data. Soft-deleting `stock_movements`/`stock_batches` (A-283) depends on this design.
 
 ---
 
 ## 🟢 Quick Wins (hours – ~1 day)
 
-### Support section with quick links to screen recordings / write-ups (Requested by client, 2026-08-27)
+### Record the guide videos
 
-- **Source:** Client's second store currently runs Moniebook, which has an in-app support/help section linking out to screen recordings and written guides. She'd like the same in DumosRx.
-- **Scope split:** the UI shell (a Support/Help page or settings tab with a list of linked resources, opening each in-app or in a new tab) is quick engineering-wise. The actual content — screen recordings and write-ups per feature — is authoring work, not engineering, and is the reason this is deferred rather than built now.
-- **Effort:** ~half a day for the shell once content exists; content authoring is unscoped/ongoing.
+- **Current state:** the in-app Help & Support hub and the `dumosrx.com/guides` pages exist, and every guide carries a video placeholder (`web/lib/guides/`).
+- **Remaining:** record the screen recordings and swap them in for the placeholders. This is authoring work, not engineering.
 
 ### PostHog Integration
 
-- **Description:** Add PostHog (funnel analytics, session replays) alongside the now-live Sentry crash reporting.
+- **Description:** Add PostHog (funnel analytics, session replays) alongside the live Sentry crash reporting.
 - **Cost:** Free tier: 1M events/mo.
 - **Effort:** ~half a day.
 
@@ -364,23 +43,22 @@ architectural notes this entry doesn't repeat.
 
 ### Payment Restriction (Deferred 2026-08-14)
 
-- **Current state:** DumosRx already has "Require Payment Destination Account" (`payment-settings-card.tsx`): this only enforces that cashiers pick which bank/till account a payment landed in, for reconciliation. It does not restrict *which payment methods* are allowed, by whom, or above what transaction threshold.
-- **Action:** If wanted, add a genuine payment-method restriction layer (e.g. disable cash above ₦X, restrict certain methods to certain roles) as a separate setting from the destination-account toggle.
+- **Current state:** "Require Payment Destination Account" (`payment-settings-card.tsx`) only makes cashiers pick which bank/till account a payment landed in. Nothing restricts *which payment methods* are allowed, by whom, or above what amount.
+- **Action:** If wanted, add a payment-method restriction layer (e.g. disable cash above ₦X, restrict certain methods to certain roles) as a separate setting from the destination-account toggle.
 - **Effort:** ~1–2 days: new setting + enforcement at checkout, no new subsystem.
 
 ### Pricing groups / bulk-vs-unit pricing (Deferred 2026-08-14)
 
-- **Current state:** Confirmed via code trace (`units_per_bulk`/`bulkUnit` usage): bulk-unit conversion exists only in procurement (purchase orders), not in POS/checkout. There is no way to sell a bulk unit at a different price than the base unit.
-- **Source:** Flagged by Cynthia as a real, currently-unimplemented need: selling e.g. a carton at a different per-unit price than a single piece.
-- **Action:** Add a bulk selling price field alongside the existing unit selling price, and surface bulk-vs-unit as a line-item choice at checkout.
-- **Effort:** ~2–3 days: real schema + POS/checkout logic change, touches a core sale-item path.
+- **Current state:** bulk-unit conversion (`units_per_bulk`/`bulkUnit`) exists only in procurement. There is no way to sell a bulk unit at a different price than the base unit.
+- **Source:** Flagged by Cynthia: selling e.g. a carton at a different per-unit price than a single piece.
+- **Action:** Add a bulk selling price field alongside the unit selling price, and surface bulk-vs-unit as a line-item choice at checkout.
+- **Effort:** ~2–3 days: schema + POS/checkout logic change on a core sale-item path.
 
-### Pending-sync warning is noisy and incomplete (Deferred 2026-08-16)
+### Pending-sync logout warning still counts the login's own audit row
 
-- **Current state:** Confirmed via code trace: the "you have unsynced changes" confirm dialog only exists on the full logout path (`useAccountActions`, `client/lib/hooks/use-account-actions.ts`), gated on `getSyncQueueCount()` (`client/lib/db/queries/setup.ts`). "Switch Account" (`lockForSwitch()`) never checks at all: by design, since it doesn't clear anything. Separately, `logAction()` (`client/lib/db/core.ts`) unconditionally queues a `_sync_queue` row for every audit event, including `LOGIN`: so the pending count is virtually guaranteed to be ≥1 immediately after any login, meaning the logout warning fires almost every time even when the only "pending" item is the audit trail of the login that just happened. No auto-sync-on-logout exists anywhere in the codebase today.
-- **Action:** Root fix is filtering `getSyncQueueCount()` (or the query behind it) to exclude low-value `audit_logs` entries like `LOGIN`/`LOGOUT`, or restrict it to business-critical tables (sales, products, stock movements, etc.), so the warning reflects real data at risk, not just an audit-trail footnote. A best-effort background sync attempt on logout is a reasonable addition on top of that, but doesn't replace the filtering fix (still needs connectivity, and doesn't fix the count being meaningless offline).
-- **Partly done — the filtering mechanism now exists, the `audit_logs` half does not.** `getSyncQueueCount()` is no longer an unfiltered `COUNT(*)`: it subtracts automatic crash-report rows (`WHERE NOT ${CRASH_REPORT_QUEUE_ROW_SQL}`), and the instant-sync listener asks `hasPendingNonCrashFeedback()` when `feedback` is the only changed table, so telemetry no longer drives sync or inflates the count. See `docs/SYNC_CRASH_REPORT_POLICY.md`. **What remains is exactly the originally-reported complaint:** `logAction()` still queues an `audit_logs` INSERT for every audit event including `LOGIN`, and those rows are still counted, so the logout warning still fires on a queue whose only content is the audit trail of the login that just happened. The crash-report filter is the pattern to copy.
-- **Effort (remaining):** ~half a day: extend the same filtering to low-value `audit_logs` actions + verification that legitimate pending business-data cases still warn correctly.
+- **Current state:** `getSyncQueueCount()` (`client/lib/db/queries/setup.ts`) already excludes automatic crash-report rows (`CRASH_REPORT_QUEUE_ROW_SQL`, see `docs/SYNC_CRASH_REPORT_POLICY.md`). It still counts every `audit_logs` row, and `logAction()` (`client/lib/db/core.ts`) queues one for every audit event including `LOGIN`, so the logout warning (`useAccountActions`) fires on a queue whose only content is the audit trail of the login that just happened.
+- **Action:** extend the same filtering to low-value `audit_logs` actions (`LOGIN`/`LOGOUT`), or restrict the count to business-critical tables, and verify that real pending business data still warns. A best-effort sync attempt on logout can sit on top but does not replace the filter.
+- **Effort:** ~half a day.
 
 ---
 
@@ -400,24 +78,21 @@ architectural notes this entry doesn't repeat.
   - **Graceful Fallbacks & Low-Spec Mode:** Defaults back to lightweight category SVG icons whenever an image is missing or offline. Adds a store display setting toggle ("Show images in POS grid") so low-memory devices can disable images for maximum rendering speed.
 - **Effort:** ~3–4 days (storage endpoints, image resizing pipeline, local cache adapter, catalog/POS card thumbnail components).
 
-### Migration System — real client blocker, existing build doesn't cover her actual file (Flagged urgent, 2026-08-27)
+### Migration from other systems: what the product import does not cover yet
 
-- **Current state, confirmed via code trace:** a "QuickBooks import" already exists (`client/components/settings/quickbooks-import-dialog.tsx` + `client/lib/utils/iif-parser.ts`) but only parses the old tab-delimited **`.IIF`** export format with fixed `!INVITEM`/`!CUST` headers. It has never actually been tested against a real client file.
-- **Why it doesn't cover her case:** the client exports **`.xls`** from QuickBooks 2013(ish), not `.IIF`, and that version lets her customize/reorder the exported columns — so a fixed-header parser can't just be pointed at her file; it needs a column-mapping UI (auto-detect + let her confirm/correct which column is which), not just a new file-format reader. There's also currently zero support for Moniebook's export format at all (needed for her second store).
-- **This blocks her porting her second store off Moniebook** — treat as the top-priority item in this list, not just "medium effort," until it's actually usable end-to-end with a real exported file from her.
-- **Description:** Guided import pipeline for stores migrating from existing systems.
-- **Supported Formats:** CSV/Excel (`.xls`/`.xlsx`/`.csv`), QuickBooks IIF (already built), Moniebook export, legacy POS exports.
-- **Features:** Auto-detect column schema, mapping UI (required for QuickBooks 2013's customizable columns), validation preview, migration report, duplicate detection.
-- **Effort:** ~3–5 days, revised up from the original estimate now that column-mapping UI + a second (Moniebook) format are confirmed necessary, not optional.
-- **Cost:** None (server-side processing).
+- **Current state:** Inventory's product import reads CSV and XLSX (every sheet of a workbook), auto-maps columns from known QuickBooks POS, Moniebook and DumosRx headers, lets the user confirm or correct the mapping (`import-mapping-dialog.tsx`), and warns about in-file duplicates. The old QuickBooks `.IIF` importer no longer exists.
+- **Remaining:**
+  - Legacy `.xls` files are refused with a "save it as .xlsx" message (`client/lib/utils/spreadsheet-io.ts`); QuickBooks 2013 exports `.xls`.
+  - Only products import. Customers (with balances), suppliers and opening debts from the old system have no import path.
+  - No migration report after an import (what was created, skipped, merged).
+  - Confirm the whole path end to end against a real exported file from the client's QuickBooks and Moniebook stores; this was originally flagged as blocking her second store's move off Moniebook.
+- **Effort:** ~3–5 days.
 
-### AI Assistant Module
+### AI Assistant: LLM phase (Phase 2+)
 
-**Update (2026-09-29): Phase 1 has shipped, and it is *not* the design described below.** It is an offline, deterministic **intent router** (`client/lib/assistant/`) — no LLM, no API key, no network, works identically on desktop, Android and the PWA. It answers procedural "how do I…" questions from a help catalogue and six read-only data questions (product stock, inventory status, my sales today, store sales for a date, gross/net profit for a period) straight from local SQLite, permission-gated through the app's existing `hasPermission()`. See `client/AGENTS.md`'s "In-app Assistant" sections and `docs/SYSTEM_FEATURES_DOCUMENTATION.md` for what it does today.
+Phase 1, the offline intent router, has shipped (`client/AGENTS.md`, "In-app Assistant"). The LLM approach below is the remaining phase: the only path to open-ended questions and to **AI Reorder Forecasting**, which the intent router deliberately does not attempt. It must be a second `AssistantBrain` implementation behind the existing interface, reusing the `AssistantTool` definitions in `client/lib/assistant/tools/` rather than redefining them server-side, and it must fall back to the offline router when there is no connection (the assistant works offline today and must not regress to online-only).
 
-The Gemini/LLM approach below remains a **possible future phase**, not a superseded one — it is still the only path to open-ended questions and to **AI Reorder Forecasting**, which the intent router deliberately does not attempt. If it is pursued: it must be a second `AssistantBrain` implementation behind the existing interface, reusing the `AssistantTool` definitions in `client/lib/assistant/tools/` rather than redefining them server-side, and it must degrade back to the offline router when there is no connection (the assistant is currently usable offline and must not regress to online-only).
-
-> **Architecture Decision (original, for the possible LLM phase): Use third-party LLM APIs, server-proxied.**
+> **Architecture Decision (for the LLM phase): Use third-party LLM APIs, server-proxied.**
 
 **Why NOT embed a local model:**
 
@@ -432,9 +107,9 @@ The Gemini/LLM approach below remains a **possible future phase**, not a superse
 - The client sends requests to a new Laravel endpoint (e.g. `POST /api/v1/ai/query`)
 - The Laravel server calls the **Google Gemini API** and returns a structured response
 - The API key is stored securely server-side (never exposed to the client)
-- The AI tab is clearly **online-only** (same as sync, backups, broadcasts: acceptable)
+- The LLM answers are clearly **online-only** (same as sync, backups, broadcasts: acceptable)
 
-**Recommended Model: Google Gemini 1.5 Flash**
+**Recommended Model: Google Gemini 1.5 Flash** (re-check current models and pricing before building)
 
 - Extremely fast response times
 - Structured JSON output support (required for action cards)
@@ -447,7 +122,7 @@ The Gemini/LLM approach below remains a **possible future phase**, not a superse
 2. Add `GEMINI_API_KEY` to Laravel `.env`
 3. Install `google/generative-ai` PHP package (or use plain HTTP client)
 4. Build `AiController` with `query`, `command`, and `action` endpoints
-5. Implement the AI tab in the `client` app (structured card output, not chat paragraphs). This must include **AI Reorder Forecasting** (e.g., analyzing sales velocity to predict when an item will run out and suggesting a purchase order).
+5. Add the LLM brain to the existing assistant panel (structured card output, not chat paragraphs). This must include **AI Reorder Forecasting** (e.g., analyzing sales velocity to predict when an item will run out and suggesting a purchase order).
 6. Apply `throttle:20,1` middleware to AI routes to prevent abuse
 
 **Cost Summary:**
@@ -458,9 +133,20 @@ The Gemini/LLM approach below remains a **possible future phase**, not a superse
 
 ### Prepaid / Amortized Expense Recognition: Tier 2 (full accrual)
 
-- **Full accrual (real feature, do later):** Proper `prepaid_expenses` concept: a dedicated recognition ledger with real monthly rows generated automatically, rather than Tier 1's compute-on-read smoothing. Would let cash-flow reports diverge correctly from smoothed P&L (Tier 1 doesn't distinguish the two: everywhere Net Profit is computed now shows the smoothed figure, including anything that conceptually wants the real cash movement instead).
-- **Revisit if:** there's demand for accountant-facing exports or a genuine cash-flow-vs-accrual distinction. Tier 1 (done, see above) already covers the actual demo-facing problem.
+- **Current state:** Tier 1 smooths a prepaid expense across `covers_months` at read time; everywhere Net Profit is computed shows the smoothed figure.
+- **Remaining:** a proper `prepaid_expenses` recognition ledger with real monthly rows generated automatically, so cash-flow reports can diverge correctly from smoothed P&L.
+- **Revisit if:** there's demand for accountant-facing exports or a genuine cash-flow-vs-accrual distinction.
 - **Effort:** ~3–5 days (new ledger table + migration + query rewrites).
+
+### Online store: stop two customers buying the last unit
+
+- **Current state:** stock is only deducted when the store fulfils an online order from the POS, not at storefront checkout, so two customers can both order the last unit before either is fulfilled. A store with **Allow sales beyond recorded stock** on records a confirmed oversell as owed units; the checkout race is unchanged.
+- **Action:** a scoped design pass for either a stock hold at order time or a live-stock check at checkout. Both are nontrivial offline-first, because the server's stock count is only as fresh as the last sync. Worth doing if overselling becomes a real complaint.
+
+### Online store: order progress statuses, then re-link Track Order and Prescription Upload
+
+- **Current state:** a store can only move an online order from pending straight to fulfilled or cancelled. `/store/[slug]/track` and `/store/[slug]/prescription` work but are not linked from any storefront page, because there is no in-between progress to show.
+- **Action:** add intermediate statuses (e.g. confirmed, ready for pickup, out for delivery) that a store can set from the POS online-orders screen, then link both pages again.
 
 ---
 
@@ -468,8 +154,8 @@ The Gemini/LLM approach below remains a **possible future phase**, not a superse
 
 ### Register configurations: real cash-session management (Deferred 2026-08-14)
 
-- **Current state:** No cash-drawer/session concept exists at all. The dashboard's "Close Register" quick action (`dashboard-quick-actions.tsx`) links to `/reports?tab=daily_close`, which renders `daily-close-report.tsx`: a **read-only report** (sales metrics, payment breakdown, top products, CSV/PDF export, sales list modal). No opening float entry, no cash-counting input, no discrepancy tracking, no actual session lock/unlock.
-- **Action:** Decide whether real register-session management (open register with a starting float, log cash in/out during the shift, close with a counted-vs-expected reconciliation) is worth building, or whether the reporting-only version is intentional for this market. Misleading naming ("Close Register") should be fixed regardless of that decision.
+- **Current state:** No cash-drawer/session concept exists. The dashboard's "End of Day" quick action opens Daily Close (`daily-close-report.tsx`), a **read-only report**: no opening float, no cash-count input, no discrepancy tracking, no session lock/unlock.
+- **Action:** Decide whether real register-session management (open register with a starting float, log cash in/out during the shift, close with a counted-vs-expected reconciliation) is worth building, or whether the reporting-only version is intentional for this market.
 - **Effort:** ~1 week+: new session state machine, cash-count UI, discrepancy reporting, and offline-sync implications (register sessions need to reconcile like everything else in the sync engine).
 
 ### WhatsApp Integration System
@@ -506,7 +192,7 @@ The Gemini/LLM approach below remains a **possible future phase**, not a superse
 - **Phase 2 (Queries):** Natural language queries ("how many paracetamol left?"): inbound, read-only
 - **Phase 3 (Commands):** Queued write actions ("/reorder amoxicillin 50"): requires in-app confirmation
 
-**Best paired with AI Assistant (Phase 2 & 3 rely on intent parsing).** Phase 2's read-only natural-language queries no longer need an LLM to exist: the shipped offline intent router (`client/lib/assistant/`) already parses exactly that class of question, so the work is routing a WhatsApp message into `answer()` rather than building a parser. Phase 3's write commands still need the confirmation flow described above regardless.
+**Best paired with the AI Assistant.** Phase 2's read-only queries do not need an LLM: the offline intent router (`client/lib/assistant/`) already parses that class of question, so the work is routing a WhatsApp message into `answer()` rather than building a parser. Phase 3's write commands still need the confirmation flow described above.
 
 **Effort:** 2–3 weeks, mostly external approval latency (Meta Business Verification), not engineering time.
 
@@ -527,26 +213,6 @@ The Gemini/LLM approach below remains a **possible future phase**, not a superse
 - **Description:** Integrate with a Nigerian bulk SMS aggregator (like Termii or BulkSMSNigeria, rather than MTN's direct high-cost API) to power transactional SMS.
 - **Value:** Store owners can "top up" their SMS wallet directly within DumosRx using Paystack to send receipts or refill reminders. This creates an additional passive revenue stream for the platform.
 - **Effort:** Unestimated: payment integration (Paystack) + wallet balance/ledger logic + aggregator API, realistically ~1 week.
-
----
-
-## 🌐 Multi-Page Owner Storefront (Enterprise) — Completed 2026-11-02
-
-Shipped and documented in `SYSTEM_FEATURES_DOCUMENTATION.md`, `client/AGENTS.md`, `laravel-server/AGENTS.md`, and `web/AGENTS.md`:
-- Phase 1: Products show online by default, `products:backfill-show-online` command, house card aesthetics, PG-21 controlled product exclusion.
-- Phase 2: Paginated catalog API (`GET /storefront/{slug}/products`), dedicated catalog page (`/catalog`), controller decomposed into catalog/payment/checkout services.
-- Phase 3: Owner-level storefront (`storefronts` table), multi-branch picker with cart clearing dialog, branch stock and subaccount isolation, legacy store slug alias compatibility.
-- Phase 4: Full company pages (`/about`, `/locations`, `/faq`), responsive directory with branch deep links.
-- Phase 5: Digital prescription upload (`/prescription` + `storefront_prescriptions` table) and public order tracking (`/track`).
-
----
-
-## ⏸️ Blocked / Open Question
-
-### Roles & Permissions UI (Deferred 2026-08-14)
-
-- **Current state:** Real `Role`/`Permission` system already exists server-side, and enforcement is now consistent (see [Roles & Permissions cleanup](#roles--permissions-cleanup--done-2026-08-15) above).
-- **Open question:** Whether a dedicated Settings-tab "Roles & Permissions" UI is worth building depends on a concrete use case where the current role set doesn't cut it: not yet identified. Not sizeable until a use case surfaces.
 
 ---
 

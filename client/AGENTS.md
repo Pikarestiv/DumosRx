@@ -2871,6 +2871,16 @@ trying to infer.
 
 ## What reaches Sentry (2026-10-19)
 
+**Wiring (2026-08-14).** Sentry initialises only in `instrumentation-client.ts`.
+`client/` is a static export with no server runtime in either deploy target, so
+there are deliberately no `sentry.server.config.ts`, `sentry.edge.config.ts` or
+`instrumentation.ts`: the `@sentry/wizard` generates them and they break the
+build or ship dead code. The `GlobalHandlers` integration is filtered out
+because `error-logger.ts` + `GlobalErrorListener` is the single capture choke
+point; a second `window.onerror` hook would double-report. `withSentryConfig`
+uploads source maps only when `SENTRY_AUTH_TOKEN` is set (CI secret), and both
+`deploy-client.yml` and `release.yml` set the DSN and environment.
+
 The owner pays for Sentry per event and was pushed to the edge of his quota by
 events that were **not faults**: ~3,450 of one week's ~3,700 came from two
 already-fixed bugs firing per row, and the rest included a success report, a
@@ -7269,8 +7279,8 @@ what's already covered above:
   touch the account), Expenses surfaced to cashiers, and the profit-hiding
   sweep described in the Cashier visibility section above.
 - **Reseller sales merged into Recent Transactions**: the old standalone
-  admin-only "Reseller Commission" tab/panel (`FEATURE_ROADMAP_SPEC.md`'s
-  2026-09-16/17 entry) is **gone** — reseller sales now show inline in
+  admin-only "Reseller Commission" tab/panel (shipped 2026-09-16/17) is
+  **gone** — reseller sales now show inline in
   `pos-transaction-history.tsx` with a badge + a "Sale Type" filter, and
   the redeem/store-claim actions live directly in
   `TransactionDetailsDialog` (visible to admins and the cashier who made

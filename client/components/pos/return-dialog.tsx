@@ -20,13 +20,16 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getSaleById, getTransactionDetails } from "@/lib/db/queries/sales";
 import { queryKeys } from "@/lib/query-keys";
-import { useProcessReturnMutation, type ReturnableItem } from "@/lib/hooks/use-process-return-mutation";
+import { useProcessReturnMutation } from "@/lib/hooks/use-process-return-mutation";
 import { Loader2, RotateCcw } from "lucide-react";
 import { useAuth } from "@/lib/context/auth-context";
 import { ReturnItemRow } from "./return-item-row";
+import { ReturnServiceRow } from "./return-service-row";
 import { ReturnConfirmDialog } from "./return-confirm-dialog";
-import type { SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
+import { useReturnSelection } from "./use-return-selection";
+import type { SaleWithDetails } from "@/lib/types/sale";
 import { resellerPatchAfterReturn } from "@/lib/utils/reseller-return-adjustment";
+import { extractSpotSourcedProductIds, isSpotSourcedSaleLine } from "@/lib/utils/spot-sourcing";
 
 interface ReturnDialogProps {
   open: boolean;
@@ -34,13 +37,6 @@ interface ReturnDialogProps {
   sale: SaleWithDetails | null;
   onSuccess: () => void;
   currencyCode?: string;
-}
-
-interface ItemSelection {
-  selected: boolean;
-  quantity: number;
-  discardQuantity: number;
-  discardReason: string;
 }
 
 export function ReturnDialog({
@@ -51,7 +47,6 @@ export function ReturnDialog({
   currencyCode,
 }: ReturnDialogProps) {
   const { user } = useAuth();
-  const [selectedItems, setSelectedItems] = useState<Map<string, ItemSelection>>(new Map());
   const [reason, setReason] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [freshSale, setFreshSale] = useState<SaleWithDetails | null>(null);
@@ -62,101 +57,40 @@ export function ReturnDialog({
     enabled: !!sale,
   });
   const saleItems = detailsData?.items || [];
+  const saleServices = detailsData?.services || [];
   const returnMutation = useProcessReturnMutation();
 
-  const spotSourcedProductIds = useMemo(() => {
-    if (!sale?.payment_details) return new Set<string>();
-    try {
-      const details =
-        typeof sale.payment_details === "string"
-          ? JSON.parse(sale.payment_details)
-          : sale.payment_details;
-      const spotList = Array.isArray(details?.spot_sourcing) ? details.spot_sourcing : [];
-      return new Set<string>(
-        spotList.map((s: { product_id?: string }) => s.product_id).filter(Boolean) as string[],
-      );
-    } catch {
-      return new Set<string>();
-    }
-  }, [sale?.payment_details]);
+  const {
+    selectedItems,
+    selectedServices,
+    handleToggleItem,
+    handleQtyChange,
+    handleDiscardQtyChange,
+    handleDiscardReasonChange,
+    handleToggleService,
+    handleServiceQtyChange,
+    itemsToReturn,
+    servicesToReturn,
+  } = useReturnSelection(saleItems, saleServices);
+
+  const spotSourcedProductIds = useMemo(
+    () => extractSpotSourcedProductIds(sale?.payment_details),
+    [sale?.payment_details],
+  );
 
   if (!sale) return null;
-
-  const handleToggleItem = (itemId: string, maxQty: number) => {
-    setSelectedItems((prev) => {
-      const next = new Map(prev);
-      const current = next.get(itemId);
-      next.set(itemId, {
-        selected: !current?.selected,
-        quantity: current?.quantity || maxQty,
-        discardQuantity: current?.discardQuantity ?? 0,
-        discardReason: current?.discardReason ?? "Damaged / Broken",
-      });
-      return next;
-    });
-  };
-
-  const handleQtyChange = (itemId: string, qty: number, maxQty: number) => {
-    const parsedQty = typeof qty === "number" && !isNaN(qty) ? qty : 1;
-    const validQty = Math.min(Math.max(1, parsedQty), maxQty);
-    setSelectedItems((prev) => {
-      const next = new Map(prev);
-      const current = next.get(itemId);
-      next.set(itemId, {
-        selected: true,
-        quantity: validQty,
-        discardQuantity: Math.min(current?.discardQuantity ?? 0, validQty),
-        discardReason: current?.discardReason ?? "Damaged / Broken",
-      });
-      return next;
-    });
-  };
-
-  const handleDiscardQtyChange = (itemId: string, discardQty: number) => {
-    setSelectedItems((prev) => {
-      const next = new Map(prev);
-      const current = next.get(itemId);
-      const returnQty = current?.quantity ?? 1;
-      const validDiscard = Math.min(Math.max(0, discardQty), returnQty);
-      next.set(itemId, {
-        selected: true,
-        quantity: returnQty,
-        discardQuantity: validDiscard,
-        discardReason: current?.discardReason ?? "Damaged / Broken",
-      });
-      return next;
-    });
-  };
-
-  const handleDiscardReasonChange = (itemId: string, discardReason: string) => {
-    setSelectedItems((prev) => {
-      const next = new Map(prev);
-      const current = next.get(itemId);
-      if (!current) return prev;
-      next.set(itemId, {
-        ...current,
-        discardReason,
-      });
-      return next;
-    });
-  };
-
-  const itemsToReturn: ReturnableItem[] = Array.from(selectedItems.entries())
-    .filter(([_, val]) => val.selected)
-    .map(([id, val]) => ({
-      ...(saleItems?.find((si) => si.id === id) as SaleItemDetail),
-      returnQuantity: val.quantity,
-      discardQuantity: val.discardQuantity,
-      discardReason: val.discardReason,
-    }));
 
   const itemsSubtotal = itemsToReturn.reduce(
     (sum, item) => sum + (item.unit_price || 0) * item.returnQuantity,
     0,
   );
+  const servicesSubtotal = servicesToReturn.reduce(
+    (sum, s) => sum + (s.unitPrice || 0) * s.returnQuantity,
+    0,
+  );
   const saleSubtotal = sale?.subtotal || 0;
   const totalRefund = calculateProportionalRefund({
-    itemsSubtotal,
+    itemsSubtotal: itemsSubtotal + servicesSubtotal,
     saleSubtotal,
     saleTaxAmount: sale?.tax_amount || 0,
     saleDiscountAmount: sale?.discount_total ?? sale?.discount_amount ?? 0,
@@ -172,8 +106,8 @@ export function ReturnDialog({
       : 0) ?? 0;
 
   const handleInitialSubmit = async () => {
-    if (itemsToReturn.length === 0) {
-      toast.error("Please select at least one item to return");
+    if (itemsToReturn.length === 0 && servicesToReturn.length === 0) {
+      toast.error("Please select at least one item or service to return");
       return;
     }
     setFreshSale(await getSaleById(sale.id));
@@ -190,6 +124,7 @@ export function ReturnDialog({
         totalRefund,
         itemsToReturn,
         saleItems,
+        servicesToReturn,
         currencyCode,
       });
       onSuccess();
@@ -268,11 +203,28 @@ export function ReturnDialog({
                         selected={selection?.selected || false}
                         maxQty={maxQty}
                         currencyCode={currencyCode}
-                        isSpotSourced={spotSourcedProductIds.has(item.product_id)}
+                        isSpotSourced={isSpotSourcedSaleLine(item, spotSourcedProductIds)}
                         onToggle={() => handleToggleItem(item.id, maxQty)}
                         onQtyChange={(qty) => handleQtyChange(item.id, qty, maxQty)}
                         onDiscardQtyChange={(dQty) => handleDiscardQtyChange(item.id, dQty)}
                         onDiscardReasonChange={(dReason) => handleDiscardReasonChange(item.id, dReason)}
+                      />
+                    );
+                  })}
+                {!loadingSaleItems &&
+                  saleServices?.map((svc) => {
+                    const maxQty = Math.max(0, svc.quantity - (svc.returned_quantity || 0));
+                    const selection = selectedServices.get(svc.id);
+                    return (
+                      <ReturnServiceRow
+                        key={svc.id}
+                        service={svc}
+                        quantity={selection?.quantity ?? maxQty}
+                        selected={selection?.selected || false}
+                        maxQty={maxQty}
+                        currencyCode={currencyCode}
+                        onToggle={() => handleToggleService(svc.id, maxQty)}
+                        onQtyChange={(qty) => handleServiceQtyChange(svc.id, qty, maxQty)}
                       />
                     );
                   })}
@@ -296,6 +248,7 @@ export function ReturnDialog({
         open={showConfirm}
         onOpenChange={setShowConfirm}
         itemsToReturn={itemsToReturn}
+        servicesToReturn={servicesToReturn}
         totalRefund={totalRefund}
         commissionOwedBack={commissionOwedBack}
         currencyCode={currencyCode}

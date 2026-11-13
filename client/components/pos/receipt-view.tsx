@@ -204,7 +204,7 @@ export function ReceiptView({
         <div
           className={`flex justify-between font-bold mb-2 border-b border-dashed border-black pb-1 ${rowTextClass}`}
         >
-          <span className="flex-1 w-1/2">Product</span>
+          <span className="flex-1 w-1/2">Item</span>
           <span className={`${qtyColClass} text-center`}>Qty</span>
           <span className={`${priceColClass} text-right`}>Price</span>
           <span className={`${totalColClass} text-right`}>Total</span>

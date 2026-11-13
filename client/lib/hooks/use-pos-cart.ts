@@ -19,15 +19,20 @@ export type { POSProduct as Product } from "@/lib/types/product";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
 import {
   usePOSCartStore,
+  clearPOSCartContents,
+  restorePOSCart,
   repriceCartFromCatalog,
   buildNewCartItem,
+  buildNewServiceCartItem,
   applySpotSourcingConfig,
-  stripSpotSourcingConfig,
+  updateCartSpotSourcing,
   type CartItem,
   type MarkupType,
   type AddToCartOptions,
   type SpotSourcingConfig,
+  type SpotSourcingSplitOptions,
 } from "./use-pos-cart-store";
+import type { Service } from "@/lib/types/service";
 export {
   clearPOSCartStorage,
   repriceCartFromCatalog,
@@ -37,6 +42,7 @@ export {
   type RedeemedOption,
   type AddToCartOptions,
   type SpotSourcingConfig,
+  type SpotSourcingSplitOptions,
 } from "./use-pos-cart-store";
 
 export function usePOSCart(products: Product[]) {
@@ -57,20 +63,15 @@ export function usePOSCart(products: Product[]) {
   const setMarkupType = usePOSCartStore((state) => state.setMarkupType);
   const isHydrated = useHydrated();
 
-  const setDiscount = useCallback(
-    (value: number) => {
-      setStoreDiscount(value);
-      setRedeemedOption(null);
-    },
-    [setStoreDiscount, setRedeemedOption],
-  );
-  const setDiscountType = useCallback(
-    (type: "fixed" | "percentage") => {
-      setStoreDiscountType(type);
-      setRedeemedOption(null);
-    },
-    [setStoreDiscountType, setRedeemedOption],
-  );
+  const setDiscount = useCallback((value: number) => {
+    setStoreDiscount(value);
+    setRedeemedOption(null);
+  }, [setStoreDiscount, setRedeemedOption]);
+
+  const setDiscountType = useCallback((type: "fixed" | "percentage") => {
+    setStoreDiscountType(type);
+    setRedeemedOption(null);
+  }, [setStoreDiscountType, setRedeemedOption]);
 
   const redeemReward = useCallback(
     (option: { id: string; label: string; points_cost: number; discount_value: number }) => {
@@ -104,25 +105,14 @@ export function usePOSCart(products: Product[]) {
   }, [products, cart, setCart]);
 
   useEffect(() => {
-    if (!canUseLoyaltyProgram && redeemedOption) {
-      clearRedemption();
-    }
+    if (!canUseLoyaltyProgram && redeemedOption) clearRedemption();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canUseLoyaltyProgram, redeemedOption]);
 
   const subtotal = useMemo(() => calculateSubtotal(cart), [cart]);
-  const calculatedDiscount = useMemo(
-    () => calculateDiscountAmount(subtotal, discount, discountType),
-    [subtotal, discount, discountType]
-  );
-  const tax = useMemo(
-    () => calculateTax(Math.max(0, subtotal - calculatedDiscount), vatPercentage),
-    [subtotal, calculatedDiscount, vatPercentage]
-  );
-  const total = useMemo(
-    () => calculateTotal(subtotal, tax, calculatedDiscount),
-    [subtotal, tax, calculatedDiscount]
-  );
+  const calculatedDiscount = useMemo(() => calculateDiscountAmount(subtotal, discount, discountType), [subtotal, discount, discountType]);
+  const tax = useMemo(() => calculateTax(Math.max(0, subtotal - calculatedDiscount), vatPercentage), [subtotal, calculatedDiscount, vatPercentage]);
+  const total = useMemo(() => calculateTotal(subtotal, tax, calculatedDiscount), [subtotal, tax, calculatedDiscount]);
 
   const displayName = useDisplayName();
 
@@ -134,10 +124,7 @@ export function usePOSCart(products: Product[]) {
       toast(`${displayName(removed.name)} removed from cart`, {
         action: {
           label: "Undo",
-          onClick: () =>
-            setCart((prev) =>
-              prev.some((item) => item.id === removed.id) ? prev : [...prev, removed],
-            ),
+          onClick: () => setCart((prev) => prev.some((i) => i.id === removed.id) ? prev : [...prev, removed]),
         },
       });
     },
@@ -151,8 +138,23 @@ export function usePOSCart(products: Product[]) {
         return;
       }
 
-      const product = products.find((m) => m.id === id);
       const currentItem = cart.find((item) => item.id === id);
+      if (currentItem?.item_type === "service") {
+        setCart((prev) =>
+          prev.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  quantity: newQuantity,
+                  subtotal: roundMoney(item.unit_price * newQuantity),
+                }
+              : item,
+          ),
+        );
+        return;
+      }
+
+      const product = products.find((m) => m.id === id);
       if (product && newQuantity > product.stock && !currentItem?.is_spot_sourced) {
         if (!canSellWithoutStock) {
           toast.warning(formatInsufficientStock(product.stock, canSeeQuantities));
@@ -228,33 +230,34 @@ export function usePOSCart(products: Product[]) {
   );
 
   const updateSpotSourcing = useCallback(
-    (id: string, config: SpotSourcingConfig | null) => {
-      if (!config || !config.isSpotSourced) {
-        const product = products.find((p) => p.id === id);
-        const currentItem = cart.find((item) => item.id === id);
-        const availableStock = product?.stock ?? currentItem?.stock ?? 0;
-        if (!canSellWithoutStock && availableStock <= 0) {
-          setCart((prev) => prev.filter((item) => item.id !== id));
-          toast.info(
-            `${displayName(currentItem?.name || product?.name || "Item")} removed from cart (no shelf stock available)`,
-          );
-          return;
-        }
-        setCart((prev) =>
-          prev.map((item) =>
-            item.id === id
-              ? stripSpotSourcingConfig(item, availableStock, canSellWithoutStock, isResellerSale)
-              : item,
-          ),
-        );
-        return;
-      }
-
-      setCart((prev) =>
-        prev.map((item) => (item.id === id ? applySpotSourcingConfig(item, config) : item)),
+    (id: string, config: SpotSourcingConfig | null, splitOptions?: SpotSourcingSplitOptions) => {
+      const currentItem = cart.find((item) => item.id === id);
+      const baseProductId = currentItem?.product_id || id.replace(/:spot_sourced$/, "");
+      const product = products.find((p) => p.id === baseProductId);
+      const availableStock = product?.stock ?? currentItem?.stock ?? 0;
+      const result = updateCartSpotSourcing(
+        cart, id, config, availableStock, canSellWithoutStock, isResellerSale, splitOptions,
       );
+      setCart(result.cart);
+      if (result.removedName) {
+        toast.info(`${displayName(result.removedName)} removed from cart (no shelf stock available)`);
+      }
     },
     [products, cart, setCart, canSellWithoutStock, isResellerSale, displayName],
+  );
+
+  const addServiceToCart = useCallback(
+    (service: Service, quantity = 1) => {
+      const existing = cart.find((item) => item.id === service.id && item.item_type === "service");
+      if (existing) {
+        updateQuantity(service.id, existing.quantity + quantity);
+      } else {
+        const cartItem = buildNewServiceCartItem(service, quantity);
+        setCart((prev) => [...prev, cartItem]);
+        toast.success(`${displayName(service.name)} added to cart`);
+      }
+    },
+    [cart, updateQuantity, setCart, displayName],
   );
 
   const updateUnitPrice = useCallback(
@@ -290,11 +293,8 @@ export function usePOSCart(products: Product[]) {
   );
 
   const clearCart = useCallback(() => {
-    setCart([]);
-    setDiscount(0);
-    setStoreIsResellerSale(false);
-    setMarkupType(null);
-  }, [setCart, setDiscount, setStoreIsResellerSale, setMarkupType]);
+    clearPOSCartContents();
+  }, []);
 
   const restoreCart = useCallback(
     (
@@ -303,21 +303,15 @@ export function usePOSCart(products: Product[]) {
       restoredDiscountType?: "fixed" | "percentage",
       restoredMarkup?: { isResellerSale: boolean; markupType: MarkupType | null },
     ) => {
-      setCart(items);
-      setRedeemedOption(null);
-      if (restoredDiscount !== undefined) setStoreDiscount(restoredDiscount);
-      if (restoredDiscountType !== undefined) setStoreDiscountType(restoredDiscountType);
-      if (restoredMarkup) {
-        setStoreIsResellerSale(restoredMarkup.isResellerSale);
-        setMarkupType(restoredMarkup.markupType);
-      }
+      restorePOSCart(items, restoredDiscount, restoredDiscountType, restoredMarkup);
     },
-    [setCart, setRedeemedOption, setStoreDiscount, setStoreDiscountType, setStoreIsResellerSale, setMarkupType],
+    [],
   );
 
   return {
     cart: isHydrated ? cart : [],
     addToCart,
+    addServiceToCart,
     updateQuantity,
     removeFromCart,
     clearCart,

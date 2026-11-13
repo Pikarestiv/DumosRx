@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DetailCard, Field } from "./store-detail-primitives";
+import { StorefrontThemePicker } from "./storefront-theme-picker";
 import { useSetStoreStorefrontMutation } from "@/lib/api/admin-hooks";
 import { useAdminAuthStore, checkHasPermission } from "@/lib/store/use-admin-auth-store";
 import type { AdminStoreDetail } from "@/lib/types/admin";
@@ -138,6 +139,7 @@ export function StoreStorefrontCard({ store }: { store: AdminStoreDetail }) {
           }
         />
       </div>
+      <StorefrontThemePicker store={store} />
       {store.storefront.pending_rebuild ? (
         <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
           The published page is stale until the next full site rebuild.

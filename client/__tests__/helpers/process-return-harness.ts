@@ -55,6 +55,7 @@ export function setupProcessReturnHarness() {
       DELETE FROM prescriptions; DELETE FROM loyalty_transactions;
       DELETE FROM stock_batches; DELETE FROM stock_movements; DELETE FROM products;
       DELETE FROM audit_logs;
+      DELETE FROM services; DELETE FROM sale_services; DELETE FROM return_services;
     `);
     core.setActiveStoreId(null);
     localStorage.setItem("dumos_user", JSON.stringify({ id: "user-1" }));

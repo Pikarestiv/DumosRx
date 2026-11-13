@@ -101,4 +101,19 @@ describe("usePOSCart reseller mode", () => {
     act(() => handle.get().clearCart());
     expect(handle.get().isResellerSale).toBe(false);
   });
+  it("keeps the cashier's discount type across clearCart but resets it on a full storage clear", async () => {
+    const { clearPOSCartStorage } = await import("@/lib/hooks/use-pos-cart");
+    const handle = renderCart();
+    act(() => handle.get().addToCart(product));
+    act(() => handle.get().setDiscountType("percentage"));
+    act(() => handle.get().setDiscount(10));
+
+    act(() => handle.get().clearCart());
+    expect(handle.get().cart).toEqual([]);
+    expect(handle.get().discount).toBe(0);
+    expect(handle.get().discountType).toBe("percentage");
+
+    act(() => clearPOSCartStorage());
+    expect(handle.get().discountType).toBe("fixed");
+  });
 });

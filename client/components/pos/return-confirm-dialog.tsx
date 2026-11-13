@@ -3,12 +3,13 @@
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ProductName } from "@/components/ui/product-name";
 import { formatCurrency } from "@/lib/utils";
-import type { ReturnableItem } from "@/lib/hooks/use-process-return-mutation";
+import type { ReturnableItem, ReturnableService } from "@/lib/hooks/use-process-return-mutation";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   itemsToReturn: ReturnableItem[];
+  servicesToReturn?: ReturnableService[];
   totalRefund: number;
   commissionOwedBack: number;
   currencyCode?: string;
@@ -19,6 +20,7 @@ export function ReturnConfirmDialog({
   open,
   onOpenChange,
   itemsToReturn,
+  servicesToReturn,
   totalRefund,
   commissionOwedBack,
   currencyCode,
@@ -73,6 +75,18 @@ export function ReturnConfirmDialog({
                 </li>
               );
             })}
+            {servicesToReturn && servicesToReturn.length > 0 && servicesToReturn.map((svc) => (
+              <li key={svc.id}>
+                <span className="font-medium">{svc.returnQuantity}x</span>{" "}
+                <span>{svc.serviceName || "Service"}</span>
+                <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-muted text-muted-foreground ml-1">
+                  Service
+                </span>
+                <span className="text-muted-foreground ml-1">
+                  ({formatCurrency((svc.unitPrice || 0) * svc.returnQuantity, currencyCode)})
+                </span>
+              </li>
+            ))}
           </ul>
           <div className="pt-2 border-t mt-2">
             <p className="font-medium text-destructive">

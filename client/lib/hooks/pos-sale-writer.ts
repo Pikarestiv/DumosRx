@@ -3,7 +3,6 @@ import { generateId } from "@/lib/db/core";
 import { getCustomerBalance } from "@/lib/db/queries/customers";
 import { recordSaleItemStock } from "@/lib/db/queries/inventory";
 import { updatePrescriptionStatus, dispensePrescriptionRefill } from "@/lib/db/queries/prescriptions";
-import { getLocalTodayDate } from "@/lib/utils";
 import { applyLoyaltyPointsForSale, type PaymentMethod, type PaymentSplit } from "./use-pos-payment-helpers";
 import { calculateTaxPercentage, calculateMixedAmountPaid, calculateMixedChangeDue, calculateSalePaymentStatus, calculateMaxAllowedCreditSplit, roundMoney } from "@/lib/utils/pos-calculations";
 import type { CartItem, RedeemedOption } from "./use-pos-cart-store";
@@ -58,7 +57,7 @@ export async function writeSaleTransaction({
   amountPaid,
   paymentSplits,
   selectedAccountId,
-  saleNote,
+  saleNote = "",
   dispensedRxId,
   isRefillDispense,
   cashierId,
@@ -83,15 +82,15 @@ export async function writeSaleTransaction({
 
     await insert("sales", {
       id: newSaleId,
-      transaction_number: transactionNumber,
+      transaction_number: transactionNumber || `TXN-${Date.now()}`,
       customer_id: selectedCustomer?.id || null,
-      user_id: cashierId,
-      subtotal,
-      discount_total: discount,
-      discount_amount: rawDiscount,
-      discount_percentage: discountType === "percentage" ? rawDiscount : 0,
-      discount_type: discountType,
-      tax_amount: tax,
+      user_id: cashierId || null,
+      subtotal: subtotal ?? 0,
+      discount_total: discount ?? 0,
+      discount_amount: rawDiscount ?? 0,
+      discount_percentage: discountType === "percentage" ? (rawDiscount ?? 0) : 0,
+      discount_type: discountType || null,
+      tax_amount: tax ?? 0,
       // Derived from the actual charged amounts rather than hardcoded, so it always matches whatever VAT rate was really applied (the store's config…
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-ts-L206
       tax_percentage: calculateTaxPercentage(tax, subtotal),
@@ -111,7 +110,7 @@ export async function writeSaleTransaction({
             ? calculateMixedChangeDue(paymentSplits, total)
             : 0,
       ),
-      points_earned: earnedPoints,
+      points_earned: earnedPoints ?? 0,
       // Only ever set when a customer is selected — the UI gates the redemption picker on that already, but guard here too in case a stale redemptio…
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pos-payment-ts-L227
       points_redeemed:
@@ -130,7 +129,7 @@ export async function writeSaleTransaction({
         ...(spotSourcedItems.length > 0
           ? {
               spot_sourcing: spotSourcedItems.map((i) => ({
-                product_id: i.id,
+                product_id: i.product_id || i.id,
                 product_name: i.name,
                 quantity: i.quantity,
                 unit_cost: i.sourcing_cost ?? i.cost_price ?? 0,
@@ -142,7 +141,7 @@ export async function writeSaleTransaction({
       }),
       transaction_date: new Date().toISOString(),
       receipt_printed: 0,
-      notes: (saleNote.trim() || "POS Sale") + spotSummary,
+      notes: ((saleNote || "").trim() || "POS Sale") + spotSummary,
       prescription_id: dispensedRxId || null,
       is_reseller_sale: isResellerSale ? 1 : 0,
       markup_type: isResellerSale ? markupType : null,
@@ -159,11 +158,25 @@ export async function writeSaleTransaction({
     }, { correlationId: newSaleId });
 
     for (const item of cart) {
-      if (item.is_spot_sourced) {
+      if (item.item_type === "service") {
+        await insert(
+          "sale_services",
+          {
+            sale_id: newSaleId,
+            service_id: item.id,
+            service_name: item.name,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            total_price: item.subtotal,
+            notes: null,
+          },
+          { correlationId: newSaleId },
+        );
+      } else if (item.is_spot_sourced) {
         const sourcingCost = item.sourcing_cost ?? item.cost_price ?? 0;
         await recordSaleItemStock({
           saleId: newSaleId,
-          productId: item.id,
+          productId: item.product_id || item.id,
           quantity: item.quantity,
           unitPrice: item.unit_price,
           listPrice: item.original_unit_price,
@@ -177,7 +190,7 @@ export async function writeSaleTransaction({
       } else {
         await recordSaleItemStock({
           saleId: newSaleId,
-          productId: item.id,
+          productId: item.product_id || item.id,
           quantity: item.quantity,
           unitPrice: item.unit_price,
           listPrice: item.original_unit_price,

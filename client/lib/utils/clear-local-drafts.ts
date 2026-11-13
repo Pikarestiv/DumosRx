@@ -1,5 +1,8 @@
 import { clearPOSCartStorage } from "@/lib/hooks/use-pos-cart";
-import { clearAllStockAuditDrafts } from "@/lib/hooks/use-stock-audit-draft";
+import {
+  clearAllStockAuditDrafts,
+  flushStockAuditDraftSaves,
+} from "@/lib/hooks/use-stock-audit-draft";
 import { clearAllStockAdjustmentDrafts } from "@/lib/hooks/use-stock-adjustment-draft";
 
 // Every device-local, in-progress draft staged against the store/account being left behind.
@@ -9,7 +12,9 @@ export function clearLocalDrafts(opts?: {
   preserveStoreAdjustment?: boolean;
 }): void {
   clearPOSCartStorage();
-  if (!opts?.preserveStoreAudit) {
+  if (opts?.preserveStoreAudit) {
+    void flushStockAuditDraftSaves();
+  } else {
     clearAllStockAuditDrafts();
   }
   if (!opts?.preserveStoreAdjustment) {

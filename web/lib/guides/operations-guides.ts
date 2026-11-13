@@ -60,22 +60,23 @@ export const OPERATIONS_GUIDES: GuideItem[] = [
   },
   {
     id: "online-storefront",
-    title: "Online Webstore & Digital Prescriptions: Sell Online & Fulfill from Branches",
+    title: "Online Webstore: Sell Online & Fulfill from Branches",
     category: "Online Storefront",
     badge: "E-Commerce",
     readTime: "2 min read",
     videoDuration: "2:20",
     summary:
-      "Launch a professional customer-facing webstore under your brand. Customers can browse catalog items, order online for pickup/delivery, and upload doctor prescriptions securely.",
+      "Launch a professional customer-facing webstore under your brand. Customers can browse your shop, order online for pickup/delivery, and read about your store, branches and policies on one home page.",
     steps: [
       "Products in your catalog automatically list online unless 'Show Online' is turned off.",
       "Share your branded storefront URL (e.g. dumosrx.com/store/your-pharmacy) with customers on WhatsApp and social media.",
       "Customers can switch between branches, search available medicines, and complete purchases via Paystack.",
-      "Patients can securely upload prescription images or PDFs at your storefront `/prescription` page, alerting your pharmacists for instant verification.",
+      "Your home page shows eight featured products, your headline, About, Locations, FAQ and Contact sections, and a footer with your phone, email and address, so keep those details current in the app.",
+      "Want a different colour scheme? Ask DumosRx support: storefront themes are currently set by the DumosRx team.",
     ],
     proTip:
       "Online orders appear in real time on the store's POS screen, allowing staff to prepare items for customer pickup or dispatch.",
-    videoPlaceholderText: "Video Walkthrough: Setting up your webstore, managing online orders, and processing digital prescriptions",
+    videoPlaceholderText: "Video Walkthrough: Setting up your webstore and managing online orders",
   },
 ];
 

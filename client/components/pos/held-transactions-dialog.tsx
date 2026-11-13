@@ -12,16 +12,19 @@ import {
   ShoppingBag,
   PauseCircle,
   Loader2,
+  ChevronDown,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useHeldTransactions, useDeleteHeldTransactionMutation } from "@/lib/hooks/use-sales-data";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
+import { formatDateSafe } from "@/lib/utils/date-utils";
 import { useStore } from "@/lib/context/store-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { useLastNonNull } from "@/lib/hooks/use-last-non-null";
+import type { CartItem } from "@/lib/hooks/use-pos-cart";
 
 import type { HeldTransaction } from "@/lib/db/queries/sales";
 
@@ -32,6 +35,14 @@ function getItemCount(itemsJson: string): number {
     return JSON.parse(itemsJson).length;
   } catch {
     return 0;
+  }
+}
+
+function parseHeldItems(itemsJson: string): CartItem[] {
+  try {
+    return JSON.parse(itemsJson);
+  } catch {
+    return [];
   }
 }
 
@@ -60,9 +71,13 @@ export function HeldTransactionsDialog({
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-held-transactions-dialog-tsx-L60
   const deletingId = deleteMutation.isPending ? deleteMutation.variables : null;
 
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   useEffect(() => {
     if (isOpen) {
       void loadHeldTransactions();
+    } else {
+      setExpandedId(null);
     }
   }, [isOpen, loadHeldTransactions]);
 
@@ -118,79 +133,161 @@ export function HeldTransactionsDialog({
         )}
         {!loading &&
           heldItems.length > 0 &&
-          heldItems.map((item) => (
-            <div
-              key={item.id}
-              className="group flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-accent/10 bg-card/50 hover:bg-accent/5 transition-all gap-3 sm:gap-4"
-            >
-              <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                <div className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 rounded-full bg-muted flex items-center justify-center border border-accent/5">
-                  <User className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
-                </div>
-                <div className="space-y-1 sm:space-y-1.5 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-bold truncate text-sm sm:text-base">
-                      {item.customer_name || "Walk-in Customer"}
-                    </p>
-                    <Badge
-                      variant="outline"
-                      className="text-[9px] sm:text-[10px] h-4 bg-amber-500/5 text-amber-500 border-amber-500/20 shrink-0 px-1.5 sm:px-2.5"
-                    >
-                      Held
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-muted-foreground uppercase tracking-wider font-medium flex-wrap">
-                    <span className="flex items-center gap-1 shrink-0">
-                      <Clock className="w-3 h-3" />{" "}
-                      {new Date(item.created_at).toLocaleTimeString()}
-                    </span>
-                    <span className="w-1 h-1 rounded-full bg-muted-foreground/30 shrink-0" />
-                    <span className="shrink-0">
-                      {getItemCount(item.items_json)} Items
-                    </span>
-                  </div>
-                </div>
-              </div>
+          heldItems.map((item) => {
+            const isExpanded = expandedId === item.id;
+            const lineItems = isExpanded ? parseHeldItems(item.items_json) : [];
 
-              <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto border-t sm:border-0 border-border/50 pt-3 sm:pt-0">
-                <div className="text-left sm:text-right shrink-0">
-                  <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                    Total
-                  </p>
-                  <p className="font-bold text-sm sm:text-lg leading-none mt-0.5 sm:mt-1">
-                    {formatCurrency(item.total_amount, storeProfile?.currency)}
-                  </p>
+            return (
+              <div
+                key={item.id}
+                className="group flex flex-col rounded-xl sm:rounded-2xl border border-accent/10 bg-card/50 hover:bg-accent/5 transition-all"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 gap-3 sm:gap-4">
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 rounded-full bg-muted flex items-center justify-center border border-accent/5">
+                      <User className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
+                    </div>
+                    <div className="space-y-1 sm:space-y-1.5 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold truncate text-sm sm:text-base">
+                          {item.customer_name || "Walk-in Customer"}
+                        </p>
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] sm:text-[10px] h-4 bg-amber-500/5 text-amber-500 border-amber-500/20 shrink-0 px-1.5 sm:px-2.5"
+                        >
+                          Held
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-muted-foreground uppercase tracking-wider font-medium flex-wrap">
+                        <span className="flex items-center gap-1 shrink-0">
+                          <Clock className="w-3 h-3" />{" "}
+                          {formatDateSafe(item.created_at, "dd/MM/yyyy HH:mm", "Unknown time")}
+                        </span>
+                        <span className="w-1 h-1 rounded-full bg-muted-foreground/30 shrink-0" />
+                        <span className="shrink-0">
+                          {getItemCount(item.items_json)} Items
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto border-t sm:border-0 border-border/50 pt-3 sm:pt-0">
+                    <div className="text-left sm:text-right shrink-0">
+                      <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                        Total
+                      </p>
+                      <p className="font-bold text-sm sm:text-lg leading-none mt-0.5 sm:mt-1">
+                        {formatCurrency(item.total_amount, storeProfile?.currency)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={isExpanded ? "Collapse line items" : "Expand line items"}
+                        className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl shrink-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                      >
+                        <ChevronDown
+                          className={cn(
+                            "w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-200",
+                            isExpanded && "rotate-180",
+                          )}
+                        />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        aria-label={`Discard held sale for ${item.customer_name || "Walk-in Customer"}`}
+                        className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl shrink-0"
+                        onClick={() => setDeleteTarget(item)}
+                        disabled={deletingId === item.id}
+                      >
+                        {deletingId === item.id ? (
+                          <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                        )}
+                      </Button>
+                      {canHoldSales && (
+                        <Button
+                          variant="default"
+                          className="h-9 sm:h-10 px-3 sm:px-4 rounded-lg sm:rounded-xl text-xs sm:text-base font-bold bg-primary hover:bg-primary/90 shrink-0"
+                          onClick={() => onRecall(item)}
+                          disabled={deletingId === item.id}
+                        >
+                          <PlayCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                          Recall
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    aria-label={`Discard held sale for ${item.customer_name || "Walk-in Customer"}`}
-                    className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl shrink-0"
-                    onClick={() => setDeleteTarget(item)}
-                    disabled={deletingId === item.id}
-                  >
-                    {deletingId === item.id ? (
-                      <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+
+                {isExpanded && (
+                  <div className="border-t border-accent/10 bg-muted/20 px-3 sm:px-4 py-3 rounded-b-xl sm:rounded-b-2xl space-y-2">
+                    <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      <span>Line Items ({lineItems.length})</span>
+                      <span>Subtotal</span>
+                    </div>
+                    {lineItems.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic py-1">
+                        No item details available
+                      </p>
                     ) : (
-                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                      <div className="divide-y divide-border/30 max-h-48 overflow-y-auto">
+                        {lineItems.map((line, idx) => (
+                          <div
+                            key={idx}
+                            className="py-1.5 flex items-center justify-between text-xs sm:text-sm gap-2"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-medium text-foreground truncate">
+                                {line.name}
+                              </span>
+                              {line.item_type === "service" && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[9px] h-4 bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20 shrink-0"
+                                >
+                                  Service
+                                </Badge>
+                              )}
+                              {line.is_spot_sourced && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[9px] h-4 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 shrink-0"
+                                >
+                                  Spot Sourced
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0 text-muted-foreground text-xs">
+                              <span>
+                                {line.quantity} ×{" "}
+                                {formatCurrency(
+                                  line.unit_price,
+                                  storeProfile?.currency,
+                                )}
+                              </span>
+                              <span className="font-semibold text-foreground">
+                                {formatCurrency(
+                                  line.subtotal,
+                                  storeProfile?.currency,
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     )}
-                  </Button>
-                  {canHoldSales && (
-                    <Button
-                      variant="default"
-                      className="h-9 sm:h-10 px-3 sm:px-4 rounded-lg sm:rounded-xl text-xs sm:text-base font-bold bg-primary hover:bg-primary/90 shrink-0"
-                      onClick={() => onRecall(item)}
-                      disabled={deletingId === item.id}
-                    >
-                      <PlayCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                      Recall
-                    </Button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
       </div>
 
       <ConfirmDialog

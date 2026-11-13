@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Minus, Plus, Trash2, Share2 } from "lucide-react";
+import { motion, useMotionValue, useTransform } from "framer-motion";
+import { Minus, Plus, Trash2 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
-import { CategoryIcon } from "./category-icon";
+import { HintTooltip } from "@/components/ui/hint-tooltip";
+import { POSCartItemSourcing } from "./pos-cart-item-sourcing";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
@@ -33,6 +34,9 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
   // Unconditional top-level const, never inlined into the JSX branch below -
   // see pos-cart.tsx's canApplyDiscounts for the hook-ordering reason.
   const canOverridePrice = useHasPermission("override_price");
+  const [nameExpanded, setNameExpanded] = useState(false);
+  const dragX = useMotionValue(0);
+  const backdropOpacity = useTransform(dragX, [-1, 0], [1, 0]);
 
   // The price input is uncontrolled-while-typing:
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-cart-item-tsx-L37
@@ -75,14 +79,17 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
       )}
     >
       {!isLocked && (
-        <div
+        <motion.div
           aria-hidden="true"
+          data-swipe-delete-backdrop
+          style={{ opacity: backdropOpacity }}
           className="absolute inset-0 flex items-center justify-end pr-4 bg-destructive text-destructive-foreground"
         >
           <Trash2 className="w-4 h-4" />
-        </div>
+        </motion.div>
       )}
       <motion.div
+        style={{ x: dragX }}
         drag={isLocked ? false : "x"}
         dragConstraints={{ left: -100, right: 0 }}
         dragElastic={{ left: 0.5, right: 0 }}
@@ -93,46 +100,32 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
             removeFromCart(item.id);
           }
         }}
-        className={`relative flex items-center gap-3 py-3 bg-background touch-pan-y ${
+        className={`relative flex flex-wrap items-center gap-x-3 gap-y-1 py-2 bg-background touch-pan-y group ${
           isLast ? "" : "border-b border-border"
         }`}
       >
-        <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-          <CategoryIcon categoryName={item.category_name} className="w-5 h-5" />
-        </div>
         <div className="flex-1 min-w-0">
-          <div className={`text-[12.5px] font-semibold mb-0.5 truncate leading-tight ${capsClass}`}>
-            {item.name}
-          </div>
-          {item.is_spot_sourced ? (
-            <div className="flex items-center gap-1.5 mb-1">
+          <div className="flex items-start gap-1.5 mb-0.5">
+            <HintTooltip text={item.name}>
               <button
                 type="button"
-                onClick={() => onConfigureSpotSourcing?.(item)}
-                className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-colors cursor-pointer"
-                title="Edit spot sourcing details"
+                aria-expanded={nameExpanded}
+                onClick={() => setNameExpanded((expanded) => !expanded)}
+                className={cn(
+                  "min-w-0 text-left text-[12.5px] font-semibold break-words leading-tight rounded cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  !nameExpanded && "line-clamp-2",
+                  capsClass,
+                )}
               >
-                <Share2 className="w-2.5 h-2.5" />
-                <span>
-                  Spot Sourced ({formatCurrency(item.sourcing_cost || 0, currencyCode)})
-                </span>
+                {item.name}
               </button>
-            </div>
-          ) : (
-            onConfigureSpotSourcing && !isLocked && (
-              <div className="mb-0.5">
-                <button
-                  type="button"
-                  onClick={() => onConfigureSpotSourcing(item)}
-                  className="text-[10px] text-muted-foreground/60 hover:text-amber-600 dark:hover:text-amber-400 inline-flex items-center gap-1 transition-colors cursor-pointer"
-                  title="Source this item on the spot from an external store"
-                >
-                  <Share2 className="w-2.5 h-2.5" />
-                  <span>Source outside</span>
-                </button>
-              </div>
-            )
-          )}
+            </HintTooltip>
+            {item.item_type === "service" && (
+              <span className="inline-flex items-center text-[9.5px] font-medium px-1 py-0.2 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
+                Service
+              </span>
+            )}
+          </div>
           {isResellerSale && canOverridePrice ? (
             <div className="flex flex-col items-start gap-1 text-[11.5px]">
               <input
@@ -212,6 +205,14 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         )}
+        <div className="basis-full empty:hidden">
+          <POSCartItemSourcing
+            item={item}
+            currencyCode={currencyCode}
+            isLocked={isLocked}
+            onConfigureSpotSourcing={onConfigureSpotSourcing}
+          />
+        </div>
       </motion.div>
     </div>
   );

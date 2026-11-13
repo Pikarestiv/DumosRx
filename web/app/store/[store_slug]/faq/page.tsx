@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight, HelpCircle } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
+import { StoreFaqSection } from "@/components/storefront/store-faq-section";
 import { StorefrontFooter } from "@/components/storefront/storefront-footer";
 import { StorefrontHeader } from "@/components/storefront/storefront-header";
 import { getStorefrontData } from "@/lib/api/storefront-data";
@@ -42,28 +43,6 @@ export default async function StorefrontFaqPage({ params }: FaqPageProps) {
   const { store, storefront, branches } = data;
   const businessName = storefront?.name || store.name;
 
-  const faqs = [
-    {
-      q: "How does in-store pickup work?",
-      a: "Once you place your order online, our dispensary prepares your items immediately. You will receive an SMS/WhatsApp or email confirmation when your package is ready for pickup at your selected branch.",
-    },
-    {
-      q: "What payment methods are supported?",
-      a: "Depending on your selected branch, we accept secure online card payments via Paystack, direct bank transfers, or payment on pickup (cash/POS at the counter).",
-    },
-    {
-      q: "Can I order prescription-only medications?",
-      a: "Prescription medications require a valid doctor's prescription. You can present your physical prescription upon pickup or upload it through our prescription portal.",
-    },
-    {
-      q: "How can I switch branches?",
-      a: "You can select your preferred pickup branch using the branch switcher in the header or via the Locations page. Because inventory is live at each store, switching branches will update item availability.",
-    },
-    {
-      q: "What is your return policy for pharmaceuticals?",
-      a: "In accordance with regulatory healthcare guidelines, dispensed medications cannot be returned or refunded once they leave pharmacy custody, except in the case of verified manufacturing recall.",
-    },
-  ];
 
   return (
     <div className="min-h-screen bg-muted/40 flex flex-col">
@@ -89,37 +68,10 @@ export default async function StorefrontFaqPage({ params }: FaqPageProps) {
           <span className="text-foreground font-medium">FAQ & Policies</span>
         </nav>
 
-        <section className="space-y-6">
-          <div className="space-y-2">
-            <h1 className="font-heading text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
-              Frequently Asked Questions
-            </h1>
-            <p className="text-muted-foreground text-sm sm:text-base">
-              Everything you need to know about ordering, pickup, and pharmacy
-              policies.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            {faqs.map((faq, index) => (
-              <div
-                key={index}
-                className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2"
-              >
-                <div className="flex items-center gap-2 text-foreground font-heading font-bold text-base sm:text-lg">
-                  <HelpCircle className="h-5 w-5 text-primary shrink-0" />
-                  <span>{faq.q}</span>
-                </div>
-                <p className="text-sm text-muted-foreground pl-7 leading-relaxed">
-                  {faq.a}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
+        <StoreFaqSection headingAs="h1" />
       </main>
 
-      <StorefrontFooter store={store} />
+      <StorefrontFooter storeSlug={store_slug} store={store} storefront={storefront} />
     </div>
   );
 }

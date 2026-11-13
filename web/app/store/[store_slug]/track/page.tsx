@@ -82,7 +82,7 @@ export default async function StorefrontTrackPage({ params }: TrackPageProps) {
         <StoreOrderTracker storeSlug={store_slug} />
       </main>
 
-      <StorefrontFooter store={store} />
+      <StorefrontFooter storeSlug={store_slug} store={store} storefront={storefront} />
     </div>
   );
 }

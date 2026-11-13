@@ -41,11 +41,29 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 2 — stock and money figures wrong
 
+#### A-377. `client/` — two tills counting the same store offline can both post a cycle-count correction for the same product
+
+- **Found:** 2026-11-13, in the stock-audit durability investigation (A-375, A-376).
+- **What's wrong:** the cloud audit session's single-editor lease only works while both tills are online. Two tills that open Cycle Count offline each count and submit locally, and `submitStockAudit()` posts each one's `countedQty - baselineQty` as its own stock movement, so a product both counted is corrected twice when they sync.
+- **Fix, if wanted:** belongs with A-211's absolute-observation design: record the count as an observation and let the server reconcile two observations of the same product, rather than summing two deltas.
+
+#### A-378. `client/` — a row taken over from another till's cloud session has no baseline, so its submit measures against stock at submit time
+
+- **Found:** 2026-11-13, alongside A-376.
+- **What's wrong:** `audit_session_items` stores `system_quantity` (the sheet's opening figure) but not the `baselineQty` the counting till read when the row was counted. `mergeCloudItemsIntoLocal()` fills the count without a baseline, so after a takeover `submitStockAudit()` measures that row against live stock at submit, and any sale between the count and the submit is added back.
+- **Fix:** add a `baseline_quantity` column and payload field beside `system_quantity` (additive; old clients send none and keep today's behaviour), send `item.baselineQty`, and set `baselineQty` from it in the merge.
+
 #### A-337. `client/` — what A-271 left: a terminally conflicted batch re-queued on boot keeps shielding itself, and other money columns still overflow at 100,000,000
 - **Found:** 2026-10-15 as part of A-271; split out 2026-10-25 when the rest of A-271 was fixed.
 - **Orphaned rows:** after a terminal conflict drop a batch is left `_synced = 0` with no queue entry, and `requeueOrphanedRowsOnce()` (`reconcile-identity.ts`, on a crash-flagged boot) re-queues it as a whole-row push. That push conflicts again, and while it is queued it is not quantity-only, so it shields the row from the pull again. This is the only path that pins both the cost and the rewind budget. Fix: re-queue an orphaned `stock_batches` row only after pulling the server's copy, or drop its non-quantity fields when the conflict was terminal.
 - **Evidence still worth gathering:** a device report from both of Cynthia's tills (`laravel-server/AGENTS.md`, "Remote device report"). Read `rewind_count`, "Batch edits the server refused" and "Batch costs on this device"; since A-271 `SHIELDED` marks rows the pull skips by the same rule it applies, plus orphans (unsynced, no queue row), which the pull overwrites until a crash-flagged boot re-queues them. Also ask her whether a conflict toast appears when she saves a cost, and whether the old price comes back.
 - **Other `decimal(10,2)` money columns:** A-271 widened the batch cost columns. Selling prices, sale and purchase-order totals and the rest of `decimal(10,2)` still refuse 100,000,000 or more, which leaves that row failing on every retry the same way. Fix: widen them together, or validate the value at entry.
+
+#### A-374. `client/` — a return values the restocked units at the batch's current cost, not the cost the sale recorded
+
+- **Found:** 2026-11-13, building the batch cost correction (`client/lib/db/queries/batch-cost-correction.ts`).
+- **What's wrong:** `recordReturnDisposition()` and `restoreBatchQuantity()` (`client/lib/db/queries/returns.ts:55`, `:111`) read `stock_batches.cost_price` at return time for the `return` movement's `unit_cost`/`total_cost`, and returned COGS in BI and the monthly trend (`bi-metrics.ts:88`, `report-trends.ts:40`) prefers that `total_cost`. The sale's own COGS comes from `sale_items.cost_price`, which is the product's *average* cost at sale time. So a full return does not net the sale's COGS to zero whenever the batch cost differs from that snapshot: after a batch cost correction, after a stock-audit cost correction, or simply because the average and the batch cost were never equal.
+- **Fix:** value the return movement from the returned `sale_items.cost_price` (already joined as `avg_cost_price` in the fallback branch) rather than the live batch cost. Changes reported profit for past returns on recompute, so ship it with a note to owners.
 
 #### A-211. `client/` — a stock count still records the difference it saw, not the number counted; a device behind sync is now warned, not prevented
 
@@ -185,6 +203,13 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** a return writes `reseller_markup_amount`, `reseller_commission_amount` and `reseller_commission_owed_back` (and `payment_status`) as one patch recomputed on the returning device. When two offline devices each return a different line of one sale, the second patch hits a version conflict and is discarded, while its `returns`/`return_items` rows are accepted. Nothing recomputes the figures afterwards.
 - **Consequence:** sale of 4 × 150 (list 100), commission 20 redeemed; till A returns 1 (owed back 5), till B returns 2 offline. B's patch is dropped, so the stored owed-back stays 5 where 15 is correct, on the server and on every device. The `payment_status` half was already true; the money fields widen it.
 - **Fix:** derive the three figures (ideally `payment_status` too) from `sale_items` + `return_items` instead of storing a patch, either on the client whenever a pulled `return_items` row lands for a local sale or on the server when a `returns` row is inserted. Needs the §11 plan: old bundles keep sending patches.
+
+#### A-364. `client/` — the BI report's top sellers and category split leave out service revenue, so they no longer add up to revenue
+- **Found:** 2026-11-13, review of `feat/service-pos`.
+- **Location:** `client/lib/db/queries/bi-metrics.ts`, the top-sellers-by-revenue, top-sellers-by-units and category-split queries and the full product-performance query (all `FROM sale_items si JOIN products m`).
+- **What's wrong:** service revenue is in `sales.total_amount` but in no `sale_items` row, so on a store that sells services the category split and the top-seller lists stop summing to the revenue figure above them, with nothing to say where the difference went.
+- **Why it was left:** how services should appear is a product call: one "Services" category row, one slice per `services.category`, services ranked among products in top sellers, or a separate services table. Each changes what an owner reads, so it was not guessed.
+- **Proposed fix:** once decided, `UNION ALL` the matching `sale_services` aggregate (`service_name`, `SUM(total_price)`, `SUM(quantity)`, live rows only, same date/store/`joined.clause` filters) into each query, with a test that the category split sums to net product + service revenue on a mixed sale.
 
 ### Tier 3 — sync reliability, observability, latent hazards
 
@@ -442,6 +467,21 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
+#### A-372. `client/` + `web/` — a store owner's customer-referral link never credits the referrer
+- **Found:** 2026-08-15 while building the agent role (noted only in the roadmap until 2026-11-13); re-checked in code 2026-11-13.
+- **What's wrong:** `referral-tab.tsx` builds `${window.location.origin}/register?ref=<code>`, i.e. on the POS app's own origin, which has no `/register` route. And `web/`'s register form (`use-register-form.ts`) forwards only `agent_ref`, never `ref`, although `RegistersAccounts::register()` accepts `ref` and sets `referred_by_id` from it. So a sign-up through the link is never attributed.
+- **Fix:** point the link at the `web/` register page via a constant (§4, no hardcoded URL) and forward `ref` from `use-register-form.ts` beside `agent_ref`.
+
+#### A-371. `laravel-server/` — `PUT /admin/stores/{id}/storefront` answers 500, not 404, for a store id that does not exist
+- **Found:** 2026-11-13, adding the storefront theme endpoint beside it.
+- **What's wrong:** `AdminStoreStorefrontService::setEnabled()` calls `Store::findOrFail()`, and `AdminBaseController::withErrorResponse()` catches every `\Exception` except a validation one, so the `ModelNotFoundException` is logged as an error and returned as a generic 500 "Failed to update the storefront". The new theme endpoint catches it and answers 404.
+- **Fix:** catch `ModelNotFoundException` in `AdminStoreStorefrontController::update()` the way `updateTheme()` does, or let `withErrorResponse()` rethrow it so Laravel renders the 404 for every admin controller.
+
+#### A-361. `client/` + `laravel-server/` — `schema-migrations.ts` and `SyncController.php` are far over the 350-line rule
+- **Found:** 2026-11-13, review of `feat/service-pos`; pre-existing (main already had 857 and ~840 lines), the services work added a little to each.
+- **What's wrong:** `client/lib/db/schema-migrations.ts` is 925 lines and `laravel-server/app/Http/Controllers/Api/App/SyncController.php` 846, against `.agents/AGENTS.md` §4.
+- **Fix:** split the migrations by era or table group behind the same `runSchemaMigrations()` entry point; move the pull loop out of `SyncController::pull()` into a service beside `PullPager`/`PullTenantScope`. Each in its own refactor PR, with `npm run test:schema` and the sync feature tests as the guard.
+
 #### A-338. `laravel-server/` — `sync:backfill-store-ids` writes `store_id` without moving `updated_at` or `_version`, so a row it attributes never reaches a device
 - **Found:** 2026-10-25, by the review of A-246's fix.
 - **Location:** `app/Console/Commands/BackfillStoreIds.php`, the `--apply` write (`DB::table($table)->whereIn('id', $ids)->update(['store_id' => $storeId])`).
@@ -449,13 +489,13 @@ suggested tackle order rather than a strict ranking.
 - **Exposure:** small today. The one production run (2026-10-18) attributed 594 `activity_logs` rows and no business row (`laravel-server/AGENTS.md`, "`store_id` backfill").
 - **Fix:** spread `App\Support\SyncRowStamp::for($table)` into that update (A-278), and say in the command's output that touched rows re-pull to every device.
 
-#### A-335. `laravel-server/` — a child row can still be pointed at another tenant's store-less legacy parent
+#### A-362. `laravel-server/` — a child row can still be pointed at another tenant's store-less legacy parent
 - **Found:** 2026-10-25, fixing A-325.
 - **What's wrong:** `authorizeInsertTarget()` and A-325's `repointsToForeignParent()` resolve a child's store through its parent; a parent with `store_id = NULL` resolves to none, so the check falls back to the row's own `store_id` (INSERT) or lets it through (UPDATE). A batch can therefore be attached to another tenant's pre-backfill `NULL`-store product.
 - **Consequence:** small. The row joins no store's pull, so nothing crosses tenants on any device, and the A-248 attributor and repair command both refuse to attribute another tenant's product (4431114). But the attacker's batch becomes contradictory evidence on the victim's product, so that product can no longer be attributed from its stock. It needs the uuid of a store-less product.
 - **Fix:** when the parent resolves to no store, judge it by its author the way `authorizeChangeTarget()` judges a legacy row (`user_id` in `$allowedUserIds`, or no live author), on INSERT and UPDATE alike.
 
-#### A-336. `client/` — small A-323 follow-ups: Settings shows a refusal without its remedy, an in-progress sync reads as an error, repeated `/user` calls
+#### A-363. `client/` — small A-323 follow-ups: Settings shows a refusal without its remedy, an in-progress sync reads as an error, repeated `/user` calls
 - **Found:** 2026-10-25, by the second review of A-323's fix.
 - **Settings toast:** Settings > Data's Sync now shows `STORE_REFUSED_MESSAGE` alone, without the remedy the sync indicator appends (`storeRefusalRemedy()`); pass `result.refusal` through `failUnlessSucceeded()` and append it.
 - **In-progress sync:** `failUnlessSucceeded()` rejects `SYNC_IN_PROGRESS_ERROR` too, so pressing Sync while one runs shows an error toast. Before A-323 it showed a false "Sync complete!"; a `toast.info` would fit better.
@@ -702,6 +742,9 @@ These describe the current state of known architectural tradeoffs and performanc
 ### Files over 350 lines touched by a fix
 Logged per the 2026-10-25 rule: each file a fix edits that was already over the 350-line limit, or that it pushes over, with its size after the change. None of these were split inside a bug fix.
 - `laravel-server/app/Http/Controllers/Api/App/SyncController.php`: 823 lines, already over (A-325 added the payload-key refusal, A-217 added the up-front batch lock and push-inbound map). What is left in it is listed under Architecture below.
+- `laravel-server/app/Services/Web/DashboardService.php`: 707 lines, already over (the recent-transaction line query moved out to `RecentTransactionLines`, so it shrank).
+- `client/lib/db/local-database.ts`: 500 lines, already over (`forceSyncAllData()` gained the three services tables on one line).
+- `client/lib/db/core.ts`: 1275 lines, already over (A-375 added `stock_audit_drafts` to `LOCAL_WIPE_TABLES`).
 
 ### Architecture
 

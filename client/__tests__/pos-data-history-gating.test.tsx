@@ -27,6 +27,10 @@ vi.mock("@/lib/db/queries/setup", () => ({
   getPaymentAccounts: vi.fn(() => Promise.resolve([])),
 }));
 
+vi.mock("@/lib/db/queries/services", () => ({
+  getServices: vi.fn(() => Promise.resolve([])),
+}));
+
 vi.mock("@/lib/context/auth-context", () => ({
   useAuth: () => ({ user: { id: "u1" } }),
 }));

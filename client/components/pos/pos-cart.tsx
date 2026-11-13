@@ -2,30 +2,21 @@
 
 import { memo, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { Trash2, PauseCircle, ClipboardList, FileText } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { EmptyCart, HeldSalesChip, PrescriptionLockBanner } from "./pos-cart-notices";
 import { RequestItemDialog } from "./request-item-dialog";
 import { ProformaPreviewDialog } from "./proforma-preview-dialog";
 import { SpotSourceDialog } from "./spot-source-dialog";
 import { POSCartItem } from "./pos-cart-item";
+import { POSCartActions } from "./pos-cart-actions";
 import { useRevealChangedCartLine } from "@/lib/hooks/use-reveal-changed-cart-line";
 import { POSRedeemReward } from "./pos-redeem-reward";
 import { POSCartDiscount } from "./pos-cart-discount";
 import { POSCartMarkupPicker } from "./pos-cart-markup-picker";
-import type { CartItem, RedeemedOption, MarkupType, SpotSourcingConfig } from "@/lib/hooks/use-pos-cart";
+import type { CartItem, RedeemedOption, MarkupType, SpotSourcingConfig, SpotSourcingSplitOptions } from "@/lib/hooks/use-pos-cart";
 import type { Customer } from "@/lib/types/customer";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
-
-// Literal class strings, not a `grid-cols-${n}` template:
-// Rationale: docs/CLIENT_COMMENTS.md#block-components-pos-pos-cart-tsx-L24
-const SECONDARY_ACTION_GRID_COLS = [
-  "grid-cols-1",
-  "grid-cols-1",
-  "grid-cols-2",
-  "grid-cols-3",
-] as const;
 
 interface POSCartProps {
   cart: CartItem[];
@@ -57,7 +48,11 @@ interface POSCartProps {
   markupType?: MarkupType | null;
   setMarkupType?: (value: MarkupType | null) => void;
   updateUnitPrice?: (id: string, price: number) => void;
-  updateSpotSourcing?: (id: string, config: SpotSourcingConfig | null) => void;
+  updateSpotSourcing?: (
+    id: string,
+    config: SpotSourcingConfig | null,
+    splitOptions?: SpotSourcingSplitOptions,
+  ) => void;
 }
 
 export const POSCart = memo(function POSCart({
@@ -171,19 +166,23 @@ export const POSCart = memo(function POSCart({
           ))}
       </div>
 
-      <div className="border-t border-border px-5 pt-4 pb-5 bg-muted/10">
+      <div className="border-t border-border px-5 pt-3 pb-4 bg-muted/10">
         {heldSalesCount > 0 && <HeldSalesChip count={heldSalesCount} onOpen={onOpenHeldSales} />}
 
-        <div className="space-y-2 mb-4">
-          <div className="flex justify-between text-[12.5px] text-muted-foreground">
-            <span>Subtotal</span>
-            <span>{formatCurrency(subtotal, currencyCode)}</span>
-          </div>
+        <div className="space-y-1.5 mb-3">
+          {(tax > 0 || calculatedDiscount > 0) && (
+            <div className="flex justify-between text-[12.5px] text-muted-foreground">
+              <span>Subtotal</span>
+              <span>{formatCurrency(subtotal, currencyCode)}</span>
+            </div>
+          )}
 
-          <div className="flex justify-between text-[12.5px] text-muted-foreground">
-            <span>VAT ({vatPercentage}%)</span>
-            <span>{formatCurrency(tax, currencyCode)}</span>
-          </div>
+          {(vatPercentage > 0 || tax > 0) && (
+            <div className="flex justify-between text-[12.5px] text-muted-foreground">
+              <span>VAT ({vatPercentage}%)</span>
+              <span>{formatCurrency(tax, currencyCode)}</span>
+            </div>
+          )}
 
           {redeemedOption && (
             <POSRedeemReward
@@ -224,45 +223,25 @@ export const POSCart = memo(function POSCart({
             </div>
           )}
 
-          <div className="flex justify-between text-base font-bold text-foreground mt-2 pt-2.5 border-t border-dashed border-border">
+          <div className="flex justify-between text-base font-bold text-foreground mt-1.5 pt-2 border-t border-dashed border-border">
             <span>Total</span>
             <span>{formatCurrency(total, currencyCode)}</span>
           </div>
         </div>
 
-        <div
-          className={`grid gap-2 mb-3 ${SECONDARY_ACTION_GRID_COLS[
-            1 + (showHoldAction ? 1 : 0) + (showClearCartAction ? 1 : 0)
-          ]}`}
-        >
-          <button
-            onClick={() => setShowRequestDialog(true)}
-            className="w-full flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg border border-border bg-card text-[11.5px] font-semibold text-foreground cursor-pointer hover:bg-muted/50 transition-colors"
-          >
-            <ClipboardList className="w-3.5 h-3.5" />
-            Request Item
-          </button>
-
-          {showHoldAction && (
-            <button
-              onClick={onHoldSale}
-              className="w-full flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg border border-amber-500/20 bg-amber-500/5 text-[11.5px] font-semibold text-amber-600 cursor-pointer hover:bg-amber-500/10 transition-colors"
-            >
-              <PauseCircle className="w-3.5 h-3.5" />
-              Hold Sale
-            </button>
-          )}
-
-          {showClearCartAction && (
-            <button
-              onClick={onRequestClearCart}
-              className="w-full flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg border border-destructive/20 bg-destructive/5 text-[11.5px] font-semibold text-destructive cursor-pointer hover:bg-destructive/10 transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Clear cart
-            </button>
-          )}
-        </div>
+        <POSCartActions
+          onRequestItem={() => setShowRequestDialog(true)}
+          onHoldSale={showHoldAction ? onHoldSale : undefined}
+          onClearCart={showClearCartAction ? onRequestClearCart : undefined}
+          onPreviewQuote={
+            cart.length > 0
+              ? withRestriction(() => setShowProformaDialog(true), {
+                  featureAllowed: canUseProformaQuotes,
+                  featureKey: "proforma_quotes",
+                })
+              : undefined
+          }
+        />
 
         <RequestItemDialog open={showRequestDialog} onOpenChange={setShowRequestDialog} />
         <ProformaPreviewDialog
@@ -275,19 +254,6 @@ export const POSCart = memo(function POSCart({
           total={total}
           selectedCustomer={selectedCustomer}
         />
-
-        {cart.length > 0 && (
-          <button
-            onClick={withRestriction(
-              () => setShowProformaDialog(true),
-              { featureAllowed: canUseProformaQuotes, featureKey: "proforma_quotes" },
-            )}
-            className="w-full flex items-center justify-center gap-1.5 py-2 px-2 mb-2 rounded-lg border border-border bg-card text-[12.5px] font-semibold text-foreground cursor-pointer hover:bg-muted/50 transition-colors"
-          >
-            <FileText className="w-3.5 h-3.5" />
-            Preview Quote
-          </button>
-        )}
 
         <button
           onClick={handleCharge}
@@ -312,9 +278,9 @@ export const POSCart = memo(function POSCart({
         onOpenChange={(open) => !open && setSpotSourceItem(null)}
         cartItem={spotSourceItem}
         currencyCode={currencyCode}
-        onConfirm={(config) => {
+        onConfirm={(config, quantity, sellingPrice, splitOptions) => {
           if (spotSourceItem) {
-            updateSpotSourcing?.(spotSourceItem.id, config);
+            updateSpotSourcing?.(spotSourceItem.id, config, splitOptions);
           }
         }}
         onRevertToShelf={() => {

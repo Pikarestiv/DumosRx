@@ -167,11 +167,7 @@ class DashboardService
                 ->limit(5)
                 ->get()
                 ->map(function ($sale) {
-                    $items = DB::table('sale_items')
-                        ->where('sale_id', $sale->id)
-                        ->leftJoin('products', 'sale_items.product_id', '=', 'products.id')
-                        ->select('sale_items.*', 'products.name as medicine_name')
-                        ->get();
+                    $items = RecentTransactionLines::forSale($sale->id);
 
                     return [
                         'id' => $sale->id,

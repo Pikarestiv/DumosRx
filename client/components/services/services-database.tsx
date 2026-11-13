@@ -1,0 +1,258 @@
+"use client";
+
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Sparkles } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { SearchInput } from "@/components/ui/search-input";
+import { FilterPill } from "@/components/ui/filter-pill";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useStore } from "@/lib/context/store-context";
+import { useAuth } from "@/lib/context/auth-context";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
+import { queryKeys } from "@/lib/query-keys";
+import { getServices } from "@/lib/db/queries/services";
+import { ServicesList } from "./services-list";
+import { ServiceFormDialog } from "./service-form-dialog";
+import { ServiceDeleteDialog } from "./service-delete-dialog";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import type { Service } from "@/lib/types/service";
+
+export function ServicesDatabase() {
+  const { activeStoreId, storeProfile } = useStore();
+  const currencyCode = storeProfile?.currency;
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const { canManageStockBatch: canManageServices } = useAuth();
+  const canDeleteServices = useHasPermission("delete_products");
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "inactive"
+  >("all");
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingService, setEditingService] = useState<Service | null>(null);
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const searchParamsKey = searchParams.toString();
+  const [appliedSearchParamsKey, setAppliedSearchParamsKey] = useState<
+    string | null
+  >(null);
+  if (searchParamsKey !== appliedSearchParamsKey) {
+    setAppliedSearchParamsKey(searchParamsKey);
+    if (searchParams.get("action") === "add" && canManageServices) {
+      setEditingService(null);
+      setFormOpen(true);
+    }
+  }
+
+  useEffect(() => {
+    if (searchParams.get("action") !== "add") return;
+    const newParams = new URLSearchParams(searchParams.toString());
+    newParams.delete("action");
+    const newUrl =
+      window.location.pathname +
+      (newParams.toString() ? `?${newParams.toString()}` : "");
+    router.replace(newUrl);
+  }, [searchParams, router]);
+
+  const { data: rawServices = [], isLoading } = useQuery({
+    ...queryKeys.services.all(),
+    queryFn: () => getServices({ storeId: activeStoreId, activeOnly: false }),
+  });
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of rawServices) {
+      if (s.category?.trim()) set.add(s.category.trim());
+    }
+    return ["all", ...Array.from(set).sort()];
+  }, [rawServices]);
+
+  const filteredServices = useMemo(() => {
+    return rawServices.filter((s) => {
+      if (categoryFilter !== "all" && s.category !== categoryFilter)
+        return false;
+      if (statusFilter === "active" && !s.is_active) return false;
+      if (statusFilter === "inactive" && s.is_active) return false;
+
+      if (searchTerm.trim()) {
+        const q = searchTerm.toLowerCase();
+        const mName = s.name.toLowerCase().includes(q);
+        const mCode = s.code?.toLowerCase().includes(q);
+        const mCat = s.category?.toLowerCase().includes(q);
+        return mName || mCode || mCat;
+      }
+      return true;
+    });
+  }, [rawServices, categoryFilter, statusFilter, searchTerm]);
+
+  const handleEdit = (service: Service) => {
+    setEditingService(service);
+    setFormOpen(true);
+  };
+
+  const handleDelete = (service: Service) => {
+    setServiceToDelete(service);
+    setDeleteOpen(true);
+  };
+
+  const handleAdd = () => {
+    setEditingService(null);
+    setFormOpen(true);
+  };
+
+  const isFiltered = Boolean(
+    searchTerm.trim() || categoryFilter !== "all" || statusFilter !== "all",
+  );
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0 gap-4">
+      {/* Mobile Filters (above card) */}
+      {!isDesktop && (
+        <div className="lg:hidden flex flex-col gap-3">
+          <SearchInput
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Search services by name, code or category..."
+            aria-label="Search services"
+            inputClassName="bg-card border-border"
+          />
+          <div className="flex items-center gap-2 flex-wrap">
+            <FilterPill
+              label="Category"
+              value={categoryFilter}
+              onValueChange={setCategoryFilter}
+              options={categories.map((c) => ({
+                value: c,
+                label: c === "all" ? "All" : c,
+              }))}
+              className="bg-card"
+            />
+            <FilterPill
+              label="Status"
+              value={statusFilter}
+              onValueChange={(val) =>
+                setStatusFilter(val as "all" | "active" | "inactive")
+              }
+              options={[
+                { value: "all", label: "All" },
+                { value: "active", label: "Active" },
+                { value: "inactive", label: "Inactive" },
+              ]}
+              className="bg-card"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Main Table Card (matching ProductDatabase card layout) */}
+      <div className="border-0 sm:border sm:border-border bg-transparent sm:bg-card rounded-none sm:rounded-2xl flex flex-col flex-1 min-h-[360px] overflow-hidden">
+        {/* Desktop Filters (inside card header) */}
+        {isDesktop && (
+          <div className="hidden lg:block p-4 border-b border-border space-y-3">
+            <div className="flex items-center gap-2">
+              <SearchInput
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder="Search services by name, code or category..."
+                aria-label="Search services"
+              />
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <FilterPill
+                label="Category"
+                value={categoryFilter}
+                onValueChange={setCategoryFilter}
+                options={categories.map((c) => ({
+                  value: c,
+                  label: c === "all" ? "All" : c,
+                }))}
+              />
+              <FilterPill
+                label="Status"
+                value={statusFilter}
+                onValueChange={(val) =>
+                  setStatusFilter(val as "all" | "active" | "inactive")
+                }
+                options={[
+                  { value: "all", label: "All" },
+                  { value: "active", label: "Active" },
+                  { value: "inactive", label: "Inactive" },
+                ]}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Table Content */}
+        <div className="flex-1 overflow-y-auto">
+          {isLoading ? (
+            <div className="flex items-center justify-center p-12 text-sm text-muted-foreground">
+              Loading services catalog...
+            </div>
+          ) : filteredServices.length === 0 ? (
+            <div className="p-8">
+              <EmptyState
+                icon={Sparkles}
+                title={
+                  rawServices.length === 0
+                    ? "No services configured"
+                    : "No services found"
+                }
+                description={
+                  rawServices.length === 0
+                    ? "Add spa, styling, consultation, or clinic services to sell them at POS alongside physical products."
+                    : "No services matched your active search or filters."
+                }
+                action={
+                  isFiltered
+                    ? {
+                        label: "Clear filters",
+                        onClick: () => {
+                          setSearchTerm("");
+                          setCategoryFilter("all");
+                          setStatusFilter("all");
+                        },
+                      }
+                    : canManageServices
+                      ? { label: "Add Service", onClick: handleAdd }
+                      : undefined
+                }
+              />
+            </div>
+          ) : (
+            <ServicesList
+              services={filteredServices}
+              currencyCode={currencyCode}
+              onEdit={canManageServices ? handleEdit : undefined}
+              onDelete={canDeleteServices ? handleDelete : undefined}
+            />
+          )}
+        </div>
+      </div>
+
+      {canManageServices && (
+        <ServiceFormDialog
+          open={formOpen}
+          onOpenChange={setFormOpen}
+          service={editingService}
+        />
+      )}
+
+      {canDeleteServices && (
+        <ServiceDeleteDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          service={serviceToDelete}
+        />
+      )}
+    </div>
+  );
+}

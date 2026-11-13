@@ -1,8 +1,10 @@
 import { query } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
 import { PRICE_ADJUSTMENT_COLUMNS_SQL } from "@/lib/db/queries/price-adjustment-sql";
+import { SALE_LINE_NAMES_SQL, SALE_UNIT_COUNT_SQL } from "@/lib/db/queries/sale-line-summary-sql";
 import { getSaleStockReconciliation } from "@/lib/db/queries/backorders";
-import type { Sale, SaleWithDetails, SaleItemDetail, ReturnRecord, ReturnItemDetail } from "@/lib/types/sale";
+import { getSaleServices } from "@/lib/db/queries/services";
+import type { Sale, SaleWithDetails, SaleItemDetail, ReturnRecord, ReturnItemDetail, SaleServiceDetail } from "@/lib/types/sale";
 import type { StockBatch } from "@/lib/types/stock-batch";
 
 export async function getSaleItems(saleId: string) {
@@ -63,7 +65,8 @@ export async function getTransactionDetails(saleId: string) {
       }
     }
 
-    return { items, returnsData, stockReconciliation };
+    const services = await getSaleServices(saleId).catch(() => [] as SaleServiceDetail[]);
+    return { items, returnsData, stockReconciliation, services };
   } catch (error) {
     console.error("Failed to fetch transaction details:", error);
     
@@ -76,10 +79,10 @@ export async function getTransactionDetails(saleId: string) {
          WHERE si.sale_id = ? AND (si._deleted = 0 OR si._deleted IS NULL)`,
         [saleId]
       );
-      return { items: fallbackItems, returnsData: [] };
+      return { items: fallbackItems, returnsData: [], services: [] };
     } catch (innerError) {
       console.error("Fallback query also failed:", innerError);
-      return { items: [], returnsData: [] };
+      return { items: [], returnsData: [], services: [] };
     }
   }
 }
@@ -107,58 +110,18 @@ export async function getStockBatchById(batchId: string) {
 
 // --- EOD Summary Queries ---
 
-export async function getSalesTotalsByPaymentMethod(date: string) {
-  const [year, month, day] = date.split('-').map(Number);
-  const startIso = new Date(year, month - 1, day, 0, 0, 0, 0).toISOString();
-  const endIso = new Date(year, month - 1, day, 23, 59, 59, 999).toISOString();
-  const storeId = getActiveStoreId();
-
-  return query<{ payment_method: string; total: number }>(`
-    SELECT payment_method, SUM(total_amount) as total
-    FROM sales
-    WHERE transaction_date >= ? AND transaction_date <= ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}
-    GROUP BY payment_method
-  `, storeId ? [startIso, endIso, storeId] : [startIso, endIso]);
-}
-
-export async function getTransactionCountByDate(date: string) {
-  const [year, month, day] = date.split('-').map(Number);
-  const startIso = new Date(year, month - 1, day, 0, 0, 0, 0).toISOString();
-  const endIso = new Date(year, month - 1, day, 23, 59, 59, 999).toISOString();
-  const storeId = getActiveStoreId();
-
-  const res = await query<{ count: number }>(`
-    SELECT COUNT(*) as count
-    FROM sales
-    WHERE transaction_date >= ? AND transaction_date <= ? AND _deleted = 0${storeId ? " AND store_id = ?" : ""}
-  `, storeId ? [startIso, endIso, storeId] : [startIso, endIso]);
-  return res[0]?.count || 0;
-}
-
-export async function getTopStaffByDate(dateStr: string) {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const startIso = new Date(year, month - 1, day, 0, 0, 0, 0).toISOString();
-  const endIso = new Date(year, month - 1, day, 23, 59, 59, 999).toISOString();
-  const storeId = getActiveStoreId();
-
-  return query<{ user_name: string; total_sales: number }>(
-    `SELECT TRIM(u.first_name || ' ' || COALESCE(u.last_name, '')) as user_name, SUM(s.total_amount) as total_sales
-     FROM sales s
-     JOIN users u ON s.user_id = u.id
-     WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND (s._deleted = 0 OR s._deleted IS NULL)${storeId ? " AND s.store_id = ?" : ""}
-     GROUP BY s.user_id
-     ORDER BY total_sales DESC
-     LIMIT 5`,
-    storeId ? [startIso, endIso, storeId] : [startIso, endIso],
-  );
-}
+export {
+  getSalesTotalsByPaymentMethod,
+  getTransactionCountByDate,
+  getTopStaffByDate,
+} from "./sales-eod";
 
 export async function getSaleById(saleId: string) {
   const rows = await query<SaleWithDetails>(
     `SELECT
       s.*,
       TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,
-      (SELECT SUM(quantity) FROM sale_items si WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_count
+      ${SALE_UNIT_COUNT_SQL} as item_count
      FROM sales s
      LEFT JOIN customers c ON s.customer_id = c.id
      WHERE s.id = ? AND s._deleted = 0`,
@@ -173,7 +136,7 @@ export async function getSaleByTransactionNumber(transactionNumber: string) {
     `SELECT
       s.*,
       TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,
-      (SELECT SUM(quantity) FROM sale_items si WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_count
+      ${SALE_UNIT_COUNT_SQL} as item_count
      FROM sales s
      LEFT JOIN customers c ON s.customer_id = c.id
      WHERE s.transaction_number = ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}`,
@@ -191,7 +154,7 @@ export async function getResellerCommissionSales() {
     `SELECT
       s.*,
       TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,
-      (SELECT GROUP_CONCAT(pr.name, '||') FROM sale_items si JOIN products pr ON si.product_id = pr.id WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_names,
+      ${SALE_LINE_NAMES_SQL} as item_names,
       COALESCE((SELECT ROUND(SUM(sm.quantity), 6) FROM stock_movements sm WHERE sm.reference_id = s.id AND sm.reference_type = 'backorder' AND (sm._deleted = 0 OR sm._deleted IS NULL)), 0) as stock_originally_owed,
       COALESCE((SELECT ROUND(SUM(ABS(sm.quantity)), 6) FROM stock_movements sm WHERE sm.reference_id = s.id AND sm.reference_type = 'backorder_settlement' AND (sm._deleted = 0 OR sm._deleted IS NULL)), 0) as stock_settled,
       ${PRICE_ADJUSTMENT_COLUMNS_SQL}
@@ -255,9 +218,9 @@ export async function getRecentSales(
       s.*,
       TRIM(c.first_name || ' ' || COALESCE(c.last_name, '')) as customer_name,
       TRIM(u.first_name || ' ' || u.last_name) as cashier_name,
-      (SELECT SUM(quantity) FROM sale_items si WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_count,
+      ${SALE_UNIT_COUNT_SQL} as item_count,
       COALESCE((SELECT SUM(r.total_refunded) FROM returns r WHERE r.sale_id = s.id AND (r._deleted = 0 OR r._deleted IS NULL)), 0) as total_refunded,
-      (SELECT GROUP_CONCAT(pr.name, '||') FROM sale_items si JOIN products pr ON si.product_id = pr.id WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_names,
+      ${SALE_LINE_NAMES_SQL} as item_names,
       COALESCE((SELECT ROUND(SUM(sm.quantity), 6) FROM stock_movements sm WHERE sm.reference_id = s.id AND sm.reference_type = 'backorder' AND (sm._deleted = 0 OR sm._deleted IS NULL)), 0) as stock_originally_owed,
       COALESCE((SELECT ROUND(SUM(ABS(sm.quantity)), 6) FROM stock_movements sm WHERE sm.reference_id = s.id AND sm.reference_type = 'backorder_settlement' AND (sm._deleted = 0 OR sm._deleted IS NULL)), 0) as stock_settled,
       ${PRICE_ADJUSTMENT_COLUMNS_SQL}
@@ -305,8 +268,8 @@ export async function getDailyCloseData(reportDate: string) {
   // All four reads are independent, so they go out together rather than one
   // await at a time (same shape as getCurrentMonthRevenue in finance.ts).
   const [salesToday, itemsToday, returnsToday, returnItemsToday] = await Promise.all([
-    query<Sale>(
-      `SELECT s.*, ${PRICE_ADJUSTMENT_COLUMNS_SQL} FROM sales s WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}`,
+    query<Sale & { item_names?: string }>(
+      `SELECT s.*, ${PRICE_ADJUSTMENT_COLUMNS_SQL}, ${SALE_LINE_NAMES_SQL} as item_names FROM sales s WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}`,
       storeId ? [startIso, endIso, storeId] : [startIso, endIso],
     ),
 

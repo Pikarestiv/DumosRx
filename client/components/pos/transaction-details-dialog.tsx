@@ -69,6 +69,7 @@ export function TransactionDetailsDialog({
 
   const items = detailsData?.items || [];
   const returnsData = detailsData?.returnsData || [];
+  const services = detailsData?.services || [];
   const recordPaymentMutation = useRecordCustomerPaymentMutation();
   const redeemMutation = useRedeemResellerCommissionMutation();
 
@@ -190,7 +191,7 @@ export function TransactionDetailsDialog({
         <DropdownMenu>
           <div className="flex w-full sm:w-auto">
             <Button
-              onClick={() => print(saleToReceiptTransaction(sale, items), "receipt")}
+              onClick={() => print(saleToReceiptTransaction(sale, [...items, ...services]), "receipt")}
               className="flex-1 sm:w-auto rounded-r-none"
             >
               <Printer className="w-4 h-4 mr-2" />
@@ -204,7 +205,7 @@ export function TransactionDetailsDialog({
           </div>
           <DropdownMenuContent align="end">
             <DropdownMenuItem
-              onClick={() => print(saleToReceiptTransaction(sale, items), "tax")}
+              onClick={() => print(saleToReceiptTransaction(sale, [...items, ...services]), "tax")}
             >
               Print Tax Invoice
             </DropdownMenuItem>
@@ -250,7 +251,7 @@ export function TransactionDetailsDialog({
           />
         )}
 
-        <TransactionItemsView items={items} currencyCode={currencyCode} />
+        <TransactionItemsView items={items} services={services} currencyCode={currencyCode} />
       </ScrollFade>
     </div>
   );

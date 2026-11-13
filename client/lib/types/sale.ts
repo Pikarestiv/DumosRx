@@ -52,7 +52,7 @@ export interface SaleWithDetails extends Sale {
   cashier?: string;
   item_count?: number;
   total_refunded?: number;
-  /** "||"-joined product names for this sale's line items, for searching by
+  /** "||"-joined product and service names for this sale's lines, for searching by
    * item without a separate fetch - see getRecentSales(). */
   item_names?: string;
   stock_originally_owed?: number;
@@ -89,6 +89,20 @@ export interface SaleItemDetail {
   originally_owed?: number;
   settled_units?: number;
   outstanding_units?: number;
+}
+
+export interface SaleServiceDetail {
+  id: string;
+  sale_id: string;
+  service_id?: string | null;
+  service_name: string;
+  name?: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  subtotal?: number;
+  notes?: string | null;
+  returned_quantity?: number;
 }
 
 /** returns row joined with the originating sale's payment fields: used to

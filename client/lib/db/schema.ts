@@ -733,5 +733,60 @@ CREATE TABLE IF NOT EXISTS supplier_payments (
   _synced_at TEXT,
   _deleted INTEGER DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS services (
+  id TEXT PRIMARY KEY,
+  store_id TEXT,
+  name TEXT NOT NULL,
+  code TEXT,
+  description TEXT,
+  category TEXT,
+  price REAL DEFAULT 0,
+  is_active INTEGER DEFAULT 1,
+  created_at TEXT,
+  updated_at TEXT,
+  deleted_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS sale_services (
+  id TEXT PRIMARY KEY,
+  store_id TEXT,
+  sale_id TEXT NOT NULL,
+  service_id TEXT,
+  service_name TEXT NOT NULL,
+  quantity INTEGER DEFAULT 1,
+  unit_price REAL DEFAULT 0,
+  total_price REAL DEFAULT 0,
+  notes TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  deleted_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS return_services (
+  id TEXT PRIMARY KEY,
+  store_id TEXT,
+  return_id TEXT NOT NULL,
+  sale_service_id TEXT,
+  quantity INTEGER DEFAULT 1,
+  refund_amount REAL DEFAULT 0,
+  reason TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  deleted_at TEXT,
+  _version INTEGER DEFAULT 1,
+  _synced INTEGER DEFAULT 0,
+  _synced_at TEXT,
+  _deleted INTEGER DEFAULT 0
+);
+
 `;
 

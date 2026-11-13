@@ -2184,34 +2184,48 @@ on screen from having walked to the shelf.
   counted"; the review step's submit button is now disabled while
   `countedItems.length === 0`.
 
-### Device-local drafts: clear all of them, from one function (2026-10-13, updated 2026-11-02)
+### Device-local drafts: where they live and what clears them (2026-10-13, updated 2026-11-02 and 2026-11-13)
 
-Three drafts are persisted per device: POS cart (`pos-cart-storage`), cycle
-count (`stock-audit-draft`), and stock adjustment (`stock-adjustment-draft`).
-Previously, all three were un-scoped and wiped on every store switch.
+Three drafts are persisted per device: POS cart (`pos-cart-storage`, localStorage),
+cycle count, and stock adjustment.
 
-As of 2026-11-02 (Cynthia's incident & draft store-scoping):
-1. **Stock audit & adjustment drafts are store-scoped**: State in `useStockAuditDraftStore`
-   and `useStockAdjustmentDraftStore` is keyed by store id (`drafts[storeId]`), and backed
-   by local SQLite tables `stock_audit_drafts` and `stock_adjustment_drafts`
-   (`(store_id TEXT PRIMARY KEY, user_id TEXT, draft_json/items_json TEXT NOT NULL, updated_at TEXT)`).
-   These tables are device-local (no server migration, not synced).
-2. **Store switching preserves audit and adjustment drafts**: `store-context.tsx` calls
-   `clearLocalDrafts({ preserveStoreAudit: true, preserveStoreAdjustment: true })`, which clears
-   the POS cart while leaving the store's audit and adjustment drafts intact.
-   Switching back to the store restores the draft seamlessly.
-3. **Work in-progress reminder**: `HeaderStoreSwitcher` checks
-   `hasActiveStockAuditCount(activeStoreId)` and `hasActiveStockAdjustmentDraft(activeStoreId)`
-   before switching; if active work exists, it displays an informative `ConfirmDialog` reassuring
-   the user that counts and items are safely saved locally on this device before proceeding.
-4. **Full context teardowns still clear everything**: `clearLocalDrafts()` without
-   options drops all drafts across the board. The four full teardown paths: a
-   different user logging in (`auth-context.tsx`, gated on `previousUserId !== dbUser.id`),
-   logout (`auth-context.tsx`), linking a new cloud store (`app/setup/use-onboarding.ts`),
-   and factory reset (`hooks/use-settings-sync.ts`).
-5. **Successful submission**: Once an audit or adjustment is submitted or discarded in
-   the UI, `clearStockAuditDraft(storeId)` or `clearStockAdjustmentDraft(storeId)` cleans up
-   that specific store's draft from SQLite and memory.
+1. **Stock audit & adjustment drafts are store-scoped** (A-373, 2026-11-02): state in
+   `useStockAuditDraftStore` and `useStockAdjustmentDraftStore` is keyed by store id
+   (`drafts[storeId]`), backed by the device-local SQLite tables `stock_audit_drafts` and
+   `stock_adjustment_drafts` (`(store_id TEXT PRIMARY KEY, user_id TEXT, draft_json/items_json TEXT NOT NULL, updated_at TEXT)`).
+   No server migration, not synced.
+2. **The cycle count draft has one durable copy, SQLite** (A-375, 2026-11-13).
+   `useStockAuditDraftStore` no longer uses zustand `persist`; nothing of the sheet is
+   in localStorage. Writes are debounced 400ms and flushed at once by
+   `flushStockAuditDraftSaves()` on `pagehide`, `visibilitychange` (hidden), store switch,
+   logout and user switch. `loadStoreDraft()` waits for `initDatabase()` (on a cold start
+   the store id resolves before the DB opens; without the wait the sheet rebuilt empty and
+   overwrote the draft), and `useAuditSheetSource` builds no sheet until
+   `loadedStoreId === activeStoreId`. A count made while no store id resolves stays in
+   memory and is filed under the store once one is set; nothing is written under
+   `"default"` any more.
+   **Compat shim:** `importLegacyStockAuditDrafts()` (`lib/hooks/stock-audit-draft-legacy.ts`)
+   moves a pre-2026-11 `stock-audit-draft` localStorage blob into SQLite once, never over an
+   existing SQLite draft, removing the key only after every write succeeded;
+   `adoptUnscopedStockAuditDraft()` adopts an old `"default"` SQLite row. Retire both once
+   no active device reports a build older than 2026-11-13.
+   The stock adjustment draft still has its localStorage `persist` copy; not changed here.
+3. **Store switch, logout and user switch keep the cycle count.** All three call
+   `clearLocalDrafts({ preserveStoreAudit: true, ... })`. Logout and a different user's
+   `login()` still clear the POS cart and the stock adjustment draft. Before logout or
+   Switch Account, `useAccountActions` shows `AccountExitDialog`
+   (`components/dashboard/unsynced-logout-dialog.tsx`) when `hasActiveStockAuditCount()` is
+   true; `HeaderStoreSwitcher` shows its own reminder. A draft is per store, not per user:
+   whoever signs in to that store on this device sees it, and the submit stamps the
+   submitting user.
+4. **Tenant boundary.** A store id belongs to one tenant, and a different tenant can only
+   reach this device by linking its store (`use-onboarding.ts`, `clearDatabaseForNewStore()`)
+   or after a factory reset (`hooks/use-settings-sync.ts`, `resetDatabase()`). Both call
+   `clearLocalDrafts()` without options and both wipe `stock_audit_drafts` (it is in
+   `LOCAL_WIPE_TABLES`), and both confirm dialogs add `UNFINISHED_COUNT_WIPE_NOTE` when a
+   count exists. So drafts need no tenant key of their own.
+5. **Successful submission or Start over** calls `clearStockAuditDraft(storeId)` /
+   `clearStockAdjustmentDraft(storeId)` for that store only.
 
 A draft itself is **not** the problem it looks like: `submitStockAudit`
 re-reads the live quantity inside its transaction
@@ -2219,14 +2233,16 @@ re-reads the live quantity inside its transaction
 draft's frozen `systemQty` never mis-posts. What a stale draft does miss is
 catalog churn — logged as A-259.
 
-### Cloud-backed multi-till stock audit sessions (2026-11-03, Phase 2)
+### Cloud-backed multi-till stock audit sessions (2026-11-03, Phase 2; lifecycle fixed 2026-11-13)
 
-While local SQLite persists in-progress counts immediately without blocking when offline, multi-till stores coordinate through cloud-backed audit sessions:
-1. **Single-Editor Lease:** `useCloudAuditSession` hooks into `StockAudits` to acquire or resume the store's active session with a 5-minute renewable lease and a 60-second background heartbeat.
+The local SQLite draft covers offline counting; while online the count is also held in the store's cloud audit session, so another till can take it over:
+1. **Single-Editor Lease:** `useCloudAuditSession` hooks into `StockAudits` to acquire or resume the store's active session with a 5-minute renewable lease and a 60-second background heartbeat. Counted rows are pushed (`sync-items`) 1.5s after each change while this till holds the lease, and again on the `online` event; a till that opened Cycle Count offline starts or resumes its session on `online`.
 2. **Read-Only Inspection Mode:** If another till holds the editing lease, the screen enters Inspection Mode (`isReadOnly = true`). Inputs and checkboxes are disabled, showing the active counter's till name and live counted count (`x of y items counted`).
-3. **Explicit Takeover:** Staff can take over an active count from any device (e.g. if the counter's till runs out of battery). Takeover issues `POST /app/audit-sessions/{id}/takeover`, invalidating previous leases via an incremented fencing version (`lease_version`).
+3. **Explicit Takeover:** Staff can take over an active count from any device (e.g. if the counter's till runs out of battery). Takeover issues `POST /app/audit-sessions/{id}/takeover`, invalidating previous leases via an incremented fencing version (`lease_version`). Logout and user switch never abandon the session, so a till can take over a count whose counter signed out.
 4. **Fencing & Offline Recovery:** Stale writes from a superseded device fail with HTTP 409 (`AuditSessionConflictError`). The older device immediately drops into read-only mode, but its local SQLite counts are preserved intact for review and never silently discarded.
-5. **Completion Lifecycle:** When submitting locally via `submitStockAudit()`, `POST /complete` records `submitted_stock_audit_id` and transitions the cloud session to `completion_pending_sync`. Once the background sync engine pushes the `stock_audits` record, the cloud session transitions to `completed`.
+5. **Merge is newest-wins:** rows carry `countedAt` (stamped by `useAuditCounting`, sent as `counted_at`). `mergeCloudItemsIntoLocal()` takes a cloud row only when the local row is uncounted, or both carry timestamps and the cloud one is newer; a local count with no timestamp (a pre-2026-11-13 draft) wins. A merged row has no `baselineQty` (A-378).
+6. **Completion and abandon go through an outbox** (A-376): `complete()` (after submit) and `abandon()` (Start over, only when this till holds the session) write to `lib/hooks/cloud-audit-pending-ops.ts` (localStorage `dumos_audit_session_pending_ops`) before sending, and every Cycle Count open and `online` event flushes it. 409 and 403/404/410/422 settle an entry; network errors and 401 keep it. `initSession()` never adopts or merges a session that is not `in_progress`, names `submitted_stock_audit_id`, or is still in the outbox.
+7. **Completion Lifecycle:** `POST /complete` records `submitted_stock_audit_id` and moves the session to `completion_pending_sync`; when the sync engine pushes that `stock_audits` row the session becomes `completed`. Only `auditIds[0]` is sent; any one of a submit's rows arriving is enough because they are pushed together.
 
 ### An expense is dated by the store's own day (2026-10-13)
 
@@ -2484,9 +2500,67 @@ There are two distinct workflows for selling goods sourced outside the store:
    is off-site and cannot raise purchase orders or reconcile backorders at EOD.
    When a walk-in customer requests an out-of-stock item, a cashier can run to a
    neighboring pharmacy or partner shop, buy the units, and ring them up immediately:
-   - **Trigger & UI:** Clicking or barcode-scanning an out-of-stock product (when
-     `canSellWithoutStock` is off) or clicking "Source outside" / the "Spot Sourced"
-     badge on a cart line opens `SpotSourceDialog`.
+   - **Trigger & UI:** A product cart line shows the amber `"Source outside"` pill only when
+     `quantity >= stock` (which includes `stock <= 0`), with the status as separate text beside
+     it: `"Out of stock"`, `"N short"`, or a muted `"All shelf stock used"` when the cart holds
+     exactly the shelf stock. Service lines never show it. Below the shelf level there is no
+     control at all (owner decision, 2026-11-13: the always-visible link under every line cost
+     a row of height each), so sourcing outside because the shelf units are damaged or
+     reserved is no longer offered from the cart line: write the damaged units off as a stock
+     adjustment first, or raise the quantity to the shelf level, and the pill appears.
+     Clicking it opens `SpotSourceDialog`, whose "Source all externally" toggle still covers
+     unusable shelf units at that point. The pill text is `text-amber-800 dark:text-amber-400`
+     (amber-700 measured 4.15:1 on its own tint). A spot-sourced line shows a "Spot Sourced"
+     pill with the per-unit "Cost ₦…" as separate text beside it. The controls live in
+     `components/pos/pos-cart-item-sourcing.tsx` and sit on their own full-width row under
+     the cart line (`basis-full`), not in the name column:
+     at ~380px that column is about 95px wide, which truncated the pill to "Spot Sour…" and
+     pushed it within 2px of the quantity stepper (A-368). Each label is `whitespace-nowrap`
+     and the row is `flex-wrap`, so wrapping happens between whole chips, never mid-label
+     (`pos-cart-item-spot-sourcing-layout.test.tsx`, `e2e/services-pos-sourcing-layout.spec.ts`).
+     The line's name wraps to two lines (`line-clamp-2 break-words`) rather than truncating
+     (A-368). It is a `type="button"` with `aria-expanded` that drops the clamp on tap, click,
+     Enter or Space and restores it on the next, because the `HintTooltip` around it (kept for
+     hover) never opens on touch, and phone width is where the clamp cuts. Its accessible name
+     is the full product name. A tap does not swipe the row: framer-motion only starts a drag
+     after 3px of movement and removes the line past -70px or -500px/s.
+     **Cart panel space (2026-11-13).** The cart list is the only scrolling region and Charge
+     is always on screen; everything around the list is kept to one slim row each so a
+     six-line cart fits whole at 390×844 and in the 420px desktop column
+     (`e2e/pos-cart-space.spec.ts`: all 6 rows fully visible, list capacity >= 7 rows; it was
+     3 on dev before this pass). The four secondary actions share one row
+     (`pos-cart-actions.tsx`) with short labels "Request", "Hold", "Clear", "Preview"; each
+     keeps its full name ("Request Item", "Hold Sale", "Clear cart", "Preview Quote") as its
+     `aria-label` and in a `HintTooltip`, so role-name selectors use the full phrase. The VAT
+     row shows only when `vat_percentage > 0` (or a non-zero tax amount): Settings has no
+     separate VAT on/off switch and its help text defines 0 as "don't charge VAT", so a rate
+     of 0 is "not configured" and there is no explicit-zero case to show. "+ Add discount"
+     carries no "₦0" beside it; the applied discount amount still shows. The Subtotal row
+     shows whenever VAT or a discount (a reward is applied as a fixed discount) adjusts the
+     sale, and is hidden only when nothing does, since it would then repeat Total. It is not
+     keyed on `subtotal !== total`: VAT is charged on the discounted amount, so VAT and a
+     discount can cancel exactly and leave both rows showing with no Subtotal. Cart lines
+     carry no category icon (it cost ~52px of name width). The customer picker is one slim
+     line (name · hint) whose trailing Plus icon sits inside the clickable trigger; with a
+     customer chosen, name and phone truncate and the "• N pts" figure is a separate
+     `shrink-0` span, so a long name cannot push the points off. The reseller toggle row is
+     `py-1`.
+     Don't colour cart text with `text-destructive`: dark `--destructive` is a fill shade
+     (1.92:1 as text on the dark footer); "Clear" uses `text-red-700 dark:text-red-400`.
+     The swipe-to-delete `bg-destructive` backdrop in `pos-cart-item.tsx` takes its opacity
+     from the row's drag offset, so it is fully transparent at rest and cannot bleed a red
+     hairline through the rounded clip.
+   - **Partial Spot Sourcing (Split Allocation):** When a customer requests more units
+     than exist on shelf (e.g. 5 requested, 2 on shelf), `SpotSourceDialog` defaults to
+     **Split Allocation**:
+     1. Shelf allocation (2 units): Deducted from store inventory batches via FEFO at
+        standard inventory cost.
+     2. Spot-sourced line (3 units): Sourced externally (`id: `${product.id}:spot_sourced``,
+        `product_id: product.id`), with external sourcing cost and partner metadata.
+     Cash drawer payouts apply strictly to the 3 spot-sourced units ($3 \times \text{cost}$),
+     leaving the 2 shelf units properly depleted and eliminating phantom inventory and
+     inflated drawer expense payouts. A toggle allows cashiers to "Source all externally"
+     if the shelf units are unusable/damaged.
    - **Sourcing Cost, Selling Price & Margin:** Staff enters the agreed buying cost
      (e.g. ₦1,700), quantity, and selling price (e.g. ₦2,000). `buildNewCartItem`
      and `applySpotSourcingConfig` keep `original_unit_price` pinned to the catalog
@@ -2500,21 +2574,18 @@ There are two distinct workflows for selling goods sourced outside the store:
      `isSpotSourced: true` writes `sale_items` with `cost_price = sourcingCost`
      and immediately returns without deducting `stock_batches` or recording
      `stock_movements`. No phantom negative stock or owed backorder is created.
-   - **Automated Cash Drawer Reconciliation Without P&L Double-Counting:** In
-     `lib/hooks/pos-sale-writer.ts`, if `sourcing_payment_source === "cash_drawer"`,
-     an expense row is inserted atomically inside the sale transaction
-     (`category = SPOT_SOURCING_EXPENSE_CATEGORY` (`"Stock Sourcing"`),
-     `payment_method = "cash"`, `date = getLocalTodayDate()`,
-     `reference_number = transactionNumber`). `getCashExpensesForDate` includes this
-     row so Daily Close `Net Cash Expected` deducts the physical cash taken from the
-     drawer, while P&L operating expense queries (`getSmoothedExpensesTotal`,
-     `getCurrentMonthExpensesByCategory`, `getExpensesAttributableToDate`, and
-     `getSmoothedExpensesByMonth`) explicitly exclude `category = 'Stock Sourcing'`
-     because the sourcing cost is already accounted for in COGS (`sale_items.cost_price`).
-   - **Owner Credit / External:** If `sourcing_payment_source === "external"`, no
-     drawer expense is created.
+   - **Cash Drawer Reconciliation Without P&L Double-Counting:** No `expenses` row is
+     written for a spot-sourced line (pinned by `pos-spot-sourcing-split.test.ts`). Daily
+     Close derives the drawer payout from `payment_details.spot_sourcing`
+     (`spotSourcingCashPayouts` in `lib/hooks/use-daily-close-data.ts`: `unit_cost × quantity`
+     for `payment_source` `cash_drawer`/`till_drawer`), and the sourcing cost reaches P&L only
+     as COGS through `sale_items.cost_price`. `"external"` (owner credit) adds no payout.
    - **Audit Trail:** The sale's `payment_details.spot_sourcing` persists the
      structured metadata array, and a summary is appended to `sales.notes`.
+   - **Return badge:** `payment_details.spot_sourcing` names products, not sale lines, so the
+     return dialog flags a line with `isSpotSourcedSaleLine()` (`lib/utils/spot-sourcing.ts`):
+     product listed **and** `stock_batch_id` null. A spot line is always written without a
+     batch, and the shelf half of a split always has one, so only the spot half is badged.
 
 2. **Delayed Paperwork & PO Sourcing (Back-office / Bulk):**
    When physical delivery has arrived or units were taken in bulk from another branch
@@ -2816,6 +2887,16 @@ trying to infer.
 
 ## What reaches Sentry (2026-10-19)
 
+**Wiring (2026-08-14).** Sentry initialises only in `instrumentation-client.ts`.
+`client/` is a static export with no server runtime in either deploy target, so
+there are deliberately no `sentry.server.config.ts`, `sentry.edge.config.ts` or
+`instrumentation.ts`: the `@sentry/wizard` generates them and they break the
+build or ship dead code. The `GlobalHandlers` integration is filtered out
+because `error-logger.ts` + `GlobalErrorListener` is the single capture choke
+point; a second `window.onerror` hook would double-report. `withSentryConfig`
+uploads source maps only when `SENTRY_AUTH_TOKEN` is set (CI secret), and both
+`deploy-client.yml` and `release.yml` set the DSN and environment.
+
 The owner pays for Sentry per event and was pushed to the edge of his quota by
 events that were **not faults**: ~3,450 of one week's ~3,700 came from two
 already-fixed bugs firing per row, and the rest included a success report, a
@@ -3016,6 +3097,17 @@ Expected, the dashboard tiles — unreachable by keyboard. It now takes
 unfocusable div. Pinned by `__tests__/metric-card-keyboard.test.tsx`. Do the
 same for any other card-shaped shortcut rather than re-adding a bare
 `onClick` div.
+
+## A toast with its own duration uses `toastTiming()` (2026-11-13, A-360)
+
+Every toast carries a countdown bar (`app/globals.css`) that runs over
+`--toast-timer-duration`, 4000ms by default to match `components/ui/sonner.tsx`.
+A toast that is not on the default passes `toastTiming(ms)`
+(`lib/utils/toast-timing.ts`) instead of `{ duration: ms }`: it sets that
+variable on the toast's own `style` so the bar empties when the toast closes,
+and hides the bar for `Infinity`. Spread it (`...toastTiming(8000)`) when the
+options carry anything else. A bare `duration` brings back A-360's bar that
+empties early.
 
 ## Render a product name with `<ProductName>`, never bare (2026-10-13)
 
@@ -3625,9 +3717,9 @@ still rendered read-only, only the trigger gated):
   is who rings reseller sales, and withholding it would have made the
   Reseller toggle inert at the till. `specialist` deliberately still lacks
   it (stock role, matching its existing `apply_discounts` exclusion).
-- `hold_sales` — `components/pos/pos-cart.tsx` (the "Hold Sale" button, plus
-  `SECONDARY_ACTION_GRID_COLS`, a literal-class lookup that keeps the
-  secondary-action grid honest now that its column count varies) and
+- `hold_sales` — `components/pos/pos-cart.tsx` (the "Hold" button, named
+  "Hold Sale" for assistive tech, rendered by `pos-cart-actions.tsx`, whose
+  flex row needs no column lookup when a button is hidden) and
   `components/pos/held-transactions-dialog.tsx` (the "Recall" button).
   Creating a hold and resuming one are both gated; the amber "N on hold"
   banner and the held list itself are not, so a cashier without the right
@@ -3712,9 +3804,10 @@ noted below with what it widens or narrows:
   is behaviour-neutral and only the cost figures change.
 - `edit_product_price` — `catalog-row.tsx` (the selling-price quick edit)
   and `components/stock-batch/audit-ledger-step.tsx` (the Counted Selling
-  cell). `edit_product_cost` — `audit-ledger-step.tsx`'s Counted Cost cell,
-  the app's only master-data cost-correction surface (cost is otherwise a
-  per-batch acquisition figure set by receiving). A withheld key leaves the
+  cell). `edit_product_cost` — `audit-ledger-step.tsx`'s Counted Cost cell
+  (a product-wide cost correction applied to every active batch) and, since
+  2026-11-13, the per-batch correction in the catalog Batches tab, which also
+  needs `view_cost_fields` (see "Batch cost correction"). A withheld key leaves the
   figure on screen read-only in both places, but the **two surfaces are
   protected differently**. In `catalog-row.tsx` the new key *composes* with
   the existing coarse check rather than replacing it —
@@ -3838,6 +3931,32 @@ manager, specialist) are exactly `canManageStockBatch`'s population, which is
 who could open that menu before, and the item it sits beside is new — nobody
 loses anything they had.
 
+**Barcode label dialog layout and paper (2026-11-13).** The dialog is a
+flex column: `DialogContent` is `overflow-hidden`, the body between header
+and footer is the only scroller (`flex-1 min-h-0 overflow-y-auto
+overflow-x-hidden`, marked `data-label-dialog-body`), and the Cancel/Print
+footer sits outside it, so it is always on screen. The old grid layout let a
+wide barcode SVG (a product with no barcode prints its 36-char UUID, about
+114 mm of bars at 1px per module) widen the grid track and scroll the dialog
+sideways, and at 1280×600 the footer scrolled out of view. Barcodes on
+screen and on paper carry `max-width: 100%; height: auto` (the jsbarcode SVG
+has a `viewBox`, so it scales instead of clipping). `barcodeFit()` in
+`barcode-label-sheet.ts` encodes the value with jsbarcode, counts modules at
+1 CSS px (0.2646 mm) each and compares against the label's inner width; when
+it does not fit, the dialog says the code will be squeezed and may not scan,
+rather than silently printing an unscannable label. Paper layouts live in
+`LABEL_LAYOUTS` (roll 50×25 mm, one per page; A4 3×8 of 63.5×33.9 mm with
+Avery L7159-style margins), the chosen layout is a per-device
+`localStorage` convenience (`STORAGE_KEYS.labelPrintLayout`, read and
+written in try/catch by `use-label-layout.ts`, untouched by store switches),
+and the product name obeys display caps through `useUppercaseDisplay()` for
+both the on-screen name and the printed `text-transform`. Selecting several
+catalog products and printing all their labels in one job is not built: the
+catalog has no multi-select, so it would need row selection state in
+`catalog-list.tsx`, a dialog that takes `BarcodeLabelProduct[]` with a
+per-product quantity, and `buildLabelSheetHtml` taking a list of label
+templates instead of one.
+
 `delete_products` and `delete_suppliers` joined the enforced list on
 2026-09-29 as well, and they are the **third** reversal of that morning's
 removal pass — but a different kind. `run_daily_close` and
@@ -3879,7 +3998,8 @@ protect (verified by temporarily adding one to every join below):
   `getSaleItems()`, `getTransactionDetails()`, `getRecentSales()`'s
   `item_names`, `getDailyCloseData()`'s `itemsToday`; plus `customers.ts`'s
   `getCustomerTransactions()` `item_names`. (`getResellerCommissionSales()`
-  carries the same `item_names` subquery and the same comment.)
+  uses the same `item_names` subquery: all of them now come from
+  `SALE_LINE_NAMES_SQL` in `lib/db/queries/sale-line-summary-sql.ts`.)
 - `__tests__/deleted-entity-procurement-history.test.ts` — `procurement.ts`:
   `getPurchaseOrders()` and `getPurchaseOrderById()` (`vendor_name`, which
   falls back to "Self / Walk-in Purchase" if the vendor join is filtered) plus
@@ -3995,7 +4115,7 @@ than on history.
   Order, opening `components/suppliers/supplier-delete-dialog.tsx`), backed
   by `deleteSupplier()` in `lib/db/suppliers.ts`. The row's column count is
   now a literal-class lookup (`ACTION_GRID_COLS`, same mechanism as
-  `CATALOG_GRID_COLS`/`SECONDARY_ACTION_GRID_COLS`) because it varies from
+  `CATALOG_GRID_COLS`) because it varies from
   one to three buttons with the two keys. It sits in the **detail pane, not
   `supplier-table.tsx`'s rows**: the table has no row menu at all (its only
   row affordance is the inline rating pencil), and a destructive action on a
@@ -5824,9 +5944,50 @@ same tab session still gets its own fresh one-time retry.
   - A run rewrites the tracked fixture `e2e/.auth/test-db.bin`, and
     `next dev` re-injects a `nextjs-agent-rules` block into this file. Both
     are artifacts: `git restore` them, don't commit them.
+  - **Screenshots go to `test.info().outputPath(name)`** (under
+    `test-results/`, per test), never an absolute path: two specs once wrote
+    to a hardcoded `/Users/admin/.gemini/...` folder that exists on one
+    machine only.
   - If you add or rename a card, tab or heading, grep `e2e/` for the old
     text. A loose regex locator elsewhere in the suite may now match two
     elements, which Playwright fails on in strict mode.
+  - **Port:** `playwright.config.ts` reads `E2E_PORT` (default 3000) for
+    both `baseURL` and the `webServer` it starts. `reuseExistingServer` is on
+    locally, so when something else already owns :3000 (another session's
+    dev server), run `E2E_PORT=3100 npx playwright test …` rather than let the
+    suite drive a server built from a different checkout. In a git worktree,
+    copy `node_modules` (`cp -cR`, an APFS clone) instead of symlinking it:
+    Turbopack refuses a `node_modules` symlink that points outside the root.
+  - **Seeding rows instead of clicking them in (`e2e/local-db.ts`):** the
+    checked-in fixture predates newer tables (`services`, `sale_services`…),
+    so `getMigratedFixture()` boots it once per worker to let the app's own
+    migrations run and exports the result. `seedAndLogin()`
+    (`e2e/services-pos-ui.ts`) applies `SeedStatement`s to that copy with
+    sql.js in Node and writes it to IndexedDB before login; `queryLocalDb()`
+    reads the live page DB back through `window.getDatabaseBinary()` for
+    stored-row assertions. Role users (`e2e/services-seed.ts`'s
+    `roleUsers()`: `admin`, `specialist`, `sales_staff`, `auditor`, PIN 1234)
+    have no permission-group row, so they get `fallbackPermissions(role)` —
+    the role defaults, same as a device before its first sync. `login(page,
+    username)` takes the username; a non-owner's dashboard reads "My Sales
+    Today", which it also waits for.
+  - **Services POS specs** (`services-catalog-permissions`,
+    `services-pos-checkout`, `services-pos-held`,
+    `services-pos-sourcing-layout`): catalog gating per role and the
+    no-active-store refusal; mixed checkout with no stock movement for the
+    service line; split and full service returns reaching `refunded`; held
+    service repricing notices; and the cart's "Source outside"/"Spot Sourced"
+    labels at 390×844 in light and dark: one line, unclipped, the spot cost
+    visible, at least 6px clear of the quantity stepper on either axis, and
+    the delete backdrop transparent at rest; "Source outside" absent on an
+    in-stock line until its quantity reaches the shelf stock; the two-line
+    name; and "Clear cart" at >= 4.5:1. `e2e/layout-metrics.ts` composites
+    translucent backgrounds when it measures contrast (set `E2E_SCREENSHOT_DIR` to keep the
+    screenshots; dark is applied by swapping the `<html>` class, which is all
+    `ThemeProvider` does). `theme-persistence.spec.ts` pins that a Pro store's
+    stored dark theme survives a reload (A-367): `ThemeRestrictor`
+    (`license-guard.tsx`) forces light only once the store profile has loaded,
+    because until then `useFeatureGate()` reports `"free"` for every store.
 - `npm run test:schema`: diffs local SQLite schema against the Laravel
   backend's live MySQL schema. Requires the sibling `../laravel-server` repo
   and a working `php artisan tinker` in it. Two things about it are load
@@ -7160,8 +7321,8 @@ what's already covered above:
   touch the account), Expenses surfaced to cashiers, and the profit-hiding
   sweep described in the Cashier visibility section above.
 - **Reseller sales merged into Recent Transactions**: the old standalone
-  admin-only "Reseller Commission" tab/panel (`FEATURE_ROADMAP_SPEC.md`'s
-  2026-09-16/17 entry) is **gone** — reseller sales now show inline in
+  admin-only "Reseller Commission" tab/panel (shipped 2026-09-16/17) is
+  **gone** — reseller sales now show inline in
   `pos-transaction-history.tsx` with a badge + a "Sale Type" filter, and
   the redeem/store-claim actions live directly in
   `TransactionDetailsDialog` (visible to admins and the cashier who made
@@ -7396,6 +7557,15 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - A price typed on a draft saved before this release was never applied to the catalog and still is not: a Standard draft's price is never flagged as changed, and an Immediate draft's stored price is replaced by the live one when opened for edit. Re-applying a months-old price could overwrite a newer one, so a user who wants it applied re-types it.
 - Editing a Standard PO erases any stored cost, lot or expiry it carries (only reachable by switching type with values typed, before this release). Nothing in production relied on them. This note can go once no pre-release draft is open.
 
+## Batch cost correction (`lib/db/queries/batch-cost-correction.ts`)
+
+The product detail panel's Batches tab (`product-batch-history.tsx`) lets a user with **both** `view_cost_fields` and `edit_product_cost` correct one batch's `cost_price` through `BatchCostEditDialog` (input, then a confirm step). Without `view_cost_fields` the tab shows no batch cost, total value or edit control; before this it showed cost to everyone.
+
+- **What it writes:** one `update("stock_batches", id, { cost_price })`, rounded to 2 dp, so it syncs as a cost-only UPDATE. A cost-only push is *not* quantity-only, so the server applies its normal strict `_version` check (`SyncEndpointTest::test_push_sync_keeps_a_cost_correction_valid_after_another_device_sells`); no server change was needed. The server does not validate the value, so the client range check (`isValidBatchCostPrice`: finite, 0 to 1,000,000,000) is the only one. An unchanged cost writes nothing.
+- **Audit trail:** the same `update()` call logs the row under the named action `BATCH_COST_CORRECTED`, with `previous_cost_price`, `batch_number` and `product_id` merged into the logged details through `update()`'s `auditDetails` option. No stock movement and no `stock_audits` row: quantity does not change, and `stock_audits` is product-level. `getProductHistory()` pulls these rows into the product's History tab by batch, which is why `queryKeys.products.history` also lists `stock_batches`.
+- **What it changes:** stock value, the product's average and last-bought cost (all read live from `stock_batches`), the cost of future sales via that average, and the cost a later return restocks at (A-374). **What it does not:** `sale_items.cost_price` (sale-time snapshot, used by every COGS/profit figure), the receipt's `stock_movements.unit_cost/total_cost` (so stock MoM history stays as received), and `purchase_order_items` (what was ordered and paid, per "Receiving cost scale" above).
+- Expired, sold-out and inactive batches are editable on purpose: a zero-quantity batch still feeds Last Bought Price and return valuation.
+
 ## "Average cost" always carries a tooltip
 
 Average cost is a quantity-weighted blend across stock batches, and clients read a single number as "the cost". Wherever it is shown (catalog Avg Cost header, product pricing card, PO "Current Cost" header and phone card) wrap the label in `HintTooltip` with `AVG_COST_HINT` / `CURRENT_COST_HINT` from `lib/constants/cost-hints.ts`. `SortableHeaderCell` takes a `tooltip` prop for sortable headers.
@@ -7426,5 +7596,35 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
   - Cash shortfall alert displays a 1-click **"Pay Exact ({total})"** button beside the shortfall text so the cashier can instantly resolve shortages with one tap without manual retyping.
   - `<QuickCashTender />` displays smart tender chips (`Exact`, rounded bill denominations such as ₦1,000, ₦2,000, ₦5,000) for rapid cash handling.
   - In `PaymentSplits`, when splits under-cover the total, the exact shortfall is shown alongside a 1-click **"Cover Remaining ({shortage})"** button that fills the remaining balance into the split automatically.
+
+## Service POS (Walk-In Services Alongside Physical Products)
+
+- **Separate Tables & Data Isolation:**
+  - Services are managed via dedicated `services`, `sale_services`, and `return_services` tables on both SQLite and MySQL rather than overloading `products` or `stock_batches`.
+  - Services generate pure revenue in `sales` and detail line snapshots in `sale_services`. They never receive rows in `stock_movements`, `stock_batches`, or `sale_items`.
+- **Historical Immutability:**
+  - At checkout, `writeSaleTransaction` snapshots `service_name` and `unit_price` directly onto `sale_services`. Subsequent price or name changes in the `services` catalog never mutate past financial receipts.
+- **Held service lines keep their quote:** recalling a held cart keeps a service's `unit_price` *and* its held `original_unit_price` (the catalog price when it was rung up); it never resets `original_unit_price` to today's catalog price, which would make a reprice look like a cashier override. The "catalog prices have changed" notice compares the catalog price to the held `original_unit_price`, so a cashier's own override is not reported as a reprice.
+- **Mixed Cart Checkout:**
+  - `usePOSCart` supports mixed carts with both `item_type: "product"` and `item_type: "service"`.
+  - Services bypass inventory stock validation, out-of-stock gating, and spot-sourcing dialogs.
+  - At payment execution, stock is decremented and recorded in `stock_movements` solely for physical items.
+- **Returns & Refunds:**
+  - Service returns insert into `return_services` and cleanly reverse revenue without creating phantom inventory restocks or damage write-offs.
+  - A mixed return considers a sale fully refunded (`payment_status = 'refunded'`) only when all physical products AND all services on the sale have been completely returned.
+  - Service completeness is read from SQLite after this return's `return_services` rows are written (`getSaleServices()`' summed `returned_quantity` against `quantity`), not from a caller-supplied list. The dialog used to pass a mapped list without `returned_quantity`, so a qty-2 service returned in two goes never reached `refunded` (pinned by `process-return-partial-services.test.ts`).
+- **POS services query:** `usePOSData` reads services through `queryKeys.services.list()` with `getServices({ storeId: getActiveStoreId() })`, so a multi-store owner never sees another store's services or a cache from the store they just switched away from. `queryKeys.sales.transactionDetails` is tagged with `sale_services` and `return_services` so a service return refreshes an open receipt.
+- **Views that list a sale's lines must read `sale_services` too.** `getCustomerTransactions()` (customer purchase history) counts and names service lines beside product lines (`customer-purchase-history-services.test.ts`). `sales.ts`'s `getRecentSales()`, `getSaleById()`, `getSaleByTransactionNumber()` and `getResellerCommissionSales()` do the same (A-365, `sales-history-services.test.ts`). All of them build the subqueries from `lib/db/queries/sale-line-summary-sql.ts`: `SALE_LINE_NAMES_SQL`, `SALE_LINE_COUNT_SQL` (lines, used by purchase history) and `SALE_UNIT_COUNT_SQL` (units, used by sales history, which always counted quantity); add a new view's summary there rather than hand-writing another `sale_items`-only subquery. The BI report (A-364) still reads `sale_items` only.
+- **Clearing the cart:** `usePOSCart().clearCart()` calls `clearPOSCartContents()`, which empties the cart, discount, redeemed option and reseller state but keeps the cashier's chosen `discountType` for the next sale. `clearPOSCartStorage()` (store switch, logout) also resets `discountType` to `"fixed"` (`use-pos-cart-reseller.test.ts`).
+- **Inventory Services Catalog (`/inventory/services`):**
+  - Services are managed in the back-office inventory hub under the `Services` tab (`/inventory/services`) alongside `Catalog` (physical products).
+  - Every role reaches the tab (the Inventory nav is not role-gated), so writes reuse the product catalog's permissions: add/edit (including `?action=add`) needs `manage_products` (`canManageStockBatch`), delete needs `delete_products`. With default groups that is owner/admin and manager for all three, specialist for add/edit only, and sales_staff/auditor read-only. Without the permission the buttons, the empty-state action and the dialog itself are not rendered (`services-database-permissions.test.tsx`).
+  - `createService()` throws when `store_id` is empty, and the dialog shows that message: a storeless service was never pulled by any other till and the server could not scope its edits (the server now backfills and guards it too; see `laravel-server/AGENTS.md`, "Service POS & Sync Engine Scoping").
+  - Cashiers in POS remain focused strictly on ringing up sales. The POS Services tab includes an `EmptyState` with a direct link to `"Manage Services in Inventory"`.
+- **Unified POS Search Bar:**
+  - The top search bar in `POSLayoutHeader` is the single search input for the entire POS, dynamically adapting its placeholder and search target to the active tab (`Products` vs `Services`).
+  - Redundant duplicate search bars inside the Services tab are removed on desktop, leaving only a mobile input on small screens.
+
+
 
 

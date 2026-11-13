@@ -245,7 +245,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     title: "Source stock from outside",
     href: "/pos",
     steps: [
-      "In POS, click 'Source outside' on the cart item (or tap an out-of-stock product)",
+      "In POS, tap an out-of-stock product, or click 'Source outside' on a cart line that is out of stock, short, or holds all your shelf stock",
       "Enter the unit cost paid to the outside shop or neighbor",
       "Select payment source: Cash Drawer (auto-deducted) or Credit / Owner Paid",
       "Proceed to charge the customer as usual",
@@ -314,5 +314,23 @@ export const HELP_TOPICS: HelpTopic[] = [
       /\btill (is )?unlinked\b/,
       /\bhow (do|to|can) (i |we )?(re[- ]?link|reconnect) (a |the )?till\b/,
     ],
+  },
+  {
+    id: "print_labels",
+    title: "Print barcode labels",
+    href: "/inventory/catalog",
+    steps: [
+      "Go to Inventory > Catalog",
+      "Right-click the product and choose Print barcode label",
+      "Enter how many labels and pick Label roll or A4 sheet",
+      "On a partly used A4 sheet, set Start at position, then tap Print",
+    ],
+    keywords: ["barcode label", "price label", "print labels", "sticker", "label sheet"],
+    phrases: [
+      /print (a |the |some |my )?(barcode |price |product )?(labels?|stickers?|tags?)/,
+      /(barcode|price|product) (labels?|stickers?|tags?)/,
+      /label (sheets?|rolls?|printer)/,
+    ],
+    requiredPermission: "print_product_labels",
   },
 ];

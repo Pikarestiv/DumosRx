@@ -19,7 +19,7 @@ export function cartToReceiptTransaction(
     cashier,
     items: cart.map((item) => ({
       id: item.id,
-      name: item.name,
+      name: item.item_type === "service" ? `${item.name} (Service)` : item.name,
       quantity: item.quantity,
       unit_price: item.unit_price,
       subtotal: item.subtotal,

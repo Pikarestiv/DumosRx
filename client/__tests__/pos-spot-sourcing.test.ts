@@ -49,13 +49,11 @@ const spotPipeLine = (overrides: Record<string, unknown> = {}) => ({
 describe("POS Spot Sourcing (in-cart external sourcing)", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
-  let insert: typeof import("@/lib/db/base-helpers").insert;
   let recordSaleItemStock: typeof import("@/lib/db/queries/inventory-sale-stock").recordSaleItemStock;
   let writeSaleTransaction: typeof import("@/lib/hooks/pos-sale-writer").writeSaleTransaction;
 
   beforeAll(async () => {
     core = await import("@/lib/db/core");
-    ({ insert } = await import("@/lib/db/base-helpers"));
     ({ recordSaleItemStock } = await import("@/lib/db/queries/inventory-sale-stock"));
     ({ writeSaleTransaction } = await import("@/lib/hooks/pos-sale-writer"));
 

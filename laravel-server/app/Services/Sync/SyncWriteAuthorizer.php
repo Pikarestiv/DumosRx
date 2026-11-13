@@ -16,8 +16,10 @@ class SyncWriteAuthorizer
     private const PARENT_KEYS = [
         'stock_batches' => 'product_id',
         'sale_items' => 'sale_id',
+        'sale_services' => 'sale_id',
         'sale_item_batches' => 'sale_item_id',
         'return_items' => 'return_id',
+        'return_services' => 'return_id',
         'prescription_items' => 'prescription_id',
         'purchase_order_items' => 'purchase_order_id',
     ];
@@ -126,6 +128,10 @@ class SyncWriteAuthorizer
             return in_array($resolvedStoreId, $allowedStoreIds, true);
         }
 
+        if ($tableName === 'services') {
+            return false;
+        }
+
         // Fails open on purpose for legacy rows (docs/SYNC_SERVER_RATIONALE.md).
         if (! isset($model->user_id)) {
             return true;
@@ -183,17 +189,17 @@ class SyncWriteAuthorizer
             'stock_movements', 'supplier_payments', 'requested_products',
             'payment_accounts', 'loyalty_tiers', 'loyalty_redemption_options',
             'stock_audits', 'held_transactions', 'loyalty_transactions',
-            'customer_payments', 'audit_logs', 'permission_groups',
+            'customer_payments', 'audit_logs', 'permission_groups', 'services',
         ];
 
         if (in_array($tableName, $directStoreTables, true)) {
             return $model->store_id ?? null;
         }
 
-        if ($tableName === 'sale_items') {
+        if ($tableName === 'sale_items' || $tableName === 'sale_services') {
             return isset($model->sale_id) ? Sale::withTrashed()->where('id', $model->sale_id)->value('store_id') : null;
         }
-        if ($tableName === 'return_items') {
+        if ($tableName === 'return_items' || $tableName === 'return_services') {
             return isset($model->return_id) ? \App\Models\SaleReturn::withTrashed()->where('id', $model->return_id)->value('store_id') : null;
         }
         if ($tableName === 'prescription_items') {

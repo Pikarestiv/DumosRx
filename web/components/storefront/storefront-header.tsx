@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { StoreBranchSelector } from "@/components/storefront/store-branch-selector";
 import { StorefrontCart } from "@/components/storefront/storefront-cart";
+import { storefrontNavLinks } from "@/lib/storefront-nav";
 import type {
   StorefrontBranch,
   StorefrontProfile,
@@ -62,49 +63,16 @@ export function StorefrontHeader({
         </div>
 
         <div className="flex items-center gap-3 sm:gap-6">
-          <nav className="flex items-center gap-3 sm:gap-5 text-sm font-medium">
-            <Link
-              href={`/store/${storeSlug}`}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Home
-            </Link>
-            <Link
-              href={`/store/${storeSlug}/catalog`}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Catalog
-            </Link>
-            <Link
-              href={`/store/${storeSlug}/prescription`}
-              className="hidden sm:inline-block text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Upload Rx
-            </Link>
-            <Link
-              href={`/store/${storeSlug}/track`}
-              className="hidden md:inline-block text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Track Order
-            </Link>
-            <Link
-              href={`/store/${storeSlug}/about`}
-              className="hidden md:inline-block text-muted-foreground hover:text-foreground transition-colors"
-            >
-              About
-            </Link>
-            <Link
-              href={`/store/${storeSlug}/locations`}
-              className="hidden lg:inline-block text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Locations
-            </Link>
-            <Link
-              href={`/store/${storeSlug}/faq`}
-              className="hidden xl:inline-block text-muted-foreground hover:text-foreground transition-colors"
-            >
-              FAQ
-            </Link>
+          <nav aria-label="Store" className="flex items-center gap-3 sm:gap-5 text-sm font-medium">
+            {storefrontNavLinks(storeSlug).map((link) => (
+              <Link
+                key={link.label}
+                href={link.href}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
           <StorefrontCart storeSlug={storeSlug} currency={store?.currency} />
         </div>

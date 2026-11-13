@@ -1002,10 +1002,13 @@ const LOCAL_WIPE_TABLES = [
   "prescription_items",
   "prescriptions",
   "return_items",
+  "return_services",
   "returns",
   "sale_items",
+  "sale_services",
   "sale_item_batches",
   "sales",
+  "services",
   "purchase_order_items",
   "purchase_orders",
   "customer_payments",
@@ -1031,6 +1034,7 @@ const LOCAL_WIPE_TABLES = [
   "_sync_queue",
   "_pending_stock_deltas",
   "_sync_conflicts",
+  "stock_audit_drafts",
 ];
 
 /**

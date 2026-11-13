@@ -2,6 +2,7 @@
 // lint rule. Import from here as before; the domain files are an
 // implementation detail, not a new API surface.
 export * from "./admin-hooks-stores";
+export * from "./admin-hooks-storefront";
 export * from "./admin-hooks-users";
 export * from "./admin-hooks-referrals";
 export * from "./admin-hooks-misc";

@@ -41,8 +41,8 @@ export function usePOSPrescription({
 
           // update prescription status to in_progress or dispensed
           // The POS handles final sale, but let's just load the cart for now.
-          const restoredItems = itemsData
-            .map((item) => {
+          const restoredItems: CartItem[] = itemsData
+            .map((item): CartItem | null => {
               const product = products.find(
                 (m) =>
                   m.name === item.product_name && m.strength === item.strength,
@@ -50,6 +50,7 @@ export function usePOSPrescription({
               if (product) {
                 return {
                   ...product,
+                  item_type: "product",
                   quantity: item.quantity || 1,
                   subtotal: roundMoney(product.unit_price * (item.quantity || 1)),
                   original_unit_price: product.unit_price,

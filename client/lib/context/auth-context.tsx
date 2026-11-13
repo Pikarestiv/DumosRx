@@ -193,7 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     sessionStorage.removeItem("dumos_session_authenticated");
     // Without this, a shared terminal's POS cart (items, discount, redeemed reward, reseller flag — all persisted under this one global key by use…
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L689
-    clearLocalDrafts();
+    clearLocalDrafts({ preserveStoreAudit: true });
     // See the matching comment in login():
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L694
     clearImpersonatedSession();

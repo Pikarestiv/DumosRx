@@ -3,6 +3,7 @@ import { softDelete } from "@/lib/db/base-helpers";
 import { getActiveStoreId } from "@/lib/db/core";
 import { Customer, CustomerDbRow, CustomerTransactionRow } from "@/lib/types/customer";
 import { roundMoney } from "@/lib/utils/pos-calculations";
+import { SALE_LINE_COUNT_SQL, SALE_LINE_NAMES_SQL } from "@/lib/db/queries/sale-line-summary-sql";
 
 export async function getCustomers() {
   const storeId = getActiveStoreId();
@@ -77,8 +78,8 @@ export async function getCustomerTransactions(
       s.total_amount,
       s.points_earned,
       s.transaction_date,
-      (SELECT COUNT(*) FROM sale_items si WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_count,
-      (SELECT GROUP_CONCAT(pr.name, '||') FROM sale_items si JOIN products pr ON si.product_id = pr.id WHERE si.sale_id = s.id AND (si._deleted = 0 OR si._deleted IS NULL)) as item_names
+      ${SALE_LINE_COUNT_SQL} as item_count,
+      ${SALE_LINE_NAMES_SQL} as item_names
     FROM sales s
     JOIN customers c ON s.customer_id = c.id
     WHERE s.customer_id IS NOT NULL AND (s._deleted = 0 OR s._deleted IS NULL) ${dateFilter}${storeId ? " AND s.store_id = ?" : ""}

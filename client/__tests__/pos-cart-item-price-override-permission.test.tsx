@@ -9,25 +9,6 @@ vi.mock("@/lib/hooks/use-permissions", () => ({
 vi.mock("@/lib/hooks/use-uppercase-display", () => ({
   useUppercaseDisplayClass: () => "",
 }));
-vi.mock("framer-motion", () => ({
-  motion: {
-    div: ({
-      children,
-      ...props
-    }: React.PropsWithChildren<Record<string, unknown>>) => {
-      const {
-        drag: _drag,
-        dragConstraints: _dragConstraints,
-        dragElastic: _dragElastic,
-        dragSnapToOrigin: _dragSnapToOrigin,
-        onDragEnd: _onDragEnd,
-        ...rest
-      } = props;
-      return <div {...rest}>{children}</div>;
-    },
-  },
-}));
-
 import { POSCartItem } from "@/components/pos/pos-cart-item";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
 

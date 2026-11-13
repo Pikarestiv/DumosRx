@@ -29,9 +29,9 @@ class PurgedUserRowSweeper
 
     /** @var array<string, array<string, string>> Parent table to [child table => column naming the parent]; children are swept depth first. */
     public const CHILDREN = [
-        'sales' => ['sale_items' => 'sale_id', 'returns' => 'sale_id'],
+        'sales' => ['sale_items' => 'sale_id', 'sale_services' => 'sale_id', 'returns' => 'sale_id'],
         'sale_items' => ['sale_item_batches' => 'sale_item_id'],
-        'returns' => ['return_items' => 'return_id'],
+        'returns' => ['return_items' => 'return_id', 'return_services' => 'return_id'],
         'prescriptions' => ['prescription_items' => 'prescription_id'],
         'purchase_orders' => ['purchase_order_items' => 'purchase_order_id'],
         'customers' => [

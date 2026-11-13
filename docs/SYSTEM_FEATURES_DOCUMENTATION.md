@@ -48,13 +48,19 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Split-Quantity Customer Returns & Disposition:** When a customer returns products, staff can choose per item how many units are suitable to put back on the shelf (restocked) and how many must be discarded/written off (e.g. unsealed, compromised, or damaged). The customer is refunded in full. Sound units return to their original FEFO batches in exact layer order (or a traceable RETURN batch for spot-sourced items) restoring their exact acquisition cost basis, while discarded units are written off from the corresponding batch layer as damage losses (with null batch ID to prevent double-deducting physical shelf inventory) and synchronised across all devices with zero valuation discrepancy.
 
+**Services Alongside Products:** Sell walk-in services (a haircut, a massage, a consultation, a repair) on the same receipt as physical goods. Services are kept in their own catalog under **Inventory → Services**, where staff with the *Manage Products & Categories* permission add and edit them and staff with *Delete Products* remove them; everyone else can view the list. On the till, the **Services** tab sits beside Products and uses the same search bar. A service never has stock, never blocks a sale, and never touches batches, stock movements or cycle counts. The receipt and sales history keep the name and price the service was sold at, so later catalog changes never rewrite past sales. A held cart keeps the agreed service price when recalled, and tells the cashier if the catalog price has changed or the service has been switched off since. Services can be returned and refunded on their own or with the products on the same sale, in as many goes as needed; the sale only shows as fully refunded once every product and every service unit is back. A service refund is the unit price times the quantity returned, the same way product return lines are valued; tax and sale-level discounts are not re-apportioned onto it. Update every till before selling services: an older till does not see services, held carts containing a service, or service lines on a receipt, and the server stops it from marking such a sale fully refunded. Guide: `/guides/service-sales`.
+
 **Sell Beyond Recorded Stock:** Goods on the yard but not yet entered? Turn on **Allow sales beyond recorded stock** in Settings → Register Configs (off by default, available on every plan) and the till lets staff sell more than the system shows. The cashier sees a warning ("Only 3 in stock. 2 will be recorded as owed until stock is received."; staff who are not allowed to see stock numbers get the same warning without the numbers), and the extra units are recorded as owed. When the purchase order or Immediate Purchase is received, the owed units are paid off first and only the rest goes on the shelf, and the receive screen says so ("5 already sold before this delivery. 15 will go on the shelf."). The earlier sales are then re-costed at what the delivery actually cost, so profit already reported for the days they were sold **will change** to the true figure. Owed units keep showing on the dashboard's Action Center and in the stock alerts until a delivery settles them, and the cycle count warns before you count an item with owed units, because counting before receiving would count the delivery twice. An online order you choose to fulfil past stock is recorded as owed in the same way. Update every till before switching this on: older app versions keep refusing sales at zero, and they do not settle owed units when they receive stock.
 
 ### 📦 Inventory & Stock Management
 
 **Product Catalog:** Manage your entire list of products, including brand names, generic names, strengths, and NAFDAC regulatory numbers.
 
+**Barcode Labels:** Print price-and-barcode stickers for any product from the Catalog (right-click a row and choose **Print barcode label**, or **Print Labels** in a product's actions menu). Type the number of labels or tap a preset (1, 10, 24, 48), up to 500 per print. Choose the paper: a **Label roll** prints one 50 × 25 mm label per page for a thermal label printer; an **A4 sheet** packs 24 labels to a page (3 × 8 grid of 63.5 × 33.9 mm, the common 24-per-sheet sticker size) with no paper wasted between them, and **Start at position** skips the stickers already used on a partly used sheet. The dialog shows how many labels and sheets the job uses, and warns when a barcode is too long to print scannably on the chosen label (a product without a barcode prints its long internal ID, which never fits a 50 mm label). The paper choice is remembered per device. Print at 100% scale with "Fit to page" off so the labels line up with the stickers. Product names follow the store's display-caps setting on screen and on the label. Guide: `/guides/barcode-labels`.
+
 **Batch & Expiry Tracking:** Never lose money to expired goods again. The system tracks the exact batch numbers and expiry dates of every item in your store.
+
+**Correct a Batch's Cost Price:** Typed the wrong cost when receiving? Open the product in the Catalog, go to its Batches tab and tap the pencil beside the batch. Enter the right cost per unit, review what changes, and confirm. Stock value, the product's average cost and the margin on future sales use the corrected cost; sales already made keep the cost they were sold at, so past profit does not move. Works on expired and sold-out batches too. The correction syncs to your other tills and is recorded in the Activity Log and the product's History tab with the old and new cost and who made the change. Only staff allowed to both view and edit cost prices see the control, and staff who cannot view cost no longer see batch costs on this tab at all.
 
 **Stock Adjustments:** Easily log and track write-offs for lost, stolen, or damaged goods. In-progress adjustment entries are store-scoped and saved automatically into local SQLite (`stock_adjustment_drafts`), so switching branches or answering another till preserves any staged items and reason notes without risk of data loss. An oversell (a sale of units the stock ledger did not hold) also appears here as an "Oversell" entry: the stock-in the ledger was missing, so the next count records only what the counter sees. The dashboard's oversold alert means a batch that still owes units today.
 
@@ -66,14 +72,12 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 **Procurement:** Generate Purchase Orders for your suppliers. An Immediate Purchase — goods paid for and taken on the spot — opens on "Fully Paid", while a standard Purchase Order raised ahead of payment opens on "Unpaid"; either can be changed before saving. When the goods arrive, the system automatically updates your stock levels. Your catalog also shows the price you last actually paid for each product, right alongside its running average cost.
 
-**Sell at Zero Stock (Overselling / Delayed Paperwork):** When physical delivery has arrived on the shop floor but staff hasn't had the time or capacity to enter the purchase order paperwork yet, the store can toggle on "Allow Sales Without Stock" in Settings → Store. Cashiers can continue selling incoming items immediately. Shortfalls are recorded as owed backorders. When the delivery is subsequently entered through a Purchase Order or Immediate Purchase, backorders are cleared and historical sales lines are automatically re-costed from the delivery cost.
-
 **POS Spot Sourcing (On-the-Spot External Sourcing in Cart):** When a customer needs an out-of-stock item and staff can immediately get it from a neighboring pharmacy or partner shop:
-- Cashiers can click "Source outside" directly on the cart item, or tap an out-of-stock product tile to open the Spot Source dialog.
+- Cashiers can tap an out-of-stock product tile, or click "Source outside" on a cart line, to open the Spot Source dialog. The cart line offers it only when the product is out of stock, short, or the cart already holds all the shelf stock (never for services).
 - Staff enters the agreed purchase cost (what was paid to the neighbor) and whether it was paid from the **Cash Drawer** or on **Owner Credit / Paid Externally**.
 - **Net shelf stock is zero:** It does not deduct existing batches or create phantom negative stock or backorders.
 - **Instant profit accuracy:** The true cost price is saved on the sale line, giving you 100% accurate profit reports instantly.
-- **Automatic register cash balance:** If paid from the Cash Drawer, the system automatically writes a cash expense ("Stock Sourcing") behind the scenes. At Daily Close, Net Cash Expected automatically accounts for the cash paid out, so physical cash reconciles without manual notes or shortages!
+- **Automatic register cash balance:** If paid from the Cash Drawer, Daily Close subtracts the payout from Net Cash Expected (from the sale's spot-sourcing record, not an expense row), so physical cash reconciles without manual notes and profit is not counted twice.
 
 **External Stock Sourcing (Unlinked Stores & Partner Sourcing via Procurement):** For larger batches collected from an unlinked sister branch or partner store before sales:
 - The sale is booked under the selling store (customer receipt issued for full price).
@@ -94,7 +98,7 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 ### 📊 Shift Management & Expenses
 
-**End of Day (EOD) Closure:** At the end of their shift, cashiers must count the drawer. The system automatically compares their count with the recorded sales and highlights any shortages or overages.
+**End of Day (Daily Close):** The dashboard's "End of Day" shortcut opens Daily Close, a one-day report of sales, refunds, cash expected, payments by account and top sellers, which every role can see. Count the drawer against its "Net Cash Expected" figure; DumosRx does not yet record the counted amount or a shortage/overage itself.
 
 **Expense Tracking:** Log daily operational expenses directly from the cash register.
 
@@ -125,6 +129,10 @@ The desktop application is built for speed, reliability, and ease of use. It con
 **Included From Pro:** The assistant is part of the Dumos Pro and Enterprise plans, the same as Smart Suggestions. On Free and Starter the icon stays in your header and tells you which plan unlocks it, so you always know it's there. If you'd like it on a different plan for a particular customer, it's a per-plan switch in Platform Settings rather than a code change.
 
 **Respects Your Staff Permissions:** Everyone gets answers to the things they're allowed to see, and only those. A cashier asking about sales gets their *own* sales for the day rather than the store's takings, and profit questions stay with the people you've given financial access to. The suggestions it offers each person are filtered the same way, so nobody is prompted to ask something they'd only be refused.
+
+### 🆘 Help & Support
+
+**Help & Support Hub:** The Help screen gathers everything in one place: step-by-step guides with video walkthroughs (they open on dumosrx.com/guides in your browser so the till stays signed in), the in-app assistant, your account manager's contact details, and a form to send feedback or report a problem. Feedback is saved on the till and syncs when it's online.
 
 ---
 
@@ -160,16 +168,17 @@ Your Cloud Dashboard is your management hub. Log in from any web browser to get 
 
 **Multi-Branch Webstore (One Storefront Per Owner):** Pharmacy owners with multiple branches get a single cohesive webstore under their brand name. Customers can switch between branches using the branch selector (`?branch=...`), which automatically loads that branch's real-time inventory and routes payments directly to that branch's Paystack subaccount. Carts are isolated per branch with an explicit confirmation dialog before switching.
 
-**Dedicated Product Catalog Page:** Customers can browse your complete product catalog at `/store/[slug]/catalog` with instant keyword search, category filter badges, and responsive pagination. Available in-stock products automatically rank first before out-of-stock items.
+**Storefront Home Page:** `/store/[slug]` is a full shop front: a hero with the store name and a "Shop now" button, eight featured products (in-stock first) with a "View all N products" button, a headline band built from the storefront headline, then About, Locations (shown when there is more than one branch or the store has an address), FAQ and Contact sections, each with its own anchor (`#about`, `#locations`, `#faq`, `#contact`). The header carries exactly Home, Shop and Contact plus the cart and the branch selector; the footer, drawn in the store's theme colour, repeats those links with the store's short about text, phone, email, address, and a small "Powered by DumosRx" link.
 
-**Company Profile, Locations & FAQ Pages:** Showcase your brand with dedicated company pages:
-- `/store/[slug]/about`: Pharmacy mission, qualified clinical care commitments, and patient support values.
-- `/store/[slug]/locations`: Interactive branch directory with street addresses, telephone click-to-call, and "Shop this branch" deep links.
-- `/store/[slug]/faq`: Plain-language pharmacy policies, order fulfillment steps, prescription verification, and return procedures.
+**Shop Page:** Customers browse the complete product list at `/store/[slug]/catalog` (labelled "Shop" everywhere a customer sees it) with instant keyword search, category filter badges, and responsive pagination. Available in-stock products automatically rank first before out-of-stock items.
 
-**Order Tracking:** Customers can check the live fulfillment status of their orders at `/store/[slug]/track` using their order reference code or Paystack payment reference. For customer privacy, names are masked (e.g. `J*** D***`).
+**Storefront Themes:** Each storefront has a colour theme (Default, Forest, Navy, Rose, Amber, Slate, Violet). Only a DumosRx super admin can change it, from the store's detail page in the admin panel; it goes live with the next storefront rebuild. Store owners have no theme control yet.
 
-**Digital Prescription Upload:** Patients can securely upload doctor prescriptions (scanned photos or PDFs up to 5MB) along with contact details and medication notes at `/store/[slug]/prescription`. The receiving branch pharmacists are immediately notified to verify the prescription and prepare fulfillment.
+**About, Locations & FAQ pages:** `/store/[slug]/about`, `/locations` and `/faq` still exist so old links and the sitemap keep working, and render the same sections as the home page.
+
+**Order Tracking and Prescription Upload (built, not linked):** `/store/[slug]/track` (order status by reference, customer names masked) and `/store/[slug]/prescription` (scanned prescription or PDF upload) still work but are not linked from any storefront page. Stores can only move an online order from pending straight to fulfilled or cancelled, so there is no in-between progress worth tracking yet; both will be re-linked when that changes.
+
+**Online Orders at the Till:** Orders customers place on your storefront appear in the POS's online orders list. Fulfilling one records it as a normal sale and takes the stock off your shelves at that moment, so it shows in your reports and stock movements like any walk-in sale. Stock is not held at online checkout, so two customers can order the last unit before you fulfil either.
 
 ### 💳 Billing & Subscriptions
 

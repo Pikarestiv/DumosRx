@@ -46,6 +46,7 @@ export interface AuditItem {
   // Live stock as re-read at the moment this row's count was entered, and the only figure the submit may measure the count a…
   // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-audits-tsx-L73
   baselineQty?: number;
+  countedAt?: string;
   // When this product was last reconciled by a submitted count (products.last_audited_at), so a counter can see what has gon…
   // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-audits-tsx-L78
   lastAuditedAt?: string | null;
@@ -167,6 +168,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
           cancelPendingCounts();
           clearDraft();
           ledger.resetLens();
+          void cloud.abandon("Started over");
         }}
       />
 

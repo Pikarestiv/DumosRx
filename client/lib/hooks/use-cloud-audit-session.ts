@@ -5,8 +5,6 @@ import {
   AuditSessionConflictError,
   CloudAuditSession,
   CloudAuditSessionItem,
-  abandonAuditSession,
-  completeAuditSession,
   fetchActiveAuditSession,
   heartbeatAuditSession,
   startAuditSession,
@@ -17,6 +15,12 @@ import { getDeviceId } from "@/lib/utils/device-id";
 import { getDeviceLabel } from "@/lib/utils/device-label";
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
 import { useStockAuditDraftStore } from "./use-stock-audit-draft";
+import { isAuditItemCounted } from "@/components/stock-batch/audit-derivations";
+import {
+  flushAuditSessionOps,
+  pendingAuditSessionIds,
+  queueAuditSessionOp,
+} from "./cloud-audit-pending-ops";
 import { toast } from "sonner";
 
 const HEARTBEAT_INTERVAL_MS = 60_000;
@@ -33,8 +37,23 @@ export function toCloudItem(item: AuditItem): CloudAuditSessionItem {
     counted_selling_price: item.countedSellingPrice ?? null,
     counted: Boolean(item.counted),
     notes: item.reason ?? null,
-    counted_at: item.baselineQty !== undefined ? new Date().toISOString() : null,
+    counted_at:
+      item.countedAt ?? (item.baselineQty !== undefined ? new Date().toISOString() : null),
   };
+}
+
+function remoteCountWins(local: AuditItem, remote: CloudAuditSessionItem): boolean {
+  if (!isAuditItemCounted(local)) return true;
+  if (!local.countedAt || !remote.counted_at) return false;
+  return Date.parse(remote.counted_at) > Date.parse(local.countedAt);
+}
+
+function isResumable(session: CloudAuditSession): boolean {
+  return (
+    session.status === "in_progress" &&
+    !session.submitted_stock_audit_id &&
+    !pendingAuditSessionIds().has(session.id)
+  );
 }
 
 export function mergeCloudItemsIntoLocal(
@@ -51,12 +70,14 @@ export function mergeCloudItemsIntoLocal(
     if (
       remote.counted &&
       remote.counted_quantity !== null &&
-      remote.counted_quantity !== undefined
+      remote.counted_quantity !== undefined &&
+      remoteCountWins(local, remote)
     ) {
       return {
         ...local,
         counted: true,
         countedQty: Number(remote.counted_quantity),
+        countedAt: remote.counted_at ?? local.countedAt,
         countedCostPrice:
           remote.counted_cost_price !== null && remote.counted_cost_price !== undefined
             ? Number(remote.counted_cost_price)
@@ -114,8 +135,12 @@ export function useCloudAuditSession(storeId: string | null) {
 
     try {
       setIsLoading(true);
+      await flushAuditSessionOps();
       const res = await fetchActiveAuditSession(true);
-      if (res.session) {
+      if (res.session && !isResumable(res.session)) {
+        setSession(null);
+        setIsReadOnly(false);
+      } else if (res.session) {
         setSession(res.session);
         const heldByUs = res.session.active_till_id === currentTillId;
         setIsReadOnly(!heldByUs);
@@ -135,7 +160,6 @@ export function useCloudAuditSession(storeId: string | null) {
       if (err instanceof AuditSessionConflictError) {
         handleConflict(err);
       } else {
-        // Offline or network error: continue locally uninterrupted
         console.warn("Unable to connect to cloud audit session. Continuing offline:", err);
       }
     } finally {
@@ -250,26 +274,37 @@ export function useCloudAuditSession(storeId: string | null) {
   const complete = useCallback(async (submittedStockAuditId?: string | null) => {
     const cur = sessionRef.current;
     if (!cur || cur.active_till_id !== currentTillId) return;
-
-    try {
-      await completeAuditSession(cur.id, cur.lease_version, submittedStockAuditId);
-    } catch (err) {
-      console.warn("Could not mark cloud audit session completed immediately:", err);
-    }
+    queueAuditSessionOp({
+      kind: "complete",
+      sessionId: cur.id,
+      leaseVersion: cur.lease_version,
+      submittedStockAuditId: submittedStockAuditId || null,
+    });
+    sessionRef.current = null;
+    setSession(null);
+    await flushAuditSessionOps();
   }, [currentTillId]);
 
   const abandon = useCallback(async (reason?: string) => {
     const cur = sessionRef.current;
-    if (!cur) return;
+    if (!cur || cur.active_till_id !== currentTillId) return;
+    queueAuditSessionOp({ kind: "abandon", sessionId: cur.id, reason });
+    sessionRef.current = null;
+    setSession(null);
+    setIsReadOnly(false);
+    await flushAuditSessionOps();
+  }, [currentTillId]);
 
-    try {
-      await abandonAuditSession(cur.id, reason);
-      setSession(null);
-      setIsReadOnly(false);
-    } catch (err) {
-      console.warn("Could not mark cloud audit session abandoned:", err);
-    }
-  }, []);
+  useEffect(() => {
+    const retry = () => {
+      void flushAuditSessionOps();
+      const items = useStockAuditDraftStore.getState().items;
+      if (sessionRef.current) queueSync(items);
+      else void initSession(items);
+    };
+    window.addEventListener("online", retry);
+    return () => window.removeEventListener("online", retry);
+  }, [initSession, queueSync]);
 
   return {
     session,

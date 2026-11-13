@@ -8,6 +8,11 @@ import {
 } from "@/components/stock-batch/audit-derivations";
 import { useStockAuditDraftStore } from "./use-stock-audit-draft";
 
+function stampCounted(items: AuditItem[], id: string): AuditItem[] {
+  const countedAt = new Date().toISOString();
+  return items.map((i) => (i.id === id ? { ...i, countedAt } : i));
+}
+
 export function useAuditCounting() {
   const setItems = useStockAuditDraftStore((state) => state.setItems);
   const counts = useRef(createCountSequencer());
@@ -18,11 +23,11 @@ export function useAuditCounting() {
     async (id: string, countedQty?: number) => {
       const token = counts.current.begin(id);
       if (countedQty !== undefined) {
-        setItems((prev) => applyOptimisticCount(prev, id, countedQty));
+        setItems((prev) => stampCounted(applyOptimisticCount(prev, id, countedQty), id));
       }
       const live = await getProductStockQuantity(id);
       if (!counts.current.isCurrent(id, token)) return;
-      setItems((prev) => applyCountBaseline(prev, id, countedQty, live));
+      setItems((prev) => stampCounted(applyCountBaseline(prev, id, countedQty, live), id));
     },
     [setItems],
   );
@@ -35,8 +40,11 @@ export function useAuditCounting() {
   const updateLedgerItem = useCallback(
     (id: string, patch: Partial<AuditItem>) => {
       setItems((prev) =>
-        prev.map((i) =>
-          i.id === id ? { ...i, ...patch, counted: patch.counted ?? true } : i,
+        stampCounted(
+          prev.map((i) =>
+            i.id === id ? { ...i, ...patch, counted: patch.counted ?? true } : i,
+          ),
+          id,
         ),
       );
     },

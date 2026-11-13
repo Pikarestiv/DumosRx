@@ -57,6 +57,13 @@ export class AuditSessionConflictError extends Error {
   }
 }
 
+export class AuditSessionRequestError extends Error {
+  constructor(message: string, public statusCode: number) {
+    super(message);
+    this.name = "AuditSessionRequestError";
+  }
+}
+
 function buildHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -122,7 +129,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     } catch {
       // fallback to status code
     }
-    throw new Error(errorMessage);
+    throw new AuditSessionRequestError(errorMessage, response.status);
   }
 
   return response.json() as Promise<T>;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +22,7 @@ import {
   getLabelPageStyle,
   MAX_BULK_LABELS,
 } from "./barcode-label-sheet";
-import { buildLabelHtml, type LabelProduct } from "./barcode-label-markup";
+import { buildLabelHtml, labelBarcodeValue, type LabelProduct } from "./barcode-label-markup";
 import { BarcodeLabelOptions } from "./barcode-label-options";
 import { useLabelLayout } from "./use-label-layout";
 
@@ -45,7 +45,7 @@ export function BarcodeBulkPrintDialog({ isOpen, onClose, products }: BarcodeBul
   const startPosition = clampStartPosition(layout, Number(startText));
   const totalLabels = products.length * copies;
   const tooMany = totalLabels > MAX_BULK_LABELS;
-  const withoutBarcode = products.filter((p) => !p.barcode).length;
+  const printsId = useMemo(() => products.filter((p) => labelBarcodeValue(p) !== p.barcode).length, [products]);
 
   const handlePrint = () => {
     try {
@@ -94,10 +94,11 @@ export function BarcodeBulkPrintDialog({ isOpen, onClose, products }: BarcodeBul
             quantityLabel="Labels per product"
             totalLabels={totalLabels}
           />
-          {withoutBarcode > 0 && (
+          {printsId > 0 && (
             <p className="flex gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-400">
               <AlertTriangle className="h-4 w-4 shrink-0" />
-              {plural(withoutBarcode, "product")} without a barcode will print its product id, which is long and may not scan.
+              {plural(printsId, "product")} {printsId === 1 ? "has" : "have"} no barcode or one that cannot be printed;{" "}
+              {printsId === 1 ? "its" : "their"} label prints the product id, which is long and may not scan.
             </p>
           )}
           {tooMany && (

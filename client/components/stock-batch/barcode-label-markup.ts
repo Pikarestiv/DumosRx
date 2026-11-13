@@ -1,4 +1,5 @@
 import JsBarcode from "jsbarcode";
+import { canEncodeBarcode } from "./barcode-label-sheet";
 
 export interface LabelProduct {
   id: string;
@@ -9,6 +10,10 @@ export interface LabelProduct {
 
 export function formatLabelPrice(currency: string | undefined, unitPrice: number): string {
   return `${currency || "NGN"} ${unitPrice.toLocaleString()}`;
+}
+
+export function labelBarcodeValue(product: { id: string; barcode?: string }): string {
+  return product.barcode && canEncodeBarcode(product.barcode) ? product.barcode : product.id;
 }
 
 function barcodeSvg(value: string): SVGSVGElement {
@@ -26,12 +31,6 @@ export function buildLabelHtml(product: LabelProduct, currency: string | undefin
   const price = document.createElement("div");
   price.className = "price";
   price.textContent = formatLabelPrice(currency, product.unit_price);
-  let svg: SVGSVGElement;
-  try {
-    svg = barcodeSvg(product.barcode || product.id);
-  } catch {
-    svg = barcodeSvg(product.id);
-  }
-  label.append(name, svg, price);
+  label.append(name, barcodeSvg(labelBarcodeValue(product)), price);
   return label.outerHTML;
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   barcodeFit,
+  canEncodeBarcode,
   buildLabelSheetHtml,
   buildMultiProductSheetHtml,
   clampLabelQuantity,
@@ -164,6 +165,18 @@ describe("barcodeFit", () => {
 
   it("treats a value the encoder rejects as not fitting rather than throwing", () => {
     expect(barcodeFit("", "roll").fits).toBe(false);
+  });
+
+  it.each(["café123", "€12"])("names %s as unencodable instead of reporting a width", (value) => {
+    const fit = barcodeFit(value, "roll");
+    expect(fit.fits).toBe(false);
+    expect(fit.reason).toBe("unencodable");
+    expect(canEncodeBarcode(value)).toBe(false);
+  });
+
+  it("leaves reason unset for an encodable value that is merely too wide", () => {
+    expect(barcodeFit("3f2b8c1e-9d4a-4e7b-a1c2-5d6e7f8a9b0c", "roll").reason).toBeUndefined();
+    expect(canEncodeBarcode("5901234123457")).toBe(true);
   });
 });
 

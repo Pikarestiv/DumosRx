@@ -64,7 +64,18 @@ describe("BarcodeBulkPrintDialog", () => {
 
   it("warns about products without a barcode", () => {
     render(<BarcodeBulkPrintDialog isOpen onClose={() => {}} products={products} />);
-    expect(screen.getByText(/1 product without a barcode will print its product id/)).toBeTruthy();
+    expect(screen.getByText(/1 product has no barcode or one that cannot be printed; its label prints the product id/)).toBeTruthy();
+  });
+
+  it("counts a barcode the encoder rejects with the missing ones and prints its product id", () => {
+    const accented = { id: "p4", name: "Café Syrup", barcode: "café123", unit_price: 500 };
+    render(<BarcodeBulkPrintDialog isOpen onClose={() => {}} products={[...products, accented]} />);
+    expect(screen.getByText(/2 products have no barcode or one that cannot be printed; their label prints the product id/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /print 4 labels/i }));
+    const label = Array.from(printedHost().querySelectorAll(".label")).find((l) => l.querySelector(".name")?.textContent === "Café Syrup");
+    expect(label?.querySelectorAll("svg rect").length).toBeGreaterThan(1);
+    expect(label?.querySelector("svg text")?.textContent).toBe("p4");
   });
 
   it("blocks a job over the per-job limit", () => {

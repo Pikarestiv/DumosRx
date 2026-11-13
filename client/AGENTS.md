@@ -3944,7 +3944,15 @@ has a `viewBox`, so it scales instead of clipping). `barcodeFit()` in
 `barcode-label-sheet.ts` encodes the value with jsbarcode, counts modules at
 1 CSS px (0.2646 mm) each and compares against the label's inner width; when
 it does not fit, the dialog says the code will be squeezed and may not scan,
-rather than silently printing an unscannable label. Paper layouts live in
+rather than silently printing an unscannable label. A value jsbarcode refuses
+outright (CODE128 takes ASCII only, so `café123` or `€12` throw) comes back
+as `reason: "unencodable"`, and react-barcode would swallow the same error
+and draw an empty SVG. So both dialogs pick the code through
+`labelBarcodeValue()` (`barcode-label-markup.ts`, built on
+`canEncodeBarcode()`): the barcode when it encodes, otherwise the product id,
+for the preview, the print template and the bulk markup alike. The single
+dialog then says the barcode has characters a label can't encode and that
+the id prints instead. Paper layouts live in
 `LABEL_LAYOUTS` (roll 50×25 mm, one per page; A4 3×8 of 63.5×33.9 mm with
 Avery L7159-style margins), the chosen layout is a per-device
 `localStorage` convenience (`STORAGE_KEYS.labelPrintLayout`, read and
@@ -3964,7 +3972,8 @@ in `barcode-label-markup.ts` draws each label's SVG with jsbarcode at print
 time, and `buildMultiProductSheetHtml` repeats each product's label per copy
 and packs them through the same `packLabels` the single dialog uses. A job is
 capped at `MAX_BULK_LABELS` (2000) and the dialog blocks Print above it; a
-product with no barcode prints its product id and the dialog counts those.
+product with no barcode, or one `canEncodeBarcode()` rejects, prints its
+product id and the dialog counts both together.
 
 `delete_products` and `delete_suppliers` joined the enforced list on
 2026-09-29 as well, and they are the **third** reversal of that morning's

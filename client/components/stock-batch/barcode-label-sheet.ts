@@ -105,6 +105,7 @@ export interface BarcodeFit {
   fits: boolean;
   neededMm: number;
   availableMm: number;
+  reason?: "unencodable";
 }
 
 export function barcodeFit(value: string, layout: LabelLayoutId): BarcodeFit {
@@ -113,11 +114,15 @@ export function barcodeFit(value: string, layout: LabelLayoutId): BarcodeFit {
   try {
     JsBarcode(encoded, value, { margin: 0 });
   } catch {
-    return { fits: false, neededMm: Number.POSITIVE_INFINITY, availableMm };
+    return { fits: false, neededMm: Number.POSITIVE_INFINITY, availableMm, reason: "unencodable" };
   }
   const modules = (encoded.encodings ?? []).reduce((sum, e) => sum + e.data.length, 0);
   const neededMm = modules * MM_PER_CSS_PX;
   return { fits: modules > 0 && neededMm <= availableMm, neededMm, availableMm };
+}
+
+export function canEncodeBarcode(value: string): boolean {
+  return barcodeFit(value, "roll").reason !== "unencodable";
 }
 
 function rollPageStyle(): string {

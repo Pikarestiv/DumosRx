@@ -641,10 +641,6 @@ suggested tackle order rather than a strict ranking.
 #### A-343. `client/` — the cart's owed-units warning overstates the shortfall when only expired stock is left
 - **Found:** 2026-10-26, third independent review of `feat/sell-at-zero-stock`; deferred. `formatBackorderWarning()` uses `product.stock`, which excludes expired batches, but `writeSaleItemStock()` falls back to an expired batch and may sell from it, so the toast can say more units are owed than the sale actually records.
 
-#### A-368. `client/` — dark-mode "Clear cart" reads as disabled
-- **Found:** 2026-11-13, Playwright smoke of `feat/service-pos` at 390×844 (`e2e/services-pos-sourcing-layout.spec.ts`). The sourcing-pill truncation, stepper gap, red hairline and product-name truncation from the original entry are fixed (`docs/FIXED_BUGS.md`, A-368); this is what is left.
-- **"Clear cart" in dark mode:** in the cart drawer's footer the destructive-outline "Clear cart" button renders as dim red on near-black, so it looks disabled while the cart has items (seen in `cart-*-390-dark.png`; not measured). Fix: check its contrast against the dark surface and lift the dark text/border shade.
-
 ---
 
 ## Accepted tradeoffs (no fix planned)

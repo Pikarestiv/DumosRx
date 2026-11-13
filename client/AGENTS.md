@@ -2499,6 +2499,8 @@ There are two distinct workflows for selling goods sourced outside the store:
      (`pos-cart-item-spot-sourcing-layout.test.tsx`, `e2e/services-pos-sourcing-layout.spec.ts`).
      The line's name wraps to two lines (`line-clamp-2 break-words`) rather than truncating, and
      is a focusable `HintTooltip` trigger so hover or focus reveals the full name (A-368).
+     Don't colour cart text with `text-destructive`: dark `--destructive` is a fill shade
+     (1.92:1 as text on the dark footer); "Clear" uses `text-red-700 dark:text-red-400`.
      The swipe-to-delete `bg-destructive` backdrop in `pos-cart-item.tsx` takes its opacity
      from the row's drag offset, so it is fully transparent at rest and cannot bleed a red
      hairline through the rounded clip.

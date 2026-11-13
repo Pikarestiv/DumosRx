@@ -1,3 +1,9 @@
+### A-368 (rest) — dark-mode "Clear cart" read as disabled
+- **Fixed:** 2026-11-13, client only, TDD. This closes A-368.
+- **Was:** the cart footer's "Clear cart" button used `text-destructive` on `bg-destructive/5`. In dark mode `--destructive` is a deep red meant as a fill behind white text, so as text on the near-black footer it measured **1.92:1** (light mode: 4.01:1), and the button looked disabled while the cart had items.
+- **Now:** `text-red-700 dark:text-red-400` on `bg-red-500/5` with a `border-red-500/30` outline, still the tinted secondary style beside Hold and Request: **5.48:1** light, **6.53:1** dark, measured from computed colours with translucent backgrounds composited (`e2e/layout-metrics.ts` now blends every translucent layer down to the first opaque one instead of skipping them).
+- **Coverage:** `client/e2e/services-pos-sourcing-layout.spec.ts` asserts the label at opacity 1 and ≥ 4.5:1 in light and dark.
+
 ### A-368 (part) — at phone width the cart cut product and service names to about ten characters
 - **Fixed:** 2026-11-13, client only, TDD. The dark "Clear cart" contrast is a separate entry.
 - **Was:** `pos-cart-item.tsx`'s name was `truncate` in a ~95px column at a 390px cart, so "E2E Amoxicillin 500mg Capsules" read "E2E AMOXIC…" and two strengths of one product looked identical.

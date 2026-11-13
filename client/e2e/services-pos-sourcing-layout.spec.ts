@@ -73,6 +73,11 @@ test.describe('POS cart sourcing controls at phone width', () => {
       expect(drawerWidth).toBeGreaterThanOrEqual(370);
       expect(drawerWidth).toBeLessThanOrEqual(395);
 
+      const clearCart = await measureLabel(drawer.getByRole('button', { name: 'Clear cart' }));
+      test.info().annotations.push({ type: 'metrics: Clear cart', description: JSON.stringify(clearCart) });
+      expect(clearCart.effectiveOpacity).toBe(1);
+      expect(clearCart.contrast).toBeGreaterThanOrEqual(MIN_SMALL_TEXT_CONTRAST);
+
       const sourceOutside = cartLine(page, IN_STOCK).getByRole('button', { name: 'Source outside' });
       await expect(sourceOutside).toBeVisible();
       const inStock = await expectOneLineClearOfStepper(page, IN_STOCK, sourceOutside);

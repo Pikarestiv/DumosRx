@@ -260,7 +260,7 @@ export const POSCart = memo(function POSCart({
           {showClearCartAction && (
             <button
               onClick={onRequestClearCart}
-              className="w-full flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg border border-destructive/20 bg-destructive/5 text-[11.5px] font-semibold text-destructive cursor-pointer hover:bg-destructive/10 transition-colors"
+              className="w-full flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg border border-red-500/30 bg-red-500/5 text-[11.5px] font-semibold text-red-700 dark:text-red-400 cursor-pointer hover:bg-red-500/10 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
               Clear cart

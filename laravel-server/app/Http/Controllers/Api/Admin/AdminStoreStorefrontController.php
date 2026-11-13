@@ -4,11 +4,15 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Exceptions\StoreActionBlockedException;
 use App\Services\Admin\AdminStoreStorefrontService;
+use App\Support\StorefrontThemes;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use OpenApi\Attributes as OA;
 
 /**
- * Publish / unpublish a store's public storefront from the admin panel.
+ * Publish / unpublish a store's public storefront from the admin panel, and
+ * (super admin only) set its theme.
  * Separate from AdminStoreController, which is already past the repo's
  * 350-line rule.
  */
@@ -68,6 +72,50 @@ class AdminStoreStorefrontController extends AdminBaseController
                     : 'Storefront unpublished',
                 'online_store_enabled' => (bool) $store->online_store_enabled,
                 'store_slug' => $store->store_slug,
+            ]);
+        });
+    }
+
+    #[OA\Put(
+        path: '/admin/stores/{id}/storefront/theme',
+        summary: "Set the colour theme of the store owner's public storefront (super admin only)",
+        description: "Writes storefronts.theme for the store's owner, creating the storefront row from this store if none exists yet, and marks the owner's published stores dirty so the next scheduled rebuild ships it. `theme` must be one of App\\Support\\StorefrontThemes::IDS, which the store detail payload also returns as storefront.available_themes. Setting the current theme is a no-op that still returns 200.",
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['theme'],
+            properties: [new OA\Property(property: 'theme', type: 'string', enum: StorefrontThemes::IDS)],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated', content: new OA\JsonContent(properties: [
+                new OA\Property(property: 'message', type: 'string'),
+                new OA\Property(property: 'theme', type: 'string'),
+            ])),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Not a super admin'),
+            new OA\Response(response: 404, description: 'No store with that id'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError', description: 'A theme outside the allow-list, or a store with no storefront address and no storefront yet'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
+    public function updateTheme(Request $request, string $id)
+    {
+        $validated = $request->validate([
+            'theme' => ['required', 'string', Rule::in(StorefrontThemes::IDS)],
+        ]);
+
+        return $this->withErrorResponse('Storefront Theme', 'Failed to update the storefront theme', function () use ($id, $validated) {
+            try {
+                $storefront = $this->storefrontService->setTheme($id, $validated['theme']);
+            } catch (ModelNotFoundException) {
+                return response()->json(['message' => 'Store not found'], 404);
+            } catch (StoreActionBlockedException $e) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            return response()->json([
+                'message' => 'Storefront theme updated',
+                'theme' => $storefront->theme,
             ]);
         });
     }

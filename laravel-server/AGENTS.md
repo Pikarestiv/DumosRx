@@ -196,7 +196,18 @@ without updating that.
   is a public URL, so it is refused on a collision checked `withTrashed()`, on
   a value that slugifies to empty or over 100 chars, and when `Store::saving()`
   silently reverts it under the 6-month cooldown; see `web/AGENTS.md`, "The same
-  card sets the slug") and `impersonate_store`.
+  card sets the slug") and `impersonate_store`. **The storefront theme is not
+  under `manage_account_status`:** `PUT /admin/stores/{id}/storefront/theme`
+  (`AdminStoreStorefrontController::updateTheme`, 2026-11-13) is
+  `role:super_admin` only, because the owner asked that only the super admin
+  pick themes for now. It validates against `App\Support\StorefrontThemes::IDS`
+  (mirrored and pinned by `web/__tests__/storefront-themes.test.ts`), writes
+  `storefronts.theme` on the owner's row (created lazily through
+  `StorefrontCatalogService::storefrontForStore()`, refused with a 422 when
+  the store has no slug and no storefront yet), and dirties the owner's
+  published stores via `Product::markStorefrontsDirty()`. Re-sending the
+  current theme is a no-op. The store detail payload carries
+  `storefront.theme` and `storefront.available_themes`.
   - **Enforced by omission, not by a deny-list.** A never-delegatable action
     (delete a user/store, edit another admin's profile/role, coupons and
     referral payouts, the subscription/platform config endpoints) simply has
@@ -1507,7 +1518,8 @@ extending or relying on any of this):
   `online_store_enabled` so a bulk product sync writes nothing for the
   accounts that publish no storefront. `Product::markStorefrontsDirty($storeIds, $ownerIds)`
   is the public form of that write, for bulk writers such as
-  `products:backfill-show-online`; a store-less legacy product dirties every
+  `products:backfill-show-online` and the admin theme endpoint (a
+  `storefronts` row has no dirty hook of its own); a store-less legacy product dirties every
   publishing store of its owner, since it cannot be narrowed further.
 - **The stamp is always refreshed, not only set when null.** That is
   load-bearing, not sloppiness: the confirmation callback below clears flags

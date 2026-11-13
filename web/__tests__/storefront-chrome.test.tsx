@@ -20,10 +20,26 @@ describe("storefront chrome", () => {
     expect(container.innerHTML).toBe("");
   });
 
-  it("carries only a small Powered by link to the platform site", () => {
-    render(<StorefrontFooter store={store} />);
-    const link = screen.getByText(/Powered by/).closest("a");
-    expect(link?.getAttribute("href")).toBe(WEB_APP_URL);
-    expect(screen.getAllByRole("link")).toHaveLength(1);
+  it("links Home, Shop and Contact, the store's contact details, and Powered by the platform site", () => {
+    render(<StorefrontFooter storeSlug="grace" store={store} storefront={{ id: "f1", slug: "grace", name: "Grace Pharmacy", about: "Family pharmacy since 1998." }} />);
+
+    const footerNav = screen.getByRole("navigation", { name: "Footer" });
+    const quickLinks = Array.from(footerNav.querySelectorAll("a")).map((a) => [a.textContent, a.getAttribute("href")]);
+    expect(quickLinks).toEqual([
+      ["Home", "/store/grace"],
+      ["Shop", "/store/grace/catalog"],
+      ["Contact", "/store/grace#contact"],
+    ]);
+    expect(screen.getByText("Family pharmacy since 1998.")).toBeTruthy();
+    expect(screen.getByText("0801").closest("a")?.getAttribute("href")).toBe("tel:0801");
+    expect(screen.getByText("12 Allen Avenue, Ikeja")).toBeTruthy();
+    expect(screen.getByText(/Powered by/).closest("a")?.getAttribute("href")).toBe(WEB_APP_URL);
+  });
+
+  it("never links the unlinked Track Order or prescription routes", () => {
+    render(<StorefrontFooter storeSlug="grace" store={store} />);
+
+    const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href") ?? "");
+    expect(hrefs.some((href) => href.includes("/track") || href.includes("/prescription"))).toBe(false);
   });
 });

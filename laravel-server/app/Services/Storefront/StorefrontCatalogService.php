@@ -8,6 +8,7 @@ use App\Models\Store;
 use App\Models\Storefront;
 use App\Models\User;
 use App\Services\SubscriptionService;
+use App\Support\StorefrontThemes;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -52,13 +53,22 @@ class StorefrontCatalogService
             return null;
         }
 
+        return $this->storefrontForStore($store);
+    }
+
+    /**
+     * The owner's storefront row, created lazily from this store on first use.
+     * The caller must ensure the store has a slug: storefronts.slug is not nullable.
+     */
+    public function storefrontForStore(Store $store): Storefront
+    {
         return Storefront::firstOrCreate(
             ['user_id' => $store->user_id],
             [
                 'slug' => $store->store_slug,
                 'name' => $store->name,
                 'primary_store_id' => $store->id,
-                'theme' => 'emerald',
+                'theme' => StorefrontThemes::DEFAULT,
                 'is_active' => true,
             ]
         );

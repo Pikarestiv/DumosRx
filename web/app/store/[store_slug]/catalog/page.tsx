@@ -29,7 +29,7 @@ export async function generateMetadata({
   const base = buildStorefrontMetadata(store_slug, data?.store);
   return {
     ...base,
-    title: data?.store?.name ? `Catalog | ${data.store.name}` : "Catalog",
+    title: data?.store?.name ? `Shop | ${data.store.name}` : "Shop",
   };
 }
 
@@ -66,16 +66,16 @@ export default async function StorefrontCatalogPage({
             {storefront?.name || store.name}
           </Link>
           <ChevronRight className="h-3 w-3" />
-          <span className="text-foreground font-medium">Catalog</span>
+          <span className="text-foreground font-medium">Shop</span>
         </nav>
 
         <div className="flex items-center justify-between">
           <h1 className="font-heading text-3xl font-bold tracking-tight text-foreground">
-            Product Catalog
+            Shop
           </h1>
         </div>
 
-        <Suspense fallback={<div className="py-12 text-center text-muted-foreground">Loading catalog…</div>}>
+        <Suspense fallback={<div className="py-12 text-center text-muted-foreground">Loading products…</div>}>
           <StorefrontCatalogView
             storeSlug={store_slug}
             currency={store.currency}
@@ -84,7 +84,7 @@ export default async function StorefrontCatalogPage({
         </Suspense>
       </main>
 
-      <StorefrontFooter store={store} />
+      <StorefrontFooter storeSlug={store_slug} store={store} storefront={storefront} />
     </div>
   );
 }

@@ -162,16 +162,15 @@ Your Cloud Dashboard is your management hub. Log in from any web browser to get 
 
 **Multi-Branch Webstore (One Storefront Per Owner):** Pharmacy owners with multiple branches get a single cohesive webstore under their brand name. Customers can switch between branches using the branch selector (`?branch=...`), which automatically loads that branch's real-time inventory and routes payments directly to that branch's Paystack subaccount. Carts are isolated per branch with an explicit confirmation dialog before switching.
 
-**Dedicated Product Catalog Page:** Customers can browse your complete product catalog at `/store/[slug]/catalog` with instant keyword search, category filter badges, and responsive pagination. Available in-stock products automatically rank first before out-of-stock items.
+**Storefront Home Page:** `/store/[slug]` is a full shop front: a hero with the store name and a "Shop now" button, eight featured products (in-stock first) with a "View all N products" button, a headline band built from the storefront headline, then About, Locations (shown when there is more than one branch or the store has an address), FAQ and Contact sections, each with its own anchor (`#about`, `#locations`, `#faq`, `#contact`). The header carries exactly Home, Shop and Contact plus the cart and the branch selector; the footer, drawn in the store's theme colour, repeats those links with the store's short about text, phone, email, address, and a small "Powered by DumosRx" link.
 
-**Company Profile, Locations & FAQ Pages:** Showcase your brand with dedicated company pages:
-- `/store/[slug]/about`: Pharmacy mission, qualified clinical care commitments, and patient support values.
-- `/store/[slug]/locations`: Interactive branch directory with street addresses, telephone click-to-call, and "Shop this branch" deep links.
-- `/store/[slug]/faq`: Plain-language pharmacy policies, order fulfillment steps, prescription verification, and return procedures.
+**Shop Page:** Customers browse the complete product list at `/store/[slug]/catalog` (labelled "Shop" everywhere a customer sees it) with instant keyword search, category filter badges, and responsive pagination. Available in-stock products automatically rank first before out-of-stock items.
 
-**Order Tracking:** Customers can check the live fulfillment status of their orders at `/store/[slug]/track` using their order reference code or Paystack payment reference. For customer privacy, names are masked (e.g. `J*** D***`).
+**Storefront Themes:** Each storefront has a colour theme (Default, Forest, Navy, Rose, Amber, Slate, Violet). Only a DumosRx super admin can change it, from the store's detail page in the admin panel; it goes live with the next storefront rebuild. Store owners have no theme control yet.
 
-**Digital Prescription Upload:** Patients can securely upload doctor prescriptions (scanned photos or PDFs up to 5MB) along with contact details and medication notes at `/store/[slug]/prescription`. The receiving branch pharmacists are immediately notified to verify the prescription and prepare fulfillment.
+**About, Locations & FAQ pages:** `/store/[slug]/about`, `/locations` and `/faq` still exist so old links and the sitemap keep working, and render the same sections as the home page.
+
+**Order Tracking and Prescription Upload (built, not linked):** `/store/[slug]/track` (order status by reference, customer names masked) and `/store/[slug]/prescription` (scanned prescription or PDF upload) still work but are not linked from any storefront page. Stores can only move an online order from pending straight to fulfilled or cancelled, so there is no in-between progress worth tracking yet; both will be re-linked when that changes.
 
 ### 💳 Billing & Subscriptions
 

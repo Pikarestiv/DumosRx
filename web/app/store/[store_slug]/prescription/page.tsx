@@ -88,7 +88,7 @@ export default async function StorefrontPrescriptionPage({
         <StorePrescriptionForm storeSlug={store_slug} branches={branches} />
       </main>
 
-      <StorefrontFooter store={store} />
+      <StorefrontFooter storeSlug={store_slug} store={store} storefront={storefront} />
     </div>
   );
 }

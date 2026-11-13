@@ -2523,9 +2523,12 @@ There are two distinct workflows for selling goods sourced outside the store:
      shows whenever VAT or a discount (a reward is applied as a fixed discount) adjusts the
      sale, and is hidden only when nothing does, since it would then repeat Total. It is not
      keyed on `subtotal !== total`: VAT is charged on the discounted amount, so VAT and a
-     discount can cancel exactly and leave both rows showing with no Subtotal. Cart lines carry no category icon (it cost ~52px of name width). The customer
-     picker is one slim line (name · hint) whose trailing Plus icon sits inside the clickable
-     trigger, and the reseller toggle row is `py-1`.
+     discount can cancel exactly and leave both rows showing with no Subtotal. Cart lines
+     carry no category icon (it cost ~52px of name width). The customer picker is one slim
+     line (name · hint) whose trailing Plus icon sits inside the clickable trigger; with a
+     customer chosen, name and phone truncate and the "• N pts" figure is a separate
+     `shrink-0` span, so a long name cannot push the points off. The reseller toggle row is
+     `py-1`.
      Don't colour cart text with `text-destructive`: dark `--destructive` is a fill shade
      (1.92:1 as text on the dark footer); "Clear" uses `text-red-700 dark:text-red-400`.
      The swipe-to-delete `bg-destructive` backdrop in `pos-cart-item.tsx` takes its opacity

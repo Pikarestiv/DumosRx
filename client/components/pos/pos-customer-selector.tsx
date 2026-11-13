@@ -120,18 +120,23 @@ export const POSCustomerSelector = memo(function POSCustomerSelector({
           <div className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold shrink-0">
             {initials}
           </div>
-          <div className="flex-1 min-w-0 truncate leading-tight">
-            <span className="text-[12.5px] font-semibold text-foreground">
-              {selectedCustomer
-                ? `${selectedCustomer.first_name} ${selectedCustomer.last_name || ""}`
-                : "Walk-in customer"}
+          <div className="flex flex-1 min-w-0 items-baseline leading-tight">
+            <span className="min-w-0 truncate">
+              <span className="text-[12.5px] font-semibold text-foreground">
+                {selectedCustomer
+                  ? `${selectedCustomer.first_name} ${selectedCustomer.last_name || ""}`
+                  : "Walk-in customer"}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                {" · "}
+                {selectedCustomer ? selectedCustomer.phone || "No phone" : "Tap to search or add"}
+              </span>
             </span>
-            <span className="text-[11px] text-muted-foreground">
-              {" · "}
-              {selectedCustomer
-                ? `${selectedCustomer.phone || "No phone"} • ${selectedCustomer.loyalty_points || 0} pts`
-                : "Tap to search or add"}
-            </span>
+            {selectedCustomer && (
+              <span className="shrink-0 whitespace-nowrap pl-1 text-[11px] text-muted-foreground">
+                • {selectedCustomer.loyalty_points || 0} pts
+              </span>
+            )}
           </div>
           {!selectedCustomer && <Plus className="w-4 h-4 text-muted-foreground shrink-0" />}
         </button>

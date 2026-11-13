@@ -2485,10 +2485,14 @@ There are two distinct workflows for selling goods sourced outside the store:
    When a walk-in customer requests an out-of-stock item, a cashier can run to a
    neighboring pharmacy or partner shop, buy the units, and ring them up immediately:
    - **Trigger & UI:** When an item has `stock <= 0` or `quantity > stock`, the cart
-     prominently displays a warning badge / button: `"Source outside (Out of stock)"` or
-     `"Source outside (N short)"`. For well-stocked items (`stock >= quantity`), the button
-     is subtly available on hover/focus (for cases where shelf units are damaged or reserved).
-     Clicking opens `SpotSourceDialog`.
+     shows an amber `"Source outside"` pill with the status (`"Out of stock"` or `"N short"`)
+     as separate text beside it. For well-stocked items (`stock >= quantity`) a quieter
+     `text-muted-foreground` "Source outside" link is always visible (for damaged or reserved
+     shelf units); it used to be `opacity-0` until hover, which hid it on touch tills.
+     Clicking either opens `SpotSourceDialog`. The controls live in
+     `components/pos/pos-cart-item-sourcing.tsx`. Each label is `whitespace-nowrap` and the
+     row is `flex-wrap`, so a narrow (~380px) cart wraps whole chips rather than mid-label
+     (`pos-cart-item-spot-sourcing-layout.test.tsx`).
    - **Partial Spot Sourcing (Split Allocation):** When a customer requests more units
      than exist on shelf (e.g. 5 requested, 2 on shelf), `SpotSourceDialog` defaults to
      **Split Allocation**:

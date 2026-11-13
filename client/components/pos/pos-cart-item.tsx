@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Minus, Plus, Trash2, Share2 } from "lucide-react";
+import { Minus, Plus, Trash2 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { CategoryIcon } from "./category-icon";
+import { POSCartItemSourcing } from "./pos-cart-item-sourcing";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
@@ -111,52 +112,12 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
               </span>
             )}
           </div>
-          {item.is_spot_sourced ? (
-            <div className="flex items-center gap-1.5 mb-1">
-              <button
-                type="button"
-                onClick={() => onConfigureSpotSourcing?.(item)}
-                className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-colors cursor-pointer"
-                title="Edit spot sourcing details"
-              >
-                <Share2 className="w-2.5 h-2.5" />
-                <span>
-                  Spot Sourced ({formatCurrency(item.sourcing_cost || 0, currencyCode)})
-                </span>
-              </button>
-            </div>
-          ) : (
-            onConfigureSpotSourcing && !isLocked && item.item_type !== "service" && (
-              <div className="mb-0.5">
-                {(item.stock ?? 0) <= 0 || item.quantity > (item.stock ?? 0) ? (
-                  <button
-                    type="button"
-                    onClick={() => onConfigureSpotSourcing(item)}
-                    className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-colors cursor-pointer"
-                    title="Source this item on the spot from an external store"
-                  >
-                    <Share2 className="w-2.5 h-2.5" />
-                    <span>
-                      Source outside
-                      {(item.stock ?? 0) <= 0
-                        ? " (Out of stock)"
-                        : ` (${item.quantity - (item.stock ?? 0)} short)`}
-                    </span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => onConfigureSpotSourcing(item)}
-                    className="text-[10px] text-muted-foreground/50 hover:text-amber-600 dark:hover:text-amber-400 inline-flex items-center gap-1 transition-colors cursor-pointer opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
-                    title="Source this item on the spot from an external store (e.g. if shelf stock is damaged)"
-                  >
-                    <Share2 className="w-2.5 h-2.5" />
-                    <span>Source outside</span>
-                  </button>
-                )}
-              </div>
-            )
-          )}
+          <POSCartItemSourcing
+            item={item}
+            currencyCode={currencyCode}
+            isLocked={isLocked}
+            onConfigureSpotSourcing={onConfigureSpotSourcing}
+          />
           {isResellerSale && canOverridePrice ? (
             <div className="flex flex-col items-start gap-1 text-[11.5px]">
               <input

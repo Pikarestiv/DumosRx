@@ -268,8 +268,8 @@ export async function getDailyCloseData(reportDate: string) {
   // All four reads are independent, so they go out together rather than one
   // await at a time (same shape as getCurrentMonthRevenue in finance.ts).
   const [salesToday, itemsToday, returnsToday, returnItemsToday] = await Promise.all([
-    query<Sale>(
-      `SELECT s.*, ${PRICE_ADJUSTMENT_COLUMNS_SQL} FROM sales s WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}`,
+    query<Sale & { item_names?: string }>(
+      `SELECT s.*, ${PRICE_ADJUSTMENT_COLUMNS_SQL}, ${SALE_LINE_NAMES_SQL} as item_names FROM sales s WHERE s.transaction_date >= ? AND s.transaction_date <= ? AND s._deleted = 0${storeId ? " AND s.store_id = ?" : ""}`,
       storeId ? [startIso, endIso, storeId] : [startIso, endIso],
     ),
 

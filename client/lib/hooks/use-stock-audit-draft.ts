@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { create } from "zustand";
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
-import { getActiveStoreId, initDatabase, onWriterTabChange } from "@/lib/db/core";
+import {
+  getActiveStoreId,
+  initDatabase,
+  onBeforeWriterHandoff,
+  onWriterTabChange,
+} from "@/lib/db/core";
 import {
   deleteLocalStockAuditDraft,
   clearAllLocalStockAuditDrafts,
@@ -14,6 +19,7 @@ import {
 import { hasCountedAuditRow } from "@/components/stock-batch/audit-derivations";
 import {
   adoptUnscopedStockAuditDraft,
+  discardLegacyStockAuditDraft,
   importLegacyStockAuditDrafts,
 } from "./stock-audit-draft-legacy";
 
@@ -65,6 +71,7 @@ export async function flushStockAuditDraftSaves(): Promise<void> {
 }
 
 if (typeof window !== "undefined") {
+  onBeforeWriterHandoff(flushStockAuditDraftSaves);
   window.addEventListener("pagehide", () => void flushStockAuditDraftSaves());
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") void flushStockAuditDraftSaves();
@@ -152,6 +159,7 @@ export const useStockAuditDraftStore = create<StockAuditDraftState>()((set, get)
   clearAllDrafts: () => {
     cancelAllSaves();
     void clearAllLocalStockAuditDrafts();
+    discardLegacyStockAuditDraft();
     set({ drafts: {}, items: [] });
   },
 

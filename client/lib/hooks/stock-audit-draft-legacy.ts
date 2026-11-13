@@ -1,6 +1,6 @@
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
 import { hasCountedAuditRow } from "@/components/stock-batch/audit-derivations";
-import { getDatabase, hasUnpersistedWrites, isTauri, saveDatabase } from "@/lib/db/core";
+import { getDatabase, isTauri, isWriterTab, saveDatabase } from "@/lib/db/core";
 import {
   deleteLocalStockAuditDraft,
   getLocalStockAuditDraft,
@@ -9,6 +9,7 @@ import {
 
 export const LEGACY_STOCK_AUDIT_DRAFT_KEY = "stock-audit-draft";
 export const UNSCOPED_DRAFT_KEY = "default";
+export const LEGACY_IMPORT_MARKER_KEY = "__legacy_local_storage_imported__";
 
 export function migrateStockAuditDraft(
   persisted: unknown,
@@ -58,6 +59,7 @@ async function sqliteDraftYieldsTo(storeId: string, legacyItems: AuditItem[]): P
 // Retire once no active device reports a build older than this change.
 export async function importLegacyStockAuditDrafts(fallbackStoreId: string): Promise<void> {
   if (typeof window === "undefined" || !getDatabase()) return;
+  if (!isTauri() && !isWriterTab()) return;
   let raw: string | null = null;
   try {
     raw = localStorage.getItem(LEGACY_STOCK_AUDIT_DRAFT_KEY);
@@ -66,22 +68,25 @@ export async function importLegacyStockAuditDrafts(fallbackStoreId: string): Pro
   }
   if (!raw) return;
 
-  let byStore: Map<string, AuditItem[]>;
-  try {
-    byStore = legacyDraftsByStore(raw, fallbackStoreId);
-  } catch (err) {
-    console.warn("[Drafts] Unreadable legacy cycle count draft, leaving it in place", err);
-    return;
+  if (!(await getLocalStockAuditDraft(LEGACY_IMPORT_MARKER_KEY))) {
+    let byStore: Map<string, AuditItem[]>;
+    try {
+      byStore = legacyDraftsByStore(raw, fallbackStoreId);
+    } catch (err) {
+      console.warn("[Drafts] Unreadable legacy cycle count draft, leaving it in place", err);
+      return;
+    }
+    for (const [storeId, items] of byStore) {
+      if (items.length === 0 || !(await sqliteDraftYieldsTo(storeId, items))) continue;
+      if (!(await saveLocalStockAuditDraft(storeId, items))) return;
+    }
+    if (!(await saveLocalStockAuditDraft(LEGACY_IMPORT_MARKER_KEY, []))) return;
   }
+  if (!isTauri() && !(await saveDatabase())) return;
+  discardLegacyStockAuditDraft();
+}
 
-  for (const [storeId, items] of byStore) {
-    if (items.length === 0 || !(await sqliteDraftYieldsTo(storeId, items))) continue;
-    if (!(await saveLocalStockAuditDraft(storeId, items))) return;
-  }
-  if (!isTauri()) {
-    await saveDatabase();
-    if (hasUnpersistedWrites()) return;
-  }
+export function discardLegacyStockAuditDraft(): void {
   try {
     localStorage.removeItem(LEGACY_STOCK_AUDIT_DRAFT_KEY);
   } catch {

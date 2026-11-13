@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { storeAddressLine, storeNameTextClass, toDisplayTitle } from "@/lib/storefront-display";
+import { hasContactDetails, storeAddressLine, storeNameTextClass, toDisplayTitle, viewAllProductsLabel } from "@/lib/storefront-display";
 
 describe("toDisplayTitle", () => {
   it.each([
@@ -61,5 +61,26 @@ describe("storeNameTextClass", () => {
 
   it("measures the trimmed name", () => {
     expect(storeNameTextClass(`  ${"a".repeat(16)}  `)).toBe("text-base sm:text-xl");
+  });
+});
+
+describe("hasContactDetails", () => {
+  it("ignores a phone or email that is only whitespace", () => {
+    expect(hasContactDetails({ phone: " ", email: "\t", address: null, location: "  " })).toBe(false);
+  });
+
+  it("counts a real phone or email", () => {
+    expect(hasContactDetails({ phone: " 0803 000 0000 ", email: null })).toBe(true);
+    expect(hasContactDetails({ phone: "", email: "shop@example.com" })).toBe(true);
+  });
+});
+
+describe("viewAllProductsLabel", () => {
+  it("uses the singular for one product", () => {
+    expect(viewAllProductsLabel(1, 1)).toBe("View all 1 product");
+  });
+
+  it("uses the plural otherwise", () => {
+    expect(viewAllProductsLabel(2, 12)).toBe("View all 12 products");
   });
 });

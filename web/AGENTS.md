@@ -206,7 +206,8 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
     the hero's "Contact us", the footer's Contact column and the Contact nav
     link (`storefrontNavLinks(slug, store)`) all appear only when
     `hasContactDetails(store)` (`lib/storefront-display.ts`): a phone, an
-    email or an address line. Without one there is nothing to link to. Every section carries
+    email or an address line, each ignored when it is only whitespace
+    (A-384). Without one there is nothing to link to. Every section carries
     `scroll-mt-24` so the sticky header does not cover its heading.
   - **N in "View all N products" is the show endpoint's `product_count`**
     (2026-11-13), the uncapped total of the branch's online-visible products.
@@ -218,7 +219,7 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
     `STOREFRONT_LANDING_PRODUCT_CAP`), and plain "View all products" once the
     list is full, since the real total is unknown. The fallback can go once
     every deployed API returns `product_count` (the same release as this
-    change). The shop page's own count comes from its paginated `meta.total`.
+    change). One product reads "View all 1 product". The shop page's own count comes from its paginated `meta.total`.
   - Shop (`/catalog`, labelled **Shop** in breadcrumbs, title and heading;
     the route name stays `catalog` so old links work): search, category
     pills and pagination via `StorefrontCatalogView`.

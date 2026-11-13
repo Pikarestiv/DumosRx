@@ -5841,6 +5841,37 @@ same tab session still gets its own fresh one-time retry.
   - If you add or rename a card, tab or heading, grep `e2e/` for the old
     text. A loose regex locator elsewhere in the suite may now match two
     elements, which Playwright fails on in strict mode.
+  - **Port:** `playwright.config.ts` reads `E2E_PORT` (default 3000) for
+    both `baseURL` and the `webServer` it starts. `reuseExistingServer` is on
+    locally, so when something else already owns :3000 (another session's
+    dev server), run `E2E_PORT=3100 npx playwright test …` rather than let the
+    suite drive a server built from a different checkout. In a git worktree,
+    copy `node_modules` (`cp -cR`, an APFS clone) instead of symlinking it:
+    Turbopack refuses a `node_modules` symlink that points outside the root.
+  - **Seeding rows instead of clicking them in (`e2e/local-db.ts`):** the
+    checked-in fixture predates newer tables (`services`, `sale_services`…),
+    so `getMigratedFixture()` boots it once per worker to let the app's own
+    migrations run and exports the result. `seedAndLogin()`
+    (`e2e/services-pos-ui.ts`) applies `SeedStatement`s to that copy with
+    sql.js in Node and writes it to IndexedDB before login; `queryLocalDb()`
+    reads the live page DB back through `window.getDatabaseBinary()` for
+    stored-row assertions. Role users (`e2e/services-seed.ts`'s
+    `roleUsers()`: `admin`, `specialist`, `sales_staff`, `auditor`, PIN 1234)
+    have no permission-group row, so they get `fallbackPermissions(role)` —
+    the role defaults, same as a device before its first sync. `login(page,
+    username)` takes the username; a non-owner's dashboard reads "My Sales
+    Today", which it also waits for.
+  - **Services POS specs** (`services-catalog-permissions`,
+    `services-pos-checkout`, `services-pos-held`,
+    `services-pos-sourcing-layout`): catalog gating per role and the
+    no-active-store refusal; mixed checkout with no stock movement for the
+    service line; split and full service returns reaching `refunded`; held
+    service repricing notices; and the cart's "Source outside"/"Spot Sourced"
+    labels at 390×844 in light and dark (set `E2E_SCREENSHOT_DIR` to keep the
+    screenshots; dark is applied by swapping the `<html>` class because a
+    reload currently resets a stored dark theme, A-367). Two cases are
+    `test.fail` on purpose until their bug is fixed: the checkout receipt's
+    "(Service)" marker (A-366) and `theme-persistence.spec.ts` (A-367).
 - `npm run test:schema`: diffs local SQLite schema against the Laravel
   backend's live MySQL schema. Requires the sibling `../laravel-server` repo
   and a working `php artisan tinker` in it. Two things about it are load

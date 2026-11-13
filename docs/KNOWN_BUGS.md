@@ -644,8 +644,27 @@ suggested tackle order rather than a strict ranking.
 #### A-365. `client/` — transaction history and recent sales show a services-only sale as 0 items with no names
 - **Found:** 2026-11-13, review of `feat/service-pos`, beside the customer purchase-history fix.
 - **Location:** `client/lib/db/queries/sales.ts`, every `item_count` (`SUM(quantity) FROM sale_items`) and `item_names` (`GROUP_CONCAT(pr.name) FROM sale_items JOIN products`) subquery (four queries, around lines 123, 138, 156 and 220).
-- **What's wrong:** they read `sale_items` only, so a service line contributes nothing: a services-only sale lists as 0 items with a blank item summary, and a mixed sale under-counts. `getCustomerTransactions()` in `customers.ts` was fixed the same way the proposed fix describes (`customer-purchase-history-services.test.ts`).
+- **What's wrong:** they read `sale_items` only, so a service line contributes nothing: a services-only sale's count comes back `NULL` with a blank item summary, and a mixed sale under-counts. The POS Recent Sales row then shows "1 item" whatever was sold, because `transaction-item.tsx` falls back with `sale.item_count || 1` (seen in the 2026-11-13 Playwright smoke: a product plus a service listed as "1 item"). `getCustomerTransactions()` in `customers.ts` was fixed the same way the proposed fix describes (`customer-purchase-history-services.test.ts`).
 - **Proposed fix:** add `+ (SELECT SUM(quantity) FROM sale_services …)` to each count and `UNION ALL` live `sale_services.service_name` into each `item_names` subquery, as `customers.ts` now does. Display only; no stored figure is wrong.
+
+#### A-366. `client/` — the receipt shown right after checkout does not mark service lines "(Service)"
+- **Found:** 2026-11-13, Playwright smoke of `feat/service-pos` (`e2e/services-pos-checkout.spec.ts`, the `test.fail` case).
+- **Location:** `client/lib/hooks/use-pos-payment-helpers.ts`, `buildReceiptTransaction()`, which sets `items: [...cart]`.
+- **What's wrong:** the proforma preview (`cart-to-receipt-transaction.ts`) and a reprint from Transaction Details (`sale-to-receipt-transaction.ts`) both append " (Service)" to a service line, but the Sale Completed receipt after Charge prints the raw cart name, so the receipt the customer actually gets is the one copy that does not say which lines were services.
+- **Repro:** sell a service at POS; the Sale Completed receipt lists "E2E CONSULTATION", not "E2E CONSULTATION (Service)".
+- **Fix:** map the cart lines in `buildReceiptTransaction()` the way `cartToReceiptTransaction()` does, then drop the `test.fail` from the spec.
+
+#### A-367. `client/` — a paid store's dark theme is reset to light on every reload
+- **Found:** 2026-11-13, Playwright smoke of `feat/service-pos` (`e2e/theme-persistence.spec.ts`, a `test.fail` case).
+- **Location:** `client/components/auth/license-guard.tsx`, `ThemeRestrictor`.
+- **What's wrong:** it calls `setTheme("light")` whenever `currentTier === "free"`, and `useFeatureGate()` reports `"free"` while `storeProfile` is still loading (`storeProfile?.subscription_tier || "free"`). `LicenseGuard` mounts it as soon as the local license check finishes, before the store profile query resolves, so on every full load the stored theme is overwritten with "light" for a Pro store too.
+- **Repro:** Pro store, Settings → General → Dark, reload: the page comes back light and `localStorage["dumosrx-ui-theme"]` is `"light"`.
+- **Fix:** skip the reset until the store profile has loaded (e.g. return early while `storeProfile` is undefined), then drop the `test.fail`.
+
+#### A-368. `client/` — at phone width the cart truncates a spot-sourced line's pill to "Spot Sour…", hiding the sourcing cost
+- **Found:** 2026-11-13, Playwright smoke of `feat/service-pos` at 390×844 (`e2e/services-pos-sourcing-layout.spec.ts`).
+- **What's wrong:** commit `4b02797f` kept the pill on one line by truncating its text, but at a ~380px cart the name column is only ~95px wide, so the pill reads "Spot Sour…" and the cost in brackets is never visible; product names are cut to about ten characters by the same squeeze. Separately, each cart line shows a faint red hairline round its edges in light mode: the swipe-to-delete `bg-destructive` backdrop bleeding through the antialiased rounded clip.
+- **Fix:** let the sourcing row take the full line width under the name (or drop the cost to its own line), and inset the delete backdrop or give the row the same radius as its clip.
 
 ---
 

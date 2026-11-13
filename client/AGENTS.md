@@ -5845,6 +5845,10 @@ same tab session still gets its own fresh one-time retry.
   - A run rewrites the tracked fixture `e2e/.auth/test-db.bin`, and
     `next dev` re-injects a `nextjs-agent-rules` block into this file. Both
     are artifacts: `git restore` them, don't commit them.
+  - **Screenshots go to `test.info().outputPath(name)`** (under
+    `test-results/`, per test), never an absolute path: two specs once wrote
+    to a hardcoded `/Users/admin/.gemini/...` folder that exists on one
+    machine only.
   - If you add or rename a card, tab or heading, grep `e2e/` for the old
     text. A loose regex locator elsewhere in the suite may now match two
     elements, which Playwright fails on in strict mode.
